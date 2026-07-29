@@ -95,6 +95,23 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Cross-section impact:** Eksekusi keputusan D-023 (removal `AIAssistant.vue`, diputuskan Section 03) — lihat `docs/mockup-change-impact-log.md` entri CI-001.
 - **Next action:** Selesaikan Q8 (tooling lint/typecheck) sebelum atau di awal Section 06 (Dashboard), lalu lanjut sesuai phasing `docs/template-reuse-mapping.md` bagian I. Menunggu perintah user — tidak dieksekusi otomatis.
 
+## Section 06 — Dashboard
+
+- **Tanggal:** 2026-07-29
+- **Status:** COMPLETED
+- **Scope dan completed items:** Menyelesaikan Dashboard final di `/` berbasis fixture terpusat, role-aware, sesuai `docs/route-and-role-matrix.md` bagian 6 (D-031, LOCKED). Widget diimplementasikan 1:1 per role: Management/Viewer (Opportunity Pipeline, Active Projects by Status, Budget vs Actual, Outstanding Invoices, Attention, Recent Activity), Sales (Pipeline, Quotations Menunggu Keputusan), Project Manager (Active Projects Milik Saya, Upcoming Departures, Attention Milik Saya, Milestone/Task Mendatang, Change History Ringkas), Operations/Ticketing/Accommodation/Transportation/MICE (Service Readiness ter-scope per sub-domain, Upcoming Departures), Finance (Budget vs Actual, Cost Breakdown, Outstanding), Super Admin (superset + Ringkasan Administrasi). Filter (status, tipe project, client, owner, periode keberangkatan) ditambahkan dan berlaku ke seluruh widget berbasis Project.
+- **Files created:** `app/components/shared/StatusBreakdownList.vue`.
+- **Files changed:** `app/pages/index.vue` (rewrite total), `app/components/dashboard/BudgetChart.vue`, `ExpenseCategories.vue`, `RecentActivity.vue` (diadaptasi dari hardcoded fake data ke fixture nyata), `app/utils/attention.ts` (+`isTaskUpcoming`, +`UPCOMING_TASK_WINDOW_DAYS`), `app/data/index.ts` (+4 selector), `app/data/opportunities.ts` (+3 Opportunity, +2 Quotation), `app/data/activity.ts` (+2 Task).
+- **Files removed:** Tidak ada.
+- **Routes affected:** `/` (final, sebelumnya shell Section 05).
+- **Components reused:** `StatsCard.vue` (apa adanya), 15 primitive `ui/*` termasuk `ui/select` (pemakaian nyata pertama).
+- **Components created:** `StatusBreakdownList.vue`.
+- **Data/types/constants affected:** Fixture `OPPORTUNITIES`/`QUOTATIONS`/`TASKS` diperluas (lihat `docs/mockup-change-impact-log.md` CI-002); tidak ada perubahan `app/types/*`/`app/constants/*`.
+- **Validation results:** `npx nuxi prepare` sukses; `npm run build` sukses (2x run); smoke test curl 9 route → seluruhnya HTTP 200; verifikasi tekstual bundle server mengonfirmasi widget baru ter-compile; `npx vitest run` → 0 test file (pre-existing); `npx nuxi typecheck` → gagal, `vue-tsc` tidak terpasang (Q8, pre-existing); lint tidak tersedia (Q8, pre-existing). Verifikasi browser interaktif/hydrated **tidak dilakukan** — tidak ada tool headless browser tersedia di lingkungan ini.
+- **Known issues:** Q8 tetap terbuka (user memerintahkan Section 06 dikerjakan langsung tanpa menyelesaikannya lebih dulu); "Follow-up/activity mendatang milik sendiri" (Sales) belum dapat diimplementasikan (data model Activity level-Party/Opportunity belum ada); "Cost breakdown" Finance per-project bukan per jenis layanan (keterbatasan fixture).
+- **Cross-section impact:** Lihat `docs/mockup-change-impact-log.md` CI-002 (perluasan fixture Section 05) dan CI-003 (adaptasi komponen dashboard dan rewrite halaman Dashboard Section 05).
+- **Next action:** Section 07 — CRM Party. Rekomendasi eksplisit: selesaikan Q8 (tooling lint/typecheck) sebelum atau di awal Section 07. Menunggu perintah user — tidak dieksekusi otomatis.
+
 ---
 
-*(Belum ada entri Section 06 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*
+*(Belum ada entri Section 07 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*

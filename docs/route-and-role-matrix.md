@@ -14,7 +14,7 @@ Tabel ringkas lintas seluruh route (detail per kolom Purpose/Required data ada d
 | Route | Module | Page | Menu placement | Demo inclusion | Role access (ringkas) | Main action | Reuse source | Implementation phase | Status |
 |---|---|---|---|---|---|---|---|---|---|
 | `/login` | Global | Login | Tidak di sidebar (publik) | Ya | Publik (pre-auth) | Login mock | `pages/login.vue` existing | Foundation | foundation |
-| `/` | Global/Dashboard | Dashboard | Sidebar — Dashboard | Ya | Semua (widget kondisional per role) | Lihat ringkasan KPI lintas-domain | `StatsCard` + widget adaptasi | Foundation (shell) → Reporting (final) | foundation (shell) |
+| `/` | Global/Dashboard | Dashboard | Sidebar — Dashboard | Ya | Semua (widget kondisional per role) | Lihat ringkasan KPI lintas-domain | `StatsCard` + widget adaptasi | Foundation (shell) → Section 06 (final) | **selesai (Section 06)** |
 | `/[...slug]` | Global | 404 | Tidak di sidebar | Ya | Semua | Go back / Go home | `pages/[...slug].vue` existing | Foundation | foundation |
 | `/settings` | Global | Settings (minimal) | Popover profil, bukan sidebar | Ya (minimal) | Diri sendiri saja | Edit profil pribadi | Form existing (adaptasi kecil) | Foundation | phase later (minimal) / deferred (lengkap) |
 | `/crm/prospects` | CRM | Prospects | Sidebar — CRM > Prospects | Ya | Sales:`MANAGE`, Management:`VIEW`, Viewer:`VIEW` | Search/filter/kelola Prospect | `pages/projects/index.vue` (pola table) | CRM | phase later |
@@ -51,7 +51,7 @@ Kolom **Status** memakai 4 nilai sesuai Prompt 3-B: `foundation` (dibangun di fa
 | Route | Page name | Parent menu | Purpose | Required data | Main reusable component | Access role | Demo? | Status |
 |---|---|---|---|---|---|---|---|---|
 | `/login` | Login | — | Autentikasi mock | `User` (mock) | `pages/login.vue` existing (adaptasi payload) | Semua (publik, sebelum login) | Ya | foundation |
-| `/` | Dashboard | Dashboard | Ringkasan lintas-domain, konten kondisional per role | Agregasi CRM/Project/Finance/Operations | `StatsCard` + widget adaptasi (`BudgetChart`, `RecentActivity`, dll.) | Semua role (isi berbeda per role, lihat bagian 6) | Ya | foundation (shell) → phase later (isi final, setelah modul lain tersedia) |
+| `/` | Dashboard | Dashboard | Ringkasan lintas-domain, konten kondisional per role | Agregasi CRM/Project/Finance/Operations | `StatsCard` + widget adaptasi (`BudgetChart`, `ExpenseCategories`, `RecentActivity`, `StatusBreakdownList`) | Semua role (isi berbeda per role, lihat bagian 6) | Ya | **selesai (Section 06)** — lihat `docs/mockup-section-reports/section-06-dashboard.md` |
 | `/[...slug]` | 404 | — | Catch-all halaman tidak ditemukan | — | `pages/[...slug].vue` existing | Semua | Ya | foundation |
 | `/settings` | Settings (minimal) | via profile popover, bukan sidebar | Profil/akun pribadi user login | `User` (current user) | Form existing (adaptasi kecil) | Semua (hanya data diri sendiri) | Ya, minimal | deferred (versi lengkap) / phase later (versi minimal) |
 
@@ -312,6 +312,12 @@ Satu halaman dashboard (`/`), widget yang tampil bersifat kondisional per role (
 | Viewer / Auditor | Ringkasan read-only dari widget Management (tanpa aksi apa pun) |
 
 **Prinsip implementasi (dicatat untuk tahap berikutnya, bukan keputusan tambahan baru):** satu komponen dashboard dengan array widget yang difilter berdasarkan role user login (`v-if`/computed per widget), bukan route/file dashboard terpisah per role — konsisten dengan instruksi eksplisit "Jangan membuat dashboard terpisah sepenuhnya untuk setiap role."
+
+**Catatan implementasi Section 06 (klarifikasi, bukan perubahan keputusan LOCKED di atas):**
+- "Lead" tidak dimodelkan sebagai entitas terpisah di fixture (belum ada Section CRM yang mendefinisikannya) — widget Sales "Lead & opportunity count" diimplementasikan sebagai hitungan Opportunity pada stage terbuka saja.
+- "Follow-up/activity mendatang milik sendiri" (Sales) **belum diimplementasikan** — `ActivityEntry` di fixture saat ini hanya terikat ke `Project` (dipakai tab Activity & Changes), belum ada Activity di level Party/Opportunity untuk opportunity yang belum jadi Project. Menyusul Section 07 (CRM Party) atau Section 08 (Opportunity dan Quotation) saat model Activity level-Party/Opportunity dibangun.
+- "Cost breakdown" (Finance) diimplementasikan per-project (dari `actualCostIdr`), bukan per jenis layanan — belum ada field cost per service type di fixture. Dapat diperhalus di Section 15 (Project Finance) bila granularity itu benar-benar dibutuhkan.
+- Fixture `OPPORTUNITIES`/`QUOTATIONS` ditambah 3 opportunity pipeline aktif (OPP-005–007) dan `TASKS` ditambah 2 task mendatang (non-overdue) agar widget Pipeline dan Milestone/Task Mendatang punya data nyata untuk ditampilkan — lihat `docs/mockup-section-reports/section-06-dashboard.md` dan `docs/mockup-change-impact-log.md` (CI-002).
 
 ---
 

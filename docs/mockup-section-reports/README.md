@@ -19,7 +19,7 @@ Ringkasan Section 00–04 dalam skema field standar protokol ini tetap tersedia 
 | Section ID | Nama | File | Status |
 |---|---|---|---|
 | 05 | Foundation | [`section-05-foundation.md`](./section-05-foundation.md) | COMPLETED |
-| 06 | Dashboard | `section-06-dashboard.md` | Belum dibuat — section belum dieksekusi |
+| 06 | Dashboard | [`section-06-dashboard.md`](./section-06-dashboard.md) | COMPLETED |
 | 07 | CRM Party | `section-07-crm-party.md` | Belum dibuat — section belum dieksekusi |
 | 08 | Opportunity and Quotation | `section-08-opportunity-quotation.md` | Belum dibuat — section belum dieksekusi |
 | 09 | Opportunity Won to Project | `section-09-opportunity-won-to-project.md` | Belum dibuat — section belum dieksekusi |

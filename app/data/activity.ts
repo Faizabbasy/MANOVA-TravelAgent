@@ -27,9 +27,13 @@ export const TASKS: ProjectTask[] = [
 
   { id: 'TSK-1021', projectId: 'PRJ-102', title: 'Reschedule hotel booking', status: 'in-progress' },
   { id: 'TSK-1022', projectId: 'PRJ-102', title: 'Update traveler manifest', status: 'overdue', dueAt: '2026-07-22' },
+  // TSK-1023 (Section 06/Dashboard): melengkapi task dengan dueAt di masa depan agar widget
+  // "Milestone/task mendatang" (Project Manager) punya data selain yang overdue.
+  { id: 'TSK-1023', projectId: 'PRJ-102', title: 'Follow-up pembayaran termin tambahan ke client', status: 'not-started', dueAt: '2026-08-01' },
 
   { id: 'TSK-1031', projectId: 'PRJ-103', title: 'Finalisasi rooming list Group C', status: 'in-progress' },
   { id: 'TSK-1032', projectId: 'PRJ-103', title: 'Konfirmasi venue MICE hari ke-2', status: 'pending-confirmation' },
   { id: 'TSK-1033', projectId: 'PRJ-103', title: 'Kirim rundown acara ke client', status: 'not-started' },
   { id: 'TSK-1034', projectId: 'PRJ-103', title: 'Rekonsiliasi actual cost transportation', status: 'overdue', dueAt: '2026-07-25' },
+  { id: 'TSK-1035', projectId: 'PRJ-103', title: 'Verifikasi ulang manifest VIP sebelum keberangkatan', status: 'in-progress', dueAt: '2026-08-05' },
 ]

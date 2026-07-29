@@ -22,6 +22,25 @@ export const OPPORTUNITIES: Opportunity[] = [
     createdAt: '2026-06-15', decidedAt: '2026-07-05', lostReason: 'Budget internal client dipotong',
     serviceScope: ['flight', 'hotel'], quotationId: 'QUO-004',
   },
+  /**
+   * OPP-005–007 (Section 06/Dashboard): opportunity pipeline masih kosong bila hanya memakai OPP-001–004
+   * (seluruhnya sudah Won/Lost), sehingga widget "Opportunity Pipeline" tidak punya data untuk ditampilkan.
+   * Tiga baris berikut menambah opportunity yang masih berjalan (belum diputuskan), mengikuti party dan pola
+   * ID existing — bukan dataset paralel. Section 07/08 (CRM Party, Opportunity dan Quotation) akan mewarisi
+   * dan dapat memperluas baris ini, bukan menduplikasinya.
+   */
+  {
+    id: 'OPP-005', partyId: 'PTY-004', title: 'Bali Team Building 2026', stage: 'negotiation',
+    createdAt: '2026-07-05', serviceScope: ['flight', 'hotel'], quotationId: 'QUO-005',
+  },
+  {
+    id: 'OPP-006', partyId: 'PTY-001', title: 'Manila Repeat Business Q4 2026', stage: 'proposal',
+    createdAt: '2026-07-15', serviceScope: ['flight'], quotationId: 'QUO-006',
+  },
+  {
+    id: 'OPP-007', partyId: 'PTY-002', title: 'Abu Dhabi Follow-up Training', stage: 'qualification',
+    createdAt: '2026-07-20', serviceScope: ['flight', 'hotel'],
+  },
 ]
 
 export const QUOTATIONS: Quotation[] = [
@@ -29,4 +48,6 @@ export const QUOTATIONS: Quotation[] = [
   { id: 'QUO-002', opportunityId: 'OPP-002', amountIdr: 345_000_000, createdAt: '2026-06-20', accepted: true },
   { id: 'QUO-003', opportunityId: 'OPP-003', amountIdr: 1_400_000_000, createdAt: '2026-06-05', accepted: true },
   { id: 'QUO-004', opportunityId: 'OPP-004', amountIdr: 45_000_000, createdAt: '2026-06-15', accepted: false },
+  { id: 'QUO-005', opportunityId: 'OPP-005', amountIdr: 180_000_000, createdAt: '2026-07-18', accepted: false },
+  { id: 'QUO-006', opportunityId: 'OPP-006', amountIdr: 60_000_000, createdAt: '2026-07-22', accepted: false },
 ]

@@ -5,7 +5,8 @@ import { VENDORS } from './vendors'
 import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS } from './projects'
 import { INVOICES, PAYMENTS } from './finance'
 import { ACTIVITIES, DOCUMENTS, TASKS } from './activity'
-import { isProjectNeedingAttention } from '~/utils/attention'
+import { isProjectNeedingAttention, isTaskUpcoming } from '~/utils/attention'
+import type { ServiceTypeKey } from '~/types/project'
 
 export {
   USERS,
@@ -51,4 +52,27 @@ export function getProjectsNeedingAttention() {
 
 export function getOutstandingInvoices() {
   return INVOICES.filter(invoice => invoice.status !== 'paid')
+}
+
+/** Selector tambahan Section 06 (Dashboard) — dipakai widget role-aware ("milik sendiri", service readiness, dll). */
+
+export const getProjectsByOwner = (ownerId: string) => PROJECTS.filter(project => project.ownerId === ownerId)
+
+export function getServicesForProjects(projectIds: string[], type?: ServiceTypeKey) {
+  return PROJECT_SERVICES.filter(service =>
+    projectIds.includes(service.projectId) && (!type || service.type === type),
+  )
+}
+
+export function getUpcomingTasks(projectIds?: string[]) {
+  return TASKS
+    .filter(task => isTaskUpcoming(task) && (!projectIds || projectIds.includes(task.projectId)))
+    .sort((a, b) => (a.dueAt ?? '').localeCompare(b.dueAt ?? ''))
+}
+
+export function getRecentChanges(projectIds?: string[], limit = 5) {
+  return ACTIVITIES
+    .filter(activity => activity.isChange && (!projectIds || projectIds.includes(activity.projectId)))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    .slice(0, limit)
 }

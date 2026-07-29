@@ -12,6 +12,9 @@ export const DEMO_REFERENCE_DATE = '2026-07-29'
 /** Attention threshold default (D-040) — asumsi aman untuk mockup, bukan angka final bisnis (lihat Q9). */
 export const UPCOMING_DEPARTURE_WINDOW_DAYS = 30
 
+/** Jendela "task mendatang" untuk widget dashboard Project Manager (Section 06) — horizon lebih pendek dari keberangkatan. */
+export const UPCOMING_TASK_WINDOW_DAYS = 14
+
 export function isBudgetOverrun(project: Project): boolean {
   return project.actualCostIdr > project.budgetIdr
 }
@@ -27,6 +30,12 @@ export function isInvoiceOverdue(invoice: Invoice, referenceIso = DEMO_REFERENCE
 
 export function isTaskOverdue(task: ProjectTask): boolean {
   return task.status === 'overdue'
+}
+
+export function isTaskUpcoming(task: ProjectTask, referenceIso = DEMO_REFERENCE_DATE): boolean {
+  if (!task.dueAt || task.status === 'done' || task.status === 'overdue') return false
+  const days = daysUntil(task.dueAt, referenceIso)
+  return days >= 0 && days <= UPCOMING_TASK_WINDOW_DAYS
 }
 
 export function hasUnreviewedChange(activities: { isChange: boolean; reviewed: boolean }[]): boolean {

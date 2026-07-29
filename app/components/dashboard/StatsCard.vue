@@ -30,10 +30,10 @@ const iconColorClasses = {
 <template>
   <div class="bg-card rounded-xl p-6 card-shadow animate-fade-in">
     <div class="flex items-start justify-between">
-      <div class="space-y-3">
+      <div class="space-y-3 min-w-0">
         <p class="text-sm font-medium text-muted-foreground">{{ title }}</p>
         <div class="space-y-1">
-          <p class="text-2xl font-bold text-foreground">{{ value }}</p>
+          <p class="text-2xl font-bold text-foreground break-words">{{ value }}</p>
           <div v-if="change" class="flex items-center gap-1.5">
             <TrendingUp v-if="change.trend === 'up'" class="h-3.5 w-3.5 text-success" />
             <TrendingDown v-else class="h-3.5 w-3.5 text-destructive" />

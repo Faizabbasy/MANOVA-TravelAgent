@@ -193,6 +193,22 @@ Landasan: `docs/mockup-information-architecture.md`, `docs/route-and-role-matrix
 
 ---
 
+## 4a. Opportunity Pipeline Aktif (ditambahkan Section 06 — Dashboard)
+
+OPP-001–004 seluruhnya sudah berstatus final (`Won`/`Lost`), sehingga widget dashboard "Opportunity Pipeline" tidak akan pernah punya data untuk ditampilkan tanpa opportunity yang masih berjalan. Tiga baris berikut ditambahkan agar widget tersebut dapat didemokan — bukan skenario utama baru, hanya pelengkap data pipeline:
+
+| Field | Nilai |
+|---|---|
+| OPP-005 | PTY-004, "Bali Team Building 2026", stage `Negotiation`, dibuat 2026-07-05, Quotation QUO-005 Rp 180.000.000 (belum diputuskan) |
+| OPP-006 | PTY-001, "Manila Repeat Business Q4 2026", stage `Proposal`, dibuat 2026-07-15, Quotation QUO-006 Rp 60.000.000 (belum diputuskan) |
+| OPP-007 | PTY-002, "Abu Dhabi Follow-up Training", stage `Qualification`, dibuat 2026-07-20, belum ada quotation |
+
+Task tambahan (agar widget "Milestone/Task Mendatang" Project Manager punya data selain yang overdue): TSK-1023 (PRJ-102, jatuh tempo 2026-08-01), TSK-1035 (PRJ-103, jatuh tempo 2026-08-05).
+
+Detail keputusan dan alasan penambahan ada di `docs/mockup-change-impact-log.md` (CI-002) dan `docs/mockup-section-reports/section-06-dashboard.md`.
+
+---
+
 ## 5. Role-Restricted Finance View (bukan record baru, kondisi tampilan atas PRJ-103)
 
 Menggunakan **PRJ-103** sebagai subjek konkret untuk mendemonstrasikan Role & Access Matrix (`docs/route-and-role-matrix.md` bagian 5) pada tab "Finance":
@@ -240,7 +256,7 @@ PRJ-103 — lihat bagian 5.
 
 Setiap ID pada dokumen ini **wajib dipakai identik** di seluruh titik implementasi berikutnya (dashboard widget, Project Detail, CRM, Finance, Reports, Administration) — tidak boleh ada shape/ID berbeda untuk entitas yang sama seperti temuan Prompt 1 (Project/Task/Expense yang dulu punya 2–3 shape tidak sinkron):
 
-- 3 Project (`PRJ-101`, `PRJ-102`, `PRJ-103`) + 4 Opportunity (`OPP-001`–`OPP-004`) + 4 Party (`PTY-001`–`PTY-004`).
+- 3 Project (`PRJ-101`, `PRJ-102`, `PRJ-103`) + 7 Opportunity (`OPP-001`–`OPP-004` skenario utama, `OPP-005`–`OPP-007` pipeline aktif ditambahkan Section 06 — bagian 4a) + 4 Party (`PTY-001`–`PTY-004`).
 - 5 Vendor (`VND-001`–`VND-005`), dipakai berulang lintas project (bukan vendor baru per project).
 - 12 User (`USR-001`–`USR-011`, `USR-013`) mencakup seluruh 11 role demo (2 user berperan PM untuk keragaman "project owner").
 - ID Invoice/Payment/Task/Change/Document mengikuti prefix project (mis. seluruh entitas PRJ-102 memakai akhiran `102x`) untuk memudahkan penelusuran silang manual sebelum ada database sungguhan.
