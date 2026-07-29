@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "daffascript-nero (Nuxt 4 + Vue)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 8080,
+      "cwd": "/Users/daffascript/Downloads/daffascript/daffascript-nero"
+    },
+    {
+      "name": "daffascript (React + Vite)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 8080,
+      "cwd": "/Users/daffascript/Downloads/daffascript"
+    }
+  ]
+}
