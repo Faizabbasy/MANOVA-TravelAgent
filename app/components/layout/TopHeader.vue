@@ -1,30 +1,25 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Calendar, Plus, Bell } from 'lucide-vue-next'
+import { Bell } from 'lucide-vue-next'
+import { ROLES } from '~/constants/roles'
+import { findStatusOption } from '~/constants/status'
 
 const notificationPanelRef = ref()
 const unreadCount = computed(() => notificationPanelRef.value?.unreadCount || 0)
+
+const { currentUser, currentRole } = useCurrentUser()
+const roleOption = computed(() => findStatusOption(ROLES, currentRole.value))
 </script>
 
 <template>
   <header class="h-16 bg-card border-b border-border flex items-center justify-between px-6 sticky top-0 z-10">
-    <div class="flex items-center gap-4">
-      <h1 class="text-xl font-semibold text-foreground">Dashboard</h1>
-      <div class="flex items-center gap-2 text-sm text-muted-foreground">
-        <Calendar class="h-4 w-4" />
-        <span>Jan 1, 2025 - Jan 16, 2025</span>
-      </div>
+    <div class="flex items-center gap-2 text-sm text-muted-foreground">
+      <span>Masuk sebagai</span>
+      <span class="font-medium text-foreground">{{ currentUser.name }}</span>
+      <StatusBadge :label="roleOption.label" :tone="roleOption.tone" />
     </div>
 
     <div class="flex items-center gap-3">
-      <Button variant="outline" size="sm" class="gap-2">
-        <Plus class="h-4 w-4" />
-        Add Widget
-      </Button>
-      <Button size="sm" class="gap-2 bg-primary hover:bg-primary/90">
-        Export
-      </Button>
-
       <!-- Notification Popover -->
       <Popover>
         <PopoverTrigger as-child>

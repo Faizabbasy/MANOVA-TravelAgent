@@ -1,30 +1,22 @@
 <script setup lang="ts">
+import { computed, reactive } from 'vue'
 import { cn } from '~/lib/utils'
 import {
-  LayoutDashboard,
-  FolderKanban,
-  CheckSquare,
-  Receipt,
-  FileText,
-  Users,
-  UserCircle,
-  Clock,
-  BarChart3,
-  FileSpreadsheet,
-  Layout,
-  Plug,
-  Settings,
   Search,
   ChevronDown,
   LogOut,
   User,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  Plane,
 } from 'lucide-vue-next'
+import { NAV_ITEMS, type NavItem } from '~/constants/navigation'
 
 const route = useRoute()
 const router = useRouter()
 const { isCollapsed, toggle } = useSidebar()
+const { currentUser } = useCurrentUser()
+const { canView } = usePermissions()
 
 const handleLogout = () => {
   localStorage.removeItem('isAuthenticated')
@@ -32,23 +24,25 @@ const handleLogout = () => {
   router.push('/login')
 }
 
-const menuItems = [
-  { title: "Dashboard", url: "/", icon: LayoutDashboard },
-  { title: "Projects", url: "/projects", icon: FolderKanban, badge: 12 },
-  { title: "Tasks", url: "/tasks", icon: CheckSquare, badge: 8 },
-  { title: "Expenses", url: "/expenses", icon: Receipt },
-  { title: "Files", url: "/files", icon: FileText },
-  { title: "Clients", url: "/clients", icon: Users },
-  { title: "Team", url: "/team", icon: UserCircle },
-  { title: "Time Tracking", url: "/time-tracking", icon: Clock },
-  { title: "Reports", url: "/reports", icon: BarChart3 },
-  { title: "Invoices", url: "/invoices", icon: FileSpreadsheet },
-  { title: "Templates", url: "/templates", icon: Layout },
-  { title: "Integrations", url: "/integrations", icon: Plug },
-  { title: "Settings", url: "/settings", icon: Settings },
-]
+const visibleItems = computed(() =>
+  NAV_ITEMS.filter(item => !item.moduleKey || canView(item.moduleKey)).map(item => ({
+    ...item,
+    children: item.children?.filter(child => !child.moduleKey || canView(child.moduleKey)),
+  })),
+)
 
-const isActive = (url: string) => route.path === url
+const isActive = (to: string) => route.path === to
+const isSectionActive = (item: NavItem) =>
+  route.path === item.to || Boolean(item.children?.some(child => route.path === child.to))
+
+const expanded = reactive<Record<string, boolean>>({})
+function isExpanded(item: NavItem) {
+  if (item.label in expanded) return expanded[item.label]
+  return isSectionActive(item)
+}
+function toggleExpanded(item: NavItem) {
+  expanded[item.label] = !isExpanded(item)
+}
 </script>
 
 <template>
@@ -63,12 +57,15 @@ const isActive = (url: string) => route.path === url
       <div class="h-16 flex items-center border-b border-border shrink-0"
         :class="isCollapsed ? 'justify-center px-0' : 'px-4 gap-2'"
       >
-        <img
-          v-if="!isCollapsed"
-          src="/logo.svg"
-          alt="Daffascript"
-          class="h-8 w-auto flex-1 min-w-0"
-        />
+        <div v-if="!isCollapsed" class="flex items-center gap-2 flex-1 min-w-0">
+          <div class="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground shrink-0">
+            <Plane class="h-4 w-4" />
+          </div>
+          <span class="text-lg font-bold text-foreground tracking-tight truncate">MANOVA</span>
+        </div>
+        <div v-else class="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground shrink-0">
+          <Plane class="h-4 w-4" />
+        </div>
         <button
           @click="toggle"
           :class="cn(
@@ -90,13 +87,8 @@ const isActive = (url: string) => route.path === url
             placeholder="Search anything..."
             class="pl-9 bg-muted/50 border-0 h-9 text-sm"
           />
-          <kbd class="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground bg-background px-1.5 py-0.5 rounded border">
-            ⌘K
-          </kbd>
         </div>
       </div>
-
-      <!-- Search icon (collapsed) -->
       <div v-else class="px-3 py-4 shrink-0">
         <Tooltip>
           <TooltipTrigger as-child>
@@ -111,15 +103,15 @@ const isActive = (url: string) => route.path === url
       <!-- Navigation -->
       <nav class="flex-1 overflow-y-auto pb-4" :class="isCollapsed ? 'px-2' : 'px-3'">
         <ul class="space-y-1">
-          <li v-for="item in menuItems" :key="item.title">
+          <li v-for="item in visibleItems" :key="item.label">
             <!-- Collapsed: icon only with tooltip -->
             <Tooltip v-if="isCollapsed">
               <TooltipTrigger as-child>
                 <NuxtLink
-                  :to="item.url"
+                  :to="item.to"
                   :class="cn(
                     'flex items-center justify-center p-2 rounded-lg transition-colors',
-                    isActive(item.url)
+                    isSectionActive(item)
                       ? 'bg-sidebar-accent text-sidebar-accent-foreground'
                       : 'text-sidebar-foreground hover:bg-muted hover:text-foreground'
                   )"
@@ -127,37 +119,51 @@ const isActive = (url: string) => route.path === url
                   <component :is="item.icon" class="h-4 w-4" />
                 </NuxtLink>
               </TooltipTrigger>
-              <TooltipContent side="right">
-                {{ item.title }}
-                <span v-if="item.badge" class="ml-1.5 text-xs opacity-70">({{ item.badge }})</span>
-              </TooltipContent>
+              <TooltipContent side="right">{{ item.label }}</TooltipContent>
             </Tooltip>
 
-            <!-- Expanded: full link -->
-            <NuxtLink
-              v-else
-              :to="item.url"
-              :class="cn(
-                'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                isActive(item.url)
-                  ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground hover:bg-muted hover:text-foreground'
-              )"
-            >
-              <component :is="item.icon" class="h-4 w-4" />
-              <span class="flex-1">{{ item.title }}</span>
-              <span
-                v-if="item.badge"
-                :class="cn(
-                  'px-2 py-0.5 text-xs rounded-full',
-                  isActive(item.url)
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground'
-                )"
-              >
-                {{ item.badge }}
-              </span>
-            </NuxtLink>
+            <!-- Expanded: full link, with optional nested children -->
+            <template v-else>
+              <div class="flex items-center gap-1">
+                <NuxtLink
+                  :to="item.to"
+                  :class="cn(
+                    'flex-1 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
+                    isSectionActive(item)
+                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
+                      : 'text-sidebar-foreground hover:bg-muted hover:text-foreground'
+                  )"
+                >
+                  <component :is="item.icon" class="h-4 w-4" />
+                  <span class="flex-1">{{ item.label }}</span>
+                  <StatusBadge v-if="item.comingSoon" label="Segera" tone="warning" />
+                </NuxtLink>
+                <button
+                  v-if="item.children?.length"
+                  @click="toggleExpanded(item)"
+                  class="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                >
+                  <ChevronDown :class="cn('h-3.5 w-3.5 transition-transform', isExpanded(item) && 'rotate-180')" />
+                </button>
+              </div>
+
+              <ul v-if="item.children?.length && isExpanded(item)" class="mt-1 ml-6 space-y-1 border-l border-border pl-3">
+                <li v-for="child in item.children" :key="child.label">
+                  <NuxtLink
+                    :to="child.to"
+                    :class="cn(
+                      'flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors',
+                      isActive(child.to)
+                        ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium'
+                        : 'text-sidebar-foreground hover:bg-muted hover:text-foreground'
+                    )"
+                  >
+                    <span class="flex-1">{{ child.label }}</span>
+                    <StatusBadge v-if="child.comingSoon" label="Segera" tone="warning" />
+                  </NuxtLink>
+                </li>
+              </ul>
+            </template>
           </li>
         </ul>
       </nav>
@@ -171,16 +177,15 @@ const isActive = (url: string) => route.path === url
               <PopoverTrigger as-child>
                 <button class="w-full flex justify-center p-1 rounded-lg hover:bg-muted transition-colors">
                   <Avatar class="h-8 w-8">
-                    <AvatarImage src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face" />
-                    <AvatarFallback>DP</AvatarFallback>
+                    <AvatarFallback>{{ currentUser.name.slice(0, 2).toUpperCase() }}</AvatarFallback>
                   </Avatar>
                 </button>
               </PopoverTrigger>
               <PopoverContent class="w-56 p-0" align="end" side="top" :side-offset="8">
                 <div class="p-2">
                   <div class="px-2 py-2">
-                    <p class="text-sm font-medium text-foreground">Daffa Prayoga</p>
-                    <p class="text-xs text-muted-foreground">daffa@daffascript.com</p>
+                    <p class="text-sm font-medium text-foreground">{{ currentUser.name }}</p>
+                    <p class="text-xs text-muted-foreground">{{ currentUser.email }}</p>
                   </div>
                   <Separator class="my-2" />
                   <button
@@ -201,7 +206,7 @@ const isActive = (url: string) => route.path === url
               </PopoverContent>
             </Popover>
           </TooltipTrigger>
-          <TooltipContent side="right">Daffa Prayoga</TooltipContent>
+          <TooltipContent side="right">{{ currentUser.name }}</TooltipContent>
         </Tooltip>
 
         <!-- Expanded: full profile -->
@@ -209,12 +214,11 @@ const isActive = (url: string) => route.path === url
           <PopoverTrigger as-child>
             <div class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-muted cursor-pointer transition-colors">
               <Avatar class="h-8 w-8">
-                <AvatarImage src="https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=32&h=32&fit=crop&crop=face" />
-                <AvatarFallback>DP</AvatarFallback>
+                <AvatarFallback>{{ currentUser.name.slice(0, 2).toUpperCase() }}</AvatarFallback>
               </Avatar>
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-bold text-foreground truncate">Daffa Prayoga</p>
-                <p class="text-xs text-muted-foreground truncate">CEO</p>
+                <p class="text-sm font-bold text-foreground truncate">{{ currentUser.name }}</p>
+                <p class="text-xs text-muted-foreground truncate">{{ currentUser.email }}</p>
               </div>
               <ChevronDown class="h-4 w-4 text-muted-foreground" />
             </div>
@@ -222,8 +226,8 @@ const isActive = (url: string) => route.path === url
           <PopoverContent class="w-56 p-0" align="end" side="top" :side-offset="8">
             <div class="p-2">
               <div class="px-2 py-2">
-                <p class="text-sm font-medium text-foreground">Daffa Prayoga</p>
-                <p class="text-xs text-muted-foreground">daffa@daffascript.com</p>
+                <p class="text-sm font-medium text-foreground">{{ currentUser.name }}</p>
+                <p class="text-xs text-muted-foreground">{{ currentUser.email }}</p>
               </div>
               <Separator class="my-2" />
               <button

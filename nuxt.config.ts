@@ -40,15 +40,18 @@ export default defineNuxtConfig({
     { path: '~/components', pathPrefix: false },
     { path: '~/components/layout', pathPrefix: false },
     { path: '~/components/dashboard', pathPrefix: false },
+    { path: '~/components/shared', pathPrefix: false },
     { path: '~/components/ui', pathPrefix: false }
   ],
 
   app: {
     head: {
-      title: 'Daffascript Dashboard',
+      title: 'MANOVA',
+      titleTemplate: (title) => title && title !== 'MANOVA' ? `${title} · MANOVA` : 'MANOVA — Travel Operations Platform',
       meta: [
         { charset: 'utf-8' },
-        { name: 'viewport', content: 'width=device-width, initial-scale=1' }
+        { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+        { name: 'description', content: 'MANOVA — mockup pengelolaan operasional project travel agent (CRM, Project, Operations, Vendor, Finance).' }
       ],
       link: [
         {

@@ -1,7 +1,9 @@
-# Route and Role Matrix — MANOVA (Prompt 3, dilengkapi di Prompt 4)
+# Route and Role Matrix — MANOVA (Prompt 3, dilengkapi di Prompt 4, route diaktifkan di Prompt 5)
 
-Status dokumen: hasil finalisasi rancangan (LOCKED kecuali ditandai lain). Tidak ada kode yang diubah, tidak ada route yang benar-benar dibuat/diubah pada codebase, ini adalah rancangan untuk tahap implementasi berikutnya.
+Status dokumen: hasil finalisasi rancangan (LOCKED kecuali ditandai lain). **Prompt 5 telah mengaktifkan foundation shell untuk seluruh route di bagian 0** — build sukses dan smoke-test SSR (11 route, seluruhnya HTTP 200) mengonfirmasi route benar-benar ada di codebase sekarang, bukan lagi rancangan murni.
 Landasan: `docs/mockup-information-architecture.md` (bagian 2–6), `docs/template-reuse-mapping.md`, keputusan LOCKED Prompt 0, `docs/mockup-design-decisions.md`.
+
+**Catatan penting soal kolom Status/Implementation phase di bawah:** nilai-nilai ini tetap menunjukkan **kapan fungsionalitas PENUH (CRUD, form, business logic) direncanakan selesai** — bukan berarti route belum ada. Prompt 5 membangun *foundation shell* untuk hampir seluruh route lebih awal dari fase penuhnya: sebagian sudah nyata (data dari fixture, misalnya `/crm/opportunities`, `/projects`, `/projects/[id]`, `/vendors`), sebagian masih `ModulePlaceholder` berlabel "Segera Hadir" (mis. `/crm/prospects`, `/finance/invoices`, `/reports`, seluruh `/admin/*`). Rincian mana yang shell-nyata vs placeholder ada di `docs/mockup-progress.md` entri Prompt 5.
 
 ---
 

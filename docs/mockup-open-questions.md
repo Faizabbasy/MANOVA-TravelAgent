@@ -14,10 +14,11 @@ Status dokumen: **direstrukturisasi di Prompt 4** sesuai Prompt 4 bagian F. Bagi
 
 ### Q8 — Kelengkapan Tooling Lint/Typecheck/Test
 - **Category:** Tooling / Code Quality
-- **Blocking:** **Blocking before module implementation** (tidak memblokir mulainya Foundation, tapi harus diselesaikan **di dalam** fase Foundation, sebelum masuk ke fase CRM — karena Prompt 0 aturan teknis #15 mewajibkan lint/typecheck/test dijalankan setelah kode mulai berubah, dan tooling ini belum ada sama sekali di codebase saat ini).
+- **Blocking:** **Blocking before module implementation** — **masih belum diselesaikan setelah Prompt 5** (lihat update di bawah). Tidak memblokir Foundation itu sendiri (build tetap jadi quality gate yang valid), tapi harus diselesaikan sebelum masuk fase CRM.
 - **Impact:** Tanpa script `lint`/`typecheck`/`test`, regresi kualitas kode di seluruh fase implementasi berikutnya (CRM s/d Administration) tidak akan tertangkap otomatis (risiko dicatat sejak audit Prompt 1 bagian 13).
-- **Recommendation:** Lengkapi `eslint` inti + tambah script `lint` di awal fase Foundation; putuskan juga script `typecheck` (catatan: `nuxi typecheck` memicu instalasi `vue-tsc` yang belum ada di lockfile — evaluasi dulu terhadap kebijakan penambahan package D-036 sebelum instal). Lepas `@nuxtjs/eslint-config-typescript` sebagai devDependency mati bila memang tidak dipakai.
+- **Recommendation:** Lengkapi `eslint` inti + tambah script `lint`; putuskan juga script `typecheck` (catatan: `nuxi typecheck` memicu instalasi `vue-tsc` yang belum ada di lockfile — evaluasi dulu terhadap kebijakan penambahan package D-036 sebelum instal). Lepas `@nuxtjs/eslint-config-typescript` sebagai devDependency mati bila memang tidak dipakai.
 - **Owner:** Tidak diketahui (keputusan teknis tim implementasi).
+- **Update Prompt 5:** Foundation coding **tidak** menginstal `eslint`/`vue-tsc` (lihat D-045, `docs/mockup-design-decisions.md`) karena Prompt 5 sendiri tidak secara eksplisit memerintahkan instalasi package baru. Validasi yang dijalankan sebagai gantinya: `pnpm run build` (sukses, exit 0, 3x run) dan `pnpm exec vitest run` (0 test file, pre-existing). Q8 tetap terbuka, sekarang eksplisit sebagai blocker sebelum Prompt 6 (CRM) dimulai.
 - **Status:** `NEEDS_VALIDATION`.
 
 ---

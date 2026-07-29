@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
-import { Label } from '@/components/ui/label'
+import { Plane } from 'lucide-vue-next'
+import { Input } from '~/components/ui/input'
+import { Button } from '~/components/ui/button'
+import { Label } from '~/components/ui/label'
 
 definePageMeta({
   layout: false,
@@ -44,15 +45,18 @@ const handleLogin = async () => {
   <div class="min-h-screen bg-background flex items-center justify-center p-4">
     <div class="w-full max-w-md">
       <!-- Logo -->
-      <div class="flex justify-center mb-8">
-        <img src="/logo.svg" alt="Daffascript" class="h-12 w-auto" />
+      <div class="flex flex-col items-center gap-2 mb-8">
+        <div class="flex items-center justify-center h-12 w-12 rounded-2xl bg-primary text-primary-foreground">
+          <Plane class="h-6 w-6" />
+        </div>
+        <span class="text-xl font-bold text-foreground tracking-tight">MANOVA</span>
       </div>
 
       <!-- Login Card -->
       <div class="bg-card rounded-3xl p-8 card-shadow">
         <div class="mb-6">
-          <h1 class="text-2xl font-bold text-foreground mb-2">Welcome back</h1>
-          <p class="text-sm text-muted-foreground">Sign in to your account to continue</p>
+          <h1 class="text-2xl font-bold text-foreground mb-2">Selamat datang kembali</h1>
+          <p class="text-sm text-muted-foreground">Masuk untuk mengakses MANOVA</p>
         </div>
 
         <form @submit.prevent="handleLogin" class="space-y-4">
@@ -109,15 +113,9 @@ const handleLogin = async () => {
         <!-- Footer -->
         <div class="mt-6 text-center">
           <p class="text-xs text-muted-foreground">
-            By signing in, you agree to our Terms of Service and Privacy Policy
+            Sistem mockup internal MANOVA — bukan lingkungan produksi.
           </p>
         </div>
-      </div>
-
-      <!-- Additional Info -->
-      <div class="mt-6 flex items-center justify-center gap-2">
-        <span class="text-sm text-muted-foreground">Made with ❤️ by</span>
-        <img src="/daffascript.svg" alt="Daffascript" class="h-6 w-auto" />
       </div>
     </div>
   </div>

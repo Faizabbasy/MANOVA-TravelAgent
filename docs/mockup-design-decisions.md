@@ -316,3 +316,44 @@ Seluruh entri berikut berstatus LOCKED karena Prompt 3 secara eksplisit meminta 
 ## Referensi Silang Open Questions
 
 Lihat `docs/mockup-open-questions.md` untuk pertanyaan yang **masih benar-benar terbuka** (Q7 non-blocking, Q8 blocking-before-module-implementation) dan yang deferred (Q9, Q10, Q11) — pertanyaan yang sudah diresolusi (Q1–Q6) diarsipkan di sana, tidak diulang di sini; hasil resolusinya ada di D-018 s/d D-023 di atas.
+
+---
+
+## Kelompok H — Keputusan Implementasi Foundation (Prompt 5)
+
+Prompt 5 adalah tahap coding pertama. Keputusan berikut bersifat teknis-implementasi (bukan keputusan IA/route/role baru — itu semua sudah LOCKED di Prompt 3), dicatat untuk traceability.
+
+### D-041 — Default Demo User: Super Admin
+**Status:** LOCKED · **Date:** 2026-07-29 · **Affected:** `app/composables/useCurrentUser.ts`
+**Context:** Current user mock butuh nilai default sebelum user memilih lewat role switcher.
+**Decision:** Default demo user adalah `USR-010` (Super Admin) agar seluruh navigasi terlihat penuh saat pertama kali dibuka, bukan role dengan akses terbatas.
+**Reason:** Menghindari kebingungan "kenapa menu saya sedikit" saat pertama kali mencoba mockup; role switcher di halaman Settings memungkinkan eksplorasi role lain kapan saja.
+**Consequence:** Pilihan role dipersist ke `localStorage` (`manovaCurrentUserId`) agar konsisten antar reload, mengikuti pola persistence existing (`isAuthenticated`/`userEmail`).
+
+### D-042 — Tanggal Acuan Demo Fixed (Bukan `new Date()`)
+**Status:** LOCKED · **Date:** 2026-07-29 · **Affected:** `app/utils/attention.ts` (`DEMO_REFERENCE_DATE`)
+**Context:** Perhitungan "upcoming departure" dan "invoice overdue" butuh titik acuan "hari ini".
+**Decision:** Memakai konstanta `DEMO_REFERENCE_DATE = '2026-07-29'` (sesuai `docs/mockup-data-scenarios.md`), bukan `new Date()` runtime.
+**Reason:** Bila memakai tanggal sungguhan, demo akan "rusak" secara visual seiring waktu berjalan (project yang sekarang "upcoming" akan terlihat sudah lewat beberapa bulan kemudian) — tanggal fixed menjaga demo tetap konsisten kapan pun dibuka, sesuai Prompt 0 aturan teknis #12.
+**Consequence:** Bila fixture data diperbarui di masa depan dengan tanggal baru, `DEMO_REFERENCE_DATE` harus disesuaikan bersamaan.
+
+### D-043 — Tab Project Detail via Query Param, Role Switcher di Settings
+**Status:** LOCKED · **Date:** 2026-07-29 · **Affected:** `app/pages/projects/[id]/index.vue`, `app/pages/settings.vue`
+**Context:** Merealisasikan D-027 (tab satu route) dan D-022 (Settings minimal) menjadi kode nyata.
+**Decision:** Tab Project Detail disinkronkan ke `?tab=` query param (deep-link tanpa nested route); role switcher demo ditempatkan sebagai section di halaman Settings (bukan dropdown di header/sidebar) agar tidak mengganggu chrome utama.
+**Reason:** Konsisten dengan keputusan desain yang sudah LOCKED; Settings sudah punya alasan eksplisit untuk ada (D-022), jadi lokasi switcher di sana tidak menambah menu baru.
+**Consequence:** `TopHeader.vue` disederhanakan — title halaman per-route yang dulu hardcoded "Dashboard" dihapus (digantikan `PageHeader` di tiap halaman) karena judul ganda (header + body) dinilai redundan; `TopHeader` kini hanya menampilkan indikator role aktif + notifikasi.
+
+### D-044 — Eksekusi Cleanup Fisik (AIAssistant, `cn.ts`, `.gradient-primary`)
+**Status:** LOCKED (dieksekusi) · **Date:** 2026-07-29 · **Affected:** `app/components/dashboard/AIAssistant.vue` (dihapus), `app/utils/cn.ts` (dihapus), `assets/css/tailwind.css` (`.gradient-primary` dihapus)
+**Context:** D-023 (Prompt 3) sudah mengunci "tidak dilanjutkan" untuk AIAssistant dengan catatan eksekusi fisik menunggu Prompt 5; D-017 (DEFERRED) mencatat duplikasi `cn()` menunggu momen aman; `.gradient-primary` sudah dikonfirmasi tidak dipakai sejak audit Prompt 1.
+**Decision:** Ketiganya dieksekusi (dihapus) di Prompt 5 setelah dependency check ulang mengonfirmasi nol pemakaian.
+**Reason:** Prompt 5 secara eksplisit adalah tahap cleanup aman dengan syarat dependency check — ketiga item ini memenuhi syarat (locked decision untuk AIAssistant; nol dependency terverifikasi untuk `cn.ts` dan `.gradient-primary`).
+**Consequence:** `app/lib/utils.ts` menjadi satu-satunya sumber `cn()` (menyelesaikan sebagian D-017 — duplikasi Dialog `DialogContent`/`DialogScrollContent` **masih belum** dikonsolidasi, tetap DEFERRED karena risikonya berbeda — keduanya aktif dipakai, bukan dead code).
+
+### D-045 — Tidak Menginstal Tooling Lint/Typecheck di Prompt 5
+**Status:** DEFERRED · **Date:** 2026-07-29 · **Affected:** `package.json` (tidak diubah)
+**Context:** `docs/mockup-open-questions.md` Q8 mencatat tooling ini "harus diselesaikan di dalam fase Foundation" (ditulis di Prompt 4).
+**Decision:** Prompt 5 **tidak** menginstal `eslint` inti maupun `vue-tsc`, meski Q8 sebelumnya menyiratkan penyelesaian di fase ini.
+**Reason:** Prompt 5 sendiri tidak secara eksplisit memerintahkan instalasi package baru di teksnya (section N hanya bilang "jalankan lint/typecheck", mengasumsikan tool sudah ada); menginstal package baru tanpa instruksi eksplisit dinilai melampaui scope "cleanup aman dan foundation" dan berisiko dianggap keputusan sepihak yang seharusnya dikonfirmasi dulu.
+**Consequence:** Q8 tetap berstatus terbuka/blocking-sebelum-CRM (lihat update di `docs/mockup-open-questions.md`); build tetap divalidasi penuh (sukses) sebagai bentuk quality gate yang tersedia saat ini.
