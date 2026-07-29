@@ -1,82 +1,78 @@
 # Mockup Open Questions — MANOVA
 
-Status dokumen: daftar kumulatif pertanyaan yang belum bisa dijawab tanpa keputusan/konfirmasi user. Entri tidak dihapus setelah terjawab — ditandai **[RESOLVED — lihat entri terkait di `docs/mockup-design-decisions.md`]** dan alasan resolusinya, bukan dihapus dari daftar.
+Status dokumen: **direstrukturisasi di Prompt 4** sesuai Prompt 4 bagian F. Bagian utama dokumen ini (bagian 1–4) **hanya berisi pertanyaan yang benar-benar belum diputuskan** — pertanyaan yang sudah diresolusi di Prompt 2/3 dipindahkan ke Arsip (bagian 5) agar tidak mengulang keputusan yang sudah `LOCKED`, tapi tetap tidak dihapus (konsisten dengan aturan append-only sebelumnya).
 
-Setiap entri mengikuti format: pertanyaan, konteks/kenapa ini terbuka, opsi yang teridentifikasi, dampak bila tidak diputuskan.
-
----
-
-## Dari Prompt 2 (Gap Analysis)
-
-### Q1. Apa fungsi final wizard `/projects/create` terhadap alur LOCKED "Opportunity Won → Project otomatis"? **[RESOLVED — lihat entri #18 di `docs/mockup-design-decisions.md`]**
-- **Resolusi (Prompt 3):** dipilih opsi 2 — wizard direpurpose jadi bagian tampilan konfirmasi/setup awal Project yang muncul otomatis setelah Opportunity di-approve Won, bukan lagi entry point mandiri "buat project manual". Detail: `docs/route-and-role-matrix.md` bagian 2.
-- **Konteks:** Prompt 0 mengunci bahwa Project otomatis terbentuk dari Opportunity yang Won. Tapi template existing punya wizard 3-langkah manual `pages/projects/create.vue` yang lengkap (validasi, step indicator) untuk *membuat project dari nol*, tanpa melalui Opportunity.
-- **Opsi yang teridentifikasi:**
-  1. Wizard ini dihapus/tidak dipakai — Project hanya bisa lahir dari Opportunity Won.
-  2. Wizard ini direpurpose jadi bagian dari alur "Opportunity Won" (mis. step konfirmasi/setup awal Project setelah Won ditekan), bukan entry point independen.
-  3. Wizard ini dipertahankan sebagai jalur manual sekunder untuk kasus tertentu (mis. project non-CRM, migrasi data), dengan pembatasan role.
-- **Dampak bila tidak diputuskan:** risiko membangun/mempertahankan alur yang bertentangan dengan baseline bisnis LOCKED, atau menghapus komponen yang sebenarnya masih relevan.
-
-### Q2. Apakah `/tasks` (top-level) tetap dipertahankan terpisah dari Kanban tab di Project Workspace (`/projects/:id`)? **[RESOLVED — lihat entri #19 di `docs/mockup-design-decisions.md`]**
-- **Resolusi (Prompt 3):** dipilih opsi 2 — `/tasks` tidak lagi jadi menu top-level, task dikelola dalam tab "Tasks" di Project Detail; visibilitas lintas-project cukup lewat widget dashboard.
-- **Konteks:** Keduanya sama-sama merepresentasikan "task", dengan shape data yang saat ini berbeda (`id: number` di `/tasks` vs `id: 'T-01'` di Project Workspace). Prompt 0 menyebut "Operational task" sebagai bagian domain Operations, tapi tidak menegaskan apakah ini cross-project atau strictly per-project.
-- **Opsi yang teridentifikasi:**
-  1. `/tasks` jadi cross-project operational task list (agregasi dari semua project), Kanban tab tetap per-project view dari data yang sama.
-  2. `/tasks` dilebur/dihapus sebagai menu top-level, task hanya dikelola dalam konteks per-project (Kanban tab).
-  3. `/tasks` dan Kanban tab sengaja dipisahkan sebagai dua konsep berbeda (mis. task administratif umum vs task operasional project).
-- **Dampak bila tidak diputuskan:** duplikasi konsep/data source, kebingungan IA saat demo (dua tempat menunjukkan "task" dengan data yang bisa saling tidak sinkron).
-
-### Q3. Apakah Operations dan Travelers menjadi menu top-level tersendiri, atau cukup sub-tab di dalam Project Workspace? **[RESOLVED — lihat entri #20 di `docs/mockup-design-decisions.md`]**
-- **Resolusi (Prompt 3):** dipilih opsi 1 untuk keduanya — tetap sub-tab di Project Detail untuk fase mockup awal (Operations→tab "Itinerary & Services", Travelers→tab "Travelers"). Vendor **tidak** mengikuti pola ini, tetap jadi menu top-level karena karakteristik lintas-project yang berbeda. Opsi 2/3 dicatat sebagai kemungkinan evolusi (`docs/mockup-design-decisions.md` entri #33), bukan dipilih sekarang.
-- **Konteks:** Prompt 2 bagian F secara eksplisit meminta "jangan membuat semua item hanya karena tersedia dalam daftar" dan "hindari menu kosong". Domain Operations (itinerary/flight/hotel/dst.) dan Traveler pada dasarnya selalu terikat konteks satu project tertentu, bukan entitas yang natural untuk dilihat lintas-project di awal fase mockup.
-- **Opsi yang teridentifikasi:**
-  1. Keduanya tetap sub-tab di Project Workspace saja untuk fase mockup awal, menu top-level ditunda ke fase lanjut (bila ada kebutuhan lintas-project, mis. "semua traveler yang belum lengkap dokumennya di semua project").
-  2. Keduanya dijadikan menu top-level sejak awal untuk mendukung tampilan agregat lintas-project (mis. direktori Traveler, direktori Vendor booking).
-  3. Hybrid — salah satu (mis. Travelers) jadi menu top-level lebih dulu karena kebutuhan agregasi lebih jelas (Prompt 0-F menyebut "upcoming departure" yang perlu data traveler lintas project), sementara Operations tetap sub-tab dulu.
-- **Dampak bila tidak diputuskan:** risiko membuat menu kosong (melanggar instruksi eksplisit Prompt 2-F) atau sebaliknya kehilangan kebutuhan agregasi yang penting untuk dashboard.
-
-### Q4. Bagaimana nasib final 9 dead link sidebar (`/files`, `/clients`, `/team`, `/time-tracking`, `/reports`, `/invoices`, `/templates`, `/integrations`, `/settings`)? **[RESOLVED — lihat entri #21 di `docs/mockup-design-decisions.md`]**
-- **Resolusi (Prompt 3):** `/clients`→`/crm/clients`, `/invoices`→`/finance/invoices`, `/reports`→`/reports`, `/files`→tab Documents Project Detail, `/team`→`/admin/users`+info tim Overview, `/time-tracking`/`/templates`/`/integrations`→excluded. `/settings` diresolusi terpisah di Q5.
-- **Konteks:** Detail per-item sudah dianalisis di `docs/template-reuse-mapping.md` bagian G. Beberapa punya mapping domain jelas (`/clients`→CRM, `/invoices`→Finance, `/reports`→Reports), beberapa tidak jelas (`/templates`), dan beberapa bertentangan dengan aturan Prompt 0 (`/integrations`).
-- **Opsi yang teridentifikasi:** per-item, lihat tabel di `docs/template-reuse-mapping.md` bagian G untuk rekomendasi awal (aman dihapus / butuh validasi / dilebur jadi tab existing).
-- **Dampak bila tidak diputuskan:** dead link tetap ada saat demo, berisiko memberi kesan "banyak fitur belum jadi" (sudah dicatat sebagai risiko di audit Prompt 1 bagian 13).
-
-### Q5. Apakah menu `Settings` dipertahankan, dan bila ya, isi minimal apa yang membuatnya tidak jadi "menu kosong"? **[RESOLVED — lihat entri #22 di `docs/mockup-design-decisions.md`]**
-- **Resolusi (Prompt 3):** dipilih opsi 2 dengan penyesuaian — Settings dipertahankan skema minimal (profil/akun pribadi), tapi diakses lewat popover profil user, **bukan** item sidebar utama.
-- **Konteks:** Prompt 2 bagian F menyebutkan Settings sebagai opsi "bila memang dibutuhkan". Saat ini satu-satunya jejak konsep Settings adalah tombol "Profile Settings" dekoratif di popover profil `AppSidebar.vue`, yang juga menuju `/settings` yang tidak ada halamannya.
-- **Opsi yang teridentifikasi:**
-  1. Tidak ada menu Settings di fase mockup awal; tombol "Profile Settings" dihapus/diarahkan ke tempat lain.
-  2. Settings dipertahankan dengan isi minimal (mis. preferensi tampilan, info akun) sebagai halaman kecil, bukan menu kosong.
-  3. Settings ditunda sepenuhnya ke fase setelah demo readiness.
-- **Dampak bila tidak diputuskan:** tombol yang sudah ada di UI (popover profil) akan tetap mati/dead-end bila tidak ada keputusan eksplisit.
-
-### Q6. Apakah `dashboard/AIAssistant.vue` dipertahankan, diberi mapping domain baru, atau dihapus? **[RESOLVED — lihat entri #23 di `docs/mockup-design-decisions.md`]**
-- **Resolusi (Prompt 3):** dipilih opsi 1 — tidak dilanjutkan sebagai bagian desain dashboard MANOVA. Penghapusan fisik file tetap ditunda ke tahap cleanup (Prompt 5), sesuai batasan tahap ini.
-- **Konteks:** Tidak ada konsep AI assistant di Prompt 0 manapun. Komponen ini statis, tanpa data model, tombol "ask" tanpa handler — tidak mengganggu fungsi lain, tapi juga tidak punya tujuan bisnis yang jelas untuk MANOVA.
-- **Opsi yang teridentifikasi:**
-  1. Dihapus dari dashboard MANOVA (tidak relevan dengan domain travel agent B2B).
-  2. Dipertahankan sebagai placeholder untuk fitur masa depan (mis. AI assistant untuk membantu quotation/itinerary) — tapi ini berarti mengarang scope baru yang tidak diminta Prompt 0, perlu konfirmasi eksplisit user dulu.
-- **Dampak bila tidak diputuskan:** komponen tetap nangkring di dashboard tanpa fungsi, atau dihapus prematur padahal user punya rencana untuk itu.
-
-### Q7. Apakah `vee-validate` + `zod` (dependency terpasang, 0% dipakai) akan mulai dipakai untuk form MANOVA baru, atau pola validasi manual existing (seperti di `create.vue`/`edit.vue`) yang dilanjutkan?
-- **Konteks:** Diwariskan dari Prompt 1 bagian 10 (unknown and needs validation), relevan langsung untuk gap analysis karena banyak form baru (CRM, Traveler, Vendor, dll.) akan dibangun di fase-fase berikutnya.
-- **Opsi yang teridentifikasi:**
-  1. Mulai pakai `vee-validate`+`zod` untuk seluruh form baru MANOVA (dependency sudah ada, sesuai prinsip "jangan instal library baru sebelum memastikan yang existing tidak cukup" — justru mendukung pemakaian ini).
-  2. Lanjutkan pola manual existing demi konsistensi dengan form lama yang belum di-refactor.
-- **Dampak bila tidak diputuskan:** risiko dua pola validasi berbeda hidup berdampingan tanpa alasan yang terdokumentasi.
-
-### Q8. Apakah script `lint`/`typecheck`/`test` akan ditambahkan ke `package.json`, dan apa nasib devDependency mati `@nuxtjs/eslint-config-typescript` (terpasang tanpa `eslint` inti)?
-- **Konteks:** Diwariskan dari Prompt 1 bagian 15 (rekomendasi), relevan untuk gap analysis karena Prompt 0 aturan teknis #15 mewajibkan "jalankan lint, typecheck, test, dan build sesuai script yang tersedia setelah mulai melakukan perubahan kode" — tapi script tersebut belum ada.
-- **Opsi yang teridentifikasi:**
-  1. Lengkapi `eslint` inti + tambah script `lint`, putuskan juga script `typecheck` (catatan: menjalankan `nuxi typecheck` memicu instalasi `vue-tsc` yang belum ada di lockfile — perlu keputusan eksplisit soal instalasi ini sebelum implementasi).
-  2. Lepas `@nuxtjs/eslint-config-typescript` sebagai devDependency mati bila memang tidak akan dipakai.
-- **Dampak bila tidak diputuskan:** regresi kualitas kode di tahap implementasi tidak akan tertangkap otomatis (dicatat sebagai risiko teknis di audit Prompt 1 bagian 13).
+**Format setiap entri:** ID · Category · Blocking status · Impact · Recommendation · Owner · Status.
 
 ---
 
-## Dari Prompt 3 (Information Architecture, Route, Role, dan Workflow)
+## 1. Blocking Before Foundation
 
-### Q9. Berapa nilai ambang batas (threshold) numerik untuk kondisi "attention" project dan untuk kemungkinan approval berjenjang pada alur Won?
-- **Konteks:** `docs/route-and-role-matrix.md` bagian 3.3 mendefinisikan kondisi "attention" secara kualitatif (mis. "biaya aktual melewati ambang batas terhadap budget, mis. >90%", "service mendekati tanggal keberangkatan") tapi angka pastinya sengaja belum ditentukan — begitu juga opsi approval berjenjang berdasarkan nilai opportunity (`docs/mockup-design-decisions.md` entri #32) yang butuh angka threshold nyata dari bisnis.
-- **Opsi yang teridentifikasi:** angka ditentukan saat implementasi berdasarkan data skenario demo yang akan dibangun (Normal/High-Change/Complex Project), atau dikonfirmasi dulu ke user/stakeholder MANOVA sebelum implementasi.
-- **Dampak bila tidak diputuskan:** widget "Attention list" dan opsi approval berjenjang tidak bisa diimplementasikan presisi tanpa asumsi sepihak — untuk versi pertama cukup dipakai heuristik kualitatif di atas, angka pasti menyusul.
+*(Tidak ada.)* Tidak ditemukan open question yang benar-benar memblokir dimulainya coding fase Foundation — seluruh keputusan fondasi (stack, reuse strategy, IA, route, role, Party model, Opportunity-to-Project workflow) sudah `LOCKED` (lihat `docs/mockup-design-decisions.md`).
+
+## 2. Blocking Before Module Implementation
+
+### Q8 — Kelengkapan Tooling Lint/Typecheck/Test
+- **Category:** Tooling / Code Quality
+- **Blocking:** **Blocking before module implementation** (tidak memblokir mulainya Foundation, tapi harus diselesaikan **di dalam** fase Foundation, sebelum masuk ke fase CRM — karena Prompt 0 aturan teknis #15 mewajibkan lint/typecheck/test dijalankan setelah kode mulai berubah, dan tooling ini belum ada sama sekali di codebase saat ini).
+- **Impact:** Tanpa script `lint`/`typecheck`/`test`, regresi kualitas kode di seluruh fase implementasi berikutnya (CRM s/d Administration) tidak akan tertangkap otomatis (risiko dicatat sejak audit Prompt 1 bagian 13).
+- **Recommendation:** Lengkapi `eslint` inti + tambah script `lint` di awal fase Foundation; putuskan juga script `typecheck` (catatan: `nuxi typecheck` memicu instalasi `vue-tsc` yang belum ada di lockfile — evaluasi dulu terhadap kebijakan penambahan package D-036 sebelum instal). Lepas `@nuxtjs/eslint-config-typescript` sebagai devDependency mati bila memang tidak dipakai.
+- **Owner:** Tidak diketahui (keputusan teknis tim implementasi).
+- **Status:** `NEEDS_VALIDATION`.
+
+---
+
+## 3. Non-Blocking
+
+### Q7 — Adopsi `vee-validate` + `zod` untuk Form Baru
+- **Category:** Implementation Pattern
+- **Blocking:** **Non-blocking** — form baru bisa dimulai dengan pola manual existing dan dimigrasikan kemudian bila diputuskan lain; tidak menghentikan progres modul manapun.
+- **Impact:** Risiko dua pola validasi berbeda hidup berdampingan tanpa alasan terdokumentasi bila tidak diputuskan sebelum banyak form baru dibangun (CRM, Traveler, Vendor, dll.).
+- **Recommendation:** Adopsi `vee-validate`+`zod` untuk seluruh form baru MANOVA — dependency sudah terpasang (0% dipakai saat ini per audit Prompt 1), sejalan dengan kebijakan penambahan package (D-036: pakai yang sudah ada sebelum mengusulkan alternatif). Pola manual existing (`create.vue`/`edit.vue`) tidak perlu dimigrasi paksa, cukup tidak dijadikan acuan untuk form baru.
+- **Owner:** Tidak diketahui.
+- **Status:** `PROPOSED` (rekomendasi di atas, menunggu konfirmasi tim implementasi).
+
+---
+
+## 4. Deferred
+
+### Q9 — Nilai Ambang Batas Numerik untuk Attention Condition
+- **Category:** Business Rule / Threshold
+- **Blocking:** **Non-blocking / Deferred** — mockup dapat berjalan dengan asumsi aman (lihat Recommendation), sesuai instruksi Prompt 4-F untuk tidak menjadikan hal kecil sebagai blocker bila ada asumsi aman.
+- **Impact:** Tanpa angka pasti, widget "Attention list" dan laporan terkait tidak bisa diimplementasikan presisi — namun ini bukan penghalang, karena asumsi default di bawah sudah cukup realistis untuk mockup.
+- **Recommendation (diadopsi sebagai asumsi default, bukan lagi murni pertanyaan terbuka):** Budget overrun memicu attention bila `Actual Cost > 100% Budget`; upcoming departure memicu attention bila keberangkatan ≤ 30 hari dari tanggal berjalan; invoice/task overdue memicu attention segera setelah melewati tanggal jatuh tempo (tanpa masa tenggang). Nilai ini dipakai konsisten di `docs/mockup-data-scenarios.md`. Dicatat sebagai `DEFERRED` (bukan `LOCKED`) karena tetap terbuka untuk disesuaikan bila ada masukan bisnis nyata di kemudian hari — bukan karena mockup tidak bisa berjalan tanpanya.
+- **Owner:** Tidak diketahui (idealnya divalidasi ke stakeholder bisnis MANOVA bila tersedia).
+- **Status:** `DEFERRED`.
+
+### Q10 — Approval Won Berjenjang Berdasarkan Nilai/Kompleksitas Opportunity
+- **Category:** Business Rule / Role Model
+- **Blocking:** **Deferred** — model approval dua-langkah sederhana (D-025) sudah cukup untuk mockup, tidak butuh angka threshold apa pun untuk berjalan.
+- **Impact:** Tidak ada, karena model yang berjalan (D-025) tidak bergantung pada keputusan ini.
+- **Recommendation:** Tinjau ulang hanya bila ada data threshold nilai/kompleksitas nyata dari bisnis MANOVA di fase setelah mockup awal (lihat D-032).
+- **Owner:** Tidak diketahui.
+- **Status:** `DEFERRED`.
+
+### Q11 — Direktori Operations/Travelers Lintas-Project sebagai Menu Top-Level
+- **Category:** Information Architecture
+- **Blocking:** **Deferred** — keputusan D-020 (tab di Project Detail) sudah final untuk fase mockup ini.
+- **Impact:** Tidak ada untuk fase ini; berdampak ke IA hanya bila kebutuhan agregasi lintas-project benar-benar muncul di fase setelah mockup awal.
+- **Recommendation:** Evaluasi ulang setelah demo awal, berdasarkan masukan pengguna nyata (mis. kebutuhan "semua traveler yang dokumennya belum lengkap di semua project").
+- **Owner:** Tidak diketahui.
+- **Status:** `DEFERRED` (lihat D-033).
+
+---
+
+## 5. Arsip — Pertanyaan yang Sudah Diresolusi (Prompt 2 → Prompt 3)
+
+Dipertahankan sebagai jejak historis (tidak dihapus), tidak lagi dianggap "open" — detail keputusan lengkap ada di `docs/mockup-design-decisions.md`.
+
+| ID lama | Pertanyaan (ringkas) | Diresolusi di | Keputusan |
+|---|---|---|---|
+| Q1 | Fungsi final wizard `/projects/create` vs alur Opportunity Won→Project otomatis | Prompt 3 | D-018 — direpurpose jadi konfirmasi otomatis, bukan entry point manual |
+| Q2 | `/tasks` top-level vs Kanban tab Project Workspace | Prompt 3 | D-019 — tidak top-level, melebur ke tab "Tasks" |
+| Q3 | Operations & Travelers: menu top-level atau sub-tab | Prompt 3 | D-020 — sub-tab Project Detail; Vendor tetap top-level |
+| Q4 | Nasib 9 dead link sidebar | Prompt 3 | D-021 — dipetakan satu per satu ke tujuan baru/excluded |
+| Q5 | Nasib menu `Settings` | Prompt 3 | D-022 — minimal, via popover profil, bukan sidebar utama |
+| Q6 | Nasib `dashboard/AIAssistant.vue` | Prompt 3 | D-023 — tidak dilanjutkan dalam desain dashboard MANOVA |
+
+Detail konteks/opsi asli pertanyaan di atas dapat ditelusuri di riwayat versi dokumen ini sebelum Prompt 4 (tidak diulang di sini untuk menghindari duplikasi makna dengan `docs/mockup-design-decisions.md`, sesuai instruksi Prompt 4-A "hapus duplikasi hanya bila maknanya benar-benar sama").

@@ -1,58 +1,127 @@
-# Mockup Scope — MANOVA (Prompt 2, diperbarui di Prompt 3)
+# Mockup Scope — MANOVA
 
-Status dokumen: **belum ada implementasi**. Scope awal disusun di Prompt 2 (hasil gap analysis); route/IA/role final sudah dikunci di Prompt 3 (`docs/mockup-information-architecture.md`, `docs/route-and-role-matrix.md`) dan tercermin di update bagian 3–4 dokumen ini.
+Status dokumen: **belum ada implementasi.** Disusun awal di Prompt 2 (gap analysis), route/IA/role difinalisasi di Prompt 3, **dirapikan dan dilengkapi di Prompt 4** menjadi dokumen scope yang utuh (product objective, business context, assumptions, constraints, acceptance criteria, definition of done) sesuai Prompt 4 bagian B. Tidak ada informasi valid dari versi sebelumnya yang dihapus.
 
 ---
 
-## 1. Tujuan Dokumen
+## 1. Product Objective
 
-Menentukan apa yang termasuk dan tidak termasuk dalam fase "mockup" MANOVA saat ini, berdasarkan hasil audit (Prompt 1) dan gap analysis (Prompt 2 — `docs/template-reuse-mapping.md`). Dokumen ini menjawab "apa yang sedang kita bangun" secara garis besar; detail rute/role/workflow menyusul di Prompt 3.
+MANOVA adalah **frontend mockup** sistem pengelolaan operasional project untuk bisnis travel agent — mengelola proses sejak lead/calon client masuk, opportunity dibuat, quotation disiapkan, opportunity dinyatakan won, project otomatis terbentuk, kebutuhan perjalanan diproses, biaya dipantau, invoice diterbitkan, pembayaran diterima, hingga project selesai. Tujuan fase mockup ini adalah menghasilkan pengalaman UI yang koheren dan data demo yang konsisten untuk didemokan ke stakeholder, **bukan** sistem produksi dengan backend nyata.
 
-## 2. Dalam Scope (In Scope)
+## 2. Business Context
 
-Berdasarkan domain mapping di `docs/template-reuse-mapping.md` bagian B & I, mockup MANOVA mencakup 10 area kerja berikut, dikerjakan bertahap sesuai urutan phasing:
+- Bisnis: travel agent, dengan **fokus utama B2B** (Prompt 0-A) — mengelola project perjalanan untuk client korporat/kelompok, bukan konsumen perorangan sebagai prioritas awal.
+- Kombinasi layanan yang harus didukung: tiket pesawat saja, tiket+hotel, tiket+hotel+transportasi, dan project dengan kebutuhan MICE (Prompt 0-B) — lihat konsep "conditional service sections" di bagian 8.
+- Alur bisnis baseline: Lead → Prospect → Opportunity → Quotation → Won → Project otomatis → Project planning → Itinerary & Traveler → Pemesanan/pengelolaan service → Vendor → Monitoring perubahan → Budget & Actual → Invoice → Payment → Project completion (Prompt 0-C, dirinci workflow-nya di `docs/route-and-role-matrix.md` bagian 2).
+- Sistem dirancang untuk dipakai oleh **beberapa travel agent dengan pola operasional berbeda** — struktur data dan modul tidak boleh terlalu spesifik ke satu travel agent tunggal (Prompt 0-A).
 
-1. **Foundation** — sentralisasi data/tipe, formatter IDR & tanggal, status-badge terpusat, primitive `ui/tabs`, perbaikan bug fungsional (`handleDelete`), resolusi duplikasi `cn()`.
-2. **CRM** — Prospects, Clients (dua filtered-view dari satu master `Party`), Opportunities, Quotations, dengan Contacts & Activities sebagai tab di Party Detail (`docs/mockup-information-architecture.md` bagian 3.2).
-3. **Opportunity to Project** — alur Opportunity Won → Project otomatis (LOCKED) dengan model approval dua-langkah Sales→Management/Super Admin (`docs/route-and-role-matrix.md` bagian 2).
-4. **Project Management** — Project list (`/projects`), Project Detail dengan **8 tab final**: Overview, Itinerary & Services, Travelers, Vendors, Finance, Tasks, Documents, Activity & Changes (`docs/mockup-information-architecture.md` bagian 4), Edit project.
+## 3. Primary Users (Role Demo)
+
+Seluruh 11 role berikut **digunakan pada demo** (keputusan LOCKED D-003, `docs/mockup-design-decisions.md`), masing-masing dengan kebutuhan dashboard dan akses modul berbeda (detail lengkap: `docs/route-and-role-matrix.md` bagian 5–6):
+
+Super Admin · Management · Sales · Project Manager · Operations · Ticketing · Accommodation · Transportation · MICE · Finance · Viewer/Auditor.
+
+## 4. B2B Focus dan B2C Extensibility
+
+- **Fase mockup ini fokus B2B** — seluruh IA, route, dan skenario data demo (bagian 9) dirancang untuk kasus korporat/kelompok.
+- Struktur data (khususnya `Party` sebagai master Prospect/Client, lihat D-001/D-024) sengaja dibuat cukup umum agar **dapat mengakomodasi B2C di masa depan** tanpa perombakan besar — namun **tidak ada halaman/alur khusus B2C yang dibangun pada fase ini** (lihat bagian 6, Non-Goals).
+
+## 5. In-Scope Modules
+
+Berdasarkan domain mapping (`docs/template-reuse-mapping.md`) dan IA final (`docs/mockup-information-architecture.md`), mockup MANOVA mencakup 8 area kerja, dikerjakan bertahap:
+
+1. **Foundation** — sentralisasi data/tipe, formatter Rupiah & tanggal (D-037), status-constant terpusat (D-038), primitive `ui/tabs` (D-009), perbaikan bug fungsional (`handleDelete`), resolusi duplikasi `cn()`.
+2. **CRM** — Prospects, Clients (dua filtered-view dari satu master `Party`, D-001/D-024), Opportunities, Quotations, dengan Contacts & Activities sebagai tab di Party Detail.
+3. **Opportunity to Project** — alur Opportunity Won → Project otomatis (D-002) dengan model approval dua-langkah Sales→Management/Super Admin (D-025).
+4. **Project Management** — Project list (`/projects`), Project Detail dengan **8 tab final**: Overview, Itinerary & Services, Travelers, Vendors, Finance, Tasks, Documents, Activity & Changes (D-026), Edit project.
 5. **Vendor** — Direktori Vendor top-level (`/vendors`) + tab "Vendors" kontekstual di Project Detail.
-6. **Finance** — Invoices, Payments top-level (`/finance/...`); Budget/Cost/Outstanding melebur sebagai bagian tab "Finance" di Project Detail (bukan halaman top-level terpisah).
-7. **Reporting** — Dashboard lintas-domain final (widget kondisional per role) + halaman `/reports` (Sales Pipeline/Project Performance/Cost and Margin/Finance Summary sebagai section dalam satu halaman).
+6. **Finance** — Invoices, Payments top-level (`/finance/...`); Budget/Cost/Outstanding melebur sebagai bagian tab "Finance" di Project Detail.
+7. **Reporting** — Dashboard lintas-domain final (widget kondisional per role, D-031) + halaman `/reports` (Sales Pipeline/Project Performance/Cost and Margin/Finance Summary sebagai section dalam satu halaman).
 8. **Administration** — Master Data, Users, Roles and Permissions, Audit Trail (`/admin/...`).
 
-**Catatan perubahan dari Prompt 2:** Operations dan Traveler **tidak lagi jadi phase dengan menu top-level sendiri** — isinya melebur menjadi tab "Itinerary & Services" dan "Travelers" di dalam Project Detail (phase Project Management), hasil resolusi Q3 di `docs/mockup-open-questions.md`.
+**Catatan:** Operations dan Traveler tidak jadi phase dengan menu top-level sendiri — isinya melebur ke tab Project Detail (phase Project Management), hasil resolusi Q3/D-020.
 
-**Skenario data demo wajib (Prompt 0-G, isi data belum dibangun — ini scope implementasi, bukan scope dokumentasi):**
-- Normal Project.
-- High-Change Project.
-- Complex Project.
+## 6. Out-of-Scope / Non-Goals
 
-Ketiganya harus tercermin secara konsisten di seluruh modul di atas (bukan hanya di halaman Project), memakai satu sumber data terpusat.
+- Backend/API nyata, integrasi airline/hotel/payment gateway/WhatsApp API/vendor API — dilarang eksplisit (D-006) dan tidak menjadi bagian scope kapan pun selama fase mockup frontend ini berlangsung.
+- Autentikasi/keamanan produksi nyata — mock `localStorage` existing dipertahankan sebagai mock, bukan diperkuat jadi auth nyata.
+- Permission granular level-field — role/permission dibangun scalable dan terdokumentasi pada granularity modul (D-030), bukan seluruh permission granular sekaligus di awal.
+- Halaman/alur khusus B2C — lihat bagian 4.
+- Menambah package/library baru di luar kebutuhan yang sudah terbukti tidak terpenuhi oleh dependency existing (D-036).
+- Lint/typecheck/test tooling baru (eslint, vue-tsc, dll.) — pemasangan tooling baru menunggu keputusan eksplisit (tetap terbuka, Q8).
+- Approval Won berjenjang berdasarkan nilai/kompleksitas opportunity (D-032 — dipertimbangkan, tidak dipilih untuk versi pertama).
+- Direktori Operations/Travelers lintas-project sebagai menu top-level (D-033 — dipertimbangkan, tidak dipilih untuk fase mockup awal).
 
-## 3. Di Luar Scope Fase Mockup Saat Ini
+## 7. Demo Scope
 
-- Backend/API nyata, integrasi airline/hotel/payment gateway/WhatsApp/vendor API — dilarang eksplisit oleh Prompt 0 dan tidak menjadi bagian scope kapan pun selama fase mockup frontend ini berlangsung.
-- Autentikasi/keamanan produksi nyata (mock `localStorage` saat ini dipertahankan sebagai mock, bukan diperkuat jadi auth nyata).
-- Granular permission per-field — Prompt 0-E eksplisit meminta struktur role/permission yang *scalable dan terdokumentasi*, bukan seluruh permission granular dibangun sekaligus di awal.
-- Fitur B2C penuh — sistem harus *cukup umum* untuk mengakomodasi B2C di masa depan (Prompt 0-A), tapi fase mockup ini fokus B2B; tidak ada halaman/alur khusus B2C yang dibangun sekarang.
-- Lint/typecheck/test tooling baru (eslint, vue-tsc, dll.) — pemasangan tooling baru menunggu keputusan eksplisit di luar batasan "jangan memasang package" tahap ini.
+Seluruh 8 in-scope module (bagian 5) dan IA final (`docs/mockup-information-architecture.md` bagian 2–4) termasuk dalam scope demo, didukung oleh 3 skenario data utama plus skenario tambahan (`docs/mockup-data-scenarios.md`):
+- Normal Project, High-Change Project, Complex Project (Prompt 0-G) — wajib.
+- Skenario tambahan: empty state, overdue invoice, lost opportunity, upcoming departure, cancelled service, pending confirmation, role-restricted finance view.
 
-## 4. Kandidat yang Sudah Diputuskan di Prompt 3 (dulunya terbuka di Prompt 2)
+Demo mencakup seluruh 11 role (bagian 3), masing-masing dengan tampilan dashboard dan akses modul sesuai `docs/route-and-role-matrix.md`.
 
-Seluruh 6 kandidat berikut sudah diresolusi di Prompt 3 — lihat `docs/mockup-open-questions.md` (ditandai `[RESOLVED]`) dan `docs/mockup-design-decisions.md` (entri #18–#23) untuk detail lengkap:
-- `Tasks` tidak lagi top-level, melebur jadi tab "Tasks" di Project Detail.
-- `Operations` dan `Travelers` tidak jadi top-level, melebur jadi tab "Itinerary & Services" dan "Travelers" di Project Detail; `Vendors` tetap top-level.
-- Wizard `/projects/create` direpurpose jadi konfirmasi otomatis setelah Opportunity Won, bukan entry point manual mandiri.
-- `Settings` dipertahankan skema minimal, diakses lewat popover profil, bukan item sidebar utama.
-- 9 dead link sidebar lama sudah punya tujuan final masing-masing (`docs/route-and-role-matrix.md` bagian 1.8).
+## 8. Deferred Scope
 
-**Masih terbuka (belum diputuskan, bukan scope Prompt 3):** lihat Q7–Q9 di `docs/mockup-open-questions.md` — adopsi `vee-validate`+`zod`, kelengkapan tooling lint/typecheck/test, dan nilai threshold numerik untuk attention condition/approval berjenjang. Ketiganya relevan untuk tahap implementasi, bukan tahap IA/route/role.
+Ditunda ke fase setelah mockup awal (bukan dihapus dari roadmap jangka panjang):
+- Menu Settings versi lengkap (di luar profil minimal) — D-022.
+- Direktori Operations/Travelers top-level — D-033.
+- Halaman detail Quotation mandiri (`/crm/quotations/[id]`) — cukup kontekstual dari Party/Opportunity Detail untuk saat ini.
+- Approval Won berjenjang nilai/kompleksitas — D-032.
+- Adopsi resmi `vee-validate`+`zod` untuk form baru vs pola manual existing — masih terbuka, non-blocking (Q7).
+- Kelengkapan tooling lint/typecheck/test dan nasib `@nuxtjs/eslint-config-typescript` — masih terbuka, blocking sebelum masuk fase implementasi modul (Q8).
+- Nilai threshold numerik final untuk attention condition — sudah dipakai asumsi aman untuk mockup (D-040), tetap `DEFERRED` untuk validasi bisnis nyata (Q9).
+- Approval Won berjenjang nilai/kompleksitas — `DEFERRED` (Q10, lihat juga D-032).
+- Direktori Operations/Travelers top-level — `DEFERRED` (Q11, lihat juga D-033, duplikat referensi dengan poin kedua di atas).
 
-## 5. Prinsip Pembatas Scope
+## 9. Assumptions
 
-Mengikuti Prompt 0 bagian H dan Prompt 2 bagian J:
-- Tidak menginstal library baru sebelum memastikan library existing tidak cukup.
+- Seluruh dummy data adalah fiktif (nama client/vendor/user), tidak memuat informasi sensitif nyata (Prompt 0 K.13), namun tetap dirancang realistis dan konsisten lintas halaman.
+- Contoh destinasi (Manila, Abu Dhabi, Palu) yang disebut Prompt 0-B dipakai sebagai inspirasi tipe-project di skenario data demo — **bukan reproduksi data project nyata milik client sungguhan**.
+- `date-fns` dan `Intl.NumberFormat` (browser API bawaan, bukan package) cukup untuk kebutuhan formatting Rupiah/tanggal — tidak perlu package baru (D-037).
+- Struktur folder data terpusat final (`app/data/` vs `app/constants/`) akan diputuskan bersamaan desain type definitions di tahap implementasi (D-015), bukan diasumsikan sekarang.
+
+## 10. Constraints
+
+Mengikuti Prompt 0 bagian H, Prompt 2 bagian J, dan Prompt 3 bagian K:
+- Tidak menginstal library baru sebelum memastikan library existing tidak cukup (D-036).
 - Tidak menduplikasi komponen yang sudah tersedia.
-- Tidak menghapus file sebelum mapping dan dokumentasi selesai (dokumen ini bagian dari proses tsb, belum berarti "selesai" untuk eksekusi).
-- Tidak membuat route/menu tanpa source of truth — seluruh IA final ditentukan di Prompt 3, bukan diasumsikan dari daftar acuan Prompt 2 begitu saja.
+- Tidak menghapus file sebelum mapping dan dokumentasi selesai serta divalidasi — eksekusi cleanup baru terjadi di Prompt 5.
+- Tidak membuat route/menu tanpa source of truth — seluruh IA final mengikuti `docs/mockup-information-architecture.md` dan `docs/route-and-role-matrix.md`.
+- Tidak mengklaim fitur mockup sebagai sudah terintegrasi nyata (D-006).
+- Seluruh status memakai constant/enum terpusat, bukan didefinisikan ulang per komponen (D-038).
+
+## 11. Acceptance Criteria (Dokumentasi Sumber Kebenaran)
+
+- 9 file dokumentasi wajib (Prompt 4-A) tersedia dan saling konsisten (lihat bagian Document Consistency Check di `docs/mockup-progress.md` entri Prompt 4).
+- Tidak ada route utama yang ambigu (diwarisi dari acceptance criteria Prompt 3, tetap berlaku).
+- Tidak ada menu tanpa tujuan jelas.
+- Setiap keputusan penting tercatat di `docs/mockup-design-decisions.md` dengan status yang jelas.
+- Tidak ada open question yang blocking terhadap **dimulainya** foundation coding (lihat `docs/mockup-open-questions.md` bagian 1: kosong). Q8 blocking sebelum masuk fase implementasi modul (harus diselesaikan di dalam fase Foundation), Q7/Q9/Q10/Q11 non-blocking/deferred.
+
+## 12. Definition of Done — Frontend Mockup
+
+Fase mockup MANOVA dianggap selesai (menyeluruh, bukan hanya dokumentasi) ketika:
+- Seluruh 8 in-scope module (bagian 5) terimplementasi mengikuti IA dan route final, dengan data dari satu sumber terpusat (bukan hardcoded per halaman).
+- 3 skenario data demo wajib + skenario tambahan (bagian 7) dapat ditampilkan tanpa data yang saling bertentangan antar halaman.
+- Seluruh 11 role dapat login dan melihat dashboard/akses modul sesuai Role & Access Matrix, tanpa role yang menyebabkan crash atau halaman kosong tak terduga.
+- Build (`npm run build`) sukses; lint/typecheck/test dijalankan sesuai script yang tersedia pada saat itu (Prompt 0 aturan teknis #15).
+- Tidak ada klaim integrasi nyata di UI mana pun (label, tooltip, atau teks yang mengklaim koneksi API sungguhan).
+- Dokumentasi (`docs/*.md`) tetap sinkron dengan kondisi kode aktual di setiap akhir tahap.
+
+## 13. Penegasan Eksplisit (Prompt 4-B)
+
+- **Ini frontend mockup** — bukan sistem produksi, dummy data seluruhnya (D-005).
+- **Dummy data terpusat** — satu sumber data untuk seluruh halaman/widget, bukan literal per file (D-013).
+- **Tidak ada klaim integrasi nyata** — dilarang eksplisit (D-006).
+- **Opportunity Won membuat Project** — otomatis, bukan alur manual terpisah (D-002).
+- **Party menjadi source untuk Prospect dan Client** — satu master data, dibedakan `lifecycleStatus` (D-001/D-024).
+- **Seluruh role digunakan pada demo** — 11 role tanpa kecuali (D-003).
+- **Template existing harus direuse** — layout, sidebar, primitive `ui/*`, pola table/wizard/kanban/chart existing dipakai ulang, bukan dibangun dari nol (D-008, D-035).
+
+---
+
+## Riwayat Perubahan Dokumen (bukan dihapus, dicatat sebagai jejak)
+
+- **Prompt 2:** versi awal — scope hasil gap analysis, 10 area kerja dengan Operations/Traveler sebagai phase tersendiri (kandidat menu top-level, masih open question).
+- **Prompt 3:** area kerja disesuaikan jadi 8 (Operations/Traveler melebur ke Project Detail), seluruh open question Q1–Q6 dicatat sebagai resolved.
+- **Prompt 4 (dokumen ini):** direstrukturisasi lengkap dengan Product Objective, Business Context, Primary Users, B2B/B2C, Assumptions, Constraints, Non-Goals, Acceptance Criteria, dan Definition of Done sesuai Prompt 4 bagian B; seluruh referensi keputusan diperbarui ke format `D-0NN`.

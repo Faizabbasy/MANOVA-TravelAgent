@@ -1,4 +1,4 @@
-# Template Reuse Mapping — MANOVA (Prompt 2)
+# Template Reuse Mapping — MANOVA (Prompt 2, dilengkapi di Prompt 4)
 
 Status dokumen: **Gap analysis, tidak ada implementasi.** Tidak ada kode yang diubah, tidak ada file dihapus, tidak ada rename, tidak ada route/sidebar yang diubah, tidak ada package dipasang.
 Landasan: `prompts/PROMPT 0-KONTEKS BISNIS DAN ATURAN KERJA.md` (bagian keputusan LOCKED) dan `docs/template-audit.md` (temuan Prompt 1).
@@ -17,7 +17,33 @@ Diwarisi langsung dari Prompt 0 bagian C, dipakai sebagai constraint pengambilan
 - **LOCKED** — Sistem adalah frontend mockup dummy data; tidak ada backend nyata yang perlu dipertahankan (dikonfirmasi Prompt 1 — tidak ditemukan integrasi API/backend nyata).
 - **LOCKED** — Tidak boleh mengarang integrasi airline/hotel/payment/WhatsApp/vendor API nyata, dan tidak boleh mengklaim fitur mockup sebagai terintegrasi.
 
-Implikasi langsung terhadap reuse mapping: pola wizard `pages/projects/create.vue` sebagai "manual create project independen" **kemungkinan besar bukan alur utama** MANOVA (project seharusnya lahir dari Opportunity Won) — lihat kategori ADAPT di bagian C dan open question terkait di `docs/mockup-open-questions.md`.
+Implikasi langsung terhadap reuse mapping: pola wizard `pages/projects/create.vue` sebagai "manual create project independen" **kemungkinan besar bukan alur utama** MANOVA (project seharusnya lahir dari Opportunity Won) — lihat kategori ADAPT di bagian C dan resolusi final di D-018 (`docs/mockup-design-decisions.md`).
+
+---
+
+## 0.5 Consolidated Reuse Summary (kolom wajib Prompt 4-I)
+
+Tabel ringkas dengan kolom persis sesuai Prompt 4-I. Baris 1–9 diringkas dari Mapping Matrix bagian C (detail lengkap di sana); baris 10–17 diringkas dari bagian G (Fitur Tidak Relevan / candidate removal).
+
+| Existing feature | Existing route | Existing component | Proposed MANOVA use | Reuse category | Required adaptation | Candidate removal | Dependency | Risk | Execution phase |
+|---|---|---|---|---|---|---|---|---|---|
+| Dashboard home | `/` | `StatsCard`, `ProjectsTable`, `BudgetChart`, dll. | Dashboard lintas-domain | `REUSE_LAYOUT_REPLACE_CONTENT` | 7/8 widget jadi props-driven, data diganti | Tidak (AIAssistant terpisah, lihat baris 14) | Dirender di `pages/index.vue`, tidak ada dependensi lain | Sedang | Foundation (shell) → Reporting |
+| Login | `/login` | Form fields, `ui/input`/`button`/`card` | Authentication | `REUSE_COMPONENTS` | Perluas payload user+role | Tidak | Dibaca `middleware/auth.ts` | Rendah | Foundation |
+| Expenses list | `/expenses` | Table+filter+modal+toast custom | Finance (Actual Cost, basis Invoice) | `REUSE_LAYOUT_REPLACE_CONTENT` | Perbaiki bug `handleDelete`, ganti skema | Tidak | Tidak ada dependensi lain (standalone page) | Sedang | Finance |
+| Tasks list | `/tasks` | Table custom | — (dilebur, lihat D-019) | `ADAPT` → **excluded sebagai top-level** | — | **Ya, sebagai menu top-level** (isi/logic direuse ke tab "Tasks") | Menu `AppSidebar.vue`; tidak ada store/middleware lain | Rendah (tidak ada dependensi lain yang rusak) | Project Management |
+| Project list | `/projects` | Table custom, badge status/priority | Project — All Projects | `REUSE_LAYOUT_REPLACE_CONTENT` | Ganti skema status/priority | Tidak | — | Rendah–sedang | Project Management |
+| Project create wizard | `/projects/create` | Stepper custom, form fields | — (direpurpose, lihat D-018) | `ADAPT` → **excluded sebagai entry point mandiri** | Pola stepper dipakai ulang untuk konfirmasi Won→Project | **Ya, sebagai halaman/menu manual** (pola tetap direuse, bukan dihapus filenya) | Tidak ada route lain yang bergantung | Sedang | Opportunity to Project |
+| Project workspace | `/projects/:id` | Tab custom, drag-drop kanban, chart | Project Workspace (8 tab) | `REUSE_LAYOUT_REPLACE_CONTENT` | Isi diganti total per domain, tab diekstrak jadi primitive | Tidak | Workaround bug Reka UI `DialogPortal` terdokumentasi di `onUnmounted` — perlu dibawa saat refactor | **Tinggi** | Project Management → seluruh phase domain |
+| Project edit wizard | `/projects/:id/edit` | Sama pola dengan create.vue | Project — Edit Project | `ADAPT` | Satukan skema dengan `[id]/index.vue` (saat ini 2 store independen) | Tidak | Bergantung pada skema Project final | Sedang | Project Management |
+| 404 page | `/[...slug]` | SVG statis, tombol | 404 (sama) | `REUSE_AS_IS` | Tidak ada; catatan: tidak dijaga middleware `auth` | Tidak | Tidak ada | Rendah | Foundation |
+| Sidebar item `Time Tracking` | `/time-tracking` (dead link) | Entri menu saja | — | `REMOVE_AFTER_VALIDATION` | — | **Ya** | Hanya `AppSidebar.vue menuItems`, tidak ada page/store/middleware | Rendah (aman dihapus) | Regression and demo readiness |
+| Sidebar item `Integrations` | `/integrations` (dead link) | Entri menu saja | — | `REMOVE_AFTER_VALIDATION` | — | **Ya** | Hanya entri menu | Rendah (aman dihapus) | Regression and demo readiness |
+| Sidebar item `Templates` | `/templates` (dead link) | Entri menu saja | — | `REMOVE_AFTER_VALIDATION` (butuh validasi) | — | **Ya, menunggu validasi** (Q di `docs/mockup-open-questions.md` arsip) | Hanya entri menu | Rendah | Regression and demo readiness |
+| Sidebar item `Files` | `/files` (dead link) | Entri menu saja | Tab "Documents" Project Detail | `REUSE_LAYOUT_REPLACE_CONTENT` (sebagai tab, bukan top-level) | Nama/ikon dipakai ulang untuk label tab | **Ya, sebagai menu top-level** (bukan konsepnya) | Hanya entri menu | Rendah | Project Management |
+| `dashboard/AIAssistant.vue` | Dirender di `/` | Komponen statis tanpa data model | — (tidak dilanjutkan, D-023) | `KEEP_TEMPORARILY` → **excluded dari desain baru** | — | **Ya (keputusan diambil, eksekusi fisik ditunda ke Prompt 5)** | Dirender di `pages/index.vue`, tidak ada store/middleware lain | Rendah | Regression and demo readiness |
+| `app/lib/utils.ts` vs `app/utils/cn.ts` | — (utility, bukan route) | `cn()` duplikat persis | Satu sumber `cn()` | Konsolidasi teknis (DEFERRED, D-017) | Pilih satu, update seluruh pemanggil | **Ya, salah satu** | Dipanggil hampir di seluruh komponen `ui/*` dan `layout/*` — **risiko tinggi bila ceroboh** | Sedang (karena luas dipakai) | Foundation |
+| `dialog/DialogContent.vue` vs `DialogScrollContent.vue` | — (komponen, bukan route) | Dua Dialog ~90% identik | Satu komponen dengan prop `scrollable` | Konsolidasi teknis (DEFERRED, D-017) | Gabung jadi satu dengan prop | Tidak (keduanya dipakai aktif, bukan dead code) | Dipakai di banyak modal existing | Rendah | Foundation |
+| `.gradient-primary` CSS class | — (utility CSS) | Class tidak dipakai di manapun | — | `REMOVE_AFTER_VALIDATION` | — | **Ya** | Tidak ada elemen yang mereferensikan | Rendah (aman dihapus) | Regression and demo readiness |
 
 ---
 

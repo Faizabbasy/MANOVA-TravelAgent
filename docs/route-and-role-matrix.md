@@ -1,11 +1,46 @@
-# Route and Role Matrix — MANOVA (Prompt 3)
+# Route and Role Matrix — MANOVA (Prompt 3, dilengkapi di Prompt 4)
 
 Status dokumen: hasil finalisasi rancangan (LOCKED kecuali ditandai lain). Tidak ada kode yang diubah, tidak ada route yang benar-benar dibuat/diubah pada codebase, ini adalah rancangan untuk tahap implementasi berikutnya.
-Landasan: `docs/mockup-information-architecture.md` (bagian 2–6), `docs/template-reuse-mapping.md`, keputusan LOCKED Prompt 0.
+Landasan: `docs/mockup-information-architecture.md` (bagian 2–6), `docs/template-reuse-mapping.md`, keputusan LOCKED Prompt 0, `docs/mockup-design-decisions.md`.
 
 ---
 
-## 1. Route Inventory
+## 0. Consolidated Route Summary (kolom wajib Prompt 4-H)
+
+Tabel ringkas lintas seluruh route (detail per kolom Purpose/Required data ada di bagian 1). Kolom **Reuse source** merujuk komponen/pola existing yang dipakai ulang (detail lengkap silang-referensi ke `docs/template-reuse-mapping.md`); **Implementation phase** memakai penamaan fase dari `docs/template-reuse-mapping.md` bagian I (Foundation/CRM/Opportunity to Project/Project Management/Vendor/Finance/Reporting/Administration).
+
+| Route | Module | Page | Menu placement | Demo inclusion | Role access (ringkas) | Main action | Reuse source | Implementation phase | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| `/login` | Global | Login | Tidak di sidebar (publik) | Ya | Publik (pre-auth) | Login mock | `pages/login.vue` existing | Foundation | foundation |
+| `/` | Global/Dashboard | Dashboard | Sidebar — Dashboard | Ya | Semua (widget kondisional per role) | Lihat ringkasan KPI lintas-domain | `StatsCard` + widget adaptasi | Foundation (shell) → Reporting (final) | foundation (shell) |
+| `/[...slug]` | Global | 404 | Tidak di sidebar | Ya | Semua | Go back / Go home | `pages/[...slug].vue` existing | Foundation | foundation |
+| `/settings` | Global | Settings (minimal) | Popover profil, bukan sidebar | Ya (minimal) | Diri sendiri saja | Edit profil pribadi | Form existing (adaptasi kecil) | Foundation | phase later (minimal) / deferred (lengkap) |
+| `/crm/prospects` | CRM | Prospects | Sidebar — CRM > Prospects | Ya | Sales:`MANAGE`, Management:`VIEW`, Viewer:`VIEW` | Search/filter/kelola Prospect | `pages/projects/index.vue` (pola table) | CRM | phase later |
+| `/crm/clients` | CRM | Clients | Sidebar — CRM > Clients | Ya | Sales:`MANAGE`, Management/PM/Finance/Viewer:`VIEW` | Search/filter/kelola Client | Sama seperti Prospects | CRM | phase later |
+| `/crm/parties/[id]` | CRM | Party Detail | Kontekstual dari Prospects/Clients | Ya | Sama seperti parent list | Kelola Contacts/Opportunities/Activities/Projects* | Adaptasi arsitektur tab `projects/[id]/index.vue` | CRM | phase later |
+| `/crm/opportunities` | CRM | Opportunities | Sidebar — CRM > Opportunities | Ya | Sales:`MANAGE`, Management:`APPROVE`, Viewer:`VIEW` | Kelola pipeline opportunity | Table + pipeline chart baru | CRM | phase later |
+| `/crm/opportunities/[id]` | CRM | Opportunity Detail | Kontekstual dari Opportunities | Ya | Sales:`MANAGE` (s/d WonRequested), Management:`APPROVE` (Won final) | Submit as Won / Approve Won | Stepper adaptasi `create.vue` | Opportunity to Project | phase later |
+| `/crm/quotations` | CRM | Quotations | Sidebar — CRM > Quotations | Ya | Sales:`MANAGE`, Finance/Management/Viewer:`VIEW` | Lihat/kelola quotation lintas opportunity | `pages/expenses.vue` (pola table) | CRM | phase later |
+| `/projects` | Projects | All Projects | Sidebar — Projects | Ya | PM:`MANAGE`, Management:`APPROVE`, Sales/Ops/Ticketing/Accommodation/Transportation/MICE/Finance/Viewer:`VIEW` | Search/filter project | `projects/index.vue` + `ProjectsTable.vue` disatukan | Project Management | phase later |
+| `/projects/[id]` | Projects | Project Detail | Kontekstual dari All Projects | Ya | Bervariasi per tab (bagian 5) | Kelola 8-tab project workspace | Arsitektur tab `projects/[id]/index.vue` existing | Project Management (shell) → seluruh phase domain (isi) | foundation (shell) / phase later (isi) |
+| `/projects/[id]/edit` | Projects | Edit Project | Kontekstual dari Project Detail | Ya | PM:`MANAGE`, Management:`APPROVE` | Edit info inti project | `projects/[id]/edit.vue` adaptasi | Project Management | phase later |
+| `/vendors` | Vendors | Vendors | Sidebar — Vendors | Ya | Ops/Ticketing/Accommodation/Transportation/MICE:`MANAGE` (subset), PM/Finance/Management:`VIEW` | Kelola direktori vendor | Table generic adaptasi | Vendor | phase later |
+| `/vendors/[id]` | Vendors | Vendor Detail | Kontekstual dari Vendors | Ya | Sama seperti parent | Kelola detail vendor | Adaptasi arsitektur tab (skala kecil) | Vendor | phase later |
+| `/finance/invoices` | Finance | Invoices | Sidebar — Finance > Invoices | Ya | Finance:`MANAGE`, Management/PM/Viewer:`VIEW` | Kelola invoice + lihat outstanding | `pages/expenses.vue` (setelah bug `handleDelete` diperbaiki) | Finance | phase later |
+| `/finance/payments` | Finance | Payments | Sidebar — Finance > Payments | Ya | Finance:`MANAGE`, Management/Viewer:`VIEW` | Kelola record payment | Table generic adaptasi | Finance | phase later |
+| `/reports` | Reports | Reports | Sidebar — Reports | Ya | Bervariasi per section (bagian 6) | Lihat 4 section laporan | Chart wrapper baru (pola `BudgetChart.vue`) | Reporting | phase later |
+| `/admin/master-data` | Administration | Master Data | Sidebar — Administration > Master Data | Ya | Super Admin:`ADMIN`, lainnya:`NONE` | Kelola master data | Table generic adaptasi | Administration | phase later |
+| `/admin/users` | Administration | Users | Sidebar — Administration > Users | Ya | Super Admin:`ADMIN`, Management:`VIEW` | Kelola user & assignment role | Table generic adaptasi | Administration | phase later |
+| `/admin/roles` | Administration | Roles and Permissions | Sidebar — Administration > Roles | Ya | Super Admin:`ADMIN`, Management:`VIEW` | Lihat/kelola role matrix | Komponen baru "Role Matrix" | Administration | phase later |
+| `/admin/audit-trail` | Administration | Audit Trail | Sidebar — Administration > Audit Trail | Ya | Super Admin:`ADMIN`, Management/Viewer:`VIEW` | Lihat log aktivitas lintas modul | Adaptasi `RecentActivity.vue` (skala global) | Administration | phase later |
+
+*Tab "Projects" di Party Detail kondisional (lihat bagian 1.2).
+
+Route yang **excluded** (tidak dilanjutkan) tercantum di bagian 1.8, tidak diulang di tabel ini karena tidak punya Module/Menu placement/Role access yang berlaku (justru itu alasan exclusion).
+
+---
+
+## 1. Route Inventory (Detail)
 
 Kolom **Status** memakai 4 nilai sesuai Prompt 3-B: `foundation` (dibangun di fase Foundation atau merupakan shell dasar), `phase later` (dibangun di fase domain terkait, menyusul), `deferred` (ditunda, bukan prioritas mockup awal), `excluded` (tidak dilanjutkan sebagai bagian IA MANOVA).
 

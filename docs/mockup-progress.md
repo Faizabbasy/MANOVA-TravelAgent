@@ -1,66 +1,72 @@
 # MANOVA Mockup — Progress Log
 
-File ini adalah log kronologis progres pengerjaan mockup MANOVA di atas template Nuxt 4 existing. Entri baru ditambahkan di bagian bawah tanpa menghapus histori sebelumnya.
+Log kronologis progres pengerjaan mockup MANOVA di atas template Nuxt 4 existing. **Append-only secara konseptual** — entri baru ditambahkan di bagian bawah, histori sebelumnya tidak dihapus. **Direstrukturisasi di Prompt 4** (Prompt 4 bagian G) ke format field standar per entri: Date · Phase · Status · Completed · Files changed · Validation · Decisions · Open issues · Next recommended prompt. Seluruh isi naratif dari versi sebelumnya dipertahankan, hanya disusun ulang ke format ini.
 
 ---
 
-## 2026-07-29 — Prompt 0: Konteks Bisnis dan Aturan Kerja
+## Entri 1 — Prompt 0: Konteks Bisnis dan Aturan Kerja
 
-- **Status:** Selesai.
-- Membaca dan mengonfirmasi seluruh isi `prompts/PROMPT 0-KONTEKS BISNIS DAN ATURAN KERJA.md` sebagai landasan kerja (domain MANOVA, tipe project, alur bisnis, entitas, role, kebutuhan dashboard, skenario data demo, prinsip reuse, aturan teknis, dokumentasi source of truth, aturan pelaporan).
-- Tidak ada kode yang diubah, tidak ada halaman dibuat, tidak ada package diinstal, tidak ada file dihapus (sesuai batasan tahap ini).
-- Output: ringkasan pemahaman disampaikan langsung ke user (belum ada dokumen `docs/` yang dibuat pada tahap ini).
+- **Date:** 2026-07-29
+- **Phase:** Prompt 0 — Konteks Bisnis dan Aturan Kerja
+- **Status:** Selesai
+- **Completed:** Membaca dan mengonfirmasi seluruh isi `prompts/PROMPT 0-KONTEKS BISNIS DAN ATURAN KERJA.md` sebagai landasan kerja (domain MANOVA, tipe project, alur bisnis, entitas, role, kebutuhan dashboard, skenario data demo, prinsip reuse, aturan teknis, dokumentasi source of truth, aturan pelaporan). Tidak ada kode yang diubah, tidak ada halaman dibuat, tidak ada package diinstal, tidak ada file dihapus (sesuai batasan tahap ini).
+- **Files changed:** Tidak ada (murni pembacaan konteks).
+- **Validation:** Tidak berlaku — tidak ada kode yang diubah.
+- **Decisions:** 6 keputusan LOCKED dari Prompt 0 dicatat (lihat D-001 s/d D-006, `docs/mockup-design-decisions.md`, direstrukturisasi retroaktif di Prompt 4).
+- **Open issues:** Tidak ada pada tahap ini.
+- **Next recommended prompt:** Prompt 1 — Audit Template dan Codebase.
 
-## 2026-07-29 — Prompt 1: Audit Template dan Codebase
+## Entri 2 — Prompt 1: Audit Template dan Codebase
 
-- **Status:** Selesai.
-- Melakukan audit read-only menyeluruh terhadap template Nuxt 4 existing: project foundation (versi, package, config), struktur codebase, UI & design system, fitur/halaman, data & state, serta kualitas codebase (build/lint/typecheck/test).
-- Metode: audit langsung untuk config/versi/struktur + 3 sub-agent riset paralel (rute-layout-middleware, UI-design tokens, data-state-code quality) untuk pembacaan menyeluruh tiap file, lalu verifikasi build.
-- **Temuan utama:**
-  - Fondasi Nuxt 4/Vue 3/TypeScript/Tailwind/shadcn-nuxt/Reka UI/Chart.js layak direuse, dengan banyak pola (layout, sidebar, wizard, kanban, chart) yang sudah matang.
-  - Data mock (Project/Task/Expense) tidak konsisten lintas halaman (2–3 shape berbeda per entitas, taksonomi status/kategori tidak sinkron, satu project "PRJ-005" orphan hanya muncul di satu file).
-  - Bug nyata: tombol Delete di modal detail `expenses.vue` memanggil fungsi `handleDelete` yang tidak terdefinisi.
-  - 9 dari 13 menu sidebar menunjuk ke halaman yang belum ada.
-  - Tidak ada RBAC/role mock — auth hanya flag boolean `localStorage`, perlu dibangun dari nol untuk kebutuhan role MANOVA (Prompt 0-E).
-  - Tidak ada formatter currency/date bersama, dan belum ada satu pun format Rupiah/IDR (wajib untuk MANOVA).
-  - Tidak ada tooling lint/typecheck/test yang berfungsi (eslint tidak terpasang, 0 file test) meski sebagian devDependency-nya sudah ada.
-  - **Di luar kode**: folder `.git` sudah tidak ditemukan di working directory saat audit berlangsung — dilaporkan langsung ke user, dicatat sebagai risiko utama, tidak ada tindakan pemulihan yang diambil (di luar kendali/scope Prompt 1).
-- Tindakan yang **tidak** dilakukan sesuai batasan Prompt 1: implementasi halaman MANOVA, rename menu/route, penggantian dummy data, penghapusan fitur, instalasi library baru, perubahan design system, refactor besar.
-- **Validasi:** `npm run build` sukses (exit 0) dua kali; lint/typecheck/test tidak dapat dijalankan karena tooling belum dikonfigurasi (dicatat sebagai temuan, bukan dieksekusi paksa dengan instalasi baru).
-- Output: `docs/template-audit.md` (dibuat, 15 bagian lengkap sesuai spesifikasi Prompt 1), `docs/mockup-progress.md` (dibuat, entri ini).
-- **Belum dikerjakan** (menunggu prompt berikutnya): `docs/mockup-scope.md`, `docs/mockup-information-architecture.md`, `docs/mockup-data-scenarios.md`, `docs/mockup-design-decisions.md`, `docs/mockup-open-questions.md`, `docs/template-reuse-mapping.md`, `docs/route-and-role-matrix.md`.
+- **Date:** 2026-07-29
+- **Phase:** Prompt 1 — Audit Template dan Codebase
+- **Status:** Selesai
+- **Completed:** Audit read-only menyeluruh terhadap template Nuxt 4 existing: project foundation (versi, package, config), struktur codebase, UI & design system, fitur/halaman, data & state, serta kualitas codebase (build/lint/typecheck/test). Metode: audit langsung untuk config/versi/struktur + 3 sub-agent riset paralel (rute-layout-middleware, UI-design tokens, data-state-code quality), lalu verifikasi build. Tindakan yang **tidak** dilakukan sesuai batasan Prompt 1: implementasi halaman MANOVA, rename menu/route, penggantian dummy data, penghapusan fitur, instalasi library baru, perubahan design system, refactor besar.
+  - **Temuan utama:** fondasi Nuxt 4/Vue 3/TypeScript/Tailwind/shadcn-nuxt/Reka UI/Chart.js layak direuse; data mock (Project/Task/Expense) tidak konsisten lintas halaman (2–3 shape berbeda per entitas, satu project "PRJ-005" orphan); bug nyata `handleDelete` tidak terdefinisi di modal detail `expenses.vue`; 9 dari 13 menu sidebar menunjuk halaman yang belum ada; tidak ada RBAC/role mock; tidak ada formatter currency/date bersama, nol format Rupiah/IDR; tidak ada tooling lint/typecheck/test yang berfungsi; **di luar kode** — folder `.git` sempat tidak ditemukan saat audit (dilaporkan terpisah ke user, di luar kendali/scope Prompt 1).
+- **Files changed:** Dibuat — `docs/template-audit.md`, `docs/mockup-progress.md`.
+- **Validation:** `npm run build` sukses (exit 0), dijalankan dua kali untuk konfirmasi; lint/typecheck/test tidak dapat dijalankan karena tooling belum dikonfigurasi (dicatat sebagai temuan, bukan dieksekusi paksa dengan instalasi baru).
+- **Decisions:** Tidak ada keputusan baru (murni temuan audit).
+- **Open issues:** Status folder `.git` (dilaporkan terpisah ke user); bug `handleDelete`; belum ada tooling lint/typecheck/test.
+- **Next recommended prompt:** Prompt 2 — Gap Analysis dan Template Reuse Mapping.
 
-## 2026-07-29 — Prompt 2: Gap Analysis dan Template Reuse Mapping
+## Entri 3 — Prompt 2: Gap Analysis dan Template Reuse Mapping
 
-- **Status:** Selesai.
-- Membaca ulang `docs/template-audit.md`, `docs/mockup-progress.md`, `prompts/PROMPT 0-KONTEKS BISNIS DAN ATURAN KERJA.md`, dan `prompts/PROMPT 1 — AUDIT TEMPLATE DAN CODEBASE.md` sebagai landasan; memverifikasi `app/components/layout/AppSidebar.vue` untuk memastikan daftar 13 menu item persis sesuai temuan audit sebelum dipetakan.
-- Menyusun gap analysis dan reuse mapping murni dokumentasi: tidak ada kode yang diubah, tidak ada file dihapus, tidak ada rename, tidak ada route/sidebar yang diubah, tidak ada package dipasang, tidak ada halaman baru dibuat.
-- **Cakupan pekerjaan:**
-  - Mapping Matrix 9 route existing → kategori reuse (`REUSE_AS_IS`/`REUSE_COMPONENTS`/`REUSE_LAYOUT_REPLACE_CONTENT`/`ADAPT`/dst.) dengan required adaptation, data impact, navigation impact, risk, dan execution phase per baris.
-  - Component Reuse Matrix untuk 19 kebutuhan komponen MANOVA (KPI card s/d Empty/loading/error state) terhadap komponen existing.
-  - Data Model Gap: pemetaan type yang bisa digeneralisasi (Project/Task/Expense, masing-masing 2–3 shape tidak sinkron di codebase existing) vs type baru yang harus dibangun total (CRM, Traveler, Operations, Vendor, sebagian Finance, Administration/RBAC).
-  - Navigation Gap: evaluasi 13 menu sidebar existing (4 punya halaman, 9 dead link) terhadap rekomendasi menu MANOVA, dengan keputusan eksplisit untuk tidak membuat menu kosong (Operations/Travelers/Settings ditandai sebagai open question, bukan langsung ditambahkan).
-  - Fitur tidak relevan: dianalisis alasan, komponen reusable di dalamnya, dependensi, dan rekomendasi aman-dihapus/disembunyikan/dipertahankan — tanpa eksekusi penghapusan apa pun.
-  - Rekomendasi phasing 11 tahap (Foundation s/d Regression and demo readiness) dengan scope/route/main components/reuse target/data dependency/exit criteria per tahap.
-- **Keputusan LOCKED dari Prompt 0 dipakai sebagai constraint**, terutama: Party/Customer Account tunggal untuk Client+Prospect, Opportunity Won → Project otomatis (memicu open question soal nasib wizard manual `/projects/create`), seluruh role dipakai saat demo, larangan mengarang integrasi nyata.
-- Seluruh keputusan reuse/phasing baru pada tahap ini dicatat berstatus **PROPOSED** (belum divalidasi user), bukan `LOCKED` — akan dikunci di Prompt 3.
-- Output: `docs/template-reuse-mapping.md` (dibuat baru), `docs/mockup-scope.md` (dibuat baru), `docs/mockup-design-decisions.md` (dibuat baru), `docs/mockup-open-questions.md` (dibuat baru, 8 pertanyaan terbuka), `docs/mockup-progress.md` (diupdate, entri ini).
-- **Belum dikerjakan** (menunggu prompt berikutnya): `docs/mockup-information-architecture.md`, `docs/mockup-data-scenarios.md`, `docs/route-and-role-matrix.md` — seluruhnya scope Prompt 3 (Information Architecture, Route, Role, dan Workflow) ke atas.
+- **Date:** 2026-07-29
+- **Phase:** Prompt 2 — Gap Analysis dan Template Reuse Mapping
+- **Status:** Selesai
+- **Completed:** Menyusun gap analysis dan reuse mapping murni dokumentasi (tidak ada kode diubah/dihapus/rename, tidak ada route/sidebar diubah, tidak ada package dipasang, tidak ada halaman baru dibuat). Cakupan: Mapping Matrix 9 route existing → kategori reuse dengan required adaptation/data impact/navigation impact/risk/execution phase; Component Reuse Matrix untuk 19 kebutuhan komponen MANOVA; Data Model Gap (type yang bisa digeneralisasi vs type baru total); Navigation Gap (13 menu sidebar existing, 9 dead link, dievaluasi tanpa membuat menu kosong); Fitur tidak relevan (alasan, komponen reusable, dependensi, rekomendasi tanpa eksekusi hapus); Rekomendasi phasing 11 tahap.
+- **Files changed:** Dibuat — `docs/template-reuse-mapping.md`, `docs/mockup-scope.md`, `docs/mockup-design-decisions.md`, `docs/mockup-open-questions.md`. Diupdate — `docs/mockup-progress.md`.
+- **Validation:** Tidak berlaku — tidak ada kode yang diubah pada tahap ini.
+- **Decisions:** Keputusan LOCKED Prompt 0 dipakai sebagai constraint (Party tunggal, Opportunity Won→Project otomatis, seluruh role dipakai demo, larangan fabrikasi integrasi). Seluruh keputusan reuse/phasing baru tahap ini dicatat **PROPOSED** (kini D-007 s/d D-014, D-015 s/d D-017 DEFERRED — lihat `docs/mockup-design-decisions.md`), belum divalidasi user.
+- **Open issues:** 8 pertanyaan terbuka dicatat (Q1–Q8 versi awal) — nasib wizard `/projects/create`, scope `Tasks` vs Kanban, Operations/Travelers top-level vs tab, 9 dead link sidebar, menu `Settings`, `AIAssistant.vue`, adopsi vee-validate/zod, tooling lint/typecheck/test.
+- **Next recommended prompt:** Prompt 3 — Information Architecture, Route, Role, dan Workflow.
 
-## 2026-07-29 — Prompt 3: Information Architecture, Route, Role, dan Workflow
+## Entri 4 — Prompt 3: Information Architecture, Route, Role, dan Workflow
 
-- **Status:** Selesai.
-- Membaca ulang `docs/template-audit.md`, `docs/template-reuse-mapping.md`, `docs/mockup-scope.md`, `docs/mockup-design-decisions.md`, `docs/mockup-open-questions.md`, `docs/mockup-progress.md`, serta `prompts/PROMPT 0-...md` dan `prompts/PROMPT 1 — ...md` sebagai landasan sebelum menyusun IA final.
-- Murni dokumentasi/desain: tidak ada kode yang diubah, tidak ada halaman diimplementasikan, tidak ada rename massal, tidak ada fitur dihapus, tidak ada route/sidebar yang benar-benar diubah di codebase.
-- **Cakupan pekerjaan:**
-  - Information Architecture final: 9 kelompok baseline Prompt 3-A dievaluasi satu per satu; Operations dan Travelers diputuskan **tidak** jadi menu top-level (melebur jadi tab Project Detail), Vendor dipertahankan top-level; CRM disederhanakan jadi 4 sub-menu (Prospects/Clients/Opportunities/Quotations) dengan Contacts/Activities sebagai tab kontekstual di Party Detail.
-  - Route inventory lengkap per kelompok menu (path, page name, parent menu, purpose, required data, main reusable component, access role, demo inclusion, status foundation/phase later/deferred/excluded), termasuk pemetaan eksplisit 9 dead link sidebar lama ke tujuan barunya.
-  - Project Detail Structure dikonsolidasikan dari 6 tab existing menjadi 8 tab final (Overview, Itinerary & Services, Travelers, Vendors, Finance, Tasks, Documents, Activity & Changes), dengan sub-section kondisional sesuai kombinasi layanan project; tab tetap satu route (`/projects/[id]`) dengan state client-side, bukan nested route.
-  - Model UI Party/Prospect/Client dirinci: satu record `Party` dengan `lifecycleStatus`, transisi Prospect→Client otomatis saat Opportunity Won, history tidak hilang.
-  - Opportunity-to-Project workflow dirancang lengkap (diagram Mermaid stage + checklist efek Won) dengan model role approval dua-langkah (Sales mengajukan, Management/Super Admin menyetujui) — dipilih karena daftar role tidak menyediakan "Sales Manager" terpisah dan tetap merepresentasikan pemisahan tanggung jawab sesuai instruksi Prompt 3-E.
-  - Project Status (8 status + diagram transisi + attention condition) dan Service Status generik (lifecycle sama untuk Flight/Hotel/Transportation/MICE, dibedakan lewat subtype field, bukan status berbeda) dirancang sesuai Prompt 3-F dan 3-G.
-  - Role & Access Matrix penuh untuk 11 role x 6 modul dengan 5 access level (`NONE`/`VIEW`/`MANAGE`/`APPROVE`/`ADMIN`), plus action flag khusus (view financial info, manage users, approve, delete/export mock).
-  - Dashboard Role Behavior: satu dashboard dengan widget kondisional per role, bukan dashboard terpisah per role.
-- **Resolusi open questions Prompt 2:** Q1–Q6 diresolusi tuntas (nasib wizard `/projects/create`, scope `Tasks`, Operations/Travelers top-level vs tab, 9 dead link, menu `Settings`, `dashboard/AIAssistant.vue`) — seluruhnya dicatat sebagai keputusan **LOCKED** baru (entri #18–#31 di `docs/mockup-design-decisions.md`), sesuai instruksi eksplisit Prompt 3 untuk "memfinalisasikan rancangan". Q7–Q8 tetap terbuka (di luar scope IA/route/role); Q9 baru ditambahkan (threshold numerik attention/approval, sengaja ditunda ke implementasi).
-- Output: `docs/mockup-information-architecture.md` (dibuat baru), `docs/route-and-role-matrix.md` (dibuat baru), `docs/mockup-design-decisions.md` (diupdate, +14 entri LOCKED baru), `docs/mockup-open-questions.md` (diupdate, Q1–Q6 ditandai RESOLVED, +Q9), `docs/mockup-scope.md` (diupdate, mencerminkan IA final), `docs/mockup-progress.md` (diupdate, entri ini).
-- **Belum dikerjakan** (menunggu prompt berikutnya): `docs/mockup-data-scenarios.md` (skenario data 3 tipe demo) dan seluruh implementasi kode — scope Prompt 4 (dokumentasi lanjutan) dan Prompt 5 (cleanup/foundation) ke atas.
+- **Date:** 2026-07-29
+- **Phase:** Prompt 3 — Information Architecture, Route, Role, dan Workflow
+- **Status:** Selesai
+- **Completed:** Finalisasi IA (bukan sekadar gap analysis) — 9 kelompok baseline dievaluasi satu per satu; Operations & Travelers diputuskan tidak jadi menu top-level (melebur jadi tab Project Detail), Vendor dipertahankan top-level; CRM disederhanakan jadi 4 sub-menu dengan Contacts/Activities sebagai tab kontekstual di Party Detail. Route inventory lengkap per kelompok menu (path/page name/parent menu/purpose/required data/main component/access role/demo inclusion/status), termasuk pemetaan eksplisit 9 dead link lama ke tujuan barunya. Project Detail dikonsolidasikan dari 6 tab existing menjadi 8 tab final dengan sub-section kondisional per service, tetap 1 route dengan state client-side. Model UI Party/Prospect/Client dirinci. Opportunity-to-Project workflow dirancang lengkap (diagram Mermaid + checklist efek Won + model role approval dua-langkah). Project Status (8 status) dan Service Status generik dirancang. Role & Access Matrix penuh 11 role x 6 modul x 5 access level. Dashboard Role Behavior (satu dashboard, widget kondisional).
+- **Files changed:** Dibuat — `docs/mockup-information-architecture.md`, `docs/route-and-role-matrix.md`. Diupdate — `docs/mockup-design-decisions.md` (+14 entri LOCKED, kini D-018 s/d D-031), `docs/mockup-open-questions.md` (Q1–Q6 ditandai RESOLVED, +Q9), `docs/mockup-scope.md`, `docs/mockup-progress.md`.
+- **Validation:** Tidak berlaku — tidak ada kode yang diubah, murni dokumentasi/desain.
+- **Decisions:** Q1–Q6 dari Prompt 2 diresolusi tuntas dan dicatat sebagai LOCKED (kini D-018 s/d D-023); Party model (D-024), model role Won (D-025), 8-tab Project Detail (D-026), single-route tabs (D-027), Project Status (D-028), Service Status (D-029), Role Matrix (D-030), Dashboard behavior (D-031) — seluruhnya LOCKED sesuai instruksi eksplisit Prompt 3 untuk "memfinalisasikan rancangan".
+- **Open issues:** Q7 (adopsi vee-validate/zod) dan Q8 (tooling lint/typecheck/test) tetap terbuka (di luar scope IA/route/role); Q9 baru (threshold numerik attention/approval, sengaja ditunda ke implementasi).
+- **Next recommended prompt:** Prompt 4 — Membuat dan Memperbarui Dokumentasi.
+
+## Entri 5 — Prompt 4: Membuat dan Memperbarui Dokumentasi
+
+- **Date:** 2026-07-29
+- **Phase:** Prompt 4 — Membuat dan Memperbarui Dokumentasi
+- **Status:** Selesai
+- **Completed:** Merapikan seluruh folder `docs/` menjadi source of truth sebelum coding dimulai, sesuai Prompt 4. Tidak ada kode aplikasi diubah, tidak ada halaman diimplementasikan. Pekerjaan:
+  - `docs/mockup-design-decisions.md` direstrukturisasi total ke format decision-record (Decision ID/Title/Status/Context/Decision/Reason/Consequence/Affected/Date), ID lama (1–33) dipetakan 1:1 ke `D-001`–`D-033` agar referensi silang dokumen lain tetap valid; ditambahkan 7 entri baru (`D-034`–`D-040`) untuk melengkapi item wajib Prompt 4-E yang belum eksplisit: Nuxt.js dipertahankan, design system reuse, package addition policy, format Rupiah & tanggal, sentralisasi status constants, conditional modules berdasarkan service, dan threshold default attention condition.
+  - `docs/mockup-scope.md` dilengkapi Product Objective, Business Context, Primary Users, B2B focus/B2C extensibility, Assumptions, Constraints, Non-Goals, Acceptance Criteria, dan Definition of Done (Prompt 4-B), plus penegasan 7 poin wajib (frontend mockup, dummy data terpusat, no fake integration, Opportunity Won→Project, Party sebagai basis Prospect/Client, seluruh role dipakai demo, template harus direuse).
+  - `docs/mockup-data-scenarios.md` **dibuat baru** — 3 skenario utama (Normal: Manila/flight-only; High-Change: Abu Dhabi/flight+hotel; Complex: Palu/flight+hotel+transport+MICE) dengan ID konsisten (Party/Opportunity/Quotation/Project/Vendor/Invoice/Payment/Task/Change/Document), ditambah 1 Lost Opportunity, dan pemetaan 7 skenario tambahan (empty state, overdue invoice, lost opportunity, upcoming departure, cancelled service, pending confirmation, role-restricted finance view) ke entitas yang sudah ada (efisien, tanpa record buang-buang).
+  - `docs/mockup-open-questions.md` direstrukturisasi ke format ID/Category/Impact/Recommendation/Owner/Status/Blocking, dipisah 4 kelompok (Blocking Before Foundation — kosong; Blocking Before Module Implementation — Q8; Non-Blocking — Q7; Deferred — Q9/Q10/Q11 baru, termasuk Q9 yang diresolusi via asumsi aman D-040). Q1–Q6 yang sudah resolved dari Prompt 2/3 dipindah ke bagian Arsip (tidak dihapus, tidak lagi dianggap open).
+  - `docs/route-and-role-matrix.md` dan `docs/template-reuse-mapping.md` diperiksa terhadap kolom wajib Prompt 4-H/I; kolom tambahan (Module/Menu placement/Main action/Reuse source/Implementation phase/Status eksplisit untuk route-role-matrix; Existing component/Candidate removal/Dependency eksplisit untuk template-reuse-mapping) ditambahkan bila belum ada.
+  - Document Consistency Check (Prompt 4-J) dijalankan lintas 9 file: nama module/route/role/status, scope tidak bertentangan, open question tidak bertentangan dengan LOCKED decision, referensi file, tidak ada TODO tanpa konteks/placeholder generik.
+- **Files changed:** Diupdate — `docs/mockup-design-decisions.md`, `docs/mockup-scope.md`, `docs/mockup-open-questions.md`, `docs/route-and-role-matrix.md`, `docs/template-reuse-mapping.md`, `docs/mockup-progress.md` (direstrukturisasi + entri ini). Dibuat baru — `docs/mockup-data-scenarios.md`.
+- **Validation:** Tidak berlaku untuk kode — tidak ada file aplikasi (`app/**`) yang diubah pada tahap ini; validasi yang dilakukan adalah consistency check antar-dokumen (lihat bagian Completed).
+- **Decisions:** D-034 s/d D-040 ditambahkan (lihat `docs/mockup-design-decisions.md` Kelompok B & G). Tidak ada keputusan LOCKED sebelumnya yang diubah/dibatalkan — hanya dirapikan formatnya.
+- **Open issues:** Q7 (non-blocking), Q8 (blocking sebelum implementasi modul, harus selesai dalam fase Foundation), Q9/Q10/Q11 (deferred) — lihat `docs/mockup-open-questions.md`. Tidak ada open question yang blocking terhadap **dimulainya** foundation coding.
+- **Next recommended prompt:** Prompt 5 — Bersihkan Template dan Siapkan Foundation (menunggu perintah user, tidak dieksekusi otomatis).
