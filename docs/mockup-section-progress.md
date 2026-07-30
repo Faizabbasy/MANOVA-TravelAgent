@@ -194,6 +194,20 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-013 (Traveler/TravelerGroup jadi reactive + field baru + entitas RoomAssignment, milik Section 05).
 - **Next action:** Section 12 — Itinerary and Operations. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 12. Menunggu perintah user — tidak dieksekusi otomatis.
 
+## Section 12 — Itinerary and Operations
+
+- **Tanggal:** 2026-07-30
+- **Status:** COMPLETED
+- **Scope dan completed items:** Mengisi penuh tab "Itinerary & Services" pada Project Detail (baseline Foundation sejak Section 05): daily itinerary, conditional sub-section Flight/Hotel/Transportation/MICE/Additional Service, booking/reference mock, service status dan readiness (dengan update status role-gated), operational tasks preview, timeline/list pattern (bukan kalender baru), change markers untuk High-Change Project, states, dan role behavior granular per sub-domain (`canManageServiceType`). Tab lain (Vendors, Finance) tidak disentuh; Overview dan Travelers (Section 10/11) tidak diubah kodenya.
+- **Files created/changed/removed:** Dibuat — `docs/mockup-section-reports/section-12-itinerary-operations.md`. Diubah — `app/types/project.ts` (`ServiceTypeKey` +`additional`, `ProjectService` +`bookingReference`, `+ItineraryItem`), `app/data/projects.ts` (`PROJECT_SERVICES` jadi `reactive()`, +`bookingReference` pada 5 baris, +1 baris `SVC-1036` additional, `+ITINERARY_ITEMS` 15 baris), `app/data/index.ts` (+`getItineraryItems`, `+updateServiceStatus`), `app/constants/status.ts` (`SERVICE_TYPES` +`additional`), `app/utils/format.ts` (+`formatDayLabel`), `app/pages/projects/[id]/index.vue` (tab Itinerary & Services ditulis ulang total).
+- **Routes affected:** Tidak ada route baru — `/projects/[id]` (tab `itinerary-services`) diisi penuh.
+- **Components reused/created:** Reused — `SectionCard`, `Table*`, `StatusBadge`, `EmptyState`, `Button`, `useToast`/`ToastContainer`, pola list `divide-y` existing. Tidak ada komponen file baru.
+- **Data/types/constants affected:** `ProjectService` diperluas (aditif), `+ItineraryItem` (entitas baru), `SERVICE_TYPES` +`additional` (constant). Lihat CI-014.
+- **Validation results:** `nuxi prepare` + `npm run build` sukses. Smoke test konten (curl+grep) mengonfirmasi conditional service section bekerja tepat (PRJ-101 hanya Flight, tidak ada Hotel/Transportation/MICE), banner "Penanda Perubahan" tampil untuk PRJ-102, "Additional Service" tampil untuk PRJ-103 dengan booking reference, readiness fraction presisi per section (Flight 1/2, Hotel 1/1, Transportation 0/1, MICE 1/1, Additional 1/1). Efek fixture ke Overview Service Summary (Confirmed 3→4) diverifikasi presisi, bukan diasumsikan. `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Known issues:** Q8 tetap terbuka (delapan section berturut-turut); daily itinerary read-only (tidak diminta CRUD di scope); CRUD `ProjectService` (tambah/hapus baris) tidak diimplementasikan (di luar scope literal — hanya update status); verifikasi interaktif klik/ganti-role tidak dilakukan (keterbatasan tooling).
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-014 (ProjectService jadi reactive + field baru + entitas ItineraryItem, milik Section 05; dampak terverifikasi ke Service Summary Overview, milik Section 10).
+- **Next action:** Section 13 — Vendor Management. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 13. Menunggu perintah user — tidak dieksekusi otomatis.
+
 ---
 
-*(Belum ada entri Section 12 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*
+*(Belum ada entri Section 13 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*

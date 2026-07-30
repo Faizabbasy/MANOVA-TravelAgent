@@ -2,11 +2,12 @@ import { PARTIES, CONTACTS, PARTY_ACTIVITIES } from './parties'
 import { USERS } from './users'
 import { OPPORTUNITIES, QUOTATIONS } from './opportunities'
 import { VENDORS } from './vendors'
-import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS } from './projects'
+import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS } from './projects'
 import { INVOICES, PAYMENTS } from './finance'
 import { ACTIVITIES, DOCUMENTS, TASKS } from './activity'
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, DEMO_REFERENCE_DATE } from '~/utils/attention'
-import type { Project, ServiceTypeKey, Traveler } from '~/types/project'
+import { SERVICE_STATUSES, findStatusOption } from '~/constants/status'
+import type { Project, ServiceTypeKey, ServiceStatus, Traveler } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType } from '~/types/party'
 import type { Opportunity, OpportunityStage, Quotation } from '~/types/opportunity'
 
@@ -15,7 +16,7 @@ export {
   PARTIES, CONTACTS, PARTY_ACTIVITIES,
   OPPORTUNITIES, QUOTATIONS,
   VENDORS,
-  PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS,
+  PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS,
   INVOICES, PAYMENTS,
   ACTIVITIES, DOCUMENTS, TASKS,
 }
@@ -33,6 +34,9 @@ export const getVendorById = (id: string) => VENDORS.find(vendor => vendor.id ==
 
 export const getProjectById = (id: string) => PROJECTS.find(project => project.id === id)
 export const getProjectServices = (projectId: string) => PROJECT_SERVICES.filter(service => service.projectId === projectId)
+export const getItineraryItems = (projectId: string) => ITINERARY_ITEMS
+  .filter(item => item.projectId === projectId)
+  .sort((a, b) => a.date.localeCompare(b.date) || (a.time ?? '').localeCompare(b.time ?? ''))
 export const getTravelerGroups = (projectId: string) => TRAVELER_GROUPS.filter(group => group.projectId === projectId)
 export const getTravelers = (projectId: string) => TRAVELERS.filter(traveler => traveler.projectId === projectId)
 export const getTravelersByGroup = (groupId: string) => TRAVELERS.filter(traveler => traveler.groupId === groupId)
@@ -335,4 +339,31 @@ export function importTravelersMock(projectId: string, count = 3): Traveler[] {
     created.push(createTraveler({ projectId, name: `Peserta Import ${existingCount + i}` }))
   }
   return created
+}
+
+/**
+ * Itinerary and Operations (Section 12) — update status service, dipanggil hanya dari UI yang sudah
+ * memfilter role per-tipe-layanan (`canManageServiceType`, `app/pages/projects/[id]/index.vue`).
+ * Transisi ke status `changed` otomatis mencatat entri di `ACTIVITIES` (flag `isChange: true`, belum
+ * direview) — sumber log yang sama dipakai tab "Activity & Changes" (Foundation) DAN dashboard/report
+ * lain yang membaca `isChange`, bukan log paralel baru. Transisi ke status lain (progres lifecycle normal)
+ * tidak mencatat entri — mencegah spam log untuk perubahan status yang bukan "perubahan" dalam pengertian
+ * High-Change Project.
+ */
+export function updateServiceStatus(serviceId: string, newStatus: ServiceStatus) {
+  const service = PROJECT_SERVICES.find(item => item.id === serviceId)
+  if (!service) return undefined
+  const previousStatus = service.status
+  service.status = newStatus
+  if (newStatus === 'changed' && previousStatus !== 'changed') {
+    ACTIVITIES.push({
+      id: nextSequentialId('ACT-', ACTIVITIES),
+      projectId: service.projectId,
+      message: `Layanan "${service.label}" ditandai berubah (status: ${findStatusOption(SERVICE_STATUSES, newStatus).label}) — perlu ditinjau.`,
+      isChange: true,
+      reviewed: false,
+      createdAt: DEMO_REFERENCE_DATE,
+    })
+  }
+  return service
 }

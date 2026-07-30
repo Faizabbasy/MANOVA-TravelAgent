@@ -4,7 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2 } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getUserById, getVendorById,
-  getProjectServices, getTravelerGroups, getTravelers, getRoomAssignments,
+  getProjectServices, getItineraryItems, updateServiceStatus,
+  getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, importTravelersMock,
   getInvoicesByProject, getTasksByProject, getDocumentsByProject, getActivitiesByProject,
 } from '~/data'
@@ -12,9 +13,9 @@ import {
   PROJECT_STATUSES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, SERVICE_TYPES,
   INVOICE_STATUSES, TASK_STATUSES, ROOM_TYPES, findStatusOption,
 } from '~/constants/status'
-import { formatCurrencyIdr, formatDateRange, formatDate, formatTravelerCount } from '~/utils/format'
+import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatTravelerCount } from '~/utils/format'
 import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing } from '~/utils/attention'
-import type { ProjectDetailTab, Traveler } from '~/types/project'
+import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus } from '~/types/project'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -33,6 +34,25 @@ const { showToast } = useToast()
  * mengelola data traveler sehari-hari.
  */
 const canManageTravelers = computed(() => ['project-manager', 'super-admin'].includes(currentRole.value))
+
+/**
+ * Role behavior tab Itinerary & Services (Section 12) — mengikuti granularity `docs/route-and-role-matrix.md`
+ * bagian 5 secara presisi (bukan pengecualian sempit tunggal seperti Travelers): PM/Operations/Super Admin
+ * mengelola SELURUH sub-section ("koordinasi umum"), sementara Ticketing/Accommodation/Transportation/MICE
+ * hanya `MANAGE` pada sub-section sesuai domainnya masing-masing. `additional` tidak punya role sub-domain
+ * khusus — hanya PM/Operations/Super Admin yang mengelolanya.
+ */
+const SERVICE_TYPE_ROLE_MAP: Partial<Record<ServiceTypeKey, string[]>> = {
+  flight: ['ticketing'],
+  hotel: ['accommodation'],
+  transportation: ['transportation'],
+  mice: ['mice'],
+}
+
+function canManageServiceType(type: ServiceTypeKey) {
+  if (['project-manager', 'operations', 'super-admin'].includes(currentRole.value)) return true
+  return (SERVICE_TYPE_ROLE_MAP[type] ?? []).includes(currentRole.value)
+}
 
 const project = computed(() => getProjectById(String(route.params.id)))
 
@@ -60,6 +80,50 @@ const team = computed(() => project.value
   ? project.value.teamUserIds.map(id => getUserById(id)).filter((user): user is NonNullable<typeof user> => Boolean(user))
   : [])
 const services = computed(() => project.value ? getProjectServices(project.value.id) : [])
+const itineraryItems = computed(() => project.value ? getItineraryItems(project.value.id) : [])
+
+/** Daily itinerary dikelompokkan per tanggal (pola list/divide-y existing, bukan komponen calendar baru). */
+const itineraryByDate = computed(() => {
+  const map = new Map<string, typeof itineraryItems.value>()
+  for (const item of itineraryItems.value) {
+    if (!map.has(item.date)) map.set(item.date, [])
+    map.get(item.date)!.push(item)
+  }
+  return [...map.entries()].map(([date, items]) => ({ date, items }))
+})
+
+/**
+ * Conditional service sections (D-039) — hanya tipe dalam `project.serviceScope` yang ditampilkan, PLUS
+ * `additional` bila ada baris service bertipe itu (data-driven, bukan bagian klasifikasi "4 kombinasi tipe
+ * project" resmi — lihat komentar `ServiceTypeKey` di `app/types/project.ts`).
+ */
+const visibleServiceTypes = computed(() => {
+  if (!project.value) return []
+  const scopeTypes = SERVICE_TYPES.filter(type => project.value!.serviceScope.includes(type.value))
+  const additionalType = SERVICE_TYPES.find(type => type.value === 'additional')
+  const hasAdditional = services.value.some(service => service.type === 'additional')
+  return additionalType && hasAdditional ? [...scopeTypes, additionalType] : scopeTypes
+})
+
+function servicesByType(type: ServiceTypeKey) {
+  return services.value.filter(service => service.type === type)
+}
+
+function serviceReadinessLabel(type: ServiceTypeKey) {
+  const list = servicesByType(type)
+  const ready = list.filter(service => ['confirmed', 'completed'].includes(service.status)).length
+  return `${ready} dari ${list.length} layanan siap (Confirmed/Completed)`
+}
+
+const changedServicesCount = computed(() => services.value.filter(service => service.status === 'changed').length)
+
+function handleServiceStatusChange(serviceId: string, event: Event) {
+  const newStatus = (event.target as HTMLSelectElement).value as ServiceStatus
+  const service = updateServiceStatus(serviceId, newStatus)
+  if (!service) return
+  showToast('Status Layanan Diperbarui', `"${service.label}" kini berstatus "${findStatusOption(SERVICE_STATUSES, newStatus).label}".`)
+}
+
 const groups = computed(() => project.value ? getTravelerGroups(project.value.id) : [])
 const travelers = computed(() => project.value ? getTravelers(project.value.id) : [])
 const invoices = computed(() => project.value ? getInvoicesByProject(project.value.id) : [])
@@ -337,37 +401,107 @@ const summaryMetadata = computed(() => {
         </TabsContent>
 
         <TabsContent value="itinerary-services">
-          <SectionCard title="Itinerary & Services" description="Sub-section tampil sesuai kombinasi layanan project (conditional service visibility).">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Jenis Layanan</TableHead>
-                  <TableHead>Detail</TableHead>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="service in services" :key="service.id">
-                  <TableCell>
-                    <StatusBadge
-                      :label="findStatusOption(SERVICE_TYPES, service.type).label"
-                      :tone="findStatusOption(SERVICE_TYPES, service.type).tone"
-                    />
-                  </TableCell>
-                  <TableCell class="text-foreground">{{ service.label }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ service.vendorId ? getVendorById(service.vendorId)?.name : '—' }}</TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      :label="findStatusOption(SERVICE_STATUSES, service.status).label"
-                      :tone="findStatusOption(SERVICE_STATUSES, service.status).tone"
-                    />
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="services.length === 0" :colspan="4">Belum ada layanan tercatat.</TableEmpty>
-              </TableBody>
-            </Table>
-          </SectionCard>
+          <div class="space-y-6">
+            <SectionCard
+              v-if="project.characteristic === 'high-change' && changedServicesCount > 0"
+              title="Penanda Perubahan"
+              description="Project ini adalah High-Change Project."
+            >
+              <p class="text-sm text-foreground mb-3">
+                {{ changedServicesCount }} layanan mengalami perubahan setelah dikonfirmasi. Tinjau riwayat lengkap di tab Activity & Changes.
+              </p>
+              <Button size="sm" variant="outline" @click="goToActivityTab">Lihat Activity & Changes</Button>
+            </SectionCard>
+
+            <SectionCard title="Daily Itinerary" description="Jadwal harian perjalanan.">
+              <div v-if="itineraryByDate.length" class="space-y-4">
+                <div v-for="day in itineraryByDate" :key="day.date">
+                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{{ formatDayLabel(day.date) }}</p>
+                  <ul class="divide-y divide-border">
+                    <li v-for="item in day.items" :key="item.id" class="py-2 flex items-start gap-3">
+                      <span class="text-xs text-muted-foreground w-14 shrink-0">{{ item.time ?? '—' }}</span>
+                      <div class="min-w-0 flex-1">
+                        <p class="text-sm text-foreground">{{ item.title }}</p>
+                        <p v-if="item.description" class="text-xs text-muted-foreground">{{ item.description }}</p>
+                        <p v-if="item.groupId" class="text-xs text-muted-foreground">Group: {{ groupNameById(item.groupId) }}</p>
+                      </div>
+                      <StatusBadge
+                        v-if="item.serviceType"
+                        :label="findStatusOption(SERVICE_TYPES, item.serviceType).label"
+                        :tone="findStatusOption(SERVICE_TYPES, item.serviceType).tone"
+                      />
+                    </li>
+                  </ul>
+                </div>
+              </div>
+              <EmptyState v-else title="Belum ada itinerary tercatat" />
+            </SectionCard>
+
+            <SectionCard
+              v-for="type in visibleServiceTypes"
+              :key="type.value"
+              :title="type.label"
+              :description="serviceReadinessLabel(type.value)"
+            >
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Detail</TableHead>
+                    <TableHead>Vendor</TableHead>
+                    <TableHead>Booking Reference</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead v-if="canManageServiceType(type.value)">Update Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="service in servicesByType(type.value)" :key="service.id">
+                    <TableCell class="text-foreground">{{ service.label }}</TableCell>
+                    <TableCell class="text-muted-foreground">{{ service.vendorId ? getVendorById(service.vendorId)?.name : '—' }}</TableCell>
+                    <TableCell class="text-muted-foreground">{{ service.bookingReference ?? '—' }}</TableCell>
+                    <TableCell>
+                      <div class="flex items-center gap-2">
+                        <StatusBadge
+                          :label="findStatusOption(SERVICE_STATUSES, service.status).label"
+                          :tone="findStatusOption(SERVICE_STATUSES, service.status).tone"
+                        />
+                        <StatusBadge v-if="service.status === 'changed'" label="Perlu Ditinjau" tone="destructive" />
+                      </div>
+                    </TableCell>
+                    <TableCell v-if="canManageServiceType(type.value)">
+                      <select
+                        :value="service.status"
+                        class="appearance-none px-2 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                        @change="handleServiceStatusChange(service.id, $event)"
+                      >
+                        <option v-for="option in SERVICE_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
+                      </select>
+                    </TableCell>
+                  </TableRow>
+                  <TableEmpty v-if="servicesByType(type.value).length === 0" :colspan="canManageServiceType(type.value) ? 5 : 4">
+                    Belum ada layanan tercatat.
+                  </TableEmpty>
+                </TableBody>
+              </Table>
+            </SectionCard>
+
+            <EmptyState v-if="visibleServiceTypes.length === 0" :icon="Truck" title="Belum ada layanan tercatat untuk project ini" />
+
+            <SectionCard title="Operational Tasks" :description="`${tasks.length} task tercatat untuk project ini`">
+              <template v-if="tasks.length" #actions>
+                <Button size="sm" variant="outline" @click="activeTab = 'tasks'">Lihat Semua Task</Button>
+              </template>
+              <ul v-if="tasks.length" class="divide-y divide-border">
+                <li v-for="task in tasks.slice(0, 5)" :key="task.id" class="py-2 flex items-center justify-between gap-3">
+                  <span class="text-sm text-foreground">{{ task.title }}</span>
+                  <StatusBadge
+                    :label="findStatusOption(TASK_STATUSES, task.status).label"
+                    :tone="findStatusOption(TASK_STATUSES, task.status).tone"
+                  />
+                </li>
+              </ul>
+              <EmptyState v-else title="Belum ada task tercatat" />
+            </SectionCard>
+          </div>
         </TabsContent>
 
         <TabsContent value="travelers">

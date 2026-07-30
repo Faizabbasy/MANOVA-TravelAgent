@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import type { Project, ProjectService, TravelerGroup, Traveler, RoomAssignment } from '~/types/project'
+import type { Project, ProjectService, TravelerGroup, Traveler, RoomAssignment, ItineraryItem } from '~/types/project'
 
 /**
  * `reactive()` (Section 09) — melanjutkan pola Section 07/08. Approve Won harus mendorong Project baru
@@ -31,19 +31,54 @@ export const PROJECTS: Project[] = reactive([
   },
 ])
 
-export const PROJECT_SERVICES: ProjectService[] = [
-  { id: 'SVC-1011', projectId: 'PRJ-101', type: 'flight', label: 'Flight Manila', status: 'confirmed', vendorId: 'VND-001' },
+/**
+ * `reactive()` (Section 12) — melanjutkan pola Section 07/08/09/10/11. Update status service (mis. saat
+ * ditandai `changed`) harus langsung terlihat di tab "Itinerary & Services" dan tab "Overview" (Service
+ * Summary, Section 10) tanpa reload, karena keduanya membaca array yang sama.
+ *
+ * `bookingReference` (Section 12) — mock nomor referensi/PNR/konfirmasi manual, BUKAN hasil panggilan API
+ * airline/hotel/vendor sungguhan (larangan fabrikasi integrasi nyata, D-006). Sengaja tidak diisi untuk
+ * service yang belum `confirmed`/`changed` — merefleksikan kondisi realistis (referensi baru ada setelah
+ * booking terkonfirmasi).
+ */
+export const PROJECT_SERVICES: ProjectService[] = reactive([
+  { id: 'SVC-1011', projectId: 'PRJ-101', type: 'flight', label: 'Flight Manila', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR-MNL8201' },
 
-  { id: 'SVC-1021', projectId: 'PRJ-102', type: 'flight', label: 'Flight Abu Dhabi', status: 'confirmed', vendorId: 'VND-001' },
-  { id: 'SVC-1022', projectId: 'PRJ-102', type: 'hotel', label: 'Room Block A (18 pax)', status: 'changed', vendorId: 'VND-002' },
+  { id: 'SVC-1021', projectId: 'PRJ-102', type: 'flight', label: 'Flight Abu Dhabi', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR-AUH9221' },
+  { id: 'SVC-1022', projectId: 'PRJ-102', type: 'hotel', label: 'Room Block A (18 pax)', status: 'changed', vendorId: 'VND-002', bookingReference: 'HTL-AUH-A104' },
   { id: 'SVC-1023', projectId: 'PRJ-102', type: 'hotel', label: 'Room Block B (3 pax, digabung ke Block A)', status: 'cancelled', vendorId: 'VND-002' },
 
-  { id: 'SVC-1031', projectId: 'PRJ-103', type: 'flight', label: 'Flight Batch 1', status: 'confirmed', vendorId: 'VND-001' },
+  { id: 'SVC-1031', projectId: 'PRJ-103', type: 'flight', label: 'Flight Batch 1', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR-PLW1031A' },
   { id: 'SVC-1032', projectId: 'PRJ-103', type: 'flight', label: 'Flight Batch 2 (Grup VIP)', status: 'pending-confirmation', vendorId: 'VND-001' },
-  { id: 'SVC-1033', projectId: 'PRJ-103', type: 'hotel', label: 'Hotel Palu', status: 'confirmed', vendorId: 'VND-002' },
+  { id: 'SVC-1033', projectId: 'PRJ-103', type: 'hotel', label: 'Hotel Palu', status: 'confirmed', vendorId: 'VND-002', bookingReference: 'HTL-PLW-2200' },
   { id: 'SVC-1034', projectId: 'PRJ-103', type: 'transportation', label: 'Ground Transportation', status: 'pending-confirmation', vendorId: 'VND-003' },
-  { id: 'SVC-1035', projectId: 'PRJ-103', type: 'mice', label: 'Venue & Rundown Acara', status: 'confirmed', vendorId: 'VND-004' },
-]
+  { id: 'SVC-1035', projectId: 'PRJ-103', type: 'mice', label: 'Venue & Rundown Acara', status: 'confirmed', vendorId: 'VND-004', bookingReference: 'MICE-PLW-VEN01' },
+  { id: 'SVC-1036', projectId: 'PRJ-103', type: 'additional', label: 'Asuransi Perjalanan Grup', status: 'confirmed', bookingReference: 'INS-PLW-2026' },
+])
+
+/** Daily itinerary (Section 12) — jadwal harian per project, `groupId` merujuk `TravelerGroup` (Section 11) yang sudah ada. */
+export const ITINERARY_ITEMS: ItineraryItem[] = reactive([
+  // PRJ-101 — Manila, 20-23 Agustus 2026, flight only.
+  { id: 'ITIN-1011', projectId: 'PRJ-101', date: '2026-08-20', time: '08:00', title: 'Keberangkatan Jakarta → Manila', description: 'Seluruh 6 traveler berangkat bersama', serviceType: 'flight' },
+  { id: 'ITIN-1012', projectId: 'PRJ-101', date: '2026-08-21', time: '09:00', title: 'Agenda Bisnis Hari 1', description: 'Pertemuan dengan client di kantor cabang Manila' },
+  { id: 'ITIN-1013', projectId: 'PRJ-101', date: '2026-08-22', time: '09:00', title: 'Agenda Bisnis Hari 2', description: 'Kunjungan lokasi mitra' },
+  { id: 'ITIN-1014', projectId: 'PRJ-101', date: '2026-08-23', time: '15:00', title: 'Kepulangan Manila → Jakarta', serviceType: 'flight' },
+
+  // PRJ-102 — Abu Dhabi, 22-26 September 2026 (revised), flight + hotel.
+  { id: 'ITIN-1021', projectId: 'PRJ-102', date: '2026-09-22', time: '10:00', title: 'Keberangkatan Jakarta → Abu Dhabi', serviceType: 'flight' },
+  { id: 'ITIN-1022', projectId: 'PRJ-102', date: '2026-09-22', time: '20:00', title: 'Check-in Hotel (Room Block A)', description: 'Check-in setelah upgrade tipe kamar ke Suite', serviceType: 'hotel' },
+  { id: 'ITIN-1023', projectId: 'PRJ-102', date: '2026-09-23', time: '09:00', title: 'Corporate Gathering — Hari 1' },
+  { id: 'ITIN-1024', projectId: 'PRJ-102', date: '2026-09-25', time: '09:00', title: 'Corporate Gathering — Hari 2' },
+  { id: 'ITIN-1025', projectId: 'PRJ-102', date: '2026-09-26', time: '14:00', title: 'Kepulangan Abu Dhabi → Jakarta', serviceType: 'flight' },
+
+  // PRJ-103 — Palu, 10-14 Agustus 2026, flight+hotel+transportation+MICE, 3 traveler group.
+  { id: 'ITIN-1031', projectId: 'PRJ-103', date: '2026-08-10', time: '07:00', title: 'Kedatangan Group Management', description: 'Batch 1 tiba di Palu', serviceType: 'flight', groupId: 'GRP-001' },
+  { id: 'ITIN-1032', projectId: 'PRJ-103', date: '2026-08-10', time: '15:00', title: 'Kedatangan Group Partner / VIP', description: 'Batch 2 (VIP) menyusul', serviceType: 'flight', groupId: 'GRP-003' },
+  { id: 'ITIN-1033', projectId: 'PRJ-103', date: '2026-08-11', time: '08:00', title: 'MICE Conference — Hari 1', serviceType: 'mice' },
+  { id: 'ITIN-1034', projectId: 'PRJ-103', date: '2026-08-12', time: '08:00', title: 'MICE Conference — Hari 2', serviceType: 'mice' },
+  { id: 'ITIN-1035', projectId: 'PRJ-103', date: '2026-08-13', time: '10:00', title: 'City Tour & Free Program', serviceType: 'transportation' },
+  { id: 'ITIN-1036', projectId: 'PRJ-103', date: '2026-08-14', time: '16:00', title: 'Kepulangan Seluruh Group', serviceType: 'flight' },
+])
 
 /**
  * `reactive()` (Section 11) — melanjutkan pola Section 07/08/09/10. Add/edit/remove/import mock traveler

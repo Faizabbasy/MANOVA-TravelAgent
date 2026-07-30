@@ -1,6 +1,9 @@
 import type { ID } from './common'
 
-export type ServiceTypeKey = 'flight' | 'hotel' | 'transportation' | 'mice'
+/** `additional` (Section 12) — layanan ad-hoc di luar 4 kombinasi tipe project resmi (Prompt 0-B); tidak
+ * pernah dimasukkan ke `Project.serviceScope`, visibilitasnya murni data-driven (ada/tidaknya baris service
+ * bertipe ini), bukan bagian klasifikasi "4 kombinasi tipe project" yang tetap flight/hotel/transportation/mice. */
+export type ServiceTypeKey = 'flight' | 'hotel' | 'transportation' | 'mice' | 'additional'
 
 export type ProjectStatus =
   | 'draft'
@@ -63,6 +66,21 @@ export interface ProjectService {
   label: string
   status: ServiceStatus
   vendorId?: ID
+  /** Booking/reference mock (Section 12) — nomor referensi/PNR/konfirmasi, bukan hasil integrasi API nyata (D-006). */
+  bookingReference?: string
+}
+
+/** Daily itinerary (Section 12) — jadwal harian per project, tab "Itinerary & Services". */
+export interface ItineraryItem {
+  id: ID
+  projectId: ID
+  date: string
+  time?: string
+  title: string
+  description?: string
+  serviceType?: ServiceTypeKey
+  /** Referensi ke `TravelerGroup` (Section 11) — harus memakai ID group yang sudah ada, bukan dibuat baru. */
+  groupId?: ID
 }
 
 export interface TravelerGroup {

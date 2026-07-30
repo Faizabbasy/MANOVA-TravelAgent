@@ -279,6 +279,22 @@ Detail lengkap ada di `docs/mockup-change-impact-log.md` (CI-013) dan `docs/mock
 
 ---
 
+## 4f. Itinerary and Operations Detail (ditambahkan Section 12)
+
+`ITINERARY_ITEMS` (entitas baru) — jadwal harian per project, `groupId` merujuk `TravelerGroup` (Section 11) yang sudah ada:
+
+| Project | Jumlah item | Catatan |
+|---|---|---|
+| PRJ-101 (Manila, 20–23 Agu 2026) | 4 | Keberangkatan/kepulangan flight + 2 agenda bisnis harian |
+| PRJ-102 (Abu Dhabi, 22–26 Sep 2026 revisi) | 5 | Keberangkatan/kepulangan flight, check-in hotel (pasca upgrade kamar), 2 hari Corporate Gathering |
+| PRJ-103 (Palu, 10–14 Agu 2026) | 6 | Kedatangan 2 batch (GRP-001 dan GRP-003, referensi group konsisten dengan Section 11), 2 hari MICE Conference, city tour, kepulangan seluruh group |
+
+`PROJECT_SERVICES` (Foundation) diperluas dengan `bookingReference` (mock nomor referensi/PNR/konfirmasi manual, bukan hasil integrasi API nyata — D-006) pada service yang sudah `confirmed`/`changed`; service yang masih `pending-confirmation`/`cancelled` sengaja dibiarkan tanpa referensi (realistis — referensi baru ada setelah booking terkonfirmasi). Satu baris baru ditambahkan: `SVC-1036` (PRJ-103, tipe `additional`, "Asuransi Perjalanan Grup", `confirmed`, referensi `INS-PLW-2026`) — mendemonstrasikan kategori "additional service" dari scope Section 12. Tipe `additional` **tidak** dimasukkan ke `Project.serviceScope` mana pun (tetap 4 kombinasi resmi Prompt 0-B); visibilitas section-nya di UI murni data-driven (ada/tidaknya baris service bertipe ini untuk project tsb), bukan bagian klasifikasi tipe project.
+
+Detail lengkap dan dampak ke Overview tab (Section 10) ada di `docs/mockup-change-impact-log.md` (CI-014) dan `docs/mockup-section-reports/section-12-itinerary-operations.md`.
+
+---
+
 ## 5. Role-Restricted Finance View (bukan record baru, kondisi tampilan atas PRJ-103)
 
 Menggunakan **PRJ-103** sebagai subjek konkret untuk mendemonstrasikan Role & Access Matrix (`docs/route-and-role-matrix.md` bagian 5) pada tab "Finance":
@@ -334,6 +350,7 @@ Setiap ID pada dokumen ini **wajib dipakai identik** di seluruh titik implementa
 - `OPPORTUNITIES`/`QUOTATIONS` sejak Section 08 juga `reactive()` — transisi stage, submit Won-Requested, tandai Lost/On Hold, dan create/revisi quotation (`advanceOpportunityStage`/`createQuotation`/`reviseQuotation`, `app/data/index.ts`) ter-propagate seketika ke Dashboard/Party Detail/CRM overview tanpa reload.
 - `PROJECTS`/`ACTIVITIES` sejak Section 09 juga `reactive()` — Approve Won (`approveOpportunityWon`, `app/data/index.ts`) mendorong Project baru dan entri Activity baru yang langsung terlihat di `/projects`, Dashboard, dan Party Detail. ID Project baru mengikuti pola sekuensial yang sama (`PRJ-104`, dst.), dihitung otomatis — bukan angka acak.
 - `TRAVELERS`/`TRAVELER_GROUPS` sejak Section 11 juga `reactive()` (bagian 4e) — `createTraveler`/`updateTraveler`/`removeTraveler`/`importTravelersMock` (`app/data/index.ts`) ter-propagate seketika ke tab Travelers tanpa reload. ID traveler baru mengikuti prefix `TRV-` sekuensial global (bukan per-project), pola yang sama seperti `PTY-`/`PRJ-`.
+- `PROJECT_SERVICES` sejak Section 12 juga `reactive()` (bagian 4f) — `updateServiceStatus` (`app/data/index.ts`) ter-propagate seketika ke tab Itinerary & Services DAN tab Overview (Service Summary, Section 10) tanpa reload karena keduanya membaca array yang sama; transisi ke status `changed` juga menambah entri `ACTIVITIES` (prefix `ACT-` sekuensial, konsisten dengan skema existing).
 
 ## 8. Batasan
 

@@ -31,6 +31,11 @@ export function formatDateTime(isoDate: string): string {
   return format(parseISO(isoDate), 'd MMM yyyy, HH:mm', { locale: localeId })
 }
 
+/** Header hari untuk daily itinerary (Section 12) — mis. "Kamis, 20 Agu 2026". */
+export function formatDayLabel(isoDate: string): string {
+  return format(parseISO(isoDate), 'EEEE, d MMM yyyy', { locale: localeId })
+}
+
 export function formatDateRange(startIso: string, endIso: string): string {
   const start = parseISO(startIso)
   const end = parseISO(endIso)

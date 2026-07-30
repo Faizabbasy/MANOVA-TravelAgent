@@ -183,4 +183,19 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 
 ---
 
+## CI-014 — `ProjectService` Diperluas dan Dijadikan Reactive, Entitas Baru `ItineraryItem`, Tipe Layanan `additional`
+
+- **Change ID / Tanggal:** CI-014 · 2026-07-30
+- **Triggering section:** Section 12 — Itinerary and Operations.
+- **Previous section affected:** Section 05 — Foundation (pemilik `app/types/project.ts`, `app/data/projects.ts`, `app/data/index.ts`, `app/constants/status.ts`, `app/utils/format.ts`); Section 10 — Project Core (Overview tab membaca `PROJECT_SERVICES` yang sama untuk "Service Summary").
+- **Alasan perubahan:** Scope Section 12 meminta booking/reference mock, update status per sub-section (role-gated), daily itinerary, dan tipe layanan "additional service" — seluruhnya mutasi runtime dan field yang belum ada sejak Foundation. Mengikuti prinsip "extend, jangan duplikasi" yang sama seperti CI-007/CI-010/CI-013.
+- **Files affected:** `app/types/project.ts` (`ProjectService` +`bookingReference`; `ServiceTypeKey` +`'additional'`; +`ItineraryItem`), `app/data/projects.ts` (`PROJECT_SERVICES` dibungkus `reactive()`, +`bookingReference` pada 5 baris existing, +1 baris baru `SVC-1036` tipe `additional` untuk PRJ-103, +`ITINERARY_ITEMS` 15 baris lintas 3 skenario), `app/data/index.ts` (+`getItineraryItems`, `+updateServiceStatus`), `app/constants/status.ts` (`SERVICE_TYPES` +`additional`), `app/utils/format.ts` (+`formatDayLabel`).
+- **Previous behavior:** `PROJECT_SERVICES` array biasa (bukan `reactive()`), tidak ada `bookingReference`, hanya 4 tipe layanan (flight/hotel/transportation/mice), tidak ada entitas itinerary harian.
+- **New behavior:** Array yang sama, `reactive()` — method baca tetap identik untuk consumer existing (Overview tab Section 10 "Service Summary", tab Vendors `vendorsForProject`). Field baru aditif. `'additional'` **tidak pernah** dimasukkan ke `Project.serviceScope` (tetap 4 kombinasi resmi sesuai Prompt 0-B/D-039) — visibilitas section "Additional Service" murni data-driven (ada/tidaknya baris service bertipe itu), bukan bagian klasifikasi tipe project.
+- **Risk:** Rendah–sedang. Menambah 1 baris `SVC-1036` (PRJ-103, status `confirmed`) mengubah angka breakdown "Service Summary" Overview tab (Section 10) dari 5 menjadi 6 service — **efek samping yang diharapkan** dari perluasan fixture generik (computed Overview tidak diubah kodenya, otomatis merefleksikan data baru), diverifikasi lewat regression check (bagian di bawah), bukan regresi.
+- **Regression checks:** `npm run build` sukses; smoke test konten (curl+grep) mengonfirmasi Overview PRJ-103 (`?tab=overview`) tetap HTTP 200 dan Service Summary menampilkan breakdown baru secara konsisten (6 service, bukan error/hilang data); tab Travelers (Section 11) dan Vendors tidak berubah.
+- **Dokumentasi yang diperbarui:** `docs/mockup-data-scenarios.md` (bagian 4f baru), `docs/route-and-role-matrix.md` (bagian 0/1.3, bagian 5 catatan implementasi), `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-12-itinerary-operations.md`.
+
+---
+
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*

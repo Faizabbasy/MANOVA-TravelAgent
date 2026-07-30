@@ -54,6 +54,7 @@ export const SERVICE_TYPES: StatusOption<ServiceTypeKey>[] = [
   { value: 'hotel', label: 'Hotel', tone: 'purple', order: 2 },
   { value: 'transportation', label: 'Transportation', tone: 'warning', order: 3 },
   { value: 'mice', label: 'MICE', tone: 'primary', order: 4 },
+  { value: 'additional', label: 'Additional Service', tone: 'neutral', order: 5 },
 ]
 
 /** Jenis kamar rooming list (Section 11) — dipakai tab "Travelers" Project Detail. */
