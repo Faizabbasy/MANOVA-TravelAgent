@@ -129,6 +129,40 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-004 (fixture Party jadi reactive + entitas baru, milik Section 05), CI-005 (widget Dashboard Follow-up Mendatang, milik Section 06), CI-006 (SectionCard `#actions` slot, milik Section 05).
 - **Next action:** Section 08 — Opportunity dan Quotation. Rekomendasi kuat: selesaikan Q8 sebelum atau di awal Section 08. Menunggu perintah user — tidak dieksekusi otomatis.
 
+## Section 08 — Opportunity dan Quotation
+
+- **Tanggal:** 2026-07-30
+- **Status:** COMPLETED
+- **Scope dan completed items:** Opportunity list (`/crm/opportunities`) dengan pipeline visualization (reuse `StatusBreakdownList`), filter stage/party/search; Opportunity Detail (`/crm/opportunities/[id]`, baru) dengan stage stepper (Draft s/d WonRequested, Lost, On Hold), Owner/value/requirement/destination/travel date/traveler estimate/service scope, Quotation summary dengan create-mock (saat lanjut ke Proposal) dan revisi (version mock), Activity/follow-up (reuse `PartyActivity` Section 07 dengan `opportunityId` opsional baru). Won penuh (approve + Project) sengaja TIDAK dikerjakan (scope Section 09).
+- **Files created:** `app/pages/crm/opportunities/index.vue`, `app/pages/crm/opportunities/[id]/index.vue`.
+- **Files changed:** `app/types/opportunity.ts` (+7 field `Opportunity`, +2 field `Quotation`), `app/types/party.ts` (+`opportunityId?` pada `PartyActivity`), `app/data/opportunities.ts` (`reactive()`, field lengkap, QUO-005 versi 2), `app/data/parties.ts` (backfill `opportunityId`), `app/data/index.ts` (+5 selector/mutator), `app/pages/crm/parties/[id]/index.vue` (tab Opportunities kini link ke detail).
+- **Files removed:** `app/pages/crm/opportunities.vue` (dipindah isinya ke `opportunities/index.vue` — lihat bug routing di bawah).
+- **Routes affected:** `/crm/opportunities` (rewrite lokasi file), `/crm/opportunities/[id]` (baru).
+- **Components reused:** `StatusBreakdownList`, `SectionCard` (+`#actions`), `Dialog*`, `Table*`, `StatusBadge`, `DetailMetadataList`, `PageHeader`, `EmptyState`, `RoleAccessState`.
+- **Components created:** Tidak ada.
+- **Data/types/constants affected:** `Opportunity`/`Quotation` diperluas (lihat bagian Files changed); `OPPORTUNITIES`/`QUOTATIONS` jadi `reactive()` (CI-007).
+- **Validation results:** `nuxi prepare` + `npm run build` sukses 2x. **Bug ditemukan saat verifikasi konten** (bukan hanya status code): `/crm/opportunities/[id]` ter-resolve ke 404 catch-all karena konflik file datar `opportunities.vue` vs direktori `opportunities/[id]/`, meski build sukses dan curl awal melaporkan HTTP 200. Diperbaiki dengan memindah list page ke `opportunities/index.vue`; rebuild dan re-verifikasi konten (title dinamis, string spesifik per skenario) mengonfirmasi benar. `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Known issues:** Q8 tetap terbuka (4 section berturut-turut); "Stepper adaptasi create.vue" dan "pipeline chart baru" dari rancangan awal disederhanakan (badge stepper, reuse StatusBreakdownList) — didokumentasikan, bukan penyimpangan diam-diam.
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-007 (fixture Opportunity/Quotation jadi reactive + field baru, milik Section 05/06), CI-008 (PartyActivity `opportunityId` + backfill, milik Section 07), CI-009 (Party Detail Opportunities tab ditaut ke detail, milik Section 07).
+- **Next action:** Section 09 — Opportunity Won to Project. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 09. Menunggu perintah user — tidak dieksekusi otomatis.
+
+## Section 09 — Opportunity Won to Project
+
+- **Tanggal:** 2026-07-30
+- **Status:** COMPLETED
+- **Scope dan completed items:** Permission check (`canApprove('crm')` — Management/Super Admin), confirmation dialog (Approve dan Reject), requirement validation (`getOpportunityMissingRequirements` — destinasi/tanggal/traveler/quotation), stage `WonRequested → Won`, Project otomatis dibuat (seluruh checklist LOCKED bagian 2.2: partyId+lifecycle transition, data dasar, service scope, budget/quotation reference, activity log, toast feedback, redirect ke Project Detail), duplicate prevention (guard `projectId` sudah ada), mock persistence jujur (`reactive()` array, bukan backend).
+- **Files created:** `app/composables/useToast.ts`, `app/components/shared/ToastContainer.vue`.
+- **Files changed:** `app/types/project.ts` (+`sourceQuotationId?`), `app/data/projects.ts` (`reactive()`), `app/data/activity.ts` (`reactive()`), `app/data/opportunities.ts` (OPP-005 → `won-requested`), `app/data/index.ts` (+`getOpportunityMissingRequirements`, `+approveOpportunityWon`, `+rejectOpportunityWon`), `app/layouts/dashboard.vue` (+`<ToastContainer />`), `app/pages/crm/opportunities/[id]/index.vue` (+Approve/Reject UI, requirement validation display).
+- **Files removed:** Tidak ada.
+- **Routes affected:** Tidak ada route baru — interaksi terjadi di `/crm/opportunities/[id]` (Section 08), hasil muncul di `/projects`/`/projects/[id]` (Section 05).
+- **Components reused:** `Dialog*`, `Button`, `Label`, `Input`, `SectionCard`.
+- **Components created:** `ToastContainer.vue` (diekstrak dari pola lokal `expenses.vue`).
+- **Data/types/constants affected:** `Project.sourceQuotationId` (baru); `PROJECTS`/`ACTIVITIES` jadi `reactive()`; `OPP-005` dimajukan ke `won-requested` (seed, demonstrasi siap-pakai).
+- **Validation results:** `nuxi prepare` + `npm run build` sukses. Smoke test konten (bukan hanya status code, mengikuti pelajaran Section 08) mengonfirmasi kondisi pra-aksi benar: `OPP-005` menampilkan tombol Approve/Reject untuk Super Admin, `PTY-004` masih Prospect, `/projects` masih 3 project. **Verifikasi klik-interaktif end-to-end tidak dapat dilakukan** (tidak ada tool browser headless) — dimitigasi lewat code review ketat terhadap checklist LOCKED. `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Known issues:** Q8 tetap terbuka (5 section berturut-turut); verifikasi interaktif end-to-end tidak dilakukan langsung; `DEFAULT_PROJECT_OWNER_ID` (PM default) adalah keputusan sementara tanpa alur assignment manual.
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-010 (Project/Activity fixture jadi reactive + field baru, milik Section 05), CI-011 (toast diekstrak dari `expenses.vue`, milik Section 05/pre-existing template), CI-012 (OPP-005 dimajukan ke won-requested, milik Section 08).
+- **Next action:** Section 10 — Project Core. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 10. Menunggu perintah user — tidak dieksekusi otomatis.
+
 ---
 
-*(Belum ada entri Section 08 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*
+*(Belum ada entri Section 10 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*

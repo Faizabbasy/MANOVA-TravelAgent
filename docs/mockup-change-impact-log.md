@@ -88,6 +88,84 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 - **Regression checks:** `npm run build` sukses; smoke test seluruh route yang memakai `SectionCard` (Dashboard, `/projects`, `/projects/[id]`, `/crm/*`) tetap HTTP 200.
 - **Dokumentasi yang diperbarui:** `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-07-crm-party.md`.
 
+## CI-007 — Fixture Opportunity/Quotation Diubah Menjadi Reactive, Field Diperluas
+
+- **Change ID / Tanggal:** CI-007 · 2026-07-30
+- **Triggering section:** Section 08 — Opportunity dan Quotation.
+- **Previous section affected:** Section 05 — Foundation (pemilik `app/data/opportunities.ts`, `app/types/opportunity.ts`), Section 06 — Dashboard (consumer `OPPORTUNITIES`/`QUOTATIONS` di beberapa widget).
+- **Alasan perubahan:** Scope Section 08 eksplisit meminta stage transition, submit Won-Requested, tandai Lost/On Hold, dan create/revisi Quotation — seluruhnya mutasi runtime. Fixture Foundation adalah array biasa read-only. Field `Opportunity` juga perlu diperluas (`ownerId`, `estimatedValueIdr`, `destination`, `travelStartDate`/`travelEndDate`, `travelerEstimate`, `requirementNotes`) karena scope eksplisit meminta "Owner, value, requirement, destination, travel date, traveler estimate" ditampilkan — field ini belum ada sejak Foundation.
+- **Files affected:** `app/data/opportunities.ts` (`reactive()`, 7 field baru per Opportunity, `QUO-005` versi 2), `app/types/opportunity.ts` (interface diperluas).
+- **Previous behavior:** `OPPORTUNITIES`/`QUOTATIONS` array biasa, tidak pernah dimutasi; `Opportunity` hanya py `id/partyId/title/stage/createdAt/decidedAt/wonApprovedBy/lostReason/serviceScope/quotationId/projectId`.
+- **New behavior:** Array yang sama, `reactive()` — method baca tetap identik untuk consumer existing (Dashboard `opportunityPipeline`/`quotationsPendingDecision`, `crm/index.vue`, Party Detail Opportunities tab). Field baru bersifat aditif (opsional untuk yang boleh kosong), tidak menghapus field lama.
+- **Risk:** Rendah. Field baru aditif, tidak ada consumer existing yang destructuring in a way that would break. Dashboard's `opportunityPipeline`/`quotationsPendingDecision` computed diperiksa ulang — tetap benar karena tidak ada baris Quotation baru per opportunity (quotation tetap 1:1, hanya `version`/`supersededAmountIdr` bertambah pada row yang sama).
+- **Regression checks:** `npm run build` sukses; smoke test `/`, `/crm`, `/crm/parties/PTY-004` (consumer `OPPORTUNITIES`) tetap HTTP 200 dengan data konsisten.
+- **Dokumentasi yang diperbarui:** `docs/mockup-data-scenarios.md` (bagian 4c baru), `docs/route-and-role-matrix.md`, `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-08-opportunity-quotation.md`.
+
+## CI-008 — `PartyActivity` Diperluas dengan `opportunityId` Opsional dan Backfill
+
+- **Change ID / Tanggal:** CI-008 · 2026-07-30
+- **Triggering section:** Section 08 — Opportunity dan Quotation.
+- **Previous section affected:** Section 07 — CRM Party (pemilik `app/types/party.ts`, `app/data/parties.ts` — `PARTY_ACTIVITIES`).
+- **Alasan perubahan:** Scope Section 08 eksplisit meminta "Activity/follow-up" di Opportunity Detail. Reuse `PartyActivity` (Section 07) alih-alih membuat entitas activity baru — sesuai prinsip "jangan menduplikasi data" — membutuhkan cara menandai activity sebagai milik satu opportunity spesifik.
+- **Files affected:** `app/types/party.ts` (`+opportunityId?` pada `PartyActivity`), `app/data/parties.ts` (backfill `opportunityId` pada `PACT-002`, `PACT-003`, `PACT-004` → `OPP-005`; `PACT-005` → `OPP-006`), `app/data/index.ts` (`createPartyActivity` menerima `opportunityId` opsional, `+getPartyActivitiesByOpportunity`).
+- **Previous behavior:** `PartyActivity` hanya terikat `partyId`; 6 seed record dari Section 07 tidak punya konsep keterkaitan opportunity.
+- **New behavior:** Field opsional, backward-compatible — 2 dari 6 record (PACT-001, PACT-006) tetap tanpa `opportunityId` (activity umum level-party, bukan spesifik opportunity). Tab Activities Party Detail tidak berubah (masih menampilkan semua activity milik party); Opportunity Detail menampilkan subset yang relevan.
+- **Risk:** Rendah — field opsional, tidak ada consumer yang bergantung pada field ini tidak ada.
+- **Regression checks:** `npm run build` sukses; smoke test `/crm/parties/PTY-004` (Activities tab, consumer `PARTY_ACTIVITIES`) tetap HTTP 200.
+- **Dokumentasi yang diperbarui:** `docs/mockup-data-scenarios.md`, `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-08-opportunity-quotation.md`.
+
+## CI-009 — Party Detail Opportunities Tab Ditaut ke Opportunity Detail
+
+- **Change ID / Tanggal:** CI-009 · 2026-07-30
+- **Triggering section:** Section 08 — Opportunity dan Quotation.
+- **Previous section affected:** Section 07 — CRM Party (pemilik `app/pages/crm/parties/[id]/index.vue`).
+- **Alasan perubahan:** Section 07 secara eksplisit mencatat tab Opportunities Party Detail sebagai "read-only, belum ada link, menunggu Section 08" (lihat protection notes `section-07-crm-party.md`). Section 08 membangun halaman detail yang dimaksud, sehingga integrasi cross-link ini adalah pekerjaan yang sudah direncanakan, bukan penyimpangan.
+- **Files affected:** `app/pages/crm/parties/[id]/index.vue` (baris tabel Opportunities kini `@click` menavigasi ke `/crm/opportunities/[id]`).
+- **Previous behavior:** Baris opportunity di tab ini statis, tidak bisa diklik.
+- **New behavior:** Baris opportunity bisa diklik, menavigasi ke Opportunity Detail (pola identik dengan baris Prospects/Clients/Opportunities list yang sudah ada).
+- **Risk:** Sangat rendah — perubahan aditif satu baris (`class`+`@click`), tidak mengubah data/struktur tab lain.
+- **Regression checks:** `npm run build` sukses; smoke test `/crm/parties/PTY-001`, `/crm/parties/PTY-004` tetap HTTP 200.
+- **Dokumentasi yang diperbarui:** `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-07-crm-party.md` (protection note ditandai selesai), `section-08-opportunity-quotation.md`.
+
+## CI-010 — Fixture Project/Activity Diubah Menjadi Reactive, Field `sourceQuotationId` Ditambahkan
+
+- **Change ID / Tanggal:** CI-010 · 2026-07-30
+- **Triggering section:** Section 09 — Opportunity Won to Project.
+- **Previous section affected:** Section 05 — Foundation (pemilik `app/data/projects.ts`, `app/data/activity.ts`, `app/types/project.ts`).
+- **Alasan perubahan:** Approve Won harus mendorong Project baru ke `PROJECTS` dan entri log ke `ACTIVITIES` secara runtime, terlihat seketika di `/projects`, Dashboard, dan Party Detail. `Project.sourceQuotationId` disebut eksplisit di checklist LOCKED (`docs/route-and-role-matrix.md` bagian 2.2 item 6) tapi belum ada di type sejak Foundation.
+- **Files affected:** `app/data/projects.ts` (`reactive()`), `app/data/activity.ts` (`reactive()`), `app/types/project.ts` (`+sourceQuotationId?`).
+- **Previous behavior:** `PROJECTS`/`ACTIVITIES` array biasa, tidak pernah dimutasi sejak Section 05; `Project` tidak punya referensi eksplisit ke quotation asal.
+- **New behavior:** Array yang sama, `reactive()` — method baca (dipakai luas oleh Dashboard/Projects list/Project Detail/Party Detail) tetap identik. Field baru bersifat opsional/aditif.
+- **Risk:** Rendah. Konsumen existing (Dashboard, `/projects`, Project Detail, Party Detail Projects tab) hanya membaca array ini — tidak ada yang bergantung pada array TIDAK reaktif. Field baru opsional, tidak breaking untuk 3 project existing yang tidak mengisinya.
+- **Regression checks:** `npm run build` sukses; smoke test `/`, `/projects`, `/projects/PRJ-101`, `/crm/parties/PTY-001` (konsumen `PROJECTS`) tetap HTTP 200 dengan data tidak berubah (masih 3 project sebelum aksi Approve Won benar-benar diklik).
+- **Dokumentasi yang diperbarui:** `docs/mockup-data-scenarios.md` (bagian 4d baru), `docs/route-and-role-matrix.md`, `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-09-opportunity-won-to-project.md`.
+
+## CI-011 — Toast Global Diekstrak dari Pola Lokal `pages/expenses.vue`
+
+- **Change ID / Tanggal:** CI-011 · 2026-07-30
+- **Triggering section:** Section 09 — Opportunity Won to Project.
+- **Previous section affected:** Section 05 — Foundation (pemilik `app/layouts/dashboard.vue`; `pages/expenses.vue` adalah aset template lama, bukan hasil section manapun, tapi Section 05 mencatatnya sebagai "pola toast akan direuse").
+- **Alasan perubahan:** Scope Section 09 eksplisit meminta "Success/error feedback". `expenses.vue` punya implementasi toast lokal (state+markup ~50 baris) yang tidak dipakai halaman lain. Alih-alih duplikasi, diekstrak jadi composable (`useToast`) + shared component (`ToastContainer`), dipasang sekali di layout.
+- **Files affected:** `app/layouts/dashboard.vue` (+`<ToastContainer />`, satu baris).
+- **Previous behavior:** Tidak ada toast global; `expenses.vue` (halaman lama, tidak ditautkan navigasi) punya toast lokalnya sendiri, tidak terpengaruh perubahan ini.
+- **New behavior:** Layout dashboard kini merender satu `ToastContainer` global, dipakai `/crm/opportunities/[id]` untuk feedback Approve/Reject Won. Halaman lain belum memanggil `useToast()` (tidak ada perubahan perilaku pada halaman existing).
+- **Risk:** Sangat rendah — penambahan satu komponen overlay (`position: fixed`, kosong bila tidak ada toast aktif) ke layout yang dipakai semua halaman.
+- **Regression checks:** `npm run build` sukses; smoke test seluruh route utama tetap HTTP 200 tanpa perubahan visual (toast container kosong secara default).
+- **Dokumentasi yang diperbarui:** `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-09-opportunity-won-to-project.md`.
+
+## CI-012 — OPP-005 Dimajukan ke Stage `Won-Requested`
+
+- **Change ID / Tanggal:** CI-012 · 2026-07-30
+- **Triggering section:** Section 09 — Opportunity Won to Project.
+- **Previous section affected:** Section 08 — Opportunity dan Quotation (pemilik `app/data/opportunities.ts`, seed data OPP-005 sebagai `negotiation`).
+- **Alasan perubahan:** Section 09 butuh minimal satu opportunity di stage `won-requested` agar Approve Won dapat langsung didemokan tanpa harus mengklik seluruh stage sebelumnya lewat UI terlebih dahulu. OPP-005 dipilih karena datanya paling lengkap (destinasi, tanggal, traveler estimate, quotation v2 sudah terisi sejak Section 08), tidak akan terblokir validasi requirement.
+- **Files affected:** `app/data/opportunities.ts` (`OPP-005.stage`: `'negotiation'` → `'won-requested'`).
+- **Previous behavior:** OPP-005 di stage Negotiation (Sales masih bisa submit/tahan/lost).
+- **New behavior:** OPP-005 di stage Won-Requested (menunggu Approve/Reject Management/Super Admin). Perilaku UI Section 08 (tombol per-stage) tidak berubah — hanya data seed opportunity ini yang berbeda titik awalnya.
+- **Risk:** Rendah — satu perubahan field pada satu record seed, tidak memengaruhi opportunity lain atau logic Section 08.
+- **Regression checks:** `npm run build` sukses; smoke test `/crm/opportunities` (list, menampilkan OPP-005 dengan stage baru) dan `/crm/opportunities/OPP-005` tetap HTTP 200 dengan konten sesuai.
+- **Dokumentasi yang diperbarui:** `docs/mockup-data-scenarios.md` (bagian 4a diperbarui, bagian 4d baru), `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-08-opportunity-quotation.md` (tidak diubah — perubahan ini terjadi setelah Section 08 selesai, dicatat di sini bukan retroaktif mengubah laporan Section 08), `section-09-opportunity-won-to-project.md`.
+
 ---
 
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*

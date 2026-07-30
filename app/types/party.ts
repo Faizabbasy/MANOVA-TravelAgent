@@ -31,6 +31,8 @@ export type PartyActivityType = 'call' | 'meeting' | 'email' | 'note' | 'follow-
 export interface PartyActivity {
   id: ID
   partyId: ID
+  /** Opsional (Section 08) — bila diisi, activity ini juga tampil di tab "Activity/Follow-up" Opportunity Detail. */
+  opportunityId?: ID
   type: PartyActivityType
   message: string
   ownerId: ID

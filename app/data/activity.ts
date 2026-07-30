@@ -1,7 +1,10 @@
+import { reactive } from 'vue'
 import type { ActivityEntry, ProjectDocument, ProjectTask } from '~/types/activity'
 
+/** `reactive()` (Section 09) — approve Won harus mencatat entri Activity baru untuk project yang baru dibuat. */
+
 /** docs/mockup-data-scenarios.md bagian 1-3. */
-export const ACTIVITIES: ActivityEntry[] = [
+export const ACTIVITIES: ActivityEntry[] = reactive([
   { id: 'ACT-1011', projectId: 'PRJ-101', message: 'E-ticket diterbitkan untuk seluruh traveler', isChange: false, reviewed: true, createdAt: '2026-06-26' },
 
   { id: 'CHG-1021', projectId: 'PRJ-102', message: 'Tanggal perjalanan berubah dari 15–19 Sep menjadi 22–26 Sep 2026', isChange: true, reviewed: true, createdAt: '2026-07-08' },
@@ -9,7 +12,7 @@ export const ACTIVITIES: ActivityEntry[] = [
   { id: 'CHG-1023', projectId: 'PRJ-102', message: 'Tipe kamar hotel di-upgrade dari Deluxe ke Suite (berdampak biaya)', isChange: true, reviewed: false, createdAt: '2026-07-12' },
 
   { id: 'CHG-1031', projectId: 'PRJ-103', message: 'Jumlah peserta Group B bertambah dari 20 menjadi 25 pax', isChange: true, reviewed: true, createdAt: '2026-07-10' },
-]
+])
 
 export const DOCUMENTS: ProjectDocument[] = [
   { id: 'DOC-1011', projectId: 'PRJ-101', name: 'E-ticket_Manila_Group.pdf', uploadedAt: '2026-06-26' },

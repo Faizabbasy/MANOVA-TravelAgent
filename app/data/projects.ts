@@ -1,7 +1,13 @@
+import { reactive } from 'vue'
 import type { Project, ProjectService, TravelerGroup, Traveler } from '~/types/project'
 
+/**
+ * `reactive()` (Section 09) — melanjutkan pola Section 07/08. Approve Won harus mendorong Project baru
+ * ke array ini dan langsung terlihat di `/projects`, Dashboard, dan Party Detail tanpa reload.
+ */
+
 /** docs/mockup-data-scenarios.md bagian 1-3 — 3 skenario demo wajib (Normal/High-Change/Complex). */
-export const PROJECTS: Project[] = [
+export const PROJECTS: Project[] = reactive([
   {
     id: 'PRJ-101', name: 'Manila Business Trip', partyId: 'PTY-001', opportunityId: 'OPP-001',
     destination: 'Manila, Filipina', travelStartDate: '2026-08-20', travelEndDate: '2026-08-23',
@@ -23,7 +29,7 @@ export const PROJECTS: Project[] = [
     ownerId: 'USR-002', teamUserIds: ['USR-004', 'USR-005', 'USR-006', 'USR-007', 'USR-009'], status: 'in-progress',
     quotationAmountIdr: 1_400_000_000, budgetIdr: 1_250_000_000, actualCostIdr: 1_180_000_000,
   },
-]
+])
 
 export const PROJECT_SERVICES: ProjectService[] = [
   { id: 'SVC-1011', projectId: 'PRJ-101', type: 'flight', label: 'Flight Manila', status: 'confirmed', vendorId: 'VND-001' },

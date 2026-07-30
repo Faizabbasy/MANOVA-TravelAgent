@@ -6,8 +6,9 @@ import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS } from './projec
 import { INVOICES, PAYMENTS } from './finance'
 import { ACTIVITIES, DOCUMENTS, TASKS } from './activity'
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, DEMO_REFERENCE_DATE } from '~/utils/attention'
-import type { ServiceTypeKey } from '~/types/project'
+import type { Project, ServiceTypeKey } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType } from '~/types/party'
+import type { Opportunity, OpportunityStage, Quotation } from '~/types/opportunity'
 
 export {
   USERS,
@@ -25,6 +26,7 @@ export const getUserById = (id: string) => USERS.find(user => user.id === id)
 export const getPartyById = (id: string) => PARTIES.find(party => party.id === id)
 export const getContactsByParty = (partyId: string) => CONTACTS.filter(contact => contact.partyId === partyId)
 export const getOpportunitiesByParty = (partyId: string) => OPPORTUNITIES.filter(opp => opp.partyId === partyId)
+export const getOpportunityById = (id: string) => OPPORTUNITIES.find(opp => opp.id === id)
 export const getProjectsByParty = (partyId: string) => PROJECTS.filter(project => project.partyId === partyId)
 export const getQuotationByOpportunity = (opportunityId: string) => QUOTATIONS.find(quotation => quotation.opportunityId === opportunityId)
 export const getVendorById = (id: string) => VENDORS.find(vendor => vendor.id === id)
@@ -87,6 +89,13 @@ export function getPartyActivities(partyId: string) {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
 
+/** Activity/follow-up milik satu Opportunity spesifik (Section 08) — subset dari `getPartyActivities`. */
+export function getPartyActivitiesByOpportunity(opportunityId: string) {
+  return PARTY_ACTIVITIES
+    .filter(activity => activity.opportunityId === opportunityId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
 /** Widget Dashboard Sales "Follow-up Mendatang" — deferred di Section 06, diisi Section 07. */
 export function getUpcomingFollowUps(ownerId?: string) {
   return PARTY_ACTIVITIES
@@ -127,8 +136,138 @@ export function createContact(input: { partyId: string; name: string; title: str
   return contact
 }
 
-export function createPartyActivity(input: { partyId: string; type: PartyActivityType; message: string; ownerId: string; dueAt?: string }): PartyActivity {
+export function createPartyActivity(input: { partyId: string; opportunityId?: string; type: PartyActivityType; message: string; ownerId: string; dueAt?: string }): PartyActivity {
   const activity: PartyActivity = { id: nextSequentialId('PACT-', PARTY_ACTIVITIES), createdAt: DEMO_REFERENCE_DATE, ...input }
   PARTY_ACTIVITIES.push(activity)
   return activity
+}
+
+/**
+ * Mutasi dan create-mock Section 08 (Opportunity dan Quotation) — melanjutkan pola Section 07.
+ * Transisi stage TIDAK memvalidasi ulang state diagram di sini (validasi ada di UI — tombol yang
+ * ditampilkan sudah dibatasi sesuai stage aktif); helper ini murni mutasi + bookkeeping timestamp.
+ */
+export function advanceOpportunityStage(opportunityId: string, nextStage: OpportunityStage, extra?: { lostReason?: string }): Opportunity | undefined {
+  const opportunity = getOpportunityById(opportunityId)
+  if (!opportunity) return undefined
+  opportunity.stage = nextStage
+  if (nextStage === 'lost') {
+    opportunity.decidedAt = DEMO_REFERENCE_DATE
+    opportunity.lostReason = extra?.lostReason
+  }
+  return opportunity
+}
+
+export function createQuotation(opportunityId: string, amountIdr: number): Quotation {
+  const quotation: Quotation = {
+    id: nextSequentialId('QUO-', QUOTATIONS),
+    opportunityId,
+    amountIdr,
+    createdAt: DEMO_REFERENCE_DATE,
+    accepted: false,
+    version: 1,
+  }
+  QUOTATIONS.push(quotation)
+  const opportunity = getOpportunityById(opportunityId)
+  if (opportunity) opportunity.quotationId = quotation.id
+  return quotation
+}
+
+export function reviseQuotation(quotationId: string, newAmountIdr: number): Quotation | undefined {
+  const quotation = QUOTATIONS.find(q => q.id === quotationId)
+  if (!quotation) return undefined
+  quotation.supersededAmountIdr = quotation.amountIdr
+  quotation.amountIdr = newAmountIdr
+  quotation.version += 1
+  quotation.createdAt = DEMO_REFERENCE_DATE
+  return quotation
+}
+
+/**
+ * Opportunity Won to Project (Section 09) — docs/route-and-role-matrix.md bagian 2.2 (checklist efek Won, LOCKED).
+ */
+
+/** PM default untuk project hasil konversi Won — belum ada alur assignment PM manual, lihat section report. */
+const DEFAULT_PROJECT_OWNER_ID = 'USR-002'
+
+/** "Requirement validation" (Section 09) — field yang wajib terisi sebelum Opportunity boleh di-Won-kan. */
+export function getOpportunityMissingRequirements(opportunityId: string): string[] {
+  const opportunity = getOpportunityById(opportunityId)
+  if (!opportunity) return ['Opportunity tidak ditemukan']
+  const missing: string[] = []
+  if (!opportunity.destination) missing.push('Destinasi')
+  if (!opportunity.travelStartDate || !opportunity.travelEndDate) missing.push('Tanggal perjalanan perkiraan')
+  if (!opportunity.travelerEstimate) missing.push('Estimasi jumlah traveler')
+  if (!getQuotationByOpportunity(opportunityId)) missing.push('Quotation')
+  return missing
+}
+
+/**
+ * Approve Won — dipanggil hanya dari UI yang sudah memfilter role `canApprove('crm')` (Management/Super Admin).
+ * Guard "duplicate prevention": jika opportunity sudah punya `projectId`, kembalikan project yang sudah ada
+ * tanpa membuat duplikat. Guard stage: hanya bisa dari `won-requested`.
+ */
+export function approveOpportunityWon(opportunityId: string, approverId: string): Project | undefined {
+  const opportunity = getOpportunityById(opportunityId)
+  if (!opportunity || opportunity.stage !== 'won-requested') return undefined
+  if (opportunity.projectId) return getProjectById(opportunity.projectId)
+  if (getOpportunityMissingRequirements(opportunityId).length > 0) return undefined
+
+  const quotation = getQuotationByOpportunity(opportunityId)!
+  const party = getPartyById(opportunity.partyId)
+
+  const project: Project = {
+    id: nextSequentialId('PRJ-', PROJECTS),
+    name: opportunity.title,
+    partyId: opportunity.partyId,
+    opportunityId: opportunity.id,
+    sourceQuotationId: quotation.id,
+    destination: opportunity.destination,
+    travelStartDate: opportunity.travelStartDate!,
+    travelEndDate: opportunity.travelEndDate!,
+    characteristic: 'normal',
+    serviceScope: opportunity.serviceScope,
+    travelerCount: opportunity.travelerEstimate!,
+    ownerId: DEFAULT_PROJECT_OWNER_ID,
+    teamUserIds: [opportunity.ownerId],
+    status: 'draft',
+    quotationAmountIdr: quotation.amountIdr,
+    budgetIdr: quotation.amountIdr,
+    actualCostIdr: 0,
+  }
+  PROJECTS.push(project)
+
+  opportunity.stage = 'won'
+  opportunity.decidedAt = DEMO_REFERENCE_DATE
+  opportunity.wonApprovedBy = approverId
+  opportunity.projectId = project.id
+
+  if (party && party.lifecycleStatus === 'prospect') party.lifecycleStatus = 'client'
+
+  const approver = getUserById(approverId)
+  ACTIVITIES.push({
+    id: `ACT-${project.id.replace('PRJ-', '')}1`,
+    projectId: project.id,
+    message: `Project ${project.id} dibuat dari Opportunity ${opportunity.id} (Won oleh ${approver?.name ?? approverId})`,
+    isChange: false,
+    reviewed: true,
+    createdAt: DEMO_REFERENCE_DATE,
+  })
+
+  return project
+}
+
+/** Reject — kembali ke Negotiation dengan catatan (docs bagian 2.1: "WonRequested → Negotiation: ditolak, kembali dengan catatan"). */
+export function rejectOpportunityWon(opportunityId: string, note: string): Opportunity | undefined {
+  const opportunity = getOpportunityById(opportunityId)
+  if (!opportunity || opportunity.stage !== 'won-requested') return undefined
+  opportunity.stage = 'negotiation'
+  createPartyActivity({
+    partyId: opportunity.partyId,
+    opportunityId: opportunity.id,
+    type: 'note',
+    message: `Approval Won ditolak, kembali ke Negotiation. Catatan: ${note}`,
+    ownerId: opportunity.ownerId,
+  })
+  return opportunity
 }

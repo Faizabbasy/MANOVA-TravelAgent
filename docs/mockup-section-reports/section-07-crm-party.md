@@ -104,7 +104,7 @@ Tidak tersedia — lingkungan pengembangan lokal saja.
 - Interactive/hydrated browser verification tidak dilakukan (keterbatasan tooling lingkungan).
 - Pagination mock untuk Prospects/Clients **sengaja tidak dibuat** — hanya 4–5 baris data, kontrol pagination akan jadi affordance kosong tanpa fungsi nyata pada volume data saat ini. Akan ditambahkan bila section berikutnya menambah cukup banyak Party.
 - `/crm/opportunities` (Section 05) belum menampilkan grouping-by-stage untuk 3 opportunity pipeline baru (`OPP-005`–`007`) — tetap tampil sebagai list polos; penyempurnaan tampilan menyusul Section 08.
-- Detail halaman Opportunity mandiri (`/crm/opportunities/[id]`) belum ada — tab Opportunities di Party Detail read-only, tidak ada link yang bisa diklik ke detail (sesuai batasan, itu scope Section 08).
+- ~~Detail halaman Opportunity mandiri (`/crm/opportunities/[id]`) belum ada~~ — **selesai di Section 08**, lihat `docs/mockup-section-reports/section-08-opportunity-quotation.md`.
 
 ## 18. Protection Notes untuk Section Berikutnya
 
@@ -112,7 +112,7 @@ Tidak tersedia — lingkungan pengembangan lokal saja.
 - `PARTIES`/`CONTACTS`/`PARTY_ACTIVITIES` kini `reactive()` — bila section berikutnya menambah entitas terkait Party yang butuh create-mock, ikuti pola yang sama (bukan array biasa).
 - `canManageParty` (Sales/Super Admin) didefinisikan lokal di 3 file (`prospects.vue`, `parties/[id]/index.vue`) — bila Section 08/09 butuh pengecualian serupa untuk Opportunity, pertimbangkan pola yang sama (bukan menambah cabang baru ke `usePermissions()` generik).
 - `SectionCard.vue` kini punya slot `#actions` — pakai ini untuk tombol header, jangan bikin pola custom baru.
-- Party Detail (`/crm/parties/[id]`) kini COMPLETED untuk Section 07 — Section 08 yang membangun `/crm/opportunities/[id]` harus menaut balik ke Party Detail (via `partyId`), bukan mendirikan struktur Party terpisah.
+- Party Detail (`/crm/parties/[id]`) kini COMPLETED untuk Section 07 — Section 08 yang membangun `/crm/opportunities/[id]` harus menaut balik ke Party Detail (via `partyId`), bukan mendirikan struktur Party terpisah. **[Update Section 08]** Selesai — tab Opportunities Party Detail kini juga menaut ke Opportunity Detail (CI-009), dan Opportunity Detail menampilkan link ke Party. Lihat `docs/mockup-section-reports/section-08-opportunity-quotation.md`.
 - `PACT-001`–`006` — Section 08/14 boleh memperluas array ini bila butuh lebih banyak activity, mengikuti pola ID yang sama.
 
 ## 19. Recommended Next Section

@@ -220,7 +220,12 @@ function submitActivity() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow v-for="opportunity in opportunities" :key="opportunity.id">
+                <TableRow
+                  v-for="opportunity in opportunities"
+                  :key="opportunity.id"
+                  class="cursor-pointer hover:bg-muted/50"
+                  @click="navigateTo(`/crm/opportunities/${opportunity.id}`)"
+                >
                   <TableCell class="font-medium text-foreground">{{ opportunity.title }}</TableCell>
                   <TableCell>
                     <StatusBadge

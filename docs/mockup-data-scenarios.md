@@ -199,7 +199,7 @@ OPP-001–004 seluruhnya sudah berstatus final (`Won`/`Lost`), sehingga widget d
 
 | Field | Nilai |
 |---|---|
-| OPP-005 | PTY-004, "Bali Team Building 2026", stage `Negotiation`, dibuat 2026-07-05, Quotation QUO-005 Rp 180.000.000 (belum diputuskan) |
+| OPP-005 | PTY-004, "Bali Team Building 2026", stage `Won-Requested` (dimajukan dari `Negotiation` di Section 09 — lihat bagian 4d), dibuat 2026-07-05, Quotation QUO-005 versi 2 Rp 180.000.000 (belum diputuskan) |
 | OPP-006 | PTY-001, "Manila Repeat Business Q4 2026", stage `Proposal`, dibuat 2026-07-15, Quotation QUO-006 Rp 60.000.000 (belum diputuskan) |
 | OPP-007 | PTY-002, "Abu Dhabi Follow-up Training", stage `Qualification`, dibuat 2026-07-20, belum ada quotation |
 
@@ -223,6 +223,35 @@ Entitas baru `PartyActivity` (tab "Activities" Party Detail, berbeda dari `Activ
 | PACT-006 | PTY-002 | Note | Catatan internal sensitivitas client soal reschedule | — |
 
 PARTIES dan CONTACTS (juga PARTY_ACTIVITIES) sejak Section 07 dibungkus `reactive()` agar aksi "Tambah Prospect"/"Tambah Contact"/"Catat Activity" di `/crm/prospects` dan Party Detail benar-benar menambah data yang terlihat seketika di seluruh halaman (bukan mock statis) — lihat `docs/mockup-change-impact-log.md` (CI-004) dan `docs/mockup-section-reports/section-07-crm-party.md`. Record baru yang dibuat lewat UI memakai `DEMO_REFERENCE_DATE` (2026-07-29) sebagai `createdAt`, bukan waktu perangkat nyata, konsisten dengan D-040.
+
+---
+
+## 4c. Kelengkapan Opportunity dan Quotation Version (ditambahkan Section 08)
+
+Field `Opportunity` dilengkapi (`ownerId`, `estimatedValueIdr`, `destination`, `travelStartDate`/`travelEndDate` opsional, `travelerEstimate` opsional, `requirementNotes` opsional) untuk seluruh 7 opportunity (`OPP-001`–`007`). Seluruh `ownerId` = `USR-001` (satu-satunya Sales). `OPP-007` (stage Qualification) **sengaja** tidak diisi `travelStartDate`/`travelEndDate`/`travelerEstimate`/`requirementNotes` — mendemonstrasikan empty state "Belum ditentukan"/"Requirement belum digali" untuk opportunity yang belum digali sedalam itu.
+
+`Quotation` dilengkapi `version` (seluruhnya `1` kecuali disebut lain) dan `supersededAmountIdr` opsional:
+
+| Quotation | Versi | Nilai | Catatan |
+|---|---|---|---|
+| QUO-005 (OPP-005, Bali Team Building) | **2** | Rp 180.000.000 | Direvisi naik dari estimasi awal Rp 150.000.000 (`OPP-005.estimatedValueIdr`) — mendemonstrasikan "quotation version mock" |
+
+`PARTY_ACTIVITIES` (Section 07) di-backfill dengan `opportunityId` opsional pada baris yang memang terkait satu opportunity spesifik (PACT-002/003/004 → `OPP-005`; PACT-005 → `OPP-006`) — bukan record baru, agar tampil juga di tab "Activity/Follow-up" Opportunity Detail selain di tab "Activities" Party Detail.
+
+Detail lengkap ada di `docs/mockup-change-impact-log.md` dan `docs/mockup-section-reports/section-08-opportunity-quotation.md`.
+
+---
+
+## 4d. Skenario Won to Project Siap-Demo (ditambahkan Section 09)
+
+`OPP-005` (Bali Team Building 2026) dimajukan dari stage `Negotiation` ke `Won-Requested` agar alur Approve Won dapat langsung didemokan tanpa harus melalui seluruh stage sebelumnya lewat UI terlebih dahulu — data-nya paling lengkap dari ketiga opportunity pipeline (destinasi, tanggal, estimasi traveler, quotation versi 2 semua sudah terisi), sehingga tidak akan terblokir validasi requirement (`docs/route-and-role-matrix.md` bagian 2, catatan Section 09).
+
+Saat Management/Super Admin meng-approve OPP-005 lewat `/crm/opportunities/OPP-005`:
+1. Project baru dibuat (ID sekuensial berikutnya setelah `PRJ-103`, otomatis `PRJ-104`).
+2. `PTY-004` ("PT Melati Wisata Kreasi") berubah `lifecycleStatus` dari `Prospect` menjadi `Client` — mendemonstrasikan D-002/D-024 secara langsung dengan data nyata, bukan simulasi terpisah.
+3. Activity log tercatat di project baru: "Project PRJ-104 dibuat dari Opportunity OPP-005 (Won oleh {approver})".
+
+Ini adalah skenario **interaktif** (baru terjadi setelah user mengklik Approve), bukan record yang sudah ter-seed sebagai hasil akhir — dokumen ini mencatat kondisi **sebelum** aksi tersebut dijalankan.
 
 ---
 
@@ -278,6 +307,8 @@ Setiap ID pada dokumen ini **wajib dipakai identik** di seluruh titik implementa
 - 12 User (`USR-001`–`USR-011`, `USR-013`) mencakup seluruh 11 role demo (2 user berperan PM untuk keragaman "project owner").
 - ID Invoice/Payment/Task/Change/Document mengikuti prefix project (mis. seluruh entitas PRJ-102 memakai akhiran `102x`) untuk memudahkan penelusuran silang manual sebelum ada database sungguhan.
 - `PARTIES`/`CONTACTS`/`PARTY_ACTIVITIES` sejak Section 07 adalah `reactive()` array (mendukung create-mock nyata dari UI) — ID baru yang dibuat lewat `/crm/prospects` (`createParty`) mengikuti pola sekuensial yang sama (`PTY-005`, `PTY-006`, dst.), dihitung otomatis dari ID tertinggi yang ada, bukan dikelola manual di dokumen ini.
+- `OPPORTUNITIES`/`QUOTATIONS` sejak Section 08 juga `reactive()` — transisi stage, submit Won-Requested, tandai Lost/On Hold, dan create/revisi quotation (`advanceOpportunityStage`/`createQuotation`/`reviseQuotation`, `app/data/index.ts`) ter-propagate seketika ke Dashboard/Party Detail/CRM overview tanpa reload.
+- `PROJECTS`/`ACTIVITIES` sejak Section 09 juga `reactive()` — Approve Won (`approveOpportunityWon`, `app/data/index.ts`) mendorong Project baru dan entri Activity baru yang langsung terlihat di `/projects`, Dashboard, dan Party Detail. ID Project baru mengikuti pola sekuensial yang sama (`PRJ-104`, dst.), dihitung otomatis — bukan angka acak.
 
 ## 8. Batasan
 

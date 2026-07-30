@@ -40,6 +40,8 @@ export interface Project {
   name: string
   partyId: ID
   opportunityId?: ID
+  /** Quotation yang di-Won-kan, referensi (Section 09 — docs/route-and-role-matrix.md bagian 2.2 item 6). */
+  sourceQuotationId?: ID
   destination: string
   travelStartDate: string
   travelEndDate: string
