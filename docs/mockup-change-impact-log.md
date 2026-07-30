@@ -228,4 +228,21 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 
 ---
 
+## CI-017 — Penghapusan Flag `comingSoon` pada Nav Item Reports
+
+- **Change ID / Tanggal:** CI-017 · 2026-07-30
+- **Triggering section:** Section 16 — Reports.
+- **Previous section affected:** Section 05 — Foundation (pemilik `app/constants/navigation.ts`, `NAV_ITEMS`).
+- **Alasan perubahan:** `/reports` sebelumnya `ModulePlaceholder` (Section 05) sehingga nav item-nya ditandai `comingSoon: true` (badge "Segera"). Section 16 menyelesaikan implementasi penuh halaman ini, sehingga badge tsb sudah tidak sesuai kondisi aktual — dihapus agar sidebar konsisten dengan pola section lain yang sudah selesai (Section 07 melakukan hal sama untuk Prospects/Clients, lihat histori CI di atas).
+- **Files affected:** `app/constants/navigation.ts` (satu baris, item `Reports` — `comingSoon: true` dihapus).
+- **Previous behavior:** Sidebar menampilkan badge "Segera" di sebelah label "Reports" meski halaman sudah lengkap.
+- **New behavior:** Badge "Segera" tidak lagi tampil untuk Reports; item lain (`Quotations`, `Invoices`, `Payments`, seluruh item Administration) tidak disentuh dan tetap bertanda `comingSoon: true` apa adanya.
+- **Risk:** Sangat rendah — perubahan satu baris murni tampilan (badge kondisional `v-if="item.comingSoon"` di `AppSidebar.vue`, tidak diubah), tidak memengaruhi routing/permission.
+- **Regression checks:** `npm run build` sukses; smoke test `/` (sidebar) mengonfirmasi badge "Segera" hilang untuk Reports, seluruh item lain tidak berubah.
+- **Dokumentasi yang diperbarui:** `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-16-reports.md`.
+
+**Catatan tambahan (ditemukan, sengaja tidak diperbaiki):** `Invoices`/`Payments` di file yang sama juga masih bertanda `comingSoon: true` meski `COMPLETED` sejak Section 15 (kemungkinan oversight Section 15). Section 16 **tidak** memperbaikinya untuk menjaga scope tetap murni Reports — dicatat sebagai known issue di `docs/mockup-section-reports/section-16-reports.md` bagian 17, bukan diperbaiki diam-diam.
+
+---
+
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*

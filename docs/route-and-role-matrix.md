@@ -120,7 +120,20 @@ Aksi Accept/Reject quotation (menentukan vendor mana yang ditugaskan ke satu ser
 
 | Route | Page name | Parent menu | Purpose | Required data | Main reusable component | Access role | Demo? | Status |
 |---|---|---|---|---|---|---|---|---|
-| `/reports` | Reports | Reports | 4 section dalam satu halaman: Sales Pipeline, Project Performance, Cost and Margin, Finance Summary | Agregasi lintas-modul | Chart wrapper baru (berbasis Chart.js, pola dari `BudgetChart.vue`) | Section terlihat per role — lihat detail di bagian 6 | Ya | phase Reporting |
+| `/reports` | Reports | Reports | 6 section granular dalam satu halaman (realisasi Section 16 dari scope literal Prompt 16 — lihat catatan implementasi di bawah): Sales Pipeline, Project Performance, Upcoming Departure dan Service Readiness, Vendor Summary, Budget vs Actual dan Margin, Invoice Aging dan Outstanding | Agregasi lintas-modul, murni read-only atas fixture/selektor existing | `StatusBreakdownList`, `BudgetChart`, `StatsCard`, `Table*` (seluruhnya reuse, tidak ada chart wrapper baru) | Section terlihat per role — lihat detail di bagian 6 dan catatan implementasi Section 16 di bawah | Ya | **selesai (Section 16)** — lihat `docs/mockup-section-reports/section-16-reports.md` |
+
+**Catatan implementasi Section 16 (Reports, realisasi granularity — bukan perubahan keputusan LOCKED bagian 5, murni klarifikasi karena bagian 5 hanya memetakan 4 nama section sedangkan scope literal final Prompt 16 berisi 6 item):** pemetaan role per section granular:
+
+| Section | Role dengan akses |
+|---|---|
+| Sales Pipeline | Sales, Management, Super Admin, Viewer (persis baris LOCKED bagian 5) |
+| Project Performance | Project Manager, Management, Super Admin, Viewer (persis baris LOCKED bagian 5) |
+| Upcoming Departure dan Service Readiness | Project Manager, Management, Super Admin, Viewer (dianggap bagian cakupan "Project Performance" untuk PM; Operations/Ticketing/Accommodation/Transportation/MICE **tidak** melihatnya di Reports meski melihat info serupa di Dashboard — `ROLE_MODULE_ACCESS.reports` mereka `NONE`, LOCKED sejak Foundation) |
+| Vendor Summary | Project Manager, Finance, Management, Super Admin, Viewer (section baru tanpa baris LOCKED persis — PM karena mengelola assignment vendor per project/Section 13, Finance karena committed vendor cost adalah komponen budget/margin) |
+| Budget vs Actual dan Margin | Finance, Management, Super Admin, Viewer (persis baris LOCKED "Cost and Margin"; PM tidak termasuk) |
+| Invoice Aging dan Outstanding | Finance, Management, Super Admin, Viewer (persis baris LOCKED "Finance Summary") |
+
+Gerbang module-level halaman (`canView('reports')`) tidak berubah — Operations/Ticketing/Accommodation/Transportation/MICE tetap `NONE`, melihat `RoleAccessState`.
 
 ### 1.7 Administration
 

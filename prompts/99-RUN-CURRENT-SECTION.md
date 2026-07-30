@@ -1,6 +1,6 @@
 Baca dan jalankan:
 
-`prompts/17-PROMPT-15-PROJECT-FINANCE.md`
+`prompts/18-PROMPT-16-REPORTS.md`
 
 Sebelum mulai:
 
@@ -9,11 +9,11 @@ Sebelum mulai:
 3. Periksa `git status` dan kondisi codebase aktual.
 4. Jangan mengubah hasil pekerjaan sebelumnya kecuali diperlukan untuk integrasi.
 
-Kerjakan hanya scope Prompt 15.
+Kerjakan hanya scope Prompt 16.
 
 Setelah selesai:
 
 1. Jalankan validasi yang tersedia.
 2. Update implementation state, progress, section report, dan change impact log jika diperlukan.
 3. Berikan laporan hasil dan URL yang perlu direview.
-4. Berhenti dan jangan lanjut ke Prompt 16.
+4. Berhenti dan jangan lanjut ke Prompt 17.

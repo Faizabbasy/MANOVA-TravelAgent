@@ -250,6 +250,20 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Cross-section impact:** Tidak ada entri change-impact-log baru — tidak ada data/type section lain yang diubah, hanya selektor turunan baru dan pengisian tab/route yang memang belum dikerjakan section manapun (dicatat sejak Section 10 sebagai "menyusul Section 15").
 - **Next action:** Section 16 — Reports. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 16. Menunggu perintah user — tidak dieksekusi otomatis.
 
+## Section 16 — Reports
+
+- **Tanggal:** 2026-07-30
+- **Status:** COMPLETED
+- **Scope dan completed items:** Membangun `/reports` (dari `ModulePlaceholder` Section 05) menjadi satu halaman dengan 6 section granular: Sales Pipeline, Project Performance, Upcoming Departure dan Service Readiness, Vendor Summary, Budget vs Actual dan Margin, Invoice Aging dan Outstanding — dengan filter (status/tipe/periode project), chart/table (`StatusBreakdownList`/`BudgetChart`/`Table`), states (loading/empty/unauthorized), dan visibilitas per role (pemetaan didokumentasikan di `docs/route-and-role-matrix.md` bagian 1.6 catatan implementasi Section 16). Tidak ada dataset report terpisah — seluruh angka reuse fixture/selektor existing (terutama selektor finansial Section 15).
+- **Files created/changed/removed:** Dibuat — `app/pages/reports/index.vue` (rewrite total dari `ModulePlaceholder`), `docs/mockup-section-reports/section-16-reports.md`. Diubah — `app/constants/navigation.ts` (flag `comingSoon` item Reports dihapus, satu baris).
+- **Routes affected:** `/reports` (tidak ada route baru — shell Section 05 diisi penuh).
+- **Components reused/created:** Reused — `PageHeader`, `SectionCard`, `RoleAccessState`, `LoadingState`, `EmptyState`, `StatusBreakdownList`, `StatsCard`, `BudgetChart`, `Table*`, `Select*`. Tidak ada komponen file baru.
+- **Data/types/constants affected:** Tidak ada — murni agregasi read-only di atas `PROJECTS`/`OPPORTUNITIES`/`QUOTATIONS`/`VENDOR_QUOTATIONS`/`INVOICES` dan selektor `app/data/index.ts` existing.
+- **Validation results:** `nuxi prepare` + `npm run build` sukses (2x run — run kedua setelah fix `comingSoon`). Smoke test HTTP 8 route seluruhnya 200. Verifikasi bundle server (`reports-*.mjs`) mengonfirmasi 6 judul section ter-compile. Verifikasi angka manual terhadap fixture: Budget/Actual/Variance/Quotation/Margin agregat 3 project, Invoice Aging (28 & 9 hari overdue, cocok Section 15), Committed Vendor Cost Rp1.365.000.000, Sales Pipeline Win Rate 75% — seluruhnya presisi. `vitest`/`typecheck`/lint tetap pre-existing gap (Q8). Verifikasi interaktif ganti-role tidak dilakukan (keterbatasan tooling, konsisten sejak Section 06).
+- **Known issues:** Q8 tetap terbuka (dua belas section berturut-turut); export mock tidak dikerjakan (belum disepakati, sesuai hard rule literal); pemetaan role 2 section baru (Upcoming Departure/Service Readiness, Vendor Summary) adalah keputusan implementasi Section 16, bukan perluasan tabel LOCKED; nav item Invoices/Payments masih bertanda `comingSoon: true` (oversight Section 15, ditemukan namun sengaja tidak diperbaiki — di luar scope Section 16).
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-017 (flag `comingSoon` nav Reports dihapus, milik Section 05).
+- **Next action:** Section 17 — Administration. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 17. Menunggu perintah user — tidak dieksekusi otomatis.
+
 ---
 
-*(Belum ada entri Section 16 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*
+*(Belum ada entri Section 17 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*

@@ -29,7 +29,7 @@ Ringkasan Section 00–04 dalam skema field standar protokol ini tetap tersedia 
 | 13 | Vendor Management | [`section-13-vendor-management.md`](./section-13-vendor-management.md) | COMPLETED |
 | 14 | Project Changes | [`section-14-project-changes.md`](./section-14-project-changes.md) | COMPLETED |
 | 15 | Project Finance | [`section-15-project-finance.md`](./section-15-project-finance.md) | COMPLETED |
-| 16 | Reports | `section-16-reports.md` | Belum dibuat — section belum dieksekusi |
+| 16 | Reports | [`section-16-reports.md`](./section-16-reports.md) | COMPLETED |
 | 17 | Administration | `section-17-administration.md` | Belum dibuat — section belum dieksekusi |
 | 18 | Regression and Demo Readiness | `section-18-regression-demo-readiness.md` | Belum dibuat — section belum dieksekusi |
 

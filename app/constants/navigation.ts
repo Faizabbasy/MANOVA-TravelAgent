@@ -52,7 +52,7 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Payments', to: '/finance/payments', icon: Wallet, moduleKey: 'finance', comingSoon: true },
     ],
   },
-  { label: 'Reports', to: '/reports', icon: BarChart3, moduleKey: 'reports', comingSoon: true },
+  { label: 'Reports', to: '/reports', icon: BarChart3, moduleKey: 'reports' },
   {
     label: 'Administration',
     to: '/admin',
