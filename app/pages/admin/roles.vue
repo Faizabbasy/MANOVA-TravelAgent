@@ -1,51 +1,141 @@
 <script setup lang="ts">
 import { ROLES, ROLE_MODULE_ACCESS } from '~/constants/roles'
-import type { ModuleKey } from '~/types/user'
+import type { ModuleKey, PermissionLevel } from '~/types/user'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
-useHead({ title: 'Roles and Permissions' })
+useHead({ title: 'Roles and Permissions — Administration' })
 
 const { canView } = usePermissions()
 
-const modules: { key: ModuleKey; label: string }[] = [
-  { key: 'crm', label: 'CRM' },
-  { key: 'project', label: 'Project' },
-  { key: 'vendor', label: 'Vendor' },
-  { key: 'finance', label: 'Finance' },
-  { key: 'reports', label: 'Reports' },
-  { key: 'administration', label: 'Administration' },
+const modules: { key: ModuleKey; label: string; description: string }[] = [
+  { key: 'crm', label: 'CRM', description: 'Party, Opportunity, Quotation' },
+  { key: 'project', label: 'Project', description: 'Project, Itinerary, Traveler' },
+  { key: 'vendor', label: 'Vendor', description: 'Direktori & quotation vendor' },
+  { key: 'finance', label: 'Finance', description: 'Invoice, Payment, Budget' },
+  { key: 'reports', label: 'Reports', description: 'Laporan agregasi' },
+  { key: 'administration', label: 'Admin', description: 'User, Role, Master Data' },
 ]
+
+const PERMISSION_META: Record<PermissionLevel, { tone: string; description: string }> = {
+  NONE: { tone: 'neutral', description: 'Tidak ada akses' },
+  VIEW: { tone: 'info', description: 'Hanya baca' },
+  MANAGE: { tone: 'primary', description: 'Baca + tulis + hapus' },
+  APPROVE: { tone: 'warning', description: 'Manage + aksi approval' },
+  ADMIN: { tone: 'destructive', description: 'Akses penuh termasuk admin' },
+}
+
+function permTone(level: PermissionLevel) {
+  return PERMISSION_META[level].tone
+}
+
+// Catatan per-role yang lebih detail (sesuai docs/route-and-role-matrix.md bagian 5)
+const ROLE_NOTES: Partial<Record<string, string>> = {
+  'super-admin': 'Akses penuh ke seluruh modul tanpa pengecualian.',
+  management: 'Approve Won Opportunity dan perubahan besar/cancel project. Tidak bisa manage user.',
+  sales: 'Kelola Prospect, Opportunity, dan Quotation. Hanya lihat project dari opportunity miliknya.',
+  'project-manager': 'Manage seluruh tab project. Hanya lihat budget vs actual project miliknya.',
+  operations: 'Manage tab Itinerary & Services (koordinasi umum). Tidak ada akses CRM/Finance.',
+  ticketing: 'Manage sub-section Flight di Itinerary & Services. Tidak ada akses CRM/Finance.',
+  accommodation: 'Manage sub-section Hotel di Itinerary & Services.',
+  transportation: 'Manage sub-section Transportation di Itinerary & Services.',
+  mice: 'Manage sub-section MICE di Itinerary & Services.',
+  finance: 'Manage Invoice & Payment. Lihat Finance tab project. Tidak ada akses CRM write.',
+  viewer: 'Akses baca ke seluruh modul. Tidak ada aksi tulis. Hanya lihat Audit Trail di Administration.',
+}
+
+// Legend
+const levelOrder: PermissionLevel[] = ['NONE', 'VIEW', 'MANAGE', 'APPROVE', 'ADMIN']
 </script>
 
 <template>
   <div class="space-y-6">
     <PageHeader
       title="Roles and Permissions"
-      description="Role & Access Matrix — docs/route-and-role-matrix.md bagian 5."
+      description="Role & Access Matrix — referensi docs/route-and-role-matrix.md bagian 5."
       :breadcrumb="[{ label: 'Administration', to: '/admin' }, { label: 'Roles and Permissions' }]"
     />
 
     <RoleAccessState v-if="!canView('administration')" module-label="modul Administration" />
 
-    <SectionCard v-else>
-      <div class="overflow-x-auto">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Role</TableHead>
-              <TableHead v-for="module in modules" :key="module.key">{{ module.label }}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="role in ROLES" :key="role.value">
-              <TableCell class="font-medium text-foreground whitespace-nowrap">{{ role.label }}</TableCell>
-              <TableCell v-for="module in modules" :key="module.key">
-                {{ ROLE_MODULE_ACCESS[role.value][module.key] }}
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </div>
-    </SectionCard>
+    <template v-else>
+      <!-- Legend -->
+      <SectionCard title="Legend Level Akses">
+        <div class="flex flex-wrap gap-3">
+          <div
+            v-for="level in levelOrder"
+            :key="level"
+            class="flex items-center gap-2"
+          >
+            <StatusBadge :label="level" :tone="permTone(level)" />
+            <span class="text-xs text-muted-foreground">{{ PERMISSION_META[level].description }}</span>
+          </div>
+        </div>
+      </SectionCard>
+
+      <!-- Matrix table -->
+      <SectionCard title="Matrix Role × Modul">
+        <div class="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead class="min-w-[160px] whitespace-nowrap">Role</TableHead>
+                <TableHead v-for="mod in modules" :key="mod.key" class="text-center whitespace-nowrap min-w-[100px]">
+                  <span class="font-medium">{{ mod.label }}</span>
+                  <span class="block text-xs font-normal text-muted-foreground">{{ mod.description }}</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="role in ROLES" :key="role.value">
+                <TableCell class="whitespace-nowrap">
+                  <div class="flex items-center gap-2">
+                    <StatusBadge :label="role.label" :tone="role.tone" />
+                  </div>
+                  <p class="text-xs text-muted-foreground mt-1 max-w-[200px] leading-tight">
+                    {{ ROLE_NOTES[role.value] ?? '' }}
+                  </p>
+                </TableCell>
+                <TableCell
+                  v-for="mod in modules"
+                  :key="mod.key"
+                  class="text-center"
+                >
+                  <StatusBadge
+                    :label="ROLE_MODULE_ACCESS[role.value][mod.key]"
+                    :tone="permTone(ROLE_MODULE_ACCESS[role.value][mod.key])"
+                  />
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </SectionCard>
+
+      <!-- Action flags section -->
+      <SectionCard title="Action Flags Khusus" description="Aksi spesifik yang memerlukan level akses tertentu (docs/route-and-role-matrix.md bagian 5.1).">
+        <div class="divide-y divide-border">
+          <div class="py-3 grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 text-sm">
+            <span class="font-medium text-foreground">Lihat info finansial (budget/cost/margin)</span>
+            <span class="text-muted-foreground sm:col-span-2">Super Admin, Management, Finance, Viewer (read-only), PM (terbatas project miliknya)</span>
+          </div>
+          <div class="py-3 grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 text-sm">
+            <span class="font-medium text-foreground">Manage users</span>
+            <span class="text-muted-foreground sm:col-span-2">Super Admin saja (ADMIN di Administration)</span>
+          </div>
+          <div class="py-3 grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 text-sm">
+            <span class="font-medium text-foreground">Approve (Won, perubahan besar, cancel project)</span>
+            <span class="text-muted-foreground sm:col-span-2">Super Admin, Management</span>
+          </div>
+          <div class="py-3 grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 text-sm">
+            <span class="font-medium text-foreground">Change status (project/service non-approval)</span>
+            <span class="text-muted-foreground sm:col-span-2">Role MANAGE di modul terkait (mis. PM untuk Project, Ticketing untuk Flight)</span>
+          </div>
+          <div class="py-3 grid grid-cols-1 sm:grid-cols-3 gap-1 sm:gap-4 text-sm">
+            <span class="font-medium text-foreground">Delete mock</span>
+            <span class="text-muted-foreground sm:col-span-2">Setara MANAGE/ADMIN di modul terkait</span>
+          </div>
+        </div>
+      </SectionCard>
+    </template>
   </div>
 </template>

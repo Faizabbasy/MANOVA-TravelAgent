@@ -264,6 +264,24 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-017 (flag `comingSoon` nav Reports dihapus, milik Section 05).
 - **Next action:** Section 17 — Administration. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 17. Menunggu perintah user — tidak dieksekusi otomatis.
 
----
+## Section 17 — Administration
 
-*(Belum ada entri Section 17 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*
+- **Tanggal:** 2026-07-30
+- **Status:** COMPLETED
+- **Scope dan completed items:** 
+  1. User List & Detail Mock: Mengubah `/admin/users` menjadi daftar user lengkap dengan pencarian, filter role, indikator user yang sedang login aktif, serta dialog detail yang menunjukkan permission matrix personal user dan tombol beralih user.
+  2. Role Switcher Demo: Membangun kontrol switcher reaktif di `/admin/index.vue` dan `/admin/users.vue` (dialog detail) menggunakan source of truth dari `useCurrentUser()`.
+  3. Role & Permission Matrix: Meningkatkan `/admin/roles.vue` dengan visualisasi matrix grid berwarna, penjelasan level akses legend, ringkasan peranan tiap role, dan action flags khusus.
+  4. Master Data: Mengisi `/admin/master-data.vue` dengan data referensi tipe project, jenis layanan, destinasi perjalanan, dan kategori vendor menggunakan file konstanta master-data baru.
+  5. Audit Trail: Menyelesaikan `/admin/audit-trail.vue` dengan summary stats, filter project/tipe/review status, dan tampilan detail log perubahan (kategori, requester, approval status, before/after, dampak).
+  6. Navigasi: Menghapus flag `comingSoon` pada sub-item Administration dan Finance.
+- **Files created/changed/removed:**
+  - Dibuat: `app/constants/master-data.ts`, `docs/mockup-section-reports/section-17-administration.md`.
+  - Diubah: `app/constants/navigation.ts`, `app/pages/admin/index.vue`, `app/pages/admin/users.vue`, `app/pages/admin/roles.vue`, `app/pages/admin/master-data.vue`, `app/pages/admin/audit-trail.vue`, `docs/mockup-change-impact-log.md`.
+- **Routes affected:** `/admin`, `/admin/master-data`, `/admin/users`, `/admin/roles`, `/admin/audit-trail`, `/finance/invoices`, `/finance/payments` (tidak ada route baru, fungsionalitas placeholder diisi penuh).
+- **Components reused/created:** Reused: `PageHeader`, `SectionCard`, `RoleAccessState`, `EmptyState`, `StatusBadge`, `Table*`, `Dialog*`, `Button`, `Input`.
+- **Data/types/constants affected:** Dibuat konstanta baru `MASTER_PROJECT_TYPES`/`MASTER_SERVICE_TYPES`/`MASTER_DESTINATIONS`/`MASTER_VENDOR_CATEGORIES` di `app/constants/master-data.ts`.
+- **Validation results:** `nuxi prepare` sukses. `npm run build` sukses melakukan kompilasi penuh client & server build (10.77 detik).
+- **Known issues:** Q8 tetap terbuka (tiga belas section berturut-turut); verifikasi interaktif visual ganti-role tidak dilakukan secara headless otomatis (keterbatasan tooling).
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-018 (menghapus flag `comingSoon` pada Finance dan Administration).
+- **Next action:** Berhenti. Jangan lanjut ke Section 18.

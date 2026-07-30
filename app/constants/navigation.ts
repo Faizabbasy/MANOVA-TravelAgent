@@ -48,8 +48,8 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Wallet,
     moduleKey: 'finance',
     children: [
-      { label: 'Invoices', to: '/finance/invoices', icon: Wallet, moduleKey: 'finance', comingSoon: true },
-      { label: 'Payments', to: '/finance/payments', icon: Wallet, moduleKey: 'finance', comingSoon: true },
+      { label: 'Invoices', to: '/finance/invoices', icon: Wallet, moduleKey: 'finance' },
+      { label: 'Payments', to: '/finance/payments', icon: Wallet, moduleKey: 'finance' },
     ],
   },
   { label: 'Reports', to: '/reports', icon: BarChart3, moduleKey: 'reports' },
@@ -59,10 +59,10 @@ export const NAV_ITEMS: NavItem[] = [
     icon: ShieldCheck,
     moduleKey: 'administration',
     children: [
-      { label: 'Master Data', to: '/admin/master-data', icon: ShieldCheck, moduleKey: 'administration', comingSoon: true },
-      { label: 'Users', to: '/admin/users', icon: ShieldCheck, moduleKey: 'administration', comingSoon: true },
-      { label: 'Roles and Permissions', to: '/admin/roles', icon: ShieldCheck, moduleKey: 'administration', comingSoon: true },
-      { label: 'Audit Trail', to: '/admin/audit-trail', icon: ShieldCheck, moduleKey: 'administration', comingSoon: true },
+      { label: 'Master Data', to: '/admin/master-data', icon: ShieldCheck, moduleKey: 'administration' },
+      { label: 'Users', to: '/admin/users', icon: ShieldCheck, moduleKey: 'administration' },
+      { label: 'Roles and Permissions', to: '/admin/roles', icon: ShieldCheck, moduleKey: 'administration' },
+      { label: 'Audit Trail', to: '/admin/audit-trail', icon: ShieldCheck, moduleKey: 'administration' },
     ],
   },
 ]

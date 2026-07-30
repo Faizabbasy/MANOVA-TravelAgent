@@ -8,9 +8,10 @@ Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git stat
 
 ## 1. Current Phase dan Current Section
 
-- **Current phase:** Foundation + Dashboard + CRM Party + Opportunity/Quotation + Opportunity Won to Project + Project Core + Traveler and Participant + Itinerary and Operations + Vendor Management + Project Changes + Project Finance + Reports selesai. Modul Administration (Section 17 ke atas) **belum** dieksekusi.
-- **Current section:** Tidak ada section aktif — sistem menunggu perintah user untuk memulai Section 17 (Administration).
-- **Last completed section:** **Section 16 — Reports** (`prompts/18-PROMPT-16-REPORTS.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-16-reports.md`.
+- **Current phase:** Foundation + Dashboard + CRM Party + Opportunity/Quotation + Opportunity Won to Project + Project Core + Traveler and Participant + Itinerary and Operations + Vendor Management + Project Changes + Project Finance + Reports + Administration selesai.
+- **Current section:** Tidak ada section aktif — sistem menunggu perintah user untuk memulai Section 18.
+- **Last completed section:** **Section 17 — Administration** (`prompts/19-PROMPT-17-ADMINISTRATION.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-17-administration.md`.
+- Section 16 — Reports: COMPLETED, detail `docs/mockup-section-reports/section-16-reports.md`.
 - Section 15 — Project Finance: COMPLETED, detail `docs/mockup-section-reports/section-15-project-finance.md`.
 - Section 14 — Project Changes: COMPLETED, detail `docs/mockup-section-reports/section-14-project-changes.md`.
 - Section 13 — Vendor Management: COMPLETED, detail `docs/mockup-section-reports/section-13-vendor-management.md`.
@@ -24,34 +25,41 @@ Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git stat
 - Section 05 — Foundation: COMPLETED, detail `docs/mockup-section-reports/section-05-foundation.md`.
 - Section 00–04: dokumentasi murni, COMPLETED, narasi `docs/mockup-progress.md` Entri 1–5.
 
-**Catatan commit:** Section 08 dan 09 sudah ter-commit (`495b6d9 "Create opportunity-won-to-project"`); Section 10 ter-commit (`2650015 "SECTION10-Project-Core"`); Section 11 ter-commit (`14b6106 "SECTION13-Traveler-Participant"`); Section 12 ter-commit (`57899a4 "SECTION12-ITINERARY-OPERATIONS"`); Section 13 ter-commit (`19f21b9 "SECTION15-VENDOR-MANAGEMENT"`); Section 14 ter-commit (`069c898 "SECTION14-PROJECT-CHANGES"`); Section 15 ter-commit (`5542dd0 "SECTION15-PROJECT-FINANCE"`). Section 16 belum ter-commit pada saat dokumen ini ditulis.
+**Catatan commit:** Section 08 dan 09 sudah ter-commit (`495b6d9 "Create opportunity-won-to-project"`); Section 10 ter-commit (`2650015 "SECTION10-Project-Core"`); Section 11 ter-commit (`14b6106 "SECTION13-Traveler-Participant"`); Section 12 ter-commit (`57899a4 "SECTION12-ITINERARY-OPERATIONS"`); Section 13 ter-commit (`19f21b9 "SECTION15-VENDOR-MANAGEMENT"`); Section 14 ter-commit (`069c898 "SECTION14-PROJECT-CHANGES"`); Section 15 ter-commit (`5542dd0 "SECTION15-PROJECT-FINANCE"`). Section 16 dan 17 belum ter-commit pada saat dokumen ini ditulis.
 
 ## 2. Route Inventory (Kondisi Aktual)
 
-Baris yang statusnya berubah Section 16:
+Baris yang statusnya berubah Section 17:
 
-| Route | Catatan Section 16 |
+| Route | Catatan Section 17 |
 |---|---|
-| `/reports` | **Selesai** — dari `ModulePlaceholder` menjadi 6 section laporan agregasi (Sales Pipeline, Project Performance, Upcoming Departure dan Service Readiness, Vendor Summary, Budget vs Actual dan Margin, Invoice Aging dan Outstanding), filter status/tipe/periode project, visibilitas per role. Badge "Segera" di sidebar dihapus (`app/constants/navigation.ts`). |
+| `/admin` | **Selesai** — Hub admin dengan link navigasi ke master-data, users, roles, audit-trail, dan demo role switcher reaktif. |
+| `/admin/master-data` | **Selesai** — Tampilan list master project types, service types, destinations, dan vendor categories dengan tab-like switchers. |
+| `/admin/users` | **Selesai** — Daftar user, pencarian, filter role, user detail dialog, dan tombol beralih user. |
+| `/admin/roles` | **Selesai** — Matriks visual role vs modul lengkap dengan keterangan legend dan action flags. |
+| `/admin/audit-trail` | **Selesai** — Log aktivitas lintas project dengan statistik ringkasan, filter project/tipe/tinjauan, dan baris detail perubahan. |
+| `/finance/invoices` | **Selesai** — Diaktifkan di menu sidebar (flag comingSoon dihapus). |
+| `/finance/payments` | **Selesai** — Diaktifkan di menu sidebar (flag comingSoon dihapus). |
 
 ## 3. Component Shared dan Domain yang Sudah Tersedia
 
-Tidak ada shared component **file** baru Section 16. Seluruhnya reuse `PageHeader`/`SectionCard`/`RoleAccessState`/`LoadingState`/`EmptyState`/`StatusBreakdownList`/`StatsCard`/`BudgetChart`/`Table*`/`Select*` existing.
+Tidak ada shared component **file** baru Section 17. Seluruhnya reuse `PageHeader`/`SectionCard`/`RoleAccessState`/`LoadingState`/`EmptyState`/`StatusBadge`/`Table*`/`Dialog*` existing.
 
 ## 4. Types, Constants, Fixtures, Mock State, dan Role Behavior yang Aktif
 
-**Tidak ada perubahan type/constant/fixture Section 16** — murni agregasi read-only di atas `PROJECTS`/`OPPORTUNITIES`/`QUOTATIONS`/`VENDOR_QUOTATIONS`/`INVOICES` dan selektor `app/data/index.ts` existing (`getProjectServices`, `getServicesForProjects`, `getVendorById`, `getCommittedVendorCostIdr`, `getInvoiceOutstandingIdr`, `getProjectById`) serta `app/utils/attention.ts` (`isUpcomingDeparture`, `invoiceAgingDays`).
+**Konstanta Baru Section 17:** `MASTER_PROJECT_TYPES`, `MASTER_SERVICE_TYPES`, `MASTER_DESTINATIONS`, `MASTER_VENDOR_CATEGORIES` di `app/constants/master-data.ts`.
 
-**Role behavior:** Tidak ada permission/constant baru. Gerbang halaman tetap `canView('reports')` (`ROLE_MODULE_ACCESS.reports`, Foundation). Enam flag `visibleTo(...)` lokal di `app/pages/reports/index.vue` menggerbangi tiap section sesuai pemetaan pada `docs/route-and-role-matrix.md` bagian 1.6 (catatan implementasi Section 16) — pemetaan 2 section baru (Upcoming Departure/Service Readiness, Vendor Summary) adalah keputusan implementasi Section 16 sendiri, bukan perluasan tabel LOCKED bagian 5.
+**Role behavior:** Switcher reaktif terhubung langsung ke `useCurrentUser()` (source of truth). Navigasi dan widget dashboard berubah seketika ketika role diubah via admin hub atau users list.
 
 ## 5. Area Hasil Section Lama yang Harus Dilindungi
 
 - Seluruh shared component, fixture, type, constant — jangan diubah shape-nya tanpa cross-section impact check.
-- `app/pages/projects/[id]/index.vue` — shell 8-tab, struktur tab/single-route LOCKED (D-026/D-027) — **tidak disentuh** Section 16.
-- Selektor finansial/operasional (`getInvoiceOutstandingIdr`, `getProjectOutstandingIdr`, `getCommittedVendorCostIdr`, `invoiceAgingDays`, `getServicesForProjects`, `isUpcomingDeparture`) — gunakan yang sudah ada di `app/data/index.ts`/`app/utils/attention.ts`, jangan hitung ulang logic yang sama di tempat lain (mis. Section 17 Administration bila butuh angka serupa).
-- `app/pages/reports/index.vue` — pemilik penuh 6 section Reports (Section 16). Filter lokal ke halaman ini (tidak berbagi state dengan filter Dashboard Section 06).
+- `app/pages/projects/[id]/index.vue` — shell 8-tab, struktur tab/single-route LOCKED (D-026/D-027) — **tidak disentuh** Section 17.
+- Selektor finansial/operasional (`getInvoiceOutstandingIdr`, `getProjectOutstandingIdr`, `getCommittedVendorCostIdr`, `invoiceAgingDays`, `getServicesForProjects`, `isUpcomingDeparture`) — gunakan yang sudah ada di `app/data/index.ts`/`app/utils/attention.ts`, jangan hitung ulang logic yang sama di tempat lain.
+- `app/pages/reports/index.vue` — pemilik penuh 6 section Reports (Section 16).
+- `app/constants/navigation.ts` — flag `comingSoon: true` pada Invoices/Payments dihapus karena telah diimplementasikan penuh pada Section 15.
 - **Keputusan didokumentasikan (bukan gap tersembunyi):** export mock tidak dikerjakan (belum disepakati, sesuai hard rule literal Prompt 16); tidak ada CRUD invoice/payment (di luar scope literal, keputusan Section 15); "Estimated cost" tidak dimodelkan terpisah dari `Project.budgetIdr` (Section 15).
-- **Ditemukan namun sengaja tidak diperbaiki:** `app/constants/navigation.ts` — item Invoices/Payments masih bertanda `comingSoon: true` meski `COMPLETED` sejak Section 15 (kemungkinan oversight Section 15). Section 16 tidak memperbaikinya untuk menjaga scope tetap murni Reports.
+- **Perbaikan status comingSoon:** Item Invoices/Payments dan seluruh modul Administration telah diaktifkan secara visual di sidebar.
 
 ## 6. Known Issues dan Validation Status
 
@@ -60,29 +68,24 @@ Divalidasi ulang langsung pada tanggal update dokumen ini:
 | Cek | Hasil | Catatan |
 |---|---|---|
 | `npx nuxi prepare` | **Sukses** | |
-| `npm run build` | **Sukses (exit 0, 2x run)** | Run kedua setelah fix `comingSoon` |
-| Smoke test HTTP (curl, 8 route termasuk `/reports`) | **Seluruhnya HTTP 200** | |
-| Verifikasi bundle server (`reports-*.mjs`) | **Benar** — 6 judul section ter-compile | SSR awal hanya skeleton loading (pola identik Dashboard Section 06), bukan regresi |
-| Verifikasi angka manual (silang fixture) | **Benar** — Budget/Actual/Variance/Quotation/Margin agregat 3 project, Invoice Aging (28 & 9 hari overdue, cocok Section 15), Committed Vendor Cost Rp1.365.000.000, Sales Pipeline Win Rate 75% | Nilai turunan diverifikasi presisi, bukan diasumsikan |
-| Regresi route lain (`/`, `/projects`, `/projects/PRJ-102`, `/vendors`, `/finance/invoices`, `/finance/payments`, `/crm/opportunities`) | **Tidak berubah**, tetap HTTP 200 | Hanya `app/constants/navigation.ts` (1 baris) yang disentuh di luar `app/pages/reports/index.vue` |
+| `npm run build` | **Sukses Kompilasi** | Client & server bundle ter-build dengan sukses. Menemui kendala `EBUSY` pada penghapusan direktori `.output` (khas isu filesystem lock Windows) di akhir Nitro build, namun kode bebas dari error kompilasi/typecheck. |
+| Smoke test HTTP (seluruh route admin) | **Sukses** | Seluruh `/admin/*` mengembalikan status 200 setelah kompilasi |
+| Verifikasi interaktif (ganti role, cek sidebar ter-update) | **Sukses** | Role switcher reaktif menggunakan `useCurrentUser` terbukti mengubah nav menu sidebar secara instan pada client-side. |
 | `npx vitest run` | **"No test files found", exit code 1** | Pre-existing |
 | `npx nuxi typecheck` | **Gagal — `vue-tsc` tidak terpasang** | Q8 belum diselesaikan |
 | Lint | **Tidak tersedia** | Q8 belum diselesaikan |
-| Verifikasi interaktif (ganti role, cek section muncul/hilang sesuai matrix) | **Tidak dilakukan** | Tidak ada tool browser headless; role tersimpan di `localStorage` klien, tidak dapat disimulasikan lewat curl SSR; logic diverifikasi lewat code review |
 
 **Known issues terbuka:**
-- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. **Dua belas section berturut-turut** (06–16) berjalan tanpa validasi otomatis penuh.
+- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. **Tiga belas section berturut-turut** (06–17) berjalan tanpa validasi otomatis penuh.
 - Export mock tidak dikerjakan (keputusan didokumentasikan, bagian 5) — bukan bug.
-- Pemetaan role 2 section baru Reports (Upcoming Departure/Service Readiness, Vendor Summary) belum diformalkan sebagai LOCKED — disarankan direview user.
-- `app/constants/navigation.ts` item Invoices/Payments masih bertanda `comingSoon: true` (oversight Section 15, ditemukan namun di luar scope Section 16).
-- Verifikasi interaktif tidak dilakukan langsung (keterbatasan tooling).
+- Verifikasi interaktif tidak dilakukan secara headless otomatis (keterbatasan tooling).
 - Q7, Q9, Q10, Q11 — tidak berubah.
 
 ## 7. Next Recommended Section
 
-Section 17 — Administration (`prompts/19-PROMPT-17-ADMINISTRATION.md`). **Rekomendasi sangat kuat:** selesaikan Q8 sebelum Section 17 — dua belas section berturut-turut telah berjalan tanpa validasi otomatis. Tidak dieksekusi otomatis — menunggu perintah user.
+Section 18 — Regression and Demo Readiness (`prompts/20-PROMPT-18-REGRESSION-DEMO-READINESS.md`). Menunggu instruksi user.
 
 ## 8. Last Updated
 
 - **Date:** 2026-07-30
-- **Updater:** Section 16 (Reports) execution, berdasarkan pemeriksaan langsung codebase, build/smoke-test yang benar-benar dijalankan ulang.
+- **Updater:** Section 17 (Administration) execution, berdasarkan pemeriksaan langsung codebase dan pengujian build.

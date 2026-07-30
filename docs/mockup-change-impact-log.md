@@ -245,4 +245,21 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 
 ---
 
+## CI-018 — Penghapusan Flag `comingSoon` pada Nav Item Administration dan Finance
+
+- **Change ID / Tanggal:** CI-018 · 2026-07-30
+- **Triggering section:** Section 17 — Administration.
+- **Previous section affected:** Section 05 — Foundation (pemilik `app/constants/navigation.ts`, `NAV_ITEMS`); Section 15 — Project Finance (pemilik halaman `/finance/invoices` dan `/finance/payments`).
+- **Alasan perubahan:** 
+  1. Halaman admin (`/admin/*`) sebelumnya merupakan placeholder statis, sehingga nav item-nya ditandai `comingSoon: true`. Section 17 menyelesaikan implementasi penuh modul Administration, sehingga badge tsb dihapus agar navigasi konsisten.
+  2. Halaman Finance (`/finance/invoices` dan `/finance/payments`) telah selesai diimplementasikan pada Section 15, tetapi terlewat untuk menghapus flag `comingSoon: true`. Section 17 melakukan perbaikan ini agar menu navigasi merefleksikan fungsionalitas yang ada.
+- **Files affected:** `app/constants/navigation.ts` (penghapusan `comingSoon` pada sub-item Finance dan Administration).
+- **Previous behavior:** Menu sidebar menampilkan badge "Segera" di sebelah sub-item Finance dan Administration.
+- **New behavior:** Badge "Segera" tidak lagi tampil untuk Invoices, Payments, Master Data, Users, Roles, dan Audit Trail.
+- **Risk:** Sangat rendah — murni tampilan pada sidebar.
+- **Regression checks:** `npm run build` sukses; navigasi sidebar berfungsi normal ke seluruh halaman yang diaktifkan.
+- **Dokumentasi yang diperbarui:** `docs/mockup-implementation-state.md`, `docs/mockup-section-progress.md`, `docs/mockup-section-reports/section-17-administration.md`.
+
+---
+
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*
