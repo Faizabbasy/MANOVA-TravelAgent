@@ -222,6 +222,20 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-015 (Vendor jadi reactive + entitas baru, milik Section 05; tab Vendors Project Detail diisi, belum ada owner sebelumnya; koreksi dokumentasi role Vendor di route-and-role-matrix.md bagian 0/1.4).
 - **Next action:** Section 14 — Project Changes. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 14. Menunggu perintah user — tidak dieksekusi otomatis.
 
+## Section 14 — Project Changes
+
+- **Tanggal:** 2026-07-30
+- **Status:** COMPLETED
+- **Scope dan completed items:** Mengisi penuh tab "Activity & Changes" Project Detail: change list/detail (category, reason, requester, before/after), dampak traveler/itinerary/service/vendor/budget, status dan approval mock (Setujui/Tolak, `canApprove('project')`), change timeline kronologis, attention indicator, dan role access (`canLogChange` untuk mengajukan). `ActivityEntry` diperluas aditif — bukan entitas Change paralel (LOCKED IA bagian 4). 4 entri `CHG-*` existing diperkaya (bukan record baru); `CHG-1023` (PRJ-102) jadi skenario approval hidup (`pending`).
+- **Files created/changed/removed:** Dibuat — `docs/mockup-section-reports/section-14-project-changes.md`. Diubah — `app/types/activity.ts` (`+ChangeCategory`, `+ChangeApprovalStatus`, `ActivityEntry` +7 field opsional), `app/data/activity.ts` (4 baris `CHG-*` diperkaya), `app/constants/status.ts` (`+CHANGE_CATEGORIES`, `+CHANGE_APPROVAL_STATUSES`), `app/data/index.ts` (+`createChangeEntry`/`approveChangeEntry`/`rejectChangeEntry`), `app/pages/projects/[id]/index.vue` (tab Activity & Changes diperkaya).
+- **Routes affected:** Tidak ada route baru — `/projects/[id]` (tab `activity-changes`) diisi penuh.
+- **Components reused/created:** Reused — `Dialog*`, `Label`, `Input`, `Button`, `SectionCard`, `StatusBadge`, `AttentionIndicator`, `EmptyState`, `useToast`. Tidak ada komponen file baru.
+- **Data/types/constants affected:** `ActivityEntry` diperluas (aditif), `+CHANGE_CATEGORIES`/`CHANGE_APPROVAL_STATUSES` (constant baru). Lihat CI-016.
+- **Validation results:** `nuxi prepare` + `npm run build` sukses. Smoke test konten (curl+grep) mengonfirmasi 3 change PRJ-102 (2 Disetujui, 1 Menunggu Approval dengan tombol Setujui/Tolak), before/after dan requester tampil tepat, 1 change PRJ-103 (Disetujui, 20→25 pax). Regresi tab lain (Overview/Travelers/Itinerary & Services/Vendors) dan Dashboard tidak berubah. `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Known issues:** Q8 tetap terbuka (sepuluh section berturut-turut); tidak ada detail-route terpisah per Change (inline, konsisten single-route); CRUD hapus Change tidak diimplementasikan; verifikasi interaktif tidak dilakukan (keterbatasan tooling).
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-016 (ActivityEntry diperluas aditif, milik Section 05; `reviewed` Section 06 tidak diubah maknanya; integrasi Dashboard terjadi otomatis lewat selector existing tanpa perubahan kode Dashboard).
+- **Next action:** Section 15 — Project Finance. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 15. Menunggu perintah user — tidak dieksekusi otomatis.
+
 ---
 
-*(Belum ada entri Section 14 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*
+*(Belum ada entri Section 15 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*

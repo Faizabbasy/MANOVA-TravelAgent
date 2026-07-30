@@ -9,22 +9,25 @@ import {
   getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, importTravelersMock,
   getInvoicesByProject, getTasksByProject, getDocumentsByProject, getActivitiesByProject,
+  createChangeEntry, approveChangeEntry, rejectChangeEntry,
 } from '~/data'
 import {
   PROJECT_STATUSES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, SERVICE_TYPES,
-  INVOICE_STATUSES, TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES, findStatusOption,
+  INVOICE_STATUSES, TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES,
+  CHANGE_CATEGORIES, CHANGE_APPROVAL_STATUSES, findStatusOption,
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatTravelerCount } from '~/utils/format'
 import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing } from '~/utils/attention'
 import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus } from '~/types/project'
+import type { ChangeCategory } from '~/types/activity'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
-const { canView } = usePermissions()
-const { currentRole } = useCurrentUser()
+const { canView, canApprove } = usePermissions()
+const { currentRole, currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 /**
@@ -132,7 +135,61 @@ const tasks = computed(() => project.value ? getTasksByProject(project.value.id)
 const documents = computed(() => project.value ? getDocumentsByProject(project.value.id) : [])
 const activities = computed(() => project.value ? getActivitiesByProject(project.value.id) : [])
 const changesOnly = ref(false)
-const visibleActivities = computed(() => changesOnly.value ? activities.value.filter(a => a.isChange) : activities.value)
+/** "Changes only" ditampilkan sebagai timeline kronologis (ascending) — "All" tetap urutan natural existing. */
+const visibleActivities = computed(() => {
+  if (!changesOnly.value) return activities.value
+  return [...activities.value].filter(a => a.isChange).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+})
+
+/**
+ * Project Changes (Section 14) — log change (PM/Operations/role sub-domain yang bisa mengajukan perubahan
+ * di sub-section masing-masing) vs approve/reject (Management/Super Admin, docs bagian 5.1 "Approve").
+ */
+const canLogChange = computed(() => ['project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'super-admin'].includes(currentRole.value))
+const canApproveChanges = computed(() => canApprove('project'))
+
+const isChangeDialogOpen = ref(false)
+const changeCategory = ref<ChangeCategory>('other')
+const changeReason = ref('')
+const changeBefore = ref('')
+const changeAfter = ref('')
+const changeImpact = ref('')
+
+function resetChangeForm() {
+  changeCategory.value = 'other'
+  changeReason.value = ''
+  changeBefore.value = ''
+  changeAfter.value = ''
+  changeImpact.value = ''
+}
+
+function submitChangeEntry() {
+  if (!project.value || !changeReason.value.trim()) return
+  createChangeEntry({
+    projectId: project.value.id,
+    category: changeCategory.value,
+    reason: changeReason.value.trim(),
+    requestedBy: currentUser.value.id,
+    beforeValue: changeBefore.value.trim() || undefined,
+    afterValue: changeAfter.value.trim() || undefined,
+    impactNote: changeImpact.value.trim() || undefined,
+  })
+  resetChangeForm()
+  isChangeDialogOpen.value = false
+  showToast('Perubahan Dicatat', 'Change baru dicatat, menunggu approval Management/Super Admin.')
+}
+
+function handleApproveChange(entryId: string) {
+  const entry = approveChangeEntry(entryId, currentUser.value.id)
+  if (!entry) return
+  showToast('Perubahan Disetujui', `Change ${entry.id} disetujui.`)
+}
+
+function handleRejectChange(entryId: string) {
+  const entry = rejectChangeEntry(entryId, currentUser.value.id)
+  if (!entry) return
+  showToast('Perubahan Ditolak', `Change ${entry.id} ditolak.`, 'info')
+}
 
 /**
  * Vendor assignment + comparison (Section 13) — quotation dibaca dari `VENDOR_QUOTATIONS` (Section 13),
@@ -802,6 +859,54 @@ const summaryMetadata = computed(() => {
 
         <TabsContent value="activity-changes">
           <SectionCard title="Activity & Changes">
+            <template v-if="canLogChange" #actions>
+              <Dialog v-model:open="isChangeDialogOpen">
+                <DialogTrigger as-child>
+                  <Button size="sm" variant="outline">Catat Perubahan</Button>
+                </DialogTrigger>
+                <DialogContent class="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Catat Perubahan Baru</DialogTitle>
+                    <DialogDescription>Change akan tercatat berstatus "Menunggu Approval" — mock, bukan approval sungguhan.</DialogDescription>
+                  </DialogHeader>
+                  <div class="space-y-4 py-2">
+                    <div class="space-y-1.5">
+                      <Label for="change-category">Kategori Dampak</Label>
+                      <select
+                        id="change-category"
+                        v-model="changeCategory"
+                        class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                      >
+                        <option v-for="category in CHANGE_CATEGORIES" :key="category.value" :value="category.value">{{ category.label }}</option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="change-reason">Alasan / Deskripsi Perubahan</Label>
+                      <Input id="change-reason" v-model="changeReason" placeholder="mis. Permintaan upgrade kamar dari klien" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label for="change-before">Sebelum (opsional)</Label>
+                        <Input id="change-before" v-model="changeBefore" placeholder="mis. Deluxe" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="change-after">Sesudah (opsional)</Label>
+                        <Input id="change-after" v-model="changeAfter" placeholder="mis. Suite" />
+                      </div>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="change-impact">Dampak (opsional)</Label>
+                      <Input id="change-impact" v-model="changeImpact" placeholder="mis. Actual cost meningkat ~Rp10.000.000" />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" @click="isChangeDialogOpen = false">Batal</Button>
+                    <Button :disabled="!changeReason.trim()" @click="submitChangeEntry">Simpan</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </template>
+
             <div class="flex items-center gap-2 mb-4">
               <button
                 @click="changesOnly = false"
@@ -813,12 +918,32 @@ const summaryMetadata = computed(() => {
               >Changes only</button>
             </div>
             <ul class="divide-y divide-border">
-              <li v-for="entry in visibleActivities" :key="entry.id" class="py-3 flex items-start justify-between gap-3">
-                <div>
+              <li
+                v-for="entry in visibleActivities"
+                :key="entry.id"
+                :class="['py-3 flex items-start justify-between gap-3', entry.isChange ? 'border-l-2 pl-3 -ml-3' : '', entry.approvalStatus === 'pending' ? 'border-warning' : entry.approvalStatus === 'approved' ? 'border-success' : entry.approvalStatus === 'rejected' ? 'border-destructive' : entry.isChange ? 'border-border' : '']"
+              >
+                <div class="min-w-0">
+                  <div v-if="entry.category || entry.approvalStatus" class="flex items-center gap-1.5 flex-wrap mb-1">
+                    <StatusBadge v-if="entry.category" :label="findStatusOption(CHANGE_CATEGORIES, entry.category).label" :tone="findStatusOption(CHANGE_CATEGORIES, entry.category).tone" />
+                    <StatusBadge v-if="entry.approvalStatus" :label="findStatusOption(CHANGE_APPROVAL_STATUSES, entry.approvalStatus).label" :tone="findStatusOption(CHANGE_APPROVAL_STATUSES, entry.approvalStatus).tone" />
+                  </div>
                   <p class="text-sm text-foreground">{{ entry.message }}</p>
-                  <p class="text-xs text-muted-foreground">{{ formatDate(entry.createdAt) }}</p>
+                  <p v-if="entry.beforeValue || entry.afterValue" class="text-xs text-muted-foreground mt-0.5">
+                    <template v-if="entry.beforeValue">Sebelum: {{ entry.beforeValue }}</template><template v-if="entry.beforeValue && entry.afterValue"> → </template><template v-if="entry.afterValue">Sesudah: {{ entry.afterValue }}</template>
+                  </p>
+                  <p v-if="entry.requestedBy" class="text-xs text-muted-foreground">Diajukan oleh: {{ getUserById(entry.requestedBy)?.name ?? entry.requestedBy }}</p>
+                  <p v-if="entry.impactNote" class="text-xs text-muted-foreground">Dampak: {{ entry.impactNote }}</p>
+                  <p class="text-xs text-muted-foreground mt-0.5">{{ formatDate(entry.createdAt) }}</p>
                 </div>
-                <StatusBadge v-if="entry.isChange" :label="entry.reviewed ? 'Change (Reviewed)' : 'Change (Belum Direview)'" :tone="entry.reviewed ? 'info' : 'warning'" />
+                <div class="flex flex-col items-end gap-1.5 shrink-0">
+                  <StatusBadge v-if="entry.isChange && !entry.approvalStatus" :label="entry.reviewed ? 'Change (Reviewed)' : 'Change (Belum Direview)'" :tone="entry.reviewed ? 'info' : 'warning'" />
+                  <AttentionIndicator v-if="entry.approvalStatus === 'pending'" severity="medium" label="Menunggu Approval" />
+                  <div v-if="entry.approvalStatus === 'pending' && canApproveChanges" class="flex items-center gap-1">
+                    <Button size="sm" variant="outline" @click="handleApproveChange(entry.id)">Setujui</Button>
+                    <Button size="sm" variant="ghost" @click="handleRejectChange(entry.id)">Tolak</Button>
+                  </div>
+                </div>
               </li>
             </ul>
             <EmptyState v-if="visibleActivities.length === 0" title="Belum ada aktivitas tercatat" />

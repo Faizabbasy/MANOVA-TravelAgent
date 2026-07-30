@@ -213,4 +213,19 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 
 ---
 
+## CI-016 — `ActivityEntry` Diperluas dengan Field Change (Category/Reason/Requester/Before-After/Impact/Approval)
+
+- **Change ID / Tanggal:** CI-016 · 2026-07-30
+- **Triggering section:** Section 14 — Project Changes.
+- **Previous section affected:** Section 05 — Foundation (pemilik `app/types/activity.ts`, `app/data/activity.ts`, tab "Activity & Changes" `app/pages/projects/[id]/index.vue`); Section 06 — Dashboard (consumer `isProjectNeedingAttention`/`hasUnreviewedChange` yang membaca `isChange`/`reviewed` — TIDAK diubah).
+- **Alasan perubahan:** Scope Section 14 meminta change list/detail dengan category/reason/requester/before-after/impact serta status approval mock — seluruhnya field yang belum ada sejak Foundation pada `ActivityEntry`. Mengikuti hard rule eksplisit dan LOCKED `docs/mockup-information-architecture.md` bagian 4 ("data berasal dari satu sumber log yang sama... bukan dua sumber data terpisah"), field baru ditambahkan ADITIF pada `ActivityEntry` existing — bukan entitas `Change` paralel.
+- **Files affected:** `app/types/activity.ts` (+`ChangeCategory`, `+ChangeApprovalStatus`, `ActivityEntry` +7 field opsional), `app/data/activity.ts` (4 baris `CHG-*` existing diperkaya field baru — bukan record baru, ID/shape lama tidak berubah), `app/constants/status.ts` (+`CHANGE_CATEGORIES`, `+CHANGE_APPROVAL_STATUSES`), `app/data/index.ts` (+`createChangeEntry`, `+approveChangeEntry`, `+rejectChangeEntry`), `app/pages/projects/[id]/index.vue` (tab "Activity & Changes" diperkaya: dialog "Catat Perubahan", tampilan detail per-entry, tombol Setujui/Tolak, timeline kronologis untuk mode "Changes only").
+- **Previous behavior:** `ActivityEntry` hanya `id/projectId/message/isChange/reviewed/createdAt`; tab "Activity & Changes" hanya menampilkan pesan + badge Reviewed/Belum Direview, tanpa detail/kategori/approval.
+- **New behavior:** Field baru seluruhnya opsional (`category`/`reason`/`requestedBy`/`beforeValue`/`afterValue`/`impactNote`/`approvalStatus`/`approvedBy`). `reviewed` (dipakai `hasUnreviewedChange`, Section 06, LOCKED) **tidak diubah maknanya** — `approvalStatus` adalah konsep terpisah (keputusan formal approve/reject), disinkronkan manual (`approveChangeEntry`/`rejectChangeEntry` turut men-set `reviewed: true`) agar kedua flag tidak saling bertentangan.
+- **Risk:** Rendah. Consumer existing (`isProjectNeedingAttention`, Overview "Recent Activity", Dashboard) hanya membaca `isChange`/`reviewed`/`message`/`createdAt` — field baru tidak mengubah bentuk data yang sudah dibaca, murni tambahan. `CHG-1023` (satu-satunya entry `reviewed: false` sebelumnya) kini juga `approvalStatus: 'pending'` — konsisten, bukan kontradiksi (entry yang belum direview secara alami juga belum diputuskan approve/reject-nya).
+- **Regression checks:** `npm run build` sukses; smoke test konten (curl+grep) mengonfirmasi tab lain Project Detail (`?tab=overview`, `?tab=travelers`, `?tab=itinerary-services`, `?tab=vendors`) tetap HTTP 200 tanpa perubahan konten; Dashboard (`/`) tetap HTTP 200.
+- **Dokumentasi yang diperbarui:** `docs/mockup-data-scenarios.md` (bagian 4h baru), `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-14-project-changes.md`.
+
+---
+
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*

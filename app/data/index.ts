@@ -11,6 +11,7 @@ import type { Project, ServiceTypeKey, ServiceStatus, Traveler } from '~/types/p
 import type { Party, ContactPerson, PartyActivity, PartyActivityType } from '~/types/party'
 import type { Opportunity, OpportunityStage, Quotation } from '~/types/opportunity'
 import type { Vendor, VendorContact, VendorQuotation } from '~/types/vendor'
+import type { ActivityEntry, ChangeCategory } from '~/types/activity'
 
 export {
   USERS,
@@ -454,4 +455,61 @@ export function rejectVendorQuotation(quotationId: string): VendorQuotation | un
     createdAt: DEMO_REFERENCE_DATE,
   })
   return quotation
+}
+
+/**
+ * Project Changes (Section 14) — mutasi `ACTIVITIES` existing (Foundation), BUKAN entitas Change paralel,
+ * sesuai `docs/mockup-information-architecture.md` bagian 4 (LOCKED: satu sumber log yang sama dengan flag
+ * `isChange`). `approvalStatus` terpisah dari `reviewed` (Section 06, dipakai `hasUnreviewedChange`/
+ * `isProjectNeedingAttention` — tidak disentuh) — mensimulasikan alur approval dua-langkah yang sama polanya
+ * dengan Opportunity Won (Section 09) dan Vendor Quotation (Section 13): ajukan → setujui/tolak.
+ */
+
+export interface CreateChangeEntryInput {
+  projectId: string
+  category: ChangeCategory
+  reason: string
+  requestedBy: string
+  beforeValue?: string
+  afterValue?: string
+  impactNote?: string
+}
+
+export function createChangeEntry(input: CreateChangeEntryInput): ActivityEntry {
+  const entry: ActivityEntry = {
+    id: nextSequentialId('CHG-', ACTIVITIES),
+    projectId: input.projectId,
+    message: input.reason,
+    isChange: true,
+    reviewed: false,
+    createdAt: DEMO_REFERENCE_DATE,
+    category: input.category,
+    reason: input.reason,
+    requestedBy: input.requestedBy,
+    beforeValue: input.beforeValue,
+    afterValue: input.afterValue,
+    impactNote: input.impactNote,
+    approvalStatus: 'pending',
+  }
+  ACTIVITIES.push(entry)
+  return entry
+}
+
+/** Approve/Reject dipanggil hanya dari UI yang sudah memfilter `canApprove('project')` (Management/Super Admin, docs bagian 5.1 "Approve"). */
+export function approveChangeEntry(entryId: string, approverId: string): ActivityEntry | undefined {
+  const entry = ACTIVITIES.find(item => item.id === entryId)
+  if (!entry || entry.approvalStatus !== 'pending') return undefined
+  entry.approvalStatus = 'approved'
+  entry.reviewed = true
+  entry.approvedBy = approverId
+  return entry
+}
+
+export function rejectChangeEntry(entryId: string, approverId: string): ActivityEntry | undefined {
+  const entry = ACTIVITIES.find(item => item.id === entryId)
+  if (!entry || entry.approvalStatus !== 'pending') return undefined
+  entry.approvalStatus = 'rejected'
+  entry.reviewed = true
+  entry.approvedBy = approverId
+  return entry
 }

@@ -4,6 +4,7 @@ import type { ProjectStatus, ProjectCharacteristic, ServiceStatus, ServiceTypeKe
 import type { InvoiceStatus } from '~/types/finance'
 import type { PartyActivityType } from '~/types/party'
 import type { VendorQuotationStatus } from '~/types/vendor'
+import type { ChangeCategory, ChangeApprovalStatus } from '~/types/activity'
 
 /**
  * Source of truth untuk seluruh status/enum MANOVA (Prompt 5-G, menggeneralisasi D-038).
@@ -69,6 +70,23 @@ export const ROOM_TYPES: StatusOption<RoomType>[] = [
 export const VENDOR_QUOTATION_STATUSES: StatusOption<VendorQuotationStatus>[] = [
   { value: 'submitted', label: 'Diajukan', tone: 'info', order: 1 },
   { value: 'accepted', label: 'Diterima', tone: 'success', order: 2 },
+  { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 3 },
+]
+
+/** Kategori dampak Change entry (Section 14) — dipakai tab "Activity & Changes" Project Detail. */
+export const CHANGE_CATEGORIES: StatusOption<ChangeCategory>[] = [
+  { value: 'traveler', label: 'Traveler', tone: 'info', order: 1 },
+  { value: 'itinerary', label: 'Itinerary', tone: 'primary', order: 2 },
+  { value: 'service', label: 'Service', tone: 'purple', order: 3 },
+  { value: 'vendor', label: 'Vendor', tone: 'warning', order: 4 },
+  { value: 'budget', label: 'Budget', tone: 'destructive', order: 5 },
+  { value: 'other', label: 'Lainnya', tone: 'neutral', order: 6 },
+]
+
+/** Status approval mock Change entry (Section 14) — terpisah dari flag `reviewed` (LOCKED sejak Section 06). */
+export const CHANGE_APPROVAL_STATUSES: StatusOption<ChangeApprovalStatus>[] = [
+  { value: 'pending', label: 'Menunggu Approval', tone: 'warning', order: 1 },
+  { value: 'approved', label: 'Disetujui', tone: 'success', order: 2 },
   { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 3 },
 ]
 

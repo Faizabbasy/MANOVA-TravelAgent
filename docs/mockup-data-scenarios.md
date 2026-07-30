@@ -307,6 +307,23 @@ Detail lengkap ada di `docs/mockup-change-impact-log.md` (CI-015) dan `docs/mock
 
 ---
 
+## 4h. Project Changes Detail (ditambahkan Section 14)
+
+4 entri `CHG-*` existing (PRJ-102: `CHG-1021`/`1022`/`1023`; PRJ-103: `CHG-1031`) diperkaya field Section 14 — bukan record baru:
+
+| ID | Kategori | Sebelum → Sesudah | Requester | Status Approval |
+|---|---|---|---|---|
+| `CHG-1021` | Itinerary | 15–19 Sep 2026 → 22–26 Sep 2026 | USR-013 (Fitri Handayani, PM) | Disetujui (USR-003) |
+| `CHG-1022` | Traveler | 15 pax → 18 pax | USR-013 | Disetujui (USR-003) |
+| `CHG-1023` | Service | Deluxe → Suite | USR-005 (Maya Putri, Accommodation) | **Menunggu Approval** — skenario hidup, siap didemokan |
+| `CHG-1031` | Traveler | 20 pax → 25 pax (Group Sales Team) | USR-002 (Doni Saputra, PM) | Disetujui (USR-003) |
+
+`CHG-1023` sengaja dibiarkan `approvalStatus: 'pending'` (selaras `reviewed: false` yang sudah ada sejak Foundation) — mendemonstrasikan alur Setujui/Tolak (`approveChangeEntry`/`rejectChangeEntry`, `app/data/index.ts`) tanpa perlu menambah record baru. Aksi "Catat Perubahan" (`createChangeEntry`) tersedia untuk PM/Operations/role sub-domain (Ticketing/Accommodation/Transportation/MICE)/Super Admin; Setujui/Tolak khusus Management/Super Admin (`canApprove('project')`, docs bagian 5.1).
+
+Detail lengkap ada di `docs/mockup-change-impact-log.md` (CI-016) dan `docs/mockup-section-reports/section-14-project-changes.md`.
+
+---
+
 ## 5. Role-Restricted Finance View (bukan record baru, kondisi tampilan atas PRJ-103)
 
 Menggunakan **PRJ-103** sebagai subjek konkret untuk mendemonstrasikan Role & Access Matrix (`docs/route-and-role-matrix.md` bagian 5) pada tab "Finance":
@@ -364,6 +381,7 @@ Setiap ID pada dokumen ini **wajib dipakai identik** di seluruh titik implementa
 - `TRAVELERS`/`TRAVELER_GROUPS` sejak Section 11 juga `reactive()` (bagian 4e) — `createTraveler`/`updateTraveler`/`removeTraveler`/`importTravelersMock` (`app/data/index.ts`) ter-propagate seketika ke tab Travelers tanpa reload. ID traveler baru mengikuti prefix `TRV-` sekuensial global (bukan per-project), pola yang sama seperti `PTY-`/`PRJ-`.
 - `PROJECT_SERVICES` sejak Section 12 juga `reactive()` (bagian 4f) — `updateServiceStatus` (`app/data/index.ts`) ter-propagate seketika ke tab Itinerary & Services DAN tab Overview (Service Summary, Section 10) tanpa reload karena keduanya membaca array yang sama; transisi ke status `changed` juga menambah entri `ACTIVITIES` (prefix `ACT-` sekuensial, konsisten dengan skema existing).
 - `VENDORS` sejak Section 13 juga `reactive()` (bagian 4g) — `createVendor`/`createVendorContact`/`submitVendorQuotation`/`acceptVendorQuotation`/`rejectVendorQuotation` (`app/data/index.ts`) ter-propagate seketika ke `/vendors`, Vendor Detail, dan tab "Vendors" Project Detail tanpa reload. `acceptVendorQuotation` memanggil `updateServiceStatus` (Section 12) untuk mengonfirmasi service — bukan mutasi `PROJECT_SERVICES` paralel.
+- `ACTIVITIES` sejak Section 09 sudah `reactive()`; Section 14 menambah `createChangeEntry`/`approveChangeEntry`/`rejectChangeEntry` (`app/data/index.ts`) yang memutasi array yang sama — ter-propagate seketika ke tab "Activity & Changes" DAN (via `isChange`/`reviewed` yang tidak diubah semantiknya) widget attention/recent-activity existing (Section 06/10) tanpa reload. ID Change baru mengikuti prefix `CHG-` sekuensial global (bagian 4h).
 
 ## 8. Batasan
 
