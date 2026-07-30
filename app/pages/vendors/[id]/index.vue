@@ -1,0 +1,334 @@
+<script setup lang="ts">
+import { ref, computed } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { FileX, Plus } from 'lucide-vue-next'
+import {
+  getVendorById, getVendorContacts, getVendorQuotations, getVendorActivities, getServicesByVendor,
+  createVendorContact, submitVendorQuotation,
+  getProjectById, PROJECTS, getProjectServices,
+} from '~/data'
+import { SERVICE_TYPES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES, findStatusOption } from '~/constants/status'
+import { formatCurrencyIdr, formatDate } from '~/utils/format'
+import type { VendorDetailTab } from '~/types/vendor'
+
+definePageMeta({ layout: 'dashboard', middleware: 'auth' })
+
+const route = useRoute()
+const router = useRouter()
+const { canView, canManage } = usePermissions()
+const canManageVendor = computed(() => canManage('vendor'))
+
+const vendor = computed(() => getVendorById(String(route.params.id)))
+useHead({ title: computed(() => vendor.value ? vendor.value.name : 'Vendor Tidak Ditemukan') })
+
+const contacts = computed(() => (vendor.value ? getVendorContacts(vendor.value.id) : []))
+const quotations = computed(() => (vendor.value ? getVendorQuotations(vendor.value.id) : []))
+const activities = computed(() => (vendor.value ? getVendorActivities(vendor.value.id) : []))
+const assignedServices = computed(() => (vendor.value ? getServicesByVendor(vendor.value.id) : []))
+
+const activeTab = computed<VendorDetailTab>({
+  get: () => (route.query.tab as VendorDetailTab) || 'overview',
+  set: value => router.replace({ query: { ...route.query, tab: value } }),
+})
+
+const TABS: { value: VendorDetailTab; label: string }[] = [
+  { value: 'overview', label: 'Overview' },
+  { value: 'services', label: 'Services' },
+  { value: 'quotations', label: 'Quotations' },
+  { value: 'contacts', label: 'Contacts' },
+]
+
+const summaryMetadata = computed(() => {
+  if (!vendor.value) return []
+  return [
+    { label: 'Jenis Layanan', value: findStatusOption(SERVICE_TYPES, vendor.value.serviceType).label },
+    { label: 'Contact Utama', value: `${vendor.value.contactName}${vendor.value.contactPhone ? ` · ${vendor.value.contactPhone}` : ''}` },
+    { label: 'Jumlah Contact', value: String(contacts.value.length) },
+    { label: 'Penugasan Aktif', value: `${assignedServices.value.length} service` },
+    { label: 'Jumlah Quotation', value: String(quotations.value.length) },
+  ]
+})
+
+function projectName(projectId: string) {
+  return getProjectById(projectId)?.name ?? projectId
+}
+
+/* Tambah Contact */
+const isContactDialogOpen = ref(false)
+const contactName = ref('')
+const contactTitle = ref('')
+const contactEmail = ref('')
+const contactPhone = ref('')
+
+function submitContact() {
+  if (!vendor.value || !contactName.value.trim() || !contactTitle.value.trim()) return
+  createVendorContact({
+    vendorId: vendor.value.id,
+    name: contactName.value.trim(),
+    title: contactTitle.value.trim(),
+    email: contactEmail.value.trim() || undefined,
+    phone: contactPhone.value.trim() || undefined,
+  })
+  contactName.value = ''
+  contactTitle.value = ''
+  contactEmail.value = ''
+  contactPhone.value = ''
+  isContactDialogOpen.value = false
+}
+
+/* Submit Quotation */
+const isQuotationDialogOpen = ref(false)
+const quotationProjectId = ref('')
+const quotationServiceId = ref('')
+const quotationAmount = ref('')
+const quotationNotes = ref('')
+
+const quotationServiceOptions = computed(() => {
+  if (!quotationProjectId.value || !vendor.value) return []
+  return getProjectServices(quotationProjectId.value).filter(service => service.type === vendor.value!.serviceType)
+})
+
+function resetQuotationForm() {
+  quotationProjectId.value = ''
+  quotationServiceId.value = ''
+  quotationAmount.value = ''
+  quotationNotes.value = ''
+}
+
+function submitQuotation() {
+  if (!vendor.value || !quotationProjectId.value || !quotationAmount.value) return
+  const amountIdr = Number(quotationAmount.value)
+  if (!Number.isFinite(amountIdr) || amountIdr <= 0) return
+  submitVendorQuotation({
+    vendorId: vendor.value.id,
+    projectId: quotationProjectId.value,
+    serviceId: quotationServiceId.value || undefined,
+    serviceType: vendor.value.serviceType,
+    amountIdr,
+    notes: quotationNotes.value.trim() || undefined,
+  })
+  resetQuotationForm()
+  isQuotationDialogOpen.value = false
+}
+</script>
+
+<template>
+  <div class="space-y-6">
+    <template v-if="!vendor">
+      <PageHeader title="Vendor Tidak Ditemukan" :breadcrumb="[{ label: 'Vendors', to: '/vendors' }, { label: 'Not Found' }]" />
+      <SectionCard>
+        <EmptyState
+          :icon="FileX"
+          title="Vendor tidak ditemukan"
+          :description="`Vendor dengan ID '${route.params.id}' tidak ada di data demo saat ini.`"
+        >
+          <Button @click="router.push('/vendors')">Kembali ke Daftar Vendor</Button>
+        </EmptyState>
+      </SectionCard>
+    </template>
+
+    <RoleAccessState v-else-if="!canView('vendor')" module-label="modul Vendors" />
+
+    <template v-else>
+      <PageHeader
+        :title="vendor.name"
+        :breadcrumb="[{ label: 'Vendors', to: '/vendors' }, { label: vendor.name }]"
+      >
+        <template #actions>
+          <StatusBadge
+            :label="findStatusOption(SERVICE_TYPES, vendor.serviceType).label"
+            :tone="findStatusOption(SERVICE_TYPES, vendor.serviceType).tone"
+          />
+        </template>
+      </PageHeader>
+
+      <SectionCard>
+        <DetailMetadataList :items="summaryMetadata" />
+      </SectionCard>
+
+      <Tabs v-model="activeTab">
+        <TabsList>
+          <TabsTrigger v-for="tab in TABS" :key="tab.value" :value="tab.value">{{ tab.label }}</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="overview">
+          <SectionCard title="Aktivitas Terbaru">
+            <ul v-if="activities.length" class="divide-y divide-border">
+              <li v-for="activity in activities.slice(0, 5)" :key="activity.id" class="py-3">
+                <p class="text-sm text-foreground">{{ activity.message }}</p>
+                <p class="text-xs text-muted-foreground">{{ formatDate(activity.createdAt) }}</p>
+              </li>
+            </ul>
+            <EmptyState v-else title="Belum ada aktivitas tercatat" />
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="services">
+          <SectionCard title="Services" description="Service project yang ditugaskan ke vendor ini (Section 12).">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Detail Service</TableHead>
+                  <TableHead>Booking Reference</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="service in assignedServices" :key="service.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/projects/${service.projectId}?tab=itinerary-services`)">
+                  <TableCell class="font-medium text-foreground">{{ projectName(service.projectId) }}</TableCell>
+                  <TableCell class="text-muted-foreground">{{ service.label }}</TableCell>
+                  <TableCell class="text-muted-foreground">{{ service.bookingReference ?? '—' }}</TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(SERVICE_STATUSES, service.status).label"
+                      :tone="findStatusOption(SERVICE_STATUSES, service.status).tone"
+                    />
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="assignedServices.length === 0" :colspan="4">Belum ada service yang ditugaskan ke vendor ini.</TableEmpty>
+              </TableBody>
+            </Table>
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="quotations">
+          <SectionCard title="Quotations">
+            <template #actions>
+              <Dialog v-if="canManageVendor" v-model:open="isQuotationDialogOpen">
+                <DialogTrigger as-child>
+                  <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Submit Quotation</Button>
+                </DialogTrigger>
+                <DialogContent class="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Submit Quotation Baru</DialogTitle>
+                    <DialogDescription>Quotation akan diajukan untuk {{ vendor.name }} — keputusan Accept/Reject dilakukan di tab "Vendors" Project Detail.</DialogDescription>
+                  </DialogHeader>
+                  <div class="space-y-4 py-2">
+                    <div class="space-y-1.5">
+                      <Label for="quotation-project">Project</Label>
+                      <select
+                        id="quotation-project"
+                        v-model="quotationProjectId"
+                        class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                      >
+                        <option value="" disabled>Pilih project</option>
+                        <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="quotation-service">Service (opsional)</Label>
+                      <select
+                        id="quotation-service"
+                        v-model="quotationServiceId"
+                        :disabled="!quotationProjectId"
+                        class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-50"
+                      >
+                        <option value="">Belum terhubung ke service spesifik</option>
+                        <option v-for="service in quotationServiceOptions" :key="service.id" :value="service.id">{{ service.label }}</option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="quotation-amount">Nilai Quotation (Rp)</Label>
+                      <Input id="quotation-amount" v-model="quotationAmount" type="number" placeholder="mis. 45000000" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="quotation-notes">Catatan (opsional)</Label>
+                      <Input id="quotation-notes" v-model="quotationNotes" placeholder="mis. Termasuk sopir dan bahan bakar" />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" @click="isQuotationDialogOpen = false">Batal</Button>
+                    <Button :disabled="!quotationProjectId || !quotationAmount" @click="submitQuotation">Simpan</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </template>
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Jenis Layanan</TableHead>
+                  <TableHead>Nilai</TableHead>
+                  <TableHead>Diajukan</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="quotation in quotations" :key="quotation.id">
+                  <TableCell class="font-medium text-foreground">{{ projectName(quotation.projectId) }}</TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(SERVICE_TYPES, quotation.serviceType).label"
+                      :tone="findStatusOption(SERVICE_TYPES, quotation.serviceType).tone"
+                    />
+                  </TableCell>
+                  <TableCell class="text-foreground">{{ formatCurrencyIdr(quotation.amountIdr) }}</TableCell>
+                  <TableCell class="text-muted-foreground">{{ formatDate(quotation.submittedAt) }}</TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).label"
+                      :tone="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).tone"
+                    />
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="quotations.length === 0" :colspan="5">Belum ada quotation untuk vendor ini.</TableEmpty>
+              </TableBody>
+            </Table>
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="contacts">
+          <SectionCard title="Contacts">
+            <template #actions>
+              <Dialog v-if="canManageVendor" v-model:open="isContactDialogOpen">
+                <DialogTrigger as-child>
+                  <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Tambah Contact</Button>
+                </DialogTrigger>
+                <DialogContent class="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Tambah Contact Baru</DialogTitle>
+                    <DialogDescription>Contact akan ditambahkan untuk {{ vendor.name }}.</DialogDescription>
+                  </DialogHeader>
+                  <div class="space-y-4 py-2">
+                    <div class="space-y-1.5">
+                      <Label for="vc-name">Nama</Label>
+                      <Input id="vc-name" v-model="contactName" placeholder="Nama contact person" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="vc-title">Jabatan</Label>
+                      <Input id="vc-title" v-model="contactTitle" placeholder="mis. Account Manager" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="vc-email">Email (opsional)</Label>
+                      <Input id="vc-email" v-model="contactEmail" type="email" placeholder="nama@vendor.com" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="vc-phone">Telepon (opsional)</Label>
+                      <Input id="vc-phone" v-model="contactPhone" placeholder="08xx-xxxx-xxxx" />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" @click="isContactDialogOpen = false">Batal</Button>
+                    <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">Simpan</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </template>
+
+            <ul class="divide-y divide-border">
+              <li v-for="contact in contacts" :key="contact.id" class="py-3">
+                <p class="text-sm font-medium text-foreground">{{ contact.name }}</p>
+                <p class="text-xs text-muted-foreground">
+                  {{ contact.title }}<template v-if="contact.email"> · {{ contact.email }}</template><template v-if="contact.phone"> · {{ contact.phone }}</template>
+                </p>
+              </li>
+            </ul>
+            <EmptyState v-if="contacts.length === 0" title="Belum ada contact tercatat" />
+          </SectionCard>
+        </TabsContent>
+      </Tabs>
+    </template>
+  </div>
+</template>

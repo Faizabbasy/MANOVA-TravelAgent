@@ -3,6 +3,7 @@ import type { OpportunityStage } from '~/types/opportunity'
 import type { ProjectStatus, ProjectCharacteristic, ServiceStatus, ServiceTypeKey, RoomType } from '~/types/project'
 import type { InvoiceStatus } from '~/types/finance'
 import type { PartyActivityType } from '~/types/party'
+import type { VendorQuotationStatus } from '~/types/vendor'
 
 /**
  * Source of truth untuk seluruh status/enum MANOVA (Prompt 5-G, menggeneralisasi D-038).
@@ -62,6 +63,13 @@ export const ROOM_TYPES: StatusOption<RoomType>[] = [
   { value: 'single', label: 'Single', tone: 'neutral', order: 1 },
   { value: 'twin', label: 'Twin', tone: 'info', order: 2 },
   { value: 'suite', label: 'Suite', tone: 'purple', order: 3 },
+]
+
+/** Vendor Quotation status (Section 13) — dipakai tab "Quotations" Vendor Detail dan tab "Vendors" Project Detail. */
+export const VENDOR_QUOTATION_STATUSES: StatusOption<VendorQuotationStatus>[] = [
+  { value: 'submitted', label: 'Diajukan', tone: 'info', order: 1 },
+  { value: 'accepted', label: 'Diterima', tone: 'success', order: 2 },
+  { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 3 },
 ]
 
 /** Kategori Activity level-Party (Section 07) — dipakai tab "Activities" Party Detail. */

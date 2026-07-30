@@ -5,13 +5,14 @@ import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2 }
 import {
   getProjectById, getPartyById, getUserById, getVendorById,
   getProjectServices, getItineraryItems, updateServiceStatus,
+  getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation,
   getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, importTravelersMock,
   getInvoicesByProject, getTasksByProject, getDocumentsByProject, getActivitiesByProject,
 } from '~/data'
 import {
   PROJECT_STATUSES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, SERVICE_TYPES,
-  INVOICE_STATUSES, TASK_STATUSES, ROOM_TYPES, findStatusOption,
+  INVOICE_STATUSES, TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES, findStatusOption,
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatTravelerCount } from '~/utils/format'
 import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing } from '~/utils/attention'
@@ -133,12 +134,26 @@ const activities = computed(() => project.value ? getActivitiesByProject(project
 const changesOnly = ref(false)
 const visibleActivities = computed(() => changesOnly.value ? activities.value.filter(a => a.isChange) : activities.value)
 
-const vendorsForProject = computed(() => {
-  const ids = new Set(services.value.map(service => service.vendorId).filter((id): id is string => Boolean(id)))
-  return [...ids]
-    .map(id => getVendorById(id))
-    .filter((vendor): vendor is NonNullable<typeof vendor> => Boolean(vendor))
-})
+/**
+ * Vendor assignment + comparison (Section 13) — quotation dibaca dari `VENDOR_QUOTATIONS` (Section 13),
+ * gerbang Accept/Reject reuse `canManageServiceType` (Section 12), bukan mekanisme role-check baru.
+ */
+function quotationsForService(serviceId: string) {
+  return getQuotationsForService(serviceId)
+}
+
+function handleAcceptQuotation(quotationId: string) {
+  const quotation = acceptVendorQuotation(quotationId)
+  if (!quotation) return
+  const vendor = getVendorById(quotation.vendorId)
+  showToast('Quotation Diterima', `${vendor?.name ?? quotation.vendorId} ditugaskan untuk layanan ini.`)
+}
+
+function handleRejectQuotation(quotationId: string) {
+  const quotation = rejectVendorQuotation(quotationId)
+  if (!quotation) return
+  showToast('Quotation Ditolak', 'Quotation vendor ditandai ditolak.', 'info')
+}
 
 const needsAttention = computed(() => project.value
   ? isProjectNeedingAttention(project.value, { invoices: invoices.value, tasks: tasks.value, activities: activities.value })
@@ -666,14 +681,61 @@ const summaryMetadata = computed(() => {
         </TabsContent>
 
         <TabsContent value="vendors">
-          <SectionCard title="Vendors" description="Vendor yang ditugaskan pada layanan project ini.">
-            <ul v-if="vendorsForProject.length" class="divide-y divide-border">
-              <li v-for="vendor in vendorsForProject" :key="vendor.id" class="py-3 flex items-center justify-between">
-                <span class="text-sm font-medium text-foreground">{{ vendor.name }}</span>
-                <span class="text-xs text-muted-foreground">{{ vendor.contactName }}</span>
-              </li>
-            </ul>
-            <EmptyState v-else :icon="Truck" title="Belum ada vendor ditugaskan" />
+          <SectionCard title="Vendors" description="Vendor yang ditugaskan dan perbandingan quotation untuk tiap layanan project ini.">
+            <div v-if="services.length" class="space-y-4">
+              <div v-for="service in services" :key="service.id" class="p-4 rounded-lg border border-border">
+                <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-foreground">{{ service.label }}</p>
+                    <div class="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+                      <StatusBadge :label="findStatusOption(SERVICE_TYPES, service.type).label" :tone="findStatusOption(SERVICE_TYPES, service.type).tone" />
+                      <span>·</span>
+                      <span>Vendor:</span>
+                      <NuxtLink v-if="service.vendorId" :to="`/vendors/${service.vendorId}`" class="text-primary hover:underline">{{ getVendorById(service.vendorId)?.name }}</NuxtLink>
+                      <span v-else>Belum ditugaskan</span>
+                    </div>
+                  </div>
+                  <StatusBadge
+                    :label="findStatusOption(SERVICE_STATUSES, service.status).label"
+                    :tone="findStatusOption(SERVICE_STATUSES, service.status).tone"
+                  />
+                </div>
+
+                <template v-if="quotationsForService(service.id).length">
+                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Perbandingan Quotation</p>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Vendor</TableHead>
+                        <TableHead>Nilai</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead v-if="canManageServiceType(service.type)">Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="quotation in quotationsForService(service.id)" :key="quotation.id">
+                        <TableCell class="text-foreground">{{ getVendorById(quotation.vendorId)?.name ?? quotation.vendorId }}</TableCell>
+                        <TableCell>{{ formatCurrencyIdr(quotation.amountIdr) }}</TableCell>
+                        <TableCell>
+                          <StatusBadge
+                            :label="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).label"
+                            :tone="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).tone"
+                          />
+                        </TableCell>
+                        <TableCell v-if="canManageServiceType(service.type)">
+                          <div v-if="quotation.status === 'submitted'" class="flex items-center gap-1">
+                            <Button size="sm" variant="outline" @click="handleAcceptQuotation(quotation.id)">Terima</Button>
+                            <Button size="sm" variant="ghost" @click="handleRejectQuotation(quotation.id)">Tolak</Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </template>
+                <p v-else class="text-xs text-muted-foreground">Belum ada quotation untuk layanan ini.</p>
+              </div>
+            </div>
+            <EmptyState v-else :icon="Truck" title="Belum ada layanan tercatat untuk project ini" />
           </SectionCard>
         </TabsContent>
 

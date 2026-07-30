@@ -208,6 +208,20 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-014 (ProjectService jadi reactive + field baru + entitas ItineraryItem, milik Section 05; dampak terverifikasi ke Service Summary Overview, milik Section 10).
 - **Next action:** Section 13 — Vendor Management. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 13. Menunggu perintah user — tidak dieksekusi otomatis.
 
+## Section 13 — Vendor Management
+
+- **Tanggal:** 2026-07-30
+- **Status:** COMPLETED
+- **Scope dan completed items:** Membangun `/vendors` (list, filter, create — Super Admin), `/vendors/[id]` (Vendor Detail baru, 4 tab Overview/Services/Quotations/Contacts), dan mengisi tab "Vendors" Project Detail (baseline Foundation) dengan vendor assignment per service, perbandingan quotation, dan aksi Accept/Reject yang mengubah confirmation status (reuse `updateServiceStatus` Section 12). Ditemukan dan dikoreksi inkonsistensi dokumentasi lama (`docs/route-and-role-matrix.md` bagian 0/1.4) soal role Vendor yang tidak sinkron dengan kode `ROLE_MODULE_ACCESS` sejak Foundation.
+- **Files created/changed/removed:** Dibuat — `app/pages/vendors/[id]/index.vue`, `docs/mockup-section-reports/section-13-vendor-management.md`. Diubah — `app/types/vendor.ts` (+`VendorContact`, `+VendorQuotation`, `+VendorActivity`, `+VendorDetailTab`), `app/data/vendors.ts` (`VENDORS` jadi `reactive()`, `+VENDOR_CONTACTS`/`VENDOR_QUOTATIONS`/`VENDOR_ACTIVITIES`), `app/data/index.ts` (+9 selector/mutator), `app/constants/status.ts` (`+VENDOR_QUOTATION_STATUSES`), `app/pages/vendors/index.vue` (ditulis ulang), `app/pages/projects/[id]/index.vue` (tab Vendors ditulis ulang).
+- **Routes affected:** `/vendors/[id]` (baru); `/vendors` (Section 05 shell) diisi penuh.
+- **Components reused/created:** Reused — `Dialog*`, `Table*`, `SectionCard`, `StatusBadge`, `EmptyState`, `Tabs*`, `DetailMetadataList`, `useToast`, dan `canManageServiceType` (Section 12, reuse langsung untuk gerbang Accept/Reject). Tidak ada komponen file baru.
+- **Data/types/constants affected:** `Vendor` jadi `reactive()`; `+VendorContact`/`VendorQuotation`/`VendorActivity` (entitas baru); `+VENDOR_QUOTATION_STATUSES` (constant baru). Lihat CI-015.
+- **Validation results:** `nuxi prepare` + `npm run build` sukses. Smoke test konten (curl+grep) mengonfirmasi vendor list/detail/not-found benar, skenario comparison Ground Transportation (PRJ-103, Rp45jt vs Rp52jt) tampil tepat dengan tombol Terima/Tolak, regresi tab lain Project Detail tidak berubah. `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Known issues:** Q8 tetap terbuka (sembilan section berturut-turut); CRUD hapus vendor/contact/quotation tidak diimplementasikan (di luar scope literal); verifikasi interaktif klik Accept/Reject/ganti-role tidak dilakukan (keterbatasan tooling).
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-015 (Vendor jadi reactive + entitas baru, milik Section 05; tab Vendors Project Detail diisi, belum ada owner sebelumnya; koreksi dokumentasi role Vendor di route-and-role-matrix.md bagian 0/1.4).
+- **Next action:** Section 14 — Project Changes. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 14. Menunggu perintah user — tidak dieksekusi otomatis.
+
 ---
 
-*(Belum ada entri Section 13 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*
+*(Belum ada entri Section 14 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*

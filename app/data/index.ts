@@ -1,21 +1,22 @@
 import { PARTIES, CONTACTS, PARTY_ACTIVITIES } from './parties'
 import { USERS } from './users'
 import { OPPORTUNITIES, QUOTATIONS } from './opportunities'
-import { VENDORS } from './vendors'
+import { VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES } from './vendors'
 import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS } from './projects'
 import { INVOICES, PAYMENTS } from './finance'
 import { ACTIVITIES, DOCUMENTS, TASKS } from './activity'
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, DEMO_REFERENCE_DATE } from '~/utils/attention'
-import { SERVICE_STATUSES, findStatusOption } from '~/constants/status'
+import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { Project, ServiceTypeKey, ServiceStatus, Traveler } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType } from '~/types/party'
 import type { Opportunity, OpportunityStage, Quotation } from '~/types/opportunity'
+import type { Vendor, VendorContact, VendorQuotation } from '~/types/vendor'
 
 export {
   USERS,
   PARTIES, CONTACTS, PARTY_ACTIVITIES,
   OPPORTUNITIES, QUOTATIONS,
-  VENDORS,
+  VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES,
   PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS,
   INVOICES, PAYMENTS,
   ACTIVITIES, DOCUMENTS, TASKS,
@@ -31,6 +32,19 @@ export const getOpportunityById = (id: string) => OPPORTUNITIES.find(opp => opp.
 export const getProjectsByParty = (partyId: string) => PROJECTS.filter(project => project.partyId === partyId)
 export const getQuotationByOpportunity = (opportunityId: string) => QUOTATIONS.find(quotation => quotation.opportunityId === opportunityId)
 export const getVendorById = (id: string) => VENDORS.find(vendor => vendor.id === id)
+export const getVendorContacts = (vendorId: string) => VENDOR_CONTACTS.filter(contact => contact.vendorId === vendorId)
+export const getVendorQuotations = (vendorId: string) => VENDOR_QUOTATIONS
+  .filter(quotation => quotation.vendorId === vendorId)
+  .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+export const getVendorActivities = (vendorId: string) => VENDOR_ACTIVITIES
+  .filter(activity => activity.vendorId === vendorId)
+  .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+/** Vendor assignment ke Project/Service (Section 13) — filter langsung `PROJECT_SERVICES` existing, bukan data paralel (hard rule). */
+export const getServicesByVendor = (vendorId: string) => PROJECT_SERVICES.filter(service => service.vendorId === vendorId)
+/** Comparison quotation (Section 13) — quotation lain untuk service yang sama, dipakai tab "Vendors" Project Detail. */
+export const getQuotationsForService = (serviceId: string) => VENDOR_QUOTATIONS
+  .filter(quotation => quotation.serviceId === serviceId)
+  .sort((a, b) => a.amountIdr - b.amountIdr)
 
 export const getProjectById = (id: string) => PROJECTS.find(project => project.id === id)
 export const getProjectServices = (projectId: string) => PROJECT_SERVICES.filter(service => service.projectId === projectId)
@@ -366,4 +380,78 @@ export function updateServiceStatus(serviceId: string, newStatus: ServiceStatus)
     })
   }
   return service
+}
+
+/**
+ * Vendor Management (Section 13) — create-mock master data vendor, melanjutkan pola `reactive()`
+ * Section 07-12. `canManage('vendor')` sudah presisi (`ROLE_MODULE_ACCESS.vendor` = `ADMIN` Super Admin,
+ * `VIEW` seluruh role lain — tidak ada rank `APPROVE` yang membocorkan akses seperti CRM/Project, jadi
+ * TIDAK perlu pengecualian sempit tambahan seperti `canManageParty`/`canManageTravelers`).
+ */
+export function createVendor(input: { name: string; serviceType: ServiceTypeKey; contactName: string; contactPhone?: string }): Vendor {
+  const vendor: Vendor = { id: nextSequentialId('VND-', VENDORS), ...input }
+  VENDORS.push(vendor)
+  return vendor
+}
+
+export function createVendorContact(input: { vendorId: string; name: string; title: string; email?: string; phone?: string }): VendorContact {
+  const contact: VendorContact = { id: nextSequentialId('VCT-', VENDOR_CONTACTS), ...input }
+  VENDOR_CONTACTS.push(contact)
+  return contact
+}
+
+/** Submit quotation baru (mock) — status awal selalu `submitted`, keputusan Accept/Reject terjadi di tab "Vendors" Project Detail. */
+export function submitVendorQuotation(input: { vendorId: string; projectId: string; serviceId?: string; serviceType: ServiceTypeKey; amountIdr: number; notes?: string }): VendorQuotation {
+  const quotation: VendorQuotation = { id: nextSequentialId('VQ-', VENDOR_QUOTATIONS), status: 'submitted', submittedAt: DEMO_REFERENCE_DATE, ...input }
+  VENDOR_QUOTATIONS.push(quotation)
+  return quotation
+}
+
+/**
+ * Accept quotation — dipanggil hanya dari UI yang sudah memfilter `canManageServiceType(quotation.serviceType)`
+ * (Section 12, direuse — bukan mekanisme role-check baru). Efek berantai (LOCKED untuk konsistensi data):
+ * 1) quotation lain yang masih `submitted` untuk service yang sama otomatis `rejected` (hanya satu vendor
+ *    per service); 2) bila `serviceId` diketahui, `ProjectService.vendorId` diarahkan ke vendor pemenang dan
+ *    status service diperbarui via `updateServiceStatus` existing (reuse, bukan mutasi langsung paralel);
+ * 3) entri `VendorActivity` dicatat — mengisi "Activity/history" tanpa log terpisah.
+ */
+export function acceptVendorQuotation(quotationId: string): VendorQuotation | undefined {
+  const quotation = VENDOR_QUOTATIONS.find(item => item.id === quotationId)
+  if (!quotation) return undefined
+  quotation.status = 'accepted'
+
+  if (quotation.serviceId) {
+    for (const competing of VENDOR_QUOTATIONS) {
+      if (competing.id !== quotation.id && competing.serviceId === quotation.serviceId && competing.status === 'submitted') {
+        competing.status = 'rejected'
+      }
+    }
+    const service = PROJECT_SERVICES.find(item => item.id === quotation.serviceId)
+    if (service) {
+      service.vendorId = quotation.vendorId
+      updateServiceStatus(service.id, 'confirmed')
+    }
+  }
+
+  VENDOR_ACTIVITIES.push({
+    id: nextSequentialId('VACT-', VENDOR_ACTIVITIES),
+    vendorId: quotation.vendorId,
+    message: `Quotation ${findStatusOption(SERVICE_TYPES, quotation.serviceType).label} untuk project ${quotation.projectId} diterima.`,
+    createdAt: DEMO_REFERENCE_DATE,
+  })
+
+  return quotation
+}
+
+export function rejectVendorQuotation(quotationId: string): VendorQuotation | undefined {
+  const quotation = VENDOR_QUOTATIONS.find(item => item.id === quotationId)
+  if (!quotation) return undefined
+  quotation.status = 'rejected'
+  VENDOR_ACTIVITIES.push({
+    id: nextSequentialId('VACT-', VENDOR_ACTIVITIES),
+    vendorId: quotation.vendorId,
+    message: `Quotation ${findStatusOption(SERVICE_TYPES, quotation.serviceType).label} untuk project ${quotation.projectId} ditolak.`,
+    createdAt: DEMO_REFERENCE_DATE,
+  })
+  return quotation
 }

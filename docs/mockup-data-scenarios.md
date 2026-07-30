@@ -295,6 +295,18 @@ Detail lengkap dan dampak ke Overview tab (Section 10) ada di `docs/mockup-chang
 
 ---
 
+## 4g. Vendor Management Detail (ditambahkan Section 13)
+
+`VENDOR_CONTACTS` (backfill dari `Vendor.contactName` existing, 1 per vendor — bukan data baru, hanya diberi wadah tab "Contacts"), `VENDOR_QUOTATIONS` (10 baris, terhubung ke `Project`/`ProjectService` existing via `projectId`/`serviceId` — hard rule "jangan menggandakan service fixture"), `VENDOR_ACTIVITIES` (5 baris seed).
+
+Skenario comparison konkret (belum diputuskan, siap didemokan): `SVC-1034` (Ground Transportation, PRJ-103, masih `pending-confirmation`) punya 2 quotation bersaing — `VQ-009` (VND-003, Rp45.000.000, vendor yang sudah ditugaskan) vs `VQ-010` (VND-005, Rp52.000.000, kompetitor sama-sama tipe `transportation`). Aksi "Terima" pada salah satu quotation (tab "Vendors" Project Detail) akan menolak quotation lainnya secara otomatis, mengarahkan `ProjectService.vendorId` ke vendor pemenang, dan mengubah status service menjadi `confirmed` via `updateServiceStatus` (Section 12, reuse) — bukan mutasi paralel.
+
+`VQ-007` (VND-001, PRJ-103, `SVC-1032` Flight Batch 2 Grup VIP, `pending-confirmation`) sengaja dibiarkan `submitted` tanpa kompetitor — mendemonstrasikan quotation tunggal yang menunggu keputusan tanpa perbandingan. `VQ-008` (VND-002, PRJ-102, `SVC-1023` Room Block B) berstatus `rejected` — merefleksikan riwayat historis konsolidasi Room Block B ke Block A (Section 05/06).
+
+Detail lengkap ada di `docs/mockup-change-impact-log.md` (CI-015) dan `docs/mockup-section-reports/section-13-vendor-management.md`.
+
+---
+
 ## 5. Role-Restricted Finance View (bukan record baru, kondisi tampilan atas PRJ-103)
 
 Menggunakan **PRJ-103** sebagai subjek konkret untuk mendemonstrasikan Role & Access Matrix (`docs/route-and-role-matrix.md` bagian 5) pada tab "Finance":
@@ -351,6 +363,7 @@ Setiap ID pada dokumen ini **wajib dipakai identik** di seluruh titik implementa
 - `PROJECTS`/`ACTIVITIES` sejak Section 09 juga `reactive()` — Approve Won (`approveOpportunityWon`, `app/data/index.ts`) mendorong Project baru dan entri Activity baru yang langsung terlihat di `/projects`, Dashboard, dan Party Detail. ID Project baru mengikuti pola sekuensial yang sama (`PRJ-104`, dst.), dihitung otomatis — bukan angka acak.
 - `TRAVELERS`/`TRAVELER_GROUPS` sejak Section 11 juga `reactive()` (bagian 4e) — `createTraveler`/`updateTraveler`/`removeTraveler`/`importTravelersMock` (`app/data/index.ts`) ter-propagate seketika ke tab Travelers tanpa reload. ID traveler baru mengikuti prefix `TRV-` sekuensial global (bukan per-project), pola yang sama seperti `PTY-`/`PRJ-`.
 - `PROJECT_SERVICES` sejak Section 12 juga `reactive()` (bagian 4f) — `updateServiceStatus` (`app/data/index.ts`) ter-propagate seketika ke tab Itinerary & Services DAN tab Overview (Service Summary, Section 10) tanpa reload karena keduanya membaca array yang sama; transisi ke status `changed` juga menambah entri `ACTIVITIES` (prefix `ACT-` sekuensial, konsisten dengan skema existing).
+- `VENDORS` sejak Section 13 juga `reactive()` (bagian 4g) — `createVendor`/`createVendorContact`/`submitVendorQuotation`/`acceptVendorQuotation`/`rejectVendorQuotation` (`app/data/index.ts`) ter-propagate seketika ke `/vendors`, Vendor Detail, dan tab "Vendors" Project Detail tanpa reload. `acceptVendorQuotation` memanggil `updateServiceStatus` (Section 12) untuk mengonfirmasi service — bukan mutasi `PROJECT_SERVICES` paralel.
 
 ## 8. Batasan
 
