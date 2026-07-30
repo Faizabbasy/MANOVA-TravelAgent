@@ -1,6 +1,6 @@
 Baca dan jalankan:
 
-`prompts/08-PROMPT-6-DASHBOARD.md`
+`prompts/09-PROMPT-7-CRM-PARTY.md`
 
 Sebelum mulai:
 
@@ -9,11 +9,11 @@ Sebelum mulai:
 3. Periksa `git status` dan kondisi codebase aktual.
 4. Jangan mengubah hasil pekerjaan sebelumnya kecuali diperlukan untuk integrasi.
 
-Kerjakan hanya scope Prompt 6.
+Kerjakan hanya scope Prompt 7.
 
 Setelah selesai:
 
 1. Jalankan validasi yang tersedia.
 2. Update implementation state, progress, section report, dan change impact log jika diperlukan.
 3. Berikan laporan hasil dan URL yang perlu direview.
-4. Berhenti dan jangan lanjut ke Prompt 7.
+4. Berhenti dan jangan lanjut ke Prompt 8.

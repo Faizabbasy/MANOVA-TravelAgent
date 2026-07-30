@@ -49,4 +49,45 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 
 ---
 
+## CI-004 — Fixture Party Diubah Menjadi Reactive, Entitas Baru `PartyActivity`
+
+- **Change ID / Tanggal:** CI-004 · 2026-07-29
+- **Triggering section:** Section 07 — CRM Party.
+- **Previous section affected:** Section 05 — Foundation (pemilik `app/data/parties.ts`, `app/types/party.ts`).
+- **Alasan perubahan:** Scope Section 07 eksplisit meminta "create/edit frontend mock" untuk Prospect/Contact/Activity. Fixture Foundation (Section 05) adalah array biasa read-only sepanjang Section 05/06 — mutasi (`.push()`) tidak akan ter-render ulang di consumer manapun tanpa reactivity. Dibungkus `reactive()` (Vue) agar create-mock benar-benar terlihat di seluruh halaman yang membaca `PARTIES`/`CONTACTS` tanpa reload, sesuai nilai demo yang diminta scope.
+- **Files affected:** `app/data/parties.ts` (`PARTIES`, `CONTACTS` dibungkus `reactive()`; `+PARTY_ACTIVITIES`), `app/types/party.ts` (`+PartyActivity`, `+PartyActivityType`, `+PartyDetailTab`), `app/data/index.ts` (+6 selector/helper terkait).
+- **Previous behavior:** `PARTIES`/`CONTACTS` adalah array TypeScript biasa, hanya pernah dibaca (`.filter/.find/.map`), tidak pernah dimutasi runtime di section manapun sebelumnya.
+- **New behavior:** Array yang sama, sekarang `reactive()` — method baca tetap identik (tidak ada perubahan API untuk consumer existing seperti Dashboard/`crm/index.vue`/`crm/opportunities.vue`), ditambah kemampuan `.push()` yang ter-propagate reaktif lewat helper `createParty`/`createContact`/`createPartyActivity` (`app/data/index.ts`).
+- **Risk:** Rendah. Perubahan `Array` → `reactive(Array)` backward-compatible untuk seluruh operasi baca; tidak ada consumer existing yang bergantung pada array TIDAK reaktif. `createdAt` record baru memakai `DEMO_REFERENCE_DATE` tetap (bukan `new Date()`), konsisten D-040.
+- **Regression checks:** `npm run build` sukses; smoke test `/`, `/crm`, `/crm/opportunities` (consumer existing `PARTIES`) tetap HTTP 200 dengan data yang sama seperti sebelumnya.
+- **Dokumentasi yang diperbarui:** `docs/mockup-data-scenarios.md` (bagian 4b baru), `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-07-crm-party.md`.
+
+## CI-005 — Widget Dashboard Sales "Follow-up Mendatang" (Melengkapi Gap Section 06)
+
+- **Change ID / Tanggal:** CI-005 · 2026-07-29
+- **Triggering section:** Section 07 — CRM Party.
+- **Previous section affected:** Section 06 — Dashboard (pemilik `app/pages/index.vue`).
+- **Alasan perubahan:** Section 06 secara eksplisit mendeferred widget Sales "Follow-up/activity mendatang milik sendiri" karena model `PartyActivity` belum ada. Section 07 membangun model tersebut — hard rule Section 07 secara eksplisit mengizinkan "Perubahan Dashboard hanya untuk integration minimal dan wajib dicatat", sehingga mengisi gap yang sudah terdokumentasi ini termasuk scope yang diizinkan, bukan penyimpangan.
+- **Files affected:** `app/pages/index.vue` (+1 computed `myUpcomingFollowUps`, +1 flag `showFollowUps`, +1 `SectionCard` widget — tidak ada bagian lain Dashboard yang diubah).
+- **Previous behavior:** Sales hanya melihat 2 widget (Opportunity Pipeline, Quotations Menunggu Keputusan); widget follow-up tidak ada sama sekali (dicatat sebagai known issue).
+- **New behavior:** Sales kini melihat 3 widget, termasuk "Follow-up Mendatang" berisi `PartyActivity` dengan `dueAt` dalam 14 hari ke depan milik sendiri (`ownerId`).
+- **Risk:** Sangat rendah — perubahan aditif murni pada satu blok kode, tidak menyentuh widget/filter/computed lain di Dashboard.
+- **Regression checks:** `npm run build` sukses; struktur Dashboard untuk role lain (Management/PM/Finance/dst.) tidak berubah sama sekali (diverifikasi lewat diff — hanya blok Sales yang bertambah).
+- **Dokumentasi yang diperbarui:** `docs/route-and-role-matrix.md` (bagian 6, akan diperbarui untuk menghapus catatan "belum diimplementasikan" — lihat section report), `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-06-dashboard.md` (ditandai known issue selesai) dan `section-07-crm-party.md`.
+
+## CI-006 — `SectionCard.vue` Diperluas dengan Slot Opsional `#actions`
+
+- **Change ID / Tanggal:** CI-006 · 2026-07-29
+- **Triggering section:** Section 07 — CRM Party.
+- **Previous section affected:** Section 05 — Foundation (pemilik `app/components/shared/SectionCard.vue`).
+- **Alasan perubahan:** Tab Contacts dan Activities di Party Detail butuh tombol "Tambah" di header card, sejajar dengan title. `SectionCard.vue` sebelumnya hanya punya slot default (isi card) dan prop `title`/`description` — tidak ada tempat meletakkan aksi header tanpa mendesain pola baru. Menambah slot `#actions` opsional (mengikuti pola `PageHeader.vue` yang sudah punya slot serupa) lebih konsisten daripada membuat komponen header custom baru per halaman.
+- **Files affected:** `app/components/shared/SectionCard.vue`.
+- **Previous behavior:** `<CardHeader>` hanya berisi `CardTitle`/`CardDescription`, tidak ada slot tambahan.
+- **New behavior:** `<CardHeader>` jadi flex row (`justify-between`); slot `#actions` dirender di sisi kanan **hanya bila diisi** (`v-if="$slots.actions"`). Seluruh pemakaian `SectionCard` existing yang tidak mengisi slot ini (Dashboard, Projects, Project Detail, dll.) tidak berubah tampilannya sama sekali.
+- **Risk:** Rendah — perubahan aditif, dijaga dengan `v-if` sehingga tidak ada efek visual pada consumer yang tidak memakai slot baru.
+- **Regression checks:** `npm run build` sukses; smoke test seluruh route yang memakai `SectionCard` (Dashboard, `/projects`, `/projects/[id]`, `/crm/*`) tetap HTTP 200.
+- **Dokumentasi yang diperbarui:** `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-07-crm-party.md`.
+
+---
+
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*

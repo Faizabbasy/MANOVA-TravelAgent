@@ -18,3 +18,22 @@ export interface ContactPerson {
   email?: string
   phone?: string
 }
+
+/** Tab identifiers for Party Detail (docs/mockup-information-architecture.md bagian 3.2 — Overview/Contacts/Opportunities/Activities/Projects*). */
+export type PartyDetailTab = 'overview' | 'contacts' | 'opportunities' | 'activities' | 'projects'
+
+export type PartyActivityType = 'call' | 'meeting' | 'email' | 'note' | 'follow-up'
+
+/**
+ * Activity level-Party (Section 07) — berbeda dari `ActivityEntry` (~/types/activity.ts) yang scoped ke Project.
+ * Dipakai tab "Activities" Party Detail, dan widget Dashboard Sales "Follow-up Mendatang" (via `ownerId`+`dueAt`).
+ */
+export interface PartyActivity {
+  id: ID
+  partyId: ID
+  type: PartyActivityType
+  message: string
+  ownerId: ID
+  createdAt: string
+  dueAt?: string
+}

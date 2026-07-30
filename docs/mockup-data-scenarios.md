@@ -209,6 +209,23 @@ Detail keputusan dan alasan penambahan ada di `docs/mockup-change-impact-log.md`
 
 ---
 
+## 4b. Party Activity (ditambahkan Section 07 — CRM Party)
+
+Entitas baru `PartyActivity` (tab "Activities" Party Detail, berbeda dari `ActivityEntry` yang scoped ke Project) — mengisi riwayat CRM per party dan widget Dashboard Sales "Follow-up Mendatang" (deferred di Section 06). Seluruh `ownerId` memakai `USR-001` (satu-satunya user role Sales di fixture demo).
+
+| ID | Party | Jenis | Catatan | Dijadwalkan (dueAt) |
+|---|---|---|---|---|
+| PACT-001 | PTY-001 | Call | Follow-up kepuasan trip Manila | — |
+| PACT-002 | PTY-004 | Meeting | Diskusi kebutuhan awal Bali Team Building 2026 | — |
+| PACT-003 | PTY-004 | Email | Kirim draft quotation Bali Team Building 2026 | — |
+| PACT-004 | PTY-004 | Follow-up | Follow-up keputusan quotation Bali Team Building 2026 | 2026-08-03 (upcoming) |
+| PACT-005 | PTY-001 | Follow-up | Follow-up repeat business Manila Q4 2026 | 2026-08-02 (upcoming) |
+| PACT-006 | PTY-002 | Note | Catatan internal sensitivitas client soal reschedule | — |
+
+PARTIES dan CONTACTS (juga PARTY_ACTIVITIES) sejak Section 07 dibungkus `reactive()` agar aksi "Tambah Prospect"/"Tambah Contact"/"Catat Activity" di `/crm/prospects` dan Party Detail benar-benar menambah data yang terlihat seketika di seluruh halaman (bukan mock statis) — lihat `docs/mockup-change-impact-log.md` (CI-004) dan `docs/mockup-section-reports/section-07-crm-party.md`. Record baru yang dibuat lewat UI memakai `DEMO_REFERENCE_DATE` (2026-07-29) sebagai `createdAt`, bukan waktu perangkat nyata, konsisten dengan D-040.
+
+---
+
 ## 5. Role-Restricted Finance View (bukan record baru, kondisi tampilan atas PRJ-103)
 
 Menggunakan **PRJ-103** sebagai subjek konkret untuk mendemonstrasikan Role & Access Matrix (`docs/route-and-role-matrix.md` bagian 5) pada tab "Finance":
@@ -256,10 +273,11 @@ PRJ-103 — lihat bagian 5.
 
 Setiap ID pada dokumen ini **wajib dipakai identik** di seluruh titik implementasi berikutnya (dashboard widget, Project Detail, CRM, Finance, Reports, Administration) — tidak boleh ada shape/ID berbeda untuk entitas yang sama seperti temuan Prompt 1 (Project/Task/Expense yang dulu punya 2–3 shape tidak sinkron):
 
-- 3 Project (`PRJ-101`, `PRJ-102`, `PRJ-103`) + 7 Opportunity (`OPP-001`–`OPP-004` skenario utama, `OPP-005`–`OPP-007` pipeline aktif ditambahkan Section 06 — bagian 4a) + 4 Party (`PTY-001`–`PTY-004`).
+- 3 Project (`PRJ-101`, `PRJ-102`, `PRJ-103`) + 7 Opportunity (`OPP-001`–`OPP-004` skenario utama, `OPP-005`–`OPP-007` pipeline aktif ditambahkan Section 06 — bagian 4a) + 4 Party (`PTY-001`–`PTY-004`) + 4 Contact (`CP-001`–`CP-004`) + 6 Party Activity (`PACT-001`–`PACT-006`, ditambahkan Section 07 — bagian 4b).
 - 5 Vendor (`VND-001`–`VND-005`), dipakai berulang lintas project (bukan vendor baru per project).
 - 12 User (`USR-001`–`USR-011`, `USR-013`) mencakup seluruh 11 role demo (2 user berperan PM untuk keragaman "project owner").
 - ID Invoice/Payment/Task/Change/Document mengikuti prefix project (mis. seluruh entitas PRJ-102 memakai akhiran `102x`) untuk memudahkan penelusuran silang manual sebelum ada database sungguhan.
+- `PARTIES`/`CONTACTS`/`PARTY_ACTIVITIES` sejak Section 07 adalah `reactive()` array (mendukung create-mock nyata dari UI) — ID baru yang dibuat lewat `/crm/prospects` (`createParty`) mengikuti pola sekuensial yang sama (`PTY-005`, `PTY-006`, dst.), dihitung otomatis dari ID tertinggi yang ada, bukan dikelola manual di dokumen ini.
 
 ## 8. Batasan
 

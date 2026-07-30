@@ -8,11 +8,12 @@ Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git stat
 
 ## 1. Current Phase dan Current Section
 
-- **Current phase:** Foundation + Dashboard selesai. Modul CRM/Opportunity/Project/Vendor/Finance/Reports/Administration (Section 07 ke atas) **belum** dieksekusi.
-- **Current section:** Tidak ada section aktif — sistem menunggu perintah user untuk memulai Section 07 (CRM Party).
-- **Last completed section:** **Section 06 — Dashboard** (`prompts/08-PROMPT-6-DASHBOARD.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-06-dashboard.md`.
+- **Current phase:** Foundation + Dashboard + CRM Party selesai. Modul Opportunity/Quotation/Project/Vendor/Finance/Reports/Administration (Section 08 ke atas) **belum** dieksekusi.
+- **Current section:** Tidak ada section aktif — sistem menunggu perintah user untuk memulai Section 08 (Opportunity dan Quotation).
+- **Last completed section:** **Section 07 — CRM Party** (`prompts/09-PROMPT-7-CRM-PARTY.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-07-crm-party.md`.
+- Section 06 — Dashboard: COMPLETED, detail `docs/mockup-section-reports/section-06-dashboard.md`.
 - Section 05 — Foundation: COMPLETED, detail `docs/mockup-section-reports/section-05-foundation.md`.
-- Section 00–04 (Prompt 0–4: Konteks Bisnis, Audit Template, Gap Analysis, Information Architecture, Dokumentasi) adalah tahap dokumentasi murni (tidak ada kode diubah) — statusnya COMPLETED, narasi lengkap ada di `docs/mockup-progress.md` Entri 1–5.
+- Section 00–04 (Prompt 0–4): dokumentasi murni, COMPLETED, narasi lengkap `docs/mockup-progress.md` Entri 1–5.
 
 ## 2. Route Inventory (Kondisi Aktual, Diperiksa Langsung dari `app/pages/`)
 
@@ -20,81 +21,72 @@ Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git stat
 
 | Route | File | Catatan |
 |---|---|---|
-| `/` | `app/pages/index.vue` | **Dashboard final (Section 06)** — filter (status/tipe/client/owner/periode), widget kondisional per role sesuai `docs/route-and-role-matrix.md` bagian 6, seluruh angka dari fixture pusat |
-| `/login` | `app/pages/login.vue` | Rebrand MANOVA, mock auth via `localStorage` (middleware existing, tidak diubah) |
+| `/` | `app/pages/index.vue` | Dashboard final (Section 06) + widget Sales "Follow-up Mendatang" diisi Section 07 |
+| `/login` | `app/pages/login.vue` | Rebrand MANOVA, mock auth via `localStorage` (tidak diubah) |
 | `/crm` | `app/pages/crm/index.vue` | Overview CRM |
-| `/crm/opportunities` | `app/pages/crm/opportunities.vue` | List nyata dari fixture `OPPORTUNITIES` (belum diperbarui untuk 3 opportunity pipeline baru — menyusul Section 08) |
-| `/projects` | `app/pages/projects/index.vue` | List nyata dari fixture `PROJECTS` (ditulis ulang total dari data hardcoded lama) |
-| `/projects/[id]` | `app/pages/projects/[id]/index.vue` | Shell 8-tab, fixture `PRJ-101`/`PRJ-102`/`PRJ-103`, not-found state untuk ID tak dikenal |
+| `/crm/prospects` | `app/pages/crm/prospects.vue` | **Baru (Section 07)** — list nyata + search/sort + create-mock "Tambah Prospect" |
+| `/crm/clients` | `app/pages/crm/clients.vue` | **Baru (Section 07)** — list nyata + search, tanpa aksi create/convert manual |
+| `/crm/parties/[id]` | `app/pages/crm/parties/[id]/index.vue` | **Baru (Section 07)** — Party Detail 5-tab (Overview/Contacts/Opportunities/Activities/Projects*), not-found state, create-mock Contact & Activity |
+| `/crm/opportunities` | `app/pages/crm/opportunities.vue` | List nyata (Section 05), belum diperbarui untuk grouping stage — menyusul Section 08 |
+| `/projects` | `app/pages/projects/index.vue` | List nyata dari fixture `PROJECTS` |
+| `/projects/[id]` | `app/pages/projects/[id]/index.vue` | Shell 8-tab, fixture `PRJ-101`/`PRJ-102`/`PRJ-103`, not-found state |
 | `/vendors` | `app/pages/vendors/index.vue` | List nyata dari fixture `VENDORS` |
 | `/finance` | `app/pages/finance/index.vue` | Overview Finance |
 | `/admin` | `app/pages/admin/index.vue` | Overview Administration |
-| `/settings` | `app/pages/settings.vue` | Profil minimal + demo role switcher (`useCurrentUser`) |
-| `/[...slug]` | `app/pages/[...slug].vue` | 404 catch-all existing, dipertahankan |
+| `/settings` | `app/pages/settings.vue` | Profil minimal + demo role switcher |
+| `/[...slug]` | `app/pages/[...slug].vue` | 404 catch-all existing |
 
-### 2.2 Route Placeholder (`ModulePlaceholder`, berlabel "Segera" di navigasi — `comingSoon: true` di `app/constants/navigation.ts`)
+### 2.2 Route Placeholder (`ModulePlaceholder`, `comingSoon: true` di `app/constants/navigation.ts`)
 
-`/crm/prospects`, `/crm/clients`, `/crm/quotations`, `/finance/invoices`, `/finance/payments`, `/reports`, `/admin/master-data`, `/admin/users`, `/admin/roles`, `/admin/audit-trail`.
-
-Seluruhnya sudah routable (build sukses, tidak 404), tapi isinya baru komponen `ModulePlaceholder` — **belum implementasi fungsional**, tidak tersentuh oleh Section 06 (di luar scope Dashboard).
+`/crm/quotations`, `/finance/invoices`, `/finance/payments`, `/reports`, `/admin/master-data`, `/admin/users`, `/admin/roles`, `/admin/audit-trail`. (Prospects dan Clients **tidak lagi** placeholder — `comingSoon` dihapus Section 07.)
 
 ### 2.3 Route Lama, Ada di Disk, Tidak Ditautkan dari Navigasi Baru (deferred/menunggu adaptasi)
 
-`app/pages/expenses.vue` (punya bug `handleDelete` belum diperbaiki, dicatat sejak audit Prompt 1), `app/pages/tasks.vue`, `app/pages/projects/create.vue`, `app/pages/projects/[id]/edit.vue`. Tidak tersentuh oleh Section 06.
+`app/pages/expenses.vue` (bug `handleDelete` belum diperbaiki), `app/pages/tasks.vue`, `app/pages/projects/create.vue`, `app/pages/projects/[id]/edit.vue`. Tidak tersentuh Section 07.
 
-### 2.4 Route Excluded (tidak dilanjutkan sama sekali)
+### 2.4 Route Excluded
 
-`/time-tracking`, `/templates`, `/integrations`, `/files` (top-level), `/team` (top-level) — lihat `docs/route-and-role-matrix.md` bagian 1.8 untuk alasan per item.
+`/time-tracking`, `/templates`, `/integrations`, `/files` (top-level), `/team` (top-level) — lihat `docs/route-and-role-matrix.md` bagian 1.8.
 
 ## 3. Component Shared dan Domain yang Sudah Tersedia
 
-**Shared UI foundation** (`app/components/shared/`, **12 komponen** — 11 dari Section 05 + `StatusBreakdownList.vue` baru Section 06): `PageHeader.vue`, `Breadcrumb.vue`, `StatusBadge.vue`, `EmptyState.vue`, `LoadingState.vue`, `ErrorState.vue`, `AttentionIndicator.vue`, `SectionCard.vue`, `DetailMetadataList.vue`, `ModulePlaceholder.vue`, `RoleAccessState.vue`, **`StatusBreakdownList.vue`** (breakdown-by-status generik: props `items: StatusBreakdownItem[]` — dipakai Opportunity Pipeline, Active Projects by Status, Service Readiness; kemungkinan dipakai lagi Section 16 Reports).
+**Shared UI foundation** (`app/components/shared/`, 12 komponen — tidak ada penambahan file baru Section 07, tapi `SectionCard.vue` **diperluas** dengan slot opsional `#actions` di CardHeader, backward-compatible, dipakai tab Contacts/Activities Party Detail untuk tombol "Tambah").
 
-**Primitive baru** (`app/components/ui/tabs/`): `Tabs.vue`, `TabsList.vue`, `TabsTrigger.vue`, `TabsContent.vue`, `index.ts` — berbasis Reka UI, dipakai Project Detail shell.
+**Primitive `ui/dialog`, `ui/select` (native `<select>` untuk sort/filter list)** — dipakai nyata pertama kali di halaman non-Dashboard oleh Section 07 (Dialog untuk create Prospect/Contact/Activity).
 
-**Primitive `ui/select` kini benar-benar dipakai** (Section 06) — filter bar Dashboard adalah pemakaian nyata pertama (sebelumnya hanya ada di codebase tanpa consumer).
+**Dashboard components** — tidak diubah strukturnya Section 07; hanya menerima satu widget baru di halaman `index.vue` (bagian 4).
 
-**Dashboard components existing — kini direuse dan diadaptasi (Section 06), bukan lagi hardcoded fake data:**
-- `dashboard/StatsCard.vue` — dipakai apa adanya sejak Section 05 (Dashboard, CRM overview, Finance overview).
-- `dashboard/BudgetChart.vue` — **diadaptasi Section 06**: dari line chart bulanan fiktif (USD) menjadi bar chart Budget vs Actual per project nyata (IDR), props `labels/budgetIdr/actualIdr`.
-- `dashboard/ExpenseCategories.vue` — **diadaptasi Section 06**: dari doughnut department fiktif (USD) menjadi cost breakdown per project nyata (IDR), props `items: {name, valueIdr}[]`.
-- `dashboard/RecentActivity.vue` — **diadaptasi Section 06**: dari daftar user/avatar fiktif menjadi daftar activity project nyata, props `items`.
+**Dashboard components yang MASIH belum direuse:** `ProjectsTable.vue`, `TasksOverview.vue`, `TeamMetrics.vue` — tidak tersentuh Section 07, tetap dicadangkan.
 
-**Dashboard components existing yang MASIH belum direuse (dicadangkan untuk section domain lain):** `ProjectsTable.vue` (Section 10 — Project Core), `TasksOverview.vue` (Section 14 — Project Changes), `TeamMetrics.vue` (Section 17 — Administration, atau Overview Project Detail). **Area yang harus dilindungi** — jangan dihapus tanpa dependency check ulang.
-
-**Layout existing dipertahankan:** `layouts/dashboard.vue`, `components/layout/AppSidebar.vue`, `components/layout/TopHeader.vue`, `composables/useSidebar.ts`, `composables/useIsMobile.ts` (tidak diubah Section 06).
-
-**15 primitive `ui/*` lama** — dipertahankan apa adanya, sumber reuse utama untuk seluruh section berikutnya.
+**Layout, 15 primitive `ui/*` lama** — tidak diubah Section 07.
 
 ## 4. Types, Constants, Fixtures, Mock State, dan Role Behavior yang Aktif
 
-**Types** (`app/types/`, 8 file) — **tidak diubah Section 06** (tidak ada field baru ditambahkan; seluruh widget baru memakai field yang sudah ada di `Project`, `Opportunity`, `Quotation`, `ProjectTask`, `ActivityEntry`).
+**Types** (`app/types/`, 8 file) — `party.ts` **diperluas Section 07**: `+PartyDetailTab`, `+PartyActivityType`, `+PartyActivity` interface. Tidak ada breaking change ke `Party`/`ContactPerson` existing.
 
-**Constants** (`app/constants/`, 3 file) — tidak diubah Section 06.
+**Constants** (`app/constants/`, 3 file) — `status.ts` **+`PARTY_ACTIVITY_TYPES`** (5 kategori: call/meeting/email/note/follow-up). `navigation.ts` — `comingSoon: true` dihapus dari item Prospects dan Clients.
 
 **Fixtures** (`app/data/`, 8 file + barrel `index.ts`):
-- `users.ts`, `parties.ts`, `vendors.ts`, `finance.ts` — tidak diubah Section 06.
-- `projects.ts` — tidak diubah Section 06 (3 Project tetap `PRJ-101/102/103`).
-- **`opportunities.ts` — diperluas Section 06**: +3 Opportunity pipeline aktif (`OPP-005` negotiation, `OPP-006` proposal, `OPP-007` qualification) dan +2 Quotation (`QUO-005`, `QUO-006`) agar widget "Opportunity Pipeline" dan "Quotations Menunggu Keputusan" punya data nyata (sebelumnya seluruh 4 Opportunity sudah Won/Lost, pipeline selalu kosong). Lihat `docs/mockup-change-impact-log.md` CI-002.
-- **`activity.ts` — diperluas Section 06**: +2 Task dengan `dueAt` di masa depan (`TSK-1023`, `TSK-1035`) agar widget "Milestone/Task Mendatang" (Project Manager) punya data selain yang overdue.
-- `index.ts` — **selector baru Section 06**: `getProjectsByOwner`, `getServicesForProjects`, `getUpcomingTasks`, `getRecentChanges` (murni tambahan, tidak mengubah selector existing).
+- **`parties.ts` — perubahan signifikan Section 07**: `PARTIES` dan `CONTACTS` diubah dari array biasa menjadi `reactive()` (agar create-mock UI benar-benar terlihat lintas halaman tanpa reload — lihat `docs/mockup-change-impact-log.md` CI-004); `+PARTY_ACTIVITIES` (6 seed record, `reactive()`).
+- `index.ts` — **selector baru Section 07**: `getProjectsByParty`, `getPartyActivities`, `getUpcomingFollowUps`, `createParty`, `createContact`, `createPartyActivity` (+ helper internal `nextSequentialId`).
+- `opportunities.ts`, `projects.ts`, `activity.ts`, `finance.ts`, `users.ts`, `vendors.ts` — tidak diubah Section 07.
 
-**Mock state aktif:** `useCurrentUser()`, `usePermissions()` — tidak diubah Section 06, dipakai apa adanya oleh Dashboard.
+**Mock state aktif:** `useCurrentUser()`/`usePermissions()` — tidak diubah. Fixture kini sebagian **mutable dalam sesi** (`PARTIES`/`CONTACTS`/`PARTY_ACTIVITIES`) — pertama kalinya di codebase ini fixture bukan read-only murni.
 
-**Formatter dan helper:** `app/utils/format.ts` — tidak diubah. `app/utils/attention.ts` — **+2 export Section 06**: `UPCOMING_TASK_WINDOW_DAYS` (14 hari) dan `isTaskUpcoming()` (murni tambahan).
+**Formatter dan helper:** `app/utils/attention.ts` — **+`UPCOMING_FOLLOWUP_WINDOW_DAYS`** (14 hari), **+`isFollowUpUpcoming()`**.
 
-**Role behavior aktif:** Dashboard kini mengimplementasikan **precise 1:1 mapping** ke `docs/route-and-role-matrix.md` bagian 6 (Management: Pipeline/Active-by-status/Budget vs Actual/Outstanding/Attention/Recent updates; Sales: Pipeline/Quotations pending; Project Manager: 5 widget "milik sendiri"; Operations-family: Service Readiness scoped per sub-domain + Upcoming Departure; Finance: Budget vs Actual/Cost breakdown/Outstanding; Super Admin: superset + admin summary; Viewer: identik dengan Management, read-only). Detail interpretasi (Lead tidak dimodelkan, Cost breakdown per-project bukan per-kategori, Sales follow-up activity deferred) dicatat di `docs/route-and-role-matrix.md` bagian 6 dan section report.
+**Role behavior aktif:** Akses **buka halaman** CRM (`canView('crm')`) tidak berubah dari Section 05/06 (module-level, mencakup PM/Finance juga). Akses **tulis** (create Prospect/Contact/Activity) memakai pengecualian sempit baru: `canManageParty = Sales atau Super Admin`, didefinisikan lokal di 3 file halaman (bukan composable baru) — lihat `docs/route-and-role-matrix.md` bagian 1.2 catatan Section 07.
 
 ## 5. Area Hasil Section Lama yang Harus Dilindungi
 
-- Seluruh 12 shared component, seluruh fixture `app/data/*`, seluruh type `app/types/*`, seluruh constant `app/constants/*` — dipakai lintas banyak halaman, jangan diubah shape-nya tanpa cross-section impact check.
-- `app/pages/projects/[id]/index.vue` — shell 8-tab, struktur tab/single-route tidak boleh diubah (LOCKED, D-026/D-027).
-- `NAV_ITEMS` (`app/constants/navigation.ts`) — satu source of truth navigasi.
-- `useCurrentUser`/`usePermissions` — satu source of truth role mock.
-- `ProjectsTable.vue`, `TasksOverview.vue`, `TeamMetrics.vue` — masih dicadangkan, jangan dihapus.
-- **`app/pages/index.vue` (Dashboard) kini COMPLETED untuk Section 06** — section berikutnya (07 ke atas) yang membutuhkan Dashboard menampilkan data baru (mis. Party/Opportunity real setelah CRM dibangun) harus **menyesuaikan fixture**, bukan menulis ulang struktur widget/filter Dashboard tanpa alasan kuat.
-- `OPP-005`–`007`/`QUO-005`–`006`/`TSK-1023`/`TSK-1035` (ditambahkan Section 06) — Section 07/08/14 harus **mewarisi dan memperluas** baris ini bila membangun halaman Opportunity/Quotation/Task sungguhan, bukan menduplikasi dengan ID baru untuk konsep yang sama.
-- `docs/mockup-data-scenarios.md` — fixture section baru wajib konsisten dengan skenario dan ID di dalamnya (termasuk bagian 4a yang baru).
+- Seluruh shared component, fixture `app/data/*`, type `app/types/*`, constant `app/constants/*` — jangan diubah shape-nya tanpa cross-section impact check.
+- `app/pages/projects/[id]/index.vue` — shell 8-tab, LOCKED (D-026/D-027), tidak tersentuh Section 07.
+- `NAV_ITEMS`, `useCurrentUser`/`usePermissions` — satu source of truth, tidak diduplikasi.
+- **`app/pages/crm/parties/[id]/index.vue` (Party Detail, 5-tab) kini COMPLETED untuk Section 07** — Section 08 (Opportunity dan Quotation) yang membangun `/crm/opportunities/[id]` harus **cross-link balik** ke tab Opportunities Party Detail, bukan membangun struktur Party terpisah.
+- **`PARTIES`/`CONTACTS`/`PARTY_ACTIVITIES` kini `reactive()`** — section berikutnya yang menambah field/entitas terkait Party harus melanjutkan pola ini (bukan membuat array biasa baru yang tidak reaktif untuk entitas terkait).
+- `PACT-001`–`006` dan `PTY-001`–`004`/`CP-001`–`004` — Section 08/09 harus **mewarisi**, bukan menduplikasi.
+- `SectionCard.vue` kini punya slot opsional `#actions` — section berikutnya yang butuh tombol di header SectionCard harus **memakai slot ini**, bukan membuat pola header custom baru.
+- Dashboard (`app/pages/index.vue`) — hanya boleh disentuh untuk "integration minimal" terdokumentasi (seperti CI-005 Section 07), bukan restrukturisasi.
 
 ## 6. Known Issues dan Validation Status
 
@@ -102,27 +94,27 @@ Divalidasi ulang langsung pada tanggal update dokumen ini:
 
 | Cek | Hasil | Catatan |
 |---|---|---|
-| `npx nuxi prepare` | **Sukses** | Regenerasi types `.nuxt/` setelah penambahan komponen/selector baru |
-| `npm run build` | **Sukses** (exit 0) | Dijalankan 2x (sebelum dan sesudah pembersihan unused import) |
-| Smoke test route (curl, preview server) | **HTTP 200** untuk `/`, `/settings`, `/login`, `/projects`, `/projects/PRJ-101`, `/crm`, `/vendors`, `/finance`, `/admin` | Tidak ada string error/exception di HTML; SSR menampilkan `LoadingState` (by design — data terisi setelah hydration client, konsisten dengan Section 05) |
-| Bundle content check | Widget baru ("Opportunity Pipeline", "Total Budget vs Actual", dll.) **terkonfirmasi ter-compile** ke dalam server bundle | Verifikasi tekstual pada `.output/server/chunks/build/pages-*.mjs` |
+| `npx nuxi prepare` | **Sukses** | Regenerasi types setelah penambahan type/fixture/component baru |
+| `npm run build` | **Sukses** (exit 0) | Dijalankan ulang setelah seluruh perubahan Section 07 |
+| Smoke test route (curl, preview server) | **HTTP 200** untuk `/`, `/crm/prospects`, `/crm/clients`, `/crm/parties/PTY-001`, `/crm/parties/PTY-004`, `/crm/parties/PTY-999` (not-found), `/crm/opportunities`, `/settings`, `/projects` | Tidak ada string error/exception; konten nyata terkonfirmasi (nama party, not-found message) muncul di HTML SSR — halaman CRM baru tidak memakai loading-simulation seperti Dashboard, jadi SSR langsung berisi data lengkap |
 | `npx vitest run` | **"No test files found", exit code 1** | Pre-existing, bukan regresi |
-| `npx nuxi typecheck` | **Gagal — `vue-tsc` tidak terpasang** | Q8 belum diselesaikan (lihat catatan di bawah) |
-| Lint | **Tidak tersedia** | Sama seperti Section 05, Q8 belum diselesaikan |
-| Interactive/hydrated browser check | **Tidak dilakukan** | Tidak ada tool browser headless tersedia di lingkungan ini; verifikasi dilakukan lewat build success + bundle content check + code review manual, bukan screenshot interaktif |
+| `npx nuxi typecheck` | **Gagal — `vue-tsc` tidak terpasang** | Q8 masih belum diselesaikan |
+| Lint | **Tidak tersedia** | Q8 masih belum diselesaikan |
+| Interactive/hydrated browser check (Dialog create-mock, dsb.) | **Tidak dilakukan** | Tidak ada tool browser headless tersedia; diverifikasi lewat build success + code review manual terhadap kontrak Reka UI Dialog (pola identik dengan `pages/expenses.vue` existing) |
 
 **Known issues terbuka:**
-- **Q8 — Tooling lint/typecheck/test belum lengkap.** Tetap `NEEDS_VALIDATION`. Section 05 merekomendasikan penyelesaian Q8 sebelum Section 06 dimulai; **user secara eksplisit memerintahkan Section 06 dikerjakan langsung** (`prompts/99-RUN-CURRENT-SECTION.md`) tanpa menyelesaikan Q8 terlebih dahulu — instruksi user diikuti sesuai protokol (instruksi eksplisit mengesampingkan rekomendasi section sebelumnya), tapi Q8 dicatat tetap terbuka dan makin mendesak untuk section berikutnya.
-- **Bug `handleDelete` di `app/pages/expenses.vue`** — belum diperbaiki, tidak tersentuh Section 06.
-- **"Follow-up/activity mendatang milik sendiri" (Sales)** — belum diimplementasikan, data model Activity level-Party/Opportunity belum ada (lihat bagian 4 dan section report).
-- **"Cost breakdown" Finance** — per-project, bukan per jenis layanan (keterbatasan fixture, bukan bug).
-- Q7, Q9, Q10, Q11 — tidak berubah, lihat `docs/mockup-open-questions.md`.
+- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. Ini section ketiga berturut-turut yang berjalan tanpa lint/typecheck otomatis (Section 06 dan 07). Sangat direkomendasikan diselesaikan sebelum Section 08.
+- Bug `handleDelete` di `app/pages/expenses.vue` — belum diperbaiki, tidak tersentuh Section 07.
+- `/crm/opportunities` (Section 05) masih menampilkan list polos tanpa grouping-by-stage untuk 3 opportunity pipeline baru — menyusul Section 08.
+- Pagination mock untuk Prospects/Clients **sengaja tidak diimplementasikan** — hanya 4-5 baris data saat ini, kontrol pagination akan menjadi affordance kosong tanpa fungsi nyata; akan ditambahkan bila volume data section berikutnya membutuhkan.
+- Interactive/hydrated browser verification tidak dilakukan (keterbatasan tooling lingkungan, konsisten dengan Section 06).
+- Q7, Q9, Q10, Q11 — tidak berubah.
 
 ## 7. Next Recommended Section
 
-Section 07 — CRM Party (`prompts/09-PROMPT-7-CRM-PARTY.md`). **Rekomendasi:** selesaikan Q8 (tooling lint/typecheck) sebelum atau di awal Section 07 — sudah dua section berturut-turut berjalan tanpa lint/typecheck otomatis. Tidak dieksekusi otomatis — menunggu perintah user.
+Section 08 — Opportunity dan Quotation (`prompts/10-PROMPT-8-OPPORTUNITY-QUOTATION.md`). **Rekomendasi kuat:** selesaikan Q8 (tooling lint/typecheck) sebelum atau di awal Section 08 — tiga section berturut-turut telah berjalan tanpa validasi otomatis penuh. Tidak dieksekusi otomatis — menunggu perintah user.
 
 ## 8. Last Updated
 
 - **Date:** 2026-07-29
-- **Updater:** Section 06 (Dashboard) execution, berdasarkan pemeriksaan langsung codebase, build/smoke-test yang benar-benar dijalankan ulang — bukan berdasarkan asumsi.
+- **Updater:** Section 07 (CRM Party) execution, berdasarkan pemeriksaan langsung codebase, build/smoke-test yang benar-benar dijalankan ulang.

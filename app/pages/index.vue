@@ -6,7 +6,7 @@ import {
 import {
   PROJECTS, OPPORTUNITIES, QUOTATIONS, PARTIES, USERS,
   getPartyById, getProjectById, getInvoicesByProject, getTasksByProject, getActivitiesByProject,
-  getServicesForProjects, getUpcomingTasks, getRecentChanges,
+  getServicesForProjects, getUpcomingTasks, getRecentChanges, getUpcomingFollowUps,
 } from '~/data'
 import {
   PROJECT_STATUSES, OPPORTUNITY_STAGES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, findStatusOption,
@@ -178,6 +178,12 @@ const quotationsPendingDecision = computed(() => QUOTATIONS.filter((quotation) =
   return Boolean(opportunity) && !['won', 'lost'].includes(opportunity!.stage)
 }))
 
+/**
+ * Follow-up Mendatang milik sendiri — Sales (D-031, bagian 6). Deferred di Section 06 karena
+ * belum ada model Activity level-Party/Opportunity; diisi Section 07 (CRM Party) via `PartyActivity`.
+ */
+const myUpcomingFollowUps = computed(() => getUpcomingFollowUps(currentUser.value.id))
+
 /** Widget "milik sendiri" — Project Manager. */
 const myActiveProjects = computed(() => myProjectsAll.value.filter(p => !['completed', 'cancelled'].includes(p.status)))
 const myAttentionProjects = computed(() => attentionOf(myProjectsAll.value))
@@ -247,6 +253,7 @@ const showOutstanding = visibleTo('finance', 'management', 'super-admin', 'viewe
 const showAttentionGlobal = visibleTo('management', 'super-admin', 'viewer')
 const showRecentActivity = visibleTo('management', 'super-admin', 'viewer')
 const showQuotationsPending = visibleTo('sales', 'super-admin')
+const showFollowUps = visibleTo('sales')
 const showUpcomingDepartures = visibleTo('project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'super-admin')
 const showServiceReadiness = visibleTo('operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'super-admin')
 const showMyActiveProjects = visibleTo('project-manager')
@@ -357,6 +364,18 @@ const showAdminSummary = visibleTo('super-admin')
           </li>
         </ul>
         <EmptyState v-if="quotationsPendingDecision.length === 0" title="Tidak ada quotation menunggu keputusan" />
+      </SectionCard>
+
+      <SectionCard v-if="showFollowUps" title="Follow-up Mendatang">
+        <ul class="divide-y divide-border">
+          <li v-for="activity in myUpcomingFollowUps" :key="activity.id" class="py-3">
+            <p class="text-sm text-foreground">{{ activity.message }}</p>
+            <p class="text-xs text-muted-foreground">
+              {{ getPartyById(activity.partyId)?.name }} · Dijadwalkan {{ activity.dueAt }}
+            </p>
+          </li>
+        </ul>
+        <EmptyState v-if="myUpcomingFollowUps.length === 0" title="Tidak ada follow-up terjadwal dalam waktu dekat" />
       </SectionCard>
 
       <SectionCard v-if="showUpcomingDepartures" title="Upcoming Departures">

@@ -2,6 +2,7 @@ import type { StatusOption } from '~/types/common'
 import type { OpportunityStage } from '~/types/opportunity'
 import type { ProjectStatus, ProjectCharacteristic, ServiceStatus, ServiceTypeKey } from '~/types/project'
 import type { InvoiceStatus } from '~/types/finance'
+import type { PartyActivityType } from '~/types/party'
 
 /**
  * Source of truth untuk seluruh status/enum MANOVA (Prompt 5-G, menggeneralisasi D-038).
@@ -53,6 +54,15 @@ export const SERVICE_TYPES: StatusOption<ServiceTypeKey>[] = [
   { value: 'hotel', label: 'Hotel', tone: 'purple', order: 2 },
   { value: 'transportation', label: 'Transportation', tone: 'warning', order: 3 },
   { value: 'mice', label: 'MICE', tone: 'primary', order: 4 },
+]
+
+/** Kategori Activity level-Party (Section 07) — dipakai tab "Activities" Party Detail. */
+export const PARTY_ACTIVITY_TYPES: StatusOption<PartyActivityType>[] = [
+  { value: 'call', label: 'Telepon', tone: 'info', order: 1 },
+  { value: 'meeting', label: 'Meeting', tone: 'primary', order: 2 },
+  { value: 'email', label: 'Email', tone: 'neutral', order: 3 },
+  { value: 'note', label: 'Catatan', tone: 'neutral', order: 4 },
+  { value: 'follow-up', label: 'Follow-up', tone: 'warning', order: 5 },
 ]
 
 export const INVOICE_STATUSES: StatusOption<InvoiceStatus>[] = [

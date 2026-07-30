@@ -112,6 +112,23 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Cross-section impact:** Lihat `docs/mockup-change-impact-log.md` CI-002 (perluasan fixture Section 05) dan CI-003 (adaptasi komponen dashboard dan rewrite halaman Dashboard Section 05).
 - **Next action:** Section 07 — CRM Party. Rekomendasi eksplisit: selesaikan Q8 (tooling lint/typecheck) sebelum atau di awal Section 07. Menunggu perintah user — tidak dieksekusi otomatis.
 
+## Section 07 — CRM Party
+
+- **Tanggal:** 2026-07-29
+- **Status:** COMPLETED
+- **Scope dan completed items:** Party/customer list dan detail, Prospect list, Client list, Contact person, Activity history (level-Party, entitas baru `PartyActivity`), summary opportunity/project, search/filter/sort, create/edit frontend mock (Prospect, Contact, Activity — mutasi nyata via `reactive()` fixture), empty/not-found states, role behavior. Party Detail 5-tab: Overview/Contacts/Opportunities/Activities/Projects* (kondisional Client + ≥1 project). Widget Dashboard Sales "Follow-up Mendatang" (deferred Section 06) diisi.
+- **Files created:** `app/pages/crm/parties/[id]/index.vue`.
+- **Files changed:** `app/pages/crm/prospects.vue`, `app/pages/crm/clients.vue` (rewrite total dari `ModulePlaceholder`), `app/pages/index.vue` (+widget Follow-up Mendatang, minimal), `app/data/parties.ts` (`reactive()` + `PARTY_ACTIVITIES`), `app/data/index.ts` (+6 selector/helper), `app/types/party.ts` (+3 type), `app/constants/status.ts` (+`PARTY_ACTIVITY_TYPES`), `app/constants/navigation.ts` (`comingSoon` dihapus dari Prospects/Clients), `app/utils/attention.ts` (+2 export), `app/components/shared/SectionCard.vue` (+slot `#actions`, backward-compatible).
+- **Files removed:** Tidak ada.
+- **Routes affected:** `/crm/prospects` (real), `/crm/clients` (real), `/crm/parties/[id]` (baru).
+- **Components reused:** `SectionCard`, `EmptyState`, `RoleAccessState`, `StatusBadge`, `DetailMetadataList`, `PageHeader`, `Tabs`/`TabsList`/`TabsTrigger`/`TabsContent`, `Table*`, `Dialog*`, `Label`, `Input`, `Button` (Dialog dipakai nyata pertama kali di luar `expenses.vue`).
+- **Components created:** Tidak ada file baru (SectionCard diperluas, bukan komponen baru).
+- **Data/types/constants affected:** `Party`/`ContactPerson` tidak berubah shape; `+PartyActivity`. `PARTIES`/`CONTACTS`/`PARTY_ACTIVITIES` jadi `reactive()` — lihat CI-004.
+- **Validation results:** `npx nuxi prepare` dan `npm run build` sukses; smoke test curl 9 route (termasuk `/crm/parties/PTY-999` not-found) seluruhnya HTTP 200 dengan konten nyata terkonfirmasi; `vitest`/`typecheck`/lint tetap pre-existing gap (Q8). Interactive/hydrated browser verification tidak dilakukan (keterbatasan tooling).
+- **Known issues:** Q8 tetap terbuka (section ketiga berturut-turut); pagination mock sengaja tidak dibuat (volume data terlalu kecil untuk affordance nyata); `/crm/opportunities` belum di-groupby-stage (Section 08).
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-004 (fixture Party jadi reactive + entitas baru, milik Section 05), CI-005 (widget Dashboard Follow-up Mendatang, milik Section 06), CI-006 (SectionCard `#actions` slot, milik Section 05).
+- **Next action:** Section 08 — Opportunity dan Quotation. Rekomendasi kuat: selesaikan Q8 sebelum atau di awal Section 08. Menunggu perintah user — tidak dieksekusi otomatis.
+
 ---
 
-*(Belum ada entri Section 07 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*
+*(Belum ada entri Section 08 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*

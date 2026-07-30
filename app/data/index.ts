@@ -1,16 +1,17 @@
+import { PARTIES, CONTACTS, PARTY_ACTIVITIES } from './parties'
 import { USERS } from './users'
-import { PARTIES, CONTACTS } from './parties'
 import { OPPORTUNITIES, QUOTATIONS } from './opportunities'
 import { VENDORS } from './vendors'
 import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS } from './projects'
 import { INVOICES, PAYMENTS } from './finance'
 import { ACTIVITIES, DOCUMENTS, TASKS } from './activity'
-import { isProjectNeedingAttention, isTaskUpcoming } from '~/utils/attention'
+import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import type { ServiceTypeKey } from '~/types/project'
+import type { Party, ContactPerson, PartyActivity, PartyActivityType } from '~/types/party'
 
 export {
   USERS,
-  PARTIES, CONTACTS,
+  PARTIES, CONTACTS, PARTY_ACTIVITIES,
   OPPORTUNITIES, QUOTATIONS,
   VENDORS,
   PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS,
@@ -24,6 +25,7 @@ export const getUserById = (id: string) => USERS.find(user => user.id === id)
 export const getPartyById = (id: string) => PARTIES.find(party => party.id === id)
 export const getContactsByParty = (partyId: string) => CONTACTS.filter(contact => contact.partyId === partyId)
 export const getOpportunitiesByParty = (partyId: string) => OPPORTUNITIES.filter(opp => opp.partyId === partyId)
+export const getProjectsByParty = (partyId: string) => PROJECTS.filter(project => project.partyId === partyId)
 export const getQuotationByOpportunity = (opportunityId: string) => QUOTATIONS.find(quotation => quotation.opportunityId === opportunityId)
 export const getVendorById = (id: string) => VENDORS.find(vendor => vendor.id === id)
 
@@ -75,4 +77,58 @@ export function getRecentChanges(projectIds?: string[], limit = 5) {
     .filter(activity => activity.isChange && (!projectIds || projectIds.includes(activity.projectId)))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
     .slice(0, limit)
+}
+
+/** Selector dan create-mock Section 07 (CRM Party). */
+
+export function getPartyActivities(partyId: string) {
+  return PARTY_ACTIVITIES
+    .filter(activity => activity.partyId === partyId)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
+/** Widget Dashboard Sales "Follow-up Mendatang" — deferred di Section 06, diisi Section 07. */
+export function getUpcomingFollowUps(ownerId?: string) {
+  return PARTY_ACTIVITIES
+    .filter(activity => isFollowUpUpcoming(activity) && (!ownerId || activity.ownerId === ownerId))
+    .sort((a, b) => (a.dueAt ?? '').localeCompare(b.dueAt ?? ''))
+}
+
+/** Generate ID berurutan 3-digit dari prefix (mis. `PTY-` → `PTY-005`) — dipakai seluruh create-mock di bawah. */
+function nextSequentialId(prefix: string, list: { id: string }[]): string {
+  const numbers = list
+    .map(item => Number.parseInt(item.id.replace(prefix, ''), 10))
+    .filter(n => !Number.isNaN(n))
+  const next = (numbers.length ? Math.max(...numbers) : 0) + 1
+  return `${prefix}${String(next).padStart(3, '0')}`
+}
+
+/**
+ * Create-mock (Section 07) — mutasi langsung ke array `reactive` di `app/data/parties.ts`, terlihat
+ * seketika di seluruh halaman yang membaca `PARTIES`/`CONTACTS`/`PARTY_ACTIVITIES` tanpa reload.
+ * `createdAt` memakai `DEMO_REFERENCE_DATE` (bukan waktu perangkat nyata), konsisten dengan D-040 —
+ * seluruh skenario demo memakai satu jam tetap, bukan `new Date()`.
+ */
+export function createParty(input: { name: string; industry?: string }): Party {
+  const party: Party = {
+    id: nextSequentialId('PTY-', PARTIES),
+    name: input.name,
+    lifecycleStatus: 'prospect',
+    industry: input.industry,
+    createdAt: DEMO_REFERENCE_DATE,
+  }
+  PARTIES.push(party)
+  return party
+}
+
+export function createContact(input: { partyId: string; name: string; title: string; email?: string; phone?: string }): ContactPerson {
+  const contact: ContactPerson = { id: nextSequentialId('CP-', CONTACTS), ...input }
+  CONTACTS.push(contact)
+  return contact
+}
+
+export function createPartyActivity(input: { partyId: string; type: PartyActivityType; message: string; ownerId: string; dueAt?: string }): PartyActivity {
+  const activity: PartyActivity = { id: nextSequentialId('PACT-', PARTY_ACTIVITIES), createdAt: DEMO_REFERENCE_DATE, ...input }
+  PARTY_ACTIVITIES.push(activity)
+  return activity
 }

@@ -2,6 +2,7 @@ import { daysUntil } from './format'
 import type { Project } from '~/types/project'
 import type { Invoice } from '~/types/finance'
 import type { ProjectTask } from '~/types/activity'
+import type { PartyActivity } from '~/types/party'
 
 /**
  * Tanggal acuan "hari ini" untuk seluruh skenario demo (konsisten dengan docs/mockup-data-scenarios.md).
@@ -14,6 +15,9 @@ export const UPCOMING_DEPARTURE_WINDOW_DAYS = 30
 
 /** Jendela "task mendatang" untuk widget dashboard Project Manager (Section 06) — horizon lebih pendek dari keberangkatan. */
 export const UPCOMING_TASK_WINDOW_DAYS = 14
+
+/** Jendela "follow-up mendatang" untuk widget dashboard Sales (Section 07). */
+export const UPCOMING_FOLLOWUP_WINDOW_DAYS = 14
 
 export function isBudgetOverrun(project: Project): boolean {
   return project.actualCostIdr > project.budgetIdr
@@ -36,6 +40,12 @@ export function isTaskUpcoming(task: ProjectTask, referenceIso = DEMO_REFERENCE_
   if (!task.dueAt || task.status === 'done' || task.status === 'overdue') return false
   const days = daysUntil(task.dueAt, referenceIso)
   return days >= 0 && days <= UPCOMING_TASK_WINDOW_DAYS
+}
+
+export function isFollowUpUpcoming(activity: PartyActivity, referenceIso = DEMO_REFERENCE_DATE): boolean {
+  if (!activity.dueAt) return false
+  const days = daysUntil(activity.dueAt, referenceIso)
+  return days >= 0 && days <= UPCOMING_FOLLOWUP_WINDOW_DAYS
 }
 
 export function hasUnreviewedChange(activities: { isChange: boolean; reviewed: boolean }[]): boolean {

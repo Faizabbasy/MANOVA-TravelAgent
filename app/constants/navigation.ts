@@ -34,8 +34,8 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Target,
     moduleKey: 'crm',
     children: [
-      { label: 'Prospects', to: '/crm/prospects', icon: Target, moduleKey: 'crm', comingSoon: true },
-      { label: 'Clients', to: '/crm/clients', icon: Target, moduleKey: 'crm', comingSoon: true },
+      { label: 'Prospects', to: '/crm/prospects', icon: Target, moduleKey: 'crm' },
+      { label: 'Clients', to: '/crm/clients', icon: Target, moduleKey: 'crm' },
       { label: 'Opportunities', to: '/crm/opportunities', icon: Target, moduleKey: 'crm' },
       { label: 'Quotations', to: '/crm/quotations', icon: Target, moduleKey: 'crm', comingSoon: true },
     ],
