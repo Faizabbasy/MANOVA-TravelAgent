@@ -1,5 +1,5 @@
 import { daysUntil } from './format'
-import type { Project } from '~/types/project'
+import type { Project, Traveler } from '~/types/project'
 import type { Invoice } from '~/types/finance'
 import type { ProjectTask } from '~/types/activity'
 import type { PartyActivity } from '~/types/party'
@@ -18,6 +18,9 @@ export const UPCOMING_TASK_WINDOW_DAYS = 14
 
 /** Jendela "follow-up mendatang" untuk widget dashboard Sales (Section 07). */
 export const UPCOMING_FOLLOWUP_WINDOW_DAYS = 14
+
+/** Minimum sisa masa berlaku paspor pada tanggal keberangkatan (Section 11) — aturan umum imigrasi, aturan mockup. */
+export const PASSPORT_EXPIRY_WARNING_DAYS = 180
 
 export function isBudgetOverrun(project: Project): boolean {
   return project.actualCostIdr > project.budgetIdr
@@ -46,6 +49,16 @@ export function isFollowUpUpcoming(activity: PartyActivity, referenceIso = DEMO_
   if (!activity.dueAt) return false
   const days = daysUntil(activity.dueAt, referenceIso)
   return days >= 0 && days <= UPCOMING_FOLLOWUP_WINDOW_DAYS
+}
+
+/** Missing document indicator (Section 11) — belum ada nomor/tanggal expiry, atau paspor tidak cukup berlaku saat keberangkatan. */
+export function isTravelerDocumentMissing(traveler: Traveler, travelStartDate?: string): boolean {
+  if (!traveler.passportNumber || !traveler.passportExpiryDate) return true
+  if (travelStartDate) {
+    const validityRemainingAtTravel = daysUntil(traveler.passportExpiryDate, travelStartDate)
+    if (validityRemainingAtTravel < PASSPORT_EXPIRY_WARNING_DAYS) return true
+  }
+  return false
 }
 
 export function hasUnreviewedChange(activities: { isChange: boolean; reviewed: boolean }[]): boolean {

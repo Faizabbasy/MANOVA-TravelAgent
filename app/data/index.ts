@@ -2,11 +2,11 @@ import { PARTIES, CONTACTS, PARTY_ACTIVITIES } from './parties'
 import { USERS } from './users'
 import { OPPORTUNITIES, QUOTATIONS } from './opportunities'
 import { VENDORS } from './vendors'
-import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS } from './projects'
+import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS } from './projects'
 import { INVOICES, PAYMENTS } from './finance'
 import { ACTIVITIES, DOCUMENTS, TASKS } from './activity'
-import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, DEMO_REFERENCE_DATE } from '~/utils/attention'
-import type { Project, ServiceTypeKey } from '~/types/project'
+import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, DEMO_REFERENCE_DATE } from '~/utils/attention'
+import type { Project, ServiceTypeKey, Traveler } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType } from '~/types/party'
 import type { Opportunity, OpportunityStage, Quotation } from '~/types/opportunity'
 
@@ -15,7 +15,7 @@ export {
   PARTIES, CONTACTS, PARTY_ACTIVITIES,
   OPPORTUNITIES, QUOTATIONS,
   VENDORS,
-  PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS,
+  PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS,
   INVOICES, PAYMENTS,
   ACTIVITIES, DOCUMENTS, TASKS,
 }
@@ -35,6 +35,14 @@ export const getProjectById = (id: string) => PROJECTS.find(project => project.i
 export const getProjectServices = (projectId: string) => PROJECT_SERVICES.filter(service => service.projectId === projectId)
 export const getTravelerGroups = (projectId: string) => TRAVELER_GROUPS.filter(group => group.projectId === projectId)
 export const getTravelers = (projectId: string) => TRAVELERS.filter(traveler => traveler.projectId === projectId)
+export const getTravelersByGroup = (groupId: string) => TRAVELERS.filter(traveler => traveler.groupId === groupId)
+export const getRoomAssignments = (projectId: string) => ROOM_ASSIGNMENTS.filter(room => room.projectId === projectId)
+
+/** Missing document indicator (Section 11) — dievaluasi terhadap tanggal keberangkatan project ybs. */
+export function getTravelersMissingDocuments(projectId: string) {
+  const project = getProjectById(projectId)
+  return getTravelers(projectId).filter(traveler => isTravelerDocumentMissing(traveler, project?.travelStartDate))
+}
 
 export const getInvoicesByProject = (projectId: string) => INVOICES.filter(invoice => invoice.projectId === projectId)
 export const getPaymentsByInvoice = (invoiceId: string) => PAYMENTS.filter(payment => payment.invoiceId === invoiceId)
@@ -270,4 +278,61 @@ export function rejectOpportunityWon(opportunityId: string, note: string): Oppor
     ownerId: opportunity.ownerId,
   })
   return opportunity
+}
+
+/**
+ * Traveler and Participant (Section 11) — create/edit/remove/import mock, melanjutkan pola mutasi
+ * `reactive()` Section 07-10. Tidak menyentuh `project.travelerCount` (headcount resmi skenario demo,
+ * lihat catatan cakupan data di `app/data/projects.ts`) — menambah/menghapus profil traveler tidak
+ * mengubah angka itu, konsisten dengan keduanya sebagai konsep terpisah (headcount vs profil tercatat).
+ */
+
+export interface CreateTravelerInput {
+  projectId: string
+  groupId?: string
+  name: string
+  passportNumber?: string
+  passportExpiryDate?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  specialRequest?: string
+}
+
+export function createTraveler(input: CreateTravelerInput): Traveler {
+  const traveler: Traveler = { id: nextSequentialId('TRV-', TRAVELERS), ...input }
+  TRAVELERS.push(traveler)
+  return traveler
+}
+
+export function updateTraveler(id: string, patch: Partial<Omit<Traveler, 'id' | 'projectId'>>): Traveler | undefined {
+  const traveler = TRAVELERS.find(item => item.id === id)
+  if (!traveler) return undefined
+  Object.assign(traveler, patch)
+  return traveler
+}
+
+export function removeTraveler(id: string): boolean {
+  const index = TRAVELERS.findIndex(item => item.id === id)
+  if (index === -1) return false
+  TRAVELERS.splice(index, 1)
+  for (const room of ROOM_ASSIGNMENTS) {
+    const roomIndex = room.travelerIds.indexOf(id)
+    if (roomIndex !== -1) room.travelerIds.splice(roomIndex, 1)
+  }
+  return true
+}
+
+/**
+ * Import mock (Section 11) — mensimulasikan hasil import file traveler, BUKAN parsing file sungguhan
+ * (larangan fabrikasi integrasi nyata, D-006). Baris yang dihasilkan sengaja tanpa data dokumen/kontak
+ * darurat agar langsung terlihat sebagai "belum lengkap" lewat missing-document indicator — merefleksikan
+ * kondisi realistis hasil import massal yang butuh dilengkapi manual satu per satu.
+ */
+export function importTravelersMock(projectId: string, count = 3): Traveler[] {
+  const existingCount = getTravelers(projectId).length
+  const created: Traveler[] = []
+  for (let i = 1; i <= count; i++) {
+    created.push(createTraveler({ projectId, name: `Peserta Import ${existingCount + i}` }))
+  }
+  return created
 }

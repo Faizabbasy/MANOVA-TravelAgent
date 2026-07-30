@@ -70,6 +70,8 @@ export interface TravelerGroup {
   projectId: ID
   name: string
   paxCount: number
+  /** Ringkasan rooming list per group (Section 11), mis. "5 kamar twin (10 pax)" — teks, bukan breakdown kamar granular. */
+  roomingNote?: string
 }
 
 export interface Traveler {
@@ -77,5 +79,21 @@ export interface Traveler {
   projectId: ID
   groupId?: ID
   name: string
+  passportNumber?: string
+  passportExpiryDate?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
   specialRequest?: string
+}
+
+export type RoomType = 'single' | 'twin' | 'suite'
+
+/** Rooming list (Section 11) — penugasan traveler bernama ke kamar spesifik dalam satu group. */
+export interface RoomAssignment {
+  id: ID
+  projectId: ID
+  groupId: ID
+  roomLabel: string
+  roomType: RoomType
+  travelerIds: ID[]
 }

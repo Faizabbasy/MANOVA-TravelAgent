@@ -1,6 +1,6 @@
 import type { StatusOption } from '~/types/common'
 import type { OpportunityStage } from '~/types/opportunity'
-import type { ProjectStatus, ProjectCharacteristic, ServiceStatus, ServiceTypeKey } from '~/types/project'
+import type { ProjectStatus, ProjectCharacteristic, ServiceStatus, ServiceTypeKey, RoomType } from '~/types/project'
 import type { InvoiceStatus } from '~/types/finance'
 import type { PartyActivityType } from '~/types/party'
 
@@ -54,6 +54,13 @@ export const SERVICE_TYPES: StatusOption<ServiceTypeKey>[] = [
   { value: 'hotel', label: 'Hotel', tone: 'purple', order: 2 },
   { value: 'transportation', label: 'Transportation', tone: 'warning', order: 3 },
   { value: 'mice', label: 'MICE', tone: 'primary', order: 4 },
+]
+
+/** Jenis kamar rooming list (Section 11) — dipakai tab "Travelers" Project Detail. */
+export const ROOM_TYPES: StatusOption<RoomType>[] = [
+  { value: 'single', label: 'Single', tone: 'neutral', order: 1 },
+  { value: 'twin', label: 'Twin', tone: 'info', order: 2 },
+  { value: 'suite', label: 'Suite', tone: 'purple', order: 3 },
 ]
 
 /** Kategori Activity level-Party (Section 07) — dipakai tab "Activities" Party Detail. */

@@ -255,6 +255,30 @@ Ini adalah skenario **interaktif** (baru terjadi setelah user mengklik Approve),
 
 ---
 
+## 4e. Traveler and Participant Detail (ditambahkan Section 11)
+
+Fixture `TRAVELERS`/`TRAVELER_GROUPS` (Foundation) diperluas dari 1 baris (`TRV-1031` saja) menjadi sampel representatif per skenario — **bukan** 1:1 dengan `project.travelerCount` (6/18/60), konsisten dengan pola `TRV-1031` yang sejak awal sudah mewakili sebagian dari 60 traveler PRJ-103. Tab Travelers menampilkan rasio ini secara transparan (`"X dari Y traveler tercatat detail profilnya"`), bukan berpura-pura lengkap.
+
+| Project | Sampel traveler bernama | Catatan |
+|---|---|---|
+| PRJ-101 (Normal, travelerCount 6) | `TRV-1011`–`TRV-1016` (6, seluruhnya) | Seluruhnya profil lengkap (passport + kontak darurat) — konsisten dengan skenario "berjalan mulus" (bagian 6.1) |
+| PRJ-102 (High-Change, travelerCount 18) | `TRV-1021`–`TRV-1026` (6 dari 18) | `TRV-1022` (Yusuf Maulana) — paspor berlaku hingga 2027-01-15, kurang dari 6 bulan sebelum keberangkatan 2026-09-22 (catatan bagian 2.4); `TRV-1023` (Indah Permatasari) — belum mengisi data paspor sama sekali. Keduanya memicu missing-document indicator, dua varian berbeda |
+| PRJ-103 (Complex, travelerCount 60) | `TRV-1031` (existing, diperkaya) + `TRV-1032`–`TRV-1036` (5 baru) | Tersebar di GRP-001 (Management), GRP-002 (Sales Team), GRP-003 (Partner/VIP); `TRV-1034` (Taufik Hidayat, GRP-002) belum mengisi data paspor — missing-document indicator juga muncul di skenario Complex |
+
+Rooming list (`ROOM_ASSIGNMENTS`, entitas baru) — hanya untuk traveler bernama yang datanya sudah tercatat, bukan seluruh 60 kursi fisik:
+
+| Room | Group | Tipe | Occupant |
+|---|---|---|---|
+| ROOM-001 (Twin 101) | GRP-001 | Twin | TRV-1032, TRV-1033 |
+| ROOM-002 (Twin 205) | GRP-002 | Twin | TRV-1034, TRV-1035 |
+| ROOM-003 (Suite VIP 1) | GRP-003 | Suite | TRV-1031 (kebutuhan kursi roda), TRV-1036 |
+
+Ringkasan rooming per group (`TravelerGroup.roomingNote`, teks) tetap mengikuti angka lengkap dari bagian 3.2 di atas (GRP-001: 5 kamar twin; GRP-002: 12 twin + 1 single; GRP-003: 2 suite VIP) — bukan breakdown kamar granular untuk seluruh 60 pax, hanya narasi ringkas ditambah 3 contoh penugasan kamar konkret di atas.
+
+Detail lengkap ada di `docs/mockup-change-impact-log.md` (CI-013) dan `docs/mockup-section-reports/section-11-traveler-participant.md`.
+
+---
+
 ## 5. Role-Restricted Finance View (bukan record baru, kondisi tampilan atas PRJ-103)
 
 Menggunakan **PRJ-103** sebagai subjek konkret untuk mendemonstrasikan Role & Access Matrix (`docs/route-and-role-matrix.md` bagian 5) pada tab "Finance":
@@ -309,6 +333,7 @@ Setiap ID pada dokumen ini **wajib dipakai identik** di seluruh titik implementa
 - `PARTIES`/`CONTACTS`/`PARTY_ACTIVITIES` sejak Section 07 adalah `reactive()` array (mendukung create-mock nyata dari UI) — ID baru yang dibuat lewat `/crm/prospects` (`createParty`) mengikuti pola sekuensial yang sama (`PTY-005`, `PTY-006`, dst.), dihitung otomatis dari ID tertinggi yang ada, bukan dikelola manual di dokumen ini.
 - `OPPORTUNITIES`/`QUOTATIONS` sejak Section 08 juga `reactive()` — transisi stage, submit Won-Requested, tandai Lost/On Hold, dan create/revisi quotation (`advanceOpportunityStage`/`createQuotation`/`reviseQuotation`, `app/data/index.ts`) ter-propagate seketika ke Dashboard/Party Detail/CRM overview tanpa reload.
 - `PROJECTS`/`ACTIVITIES` sejak Section 09 juga `reactive()` — Approve Won (`approveOpportunityWon`, `app/data/index.ts`) mendorong Project baru dan entri Activity baru yang langsung terlihat di `/projects`, Dashboard, dan Party Detail. ID Project baru mengikuti pola sekuensial yang sama (`PRJ-104`, dst.), dihitung otomatis — bukan angka acak.
+- `TRAVELERS`/`TRAVELER_GROUPS` sejak Section 11 juga `reactive()` (bagian 4e) — `createTraveler`/`updateTraveler`/`removeTraveler`/`importTravelersMock` (`app/data/index.ts`) ter-propagate seketika ke tab Travelers tanpa reload. ID traveler baru mengikuti prefix `TRV-` sekuensial global (bukan per-project), pola yang sama seperti `PTY-`/`PRJ-`.
 
 ## 8. Batasan
 

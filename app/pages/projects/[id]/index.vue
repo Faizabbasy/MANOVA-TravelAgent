@@ -1,19 +1,20 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Wallet, Users, Truck } from 'lucide-vue-next'
+import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2 } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getUserById, getVendorById,
-  getProjectServices, getTravelerGroups, getTravelers,
+  getProjectServices, getTravelerGroups, getTravelers, getRoomAssignments,
+  createTraveler, updateTraveler, removeTraveler, importTravelersMock,
   getInvoicesByProject, getTasksByProject, getDocumentsByProject, getActivitiesByProject,
 } from '~/data'
 import {
   PROJECT_STATUSES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, SERVICE_TYPES,
-  INVOICE_STATUSES, TASK_STATUSES, findStatusOption,
+  INVOICE_STATUSES, TASK_STATUSES, ROOM_TYPES, findStatusOption,
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange, formatDate, formatTravelerCount } from '~/utils/format'
-import { isProjectNeedingAttention, isUpcomingDeparture } from '~/utils/attention'
-import type { ProjectDetailTab } from '~/types/project'
+import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing } from '~/utils/attention'
+import type { ProjectDetailTab, Traveler } from '~/types/project'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -21,6 +22,17 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { canView } = usePermissions()
+const { currentRole } = useCurrentUser()
+const { showToast } = useToast()
+
+/**
+ * Pengecualian sempit (Section 11), pola yang sama dengan `canManageParty` di CRM (Section 07): akses
+ * modul `project` generik (`canManage('project')`) juga akan meloloskan Management karena rank `APPROVE`
+ * > `MANAGE`, padahal `docs/route-and-role-matrix.md` bagian 5 memberi Management `APPROVE` khusus untuk
+ * "perubahan besar/cancel project", bukan CRUD rutin traveler. Hanya Project Manager dan Super Admin yang
+ * mengelola data traveler sehari-hari.
+ */
+const canManageTravelers = computed(() => ['project-manager', 'super-admin'].includes(currentRole.value))
 
 const project = computed(() => getProjectById(String(route.params.id)))
 
@@ -93,6 +105,119 @@ const recentActivityPreview = computed(() => [...activities.value].sort((a, b) =
 
 function goToActivityTab() {
   activeTab.value = 'activity-changes'
+}
+
+/* Travelers tab (Section 11) — filter/search/CRUD state. */
+
+const roomAssignments = computed(() => project.value ? getRoomAssignments(project.value.id) : [])
+
+function travelerNameById(id: string) {
+  return travelers.value.find(t => t.id === id)?.name ?? id
+}
+
+function groupNameById(groupId?: string) {
+  if (!groupId) return '—'
+  return groups.value.find(g => g.id === groupId)?.name ?? groupId
+}
+
+function travelerDocumentMissing(traveler: Traveler) {
+  return isTravelerDocumentMissing(traveler, project.value?.travelStartDate)
+}
+
+function passportSummary(traveler: Traveler) {
+  if (!traveler.passportNumber || !traveler.passportExpiryDate) return 'Belum diisi'
+  return `${traveler.passportNumber} · ${formatDate(traveler.passportExpiryDate)}`
+}
+
+const travelerSearch = ref('')
+const travelerGroupFilter = ref('all')
+const missingDocsOnly = ref(false)
+
+const filteredTravelers = computed(() => {
+  let result = travelers.value
+  if (travelerGroupFilter.value === 'ungrouped') result = result.filter(t => !t.groupId)
+  else if (travelerGroupFilter.value !== 'all') result = result.filter(t => t.groupId === travelerGroupFilter.value)
+  if (missingDocsOnly.value) result = result.filter(travelerDocumentMissing)
+  if (travelerSearch.value.trim()) {
+    const q = travelerSearch.value.toLowerCase()
+    result = result.filter(t => t.name.toLowerCase().includes(q))
+  }
+  return result
+})
+
+const isTravelerDialogOpen = ref(false)
+const editingTravelerId = ref<string | null>(null)
+const formName = ref('')
+const formGroupId = ref('')
+const formPassportNumber = ref('')
+const formPassportExpiryDate = ref('')
+const formEmergencyContactName = ref('')
+const formEmergencyContactPhone = ref('')
+const formSpecialRequest = ref('')
+
+function resetTravelerForm() {
+  formName.value = ''
+  formGroupId.value = ''
+  formPassportNumber.value = ''
+  formPassportExpiryDate.value = ''
+  formEmergencyContactName.value = ''
+  formEmergencyContactPhone.value = ''
+  formSpecialRequest.value = ''
+}
+
+function openCreateTraveler() {
+  editingTravelerId.value = null
+  resetTravelerForm()
+  isTravelerDialogOpen.value = true
+}
+
+function openEditTraveler(traveler: Traveler) {
+  editingTravelerId.value = traveler.id
+  formName.value = traveler.name
+  formGroupId.value = traveler.groupId ?? ''
+  formPassportNumber.value = traveler.passportNumber ?? ''
+  formPassportExpiryDate.value = traveler.passportExpiryDate ?? ''
+  formEmergencyContactName.value = traveler.emergencyContactName ?? ''
+  formEmergencyContactPhone.value = traveler.emergencyContactPhone ?? ''
+  formSpecialRequest.value = traveler.specialRequest ?? ''
+  isTravelerDialogOpen.value = true
+}
+
+function submitTraveler() {
+  if (!project.value || !formName.value.trim()) return
+  const payload = {
+    groupId: formGroupId.value || undefined,
+    name: formName.value.trim(),
+    passportNumber: formPassportNumber.value.trim() || undefined,
+    passportExpiryDate: formPassportExpiryDate.value || undefined,
+    emergencyContactName: formEmergencyContactName.value.trim() || undefined,
+    emergencyContactPhone: formEmergencyContactPhone.value.trim() || undefined,
+    specialRequest: formSpecialRequest.value.trim() || undefined,
+  }
+  if (editingTravelerId.value) {
+    updateTraveler(editingTravelerId.value, payload)
+    showToast('Traveler Diperbarui', `${payload.name} berhasil diperbarui.`)
+  } else {
+    createTraveler({ projectId: project.value.id, ...payload })
+    showToast('Traveler Ditambahkan', `${payload.name} berhasil ditambahkan ke project.`)
+  }
+  isTravelerDialogOpen.value = false
+}
+
+const travelerToDelete = ref<Traveler | null>(null)
+
+function executeDeleteTraveler() {
+  if (!travelerToDelete.value) return
+  const name = travelerToDelete.value.name
+  removeTraveler(travelerToDelete.value.id)
+  showToast('Traveler Dihapus', `${name} dihapus dari daftar traveler.`, 'info')
+  travelerToDelete.value = null
+}
+
+function runImportMock() {
+  if (!project.value) return
+  const created = importTravelersMock(project.value.id, 3)
+  showToast('Import (Mock) Selesai', `${created.length} baris traveler ditambahkan — lengkapi data dokumennya secara manual. Ini simulasi, bukan import file sungguhan.`, 'info')
 }
 
 const summaryMetadata = computed(() => {
@@ -246,23 +371,164 @@ const summaryMetadata = computed(() => {
         </TabsContent>
 
         <TabsContent value="travelers">
-          <SectionCard title="Travelers" :description="formatTravelerCount(project.travelerCount)">
-            <div v-if="groups.length" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-              <div v-for="group in groups" :key="group.id" class="p-4 rounded-lg border border-border">
-                <p class="text-sm font-medium text-foreground">{{ group.name }}</p>
-                <p class="text-xs text-muted-foreground">{{ formatTravelerCount(group.paxCount) }}</p>
+          <div class="space-y-6">
+            <SectionCard
+              title="Travelers"
+              :description="`${travelers.length} dari ${formatTravelerCount(project.travelerCount)} tercatat detail profilnya`"
+            >
+              <template v-if="canManageTravelers" #actions>
+                <div class="flex items-center gap-2">
+                  <Button size="sm" variant="outline" @click="runImportMock"><Upload class="h-4 w-4 mr-1.5" />Import (Mock)</Button>
+                  <Dialog v-model:open="isTravelerDialogOpen">
+                    <DialogTrigger as-child>
+                      <Button size="sm" @click="openCreateTraveler"><UserPlus class="h-4 w-4 mr-1.5" />Tambah Traveler</Button>
+                    </DialogTrigger>
+                    <DialogContent class="max-w-lg">
+                      <DialogHeader>
+                        <DialogTitle>{{ editingTravelerId ? 'Edit Traveler' : 'Tambah Traveler Baru' }}</DialogTitle>
+                        <DialogDescription>Profil traveler untuk project {{ project.name }}.</DialogDescription>
+                      </DialogHeader>
+                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+                        <div class="space-y-1.5 sm:col-span-2">
+                          <Label for="traveler-name">Nama</Label>
+                          <Input id="traveler-name" v-model="formName" placeholder="Nama lengkap traveler" />
+                        </div>
+                        <div class="space-y-1.5 sm:col-span-2">
+                          <Label for="traveler-group">Group (opsional)</Label>
+                          <select
+                            id="traveler-group"
+                            v-model="formGroupId"
+                            class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                          >
+                            <option value="">Tanpa Group</option>
+                            <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
+                          </select>
+                        </div>
+                        <div class="space-y-1.5">
+                          <Label for="traveler-passport-number">Nomor Paspor (opsional)</Label>
+                          <Input id="traveler-passport-number" v-model="formPassportNumber" placeholder="mis. B1234567" />
+                        </div>
+                        <div class="space-y-1.5">
+                          <Label for="traveler-passport-expiry">Tanggal Kedaluwarsa Paspor (opsional)</Label>
+                          <Input id="traveler-passport-expiry" v-model="formPassportExpiryDate" type="date" />
+                        </div>
+                        <div class="space-y-1.5">
+                          <Label for="traveler-emergency-name">Nama Kontak Darurat (opsional)</Label>
+                          <Input id="traveler-emergency-name" v-model="formEmergencyContactName" placeholder="Nama kontak darurat" />
+                        </div>
+                        <div class="space-y-1.5">
+                          <Label for="traveler-emergency-phone">Telepon Kontak Darurat (opsional)</Label>
+                          <Input id="traveler-emergency-phone" v-model="formEmergencyContactPhone" placeholder="08xx-xxxx-xxxx" />
+                        </div>
+                        <div class="space-y-1.5 sm:col-span-2">
+                          <Label for="traveler-special-request">Special Request (opsional)</Label>
+                          <Input id="traveler-special-request" v-model="formSpecialRequest" placeholder="mis. Kebutuhan kursi roda, menu khusus" />
+                        </div>
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" @click="isTravelerDialogOpen = false">Batal</Button>
+                        <Button :disabled="!formName.trim()" @click="submitTraveler">Simpan</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </template>
+
+              <div v-if="groups.length" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                <div v-for="group in groups" :key="group.id" class="p-4 rounded-lg border border-border">
+                  <p class="text-sm font-medium text-foreground">{{ group.name }}</p>
+                  <p class="text-xs text-muted-foreground">{{ formatTravelerCount(group.paxCount) }}</p>
+                  <p v-if="group.roomingNote" class="text-xs text-muted-foreground mt-1">{{ group.roomingNote }}</p>
+                </div>
               </div>
-            </div>
-            <div v-if="travelers.length">
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Special Request</p>
-              <ul class="space-y-1">
-                <li v-for="traveler in travelers" :key="traveler.id" class="text-sm text-foreground">
-                  {{ traveler.name }} — <span class="text-muted-foreground">{{ traveler.specialRequest }}</span>
-                </li>
-              </ul>
-            </div>
-            <EmptyState v-if="!groups.length && !travelers.length" :icon="Users" title="Belum ada detail traveler tercatat" />
-          </SectionCard>
+
+              <div v-if="roomAssignments.length" class="mb-4">
+                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Rooming List (Contoh Penugasan Kamar)</p>
+                <ul class="space-y-1">
+                  <li v-for="room in roomAssignments" :key="room.id" class="text-sm text-foreground">
+                    {{ room.roomLabel }}
+                    <StatusBadge :label="findStatusOption(ROOM_TYPES, room.roomType).label" :tone="findStatusOption(ROOM_TYPES, room.roomType).tone" />
+                    — <span class="text-muted-foreground">{{ room.travelerIds.map(id => travelerNameById(id)).join(', ') }}</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div v-if="travelers.length" class="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+                <div class="relative flex-1 max-w-sm">
+                  <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input v-model="travelerSearch" placeholder="Cari nama traveler..." class="pl-9" />
+                </div>
+                <select
+                  v-model="travelerGroupFilter"
+                  class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option value="all">Semua Group</option>
+                  <option value="ungrouped">Tanpa Group</option>
+                  <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
+                </select>
+                <label class="flex items-center gap-2 text-sm text-muted-foreground cursor-pointer">
+                  <Checkbox v-model="missingDocsOnly" />
+                  Hanya dokumen belum lengkap
+                </label>
+              </div>
+
+              <Table v-if="travelers.length">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Group</TableHead>
+                    <TableHead>Dokumen Paspor</TableHead>
+                    <TableHead>Kontak Darurat</TableHead>
+                    <TableHead>Special Request</TableHead>
+                    <TableHead>Status Dokumen</TableHead>
+                    <TableHead v-if="canManageTravelers">Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="traveler in filteredTravelers" :key="traveler.id">
+                    <TableCell class="font-medium text-foreground">{{ traveler.name }}</TableCell>
+                    <TableCell class="text-muted-foreground">{{ groupNameById(traveler.groupId) }}</TableCell>
+                    <TableCell class="text-muted-foreground">{{ passportSummary(traveler) }}</TableCell>
+                    <TableCell class="text-muted-foreground">
+                      <template v-if="traveler.emergencyContactName">{{ traveler.emergencyContactName }}<template v-if="traveler.emergencyContactPhone"> · {{ traveler.emergencyContactPhone }}</template></template>
+                      <template v-else>—</template>
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">{{ traveler.specialRequest ?? '—' }}</TableCell>
+                    <TableCell>
+                      <StatusBadge v-if="travelerDocumentMissing(traveler)" label="Dokumen Belum Lengkap" tone="destructive" />
+                      <StatusBadge v-else label="Dokumen Lengkap" tone="success" />
+                    </TableCell>
+                    <TableCell v-if="canManageTravelers">
+                      <div class="flex items-center gap-1">
+                        <Button size="icon" variant="ghost" @click="openEditTraveler(traveler)"><Pencil class="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" @click="travelerToDelete = traveler"><Trash2 class="h-4 w-4 text-destructive" /></Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  <TableEmpty v-if="travelers.length > 0 && filteredTravelers.length === 0" :colspan="canManageTravelers ? 7 : 6">
+                    Tidak ada traveler yang cocok dengan filter saat ini.
+                  </TableEmpty>
+                </TableBody>
+              </Table>
+
+              <EmptyState v-if="travelers.length === 0" :icon="Users" title="Belum ada traveler tercatat" description="Tambahkan traveler secara manual atau gunakan Import (Mock) untuk mensimulasikan hasil import." />
+            </SectionCard>
+          </div>
+
+          <Dialog :open="!!travelerToDelete" @update:open="value => { if (!value) travelerToDelete = null }">
+            <DialogContent class="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Hapus Traveler</DialogTitle>
+                <DialogDescription>
+                  Traveler "{{ travelerToDelete?.name }}" akan dihapus dari daftar project ini. Tindakan ini tidak dapat dibatalkan.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" @click="travelerToDelete = null">Batal</Button>
+                <Button variant="destructive" @click="executeDeleteTraveler">Hapus</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="vendors">

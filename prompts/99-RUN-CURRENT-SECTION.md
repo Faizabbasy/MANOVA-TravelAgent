@@ -1,6 +1,6 @@
 Baca dan jalankan:
 
-`prompts/13-PROMPT-11-TRAVELER-PARTICIPANT.md`
+`prompts/14-PROMPT-12-ITINERARY-OPERATIONS.md`
 
 Sebelum mulai:
 
@@ -9,11 +9,11 @@ Sebelum mulai:
 3. Periksa `git status` dan kondisi codebase aktual.
 4. Jangan mengubah hasil pekerjaan sebelumnya kecuali diperlukan untuk integrasi.
 
-Kerjakan hanya scope Prompt 11.
+Kerjakan hanya scope Prompt 12.
 
 Setelah selesai:
 
 1. Jalankan validasi yang tersedia.
 2. Update implementation state, progress, section report, dan change impact log jika diperlukan.
 3. Berikan laporan hasil dan URL yang perlu direview.
-4. Berhenti dan jangan lanjut ke Prompt 12.
+4. Berhenti dan jangan lanjut ke Prompt 13.

@@ -180,6 +180,20 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Cross-section impact:** Tidak ada entri change-impact-log baru — Section 10 menyelesaikan kepemilikan yang memang didesain untuknya (Section 05 secara eksplisit men-defer isi Overview/filter list ke "phase later", bukan modifikasi tak terduga atas section lain).
 - **Next action:** Section 11 — Traveler and Participant. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 11. Menunggu perintah user — tidak dieksekusi otomatis.
 
+## Section 11 — Traveler and Participant
+
+- **Tanggal:** 2026-07-30
+- **Status:** COMPLETED
+- **Scope dan completed items:** Mengisi penuh tab "Travelers" pada Project Detail (baseline Foundation sejak Section 05): traveler/participant list dan profile, group dan rooming list, passport/travel document metadata, emergency contact dan special request, missing document indicator, add/edit/remove/import mock, filter (search/group/dokumen belum lengkap), states, dan role behavior (`canManageTravelers` — PM/Super Admin). Tab lain Project Detail tidak disentuh; Overview (Section 10) tidak diubah sama sekali.
+- **Files created/changed/removed:** Dibuat — `docs/mockup-section-reports/section-11-traveler-participant.md`. Diubah — `app/types/project.ts` (`Traveler`/`TravelerGroup` diperluas, `+RoomType`, `+RoomAssignment`), `app/data/projects.ts` (`TRAVELER_GROUPS`/`TRAVELERS` jadi `reactive()`, fixture diperluas 1→18 baris, `+ROOM_ASSIGNMENTS`), `app/data/index.ts` (+7 selector/mutator traveler), `app/utils/attention.ts` (+`isTravelerDocumentMissing`, `+PASSPORT_EXPIRY_WARNING_DAYS`), `app/constants/status.ts` (`+ROOM_TYPES`), `app/pages/projects/[id]/index.vue` (tab Travelers ditulis ulang total).
+- **Routes affected:** Tidak ada route baru — `/projects/[id]` (tab `travelers`) diisi penuh.
+- **Components reused/created:** Reused — `Dialog*`, `Label`, `Input`, `Button`, `Table*`, `SectionCard`, `StatusBadge`, `EmptyState`, `useToast`/`ToastContainer`, dan `Checkbox` (pemakaian nyata pertama). Tidak ada komponen file baru.
+- **Data/types/constants affected:** `Traveler`/`TravelerGroup` diperluas (aditif), `+RoomAssignment` (entitas baru), `+ROOM_TYPES` (constant baru). Lihat CI-013.
+- **Validation results:** `nuxi prepare` + `npm run build` sukses. Smoke test konten (curl+grep) mengonfirmasi 6/6 traveler "Dokumen Lengkap" di PRJ-101, 2/6 "Dokumen Belum Lengkap" di PRJ-102 (paspor expiring + belum diisi), 1/6 "Dokumen Belum Lengkap" di PRJ-103, rooming list dan group filter tampil benar; regresi tab lain (`?tab=itinerary-services`, `?tab=finance`, `?tab=overview`) dikonfirmasi tidak berubah. `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Known issues:** Q8 tetap terbuka (tujuh section berturut-turut); CRUD `TravelerGroup` sengaja tidak diimplementasikan (di luar scope literal); profil traveler tetap sampel representatif (6/6/6 dari headcount 6/18/60), didokumentasikan transparan; verifikasi interaktif klik/toggle tidak dilakukan (keterbatasan tooling).
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-013 (Traveler/TravelerGroup jadi reactive + field baru + entitas RoomAssignment, milik Section 05).
+- **Next action:** Section 12 — Itinerary and Operations. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 12. Menunggu perintah user — tidak dieksekusi otomatis.
+
 ---
 
-*(Belum ada entri Section 11 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*
+*(Belum ada entri Section 12 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*

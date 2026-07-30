@@ -8,9 +8,10 @@ Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git stat
 
 ## 1. Current Phase dan Current Section
 
-- **Current phase:** Foundation + Dashboard + CRM Party + Opportunity/Quotation + Opportunity Won to Project + Project Core selesai. Modul Traveler/Itinerary/Vendor/Finance/Reports/Administration (Section 11 ke atas) **belum** dieksekusi.
-- **Current section:** Tidak ada section aktif — sistem menunggu perintah user untuk memulai Section 11 (Traveler and Participant).
-- **Last completed section:** **Section 10 — Project Core** (`prompts/12-PROMPT-10-PROJECT-CORE.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-10-project-core.md`.
+- **Current phase:** Foundation + Dashboard + CRM Party + Opportunity/Quotation + Opportunity Won to Project + Project Core + Traveler and Participant selesai. Modul Itinerary/Vendor/Finance/Reports/Administration (Section 12 ke atas) **belum** dieksekusi.
+- **Current section:** Tidak ada section aktif — sistem menunggu perintah user untuk memulai Section 12 (Itinerary and Operations).
+- **Last completed section:** **Section 11 — Traveler and Participant** (`prompts/13-PROMPT-11-TRAVELER-PARTICIPANT.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-11-traveler-participant.md`.
+- Section 10 — Project Core: COMPLETED, detail `docs/mockup-section-reports/section-10-project-core.md`.
 - Section 09 — Opportunity Won to Project: COMPLETED, detail `docs/mockup-section-reports/section-09-opportunity-won-to-project.md`.
 - Section 08 — Opportunity dan Quotation: COMPLETED, detail `docs/mockup-section-reports/section-08-opportunity-quotation.md`.
 - Section 07 — CRM Party: COMPLETED, detail `docs/mockup-section-reports/section-07-crm-party.md`.
@@ -18,36 +19,35 @@ Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git stat
 - Section 05 — Foundation: COMPLETED, detail `docs/mockup-section-reports/section-05-foundation.md`.
 - Section 00–04: dokumentasi murni, COMPLETED, narasi `docs/mockup-progress.md` Entri 1–5.
 
-**Catatan commit:** Section 08 dan 09 kini sudah ter-commit (`495b6d9 "Create opportunity-won-to-project"`). Section 10 belum ter-commit pada saat dokumen ini ditulis.
+**Catatan commit:** Section 08 dan 09 sudah ter-commit (`495b6d9 "Create opportunity-won-to-project"`); Section 10 ter-commit (`2650015 "SECTION10-Project-Core"`). Section 11 belum ter-commit pada saat dokumen ini ditulis.
 
 ## 2. Route Inventory (Kondisi Aktual)
 
-Tidak ada route baru Section 10. Baris yang statusnya berubah:
+Tidak ada route baru Section 11. Baris yang statusnya berubah:
 
-| Route | Catatan Section 10 |
+| Route | Catatan Section 11 |
 |---|---|
-| `/projects` | **Selesai** — filter status/tipe/client/owner, sort (tanggal/nama/budget), progress bar linear per card, tetap card-grid (bukan table — lihat bagian 5) |
-| `/projects/[id]` | **Overview tab selesai** — ringkasan service/task/document/recent-activity ditambahkan. Tab lain (Itinerary & Services, Travelers, Vendors, Finance, Tasks, Documents, Activity & Changes) **tidak diubah**, tetap baseline Foundation, menyusul Section 11-15 |
+| `/projects/[id]` | **Tab Travelers selesai** — list/profile, group + rooming list, passport/document metadata, emergency contact, missing document indicator, add/edit/remove/import mock, filter, role behavior. Tab lain (Itinerary & Services, Vendors, Finance, Tasks, Documents, Activity & Changes) **tidak diubah**, tetap baseline Foundation, menyusul Section 12-15. Overview (Section 10) **tidak disentuh**. |
 
 ## 3. Component Shared dan Domain yang Sudah Tersedia
 
-Tidak ada shared component baru Section 10. `StatusBreakdownList` (Section 06) direuse untuk 2 ringkasan baru di Overview tab (Service Summary, Milestone/Task Summary) — pemakaian ketiga dan keempat setelah Dashboard dan `/crm/opportunities`.
+Tidak ada shared component **file** baru Section 11. `Checkbox` (`ui/checkbox`, primitive existing sejak awal template) — **pemakaian nyata pertama** di halaman MANOVA manapun (filter "Hanya dokumen belum lengkap"). `Dialog`/`Table`/`useToast` (Section 07/09) direuse lagi untuk CRUD traveler.
 
-`dashboard/ProjectsTable.vue` — **tetap tidak dipakai** (dicadangkan sejak Section 05, keputusan awal "disatukan dengan projects/index.vue" **tidak dijalankan** — lihat bagian 5 untuk alasan).
+`dashboard/ProjectsTable.vue` — tetap tidak dipakai (tidak berubah dari Section 10).
 
 ## 4. Types, Constants, Fixtures, Mock State, dan Role Behavior yang Aktif
 
-Tidak ada perubahan type/constant/fixture Section 10 — murni peningkatan presentasi (filter/sort/progress/summary) di atas data yang sudah ada sejak Section 05/09. `Project.characteristic`, `Project.status`, `PROJECT_STATUSES.order` (dipakai untuk hitung progress linear) semuanya sudah ada, tidak diubah.
+**Baru Section 11:** `Traveler` diperluas (`passportNumber`, `passportExpiryDate`, `emergencyContactName`, `emergencyContactPhone`); `TravelerGroup` +`roomingNote`; entitas baru `RoomAssignment` (+`RoomType`) di `app/types/project.ts`. `TRAVELERS`/`TRAVELER_GROUPS` (`app/data/projects.ts`) kini `reactive()` (sebelumnya array biasa), fixture traveler diperluas 1→18 baris representatif (6 PRJ-101, 6 PRJ-102, 6 PRJ-103) + `ROOM_ASSIGNMENTS` (3 baris, PRJ-103) — **sampel representatif, bukan 1:1 dengan `travelerCount`** (didokumentasikan transparan, `docs/mockup-data-scenarios.md` bagian 4e). `app/utils/attention.ts` +`isTravelerDocumentMissing`/`PASSPORT_EXPIRY_WARNING_DAYS`. `app/constants/status.ts` +`ROOM_TYPES`. `app/data/index.ts` +7 selector/mutator (`getTravelersByGroup`, `getRoomAssignments`, `getTravelersMissingDocuments`, `createTraveler`, `updateTraveler`, `removeTraveler`, `importTravelersMock`).
 
-**Role behavior:** Tidak berubah — `canView('project')` tetap gerbang akses yang sama sejak Section 05.
+**Role behavior:** `canView('project')` tetap gerbang akses halaman (tidak berubah). **Baru:** `canManageTravelers` (Project Manager, Super Admin saja) — pengecualian sempit untuk aksi tulis tab Travelers, pola identik `canManageParty` (Section 07); Management sengaja dikecualikan meski rank modul `project`-nya (`APPROVE`) generik ≥ `MANAGE`.
 
 ## 5. Area Hasil Section Lama yang Harus Dilindungi
 
 - Seluruh shared component, fixture, type, constant — jangan diubah shape-nya tanpa cross-section impact check.
-- `app/pages/projects/[id]/index.vue` — shell 8-tab, struktur tab/single-route LOCKED (D-026/D-027) — **tidak diubah** Section 10, hanya isi tab Overview yang ditambah.
-- **`approveOpportunityWon` (Section 09) tetap satu-satunya jalur pembuatan Project** — Section 10 tidak menambah jalur create-project baru, murni membaca/menampilkan `PROJECTS` yang sudah ada (termasuk hasil konversi Won bila sudah di-approve).
-- **Keputusan didokumentasikan (bukan gap tersembunyi):** rencana awal `docs/route-and-role-matrix.md` bagian 0/1.3 menyebut `pages/projects/index.vue` + `dashboard/ProjectsTable.vue` "disatukan jadi satu skema". Section 10 **tidak melakukan penyatuan ini** — card-grid existing (sejak Section 05, sudah battle-tested lewat Section 06-09 tanpa masalah) sudah memenuhi seluruh item scope literal Section 10 (search/filter/sort/status/type/client/destination/date/owner/progress/attention) tanpa perlu beralih ke paradigma table. `ProjectsTable.vue` tetap dicadangkan, tidak dihapus.
-- Tab Overview kini punya 5 SectionCard (Ringkasan Layanan, Service Summary, Milestone/Task Summary, Document Summary, Recent Activity) — section berikutnya yang mengisi tab lain (Travelers dst.) sebaiknya tidak menduplikasi ringkasan ini di Overview, cukup memperkaya tab masing-masing.
+- `app/pages/projects/[id]/index.vue` — shell 8-tab, struktur tab/single-route LOCKED (D-026/D-027) — **tidak diubah** Section 11, hanya isi tab Travelers yang ditambah. Overview (Section 10) **tidak disentuh sama sekali**.
+- `Traveler`/`TravelerGroup`/`RoomAssignment` — gunakan selector/mutator existing di `app/data/index.ts`, jangan buat sumber data traveler paralel.
+- **Keputusan didokumentasikan (bukan gap tersembunyi):** CRUD `TravelerGroup` (buat group baru) sengaja tidak diimplementasikan — di luar scope literal Section 11 ("Add/edit/remove/import mock" merujuk ke traveler/participant, bukan group). Profil traveler tetap sampel representatif per skenario, bukan sensus penuh 1:1 dengan `project.travelerCount`.
+- Tab Travelers kini sumber lengkap untuk traveler/participant/group/rooming — section berikutnya (Itinerary and Operations dst.) sebaiknya tidak menduplikasi ringkasan traveler di tab lain.
 
 ## 6. Known Issues dan Validation Status
 
@@ -57,24 +57,25 @@ Divalidasi ulang langsung pada tanggal update dokumen ini:
 |---|---|---|
 | `npx nuxi prepare` | **Sukses** | |
 | `npm run build` | **Sukses (exit 0)** | |
-| Smoke test konten (curl + grep, bukan hanya status code) | **Benar** untuk `/projects`, `/projects/PRJ-101` (normal), `/projects/PRJ-102` (high-change), `/projects/PRJ-103` (complex), `/projects/PRJ-999` (not-found) | Progress bar diverifikasi tepat: PRJ-101 (`confirmed`) = 40%, PRJ-102 (`planning`) = 20%, PRJ-103 (`in-progress`) = 60% — dihitung ulang manual dan cocok persis dengan formula linear. Service/Task Summary breakdown counts diverifikasi cocok persis dengan fixture (mis. PRJ-102: Confirmed=1/Changed=1/Cancelled=1). Document count text ("1/2/3 dokumen tersimpan") cocok. Recent Activity menampilkan pesan change yang benar. |
-| Regresi tab lain (Itinerary & Services, Tasks, Finance) via `?tab=` query | **Tidak berubah**, konten identik dengan sebelum Section 10 | Dikonfirmasi lewat curl dengan query param `?tab=itinerary-services`, `?tab=tasks`, `?tab=finance` |
+| Smoke test konten (curl + grep, bukan hanya status code) | **Benar** untuk `/projects/PRJ-101` (normal, 6/6 dokumen lengkap), `/projects/PRJ-102` (high-change, 2/6 dokumen belum lengkap), `/projects/PRJ-103` (complex, 1/6 dokumen belum lengkap + rooming list + group filter) | Dua varian missing-document indicator diverifikasi tepat (paspor belum diisi vs paspor kurang 6 bulan berlaku saat keberangkatan). Rooming list menampilkan label kamar dan nama occupant yang benar. |
+| Regresi tab lain (Overview, Itinerary & Services, Finance) via `?tab=` query | **Tidak berubah**, konten identik dengan sebelum Section 11 | Dikonfirmasi lewat curl dengan query param `?tab=overview`, `?tab=itinerary-services`, `?tab=finance` |
 | `npx vitest run` | **"No test files found", exit code 1** | Pre-existing |
 | `npx nuxi typecheck` | **Gagal — `vue-tsc` tidak terpasang** | Q8 belum diselesaikan |
 | Lint | **Tidak tersedia** | Q8 belum diselesaikan |
-| Verifikasi interaktif filter/sort (klik dropdown, lihat hasil berubah) | **Tidak dilakukan** | Tidak ada tool browser headless; logic filter/sort diverifikasi lewat code review, bukan klik nyata |
+| Verifikasi interaktif (klik dialog tambah/edit/hapus, toggle filter, ganti role) | **Tidak dilakukan** | Tidak ada tool browser headless; logic diverifikasi lewat code review, pola identik CRUD Section 07/09 yang sudah teruji |
 
 **Known issues terbuka:**
-- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. **Enam section berturut-turut** (06–10) berjalan tanpa validasi otomatis penuh.
-- `ProjectsTable.vue` tetap tidak dipakai (keputusan didokumentasikan, bagian 5) — bukan bug.
-- Verifikasi interaktif filter/sort/dropdown tidak dilakukan langsung (keterbatasan tooling).
+- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. **Tujuh section berturut-turut** (06–11) berjalan tanpa validasi otomatis penuh.
+- CRUD `TravelerGroup` tidak diimplementasikan (keputusan didokumentasikan, bagian 5) — bukan bug.
+- `project.travelerCount` tidak disinkronkan otomatis dengan jumlah baris `Traveler` tercatat — dua konsep terpisah by design (headcount resmi vs profil tercatat bertahap).
+- Verifikasi interaktif tidak dilakukan langsung (keterbatasan tooling).
 - Q7, Q9, Q10, Q11 — tidak berubah.
 
 ## 7. Next Recommended Section
 
-Section 11 — Traveler and Participant (`prompts/13-PROMPT-11-TRAVELER-PARTICIPANT.md`). **Rekomendasi sangat kuat:** selesaikan Q8 sebelum Section 11 — enam section berturut-turut telah berjalan tanpa validasi otomatis. Tidak dieksekusi otomatis — menunggu perintah user.
+Section 12 — Itinerary and Operations (`prompts/14-PROMPT-12-ITINERARY-OPERATIONS.md`). **Rekomendasi sangat kuat:** selesaikan Q8 sebelum Section 12 — tujuh section berturut-turut telah berjalan tanpa validasi otomatis. Tidak dieksekusi otomatis — menunggu perintah user.
 
 ## 8. Last Updated
 
 - **Date:** 2026-07-30
-- **Updater:** Section 10 (Project Core) execution, berdasarkan pemeriksaan langsung codebase, build/smoke-test yang benar-benar dijalankan ulang.
+- **Updater:** Section 11 (Traveler and Participant) execution, berdasarkan pemeriksaan langsung codebase, build/smoke-test yang benar-benar dijalankan ulang.

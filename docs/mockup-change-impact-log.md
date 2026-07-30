@@ -168,4 +168,19 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 
 ---
 
+## CI-013 — `Traveler`/`TravelerGroup` Diperluas dan Dijadikan Reactive, Entitas Baru `RoomAssignment`
+
+- **Change ID / Tanggal:** CI-013 · 2026-07-30
+- **Triggering section:** Section 11 — Traveler and Participant.
+- **Previous section affected:** Section 05 — Foundation (pemilik `app/types/project.ts`, `app/data/projects.ts`, `app/data/index.ts`, `app/utils/attention.ts`, `app/constants/status.ts`).
+- **Alasan perubahan:** Scope Section 11 eksplisit meminta profil traveler (passport/travel document metadata, emergency contact), missing-document indicator, group dan rooming list, serta add/edit/remove/import mock — seluruhnya mutasi runtime dan field yang belum ada sejak Foundation. Mengikuti prinsip "extend, jangan duplikasi" yang sama seperti CI-004/CI-007/CI-010 (Party/Opportunity/Project menjadi reactive di section yang membutuhkan mutasinya).
+- **Files affected:** `app/types/project.ts` (`Traveler` +`passportNumber`/`passportExpiryDate`/`emergencyContactName`/`emergencyContactPhone`; `TravelerGroup` +`roomingNote`; +`RoomType`, +`RoomAssignment`), `app/data/projects.ts` (`TRAVELER_GROUPS`/`TRAVELERS` dibungkus `reactive()`, +`ROOM_ASSIGNMENTS`, fixture traveler diperluas dari 1 baris menjadi 18 baris representatif lintas PRJ-101/102/103), `app/data/index.ts` (+`getTravelersByGroup`, `+getRoomAssignments`, `+getTravelersMissingDocuments`, `+createTraveler`, `+updateTraveler`, `+removeTraveler`, `+importTravelersMock`), `app/utils/attention.ts` (+`PASSPORT_EXPIRY_WARNING_DAYS`, `+isTravelerDocumentMissing`), `app/constants/status.ts` (+`ROOM_TYPES`).
+- **Previous behavior:** `TRAVELERS`/`TRAVELER_GROUPS` array biasa (bukan `reactive()`), hanya 1 baris traveler total (`TRV-1031`, PRJ-103) merepresentasikan seluruh 3 skenario; tidak ada field dokumen/kontak darurat/rooming.
+- **New behavior:** Array yang sama, `reactive()` — method baca tetap identik untuk consumer existing (`getTravelerGroups`/`getTravelers` sudah dipakai tab Travelers sejak Section 05). Field baru bersifat opsional/aditif. Fixture traveler diperluas jadi sampel representatif per skenario (6 di PRJ-101, 6 di PRJ-102, 6 di PRJ-103) — **bukan** 1:1 dengan `project.travelerCount` (6/18/60), didokumentasikan transparan di komentar fixture dan UI tab Travelers (bukan gap tersembunyi, melanjutkan pola sampel `TRV-1031` sejak Foundation).
+- **Risk:** Rendah. Field baru opsional, tidak breaking untuk baris existing (`TRV-1031` diperkaya, bukan diganti/dihapus — id dan `specialRequest` wheelchair tetap sama). Consumer existing (`projects/[id]/index.vue` tab Travelers, sebelumnya baseline Foundation) adalah satu-satunya pemakai `TRAVELERS`/`TRAVELER_GROUPS`, dan justru diperbarui bersamaan pada section yang sama.
+- **Regression checks:** `npm run build` sukses; smoke test konten (curl + grep, bukan hanya status code) mengonfirmasi tab lain (`?tab=itinerary-services`, `?tab=finance`) pada PRJ-102/103 tidak berubah; Overview tab (Section 10) tidak disentuh sama sekali.
+- **Dokumentasi yang diperbarui:** `docs/mockup-data-scenarios.md` (bagian 4e baru), `docs/route-and-role-matrix.md` (bagian 0/1.3, baris Project Detail), `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-11-traveler-participant.md`.
+
+---
+
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*
