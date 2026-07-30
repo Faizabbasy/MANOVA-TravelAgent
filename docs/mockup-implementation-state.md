@@ -8,52 +8,46 @@ Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git stat
 
 ## 1. Current Phase dan Current Section
 
-- **Current phase:** Foundation + Dashboard + CRM Party + Opportunity/Quotation + Opportunity Won to Project selesai. Modul Project Core/Traveler/Itinerary/Vendor/Finance/Reports/Administration (Section 10 ke atas) **belum** dieksekusi.
-- **Current section:** Tidak ada section aktif — sistem menunggu perintah user untuk memulai Section 10 (Project Core).
-- **Last completed section:** **Section 09 — Opportunity Won to Project** (`prompts/11-PROMPT-9-OPPORTUNITY-WON-TO-PROJECT.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-09-opportunity-won-to-project.md`.
+- **Current phase:** Foundation + Dashboard + CRM Party + Opportunity/Quotation + Opportunity Won to Project + Project Core selesai. Modul Traveler/Itinerary/Vendor/Finance/Reports/Administration (Section 11 ke atas) **belum** dieksekusi.
+- **Current section:** Tidak ada section aktif — sistem menunggu perintah user untuk memulai Section 11 (Traveler and Participant).
+- **Last completed section:** **Section 10 — Project Core** (`prompts/12-PROMPT-10-PROJECT-CORE.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-10-project-core.md`.
+- Section 09 — Opportunity Won to Project: COMPLETED, detail `docs/mockup-section-reports/section-09-opportunity-won-to-project.md`.
 - Section 08 — Opportunity dan Quotation: COMPLETED, detail `docs/mockup-section-reports/section-08-opportunity-quotation.md`.
 - Section 07 — CRM Party: COMPLETED, detail `docs/mockup-section-reports/section-07-crm-party.md`.
 - Section 06 — Dashboard: COMPLETED, detail `docs/mockup-section-reports/section-06-dashboard.md`.
 - Section 05 — Foundation: COMPLETED, detail `docs/mockup-section-reports/section-05-foundation.md`.
 - Section 00–04: dokumentasi murni, COMPLETED, narasi `docs/mockup-progress.md` Entri 1–5.
 
-**Catatan commit:** Section 08 dan 09 belum di-commit oleh user pada saat dokumen ini ditulis (`git log` terakhir menunjuk "Create CRM PARTY" = Section 07) — working tree berisi perubahan Section 08+09 sekaligus. Ini tidak memengaruhi keakuratan dokumen ini (ditulis berdasarkan isi file aktual, bukan asumsi commit).
+**Catatan commit:** Section 08 dan 09 kini sudah ter-commit (`495b6d9 "Create opportunity-won-to-project"`). Section 10 belum ter-commit pada saat dokumen ini ditulis.
 
 ## 2. Route Inventory (Kondisi Aktual)
 
-Tidak ada route baru Section 09 (semua interaksi terjadi di `/crm/opportunities/[id]` yang sudah ada sejak Section 08, dan hasilnya muncul di `/projects`/`/projects/[id]` yang sudah ada sejak Section 05). Lihat `docs/route-and-role-matrix.md` untuk inventory lengkap — baris `/crm/opportunities/[id]` kini berstatus **selesai (Section 09)**.
+Tidak ada route baru Section 10. Baris yang statusnya berubah:
+
+| Route | Catatan Section 10 |
+|---|---|
+| `/projects` | **Selesai** — filter status/tipe/client/owner, sort (tanggal/nama/budget), progress bar linear per card, tetap card-grid (bukan table — lihat bagian 5) |
+| `/projects/[id]` | **Overview tab selesai** — ringkasan service/task/document/recent-activity ditambahkan. Tab lain (Itinerary & Services, Travelers, Vendors, Finance, Tasks, Documents, Activity & Changes) **tidak diubah**, tetap baseline Foundation, menyusul Section 11-15 |
 
 ## 3. Component Shared dan Domain yang Sudah Tersedia
 
-**Baru (Section 09):**
-- `app/composables/useToast.ts` — toast global (state singleton module-level, sama pola dengan `useCurrentUser`), diekstrak dari pola lokal `pages/expenses.vue` yang sejak Section 05 dicatat sebagai "akan direuse".
-- `app/components/shared/ToastContainer.vue` — visual overlay toast, dipasang sekali di `app/layouts/dashboard.vue`.
+Tidak ada shared component baru Section 10. `StatusBreakdownList` (Section 06) direuse untuk 2 ringkasan baru di Overview tab (Service Summary, Milestone/Task Summary) — pemakaian ketiga dan keempat setelah Dashboard dan `/crm/opportunities`.
 
-Tidak ada shared component lain yang diubah.
+`dashboard/ProjectsTable.vue` — **tetap tidak dipakai** (dicadangkan sejak Section 05, keputusan awal "disatukan dengan projects/index.vue" **tidak dijalankan** — lihat bagian 5 untuk alasan).
 
 ## 4. Types, Constants, Fixtures, Mock State, dan Role Behavior yang Aktif
 
-**Types:**
-- `app/types/project.ts` — **`Project` diperluas**: `+sourceQuotationId?` (docs bagian 2.2 checklist item 6, field yang disebut di checklist tapi belum ada di type sejak Foundation).
+Tidak ada perubahan type/constant/fixture Section 10 — murni peningkatan presentasi (filter/sort/progress/summary) di atas data yang sudah ada sejak Section 05/09. `Project.characteristic`, `Project.status`, `PROJECT_STATUSES.order` (dipakai untuk hitung progress linear) semuanya sudah ada, tidak diubah.
 
-**Fixtures (`app/data/`):**
-- **`projects.ts` — `PROJECTS` kini `reactive()`** (lanjutan pola Section 07/08) — Approve Won mendorong Project baru ke sini.
-- **`activity.ts` — `ACTIVITIES` kini `reactive()`** — Approve Won mencatat entri baru ke sini.
-- `opportunities.ts` — `OPP-005` dimajukan dari `negotiation` ke `won-requested` (seed, agar section ini demonstrable tanpa klik manual dulu lewat seluruh stage).
-- `index.ts` — **selector/mutator baru Section 09**: `getOpportunityMissingRequirements`, `approveOpportunityWon`, `rejectOpportunityWon`, konstanta `DEFAULT_PROJECT_OWNER_ID` (`USR-002`).
-
-**Mock state aktif:** `useToast()` — toast global baru. `canApprove('crm')` (dari `usePermissions()`, sudah ada sejak Section 05, **pertama kali benar-benar dipakai** di Section 09) — gerbang akses Approve/Reject Won (Management/Super Admin).
-
-**Role behavior aktif:** Approve/Reject Won memakai `canApprove('crm')` (module-level, generik — BUKAN pengecualian sempit seperti `canManageParty`/`canManageOpportunity`), karena di sini Management memang HARUS diikutsertakan (perannya sebagai approver final, docs D-025).
+**Role behavior:** Tidak berubah — `canView('project')` tetap gerbang akses yang sama sejak Section 05.
 
 ## 5. Area Hasil Section Lama yang Harus Dilindungi
 
 - Seluruh shared component, fixture, type, constant — jangan diubah shape-nya tanpa cross-section impact check.
-- `app/pages/projects/[id]/index.vue` (shell 8-tab, LOCKED) — **tidak disentuh Section 09**, tapi Project baru hasil konversi akan membuka shell ini apa adanya (tab lain masih placeholder sampai Section 10+).
-- **`approveOpportunityWon`/`rejectOpportunityWon` (`app/data/index.ts`) kini menjadi satu-satunya cara sah membuat Project dari Opportunity** — section berikutnya (Project Core dst.) tidak boleh membuat jalur pembuatan Project paralel; `pages/projects/create.vue` (wizard lama) tetap tidak ditautkan navigasi (deferred/excluded, D-018).
-- **`useToast`/`ToastContainer` kini shared infrastructure** — section berikutnya yang butuh feedback sukses/gagal harus memakai ini, bukan membuat sistem toast lokal baru (seperti `expenses.vue` lama).
-- `DEFAULT_PROJECT_OWNER_ID = 'USR-002'` — keputusan sementara (belum ada alur assignment PM manual); bila Section 10+ membangun assignment PM, pertimbangkan mengganti default ini dengan alur pemilihan nyata.
-- `Project.sourceQuotationId` — field baru, section finance (Section 15) kemungkinan akan memakainya untuk menautkan quotation asal ke breakdown budget.
+- `app/pages/projects/[id]/index.vue` — shell 8-tab, struktur tab/single-route LOCKED (D-026/D-027) — **tidak diubah** Section 10, hanya isi tab Overview yang ditambah.
+- **`approveOpportunityWon` (Section 09) tetap satu-satunya jalur pembuatan Project** — Section 10 tidak menambah jalur create-project baru, murni membaca/menampilkan `PROJECTS` yang sudah ada (termasuk hasil konversi Won bila sudah di-approve).
+- **Keputusan didokumentasikan (bukan gap tersembunyi):** rencana awal `docs/route-and-role-matrix.md` bagian 0/1.3 menyebut `pages/projects/index.vue` + `dashboard/ProjectsTable.vue` "disatukan jadi satu skema". Section 10 **tidak melakukan penyatuan ini** — card-grid existing (sejak Section 05, sudah battle-tested lewat Section 06-09 tanpa masalah) sudah memenuhi seluruh item scope literal Section 10 (search/filter/sort/status/type/client/destination/date/owner/progress/attention) tanpa perlu beralih ke paradigma table. `ProjectsTable.vue` tetap dicadangkan, tidak dihapus.
+- Tab Overview kini punya 5 SectionCard (Ringkasan Layanan, Service Summary, Milestone/Task Summary, Document Summary, Recent Activity) — section berikutnya yang mengisi tab lain (Travelers dst.) sebaiknya tidak menduplikasi ringkasan ini di Overview, cukup memperkaya tab masing-masing.
 
 ## 6. Known Issues dan Validation Status
 
@@ -61,26 +55,26 @@ Divalidasi ulang langsung pada tanggal update dokumen ini:
 
 | Cek | Hasil | Catatan |
 |---|---|---|
-| `npx nuxi prepare` | **Sukses** | Setelah penambahan type/fixture/composable/component baru |
+| `npx nuxi prepare` | **Sukses** | |
 | `npm run build` | **Sukses (exit 0)** | |
-| Smoke test route (curl, status + konten) | **HTTP 200 dan konten benar** untuk seluruh route regresi (`/`, `/projects`, `/crm/opportunities`, `/crm/opportunities/OPP-001`, `/crm/opportunities/OPP-005`, `/crm/opportunities/OPP-999`, `/crm/parties/PTY-001`, `/crm/parties/PTY-004`, `/crm/prospects`, `/crm/clients`) | `OPP-005` dikonfirmasi menampilkan badge "Won (Menunggu Approval)" dan tombol "Approve Won"/"Reject" untuk user default (Super Admin); `PTY-004` dikonfirmasi masih berstatus "Prospect" (belum di-approve); `/projects` dikonfirmasi masih 3 project (belum ada `PRJ-104`) — seluruhnya kondisi **sebelum** aksi Approve dijalankan |
+| Smoke test konten (curl + grep, bukan hanya status code) | **Benar** untuk `/projects`, `/projects/PRJ-101` (normal), `/projects/PRJ-102` (high-change), `/projects/PRJ-103` (complex), `/projects/PRJ-999` (not-found) | Progress bar diverifikasi tepat: PRJ-101 (`confirmed`) = 40%, PRJ-102 (`planning`) = 20%, PRJ-103 (`in-progress`) = 60% — dihitung ulang manual dan cocok persis dengan formula linear. Service/Task Summary breakdown counts diverifikasi cocok persis dengan fixture (mis. PRJ-102: Confirmed=1/Changed=1/Cancelled=1). Document count text ("1/2/3 dokumen tersimpan") cocok. Recent Activity menampilkan pesan change yang benar. |
+| Regresi tab lain (Itinerary & Services, Tasks, Finance) via `?tab=` query | **Tidak berubah**, konten identik dengan sebelum Section 10 | Dikonfirmasi lewat curl dengan query param `?tab=itinerary-services`, `?tab=tasks`, `?tab=finance` |
 | `npx vitest run` | **"No test files found", exit code 1** | Pre-existing |
 | `npx nuxi typecheck` | **Gagal — `vue-tsc` tidak terpasang** | Q8 belum diselesaikan |
 | Lint | **Tidak tersedia** | Q8 belum diselesaikan |
-| **Verifikasi fungsional end-to-end Approve Won (klik tombol → project tercipta → redirect)** | **Tidak dapat diverifikasi langsung** | Memerlukan interaksi client-side (klik, dialog, mutasi reaktif) — tidak ada tool browser headless di lingkungan ini. Diverifikasi lewat: (1) code review langsung terhadap `approveOpportunityWon` line-by-line terhadap checklist LOCKED bagian 2.2, (2) build sukses (compiler akan gagal pada type/binding salah), (3) konfirmasi kondisi *sebelum* aksi benar (lihat baris smoke test di atas) |
+| Verifikasi interaktif filter/sort (klik dropdown, lihat hasil berubah) | **Tidak dilakukan** | Tidak ada tool browser headless; logic filter/sort diverifikasi lewat code review, bukan klik nyata |
 
 **Known issues terbuka:**
-- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. **Lima section berturut-turut** (06, 07, 08, 09) berjalan tanpa validasi otomatis penuh. **Sangat direkomendasikan** diselesaikan sebelum Section 10 — semakin banyak business logic kritis (seperti Won-to-Project ini) yang berjalan tanpa jaring pengaman typecheck/test otomatis.
-- Verifikasi interaktif end-to-end Approve Won tidak dapat dilakukan langsung (keterbatasan tooling, lihat tabel di atas) — mitigasi lewat code review ketat.
-- Peringatan routing dari Section 08 (bagian 5, section-08 report) tetap berlaku untuk section mendatang.
-- Bug `handleDelete` di `app/pages/expenses.vue` — tidak tersentuh.
+- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. **Enam section berturut-turut** (06–10) berjalan tanpa validasi otomatis penuh.
+- `ProjectsTable.vue` tetap tidak dipakai (keputusan didokumentasikan, bagian 5) — bukan bug.
+- Verifikasi interaktif filter/sort/dropdown tidak dilakukan langsung (keterbatasan tooling).
 - Q7, Q9, Q10, Q11 — tidak berubah.
 
 ## 7. Next Recommended Section
 
-Section 10 — Project Core (`prompts/12-PROMPT-10-PROJECT-CORE.md`). **Rekomendasi sangat kuat:** selesaikan Q8 sebelum Section 10 — lima section berturut-turut telah menambah business logic tanpa validasi otomatis, dan Section 10 akan langsung bekerja di atas Project (termasuk Project hasil konversi Won yang baru dibangun mekanismenya). Tidak dieksekusi otomatis — menunggu perintah user.
+Section 11 — Traveler and Participant (`prompts/13-PROMPT-11-TRAVELER-PARTICIPANT.md`). **Rekomendasi sangat kuat:** selesaikan Q8 sebelum Section 11 — enam section berturut-turut telah berjalan tanpa validasi otomatis. Tidak dieksekusi otomatis — menunggu perintah user.
 
 ## 8. Last Updated
 
 - **Date:** 2026-07-30
-- **Updater:** Section 09 (Opportunity Won to Project) execution, berdasarkan pemeriksaan langsung codebase, build/smoke-test yang benar-benar dijalankan ulang.
+- **Updater:** Section 10 (Project Core) execution, berdasarkan pemeriksaan langsung codebase, build/smoke-test yang benar-benar dijalankan ulang.

@@ -14,6 +14,7 @@ import {
 import { formatCurrencyIdr, formatDateRange, formatDate, formatTravelerCount } from '~/utils/format'
 import { isProjectNeedingAttention, isUpcomingDeparture } from '~/utils/attention'
 import type { ProjectDetailTab } from '~/types/project'
+import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
@@ -66,6 +67,33 @@ const vendorsForProject = computed(() => {
 const needsAttention = computed(() => project.value
   ? isProjectNeedingAttention(project.value, { invoices: invoices.value, tasks: tasks.value, activities: activities.value })
   : false)
+
+/** Ringkasan Overview (Section 10) — breakdown/preview dari data tab lain, bukan detail penuh (hard rule: jangan
+ * kerjakan seluruh detail traveler/operations/vendor/finance di sini, tab masing-masing tetap sumber lengkapnya). */
+const serviceStatusSummary = computed<StatusBreakdownItem[]>(() => {
+  const byStatus = new Map<string, number>()
+  for (const service of services.value) byStatus.set(service.status, (byStatus.get(service.status) ?? 0) + 1)
+  return SERVICE_STATUSES
+    .filter(status => byStatus.has(status.value))
+    .sort((a, b) => a.order - b.order)
+    .map(status => ({ key: status.value, label: status.label, tone: status.tone, count: byStatus.get(status.value)! }))
+})
+
+const taskStatusSummary = computed<StatusBreakdownItem[]>(() => {
+  const byStatus = new Map<string, number>()
+  for (const task of tasks.value) byStatus.set(task.status, (byStatus.get(task.status) ?? 0) + 1)
+  return TASK_STATUSES
+    .filter(status => byStatus.has(status.value))
+    .sort((a, b) => a.order - b.order)
+    .map(status => ({ key: status.value, label: status.label, tone: status.tone, count: byStatus.get(status.value)! }))
+})
+
+const recentDocuments = computed(() => [...documents.value].sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)).slice(0, 3))
+const recentActivityPreview = computed(() => [...activities.value].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 3))
+
+function goToActivityTab() {
+  activeTab.value = 'activity-changes'
+}
 
 const summaryMetadata = computed(() => {
   if (!project.value) return []
@@ -128,24 +156,59 @@ const summaryMetadata = computed(() => {
         </TabsList>
 
         <TabsContent value="overview">
-          <SectionCard title="Ringkasan Layanan">
-            <div class="flex flex-wrap gap-2 mb-4">
-              <StatusBadge
-                v-for="type in SERVICE_TYPES.filter(t => project.serviceScope.includes(t.value))"
-                :key="type.value"
-                :label="type.label"
-                :tone="type.tone"
-              />
+          <div class="space-y-6">
+            <SectionCard title="Ringkasan Layanan">
+              <div class="flex flex-wrap gap-2 mb-4">
+                <StatusBadge
+                  v-for="type in SERVICE_TYPES.filter(t => project.serviceScope.includes(t.value))"
+                  :key="type.value"
+                  :label="type.label"
+                  :tone="type.tone"
+                />
+              </div>
+              <p class="text-sm text-muted-foreground mb-4">
+                Project ini berasal dari opportunity <NuxtLink v-if="project.opportunityId" to="/crm/opportunities" class="text-primary hover:underline">{{ project.opportunityId }}</NuxtLink><span v-else>—</span>.
+              </p>
+              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tim Project</p>
+              <div class="flex flex-wrap gap-2">
+                <StatusBadge :label="`Owner: ${owner?.name ?? '—'}`" tone="primary" />
+                <StatusBadge v-for="member in team" :key="member.id" :label="member.name" tone="neutral" />
+              </div>
+            </SectionCard>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <SectionCard title="Service Summary">
+                <StatusBreakdownList :items="serviceStatusSummary" empty-label="Belum ada layanan tercatat" />
+              </SectionCard>
+
+              <SectionCard title="Milestone / Task Summary">
+                <StatusBreakdownList :items="taskStatusSummary" empty-label="Belum ada task tercatat" />
+              </SectionCard>
+
+              <SectionCard title="Document Summary" :description="`${documents.length} dokumen tersimpan`">
+                <ul v-if="recentDocuments.length" class="divide-y divide-border">
+                  <li v-for="document in recentDocuments" :key="document.id" class="py-2 flex items-center justify-between gap-3">
+                    <span class="text-sm text-foreground truncate">{{ document.name }}</span>
+                    <span class="text-xs text-muted-foreground shrink-0">{{ formatDate(document.uploadedAt) }}</span>
+                  </li>
+                </ul>
+                <EmptyState v-else title="Belum ada dokumen diunggah" />
+              </SectionCard>
+
+              <SectionCard title="Recent Activity">
+                <template #actions>
+                  <Button v-if="activities.length > 0" size="sm" variant="outline" @click="goToActivityTab">Lihat Semua</Button>
+                </template>
+                <ul v-if="recentActivityPreview.length" class="divide-y divide-border">
+                  <li v-for="entry in recentActivityPreview" :key="entry.id" class="py-2">
+                    <p class="text-sm text-foreground">{{ entry.message }}</p>
+                    <p class="text-xs text-muted-foreground">{{ formatDate(entry.createdAt) }}</p>
+                  </li>
+                </ul>
+                <EmptyState v-else title="Belum ada aktivitas tercatat" />
+              </SectionCard>
             </div>
-            <p class="text-sm text-muted-foreground mb-4">
-              Project ini berasal dari opportunity <NuxtLink v-if="project.opportunityId" to="/crm/opportunities" class="text-primary hover:underline">{{ project.opportunityId }}</NuxtLink><span v-else>—</span>.
-            </p>
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tim Project</p>
-            <div class="flex flex-wrap gap-2">
-              <StatusBadge :label="`Owner: ${owner?.name ?? '—'}`" tone="primary" />
-              <StatusBadge v-for="member in team" :key="member.id" :label="member.name" tone="neutral" />
-            </div>
-          </SectionCard>
+          </div>
         </TabsContent>
 
         <TabsContent value="itinerary-services">

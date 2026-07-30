@@ -163,6 +163,23 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-010 (Project/Activity fixture jadi reactive + field baru, milik Section 05), CI-011 (toast diekstrak dari `expenses.vue`, milik Section 05/pre-existing template), CI-012 (OPP-005 dimajukan ke won-requested, milik Section 08).
 - **Next action:** Section 10 — Project Core. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 10. Menunggu perintah user — tidak dieksekusi otomatis.
 
+## Section 10 — Project Core
+
+- **Tanggal:** 2026-07-30
+- **Status:** COMPLETED
+- **Scope dan completed items:** Project list dengan search/filter (status, tipe, client, owner)/sort (tanggal, nama, budget); status/type/client/destination/travel date/owner/progress (bar linear berdasarkan urutan status)/attention seluruhnya tampil di card; Project Detail Overview tab diperkaya dengan Service Summary, Milestone/Task Summary, Document Summary, dan Recent Activity (reuse `StatusBreakdownList`); conditional section berdasarkan service (sudah alami dari data PROJECT_SERVICES); tiga skenario (Normal/High-Change/Complex) diverifikasi konsisten; loading/empty/not-found states dipertahankan/diperkaya.
+- **Files created:** Tidak ada.
+- **Files changed:** `app/pages/projects/index.vue` (filter/sort/progress ditambahkan), `app/pages/projects/[id]/index.vue` (Overview tab diperkaya, tab lain tidak diubah).
+- **Files removed:** Tidak ada.
+- **Routes affected:** `/projects`, `/projects/[id]` (tidak ada route baru).
+- **Components reused:** `StatusBreakdownList`, `SectionCard` (+`#actions`), `EmptyState`, `StatusBadge`, `AttentionIndicator`.
+- **Components created:** Tidak ada.
+- **Data/types/constants affected:** Tidak ada — murni presentasi di atas data existing.
+- **Validation results:** `nuxi prepare` + `npm run build` sukses. Smoke test konten (bukan hanya status code) memverifikasi progress bar (40%/20%/60% untuk PRJ-101/102/103, dihitung ulang manual dan cocok), breakdown Service/Task Summary cocok persis fixture, document count benar, regresi tab lain (`?tab=itinerary-services/tasks/finance`) tidak berubah. `vitest`/`typecheck`/lint tetap pre-existing gap (Q8). Verifikasi interaktif klik filter/dropdown tidak dilakukan (tidak ada browser headless).
+- **Known issues:** Q8 tetap terbuka (6 section berturut-turut); `ProjectsTable.vue` sengaja tidak disatukan (didokumentasikan, bukan gap tersembunyi — card-grid existing sudah memenuhi seluruh scope literal).
+- **Cross-section impact:** Tidak ada entri change-impact-log baru — Section 10 menyelesaikan kepemilikan yang memang didesain untuknya (Section 05 secara eksplisit men-defer isi Overview/filter list ke "phase later", bukan modifikasi tak terduga atas section lain).
+- **Next action:** Section 11 — Traveler and Participant. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 11. Menunggu perintah user — tidak dieksekusi otomatis.
+
 ---
 
-*(Belum ada entri Section 10 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*
+*(Belum ada entri Section 11 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*
