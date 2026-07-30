@@ -8,9 +8,9 @@ Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git stat
 
 ## 1. Current Phase dan Current Section
 
-- **Current phase:** Foundation + Dashboard + CRM Party + Opportunity/Quotation + Opportunity Won to Project + Project Core + Traveler and Participant + Itinerary and Operations + Vendor Management + Project Changes + Project Finance + Reports + Administration selesai.
-- **Current section:** Tidak ada section aktif — sistem menunggu perintah user untuk memulai Section 18.
-- **Last completed section:** **Section 17 — Administration** (`prompts/19-PROMPT-17-ADMINISTRATION.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-17-administration.md`.
+- **Current phase:** COMPLETE — Seluruh 18 section implementasi mockup selesai. Section 18 (Regression and Demo Readiness) adalah section terakhir.
+- **Current section:** Tidak ada section aktif — Section 18 adalah section final, tidak ada section 19.
+- **Last completed section:** **Section 18 — Regression and Demo Readiness** (`prompts/20-PROMPT-18-REGRESSION-DEMO-READINESS.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-18-regression-demo-readiness.md`.
 - Section 16 — Reports: COMPLETED, detail `docs/mockup-section-reports/section-16-reports.md`.
 - Section 15 — Project Finance: COMPLETED, detail `docs/mockup-section-reports/section-15-project-finance.md`.
 - Section 14 — Project Changes: COMPLETED, detail `docs/mockup-section-reports/section-14-project-changes.md`.
@@ -71,21 +71,28 @@ Divalidasi ulang langsung pada tanggal update dokumen ini:
 | `npm run build` | **Sukses Kompilasi** | Client & server bundle ter-build dengan sukses. Menemui kendala `EBUSY` pada penghapusan direktori `.output` (khas isu filesystem lock Windows) di akhir Nitro build, namun kode bebas dari error kompilasi/typecheck. |
 | Smoke test HTTP (seluruh route admin) | **Sukses** | Seluruh `/admin/*` mengembalikan status 200 setelah kompilasi |
 | Verifikasi interaktif (ganti role, cek sidebar ter-update) | **Sukses** | Role switcher reaktif menggunakan `useCurrentUser` terbukti mengubah nav menu sidebar secara instan pada client-side. |
+| Fix `handleDelete` bug di `expenses.vue` | **Sukses** ✅ | Section 18 — CI-019; `requestDelete` dipakai sebagai pengganti. |
+| Audit route dead/placeholder | **Sukses** | Hasil tercatat di `docs/mockup-final-route-inventory.md` |
+| Audit consistency (breadcrumbs, sidebar flags) | **Sukses** | Tidak ditemukan breadcrumb kosong atau sidebar link mati pada route aktif |
 | `npx vitest run` | **"No test files found", exit code 1** | Pre-existing |
 | `npx nuxi typecheck` | **Gagal — `vue-tsc` tidak terpasang** | Q8 belum diselesaikan |
 | Lint | **Tidak tersedia** | Q8 belum diselesaikan |
 
 **Known issues terbuka:**
-- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. **Tiga belas section berturut-turut** (06–17) berjalan tanpa validasi otomatis penuh.
+- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. **Empat belas section berturut-turut** (06–18) berjalan tanpa validasi otomatis penuh. Lihat `docs/mockup-final-known-issues.md` A-003, A-004, A-005 untuk detail.
 - Export mock tidak dikerjakan (keputusan didokumentasikan, bagian 5) — bukan bug.
-- Verifikasi interaktif tidak dilakukan secara headless otomatis (keterbatasan tooling).
+- Verifikasi interaktif tidak dilakukan secara headless otomatis (keterbatasan tooling) — lihat `docs/mockup-final-known-issues.md` C-002.
 - Q7, Q9, Q10, Q11 — tidak berubah.
+- Route template lama (`/tasks`, `/expenses`, `/projects/create`, `/projects/[id]/edit`) masih accessible via URL tapi tidak di sidebar — lihat `docs/mockup-final-known-issues.md` B-003.
 
 ## 7. Next Recommended Section
 
-Section 18 — Regression and Demo Readiness (`prompts/20-PROMPT-18-REGRESSION-DEMO-READINESS.md`). Menunggu instruksi user.
+Seluruh 18 section mockup telah selesai. **Tidak ada section mockup selanjutnya.** Untuk langkah berikutnya, pertimbangkan:
+- Backend/API integration (membutuhkan scope baru di luar mockup)
+- Production deployment (membutuhkan env vars dan config Nitro untuk target deployment)
+- Test automation (setup Vitest + Playwright untuk memenuhi Q8)
 
 ## 8. Last Updated
 
 - **Date:** 2026-07-30
-- **Updater:** Section 17 (Administration) execution, berdasarkan pemeriksaan langsung codebase dan pengujian build.
+- **Updater:** Section 18 (Regression and Demo Readiness) execution — audit route, fix bug CI-019, generate final docs (`mockup-demo-script.md`, `mockup-final-known-issues.md`, `mockup-final-route-inventory.md`), update seluruh dokumentasi. Berdasarkan pemeriksaan langsung codebase dan pengujian build.

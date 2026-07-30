@@ -262,4 +262,20 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 
 ---
 
+## CI-019 — Fix Bug `handleDelete` Tidak Terdefinisi di `expenses.vue`
+
+- **Change ID / Tanggal:** CI-019 · 2026-07-30
+- **Triggering section:** Section 18 — Regression and Demo Readiness.
+- **Previous section affected:** Section 01 — Template Audit (awal penemuan bug, dicatat di `docs/template-audit.md` bagian 1 poin 2); Section 05 — Foundation (pemilik halaman, sengaja tidak difix karena bukan scope Foundation).
+- **Alasan perubahan:** Bug `handleDelete` (fungsi tidak terdefinisi) ditemukan sejak audit awal Section 01 namun sengaja tidak diperbaiki selama 17 section karena `/expenses` bukan route aktif IA MANOVA. Section 18 (Regression and Demo Readiness) secara eksplisit menginstruksikan "perbaiki bug nyata" — dan ini adalah satu-satunya bug fungsional nyata yang tersisa (bukan desain).
+- **Files affected:** `app/pages/expenses.vue` (satu baris, line 941).
+- **Previous behavior:** Tombol "Delete" di modal detail expense memanggil `handleDelete(detailExpense)` → `ReferenceError: handleDelete is not defined` saat diklik.
+- **New behavior:** Tombol memanggil `requestDelete(detailExpense)` — fungsi yang sudah terdefinisi di baris 222, membuka dialog konfirmasi hapus, konsisten dengan tombol delete di baris tabel.
+- **Risk:** Sangat rendah — perubahan satu baris, hanya memengaruhi `/expenses` (route tidak aktif yang tidak terhubung dari sidebar MANOVA).
+- **Regression checks:** `nuxi prepare` sukses. Tidak ada consumer lain dari `handleDelete` di seluruh codebase (dikonfirmasi via grep).
+- **Dokumentasi yang diperbarui:** `docs/mockup-final-known-issues.md` (C-001 status: FIXED), `docs/mockup-section-reports/section-18-regression-demo-readiness.md`.
+
+---
+
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*
+

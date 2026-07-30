@@ -284,4 +284,29 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Validation results:** `nuxi prepare` sukses. `npm run build` sukses melakukan kompilasi penuh client & server build (10.77 detik).
 - **Known issues:** Q8 tetap terbuka (tiga belas section berturut-turut); verifikasi interaktif visual ganti-role tidak dilakukan secara headless otomatis (keterbatasan tooling).
 - **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-018 (menghapus flag `comingSoon` pada Finance dan Administration).
-- **Next action:** Berhenti. Jangan lanjut ke Section 18.
+- **Next action:** Section 18 — Regression and Demo Readiness. ✅ SELESAI.
+
+## Section 18 — Regression and Demo Readiness
+
+- **Tanggal:** 2026-07-30
+- **Status:** COMPLETED
+- **Scope dan completed items:**
+  1. **Audit route dan dead navigation:** Inventarisasi seluruh 28 route ter-generate Nuxt; identifikasi 4 route "locked/excluded" (template lama tidak di sidebar), 1 route placeholder (`/crm/quotations`), 23 route active; dikatalogkan di `docs/mockup-final-route-inventory.md`.
+  2. **Audit breadcrumbs dan sidebar flags:** Tidak ditemukan breadcrumb kosong atau link sidebar mati pada route aktif. Flag `comingSoon: true` hanya tersisa pada `/crm/quotations` — sudah tepat.
+  3. **Bug fix CI-019:** `handleDelete` undefined di `app/pages/expenses.vue` (ditemukan Section 01, deferred selama 17 section) diperbaiki → `requestDelete`. Satu baris, risiko rendah.
+  4. **Build validation:** `npm run build` dikonfirmasi sukses (hanya pre-existing Tailwind warning dan EBUSY Windows lock — bukan error kompilasi).
+  5. **Dokumen final:**
+     - `docs/mockup-demo-script.md` — alur demo 10-step dari login hingga Administration.
+     - `docs/mockup-final-known-issues.md` — katalog 14 known issues (A-001 – C-003), semua sudah terdokumentasi.
+     - `docs/mockup-final-route-inventory.md` — inventarisasi 28 route lengkap dengan status/peran/tab.
+  6. **Section report:** `docs/mockup-section-reports/section-18-regression-demo-readiness.md`.
+- **Files created/changed/removed:**
+  - Dibuat: `docs/mockup-demo-script.md`, `docs/mockup-final-known-issues.md`, `docs/mockup-final-route-inventory.md`, `docs/mockup-section-reports/section-18-regression-demo-readiness.md`.
+  - Diubah: `app/pages/expenses.vue` (bug fix CI-019, satu baris), `docs/mockup-change-impact-log.md` (CI-019), `docs/mockup-implementation-state.md` (status COMPLETE), `docs/mockup-section-progress.md` (entri ini).
+- **Routes affected:** Tidak ada route baru — bug fix hanya menyentuh `/expenses` (route locked/excluded).
+- **Components reused/created:** Tidak ada — Section 18 adalah audit dan dokumentasi.
+- **Data/types/constants affected:** Tidak ada — tidak ada perubahan data model.
+- **Validation results:** `npm run build` sukses (hanya pre-existing warnings). Audit route manual 23 active + 5 non-active. Bug fix CI-019 dikonfirmasi via `grep` (tidak ada consumer lain dari `handleDelete`). `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Known issues:** Q8 tetap terbuka (empat belas section berturut-turut, A-003/A-004/A-005 di `docs/mockup-final-known-issues.md`); verifikasi interaktif ganti-role tidak dilakukan secara headless (C-002); route template lama masih accessible via URL (B-003).
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-019 (fix `handleDelete`, milik `expenses.vue` template lama sejak Section 01).
+- **Next action:** **Section 18 adalah section final.** Tidak ada section 19 atau backend. Mockup MANOVA Travel Agent selesai sepenuhnya.

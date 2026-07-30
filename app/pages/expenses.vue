@@ -938,7 +938,7 @@ function handleDownload(expense: Expense) {
         <!-- Footer -->
         <div class="px-6 pb-6 flex items-center justify-between gap-3">
           <button
-            @click="handleDelete(detailExpense); isDetailOpen = false"
+            @click="requestDelete(detailExpense); isDetailOpen = false"
             class="flex items-center gap-2 px-3 py-2 text-sm rounded-lg text-destructive hover:bg-destructive/10 transition-colors font-medium"
           >
             <Trash2 class="h-4 w-4" />
