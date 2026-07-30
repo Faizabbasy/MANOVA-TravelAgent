@@ -236,6 +236,20 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-016 (ActivityEntry diperluas aditif, milik Section 05; `reviewed` Section 06 tidak diubah maknanya; integrasi Dashboard terjadi otomatis lewat selector existing tanpa perubahan kode Dashboard).
 - **Next action:** Section 15 — Project Finance. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 15. Menunggu perintah user — tidak dieksekusi otomatis.
 
+## Section 15 — Project Finance
+
+- **Tanggal:** 2026-07-30
+- **Status:** COMPLETED
+- **Scope dan completed items:** Membangun `/finance/invoices` dan `/finance/payments` (dari `ModulePlaceholder`) menjadi list/detail penuh dengan aging dan payment history; merestrukturisasi tab "Finance" Project Detail dengan Budget/Actual/Variance/Quotation/Committed Vendor Cost/Margin dan **visibilitas berbasis role** (Tier 0: Sales/Ops/subdomain hanya Quotation+Outstanding; Tier 1: PM/Finance/Management/SuperAdmin/Viewer full breakdown; Margin dikecualikan untuk PM). Tidak ada perubahan type/fixture — murni selektor turunan baru + tampilan.
+- **Files created/changed/removed:** Dibuat — `docs/mockup-section-reports/section-15-project-finance.md`. Diubah — `app/utils/attention.ts` (+`invoiceAgingDays`), `app/data/index.ts` (+`getInvoiceOutstandingIdr`/`getProjectOutstandingIdr`/`getCommittedVendorCostIdr`), `app/pages/finance/invoices.vue` (ditulis ulang dari placeholder), `app/pages/finance/payments.vue` (ditulis ulang dari placeholder), `app/pages/projects/[id]/index.vue` (tab Finance ditulis ulang, role-tiered).
+- **Routes affected:** Tidak ada route baru — `/finance/invoices`, `/finance/payments`, dan `/projects/[id]` (tab `finance`) diisi penuh.
+- **Components reused/created:** Reused — `StatsCard`, `Table*`, `SectionCard`, `Dialog*`, `DetailMetadataList`, `EmptyState`. Tidak ada komponen file baru.
+- **Data/types/constants affected:** Tidak ada — `Invoice`/`Payment` dipakai apa adanya, murni selektor turunan baru.
+- **Validation results:** `nuxi prepare` + `npm run build` sukses. Smoke test konten (curl+grep) mengonfirmasi aging invoice (28 & 9 hari overdue) presisi, dan Margin/Variance/Committed Vendor Cost/Outstanding untuk PRJ-101/102/103 seluruhnya cocok persis dengan `docs/mockup-data-scenarios.md` bagian 1.3/2.3/3.3 yang sudah ada sejak Prompt 4. Regresi Section 06/08/10/13/14 terverifikasi tidak berubah. `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Known issues:** Q8 tetap terbuka (sebelas section berturut-turut); tidak ada CRUD invoice/payment (di luar scope literal); verifikasi interaktif ganti-role tidak dilakukan (keterbatasan tooling).
+- **Cross-section impact:** Tidak ada entri change-impact-log baru — tidak ada data/type section lain yang diubah, hanya selektor turunan baru dan pengisian tab/route yang memang belum dikerjakan section manapun (dicatat sejak Section 10 sebagai "menyusul Section 15").
+- **Next action:** Section 16 — Reports. Rekomendasi sangat kuat: selesaikan Q8 sebelum Section 16. Menunggu perintah user — tidak dieksekusi otomatis.
+
 ---
 
-*(Belum ada entri Section 15 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*
+*(Belum ada entri Section 16 ke atas — belum dieksekusi pada saat dokumen ini ditulis.)*

@@ -35,6 +35,11 @@ export function isInvoiceOverdue(invoice: Invoice, referenceIso = DEMO_REFERENCE
   return invoice.status !== 'paid' && daysUntil(invoice.dueAt, referenceIso) < 0
 }
 
+/** Aging (Section 15) — negatif berarti sudah lewat jatuh tempo sekian hari, positif berarti masih tersisa sekian hari. */
+export function invoiceAgingDays(invoice: Invoice, referenceIso = DEMO_REFERENCE_DATE): number {
+  return daysUntil(invoice.dueAt, referenceIso)
+}
+
 export function isTaskOverdue(task: ProjectTask): boolean {
   return task.status === 'overdue'
 }

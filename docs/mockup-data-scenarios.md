@@ -324,6 +324,22 @@ Detail lengkap ada di `docs/mockup-change-impact-log.md` (CI-016) dan `docs/mock
 
 ---
 
+## 4i. Project Finance Detail (ditambahkan Section 15)
+
+Tidak ada fixture baru — Section 15 murni menambah **selektor turunan** (`getInvoiceOutstandingIdr`, `getProjectOutstandingIdr`, `getCommittedVendorCostIdr`) dan tampilan (`/finance/invoices`, `/finance/payments`, tab "Finance" Project Detail) di atas data `PROJECTS`/`INVOICES`/`PAYMENTS`/`VENDOR_QUOTATIONS` yang sudah ada sejak Foundation/Section 13. Nilai turunan berikut diverifikasi konsisten (hard rule "nilai konsisten lintas Opportunity, Quotation, Vendor, Project, Dashboard, Invoice, dan Payment") lewat smoke test langsung terhadap fixture:
+
+| Project | Margin (Quotation − Actual) | Variance (Budget − Actual) | Committed Vendor Cost (quotation `accepted`) | Outstanding |
+|---|---|---|---|---|
+| PRJ-101 | Rp12.500.000 (cocok bagian 1.3) | Rp2.500.000 | Rp90.000.000 (VQ-001) | Rp0 |
+| PRJ-102 | Rp10.000.000 (cocok bagian 2.3) | **-Rp25.000.000** (over budget) | Rp345.000.000 (VQ-002+VQ-003) | **Rp95.000.000** (cocok bagian 2.3) |
+| PRJ-103 | Rp220.000.000 (cocok bagian 3.3) | Rp70.000.000 | Rp930.000.000 (VQ-004+VQ-005+VQ-006) | **Rp700.000.000** (cocok bagian 3.3) |
+
+Committed Vendor Cost PRJ-103 (Rp930.000.000) sengaja lebih kecil dari Actual Cost (Rp1.180.000.000) — merefleksikan kondisi realistis bahwa sebagian actual cost sudah tercatat sebelum quotation vendor terkait (Transportation, `SVC-1034`, masih `pending-confirmation`, lihat Section 13 bagian 4g) resmi `accepted`, bukan inkonsistensi data.
+
+Detail lengkap ada di `docs/mockup-section-reports/section-15-project-finance.md`.
+
+---
+
 ## 5. Role-Restricted Finance View (bukan record baru, kondisi tampilan atas PRJ-103)
 
 Menggunakan **PRJ-103** sebagai subjek konkret untuk mendemonstrasikan Role & Access Matrix (`docs/route-and-role-matrix.md` bagian 5) pada tab "Finance":

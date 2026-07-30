@@ -8,7 +8,8 @@ import {
   getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation,
   getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, importTravelersMock,
-  getInvoicesByProject, getTasksByProject, getDocumentsByProject, getActivitiesByProject,
+  getInvoicesByProject, getPaymentsByInvoice, getInvoiceOutstandingIdr, getProjectOutstandingIdr, getCommittedVendorCostIdr,
+  getTasksByProject, getDocumentsByProject, getActivitiesByProject,
   createChangeEntry, approveChangeEntry, rejectChangeEntry,
 } from '~/data'
 import {
@@ -17,16 +18,17 @@ import {
   CHANGE_CATEGORIES, CHANGE_APPROVAL_STATUSES, findStatusOption,
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatTravelerCount } from '~/utils/format'
-import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing } from '~/utils/attention'
+import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, invoiceAgingDays } from '~/utils/attention'
 import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus } from '~/types/project'
 import type { ChangeCategory } from '~/types/activity'
+import type { Invoice } from '~/types/finance'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
-const { canView, canApprove } = usePermissions()
+const { canView, canApprove, canViewFinancials } = usePermissions()
 const { currentRole, currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
@@ -131,6 +133,35 @@ function handleServiceStatusChange(serviceId: string, event: Event) {
 const groups = computed(() => project.value ? getTravelerGroups(project.value.id) : [])
 const travelers = computed(() => project.value ? getTravelers(project.value.id) : [])
 const invoices = computed(() => project.value ? getInvoicesByProject(project.value.id) : [])
+
+/**
+ * Role-based financial visibility (Section 15, hard rule "User tanpa finance access tidak melihat nilai
+ * sensitif") — mengikuti `docs/mockup-data-scenarios.md` bagian 5 secara harfiah, seluruhnya reuse
+ * `usePermissions()` existing tanpa mekanisme role-check baru:
+ * - `canViewFinancials` (Super Admin/Management/Finance/PM/Viewer, `ROLE_MODULE_ACCESS.finance` VIEW+)
+ *   menggerbangi breakdown Budget/Actual/Committed/Variance/invoice+payment penuh (Tier 1).
+ * - Role di luar itu (Sales, Operations, Ticketing, Accommodation, Transportation, MICE — seluruhnya
+ *   `finance: NONE`) hanya melihat nilai Quotation dan Outstanding ringkas (Tier 0).
+ * - Margin dikecualikan khusus untuk Project Manager (docs bagian 5.1: "PM terbatas budget vs actual",
+ *   tidak termasuk Margin) — satu-satunya pengecualian sempit tambahan yang dibutuhkan.
+ */
+const canViewMargin = computed(() => canViewFinancials.value && currentRole.value !== 'project-manager')
+const projectOutstandingIdr = computed(() => project.value ? getProjectOutstandingIdr(project.value.id) : 0)
+const committedVendorCostIdr = computed(() => project.value ? getCommittedVendorCostIdr(project.value.id) : 0)
+const marginIdr = computed(() => project.value ? project.value.quotationAmountIdr - project.value.actualCostIdr : 0)
+const varianceIdr = computed(() => project.value ? project.value.budgetIdr - project.value.actualCostIdr : 0)
+
+function invoiceAgingLabel(invoice: Invoice) {
+  if (invoice.status === 'paid') return 'Lunas'
+  const days = invoiceAgingDays(invoice)
+  if (days < 0) return `${Math.abs(days)} hari overdue`
+  if (days === 0) return 'Jatuh tempo hari ini'
+  return `Jatuh tempo dalam ${days} hari`
+}
+
+function paymentsForInvoice(invoiceId: string) {
+  return getPaymentsByInvoice(invoiceId)
+}
 const tasks = computed(() => project.value ? getTasksByProject(project.value.id) : [])
 const documents = computed(() => project.value ? getDocumentsByProject(project.value.id) : [])
 const activities = computed(() => project.value ? getActivitiesByProject(project.value.id) : [])
@@ -797,37 +828,78 @@ const summaryMetadata = computed(() => {
         </TabsContent>
 
         <TabsContent value="finance">
-          <SectionCard title="Finance">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-              <StatsCard title="Budget" :value="formatCurrencyIdr(project.budgetIdr)" :icon="Wallet" />
-              <StatsCard title="Actual Cost" :value="formatCurrencyIdr(project.actualCostIdr)" :icon="Wallet" :icon-color="project.actualCostIdr > project.budgetIdr ? 'destructive' : 'success'" />
-              <StatsCard title="Nilai Quotation" :value="formatCurrencyIdr(project.quotationAmountIdr)" :icon="Wallet" icon-color="primary" />
-            </div>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Jumlah</TableHead>
-                  <TableHead>Jatuh Tempo</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="invoice in invoices" :key="invoice.id">
-                  <TableCell class="text-foreground">{{ invoice.label }}</TableCell>
-                  <TableCell>{{ formatCurrencyIdr(invoice.amountIdr) }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ formatDate(invoice.dueAt) }}</TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      :label="findStatusOption(INVOICE_STATUSES, invoice.status).label"
-                      :tone="findStatusOption(INVOICE_STATUSES, invoice.status).tone"
-                    />
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="invoices.length === 0" :colspan="4">Belum ada invoice.</TableEmpty>
-              </TableBody>
-            </Table>
-          </SectionCard>
+          <div class="space-y-6">
+            <template v-if="canViewFinancials">
+              <SectionCard title="Finance">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+                  <StatsCard title="Budget" :value="formatCurrencyIdr(project.budgetIdr)" :icon="Wallet" />
+                  <StatsCard title="Actual Cost" :value="formatCurrencyIdr(project.actualCostIdr)" :icon="Wallet" :icon-color="project.actualCostIdr > project.budgetIdr ? 'destructive' : 'success'" />
+                  <StatsCard title="Variance" :value="formatCurrencyIdr(varianceIdr)" :icon="Wallet" :icon-color="varianceIdr >= 0 ? 'success' : 'destructive'" />
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <StatsCard title="Nilai Quotation" :value="formatCurrencyIdr(project.quotationAmountIdr)" :icon="Wallet" icon-color="primary" />
+                  <StatsCard title="Committed Vendor Cost" :value="formatCurrencyIdr(committedVendorCostIdr)" :icon="Wallet" icon-color="warning" />
+                  <StatsCard v-if="canViewMargin" title="Margin" :value="formatCurrencyIdr(marginIdr)" :icon="Wallet" :icon-color="marginIdr >= 0 ? 'success' : 'destructive'" />
+                </div>
+              </SectionCard>
+
+              <SectionCard title="Invoice" :description="`Outstanding: ${formatCurrencyIdr(projectOutstandingIdr)}`">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Invoice</TableHead>
+                      <TableHead>Jumlah</TableHead>
+                      <TableHead>Jatuh Tempo</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Aging</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="invoice in invoices" :key="invoice.id">
+                      <TableCell class="text-foreground">{{ invoice.label }}</TableCell>
+                      <TableCell>{{ formatCurrencyIdr(invoice.amountIdr) }}</TableCell>
+                      <TableCell class="text-muted-foreground">{{ formatDate(invoice.dueAt) }}</TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          :label="findStatusOption(INVOICE_STATUSES, invoice.status).label"
+                          :tone="findStatusOption(INVOICE_STATUSES, invoice.status).tone"
+                        />
+                      </TableCell>
+                      <TableCell :class="isInvoiceOverdue(invoice) ? 'text-destructive' : 'text-muted-foreground'">{{ invoiceAgingLabel(invoice) }}</TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="invoices.length === 0" :colspan="5">Belum ada invoice.</TableEmpty>
+                  </TableBody>
+                </Table>
+              </SectionCard>
+
+              <SectionCard title="Riwayat Pembayaran">
+                <div v-if="invoices.some(invoice => paymentsForInvoice(invoice.id).length)" class="space-y-4">
+                  <template v-for="invoice in invoices" :key="invoice.id">
+                    <div v-if="paymentsForInvoice(invoice.id).length">
+                      <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{{ invoice.label }}</p>
+                      <ul class="divide-y divide-border">
+                        <li v-for="payment in paymentsForInvoice(invoice.id)" :key="payment.id" class="py-2 flex items-center justify-between gap-3">
+                          <span class="text-sm text-foreground">{{ formatCurrencyIdr(payment.amountIdr) }}</span>
+                          <span class="text-xs text-muted-foreground">{{ formatDate(payment.receivedAt) }}</span>
+                        </li>
+                      </ul>
+                    </div>
+                  </template>
+                </div>
+                <EmptyState v-else title="Belum ada payment tercatat" />
+              </SectionCard>
+            </template>
+
+            <template v-else>
+              <SectionCard title="Finance">
+                <p class="text-xs text-muted-foreground mb-4">Ringkasan terbatas — detail Budget, Actual Cost, Committed Vendor Cost, dan Margin hanya terlihat oleh role dengan akses modul Finance.</p>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <StatsCard title="Nilai Quotation" :value="formatCurrencyIdr(project.quotationAmountIdr)" :icon="Wallet" icon-color="primary" />
+                  <StatsCard title="Outstanding" :value="formatCurrencyIdr(projectOutstandingIdr)" :icon="Wallet" icon-color="warning" />
+                </div>
+              </SectionCard>
+            </template>
+          </div>
         </TabsContent>
 
         <TabsContent value="tasks">

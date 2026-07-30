@@ -66,6 +66,28 @@ export function getTravelersMissingDocuments(projectId: string) {
 export const getInvoicesByProject = (projectId: string) => INVOICES.filter(invoice => invoice.projectId === projectId)
 export const getPaymentsByInvoice = (invoiceId: string) => PAYMENTS.filter(payment => payment.invoiceId === invoiceId)
 
+/** Project Finance (Section 15) — sisa tagihan satu invoice (amount dikurangi payment yang sudah diterima). */
+export function getInvoiceOutstandingIdr(invoiceId: string): number {
+  const invoice = INVOICES.find(item => item.id === invoiceId)
+  if (!invoice) return 0
+  const paid = getPaymentsByInvoice(invoiceId).reduce((sum, payment) => sum + payment.amountIdr, 0)
+  return Math.max(invoice.amountIdr - paid, 0)
+}
+
+/** Total outstanding satu project — dipakai tampilan "ringkas" (Sales/role tanpa akses modul Finance) dan Finance tab penuh. */
+export function getProjectOutstandingIdr(projectId: string): number {
+  return getInvoicesByProject(projectId)
+    .filter(invoice => invoice.status !== 'paid')
+    .reduce((sum, invoice) => sum + getInvoiceOutstandingIdr(invoice.id), 0)
+}
+
+/** Committed vendor cost (Section 15) — total quotation vendor yang sudah `accepted` (Section 13), bukan data paralel dari `PROJECT_SERVICES`/`VENDOR_QUOTATIONS`. */
+export function getCommittedVendorCostIdr(projectId: string): number {
+  return VENDOR_QUOTATIONS
+    .filter(quotation => quotation.projectId === projectId && quotation.status === 'accepted')
+    .reduce((sum, quotation) => sum + quotation.amountIdr, 0)
+}
+
 export const getActivitiesByProject = (projectId: string) => ACTIVITIES.filter(activity => activity.projectId === projectId)
 export const getDocumentsByProject = (projectId: string) => DOCUMENTS.filter(document => document.projectId === projectId)
 export const getTasksByProject = (projectId: string) => TASKS.filter(task => task.projectId === projectId)
