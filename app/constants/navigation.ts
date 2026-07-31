@@ -10,6 +10,7 @@ import {
   Route,
   Activity,
   Truck,
+  Users,
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
 
@@ -106,4 +107,6 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Orders', to: '/supplier/orders', icon: Truck, moduleKey: 'supplier-portal' },
     ],
   },
+  /** Client Portal (Section 02) — External Partners, hanya `client` (dan Super Admin untuk oversight), pola identik Supplier Portal. Shell minimal (Section 02) — fitur penuh Section 08. */
+  { label: 'Client Portal', to: '/client', icon: Users, moduleKey: 'client-portal' },
 ]

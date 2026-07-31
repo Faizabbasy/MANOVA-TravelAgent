@@ -44,6 +44,16 @@ Perubahan yang terjadi **setelah** seluruh 18 section COMPLETED memakai skema `c
 | 2026-07-30 | Prompt 19 — Customer Journey, Account Executive, Supplier, Commercial Approval | [`change-customer-journey-ae-supplier.md`](./change-customer-journey-ae-supplier.md) | COMPLETED |
 | 2026-07-31 | Prompt 20 — Sales Qualification to Account Executive Opportunity Flow | [`change-sales-qualification-ae-opportunity.md`](./change-sales-qualification-ae-opportunity.md) | COMPLETED |
 
+## Roadmap Section 00–24 (skema baru, berdampingan dengan skema di atas)
+
+Sejak 2026-08-01, `prompts/01-PROTOKOL-WAJIB.md` versi "FRONTEND-ONLY CONTINUATION" memperkenalkan roadmap Section 00–24 baru (D-057, `docs/mockup-design-decisions.md` Kelompok K) — **bukan pengganti** skema Prompt 0–20 di atas, melainkan lapisan lanjutan. Laporannya memakai skema nama yang sama `section-NN-<slug>.md` tapi merujuk section yang berbeda (mis. `section-00-current-progress-reconciliation.md` di sini BUKAN Section 00–04 dokumentasi murni skema lama). Pembaca harus memeriksa tanggal dan judul untuk membedakan.
+
+| Section | Nama | File | Status |
+|---|---|---|---|
+| 00 | Current Progress Reconciliation | [`section-00-current-progress-reconciliation.md`](./section-00-current-progress-reconciliation.md) | COMPLETED |
+| 01 | Frontend Foundation dan State Governance | [`section-01-frontend-foundation-state-governance.md`](./section-01-frontend-foundation-state-governance.md) | COMPLETED |
+| 02 | Role, Access dan Navigation | [`section-02-role-access-navigation.md`](./section-02-role-access-navigation.md) | COMPLETED |
+
 ## Isi Minimum Setiap Laporan
 
 Sesuai protokol bagian A: section objective dan scope, source documents yang dibaca, existing implementation yang diperiksa, decisions yang digunakan, implementation summary dan user flow, routes, files created/changed/removed, components reused/created, types/constants/fixtures/mock state, responsive behavior, states (loading/empty/error/not-found/unauthorized), role behavior, validation commands dan hasilnya, regression checks, cross-section impact, review URLs, known issues dan deferred work, protection notes untuk section berikutnya, recommended next section.

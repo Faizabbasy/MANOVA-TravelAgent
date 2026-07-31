@@ -352,3 +352,71 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Known issues:** Q8 tetap terbuka (tidak berubah). Payment terms/margin-cost summary sengaja tidak digerbangi hard-block pada Requirement Gate (D-055, kondisional tanpa mekanisme konfigurasi eksplisit). Verifikasi interaktif (isi form Qualification/Requirement Detail secara live, klik Mark as Won) tidak dilakukan headless — keterbatasan tooling konsisten sejak Section 06, dimitigasi lewat code review ketat terhadap seluruh gate baru dan smoke test SSR konten.
 - **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-027 (Mark as Won satu-langkah, menyentuh Section 09), CI-028 (label `won-requested`, menyentuh Section 05/Foundation), CI-029 (teks `admin/roles.vue`, menyentuh Section 17).
 - **Next action:** Tidak ada section/change baku selanjutnya — menunggu perintah user.
+
+---
+
+## [Skema Roadmap Baru Section 00–24] Section 00 — Current Progress Reconciliation
+
+Mulai dari entri ini, section memakai **skema penomoran baru** (D-057, `docs/mockup-design-decisions.md` Kelompok K) — "Section 00" di sini BUKAN Section 00–04 dokumentasi murni skema lama (lihat catatan di `docs/mockup-section-reports/README.md`), melainkan section pertama roadmap `prompts/01-PROTOKOL-WAJIB.md` versi "FRONTEND-ONLY CONTINUATION".
+
+- **Tanggal:** 2026-08-01
+- **Status:** COMPLETED
+- **Scope dan completed items:** Audit progres frontend terhadap roadmap Section 00–24 baru (`prompts/Section 00 — Current Progress Reconciliation.md`, dijalankan via `prompts/99-RUN-CURRENT-SECTION.md`). Inventaris route/pages/data/types/roles aktual; klasifikasi COMPLETED/PARTIAL/NOT_STARTED per Section 00–24; pencocokan terhadap 9 area kunci (Sales qualification, AE quotation, Management approval, Customer Journey, Client, Supplier, Project Order, Activity Center, Lead Source Recap); penyusunan dependency order dan daftar fitur yang harus dilindungi. Tidak ada perubahan application code (audit-only, sesuai batasan "Jangan mengubah application code kecuali memperbaiki broken import/build blocker yang jelas" — tidak ditemukan blocker).
+- **Files created/changed/removed:**
+  - Dibuat: `docs/frontend-module-map.md`, `docs/frontend-workflow-map.md`, `docs/frontend-implementation-roadmap.md`, `docs/frontend-known-issues.md`, `docs/mockup-section-reports/section-00-current-progress-reconciliation.md` (laporan ini).
+  - Diubah: `docs/mockup-implementation-state.md` (bagian 0 baru + update bagian 1/7/8), `docs/mockup-design-decisions.md` (+D-057), `docs/mockup-open-questions.md` (+Q13–Q16), `docs/mockup-progress.md` (+Entri 9), `docs/mockup-section-progress.md` (entri ini).
+  - Dihapus: Tidak ada.
+- **Routes affected:** Tidak ada — audit-only.
+- **Components reused/created:** Tidak ada — audit-only.
+- **Data/types/constants affected:** Tidak ada — audit-only.
+- **Validation results:** `npx nuxi prepare` sukses. `npm run build` sukses (tanpa perubahan kode apa pun, membuktikan tidak ada blocker tersisa dari Prompt 0–20).
+- **Known issues:** 4 open question baru (Q13–Q16, `docs/mockup-open-questions.md`) dan daftar gap lengkap per section di `docs/frontend-known-issues.md` — seluruhnya `NEEDS_VALIDATION`/`KNOWN_GAP`/`NOT_STARTED`, bukan bug pada hasil Prompt 0–20 (yang tetap COMPLETED apa adanya).
+- **Cross-section impact:** Tidak ada perubahan pada hasil section/prompt manapun dari skema lama — murni dokumentasi pemetaan baru di atasnya.
+- **Next action:** Section 01 (Frontend Foundation dan State Governance) direkomendasikan berbasis dependency (`docs/frontend-implementation-roadmap.md`) — menunggu perintah eksplisit user, tidak dieksekusi otomatis.
+
+---
+
+## [Skema Roadmap Baru Section 00–24] Section 01 — Frontend Foundation dan State Governance
+
+- **Tanggal:** 2026-08-01
+- **Status:** COMPLETED
+- **Scope dan completed items:** Lengkapi gap foundation frontend yang ditemukan Section 00 (`prompts/Section 01 — Frontend Foundation dan State Governance.md`, dijalankan via `prompts/99-RUN-CURRENT-SECTION.md`). Audit konfirmasi: domain types/status constants terpusat, centralized stores per domain, stable ID scheme, mock persistence (`localStorage`), format currency/date, activity generator/transition helper, permission/data-scope helper (`usePermissions`), dan shared UI kit (`PageHeader`/`SectionCard`/`Sheet`/`Table*`/`StatusBadge`/`EmptyState`/`ErrorState`/`LoadingState`/`RoleAccessState`/`Dialog*`/`Tabs*`) **sudah COMPLETED** sejak Foundation lama (Prompt 5) — tidak diubah/diulang (sesuai instruksi eksplisit "Jangan mengganti foundation existing yang sudah sehat"). Satu gap konkret ditemukan dan ditutup: **state reset / seed scenario** belum ada — diimplementasikan `app/utils/mock-reset.ts` (snapshot+restore) dan `app/plugins/mock-reset.client.ts` (capture snapshot client-only saat app dimuat), diekspos lewat tombol "Reset Demo Data" di `/settings`. "Mock repository/service layer agar pages tidak membaca fixture langsung" diklarifikasi TERPENUHI oleh `app/data/index.ts` existing (single barrel module, tidak ada halaman dengan fixture terduplikasi) — didokumentasikan sebagai D-058, bukan dibangun lapisan paralel baru (menghindari premature abstraction/dead code).
+- **Files created/changed/removed:**
+  - Dibuat: `app/utils/mock-reset.ts`, `app/plugins/mock-reset.client.ts`, `docs/mockup-section-reports/section-01-frontend-foundation-state-governance.md` (laporan ini).
+  - Diubah: `app/pages/settings.vue` (+SectionCard "Mock Data Management", tombol "Reset Demo Data"), `docs/mockup-design-decisions.md` (+D-058), `docs/frontend-module-map.md`, `docs/frontend-implementation-roadmap.md`, `docs/frontend-known-issues.md`, `docs/mockup-implementation-state.md`, `docs/mockup-progress.md`, `docs/mockup-section-progress.md` (entri ini).
+  - Dihapus: Tidak ada.
+- **Routes affected:** `/settings` (section baru). Tidak ada route baru.
+- **Components reused/created:** Reused — `SectionCard`/`Dialog*`/`Button`/`useToast`. Tidak ada shared component baru (existing sudah lengkap, dikonfirmasi via audit).
+- **Data/types/constants affected:** Tidak ada perubahan type/entitas. `app/utils/mock-reset.ts` membaca seluruh reactive array terpusat existing (`LEADS`, `OPPORTUNITIES`, `QUOTATIONS`, `PARTIES`, `CONTACTS`, `PARTY_ACTIVITIES`, `PROJECTS`, `PROJECT_SERVICES`, `TRAVELER_GROUPS`, `TRAVELERS`, `ROOM_ASSIGNMENTS`, `ITINERARY_ITEMS`, `VENDORS`, `VENDOR_CONTACTS`, `VENDOR_QUOTATIONS`, `VENDOR_ACTIVITIES`, `VENDOR_PRODUCTS`, `INVOICES`, `PAYMENTS`, `ACTIVITIES`, `DOCUMENTS`, `TASKS`, `LEAD_ACTIVITIES`) tanpa memodifikasi shape-nya.
+- **Validation results:** `npx nuxi prepare` sukses. `npm run build` sukses (chunk `settings-*` bertambah, `precomputed.mjs` bertambah ~2kB dari plugin baru). Smoke test HTTP 11 route representatif (termasuk `/settings`) — seluruhnya HTTP 200, tidak ada string error di HTML. `npx vitest run` — "No test files found" (pre-existing, Q8, tidak berubah).
+- **Known issues:** Tidak ada known issue baru dari perubahan ini. Q8 tetap terbuka (tidak berubah). Gap Section 02–24 lainnya tetap seperti dicatat `docs/frontend-known-issues.md` (di luar scope Section 01).
+- **Cross-section impact:** Tidak ada — perubahan murni aditif (file baru + 1 section baru di halaman Settings), tidak menyentuh hasil section/prompt manapun dari skema lama maupun Section 00.
+- **Next action:** Section 02 (Role, Access dan Navigation) direkomendasikan berbasis dependency (`docs/frontend-implementation-roadmap.md`) — menunggu perintah eksplisit user.
+
+---
+
+## [Skema Roadmap Baru Section 00–24] Section 02 — Role, Access dan Navigation
+
+- **Tanggal:** 2026-08-01
+- **Status:** COMPLETED
+- **Scope dan completed items:** Finalisasi role dan navigation frontend (`prompts/Section 02 — Role, Access dan Navigation.md`, dijalankan via `prompts/99-RUN-CURRENT-SECTION.md`).
+  1. **Role final 16** — `RoleId` +`product-planner`/+`procurement`/+`client` (D-059), mengikuti pola D-046.
+  2. **`client-portal` module** — `ModuleKey` baru (pola identik `supplier-portal`), `User.clientPartyId`, `usePermissions().clientScopeId`.
+  3. **Client Portal shell minimal** — route baru `/client`: profil company + list Opportunity + list Project Order, ter-isolasi per `clientPartyId`, TANPA nilai komersial (larangan eksplisit protokol). Fitur bisnis penuh tetap Section 08.
+  4. **Procurement** — `vendor: MANAGE` (owner fungsional direktori Vendor, mengaktifkan "Tambah Vendor" yang sebelumnya hanya Super Admin).
+  5. **Product Planner** — VIEW read-only ke `crm`/`project`/`vendor`/`reports` sebagai placeholder sampai Section 10.
+  6. **Demo user baru** — `USR-017` (Product Planner), `USR-018` (Procurement), `USR-019`/`USR-020` (Client, masing-masing `PTY-001`/`PTY-002` — mendemokan isolasi "Client A tidak melihat Client B").
+  7. **Matrix View dilengkapi** — `/admin/roles` (dikonfirmasi SUDAH literal grid ModuleKey x Role sejak Section 17 lama, Wajib Section 02 terpenuhi tanpa dibangun baru) diperluas 6→8 kolom (+`supplier-portal`/+`client-portal`, gap pre-existing sejak Prompt 19), `ROLE_NOTES` +5 entri yang sebelumnya terlewat.
+  8. **Dashboard tidak kosong** — ditemukan dan ditutup dalam section yang sama: 3 role baru sebelumnya tidak punya widget Dashboard sama sekali (bug regresi UX bila dibiarkan) — ditambahkan 3 `SectionCard` welcome/redirect bersyarat (CI-030).
+  9. **Route guards** — dikonfirmasi pola existing (`RoleAccessState` + `canView(...)` per halaman, middleware `auth` untuk login-gate) sudah memadai, diterapkan konsisten ke `/client` baru.
+- **Files created/changed/removed:**
+  - Dibuat: `app/pages/client/index.vue`, `docs/mockup-section-reports/section-02-role-access-navigation.md` (laporan ini).
+  - Diubah: `app/types/user.ts`, `app/constants/roles.ts`, `app/composables/usePermissions.ts`, `app/data/users.ts`, `app/constants/navigation.ts`, `app/pages/admin/roles.vue`, `app/pages/index.vue` (Dashboard), `docs/mockup-design-decisions.md` (+D-059), `docs/mockup-open-questions.md` (Q13 RESOLVED), `docs/mockup-change-impact-log.md` (+CI-030/CI-031), `docs/frontend-module-map.md`, `docs/frontend-implementation-roadmap.md`, `docs/frontend-known-issues.md`, `docs/mockup-implementation-state.md`, `docs/mockup-progress.md`, `docs/mockup-section-progress.md` (entri ini), `docs/mockup-section-reports/README.md`.
+  - Dihapus: Tidak ada.
+- **Routes affected:** `/client` (baru). `/` (Dashboard, +3 widget bersyarat). `/admin/roles` (+2 kolom, +5 catatan role). `/settings` tidak berubah (role switcher generik, otomatis menampilkan 4 user baru).
+- **Components reused/created:** Reused — `PageHeader`/`SectionCard`/`RoleAccessState`/`StatsCard`/`DetailMetadataList`/`StatusBadge`/`EmptyState`. Tidak ada shared component baru.
+- **Data/types/constants affected:** `RoleId` 13→16, `ModuleKey`+1, `User.clientPartyId` (field baru), `ROLE_MODULE_ACCESS` +3 baris +1 kolom, `ROLES` +3 entri, 4 `USER` baru (`USR-017`–`USR-020`). Tidak ada entitas existing yang diubah shape-nya secara breaking.
+- **Validation results:** `npx nuxi prepare` sukses. `npm run build` sukses (chunk `client-*` baru ter-compile). Smoke test HTTP 30 route (baru+existing) — seluruhnya HTTP 200. Smoke test konten: `/client` (default Super Admin) menampilkan `RoleAccessState` "Anda tidak memiliki akses" (isolasi bekerja, tidak bocor data company manapun); `/admin/roles` menampilkan label "Client Portal"/"Supplier Portal"/"Product Planner"/"Procurement"; `/admin/users` otomatis merefleksikan 4 user baru tanpa perubahan kode (mengonfirmasi desain reaktif existing generic, konsisten temuan Prompt 19). `npx vitest run` — "No test files found" (pre-existing, Q8).
+- **Known issues:** Q13 RESOLVED. Sisa fitur bisnis penuh Client Portal (Section 08), RFQ/Service Order Procurement (Section 17), modul Product Planning (Section 10) tetap tanggung jawab section masing-masing (dicatat `docs/frontend-known-issues.md`). Verifikasi interaktif ganti-role/isolasi antar-Client tidak dilakukan headless (keterbatasan tooling konsisten).
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-030 (Dashboard, menyentuh Section 06 lama), CI-031 (Matrix View, menyentuh Section 17 lama) — keduanya perbaikan aditif murni, regression-tested.
+- **Next action:** Section 03 (Public Lead Intake) direkomendasikan berbasis dependency (`docs/frontend-implementation-roadmap.md`) — menunggu perintah eksplisit user.

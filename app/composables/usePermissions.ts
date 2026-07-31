@@ -31,5 +31,8 @@ export function usePermissions() {
   /** Vendor isolation (Prompt 19) — `vendorId` milik user login bila role `supplier`, else `undefined`. Dipakai `/supplier/*` untuk membatasi seluruh query ke satu vendor company saja. */
   const vendorScopeId = computed(() => (currentRole.value === 'supplier' ? currentUser.value.vendorId : undefined))
 
-  return { accessLevel, canView, canManage, canApprove, canViewFinancials, vendorScopeId }
+  /** Client isolation (Section 02) — pola identik `vendorScopeId`. `clientPartyId` milik user login bila role `client`, else `undefined`. Dipakai `/client/*` untuk membatasi seluruh query ke satu company (`Party`) saja. */
+  const clientScopeId = computed(() => (currentRole.value === 'client' ? currentUser.value.clientPartyId : undefined))
+
+  return { accessLevel, canView, canManage, canApprove, canViewFinancials, vendorScopeId, clientScopeId }
 }

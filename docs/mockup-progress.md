@@ -124,3 +124,39 @@ Log kronologis progres pengerjaan mockup MANOVA di atas template Nuxt 4 existing
 - **Decisions:** D-053 s/d D-056 dicatat di `docs/mockup-design-decisions.md` Kelompok J.
 - **Open issues:** Q8 tetap terbuka. Lihat laporan perubahan bagian Known Issues untuk daftar lengkap.
 - **Next recommended prompt:** Tidak ada section/change baku selanjutnya — menunggu perintah user.
+
+## Entri 9 — Section 00 (Roadmap Baru): Current Progress Reconciliation
+
+- **Date:** 2026-08-01
+- **Phase:** Section 00 (`prompts/Section 00 — Current Progress Reconciliation.md`) — section pertama roadmap Section 00–24 baru (`prompts/01-PROTOKOL-WAJIB.md` versi "FRONTEND-ONLY CONTINUATION", D-057), berjalan berdampingan (bukan menggantikan) hasil Prompt 0–20 di atas.
+- **Status:** Selesai.
+- **Completed:** Audit menyeluruh kondisi codebase (route/pages/data/types/roles) terhadap 25 section roadmap baru. Hasil: sebagian besar fondasi CRM/Customer Journey/Supplier/Activity Center/Lead Source Recap/Project Finance dari Prompt 0–20 sudah relevan sebagai basis Section 01–09/17/20/22 (status PARTIAL — memenuhi sebagian besar "Wajib" tapi belum seluruhnya), sementara Section 03 (Public Lead Intake), Section 08 (Client Portal), Section 10 (Product Planning dan Costing), dan Section 18 (Booking dan Service Orders) berstatus NOT_STARTED sepenuhnya. Detail lengkap: `docs/mockup-section-reports/section-00-current-progress-reconciliation.md`, `docs/frontend-module-map.md`, `docs/frontend-workflow-map.md`, `docs/frontend-implementation-roadmap.md`, `docs/frontend-known-issues.md`.
+- **Files changed:** 4 dokumen baru (`docs/frontend-*.md`) + update `docs/mockup-implementation-state.md`/`docs/mockup-design-decisions.md`/`docs/mockup-open-questions.md`/`docs/mockup-section-progress.md`. Tidak ada application code yang diubah.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses tanpa perubahan kode — mengonfirmasi tidak ada broken import/build blocker yang perlu diperbaiki di awal roadmap baru.
+- **Decisions:** D-057 (`docs/mockup-design-decisions.md` Kelompok K) — roadmap Section 00–24 sebagai lapisan baru di atas Prompt 0–20, bukan restart.
+- **Open issues:** Q13–Q16 baru (role Client/Product Planner/Procurement belum ada; approval queue dan client confirmation belum ada; public lead intake belum ada; taksonomi status Project Order baru perlu keputusan desain) — lihat `docs/mockup-open-questions.md` bagian 4a.
+- **Next recommended prompt:** Section 01 (Frontend Foundation dan State Governance), berbasis dependency — menunggu perintah user.
+
+## Entri 10 — Section 01 (Roadmap Baru): Frontend Foundation dan State Governance
+
+- **Date:** 2026-08-01
+- **Phase:** Section 01 (`prompts/Section 01 — Frontend Foundation dan State Governance.md`) — section kedua roadmap Section 00–24 baru, dijalankan langsung setelah Section 00.
+- **Status:** Selesai.
+- **Completed:** Audit mengonfirmasi seluruh item Wajib Section 01 sudah COMPLETED sejak Foundation lama (Prompt 5) KECUALI satu: "state reset, seed scenario" — ditutup dengan `app/utils/mock-reset.ts` + `app/plugins/mock-reset.client.ts` + tombol "Reset Demo Data" (`/settings`). Item "mock repository/service layer" diklarifikasi sudah terpenuhi fungsinya oleh `app/data/index.ts` existing (barrel module tunggal, tidak ada fixture terduplikasi per halaman) — didokumentasikan sebagai D-058 (bukan dibangun lapisan baru, untuk menghindari abstraksi tanpa consumer/dead code dan refactor besar berisiko ke 30+ halaman yang sudah berfungsi baik). Detail lengkap: `docs/mockup-section-reports/section-01-frontend-foundation-state-governance.md`.
+- **Files changed:** 2 file baru (`app/utils/mock-reset.ts`, `app/plugins/mock-reset.client.ts`), 1 halaman diubah aditif (`app/pages/settings.vue`), dokumentasi terkait.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test 11 route representatif HTTP 200 tanpa error; `vitest` tetap pre-existing gap (Q8).
+- **Decisions:** D-058 (`docs/mockup-design-decisions.md`) — repository layer existing dipertahankan, tidak dibangun paralel baru.
+- **Open issues:** Tidak ada baru dari Section 01. Q13–Q16 (dari Section 00) tetap terbuka, menunggu section pemiliknya.
+- **Next recommended prompt:** Section 02 (Role, Access dan Navigation), berbasis dependency — menunggu perintah user.
+
+## Entri 11 — Section 02 (Roadmap Baru): Role, Access dan Navigation
+
+- **Date:** 2026-08-01
+- **Phase:** Section 02 (`prompts/Section 02 — Role, Access dan Navigation.md`) — section ketiga roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Role final roadmap baru lengkap 16 role (+Product Planner, +Procurement, +Client — D-059). Modul `client-portal` + shell `/client` minimal (isolasi per company, tanpa nilai komersial). Procurement mendapat `vendor: MANAGE`. Matrix View (`/admin/roles`, sudah ada sejak lama) dilengkapi 2 kolom + 5 catatan role yang terlewat sejak Prompt 19. Ditemukan dan ditutup dalam section yang sama: Dashboard kosong untuk 3 role baru (CI-030). Detail lengkap: `docs/mockup-section-reports/section-02-role-access-navigation.md`.
+- **Files changed:** 1 file baru (`app/pages/client/index.vue`), 6 file diubah aditif (`types/user.ts`, `constants/roles.ts`, `composables/usePermissions.ts`, `data/users.ts`, `constants/navigation.ts`, `pages/admin/roles.vue`, `pages/index.vue`), dokumentasi terkait.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test 30 route HTTP 200; `vitest` tetap pre-existing gap (Q8).
+- **Decisions:** D-059 (`docs/mockup-design-decisions.md`) — role/module baru + Client Portal shell minimal, fitur penuh tetap Section 08.
+- **Open issues:** Q13 RESOLVED. Q14–Q16 (Section 06/09) tetap terbuka.
+- **Next recommended prompt:** Section 03 (Public Lead Intake), berbasis dependency — menunggu perintah user.

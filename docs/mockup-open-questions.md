@@ -72,6 +72,46 @@ Status dokumen: **direstrukturisasi di Prompt 4** sesuai Prompt 4 bagian F. Bagi
 
 ---
 
+## 4a. Ditemukan Section 00 — Current Progress Reconciliation (roadmap baru Section 00–24)
+
+Section 00 (`prompts/Section 00 — Current Progress Reconciliation.md`, dijalankan 2026-08-01 lewat `prompts/99-RUN-CURRENT-SECTION.md`) memperkenalkan roadmap Section 00–24 baru (`prompts/01-PROTOKOL-WAJIB.md` versi terbaru, role final: Super Admin, Management, Sales, Account Executive, Product Planner/Travel Consultant, Project Manager, Operations, Ticketing, Accommodation, Transportation, MICE, Procurement/Vendor Management, Finance, Viewer/Auditor, Client, Supplier). Audit ini menemukan gap konkret berikut, dicatat sebagai open question baru (bukan dikerjakan sekarang — di luar scope Section 00 yang murni audit):
+
+### Q13 — 3 Role Baru Belum Ada di `RoleId` (Client, Product Planner, Procurement)
+- **Category:** Data Model / Role
+- **Blocking:** ~~Blocking sebelum Section 08/10/17~~ — **RESOLVED di Section 02** (2026-08-01, D-059, `docs/mockup-design-decisions.md`).
+- **Impact:** `app/types/user.ts` (`RoleId`) kini 16 nilai, memuat `client`/`product-planner`/`procurement`. Sisa pekerjaan (fitur penuh Client Portal, Product Planning module, RFQ/Procurement workflow) tetap milik Section 08/10/17 masing-masing — hanya role/permission/nav/shell minimal yang diselesaikan Section 02.
+- **Recommendation:** Tidak berlaku lagi — sudah dikerjakan.
+- **Owner:** Tidak diketahui.
+- **Status:** `RESOLVED` (Section 02).
+
+### Q14 — Dedicated Management Approval Queue Belum Ada
+- **Category:** UX / Information Architecture
+- **Blocking:** **Blocking sebelum Section 06 (Management Approval, Won dan Client Activation)** dianggap selesai penuh.
+- **Impact:** Commercial Approval (submit/approve/reject Quotation) saat ini hanya dapat diakses per-Opportunity dari `/crm/opportunities/[id]` — tidak ada halaman agregat "Approval Queue" yang menampilkan seluruh quotation menunggu approval lintas Opportunity untuk Management. Client confirmation (gerbang tambahan sebelum Mark as Won per Section 06) juga belum ada representasinya di data model maupun UI.
+- **Recommendation:** Section 06 menambahkan halaman/queue baru + field/aktivitas "client confirmation" pada `Opportunity` atau `Quotation` (field aditif, ikuti pola D-049/D-055).
+- **Owner:** Tidak diketahui.
+- **Status:** `NEEDS_VALIDATION`.
+
+### Q15 — Public Lead Intake Belum Ada
+- **Category:** Scope Boundary
+- **Blocking:** **Blocking sebelum Section 03 (Public Lead Intake)**.
+- **Impact:** Seluruh Lead saat ini dibuat oleh Sales lewat dialog "New Lead" di dalam dashboard yang sudah ter-autentikasi (`/customer-journey/leads`) — tidak ada form publik tanpa login dengan consent/UTM/duplicate-suggestion seperti diminta Section 03.
+- **Recommendation:** Section 03 menambahkan route publik baru (di luar layout `dashboard`/`middleware: auth`) yang menulis ke `LEADS` centralized state yang sama (bukan dataset paralel).
+- **Owner:** Tidak diketahui.
+- **Status:** `NEEDS_VALIDATION`.
+
+### Q16 — Taksonomi Status Project Order Baru vs `ProjectStatus` Existing
+- **Category:** Data Model / Business Rule
+- **Blocking:** **Blocking sebelum Section 09 (Project Order dan Handover)** — perlu keputusan desain eksplisit (LOCKED) sebelum diimplementasikan, mengikuti pola D-049/D-055 (aditif/dirivasi) alih-alih merestrukturisasi.
+- **Impact:** Section 09 meminta status Project Order: Created, Handover Pending, Planning, Confirmed, Ready, In Progress, Completed, Closed, On Hold, Cancelled — berbeda dari `ProjectStatus` existing (`draft`/`planning`/`confirmed`/`in-progress`/`ongoing-trip`/`completed`/`on-hold`/`cancelled`, D-028 LOCKED, dipakai luas Section 08–18/Prompt 19). Tidak ada mekanisme "AE-to-PM handover accept/return" saat ini — Project langsung dibuat dengan PM default (`DEFAULT_PROJECT_OWNER_ID`) tanpa langkah accept eksplisit.
+- **Recommendation:** Evaluasi opsi sama seperti D-053/D-056 (Prompt 20): derivasi status tampilan baru dari kombinasi `ProjectStatus` + field handover baru, TANPA merestrukturisasi `ProjectStatus` yang sudah LOCKED dan dipakai luas — dikerjakan saat Section 09 dimulai, bukan Section 00.
+- **Owner:** Tidak diketahui.
+- **Status:** `NEEDS_VALIDATION`.
+
+Detail temuan lengkap: `docs/mockup-section-reports/section-00-current-progress-reconciliation.md`, `docs/frontend-known-issues.md`.
+
+---
+
 ## 5. Arsip — Pertanyaan yang Sudah Diresolusi (Prompt 2 → Prompt 3)
 
 Dipertahankan sebagai jejak historis (tidak dihapus), tidak lagi dianggap "open" — detail keputusan lengkap ada di `docs/mockup-design-decisions.md`.

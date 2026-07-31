@@ -6,12 +6,24 @@ Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git stat
 
 ---
 
+## 0. Skema Penomoran Ganda (Dibaca Dulu Sebelum Bagian 1)
+
+Sejak 2026-08-01 ada **dua skema section berdampingan** (D-057, `docs/mockup-design-decisions.md` Kelompok K) — jangan tertukar:
+- **Skema lama (Prompt 0–20):** Section 00–18 + Prompt 19/20, seluruhnya **COMPLETED**, dijalankan dari `prompts/00-README.md` s/d `prompts/22-PROMPT-20-...md`. Tetap source of truth historis, tidak ditulis ulang.
+- **Skema baru (Section 00–24):** roadmap lebih luas dari `prompts/01-PROTOKOL-WAJIB.md` versi "FRONTEND-ONLY CONTINUATION" + `prompts/Section 0N — *.md`/`prompts/SECTION_NN_*.md`. **Section 00–02 sudah dijalankan** (2026-08-01) — lihat `docs/frontend-module-map.md`, `docs/frontend-workflow-map.md`, `docs/frontend-implementation-roadmap.md`, `docs/frontend-known-issues.md`, dan `docs/mockup-section-reports/section-00-current-progress-reconciliation.md`/`section-01-frontend-foundation-state-governance.md`/`section-02-role-access-navigation.md`.
+
+Bagian 1–8 di bawah ini tetap merujuk skema lama (Prompt 0–20) apa adanya — belum ditulis ulang mengikuti skema baru, karena Section 00 murni audit (tidak mengubah kode).
+
 ## 1. Current Phase dan Current Section
 
-- **Current phase:** Seluruh 18 section mockup baku (Section 00–18) **COMPLETED**, ditambah **Prompt 19 — Change Request (Customer Journey, Account Executive, Supplier, Commercial Approval)** (2026-07-30) dan **Prompt 20 — Change Request (Sales Qualification to Account Executive Opportunity Flow)** (2026-07-31), keduanya COMPLETED.
-- **Current section/change:** Tidak ada yang aktif — menunggu perintah user untuk section/change berikutnya.
-- **Last completed:** **Prompt 20 — Change Request** (`prompts/22-PROMPT-20-Change-Request-Sales-Qualification-to-AE-OpportunityF.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/change-sales-qualification-ae-opportunity.md`.
-- Prompt 19 — Change Request: COMPLETED, detail `docs/mockup-section-reports/change-customer-journey-ae-supplier.md`.
+- **Current phase (skema lama):** Seluruh 18 section mockup baku (Section 00–18) **COMPLETED**, ditambah **Prompt 19 — Change Request (Customer Journey, Account Executive, Supplier, Commercial Approval)** (2026-07-30) dan **Prompt 20 — Change Request (Sales Qualification to Account Executive Opportunity Flow)** (2026-07-31), keduanya COMPLETED.
+- **Current phase (skema baru):** Section 00 (Current Progress Reconciliation), Section 01 (Frontend Foundation dan State Governance), dan Section 02 (Role, Access dan Navigation) **COMPLETED** (2026-08-01). Section 03–24 belum dimulai — lihat `docs/frontend-implementation-roadmap.md` untuk status awal per section.
+- **Current section/change:** Tidak ada yang aktif — menunggu perintah user untuk section/change berikutnya (skema mana pun).
+- **Last completed:** **Section 02 — Role, Access dan Navigation** (skema baru), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-02-role-access-navigation.md`.
+- Section 01 — Frontend Foundation dan State Governance (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-01-frontend-foundation-state-governance.md`.
+- Section 00 — Current Progress Reconciliation (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-00-current-progress-reconciliation.md`.
+- Prompt 20 — Change Request (skema lama): COMPLETED, detail `docs/mockup-section-reports/change-sales-qualification-ae-opportunity.md`.
+- Prompt 19 — Change Request (skema lama): COMPLETED, detail `docs/mockup-section-reports/change-customer-journey-ae-supplier.md`.
 - Section 18 — Regression and Demo Readiness: COMPLETED, detail `docs/mockup-section-reports/section-18-regression-demo-readiness.md`.
 - Section 17 — Administration: COMPLETED, detail `docs/mockup-section-reports/section-17-administration.md`.
 - Section 16 — Reports: COMPLETED, detail `docs/mockup-section-reports/section-16-reports.md`.
@@ -46,6 +58,14 @@ Baris baru/berubah Prompt 19 (Change Request) — route Section 05–18 tidak di
 | `/crm/parties/[id]`, `/crm/prospects` | `canManageParty` diperluas menambahkan `account-executive` (Sales tetap ada). |
 | `/reports` | `showSalesPipeline` diperluas menambahkan `account-executive`. |
 | `/` (Dashboard) | Widget Opportunity Pipeline/Quotations Pending diperluas untuk `account-executive`; widget baru "Supplier Portal" (welcome card) untuk role `supplier` — mencegah Dashboard kosong untuk 2 role baru. |
+
+## 2b. Foundation Baru (Section 01, Skema Roadmap Baru)
+
+`app/utils/mock-reset.ts` (snapshot + restore seed) dan `app/plugins/mock-reset.client.ts` (capture snapshot saat app dimuat, client-only) — dipakai tombol "Reset Demo Data" di `/settings`. Lihat D-058 (`docs/mockup-design-decisions.md`) dan `docs/mockup-section-reports/section-01-frontend-foundation-state-governance.md`.
+
+## 2c. Role dan Akses Baru (Section 02, Skema Roadmap Baru)
+
+`RoleId` 13→16 (+`product-planner`/`procurement`/`client`), `ModuleKey`+`client-portal`, `User.clientPartyId`, `usePermissions().clientScopeId`, route baru `/client` (shell minimal), Dashboard +3 widget welcome role baru, Matrix View `/admin/roles` diperluas 6→8 kolom. Lihat D-059 (`docs/mockup-design-decisions.md`) dan `docs/mockup-section-reports/section-02-role-access-navigation.md`.
 
 ## 3. Component Shared dan Domain yang Sudah Tersedia
 
@@ -108,9 +128,9 @@ Divalidasi ulang langsung pada tanggal update dokumen ini (Prompt 20):
 
 ## 7. Next Recommended Section
 
-Tidak ada section/change baku selanjutnya. Untuk langkah berikutnya, pertimbangkan: menyelesaikan Q8 (tooling lint/typecheck/test), backend/API integration, atau perubahan/permintaan baru dari user.
+Skema lama (Prompt 0–20): tidak ada section/change baku selanjutnya. Skema baru (Section 00–24): Section 03 (Public Lead Intake) direkomendasikan sebagai kandidat berikutnya berbasis dependency (lihat `docs/frontend-implementation-roadmap.md`), tapi menunggu perintah eksplisit user.
 
 ## 8. Last Updated
 
-- **Date:** 2026-07-31
-- **Updater:** Prompt 20 (Change Request — Sales Qualification to Account Executive Opportunity Flow) execution, berdasarkan pemeriksaan langsung codebase, build/smoke-test yang benar-benar dijalankan ulang.
+- **Date:** 2026-08-01
+- **Updater:** Section 02 (Role, Access dan Navigation, skema roadmap Section 00–24 baru) execution — role final 16 (+`product-planner`/`procurement`/`client`), `client-portal` module + `/client` shell, Matrix View dilengkapi, Dashboard +3 widget welcome role baru. `npx nuxi prepare` + `npm run build` diverifikasi sukses.

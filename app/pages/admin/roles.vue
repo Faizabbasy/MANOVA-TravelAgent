@@ -14,6 +14,8 @@ const modules: { key: ModuleKey; label: string; description: string }[] = [
   { key: 'finance', label: 'Finance', description: 'Invoice, Payment, Budget' },
   { key: 'reports', label: 'Reports', description: 'Laporan agregasi' },
   { key: 'administration', label: 'Admin', description: 'User, Role, Master Data' },
+  { key: 'supplier-portal', label: 'Supplier Portal', description: 'Portal vendor eksternal (ter-isolasi)' },
+  { key: 'client-portal', label: 'Client Portal', description: 'Portal client eksternal (ter-isolasi)' },
 ]
 
 const PERMISSION_META: Record<PermissionLevel, { tone: string; description: string }> = {
@@ -30,17 +32,22 @@ function permTone(level: PermissionLevel) {
 
 // Catatan per-role yang lebih detail (sesuai docs/route-and-role-matrix.md bagian 5)
 const ROLE_NOTES: Partial<Record<string, string>> = {
-  'super-admin': 'Akses penuh ke seluruh modul tanpa pengecualian.',
+  'super-admin': 'Akses penuh ke seluruh modul tanpa pengecualian. Bukan commercial approver normal (approval harian tetap milik Management).',
   management: 'Approve/reject Commercial Approval Quotation, dan perubahan besar/cancel project. Tidak bisa manage user.',
+  'account-executive': 'Kelola Opportunity/Requirement/Quotation sampai Won. Submit Quotation untuk Commercial Approval, Mark as Won setelah disetujui Management.',
   sales: 'Kelola Lead (screening, qualification, assign ke Account Executive). Hanya lihat Opportunity hasil handover secara terbatas.',
+  'product-planner': 'Lihat Opportunity/Project/Vendor sebagai referensi costing. Belum ada modul dedicated (Section 10).',
   'project-manager': 'Manage seluruh tab project. Hanya lihat budget vs actual project miliknya.',
   operations: 'Manage tab Itinerary & Services (koordinasi umum). Tidak ada akses CRM/Finance.',
   ticketing: 'Manage sub-section Flight di Itinerary & Services. Tidak ada akses CRM/Finance.',
   accommodation: 'Manage sub-section Hotel di Itinerary & Services.',
   transportation: 'Manage sub-section Transportation di Itinerary & Services.',
   mice: 'Manage sub-section MICE di Itinerary & Services.',
+  procurement: 'Manage direktori Vendor (satu-satunya role non-Super-Admin yang dapat menambah vendor). Tidak ada akses CRM/Finance.',
   finance: 'Manage Invoice & Payment. Lihat Finance tab project. Tidak ada akses CRM write.',
   viewer: 'Akses baca ke seluruh modul. Tidak ada aksi tulis. Hanya lihat Audit Trail di Administration.',
+  client: 'External — hanya akses Client Portal, ter-isolasi ke company sendiri. Tidak melihat internal cost/margin atau company lain.',
+  supplier: 'External — hanya akses Supplier Portal, ter-isolasi ke vendor company sendiri. Tidak melihat vendor lain.',
 }
 
 // Legend

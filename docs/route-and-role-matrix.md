@@ -391,6 +391,8 @@ Level akses: `NONE` < `VIEW` < `MANAGE` < `APPROVE` < `ADMIN` (`ADMIN` mencakup 
 - **Activity Center** BUKAN bagian modul `administration` (kolom terpisah) — narrow `roles: ['super-admin']` di nav dan page-level guard, meski Management/Viewer punya `administration` VIEW+ untuk `/admin/audit-trail`.
 - **Supplier Portal** adalah `ModuleKey` baru (`supplier-portal`, D-048) — independen dari kolom Vendor (yang tetap berarti direktori vendor internal, TIDAK diberikan ke role Supplier).
 
+**Catatan implementasi Section 02 (roadmap Section 00–24 baru, 2026-08-01 — aditif, tabel di atas tidak diubah nilainya):** 3 role baru ditambahkan (D-059, `docs/mockup-design-decisions.md`) — **Product Planner / Travel Consultant** (`VIEW` di CRM/Project/Vendor/Reports, belum ada modul dedicated sampai Section 10), **Procurement / Vendor Management** (`MANAGE` di Vendor — satu-satunya role non-Super-Admin dengan akses tulis direktori vendor, mendahului Section 17), **Client** (`NONE` di seluruh modul internal, `MANAGE` di kolom baru **Client Portal** — `ModuleKey` `client-portal`, mekanisme identik Supplier Portal di atas, ter-isolasi per `clientPartyId`/`Party`, D-050). Detail lengkap: `docs/frontend-module-map.md`, `docs/mockup-section-reports/section-02-role-access-navigation.md`.
+
 ### 5.1 Action Flag Khusus (per instruksi Prompt 3-H)
 
 | Action | Role yang punya akses |

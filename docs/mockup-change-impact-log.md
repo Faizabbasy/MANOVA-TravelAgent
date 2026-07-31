@@ -407,6 +407,32 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 - **Regression checks:** `npm run build` sukses; smoke test `/admin/roles` tetap HTTP 200.
 - **Dokumentasi yang diperbarui:** Tidak ada dokumen lain yang mereferensikan teks ini secara langsung.
 
+## CI-030 — Dashboard (`/`) Mendapat 3 Widget Welcome Baru untuk Role Baru (Client/Procurement/Product Planner)
+
+- **Change ID / Tanggal:** CI-030 · 2026-08-01
+- **Triggering section:** Section 02 — Role, Access dan Navigation (roadmap Section 00–24 baru).
+- **Previous section affected:** Section 06 lama — Dashboard (pemilik `app/pages/index.vue`).
+- **Alasan perubahan:** Section 02 menambah 3 role baru (`client`/`procurement`/`product-planner`, D-059). Audit menemukan seluruh widget Dashboard existing memakai daftar `visibleTo(...)` eksplisit yang tidak menyertakan role baru manapun — tanpa perbaikan, ketiga role akan melihat Dashboard kosong total (regresi UX, bukan sekadar "belum lengkap").
+- **Files affected:** `app/pages/index.vue` (+3 `computed` visibility, +3 `SectionCard` welcome/redirect bersyarat — pola identik `showSupplierWelcome`/Prompt 19, murni aditif).
+- **Previous behavior:** Dashboard hanya punya widget welcome untuk Supplier; role lain di luar daftar `visibleTo` manapun akan melihat halaman kosong.
+- **New behavior:** Client melihat card "Client Portal" (link `/client`), Procurement melihat card "Vendor Management" (link `/vendors`), Product Planner melihat card "Referensi Costing" (link `/crm/opportunities`) — seluruhnya bersyarat, tidak memengaruhi widget role lain manapun.
+- **Risk:** Sangat rendah — 3 blok `SectionCard` baru bersyarat ditambahkan, 0 baris existing diubah/dihapus.
+- **Regression checks:** `npm run build` sukses; smoke test `/` tetap HTTP 200 tanpa error string; struktur widget 16 role lama tidak disentuh (diverifikasi via diff — hanya baris baru yang ditambahkan).
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-059, `docs/mockup-implementation-state.md`.
+
+## CI-031 — Matrix Role × Modul (`/admin/roles`) Dilengkapi Kolom dan Catatan yang Sebelumnya Terlewat
+
+- **Change ID / Tanggal:** CI-031 · 2026-08-01
+- **Triggering section:** Section 02 — Role, Access dan Navigation.
+- **Previous section affected:** Section 17 lama — Administration (pemilik `app/pages/admin/roles.vue`).
+- **Alasan perubahan:** Audit Section 02 menemukan `modules` (daftar kolom matrix) belum pernah diperbarui sejak `supplier-portal` ditambahkan Prompt 19 (kolom tsb tidak pernah tampil di Matrix View meski ada di `ROLE_MODULE_ACCESS`) — gap dokumentasi pre-existing, bukan regresi baru. `ROLE_NOTES` juga belum pernah diisi untuk `account-executive`/`supplier` (Prompt 19).
+- **Files affected:** `app/pages/admin/roles.vue` (`modules` +`supplier-portal`+`client-portal`; `ROLE_NOTES` +5 entri: `account-executive`, `product-planner`, `procurement`, `client`, `supplier`).
+- **Previous behavior:** Matrix hanya menampilkan 6 kolom (crm/project/vendor/finance/reports/administration); `supplier-portal` tidak terlihat sama sekali di Matrix View meski sudah jadi bagian `ROLE_MODULE_ACCESS` sejak Prompt 19.
+- **New behavior:** Matrix menampilkan 8 kolom lengkap; seluruh 16 role kini punya catatan singkat di kolom pertama.
+- **Risk:** Sangat rendah — penambahan data statis (array literal), tidak ada logic yang diubah.
+- **Regression checks:** `npm run build` sukses; smoke test `/admin/roles` tetap HTTP 200, konten "Supplier Portal"/"Client Portal"/"Product Planner"/"Procurement" dikonfirmasi tampil via curl.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-059.
+
 ---
 
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*

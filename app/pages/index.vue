@@ -267,6 +267,10 @@ const showMyTasks = visibleTo('project-manager')
 const showMyChanges = visibleTo('project-manager')
 const showAdminSummary = visibleTo('super-admin')
 const showSupplierWelcome = visibleTo('supplier')
+/** Section 02 — mencegah Dashboard kosong untuk 3 role baru (pola sama seperti AE/Supplier, Prompt 19). */
+const showClientWelcome = visibleTo('client')
+const showProcurementWelcome = visibleTo('procurement')
+const showProductPlannerWelcome = visibleTo('product-planner')
 </script>
 
 <template>
@@ -338,6 +342,29 @@ const showSupplierWelcome = visibleTo('supplier')
           Gunakan Supplier Portal untuk melihat company, produk/layanan, dan assignment/quotation milik Anda sendiri.
         </p>
         <NuxtLink to="/supplier"><Button size="sm">Buka Supplier Portal</Button></NuxtLink>
+      </SectionCard>
+
+      <SectionCard v-if="showClientWelcome" title="Client Portal">
+        <p class="text-sm text-muted-foreground mb-3">
+          Dashboard lintas-domain ini menampilkan data internal MANOVA (project/CRM) yang tidak relevan untuk role Client.
+          Gunakan Client Portal untuk melihat profil company, Opportunity, dan Project Order milik Anda sendiri.
+        </p>
+        <NuxtLink to="/client"><Button size="sm">Buka Client Portal</Button></NuxtLink>
+      </SectionCard>
+
+      <SectionCard v-if="showProcurementWelcome" title="Vendor Management">
+        <p class="text-sm text-muted-foreground mb-3">
+          Kelola direktori Vendor — tambah vendor baru, lihat penugasan aktif, dan katalog produk/layanan per vendor.
+        </p>
+        <NuxtLink to="/vendors"><Button size="sm">Buka Vendors</Button></NuxtLink>
+      </SectionCard>
+
+      <SectionCard v-if="showProductPlannerWelcome" title="Referensi Costing">
+        <p class="text-sm text-muted-foreground mb-3">
+          Modul Product Planning dan Costing dedicated belum tersedia (Section 10). Sementara itu, lihat Opportunity
+          dan Requirement Detail sebagai referensi kebutuhan costing.
+        </p>
+        <NuxtLink to="/crm/opportunities"><Button size="sm">Buka Opportunities</Button></NuxtLink>
       </SectionCard>
 
       <SectionCard v-if="showPipeline" title="Opportunity Pipeline" description="Dikelompokkan per stage, seluruh party.">

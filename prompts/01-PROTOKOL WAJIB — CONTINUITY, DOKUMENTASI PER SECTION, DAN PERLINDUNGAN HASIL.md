@@ -1,8 +1,70 @@
-Protokol ini berlaku untuk seluruh Prompt 0 sampai Prompt 18.
+PROTOKOL WAJIB — FRONTEND-ONLY CONTINUATION
 
-A. Source of truth continuity
+Tujuan
 
-Claude wajib membuat dan memelihara:
+Bangun frontend mockup MANOVA yang lengkap secara operasional untuk Travel Agent B2B. Sistem harus menggambarkan seluruh workflow nyata, tetapi tidak memakai backend.
+
+Batasan Teknis
+
+Dilarang membuat:
+
+backend/server API produksi;
+
+database;
+
+migration;
+
+ORM;
+
+queue/background worker;
+
+webhook;
+
+payment gateway nyata;
+
+airline/hotel/vendor integration nyata;
+
+authentication provider nyata;
+
+klaim persistence produksi.
+
+Gunakan:
+
+Nuxt.js dan struktur codebase existing;
+
+TypeScript;
+
+typed domain models;
+
+centralized fixtures;
+
+centralized state/store;
+
+mock repository/service layer;
+
+localStorage/sessionStorage hanya bila dibutuhkan untuk simulasi interaksi, dan harus diberi label sebagai mock persistence;
+
+reusable components;
+
+route middleware dan permission helper frontend untuk simulasi akses;
+
+deterministic mock errors/loading/empty states;
+
+realistic but fictional data.
+
+Aturan Continuity
+
+Sebelum setiap section:
+
+Baca prompt section.
+
+Baca protokol ini.
+
+Baca CLAUDE.md.
+
+Baca seluruh file pada docs/.
+
+Baca:
 
 docs/mockup-implementation-state.md
 
@@ -10,314 +72,176 @@ docs/mockup-section-progress.md
 
 docs/mockup-change-impact-log.md
 
-docs/mockup-section-reports/README.md
+laporan section terakhir pada docs/mockup-section-reports/
 
-docs/mockup-section-reports/section-XX-<section-name>.md
+Periksa git status.
+
+Audit code aktual yang berkaitan.
+
+Identifikasi fitur yang sudah selesai, sebagian selesai, belum ada, atau rusak.
+
+Jangan mengulang atau mengganti hasil selesai tanpa kebutuhan integrasi.
+
+Tandai section IN_PROGRESS.
+
+Aturan Implementasi
+
+Kerjakan hanya gap pada section saat ini.
+
+Jangan membuat ulang foundation yang sudah benar.
+
+Jangan membuat dataset paralel untuk halaman berbeda.
+
+Semua flow harus memakai satu source of truth.
+
+Setiap action harus mempunyai hasil state yang jelas.
+
+Simulasikan permission, validation, approval, handover, activity, dan state transition secara konsisten.
+
+Setiap module wajib memiliki page list/detail/form/action/history/states yang memang dibutuhkan.
+
+Sediakan loading, empty, error, unauthorized, not-found, validation, success, dan conflict state yang relevan.
+
+Jangan meninggalkan tombol tidak berfungsi.
+
+Action deferred harus diberi status jelas dan hanya boleh ada bila benar-benar berada di section berikutnya.
+
+Jangan mengarang integrasi nyata.
+
+Jangan menampilkan internal cost/margin kepada Client atau Supplier.
+
+Client dan Supplier hanya boleh melihat data company mereka pada mock access scope.
+
+Super Admin bukan approver komersial normal.
+
+Hanya Management yang melakukan commercial approval.
+
+Account Executive dapat membuat quotation.
+
+Sales mengelola Lead dan qualification.
+
+Opportunity Won mengaktifkan Client dan membuat Project Order tanpa menduplikasi company.
+
+Role Final
+
+Internal
+
+Super Admin
+
+Management
+
+Sales
+
+Account Executive
+
+Product Planner / Travel Consultant
+
+Project Manager
+
+Operations
+
+Ticketing
+
+Accommodation
+
+Transportation
+
+MICE
+
+Procurement / Vendor Management
+
+Finance
+
+Viewer / Auditor
+
+External
+
+Client
+
+Supplier
+
+Workflow Utama
+
+Public/Manual Lead→ Sales Qualification→ Assign Account Executive→ Opportunity→ Requirement Detail→ Product Planning & Costing→ Quotation→ Management Approval→ Client Confirmation→ Opportunity Won→ Active Client→ Project Order→ AE-to-PM Handover→ Planning→ Traveler Collection→ Supplier Sourcing→ Service Booking→ Readiness→ On Trip / Event→ Changes / Incident→ Finance Finalization→ Completed→ Closed
+
+Dokumentasi Wajib
+
+Pertahankan docs existing dan buat/update:
 
 docs/mockup-implementation-state.md
 
-Dokumen kondisi implementasi terkini. Wajib berisi:
-
-Current phase dan current section.
-
-Last completed section.
-
-Route aktif, selesai, in-progress, dan deferred.
-
-Component shared dan domain yang sudah tersedia.
-
-Types, constants, fixtures, mock state, dan role behavior yang sudah aktif.
-
-Area hasil section lama yang harus dilindungi.
-
-Known issues dan validation status.
-
-Next recommended section.
-
-Last updated date dan section updater.
-
 docs/mockup-section-progress.md
-
-Log append-only. Setiap entry wajib memiliki:
-
-Section ID dan nama.
-
-Tanggal.
-
-Status: NOT_STARTED, IN_PROGRESS, COMPLETED, BLOCKED, NEEDS_REVIEW, atau DEFERRED.
-
-Scope dan completed items.
-
-Files created, changed, dan removed.
-
-Routes affected.
-
-Components reused dan created.
-
-Data/types/constants affected.
-
-Validation results.
-
-Known issues.
-
-Cross-section impact.
-
-Next action.
-
-Histori lama tidak boleh dihapus atau ditimpa.
 
 docs/mockup-change-impact-log.md
 
-Wajib diperbarui bila task baru mengubah hasil section sebelumnya. Setiap entry berisi:
+docs/mockup-progress.md
 
-Change ID dan tanggal.
+docs/mockup-scope.md
 
-Triggering section.
+docs/mockup-information-architecture.md
 
-Previous section affected.
+docs/mockup-data-scenarios.md
 
-Alasan perubahan.
+docs/mockup-design-decisions.md
 
-Files affected.
+docs/mockup-open-questions.md
 
-Previous behavior dan new behavior.
+docs/route-and-role-matrix.md
 
-Risk.
+docs/mockup-section-reports/
 
-Regression checks.
+docs/frontend-module-map.md
 
-Dokumentasi yang diperbarui.
+docs/frontend-workflow-map.md
 
-Laporan per section
+docs/frontend-implementation-roadmap.md
 
-Gunakan file seperti:
+docs/frontend-end-to-end-implementation-guide.md
 
-docs/mockup-section-reports/section-06-dashboard.md
+docs/frontend-known-issues.md
 
-docs/mockup-section-reports/section-07-crm-party.md
+docs/frontend-demo-and-review-guide.md
 
-docs/mockup-section-reports/section-08-opportunity-quotation.md
+Setelah Section Selesai
 
-Isi minimum:
+Jalankan formatter file terkait.
 
-Section objective dan scope.
+Jalankan lint.
 
-Source documents yang dibaca.
+Jalankan typecheck.
 
-Existing implementation yang diperiksa.
+Jalankan test yang tersedia.
 
-Decisions yang digunakan.
+Jalankan build.
 
-Implementation summary dan user flow.
+Smoke-test seluruh route dan role terkait.
 
-Routes.
+Regression-test section sebelumnya yang terdampak.
 
-Files created, changed, dan removed.
+Update seluruh dokumentasi yang relevan.
 
-Components reused dan created.
+Buat laporan section.
 
-Types, constants, fixtures, dan mock state.
+Berhenti dan jangan lanjut otomatis.
 
-Responsive behavior.
+Definition of Done
 
-Loading, empty, error, not-found, dan unauthorized states.
+Section tidak boleh COMPLETED bila:
 
-Role behavior.
+hanya ada dashboard/list tanpa action;
 
-Validation commands dan hasilnya.
+form/action belum berfungsi pada mock state;
 
-Regression checks.
+role access belum bekerja;
 
-Cross-section impact.
+data tidak konsisten lintas halaman;
 
-Review URLs.
+loading/empty/error/unauthorized belum tersedia;
 
-Known issues dan deferred work.
+lint/typecheck/build gagal akibat section;
 
-Protection notes untuk section berikutnya.
+dokumentasi belum diperbarui;
 
-Recommended next section.
+acceptance criteria belum terpenuhi.
 
-B. Pre-execution reading protocol
-
-Sebelum mengerjakan setiap section, Claude wajib membaca secara lengkap:
-
-File prompt section yang akan dieksekusi.
-
-CLAUDE.md.
-
-Seluruh dokumen source of truth pada folder docs.
-
-docs/mockup-implementation-state.md.
-
-docs/mockup-section-progress.md.
-
-docs/mockup-change-impact-log.md.
-
-Laporan section sebelumnya pada docs/mockup-section-reports/.
-
-Source code aktual yang berhubungan dengan section baru.
-
-git status dan perubahan yang belum di-commit.
-
-Claude tidak boleh hanya mengandalkan percakapan. Codebase dan dokumentasi repository adalah source of truth.
-
-C. Perlindungan hasil section sebelumnya
-
-Saat mengerjakan section baru:
-
-Jangan rewrite section yang sudah COMPLETED.
-
-Jangan mengubah route, UI, flow, data, atau component section lama hanya untuk merapikan kode.
-
-Jangan melakukan refactor global di luar scope.
-
-Jangan mengganti shared component bila berisiko merusak halaman selesai.
-
-Jangan menghapus fixture, type, constant, helper, atau asset yang masih digunakan.
-
-Jangan mengubah terminology, route, role, atau keputusan berstatus LOCKED.
-
-Jangan menyentuh perubahan user yang tidak terkait.
-
-Jangan reset, checkout, stash, atau revert perubahan user.
-
-Section lama hanya boleh diubah bila:
-
-Dibutuhkan untuk integrasi section baru.
-
-Memperbaiki bug nyata.
-
-Menjaga konsistensi shared component.
-
-Menyelesaikan build, typecheck, test, atau regression issue.
-
-Diminta secara eksplisit oleh user.
-
-Bila perlu mengubah section lama:
-
-Lakukan perubahan paling minimal.
-
-Catat pada docs/mockup-change-impact-log.md.
-
-Update laporan section lama bila kondisi faktual berubah.
-
-Jalankan regression check pada area terdampak.
-
-Jelaskan perubahan tersebut di laporan akhir.
-
-D. Section ownership
-
-Setiap laporan section wajib mencatat ownership:
-
-Route dan page component milik section.
-
-Domain components yang dibuat.
-
-Shared components yang digunakan atau diperluas.
-
-Fixtures, types, constants, dan composables yang dibuat atau diperluas.
-
-Perubahan lintas ownership wajib dicatat sebagai cross-section impact.
-
-E. Aturan implementasi incremental
-
-Setiap section harus:
-
-Memulai dari codebase aktual.
-
-Menggunakan foundation, fixtures, types, constants, route, role, dan shared components yang sudah ada.
-
-Tidak membuat dataset paralel.
-
-Menambah variant daripada menduplikasi component tanpa alasan.
-
-Menjaga responsive behavior.
-
-Menyediakan state yang relevan.
-
-Menjaga format Rupiah dan tanggal.
-
-Menjaga role visibility.
-
-Tetap frontend-only dengan mock data.
-
-Menjalankan validasi setelah implementasi.
-
-Memperbarui dokumentasi sebelum menyatakan selesai.
-
-Claude tidak boleh memberi status COMPLETED bila route utama belum berjalan, validasi gagal akibat perubahan section, acceptance criteria belum terpenuhi, atau laporan section belum diperbarui. Gunakan NEEDS_REVIEW bila implementasi selesai tetapi masih membutuhkan review visual user.
-
-F. Post-execution documentation protocol
-
-Sebelum laporan akhir, Claude wajib:
-
-Update docs/mockup-implementation-state.md.
-
-Append docs/mockup-section-progress.md.
-
-Buat/update laporan section.
-
-Update docs/mockup-change-impact-log.md bila diperlukan.
-
-Update dokumen domain lain bila keputusan, route, role, scope, atau data scenario berubah.
-
-Re-read dokumentasi yang baru diubah untuk memastikan benar-benar tersimpan.
-
-G. Format laporan akhir section
-
-Laporan akhir wajib memuat:
-
-Section dan status.
-
-Scope.
-
-Source docs yang dibaca.
-
-Files created, changed, removed.
-
-Routes implemented.
-
-Components reused dan created.
-
-Data/types/constants affected.
-
-Role behavior.
-
-States implemented.
-
-Validation dan regression results.
-
-Cross-section changes.
-
-Dokumentasi yang diperbarui.
-
-Known issues.
-
-Review URLs.
-
-Next recommended section.
-
-Setelah laporan, berhenti. Jangan lanjut ke section berikutnya tanpa perintah user.
-
-H. Perintah standar menjalankan setiap prompt
-
-Baca file prompt berikut secara lengkap:
-
-`prompts/<NAMA_FILE>.md`
-
-Sebelum mengerjakan:
-1. Ikuti PROTOKOL WAJIB continuity dan dokumentasi per section.
-2. Baca seluruh source-of-truth docs dan laporan section sebelumnya.
-3. Periksa git status dan codebase aktual.
-4. Jangan mengubah hasil section lama kecuali benar-benar dibutuhkan.
-5. Bila perubahan lintas section diperlukan, lakukan minimal, catat impact, dan regression-test area terkait.
-
-Kerjakan hanya scope prompt tersebut.
-
-Setelah selesai:
-- Jalankan seluruh validasi yang tersedia.
-- Update implementation state, progress log, change impact log bila diperlukan, dan laporan section.
-- Re-read dokumentasi yang baru diubah.
-- Berikan laporan akhir.
-- Berhenti dan jangan lanjut ke section berikutnya tanpa perintah saya.
+Gunakan NEEDS_REVIEW bila implementasi sudah lengkap tetapi perlu review visual user.
