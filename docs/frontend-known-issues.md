@@ -4,12 +4,21 @@ Dibuat oleh **Section 00 — Current Progress Reconciliation** (2026-08-01). Ber
 
 Status: `NEEDS_VALIDATION` (perlu keputusan/implementasi saat section pemilik dikerjakan), `DEFERRED` (sengaja ditunda, bukan blocker), `KNOWN_GAP` (dicatat, tidak dianggap bug — batas scope Prompt 0–20 yang belum mencakup requirement roadmap baru).
 
-## 0. Section 01–02 — Sudah Diselesaikan (2026-08-01)
+## 0. Section 01–04 — Sudah Diselesaikan (2026-08-01)
 
 Gap foundation berikut ditemukan Section 00 dan sudah ditutup oleh Section 01 (`docs/mockup-section-reports/section-01-frontend-foundation-state-governance.md`), dicatat di sini untuk jejak, bukan lagi open:
 - **State reset / seed scenario** — sebelumnya tidak ada mekanisme reset. Sekarang tersedia `app/utils/mock-reset.ts` + `app/plugins/mock-reset.client.ts` + tombol "Reset Demo Data" (`/settings`).
 - **Repository/service layer** — diklarifikasi (bukan gap): `app/data/index.ts` sudah memenuhi maksud fungsionalnya (single source, tidak ada fixture terduplikasi per halaman) sejak Foundation lama. Lihat D-058 (`docs/mockup-design-decisions.md`).
 - **`ErrorState.vue`/`LoadingState.vue`** — dikonfirmasi tersedia dan reusable (bukan hilang), meski belum dipakai luas — tersedia untuk section berikutnya yang butuh simulasi loading/error eksplisit.
+
+## 0b. BUG — App Gagal Mount di Browser Sejak Section 01 (`DataCloneError`) — RESOLVED (2026-07-31)
+
+**Ini adalah bug nyata, bukan gap scope** — dilaporkan langsung oleh user sebagai "500 Internal Server Error — Failed to execute 'structuredClone' on 'Window': [object Array] could not be cloned."
+
+- **Root cause:** `app/plugins/mock-reset.client.ts` memanggil `captureMockSnapshot()` pada SETIAP page load di browser, yang memanggil `structuredClone()` langsung terhadap array `reactive()` Vue (`OPPORTUNITIES`/`QUOTATIONS`/`PARTIES`/`PROJECTS`/`VENDORS`/`TRAVELERS`/`LEADS`/dst.). `structuredClone()` browser tidak dapat mengkloning `Proxy` (termasuk hasil `reactive()`) — selalu melempar `DataCloneError`, membuat SELURUH app gagal mount di browser manapun sejak Section 01 (2026-08-01) menambahkan plugin ini.
+- **Mengapa lolos tidak terdeteksi sejak Section 01–05 (5 section berturut-turut):** Bug hanya terjadi di kode **client-only** (`.client.ts`), yang tidak pernah dieksekusi saat SSR. Seluruh smoke test sejak Section 01 memakai `curl` (HTML hasil SSR — selalu HTTP 200 karena SSR tidak pernah menjalankan plugin ini). Setiap laporan section sejak itu secara eksplisit mencatat "verifikasi interaktif tidak dilakukan headless (keterbatasan tooling)" — kali ini keterbatasan tsb terbukti benar-benar menyembunyikan bug fatal, bukan cuma risiko teoretis.
+- **Fix:** `app/utils/mock-reset.ts` — `structuredClone` diganti helper `deepClone` (`JSON.parse(JSON.stringify(...))`), aman karena seluruh fixture adalah data JSON-safe murni. Direproduksi dan diverifikasi lewat skrip Node sebelum dan sesudah fix. Detail: `docs/mockup-change-impact-log.md` CI-035.
+- **Status:** `RESOLVED`. **Rekomendasi kuat untuk section berikutnya:** jangan mengandalkan smoke test `curl` saja untuk memvalidasi kode `.client.ts` baru — kelas bug ini (fatal, client-only, tidak terlihat dari SSR) tidak akan terdeteksi oleh metode tsb.
 
 ## 1. Role dan Akses — RESOLVED Section 02 (2026-08-01)
 
@@ -17,23 +26,26 @@ Gap foundation berikut ditemukan Section 00 dan sudah ditutup oleh Section 01 (`
 - ~~Matrix view permission belum dikonfirmasi~~ — **RESOLVED**, `/admin/roles` dikonfirmasi SUDAH berupa grid ModuleKey x Role literal (sejak Section 17 lama) — diperluas 6→8 kolom (CI-031).
 - ~~Dashboard kosong untuk role baru~~ — **RESOLVED** (ditemukan+ditutup dalam Section 02 yang sama, CI-030) — 3 widget welcome baru untuk Client/Procurement/Product Planner.
 - Sisa pekerjaan role baru tetap milik section pemiliknya: fitur bisnis penuh Client Portal (Section 08), RFQ/Service Order Procurement (Section 17), modul Product Planning/Costing (Section 10) — role/akses/nav/shell sudah siap sebagai fondasi.
+- ~~Public Lead Intake belum ada~~ — **RESOLVED** Section 03 (`/lead-intake`). Duplicate suggestion di form publik bersifat non-blocking preview (mock, cek phone/email terhadap `LEADS`) — merge-duplicate PENUH tetap tanggung jawab Section 04.
 
-## 2. Lead dan Qualification (Section 04)
+## 2. Lead dan Qualification (Section 04) — RESOLVED (2026-08-01)
 
-- **Reopen lead archived** — tidak ada aksi "reopen" pada Lead yang sudah di-archive (`archiveLead` bersifat satu arah). Status: `KNOWN_GAP`.
-- **Merge-duplicate suggestion** — tidak ada deteksi/penyarangan Lead duplikat. Status: `KNOWN_GAP`.
+- ~~Reopen lead archived~~ — **RESOLVED**, `reopenLead` + tombol "Reopen" di drawer footer.
+- ~~Merge-duplicate suggestion~~ — **RESOLVED** sebagai archive-dengan-referensi (D-061) — bukan true field-merge (dicatat sebagai simplifikasi eksplisit, evolusi lanjutan bila dibutuhkan).
+- ~~Edit Lead (field kontak dasar)~~ — **RESOLVED**, sebelumnya hanya bisa diisi sekali saat create.
 
-## 3. Opportunity dan Quotation (Section 05)
+## 3. Opportunity dan Quotation (Section 05) — RESOLVED (2026-07-31)
 
-- **Quotation duplicate/compare** — tidak ada aksi "Duplicate Quotation" atau tampilan perbandingan sisi-berdampingan antar versi (hanya `supersededAmountIdr` — nilai tunggal versi sebelumnya). Status: `KNOWN_GAP`.
-- **Send mock ke client / withdraw submission** — tidak ada aksi eksplisit "Send to Client" (di luar Client Confirmation, lihat bagian 4) maupun "Withdraw" quotation yang sudah submitted (revert manual ke draft tanpa lewat reject Management). Status: `KNOWN_GAP`.
-- **PDF/print preview** — belum ada preview cetak/PDF mock untuk Quotation. Status: `KNOWN_GAP`.
-- **Line item tax/fee/markup terpisah** — `Quotation.serviceBreakdown` (Prompt 20) punya service/description/amount; belum ada breakdown pajak/fee/markup terpisah dari `discountIdr`. Status: `KNOWN_GAP`.
+- ~~Quotation duplicate/compare~~ — **RESOLVED**, `duplicateQuotationVersion` ("Duplicate Quotation", salinan persis sebagai versi baru) + panel "Bandingkan dengan versi sebelumnya" (toggle). Compare TERBATAS pada nilai total (`amountIdr` vs `supersededAmountIdr`) — tidak ada breakdown/discount/tax/markup per versi, karena model `Quotation` existing (Section 08) tidak menyimpan snapshot penuh per versi (D-062, disclaimer eksplisit tampil di UI, bukan gap tersembunyi).
+- ~~Send mock ke client / withdraw submission~~ — **RESOLVED**, `sendQuotationToClient` ("Send to Client", timestamp mock) dan `withdrawQuotationSubmission` ("Withdraw Submission", revert `submitted`→`draft`, guard hanya dari status `submitted`).
+- ~~PDF/print preview~~ — **RESOLVED**, halaman baru `/crm/opportunities/[id]/quotation-preview` (`layout: false`, print via `window.print()` browser — bukan generator PDF nyata, sesuai batasan protokol).
+- ~~Line item tax/fee/markup terpisah~~ — **RESOLVED**, `Quotation.taxIdr`/`markupIdr`/`currency`/`validUntil`/`termsAndConditions`/`inclusions`/`exclusions` (field baru, aditif) tampil di "Edit Quotation" dan Quotation Preview.
+- **Client Confirmation gate** — ditambahkan sesuai Wajib literal Section 05 ("AE belum dapat Mark as Won sebelum approved + client confirmation"): `recordClientConfirmation` + dialog AE-facing, Mark as Won kini men-disable sampai `Opportunity.clientConfirmedAt` terisi (selain `Quotation.approvalStatus === 'approved'` yang sudah ada). Queue/notifikasi Management-facing dan Client Portal-facing tetap milik Section 06/08 (Q14, belum RESOLVED).
 
 ## 4. Management Approval dan Client Activation (Section 06)
 
 - **Approval queue agregat belum ada** — approval hanya dapat diakses per-Opportunity, tidak ada halaman "Management Approval Inbox" lintas Opportunity. Lihat Q14. Status: `NEEDS_VALIDATION`.
-- **Client confirmation belum ada record/aksi eksplisit** — Mark as Won saat ini digerbangi `quotation.approvalStatus === 'approved'` + requirement lengkap, TANPA langkah "client confirmation" terpisah yang diminta Section 06/13 (Prompt 20). Lihat Q14. Status: `NEEDS_VALIDATION`.
+- ~~Client confirmation belum ada record/aksi eksplisit~~ — **RESOLVED sebagian oleh Section 05** (2026-07-31): `recordClientConfirmation` (`Opportunity.clientConfirmedAt`/`clientConfirmationNote`) + dialog AE-facing di `/crm/opportunities/[id]`, Mark as Won kini digerbangi `quotation.approvalStatus === 'approved'` DAN `clientConfirmedAt` terisi (D-062). Sisa scope Section 06: tidak ada notifikasi/queue Management-facing untuk memantau opportunity yang menunggu client confirmation, dan tidak ada rekaman "client confirmation" dari sisi Client Portal (Section 08) sendiri — AE yang mencatatnya secara manual (mock, bukan self-service client). Lihat Q14 (masih terbuka untuk sisa scope ini).
 
 ## 5. Customer Journey (Section 07)
 

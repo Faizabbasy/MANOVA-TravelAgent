@@ -13,9 +13,9 @@ Status: `COMPLETED` (memenuhi seluruh "Wajib" section baru), `PARTIAL` (sebagian
 | 00 | Current Progress Reconciliation | COMPLETED | — (audit-only) |
 | 01 | Frontend Foundation dan State Governance | COMPLETED | `app/types/*`, `app/constants/*`, `app/data/*`, `app/components/ui/*`, `app/utils/mock-reset.ts`, `app/plugins/mock-reset.client.ts`, `/settings` |
 | 02 | Role, Access dan Navigation | COMPLETED | `app/composables/usePermissions.ts`, `app/constants/roles.ts`, `app/constants/navigation.ts`, `/admin/roles`, `/settings`, `/client` |
-| 03 | Public Lead Intake | NOT_STARTED | — |
-| 04 | Sales Leads dan Qualification | PARTIAL | `/customer-journey/leads` |
-| 05 | Account Executive Opportunity dan Quotation | PARTIAL | `/crm/opportunities`, `/crm/opportunities/[id]` |
+| 03 | Public Lead Intake | COMPLETED | `/lead-intake` (baru, `layout: false`), `/login` (+link) |
+| 04 | Sales Leads dan Qualification | COMPLETED | `/customer-journey/leads` (+Edit Lead, +Reopen, +merge suggestion) |
+| 05 | Account Executive Opportunity dan Quotation | COMPLETED (2026-07-31) | `/crm/opportunities`, `/crm/opportunities/[id]`, `/crm/opportunities/[id]/quotation-preview` (baru) |
 | 06 | Management Approval, Won dan Client Activation | PARTIAL | `/crm/opportunities/[id]` (section Commercial Approval + Mark as Won) |
 | 07 | Customer Journey | PARTIAL | `/customer-journey`, `/customer-journey/customers[/[id]]`, `/customer-journey/project-orders[/[id]]` |
 | 08 | Client Portal | NOT_STARTED | — |
@@ -52,10 +52,11 @@ Status: `COMPLETED` (memenuhi seluruh "Wajib" section baru), `PARTIAL` (sebagian
 /admin, /admin/users, /admin/roles, /admin/master-data, /admin/audit-trail
 /supplier, /supplier/products, /supplier/orders
 /client (baru, Section 02 — shell minimal Client Portal)
+/lead-intake (baru, Section 03 — public, layout:false, tanpa middleware auth)
 /expenses, /tasks (route lama/locked, tidak di sidebar — lihat docs/mockup-final-route-inventory.md)
 ```
 
-Section 00 tidak membuat route baru (audit-only). Section 01 tidak membuat route baru (murni file utilitas + 1 section baru di `/settings`). **Section 02 menambah 1 route baru: `/client`** (shell minimal, lihat bagian 3).
+Section 00 tidak membuat route baru (audit-only). Section 01 tidak membuat route baru (murni file utilitas + 1 section baru di `/settings`). **Section 02 menambah 1 route baru: `/client`** (shell minimal, lihat bagian 3). **Section 03 menambah 1 route baru: `/lead-intake`** (public, di luar dashboard internal — lihat `docs/mockup-design-decisions.md` D-060).
 
 ## 3. Role Inventory Aktual vs Role Final Roadmap Baru
 

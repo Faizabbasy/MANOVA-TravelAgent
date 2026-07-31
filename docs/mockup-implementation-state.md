@@ -10,16 +10,19 @@ Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git stat
 
 Sejak 2026-08-01 ada **dua skema section berdampingan** (D-057, `docs/mockup-design-decisions.md` Kelompok K) — jangan tertukar:
 - **Skema lama (Prompt 0–20):** Section 00–18 + Prompt 19/20, seluruhnya **COMPLETED**, dijalankan dari `prompts/00-README.md` s/d `prompts/22-PROMPT-20-...md`. Tetap source of truth historis, tidak ditulis ulang.
-- **Skema baru (Section 00–24):** roadmap lebih luas dari `prompts/01-PROTOKOL-WAJIB.md` versi "FRONTEND-ONLY CONTINUATION" + `prompts/Section 0N — *.md`/`prompts/SECTION_NN_*.md`. **Section 00–02 sudah dijalankan** (2026-08-01) — lihat `docs/frontend-module-map.md`, `docs/frontend-workflow-map.md`, `docs/frontend-implementation-roadmap.md`, `docs/frontend-known-issues.md`, dan `docs/mockup-section-reports/section-00-current-progress-reconciliation.md`/`section-01-frontend-foundation-state-governance.md`/`section-02-role-access-navigation.md`.
+- **Skema baru (Section 00–24):** roadmap lebih luas dari `prompts/01-PROTOKOL-WAJIB.md` versi "FRONTEND-ONLY CONTINUATION" + `prompts/Section 0N — *.md`/`prompts/SECTION_NN_*.md`. **Section 00–04 sudah dijalankan** (2026-08-01) — lihat `docs/frontend-module-map.md`, `docs/frontend-workflow-map.md`, `docs/frontend-implementation-roadmap.md`, `docs/frontend-known-issues.md`, dan `docs/mockup-section-reports/section-00-current-progress-reconciliation.md`/`section-01-frontend-foundation-state-governance.md`/`section-02-role-access-navigation.md`/`section-03-public-lead-intake.md`/`section-04-sales-leads-qualification.md`.
 
 Bagian 1–8 di bawah ini tetap merujuk skema lama (Prompt 0–20) apa adanya — belum ditulis ulang mengikuti skema baru, karena Section 00 murni audit (tidak mengubah kode).
 
 ## 1. Current Phase dan Current Section
 
 - **Current phase (skema lama):** Seluruh 18 section mockup baku (Section 00–18) **COMPLETED**, ditambah **Prompt 19 — Change Request (Customer Journey, Account Executive, Supplier, Commercial Approval)** (2026-07-30) dan **Prompt 20 — Change Request (Sales Qualification to Account Executive Opportunity Flow)** (2026-07-31), keduanya COMPLETED.
-- **Current phase (skema baru):** Section 00 (Current Progress Reconciliation), Section 01 (Frontend Foundation dan State Governance), dan Section 02 (Role, Access dan Navigation) **COMPLETED** (2026-08-01). Section 03–24 belum dimulai — lihat `docs/frontend-implementation-roadmap.md` untuk status awal per section.
+- **Current phase (skema baru):** Section 00–05 **COMPLETED** (Section 05: 2026-07-31). Section 06–24 belum dimulai — lihat `docs/frontend-implementation-roadmap.md` untuk status awal per section.
 - **Current section/change:** Tidak ada yang aktif — menunggu perintah user untuk section/change berikutnya (skema mana pun).
-- **Last completed:** **Section 02 — Role, Access dan Navigation** (skema baru), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-02-role-access-navigation.md`.
+- **Last completed:** **Section 05 — Account Executive Opportunity dan Quotation** (skema baru), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-05-ae-opportunity-quotation.md`.
+- Section 04 — Sales Leads dan Qualification (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-04-sales-leads-qualification.md`.
+- Section 03 — Public Lead Intake (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-03-public-lead-intake.md`.
+- Section 02 — Role, Access dan Navigation (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-02-role-access-navigation.md`.
 - Section 01 — Frontend Foundation dan State Governance (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-01-frontend-foundation-state-governance.md`.
 - Section 00 — Current Progress Reconciliation (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-00-current-progress-reconciliation.md`.
 - Prompt 20 — Change Request (skema lama): COMPLETED, detail `docs/mockup-section-reports/change-sales-qualification-ae-opportunity.md`.
@@ -67,6 +70,18 @@ Baris baru/berubah Prompt 19 (Change Request) — route Section 05–18 tidak di
 
 `RoleId` 13→16 (+`product-planner`/`procurement`/`client`), `ModuleKey`+`client-portal`, `User.clientPartyId`, `usePermissions().clientScopeId`, route baru `/client` (shell minimal), Dashboard +3 widget welcome role baru, Matrix View `/admin/roles` diperluas 6→8 kolom. Lihat D-059 (`docs/mockup-design-decisions.md`) dan `docs/mockup-section-reports/section-02-role-access-navigation.md`.
 
+## 2d. Public Lead Intake Baru (Section 03, Skema Roadmap Baru)
+
+Route baru `/lead-intake` (`layout: false`, tanpa `middleware: 'auth'`) — 4 kategori (`LeadServiceCategory`, reuse type existing), consent checkbox, UTM/referrer preview, duplicate suggestion non-blocking, reuse penuh `createLead`+`updateLeadQualification` (Prompt 20, tidak ada mutator/field baru). `/login` mendapat 1 link discoverability. Lihat D-060 (`docs/mockup-design-decisions.md`) dan `docs/mockup-section-reports/section-03-public-lead-intake.md`.
+
+## 2e. Sales Lead Workflow Lengkap (Section 04, Skema Roadmap Baru)
+
+`app/data/index.ts` +4 mutator/selector baru: `reopenLead`, `updateLeadContact`, `getLeadDuplicateCandidates` (dipusatkan, dipakai ulang `/lead-intake` DAN `/customer-journey/leads`), `mergeLeadAsDuplicate` (archive-dengan-referensi). `/customer-journey/leads` +dialog "Edit Lead", +tombol "Reopen" (drawer footer), +panel "Lead Serupa Terdeteksi" (Overview tab) +badge "Possible Duplicate" (Table view). Fixture +`LED-011` (duplikat sengaja terhadap `LED-007`, Total Leads 10→11). Lihat D-061 (`docs/mockup-design-decisions.md`) dan `docs/mockup-section-reports/section-04-sales-leads-qualification.md`.
+
+## 2f. AE Opportunity dan Quotation Lengkap (Section 05, Skema Roadmap Baru)
+
+`app/data/index.ts` +4 mutator baru: `duplicateQuotationVersion` ("Duplicate Quotation"), `sendQuotationToClient` ("Send to Client", mock), `withdrawQuotationSubmission` ("Withdraw Submission", guard hanya dari status `submitted`), `recordClientConfirmation` (gerbang tambahan sebelum Mark as Won). `Quotation` +7 field aditif (`taxIdr`/`markupIdr`/`currency`/`validUntil`/`termsAndConditions`/`inclusions`/`exclusions`); `Opportunity` +2 field aditif (`clientConfirmedAt`/`clientConfirmationNote`). Route baru `/crm/opportunities/[id]/quotation-preview` (`layout: false`, print via `window.print()` browser — PDF/print preview mock, BUKAN generator PDF nyata). `/crm/opportunities/[id]` mendapat: tombol "Duplicate Quotation", panel "Bandingkan dengan versi sebelumnya" (compare terbatas pada nilai total, lihat D-062), field komersial baru pada "Edit Quotation", tombol "Withdraw Submission" (AE, saat submitted), tombol "Send to Client"/dialog "Catat Client Confirmation" (saat approved), dan gerbang baru pada tombol "Mark as Won" (kini mensyaratkan `clientConfirmedAt` selain `approvalStatus === 'approved'`). Fixture: `QUO-010` dilengkapi tax/markup/currency/validity/inclusions/exclusions/terms; `QUO-006` +`sentToClientAt` (Opportunity `OPP-006` sengaja TIDAK diberi `clientConfirmedAt`, mendemokan gerbang baru — lihat CI-034). Lihat D-062 (`docs/mockup-design-decisions.md`) dan `docs/mockup-section-reports/section-05-ae-opportunity-quotation.md`.
+
 ## 3. Component Shared dan Domain yang Sudah Tersedia
 
 Tidak ada shared component **file** baru Prompt 19 maupun Prompt 20, KECUALI primitive `ui/sheet/*` (sudah ada sejak Foundation, **baru dipakai pertama kali** di drawer Lead Detail — `Sheet`/`SheetContent`/`SheetHeader`/`SheetTitle`/`SheetDescription`/`SheetFooter`) dan `ui/dialog/DialogScrollContent` (sudah ada sejak Foundation, **baru dipakai pertama kali** Prompt 20 — dialog "Edit Requirement"/"Edit Quotation" yang panjang). Seluruh halaman baru/berubah reuse `PageHeader`/`SectionCard`/`RoleAccessState`/`EmptyState`/`StatusBadge`/`StatusBreakdownList`/`StatsCard`/`Table*`/`Dialog*`/`Tabs*`/`DetailMetadataList` existing.
@@ -89,6 +104,8 @@ Tidak ada shared component **file** baru Prompt 19 maupun Prompt 20, KECUALI pri
 
 **Selektor/mutator baru (Prompt 20):** `getLeadMissingQualification`, `updateLeadQualification`, `markLeadUnqualified` (Lead); `qualifyLeadAndCreateOpportunity` — signature berubah dari `(leadId, accountExecutiveId)` menjadi `(leadId)` (AE diambil dari `lead.handedOverTo`, digerbangi kelengkapan); `getOpportunityRequirementGate`, `updateOpportunityRequirement`, `getOpportunityWorkflowStatus` (Opportunity); `updateQuotationDetails` (Quotation) — seluruhnya di `app/data/index.ts`.
 
+**Selektor/mutator baru (Section 05):** `duplicateQuotationVersion`, `sendQuotationToClient`, `withdrawQuotationSubmission` (Quotation); `recordClientConfirmation` (Opportunity) — seluruhnya di `app/data/index.ts`. `updateQuotationDetails`/`QuotationDetailInput` (Prompt 20) diperluas aditif dengan 7 field baru (tidak ada perubahan signature).
+
 ## 5. Area Hasil Section Lama yang Harus Dilindungi
 
 - Seluruh shared component, fixture, type, constant — jangan diubah shape-nya tanpa cross-section impact check.
@@ -100,7 +117,8 @@ Tidak ada shared component **file** baru Prompt 19 maupun Prompt 20, KECUALI pri
 - `getOpportunityMissingRequirements` (Section 09, gerbang final sebelum Won) — **tidak diubah** Prompt 20; `getOpportunityRequirementGate` (Prompt 20, gerbang sebelum Quotation) adalah fungsi TERPISAH, bukan pengganti (D-055).
 - `approveOpportunityWon`/`rejectOpportunityWon` (Section 09) — **tidak diubah signature/body-nya** Prompt 20; `rejectOpportunityWon` kini tidak dipanggil UI manapun (dead dari sisi UI, tetap ada di `app/data/index.ts` untuk backward-compatibility, D-053).
 - `app/pages/reports/index.vue` — pemilik penuh 6 section Reports (Section 16); `app/pages/vendors/[id]/index.vue` — pemilik Vendor Detail (Section 13), Prompt 19 hanya menambah 1 tab, Prompt 20 tidak menyentuh.
-- **Keputusan didokumentasikan (bukan gap tersembunyi):** export mock Reports tidak dikerjakan (Section 16); tidak ada CRUD invoice/payment (Section 15); Supplier Portal (`/supplier/orders`) read-only, tidak ada self-service submit quotation dari sisi supplier (Q12, `docs/mockup-open-questions.md`); payment terms/margin-cost summary tidak digerbangi hard-block pada Requirement Gate (D-055).
+- **Keputusan didokumentasikan (bukan gap tersembunyi):** export mock Reports tidak dikerjakan (Section 16); tidak ada CRUD invoice/payment (Section 15); Supplier Portal (`/supplier/orders`) read-only, tidak ada self-service submit quotation dari sisi supplier (Q12, `docs/mockup-open-questions.md`); payment terms/margin-cost summary tidak digerbangi hard-block pada Requirement Gate (D-055); Quotation Compare (Section 05) terbatas pada nilai total, bukan breakdown penuh per versi (D-062); PDF/Print Preview (Section 05) memakai `window.print()` browser, bukan generator PDF nyata (batasan protokol).
+- `getOpportunityMissingRequirements`/`approveOpportunityWon` (Section 09) — **tidak diubah** Section 05; gerbang baru `clientConfirmedAt` pada tombol Mark as Won bersifat TAMBAHAN terhadap gerbang `approvalStatus === 'approved'` existing (Prompt 19/20), bukan pengganti.
 
 ## 6. Known Issues dan Validation Status
 
@@ -128,9 +146,10 @@ Divalidasi ulang langsung pada tanggal update dokumen ini (Prompt 20):
 
 ## 7. Next Recommended Section
 
-Skema lama (Prompt 0–20): tidak ada section/change baku selanjutnya. Skema baru (Section 00–24): Section 03 (Public Lead Intake) direkomendasikan sebagai kandidat berikutnya berbasis dependency (lihat `docs/frontend-implementation-roadmap.md`), tapi menunggu perintah eksplisit user.
+Skema lama (Prompt 0–20): tidak ada section/change baku selanjutnya. Skema baru (Section 00–24): Section 06 (Management Approval, Won dan Client Activation — melengkapi gap PARTIAL: approval queue agregat, notifikasi/queue client confirmation Management-facing, Q14) direkomendasikan sebagai kandidat berikutnya berbasis dependency (lihat `docs/frontend-implementation-roadmap.md`), tapi menunggu perintah eksplisit user.
 
 ## 8. Last Updated
 
-- **Date:** 2026-08-01
-- **Updater:** Section 02 (Role, Access dan Navigation, skema roadmap Section 00–24 baru) execution — role final 16 (+`product-planner`/`procurement`/`client`), `client-portal` module + `/client` shell, Matrix View dilengkapi, Dashboard +3 widget welcome role baru. `npx nuxi prepare` + `npm run build` diverifikasi sukses.
+- **Date:** 2026-07-31
+- **Updater:** Section 05 (Account Executive Opportunity dan Quotation, skema roadmap Section 00–24 baru) execution — Duplicate Quotation, Compare Versions (nilai total), Send to Client (mock), Withdraw Submission, PDF/Print Preview (`quotation-preview`, baru), field komersial Quotation (tax/markup/currency/validity/terms/inclusions/exclusions), Client Confirmation (gerbang tambahan sebelum Mark as Won) di `/crm/opportunities/[id]`. `npx nuxi prepare` + `npm run build` diverifikasi sukses.
+- **Update susulan (bug fix, sama tanggal):** User melaporkan app gagal mount di browser ("500 Internal Server Error — Failed to execute 'structuredClone' on 'Window'"). Root cause: `app/plugins/mock-reset.client.ts` (Section 01) memanggil `structuredClone()` langsung terhadap array `reactive()` Vue — tidak pernah terdeteksi oleh smoke test `curl` manapun sejak Section 01 karena kode client-only tidak dieksekusi saat SSR. Diperbaiki di `app/utils/mock-reset.ts` (`structuredClone` → `deepClone` berbasis JSON). Detail: `docs/mockup-change-impact-log.md` CI-035, `docs/frontend-known-issues.md` bagian 0b.

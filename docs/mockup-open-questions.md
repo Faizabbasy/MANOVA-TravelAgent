@@ -87,18 +87,18 @@ Section 00 (`prompts/Section 00 — Current Progress Reconciliation.md`, dijalan
 ### Q14 — Dedicated Management Approval Queue Belum Ada
 - **Category:** UX / Information Architecture
 - **Blocking:** **Blocking sebelum Section 06 (Management Approval, Won dan Client Activation)** dianggap selesai penuh.
-- **Impact:** Commercial Approval (submit/approve/reject Quotation) saat ini hanya dapat diakses per-Opportunity dari `/crm/opportunities/[id]` — tidak ada halaman agregat "Approval Queue" yang menampilkan seluruh quotation menunggu approval lintas Opportunity untuk Management. Client confirmation (gerbang tambahan sebelum Mark as Won per Section 06) juga belum ada representasinya di data model maupun UI.
-- **Recommendation:** Section 06 menambahkan halaman/queue baru + field/aktivitas "client confirmation" pada `Opportunity` atau `Quotation` (field aditif, ikuti pola D-049/D-055).
+- **Impact:** Commercial Approval (submit/approve/reject Quotation) saat ini hanya dapat diakses per-Opportunity dari `/crm/opportunities/[id]` — tidak ada halaman agregat "Approval Queue" yang menampilkan seluruh quotation menunggu approval lintas Opportunity untuk Management. ~~Client confirmation (gerbang tambahan sebelum Mark as Won per Section 06) juga belum ada representasinya di data model maupun UI.~~ **Sebagian RESOLVED oleh Section 05** (2026-07-31, D-062): `Opportunity.clientConfirmedAt`/`clientConfirmationNote` + `recordClientConfirmation` + dialog AE-facing sudah ada, Mark as Won sudah digerbangi. Sisa scope Section 06: halaman "Approval Queue" agregat (belum ada) dan notifikasi Management-facing untuk opportunity yang menunggu client confirmation (belum ada).
+- **Recommendation:** Section 06 menambahkan halaman/queue baru untuk Approval Queue agregat dan visibilitas status client confirmation lintas Opportunity (field `Opportunity.clientConfirmedAt` sudah tersedia untuk dikonsumsi, tidak perlu field baru).
 - **Owner:** Tidak diketahui.
-- **Status:** `NEEDS_VALIDATION`.
+- **Status:** `NEEDS_VALIDATION` (sisa scope Approval Queue).
 
 ### Q15 — Public Lead Intake Belum Ada
 - **Category:** Scope Boundary
-- **Blocking:** **Blocking sebelum Section 03 (Public Lead Intake)**.
-- **Impact:** Seluruh Lead saat ini dibuat oleh Sales lewat dialog "New Lead" di dalam dashboard yang sudah ter-autentikasi (`/customer-journey/leads`) — tidak ada form publik tanpa login dengan consent/UTM/duplicate-suggestion seperti diminta Section 03.
-- **Recommendation:** Section 03 menambahkan route publik baru (di luar layout `dashboard`/`middleware: auth`) yang menulis ke `LEADS` centralized state yang sama (bukan dataset paralel).
+- **Blocking:** ~~Blocking sebelum Section 03~~ — **RESOLVED di Section 03** (2026-08-01, D-060, `docs/mockup-design-decisions.md`).
+- **Impact:** `/lead-intake` (baru) — form publik 4 kategori, consent, UTM/referrer preview, duplicate suggestion, menulis ke `LEADS` centralized state yang sama.
+- **Recommendation:** Tidak berlaku lagi — sudah dikerjakan.
 - **Owner:** Tidak diketahui.
-- **Status:** `NEEDS_VALIDATION`.
+- **Status:** `RESOLVED` (Section 03).
 
 ### Q16 — Taksonomi Status Project Order Baru vs `ProjectStatus` Existing
 - **Category:** Data Model / Business Rule

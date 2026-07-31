@@ -53,6 +53,9 @@ Sejak 2026-08-01, `prompts/01-PROTOKOL-WAJIB.md` versi "FRONTEND-ONLY CONTINUATI
 | 00 | Current Progress Reconciliation | [`section-00-current-progress-reconciliation.md`](./section-00-current-progress-reconciliation.md) | COMPLETED |
 | 01 | Frontend Foundation dan State Governance | [`section-01-frontend-foundation-state-governance.md`](./section-01-frontend-foundation-state-governance.md) | COMPLETED |
 | 02 | Role, Access dan Navigation | [`section-02-role-access-navigation.md`](./section-02-role-access-navigation.md) | COMPLETED |
+| 03 | Public Lead Intake | [`section-03-public-lead-intake.md`](./section-03-public-lead-intake.md) | COMPLETED |
+| 04 | Sales Leads dan Qualification | [`section-04-sales-leads-qualification.md`](./section-04-sales-leads-qualification.md) | COMPLETED |
+| 05 | Account Executive Opportunity dan Quotation | [`section-05-ae-opportunity-quotation.md`](./section-05-ae-opportunity-quotation.md) | COMPLETED |
 
 ## Isi Minimum Setiap Laporan
 

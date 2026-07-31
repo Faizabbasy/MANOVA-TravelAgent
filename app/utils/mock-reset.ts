@@ -12,13 +12,24 @@ type ResettableArrays = Record<string, unknown[]>
 let registry: ResettableArrays | null = null
 let snapshot: Record<string, unknown[]> | null = null
 
+/**
+ * `structuredClone()` tidak dapat mengkloning array Vue `reactive()` (Proxy) secara langsung — Proxy
+ * bukan exotic Array asli, sehingga browser melempar `DataCloneError: [object Array] could not be
+ * cloned`. Seluruh fixture di sini adalah data JSON-safe murni (string/number/boolean/array/object
+ * bersarang, tanpa Date/Map/Set/function), jadi round-trip `JSON.stringify`/`JSON.parse` cukup — proses
+ * ini juga otomatis "melepas" Proxy karena hasil akhirnya dibangun ulang sebagai object polos.
+ */
+function deepClone<T>(value: T): T {
+  return JSON.parse(JSON.stringify(value)) as T
+}
+
 /** Dipanggil sekali di client plugin — idempotent (panggilan kedua diabaikan agar snapshot tidak tertimpa oleh state yang sudah bermutasi). */
 export function captureMockSnapshot(arrays: ResettableArrays) {
   if (snapshot) return
   registry = arrays
   snapshot = {}
   for (const key in arrays) {
-    snapshot[key] = structuredClone(arrays[key])
+    snapshot[key] = deepClone(arrays[key])
   }
 }
 
@@ -32,7 +43,7 @@ export function resetMockState(): boolean {
   for (const key in registry) {
     const target = registry[key]
     const seed = snapshot[key]
-    target.splice(0, target.length, ...structuredClone(seed))
+    target.splice(0, target.length, ...deepClone(seed))
   }
   return true
 }

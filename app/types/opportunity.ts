@@ -82,6 +82,15 @@ export interface Opportunity {
   leadId?: ID
   expectedCloseDate?: string
   requirementDetail?: OpportunityRequirementDetail
+
+  /**
+   * Client Confirmation (Section 05 — roadmap Section 00–24 baru). Dicatat AE setelah quotation `approved`
+   * dan client sudah mengonfirmasi (verbal/email/WA, seluruhnya mock — bukan integrasi nyata). Gerbang
+   * TAMBAHAN sebelum "Mark as Won" (Prompt 20-13/D-053: sebelumnya hanya digerbangi `approvalStatus`),
+   * literal Section 05/06 Wajib "AE belum dapat Mark as Won sebelum approved + client confirmation".
+   */
+  clientConfirmedAt?: string
+  clientConfirmationNote?: string
 }
 
 /**
@@ -119,4 +128,19 @@ export interface Quotation {
   estimatedMarginIdr?: number
   paymentTerms?: string
   serviceBreakdown?: QuotationServiceItem[]
+
+  /**
+   * Section 05 — Change Request: field komersial tambahan (line items sudah ada di `serviceBreakdown`),
+   * "PDF/print preview" (`/crm/opportunities/[id]/quotation-preview`), dan "send mock ke client".
+   */
+  taxIdr?: number
+  markupIdr?: number
+  /** Default `IDR` bila kosong — mockup, bukan multi-currency nyata (tidak ada konversi kurs). */
+  currency?: string
+  validUntil?: string
+  termsAndConditions?: string
+  inclusions?: string
+  exclusions?: string
+  /** "Send mock ke client" — timestamp simulasi, TIDAK mengirim email/WA nyata (D-006). */
+  sentToClientAt?: string
 }

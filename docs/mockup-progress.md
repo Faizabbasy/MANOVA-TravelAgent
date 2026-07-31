@@ -160,3 +160,39 @@ Log kronologis progres pengerjaan mockup MANOVA di atas template Nuxt 4 existing
 - **Decisions:** D-059 (`docs/mockup-design-decisions.md`) — role/module baru + Client Portal shell minimal, fitur penuh tetap Section 08.
 - **Open issues:** Q13 RESOLVED. Q14–Q16 (Section 06/09) tetap terbuka.
 - **Next recommended prompt:** Section 03 (Public Lead Intake), berbasis dependency — menunggu perintah user.
+
+## Entri 12 — Section 03 (Roadmap Baru): Public Lead Intake
+
+- **Date:** 2026-08-01
+- **Phase:** Section 03 (`prompts/Section 03 — Public Lead Intake.md`) — section keempat roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Route publik baru `/lead-intake` (di luar dashboard internal, tanpa login) dengan 4 kategori (Corporate/Group/Individual/MICE via selector + query `?type=`), form dasar (nama kontak, company opsional, source, telepon/email — minimal satu wajib), field opsional reuse Lead qualification existing (destinasi, estimasi traveler, ringkasan kebutuhan), consent checkbox + ringkasan privasi mock, preview UTM/referrer, duplicate suggestion non-blocking, state sukses (nomor referensi) dan error (`ErrorState` — dipakai pertama kali sejak Foundation). Submission reuse penuh `createLead`+`updateLeadQualification` (Prompt 20) — tidak ada mutator/field baru. Link discoverability ditambahkan di `/login`. Detail lengkap: `docs/mockup-section-reports/section-03-public-lead-intake.md`.
+- **Files changed:** 1 file baru (`app/pages/lead-intake/index.vue`), 1 file diubah aditif (`app/pages/login.vue`, +1 paragraf link), dokumentasi terkait.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses (chunk `lead-intake-*` ter-compile); smoke test route (baru+existing) HTTP 200; `vitest` tetap pre-existing gap (Q8).
+- **Decisions:** D-060 (`docs/mockup-design-decisions.md`) — route tunggal dengan selector kategori (bukan 4 route terpisah), owner default `USR-001`, reuse mutator existing.
+- **Open issues:** Q15 RESOLVED. Merge-duplicate PENUH (bukan sekadar preview) tetap tanggung jawab Section 04.
+- **Next recommended prompt:** Section 04 (Sales Leads dan Qualification), berbasis dependency — menunggu perintah user.
+
+## Entri 13 — Section 04 (Roadmap Baru): Sales Leads dan Qualification
+
+- **Date:** 2026-08-01
+- **Phase:** Section 04 (`prompts/Section 04 — Sales Leads dan Qualification.md`) — section kelima roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Melengkapi 3 gap workflow Sales yang ditemukan Section 00: Edit Lead (field kontak dasar, dulu hanya bisa diisi sekali saat create), Reopen (kebalikan Archive), dan Merge Suggestion (diimplementasikan sebagai archive-dengan-referensi — bukan true field-merge, D-061). Selector deteksi duplikat dipusatkan (`getLeadDuplicateCandidates`) dan dipakai ulang oleh `/lead-intake` (Section 03, direfactor) maupun `/customer-journey/leads` (New Lead dialog + drawer Overview + badge Table view). Fixture `LED-011` ditambahkan untuk mendemokan fitur tanpa mengubah data lama. Detail lengkap: `docs/mockup-section-reports/section-04-sales-leads-qualification.md`.
+- **Files changed:** `app/data/index.ts` (+4 mutator/selector), `app/pages/customer-journey/leads/index.vue` (+Edit Lead, +Reopen, +merge suggestion UI), `app/pages/lead-intake/index.vue` (refactor reuse selector), `app/data/leads.ts` (+`LED-011`), dokumentasi terkait.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test ~25 route HTTP 200; badge "Possible Duplicate" dan Total Leads 11 dikonfirmasi via curl; `vitest` tetap pre-existing gap (Q8).
+- **Decisions:** D-061 (`docs/mockup-design-decisions.md`) — merge suggestion sebagai archive-dengan-referensi, selector duplikat dipusatkan.
+- **Open issues:** Tidak ada baru dari Section 04. Gap Section 05 (Quotation duplicate/compare/PDF/dst.) tetap terbuka.
+- **Next recommended prompt:** Section 05 (Account Executive Opportunity dan Quotation), berbasis dependency — menunggu perintah user.
+
+## Entri 14 — Section 05 (Roadmap Baru): Account Executive Opportunity dan Quotation
+
+- **Date:** 2026-07-31
+- **Phase:** Section 05 (`prompts/Section 05 — Account Executive Opportunity dan Quotation.md`) — section keenam roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Melengkapi gap PARTIAL yang ditemukan Section 00 di atas fondasi Opportunity/Quotation existing (Section 08/Prompt 20): Quotation "Duplicate" (salinan persis sebagai versi baru, `duplicateQuotationVersion`) dan "Compare" (panel toggle, terbatas nilai total vs versi sebelumnya — model `Quotation` existing tidak menyimpan snapshot breakdown penuh per versi, D-062); "Send to Client" (mock timestamp) dan "Withdraw Submission" (revert `submitted`→`draft`); field komersial baru (tax/fee, markup, currency, validity, terms and conditions, inclusions, exclusions) di "Edit Quotation"; halaman baru "PDF/Print Preview" (`/crm/opportunities/[id]/quotation-preview`, print via `window.print()` browser); dan Client Confirmation (`recordClientConfirmation`) sebagai gerbang TAMBAHAN — bukan pengganti — sebelum tombol "Mark as Won" aktif, sesuai Wajib literal "AE belum dapat Mark as Won sebelum approved + client confirmation". Detail lengkap: `docs/mockup-section-reports/section-05-ae-opportunity-quotation.md`.
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-034 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test HTTP (opportunity/quotation-preview route representatif, termasuk not-found dan tanpa-quotation) seluruhnya 200; verifikasi konten (badge "Terkirim ke Client", tombol Mark as Won `disabled` dengan title "Client confirmation belum dicatat" pada `OPP-006`, field komersial lengkap tampil di preview `OPP-010`); regresi Dashboard/Reports/CRM/Customer Journey/Party Detail dikonfirmasi tidak berubah; `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-062 dicatat di `docs/mockup-design-decisions.md`.
+- **Open issues:** Q8 tetap terbuka. Q14 (Approval Queue agregat Management-facing) sebagian resolved, sisa scope tetap Section 06.
+- **Next recommended prompt:** Section 06 (Management Approval, Won dan Client Activation), berbasis dependency — menunggu perintah user.

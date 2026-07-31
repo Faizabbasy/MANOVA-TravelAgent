@@ -160,10 +160,14 @@ export const QUOTATIONS: Quotation[] = reactive([
   // approvalStatus 'submitted' (Prompt 19) — skenario "satu quotation menunggu approval" (literal 9-9).
   { id: 'QUO-005', opportunityId: 'OPP-005', amountIdr: 180_000_000, createdAt: '2026-07-18', accepted: false, version: 2, supersededAmountIdr: 150_000_000, approvalStatus: 'submitted' },
   // approvalStatus 'approved' (Prompt 19) — skenario "satu quotation approved" (literal 9-9), siap "Ajukan sebagai Won".
-  { id: 'QUO-006', opportunityId: 'OPP-006', amountIdr: 60_000_000, createdAt: '2026-07-22', accepted: false, version: 1, approvalStatus: 'approved', approvedBy: 'USR-003' },
+  // sentToClientAt (Section 05) — sudah dikirim ke client tapi BELUM ada Client Confirmation (Opportunity.clientConfirmedAt
+  // sengaja tidak diisi), mendemokan gerbang baru "AE belum dapat Mark as Won sebelum approved + client confirmation".
+  { id: 'QUO-006', opportunityId: 'OPP-006', amountIdr: 60_000_000, createdAt: '2026-07-22', accepted: false, version: 1, approvalStatus: 'approved', approvedBy: 'USR-003', sentToClientAt: '2026-07-23' },
   { id: 'QUO-008', opportunityId: 'OPP-008', amountIdr: 60_000_000, createdAt: '2026-07-15', accepted: true, version: 1, approvalStatus: 'approved', approvedBy: 'USR-003' },
   // QUO-010 (Prompt 20) — draft lengkap dengan discount/estimated cost/estimated margin/payment terms/
   // service breakdown, `approvalStatus` sengaja tidak diisi (default "draft") — belum pernah di-submit.
+  // Section 05 — dilengkapi field komersial tambahan (tax/markup/currency/validity/terms/inclusions/
+  // exclusions) sebagai demo lengkap "Edit Quotation" dan "PDF/Print Preview".
   {
     id: 'QUO-010', opportunityId: 'OPP-010', amountIdr: 75_000_000, createdAt: '2026-07-27', accepted: false, version: 1,
     discountIdr: 3_000_000, estimatedCostIdr: 58_000_000, estimatedMarginIdr: 14_000_000,
@@ -172,5 +176,9 @@ export const QUOTATIONS: Quotation[] = reactive([
       { service: 'flight', description: '18 pax PP Jakarta–Surabaya', amountIdr: 27_000_000 },
       { service: 'hotel', description: '9 kamar twin, 2 malam', amountIdr: 48_000_000 },
     ],
+    taxIdr: 3_500_000, markupIdr: 2_500_000, currency: 'IDR', validUntil: '2026-08-27',
+    inclusions: 'Tiket pesawat PP Jakarta-Surabaya, hotel bintang 4 (2 malam), transportasi bandara-hotel PP.',
+    exclusions: 'Pengeluaran pribadi, asuransi perjalanan, aktivitas di luar itinerary.',
+    termsAndConditions: 'Harga berlaku sampai tanggal validity. DP 30% tidak dapat dikembalikan setelah konfirmasi booking.',
   },
 ])

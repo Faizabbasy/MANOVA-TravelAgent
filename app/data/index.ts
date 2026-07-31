@@ -261,6 +261,13 @@ export interface QuotationDetailInput {
   estimatedMarginIdr?: number
   paymentTerms?: string
   serviceBreakdown?: Quotation['serviceBreakdown']
+  taxIdr?: number
+  markupIdr?: number
+  currency?: string
+  validUntil?: string
+  termsAndConditions?: string
+  inclusions?: string
+  exclusions?: string
 }
 
 export function updateQuotationDetails(quotationId: string, patch: QuotationDetailInput): Quotation | undefined {
@@ -268,6 +275,44 @@ export function updateQuotationDetails(quotationId: string, patch: QuotationDeta
   if (!quotation) return undefined
   if (quotation.approvalStatus === 'submitted' || quotation.approvalStatus === 'approved') return undefined
   Object.assign(quotation, patch)
+  return quotation
+}
+
+/**
+ * "Duplicate" (Section 05) — berbeda dari `reviseQuotation`/"Create New Version" (yang mengosongkan nilai
+ * baru untuk diisi ulang): `duplicateQuotationVersion` menyalin SELURUH field quotation saat ini (amount,
+ * discount, tax, markup, service breakdown, dst.) sebagai versi baru, `approvalStatus` direset ke draft —
+ * titik awal AE mengedit dari salinan persis, bukan dari kosong.
+ */
+export function duplicateQuotationVersion(quotationId: string): Quotation | undefined {
+  const quotation = QUOTATIONS.find(q => q.id === quotationId)
+  if (!quotation) return undefined
+  quotation.supersededAmountIdr = quotation.amountIdr
+  quotation.version += 1
+  quotation.createdAt = DEMO_REFERENCE_DATE
+  quotation.approvalStatus = 'draft'
+  quotation.approvedBy = undefined
+  quotation.approvalNote = undefined
+  quotation.sentToClientAt = undefined
+  return quotation
+}
+
+/** "Send mock ke client" (Section 05) — simulasi timestamp pengiriman, TIDAK mengirim email/WA nyata (D-006). */
+export function sendQuotationToClient(quotationId: string): Quotation | undefined {
+  const quotation = QUOTATIONS.find(q => q.id === quotationId)
+  if (!quotation) return undefined
+  quotation.sentToClientAt = DEMO_REFERENCE_DATE
+  return quotation
+}
+
+/**
+ * "Withdraw" (Section 05) — AE menarik kembali quotation yang sudah `submitted` (sebelum Management
+ * sempat approve/reject), kembali ke `draft` agar bisa diedit ulang. Guard: hanya dari status `submitted`.
+ */
+export function withdrawQuotationSubmission(quotationId: string): Quotation | undefined {
+  const quotation = QUOTATIONS.find(q => q.id === quotationId)
+  if (!quotation || quotation.approvalStatus !== 'submitted') return undefined
+  quotation.approvalStatus = 'draft'
   return quotation
 }
 
@@ -366,6 +411,26 @@ export function updateOpportunityRequirement(opportunityId: string, patch: Oppor
   const opportunity = getOpportunityById(opportunityId)
   if (!opportunity) return undefined
   Object.assign(opportunity, patch)
+  return opportunity
+}
+
+/**
+ * Client Confirmation (Section 05) — dicatat AE setelah quotation `approved`, gerbang TAMBAHAN sebelum
+ * "Mark as Won" (lihat `Opportunity.clientConfirmedAt`, `app/types/opportunity.ts`). Mock — bukan integrasi
+ * email/WA nyata (D-006); hanya mencatat bahwa AE sudah menerima konfirmasi lewat kanal apa pun.
+ */
+export function recordClientConfirmation(opportunityId: string, actorId: string, note?: string): Opportunity | undefined {
+  const opportunity = getOpportunityById(opportunityId)
+  if (!opportunity) return undefined
+  opportunity.clientConfirmedAt = DEMO_REFERENCE_DATE
+  opportunity.clientConfirmationNote = note
+  createPartyActivity({
+    partyId: opportunity.partyId,
+    opportunityId: opportunity.id,
+    type: 'note',
+    message: `Client confirmation dicatat.${note ? ` Catatan: ${note}` : ''}`,
+    ownerId: actorId,
+  })
   return opportunity
 }
 
@@ -715,6 +780,68 @@ export function archiveLead(leadId: string): Lead | undefined {
   lead.archived = true
   lead.lastUpdatedAt = DEMO_REFERENCE_DATE
   return lead
+}
+
+/** "Reopen" (Section 04) — kebalikan `archiveLead`, tidak mengubah `stage`/data qualification apa pun. */
+export function reopenLead(leadId: string): Lead | undefined {
+  const lead = getLeadById(leadId)
+  if (!lead) return undefined
+  lead.archived = false
+  lead.lastUpdatedAt = DEMO_REFERENCE_DATE
+  return lead
+}
+
+/** "Edit Lead" (Section 04) — field kontak dasar (dulu hanya bisa diisi sekali saat create). */
+export interface LeadContactInput {
+  name?: string
+  companyName?: string
+  source?: Lead['source']
+  phone?: string
+  email?: string
+}
+
+export function updateLeadContact(leadId: string, patch: LeadContactInput): Lead | undefined {
+  const lead = getLeadById(leadId)
+  if (!lead) return undefined
+  Object.assign(lead, patch)
+  lead.lastUpdatedAt = DEMO_REFERENCE_DATE
+  return lead
+}
+
+/**
+ * Duplicate suggestion (Section 03/04) — selector bersama dipakai `/lead-intake` (preview non-blocking
+ * saat mengisi form publik) dan `/customer-journey/leads` (New Lead dialog + drawer Overview, "merge
+ * suggestion"). Mencocokkan phone/email (trim, email case-insensitive) terhadap Lead lain yang BELUM
+ * archived (Lead yang sudah archived diasumsikan sudah pernah ditangani/di-merge sebelumnya, tidak
+ * ditawarkan lagi sebagai target canonical baru).
+ */
+export function getLeadDuplicateCandidates(input: { phone?: string; email?: string; excludeLeadId?: string }): Lead[] {
+  const phoneNorm = input.phone?.trim()
+  const emailNorm = input.email?.trim().toLowerCase()
+  if (!phoneNorm && !emailNorm) return []
+  return LEADS.filter(lead =>
+    lead.id !== input.excludeLeadId
+    && !lead.archived
+    && ((Boolean(phoneNorm) && lead.phone?.trim() === phoneNorm) || (Boolean(emailNorm) && (lead.email ?? '').trim().toLowerCase() === emailNorm)),
+  )
+}
+
+/**
+ * "Merge suggestion" (Section 04) — TIDAK menggabungkan field data (di luar scope, kompleksitas tinggi
+ * untuk mockup), melainkan pola realistis: Sales meninjau kandidat duplikat lalu meng-archive lead
+ * duplikat dengan catatan referensi ke lead canonical yang dipertahankan — kedua lead tetap ada sebagai
+ * histori (mengikuti hard rule "jangan menghapus data"), hanya status `archived` yang berubah.
+ */
+export function mergeLeadAsDuplicate(duplicateLeadId: string, canonicalLeadId: string, actorId: string): Lead | undefined {
+  if (duplicateLeadId === canonicalLeadId) return undefined
+  const duplicate = getLeadById(duplicateLeadId)
+  const canonical = getLeadById(canonicalLeadId)
+  if (!duplicate || !canonical || duplicate.archived) return undefined
+  duplicate.archived = true
+  duplicate.lastUpdatedAt = DEMO_REFERENCE_DATE
+  createLeadActivity({ leadId: duplicate.id, type: 'note', message: `Ditandai sebagai duplikat, digabung ke ${canonical.id} (${canonical.name}).`, ownerId: actorId })
+  createLeadActivity({ leadId: canonical.id, type: 'note', message: `Menerima merge dari lead duplikat ${duplicate.id} (${duplicate.name}).`, ownerId: actorId })
+  return duplicate
 }
 
 /**

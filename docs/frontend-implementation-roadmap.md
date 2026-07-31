@@ -7,9 +7,9 @@ Dibuat oleh **Section 00 — Current Progress Reconciliation** (2026-08-01). Uru
 | 00 | Current Progress Reconciliation | COMPLETED | — |
 | 01 | Frontend Foundation dan State Governance | COMPLETED (2026-08-01) | — (repository/service-layer: `app/data/index.ts` diformalkan sebagai layer existing, D-058; state reset/seed scenario diimplementasikan baru) |
 | 02 | Role, Access dan Navigation | COMPLETED (2026-08-01) | — (role/module/nav/matrix view lengkap; fitur bisnis penuh Client Portal tetap Section 08, RFQ/Procurement workflow tetap Section 17, modul Product Planning tetap Section 10) |
-| 03 | Public Lead Intake | NOT_STARTED | Tidak ada prasyarat blocking dari section lain — dapat dikerjakan kapan saja setelah Section 01/02 |
-| 04 | Sales Leads dan Qualification | PARTIAL | Reopen archived lead, merge-duplicate suggestion |
-| 05 | Account Executive Opportunity dan Quotation | PARTIAL | Duplicate/compare quotation, send-mock ke client, withdraw submission, PDF/print preview, line item tax/fee/markup terpisah dari discount |
+| 03 | Public Lead Intake | COMPLETED (2026-08-01) | — (`/lead-intake`, 4 kategori, consent, UTM preview, duplicate suggestion non-blocking, reuse `createLead`+`updateLeadQualification`) |
+| 04 | Sales Leads dan Qualification | COMPLETED (2026-08-01) | — (Edit Lead, Reopen, merge suggestion via archive-dengan-referensi — D-061; true field-merge tetap evolusi lanjutan, bukan gap tersembunyi) |
+| 05 | Account Executive Opportunity dan Quotation | COMPLETED (2026-07-31) | — (lihat `docs/mockup-section-reports/section-05-ae-opportunity-quotation.md`) |
 | 06 | Management Approval, Won dan Client Activation | PARTIAL | Approval queue agregat (Q14), client confirmation record (Q14) |
 | 07 | Customer Journey | PARTIAL | Funnel drill-down per stage + conversion metrics eksplisit (saat ini `/customer-journey` menampilkan stats ringkas, bukan funnel interaktif penuh) |
 | 08 | Client Portal | PARTIAL (shell `/client` dari Section 02) | Fitur bisnis penuh: quotation confirm, document, traveler submission, communication, invoice status |
@@ -32,7 +32,7 @@ Dibuat oleh **Section 00 — Current Progress Reconciliation** (2026-08-01). Uru
 
 ## Rekomendasi Urutan Eksekusi Berikutnya
 
-Section 01 sudah COMPLETED (2026-08-01) — lihat `docs/mockup-section-reports/section-01-frontend-foundation-state-governance.md`. Section 02 (Role, Access dan Navigation) direkomendasikan sebagai section berikutnya berbasis dependency (role `client`/`product-planner`/`procurement` yang ditambahkan di sini menjadi prasyarat Section 08/10/17). Sesuai protokol, keputusan section mana yang benar-benar dijalankan berikutnya tetap menunggu perintah eksplisit user — dokumen ini hanya menyediakan rekomendasi berbasis dependency, bukan keputusan final.
+Section 01–05 sudah COMPLETED — lihat laporan masing-masing di `docs/mockup-section-reports/`. Section 06 (Management Approval, Won dan Client Activation) direkomendasikan sebagai section berikutnya berbasis dependency — melengkapi gap PARTIAL (approval queue agregat, client confirmation record Management/Client-facing, Q14) di atas fondasi Commercial Approval/Mark as Won/Client Confirmation AE-facing yang sudah ada sejak Prompt 19/20/Section 05. Sesuai protokol, keputusan section mana yang benar-benar dijalankan berikutnya tetap menunggu perintah eksplisit user.
 
 ## Fitur yang Tidak Boleh Dikerjakan Ulang (Protected)
 

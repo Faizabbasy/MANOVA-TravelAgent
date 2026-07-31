@@ -8,6 +8,7 @@ import {
   getOpportunityMissingRequirements, getOpportunityRequirementGate, getOpportunityWorkflowStatus,
   updateOpportunityRequirement, updateQuotationDetails, approveOpportunityWon,
   submitQuotationForApproval, approveQuotation, rejectQuotation,
+  duplicateQuotationVersion, sendQuotationToClient, withdrawQuotationSubmission, recordClientConfirmation,
 } from '~/data'
 import {
   OPPORTUNITY_STAGES, OPPORTUNITY_WORKFLOW_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES,
@@ -184,6 +185,14 @@ const editQuotationCost = ref<number | null>(null)
 const editQuotationMargin = ref<number | null>(null)
 const editQuotationPaymentTerms = ref('')
 const editServiceBreakdown = ref<QuotationServiceItem[]>([])
+/** Section 05 — field komersial tambahan: tax/fee, markup, currency, validity, terms, inclusions/exclusions. */
+const editQuotationTax = ref<number | null>(null)
+const editQuotationMarkup = ref<number | null>(null)
+const editQuotationCurrency = ref('')
+const editQuotationValidUntil = ref('')
+const editQuotationTerms = ref('')
+const editQuotationInclusions = ref('')
+const editQuotationExclusions = ref('')
 
 function openEditQuotationDialog() {
   if (!quotation.value) return
@@ -193,6 +202,13 @@ function openEditQuotationDialog() {
   editQuotationMargin.value = quotation.value.estimatedMarginIdr ?? null
   editQuotationPaymentTerms.value = quotation.value.paymentTerms ?? ''
   editServiceBreakdown.value = (quotation.value.serviceBreakdown ?? []).map(item => ({ ...item }))
+  editQuotationTax.value = quotation.value.taxIdr ?? null
+  editQuotationMarkup.value = quotation.value.markupIdr ?? null
+  editQuotationCurrency.value = quotation.value.currency ?? 'IDR'
+  editQuotationValidUntil.value = quotation.value.validUntil ?? ''
+  editQuotationTerms.value = quotation.value.termsAndConditions ?? ''
+  editQuotationInclusions.value = quotation.value.inclusions ?? ''
+  editQuotationExclusions.value = quotation.value.exclusions ?? ''
   isEditQuotationDialogOpen.value = true
 }
 
@@ -213,8 +229,52 @@ function submitEditQuotation() {
     estimatedMarginIdr: editQuotationMargin.value ?? undefined,
     paymentTerms: editQuotationPaymentTerms.value.trim() || undefined,
     serviceBreakdown: editServiceBreakdown.value.filter(item => item.amountIdr > 0),
+    taxIdr: editQuotationTax.value ?? undefined,
+    markupIdr: editQuotationMarkup.value ?? undefined,
+    currency: editQuotationCurrency.value.trim() || undefined,
+    validUntil: editQuotationValidUntil.value || undefined,
+    termsAndConditions: editQuotationTerms.value.trim() || undefined,
+    inclusions: editQuotationInclusions.value.trim() || undefined,
+    exclusions: editQuotationExclusions.value.trim() || undefined,
   })
   isEditQuotationDialogOpen.value = false
+}
+
+/** "Duplicate Quotation" (Section 05) — salinan persis sebagai versi baru, titik awal edit dari draft yang sudah terisi. */
+function submitDuplicateQuotation() {
+  if (!quotation.value) return
+  duplicateQuotationVersion(quotation.value.id)
+  showToast('Quotation Diduplikasi', 'Versi baru dibuat sebagai salinan persis dari versi sebelumnya, siap diedit.', 'success')
+}
+
+const isCompareVersionsOpen = ref(false)
+
+/* Send to Client / Withdraw / Client Confirmation (Section 05) */
+function submitSendToClient() {
+  if (!quotation.value) return
+  sendQuotationToClient(quotation.value.id)
+  showToast('Quotation Terkirim', 'Simulasi pengiriman ke client tercatat (mock, bukan email/WA nyata).', 'success')
+}
+
+function submitWithdraw() {
+  if (!quotation.value) return
+  const result = withdrawQuotationSubmission(quotation.value.id)
+  if (!result) {
+    showToast('Withdraw Gagal', 'Quotation tidak lagi berstatus Submitted.', 'error')
+    return
+  }
+  showToast('Quotation Ditarik', 'Kembali ke status Draft — dapat diedit ulang sebelum submit lagi.', 'warning')
+}
+
+const isClientConfirmationDialogOpen = ref(false)
+const clientConfirmationNoteInput = ref('')
+
+function submitClientConfirmation() {
+  if (!opportunity.value) return
+  recordClientConfirmation(opportunity.value.id, currentUser.value.id, clientConfirmationNoteInput.value.trim() || undefined)
+  isClientConfirmationDialogOpen.value = false
+  clientConfirmationNoteInput.value = ''
+  showToast('Client Confirmation Dicatat', 'AE sekarang dapat melanjutkan ke Mark as Won.', 'success')
 }
 
 /**
@@ -230,7 +290,7 @@ function submitEditQuotation() {
 const isMarkAsWonDialogOpen = ref(false)
 
 function submitMarkAsWon() {
-  if (!opportunity.value || !quotation.value || quotation.value.approvalStatus !== 'approved') return
+  if (!opportunity.value || !quotation.value || quotation.value.approvalStatus !== 'approved' || !opportunity.value.clientConfirmedAt) return
   advanceOpportunityStage(opportunity.value.id, 'won-requested')
   const project = approveOpportunityWon(opportunity.value.id, quotation.value.approvedBy ?? currentUser.value.id)
   isMarkAsWonDialogOpen.value = false
@@ -510,8 +570,8 @@ function submitActivity() {
               <DialogTrigger as-child>
                 <Button
                   size="sm"
-                  :disabled="quotation?.approvalStatus !== 'approved' || missingRequirements.length > 0"
-                  :title="quotation?.approvalStatus !== 'approved' ? 'Quotation harus disetujui (Commercial Approval) oleh Management sebelum Mark as Won' : undefined"
+                  :disabled="quotation?.approvalStatus !== 'approved' || missingRequirements.length > 0 || !opportunity.clientConfirmedAt"
+                  :title="quotation?.approvalStatus !== 'approved' ? 'Quotation harus disetujui (Commercial Approval) oleh Management sebelum Mark as Won' : (!opportunity.clientConfirmedAt ? 'Client confirmation belum dicatat' : undefined)"
                 >Mark as Won</Button>
               </DialogTrigger>
               <DialogContent class="max-w-md">
@@ -531,6 +591,9 @@ function submitActivity() {
             </Dialog>
             <p v-if="quotation?.approvalStatus !== 'approved'" class="text-xs text-muted-foreground basis-full">
               Quotation harus melalui Commercial Approval (lihat section di bawah) sebelum AE dapat Mark as Won.
+            </p>
+            <p v-else-if="!opportunity.clientConfirmedAt" class="text-xs text-muted-foreground basis-full">
+              Client confirmation belum dicatat (lihat section Commercial Approval di bawah) sebelum AE dapat Mark as Won.
             </p>
             <p v-else-if="missingRequirements.length > 0" class="text-xs text-muted-foreground basis-full">
               Requirement belum lengkap: {{ missingRequirements.join(', ') }}.
@@ -580,32 +643,42 @@ function submitActivity() {
 
       <!-- Quotation -->
       <SectionCard title="Quotation">
-        <template v-if="canManageOpportunity && quotation && !['won', 'lost'].includes(opportunity.stage)" #actions>
+        <template v-if="quotation" #actions>
           <div class="flex flex-wrap gap-2">
-            <Button
-              v-if="(quotation.approvalStatus ?? 'draft') === 'draft'"
-              size="sm" variant="outline"
-              @click="openEditQuotationDialog"
-            >Edit Quotation</Button>
-            <Dialog v-model:open="isReviseDialogOpen">
-              <DialogTrigger as-child>
-                <Button size="sm" variant="outline" @click="openReviseDialog">Create New Version</Button>
-              </DialogTrigger>
-              <DialogContent class="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Revisi Quotation (Versi Baru)</DialogTitle>
-                  <DialogDescription>Nilai lama akan tersimpan sebagai versi sebelumnya; status approval direset ke Draft.</DialogDescription>
-                </DialogHeader>
-                <div class="space-y-1.5 py-2">
-                  <Label for="revise-amount">Nilai Quotation Baru (Rp)</Label>
-                  <Input id="revise-amount" v-model.number="revisedAmount" type="number" />
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" @click="isReviseDialogOpen = false">Batal</Button>
-                  <Button :disabled="!revisedAmount || revisedAmount <= 0" @click="submitRevise">Simpan Revisi</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+            <NuxtLink :to="`/crm/opportunities/${opportunity.id}/quotation-preview`" target="_blank">
+              <Button size="sm" variant="outline">PDF / Print Preview</Button>
+            </NuxtLink>
+            <template v-if="canManageOpportunity && !['won', 'lost'].includes(opportunity.stage)">
+              <Button
+                v-if="(quotation.approvalStatus ?? 'draft') === 'draft'"
+                size="sm" variant="outline"
+                @click="openEditQuotationDialog"
+              >Edit Quotation</Button>
+              <Button
+                v-if="(quotation.approvalStatus ?? 'draft') === 'draft'"
+                size="sm" variant="outline"
+                @click="submitDuplicateQuotation"
+              >Duplicate Quotation</Button>
+              <Dialog v-model:open="isReviseDialogOpen">
+                <DialogTrigger as-child>
+                  <Button size="sm" variant="outline" @click="openReviseDialog">Create New Version</Button>
+                </DialogTrigger>
+                <DialogContent class="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Revisi Quotation (Versi Baru)</DialogTitle>
+                    <DialogDescription>Nilai lama akan tersimpan sebagai versi sebelumnya; status approval direset ke Draft.</DialogDescription>
+                  </DialogHeader>
+                  <div class="space-y-1.5 py-2">
+                    <Label for="revise-amount">Nilai Quotation Baru (Rp)</Label>
+                    <Input id="revise-amount" v-model.number="revisedAmount" type="number" />
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" @click="isReviseDialogOpen = false">Batal</Button>
+                    <Button :disabled="!revisedAmount || revisedAmount <= 0" @click="submitRevise">Simpan Revisi</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </template>
           </div>
         </template>
 
@@ -614,17 +687,37 @@ function submitActivity() {
             <p class="text-2xl font-bold text-foreground">{{ formatCurrencyIdr(quotation.amountIdr) }}</p>
             <StatusBadge :label="`Versi ${quotation.version}`" tone="info" />
             <StatusBadge v-if="quotation.accepted" label="Accepted" tone="success" />
+            <StatusBadge v-if="quotation.sentToClientAt" label="Terkirim ke Client" tone="info" />
           </div>
-          <p v-if="quotation.supersededAmountIdr" class="text-xs text-muted-foreground">
-            Direvisi dari {{ formatCurrencyIdr(quotation.supersededAmountIdr) }}
-          </p>
+          <div v-if="quotation.supersededAmountIdr" class="text-xs text-muted-foreground">
+            <p>Direvisi dari {{ formatCurrencyIdr(quotation.supersededAmountIdr) }}</p>
+            <button type="button" class="text-primary hover:underline" @click="isCompareVersionsOpen = !isCompareVersionsOpen">
+              {{ isCompareVersionsOpen ? 'Sembunyikan' : 'Bandingkan' }} dengan versi sebelumnya
+            </button>
+            <div v-if="isCompareVersionsOpen" class="mt-2 grid grid-cols-2 gap-3 rounded-lg border border-border p-3">
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Versi Sebelumnya</p>
+                <p class="text-sm text-foreground">{{ formatCurrencyIdr(quotation.supersededAmountIdr) }}</p>
+              </div>
+              <div>
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Versi {{ quotation.version }} (Saat Ini)</p>
+                <p class="text-sm text-foreground">{{ formatCurrencyIdr(quotation.amountIdr) }}</p>
+              </div>
+              <p class="col-span-2 text-[11px] text-muted-foreground">Hanya nilai total yang disimpan per versi sebelumnya (bukan histori breakdown penuh) — perbandingan lain (discount/tax/markup/service breakdown) mengikuti nilai versi saat ini.</p>
+            </div>
+          </div>
+          <p v-if="quotation.sentToClientAt" class="text-xs text-muted-foreground">Terkirim ke client pada {{ formatDate(quotation.sentToClientAt) }} (simulasi, bukan email/WA nyata).</p>
           <p class="text-xs text-muted-foreground">Dibuat {{ formatDate(quotation.createdAt) }}</p>
 
           <div class="mt-2 pt-2 border-t border-border">
             <DetailMetadataList :items="[
               { label: 'Discount', value: quotation.discountIdr ? formatCurrencyIdr(quotation.discountIdr) : '—' },
+              { label: 'Tax / Fee', value: quotation.taxIdr ? formatCurrencyIdr(quotation.taxIdr) : '—' },
+              { label: 'Markup', value: quotation.markupIdr ? formatCurrencyIdr(quotation.markupIdr) : '—' },
               { label: 'Estimated Cost', value: quotation.estimatedCostIdr ? formatCurrencyIdr(quotation.estimatedCostIdr) : '—' },
               { label: 'Estimated Margin', value: quotation.estimatedMarginIdr ? formatCurrencyIdr(quotation.estimatedMarginIdr) : '—' },
+              { label: 'Currency', value: quotation.currency || 'IDR' },
+              { label: 'Valid Until', value: quotation.validUntil ? formatDate(quotation.validUntil) : '—' },
               { label: 'Payment Terms', value: quotation.paymentTerms || '—' },
             ]" />
           </div>
@@ -639,6 +732,20 @@ function submitActivity() {
                 <p class="text-sm text-foreground shrink-0">{{ formatCurrencyIdr(item.amountIdr) }}</p>
               </li>
             </ul>
+          </div>
+          <div v-if="quotation.termsAndConditions || quotation.inclusions || quotation.exclusions" class="mt-2 pt-2 border-t border-border grid gap-3 sm:grid-cols-3">
+            <div v-if="quotation.inclusions">
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Inclusions</p>
+              <p class="text-xs text-foreground whitespace-pre-line">{{ quotation.inclusions }}</p>
+            </div>
+            <div v-if="quotation.exclusions">
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Exclusions</p>
+              <p class="text-xs text-foreground whitespace-pre-line">{{ quotation.exclusions }}</p>
+            </div>
+            <div v-if="quotation.termsAndConditions">
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Terms &amp; Conditions</p>
+              <p class="text-xs text-foreground whitespace-pre-line">{{ quotation.termsAndConditions }}</p>
+            </div>
           </div>
         </div>
         <EmptyState v-else title="Belum ada quotation" description="Quotation akan dibuat saat opportunity ini lanjut ke stage Proposal." />
@@ -670,6 +777,26 @@ function submitActivity() {
                 <Label for="edit-quo-payment-terms">Payment Terms</Label>
                 <Input id="edit-quo-payment-terms" v-model="editQuotationPaymentTerms" placeholder="mis. DP 50%, pelunasan H-7" />
               </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="edit-quo-tax">Tax / Fee (Rp)</Label>
+                  <Input id="edit-quo-tax" v-model.number="editQuotationTax" type="number" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="edit-quo-markup">Markup (Rp)</Label>
+                  <Input id="edit-quo-markup" v-model.number="editQuotationMarkup" type="number" />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="edit-quo-currency">Currency</Label>
+                  <Input id="edit-quo-currency" v-model="editQuotationCurrency" placeholder="IDR" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="edit-quo-valid-until">Valid Until</Label>
+                  <Input id="edit-quo-valid-until" v-model="editQuotationValidUntil" type="date" />
+                </div>
+              </div>
               <div class="space-y-2">
                 <div class="flex items-center justify-between">
                   <Label class="!mb-0">Service Breakdown</Label>
@@ -684,6 +811,18 @@ function submitActivity() {
                   <Button size="sm" variant="ghost" type="button" @click="removeBreakdownRow(index)">Hapus</Button>
                 </div>
                 <p v-if="editServiceBreakdown.length === 0" class="text-xs text-muted-foreground">Belum ada baris service breakdown.</p>
+              </div>
+              <div class="space-y-1.5">
+                <Label for="edit-quo-inclusions">Inclusions</Label>
+                <textarea id="edit-quo-inclusions" v-model="editQuotationInclusions" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Tiket pesawat PP, hotel 3 malam, transportasi lokal" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="edit-quo-exclusions">Exclusions</Label>
+                <textarea id="edit-quo-exclusions" v-model="editQuotationExclusions" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Pengeluaran pribadi, asuransi perjalanan" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="edit-quo-terms">Terms &amp; Conditions</Label>
+                <textarea id="edit-quo-terms" v-model="editQuotationTerms" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Harga berlaku selama masa validity, DP tidak dapat dikembalikan" />
               </div>
             </div>
             <DialogFooter>
@@ -726,8 +865,12 @@ function submitActivity() {
         </div>
 
         <div v-else-if="quotation.approvalStatus === 'submitted'">
-          <p v-if="!canApproveCommercial" class="text-sm text-muted-foreground">Menunggu commercial approval dari Management/Super Admin.</p>
-          <div v-else class="flex flex-wrap gap-2">
+          <div v-if="canManageOpportunity" class="mb-2">
+            <p class="text-sm text-muted-foreground mb-2">Menunggu commercial approval dari Management/Super Admin.</p>
+            <Button size="sm" variant="outline" @click="submitWithdraw">Withdraw Submission</Button>
+          </div>
+          <p v-else-if="!canApproveCommercial" class="text-sm text-muted-foreground">Menunggu commercial approval dari Management/Super Admin.</p>
+          <div v-if="canApproveCommercial" class="flex flex-wrap gap-2">
             <Dialog v-model:open="isApproveCommercialDialogOpen">
               <DialogTrigger as-child>
                 <Button size="sm">Approve Commercial</Button>
@@ -776,9 +919,55 @@ function submitActivity() {
           <p class="text-sm text-destructive">Ditolak — revisi quotation lalu submit ulang untuk approval.</p>
         </div>
 
-        <p v-else-if="quotation.approvalStatus === 'approved'" class="text-sm text-success">
-          Disetujui — AE dapat mengajukan opportunity ini sebagai Won pada stage Negotiation.
-        </p>
+        <div v-else-if="quotation.approvalStatus === 'approved'">
+          <p class="text-sm text-success mb-4">
+            Disetujui — AE dapat mengajukan opportunity ini sebagai Won pada stage Negotiation, setelah quotation dikirim dan client mengonfirmasi.
+          </p>
+
+          <div class="pt-4 border-t border-border space-y-3">
+            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Send to Client</p>
+            <div v-if="quotation.sentToClientAt" class="flex items-center gap-2">
+              <StatusBadge label="Terkirim ke Client" tone="info" />
+              <span class="text-xs text-muted-foreground">pada {{ formatDate(quotation.sentToClientAt) }}</span>
+            </div>
+            <Button v-if="canManageOpportunity" size="sm" variant="outline" @click="submitSendToClient">
+              {{ quotation.sentToClientAt ? 'Kirim Ulang ke Client' : 'Send to Client' }}
+            </Button>
+          </div>
+
+          <div class="pt-4 mt-4 border-t border-border space-y-3">
+            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Client Confirmation</p>
+            <template v-if="opportunity.clientConfirmedAt">
+              <div class="flex items-center gap-2">
+                <StatusBadge label="Client Confirmed" tone="success" />
+                <span class="text-xs text-muted-foreground">pada {{ formatDate(opportunity.clientConfirmedAt) }}</span>
+              </div>
+              <p v-if="opportunity.clientConfirmationNote" class="text-sm text-muted-foreground">Catatan: {{ opportunity.clientConfirmationNote }}</p>
+            </template>
+            <template v-else>
+              <p class="text-sm text-muted-foreground">Belum dikonfirmasi client — gerbang tambahan sebelum AE dapat Mark as Won.</p>
+              <Dialog v-if="canManageOpportunity" v-model:open="isClientConfirmationDialogOpen">
+                <DialogTrigger as-child>
+                  <Button size="sm">Catat Client Confirmation</Button>
+                </DialogTrigger>
+                <DialogContent class="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Catat Client Confirmation</DialogTitle>
+                    <DialogDescription>Mencatat bahwa client sudah mengonfirmasi quotation ini (verbal/email/WA — mock, bukan integrasi nyata).</DialogDescription>
+                  </DialogHeader>
+                  <div class="space-y-1.5 py-2">
+                    <Label for="client-confirmation-note">Catatan (opsional)</Label>
+                    <Input id="client-confirmation-note" v-model="clientConfirmationNoteInput" placeholder="mis. Dikonfirmasi via WhatsApp oleh decision maker" />
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" @click="isClientConfirmationDialogOpen = false">Batal</Button>
+                    <Button @click="submitClientConfirmation">Simpan</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </template>
+          </div>
+        </div>
       </SectionCard>
 
       <!-- Activity / Follow-up -->

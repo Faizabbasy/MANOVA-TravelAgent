@@ -420,3 +420,82 @@ Mulai dari entri ini, section memakai **skema penomoran baru** (D-057, `docs/moc
 - **Known issues:** Q13 RESOLVED. Sisa fitur bisnis penuh Client Portal (Section 08), RFQ/Service Order Procurement (Section 17), modul Product Planning (Section 10) tetap tanggung jawab section masing-masing (dicatat `docs/frontend-known-issues.md`). Verifikasi interaktif ganti-role/isolasi antar-Client tidak dilakukan headless (keterbatasan tooling konsisten).
 - **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-030 (Dashboard, menyentuh Section 06 lama), CI-031 (Matrix View, menyentuh Section 17 lama) — keduanya perbaikan aditif murni, regression-tested.
 - **Next action:** Section 03 (Public Lead Intake) direkomendasikan berbasis dependency (`docs/frontend-implementation-roadmap.md`) — menunggu perintah eksplisit user.
+
+---
+
+## [Skema Roadmap Baru Section 00–24] Section 03 — Public Lead Intake
+
+- **Tanggal:** 2026-08-01
+- **Status:** COMPLETED
+- **Scope dan completed items:** Implementasi public lead intake frontend (`prompts/Section 03 — Public Lead Intake.md`, dijalankan via `prompts/99-RUN-CURRENT-SECTION.md`).
+  1. **Route publik baru `/lead-intake`** — `layout: false`, tanpa `middleware: 'auth'`, tidak masuk `NAV_ITEMS` (Wajib "Public tidak mendapat dashboard internal").
+  2. **4 kategori** (Corporate Travel/Group Travel/Individual Travel/MICE — Event) via selector pill, dapat di-preset lewat `?type=`. Copy/label form menyesuaikan kategori terpilih.
+  3. **Form dasar** — Nama Kontak (wajib), Nama Company (opsional), Sumber (select, default terisi otomatis dari `utm_source` bila ada), Telepon/Email (minimal satu wajib). Field opsional tambahan (reuse `Lead` qualification fields existing): Destinasi, Perkiraan Jumlah Traveler, Ceritakan Kebutuhan Anda.
+  4. **Consent checkbox** (wajib dicentang untuk submit) + ringkasan kebijakan privasi mock (collapsible, eksplisit ditandai "Mock — bukan dokumen legal").
+  5. **UTM/source/referrer preview** — panel transparan menampilkan `utm_source`/`utm_medium`/`utm_campaign` (query string) dan `document.referrer` (client-only), atau pesan "kunjungan langsung" bila kosong.
+  6. **Validation** — Nama Kontak, kontak minimal satu (telepon/email), consent — ditampilkan sebagai warning list setelah percobaan submit pertama (bukan sebelum, demi UX).
+  7. **Duplicate suggestion** — non-blocking, mencocokkan telepon/email terhadap `LEADS` existing, menampilkan info (bukan larangan submit).
+  8. **Success/error state** — sukses menampilkan nomor referensi (`Lead.id`) + tombol "Ajukan Permintaan Baru"; error memakai `ErrorState.vue` (dipakai pertama kali sejak Foundation, dikonfirmasi Section 01 tersedia tapi belum pernah dipakai).
+  9. **Submission** — reuse `createLead()`+`updateLeadQualification()` (Prompt 20) apa adanya, menulis ke `LEADS` centralized state yang sama dipakai `/customer-journey/leads` dan `/customer-journey/lead-sources` — memenuhi acceptance "Lead public dapat ditelusuri ke Lead list dan Lead Source Recap" secara otomatis (single source of truth, bukan dataset paralel).
+  10. **Discoverability** — `/login` (satu-satunya halaman publik lain) mendapat 1 baris link ke `/lead-intake`.
+- **Files created/changed/removed:**
+  - Dibuat: `app/pages/lead-intake/index.vue`, `docs/mockup-section-reports/section-03-public-lead-intake.md` (laporan ini).
+  - Diubah: `app/pages/login.vue` (+link discoverability), `docs/mockup-design-decisions.md` (+D-060), `docs/mockup-open-questions.md` (Q15 RESOLVED), `docs/mockup-change-impact-log.md` (+CI-032), `docs/frontend-module-map.md`, `docs/frontend-workflow-map.md`, `docs/frontend-implementation-roadmap.md`, `docs/frontend-known-issues.md`, `docs/mockup-implementation-state.md`, `docs/mockup-progress.md`, `docs/mockup-section-progress.md` (entri ini), `docs/mockup-section-reports/README.md`.
+  - Dihapus: Tidak ada.
+- **Routes affected:** `/lead-intake` (baru). `/login` (+link, tidak ada perubahan logic autentikasi mock).
+- **Components reused/created:** Reused — `Input`/`Label`/`Button`/`Checkbox`/`ErrorState` (pertama kali dipakai). Tidak ada shared component baru.
+- **Data/types/constants affected:** Tidak ada — reuse penuh `Lead`/`LeadServiceCategory`/`LeadSource` (types) dan `createLead`/`updateLeadQualification` (mutators) existing dari Prompt 20/Section 02, tanpa perubahan shape apa pun.
+- **Validation results:** `npx nuxi prepare` sukses. `npm run build` sukses (chunk `lead-intake-*` baru ter-compile). Smoke test HTTP (`/`, `/login`, `/lead-intake` termasuk dengan query `?type=mice-event&utm_source=instagram&utm_medium=cpc&utm_campaign=demo`, `/customer-journey/leads`, `/customer-journey/lead-sources`, + 13 route existing representatif) — seluruhnya HTTP 200, tidak ada string error. Konten `/lead-intake` terverifikasi menampilkan kategori sesuai query param. `npx vitest run` — "No test files found" (pre-existing, Q8).
+- **Known issues:** Q15 RESOLVED. Verifikasi interaktif submit form (klik Kirim Permintaan, cek Lead baru muncul di `/customer-journey/leads`) tidak dilakukan headless — dimitigasi lewat code review (mutator yang dipakai identik dengan yang sudah divalidasi Prompt 20). Merge-duplicate PENUH tetap Section 04.
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-032 (link `/login`, menyentuh halaman Foundation/template baseline yang belum pernah disentuh section manapun) — aditif murni, regression-tested.
+- **Next action:** Section 04 (Sales Leads dan Qualification) direkomendasikan berbasis dependency (`docs/frontend-implementation-roadmap.md`) — menunggu perintah eksplisit user.
+
+---
+
+## [Skema Roadmap Baru Section 00–24] Section 04 — Sales Leads dan Qualification
+
+- **Tanggal:** 2026-08-01
+- **Status:** COMPLETED
+- **Scope dan completed items:** Lengkapi workflow Sales end-to-end (`prompts/Section 04 — Sales Leads dan Qualification.md`, dijalankan via `prompts/99-RUN-CURRENT-SECTION.md`). Audit Section 00 mengonfirmasi mayoritas Wajib sudah COMPLETED sejak Prompt 20 (Leads Table/Kanban/Inbox, drawer 4-tab, Qualification draft/final lengkap 13 field, gate Qualify & Create Opportunity, idempotency, activity/follow-up history, Sales tidak bisa quotation/approve/Mark as Won). 3 gap konkret ditutup:
+  1. **Edit Lead** — dialog baru (Overview tab) untuk field kontak dasar (nama/company/source/phone/email), sebelumnya hanya bisa diisi sekali saat create.
+  2. **Reopen** — tombol baru di drawer footer (muncul saat lead archived), kebalikan Archive.
+  3. **Merge suggestion** — diimplementasikan sebagai archive-dengan-referensi (D-061): deteksi otomatis (`getLeadDuplicateCandidates`, cocok phone/email), panel "Lead Serupa Terdeteksi" di Overview tab, badge "Possible Duplicate" di Table view, aksi "Tandai sebagai Duplikat" (`mergeLeadAsDuplicate`, mengarsipkan lead duplikat dengan catatan referensi ke lead canonical — TIDAK menggabungkan field, kedua record tetap ada sebagai histori).
+  4. **DRY dengan Section 03** — selector deteksi duplikat dipusatkan, `/lead-intake` direfactor untuk reuse (CI-033), bukan logic paralel.
+  5. **New Lead dialog** — ditambahkan info non-blocking duplikat saat mengisi phone/email, pola sama dengan `/lead-intake`.
+  6. **Fixture** — `LED-011` baru (email sengaja sama dengan `LED-007`) untuk mendemokan fitur tanpa mengubah data lama.
+- **Files created/changed/removed:**
+  - Dibuat: `docs/mockup-section-reports/section-04-sales-leads-qualification.md` (laporan ini).
+  - Diubah: `app/data/index.ts` (+`reopenLead`, +`updateLeadContact`, +`getLeadDuplicateCandidates`, +`mergeLeadAsDuplicate`), `app/pages/customer-journey/leads/index.vue` (+Edit Lead, +Reopen, +merge suggestion UI, +duplicate hint New Lead), `app/pages/lead-intake/index.vue` (refactor reuse selector, CI-033), `app/data/leads.ts` (+`LED-011`), `docs/mockup-design-decisions.md` (+D-061), `docs/mockup-change-impact-log.md` (+CI-033), `docs/mockup-data-scenarios.md` (+4l, update total 10→11), `docs/frontend-module-map.md`, `docs/frontend-workflow-map.md`, `docs/frontend-implementation-roadmap.md`, `docs/frontend-known-issues.md`, `docs/mockup-implementation-state.md`, `docs/mockup-progress.md`, `docs/mockup-section-progress.md` (entri ini), `docs/mockup-section-reports/README.md`.
+  - Dihapus: Tidak ada.
+- **Routes affected:** `/customer-journey/leads` (fitur baru, route sama). `/lead-intake` (refactor internal, perilaku tidak berubah).
+- **Components reused/created:** Reused sepenuhnya — `Dialog*`/`SectionCard`/`StatusBadge`/`Button`/`Input`/`Label`. Tidak ada shared component baru.
+- **Data/types/constants affected:** Tidak ada perubahan type. 4 mutator/selector baru di `app/data/index.ts` (murni fungsi, tidak mengubah shape `Lead`). 1 fixture baru (`LED-011`).
+- **Validation results:** `npx nuxi prepare` sukses. `npm run build` sukses (2x run, termasuk setelah penambahan fixture `LED-011`). Smoke test HTTP ~25 route (baru+existing) — seluruhnya HTTP 200. Smoke test konten: badge "Possible Duplicate" muncul 2x (LED-007 dan LED-011, simetris); Lead Source Recap Total Leads bertambah 10→11, Qualified/Opportunities/Won tetap 3/2/1 (tidak terpengaruh). Tidak ditemukan string error di HTML manapun. `npx vitest run` — "No test files found" (pre-existing, Q8).
+- **Known issues:** Merge suggestion TIDAK melakukan true field-merge (dicatat D-061, evolusi lanjutan bila dibutuhkan). Verifikasi interaktif (klik Tandai sebagai Duplikat, Reopen, Edit Lead) tidak dilakukan headless — dimitigasi lewat code review dan smoke test SSR konten. Q8 tetap terbuka.
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-033 (refactor `/lead-intake`, menyentuh Section 03 yang baru saja COMPLETED) — pure refactor, perilaku identik, regression-tested.
+- **Next action:** Section 05 (Account Executive Opportunity dan Quotation) direkomendasikan berbasis dependency (`docs/frontend-implementation-roadmap.md`) — menunggu perintah eksplisit user.
+
+---
+
+## [Skema Roadmap Baru Section 00–24] Section 05 — Account Executive Opportunity dan Quotation
+
+- **Tanggal:** 2026-07-31
+- **Status:** COMPLETED
+- **Scope dan completed items:** Lengkapi workflow Account Executive Opportunity/Quotation (`prompts/Section 05 — Account Executive Opportunity dan Quotation.md`). Audit Section 00 mengonfirmasi mayoritas Wajib sudah COMPLETED sejak Section 08/Prompt 20 (Assigned Leads dan Opportunity pipeline/detail, Requirement Detail + completion indicator, edit requirement tanpa menghapus qualification history, product/service scope/traveler composition/preferences/payment terms/risks/commercial-operational notes, Quotation create/edit/version/revise, line items, submit approval ke Management, stage dan activity history, Mark as Lost). 5 gap konkret ditutup:
+  1. **Duplicate Quotation** — `duplicateQuotationVersion` (salinan persis sebagai versi baru, `approvalStatus` direset draft), berbeda dari "Create New Version"/`reviseQuotation` (mengosongkan nilai).
+  2. **Compare Versions** — panel toggle "Bandingkan dengan versi sebelumnya", terbatas pada nilai total (`amountIdr` vs `supersededAmountIdr`) karena model `Quotation` existing tidak menyimpan snapshot breakdown penuh per versi — disclaimer eksplisit di UI (D-062).
+  3. **Send to Client / Withdraw** — `sendQuotationToClient` (mock timestamp `sentToClientAt`) dan `withdrawQuotationSubmission` (revert `submitted`→`draft`, guard status).
+  4. **Line item tax/fee/markup terpisah** — `Quotation` +`taxIdr`/`markupIdr`/`currency`/`validUntil`/`termsAndConditions`/`inclusions`/`exclusions`, seluruhnya di "Edit Quotation".
+  5. **PDF/Print Preview** — halaman baru `/crm/opportunities/[id]/quotation-preview` (`layout: false`, cetak via `window.print()` browser — bukan generator PDF nyata).
+  6. **Client Confirmation** — `recordClientConfirmation` (`Opportunity.clientConfirmedAt`/`clientConfirmationNote`) + dialog AE-facing, gerbang TAMBAHAN (bukan pengganti `approvalStatus === 'approved'`) sebelum tombol "Mark as Won" aktif — literal Wajib "AE belum dapat Mark as Won sebelum approved + client confirmation".
+- **Files created/changed/removed:**
+  - Dibuat: `app/pages/crm/opportunities/[id]/quotation-preview.vue`, `docs/mockup-section-reports/section-05-ae-opportunity-quotation.md` (laporan ini).
+  - Diubah: `app/pages/crm/opportunities/[id]/index.vue` (Edit Quotation +7 field, +Duplicate Quotation, +Compare panel, +Withdraw, +Send to Client, +Client Confirmation, gerbang Mark as Won), `app/data/opportunities.ts` (`QUO-010` +tax/markup/currency/validity/inclusions/exclusions/terms; `QUO-006` +`sentToClientAt`), `app/types/opportunity.ts` (+7 field `Quotation`, +2 field `Opportunity` — sudah ada di working tree sebelum sesi ini dilanjutkan), `app/data/index.ts` (+4 mutator — sudah ada di working tree sebelum sesi ini dilanjutkan), `docs/mockup-design-decisions.md` (+D-062), `docs/mockup-change-impact-log.md` (+CI-034), `docs/mockup-open-questions.md` (Q14 sebagian resolved), `docs/mockup-data-scenarios.md`, `docs/frontend-module-map.md`, `docs/frontend-workflow-map.md`, `docs/frontend-implementation-roadmap.md`, `docs/frontend-known-issues.md`, `docs/mockup-implementation-state.md`, `docs/mockup-progress.md` (+Entri 14), `docs/mockup-section-progress.md` (entri ini), `docs/mockup-section-reports/README.md`.
+  - Dihapus: Tidak ada.
+- **Routes affected:** `/crm/opportunities/[id]/quotation-preview` (baru). `/crm/opportunities/[id]` (fitur baru, route sama).
+- **Components reused/created:** Reused sepenuhnya — `Dialog*`/`SectionCard`/`StatusBadge`/`Button`/`Input`/`Label`/`EmptyState`/`RoleAccessState`/`NuxtLink`. Tidak ada shared component baru.
+- **Data/types/constants affected:** `Quotation` +7 field aditif, `Opportunity` +2 field aditif — tidak ada breaking change. 4 mutator baru di `app/data/index.ts`. 2 fixture existing diperkaya (`QUO-006`/`QUO-010`), tidak ada fixture baru.
+- **Validation results:** `npx nuxi prepare` + `npm run build` sukses (chunk `quotation-preview-*` baru ter-compile). Smoke test HTTP (opportunity detail representatif OPP-001/002/003/004/005/006/007/008/009/010, quotation-preview OPP-010/OPP-006/OPP-999 (not-found)/OPP-007 (tanpa quotation), plus route regresi Dashboard/CRM/Customer Journey/Reports/Projects/Finance/Party Detail) — seluruhnya HTTP 200. Smoke test konten (curl+grep): `OPP-006` menampilkan badge "Terkirim ke Client" dan tombol Mark as Won `disabled title="Client confirmation belum dicatat"`; `OPP-010` quotation-preview menampilkan Tax/Fee, Markup, Inclusions, Exclusions, Terms & Conditions; `OPP-005` menampilkan tombol "Withdraw Submission"; `OPP-010` detail menampilkan "Duplicate Quotation" dan "PDF / Print Preview". `vitest`/`typecheck`/lint tetap pre-existing gap (Q8, tidak berubah).
+- **Known issues:** Q8 tetap terbuka. Compare Versions terbatas nilai total (D-062, keputusan disengaja bukan gap tersembunyi). PDF/Print Preview memakai `window.print()` browser (bukan generator PDF nyata, sesuai batasan protokol). Verifikasi interaktif (klik Duplicate/Withdraw/Send to Client/Catat Client Confirmation) tidak dilakukan headless — dimitigasi lewat code review ketat dan smoke test SSR konten per skenario.
+- **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-034 — gerbang Mark as Won bertambah syarat Client Confirmation, mengubah perilaku skenario demo `OPP-006` yang sebelumnya didokumentasikan Prompt 20 sebagai "Approved, tombol Mark as Won aktif" (disengaja, bukan regresi).
+- **Next action:** Section 06 — Management Approval, Won dan Client Activation. Menunggu perintah user — tidak dieksekusi otomatis.

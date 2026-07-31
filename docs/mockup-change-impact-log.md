@@ -433,6 +433,59 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 - **Regression checks:** `npm run build` sukses; smoke test `/admin/roles` tetap HTTP 200, konten "Supplier Portal"/"Client Portal"/"Product Planner"/"Procurement" dikonfirmasi tampil via curl.
 - **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-059.
 
+## CI-032 — `/login` Mendapat Link Discoverability ke `/lead-intake`
+
+- **Change ID / Tanggal:** CI-032 · 2026-08-01
+- **Triggering section:** Section 03 — Public Lead Intake (roadmap Section 00–24 baru).
+- **Previous section affected:** Foundation/template baseline (pemilik `app/pages/login.vue`, tidak pernah disentuh section manapun sejak awal proyek).
+- **Alasan perubahan:** `/lead-intake` (baru) sengaja TIDAK dimasukkan ke navigasi internal (`app/constants/navigation.ts`) — sesuai Wajib literal "Public tidak mendapat dashboard internal". Tanpa tautan apa pun, halaman ini hanya reachable lewat mengetik URL langsung, menyulitkan review. `/login` adalah satu-satunya halaman publik lain yang sudah ada.
+- **Files affected:** `app/pages/login.vue` (+1 paragraf link `NuxtLink` di footer, murni aditif).
+- **Previous behavior:** Footer `/login` hanya berisi teks "Sistem mockup internal MANOVA — bukan lingkungan produksi."
+- **New behavior:** Footer menambahkan baris "Ingin mengajukan permintaan perjalanan? Isi form di sini" yang mengarah ke `/lead-intake`.
+- **Risk:** Sangat rendah — satu paragraf baru, tidak mengubah form login/logic autentikasi mock apa pun.
+- **Regression checks:** `npm run build` sukses; smoke test `/login` tetap HTTP 200, teks link dikonfirmasi tampil via curl.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-060.
+
+## CI-033 — `/lead-intake` Direfactor agar Reuse Selector Duplikat Terpusat
+
+- **Change ID / Tanggal:** CI-033 · 2026-08-01
+- **Triggering section:** Section 04 — Sales Leads dan Qualification (roadmap Section 00–24 baru).
+- **Previous section affected:** Section 03 — Public Lead Intake (baru COMPLETED, laporan `docs/mockup-section-reports/section-03-public-lead-intake.md`).
+- **Alasan perubahan:** Section 04 membutuhkan logic deteksi duplikat yang identik dengan yang sudah dibuat Section 03 (cocok phone/email). Alih-alih menduplikasi logic tsb di `/customer-journey/leads`, logic dipindah menjadi selector terpusat `getLeadDuplicateCandidates` (`app/data/index.ts`) dan `/lead-intake` di-refactor untuk memanggilnya — mencegah 2 implementasi paralel yang bisa divergen (hard rule "jangan menghitung ulang logic yang sama di tempat lain").
+- **Files affected:** `app/pages/lead-intake/index.vue` (computed `duplicateMatch` — sebelumnya `LEADS.find(...)` inline, sekarang `getLeadDuplicateCandidates({phone,email})[0]`; perilaku identik, hanya sumber logic yang berbeda).
+- **Previous behavior:** Deteksi duplikat di `/lead-intake` memakai logic lokal (tidak reusable).
+- **New behavior:** Deteksi duplikat memakai selector bersama `getLeadDuplicateCandidates` — hasil untuk input yang sama PERSIS IDENTIK (perilaku tidak berubah dari sisi user, hanya sumber kode).
+- **Risk:** Sangat rendah — pure refactor, hasil functionally identik (diverifikasi lewat smoke test `/lead-intake` tetap 200 tanpa error).
+- **Regression checks:** `npm run build` sukses; smoke test `/lead-intake` (dengan/tanpa query UTM) tetap HTTP 200.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-061.
+
+## CI-034 — Gerbang "Mark as Won" Bertambah Syarat Client Confirmation, Mengubah Perilaku Skenario Demo `OPP-006`
+
+- **Change ID / Tanggal:** CI-034 · 2026-07-31
+- **Triggering section:** Section 05 — Account Executive Opportunity dan Quotation (roadmap Section 00–24 baru).
+- **Previous section affected:** Prompt 20 — Change Request: Sales Qualification to Account Executive Opportunity Flow (COMPLETED, skema lama) — laporannya secara eksplisit mendokumentasikan `OPP-006` sebagai skenario smoke-test "'Approved'+tombol Mark as Won aktif".
+- **Alasan perubahan:** Section 05 Wajib literal: "AE belum dapat Mark as Won sebelum approved + client confirmation" — gerbang baru `Opportunity.clientConfirmedAt` ditambahkan sebagai syarat TAMBAHAN (bukan pengganti) `Quotation.approvalStatus === 'approved'` pada `submitMarkAsWon`/tombol Mark as Won.
+- **Files affected:** `app/pages/crm/opportunities/[id]/index.vue` (kondisi `:disabled` tombol Mark as Won + fungsi `submitMarkAsWon`), `app/data/opportunities.ts` (`QUO-006` +`sentToClientAt: '2026-07-23'`, `Opportunity.clientConfirmedAt` sengaja TIDAK diisi pada `OPP-006` agar gerbang baru demonstrable).
+- **Previous behavior:** `OPP-006` (quotation `approved`) menampilkan tombol Mark as Won aktif (dapat diklik langsung), sesuai smoke test Prompt 20.
+- **New behavior:** `OPP-006` kini menampilkan tombol Mark as Won **disabled** dengan title "Client confirmation belum dicatat" sampai AE mencatat Client Confirmation lewat dialog baru di section Commercial Approval. Opportunity/Quotation lain yang sudah `won` (`OPP-001`/`002`/`003`/`008`) tidak terpengaruh — gerbang hanya berlaku pada tombol aksi, bukan data historis yang sudah `won`.
+- **Risk:** Rendah — perubahan disengaja sesuai Wajib literal Section 05, bukan bug. Tidak ada Opportunity yang sudah `won` di-reset atau kehilangan data.
+- **Regression checks:** `npm run build` sukses; smoke test konten (curl+grep) mengonfirmasi `OPP-006` menampilkan `disabled title="Client confirmation belum dicatat"` pada tombol Mark as Won; `OPP-001`/`002`/`003`/`004`/`005`/`007`/`008`/`009`/`010` tetap HTTP 200 tanpa string error.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-062.
+
+## CI-035 — Bug Fix: `mock-reset.ts` Melempar `DataCloneError` Saat App Dimuat di Browser (Regresi Tersembunyi Sejak Section 01)
+
+- **Change ID / Tanggal:** CI-035 · 2026-07-31
+- **Triggering section:** Laporan bug user langsung ("500 Internal Server Error — Failed to execute 'structuredClone' on 'Window': [object Array] could not be cloned"), bukan section baku.
+- **Previous section affected:** Section 01 — Frontend Foundation dan State Governance (COMPLETED, skema roadmap baru) — pemilik `app/utils/mock-reset.ts` dan `app/plugins/mock-reset.client.ts`.
+- **Root cause:** `captureMockSnapshot()` (dipanggil dari plugin `mock-reset.client.ts` pada SETIAP page load di browser) memanggil `structuredClone()` langsung terhadap array `reactive()` (Vue Proxy) — `OPPORTUNITIES`, `QUOTATIONS`, `PARTIES`, `PROJECTS`, `VENDORS`, `TRAVELERS`, `LEADS`, dst. `structuredClone()` browser tidak dapat mengkloning objek `Proxy` (termasuk hasil `reactive()` Vue) karena bukan exotic Array/Object asli — selalu melempar `DataCloneError`. Direproduksi dan dikonfirmasi via Node (`structuredClone(reactive([...]))` throw persis pesan yang sama; `JSON.parse(JSON.stringify(...))` terhadap objek yang sama sukses).
+- **Mengapa lolos tidak terdeteksi sejak Section 01 (2026-08-01):** Bug ini HANYA terjadi di **client plugin** (`.client.ts`), yang tidak pernah dieksekusi saat SSR. Seluruh smoke test sejak Section 01 memakai `curl` (HTML hasil SSR) — metode ini secara struktural tidak pernah menjalankan kode client-only, sehingga bug fatal yang membuat SELURUH app gagal mount di browser (bukan cuma satu halaman) tidak pernah terdeteksi selama 5 section berturut-turut (01–05). Dicatat eksplisit sebagai keterbatasan tooling yang sudah berulang kali disebutkan ("verifikasi interaktif tidak dilakukan headless") — kali ini keterbatasan tsb terbukti menyembunyikan bug nyata, bukan hanya risiko teoretis.
+- **Files affected:** `app/utils/mock-reset.ts` (`captureMockSnapshot`/`resetMockState` — `structuredClone` diganti helper `deepClone` berbasis `JSON.parse(JSON.stringify(...))`, aman karena seluruh fixture adalah data JSON-safe murni tanpa `Date`/`Map`/`Set`/function).
+- **Previous behavior:** App gagal mount di browser manapun (client-side fatal exception saat plugin dijalankan) — muncul sebagai halaman error generik ("500 Internal Server Error") meski SSR HTML awal terkirim normal (menjelaskan mengapa `curl` selalu melaporkan HTTP 200 di seluruh laporan section sebelumnya).
+- **New behavior:** Snapshot berhasil dibuat tanpa error; `resetMockState()` ("Reset Demo Data", `/settings`) tetap berfungsi seperti didesain.
+- **Risk:** Sangat rendah untuk fix ini sendiri (satu fungsi helper, tidak mengubah signature publik `captureMockSnapshot`/`resetMockState`/`hasMockSnapshot`). Risiko tinggi yang DIPERBAIKI: sebelumnya app tidak dapat dipakai sama sekali di browser nyata.
+- **Regression checks:** Direproduksi dan diverifikasi lewat skrip Node (`structuredClone` vs `JSON`-based clone terhadap `reactive()` array Vue identik). `npm run build` dijalankan ulang setelah fix.
+- **Dokumentasi yang diperbarui:** `docs/frontend-known-issues.md` (bagian baru).
+
 ---
 
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*

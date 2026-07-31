@@ -4,6 +4,7 @@ import { Search, Plus, List, LayoutGrid, Inbox as InboxIcon, Archive as ArchiveI
 import {
   LEADS, USERS, getLeadActivities, getLeadFollowUps, createLead, createLeadActivity, archiveLead,
   qualifyLeadAndCreateOpportunity, getLeadMissingQualification, updateLeadQualification, markLeadUnqualified,
+  reopenLead, updateLeadContact, getLeadDuplicateCandidates, mergeLeadAsDuplicate,
   getUserById,
 } from '~/data'
 import { LEAD_SOURCES, LEAD_STAGES, LEAD_SERVICE_CATEGORIES, LEAD_URGENCY_LEVELS, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
@@ -30,6 +31,9 @@ const ownerFilter = ref<'all' | string>('all')
 const sourceFilter = ref<'all' | LeadSource>('all')
 const showArchived = ref(false)
 
+/** "Assigned Leads" (Section 05) — AE melihat Lead yang di-handover ke dirinya (`handedOverTo`), terpisah dari `ownerFilter` (Sales owner). */
+const assignedToMeOnly = ref(false)
+
 const ownerOptions = computed(() => {
   const ids = [...new Set(LEADS.map(lead => lead.ownerId))]
   return ids.map(id => getUserById(id)).filter((user): user is NonNullable<typeof user> => Boolean(user))
@@ -40,6 +44,7 @@ const filteredLeads = computed(() => {
   if (stageFilter.value !== 'all') result = result.filter(lead => lead.stage === stageFilter.value)
   if (ownerFilter.value !== 'all') result = result.filter(lead => lead.ownerId === ownerFilter.value)
   if (sourceFilter.value !== 'all') result = result.filter(lead => lead.source === sourceFilter.value)
+  if (assignedToMeOnly.value) result = result.filter(lead => lead.handedOverTo === currentUser.value.id)
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(lead => lead.name.toLowerCase().includes(q) || (lead.companyName ?? '').toLowerCase().includes(q))
@@ -62,6 +67,11 @@ function hasUpcomingFollowUp(leadId: string) {
   return getLeadFollowUps(leadId).some(activity => isFollowUpUpcoming(activity))
 }
 
+/** Sinyal cepat duplikat di Table view (Section 04) — aksi lengkap "Tandai sebagai Duplikat" ada di drawer Overview. */
+function hasDuplicateCandidates(lead: Lead) {
+  return getLeadDuplicateCandidates({ phone: lead.phone, email: lead.email, excludeLeadId: lead.id }).length > 0
+}
+
 /* New Lead */
 const isCreateOpen = ref(false)
 const newName = ref('')
@@ -69,6 +79,9 @@ const newCompanyName = ref('')
 const newSource = ref<LeadSource>('website')
 const newPhone = ref('')
 const newEmail = ref('')
+
+/** Duplicate suggestion (Section 04) — pola sama dengan `/lead-intake` (Section 03), reuse selector bersama. */
+const newLeadDuplicates = computed(() => getLeadDuplicateCandidates({ phone: newPhone.value, email: newEmail.value }))
 
 function resetCreateForm() {
   newName.value = ''
@@ -171,6 +184,64 @@ function openDrawer(lead: Lead) {
 function doArchive() {
   if (!selectedLead.value) return
   archiveLead(selectedLead.value.id)
+  isDrawerOpen.value = false
+}
+
+/** "Reopen" (Section 04) — kebalikan Archive, drawer tetap terbuka agar Sales bisa lanjut mengerjakan. */
+function doReopen() {
+  if (!selectedLead.value) return
+  reopenLead(selectedLead.value.id)
+}
+
+/** "Edit Lead" (Section 04) — field kontak dasar, terpisah dari form Qualification. */
+const isEditLeadOpen = ref(false)
+const editName = ref('')
+const editCompanyName = ref('')
+const editSource = ref<LeadSource>('website')
+const editPhone = ref('')
+const editEmail = ref('')
+
+function openEditLeadDialog() {
+  if (!selectedLead.value) return
+  editName.value = selectedLead.value.name
+  editCompanyName.value = selectedLead.value.companyName ?? ''
+  editSource.value = selectedLead.value.source
+  editPhone.value = selectedLead.value.phone ?? ''
+  editEmail.value = selectedLead.value.email ?? ''
+  isEditLeadOpen.value = true
+}
+
+function submitEditLead() {
+  if (!selectedLead.value || !editName.value.trim()) return
+  updateLeadContact(selectedLead.value.id, {
+    name: editName.value.trim(),
+    companyName: editCompanyName.value.trim() || undefined,
+    source: editSource.value,
+    phone: editPhone.value.trim() || undefined,
+    email: editEmail.value.trim() || undefined,
+  })
+  isEditLeadOpen.value = false
+}
+
+/** Merge suggestion (Section 04) — kandidat duplikat lead yang sedang dibuka di drawer. */
+const selectedLeadDuplicates = computed(() => (
+  selectedLead.value
+    ? getLeadDuplicateCandidates({ phone: selectedLead.value.phone, email: selectedLead.value.email, excludeLeadId: selectedLead.value.id })
+    : []
+))
+const isMergeDialogOpen = ref(false)
+const mergeTarget = ref<Lead | null>(null)
+
+function openMergeDialog(candidate: Lead) {
+  mergeTarget.value = candidate
+  isMergeDialogOpen.value = true
+}
+
+function doMergeDuplicate() {
+  if (!selectedLead.value || !mergeTarget.value) return
+  mergeLeadAsDuplicate(selectedLead.value.id, mergeTarget.value.id, currentUser.value.id)
+  isMergeDialogOpen.value = false
+  mergeTarget.value = null
   isDrawerOpen.value = false
 }
 
@@ -277,6 +348,12 @@ function submitActivity() {
                 <Label for="lead-email">Email (opsional)</Label>
                 <Input id="lead-email" v-model="newEmail" type="email" placeholder="nama@example.com" />
               </div>
+              <div v-if="newLeadDuplicates.length > 0" class="rounded-lg border border-info/30 bg-info/5 p-3">
+                <p class="text-sm text-info">
+                  Sepertinya sudah ada lead dengan kontak ini:
+                  {{ newLeadDuplicates.map(d => `${d.name} (${d.id})`).join(', ') }}. Tetap bisa disimpan sebagai lead baru bila memang berbeda.
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" @click="isCreateOpen = false">Batal</Button>
@@ -308,6 +385,13 @@ function submitActivity() {
           <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">{{ source.label }}</option>
         </select>
 
+        <Button
+          v-if="currentRole === 'account-executive'"
+          :variant="assignedToMeOnly ? 'default' : 'outline'"
+          size="sm"
+          @click="assignedToMeOnly = !assignedToMeOnly"
+        >Assigned to Me</Button>
+
         <div class="flex items-center gap-1 ml-auto">
           <Button :variant="!showArchived ? 'default' : 'outline'" size="sm" @click="showArchived = false">Aktif</Button>
           <Button :variant="showArchived ? 'default' : 'outline'" size="sm" @click="showArchived = true"><ArchiveIcon class="h-3.5 w-3.5 mr-1" />Archived</Button>
@@ -335,7 +419,10 @@ function submitActivity() {
           <TableBody>
             <TableRow v-for="lead in filteredLeads" :key="lead.id" class="cursor-pointer hover:bg-muted/50" @click="openDrawer(lead)">
               <TableCell class="font-medium text-foreground">
-                {{ lead.name }}
+                <span class="inline-flex items-center gap-1.5">
+                  {{ lead.name }}
+                  <StatusBadge v-if="hasDuplicateCandidates(lead)" label="Possible Duplicate" tone="warning" />
+                </span>
                 <span v-if="lead.companyName" class="block text-xs text-muted-foreground font-normal">{{ lead.companyName }}</span>
               </TableCell>
               <TableCell>
@@ -444,6 +531,9 @@ function submitActivity() {
             </TabsList>
 
             <TabsContent value="overview" class="space-y-4">
+              <div v-if="canManageLead && !selectedLead.archived" class="flex justify-end">
+                <Button size="sm" variant="outline" @click="openEditLeadDialog">Edit Lead</Button>
+              </div>
               <DetailMetadataList :items="[
                 { label: 'Nama Company', value: selectedLead.companyName || '—' },
                 { label: 'Owner (Sales)', value: ownerName(selectedLead.ownerId) },
@@ -466,6 +556,17 @@ function submitActivity() {
                   Sudah dikonversi —
                   <NuxtLink :to="`/crm/opportunities/${selectedLead.opportunityId}`" class="underline">lihat Opportunity {{ selectedLead.opportunityId }}</NuxtLink>
                 </p>
+              </div>
+
+              <!-- Merge suggestion (Section 04) -->
+              <div v-if="selectedLeadDuplicates.length > 0" class="rounded-lg border border-warning/30 bg-warning/5 p-3">
+                <p class="text-sm font-medium text-warning mb-2">Lead Serupa Terdeteksi</p>
+                <ul class="space-y-2">
+                  <li v-for="candidate in selectedLeadDuplicates" :key="candidate.id" class="flex items-center justify-between gap-2">
+                    <span class="text-xs text-foreground">{{ candidate.name }} ({{ candidate.id }})<span v-if="candidate.companyName"> — {{ candidate.companyName }}</span></span>
+                    <Button v-if="canManageLead" size="sm" variant="outline" @click="openMergeDialog(candidate)">Tandai sebagai Duplikat</Button>
+                  </li>
+                </ul>
               </div>
             </TabsContent>
 
@@ -667,7 +768,65 @@ function submitActivity() {
             </Dialog>
           </div>
 
+          <!-- Edit Lead (Section 04) -->
+          <Dialog v-model:open="isEditLeadOpen">
+            <DialogContent class="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Edit Lead</DialogTitle>
+                <DialogDescription>Perbarui data kontak dasar. Data qualification tidak terpengaruh.</DialogDescription>
+              </DialogHeader>
+              <div class="space-y-4 py-2">
+                <div class="space-y-1.5">
+                  <Label for="edit-lead-name">Nama Kontak</Label>
+                  <Input id="edit-lead-name" v-model="editName" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="edit-lead-company">Nama Company (opsional)</Label>
+                  <Input id="edit-lead-company" v-model="editCompanyName" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="edit-lead-source">Sumber Lead</Label>
+                  <select id="edit-lead-source" v-model="editSource" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">{{ source.label }}</option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="edit-lead-phone">Telepon (opsional)</Label>
+                  <Input id="edit-lead-phone" v-model="editPhone" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="edit-lead-email">Email (opsional)</Label>
+                  <Input id="edit-lead-email" v-model="editEmail" type="email" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" @click="isEditLeadOpen = false">Batal</Button>
+                <Button :disabled="!editName.trim()" @click="submitEditLead">Simpan</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <!-- Merge suggestion confirm (Section 04) -->
+          <Dialog v-model:open="isMergeDialogOpen">
+            <DialogContent class="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Tandai sebagai Duplikat</DialogTitle>
+                <DialogDescription>
+                  Lead "{{ selectedLead.name }}" ({{ selectedLead.id }}) akan diarsipkan dengan catatan referensi ke
+                  "{{ mergeTarget?.name }}" ({{ mergeTarget?.id }}) sebagai lead canonical. Kedua lead tetap tersimpan sebagai histori.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" @click="isMergeDialogOpen = false">Batal</Button>
+                <Button variant="destructive" @click="doMergeDuplicate">Tandai sebagai Duplikat</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <SheetFooter class="mt-6 flex-row justify-end gap-2">
+            <Button v-if="canManageLead && selectedLead.archived" variant="outline" @click="doReopen">
+              Reopen
+            </Button>
             <Button v-if="canManageLead && !selectedLead.archived" variant="outline" @click="doArchive">
               <ArchiveIcon class="h-4 w-4 mr-1.5" />Archive
             </Button>

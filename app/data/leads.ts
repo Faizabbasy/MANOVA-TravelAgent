@@ -86,6 +86,19 @@ export const LEADS: Lead[] = reactive([
     qualificationNotes: 'Tidak responsif setelah 3x follow-up, diarsipkan.',
     createdAt: '2026-06-15', lastUpdatedAt: '2026-06-30', archived: true,
   },
+  /**
+   * LED-011 (Section 04) — sengaja memakai email yang sama persis dengan LED-007 ("Yuni Kartika"),
+   * mendemokan "duplicate suggestion"/"merge suggestion" (badge "Possible Duplicate" di Table view,
+   * panel "Lead Serupa Terdeteksi" + aksi "Tandai sebagai Duplikat" di drawer Overview) tanpa mengubah
+   * satu pun field LED-007 existing.
+   */
+  {
+    id: 'LED-011', name: 'Yuni K. Kartika', companyName: 'Yuni Kartika Personal', source: 'referral',
+    stage: 'new', ownerId: 'USR-001',
+    email: 'yuni.kartika@example.com',
+    qualificationNotes: 'Referral dari teman, kemungkinan sama dengan inbound email sebelumnya (LED-007).',
+    createdAt: '2026-07-28', lastUpdatedAt: '2026-07-28', archived: false,
+  },
 ])
 
 /** Activities dan Follow-ups (Prompt 19) — satu entitas, follow-up = activity dengan `dueAt` terisi (pola `PartyActivity`, Section 07). */

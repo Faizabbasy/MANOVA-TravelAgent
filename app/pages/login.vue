@@ -111,9 +111,13 @@ const handleLogin = async () => {
         </form>
 
         <!-- Footer -->
-        <div class="mt-6 text-center">
+        <div class="mt-6 text-center space-y-2">
           <p class="text-xs text-muted-foreground">
             Sistem mockup internal MANOVA — bukan lingkungan produksi.
+          </p>
+          <p class="text-xs text-muted-foreground">
+            Ingin mengajukan permintaan perjalanan?
+            <NuxtLink to="/lead-intake" class="text-primary hover:underline">Isi form di sini</NuxtLink>
           </p>
         </div>
       </div>

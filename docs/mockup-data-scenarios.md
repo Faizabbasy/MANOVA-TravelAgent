@@ -359,7 +359,7 @@ Entitas baru `Lead`/`LeadActivity`/`VendorProduct`/`SystemEvent`, plus reassignm
 
 **Supplier / External Partners:** `VND-006` ("PT ABC", fokus Hotel) dan `VND-007` ("PT EFG", fokus MICE) — masing-masing 1 supplier user ter-isolasi (`USR-015`/`USR-016`, `vendorId` mengarah ke company masing-masing) dan katalog produk berbeda (`VendorProduct`: `VPR-001`/`002` milik PT ABC — kamar & meeting room; `VPR-003`/`004` milik PT EFG — venue & event organizer).
 
-**Lead Source Recap (dihitung, bukan disimpan):** Total Leads 10, Qualified 3 (`LED-001`/`005`/`009`), Opportunities Created 2 (`LED-005`/`009` — punya `opportunityId`), Won 1 (`LED-009` → `OPP-001` Won). Diverifikasi ulang lewat smoke test curl terhadap halaman `/customer-journey/lead-sources` — cocok persis.
+**Lead Source Recap (dihitung, bukan disimpan):** Total Leads 10 (11 sejak Section 04, lihat 4l), Qualified 3 (`LED-001`/`005`/`009`), Opportunities Created 2 (`LED-005`/`009` — punya `opportunityId`), Won 1 (`LED-009` → `OPP-001` Won). Diverifikasi ulang lewat smoke test curl terhadap halaman `/customer-journey/lead-sources` — cocok persis.
 
 **Activity Center:** 22 `SystemEvent` (`EVT-001`–`EVT-022`) merentang seluruh 8 modul (lead/opportunity/quotation/client/project-order/vendor/finance/user), `entityId` merujuk ID entitas existing di atas — tidak ada entity baru yang difabrikasi khusus untuk log.
 
@@ -371,13 +371,19 @@ Melengkapi skenario 4j dengan field Qualification (Lead) dan Requirement Detail/
 
 **Opportunity/Quotation baru (`OPP-009`/`OPP-010`) — melengkapi skenario status workflow yang belum ada di Prompt 19:**
 - `OPP-009` ("Palu MICE Conference 2027", repeat opportunity `PTY-003`) — stage `requirement-gathering`, seluruh field requirement dasar LENGKAP, BELUM ada Quotation → status workflow **"Ready for Quotation"**, tombol "Buat Quotation" aktif.
-- `OPP-010` ("Surabaya Regional Sales Meeting 2027", repeat opportunity `PTY-002`) — stage `proposal`, Quotation `QUO-010` sudah dibuat tapi `approvalStatus` belum diisi (draft) → status workflow **"Quotation Draft"**. `QUO-010` diisi lengkap discount/estimated cost/estimated margin/payment terms/service breakdown (2 baris: flight + hotel) — mendemokan hasil "Edit Quotation".
+- `OPP-010` ("Surabaya Regional Sales Meeting 2027", repeat opportunity `PTY-002`) — stage `proposal`, Quotation `QUO-010` sudah dibuat tapi `approvalStatus` belum diisi (draft) → status workflow **"Quotation Draft"**. `QUO-010` diisi lengkap discount/estimated cost/estimated margin/payment terms/service breakdown (2 baris: flight + hotel), dan sejak Section 05 (2026-07-31) juga tax/markup/currency/validity/inclusions/exclusions/terms — mendemokan hasil "Edit Quotation" lengkap dan "PDF/Print Preview".
 - `OPP-007` (existing, Section 08 — field requirement kosong sengaja) tetap dipakai sebagai skenario **"Pending Requirement"** (tidak diubah).
-- `OPP-005` (submitted) = **"Pending Management Approval"**, `OPP-006` (approved) = **"Approved"**, siap didemokan tombol AE "Mark as Won" langsung tanpa approval Won kedua (D-053) — tidak ada perubahan data pada keduanya di Prompt 20, hanya perilaku tombol.
+- `OPP-005` (submitted) = **"Pending Management Approval"**, tombol "Withdraw Submission" (Section 05) tersedia untuk AE selagi menunggu. `OPP-006` (approved, `QUO-006.sentToClientAt` diisi Section 05) = **"Approved"** — TIDAK LAGI otomatis siap "Mark as Won": sejak Section 05 (D-062), tombol Mark as Won men-disable sampai AE mencatat Client Confirmation (`Opportunity.clientConfirmedAt` sengaja dibiarkan kosong pada fixture ini agar gerbang baru demonstrable — lihat `docs/mockup-change-impact-log.md` CI-034).
 
 **Requirement Detail (AE, field baru pada `Opportunity.requirementDetail`):** diisi sebagian pada `OPP-005` (departure city, room requirement, dst.) dan `OPP-006` (flight preference, commercial notes, dst.) — mendemokan tab/section "Requirement Detail" terisi pada Opportunity yang sudah lanjut ke tahap komersial.
 
 **Related Lead (field baru `Opportunity.leadId`):** `OPP-001` ↔ `LED-009`, `OPP-005` ↔ `LED-005` — backfill dari relasi `Lead.opportunityId` yang sudah ada sejak Prompt 19, kini ditautkan balik agar Opportunity Detail dapat menampilkan link "Related Lead".
+
+## 4l. Duplicate/Merge Suggestion Detail (ditambahkan Section 04 — roadmap Section 00–24 baru)
+
+Melengkapi 4j/4k dengan skenario "duplicate suggestion"/"merge suggestion" (Section 04) — lihat D-061 (`docs/mockup-design-decisions.md`) untuk rasional lengkap.
+
+**`LED-011`** ("Yuni K. Kartika", source `referral`, stage `new`) — Lead baru (bukan backfill) dengan email PERSIS SAMA dengan `LED-007` ("Yuni Kartika", source `email`) — `yuni.kartika@example.com`. Mendemokan: badge "Possible Duplicate" di Table view (`/customer-journey/leads`) pada kedua baris; panel "Lead Serupa Terdeteksi" + aksi "Tandai sebagai Duplikat" di drawer Overview kedua lead (simetris — membuka salah satu menampilkan yang lain sebagai kandidat). Total Leads bertambah dari 10 menjadi **11** (Lead Source Recap, `/customer-journey/lead-sources`) — Qualified/Opportunities Created/Won TIDAK berubah (3/2/1) karena `LED-011` berstage `new`, bukan `qualified`.
 
 ---
 

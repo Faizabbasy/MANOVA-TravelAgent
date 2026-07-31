@@ -10,16 +10,16 @@ Workflow Utama (literal protokol):
 
 | # | Langkah | Status | Implementasi Aktual | Section Pemilik |
 |---|---|---|---|---|
-| 1 | Public Lead | NOT_STARTED | Belum ada form publik tanpa login (Q15) | 03 |
+| 1 | Public Lead | COMPLETED (2026-08-01) | `/lead-intake` — 4 kategori, consent, UTM/referrer preview, duplicate suggestion, tulis langsung ke `LEADS` (Q15 RESOLVED) | 03 |
 | 1b | Manual Lead | COMPLETED | Dialog "New Lead" (`/customer-journey/leads`), Sales-created | 04 |
-| 2 | Sales Qualification | PARTIAL | Tab "Qualification" drawer Lead, 13 field, gate `getLeadMissingQualification` — reopen/merge suggestion belum ada | 04 |
+| 2 | Sales Qualification | COMPLETED (2026-08-01) | Tab "Qualification" drawer Lead, 13 field, gate `getLeadMissingQualification`; Edit Lead, Reopen, merge suggestion (archive-dengan-referensi, D-061) | 04 |
 | 3 | Assign Account Executive | COMPLETED | Field "Account Executive yang Menerima Lead" pada form Qualification (`Lead.handedOverTo`) | 04 |
 | 4 | Opportunity | COMPLETED | `qualifyLeadAndCreateOpportunity` — auto-create saat Qualify, Party existing dicari dulu (no-duplicate) | 04/05 |
 | 5 | Requirement Detail | COMPLETED | Section "Requirement Detail" `/crm/opportunities/[id]` (14 field AE), dialog "Edit Requirement", Requirement Gate sebelum Quotation | 05 |
 | 6 | Product Planning & Costing | NOT_STARTED | Tidak ada entitas/role Product Planner, tidak ada cost sheet terpisah dari Quotation | 10 |
-| 7 | Quotation | PARTIAL | Create/Edit/Create New Version ada; duplicate/compare/send-mock/withdraw dan PDF preview belum ada | 05 |
+| 7 | Quotation | COMPLETED (2026-07-31) | Create/Edit (+tax/markup/currency/validity/terms/inclusions/exclusions)/Create New Version/Duplicate/Compare (nilai total vs versi sebelumnya)/Send to Client (mock)/Withdraw, PDF/Print Preview (`quotation-preview`, `window.print()`) | 05 |
 | 8 | Management Approval | PARTIAL | Submit/Approve/Reject Commercial Approval per-Opportunity ada; approval queue agregat belum ada (Q14) | 06 |
-| 9 | Client Confirmation | NOT_STARTED | Belum ada record/aksi eksplisit "client confirmation" sebelum Mark as Won (Q14) | 06/08 |
+| 9 | Client Confirmation | PARTIAL (2026-07-31) | `recordClientConfirmation` + dialog AE-facing di `/crm/opportunities/[id]`, gerbang tambahan sebelum Mark as Won (Section 05) — queue/notifikasi Management-facing dan Client Portal-facing confirmation belum ada (Q14) | 05/06/08 |
 | 10 | Opportunity Won | COMPLETED | Tombol "Mark as Won" (AE, satu-langkah, D-053) — reuse `approveOpportunityWon` | 06 |
 | 11 | Active Client | COMPLETED | `Party.lifecycleStatus` `prospect → client` otomatis saat Won (tidak duplikat company) | 06 |
 | 12 | Project Order | PARTIAL | `Project` dibuat otomatis (reuse D-050) — status taxonomy baru (Created/Handover Pending/dst., Q16) belum diimplementasikan | 09 |
