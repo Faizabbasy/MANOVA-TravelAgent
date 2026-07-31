@@ -15,6 +15,15 @@ export const LEADS: Lead[] = reactive([
     phone: '0815-7000-0001', email: 'contact@nirmala-eventama.example',
     qualificationNotes: 'Kebutuhan MICE tahunan ~150 peserta, budget terkonfirmasi, decision maker sudah dihubungi.',
     expectedCloseDate: '2026-09-15', createdAt: '2026-07-10', lastUpdatedAt: '2026-07-22', archived: false,
+    // Qualification (Prompt 20) — sengaja LENGKAP (seluruh field wajib terisi): mendemokan Lead yang siap
+    // "Qualify & Create Opportunity" dengan form Qualification penuh, gate terpenuhi, tombol aktif.
+    serviceCategory: 'mice-event', destination: 'Yogyakarta, Indonesia',
+    travelStartDate: '2026-09-20', travelEndDate: '2026-09-22', travelerEstimate: 150,
+    serviceScope: ['mice', 'hotel', 'transportation'],
+    requirementSummary: 'Corporate gathering tahunan, venue MICE + akomodasi untuk 150 peserta, butuh dukungan transportasi lokal.',
+    budgetRange: 'Rp 800 juta - Rp 1 miliar', dateFlexible: false,
+    decisionMaker: 'Direktur Operasional CV Nirmala Eventama', urgency: 'high',
+    specialRequestNote: 'Butuh ruang meeting kapasitas besar dengan sistem AV lengkap.',
   },
   {
     id: 'LED-002', name: 'Rangga Wibowo', companyName: 'Toko Retail Wibowo', source: 'instagram',
@@ -34,6 +43,9 @@ export const LEADS: Lead[] = reactive([
     phone: '0815-7000-0004', email: 'doni.ferdian@example.com',
     qualificationNotes: 'Menanyakan paket business trip ke Singapura untuk 10 pax, masih tahap awal.',
     createdAt: '2026-07-18', lastUpdatedAt: '2026-07-26', archived: false,
+    // Qualification (Prompt 20) — sengaja SEBAGIAN: mendemokan draft form Qualification dengan warning
+    // missing-field aktif (periode perjalanan, service scope, ringkasan kebutuhan, AE belum diisi).
+    serviceCategory: 'corporate-travel', destination: 'Singapura', travelerEstimate: 10,
   },
   {
     id: 'LED-005', name: 'Nadia Ramadhani', companyName: 'PT Melati Wisata Kreasi', source: 'referral',

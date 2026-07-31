@@ -368,6 +368,45 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 - **Regression checks:** `npm run build` sukses; smoke test `/crm/opportunities/OPP-005` (Commercial Approval badge "Menunggu Approval", tombol "Ajukan sebagai Won" disabled) dan `/crm/opportunities/OPP-006` (badge "Disetujui", tombol aktif) — sesuai desain.
 - **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-049, `docs/mockup-data-scenarios.md` bagian 4j, `docs/mockup-implementation-state.md`.
 
+## CI-027 — Alur "Ajukan sebagai Won" (Dua-Langkah) Diganti "Mark as Won" (AE, Satu Langkah)
+
+- **Change ID / Tanggal:** CI-027 · 2026-07-31
+- **Triggering section:** Prompt 20 — Change Request (Sales Qualification to Account Executive Opportunity Flow).
+- **Previous section affected:** Section 09 — Opportunity Won to Project (pemilik `approveOpportunityWon`/`rejectOpportunityWon`, model approval Won dua-langkah D-025), Section 08/Prompt 19 — Opportunity Detail (pemilik `app/pages/crm/opportunities/[id]/index.vue`).
+- **Alasan perubahan:** Prompt 20-1/13 eksplisit menggambarkan AE langsung "Mark as Won" setelah Management approve Quotation (Commercial Approval), tanpa approval kedua terpisah untuk Won itu sendiri — lihat D-053.
+- **Files affected:** `app/pages/crm/opportunities/[id]/index.vue` (tombol "Ajukan sebagai Won" + section Approve/Reject Won Management dihapus dari alur normal, diganti tombol AE "Mark as Won" yang memanggil `advanceOpportunityStage`+`approveOpportunityWon` berurutan). `app/data/index.ts` **tidak diubah** (`approveOpportunityWon`/`rejectOpportunityWon` dipakai ulang apa adanya, `rejectOpportunityWon` kini tidak dipanggil UI manapun tapi tetap ada).
+- **Previous behavior:** AE klik "Ajukan sebagai Won" → stage `won-requested` → Management/Super Admin melihat tombol "Approve Won"/"Reject" terpisah → klik Approve untuk benar-benar membuat Project.
+- **New behavior:** AE klik "Mark as Won" (gated: Quotation `approved` + requirement lengkap) → Project langsung dibuat dalam satu aksi, `wonApprovedBy` diisi `quotation.approvedBy` (Management yang approve komersial).
+- **Risk:** Sedang — mengubah UX approval Won yang sudah didemokan sejak Section 09, tapi TIDAK ada perubahan struktur data/mutator (reuse penuh), dan tidak ada fixture existing yang berada di stage `won-requested` (diverifikasi sebelum perubahan) sehingga tidak ada skenario demo yang rusak.
+- **Regression checks:** `npm run build` sukses; smoke test `/crm/opportunities/OPP-006` (quotation approved) menampilkan tombol "Mark as Won" aktif; `/crm/opportunities/OPP-005` (quotation submitted) menampilkan tombol disabled dengan penjelasan; tidak ada opportunity yang ter-stuck di `won-requested`.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-053, `docs/route-and-role-matrix.md` bagian 2.3, `docs/mockup-implementation-state.md`.
+
+## CI-028 — Label Stage `won-requested` Direname ("Won (Menunggu Approval)" → "Pending Management Approval")
+
+- **Change ID / Tanggal:** CI-028 · 2026-07-31
+- **Triggering section:** Prompt 20 — Change Request.
+- **Previous section affected:** Section 05 — Foundation (pemilik `app/constants/status.ts`, `OPPORTUNITY_STAGES`, status-constant terpusat D-038).
+- **Alasan perubahan:** Prompt 20-14 eksplisit: "Ganti status yang membingungkan dari Won (Menunggu Approval) menjadi Pending Management Approval".
+- **Files affected:** `app/constants/status.ts` (`OPPORTUNITY_STAGES`, entri `won-requested`: `label` saja — `value`/`tone`/`order` tidak berubah).
+- **Previous behavior:** Label "Won (Menunggu Approval)" tampil di stepper stage Opportunity Detail dan badge lain yang membaca `OPPORTUNITY_STAGES`.
+- **New behavior:** Label "Pending Management Approval". Seluruh consumer (`crm/opportunities/index.vue`, `crm/opportunities/[id]/index.vue`, `crm/parties/[id]/index.vue`, `customer-journey/customers/[id]/index.vue`, `customer-journey/index.vue`, `pages/index.vue`, `pages/reports/index.vue`) otomatis ikut berubah tanpa disentuh kodenya (satu sumber label terpusat, D-038).
+- **Risk:** Sangat rendah — label-only, `value` (dipakai luas untuk `.stage === '...'` checks) tidak berubah.
+- **Regression checks:** `npm run build` sukses; smoke test 6 file consumer tetap HTTP 200, tidak ada string lama "Won (Menunggu Approval)" tersisa (`grep` dikonfirmasi).
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-056.
+
+## CI-029 — Teks Role Note `admin/roles.vue` Disinkronkan dengan Model Role Prompt 19/20
+
+- **Change ID / Tanggal:** CI-029 · 2026-07-31
+- **Triggering section:** Prompt 20 — Change Request.
+- **Previous section affected:** Section 17 — Administration (pemilik `app/pages/admin/roles.vue`, `ROLE_NOTES`).
+- **Alasan perubahan:** Ditemukan saat implementasi Prompt 20: teks deskripsi role `management` ("Approve Won Opportunity...") dan `sales` ("Kelola Prospect, Opportunity, dan Quotation...") pada halaman `/admin/roles` masih merefleksikan model role SEBELUM Prompt 19 (tidak diperbarui saat Prompt 19 memindahkan pengelolaan Opportunity dari Sales ke AE) — kini juga tidak akurat terhadap D-053 (Management approve Quotation, bukan Won secara langsung).
+- **Files affected:** `app/pages/admin/roles.vue` (`ROLE_NOTES.management`, `ROLE_NOTES.sales` — teks deskriptif saja, bukan `ROLE_MODULE_ACCESS`).
+- **Previous behavior:** Teks menyiratkan Management approve Won langsung dan Sales mengelola Opportunity/Quotation.
+- **New behavior:** Teks mencerminkan model role aktual: Management approve/reject Commercial Approval Quotation; Sales mengelola Lead (screening/qualification/assign AE), melihat Opportunity hasil handover secara terbatas.
+- **Risk:** Sangat rendah — teks deskriptif murni (tidak ada logic/permission yang berubah), inkonsistensi ini pre-existing sejak Prompt 19 (bukan regresi baru dari Prompt 20).
+- **Regression checks:** `npm run build` sukses; smoke test `/admin/roles` tetap HTTP 200.
+- **Dokumentasi yang diperbarui:** Tidak ada dokumen lain yang mereferensikan teks ini secara langsung.
+
 ---
 
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*

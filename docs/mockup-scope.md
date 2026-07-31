@@ -53,6 +53,18 @@ Di atas 8 module baseline (seluruhnya COMPLETED, lihat `docs/mockup-section-prog
 
 Detail lengkap: `docs/mockup-section-reports/change-customer-journey-ae-supplier.md`.
 
+### 5b. Penyempurnaan Alur — Prompt 20 Change Request (2026-07-31)
+
+Prompt 19 memisahkan role Sales (Lead) dan Account Executive (Opportunity), tapi Lead belum punya form Qualification terstruktur dan Opportunity belum punya Requirement Detail/gate nyata. Prompt 20 melengkapi:
+
+- **Lead Qualification** — form terstruktur (jenis kebutuhan, destinasi, periode, traveler, service scope, ringkasan kebutuhan, AE tujuan — wajib; budget range, fleksibilitas tanggal, decision maker, urgensi, special request, catatan komunikasi — opsional), gate kelengkapan sebelum "Qualify & Create Opportunity", aksi "Simpan Draft"/"Mark as Unqualified".
+- **AE Requirement Detail** — Opportunity Detail mendapat section "Requirement Detail" (itinerary concept, departure city, room requirement, dst.) yang dapat diedit AE, plus Requirement Gate baru sebelum Quotation dapat dibuat (terpisah dari gate sebelum Won, Section 09).
+- **Quotation komersial lebih lengkap** — discount, estimated cost, estimated margin, payment terms, service breakdown pada `Quotation` (field aditif), aksi "Edit Quotation" terpisah dari "Create New Version".
+- **Mark as Won satu-langkah oleh AE** — menggantikan model approval Won dua-langkah (D-025) khusus untuk eksekusi Won; Management tetap satu-satunya approver Commercial Approval (Quotation) — lihat D-053.
+- **Status workflow lebih jelas** — badge baru (Pending Requirement/Ready for Quotation/Quotation Draft/Pending Management Approval/Approved/Won/Lost), label stage lama yang membingungkan direname.
+
+Detail lengkap: `docs/mockup-section-reports/change-sales-qualification-ae-opportunity.md`.
+
 ## 6. Out-of-Scope / Non-Goals
 
 - Backend/API nyata, integrasi airline/hotel/payment gateway/WhatsApp API/vendor API — dilarang eksplisit (D-006) dan tidak menjadi bagian scope kapan pun selama fase mockup frontend ini berlangsung.

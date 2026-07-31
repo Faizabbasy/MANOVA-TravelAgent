@@ -12,6 +12,45 @@ export type OpportunityStage =
   | 'lost'
   | 'on-hold'
 
+/**
+ * Requirement Detail (Prompt 20 — Change Request). Field yang dilengkapi Account Executive di Opportunity
+ * Detail (bukan lagi di Lead) — melengkapi/menyempurnakan requirement awal dari Sales tanpa menghapus histori
+ * qualification (field dasar `destination`/`travelStartDate`/dst. pada `Opportunity` tetap dipertahankan apa
+ * adanya sebagai hasil carry-over qualification). Seluruh field opsional.
+ */
+export interface OpportunityRequirementDetail {
+  itineraryConcept?: string
+  departureCity?: string
+  destinationDetail?: string
+  travelerComposition?: string
+  roomRequirement?: string
+  flightPreference?: string
+  transportRequirement?: string
+  miceRequirement?: string
+  specialRequest?: string
+  decisionMaker?: string
+  paymentTerms?: string
+  commercialNotes?: string
+  operationalNotes?: string
+  riskNotes?: string
+}
+
+/**
+ * Status workflow tampilan AE-facing (Prompt 20-10/14) — DIRIVASI (bukan field tersimpan) dari kombinasi
+ * `Opportunity.stage` + `Quotation.approvalStatus` lewat `getOpportunityWorkflowStatus` (`app/data/index.ts`),
+ * mengikuti pola D-049 (lapisan aditif/ortogonal, bukan merestrukturisasi `OpportunityStage`). Menggantikan
+ * label lama yang membingungkan ("Won (Menunggu Approval)") sebagai indikator status utama di Opportunity
+ * Detail, tanpa mengubah state machine `stage` yang dipakai luas oleh Section 08/09/14.
+ */
+export type OpportunityWorkflowStatus =
+  | 'pending-requirement'
+  | 'ready-for-quotation'
+  | 'quotation-draft'
+  | 'pending-management-approval'
+  | 'approved'
+  | 'won'
+  | 'lost'
+
 export interface Opportunity {
   id: ID
   partyId: ID
@@ -35,6 +74,14 @@ export interface Opportunity {
   serviceScope: ServiceTypeKey[]
   quotationId?: ID
   projectId?: ID
+
+  /** Prompt 20 — Change Request: field aditif hasil carry-over qualification Lead + AE Requirement Detail. */
+  /** Nama kontak (dibawa dari `Lead.name` saat Qualify) — dipakai gate "Contact Person" pre-quotation. */
+  contactName?: string
+  /** Referensi Lead asal (Overview "Related Lead") — opsional karena Opportunity juga bisa ada tanpa Lead (data legacy pra-Prompt 19). */
+  leadId?: ID
+  expectedCloseDate?: string
+  requirementDetail?: OpportunityRequirementDetail
 }
 
 /**
@@ -43,6 +90,13 @@ export interface Opportunity {
  * `won-requested` ("Mark as Won"). `draft` = belum pernah diajukan (nilai awal seluruh quotation lama).
  */
 export type QuotationApprovalStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
+
+/** Satu baris service breakdown Quotation (Prompt 20 — Change Request), diisi AE lewat "Edit Quotation". */
+export interface QuotationServiceItem {
+  service: ServiceTypeKey
+  description?: string
+  amountIdr: number
+}
 
 export interface Quotation {
   id: ID
@@ -58,4 +112,11 @@ export interface Quotation {
   approvalStatus?: QuotationApprovalStatus
   approvedBy?: ID
   approvalNote?: string
+
+  /** Prompt 20 — Change Request: detail komersial, diisi AE lewat "Edit Quotation" (draft, sebelum submit). */
+  discountIdr?: number
+  estimatedCostIdr?: number
+  estimatedMarginIdr?: number
+  paymentTerms?: string
+  serviceBreakdown?: QuotationServiceItem[]
 }

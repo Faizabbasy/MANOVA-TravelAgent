@@ -112,3 +112,15 @@ Log kronologis progres pengerjaan mockup MANOVA di atas template Nuxt 4 existing
 - **Decisions:** D-046 s/d seterusnya dicatat di `docs/mockup-design-decisions.md` Kelompok I.
 - **Open issues:** Q8 tetap terbuka. Lihat laporan perubahan bagian Known Issues untuk daftar lengkap.
 - **Next recommended prompt:** Tidak ada section mockup baku selanjutnya (18 section sudah COMPLETED) — menunggu perintah user untuk perubahan/permintaan berikutnya.
+
+## Entri 8 — Prompt 20: Change Request — Sales Qualification to Account Executive Opportunity Flow
+
+- **Date:** 2026-07-31
+- **Phase:** Prompt 20 (`prompts/22-PROMPT-20-Change-Request-Sales-Qualification-to-AE-OpportunityF.md`) — change request di atas Prompt 19 (COMPLETED).
+- **Status:** Selesai.
+- **Completed:** Ringkasan singkat — narasi lengkap: `docs/mockup-section-reports/change-sales-qualification-ae-opportunity.md`. Ringkasan: form Qualification terstruktur pada Lead (7 field wajib + 6 opsional, gate kelengkapan sebelum "Qualify & Create Opportunity", aksi "Simpan Draft"/"Mark as Unqualified" baru); section "Requirement Detail" baru pada Opportunity Detail (14 field AE, dapat diedit) + Requirement Gate baru sebelum Quotation dapat dibuat (terpisah dari gate sebelum Won existing); Quotation mendapat field komersial baru (discount/estimated cost/estimated margin/payment terms/service breakdown) + aksi "Edit Quotation"; model approval Won dua-langkah diganti "Mark as Won" satu-langkah oleh AE (D-053, Management tetap satu-satunya approver Commercial Approval); status workflow baru (Pending Requirement/Ready for Quotation/Quotation Draft/Pending Management Approval/Approved/Won/Lost) dirivasi dan ditampilkan sebagai badge utama; label stage "Won (Menunggu Approval)" direname "Pending Management Approval".
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` (CI-027–CI-029) dan laporan perubahan untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test HTTP seluruh route terdampak dan representatif existing (curl, seluruhnya 200); verifikasi konten (badge status workflow per Opportunity skenario, tombol Mark as Won ter-gate benar, Lead Source Recap angka tidak berubah); `vitest`/`typecheck` tetap pre-existing gap (Q8).
+- **Decisions:** D-053 s/d D-056 dicatat di `docs/mockup-design-decisions.md` Kelompok J.
+- **Open issues:** Q8 tetap terbuka. Lihat laporan perubahan bagian Known Issues untuk daftar lengkap.
+- **Next recommended prompt:** Tidak ada section/change baku selanjutnya — menunggu perintah user.

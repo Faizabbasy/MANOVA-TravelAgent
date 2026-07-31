@@ -2,13 +2,15 @@
 import { ref, computed } from 'vue'
 import { Search, Plus, List, LayoutGrid, Inbox as InboxIcon, Archive as ArchiveIcon } from 'lucide-vue-next'
 import {
-  LEADS, getLeadActivities, getLeadFollowUps, createLead, createLeadActivity, archiveLead,
-  qualifyLeadAndCreateOpportunity, getUserById,
+  LEADS, USERS, getLeadActivities, getLeadFollowUps, createLead, createLeadActivity, archiveLead,
+  qualifyLeadAndCreateOpportunity, getLeadMissingQualification, updateLeadQualification, markLeadUnqualified,
+  getUserById,
 } from '~/data'
-import { LEAD_SOURCES, LEAD_STAGES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
+import { LEAD_SOURCES, LEAD_STAGES, LEAD_SERVICE_CATEGORIES, LEAD_URGENCY_LEVELS, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import { isFollowUpUpcoming } from '~/utils/attention'
-import type { Lead, LeadSource, LeadStage } from '~/types/lead'
+import type { Lead, LeadSource, LeadStage, LeadServiceCategory, LeadUrgency } from '~/types/lead'
+import type { ServiceTypeKey } from '~/types/project'
 import type { PartyActivityType } from '~/types/party'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -96,11 +98,73 @@ const selectedLeadId = ref<string | null>(null)
 const selectedLead = computed(() => LEADS.find(lead => lead.id === selectedLeadId.value) ?? null)
 const selectedActivities = computed(() => (selectedLead.value ? getLeadActivities(selectedLead.value.id) : []))
 const selectedFollowUps = computed(() => (selectedLead.value ? getLeadFollowUps(selectedLead.value.id) : []))
-const drawerTab = ref<'overview' | 'activities' | 'followups'>('overview')
+const drawerTab = ref<'overview' | 'qualification' | 'activities' | 'followups'>('overview')
+
+const aeOptions = computed(() => USERS.filter(user => user.role === 'account-executive'))
+
+/**
+ * Qualification form (Prompt 20 — Change Request) — refs lokal disinkronkan dari `selectedLead` saat
+ * drawer dibuka, ditulis balik lewat `updateLeadQualification` ("Simpan Draft") atau sebagai bagian dari
+ * "Qualify & Create Opportunity" (draft disimpan dulu, baru gate dicek).
+ */
+const qualServiceCategory = ref<LeadServiceCategory | ''>('')
+const qualDestination = ref('')
+const qualTravelStart = ref('')
+const qualTravelEnd = ref('')
+const qualTravelerEstimate = ref<number | null>(null)
+const qualServiceScope = ref<ServiceTypeKey[]>([])
+const qualRequirementSummary = ref('')
+const qualHandedOverTo = ref('')
+const qualBudgetRange = ref('')
+const qualDateFlexible = ref(false)
+const qualDecisionMaker = ref('')
+const qualUrgency = ref<LeadUrgency | ''>('')
+const qualSpecialRequestNote = ref('')
+const qualCommunicationNotes = ref('')
+const qualExpectedCloseDate = ref('')
+
+function syncQualificationForm(lead: Lead) {
+  qualServiceCategory.value = lead.serviceCategory ?? ''
+  qualDestination.value = lead.destination ?? ''
+  qualTravelStart.value = lead.travelStartDate ?? ''
+  qualTravelEnd.value = lead.travelEndDate ?? ''
+  qualTravelerEstimate.value = lead.travelerEstimate ?? null
+  qualServiceScope.value = [...(lead.serviceScope ?? [])]
+  qualRequirementSummary.value = lead.requirementSummary ?? ''
+  qualHandedOverTo.value = lead.handedOverTo ?? ''
+  qualBudgetRange.value = lead.budgetRange ?? ''
+  qualDateFlexible.value = lead.dateFlexible ?? false
+  qualDecisionMaker.value = lead.decisionMaker ?? ''
+  qualUrgency.value = lead.urgency ?? ''
+  qualSpecialRequestNote.value = lead.specialRequestNote ?? ''
+  qualCommunicationNotes.value = lead.qualificationNotes ?? ''
+  qualExpectedCloseDate.value = lead.expectedCloseDate ?? ''
+}
+
+function toggleQualServiceScope(type: ServiceTypeKey) {
+  const index = qualServiceScope.value.indexOf(type)
+  if (index === -1) qualServiceScope.value.push(type)
+  else qualServiceScope.value.splice(index, 1)
+}
+
+/** Mirror `getLeadMissingQualification` (app/data/index.ts) terhadap state form LIVE (belum tersimpan), agar gate terlihat real-time saat mengisi form. */
+const qualificationMissing = computed(() => {
+  const missing: string[] = []
+  if (!qualServiceCategory.value) missing.push('Jenis kebutuhan')
+  if (!qualDestination.value.trim()) missing.push('Destinasi belum diisi')
+  if (!qualTravelStart.value || !qualTravelEnd.value) missing.push('Periode perjalanan belum diisi')
+  if (!qualTravelerEstimate.value) missing.push('Estimasi traveler belum diisi')
+  if (qualServiceScope.value.length === 0) missing.push('Service scope belum dipilih')
+  if (!qualHandedOverTo.value) missing.push('Account Executive belum dipilih')
+  if (!qualRequirementSummary.value.trim()) missing.push('Ringkasan kebutuhan belum diisi')
+  return missing
+})
+const qualificationCompletedCount = computed(() => 7 - qualificationMissing.value.length)
 
 function openDrawer(lead: Lead) {
   selectedLeadId.value = lead.id
   drawerTab.value = 'overview'
+  syncQualificationForm(lead)
   isDrawerOpen.value = true
 }
 
@@ -110,13 +174,45 @@ function doArchive() {
   isDrawerOpen.value = false
 }
 
+function saveQualificationDraft() {
+  if (!selectedLead.value) return
+  updateLeadQualification(selectedLead.value.id, {
+    serviceCategory: qualServiceCategory.value || undefined,
+    destination: qualDestination.value.trim() || undefined,
+    travelStartDate: qualTravelStart.value || undefined,
+    travelEndDate: qualTravelEnd.value || undefined,
+    travelerEstimate: qualTravelerEstimate.value ?? undefined,
+    serviceScope: qualServiceScope.value,
+    requirementSummary: qualRequirementSummary.value.trim() || undefined,
+    handedOverTo: qualHandedOverTo.value || undefined,
+    budgetRange: qualBudgetRange.value.trim() || undefined,
+    dateFlexible: qualDateFlexible.value,
+    decisionMaker: qualDecisionMaker.value.trim() || undefined,
+    urgency: qualUrgency.value || undefined,
+    specialRequestNote: qualSpecialRequestNote.value.trim() || undefined,
+    qualificationNotes: qualCommunicationNotes.value.trim() || undefined,
+    expectedCloseDate: qualExpectedCloseDate.value || undefined,
+  })
+}
+
 const isQualifyDialogOpen = ref(false)
 function doQualifyAndCreateOpportunity() {
-  if (!selectedLead.value) return
-  const accountExecutiveId = currentRole.value === 'account-executive' ? currentUser.value.id : (selectedLead.value.handedOverTo ?? currentUser.value.id)
-  const opportunity = qualifyLeadAndCreateOpportunity(selectedLead.value.id, accountExecutiveId)
+  if (!selectedLead.value || qualificationMissing.value.length > 0) return
+  saveQualificationDraft()
+  const opportunity = qualifyLeadAndCreateOpportunity(selectedLead.value.id)
   isQualifyDialogOpen.value = false
   if (opportunity) navigateTo(`/crm/opportunities/${opportunity.id}`)
+}
+
+const isUnqualifyDialogOpen = ref(false)
+const unqualifyNote = ref('')
+function doMarkUnqualified() {
+  if (!selectedLead.value) return
+  saveQualificationDraft()
+  markLeadUnqualified(selectedLead.value.id, unqualifyNote.value.trim() || undefined)
+  unqualifyNote.value = ''
+  isUnqualifyDialogOpen.value = false
+  isDrawerOpen.value = false
 }
 
 /* Catat Activity/Follow-up dari drawer */
@@ -326,37 +422,190 @@ function submitActivity() {
             <SheetDescription>{{ selectedLead.companyName || 'Individual lead' }}</SheetDescription>
           </SheetHeader>
 
-          <div class="flex items-center gap-2 mt-4">
+          <div class="flex flex-wrap items-center gap-2 mt-4">
             <StatusBadge :label="findStatusOption(LEAD_STAGES, selectedLead.stage).label" :tone="findStatusOption(LEAD_STAGES, selectedLead.stage).tone" />
             <StatusBadge :label="findStatusOption(LEAD_SOURCES, selectedLead.source).label" :tone="findStatusOption(LEAD_SOURCES, selectedLead.source).tone" />
             <StatusBadge v-if="selectedLead.archived" label="Archived" tone="neutral" />
+            <!-- Completion indicator + status handover (Prompt 20-14) -->
+            <StatusBadge
+              v-if="!selectedLead.opportunityId && selectedLead.stage !== 'unqualified'"
+              :label="`Qualification ${qualificationCompletedCount}/7`"
+              :tone="qualificationMissing.length === 0 ? 'success' : 'warning'"
+            />
+            <StatusBadge v-if="selectedLead.handedOverTo" label="Sudah diserahkan ke AE" tone="info" />
           </div>
 
           <Tabs v-model="drawerTab" class="mt-4">
             <TabsList>
               <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="qualification">Qualification</TabsTrigger>
               <TabsTrigger value="activities">Activities</TabsTrigger>
               <TabsTrigger value="followups">Follow-ups</TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" class="space-y-4">
               <DetailMetadataList :items="[
-                { label: 'Owner', value: ownerName(selectedLead.ownerId) },
-                { label: 'Diserahkan ke AE', value: selectedLead.handedOverTo ? ownerName(selectedLead.handedOverTo) : '—' },
+                { label: 'Nama Company', value: selectedLead.companyName || '—' },
+                { label: 'Owner (Sales)', value: ownerName(selectedLead.ownerId) },
+                { label: 'Account Executive Tujuan', value: selectedLead.handedOverTo ? ownerName(selectedLead.handedOverTo) : 'Belum ditentukan' },
                 { label: 'Telepon', value: selectedLead.phone || '—' },
                 { label: 'Email', value: selectedLead.email || '—' },
                 { label: 'Expected Close', value: selectedLead.expectedCloseDate ? formatDate(selectedLead.expectedCloseDate) : '—' },
                 { label: 'Dibuat', value: formatDate(selectedLead.createdAt) },
               ]" />
               <div>
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Qualification Notes</p>
-                <p class="text-sm text-foreground">{{ selectedLead.qualificationNotes || 'Belum ada catatan qualifikasi.' }}</p>
+                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Qualification Summary</p>
+                <p class="text-sm text-foreground">{{ selectedLead.requirementSummary || 'Belum diisi — lihat tab Qualification.' }}</p>
+              </div>
+              <div>
+                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Catatan Hasil Komunikasi</p>
+                <p class="text-sm text-foreground">{{ selectedLead.qualificationNotes || 'Belum ada catatan.' }}</p>
               </div>
               <div v-if="selectedLead.opportunityId" class="rounded-lg border border-success/30 bg-success/5 p-3">
                 <p class="text-sm text-success">
                   Sudah dikonversi —
                   <NuxtLink :to="`/crm/opportunities/${selectedLead.opportunityId}`" class="underline">lihat Opportunity {{ selectedLead.opportunityId }}</NuxtLink>
                 </p>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="qualification" class="space-y-4">
+              <div v-if="selectedLead.opportunityId" class="rounded-lg border border-success/30 bg-success/5 p-3">
+                <p class="text-sm text-success">Lead ini sudah di-qualify dan dikonversi menjadi Opportunity — data qualification di bawah bersifat riwayat (read-only).</p>
+              </div>
+              <fieldset :disabled="!canManageLead || selectedLead.archived || Boolean(selectedLead.opportunityId)" class="space-y-4">
+                <div class="space-y-1.5">
+                  <Label for="qual-service-category">Jenis Kebutuhan</Label>
+                  <select id="qual-service-category" v-model="qualServiceCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="">Pilih jenis kebutuhan</option>
+                    <option v-for="opt in LEAD_SERVICE_CATEGORIES" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="qual-destination">Destinasi / Area Tujuan</Label>
+                  <Input id="qual-destination" v-model="qualDestination" placeholder="mis. Bali, Indonesia" />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="space-y-1.5">
+                    <Label for="qual-start">Mulai Perjalanan</Label>
+                    <Input id="qual-start" v-model="qualTravelStart" type="date" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="qual-end">Selesai Perjalanan</Label>
+                    <Input id="qual-end" v-model="qualTravelEnd" type="date" />
+                  </div>
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="qual-traveler">Estimasi Jumlah Traveler</Label>
+                  <Input id="qual-traveler" v-model.number="qualTravelerEstimate" type="number" placeholder="mis. 30" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label>Service Scope</Label>
+                  <div class="flex flex-wrap gap-2">
+                    <button
+                      v-for="type in SERVICE_TYPES"
+                      :key="type.value"
+                      type="button"
+                      class="rounded-full border px-3 py-1 text-xs transition-colors"
+                      :class="qualServiceScope.includes(type.value) ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground'"
+                      @click="toggleQualServiceScope(type.value)"
+                    >{{ type.value === 'additional' ? 'Other' : type.label }}</button>
+                  </div>
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="qual-summary">Ringkasan Kebutuhan Awal</Label>
+                  <textarea id="qual-summary" v-model="qualRequirementSummary" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Ringkasan singkat kebutuhan perjalanan client" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="qual-ae">Account Executive yang Menerima Lead</Label>
+                  <select id="qual-ae" v-model="qualHandedOverTo" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="">Pilih Account Executive</option>
+                    <option v-for="ae in aeOptions" :key="ae.id" :value="ae.id">{{ ae.name }}</option>
+                  </select>
+                </div>
+
+                <div class="pt-2 border-t border-border space-y-4">
+                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Field Opsional</p>
+                  <div class="space-y-1.5">
+                    <Label for="qual-budget">Estimasi Budget / Budget Range</Label>
+                    <Input id="qual-budget" v-model="qualBudgetRange" placeholder="mis. Rp 100 juta - Rp 150 juta" />
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <input id="qual-flexible" v-model="qualDateFlexible" type="checkbox" class="h-4 w-4 rounded border-input" />
+                    <Label for="qual-flexible" class="!mb-0">Fleksibilitas Tanggal</Label>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="qual-decision-maker">Decision Maker</Label>
+                    <Input id="qual-decision-maker" v-model="qualDecisionMaker" placeholder="mis. Direktur Operasional" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="qual-urgency">Tingkat Urgensi</Label>
+                    <select id="qual-urgency" v-model="qualUrgency" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                      <option value="">Belum ditentukan</option>
+                      <option v-for="opt in LEAD_URGENCY_LEVELS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    </select>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="qual-expected-close">Expected Close</Label>
+                    <Input id="qual-expected-close" v-model="qualExpectedCloseDate" type="date" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="qual-special-request">Special Request Awal</Label>
+                    <textarea id="qual-special-request" v-model="qualSpecialRequestNote" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="qual-communication-notes">Catatan Hasil Komunikasi</Label>
+                    <textarea id="qual-communication-notes" v-model="qualCommunicationNotes" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                </div>
+              </fieldset>
+
+              <div v-if="qualificationMissing.length > 0" class="rounded-lg border border-warning/30 bg-warning/5 p-3">
+                <p class="text-sm font-medium text-warning">Belum bisa di-Qualify — field berikut belum lengkap:</p>
+                <ul class="mt-1 text-xs text-muted-foreground list-disc list-inside">
+                  <li v-for="item in qualificationMissing" :key="item">{{ item }}</li>
+                </ul>
+              </div>
+
+              <div v-if="canManageLead && !selectedLead.archived && !selectedLead.opportunityId" class="flex flex-wrap gap-2 pt-2">
+                <Button size="sm" variant="outline" @click="saveQualificationDraft">Simpan Draft</Button>
+                <Dialog v-model:open="isQualifyDialogOpen">
+                  <DialogTrigger as-child>
+                    <Button size="sm" :disabled="qualificationMissing.length > 0">Qualify &amp; Create Opportunity</Button>
+                  </DialogTrigger>
+                  <DialogContent class="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Qualify &amp; Create Opportunity</DialogTitle>
+                      <DialogDescription>
+                        Lead akan ditandai Qualified dan sebuah Opportunity baru dibuat (Company baru dibuat bila belum ada
+                        yang cocok dengan nama "{{ selectedLead.companyName || selectedLead.name }}"), lengkap dengan seluruh data qualification di atas.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <DialogFooter>
+                      <Button variant="outline" @click="isQualifyDialogOpen = false">Batal</Button>
+                      <Button @click="doQualifyAndCreateOpportunity">Qualify &amp; Create Opportunity</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+                <Dialog v-model:open="isUnqualifyDialogOpen">
+                  <DialogTrigger as-child>
+                    <Button size="sm" variant="destructive">Mark as Unqualified</Button>
+                  </DialogTrigger>
+                  <DialogContent class="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Tandai Lead sebagai Unqualified</DialogTitle>
+                      <DialogDescription>Aksi ini bersifat final (terminal) untuk mockup ini.</DialogDescription>
+                    </DialogHeader>
+                    <div class="space-y-1.5 py-2">
+                      <Label for="unqualify-note">Catatan (opsional)</Label>
+                      <Input id="unqualify-note" v-model="unqualifyNote" placeholder="mis. Tidak ada budget/timeline konkret" />
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" @click="isUnqualifyDialogOpen = false">Batal</Button>
+                      <Button variant="destructive" @click="doMarkUnqualified">Mark as Unqualified</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
             </TabsContent>
 
@@ -422,24 +671,6 @@ function submitActivity() {
             <Button v-if="canManageLead && !selectedLead.archived" variant="outline" @click="doArchive">
               <ArchiveIcon class="h-4 w-4 mr-1.5" />Archive
             </Button>
-            <Dialog v-if="canManageLead && !selectedLead.opportunityId && !selectedLead.archived" v-model:open="isQualifyDialogOpen">
-              <DialogTrigger as-child>
-                <Button>Qualify &amp; Create Opportunity</Button>
-              </DialogTrigger>
-              <DialogContent class="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Qualify &amp; Create Opportunity</DialogTitle>
-                  <DialogDescription>
-                    Lead akan ditandai Qualified dan sebuah Opportunity baru dibuat (Company baru dibuat bila belum ada
-                    yang cocok dengan nama "{{ selectedLead.companyName || selectedLead.name }}").
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="outline" @click="isQualifyDialogOpen = false">Batal</Button>
-                  <Button @click="doQualifyAndCreateOpportunity">Qualify &amp; Create Opportunity</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
           </SheetFooter>
         </template>
       </SheetContent>

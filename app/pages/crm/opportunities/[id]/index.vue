@@ -3,14 +3,19 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus } from 'lucide-vue-next'
 import {
-  getOpportunityById, getPartyById, getQuotationByOpportunity, getPartyActivitiesByOpportunity, getUserById,
+  getOpportunityById, getPartyById, getQuotationByOpportunity, getPartyActivitiesByOpportunity, getUserById, getLeadById,
   createQuotation, reviseQuotation, advanceOpportunityStage, createPartyActivity,
-  getOpportunityMissingRequirements, approveOpportunityWon, rejectOpportunityWon,
+  getOpportunityMissingRequirements, getOpportunityRequirementGate, getOpportunityWorkflowStatus,
+  updateOpportunityRequirement, updateQuotationDetails, approveOpportunityWon,
   submitQuotationForApproval, approveQuotation, rejectQuotation,
 } from '~/data'
-import { OPPORTUNITY_STAGES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, QUOTATION_APPROVAL_STATUSES, findStatusOption } from '~/constants/status'
+import {
+  OPPORTUNITY_STAGES, OPPORTUNITY_WORKFLOW_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES,
+  QUOTATION_APPROVAL_STATUSES, LEAD_SOURCES, findStatusOption,
+} from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
-import type { OpportunityStage } from '~/types/opportunity'
+import type { OpportunityStage, OpportunityRequirementDetail, QuotationServiceItem } from '~/types/opportunity'
+import type { ServiceTypeKey } from '~/types/project'
 import type { PartyActivityType } from '~/types/party'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -29,7 +34,7 @@ const { showToast } = useToast()
  * Account Executive yang menerima handover dan mengelola Opportunity sampai Won. */
 const canManageOpportunity = computed(() => ['account-executive', 'super-admin'].includes(currentRole.value))
 
-/** Commercial Approval (Prompt 19) — Management/Super Admin approve/reject quotation, TERPISAH dari `canApproveOpportunity` (approve Won). Reuse `canApprove('crm')`, bukan constant baru. */
+/** Commercial Approval (Prompt 19/20) — Management/Super Admin approve/reject quotation. Prompt 20 menghapus approval Won terpisah (D-053) — setelah Commercial Approval disetujui, AE langsung "Mark as Won" (`submitMarkAsWon`), reuse `canApprove('crm')`, bukan constant baru. */
 const canApproveCommercial = computed(() => canApprove('crm'))
 
 const opportunity = computed(() => getOpportunityById(String(route.params.id)))
@@ -38,16 +43,21 @@ useHead({ title: computed(() => opportunity.value ? opportunity.value.title : 'O
 const party = computed(() => (opportunity.value ? getPartyById(opportunity.value.partyId) : undefined))
 const quotation = computed(() => (opportunity.value ? getQuotationByOpportunity(opportunity.value.id) : undefined))
 const activities = computed(() => (opportunity.value ? getPartyActivitiesByOpportunity(opportunity.value.id) : []))
+const relatedLead = computed(() => (opportunity.value?.leadId ? getLeadById(opportunity.value.leadId) : undefined))
 
-/** Permission Approve/Reject Won (Section 09) — Management/Super Admin (rank `APPROVE`), berbeda dari
- * `canManageOpportunity` (Sales/Super Admin) yang dipakai untuk transisi stage sehari-hari (Section 08). */
-const canApproveOpportunity = computed(() => canApprove('crm'))
+/** "Requirement validation" (Section 09) — gerbang final sebelum Won (mensyaratkan Quotation SUDAH ada). */
 const missingRequirements = computed(() => (opportunity.value ? getOpportunityMissingRequirements(opportunity.value.id) : []))
+/** Requirement Gate SEBELUM Quotation (Prompt 20-10) — terpisah dari `missingRequirements`, dicek sebelum membuat Quotation pertama. */
+const requirementGateWarnings = computed(() => (opportunity.value ? getOpportunityRequirementGate(opportunity.value.id) : []))
+/** Status workflow AE-facing (Prompt 20-10/14) — "indikator stage yang jelas", menggantikan label lama yang membingungkan. */
+const workflowStatus = computed(() => (opportunity.value ? getOpportunityWorkflowStatus(opportunity.value.id) : undefined))
 
 const summaryMetadata = computed(() => {
   if (!opportunity.value) return []
   return [
-    { label: 'Party', value: party.value?.name ?? '—' },
+    { label: 'Party / Prospect', value: party.value?.name ?? '—' },
+    { label: 'Contact Person', value: opportunity.value.contactName ?? '—' },
+    { label: 'Lead Source', value: relatedLead.value ? findStatusOption(LEAD_SOURCES, relatedLead.value.source).label : '—' },
     { label: 'Account Executive', value: getUserById(opportunity.value.ownerId)?.name ?? '—' },
     { label: 'Destinasi', value: opportunity.value.destination },
     {
@@ -58,6 +68,7 @@ const summaryMetadata = computed(() => {
     },
     { label: 'Estimasi Traveler', value: opportunity.value.travelerEstimate ? `${opportunity.value.travelerEstimate} pax` : '—' },
     { label: 'Estimasi Nilai', value: formatCurrencyIdr(opportunity.value.estimatedValueIdr) },
+    { label: 'Expected Close', value: opportunity.value.expectedCloseDate ? formatDate(opportunity.value.expectedCloseDate) : '—' },
     { label: 'Dibuat', value: formatDate(opportunity.value.createdAt) },
   ]
 })
@@ -75,6 +86,7 @@ function goToNextSimpleStage(next: OpportunityStage) {
 }
 
 function openProposalDialog() {
+  if (!opportunity.value || requirementGateWarnings.value.length > 0) return
   if (quotation.value) {
     // Quotation sudah ada (edge case) — langsung lanjut tanpa dialog.
     goToNextSimpleStage('proposal')
@@ -82,6 +94,55 @@ function openProposalDialog() {
   }
   proposalQuotationAmount.value = null
   isProposalDialogOpen.value = true
+}
+
+/* Edit Requirement (Prompt 20-8B/9) — AE melengkapi/menyempurnakan requirement dasar + Requirement Detail. */
+const isRequirementDialogOpen = ref(false)
+const reqDestination = ref('')
+const reqTravelStart = ref('')
+const reqTravelEnd = ref('')
+const reqTravelerEstimate = ref<number | null>(null)
+const reqServiceScope = ref<ServiceTypeKey[]>([])
+const reqRequirementNotes = ref('')
+const reqContactName = ref('')
+const reqEstimatedValueIdr = ref<number | null>(null)
+const reqDetail = ref<OpportunityRequirementDetail>({})
+
+function openRequirementDialog() {
+  if (!opportunity.value) return
+  reqDestination.value = opportunity.value.destination ?? ''
+  reqTravelStart.value = opportunity.value.travelStartDate ?? ''
+  reqTravelEnd.value = opportunity.value.travelEndDate ?? ''
+  reqTravelerEstimate.value = opportunity.value.travelerEstimate ?? null
+  reqServiceScope.value = [...opportunity.value.serviceScope]
+  reqRequirementNotes.value = opportunity.value.requirementNotes ?? ''
+  reqContactName.value = opportunity.value.contactName ?? ''
+  reqEstimatedValueIdr.value = opportunity.value.estimatedValueIdr || null
+  reqDetail.value = { ...opportunity.value.requirementDetail }
+  isRequirementDialogOpen.value = true
+}
+
+function toggleReqServiceScope(type: ServiceTypeKey) {
+  const index = reqServiceScope.value.indexOf(type)
+  if (index === -1) reqServiceScope.value.push(type)
+  else reqServiceScope.value.splice(index, 1)
+}
+
+function submitRequirement() {
+  // Destinasi wajib (`Opportunity.destination` bertipe non-optional) — jangan kosongkan lewat form ini.
+  if (!opportunity.value || !reqDestination.value.trim()) return
+  updateOpportunityRequirement(opportunity.value.id, {
+    destination: reqDestination.value.trim(),
+    travelStartDate: reqTravelStart.value || undefined,
+    travelEndDate: reqTravelEnd.value || undefined,
+    travelerEstimate: reqTravelerEstimate.value ?? undefined,
+    serviceScope: reqServiceScope.value,
+    requirementNotes: reqRequirementNotes.value.trim(),
+    contactName: reqContactName.value.trim(),
+    estimatedValueIdr: reqEstimatedValueIdr.value ?? 0,
+    requirementDetail: reqDetail.value,
+  })
+  isRequirementDialogOpen.value = false
 }
 
 function submitProposal() {
@@ -115,33 +176,70 @@ function submitRevise() {
   isReviseDialogOpen.value = false
 }
 
-/* Approve / Reject Won (Section 09) */
-const isApproveDialogOpen = ref(false)
-const isRejectDialogOpen = ref(false)
-const rejectNoteInput = ref('')
+/* Edit Quotation (Prompt 20-9/11) — melengkapi detail komersial SELAGI masih draft (belum submitted/approved), tanpa menaikkan versi (beda dari "Revisi Quotation"/Create New Version di atas). */
+const isEditQuotationDialogOpen = ref(false)
+const editQuotationAmount = ref<number | null>(null)
+const editQuotationDiscount = ref<number | null>(null)
+const editQuotationCost = ref<number | null>(null)
+const editQuotationMargin = ref<number | null>(null)
+const editQuotationPaymentTerms = ref('')
+const editServiceBreakdown = ref<QuotationServiceItem[]>([])
 
-function submitApprove() {
-  if (!opportunity.value) return
-  const project = approveOpportunityWon(opportunity.value.id, currentUser.value.id)
-  isApproveDialogOpen.value = false
-  if (!project) {
-    showToast('Approve Won Gagal', 'Requirement belum lengkap atau opportunity sudah diproses sebelumnya.', 'error')
-    return
-  }
-  showToast('Project Berhasil Dibuat', `${project.name} (${project.id}) dibuat dari opportunity ini.`, 'success')
-  router.push(`/projects/${project.id}`)
+function openEditQuotationDialog() {
+  if (!quotation.value) return
+  editQuotationAmount.value = quotation.value.amountIdr
+  editQuotationDiscount.value = quotation.value.discountIdr ?? null
+  editQuotationCost.value = quotation.value.estimatedCostIdr ?? null
+  editQuotationMargin.value = quotation.value.estimatedMarginIdr ?? null
+  editQuotationPaymentTerms.value = quotation.value.paymentTerms ?? ''
+  editServiceBreakdown.value = (quotation.value.serviceBreakdown ?? []).map(item => ({ ...item }))
+  isEditQuotationDialogOpen.value = true
 }
 
-function submitReject() {
-  if (!opportunity.value || !rejectNoteInput.value.trim()) return
-  const result = rejectOpportunityWon(opportunity.value.id, rejectNoteInput.value.trim())
-  isRejectDialogOpen.value = false
-  rejectNoteInput.value = ''
-  if (!result) {
-    showToast('Reject Gagal', 'Opportunity tidak lagi berstatus menunggu approval.', 'error')
+function addBreakdownRow() {
+  editServiceBreakdown.value.push({ service: 'flight', description: '', amountIdr: 0 })
+}
+
+function removeBreakdownRow(index: number) {
+  editServiceBreakdown.value.splice(index, 1)
+}
+
+function submitEditQuotation() {
+  if (!quotation.value || !editQuotationAmount.value || editQuotationAmount.value <= 0) return
+  updateQuotationDetails(quotation.value.id, {
+    amountIdr: editQuotationAmount.value,
+    discountIdr: editQuotationDiscount.value ?? undefined,
+    estimatedCostIdr: editQuotationCost.value ?? undefined,
+    estimatedMarginIdr: editQuotationMargin.value ?? undefined,
+    paymentTerms: editQuotationPaymentTerms.value.trim() || undefined,
+    serviceBreakdown: editServiceBreakdown.value.filter(item => item.amountIdr > 0),
+  })
+  isEditQuotationDialogOpen.value = false
+}
+
+/**
+ * Mark as Won (Prompt 20-13) — AE langsung mengeksekusi Won setelah Quotation `approved` oleh Management,
+ * TANPA approval kedua terpisah dari Management (beda dari model dua-langkah lama Section 09/D-025: dulu AE
+ * "Ajukan sebagai Won" lalu Management "Approve Won" terpisah). Reuse penuh `advanceOpportunityStage`+
+ * `approveOpportunityWon` existing (bukan mutator baru) — dipanggil berurutan secara sinkron dalam satu klik,
+ * `wonApprovedBy` diisi approver Commercial Approval yang sesungguhnya (`quotation.approvedBy`, Management),
+ * bukan AE yang mengeksekusi, agar field tetap merepresentasikan siapa yang benar-benar approve secara
+ * komersial. Didokumentasikan sebagai D-053 (`docs/mockup-design-decisions.md`, supersede sebagian D-025
+ * khusus untuk Opportunity Won — lihat laporan section).
+ */
+const isMarkAsWonDialogOpen = ref(false)
+
+function submitMarkAsWon() {
+  if (!opportunity.value || !quotation.value || quotation.value.approvalStatus !== 'approved') return
+  advanceOpportunityStage(opportunity.value.id, 'won-requested')
+  const project = approveOpportunityWon(opportunity.value.id, quotation.value.approvedBy ?? currentUser.value.id)
+  isMarkAsWonDialogOpen.value = false
+  if (!project) {
+    showToast('Mark as Won Gagal', 'Requirement belum lengkap atau opportunity sudah diproses sebelumnya.', 'error')
     return
   }
-  showToast('Opportunity Ditolak', 'Dikembalikan ke stage Negotiation dengan catatan.', 'warning')
+  showToast('Opportunity Won', `${project.name} (${project.id}) dibuat, client aktif, dan Project Order otomatis dibuat.`, 'success')
+  router.push(`/projects/${project.id}`)
 }
 
 /* Commercial Approval (Prompt 19) — AE submit quotation untuk approval, Management approve/reject. */
@@ -227,7 +325,11 @@ function submitActivity() {
         :breadcrumb="[{ label: 'CRM', to: '/crm' }, { label: 'Opportunities', to: '/crm/opportunities' }, { label: opportunity.title }]"
       >
         <template #actions>
-          <StatusBadge :label="findStatusOption(OPPORTUNITY_STAGES, opportunity.stage).label" :tone="findStatusOption(OPPORTUNITY_STAGES, opportunity.stage).tone" />
+          <StatusBadge
+            v-if="workflowStatus"
+            :label="findStatusOption(OPPORTUNITY_WORKFLOW_STATUSES, workflowStatus).label"
+            :tone="findStatusOption(OPPORTUNITY_WORKFLOW_STATUSES, workflowStatus).tone"
+          />
         </template>
       </PageHeader>
 
@@ -243,9 +345,119 @@ function submitActivity() {
               :tone="type.tone"
             />
           </div>
-          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Requirement</p>
+          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Qualification Summary</p>
           <p class="text-sm text-foreground">{{ opportunity.requirementNotes || 'Requirement belum digali.' }}</p>
+          <div v-if="relatedLead" class="mt-3">
+            <NuxtLink :to="`/customer-journey/leads`" class="text-sm text-primary hover:underline">Related Lead: {{ relatedLead.id }} — {{ relatedLead.name }} →</NuxtLink>
+          </div>
         </div>
+      </SectionCard>
+
+      <!-- Requirement Detail (Prompt 20 — Change Request) -->
+      <SectionCard title="Requirement Detail" description="Dilengkapi Account Executive — menyempurnakan requirement awal dari Sales tanpa menghapus histori qualification.">
+        <template v-if="canManageOpportunity && !['won', 'lost'].includes(opportunity.stage)" #actions>
+          <Button size="sm" variant="outline" @click="openRequirementDialog">Edit Requirement</Button>
+        </template>
+
+        <div v-if="requirementGateWarnings.length > 0" class="rounded-lg border border-warning/30 bg-warning/5 p-3 mb-4">
+          <p class="text-sm font-medium text-warning">Requirement belum lengkap untuk Quotation:</p>
+          <ul class="mt-1 text-xs text-muted-foreground list-disc list-inside">
+            <li v-for="item in requirementGateWarnings" :key="item">{{ item }}</li>
+          </ul>
+        </div>
+        <p v-else class="text-sm text-success mb-4">Requirement minimum lengkap — siap dibuatkan Quotation.</p>
+
+        <DetailMetadataList :items="[
+          { label: 'Itinerary Concept', value: opportunity.requirementDetail?.itineraryConcept || '—' },
+          { label: 'Departure City', value: opportunity.requirementDetail?.departureCity || '—' },
+          { label: 'Destination Detail', value: opportunity.requirementDetail?.destinationDetail || '—' },
+          { label: 'Traveler Composition', value: opportunity.requirementDetail?.travelerComposition || '—' },
+          { label: 'Room Requirement', value: opportunity.requirementDetail?.roomRequirement || '—' },
+          { label: 'Flight Preference', value: opportunity.requirementDetail?.flightPreference || '—' },
+          { label: 'Transport Requirement', value: opportunity.requirementDetail?.transportRequirement || '—' },
+          { label: 'MICE Requirement', value: opportunity.requirementDetail?.miceRequirement || '—' },
+          { label: 'Special Request', value: opportunity.requirementDetail?.specialRequest || '—' },
+          { label: 'Decision Maker', value: opportunity.requirementDetail?.decisionMaker || '—' },
+          { label: 'Payment Terms', value: opportunity.requirementDetail?.paymentTerms || '—' },
+          { label: 'Commercial Notes', value: opportunity.requirementDetail?.commercialNotes || '—' },
+          { label: 'Operational Notes', value: opportunity.requirementDetail?.operationalNotes || '—' },
+          { label: 'Risk Notes', value: opportunity.requirementDetail?.riskNotes || '—' },
+        ]" />
+
+        <Dialog v-model:open="isRequirementDialogOpen">
+          <DialogScrollContent class="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Requirement</DialogTitle>
+              <DialogDescription>Melengkapi/menyempurnakan requirement dasar dan Requirement Detail.</DialogDescription>
+            </DialogHeader>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="req-destination">Destinasi</Label>
+                <Input id="req-destination" v-model="reqDestination" />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="req-start">Mulai Perjalanan</Label>
+                  <Input id="req-start" v-model="reqTravelStart" type="date" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="req-end">Selesai Perjalanan</Label>
+                  <Input id="req-end" v-model="reqTravelEnd" type="date" />
+                </div>
+              </div>
+              <div class="space-y-1.5">
+                <Label for="req-traveler">Estimasi Traveler</Label>
+                <Input id="req-traveler" v-model.number="reqTravelerEstimate" type="number" />
+              </div>
+              <div class="space-y-1.5">
+                <Label>Service Scope</Label>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="type in SERVICE_TYPES"
+                    :key="type.value"
+                    type="button"
+                    class="rounded-full border px-3 py-1 text-xs transition-colors"
+                    :class="reqServiceScope.includes(type.value) ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground'"
+                    @click="toggleReqServiceScope(type.value)"
+                  >{{ type.label }}</button>
+                </div>
+              </div>
+              <div class="space-y-1.5">
+                <Label for="req-summary">Ringkasan Kebutuhan (Requirement Summary)</Label>
+                <textarea id="req-summary" v-model="reqRequirementNotes" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="req-contact">Contact Person</Label>
+                <Input id="req-contact" v-model="reqContactName" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="req-estimated-value">Estimasi Nilai (Rp)</Label>
+                <Input id="req-estimated-value" v-model.number="reqEstimatedValueIdr" type="number" />
+              </div>
+              <div class="pt-2 border-t border-border space-y-4">
+                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Requirement Detail (AE)</p>
+                <div class="space-y-1.5"><Label for="req-itinerary">Itinerary Concept</Label><Input id="req-itinerary" v-model="reqDetail.itineraryConcept" /></div>
+                <div class="space-y-1.5"><Label for="req-departure">Departure City</Label><Input id="req-departure" v-model="reqDetail.departureCity" /></div>
+                <div class="space-y-1.5"><Label for="req-dest-detail">Destination Detail</Label><Input id="req-dest-detail" v-model="reqDetail.destinationDetail" /></div>
+                <div class="space-y-1.5"><Label for="req-traveler-comp">Traveler Composition</Label><Input id="req-traveler-comp" v-model="reqDetail.travelerComposition" /></div>
+                <div class="space-y-1.5"><Label for="req-room">Room Requirement</Label><Input id="req-room" v-model="reqDetail.roomRequirement" /></div>
+                <div class="space-y-1.5"><Label for="req-flight">Flight Preference</Label><Input id="req-flight" v-model="reqDetail.flightPreference" /></div>
+                <div class="space-y-1.5"><Label for="req-transport">Transport Requirement</Label><Input id="req-transport" v-model="reqDetail.transportRequirement" /></div>
+                <div class="space-y-1.5"><Label for="req-mice">MICE Requirement</Label><Input id="req-mice" v-model="reqDetail.miceRequirement" /></div>
+                <div class="space-y-1.5"><Label for="req-special">Special Request</Label><Input id="req-special" v-model="reqDetail.specialRequest" /></div>
+                <div class="space-y-1.5"><Label for="req-decision-maker">Decision Maker</Label><Input id="req-decision-maker" v-model="reqDetail.decisionMaker" /></div>
+                <div class="space-y-1.5"><Label for="req-payment-terms">Payment Terms</Label><Input id="req-payment-terms" v-model="reqDetail.paymentTerms" /></div>
+                <div class="space-y-1.5"><Label for="req-commercial-notes">Commercial Notes</Label><Input id="req-commercial-notes" v-model="reqDetail.commercialNotes" /></div>
+                <div class="space-y-1.5"><Label for="req-operational-notes">Operational Notes</Label><Input id="req-operational-notes" v-model="reqDetail.operationalNotes" /></div>
+                <div class="space-y-1.5"><Label for="req-risk-notes">Risk Notes</Label><Input id="req-risk-notes" v-model="reqDetail.riskNotes" /></div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" @click="isRequirementDialogOpen = false">Batal</Button>
+              <Button :disabled="!reqDestination.trim()" @click="submitRequirement">Simpan Requirement</Button>
+            </DialogFooter>
+          </DialogScrollContent>
+        </Dialog>
       </SectionCard>
 
       <!-- Stage Stepper -->
@@ -271,74 +483,57 @@ function submitActivity() {
           </NuxtLink>
         </div>
         <template v-else-if="opportunity.stage === 'won-requested'">
-          <div v-if="!canApproveOpportunity" class="mb-4">
-            <p class="text-sm text-muted-foreground">Menunggu approval Management/Super Admin.</p>
-          </div>
-          <div v-else class="mb-4 space-y-3">
-            <div v-if="missingRequirements.length > 0" class="rounded-lg border border-warning/30 bg-warning/5 p-3">
-              <p class="text-sm font-medium text-warning">Belum bisa di-approve — requirement berikut belum lengkap:</p>
-              <ul class="mt-1 text-xs text-muted-foreground list-disc list-inside">
-                <li v-for="item in missingRequirements" :key="item">{{ item }}</li>
-              </ul>
-            </div>
-            <div v-else class="flex flex-wrap gap-2">
-              <Dialog v-model:open="isApproveDialogOpen">
-                <DialogTrigger as-child>
-                  <Button size="sm">Approve Won</Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Approve Opportunity Won</DialogTitle>
-                    <DialogDescription>
-                      Project baru akan otomatis dibuat dari opportunity ini (destinasi {{ opportunity.destination }},
-                      {{ opportunity.travelerEstimate }} pax<template v-if="party?.lifecycleStatus === 'prospect'">, dan {{ party?.name }} akan berubah status menjadi Client</template>).
-                      Aksi ini tidak dapat dibatalkan pada mockup ini.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isApproveDialogOpen = false">Batal</Button>
-                    <Button @click="submitApprove">Approve dan Buat Project</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Dialog v-model:open="isRejectDialogOpen">
-                <DialogTrigger as-child>
-                  <Button size="sm" variant="outline">Reject</Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Reject Approval Won</DialogTitle>
-                    <DialogDescription>Opportunity akan kembali ke stage Negotiation dengan catatan.</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-1.5 py-2">
-                    <Label for="reject-note">Catatan</Label>
-                    <Input id="reject-note" v-model="rejectNoteInput" placeholder="mis. Nilai quotation perlu ditinjau ulang" />
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isRejectDialogOpen = false">Batal</Button>
-                    <Button variant="destructive" :disabled="!rejectNoteInput.trim()" @click="submitReject">Reject</Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-            </div>
-          </div>
+          <!-- Transisi internal sesaat (Prompt 20-13) — AE "Mark as Won" mengeksekusi `won-requested → won`
+               secara sinkron dalam satu klik (lihat `submitMarkAsWon`), state ini seharusnya tidak pernah
+               terlihat persisten di data demo manapun. Dipertahankan sebagai fallback informatif saja. -->
+          <p class="mb-4 text-sm text-muted-foreground">Sedang diproses sebagai Won...</p>
         </template>
 
         <div v-if="canManageOpportunity" class="flex flex-wrap gap-2">
           <Button v-if="opportunity.stage === 'draft'" size="sm" @click="goToNextSimpleStage('qualification')">Lanjut ke Qualification</Button>
           <Button v-if="opportunity.stage === 'qualification'" size="sm" @click="goToNextSimpleStage('requirement-gathering')">Lanjut ke Requirement Gathering</Button>
-          <Button v-if="opportunity.stage === 'requirement-gathering'" size="sm" @click="openProposalDialog">Lanjut ke Proposal (Siapkan Quotation)</Button>
+          <template v-if="opportunity.stage === 'requirement-gathering'">
+            <Button
+              size="sm"
+              :disabled="requirementGateWarnings.length > 0"
+              :title="requirementGateWarnings.length > 0 ? 'Requirement belum lengkap — lihat section Requirement Detail' : undefined"
+              @click="openProposalDialog"
+            >Buat Quotation</Button>
+            <p v-if="requirementGateWarnings.length > 0" class="text-xs text-muted-foreground basis-full">
+              Lengkapi Requirement Detail (section di atas) sebelum Quotation dapat dibuat.
+            </p>
+          </template>
           <Button v-if="opportunity.stage === 'proposal'" size="sm" @click="goToNextSimpleStage('negotiation')">Lanjut ke Negotiation</Button>
 
           <template v-if="opportunity.stage === 'negotiation'">
-            <Button
-              size="sm"
-              :disabled="quotation?.approvalStatus !== 'approved'"
-              :title="quotation?.approvalStatus !== 'approved' ? 'Quotation harus disetujui (Commercial Approval) sebelum diajukan sebagai Won' : undefined"
-              @click="goToNextSimpleStage('won-requested')"
-            >Ajukan sebagai Won</Button>
+            <Dialog v-model:open="isMarkAsWonDialogOpen">
+              <DialogTrigger as-child>
+                <Button
+                  size="sm"
+                  :disabled="quotation?.approvalStatus !== 'approved' || missingRequirements.length > 0"
+                  :title="quotation?.approvalStatus !== 'approved' ? 'Quotation harus disetujui (Commercial Approval) oleh Management sebelum Mark as Won' : undefined"
+                >Mark as Won</Button>
+              </DialogTrigger>
+              <DialogContent class="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Mark as Won</DialogTitle>
+                  <DialogDescription>
+                    Project baru akan otomatis dibuat dari opportunity ini (destinasi {{ opportunity.destination }},
+                    {{ opportunity.travelerEstimate }} pax<template v-if="party?.lifecycleStatus === 'prospect'">, dan {{ party?.name }} akan berubah status menjadi Active Client</template>).
+                    Aksi ini tidak dapat dibatalkan pada mockup ini.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" @click="isMarkAsWonDialogOpen = false">Batal</Button>
+                  <Button @click="submitMarkAsWon">Mark as Won</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
             <p v-if="quotation?.approvalStatus !== 'approved'" class="text-xs text-muted-foreground basis-full">
-              Quotation harus melalui Commercial Approval (lihat section di bawah) sebelum dapat diajukan sebagai Won.
+              Quotation harus melalui Commercial Approval (lihat section di bawah) sebelum AE dapat Mark as Won.
+            </p>
+            <p v-else-if="missingRequirements.length > 0" class="text-xs text-muted-foreground basis-full">
+              Requirement belum lengkap: {{ missingRequirements.join(', ') }}.
             </p>
             <Button size="sm" variant="outline" @click="goToNextSimpleStage('on-hold')">Tahan (On Hold)</Button>
             <Dialog v-model:open="isLostDialogOpen">
@@ -386,25 +581,32 @@ function submitActivity() {
       <!-- Quotation -->
       <SectionCard title="Quotation">
         <template v-if="canManageOpportunity && quotation && !['won', 'lost'].includes(opportunity.stage)" #actions>
-          <Dialog v-model:open="isReviseDialogOpen">
-            <DialogTrigger as-child>
-              <Button size="sm" variant="outline" @click="openReviseDialog">Revisi Quotation</Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Revisi Quotation</DialogTitle>
-                <DialogDescription>Nilai lama akan tersimpan sebagai versi sebelumnya.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="revise-amount">Nilai Quotation Baru (Rp)</Label>
-                <Input id="revise-amount" v-model.number="revisedAmount" type="number" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isReviseDialogOpen = false">Batal</Button>
-                <Button :disabled="!revisedAmount || revisedAmount <= 0" @click="submitRevise">Simpan Revisi</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <div class="flex flex-wrap gap-2">
+            <Button
+              v-if="(quotation.approvalStatus ?? 'draft') === 'draft'"
+              size="sm" variant="outline"
+              @click="openEditQuotationDialog"
+            >Edit Quotation</Button>
+            <Dialog v-model:open="isReviseDialogOpen">
+              <DialogTrigger as-child>
+                <Button size="sm" variant="outline" @click="openReviseDialog">Create New Version</Button>
+              </DialogTrigger>
+              <DialogContent class="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Revisi Quotation (Versi Baru)</DialogTitle>
+                  <DialogDescription>Nilai lama akan tersimpan sebagai versi sebelumnya; status approval direset ke Draft.</DialogDescription>
+                </DialogHeader>
+                <div class="space-y-1.5 py-2">
+                  <Label for="revise-amount">Nilai Quotation Baru (Rp)</Label>
+                  <Input id="revise-amount" v-model.number="revisedAmount" type="number" />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" @click="isReviseDialogOpen = false">Batal</Button>
+                  <Button :disabled="!revisedAmount || revisedAmount <= 0" @click="submitRevise">Simpan Revisi</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
         </template>
 
         <div v-if="quotation" class="space-y-2">
@@ -417,8 +619,79 @@ function submitActivity() {
             Direvisi dari {{ formatCurrencyIdr(quotation.supersededAmountIdr) }}
           </p>
           <p class="text-xs text-muted-foreground">Dibuat {{ formatDate(quotation.createdAt) }}</p>
+
+          <div class="mt-2 pt-2 border-t border-border">
+            <DetailMetadataList :items="[
+              { label: 'Discount', value: quotation.discountIdr ? formatCurrencyIdr(quotation.discountIdr) : '—' },
+              { label: 'Estimated Cost', value: quotation.estimatedCostIdr ? formatCurrencyIdr(quotation.estimatedCostIdr) : '—' },
+              { label: 'Estimated Margin', value: quotation.estimatedMarginIdr ? formatCurrencyIdr(quotation.estimatedMarginIdr) : '—' },
+              { label: 'Payment Terms', value: quotation.paymentTerms || '—' },
+            ]" />
+          </div>
+          <div v-if="quotation.serviceBreakdown && quotation.serviceBreakdown.length > 0" class="mt-2">
+            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Service Breakdown</p>
+            <ul class="divide-y divide-border">
+              <li v-for="(item, index) in quotation.serviceBreakdown" :key="index" class="py-2 flex items-center justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm text-foreground">{{ findStatusOption(SERVICE_TYPES, item.service).label }}</p>
+                  <p v-if="item.description" class="text-xs text-muted-foreground truncate">{{ item.description }}</p>
+                </div>
+                <p class="text-sm text-foreground shrink-0">{{ formatCurrencyIdr(item.amountIdr) }}</p>
+              </li>
+            </ul>
+          </div>
         </div>
         <EmptyState v-else title="Belum ada quotation" description="Quotation akan dibuat saat opportunity ini lanjut ke stage Proposal." />
+
+        <Dialog v-model:open="isEditQuotationDialogOpen">
+          <DialogScrollContent class="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Edit Quotation</DialogTitle>
+              <DialogDescription>Melengkapi detail komersial selagi quotation masih Draft.</DialogDescription>
+            </DialogHeader>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="edit-quo-amount">Nilai Quotation (Rp)</Label>
+                <Input id="edit-quo-amount" v-model.number="editQuotationAmount" type="number" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="edit-quo-discount">Discount (Rp)</Label>
+                <Input id="edit-quo-discount" v-model.number="editQuotationDiscount" type="number" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="edit-quo-cost">Estimated Cost (Rp)</Label>
+                <Input id="edit-quo-cost" v-model.number="editQuotationCost" type="number" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="edit-quo-margin">Estimated Margin (Rp)</Label>
+                <Input id="edit-quo-margin" v-model.number="editQuotationMargin" type="number" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="edit-quo-payment-terms">Payment Terms</Label>
+                <Input id="edit-quo-payment-terms" v-model="editQuotationPaymentTerms" placeholder="mis. DP 50%, pelunasan H-7" />
+              </div>
+              <div class="space-y-2">
+                <div class="flex items-center justify-between">
+                  <Label class="!mb-0">Service Breakdown</Label>
+                  <Button size="sm" variant="outline" type="button" @click="addBreakdownRow">Tambah Baris</Button>
+                </div>
+                <div v-for="(item, index) in editServiceBreakdown" :key="index" class="flex items-center gap-2">
+                  <select v-model="item.service" class="appearance-none px-2 py-2 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
+                  </select>
+                  <Input v-model="item.description" placeholder="Deskripsi" class="flex-1" />
+                  <Input v-model.number="item.amountIdr" type="number" placeholder="Rp" class="w-32" />
+                  <Button size="sm" variant="ghost" type="button" @click="removeBreakdownRow(index)">Hapus</Button>
+                </div>
+                <p v-if="editServiceBreakdown.length === 0" class="text-xs text-muted-foreground">Belum ada baris service breakdown.</p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" @click="isEditQuotationDialogOpen = false">Batal</Button>
+              <Button :disabled="!editQuotationAmount || editQuotationAmount <= 0" @click="submitEditQuotation">Simpan</Button>
+            </DialogFooter>
+          </DialogScrollContent>
+        </Dialog>
       </SectionCard>
 
       <!-- Commercial Approval (Prompt 19 — Change Request) -->

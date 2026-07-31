@@ -349,7 +349,7 @@ Detail lengkap ada di `docs/mockup-section-reports/section-15-project-finance.md
 
 Entitas baru `Lead`/`LeadActivity`/`VendorProduct`/`SystemEvent`, plus reassignment `Opportunity.ownerId` dan 1 Opportunity/Project baru untuk skenario repeat client — lihat D-046–D-052 (`docs/mockup-design-decisions.md`) untuk rasional lengkap.
 
-**Leads (`LED-001`–`LED-010`):** satu lead per sumber wajib (`website` ×2, `instagram`, `tiktok`, `whatsapp`, `referral`, `event`, `email`, `sales-outreach`, `other`). `LED-001` ("CV Nirmala Eventama") = qualified milik AE, belum dikonversi — live-demo "Qualify & Create Opportunity". `LED-005` = qualified, sudah terhubung ke `OPP-005`/`PTY-004` (Bali Team Building, existing sejak Section 08). `LED-009` = qualified, sudah terhubung ke `OPP-001`/`PTY-001` (Manila, Won — sejak Foundation). `LED-010` = archived (contoh filter "Archived leads").
+**Leads (`LED-001`–`LED-010`):** satu lead per sumber wajib (`website` ×2, `instagram`, `tiktok`, `whatsapp`, `referral`, `event`, `email`, `sales-outreach`, `other`). `LED-001` ("CV Nirmala Eventama") = qualified milik AE, belum dikonversi — live-demo "Qualify & Create Opportunity" (Prompt 20: kini juga berisi form Qualification LENGKAP — lihat 4k). `LED-005` = qualified, sudah terhubung ke `OPP-005`/`PTY-004` (Bali Team Building, existing sejak Section 08). `LED-009` = qualified, sudah terhubung ke `OPP-001`/`PTY-001` (Manila, Won — sejak Foundation). `LED-010` = archived (contoh filter "Archived leads").
 
 **Commercial Approval:** `QUO-005` (OPP-005, Bali Team Building) — `approvalStatus: submitted`, skenario "satu quotation menunggu approval" (literal Prompt 19-9); `QUO-006` (OPP-006, Manila Repeat Business, PTY-001) — `approvalStatus: approved`, siap didemokan "Ajukan sebagai Won" → Approve Won. `QUO-001`/`002`/`003` (Won existing) di-backfill `approved`; `QUO-004` (Lost) dibiarkan tanpa `approvalStatus`.
 
@@ -362,6 +362,22 @@ Entitas baru `Lead`/`LeadActivity`/`VendorProduct`/`SystemEvent`, plus reassignm
 **Lead Source Recap (dihitung, bukan disimpan):** Total Leads 10, Qualified 3 (`LED-001`/`005`/`009`), Opportunities Created 2 (`LED-005`/`009` — punya `opportunityId`), Won 1 (`LED-009` → `OPP-001` Won). Diverifikasi ulang lewat smoke test curl terhadap halaman `/customer-journey/lead-sources` — cocok persis.
 
 **Activity Center:** 22 `SystemEvent` (`EVT-001`–`EVT-022`) merentang seluruh 8 modul (lead/opportunity/quotation/client/project-order/vendor/finance/user), `entityId` merujuk ID entitas existing di atas — tidak ada entity baru yang difabrikasi khusus untuk log.
+
+## 4k. Lead Qualification dan Requirement Gate Detail (ditambahkan Prompt 20 — Change Request)
+
+Melengkapi skenario 4j dengan field Qualification (Lead) dan Requirement Detail/Quotation komersial (Opportunity) yang literal diminta Prompt 20 — lihat D-053–D-056 (`docs/mockup-design-decisions.md`) untuk rasional lengkap.
+
+**Qualification Lead (backfill, bukan record baru):** `LED-001` diisi LENGKAP (seluruh 7 field wajib) — mendemokan Lead siap "Qualify & Create Opportunity" dengan tombol aktif (jenis kebutuhan MICE/Event, destinasi Yogyakarta, 150 traveler, service scope mice+hotel+transportation, ringkasan kebutuhan, AE `USR-014`, plus seluruh field opsional terisi). `LED-004` diisi SEBAGIAN (jenis kebutuhan + destinasi + traveler estimate saja) — mendemokan warning "belum lengkap" (periode perjalanan, service scope, ringkasan kebutuhan, AE belum diisi) dan tombol Qualify disabled.
+
+**Opportunity/Quotation baru (`OPP-009`/`OPP-010`) — melengkapi skenario status workflow yang belum ada di Prompt 19:**
+- `OPP-009` ("Palu MICE Conference 2027", repeat opportunity `PTY-003`) — stage `requirement-gathering`, seluruh field requirement dasar LENGKAP, BELUM ada Quotation → status workflow **"Ready for Quotation"**, tombol "Buat Quotation" aktif.
+- `OPP-010` ("Surabaya Regional Sales Meeting 2027", repeat opportunity `PTY-002`) — stage `proposal`, Quotation `QUO-010` sudah dibuat tapi `approvalStatus` belum diisi (draft) → status workflow **"Quotation Draft"**. `QUO-010` diisi lengkap discount/estimated cost/estimated margin/payment terms/service breakdown (2 baris: flight + hotel) — mendemokan hasil "Edit Quotation".
+- `OPP-007` (existing, Section 08 — field requirement kosong sengaja) tetap dipakai sebagai skenario **"Pending Requirement"** (tidak diubah).
+- `OPP-005` (submitted) = **"Pending Management Approval"**, `OPP-006` (approved) = **"Approved"**, siap didemokan tombol AE "Mark as Won" langsung tanpa approval Won kedua (D-053) — tidak ada perubahan data pada keduanya di Prompt 20, hanya perilaku tombol.
+
+**Requirement Detail (AE, field baru pada `Opportunity.requirementDetail`):** diisi sebagian pada `OPP-005` (departure city, room requirement, dst.) dan `OPP-006` (flight preference, commercial notes, dst.) — mendemokan tab/section "Requirement Detail" terisi pada Opportunity yang sudah lanjut ke tahap komersial.
+
+**Related Lead (field baru `Opportunity.leadId`):** `OPP-001` ↔ `LED-009`, `OPP-005` ↔ `LED-005` — backfill dari relasi `Lead.opportunityId` yang sudah ada sejak Prompt 19, kini ditautkan balik agar Opportunity Detail dapat menampilkan link "Related Lead".
 
 ---
 

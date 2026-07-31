@@ -22,6 +22,8 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     requirementNotes: 'Flight only, keberangkatan pagi, budget standard.',
     createdAt: '2026-06-10', decidedAt: '2026-06-25', wonApprovedBy: 'USR-003',
     serviceScope: ['flight'], quotationId: 'QUO-001', projectId: 'PRJ-101',
+    // Related Lead (Prompt 20) — LED-009 sudah menaut ke OPP-001 sejak Prompt 19, kini ditautkan balik.
+    contactName: 'Hendra Wijaya', leadId: 'LED-009',
   },
   {
     id: 'OPP-002', partyId: 'PTY-002', title: 'Abu Dhabi Corporate Gathering', stage: 'won',
@@ -65,14 +67,30 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     travelStartDate: '2026-10-05', travelEndDate: '2026-10-08', travelerEstimate: 30,
     requirementNotes: 'Flight + hotel untuk 30 peserta, aktivitas team building 1 hari.',
     createdAt: '2026-07-05', serviceScope: ['flight', 'hotel'], quotationId: 'QUO-005',
+    contactName: 'Nadia Ramadhani', leadId: 'LED-005',
+    // Requirement Detail (Prompt 20) — mendemokan field AE terisi sebagian pada Opportunity yang masih
+    // "Pending Management Approval" (QUO-005 submitted).
+    requirementDetail: {
+      departureCity: 'Jakarta', destinationDetail: 'Nusa Dua, Bali — hotel bintang 4 dekat pantai',
+      travelerComposition: '30 pax karyawan, 1 rombongan', roomRequirement: '15 kamar twin',
+      specialRequest: 'Aktivitas team building outdoor 1 hari penuh', decisionMaker: 'Nadia Ramadhani (Procurement Officer)',
+      paymentTerms: 'DP 50% setelah quotation disetujui, pelunasan H-7 keberangkatan',
+    },
   },
-  /** OPP-006 — Quotation sudah `approved` (Prompt 19), siap didemokan "Ajukan sebagai Won" → Approve Won. */
+  /** OPP-006 — Quotation sudah `approved` (Prompt 19/20), siap didemokan AE "Mark as Won" langsung. */
   {
     id: 'OPP-006', partyId: 'PTY-001', title: 'Manila Repeat Business Q4 2026', stage: 'negotiation',
     ownerId: 'USR-014', estimatedValueIdr: 55_000_000, destination: 'Manila, Filipina',
     travelStartDate: '2026-11-10', travelEndDate: '2026-11-13', travelerEstimate: 8,
     requirementNotes: 'Flight only, repeat business dari client existing.',
     createdAt: '2026-07-15', serviceScope: ['flight'], quotationId: 'QUO-006',
+    contactName: 'Hendra Wijaya',
+    requirementDetail: {
+      departureCity: 'Jakarta', destinationDetail: 'Manila, Filipina — hotel dekat kawasan bisnis',
+      travelerComposition: '8 pax repeat business traveler', flightPreference: 'Penerbangan pagi, maskapai full-service',
+      decisionMaker: 'Hendra Wijaya (Operations Manager)', paymentTerms: 'Net 30 setelah trip selesai',
+      commercialNotes: 'Repeat client, harga mengikuti rate korporat existing.',
+    },
   },
   {
     id: 'OPP-007', partyId: 'PTY-002', title: 'Abu Dhabi Follow-up Training', stage: 'qualification',
@@ -93,6 +111,35 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     requirementNotes: 'Flight only, lanjutan repeat business dari PT Cipta Distribusi Nusantara.',
     createdAt: '2026-07-15', decidedAt: '2026-07-24', wonApprovedBy: 'USR-003',
     serviceScope: ['flight'], quotationId: 'QUO-008', projectId: 'PRJ-104',
+    contactName: 'Hendra Wijaya',
+  },
+  /**
+   * OPP-009/010 (Prompt 20 — Change Request) — melengkapi skenario Requirement Gate/Quotation literal
+   * Prompt 20-15: "Opportunity Ready for Quotation" dan "Opportunity dengan Draft Quotation" belum ada
+   * contohnya di fixture Prompt 19 (seluruh opportunity aktif sudah punya quotation submitted/approved).
+   * Reuse party client existing (PTY-002/003, bukan dataset paralel) — repeat opportunity pada client yang
+   * sama sudah jadi pola mapan sejak OPP-006/008.
+   */
+  {
+    id: 'OPP-009', partyId: 'PTY-003', title: 'Palu MICE Conference 2027', stage: 'requirement-gathering',
+    ownerId: 'USR-014', estimatedValueIdr: 180_000_000, destination: 'Palu, Indonesia',
+    travelStartDate: '2027-03-10', travelEndDate: '2027-03-13', travelerEstimate: 25,
+    requirementNotes: 'Full MICE lanjutan: flight, hotel, dan venue acara untuk 25 peserta.',
+    createdAt: '2026-07-26', serviceScope: ['flight', 'hotel', 'mice'],
+    contactName: 'Michael Tanuwijaya',
+    // Requirement lengkap (destination/tanggal/traveler/service scope/requirement summary/contact person/
+    // estimated value seluruhnya terisi), BELUM ada Quotation — workflow status "Ready for Quotation".
+  },
+  {
+    id: 'OPP-010', partyId: 'PTY-002', title: 'Surabaya Regional Sales Meeting 2027', stage: 'proposal',
+    ownerId: 'USR-014', estimatedValueIdr: 75_000_000, destination: 'Surabaya, Indonesia',
+    travelStartDate: '2027-01-20', travelEndDate: '2027-01-22', travelerEstimate: 18,
+    requirementNotes: 'Flight + hotel untuk 18 peserta regional sales meeting.',
+    createdAt: '2026-07-27', serviceScope: ['flight', 'hotel'], quotationId: 'QUO-010',
+    contactName: 'Sarah Amelia',
+    // Quotation sudah dibuat (QUO-010) tapi masih draft (`approvalStatus` belum diisi) — workflow status
+    // "Quotation Draft", mendemokan field discount/estimated cost/estimated margin/payment terms/service
+    // breakdown hasil "Edit Quotation".
   },
 ])
 
@@ -115,4 +162,15 @@ export const QUOTATIONS: Quotation[] = reactive([
   // approvalStatus 'approved' (Prompt 19) — skenario "satu quotation approved" (literal 9-9), siap "Ajukan sebagai Won".
   { id: 'QUO-006', opportunityId: 'OPP-006', amountIdr: 60_000_000, createdAt: '2026-07-22', accepted: false, version: 1, approvalStatus: 'approved', approvedBy: 'USR-003' },
   { id: 'QUO-008', opportunityId: 'OPP-008', amountIdr: 60_000_000, createdAt: '2026-07-15', accepted: true, version: 1, approvalStatus: 'approved', approvedBy: 'USR-003' },
+  // QUO-010 (Prompt 20) — draft lengkap dengan discount/estimated cost/estimated margin/payment terms/
+  // service breakdown, `approvalStatus` sengaja tidak diisi (default "draft") — belum pernah di-submit.
+  {
+    id: 'QUO-010', opportunityId: 'OPP-010', amountIdr: 75_000_000, createdAt: '2026-07-27', accepted: false, version: 1,
+    discountIdr: 3_000_000, estimatedCostIdr: 58_000_000, estimatedMarginIdr: 14_000_000,
+    paymentTerms: 'DP 30% di muka, pelunasan H-14 keberangkatan',
+    serviceBreakdown: [
+      { service: 'flight', description: '18 pax PP Jakarta–Surabaya', amountIdr: 27_000_000 },
+      { service: 'hotel', description: '9 kamar twin, 2 malam', amountIdr: 48_000_000 },
+    ],
+  },
 ])

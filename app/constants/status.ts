@@ -1,11 +1,11 @@
 import type { StatusOption } from '~/types/common'
-import type { OpportunityStage, QuotationApprovalStatus } from '~/types/opportunity'
+import type { OpportunityStage, QuotationApprovalStatus, OpportunityWorkflowStatus } from '~/types/opportunity'
 import type { ProjectStatus, ProjectCharacteristic, ServiceStatus, ServiceTypeKey, RoomType } from '~/types/project'
 import type { InvoiceStatus } from '~/types/finance'
 import type { PartyActivityType } from '~/types/party'
 import type { VendorQuotationStatus } from '~/types/vendor'
 import type { ChangeCategory, ChangeApprovalStatus } from '~/types/activity'
-import type { LeadSource, LeadStage } from '~/types/lead'
+import type { LeadSource, LeadStage, LeadServiceCategory, LeadUrgency } from '~/types/lead'
 
 /**
  * Source of truth untuk seluruh status/enum MANOVA (Prompt 5-G, menggeneralisasi D-038).
@@ -18,7 +18,7 @@ export const OPPORTUNITY_STAGES: StatusOption<OpportunityStage>[] = [
   { value: 'requirement-gathering', label: 'Requirement Gathering', tone: 'info', order: 3 },
   { value: 'proposal', label: 'Proposal / Quotation', tone: 'primary', order: 4 },
   { value: 'negotiation', label: 'Negotiation', tone: 'primary', order: 5 },
-  { value: 'won-requested', label: 'Won (Menunggu Approval)', tone: 'warning', order: 6 },
+  { value: 'won-requested', label: 'Pending Management Approval', tone: 'warning', order: 6 },
   { value: 'won', label: 'Won', tone: 'success', order: 7 },
   { value: 'lost', label: 'Lost', tone: 'destructive', order: 8 },
   { value: 'on-hold', label: 'On Hold', tone: 'warning', order: 9 },
@@ -147,6 +147,37 @@ export const QUOTATION_APPROVAL_STATUSES: StatusOption<QuotationApprovalStatus>[
   { value: 'submitted', label: 'Menunggu Approval', tone: 'warning', order: 2 },
   { value: 'approved', label: 'Disetujui', tone: 'success', order: 3 },
   { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 4 },
+]
+
+/** Jenis kebutuhan Lead (Prompt 20 — Change Request) — dipakai form Qualification `/customer-journey/leads`. */
+export const LEAD_SERVICE_CATEGORIES: StatusOption<LeadServiceCategory>[] = [
+  { value: 'corporate-travel', label: 'Corporate Travel', tone: 'primary', order: 1 },
+  { value: 'group-travel', label: 'Group Travel', tone: 'info', order: 2 },
+  { value: 'individual-travel', label: 'Individual Travel', tone: 'neutral', order: 3 },
+  { value: 'mice-event', label: 'MICE / Event', tone: 'purple', order: 4 },
+]
+
+/** Tingkat urgensi Lead (Prompt 20, field opsional form Qualification). */
+export const LEAD_URGENCY_LEVELS: StatusOption<LeadUrgency>[] = [
+  { value: 'low', label: 'Rendah', tone: 'info', order: 1 },
+  { value: 'medium', label: 'Sedang', tone: 'warning', order: 2 },
+  { value: 'high', label: 'Tinggi', tone: 'destructive', order: 3 },
+]
+
+/**
+ * Status workflow Opportunity AE-facing (Prompt 20-10/14) — DIRIVASI lewat `getOpportunityWorkflowStatus`
+ * (`app/data/index.ts`), bukan `OpportunityStage` mentah. Label literal sesuai Prompt 20-14 (Bahasa Inggris,
+ * berbeda dari konvensi label Indonesia pada status lain — instruksi eksplisit user), dipakai sebagai
+ * "indikator stage yang jelas" utama di Opportunity Detail, menggantikan label lama yang membingungkan.
+ */
+export const OPPORTUNITY_WORKFLOW_STATUSES: StatusOption<OpportunityWorkflowStatus>[] = [
+  { value: 'pending-requirement', label: 'Pending Requirement', tone: 'warning', order: 1 },
+  { value: 'ready-for-quotation', label: 'Ready for Quotation', tone: 'info', order: 2 },
+  { value: 'quotation-draft', label: 'Quotation Draft', tone: 'neutral', order: 3 },
+  { value: 'pending-management-approval', label: 'Pending Management Approval', tone: 'warning', order: 4 },
+  { value: 'approved', label: 'Approved', tone: 'primary', order: 5 },
+  { value: 'won', label: 'Won', tone: 'success', order: 6 },
+  { value: 'lost', label: 'Lost', tone: 'destructive', order: 7 },
 ]
 
 export function findStatusOption<T extends string>(list: StatusOption<T>[], value: T): StatusOption<T> {

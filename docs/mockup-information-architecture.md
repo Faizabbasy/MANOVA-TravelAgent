@@ -169,7 +169,7 @@ Rincian lengkap alasan per item ada di `docs/route-and-role-matrix.md` (tabel Ro
 Ditambahkan di atas IA baku bagian 2–6 (yang seluruhnya sudah COMPLETED sejak Section 05–18), bukan menggantikan. Detail keputusan lengkap: `docs/mockup-design-decisions.md` Kelompok I (D-046–D-052); detail implementasi: `docs/mockup-section-reports/change-customer-journey-ae-supplier.md`.
 
 ### 8.1 Customer Journey (menu top-level baru)
-- **Leads** (`/customer-journey/leads`) — Table/Kanban/Inbox view, filter stage/owner/source, right-side drawer detail (Overview/Activities/Follow-ups), aksi "Qualify & Create Opportunity" dan "Archive". Entitas baru `Lead`/`LeadActivity` (D-051).
+- **Leads** (`/customer-journey/leads`) — Table/Kanban/Inbox view, filter stage/owner/source, right-side drawer detail (Overview/**Qualification**/Activities/Follow-ups — tab "Qualification" ditambahkan Prompt 20 dengan form terstruktur + gate kelengkapan, lihat bagian 8.5), aksi "Qualify & Create Opportunity", "Simpan Draft", "Mark as Unqualified" (Prompt 20), dan "Archive". Entitas baru `Lead`/`LeadActivity` (D-051).
 - **Customers** (`/customer-journey/customers`, `/customer-journey/customers/[id]`) — tampilan AE-centric di atas `Party` existing (D-050), **bukan** entitas baru. Tab: Overview/Contacts/Opportunities/Project Orders/Activities/Documents.
 - **Project Orders** (`/customer-journey/project-orders`, `/customer-journey/project-orders/[id]`) — tampilan AE-centric di atas `Project` existing (D-050).
 - **Lead Source Recap** (`/customer-journey/lead-sources`) — rekap performa sumber lead (total/qualified/opportunities created/won/conversion rate), reuse fixture `LEADS` yang sama.
@@ -183,6 +183,15 @@ Log lintas sistem (`/activity-center`) — lead/opportunity/quotation/client/pro
 
 ### 8.4 CRM — Opportunity/Quotation Berpindah Kepemilikan ke Account Executive
 `/crm/opportunities/[id]` mendapat section baru "Commercial Approval" (AE submit, Management approve/reject — D-049), dan narrow role gate `canManageOpportunity` berpindah dari Sales ke Account Executive (D-047). Struktur route/tab CRM lainnya (Prospects/Clients/Party Detail) **tidak berubah**.
+
+### 8.5 Opportunity Detail — Requirement Detail dan Mark as Won Satu-Langkah (Prompt 20)
+
+Ditambahkan di atas 8.4 (Prompt 19), bukan menggantikan. Detail keputusan: `docs/mockup-design-decisions.md` Kelompok J (D-053–D-056); detail implementasi: `docs/mockup-section-reports/change-sales-qualification-ae-opportunity.md`.
+
+- **Section "Requirement Detail" baru** — di bawah Summary, di atas Stage Stepper. Menampilkan 14 field AE (itinerary concept, departure city, dst.) + Requirement Gate (warning list bila belum lengkap), dapat diedit lewat dialog "Edit Requirement" (AE). Requirement Gate ini **terpisah** dari gate sebelum Won (Section 09) — lihat D-055.
+- **Quotation** mendapat aksi "Edit Quotation" (melengkapi discount/estimated cost/estimated margin/payment terms/service breakdown selagi draft) terpisah dari "Create New Version" (dulu "Revisi Quotation").
+- **Mark as Won** — tombol AE satu-langkah menggantikan "Ajukan sebagai Won" (AE) + "Approve Won"/"Reject" (Management) dua-langkah lama (D-053, supersede sebagian D-025 khusus eksekusi Won — Management tetap satu-satunya approver Commercial Approval/Quotation).
+- **Badge status utama** di `PageHeader` berganti dari label stage mentah menjadi status workflow dirivasi (Pending Requirement/Ready for Quotation/Quotation Draft/Pending Management Approval/Approved/Won/Lost — D-056).
 
 ---
 

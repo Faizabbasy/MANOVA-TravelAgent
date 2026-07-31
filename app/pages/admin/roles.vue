@@ -31,8 +31,8 @@ function permTone(level: PermissionLevel) {
 // Catatan per-role yang lebih detail (sesuai docs/route-and-role-matrix.md bagian 5)
 const ROLE_NOTES: Partial<Record<string, string>> = {
   'super-admin': 'Akses penuh ke seluruh modul tanpa pengecualian.',
-  management: 'Approve Won Opportunity dan perubahan besar/cancel project. Tidak bisa manage user.',
-  sales: 'Kelola Prospect, Opportunity, dan Quotation. Hanya lihat project dari opportunity miliknya.',
+  management: 'Approve/reject Commercial Approval Quotation, dan perubahan besar/cancel project. Tidak bisa manage user.',
+  sales: 'Kelola Lead (screening, qualification, assign ke Account Executive). Hanya lihat Opportunity hasil handover secara terbatas.',
   'project-manager': 'Manage seluruh tab project. Hanya lihat budget vs actual project miliknya.',
   operations: 'Manage tab Itinerary & Services (koordinasi umum). Tidak ada akses CRM/Finance.',
   ticketing: 'Manage sub-section Flight di Itinerary & Services. Tidak ada akses CRM/Finance.',

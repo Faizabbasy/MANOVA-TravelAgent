@@ -10,7 +10,7 @@ import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravel
 import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { Project, ServiceTypeKey, ServiceStatus, Traveler } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType } from '~/types/party'
-import type { Opportunity, OpportunityStage, Quotation } from '~/types/opportunity'
+import type { Opportunity, OpportunityStage, Quotation, OpportunityWorkflowStatus } from '~/types/opportunity'
 import type { Vendor, VendorContact, VendorQuotation, VendorProduct } from '~/types/vendor'
 import type { ActivityEntry, ChangeCategory } from '~/types/activity'
 import type { Lead, LeadActivity } from '~/types/lead'
@@ -249,6 +249,29 @@ export function reviseQuotation(quotationId: string, newAmountIdr: number): Quot
 }
 
 /**
+ * "Edit Quotation" (Prompt 20-9/11) — melengkapi detail komersial (discount/estimated cost/estimated
+ * margin/payment terms/service breakdown) SELAGI quotation masih draft, tanpa membuat versi baru (berbeda
+ * dari `reviseQuotation`/"Create New Version" yang menaikkan `version` dan mereset `approvalStatus`). Guard:
+ * hanya boleh diedit selama belum `submitted`/`approved` (setelah itu harus lewat revisi versi baru).
+ */
+export interface QuotationDetailInput {
+  amountIdr?: number
+  discountIdr?: number
+  estimatedCostIdr?: number
+  estimatedMarginIdr?: number
+  paymentTerms?: string
+  serviceBreakdown?: Quotation['serviceBreakdown']
+}
+
+export function updateQuotationDetails(quotationId: string, patch: QuotationDetailInput): Quotation | undefined {
+  const quotation = QUOTATIONS.find(q => q.id === quotationId)
+  if (!quotation) return undefined
+  if (quotation.approvalStatus === 'submitted' || quotation.approvalStatus === 'approved') return undefined
+  Object.assign(quotation, patch)
+  return quotation
+}
+
+/**
  * Commercial Approval (Prompt 19 — Change Request). Terpisah dari `approveOpportunityWon`/
  * `rejectOpportunityWon` (Section 09, gerbang final "Mark as Won") — quotation harus `approved` di sini
  * dulu sebelum Opportunity boleh diajukan ke stage `won-requested` (digerbangi di UI Opportunity Detail).
@@ -295,6 +318,75 @@ export function getOpportunityMissingRequirements(opportunityId: string): string
   if (!opportunity.travelerEstimate) missing.push('Estimasi jumlah traveler')
   if (!getQuotationByOpportunity(opportunityId)) missing.push('Quotation')
   return missing
+}
+
+/**
+ * Requirement Gate SEBELUM Quotation (Prompt 20-10) — TERPISAH dari `getOpportunityMissingRequirements`
+ * (gerbang final sebelum Won, yang justru mensyaratkan Quotation SUDAH ada). Dicek sebelum AE diizinkan
+ * membuat Quotation pertama (`openProposalDialog`, Opportunity Detail) — daftar field literal Prompt 20-10:
+ * destination, travel period, estimated traveler, service scope, requirement summary, contact person,
+ * Account Executive (selalu terisi sejak Opportunity dibuat, tidak dicek ulang), estimated value.
+ * Payment terms/margin-cost summary sengaja TIDAK digerbangi di sini (Prompt 20-10 menandainya "bila
+ * diwajibkan"/"bila dipakai pada approval" — kondisional tanpa mekanisme konfigurasi eksplisit lain di
+ * codebase, jadi diperlakukan sebagai field opsional pada Quotation, bukan blocking gate).
+ */
+export function getOpportunityRequirementGate(opportunityId: string): string[] {
+  const opportunity = getOpportunityById(opportunityId)
+  if (!opportunity) return ['Opportunity tidak ditemukan']
+  const missing: string[] = []
+  if (!opportunity.destination) missing.push('Destinasi belum diisi')
+  if (!opportunity.travelStartDate || !opportunity.travelEndDate) missing.push('Periode perjalanan belum diisi')
+  if (!opportunity.travelerEstimate) missing.push('Estimasi traveler belum diisi')
+  if (!opportunity.serviceScope || opportunity.serviceScope.length === 0) missing.push('Service scope belum dipilih')
+  if (!opportunity.requirementNotes) missing.push('Ringkasan kebutuhan (requirement summary) belum diisi')
+  if (!opportunity.contactName) missing.push('Contact person belum diisi')
+  if (!opportunity.estimatedValueIdr) missing.push('Estimasi nilai (quotation value) belum diisi')
+  return missing
+}
+
+/**
+ * AE Requirement Detail (Prompt 20-8B/9) — "Edit Requirement": AE dapat mengubah/menyempurnakan field dasar
+ * requirement (dibawa dari Lead qualification) DAN melengkapi `requirementDetail` (itinerary concept,
+ * departure city, dst.) tanpa menghapus histori qualification (field lama tetap ada, hanya di-overwrite bila
+ * diisi ulang lewat form ini).
+ */
+export interface OpportunityRequirementInput {
+  destination?: string
+  travelStartDate?: string
+  travelEndDate?: string
+  travelerEstimate?: number
+  serviceScope?: Opportunity['serviceScope']
+  requirementNotes?: string
+  contactName?: string
+  estimatedValueIdr?: number
+  requirementDetail?: Opportunity['requirementDetail']
+}
+
+export function updateOpportunityRequirement(opportunityId: string, patch: OpportunityRequirementInput): Opportunity | undefined {
+  const opportunity = getOpportunityById(opportunityId)
+  if (!opportunity) return undefined
+  Object.assign(opportunity, patch)
+  return opportunity
+}
+
+/**
+ * Status workflow AE-facing (Prompt 20-10/14) — lihat `OpportunityWorkflowStatus` (`app/types/opportunity.ts`)
+ * untuk rasional lengkap. DIRIVASI, bukan field tersimpan — tidak merestrukturisasi `OpportunityStage` (D-049).
+ */
+export function getOpportunityWorkflowStatus(opportunityId: string): OpportunityWorkflowStatus | undefined {
+  const opportunity = getOpportunityById(opportunityId)
+  if (!opportunity) return undefined
+  if (opportunity.stage === 'won') return 'won'
+  if (opportunity.stage === 'lost') return 'lost'
+
+  const quotation = getQuotationByOpportunity(opportunityId)
+  if (!quotation) {
+    return getOpportunityRequirementGate(opportunityId).length > 0 ? 'pending-requirement' : 'ready-for-quotation'
+  }
+  const approvalStatus = quotation.approvalStatus ?? 'draft'
+  if (approvalStatus === 'submitted') return 'pending-management-approval'
+  if (approvalStatus === 'approved') return 'approved'
+  return 'quotation-draft'
 }
 
 /**
@@ -626,15 +718,79 @@ export function archiveLead(leadId: string): Lead | undefined {
 }
 
 /**
+ * Qualification form field yang boleh disimpan sebagai draft (Prompt 20 — Change Request, tombol
+ * "Simpan Draft") — TIDAK ada gate di sini, boleh sebagian/kosong. Gate kelengkapan ada di
+ * `getLeadMissingQualification`, dicek terpisah sebelum "Qualify & Create Opportunity" diizinkan.
+ */
+export interface LeadQualificationInput {
+  serviceCategory?: Lead['serviceCategory']
+  destination?: string
+  travelStartDate?: string
+  travelEndDate?: string
+  travelerEstimate?: number
+  serviceScope?: Lead['serviceScope']
+  requirementSummary?: string
+  handedOverTo?: string
+  budgetRange?: string
+  dateFlexible?: boolean
+  decisionMaker?: string
+  urgency?: Lead['urgency']
+  specialRequestNote?: string
+  qualificationNotes?: string
+  expectedCloseDate?: string
+}
+
+export function updateLeadQualification(leadId: string, patch: LeadQualificationInput): Lead | undefined {
+  const lead = getLeadById(leadId)
+  if (!lead) return undefined
+  Object.assign(lead, patch)
+  lead.lastUpdatedAt = DEMO_REFERENCE_DATE
+  return lead
+}
+
+/**
+ * Field wajib (Prompt 20-4/5) sebelum Lead dapat di-qualify — dicek tombol "Qualify & Create Opportunity"
+ * (disabled + warning list bila belum lengkap), mengikuti pola `getOpportunityMissingRequirements` (Section 09).
+ */
+export function getLeadMissingQualification(leadId: string): string[] {
+  const lead = getLeadById(leadId)
+  if (!lead) return ['Lead tidak ditemukan']
+  const missing: string[] = []
+  if (!lead.serviceCategory) missing.push('Jenis kebutuhan')
+  if (!lead.destination) missing.push('Destinasi belum diisi')
+  if (!lead.travelStartDate || !lead.travelEndDate) missing.push('Periode perjalanan belum diisi')
+  if (!lead.travelerEstimate) missing.push('Estimasi traveler belum diisi')
+  if (!lead.serviceScope || lead.serviceScope.length === 0) missing.push('Service scope belum dipilih')
+  if (!lead.handedOverTo) missing.push('Account Executive belum dipilih')
+  if (!lead.requirementSummary) missing.push('Ringkasan kebutuhan belum diisi')
+  return missing
+}
+
+/** "Mark as Unqualified" (Prompt 20-4) — terminal untuk mockup ini, tidak membuat Party/Opportunity. */
+export function markLeadUnqualified(leadId: string, note?: string): Lead | undefined {
+  const lead = getLeadById(leadId)
+  if (!lead) return undefined
+  lead.stage = 'unqualified'
+  lead.lastUpdatedAt = DEMO_REFERENCE_DATE
+  if (note) {
+    createLeadActivity({ leadId, type: 'note', message: `Lead ditandai Unqualified. Catatan: ${note}`, ownerId: lead.ownerId })
+  }
+  return lead
+}
+
+/**
  * "Qualify & Create Opportunity" — satu-satunya jalur Lead menjadi Opportunity (bukan tombol terpisah
  * "Convert to Customer"). Mencari `Party` existing dengan nama company yang sama dulu (hindari duplicate
  * company, konsisten Prompt 19-4 "repeat client: jangan membuat client baru"); bila tidak ada, buat Party
- * baru berstatus `prospect`. Opportunity baru dibuat di stage `qualification` (requirement belum digali),
- * `ownerId` = AE tujuan handover.
+ * baru berstatus `prospect`. Opportunity baru dibuat di stage `qualification`, membawa seluruh data
+ * qualification (Prompt 20-6) dari Lead. `accountExecutiveId` diambil dari `lead.handedOverTo` (diisi Sales
+ * lewat form Qualification, bukan lagi ditentukan otomatis saat tombol diklik). Gate: `getLeadMissingQualification`
+ * harus kosong (dicek juga di sini, bukan hanya di UI, agar mutator ini aman dipanggil dari mana pun).
  */
-export function qualifyLeadAndCreateOpportunity(leadId: string, accountExecutiveId: string): Opportunity | undefined {
+export function qualifyLeadAndCreateOpportunity(leadId: string): Opportunity | undefined {
   const lead = getLeadById(leadId)
-  if (!lead || lead.opportunityId) return undefined
+  if (!lead || lead.opportunityId || getLeadMissingQualification(leadId).length > 0) return undefined
+  const accountExecutiveId = lead.handedOverTo!
 
   let party = lead.companyName ? PARTIES.find(p => p.name.toLowerCase() === lead.companyName!.toLowerCase()) : undefined
   if (!party) {
@@ -655,17 +811,34 @@ export function qualifyLeadAndCreateOpportunity(leadId: string, accountExecutive
     stage: 'qualification',
     ownerId: accountExecutiveId,
     estimatedValueIdr: 0,
-    destination: '',
-    serviceScope: [],
+    destination: lead.destination!,
+    travelStartDate: lead.travelStartDate,
+    travelEndDate: lead.travelEndDate,
+    travelerEstimate: lead.travelerEstimate,
+    serviceScope: lead.serviceScope ?? [],
+    requirementNotes: lead.requirementSummary,
     createdAt: DEMO_REFERENCE_DATE,
+    contactName: lead.name,
+    leadId: lead.id,
+    expectedCloseDate: lead.expectedCloseDate,
   }
   OPPORTUNITIES.push(opportunity)
 
   lead.stage = 'qualified'
-  lead.handedOverTo = accountExecutiveId
   lead.partyId = party.id
   lead.opportunityId = opportunity.id
   lead.lastUpdatedAt = DEMO_REFERENCE_DATE
+
+  const accountExecutive = getUserById(accountExecutiveId)
+  createLeadActivity({ leadId: lead.id, type: 'note', message: 'Lead Qualified', ownerId: accountExecutiveId })
+  createLeadActivity({ leadId: lead.id, type: 'note', message: `Lead Assigned to Account Executive (${accountExecutive?.name ?? accountExecutiveId})`, ownerId: accountExecutiveId })
+  createPartyActivity({
+    partyId: party.id,
+    opportunityId: opportunity.id,
+    type: 'note',
+    message: `Opportunity Created dari Lead ${lead.id}`,
+    ownerId: accountExecutiveId,
+  })
 
   return opportunity
 }

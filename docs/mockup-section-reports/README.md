@@ -42,6 +42,7 @@ Perubahan yang terjadi **setelah** seluruh 18 section COMPLETED memakai skema `c
 | Tanggal | Nama | File | Status |
 |---|---|---|---|
 | 2026-07-30 | Prompt 19 — Customer Journey, Account Executive, Supplier, Commercial Approval | [`change-customer-journey-ae-supplier.md`](./change-customer-journey-ae-supplier.md) | COMPLETED |
+| 2026-07-31 | Prompt 20 — Sales Qualification to Account Executive Opportunity Flow | [`change-sales-qualification-ae-opportunity.md`](./change-sales-qualification-ae-opportunity.md) | COMPLETED |
 
 ## Isi Minimum Setiap Laporan
 
