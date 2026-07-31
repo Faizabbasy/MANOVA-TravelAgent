@@ -8,7 +8,7 @@ const RANK: Record<PermissionLevel, number> = { NONE: 0, VIEW: 1, MANAGE: 2, APP
  * Mengikuti Role & Access Matrix docs/route-and-role-matrix.md bagian 5.
  */
 export function usePermissions() {
-  const { currentRole } = useCurrentUser()
+  const { currentRole, currentUser } = useCurrentUser()
 
   function accessLevel(moduleKey: ModuleKey): PermissionLevel {
     return ROLE_MODULE_ACCESS[currentRole.value][moduleKey]
@@ -28,5 +28,8 @@ export function usePermissions() {
 
   const canViewFinancials = computed(() => FULL_FINANCIAL_VISIBILITY_ROLES.includes(currentRole.value))
 
-  return { accessLevel, canView, canManage, canApprove, canViewFinancials }
+  /** Vendor isolation (Prompt 19) — `vendorId` milik user login bila role `supplier`, else `undefined`. Dipakai `/supplier/*` untuk membatasi seluruh query ke satu vendor company saja. */
+  const vendorScopeId = computed(() => (currentRole.value === 'supplier' ? currentUser.value.vendorId : undefined))
+
+  return { accessLevel, canView, canManage, canApprove, canViewFinancials, vendorScopeId }
 }

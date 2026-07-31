@@ -1,6 +1,6 @@
 Baca dan jalankan:
 
-`prompts/20-PROMPT-18-REGRESSION-DEMO-READINESS.md`
+`prompts/21-PROMPT-19-CHANGES-&-UPDATE.md`
 
 Sebelum mulai:
 
@@ -9,7 +9,7 @@ Sebelum mulai:
 3. Periksa `git status` dan kondisi codebase aktual.
 4. Jangan mengubah hasil pekerjaan sebelumnya kecuali diperlukan untuk integrasi.
 
-Kerjakan hanya scope Prompt 18.
+Kerjakan hanya scope Prompt 19.
 
 Setelah selesai:
 

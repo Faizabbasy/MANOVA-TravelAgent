@@ -1,6 +1,6 @@
 # Mockup Implementation State — MANOVA
 
-Dokumen kondisi implementasi **terkini** (bukan log kronologis — lihat `docs/mockup-section-progress.md` untuk histori, dan `docs/mockup-progress.md` untuk narasi lengkap Prompt 0–5). Wajib dibaca di awal setiap section baru sesuai `prompts/01-PROTOKOL WAJIB — CONTINUITY, DOKUMENTASI PER SECTION, DAN PERLINDUNGAN HASIL.md` bagian B, dan diperbarui di akhir setiap section sesuai bagian F.
+Dokumen kondisi implementasi **terkini** (bukan log kronologis — lihat `docs/mockup-section-progress.md` untuk histori section, `docs/mockup-progress.md` untuk narasi Prompt 0–5+19, dan `docs/mockup-change-impact-log.md` untuk detail perubahan lintas-section). Wajib dibaca di awal setiap section/change request baru sesuai `prompts/01-PROTOKOL WAJIB — CONTINUITY, DOKUMENTASI PER SECTION, DAN PERLINDUNGAN HASIL.md` bagian B, dan diperbarui di akhir sesuai bagian F.
 
 Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git status`, isi file `app/**`) dan hasil validasi yang benar-benar dijalankan ulang pada tanggal update di bawah — bukan disalin buta dari narasi lama.
 
@@ -8,9 +8,11 @@ Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git stat
 
 ## 1. Current Phase dan Current Section
 
-- **Current phase:** COMPLETE — Seluruh 18 section implementasi mockup selesai. Section 18 (Regression and Demo Readiness) adalah section terakhir.
-- **Current section:** Tidak ada section aktif — Section 18 adalah section final, tidak ada section 19.
-- **Last completed section:** **Section 18 — Regression and Demo Readiness** (`prompts/20-PROMPT-18-REGRESSION-DEMO-READINESS.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-18-regression-demo-readiness.md`.
+- **Current phase:** Seluruh 18 section mockup baku (Section 00–18) **COMPLETED**, ditambah **Prompt 19 — Change Request (Customer Journey, Account Executive, Supplier, Commercial Approval)** COMPLETED di atasnya (2026-07-30).
+- **Current section/change:** Tidak ada yang aktif — menunggu perintah user untuk section/change berikutnya.
+- **Last completed:** **Prompt 19 — Change Request** (`prompts/21-PROMPT-19-CHANGES-&-UPDATE.md`), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/change-customer-journey-ae-supplier.md`.
+- Section 18 — Regression and Demo Readiness: COMPLETED, detail `docs/mockup-section-reports/section-18-regression-demo-readiness.md`.
+- Section 17 — Administration: COMPLETED, detail `docs/mockup-section-reports/section-17-administration.md`.
 - Section 16 — Reports: COMPLETED, detail `docs/mockup-section-reports/section-16-reports.md`.
 - Section 15 — Project Finance: COMPLETED, detail `docs/mockup-section-reports/section-15-project-finance.md`.
 - Section 14 — Project Changes: COMPLETED, detail `docs/mockup-section-reports/section-14-project-changes.md`.
@@ -25,41 +27,49 @@ Ditulis berdasarkan pemeriksaan langsung terhadap codebase (`git log`, `git stat
 - Section 05 — Foundation: COMPLETED, detail `docs/mockup-section-reports/section-05-foundation.md`.
 - Section 00–04: dokumentasi murni, COMPLETED, narasi `docs/mockup-progress.md` Entri 1–5.
 
-**Catatan commit:** Section 08 dan 09 sudah ter-commit (`495b6d9 "Create opportunity-won-to-project"`); Section 10 ter-commit (`2650015 "SECTION10-Project-Core"`); Section 11 ter-commit (`14b6106 "SECTION13-Traveler-Participant"`); Section 12 ter-commit (`57899a4 "SECTION12-ITINERARY-OPERATIONS"`); Section 13 ter-commit (`19f21b9 "SECTION15-VENDOR-MANAGEMENT"`); Section 14 ter-commit (`069c898 "SECTION14-PROJECT-CHANGES"`); Section 15 ter-commit (`5542dd0 "SECTION15-PROJECT-FINANCE"`). Section 16 dan 17 belum ter-commit pada saat dokumen ini ditulis.
+**Catatan commit:** Section 08–15 sudah ter-commit (lihat histori `git log`); Section 16 (`2625a2b`), Section 17 (`6d5d179`), Section 18 (`9c0abe7`) ter-commit. Prompt 19 (Change Request) **belum ter-commit** pada saat dokumen ini ditulis.
 
 ## 2. Route Inventory (Kondisi Aktual)
 
-Baris yang statusnya berubah Section 17:
+Baris baru/berubah Prompt 19 (Change Request) — route Section 05–18 tidak diulang di sini (lihat `docs/route-and-role-matrix.md` bagian 0 untuk inventory lengkap):
 
-| Route | Catatan Section 17 |
+| Route | Catatan Prompt 19 |
 |---|---|
-| `/admin` | **Selesai** — Hub admin dengan link navigasi ke master-data, users, roles, audit-trail, dan demo role switcher reaktif. |
-| `/admin/master-data` | **Selesai** — Tampilan list master project types, service types, destinations, dan vendor categories dengan tab-like switchers. |
-| `/admin/users` | **Selesai** — Daftar user, pencarian, filter role, user detail dialog, dan tombol beralih user. |
-| `/admin/roles` | **Selesai** — Matriks visual role vs modul lengkap dengan keterangan legend dan action flags. |
-| `/admin/audit-trail` | **Selesai** — Log aktivitas lintas project dengan statistik ringkasan, filter project/tipe/tinjauan, dan baris detail perubahan. |
-| `/finance/invoices` | **Selesai** — Diaktifkan di menu sidebar (flag comingSoon dihapus). |
-| `/finance/payments` | **Selesai** — Diaktifkan di menu sidebar (flag comingSoon dihapus). |
+| `/customer-journey`, `/customer-journey/leads`, `/customer-journey/customers[+/id]`, `/customer-journey/project-orders[+/id]`, `/customer-journey/lead-sources` | **Baru** — modul Customer Journey. Customers/Project Orders/Lead Source Recap reuse `Party`/`Project`/`Opportunity` existing (D-050), bukan dataset baru. Sales dibatasi ke Leads saja. |
+| `/activity-center` | **Baru** — log lintas sistem, Super Admin saja (narrow `roles` override, D-052). |
+| `/supplier`, `/supplier/products`, `/supplier/orders` | **Baru** — Supplier Portal, vendor-isolated (`vendorId`, D-048). |
+| `/vendors/[id]` | **Tab "Products" ditambahkan** — katalog `VendorProduct`, tab lain tidak diubah. |
+| `/crm/opportunities/[id]` | **Section "Commercial Approval" ditambahkan**; `canManageOpportunity` berpindah dari Sales ke Account Executive (D-047/D-049). |
+| `/crm/parties/[id]`, `/crm/prospects` | `canManageParty` diperluas menambahkan `account-executive` (Sales tetap ada). |
+| `/reports` | `showSalesPipeline` diperluas menambahkan `account-executive`. |
+| `/` (Dashboard) | Widget Opportunity Pipeline/Quotations Pending diperluas untuk `account-executive`; widget baru "Supplier Portal" (welcome card) untuk role `supplier` — mencegah Dashboard kosong untuk 2 role baru. |
 
 ## 3. Component Shared dan Domain yang Sudah Tersedia
 
-Tidak ada shared component **file** baru Section 17. Seluruhnya reuse `PageHeader`/`SectionCard`/`RoleAccessState`/`LoadingState`/`EmptyState`/`StatusBadge`/`Table*`/`Dialog*` existing.
+Tidak ada shared component **file** baru Prompt 19, KECUALI primitive `ui/sheet/*` (sudah ada sejak Foundation, **baru dipakai pertama kali** di drawer Lead Detail — `Sheet`/`SheetContent`/`SheetHeader`/`SheetTitle`/`SheetDescription`/`SheetFooter`). Seluruh halaman baru reuse `PageHeader`/`SectionCard`/`RoleAccessState`/`EmptyState`/`StatusBadge`/`StatusBreakdownList`/`StatsCard`/`Table*`/`Dialog*`/`Tabs*`/`DetailMetadataList` existing.
 
 ## 4. Types, Constants, Fixtures, Mock State, dan Role Behavior yang Aktif
 
-**Konstanta Baru Section 17:** `MASTER_PROJECT_TYPES`, `MASTER_SERVICE_TYPES`, `MASTER_DESTINATIONS`, `MASTER_VENDOR_CATEGORIES` di `app/constants/master-data.ts`.
+**Entitas baru (Prompt 19):** `Lead`/`LeadActivity` (`app/types/lead.ts`, `app/data/leads.ts`), `VendorProduct` (`app/types/vendor.ts`, `app/data/vendors.ts` — `VENDOR_PRODUCTS`), `SystemEvent` (`app/types/activity.ts`, `app/data/activity.ts` — `SYSTEM_EVENTS`, **bukan** `reactive()`, log statis).
 
-**Role behavior:** Switcher reaktif terhubung langsung ke `useCurrentUser()` (source of truth). Navigasi dan widget dashboard berubah seketika ketika role diubah via admin hub atau users list.
+**Field aditif:** `Party` +`size`/`city`/`phone`/`accountOwnerId`; `Quotation` +`approvalStatus`/`approvedBy`/`approvalNote` (`QuotationApprovalStatus`); `User` +`vendorId`; `Project` — tidak ada field baru.
+
+**Role & permission:** `RoleId` +`account-executive`/`supplier` (13 role total); `ModuleKey` +`supplier-portal`; `usePermissions()` +`vendorScopeId` (vendor isolation); `NavItem` +`roles?: RoleId[]` (narrow nav override, dipakai Activity Center dan 3 child Customer Journey).
+
+**Data reassignment:** `Opportunity.ownerId` (OPP-001–008) di-reassign dari `USR-001` (Sales) ke `USR-014` (AE). `OPP-005` di-restage dari `won-requested` ke `negotiation` (QUO-005 `approvalStatus: submitted`); `OPP-006` tetap `negotiation` (QUO-006 `approvalStatus: approved`). `OPP-008`/`QUO-008`/`PRJ-104` baru (repeat client PTY-001).
+
+**Selektor/mutator baru:** `getDocumentsByParty`, `getOpportunitiesByOwner`, `getProjectsByAccountExecutive`, `submitQuotationForApproval`/`approveQuotation`/`rejectQuotation`, `getLeadById`/`getLeadActivities`/`getLeadFollowUps`/`createLead`/`createLeadActivity`/`archiveLead`/`qualifyLeadAndCreateOpportunity`, `getVendorProducts`/`createVendorProduct` — seluruhnya di `app/data/index.ts`.
 
 ## 5. Area Hasil Section Lama yang Harus Dilindungi
 
 - Seluruh shared component, fixture, type, constant — jangan diubah shape-nya tanpa cross-section impact check.
-- `app/pages/projects/[id]/index.vue` — shell 8-tab, struktur tab/single-route LOCKED (D-026/D-027) — **tidak disentuh** Section 17.
-- Selektor finansial/operasional (`getInvoiceOutstandingIdr`, `getProjectOutstandingIdr`, `getCommittedVendorCostIdr`, `invoiceAgingDays`, `getServicesForProjects`, `isUpcomingDeparture`) — gunakan yang sudah ada di `app/data/index.ts`/`app/utils/attention.ts`, jangan hitung ulang logic yang sama di tempat lain.
-- `app/pages/reports/index.vue` — pemilik penuh 6 section Reports (Section 16).
-- `app/constants/navigation.ts` — flag `comingSoon: true` pada Invoices/Payments dihapus karena telah diimplementasikan penuh pada Section 15.
-- **Keputusan didokumentasikan (bukan gap tersembunyi):** export mock tidak dikerjakan (belum disepakati, sesuai hard rule literal Prompt 16); tidak ada CRUD invoice/payment (di luar scope literal, keputusan Section 15); "Estimated cost" tidak dimodelkan terpisah dari `Project.budgetIdr` (Section 15).
-- **Perbaikan status comingSoon:** Item Invoices/Payments dan seluruh modul Administration telah diaktifkan secara visual di sidebar.
+- `app/pages/projects/[id]/index.vue` — shell 8-tab, struktur tab/single-route LOCKED (D-026/D-027) — **tidak disentuh** Prompt 19.
+- `OpportunityStage` (union 9 nilai, D-028) — **tidak direstrukturisasi** Prompt 19 (D-049) meski workflow Commercial Approval ditambahkan; state machine Won existing (`won-requested → won`, D-025) tetap dipakai apa adanya sebagai gerbang final.
+- `/crm/prospects`, `/crm/clients`, `/crm/parties/[id]`, `/projects`, `/projects/[id]` — **tidak diubah** oleh modul Customer Journey (D-050); Customer Journey adalah lensa presentasi baru di atas data yang sama, bukan pengganti.
+- Tab "Activity & Changes" Project Detail (`ActivityEntry`, LOCKED Section 05/14) — **tidak disentuh** oleh `SystemEvent` (Activity Center) yang merupakan log terpisah level-atas.
+- Selektor finansial/operasional (`getInvoiceOutstandingIdr`, `getProjectOutstandingIdr`, `getCommittedVendorCostIdr`, `invoiceAgingDays`, `getServicesForProjects`, `isUpcomingDeparture`) — gunakan yang sudah ada, jangan hitung ulang logic yang sama di tempat lain.
+- `app/pages/reports/index.vue` — pemilik penuh 6 section Reports (Section 16); `app/pages/vendors/[id]/index.vue` — pemilik Vendor Detail (Section 13), Prompt 19 hanya menambah 1 tab.
+- **Keputusan didokumentasikan (bukan gap tersembunyi):** export mock Reports tidak dikerjakan (Section 16); tidak ada CRUD invoice/payment (Section 15); Supplier Portal (`/supplier/orders`) read-only, tidak ada self-service submit quotation dari sisi supplier (Q12, `docs/mockup-open-questions.md`).
 
 ## 6. Known Issues dan Validation Status
 
@@ -68,31 +78,27 @@ Divalidasi ulang langsung pada tanggal update dokumen ini:
 | Cek | Hasil | Catatan |
 |---|---|---|
 | `npx nuxi prepare` | **Sukses** | |
-| `npm run build` | **Sukses Kompilasi** | Client & server bundle ter-build dengan sukses. Menemui kendala `EBUSY` pada penghapusan direktori `.output` (khas isu filesystem lock Windows) di akhir Nitro build, namun kode bebas dari error kompilasi/typecheck. |
-| Smoke test HTTP (seluruh route admin) | **Sukses** | Seluruh `/admin/*` mengembalikan status 200 setelah kompilasi |
-| Verifikasi interaktif (ganti role, cek sidebar ter-update) | **Sukses** | Role switcher reaktif menggunakan `useCurrentUser` terbukti mengubah nav menu sidebar secara instan pada client-side. |
-| Fix `handleDelete` bug di `expenses.vue` | **Sukses** ✅ | Section 18 — CI-019; `requestDelete` dipakai sebagai pengganti. |
-| Audit route dead/placeholder | **Sukses** | Hasil tercatat di `docs/mockup-final-route-inventory.md` |
-| Audit consistency (breadcrumbs, sidebar flags) | **Sukses** | Tidak ditemukan breadcrumb kosong atau sidebar link mati pada route aktif |
+| `npm run build` | **Sukses** | Client & server bundle ter-build sukses, seluruh route baru ter-compile (verifikasi chunk `customer-journey-*`, `leads-*`, `customers-*`, `project-orders-*`, `lead-sources-*`, `activity-center--*`, `supplier-*`, `products-*`, `orders-*`). Kendala `EBUSY` pada penghapusan `.output` di beberapa run (pre-existing, A-002) — diselesaikan dengan mematikan proses `node` yang masih berjalan sebelum retry. |
+| Smoke test HTTP (32 route, baru + existing) | **Sukses** | Seluruhnya HTTP 200, termasuk `?tab=products` (Vendor Detail) |
+| Smoke test konten | **Sukses** | Commercial Approval badge "Menunggu Approval" (OPP-005)/"Disetujui" (OPP-006) tampil tepat; Supplier (default Super Admin, tanpa `vendorId`) menampilkan `RoleAccessState` — isolasi bekerja; Lead Source Recap (Total 10/Qualified 3/Opportunities 2/Won 1) dihitung ulang manual dan cocok; Vendor Detail Products tab menampilkan katalog PT ABC/PT EFG tanpa cross-contamination; Activity Center menampilkan 22/22 event |
+| Regresi route existing (Dashboard, CRM, Projects, Vendors, Finance, Reports, Admin) | **Tidak berubah** kontennya, tetap HTTP 200 | |
 | `npx vitest run` | **"No test files found", exit code 1** | Pre-existing |
 | `npx nuxi typecheck` | **Gagal — `vue-tsc` tidak terpasang** | Q8 belum diselesaikan |
 | Lint | **Tidak tersedia** | Q8 belum diselesaikan |
+| Verifikasi interaktif (ganti role live) | **Tidak dilakukan headless** | Keterbatasan tooling konsisten sejak Section 06 — dimitigasi lewat code review ketat terhadap seluruh gate baru (`canManageLead`, `canManageOpportunity`, `vendorScopeId`, `roles` nav override) |
 
 **Known issues terbuka:**
-- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. **Empat belas section berturut-turut** (06–18) berjalan tanpa validasi otomatis penuh. Lihat `docs/mockup-final-known-issues.md` A-003, A-004, A-005 untuk detail.
-- Export mock tidak dikerjakan (keputusan didokumentasikan, bagian 5) — bukan bug.
-- Verifikasi interaktif tidak dilakukan secara headless otomatis (keterbatasan tooling) — lihat `docs/mockup-final-known-issues.md` C-002.
+- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. Belum diselesaikan sejak Section 06, termasuk di change request ini.
+- Q12 (baru) — self-service submit quotation dari `/supplier/orders` tidak diimplementasikan (deferred, `docs/mockup-open-questions.md`).
+- Export mock Reports tidak dikerjakan (Section 16, tidak berubah).
+- Verifikasi interaktif tidak dilakukan secara headless (keterbatasan tooling, konsisten sejak Section 06).
 - Q7, Q9, Q10, Q11 — tidak berubah.
-- Route template lama (`/tasks`, `/expenses`, `/projects/create`, `/projects/[id]/edit`) masih accessible via URL tapi tidak di sidebar — lihat `docs/mockup-final-known-issues.md` B-003.
 
 ## 7. Next Recommended Section
 
-Seluruh 18 section mockup telah selesai. **Tidak ada section mockup selanjutnya.** Untuk langkah berikutnya, pertimbangkan:
-- Backend/API integration (membutuhkan scope baru di luar mockup)
-- Production deployment (membutuhkan env vars dan config Nitro untuk target deployment)
-- Test automation (setup Vitest + Playwright untuk memenuhi Q8)
+Tidak ada section/change baku selanjutnya. Untuk langkah berikutnya, pertimbangkan: menyelesaikan Q8 (tooling lint/typecheck/test), backend/API integration, atau perubahan/permintaan baru dari user.
 
 ## 8. Last Updated
 
 - **Date:** 2026-07-30
-- **Updater:** Section 18 (Regression and Demo Readiness) execution — audit route, fix bug CI-019, generate final docs (`mockup-demo-script.md`, `mockup-final-known-issues.md`, `mockup-final-route-inventory.md`), update seluruh dokumentasi. Berdasarkan pemeriksaan langsung codebase dan pengujian build.
+- **Updater:** Prompt 19 (Change Request — Customer Journey, Account Executive, Supplier, Commercial Approval) execution, berdasarkan pemeriksaan langsung codebase, build/smoke-test yang benar-benar dijalankan ulang.

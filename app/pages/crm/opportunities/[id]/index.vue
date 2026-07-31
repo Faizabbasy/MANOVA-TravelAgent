@@ -3,11 +3,12 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus } from 'lucide-vue-next'
 import {
-  getOpportunityById, getPartyById, getQuotationByOpportunity, getPartyActivitiesByOpportunity,
+  getOpportunityById, getPartyById, getQuotationByOpportunity, getPartyActivitiesByOpportunity, getUserById,
   createQuotation, reviseQuotation, advanceOpportunityStage, createPartyActivity,
   getOpportunityMissingRequirements, approveOpportunityWon, rejectOpportunityWon,
+  submitQuotationForApproval, approveQuotation, rejectQuotation,
 } from '~/data'
-import { OPPORTUNITY_STAGES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
+import { OPPORTUNITY_STAGES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, QUOTATION_APPROVAL_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
 import type { OpportunityStage } from '~/types/opportunity'
 import type { PartyActivityType } from '~/types/party'
@@ -22,8 +23,14 @@ const { showToast } = useToast()
 
 /** Sama seperti `canManageParty` (Section 07) — pengecualian sempit, bukan mekanisme role-check baru.
  * Management sengaja TIDAK termasuk: level modul `crm`-nya (`APPROVE`) dikhususkan untuk approve
- * Won di Section 09, bukan untuk mengelola stage sehari-hari (docs bagian 1.2). */
-const canManageOpportunity = computed(() => ['sales', 'super-admin'].includes(currentRole.value))
+ * Won di Section 09, bukan untuk mengelola stage sehari-hari (docs bagian 1.2).
+ * Prompt 19 (Change Request) — role dipindah dari `sales` ke `account-executive`: di bawah model role
+ * baru, Sales berhenti mengelola Opportunity/Quotation (scoped ke Lead, lihat `/customer-journey/leads`),
+ * Account Executive yang menerima handover dan mengelola Opportunity sampai Won. */
+const canManageOpportunity = computed(() => ['account-executive', 'super-admin'].includes(currentRole.value))
+
+/** Commercial Approval (Prompt 19) — Management/Super Admin approve/reject quotation, TERPISAH dari `canApproveOpportunity` (approve Won). Reuse `canApprove('crm')`, bukan constant baru. */
+const canApproveCommercial = computed(() => canApprove('crm'))
 
 const opportunity = computed(() => getOpportunityById(String(route.params.id)))
 useHead({ title: computed(() => opportunity.value ? opportunity.value.title : 'Opportunity Tidak Ditemukan') })
@@ -41,7 +48,7 @@ const summaryMetadata = computed(() => {
   if (!opportunity.value) return []
   return [
     { label: 'Party', value: party.value?.name ?? '—' },
-    { label: 'Owner', value: currentUser.value.id === opportunity.value.ownerId ? currentUser.value.name : 'Rani Kusuma (Sales)' },
+    { label: 'Account Executive', value: getUserById(opportunity.value.ownerId)?.name ?? '—' },
     { label: 'Destinasi', value: opportunity.value.destination },
     {
       label: 'Tanggal Perkiraan',
@@ -135,6 +142,43 @@ function submitReject() {
     return
   }
   showToast('Opportunity Ditolak', 'Dikembalikan ke stage Negotiation dengan catatan.', 'warning')
+}
+
+/* Commercial Approval (Prompt 19) — AE submit quotation untuk approval, Management approve/reject. */
+const isSubmitApprovalDialogOpen = ref(false)
+const isApproveCommercialDialogOpen = ref(false)
+const isRejectCommercialDialogOpen = ref(false)
+const commercialNoteInput = ref('')
+
+function submitForCommercialApproval() {
+  if (!quotation.value) return
+  submitQuotationForApproval(quotation.value.id)
+  isSubmitApprovalDialogOpen.value = false
+  showToast('Quotation Diajukan', 'Menunggu commercial approval dari Management.', 'success')
+}
+
+function submitApproveCommercial() {
+  if (!quotation.value) return
+  const result = approveQuotation(quotation.value.id, currentUser.value.id, commercialNoteInput.value.trim() || undefined)
+  isApproveCommercialDialogOpen.value = false
+  commercialNoteInput.value = ''
+  if (!result) {
+    showToast('Approve Gagal', 'Quotation tidak lagi berstatus menunggu approval.', 'error')
+    return
+  }
+  showToast('Quotation Disetujui', 'AE dapat melanjutkan ke Negotiation / mengajukan sebagai Won.', 'success')
+}
+
+function submitRejectCommercial() {
+  if (!quotation.value || !commercialNoteInput.value.trim()) return
+  const result = rejectQuotation(quotation.value.id, currentUser.value.id, commercialNoteInput.value.trim())
+  isRejectCommercialDialogOpen.value = false
+  commercialNoteInput.value = ''
+  if (!result) {
+    showToast('Reject Gagal', 'Quotation tidak lagi berstatus menunggu approval.', 'error')
+    return
+  }
+  showToast('Quotation Ditolak', 'AE perlu merevisi quotation sebelum mengajukan ulang.', 'warning')
 }
 
 /* Catat Activity */
@@ -287,7 +331,15 @@ function submitActivity() {
           <Button v-if="opportunity.stage === 'proposal'" size="sm" @click="goToNextSimpleStage('negotiation')">Lanjut ke Negotiation</Button>
 
           <template v-if="opportunity.stage === 'negotiation'">
-            <Button size="sm" @click="goToNextSimpleStage('won-requested')">Ajukan sebagai Won</Button>
+            <Button
+              size="sm"
+              :disabled="quotation?.approvalStatus !== 'approved'"
+              :title="quotation?.approvalStatus !== 'approved' ? 'Quotation harus disetujui (Commercial Approval) sebelum diajukan sebagai Won' : undefined"
+              @click="goToNextSimpleStage('won-requested')"
+            >Ajukan sebagai Won</Button>
+            <p v-if="quotation?.approvalStatus !== 'approved'" class="text-xs text-muted-foreground basis-full">
+              Quotation harus melalui Commercial Approval (lihat section di bawah) sebelum dapat diajukan sebagai Won.
+            </p>
             <Button size="sm" variant="outline" @click="goToNextSimpleStage('on-hold')">Tahan (On Hold)</Button>
             <Dialog v-model:open="isLostDialogOpen">
               <DialogTrigger as-child>
@@ -367,6 +419,93 @@ function submitActivity() {
           <p class="text-xs text-muted-foreground">Dibuat {{ formatDate(quotation.createdAt) }}</p>
         </div>
         <EmptyState v-else title="Belum ada quotation" description="Quotation akan dibuat saat opportunity ini lanjut ke stage Proposal." />
+      </SectionCard>
+
+      <!-- Commercial Approval (Prompt 19 — Change Request) -->
+      <SectionCard v-if="quotation" title="Commercial Approval" description="Workflow: Draft → Submitted for Approval → Approved by Management → Negotiation / Final Confirmation → Opportunity Won.">
+        <div class="flex items-center gap-2 mb-4">
+          <StatusBadge
+            :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').label"
+            :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').tone"
+          />
+          <span v-if="quotation.approvedBy" class="text-xs text-muted-foreground">
+            oleh {{ getUserById(quotation.approvedBy)?.name ?? quotation.approvedBy }}
+          </span>
+        </div>
+        <p v-if="quotation.approvalNote" class="text-sm text-muted-foreground mb-4">Catatan: {{ quotation.approvalNote }}</p>
+
+        <div v-if="canManageOpportunity && (quotation.approvalStatus ?? 'draft') === 'draft'">
+          <Dialog v-model:open="isSubmitApprovalDialogOpen">
+            <DialogTrigger as-child>
+              <Button size="sm">Submit for Approval</Button>
+            </DialogTrigger>
+            <DialogContent class="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Submit Quotation for Approval</DialogTitle>
+                <DialogDescription>Quotation {{ formatCurrencyIdr(quotation.amountIdr) }} akan diajukan ke Management untuk commercial approval.</DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" @click="isSubmitApprovalDialogOpen = false">Batal</Button>
+                <Button @click="submitForCommercialApproval">Submit</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
+
+        <div v-else-if="quotation.approvalStatus === 'submitted'">
+          <p v-if="!canApproveCommercial" class="text-sm text-muted-foreground">Menunggu commercial approval dari Management/Super Admin.</p>
+          <div v-else class="flex flex-wrap gap-2">
+            <Dialog v-model:open="isApproveCommercialDialogOpen">
+              <DialogTrigger as-child>
+                <Button size="sm">Approve Commercial</Button>
+              </DialogTrigger>
+              <DialogContent class="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Approve Commercial Terms</DialogTitle>
+                  <DialogDescription>
+                    Meninjau nilai quotation {{ formatCurrencyIdr(quotation.amountIdr) }}, discount, estimated margin, payment terms, service scope,
+                    kompleksitas project, dan commercial risk. Setelah disetujui, AE dapat melanjutkan ke Negotiation / mengajukan sebagai Won.
+                  </DialogDescription>
+                </DialogHeader>
+                <div class="space-y-1.5 py-2">
+                  <Label for="approve-commercial-note">Catatan (opsional)</Label>
+                  <Input id="approve-commercial-note" v-model="commercialNoteInput" placeholder="mis. Disetujui sesuai standar margin" />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" @click="isApproveCommercialDialogOpen = false">Batal</Button>
+                  <Button @click="submitApproveCommercial">Approve</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+            <Dialog v-model:open="isRejectCommercialDialogOpen">
+              <DialogTrigger as-child>
+                <Button size="sm" variant="outline">Reject Commercial</Button>
+              </DialogTrigger>
+              <DialogContent class="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Reject Commercial Terms</DialogTitle>
+                  <DialogDescription>AE perlu merevisi quotation sebelum submit ulang.</DialogDescription>
+                </DialogHeader>
+                <div class="space-y-1.5 py-2">
+                  <Label for="reject-commercial-note">Catatan</Label>
+                  <Input id="reject-commercial-note" v-model="commercialNoteInput" placeholder="mis. Margin terlalu rendah, revisi harga" />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" @click="isRejectCommercialDialogOpen = false">Batal</Button>
+                  <Button variant="destructive" :disabled="!commercialNoteInput.trim()" @click="submitRejectCommercial">Reject</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
+
+        <div v-else-if="quotation.approvalStatus === 'rejected'" class="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+          <p class="text-sm text-destructive">Ditolak — revisi quotation lalu submit ulang untuk approval.</p>
+        </div>
+
+        <p v-else-if="quotation.approvalStatus === 'approved'" class="text-sm text-success">
+          Disetujui — AE dapat mengajukan opportunity ini sebagai Won pada stage Negotiation.
+        </p>
       </SectionCard>
 
       <!-- Activity / Follow-up -->

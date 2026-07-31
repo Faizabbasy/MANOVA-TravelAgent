@@ -164,7 +164,29 @@ Rincian lengkap alasan per item ada di `docs/route-and-role-matrix.md` (tabel Ro
 
 ---
 
-## 7. Acceptance Check (self-verification terhadap Prompt 3-K)
+## 8. Perluasan IA — Prompt 19 Change Request (2026-07-30)
+
+Ditambahkan di atas IA baku bagian 2–6 (yang seluruhnya sudah COMPLETED sejak Section 05–18), bukan menggantikan. Detail keputusan lengkap: `docs/mockup-design-decisions.md` Kelompok I (D-046–D-052); detail implementasi: `docs/mockup-section-reports/change-customer-journey-ae-supplier.md`.
+
+### 8.1 Customer Journey (menu top-level baru)
+- **Leads** (`/customer-journey/leads`) — Table/Kanban/Inbox view, filter stage/owner/source, right-side drawer detail (Overview/Activities/Follow-ups), aksi "Qualify & Create Opportunity" dan "Archive". Entitas baru `Lead`/`LeadActivity` (D-051).
+- **Customers** (`/customer-journey/customers`, `/customer-journey/customers/[id]`) — tampilan AE-centric di atas `Party` existing (D-050), **bukan** entitas baru. Tab: Overview/Contacts/Opportunities/Project Orders/Activities/Documents.
+- **Project Orders** (`/customer-journey/project-orders`, `/customer-journey/project-orders/[id]`) — tampilan AE-centric di atas `Project` existing (D-050).
+- **Lead Source Recap** (`/customer-journey/lead-sources`) — rekap performa sumber lead (total/qualified/opportunities created/won/conversion rate), reuse fixture `LEADS` yang sama.
+- **Sales dibatasi ke Leads saja** dalam kelompok menu ini (literal Prompt 19-10) — Customers/Project Orders/Lead Source Recap tidak tampil untuk role Sales (nav override `roles`, D-052).
+
+### 8.2 Activity Center (menu top-level baru, Super Admin saja)
+Log lintas sistem (`/activity-center`) — lead/opportunity/quotation/client/project-order/vendor/finance/user, entitas baru `SystemEvent`, terpisah dari tab "Activity & Changes" Project Detail (`ActivityEntry`, LOCKED sejak Section 05/14, tidak disentuh).
+
+### 8.3 Supplier Portal / External Partners (menu top-level baru, role Supplier saja)
+`/supplier`, `/supplier/products`, `/supplier/orders` — seluruh data di-scope ke satu vendor company (`User.vendorId`, D-048), tidak pernah membaca direktori `Vendor` penuh. Tab "Products" baru ditambahkan ke Vendor Detail existing (`/vendors/[id]`) — katalog produk/layanan (`VendorProduct`, entitas baru) tampil baik dari sisi internal (Vendor Detail) maupun self-service (`/supplier/products`), satu sumber data yang sama.
+
+### 8.4 CRM — Opportunity/Quotation Berpindah Kepemilikan ke Account Executive
+`/crm/opportunities/[id]` mendapat section baru "Commercial Approval" (AE submit, Management approve/reject — D-049), dan narrow role gate `canManageOpportunity` berpindah dari Sales ke Account Executive (D-047). Struktur route/tab CRM lainnya (Prospects/Clients/Party Detail) **tidak berubah**.
+
+---
+
+## 9. Acceptance Check (self-verification terhadap Prompt 3-K)
 
 - Tidak ada route utama yang ambigu — seluruh 9 kelompok baseline sudah dievaluasi eksplisit (dilanjutkan sebagai menu top-level, dilebur jadi tab, atau di-exclude dengan alasan).
 - Sidebar structure jelas — 7 kelompok top-level, didetailkan di bagian 2–3.

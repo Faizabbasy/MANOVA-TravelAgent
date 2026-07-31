@@ -253,6 +253,26 @@ Dokumen ini adalah 1 dari 5 output wajib Prompt 2. Lihat juga:
 4. **Data terpusat** — Project/Task/Expense punya 2–3 shape tidak sinkron; harus disatukan sebelum modul baru dibangun di atasnya.
 5. **Currency IDR** — nol pemakaian format Rupiah di seluruh codebase saat ini (wajib per Prompt 0 K.11).
 
+---
+
+## J. Reuse Mapping — Prompt 19 Change Request (2026-07-30)
+
+Ditambahkan di atas ringkasan baku (bagian A–I, seluruhnya sudah dieksekusi sejak Section 05–18). Prinsip reuse yang sama (hindari duplikasi, adaptasi sebelum membangun baru) diterapkan konsisten — lihat `docs/mockup-design-decisions.md` D-050/D-051 untuk rasional lengkap per keputusan.
+
+| Kebutuhan Prompt 19 | Kategori reuse | Sumber reuse | Keterangan |
+|---|---|---|---|
+| Customers/Companies (`/customer-journey/customers`) | `REUSE_LAYOUT_REPLACE_CONTENT` (data), route baru (presentasi) | Entitas `Party` (Foundation), pola tab Party Detail (Section 07) | D-050 — bukan dataset baru, lensa AE-centric baru di atas data yang sama |
+| Project Orders (`/customer-journey/project-orders`) | `REUSE_LAYOUT_REPLACE_CONTENT` (data), route baru (presentasi) | Entitas `Project` (Foundation) | D-050 — Account Executive derivasi dari `Opportunity.ownerId`, tanpa field baru di `Project` |
+| Leads (`/customer-journey/leads`) | `NEW_REQUIRED` | — | D-051 — tidak ada representasi existing untuk konsep pra-kualifikasi; `LeadActivity` reuse union `PartyActivityType` (Section 07) |
+| Drawer detail Lead | `NEW_REQUIRED` (primitive), pola existing (isi) | Primitive `ui/sheet/*` (**sudah ada sejak Foundation, belum pernah dipakai** — dependency check mengonfirmasi 0 pemakaian sebelum Prompt 19) + pola `Tabs`/`DetailMetadataList`/activity-feed list existing | Tidak ada primitive baru dibangun — `Sheet` tinggal dipakai, persis kebijakan D-036 ("pakai yang sudah ada sebelum mengusulkan alternatif") |
+| Activity Center (`/activity-center`) | `ADAPT` | Pola `/admin/audit-trail` (Section 17) — stat tile + filter + list | Entitas `SystemEvent` baru (`NEW_REQUIRED`), tapi presentasi 100% adaptasi pola existing |
+| Supplier Portal (`/supplier/*`) | `NEW_REQUIRED` (route+isolasi), `REUSE_LAYOUT_REPLACE_CONTENT` (data) | Selektor `getServicesByVendor`/`getVendorQuotations` (Section 13, reuse langsung) | D-048 — halaman baru, tapi nol query baru terhadap `PROJECT_SERVICES`/`VENDOR_QUOTATIONS`, murni filter tambahan `vendorId` |
+| Vendor Product catalog | `NEW_REQUIRED` (entitas), `ADAPT` (tab Vendor Detail) | Tab "Products" ditambahkan ke `/vendors/[id]` (Section 13) yang sudah ber-arsitektur tab | Satu sumber data (`VendorProduct`) dipakai baik dari sisi internal (Vendor Detail) maupun self-service (`/supplier/products`) |
+| Commercial Approval | `NEW_REQUIRED` (field+mutator), `ADAPT` (UI) | Pola dialog/section existing di `crm/opportunities/[id]/index.vue` (Approve/Reject Won, Section 09) — struktur dialog disalin persis untuk Approve/Reject Commercial | D-049 — field aditif pada `Quotation`, bukan entitas baru |
+| `NavItem.roles` (narrow nav override) | `NEW_REQUIRED` (field kecil) | `AppSidebar.vue` filter logic existing (Section 05), diperluas satu cabang kondisi | D-052 — perluasan minimal, bukan mekanisme permission paralel |
+
+**Kesimpulan:** Tidak ada package baru dipasang (`ui/sheet` sudah tersedia sejak Foundation, kebijakan D-036 tetap tidak dilanggar). Satu-satunya entitas data benar-benar baru dari nol adalah `Lead`/`LeadActivity`, `VendorProduct`, dan `SystemEvent` — sisanya (Customers/Project Orders/Commercial Approval/Supplier Portal) adalah reuse/ekstensi aditif di atas entitas Foundation/Section 07-13 yang sudah ada.
+
 **Risiko utama:**
 1. Wizard `/projects/create` berpotensi bertentangan dengan alur LOCKED "Opportunity Won → Project otomatis" — perlu keputusan scope sebelum implementasi (lihat `docs/mockup-open-questions.md`).
 2. Refactor Project Workspace (`/projects/:id`) berisiko tinggi karena kompleksitas tertinggi di codebase (drag-drop kanban, workaround bug Reka UI, banyak state lokal).

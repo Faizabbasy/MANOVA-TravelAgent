@@ -1,18 +1,25 @@
 import { reactive } from 'vue'
-import type { Vendor, VendorContact, VendorQuotation, VendorActivity } from '~/types/vendor'
+import type { Vendor, VendorContact, VendorQuotation, VendorActivity, VendorProduct } from '~/types/vendor'
 
 /**
  * `reactive()` (Section 13) — melanjutkan pola Section 07/08/09/10/11/12. Tambah vendor/contact/quotation
  * baru harus langsung terlihat di `/vendors`, Vendor Detail, dan tab "Vendors" Project Detail tanpa reload.
  */
 
-/** docs/mockup-data-scenarios.md bagian 0.2 — nama fiktif, bukan brand nyata (D-006). */
+/**
+ * docs/mockup-data-scenarios.md bagian 0.2 — nama fiktif, bukan brand nyata (D-006). VND-006/VND-007
+ * (Prompt 19 — Change Request) adalah 2 contoh supplier company External Partners: masing-masing punya
+ * supplier user sendiri (`app/data/users.ts` USR-015/016, terisolasi via `User.vendorId`) dan katalog
+ * produk/layanan berbeda (`VENDOR_PRODUCTS` di bawah) — bukan sekadar vendor tambahan biasa.
+ */
 export const VENDORS: Vendor[] = reactive([
   { id: 'VND-001', name: 'CV Tiket Mitra Nusantara', serviceType: 'flight', contactName: 'Yusuf Maulana' },
   { id: 'VND-002', name: 'Hotel Prima Mitra', serviceType: 'hotel', contactName: 'Rina Kartika' },
   { id: 'VND-003', name: 'Trans Wahana Logistik', serviceType: 'transportation', contactName: 'Bimo Saputro' },
   { id: 'VND-004', name: 'Cendana MICE Organizer', serviceType: 'mice', contactName: 'Wulan Permatasari' },
   { id: 'VND-005', name: 'CV Wisata Kargo Ekspres', serviceType: 'transportation', contactName: 'Agus Salim' },
+  { id: 'VND-006', name: 'PT ABC', serviceType: 'hotel', contactName: 'Hasan Alfarizi' },
+  { id: 'VND-007', name: 'PT EFG', serviceType: 'mice', contactName: 'Ika Puspitasari' },
 ])
 
 /** Backfill 1 contact per vendor dari `Vendor.contactName` existing (Foundation) — bukan data baru, hanya diberi wadah tab "Contacts". */
@@ -22,6 +29,21 @@ export const VENDOR_CONTACTS: VendorContact[] = reactive([
   { id: 'VCT-003', vendorId: 'VND-003', name: 'Bimo Saputro', title: 'Operations Manager', phone: '0821-1000-0003' },
   { id: 'VCT-004', vendorId: 'VND-004', name: 'Wulan Permatasari', title: 'Event Coordinator', phone: '0821-1000-0004' },
   { id: 'VCT-005', vendorId: 'VND-005', name: 'Agus Salim', title: 'Account Manager', phone: '0821-1000-0005' },
+  { id: 'VCT-006', vendorId: 'VND-006', name: 'Hasan Alfarizi', title: 'Partnership Manager', phone: '0821-1000-0006' },
+  { id: 'VCT-007', vendorId: 'VND-007', name: 'Ika Puspitasari', title: 'Partnership Manager', phone: '0821-1000-0007' },
+])
+
+/**
+ * Product/service catalog (Prompt 19) — PT ABC menjual paket akomodasi, PT EFG menjual paket MICE/event,
+ * kategori produk berbeda sesuai instruksi literal ("masing-masing supplier harus... memiliki produk atau
+ * layanan yang berbeda"). Dipakai tab "Products" Vendor Detail dan `/supplier/products` (self-service,
+ * discope `vendorId` via `usePermissions().vendorScopeId`).
+ */
+export const VENDOR_PRODUCTS: VendorProduct[] = reactive([
+  { id: 'VPR-001', vendorId: 'VND-006', name: 'Paket Kamar Deluxe (per malam)', category: 'hotel', description: 'Kamar deluxe kapasitas 2 pax, termasuk sarapan.', priceIdr: 1_200_000 },
+  { id: 'VPR-002', vendorId: 'VND-006', name: 'Paket Meeting Room Half-Day', category: 'hotel', description: 'Ruang meeting kapasitas 20 pax, coffee break 1x.', priceIdr: 3_500_000 },
+  { id: 'VPR-003', vendorId: 'VND-007', name: 'Paket Venue Konferensi (per hari)', category: 'mice', description: 'Venue kapasitas 100 pax lengkap sound system.', priceIdr: 25_000_000 },
+  { id: 'VPR-004', vendorId: 'VND-007', name: 'Paket Event Organizer Full-Service', category: 'mice', description: 'Koordinasi acara end-to-end, termasuk rundown dan dokumentasi.', priceIdr: 45_000_000 },
 ])
 
 /**

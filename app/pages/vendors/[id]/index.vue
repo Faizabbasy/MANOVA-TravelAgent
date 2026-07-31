@@ -6,10 +6,12 @@ import {
   getVendorById, getVendorContacts, getVendorQuotations, getVendorActivities, getServicesByVendor,
   createVendorContact, submitVendorQuotation,
   getProjectById, PROJECTS, getProjectServices,
+  getVendorProducts, createVendorProduct,
 } from '~/data'
 import { SERVICE_TYPES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import type { VendorDetailTab } from '~/types/vendor'
+import type { ServiceTypeKey } from '~/types/project'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
@@ -25,6 +27,8 @@ const contacts = computed(() => (vendor.value ? getVendorContacts(vendor.value.i
 const quotations = computed(() => (vendor.value ? getVendorQuotations(vendor.value.id) : []))
 const activities = computed(() => (vendor.value ? getVendorActivities(vendor.value.id) : []))
 const assignedServices = computed(() => (vendor.value ? getServicesByVendor(vendor.value.id) : []))
+/** Products (Prompt 19 — Change Request, area Supplier/External Partners) — katalog produk/layanan vendor, sama dengan `/supplier/products` (self-service oleh supplier user sendiri). */
+const products = computed(() => (vendor.value ? getVendorProducts(vendor.value.id) : []))
 
 const activeTab = computed<VendorDetailTab>({
   get: () => (route.query.tab as VendorDetailTab) || 'overview',
@@ -35,6 +39,7 @@ const TABS: { value: VendorDetailTab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
   { value: 'services', label: 'Services' },
   { value: 'quotations', label: 'Quotations' },
+  { value: 'products', label: 'Products' },
   { value: 'contacts', label: 'Contacts' },
 ]
 
@@ -59,6 +64,29 @@ const contactName = ref('')
 const contactTitle = ref('')
 const contactEmail = ref('')
 const contactPhone = ref('')
+
+/* Tambah Product (Prompt 19) */
+const isProductDialogOpen = ref(false)
+const productName = ref('')
+const productCategory = ref<ServiceTypeKey>('hotel')
+const productDescription = ref('')
+const productPrice = ref<number | null>(null)
+
+function submitProduct() {
+  if (!vendor.value || !productName.value.trim()) return
+  createVendorProduct({
+    vendorId: vendor.value.id,
+    name: productName.value.trim(),
+    category: productCategory.value,
+    description: productDescription.value.trim() || undefined,
+    priceIdr: productPrice.value ?? undefined,
+  })
+  productName.value = ''
+  productCategory.value = 'hotel'
+  productDescription.value = ''
+  productPrice.value = null
+  isProductDialogOpen.value = false
+}
 
 function submitContact() {
   if (!vendor.value || !contactName.value.trim() || !contactTitle.value.trim()) return
@@ -274,6 +302,68 @@ function submitQuotation() {
                   </TableCell>
                 </TableRow>
                 <TableEmpty v-if="quotations.length === 0" :colspan="5">Belum ada quotation untuk vendor ini.</TableEmpty>
+              </TableBody>
+            </Table>
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="products">
+          <SectionCard title="Products" description="Katalog produk/layanan milik vendor ini (Prompt 19).">
+            <template #actions>
+              <Dialog v-if="canManageVendor" v-model:open="isProductDialogOpen">
+                <DialogTrigger as-child>
+                  <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Tambah Produk</Button>
+                </DialogTrigger>
+                <DialogContent class="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Tambah Produk/Layanan Baru</DialogTitle>
+                    <DialogDescription>Produk baru akan tampil di katalog {{ vendor.name }}.</DialogDescription>
+                  </DialogHeader>
+                  <div class="space-y-4 py-2">
+                    <div class="space-y-1.5">
+                      <Label for="vp-name">Nama Produk/Layanan</Label>
+                      <Input id="vp-name" v-model="productName" placeholder="mis. Paket Kamar Deluxe" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="vp-category">Kategori</Label>
+                      <select id="vp-category" v-model="productCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="vp-description">Deskripsi (opsional)</Label>
+                      <Input id="vp-description" v-model="productDescription" placeholder="Deskripsi singkat" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="vp-price">Harga per Unit (Rp, opsional)</Label>
+                      <Input id="vp-price" v-model.number="productPrice" type="number" placeholder="mis. 1200000" />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" @click="isProductDialogOpen = false">Batal</Button>
+                    <Button :disabled="!productName.trim()" @click="submitProduct">Simpan</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </template>
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama Produk/Layanan</TableHead>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Harga</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="product in products" :key="product.id">
+                  <TableCell class="font-medium text-foreground">{{ product.name }}</TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, product.category).label" :tone="findStatusOption(SERVICE_TYPES, product.category).tone" /></TableCell>
+                  <TableCell class="text-muted-foreground">{{ product.description ?? '—' }}</TableCell>
+                  <TableCell class="text-muted-foreground">{{ product.priceIdr ? formatCurrencyIdr(product.priceIdr) : '—' }}</TableCell>
+                </TableRow>
+                <TableEmpty v-if="products.length === 0" :colspan="4">Belum ada produk/layanan untuk vendor ini.</TableEmpty>
               </TableBody>
             </Table>
           </SectionCard>

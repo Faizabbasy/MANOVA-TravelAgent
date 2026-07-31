@@ -209,8 +209,11 @@ function agingLabel(days: number): string {
 /* ==================================================
  * Visibilitas per section (docs/route-and-role-matrix.md bagian 5/6 — lihat catatan implementasi Section 16
  * di dokumen tsb untuk pemetaan 6 section granular terhadap 4 section yang tercatat di bagian 5).
+ * `account-executive` ditambahkan Prompt 19 (Change Request) — AE mengambil alih pengelolaan Opportunity/
+ * Quotation dari Sales, jadi turut melihat Sales Pipeline (Sales tetap melihatnya juga, kini sebagai
+ * konteks lintas-tim, tidak lagi mengelola langsung).
  * ================================================== */
-const showSalesPipeline = visibleTo('sales', 'management', 'super-admin', 'viewer')
+const showSalesPipeline = visibleTo('sales', 'account-executive', 'management', 'super-admin', 'viewer')
 const showProjectPerformance = visibleTo('project-manager', 'management', 'super-admin', 'viewer')
 const showDepartureReadiness = visibleTo('project-manager', 'management', 'super-admin', 'viewer')
 const showVendorSummary = visibleTo('project-manager', 'finance', 'management', 'super-admin', 'viewer')

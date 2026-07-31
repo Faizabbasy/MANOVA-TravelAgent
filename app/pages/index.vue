@@ -222,7 +222,7 @@ const kpiCards = computed(() => [
   },
   {
     key: 'open-opportunities', title: 'Open Opportunities', value: String(openOpportunities.value.length), icon: Handshake,
-    visible: visibleTo('sales', 'management', 'super-admin', 'viewer').value,
+    visible: visibleTo('sales', 'account-executive', 'management', 'super-admin', 'viewer').value,
   },
   {
     key: 'upcoming-departures', title: 'Upcoming Departures', value: String(upcomingDepartures.value.length), icon: PlaneTakeoff,
@@ -244,15 +244,20 @@ const kpiCards = computed(() => [
 
 /* ==================================================
  * Widget visibility per role (docs/route-and-role-matrix.md bagian 6, LOCKED D-031)
+ * `account-executive`/`supplier` (Prompt 19 — Change Request) ditambahkan ke widget yang relevan agar
+ * kedua role baru tidak mendapat Dashboard kosong (mockup-scope.md bagian 12, Definition of Done:
+ * "tanpa role yang menyebabkan... halaman kosong tak terduga") — AE mewarisi widget Opportunity/Quotation
+ * dari Sales (D-047, sekarang AE yang mengelola pipeline tsb); Supplier mendapat widget welcome tersendiri
+ * (data internal MANOVA tetap tidak ditampilkan ke Supplier, konsisten isolasi D-048).
  * ================================================== */
-const showPipeline = visibleTo('sales', 'management', 'super-admin', 'viewer')
+const showPipeline = visibleTo('sales', 'account-executive', 'management', 'super-admin', 'viewer')
 const showProjectsByStatus = visibleTo('management', 'super-admin', 'viewer')
 const showBudgetVsActual = visibleTo('management', 'finance', 'super-admin', 'viewer')
 const showCostBreakdown = visibleTo('finance', 'super-admin')
 const showOutstanding = visibleTo('finance', 'management', 'super-admin', 'viewer')
 const showAttentionGlobal = visibleTo('management', 'super-admin', 'viewer')
 const showRecentActivity = visibleTo('management', 'super-admin', 'viewer')
-const showQuotationsPending = visibleTo('sales', 'super-admin')
+const showQuotationsPending = visibleTo('sales', 'account-executive', 'super-admin')
 const showFollowUps = visibleTo('sales')
 const showUpcomingDepartures = visibleTo('project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'super-admin')
 const showServiceReadiness = visibleTo('operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'super-admin')
@@ -261,6 +266,7 @@ const showMyAttention = visibleTo('project-manager')
 const showMyTasks = visibleTo('project-manager')
 const showMyChanges = visibleTo('project-manager')
 const showAdminSummary = visibleTo('super-admin')
+const showSupplierWelcome = visibleTo('supplier')
 </script>
 
 <template>
@@ -326,6 +332,14 @@ const showAdminSummary = visibleTo('super-admin')
     </SectionCard>
 
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <SectionCard v-if="showSupplierWelcome" title="Supplier Portal">
+        <p class="text-sm text-muted-foreground mb-3">
+          Dashboard lintas-domain ini menampilkan data internal MANOVA (project/CRM) yang tidak relevan untuk role Supplier.
+          Gunakan Supplier Portal untuk melihat company, produk/layanan, dan assignment/quotation milik Anda sendiri.
+        </p>
+        <NuxtLink to="/supplier"><Button size="sm">Buka Supplier Portal</Button></NuxtLink>
+      </SectionCard>
+
       <SectionCard v-if="showPipeline" title="Opportunity Pipeline" description="Dikelompokkan per stage, seluruh party.">
         <StatusBreakdownList :items="opportunityPipeline" empty-label="Tidak ada opportunity dalam pipeline" />
       </SectionCard>

@@ -100,3 +100,15 @@ Log kronologis progres pengerjaan mockup MANOVA di atas template Nuxt 4 existing
 - **Decisions:** Tidak ada keputusan LOCKED baru yang mengubah IA/route/role (implementasi mengikuti keputusan existing apa adanya). Klarifikasi implementasi dicatat sebagai D-041–D-044 di `docs/mockup-design-decisions.md`.
 - **Open issues:** Q8 (tooling lint/typecheck) **tetap belum terselesaikan** meski dicatat harus selesai "di dalam fase Foundation" — diputuskan untuk TIDAK menginstal `eslint`/`vue-tsc` pada tahap ini karena Prompt 5 sendiri tidak secara eksplisit memerintahkan instalasi package baru, dan kebijakan D-036 mengutamakan kehati-hatian; status Q8 diperbarui menjadi tetap blocking sebelum fase CRM, sekarang dengan catatan tambahan ini. Q7/Q9/Q10/Q11 tidak berubah.
 - **Next recommended prompt:** Keputusan Q8 (lint/typecheck tooling) sebaiknya diselesaikan secara eksplisit (instal `eslint`+config, putuskan `vue-tsc`) sebelum atau di awal Prompt 6 (CRM), lalu lanjut ke modul CRM sesuai phasing `docs/template-reuse-mapping.md` bagian I. Menunggu perintah user — tidak dieksekusi otomatis.
+
+## Entri 7 — Prompt 19: Change Request — Customer Journey, Account Executive, Supplier, dan Commercial Approval
+
+- **Date:** 2026-07-30
+- **Phase:** Prompt 19 (`prompts/21-PROMPT-19-CHANGES-&-UPDATE.md`) — change request di atas mockup 18-section yang sudah COMPLETED (Section 00–18, lihat `docs/mockup-section-progress.md`).
+- **Status:** Selesai.
+- **Completed:** Ringkasan singkat — narasi lengkap sengaja **tidak diduplikasi di sini** (konsisten prinsip "hapus duplikasi hanya bila maknanya benar-benar sama", sesuai catatan `docs/mockup-section-reports/README.md`). Detail penuh: `docs/mockup-section-reports/change-customer-journey-ae-supplier.md`. Ringkasan: 2 role baru (Account Executive, Supplier — total 13 role); entitas `Lead`/`LeadActivity` baru; Commercial Approval workflow pada Quotation (terpisah dari Won approval existing); modul baru Customer Journey (`/customer-journey/*`: Dashboard, Leads Table/Kanban/Inbox+drawer, Customers, Project Orders, Lead Source Recap — Customers/Project Orders mereuse `Party`/`Project` existing, bukan entitas paralel); Activity Center (`/activity-center`, Super Admin); Supplier Portal (`/supplier/*`, vendor-isolated) + tab "Products" baru di Vendor Detail; `Opportunity.ownerId` di-reassign dari Sales ke AE.
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` (entri CI baru) dan laporan perubahan untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test HTTP seluruh route baru dan existing (curl); verifikasi konten (Commercial Approval badge, isolasi supplier per vendor, angka Lead Source Recap dihitung ulang manual dan cocok); `vitest`/`typecheck` tetap pre-existing gap (Q8).
+- **Decisions:** D-046 s/d seterusnya dicatat di `docs/mockup-design-decisions.md` Kelompok I.
+- **Open issues:** Q8 tetap terbuka. Lihat laporan perubahan bagian Known Issues untuk daftar lengkap.
+- **Next recommended prompt:** Tidak ada section mockup baku selanjutnya (18 section sudah COMPLETED) — menunggu perintah user untuk perubahan/permintaan berikutnya.

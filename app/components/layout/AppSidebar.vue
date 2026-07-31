@@ -15,7 +15,7 @@ import { NAV_ITEMS, type NavItem } from '~/constants/navigation'
 const route = useRoute()
 const router = useRouter()
 const { isCollapsed, toggle } = useSidebar()
-const { currentUser } = useCurrentUser()
+const { currentUser, currentRole } = useCurrentUser()
 const { canView } = usePermissions()
 
 const handleLogout = () => {
@@ -24,10 +24,16 @@ const handleLogout = () => {
   router.push('/login')
 }
 
+/** `roles` (Prompt 19) — narrow override, dicek DULU (menggantikan `moduleKey`) bila diisi; selain itu perilaku identik sebelumnya. */
+function isNavItemVisible(item: NavItem) {
+  if (item.roles) return item.roles.includes(currentRole.value)
+  return !item.moduleKey || canView(item.moduleKey)
+}
+
 const visibleItems = computed(() =>
-  NAV_ITEMS.filter(item => !item.moduleKey || canView(item.moduleKey)).map(item => ({
+  NAV_ITEMS.filter(isNavItemVisible).map(item => ({
     ...item,
-    children: item.children?.filter(child => !child.moduleKey || canView(child.moduleKey)),
+    children: item.children?.filter(isNavItemVisible),
   })),
 )
 

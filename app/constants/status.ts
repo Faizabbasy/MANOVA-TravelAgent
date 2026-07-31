@@ -1,10 +1,11 @@
 import type { StatusOption } from '~/types/common'
-import type { OpportunityStage } from '~/types/opportunity'
+import type { OpportunityStage, QuotationApprovalStatus } from '~/types/opportunity'
 import type { ProjectStatus, ProjectCharacteristic, ServiceStatus, ServiceTypeKey, RoomType } from '~/types/project'
 import type { InvoiceStatus } from '~/types/finance'
 import type { PartyActivityType } from '~/types/party'
 import type { VendorQuotationStatus } from '~/types/vendor'
 import type { ChangeCategory, ChangeApprovalStatus } from '~/types/activity'
+import type { LeadSource, LeadStage } from '~/types/lead'
 
 /**
  * Source of truth untuk seluruh status/enum MANOVA (Prompt 5-G, menggeneralisasi D-038).
@@ -117,6 +118,35 @@ export const TASK_STATUSES: StatusOption<'not-started' | 'in-progress' | 'pendin
   { value: 'pending-confirmation', label: 'Pending Confirmation', tone: 'warning', order: 3 },
   { value: 'done', label: 'Done', tone: 'success', order: 4 },
   { value: 'overdue', label: 'Overdue', tone: 'destructive', order: 5 },
+]
+
+/** Lead source (Prompt 19 — Change Request) — dipakai `/customer-journey/leads`, Lead Source Recap, Activity Center. */
+export const LEAD_SOURCES: StatusOption<LeadSource>[] = [
+  { value: 'website', label: 'Website', tone: 'info', order: 1 },
+  { value: 'instagram', label: 'Instagram', tone: 'purple', order: 2 },
+  { value: 'tiktok', label: 'TikTok', tone: 'neutral', order: 3 },
+  { value: 'whatsapp', label: 'WhatsApp', tone: 'success', order: 4 },
+  { value: 'referral', label: 'Referral', tone: 'primary', order: 5 },
+  { value: 'event', label: 'Event', tone: 'warning', order: 6 },
+  { value: 'email', label: 'Email', tone: 'info', order: 7 },
+  { value: 'sales-outreach', label: 'Sales Outreach', tone: 'primary', order: 8 },
+  { value: 'other', label: 'Lainnya', tone: 'neutral', order: 9 },
+]
+
+/** Lead stage (Prompt 19) — dipakai Table/Kanban/Inbox view `/customer-journey/leads`. */
+export const LEAD_STAGES: StatusOption<LeadStage>[] = [
+  { value: 'new', label: 'New', tone: 'neutral', order: 1 },
+  { value: 'contacted', label: 'Contacted', tone: 'info', order: 2 },
+  { value: 'qualified', label: 'Qualified', tone: 'success', order: 3 },
+  { value: 'unqualified', label: 'Unqualified', tone: 'destructive', order: 4 },
+]
+
+/** Quotation Commercial Approval (Prompt 19) — dipakai Opportunity Detail (AE submit, Management approve/reject). */
+export const QUOTATION_APPROVAL_STATUSES: StatusOption<QuotationApprovalStatus>[] = [
+  { value: 'draft', label: 'Draft', tone: 'neutral', order: 1 },
+  { value: 'submitted', label: 'Menunggu Approval', tone: 'warning', order: 2 },
+  { value: 'approved', label: 'Disetujui', tone: 'success', order: 3 },
+  { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 4 },
 ]
 
 export function findStatusOption<T extends string>(list: StatusOption<T>[], value: T): StatusOption<T> {

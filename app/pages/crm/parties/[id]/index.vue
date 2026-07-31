@@ -17,8 +17,10 @@ const router = useRouter()
 const { currentRole, currentUser } = useCurrentUser()
 const { canView } = usePermissions()
 
-/** Lihat catatan yang sama di `crm/prospects.vue` — pengecualian sempit, bukan mekanisme role-check baru. */
-const canManageParty = computed(() => ['sales', 'super-admin'].includes(currentRole.value))
+/** Lihat catatan yang sama di `crm/prospects.vue` — pengecualian sempit, bukan mekanisme role-check baru.
+ * `account-executive` ditambahkan Prompt 19 — AE "mengelola relationship dengan prospect/client" (literal
+ * responsibility split), Sales tetap dipertahankan (tidak ada larangan eksplisit Party-level di Prompt 19). */
+const canManageParty = computed(() => ['sales', 'account-executive', 'super-admin'].includes(currentRole.value))
 
 const party = computed(() => getPartyById(String(route.params.id)))
 useHead({ title: computed(() => party.value ? party.value.name : 'Party Tidak Ditemukan') })

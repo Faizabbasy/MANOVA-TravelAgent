@@ -29,6 +29,19 @@ export const PROJECTS: Project[] = reactive([
     ownerId: 'USR-002', teamUserIds: ['USR-004', 'USR-005', 'USR-006', 'USR-007', 'USR-009'], status: 'in-progress',
     quotationAmountIdr: 1_400_000_000, budgetIdr: 1_250_000_000, actualCostIdr: 1_180_000_000,
   },
+  /**
+   * PRJ-104 (Prompt 19 — Change Request) — Project Order kedua untuk repeat client PTY-001 (sumber:
+   * OPP-008/QUO-008, `app/data/opportunities.ts`), memenuhi skenario "Active Client dengan beberapa
+   * Project Orders". Sengaja `draft`/actualCost 0 — project baru saja terbentuk dari Won, belum ada
+   * service/vendor/invoice yang diisi Operations (kondisi realistis, bukan gap tersembunyi).
+   */
+  {
+    id: 'PRJ-104', name: 'Manila Follow-up Training Q1 2027', partyId: 'PTY-001', opportunityId: 'OPP-008',
+    sourceQuotationId: 'QUO-008', destination: 'Manila, Filipina', travelStartDate: '2027-02-16', travelEndDate: '2027-02-18',
+    characteristic: 'normal', serviceScope: ['flight'], travelerCount: 8,
+    ownerId: 'USR-002', teamUserIds: [], status: 'draft',
+    quotationAmountIdr: 60_000_000, budgetIdr: 60_000_000, actualCostIdr: 0,
+  },
 ])
 
 /**

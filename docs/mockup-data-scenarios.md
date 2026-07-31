@@ -28,6 +28,9 @@ Landasan: `docs/mockup-information-architecture.md`, `docs/route-and-role-matrix
 | USR-009 | Fajar Nugroho | Operations |
 | USR-010 | Admin MANOVA | Super Admin |
 | USR-011 | Dewi Anggraini | Viewer / Auditor |
+| USR-014 | Galih Ramadhan | Account Executive *(Prompt 19)* |
+| USR-015 | Hasan Alfarizi | Supplier — PT ABC (`vendorId: VND-006`) *(Prompt 19)* |
+| USR-016 | Ika Puspitasari | Supplier — PT EFG (`vendorId: VND-007`) *(Prompt 19)* |
 
 ### 0.2 Vendors (fiktif, bukan brand nyata — sesuai D-006)
 
@@ -38,6 +41,8 @@ Landasan: `docs/mockup-information-architecture.md`, `docs/route-and-role-matrix
 | VND-003 | Trans Wahana Logistik | Transportation | PRJ-103 |
 | VND-004 | Cendana MICE Organizer | MICE | PRJ-103 |
 | VND-005 | CV Wisata Kargo Ekspres | Transportation (cadangan) | PRJ-103 |
+| VND-006 | PT ABC | Hotel (supplier External Partner) | — *(belum ditugaskan ke project, Prompt 19)* |
+| VND-007 | PT EFG | MICE (supplier External Partner) | — *(belum ditugaskan ke project, Prompt 19)* |
 
 ---
 
@@ -340,6 +345,26 @@ Detail lengkap ada di `docs/mockup-section-reports/section-15-project-finance.md
 
 ---
 
+## 4j. Lead, Account Executive, dan Supplier Detail (ditambahkan Prompt 19 — Change Request)
+
+Entitas baru `Lead`/`LeadActivity`/`VendorProduct`/`SystemEvent`, plus reassignment `Opportunity.ownerId` dan 1 Opportunity/Project baru untuk skenario repeat client — lihat D-046–D-052 (`docs/mockup-design-decisions.md`) untuk rasional lengkap.
+
+**Leads (`LED-001`–`LED-010`):** satu lead per sumber wajib (`website` ×2, `instagram`, `tiktok`, `whatsapp`, `referral`, `event`, `email`, `sales-outreach`, `other`). `LED-001` ("CV Nirmala Eventama") = qualified milik AE, belum dikonversi — live-demo "Qualify & Create Opportunity". `LED-005` = qualified, sudah terhubung ke `OPP-005`/`PTY-004` (Bali Team Building, existing sejak Section 08). `LED-009` = qualified, sudah terhubung ke `OPP-001`/`PTY-001` (Manila, Won — sejak Foundation). `LED-010` = archived (contoh filter "Archived leads").
+
+**Commercial Approval:** `QUO-005` (OPP-005, Bali Team Building) — `approvalStatus: submitted`, skenario "satu quotation menunggu approval" (literal Prompt 19-9); `QUO-006` (OPP-006, Manila Repeat Business, PTY-001) — `approvalStatus: approved`, siap didemokan "Ajukan sebagai Won" → Approve Won. `QUO-001`/`002`/`003` (Won existing) di-backfill `approved`; `QUO-004` (Lost) dibiarkan tanpa `approvalStatus`.
+
+**Repeat Client — Beberapa Project Order:** `OPP-008`/`QUO-008`/`PRJ-104` ("Manila Follow-up Training Q1 2027") — Opportunity Won kedua untuk `PTY-001` (yang sudah punya `PRJ-101`), memenuhi literal "satu Active Client dengan beberapa Project Orders" tanpa aksi interaktif tambahan. `PRJ-104` sengaja `draft`/`actualCostIdr: 0` (baru terbentuk dari Won, belum diisi Operations).
+
+**Account Executive Ownership:** `Opportunity.ownerId` pada `OPP-001`–`OPP-008` seluruhnya `USR-014` (Galih Ramadhan, satu-satunya AE demo) — reassignment dari `USR-001` (Sales), lihat D-047.
+
+**Supplier / External Partners:** `VND-006` ("PT ABC", fokus Hotel) dan `VND-007` ("PT EFG", fokus MICE) — masing-masing 1 supplier user ter-isolasi (`USR-015`/`USR-016`, `vendorId` mengarah ke company masing-masing) dan katalog produk berbeda (`VendorProduct`: `VPR-001`/`002` milik PT ABC — kamar & meeting room; `VPR-003`/`004` milik PT EFG — venue & event organizer).
+
+**Lead Source Recap (dihitung, bukan disimpan):** Total Leads 10, Qualified 3 (`LED-001`/`005`/`009`), Opportunities Created 2 (`LED-005`/`009` — punya `opportunityId`), Won 1 (`LED-009` → `OPP-001` Won). Diverifikasi ulang lewat smoke test curl terhadap halaman `/customer-journey/lead-sources` — cocok persis.
+
+**Activity Center:** 22 `SystemEvent` (`EVT-001`–`EVT-022`) merentang seluruh 8 modul (lead/opportunity/quotation/client/project-order/vendor/finance/user), `entityId` merujuk ID entitas existing di atas — tidak ada entity baru yang difabrikasi khusus untuk log.
+
+---
+
 ## 5. Role-Restricted Finance View (bukan record baru, kondisi tampilan atas PRJ-103)
 
 Menggunakan **PRJ-103** sebagai subjek konkret untuk mendemonstrasikan Role & Access Matrix (`docs/route-and-role-matrix.md` bagian 5) pada tab "Finance":
@@ -398,6 +423,7 @@ Setiap ID pada dokumen ini **wajib dipakai identik** di seluruh titik implementa
 - `PROJECT_SERVICES` sejak Section 12 juga `reactive()` (bagian 4f) — `updateServiceStatus` (`app/data/index.ts`) ter-propagate seketika ke tab Itinerary & Services DAN tab Overview (Service Summary, Section 10) tanpa reload karena keduanya membaca array yang sama; transisi ke status `changed` juga menambah entri `ACTIVITIES` (prefix `ACT-` sekuensial, konsisten dengan skema existing).
 - `VENDORS` sejak Section 13 juga `reactive()` (bagian 4g) — `createVendor`/`createVendorContact`/`submitVendorQuotation`/`acceptVendorQuotation`/`rejectVendorQuotation` (`app/data/index.ts`) ter-propagate seketika ke `/vendors`, Vendor Detail, dan tab "Vendors" Project Detail tanpa reload. `acceptVendorQuotation` memanggil `updateServiceStatus` (Section 12) untuk mengonfirmasi service — bukan mutasi `PROJECT_SERVICES` paralel.
 - `ACTIVITIES` sejak Section 09 sudah `reactive()`; Section 14 menambah `createChangeEntry`/`approveChangeEntry`/`rejectChangeEntry` (`app/data/index.ts`) yang memutasi array yang sama — ter-propagate seketika ke tab "Activity & Changes" DAN (via `isChange`/`reviewed` yang tidak diubah semantiknya) widget attention/recent-activity existing (Section 06/10) tanpa reload. ID Change baru mengikuti prefix `CHG-` sekuensial global (bagian 4h).
+- **Prompt 19 (Change Request):** prefix ID baru — `LED-` Lead, `LACT-` Lead Activity, `VPR-` Vendor Product, `EVT-` System Event (bagian 4j). `LEADS`/`LEAD_ACTIVITIES`/`VENDOR_PRODUCTS` seluruhnya `reactive()` (pola sama sejak Section 07) — `createLead`/`createLeadActivity`/`archiveLead`/`qualifyLeadAndCreateOpportunity`/`createVendorProduct` (`app/data/index.ts`) ter-propagate seketika tanpa reload. `qualifyLeadAndCreateOpportunity` mencari `Party` existing berdasarkan nama company dulu (cegah duplicate company) sebelum membuat baru — ID `PTY-`/`OPP-` baru tetap mengikuti skema sekuensial yang sama. `SYSTEM_EVENTS` (Activity Center) BUKAN `reactive()` — murni log seed statis, tidak ada mutator (tidak ada aksi UI yang menambah event baru pada implementasi ini).
 
 ## 8. Batasan
 

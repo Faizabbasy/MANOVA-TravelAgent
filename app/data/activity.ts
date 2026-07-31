@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import type { ActivityEntry, ProjectDocument, ProjectTask } from '~/types/activity'
+import type { ActivityEntry, ProjectDocument, ProjectTask, SystemEvent } from '~/types/activity'
 
 /** `reactive()` (Section 09) — approve Won harus mencatat entri Activity baru untuk project yang baru dibuat. */
 
@@ -43,6 +43,8 @@ export const ACTIVITIES: ActivityEntry[] = reactive([
     beforeValue: '20 pax', afterValue: '25 pax', approvalStatus: 'approved', approvedBy: 'USR-003',
     impactNote: 'Rooming list Group Sales Team (GRP-002) disesuaikan menjadi 12 twin + 1 single.',
   },
+  /** PRJ-104 (Prompt 19) — mengikuti pola entri `approveOpportunityWon` (Section 09) untuk project yang di-seed langsung. */
+  { id: 'ACT-1041', projectId: 'PRJ-104', message: 'Project PRJ-104 dibuat dari Opportunity OPP-008 (Won oleh Sari Wijaya/Management)', isChange: false, reviewed: true, createdAt: '2026-07-24' },
 ])
 
 export const DOCUMENTS: ProjectDocument[] = [
@@ -71,3 +73,34 @@ export const TASKS: ProjectTask[] = [
   { id: 'TSK-1034', projectId: 'PRJ-103', title: 'Rekonsiliasi actual cost transportation', status: 'overdue', dueAt: '2026-07-25' },
   { id: 'TSK-1035', projectId: 'PRJ-103', title: 'Verifikasi ulang manifest VIP sebelum keberangkatan', status: 'in-progress', dueAt: '2026-08-05' },
 ]
+
+/**
+ * System Event (Prompt 19 — Change Request, Activity Center Super Admin). Log mock lintas-modul,
+ * `entityId` merujuk ID entitas sumber yang sudah ada (`LEADS`/`OPPORTUNITIES`/`QUOTATIONS`/`PARTIES`/
+ * `PROJECTS`/`VENDOR_QUOTATIONS`/`INVOICES`/`USERS`) — bukan log paralel yang memfabrikasi entitas baru.
+ * Diurutkan kronologis (lama → baru) mengikuti tanggal transaksi entitas aslinya.
+ */
+export const SYSTEM_EVENTS: SystemEvent[] = reactive([
+  { id: 'EVT-001', module: 'user', type: 'user-created', message: 'User Galih Ramadhan (Account Executive) ditambahkan ke sistem', entityId: 'USR-014', userId: 'USR-010', createdAt: '2026-06-01' },
+  { id: 'EVT-002', module: 'opportunity', type: 'opportunity-created', message: 'Opportunity OPP-001 "Manila Business Trip Q3 2026" dibuat', entityId: 'OPP-001', userId: 'USR-014', createdAt: '2026-06-10' },
+  { id: 'EVT-003', module: 'quotation', type: 'quotation-approved', message: 'Quotation QUO-001 (Rp 95.000.000) disetujui Management', entityId: 'QUO-001', userId: 'USR-003', createdAt: '2026-06-24' },
+  { id: 'EVT-004', module: 'opportunity', type: 'opportunity-won', message: 'Opportunity OPP-001 ditandai Won', entityId: 'OPP-001', userId: 'USR-003', createdAt: '2026-06-25' },
+  { id: 'EVT-005', module: 'client', type: 'client-activated', message: 'PT Cipta Distribusi Nusantara (PTY-001) berubah status menjadi Active Client', entityId: 'PTY-001', createdAt: '2026-06-25' },
+  { id: 'EVT-006', module: 'project-order', type: 'project-order-created', message: 'Project Order PRJ-101 dibuat dari Opportunity OPP-001', entityId: 'PRJ-101', createdAt: '2026-06-25' },
+  { id: 'EVT-007', module: 'finance', type: 'invoice-issued', message: 'Invoice INV-1011 (Rp 95.000.000) diterbitkan untuk PRJ-101', entityId: 'INV-1011', createdAt: '2026-06-26' },
+  { id: 'EVT-008', module: 'finance', type: 'payment-received', message: 'Payment PAY-1011 (Rp 95.000.000) diterima, INV-1011 lunas', entityId: 'PAY-1011', createdAt: '2026-07-10' },
+  { id: 'EVT-009', module: 'vendor', type: 'supplier-quotation-submitted', message: 'Vendor VND-003 mengajukan quotation VQ-009 untuk PRJ-103', entityId: 'VQ-009', createdAt: '2026-07-15' },
+  { id: 'EVT-010', module: 'vendor', type: 'supplier-quotation-submitted', message: 'Vendor VND-005 mengajukan quotation kompetitor VQ-010 untuk PRJ-103', entityId: 'VQ-010', createdAt: '2026-07-16' },
+  { id: 'EVT-011', module: 'lead', type: 'lead-created', message: 'Lead LED-010 "Toni Gunawan" (UD Gunawan Sejahtera) masuk dari sumber Other', entityId: 'LED-010', createdAt: '2026-06-15' },
+  { id: 'EVT-012', module: 'lead', type: 'lead-assigned', message: 'Lead LED-006 "Wahyu Setiadi" ditugaskan ke Rani Kusuma (Sales)', entityId: 'LED-006', userId: 'USR-001', createdAt: '2026-07-12' },
+  { id: 'EVT-013', module: 'lead', type: 'lead-created', message: 'Lead LED-004 "Doni Ferdian" masuk dari sumber WhatsApp', entityId: 'LED-004', createdAt: '2026-07-18' },
+  { id: 'EVT-014', module: 'lead', type: 'lead-follow-up-added', message: 'Follow-up dijadwalkan untuk Lead LED-004', entityId: 'LED-004', userId: 'USR-001', createdAt: '2026-07-26' },
+  { id: 'EVT-015', module: 'lead', type: 'lead-qualified', message: 'Lead LED-005 "Nadia Ramadhani" di-qualify dan diserahkan ke Account Executive', entityId: 'LED-005', userId: 'USR-014', createdAt: '2026-07-18' },
+  { id: 'EVT-016', module: 'opportunity', type: 'opportunity-created', message: 'Opportunity OPP-005 "Bali Team Building 2026" dibuat dari Lead LED-005', entityId: 'OPP-005', userId: 'USR-014', createdAt: '2026-07-05' },
+  { id: 'EVT-017', module: 'quotation', type: 'quotation-submitted', message: 'Quotation QUO-005 (Rp 180.000.000) diajukan untuk commercial approval', entityId: 'QUO-005', userId: 'USR-014', createdAt: '2026-07-22' },
+  { id: 'EVT-018', module: 'quotation', type: 'quotation-approved', message: 'Quotation QUO-006 (Rp 60.000.000) disetujui Management', entityId: 'QUO-006', userId: 'USR-003', createdAt: '2026-07-23' },
+  { id: 'EVT-019', module: 'opportunity', type: 'opportunity-won', message: 'Opportunity OPP-008 (repeat client PT Cipta Distribusi Nusantara) ditandai Won', entityId: 'OPP-008', userId: 'USR-003', createdAt: '2026-07-24' },
+  { id: 'EVT-020', module: 'project-order', type: 'project-order-created', message: 'Project Order PRJ-104 dibuat dari Opportunity OPP-008 — Project Order kedua PT Cipta Distribusi Nusantara', entityId: 'PRJ-104', createdAt: '2026-07-24' },
+  { id: 'EVT-021', module: 'user', type: 'user-created', message: 'Supplier user Hasan Alfarizi (PT ABC) ditambahkan, terisolasi ke VND-006', entityId: 'USR-015', userId: 'USR-010', createdAt: '2026-07-27' },
+  { id: 'EVT-022', module: 'user', type: 'user-created', message: 'Supplier user Ika Puspitasari (PT EFG) ditambahkan, terisolasi ke VND-007', entityId: 'USR-016', userId: 'USR-010', createdAt: '2026-07-27' },
+])

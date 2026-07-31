@@ -45,5 +45,19 @@ export interface VendorActivity {
   createdAt: string
 }
 
-/** Tab identifiers Vendor Detail (docs/mockup-information-architecture.md bagian 3.6, LOCKED — 4 tab). */
-export type VendorDetailTab = 'overview' | 'services' | 'quotations' | 'contacts'
+/** Tab identifiers Vendor Detail — 4 tab LOCKED (docs/mockup-information-architecture.md bagian 3.6) + `products` (Prompt 19, Change Request — katalog produk/layanan supplier). */
+export type VendorDetailTab = 'overview' | 'services' | 'quotations' | 'contacts' | 'products'
+
+/**
+ * Product/service catalog (Prompt 19 — Change Request, area Supplier/External Partners). Satu vendor
+ * company dapat menjual beberapa produk/layanan berbeda — dipakai tab "Products" Vendor Detail dan
+ * halaman `/supplier/products` (portal supplier, discope ke `vendorId` milik sendiri via `usePermissions`).
+ */
+export interface VendorProduct {
+  id: ID
+  vendorId: ID
+  name: string
+  category: ServiceTypeKey
+  description?: string
+  priceIdr?: number
+}

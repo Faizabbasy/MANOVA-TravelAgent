@@ -36,6 +36,22 @@ Tabel ringkas lintas seluruh route (detail per kolom Purpose/Required data ada d
 | `/admin/roles` | Administration | Roles and Permissions | Sidebar — Administration > Roles | Ya | Super Admin:`ADMIN`, Management:`VIEW` | Lihat/kelola role matrix | Komponen baru "Role Matrix" | Administration | phase later |
 | `/admin/audit-trail` | Administration | Audit Trail | Sidebar — Administration > Audit Trail | Ya | Super Admin:`ADMIN`, Management/Viewer:`VIEW` | Lihat log aktivitas lintas modul | Adaptasi `RecentActivity.vue` (skala global) | Administration | phase later |
 
+**Baris berikut ditambahkan Prompt 19 (Change Request, 2026-07-30) — lihat bagian 1.9 untuk detail lengkap:**
+
+| Route | Module | Page | Menu placement | Demo inclusion | Role access (ringkas) | Main action | Reuse source | Implementation phase | Status |
+|---|---|---|---|---|---|---|---|---|---|
+| `/customer-journey` | Customer Journey | Customer Journey Dashboard | Sidebar — Customer Journey | Ya | Super Admin/Management/AE: penuh; Sales: terbatas Lead; PM/Finance/Viewer: `VIEW` | Ringkasan Lead/Opportunity pipeline | `StatsCard`/`StatusBreakdownList` (reuse Dashboard) | Change Request 19 | **selesai** |
+| `/customer-journey/leads` | Customer Journey | Leads | Sidebar — Customer Journey > Leads | Ya | Sales/AE/Super Admin: `MANAGE`; lainnya dengan `crm` VIEW+: `VIEW` | Table/Kanban/Inbox, Qualify & Create Opportunity, Archive | `Sheet` primitive (baru dipakai pertama kali) + pola table/dialog existing | Change Request 19 | **selesai** |
+| `/customer-journey/customers` | Customer Journey | Customers | Sidebar — Customer Journey > Customers | Ya | Sama seperti `Party` (D-050), **kecuali Sales** (lihat 1.9) | Lihat directory Company | Reuse `Party`/`Table` existing | Change Request 19 | **selesai** |
+| `/customer-journey/customers/[id]` | Customer Journey | Customer Detail | Kontekstual dari Customers | Ya | Sama seperti parent | Overview/Contacts/Opportunities/Project Orders/Activities/Documents | Adaptasi arsitektur tab Party Detail | Change Request 19 | **selesai** |
+| `/customer-journey/project-orders` | Customer Journey | Project Orders | Sidebar — Customer Journey > Project Orders | Ya | Sama seperti `Project` (D-050), **kecuali Sales** | Lihat seluruh Project Order | Reuse `Project`/`Table` existing | Change Request 19 | **selesai** |
+| `/customer-journey/project-orders/[id]` | Customer Journey | Project Order Detail | Kontekstual dari Project Orders | Ya | Sama seperti parent | Overview/Financial/Documents/Activity | Adaptasi ringkas Project Workspace | Change Request 19 | **selesai** |
+| `/customer-journey/lead-sources` | Customer Journey | Lead Source Recap | Sidebar — Customer Journey > Lead Source Recap | Ya | Sama seperti Customers/Project Orders, **kecuali Sales** | Rekap performa sumber lead | `StatusBreakdownList`/`Table` | Change Request 19 | **selesai** |
+| `/activity-center` | Activity Center | Activity Center | Sidebar — Activity Center | Ya | **Super Admin saja** (narrow override, bukan `administration` generik) | Log lintas sistem | Adaptasi pola `/admin/audit-trail` | Change Request 19 | **selesai** |
+| `/supplier` | Supplier Portal | Supplier Dashboard | Sidebar — Supplier Portal | Ya | Supplier: `MANAGE` (ter-isolasi `vendorId`); Super Admin: `ADMIN` (oversight, tanpa `vendorId` → tampil "tidak ada akses") | Ringkasan company sendiri | `StatsCard`/`SectionCard` | Change Request 19 | **selesai** |
+| `/supplier/products` | Supplier Portal | Produk/Layanan Saya | Sidebar — Supplier Portal > Products | Ya | Sama seperti parent | Kelola katalog produk sendiri | Table generic + dialog | Change Request 19 | **selesai** |
+| `/supplier/orders` | Supplier Portal | Assignment & Quotation Saya | Sidebar — Supplier Portal > Orders | Ya | Sama seperti parent (read-only) | Lihat assignment/quotation sendiri | Table generic | Change Request 19 | **selesai** |
+
 *Tab "Projects" di Party Detail kondisional (lihat bagian 1.2).
 
 Route yang **excluded** (tidak dilanjutkan) tercantum di bagian 1.8, tidak diulang di tabel ini karena tidak punya Module/Menu placement/Role access yang berlaku (justru itu alasan exclusion).
@@ -158,6 +174,40 @@ Gerbang module-level halaman (`canView('reports')`) tidak berubah — Operations
 
 ---
 
+### 1.9 Customer Journey (Prompt 19 — Change Request)
+
+| Route | Page name | Parent menu | Purpose | Required data | Main reusable component | Access role | Demo? | Status |
+|---|---|---|---|---|---|---|---|---|
+| `/customer-journey` | Customer Journey Dashboard | Customer Journey | Hub + ringkasan Lead/Opportunity pipeline | `Lead[]`, `Opportunity[]`, `Party[]` | `StatsCard`/`StatusBreakdownList` | Lihat bagian 5 (baris baru) | Ya | **selesai** |
+| `/customer-journey/leads` | Leads | Customer Journey | Table/Kanban/Inbox, screening/qualification | `Lead[]`, `LeadActivity[]` | `Sheet` (drawer, baru dipakai), `Tabs` | Sales/AE/Super Admin: `MANAGE` (narrow exception `canManageLead`); role `crm` VIEW+ lain: `VIEW` | Ya | **selesai** |
+| `/customer-journey/customers` | Customers | Customer Journey | Directory Company (= `Party`, D-050) | `Party[]` | Table generic | Sama seperti `crm` VIEW+ **kecuali Sales** (`roles` override nav, lihat bagian 5) | Ya | **selesai** |
+| `/customer-journey/customers/[id]` | Customer Detail | Customer Journey | Overview/Contacts/Opportunities/Project Orders/Activities/Documents | `Party`, `ContactPerson[]`, `Opportunity[]`, `Project[]`, `PartyActivity[]`, `ProjectDocument[]` | Adaptasi arsitektur tab Party Detail | Sama seperti parent | Ya | **selesai** |
+| `/customer-journey/project-orders` | Project Orders | Customer Journey | Seluruh Project Order (= `Project`, D-050) | `Project[]` | Table generic | Sama seperti parent | Ya | **selesai** |
+| `/customer-journey/project-orders/[id]` | Project Order Detail | Customer Journey | Overview/Financial/Documents/Activity | `Project`, `Opportunity`, `Quotation`, `ActivityEntry[]`, `ProjectDocument[]` | Adaptasi ringkas Project Workspace | Sama seperti parent; Financial hanya `canViewFinancials` | Ya | **selesai** |
+| `/customer-journey/lead-sources` | Lead Source Recap | Customer Journey | Rekap performa sumber lead | `Lead[]`, `Opportunity[]` | `StatusBreakdownList`/Table | Sama seperti Customers/Project Orders | Ya | **selesai** |
+
+**Catatan implementasi:** Customers/Project Orders/Lead Source Recap **bukan** entitas/dataset baru (D-050) — 100% reuse `PARTIES`/`PROJECTS`/`OPPORTUNITIES` existing dengan lensa Account Executive-centric. Sales dibatasi ke Leads saja (literal Prompt 19-10 "Sales: terbatas pada Lead sesuai role matrix") — direalisasikan via 2 lapis: (1) nav item `roles` override (`app/constants/navigation.ts`, lihat D-052) sehingga link tidak tampil di sidebar; (2) page-level guard `canView('crm') && currentRole !== 'sales'` pada ketiga halaman tsb (defense in depth, akses langsung via URL tetap diblokir).
+
+### 1.10 Activity Center (Prompt 19 — Change Request)
+
+| Route | Page name | Parent menu | Purpose | Required data | Main reusable component | Access role | Demo? | Status |
+|---|---|---|---|---|---|---|---|---|
+| `/activity-center` | Activity Center | — (top-level) | Log lintas sistem (lead/opportunity/quotation/client/project-order/vendor/finance/user) | `SystemEvent[]` (baru) | Adaptasi pola `/admin/audit-trail` (stat tile + filter + list) | **Super Admin saja** — narrow `roles` override di nav DAN page-level (`currentRole === 'super-admin'`), BUKAN `canView('administration')` generik (yang juga memberi Management/Viewer `VIEW`, dipakai `/admin/audit-trail`) | Ya | **selesai** |
+
+**Catatan implementasi:** `SystemEvent` terpisah dari `ActivityEntry` (tab "Activity & Changes" Project Detail, LOCKED sejak Section 05/14, tidak disentuh) — log level-atas lintas modul, bukan pengganti/duplikasi log level-Project.
+
+### 1.11 Supplier Portal / External Partners (Prompt 19 — Change Request)
+
+| Route | Page name | Parent menu | Purpose | Required data | Main reusable component | Access role | Demo? | Status |
+|---|---|---|---|---|---|---|---|---|
+| `/supplier` | Supplier Dashboard | Supplier Portal | Ringkasan company sendiri | `Vendor` (1, ter-scope), `ProjectService[]`, `VendorQuotation[]`, `VendorProduct[]` | `StatsCard`/`SectionCard` | `supplier`: `MANAGE` (modul `supplier-portal`, D-048); `super-admin`: `ADMIN` (tapi tanpa `vendorId` → `RoleAccessState`, tidak bocor data vendor manapun) | Ya | **selesai** |
+| `/supplier/products` | Produk/Layanan Saya | Supplier Portal | Kelola katalog produk/layanan sendiri | `VendorProduct[]` (ter-scope) | Table generic + create-dialog | Sama seperti parent | Ya | **selesai** |
+| `/supplier/orders` | Assignment & Quotation Saya | Supplier Portal | Lihat assignment/quotation sendiri (read-only, lihat Q12) | `ProjectService[]`, `VendorQuotation[]` (ter-scope) | Table generic | Sama seperti parent | Ya | **selesai** |
+
+**Catatan implementasi (isolasi vendor, hard rule literal Prompt 19-1):** seluruh 3 halaman WAJIB memfilter data lewat `usePermissions().vendorScopeId` (`User.vendorId` milik user login) — tidak pernah membaca `VENDORS`/`PROJECT_SERVICES`/`VENDOR_QUOTATIONS`/`VENDOR_PRODUCTS` penuh. Modul `supplier-portal` **terpisah** dari modul `vendor` existing (direktori vendor internal, dilihat seluruh role internal — TIDAK diberikan ke role `supplier`, `ROLE_MODULE_ACCESS.supplier.vendor = 'NONE'`, mencegah supplier melihat direktori vendor lain). Tab "Products" baru ditambahkan ke `/vendors/[id]` (existing) — sumber data yang sama (`VendorProduct`) tampil baik dari sisi internal maupun `/supplier/products`.
+
+---
+
 ## 2. Opportunity-to-Project Workflow
 
 ### 2.1 Stage Opportunity
@@ -203,6 +253,8 @@ Saat Management/Super Admin menyetujui `WonRequested` → `Won`:
 - Model "Sales bisa langsung Won tanpa approval" ditolak karena berlawanan dengan instruksi eksplisit Prompt 3-E: *"Approval atau final win dapat dilakukan oleh Sales Manager, Management, atau role tertentu"* — mengindikasikan ada pihak selain Sales yang harus terlibat pada momen krusial ini (momen yang men-trigger pembuatan Project + alokasi budget).
 - Model "approval berjenjang berdasarkan nilai/kompleksitas opportunity" (mis. di bawah threshold nilai tertentu Sales bisa langsung Won, di atasnya perlu approval) **dipertimbangkan tapi tidak dipilih** untuk versi pertama karena menambah kompleksitas (perlu definisi threshold nilai/kompleksitas yang belum ada dasarnya di Prompt 0) — ini melanggar instruksi "pilih model paling sederhana yang tetap realistis". **Dicatat sebagai kemungkinan evolusi model di masa depan**, bukan dihapus dari pertimbangan (lihat `docs/mockup-open-questions.md` bila ingin divalidasi ke depannya).
 - Model ini tetap "realistis untuk demo" karena mencerminkan pola bisnis B2B yang umum: sales mengajukan, atasan/manajemen menyetujui deal besar — sekaligus cukup sederhana untuk disimulasikan dengan mock role check tanpa logic bercabang berlebihan.
+
+**Catatan implementasi Prompt 19 (Change Request, amandemen — bukan mengubah model dua-langkah di atas):** "Sales mengajukan" pada narasi di atas kini dilakukan oleh **Account Executive** (peran baru yang mengambil alih pengelolaan Opportunity/Quotation dari Sales — D-047, `docs/mockup-design-decisions.md`); "Management/Super Admin menyetujui" tidak berubah. Ditambahkan satu lapis baru **sebelum** "Submit as Won": **Commercial Approval** pada Quotation (AE submit → Management approve/reject nilai/discount/margin/payment terms/service scope/risk) yang harus `approved` sebelum tombol "Ajukan sebagai Won" aktif (D-049) — model dua-langkah Won itu sendiri (stage `won-requested → won`) tidak direstrukturisasi, murni ditambah gerbang commercial di depannya.
 
 **Permission ringkas:** `Opportunity.changeStatus(WonRequested)` = akses `MANAGE` (dimiliki Sales); `Opportunity.changeStatus(Won)` dari `WonRequested` = akses `APPROVE` (dimiliki Management, Super Admin). Super Admin otomatis mewarisi seluruh permission `APPROVE` sebagai bagian dari akses `ADMIN`.
 
@@ -314,19 +366,28 @@ stateDiagram-v2
 
 Level akses: `NONE` < `VIEW` < `MANAGE` < `APPROVE` < `ADMIN` (`ADMIN` mencakup seluruh kemampuan di bawahnya untuk modul tsb; `APPROVE` mencakup `MANAGE`+`VIEW` untuk aksi approval spesifik yang didefinisikan per modul).
 
-| Role \ Modul | CRM (Party/Opportunity/Quotation) | Project | Vendor | Finance | Reports | Administration |
-|---|---|---|---|---|---|---|
-| Super Admin | `ADMIN` | `ADMIN` | `ADMIN` | `ADMIN` | `ADMIN` (semua section) | `ADMIN` |
-| Management | `APPROVE` (approve Won) | `APPROVE` (approve perubahan besar/cancel) | `VIEW` | `VIEW` (termasuk margin) | `VIEW` (semua section) | `VIEW` |
-| Sales | `MANAGE` (hingga Won-Requested) | `VIEW` (project dari opportunity miliknya) | `NONE` | `NONE` (hanya lihat nilai quotation, bukan cost/margin) | `VIEW` (Sales Pipeline saja) | `NONE` |
-| Project Manager | `VIEW` | `MANAGE` (seluruh tab kecuali approval finance besar) | `VIEW` | `VIEW` (budget vs actual project miliknya, tanpa edit invoice) | `VIEW` (Project Performance) | `NONE` |
-| Operations | `NONE` | `VIEW` + `MANAGE` (tab Itinerary & Services — koordinasi umum) | `VIEW` | `NONE` | `NONE` | `NONE` |
-| Ticketing | `NONE` | `MANAGE` (subset: sub-section Flight di tab Itinerary & Services) | `VIEW` (vendor flight) | `NONE` | `NONE` | `NONE` |
-| Accommodation | `NONE` | `MANAGE` (subset: sub-section Hotel) | `VIEW` (vendor hotel) | `NONE` | `NONE` | `NONE` |
-| Transportation | `NONE` | `MANAGE` (subset: sub-section Transportation) | `VIEW` (vendor transport) | `NONE` | `NONE` | `NONE` |
-| MICE | `NONE` | `MANAGE` (subset: sub-section MICE) | `VIEW` (vendor MICE) | `NONE` | `NONE` | `NONE` |
-| Finance | `VIEW` (nilai quotation, untuk konteks invoice) | `VIEW` (tab Finance) | `VIEW` | `MANAGE` | `VIEW` (Cost and Margin, Finance Summary) | `NONE` |
-| Viewer / Auditor | `VIEW` | `VIEW` | `VIEW` | `VIEW` | `VIEW` (semua section, read-only) | `VIEW` (Audit Trail saja) |
+**Kolom `Customer Journey`, `Activity Center`, `Supplier Portal` ditambahkan Prompt 19 (Change Request) — lihat catatan di bawah tabel untuk mekanisme masing-masing (bukan seluruhnya modul `ModuleKey` generik).**
+
+| Role \ Modul | CRM (Party/Opportunity/Quotation/Lead) | Project | Vendor | Finance | Reports | Administration | Customer Journey (Customers/PO/Lead Sources) | Activity Center | Supplier Portal |
+|---|---|---|---|---|---|---|---|---|---|
+| Super Admin | `ADMIN` | `ADMIN` | `ADMIN` | `ADMIN` | `ADMIN` (semua section) | `ADMIN` | Penuh | Penuh | `ADMIN` (oversight, tanpa `vendorId`) |
+| Management | `APPROVE` (approve Won + Commercial Approval quotation, D-049) | `APPROVE` (approve perubahan besar/cancel) | `VIEW` | `VIEW` (termasuk margin) | `VIEW` (semua section) | `VIEW` | Penuh | — | — |
+| Account Executive *(baru)* | `MANAGE` (Opportunity/Quotation hingga Won-Requested, submit Commercial Approval — D-047) | `VIEW` (project dari opportunity miliknya) | `NONE` | `NONE` (hanya lihat nilai quotation) | `VIEW` (Sales Pipeline) | `NONE` | Penuh | — | — |
+| Sales *(dipersempit Prompt 19)* | `MANAGE` **Lead saja** (D-047 — Opportunity/Quotation kini milik AE) | `VIEW` (project dari opportunity yang pernah ditanganinya) | `NONE` | `NONE` | `VIEW` (Sales Pipeline) | `NONE` | **Leads saja** (Customers/PO/Lead Sources tidak tampil, `roles` override nav — D-052) | — | — |
+| Project Manager | `VIEW` | `MANAGE` (seluruh tab kecuali approval finance besar) | `VIEW` | `VIEW` (budget vs actual project miliknya, tanpa edit invoice) | `VIEW` (Project Performance) | `NONE` | Penuh | — | — |
+| Operations | `NONE` | `VIEW` + `MANAGE` (tab Itinerary & Services — koordinasi umum) | `VIEW` | `NONE` | `NONE` | `NONE` | — | — | — |
+| Ticketing | `NONE` | `MANAGE` (subset: sub-section Flight di tab Itinerary & Services) | `VIEW` (vendor flight) | `NONE` | `NONE` | `NONE` | — | — | — |
+| Accommodation | `NONE` | `MANAGE` (subset: sub-section Hotel) | `VIEW` (vendor hotel) | `NONE` | `NONE` | `NONE` | — | — | — |
+| Transportation | `NONE` | `MANAGE` (subset: sub-section Transportation) | `VIEW` (vendor transport) | `NONE` | `NONE` | `NONE` | — | — | — |
+| MICE | `NONE` | `MANAGE` (subset: sub-section MICE) | `VIEW` (vendor MICE) | `NONE` | `NONE` | `NONE` | — | — | — |
+| Finance | `VIEW` (nilai quotation, untuk konteks invoice) | `VIEW` (tab Finance) | `VIEW` | `MANAGE` | `VIEW` (Cost and Margin, Finance Summary) | `NONE` | Penuh | — | — |
+| Viewer / Auditor | `VIEW` | `VIEW` | `VIEW` | `VIEW` | `VIEW` (semua section, read-only) | `VIEW` (Audit Trail saja) | Penuh (read-only) | — | — |
+| Supplier *(baru)* | `NONE` | `NONE` | `NONE` (**tidak** melihat direktori vendor internal — hanya company sendiri via Supplier Portal) | `NONE` | `NONE` | `NONE` | — | — | `MANAGE` (ter-isolasi `vendorId`, D-048) |
+
+**Mekanisme kolom baru:**
+- **Customer Journey** bukan `ModuleKey` tunggal — Leads memakai `moduleKey: 'crm'` generik (sama seperti kolom CRM); Customers/Project Orders/Lead Source Recap memakai `roles` override eksplisit di nav (`app/constants/navigation.ts`) yang MENGECUALIKAN Sales meski Sales punya `crm` MANAGE (D-052).
+- **Activity Center** BUKAN bagian modul `administration` (kolom terpisah) — narrow `roles: ['super-admin']` di nav dan page-level guard, meski Management/Viewer punya `administration` VIEW+ untuk `/admin/audit-trail`.
+- **Supplier Portal** adalah `ModuleKey` baru (`supplier-portal`, D-048) — independen dari kolom Vendor (yang tetap berarti direktori vendor internal, TIDAK diberikan ke role Supplier).
 
 ### 5.1 Action Flag Khusus (per instruksi Prompt 3-H)
 
@@ -338,6 +399,9 @@ Level akses: `NONE` < `VIEW` < `MANAGE` < `APPROVE` < `ADMIN` (`ADMIN` mencakup 
 | **Change status** (project/service/task status non-approval) | Role `MANAGE` di modul terkait (mis. PM untuk Project, Ticketing untuk status Flight) |
 | **Delete mock** | Setara dengan `MANAGE` di modul terkait — tidak ada role yang delete tanpa juga punya `MANAGE`/`ADMIN` |
 | **Export mock** | Sama seperti `VIEW`+ untuk modul Reports/Finance (seluruh role yang bisa `VIEW` Reports/Finance bisa export mock; ini bukan permission terpisah, mengikuti instruksi "jangan membuat permission hingga level field bila belum diperlukan") |
+| **Commercial Approval (approve/reject nilai quotation)** *(Prompt 19)* | Super Admin, Management (`canApprove('crm')`) — TERPISAH dari "Approve Won" di atas meski keduanya rank `crm: APPROVE`, lihat D-049 |
+| **Submit Quotation for Commercial Approval** *(Prompt 19)* | Account Executive, Super Admin |
+| **Qualify Lead & Create Opportunity** *(Prompt 19)* | Sales, Account Executive, Super Admin |
 
 **Catatan implementasi (bukan keputusan tambahan, hanya klarifikasi):** matrix di atas adalah granularity modul, bukan granularity field — sesuai instruksi eksplisit Prompt 3-H ("Jangan membuat permission hingga level field bila belum diperlukan"). Role sub-domain (Ticketing/Accommodation/Transportation/MICE) diberi `MANAGE` hanya pada sub-section spesifik di tab "Itinerary & Services" — ini adalah pengecualian granularity yang disengaja karena keempat role tsb secara definisi Prompt 0-E memang scoped ke satu jenis layanan, bukan penambahan kompleksitas baru.
 
@@ -365,11 +429,15 @@ Satu halaman dashboard (`/`), widget yang tampil bersifat kondisional per role (
 - "Cost breakdown" (Finance) diimplementasikan per-project (dari `actualCostIdr`), bukan per jenis layanan — belum ada field cost per service type di fixture. Dapat diperhalus di Section 15 (Project Finance) bila granularity itu benar-benar dibutuhkan.
 - Fixture `OPPORTUNITIES`/`QUOTATIONS` ditambah 3 opportunity pipeline aktif (OPP-005–007) dan `TASKS` ditambah 2 task mendatang (non-overdue) agar widget Pipeline dan Milestone/Task Mendatang punya data nyata untuk ditampilkan — lihat `docs/mockup-section-reports/section-06-dashboard.md` dan `docs/mockup-change-impact-log.md` (CI-002).
 
+**Catatan implementasi Prompt 19 (Change Request) — 2 role baru ditambahkan ke widget existing (bukan widget baru dari nol):**
+- **Account Executive** mewarisi widget "Opportunity Pipeline" dan "Quotations Menunggu Keputusan" dari Sales (`showPipeline`/`showQuotationsPending` diperluas) — AE kini mengelola pipeline tsb (D-047). Tidak mewarisi "Follow-up Mendatang" (`PartyActivity` milik Sales, konteks Lead-follow-up AE ada di drawer `/customer-journey/leads`, entitas terpisah `LeadActivity`).
+- **Supplier** mendapat satu widget baru "Supplier Portal" (`showSupplierWelcome`) berisi penjelasan singkat + tautan ke `/supplier` — **tidak** mewarisi widget internal apa pun (isolasi data D-048 tetap berlaku persis di Dashboard global, bukan hanya di `/supplier/*`). Ditambahkan untuk memenuhi Definition of Done (`docs/mockup-scope.md` bagian 12): "tanpa role yang menyebabkan... halaman kosong tak terduga" — tanpa widget ini, Supplier login ke `/` akan melihat Dashboard kosong (nol KPI card, nol widget).
+
 ---
 
 ## 7. Acceptance Check (self-verification terhadap Prompt 3-K)
 
-- Role matrix mencakup seluruh 11 role demo (bagian 5).
+- Role matrix mencakup seluruh 11 role demo baseline + 2 role Prompt 19 (Account Executive, Supplier — bagian 5).
 - Scope demo dan deferred/excluded scope terpisah jelas (bagian 1.8, dan `docs/mockup-information-architecture.md` bagian 6).
 - Project status dan service status masing-masing punya diagram transisi dan tabel kondisi (bagian 3–4).
 - Opportunity-to-Project flow lengkap dengan checklist efek Won dan model role (bagian 2).

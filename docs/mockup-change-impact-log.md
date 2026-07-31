@@ -277,5 +277,98 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 
 ---
 
+## CI-020 — `Opportunity.ownerId` Direassign dari Sales ke Account Executive; Gate `canManageOpportunity` Berpindah
+
+- **Change ID / Tanggal:** CI-020 · 2026-07-30
+- **Triggering section:** Prompt 19 — Change Request (Customer Journey, Account Executive, Supplier, Commercial Approval).
+- **Previous section affected:** Section 08 — Opportunity dan Quotation (pemilik `app/data/opportunities.ts`, `app/pages/crm/opportunities/[id]/index.vue`).
+- **Alasan perubahan:** Prompt 19 secara eksplisit memindahkan tanggung jawab pengelolaan Opportunity/Quotation dari Sales ke Account Executive (role baru). Mempertahankan `ownerId`/gate lama akan membuat "Account Owner" menunjuk ke role yang menurut definisi baru tidak lagi mengelola Opportunity — perlu diperbaiki untuk integrasi (protokol bagian C).
+- **Files affected:** `app/data/opportunities.ts` (`ownerId` pada OPP-001–008 diubah dari `USR-001` ke `USR-014`), `app/pages/crm/opportunities/[id]/index.vue` (`canManageOpportunity`: `['sales','super-admin']` → `['account-executive','super-admin']`; label "Owner" pada `summaryMetadata` diganti "Account Executive" + fix bug tampilan lama yang hardcode fallback nama "Rani Kusuma (Sales)" menjadi lookup `getUserById` yang benar).
+- **Previous behavior:** Seluruh Opportunity dimiliki Sales (`USR-001`); tombol aksi stage/quotation hanya tampil untuk role Sales/Super Admin.
+- **New behavior:** Seluruh Opportunity dimiliki Account Executive (`USR-014`); tombol aksi tampil untuk role Account Executive/Super Admin. Sales tetap bisa **melihat** (read-only, `canView('crm')` tidak berubah) tapi tidak lagi melihat tombol aksi.
+- **Risk:** Rendah–sedang. Perubahan `ownerId` murni nilai field (bukan struktur); Dashboard (Section 06) widget yang membaca `Opportunity` (Pipeline, Quotations Pending) tidak bergantung pada `ownerId` spesifik sehingga tidak terpengaruh isinya, hanya visibilitasnya (lihat CI-021).
+- **Regression checks:** `npm run build` sukses; smoke test `/crm/opportunities`, `/crm/opportunities/OPP-001`, `/crm/opportunities/OPP-005`, `/crm/opportunities/OPP-006` — seluruhnya HTTP 200, Account Executive tampil sebagai owner di summary metadata.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-047, `docs/mockup-data-scenarios.md` bagian 4j, `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/change-customer-journey-ae-supplier.md`.
+
+## CI-021 — Dashboard Widget Diperluas untuk Account Executive dan Supplier
+
+- **Change ID / Tanggal:** CI-021 · 2026-07-30
+- **Triggering section:** Prompt 19 — Change Request.
+- **Previous section affected:** Section 06 — Dashboard (pemilik `app/pages/index.vue`).
+- **Alasan perubahan:** 2 role baru (Account Executive, Supplier) tidak punya widget/KPI card manapun di Dashboard existing (seluruh flag `visibleTo(...)` hardcode 11 role lama) — login sebagai AE/Supplier akan menampilkan Dashboard kosong (nol KPI, nol widget), melanggar Definition of Done eksplisit `docs/mockup-scope.md` bagian 12 ("tanpa role yang menyebabkan... halaman kosong tak terduga").
+- **Files affected:** `app/pages/index.vue` (KPI `open-opportunities` + `showPipeline` + `showQuotationsPending` diperluas menambahkan `account-executive`; +`showSupplierWelcome` dan 1 `SectionCard` baru "Supplier Portal" khusus role `supplier`).
+- **Previous behavior:** Widget Opportunity Pipeline/Quotations Pending hanya untuk Sales/Management/Super Admin/Viewer; tidak ada widget untuk Supplier sama sekali.
+- **New behavior:** Account Executive melihat widget yang sama seperti yang dulu dilihat Sales (Pipeline, Quotations Pending) — konsisten dengan AE kini mengelola pipeline tsb (CI-020). Supplier melihat satu widget baru berisi penjelasan singkat + tautan ke `/supplier` (data internal MANOVA tetap tidak ditampilkan, isolasi vendor tetap berlaku).
+- **Risk:** Rendah — perubahan aditif murni (menambah role ke daftar `visibleTo(...)` existing + 1 blok `SectionCard` baru bersyarat), tidak mengubah widget/computed lain milik role existing.
+- **Regression checks:** `npm run build` sukses; struktur Dashboard untuk 11 role lama tidak berubah (diverifikasi lewat diff — hanya baris yang disebutkan di atas yang bertambah).
+- **Dokumentasi yang diperbarui:** `docs/route-and-role-matrix.md` bagian 6, `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/change-customer-journey-ae-supplier.md`.
+
+## CI-022 — `canManageParty` Diperluas Menambahkan Account Executive
+
+- **Change ID / Tanggal:** CI-022 · 2026-07-30
+- **Triggering section:** Prompt 19 — Change Request.
+- **Previous section affected:** Section 07 — CRM Party (pemilik `app/pages/crm/parties/[id]/index.vue`, `app/pages/crm/prospects.vue`).
+- **Alasan perubahan:** Prompt 19 eksplisit: Account Executive "mengelola relationship dengan prospect/client". Narrow-exception `canManageParty` sebelumnya hanya `['sales','super-admin']`.
+- **Files affected:** `app/pages/crm/parties/[id]/index.vue`, `app/pages/crm/prospects.vue` (`canManageParty`: +`account-executive`, Sales tetap dipertahankan — tidak ada larangan eksplisit Party-level di Prompt 19).
+- **Previous behavior:** Hanya Sales/Super Admin dapat membuat Prospect baru, menambah Contact, menambah Activity di Party Detail.
+- **New behavior:** Account Executive juga dapat melakukan aksi tsb (Sales tidak kehilangan akses).
+- **Risk:** Sangat rendah — perluasan daftar role murni aditif, tidak mengubah UI/struktur.
+- **Regression checks:** `npm run build` sukses; smoke test `/crm/prospects`, `/crm/parties/PTY-001` tetap HTTP 200.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-047, `docs/mockup-implementation-state.md`.
+
+## CI-023 — Tab "Products" Ditambahkan ke Vendor Detail
+
+- **Change ID / Tanggal:** CI-023 · 2026-07-30
+- **Triggering section:** Prompt 19 — Change Request.
+- **Previous section affected:** Section 13 — Vendor Management (pemilik `app/pages/vendors/[id]/index.vue`, `app/types/vendor.ts` — `VendorDetailTab`).
+- **Alasan perubahan:** Area Supplier/External Partners (Prompt 19-7) meminta "product/service catalog" per vendor company — tab Vendor Detail existing (Overview/Services/Quotations/Contacts) belum punya wadah untuk ini.
+- **Files affected:** `app/types/vendor.ts` (`VendorDetailTab` +`'products'`, +`VendorProduct` interface), `app/pages/vendors/[id]/index.vue` (+tab "Products": table + dialog "Tambah Produk", gated `canManageVendor` — tab lain tidak diubah).
+- **Previous behavior:** 4 tab (Overview/Services/Quotations/Contacts), tidak ada konsep katalog produk.
+- **New behavior:** 5 tab, tab baru menampilkan `VendorProduct[]` milik vendor tsb (`getVendorProducts`, reuse selektor yang sama dipakai `/supplier/products`).
+- **Risk:** Rendah — penambahan tab murni aditif (array `TABS` bertambah satu elemen), 4 tab lama tidak disentuh kodenya.
+- **Regression checks:** `npm run build` sukses; smoke test `/vendors/VND-001` (tab lama) dan `/vendors/VND-006?tab=products` (tab baru) — seluruhnya HTTP 200 dengan konten benar.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-048, `docs/route-and-role-matrix.md` bagian 1.11, `docs/mockup-implementation-state.md`.
+
+## CI-024 — Reports `showSalesPipeline` Diperluas Menambahkan Account Executive
+
+- **Change ID / Tanggal:** CI-024 · 2026-07-30
+- **Triggering section:** Prompt 19 — Change Request.
+- **Previous section affected:** Section 16 — Reports (pemilik `app/pages/reports/index.vue`).
+- **Alasan perubahan:** Section Sales Pipeline pada `/reports` sebelumnya hanya untuk Sales/Management/Super Admin/Viewer — konsisten dengan CI-020/CI-021, Account Executive yang kini mengelola pipeline tsb turut ditambahkan.
+- **Files affected:** `app/pages/reports/index.vue` (`showSalesPipeline`: +`account-executive`).
+- **Previous behavior:** Account Executive (role baru) tidak melihat section Sales Pipeline di Reports.
+- **New behavior:** Account Executive melihat section Sales Pipeline (data sama, agregasi `OPPORTUNITIES`/`QUOTATIONS` tidak berubah).
+- **Risk:** Sangat rendah — satu baris, murni penambahan role ke daftar visibilitas existing.
+- **Regression checks:** `npm run build` sukses; smoke test `/reports` tetap HTTP 200, angka section lain tidak berubah.
+- **Dokumentasi yang diperbarui:** `docs/mockup-implementation-state.md`.
+
+## CI-025 — `isFollowUpUpcoming` Tipe Parameter Dipersempit (Reuse untuk Lead Follow-Up)
+
+- **Change ID / Tanggal:** CI-025 · 2026-07-30
+- **Triggering section:** Prompt 19 — Change Request.
+- **Previous section affected:** Section 07 — CRM Party (pemilik `app/utils/attention.ts`, fungsi `isFollowUpUpcoming` awalnya bertipe parameter `PartyActivity`).
+- **Alasan perubahan:** Modul Leads baru butuh logic "follow-up akan datang" yang identik (hanya membaca `dueAt`) untuk `LeadActivity` (entitas berbeda, tanpa field `partyId`). Menghindari duplikasi logic (hard rule "jangan menghitung ulang logic yang sama di tempat lain").
+- **Files affected:** `app/utils/attention.ts` (tipe parameter `isFollowUpUpcoming`: `PartyActivity` → `{ dueAt?: string }`, import `PartyActivity` yang jadi tidak terpakai dihapus).
+- **Previous behavior:** Fungsi hanya bisa dipanggil dengan `PartyActivity`.
+- **New behavior:** Fungsi menerima objek apa pun dengan field `dueAt?` opsional — `PartyActivity` tetap kompatibel (structural typing, tidak ada perubahan perilaku/signature yang terlihat konsumen existing), `LeadActivity` kini juga bisa memakainya.
+- **Risk:** Sangat rendah — pelebaran tipe parameter yang backward-compatible, logic function tidak berubah satu baris pun.
+- **Regression checks:** `npm run build` sukses; seluruh consumer existing (`getUpcomingFollowUps`, Dashboard widget "Follow-up Mendatang", Party Detail, Opportunity Detail) diperiksa tetap memanggil dengan `PartyActivity` seperti sebelumnya, tidak ada perubahan perilaku.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-051, `docs/mockup-implementation-state.md`.
+
+## CI-026 — OPP-005 Dikembalikan ke Stage `negotiation` (dari `won-requested`, CI-012)
+
+- **Change ID / Tanggal:** CI-026 · 2026-07-30
+- **Triggering section:** Prompt 19 — Change Request.
+- **Previous section affected:** Section 09 — Opportunity Won to Project (pemilik keputusan CI-012 yang memajukan OPP-005 ke `won-requested` demi kemudahan demo Approve Won).
+- **Alasan perubahan:** Workflow Commercial Approval baru (D-049) mensyaratkan `Quotation.approvalStatus === 'approved'` sebelum Opportunity boleh diajukan ke `won-requested`. OPP-005 (di `won-requested` sejak CI-012) sekarang justru menjadi skenario yang salah didemokan tanpa quotation approval terlebih dulu — direstage ke `negotiation` dengan `QUO-005.approvalStatus = 'submitted'`, menjadikannya skenario "quotation menunggu approval" (literal Prompt 19-9). Live-demo Approve Won kini memakai OPP-006 (`QUO-006.approvalStatus = 'approved'`) sebagai gantinya.
+- **Files affected:** `app/data/opportunities.ts` (`OPP-005.stage`: `'won-requested'` → `'negotiation'`).
+- **Previous behavior:** OPP-005 siap langsung di-Approve/Reject Won oleh Management/Super Admin tanpa melalui gerbang komersial.
+- **New behavior:** OPP-005 berada di stage Negotiation dengan quotation menunggu Commercial Approval — mendemonstrasikan gerbang baru secara utuh sebelum Won dapat diajukan.
+- **Risk:** Rendah — satu perubahan field pada satu record seed (bukan struktur), tidak memengaruhi opportunity lain. Party PTY-004 tetap Prospect (tidak ada regresi status lifecycle).
+- **Regression checks:** `npm run build` sukses; smoke test `/crm/opportunities/OPP-005` (Commercial Approval badge "Menunggu Approval", tombol "Ajukan sebagai Won" disabled) dan `/crm/opportunities/OPP-006` (badge "Disetujui", tombol aktif) — sesuai desain.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-049, `docs/mockup-data-scenarios.md` bagian 4j, `docs/mockup-implementation-state.md`.
+
+---
+
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*
 

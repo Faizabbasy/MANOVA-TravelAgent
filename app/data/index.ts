@@ -1,26 +1,29 @@
 import { PARTIES, CONTACTS, PARTY_ACTIVITIES } from './parties'
 import { USERS } from './users'
 import { OPPORTUNITIES, QUOTATIONS } from './opportunities'
-import { VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES } from './vendors'
+import { VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES, VENDOR_PRODUCTS } from './vendors'
 import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS } from './projects'
 import { INVOICES, PAYMENTS } from './finance'
-import { ACTIVITIES, DOCUMENTS, TASKS } from './activity'
+import { ACTIVITIES, DOCUMENTS, TASKS, SYSTEM_EVENTS } from './activity'
+import { LEADS, LEAD_ACTIVITIES } from './leads'
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { Project, ServiceTypeKey, ServiceStatus, Traveler } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType } from '~/types/party'
 import type { Opportunity, OpportunityStage, Quotation } from '~/types/opportunity'
-import type { Vendor, VendorContact, VendorQuotation } from '~/types/vendor'
+import type { Vendor, VendorContact, VendorQuotation, VendorProduct } from '~/types/vendor'
 import type { ActivityEntry, ChangeCategory } from '~/types/activity'
+import type { Lead, LeadActivity } from '~/types/lead'
 
 export {
   USERS,
   PARTIES, CONTACTS, PARTY_ACTIVITIES,
   OPPORTUNITIES, QUOTATIONS,
-  VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES,
+  VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES, VENDOR_PRODUCTS,
   PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS,
   INVOICES, PAYMENTS,
-  ACTIVITIES, DOCUMENTS, TASKS,
+  ACTIVITIES, DOCUMENTS, TASKS, SYSTEM_EVENTS,
+  LEADS, LEAD_ACTIVITIES,
 }
 
 /** Helper selector sederhana (Prompt 5-H) — hindari query ad-hoc berulang di tiap halaman. */
@@ -91,6 +94,18 @@ export function getCommittedVendorCostIdr(projectId: string): number {
 export const getActivitiesByProject = (projectId: string) => ACTIVITIES.filter(activity => activity.projectId === projectId)
 export const getDocumentsByProject = (projectId: string) => DOCUMENTS.filter(document => document.projectId === projectId)
 export const getTasksByProject = (projectId: string) => TASKS.filter(task => task.projectId === projectId)
+
+/** Tab "Documents" Customer Detail (Prompt 19) — union dokumen lintas seluruh Project Order milik satu Company, reuse `getDocumentsByProject`, bukan entitas `PartyDocument` paralel. */
+export function getDocumentsByParty(partyId: string) {
+  return getProjectsByParty(partyId).flatMap(project => getDocumentsByProject(project.id))
+}
+
+/** Opportunity/Project Order milik satu Account Executive (Prompt 19) — dipakai filter "milik saya" dan Customer Journey Dashboard. */
+export const getOpportunitiesByOwner = (ownerId: string) => OPPORTUNITIES.filter(opp => opp.ownerId === ownerId)
+export function getProjectsByAccountExecutive(accountExecutiveId: string) {
+  const ownedOpportunityIds = new Set(getOpportunitiesByOwner(accountExecutiveId).map(opp => opp.id))
+  return PROJECTS.filter(project => project.opportunityId && ownedOpportunityIds.has(project.opportunityId))
+}
 
 /** Project yang butuh perhatian, dengan konteks invoice/task/activity masing-masing sudah dihitung. */
 export function getProjectsNeedingAttention() {
@@ -229,6 +244,37 @@ export function reviseQuotation(quotationId: string, newAmountIdr: number): Quot
   quotation.amountIdr = newAmountIdr
   quotation.version += 1
   quotation.createdAt = DEMO_REFERENCE_DATE
+  quotation.approvalStatus = 'draft'
+  return quotation
+}
+
+/**
+ * Commercial Approval (Prompt 19 — Change Request). Terpisah dari `approveOpportunityWon`/
+ * `rejectOpportunityWon` (Section 09, gerbang final "Mark as Won") — quotation harus `approved` di sini
+ * dulu sebelum Opportunity boleh diajukan ke stage `won-requested` (digerbangi di UI Opportunity Detail).
+ */
+export function submitQuotationForApproval(quotationId: string): Quotation | undefined {
+  const quotation = QUOTATIONS.find(q => q.id === quotationId)
+  if (!quotation) return undefined
+  quotation.approvalStatus = 'submitted'
+  return quotation
+}
+
+export function approveQuotation(quotationId: string, approverId: string, note?: string): Quotation | undefined {
+  const quotation = QUOTATIONS.find(q => q.id === quotationId)
+  if (!quotation || quotation.approvalStatus !== 'submitted') return undefined
+  quotation.approvalStatus = 'approved'
+  quotation.approvedBy = approverId
+  quotation.approvalNote = note
+  return quotation
+}
+
+export function rejectQuotation(quotationId: string, approverId: string, note: string): Quotation | undefined {
+  const quotation = QUOTATIONS.find(q => q.id === quotationId)
+  if (!quotation || quotation.approvalStatus !== 'submitted') return undefined
+  quotation.approvalStatus = 'rejected'
+  quotation.approvedBy = approverId
+  quotation.approvalNote = note
   return quotation
 }
 
@@ -534,4 +580,101 @@ export function rejectChangeEntry(entryId: string, approverId: string): Activity
   entry.reviewed = true
   entry.approvedBy = approverId
   return entry
+}
+
+/**
+ * Lead (Prompt 19 — Change Request) — mengikuti pola `reactive()` mutasi Section 07 dst. "Qualify & Create
+ * Opportunity" TIDAK memakai istilah "Convert to Customer" (instruksi literal Prompt 19-5A) — hasil akhirnya
+ * adalah `Party` (Prospect) + `Opportunity` (stage `qualification`), bukan langsung "Client"; Party baru
+ * hanya `Client` setelah Opportunity-nya benar-benar Won (D-024, tidak diubah).
+ */
+export const getLeadById = (id: string) => LEADS.find(lead => lead.id === id)
+export function getLeadActivities(leadId: string) {
+  return LEAD_ACTIVITIES.filter(activity => activity.leadId === leadId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+export function getLeadFollowUps(leadId: string) {
+  return getLeadActivities(leadId).filter(activity => Boolean(activity.dueAt))
+}
+
+export function createLead(input: { name: string; companyName?: string; source: Lead['source']; ownerId: string; phone?: string; email?: string }): Lead {
+  const lead: Lead = {
+    id: nextSequentialId('LED-', LEADS),
+    stage: 'new',
+    createdAt: DEMO_REFERENCE_DATE,
+    lastUpdatedAt: DEMO_REFERENCE_DATE,
+    archived: false,
+    ...input,
+  }
+  LEADS.push(lead)
+  return lead
+}
+
+export function createLeadActivity(input: { leadId: string; type: PartyActivityType; message: string; ownerId: string; dueAt?: string }): LeadActivity {
+  const activity: LeadActivity = { id: nextSequentialId('LACT-', LEAD_ACTIVITIES), createdAt: DEMO_REFERENCE_DATE, ...input }
+  LEAD_ACTIVITIES.push(activity)
+  const lead = getLeadById(input.leadId)
+  if (lead) lead.lastUpdatedAt = DEMO_REFERENCE_DATE
+  return activity
+}
+
+export function archiveLead(leadId: string): Lead | undefined {
+  const lead = getLeadById(leadId)
+  if (!lead) return undefined
+  lead.archived = true
+  lead.lastUpdatedAt = DEMO_REFERENCE_DATE
+  return lead
+}
+
+/**
+ * "Qualify & Create Opportunity" — satu-satunya jalur Lead menjadi Opportunity (bukan tombol terpisah
+ * "Convert to Customer"). Mencari `Party` existing dengan nama company yang sama dulu (hindari duplicate
+ * company, konsisten Prompt 19-4 "repeat client: jangan membuat client baru"); bila tidak ada, buat Party
+ * baru berstatus `prospect`. Opportunity baru dibuat di stage `qualification` (requirement belum digali),
+ * `ownerId` = AE tujuan handover.
+ */
+export function qualifyLeadAndCreateOpportunity(leadId: string, accountExecutiveId: string): Opportunity | undefined {
+  const lead = getLeadById(leadId)
+  if (!lead || lead.opportunityId) return undefined
+
+  let party = lead.companyName ? PARTIES.find(p => p.name.toLowerCase() === lead.companyName!.toLowerCase()) : undefined
+  if (!party) {
+    party = {
+      id: nextSequentialId('PTY-', PARTIES),
+      name: lead.companyName || lead.name,
+      lifecycleStatus: 'prospect',
+      createdAt: DEMO_REFERENCE_DATE,
+      accountOwnerId: accountExecutiveId,
+    }
+    PARTIES.push(party)
+  }
+
+  const opportunity: Opportunity = {
+    id: nextSequentialId('OPP-', OPPORTUNITIES),
+    partyId: party.id,
+    title: `${lead.companyName || lead.name} — Opportunity Baru`,
+    stage: 'qualification',
+    ownerId: accountExecutiveId,
+    estimatedValueIdr: 0,
+    destination: '',
+    serviceScope: [],
+    createdAt: DEMO_REFERENCE_DATE,
+  }
+  OPPORTUNITIES.push(opportunity)
+
+  lead.stage = 'qualified'
+  lead.handedOverTo = accountExecutiveId
+  lead.partyId = party.id
+  lead.opportunityId = opportunity.id
+  lead.lastUpdatedAt = DEMO_REFERENCE_DATE
+
+  return opportunity
+}
+
+/** Vendor Product catalog (Prompt 19 — area Supplier/External Partners). */
+export const getVendorProducts = (vendorId: string) => VENDOR_PRODUCTS.filter(product => product.vendorId === vendorId)
+
+export function createVendorProduct(input: { vendorId: string; name: string; category: ServiceTypeKey; description?: string; priceIdr?: number }): VendorProduct {
+  const product: VendorProduct = { id: nextSequentialId('VPR-', VENDOR_PRODUCTS), ...input }
+  VENDOR_PRODUCTS.push(product)
+  return product
 }

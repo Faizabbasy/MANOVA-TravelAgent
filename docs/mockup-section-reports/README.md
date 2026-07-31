@@ -30,10 +30,18 @@ Ringkasan Section 00–04 dalam skema field standar protokol ini tetap tersedia 
 | 14 | Project Changes | [`section-14-project-changes.md`](./section-14-project-changes.md) | COMPLETED |
 | 15 | Project Finance | [`section-15-project-finance.md`](./section-15-project-finance.md) | COMPLETED |
 | 16 | Reports | [`section-16-reports.md`](./section-16-reports.md) | COMPLETED |
-| 17 | Administration | `section-17-administration.md` | Belum dibuat — section belum dieksekusi |
-| 18 | Regression and Demo Readiness | `section-18-regression-demo-readiness.md` | Belum dibuat — section belum dieksekusi |
+| 17 | Administration | [`section-17-administration.md`](./section-17-administration.md) | COMPLETED |
+| 18 | Regression and Demo Readiness | [`section-18-regression-demo-readiness.md`](./section-18-regression-demo-readiness.md) | COMPLETED |
 
 Baris "Belum dibuat" akan diisi tautan begitu section terkait benar-benar dieksekusi dan laporannya dibuat — jangan menandai sebagai tersedia sebelum file-nya benar-benar ada di folder ini.
+
+## Change Requests (di luar 18 section baku)
+
+Perubahan yang terjadi **setelah** seluruh 18 section COMPLETED memakai skema `change-<nama-singkat>.md` (bukan `section-XX`, karena bukan bagian phasing baku Prompt 0–18):
+
+| Tanggal | Nama | File | Status |
+|---|---|---|---|
+| 2026-07-30 | Prompt 19 — Customer Journey, Account Executive, Supplier, Commercial Approval | [`change-customer-journey-ae-supplier.md`](./change-customer-journey-ae-supplier.md) | COMPLETED |
 
 ## Isi Minimum Setiap Laporan
 

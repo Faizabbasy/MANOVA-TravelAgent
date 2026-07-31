@@ -17,8 +17,10 @@ const { canView } = usePermissions()
  * Management membuat/mengubah Prospect bila dipakai apa adanya. Sesuai `docs/route-and-role-matrix.md`
  * bagian 1.2 ("Sales: MANAGE, Management: VIEW, Viewer: VIEW, lainnya: NONE"), bukan mekanisme role-check
  * baru — pengecualian sempit yang didokumentasikan, sama seperti granularity sub-domain Operations.
+ * `account-executive` ditambahkan Prompt 19 (Change Request) — AE "mengelola relationship dengan
+ * prospect/client" (literal responsibility split), Sales tetap dipertahankan.
  */
-const canManageParty = computed(() => ['sales', 'super-admin'].includes(currentRole.value))
+const canManageParty = computed(() => ['sales', 'account-executive', 'super-admin'].includes(currentRole.value))
 
 const searchQuery = ref('')
 const sortBy = ref<'name' | 'created'>('name')

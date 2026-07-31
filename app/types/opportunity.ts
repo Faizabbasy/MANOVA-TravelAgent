@@ -37,6 +37,13 @@ export interface Opportunity {
   projectId?: ID
 }
 
+/**
+ * Commercial Approval (Prompt 19 — Change Request). Status approval quotation, TERPISAH dari
+ * `Opportunity.stage` — quotation harus `approved` sebelum AE dapat mengajukan Opportunity ke stage
+ * `won-requested` ("Mark as Won"). `draft` = belum pernah diajukan (nilai awal seluruh quotation lama).
+ */
+export type QuotationApprovalStatus = 'draft' | 'submitted' | 'approved' | 'rejected'
+
 export interface Quotation {
   id: ID
   opportunityId: ID
@@ -47,4 +54,8 @@ export interface Quotation {
   version: number
   /** Nilai versi sebelumnya, terisi hanya bila quotation ini adalah hasil revisi. */
   supersededAmountIdr?: number
+  /** Field Prompt 19 di bawah ini opsional — commercial approval workflow (AE submit → Management approve/reject). */
+  approvalStatus?: QuotationApprovalStatus
+  approvedBy?: ID
+  approvalNote?: string
 }

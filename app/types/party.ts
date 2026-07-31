@@ -8,6 +8,12 @@ export interface Party {
   lifecycleStatus: PartyLifecycleStatus
   industry?: string
   createdAt: string
+  /** Field Prompt 19 (Change Request) di bawah ini opsional — dipakai tampilan "Company" pada modul Customer Journey, entitas yang sama dengan `Party` (bukan duplikasi, lihat D-046). */
+  size?: string
+  city?: string
+  phone?: string
+  /** Account Executive pemilik relationship company ini (berbeda dari `Opportunity.ownerId` yang per-deal) — Prompt 19. */
+  accountOwnerId?: ID
 }
 
 export interface ContactPerson {

@@ -17,9 +17,11 @@ MANOVA adalah **frontend mockup** sistem pengelolaan operasional project untuk b
 
 ## 3. Primary Users (Role Demo)
 
-Seluruh 11 role berikut **digunakan pada demo** (keputusan LOCKED D-003, `docs/mockup-design-decisions.md`), masing-masing dengan kebutuhan dashboard dan akses modul berbeda (detail lengkap: `docs/route-and-role-matrix.md` bagian 5–6):
+Seluruh 11 role baseline **digunakan pada demo** (keputusan LOCKED D-003, `docs/mockup-design-decisions.md`), masing-masing dengan kebutuhan dashboard dan akses modul berbeda (detail lengkap: `docs/route-and-role-matrix.md` bagian 5–6):
 
 Super Admin · Management · Sales · Project Manager · Operations · Ticketing · Accommodation · Transportation · MICE · Finance · Viewer/Auditor.
+
+**Prompt 19 (Change Request, 2026-07-30) menambah 2 role — total 13 role demo** (D-046, `docs/mockup-design-decisions.md` Kelompok I): **Account Executive** (mengambil alih pengelolaan Opportunity/Quotation/Won dari Sales; Sales dipersempit ke Lead saja — D-047) dan **Supplier** (External Partner, akses terisolasi ke satu vendor company — D-048).
 
 ## 4. B2B Focus dan B2C Extensibility
 
@@ -40,6 +42,16 @@ Berdasarkan domain mapping (`docs/template-reuse-mapping.md`) dan IA final (`doc
 8. **Administration** — Master Data, Users, Roles and Permissions, Audit Trail (`/admin/...`).
 
 **Catatan:** Operations dan Traveler tidak jadi phase dengan menu top-level sendiri — isinya melebur ke tab Project Detail (phase Project Management), hasil resolusi Q3/D-020.
+
+### 5a. Perluasan Scope — Prompt 19 Change Request (2026-07-30)
+
+Di atas 8 module baseline (seluruhnya COMPLETED, lihat `docs/mockup-section-progress.md` Section 05–18), Prompt 19 menambah:
+
+9. **Customer Journey** — Leads (Table/Kanban/Inbox + drawer), Customers, Project Orders, Lead Source Recap (`/customer-journey/*`). Customers/Project Orders adalah tampilan baru di atas `Party`/`Project` existing (D-050), bukan modul data terpisah.
+10. **Activity Center** — log lintas sistem untuk Super Admin (`/activity-center`).
+11. **External Partners / Supplier Portal** — akses vendor company ter-isolasi untuk supplier user (`/supplier/*`) + tab "Products" baru di Vendor Detail existing (`/vendors/[id]`).
+
+Detail lengkap: `docs/mockup-section-reports/change-customer-journey-ae-supplier.md`.
 
 ## 6. Out-of-Scope / Non-Goals
 

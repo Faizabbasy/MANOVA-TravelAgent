@@ -310,3 +310,19 @@ Status yang dipakai: `NOT_STARTED`, `IN_PROGRESS`, `COMPLETED`, `BLOCKED`, `NEED
 - **Known issues:** Q8 tetap terbuka (empat belas section berturut-turut, A-003/A-004/A-005 di `docs/mockup-final-known-issues.md`); verifikasi interaktif ganti-role tidak dilakukan secara headless (C-002); route template lama masih accessible via URL (B-003).
 - **Cross-section impact:** `docs/mockup-change-impact-log.md` CI-019 (fix `handleDelete`, milik `expenses.vue` template lama sejak Section 01).
 - **Next action:** **Section 18 adalah section final.** Tidak ada section 19 atau backend. Mockup MANOVA Travel Agent selesai sepenuhnya.
+
+---
+
+## Prompt 19 — Change Request: Customer Journey, Account Executive, Supplier, dan Commercial Approval
+
+- **Tanggal:** 2026-07-30
+- **Status:** COMPLETED
+- **Scope dan completed items:** Change request di atas mockup 18-section COMPLETED (`prompts/21-PROMPT-19-CHANGES-&-UPDATE.md`, dijalankan via `prompts/99-RUN-CURRENT-SECTION.md`). Ringkasan (detail penuh: `docs/mockup-section-reports/change-customer-journey-ae-supplier.md`): 2 role baru (Account Executive, Supplier — 13 role total); entitas baru `Lead`/`LeadActivity`/`VendorProduct`/`SystemEvent`; Commercial Approval workflow pada `Quotation` (terpisah dari Won approval existing, D-049); modul baru Customer Journey (`/customer-journey/*` — Leads Table/Kanban/Inbox+drawer, Customers, Project Orders, Lead Source Recap; Customers/Project Orders reuse `Party`/`Project` existing, bukan dataset paralel — D-050); Activity Center (`/activity-center`, Super Admin saja); Supplier Portal (`/supplier/*`, vendor-isolated via `User.vendorId` — D-048) + tab "Products" baru di Vendor Detail; `Opportunity.ownerId` di-reassign dari Sales ke AE; Dashboard (`/`) mendapat widget tambahan untuk AE/Supplier agar tidak kosong.
+- **Files created/changed/removed:** Lihat laporan perubahan bagian "Files Created, Changed, dan Removed" untuk daftar lengkap (folder baru `app/pages/customer-journey/`, `app/pages/activity-center/`, `app/pages/supplier/`, file baru `app/types/lead.ts`, `app/data/leads.ts`; ~24 file existing diubah).
+- **Routes affected:** `/customer-journey/*` (7 route baru), `/activity-center` (baru), `/supplier/*` (3 route baru), `/vendors/[id]` (+tab Products), `/crm/opportunities/[id]` (+Commercial Approval), `/reports`, `/` (Dashboard) — perluasan visibilitas widget.
+- **Components reused/created:** Reused — seluruh shared component + primitive `ui/*` existing, termasuk `ui/sheet/*` (dipakai pertama kali — drawer Lead Detail). Tidak ada komponen shared baru.
+- **Data/types/constants affected:** Lihat `docs/mockup-implementation-state.md` bagian 4 dan `docs/mockup-change-impact-log.md` untuk daftar lengkap entitas/field baru dan reassignment data existing.
+- **Validation results:** `nuxi prepare` + `npm run build` sukses (beberapa run menemui `EBUSY` pre-existing pada cleanup `.output`, diatasi dengan mematikan proses node sebelum retry). Smoke test HTTP 32 route (baru + existing) seluruhnya 200. Smoke test konten memverifikasi Commercial Approval, isolasi Supplier, angka Lead Source Recap (dihitung ulang manual, cocok), Vendor Detail Products tab, Activity Center (22 event). Regresi route existing dikonfirmasi tidak berubah. `vitest`/`typecheck` tetap pre-existing gap (Q8).
+- **Known issues:** Q8 tetap terbuka; Q12 baru (self-service submit quotation Supplier, deferred); verifikasi interaktif ganti-role tidak dilakukan headless (keterbatasan tooling, konsisten sejak Section 06).
+- **Cross-section impact:** Lihat `docs/mockup-change-impact-log.md` (entri CI baru) — menyentuh Section 06 (Dashboard), Section 07 (canManageParty), Section 08 (Opportunity ownerId/canManageOpportunity), Section 09 (OPP-005 restage), Section 13 (Vendor Detail +tab), Section 16 (Reports showSalesPipeline).
+- **Next action:** Tidak ada section/change baku selanjutnya — menunggu perintah user.

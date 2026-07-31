@@ -2,7 +2,6 @@ import { daysUntil } from './format'
 import type { Project, Traveler } from '~/types/project'
 import type { Invoice } from '~/types/finance'
 import type { ProjectTask } from '~/types/activity'
-import type { PartyActivity } from '~/types/party'
 
 /**
  * Tanggal acuan "hari ini" untuk seluruh skenario demo (konsisten dengan docs/mockup-data-scenarios.md).
@@ -50,7 +49,8 @@ export function isTaskUpcoming(task: ProjectTask, referenceIso = DEMO_REFERENCE_
   return days >= 0 && days <= UPCOMING_TASK_WINDOW_DAYS
 }
 
-export function isFollowUpUpcoming(activity: PartyActivity, referenceIso = DEMO_REFERENCE_DATE): boolean {
+/** Tipe parameter dipersempit ke `{ dueAt? }` (Prompt 19) — direuse untuk `LeadActivity` (shape sama, tanpa `partyId`) tanpa duplikasi logic; `PartyActivity` tetap kompatibel (structural typing). */
+export function isFollowUpUpcoming(activity: { dueAt?: string }, referenceIso = DEMO_REFERENCE_DATE): boolean {
   if (!activity.dueAt) return false
   const days = daysUntil(activity.dueAt, referenceIso)
   return days >= 0 && days <= UPCOMING_FOLLOWUP_WINDOW_DAYS

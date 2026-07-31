@@ -19,6 +19,7 @@ Status dokumen: **direstrukturisasi di Prompt 4** sesuai Prompt 4 bagian F. Bagi
 - **Recommendation:** Lengkapi `eslint` inti + tambah script `lint`; putuskan juga script `typecheck` (catatan: `nuxi typecheck` memicu instalasi `vue-tsc` yang belum ada di lockfile — evaluasi dulu terhadap kebijakan penambahan package D-036 sebelum instal). Lepas `@nuxtjs/eslint-config-typescript` sebagai devDependency mati bila memang tidak dipakai.
 - **Owner:** Tidak diketahui (keputusan teknis tim implementasi).
 - **Update Prompt 5:** Foundation coding **tidak** menginstal `eslint`/`vue-tsc` (lihat D-045, `docs/mockup-design-decisions.md`) karena Prompt 5 sendiri tidak secara eksplisit memerintahkan instalasi package baru. Validasi yang dijalankan sebagai gantinya: `pnpm run build` (sukses, exit 0, 3x run) dan `pnpm exec vitest run` (0 test file, pre-existing). Q8 tetap terbuka, sekarang eksplisit sebagai blocker sebelum Prompt 6 (CRM) dimulai.
+- **Update Prompt 19 (Change Request, 2026-07-30):** Tetap belum diselesaikan — `npm run build` sukses, `npx vitest run` "No test files found", `npx nuxi typecheck` gagal (`vue-tsc` tidak terpasang). Instalasi package baru tetap di luar scope literal Prompt 19 (D-036 tidak berubah).
 - **Status:** `NEEDS_VALIDATION`.
 
 ---
@@ -60,6 +61,14 @@ Status dokumen: **direstrukturisasi di Prompt 4** sesuai Prompt 4 bagian F. Bagi
 - **Recommendation:** Evaluasi ulang setelah demo awal, berdasarkan masukan pengguna nyata (mis. kebutuhan "semua traveler yang dokumennya belum lengkap di semua project").
 - **Owner:** Tidak diketahui.
 - **Status:** `DEFERRED` (lihat D-033).
+
+### Q12 — Self-Service Quotation Submission dari Supplier Portal (Prompt 19)
+- **Category:** Business Rule / Scope Boundary
+- **Blocking:** **Non-blocking / Deferred** — literal Prompt 19-7 hanya meminta supplier "melihat" assignment/quotation/order sendiri, tidak eksplisit meminta aksi submit quotation baru dari portal supplier sendiri (submit quotation sejauh ini tetap terjadi dari sisi internal, Vendor Detail — Section 13).
+- **Impact:** `/supplier/orders` saat ini read-only (tabel assignment + quotation), tidak ada form submit quotation baru dari sisi supplier. Bila ke depannya supplier diharapkan bisa mengajukan quotation sendiri (bukan hanya dilihat), perlu form baru + kemungkinan notifikasi ke internal.
+- **Recommendation:** Tunggu konfirmasi eksplisit — menambah form submit di `/supplier/orders` adalah perubahan aditif kecil (`submitVendorQuotation`, `app/data/index.ts`, sudah ada dan reusable) bila benar-benar dibutuhkan.
+- **Owner:** Tidak diketahui.
+- **Status:** `DEFERRED`.
 
 ---
 
