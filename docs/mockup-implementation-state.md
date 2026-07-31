@@ -17,9 +17,21 @@ Bagian 1–8 di bawah ini tetap merujuk skema lama (Prompt 0–20) apa adanya �
 ## 1. Current Phase dan Current Section
 
 - **Current phase (skema lama):** Seluruh 18 section mockup baku (Section 00–18) **COMPLETED**, ditambah **Prompt 19 — Change Request (Customer Journey, Account Executive, Supplier, Commercial Approval)** (2026-07-30) dan **Prompt 20 — Change Request (Sales Qualification to Account Executive Opportunity Flow)** (2026-07-31), keduanya COMPLETED.
-- **Current phase (skema baru):** Section 00–05 **COMPLETED** (Section 05: 2026-07-31). Section 06–24 belum dimulai — lihat `docs/frontend-implementation-roadmap.md` untuk status awal per section.
+- **Current phase (skema baru):** Section 00–17 **COMPLETED** (Section 17: 2026-08-01). Section 18–24 belum dimulai — lihat `docs/frontend-implementation-roadmap.md` untuk status awal per section.
 - **Current section/change:** Tidak ada yang aktif — menunggu perintah user untuk section/change berikutnya (skema mana pun).
-- **Last completed:** **Section 05 — Account Executive Opportunity dan Quotation** (skema baru), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-05-ae-opportunity-quotation.md`.
+- **Last completed:** **Section 17 — Supplier dan Procurement** (skema baru), status **COMPLETED**. Detail lengkap: `docs/mockup-section-reports/section-17-supplier-procurement.md`.
+- Section 16 — MICE dan Event (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-16-mice.md`.
+- Section 15 — Transportation (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-15-transportation.md`.
+- Section 14 — Accommodation (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-14-accommodation.md`.
+- Section 13 — Ticketing (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-13-ticketing.md`.
+- Section 12 — Itinerary, Operations, Tasks dan Readiness (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-12-itinerary-operations-readiness.md`.
+- Section 11 — Traveler dan Travel Documents (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-11-traveler-documents.md`.
+- Section 10 — Product Planning dan Costing (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-10-product-planning-costing.md`.
+- Section 09 — Project Order dan Handover (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-09-project-order-handover.md`.
+- Section 08 — Client Portal (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-08-client-portal.md`.
+- Section 07 — Customer Journey (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-07-customer-journey.md`.
+- Section 06 — Management Approval, Won dan Client Activation (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-06-management-approval-won.md`.
+- Section 05 — Account Executive Opportunity dan Quotation (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-05-ae-opportunity-quotation.md`.
 - Section 04 — Sales Leads dan Qualification (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-04-sales-leads-qualification.md`.
 - Section 03 — Public Lead Intake (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-03-public-lead-intake.md`.
 - Section 02 — Role, Access dan Navigation (skema baru): COMPLETED, detail `docs/mockup-section-reports/section-02-role-access-navigation.md`.
@@ -82,6 +94,22 @@ Route baru `/lead-intake` (`layout: false`, tanpa `middleware: 'auth'`) — 4 ka
 
 `app/data/index.ts` +4 mutator baru: `duplicateQuotationVersion` ("Duplicate Quotation"), `sendQuotationToClient` ("Send to Client", mock), `withdrawQuotationSubmission` ("Withdraw Submission", guard hanya dari status `submitted`), `recordClientConfirmation` (gerbang tambahan sebelum Mark as Won). `Quotation` +7 field aditif (`taxIdr`/`markupIdr`/`currency`/`validUntil`/`termsAndConditions`/`inclusions`/`exclusions`); `Opportunity` +2 field aditif (`clientConfirmedAt`/`clientConfirmationNote`). Route baru `/crm/opportunities/[id]/quotation-preview` (`layout: false`, print via `window.print()` browser — PDF/print preview mock, BUKAN generator PDF nyata). `/crm/opportunities/[id]` mendapat: tombol "Duplicate Quotation", panel "Bandingkan dengan versi sebelumnya" (compare terbatas pada nilai total, lihat D-062), field komersial baru pada "Edit Quotation", tombol "Withdraw Submission" (AE, saat submitted), tombol "Send to Client"/dialog "Catat Client Confirmation" (saat approved), dan gerbang baru pada tombol "Mark as Won" (kini mensyaratkan `clientConfirmedAt` selain `approvalStatus === 'approved'`). Fixture: `QUO-010` dilengkapi tax/markup/currency/validity/inclusions/exclusions/terms; `QUO-006` +`sentToClientAt` (Opportunity `OPP-006` sengaja TIDAK diberi `clientConfirmedAt`, mendemokan gerbang baru — lihat CI-034). Lihat D-062 (`docs/mockup-design-decisions.md`) dan `docs/mockup-section-reports/section-05-ae-opportunity-quotation.md`.
 
+## 2g. Management Approval Queue dan Guard Data-Layer Won (Section 06, Skema Roadmap Baru)
+
+`app/pages/crm/quotations.vue` ditulis ulang total dari `ModulePlaceholder` menjadi Management Approval Queue (3 tab: Menunggu Approval/Menunggu Client Confirmation/Semua Quotation, tab state via query `?tab=`). `app/data/index.ts` +2 selector baru (`getQuotationsPendingApproval`, `getOpportunitiesPendingClientConfirmation`); `submitQuotationForApproval`/`approveQuotation`/`rejectQuotation` kini mencatat `PartyActivity` per keputusan (histori); `approveOpportunityWon` +guard `quotation.approvalStatus === 'approved' && opportunity.clientConfirmedAt` (dipindah dari UI-only ke level data) +reaffirmation `party.accountOwnerId`. "Reject" tetap satu status (`rejected`), berfungsi sekaligus sebagai "Return for Revision" — tidak ada status paralel baru. `comingSoon` dihapus dari nav item "Quotations". Lihat D-063 (`docs/mockup-design-decisions.md`) dan `docs/mockup-section-reports/section-06-management-approval-won.md`.
+
+## 2h. Customer Journey Funnel dan AE Portfolio Scoping (Section 07, Skema Roadmap Baru)
+
+`/customer-journey` mendapat panel "Customer Journey Funnel" (7 tahap: Lead→Qualified→Opportunity→Approved→Won→Client→Project Order), setiap tahap menunjukkan conversion % dari tahap sebelumnya dan dapat diklik untuk drill-down (query filter otomatis ter-seed di halaman tujuan: `/customer-journey/leads?stage=`, `/crm/opportunities?stage=`, `/crm/quotations?tab=all&status=`, `/customer-journey/customers?status=`, `/customer-journey/project-orders`). Bug AE portfolio scoping diperbaiki (CI-037): `scopedLeads`/Active Clients dashboard sebelumnya tidak ter-scope untuk AE. Toggle "Hanya Portfolio Saya" (default ON untuk AE) ditambahkan di `/customer-journey/customers` (+filter owner baru) dan `/customer-journey/project-orders` (+filter periode keberangkatan baru). `app/data/index.ts` +`getPartiesByAccountOwner`. Lihat D-064 (`docs/mockup-design-decisions.md`) dan `docs/mockup-section-reports/section-07-customer-journey.md`.
+
+## 2i. Client Portal Lengkap (Section 08, Skema Roadmap Baru)
+
+`/client` ditulis ulang total dari shell Section 02 menjadi dashboard penuh (profile+contacts, Action Center/notifications, Support/AE contact, travel request creation via dialog, list Opportunity/Project Order dengan link ke halaman detail baru). Route baru `/client/opportunities/[id]` (quotation view tersanitasi + Request Revision + Accept/Reject self-service) dan `/client/project-orders/[id]` (6 tab: Overview, Itinerary, Travelers, Documents, Finance, Change Request). Seluruh field internal cost/margin (`estimatedCostIdr`/`estimatedMarginIdr`/`markupIdr`/`budgetIdr`/`actualCostIdr`/`approvedBy`/`approvalNote`) dipastikan TIDAK PERNAH dirender (diverifikasi grep audit) — lihat D-065. `recordClientConfirmation` (Section 05) kini dipanggil self-service oleh Client (CI-038). `LeadSource` +`client-portal` (aditif, `app/types/lead.ts`+`app/constants/status.ts`). Tidak ada mutator data baru — seluruh aksi reuse `createContact`/`createLead`/`updateLeadQualification`/`recordClientConfirmation`/`createPartyActivity`/`createTraveler`/`updateTraveler`/`createChangeEntry` existing. Lihat D-065 (`docs/mockup-design-decisions.md`) dan `docs/mockup-section-reports/section-08-client-portal.md`.
+
+## 2j. Project Order dan Handover Lengkap (Section 09, Skema Roadmap Baru)
+
+`ProjectOrderStatus` (10 nilai) dirivasi via `getProjectOrderStatus()` dari `ProjectStatus` (LOCKED, tidak diubah) + field baru `handoverAcceptedAt`/`handoverAcceptedBy`/`handoverReturnedAt`/`handoverReturnReason`/`readyAt`/`closedAt`/`closureChecklist` pada `Project`. Tab Overview `/projects/[id]` mendapat 4 SectionCard baru: Handover & Project Status (Accept/Return Handover dengan reason, transisi status dengan guard+reason wajib untuk On Hold/Cancelled), Team (tambah/hapus anggota — `teamUserIds` sebelumnya tanpa mutator), Risks (`ProjectRisk`, entitas baru), Closure Checklist (shell, 4 item, tidak menggerbangi apa pun sampai Section 24). Tab Tasks ditulis ulang total (sebelumnya read-only murni) — create/edit task, milestone flag, dependency single-link, assignee. Bug fix: link "opportunity asal" sebelumnya ke list bukan detail spesifik (CI-039). Fixture: `PRJ-101`/`102`/`103` di-backfill `handoverAcceptedAt`; `PRJ-104` sengaja dibiarkan Handover Pending untuk demo. Lihat D-066 (`docs/mockup-design-decisions.md`) dan `docs/mockup-section-reports/section-09-project-order-handover.md`.
+
 ## 3. Component Shared dan Domain yang Sudah Tersedia
 
 Tidak ada shared component **file** baru Prompt 19 maupun Prompt 20, KECUALI primitive `ui/sheet/*` (sudah ada sejak Foundation, **baru dipakai pertama kali** di drawer Lead Detail — `Sheet`/`SheetContent`/`SheetHeader`/`SheetTitle`/`SheetDescription`/`SheetFooter`) dan `ui/dialog/DialogScrollContent` (sudah ada sejak Foundation, **baru dipakai pertama kali** Prompt 20 — dialog "Edit Requirement"/"Edit Quotation" yang panjang). Seluruh halaman baru/berubah reuse `PageHeader`/`SectionCard`/`RoleAccessState`/`EmptyState`/`StatusBadge`/`StatusBreakdownList`/`StatsCard`/`Table*`/`Dialog*`/`Tabs*`/`DetailMetadataList` existing.
@@ -106,6 +134,14 @@ Tidak ada shared component **file** baru Prompt 19 maupun Prompt 20, KECUALI pri
 
 **Selektor/mutator baru (Section 05):** `duplicateQuotationVersion`, `sendQuotationToClient`, `withdrawQuotationSubmission` (Quotation); `recordClientConfirmation` (Opportunity) — seluruhnya di `app/data/index.ts`. `updateQuotationDetails`/`QuotationDetailInput` (Prompt 20) diperluas aditif dengan 7 field baru (tidak ada perubahan signature).
 
+**Selektor baru (Section 06):** `getQuotationsPendingApproval`, `getOpportunitiesPendingClientConfirmation` — `app/data/index.ts`. Mutator existing `submitQuotationForApproval`/`approveQuotation`/`rejectQuotation`/`approveOpportunityWon` diperkaya perilakunya (logging `PartyActivity`, guard tambahan, `party.accountOwnerId`) TANPA perubahan signature.
+
+**Selektor baru (Section 07):** `getPartiesByAccountOwner` — `app/data/index.ts`. Tidak ada perubahan type/shape.
+
+**Section 08:** Tidak ada mutator/selector baru di `app/data/index.ts` — seluruh aksi Client Portal reuse mutator generik existing (lihat bagian 2i). `LeadSource` +`'client-portal'` (aditif, `app/types/lead.ts`), `LEAD_SOURCES` +1 entri (`app/constants/status.ts`).
+
+**Section 09:** +13 mutator/selector baru di `app/data/index.ts` — `getProjectOrderStatus`, `getRisksByProject`, `acceptProjectHandover`, `returnProjectHandover`, `markProjectReady`, `getProjectStatusTransitions`, `updateProjectStatus`, `updateProjectClosureChecklist`, `addProjectTeamMember`, `removeProjectTeamMember`, `createProjectTask`, `updateProjectTask`, `createProjectRisk`, `updateProjectRiskStatus`. `Project` +7 field aditif (lihat 2j). `ProjectTask` +3 field aditif (`isMilestone`/`dependsOnTaskId`/`assignedTo`). `+ProjectRisk`/`ProjectRiskSeverity`/`ProjectRiskStatus` (`app/types/activity.ts`). `+ProjectOrderStatus`/`ProjectClosureChecklist` (`app/types/project.ts`). `+PROJECT_ORDER_STATUSES`/`RISK_SEVERITIES`/`RISK_STATUSES` (`app/constants/status.ts`). `TASKS` jadi `reactive()`, `+PROJECT_RISKS` (`app/data/activity.ts`).
+
 ## 5. Area Hasil Section Lama yang Harus Dilindungi
 
 - Seluruh shared component, fixture, type, constant — jangan diubah shape-nya tanpa cross-section impact check.
@@ -118,38 +154,50 @@ Tidak ada shared component **file** baru Prompt 19 maupun Prompt 20, KECUALI pri
 - `approveOpportunityWon`/`rejectOpportunityWon` (Section 09) — **tidak diubah signature/body-nya** Prompt 20; `rejectOpportunityWon` kini tidak dipanggil UI manapun (dead dari sisi UI, tetap ada di `app/data/index.ts` untuk backward-compatibility, D-053).
 - `app/pages/reports/index.vue` — pemilik penuh 6 section Reports (Section 16); `app/pages/vendors/[id]/index.vue` — pemilik Vendor Detail (Section 13), Prompt 19 hanya menambah 1 tab, Prompt 20 tidak menyentuh.
 - **Keputusan didokumentasikan (bukan gap tersembunyi):** export mock Reports tidak dikerjakan (Section 16); tidak ada CRUD invoice/payment (Section 15); Supplier Portal (`/supplier/orders`) read-only, tidak ada self-service submit quotation dari sisi supplier (Q12, `docs/mockup-open-questions.md`); payment terms/margin-cost summary tidak digerbangi hard-block pada Requirement Gate (D-055); Quotation Compare (Section 05) terbatas pada nilai total, bukan breakdown penuh per versi (D-062); PDF/Print Preview (Section 05) memakai `window.print()` browser, bukan generator PDF nyata (batasan protokol).
-- `getOpportunityMissingRequirements`/`approveOpportunityWon` (Section 09) — **tidak diubah** Section 05; gerbang baru `clientConfirmedAt` pada tombol Mark as Won bersifat TAMBAHAN terhadap gerbang `approvalStatus === 'approved'` existing (Prompt 19/20), bukan pengganti.
+- `getOpportunityMissingRequirements` (Section 09) — **tidak diubah** Section 05/06. `approveOpportunityWon` (Section 09) — diperkaya Section 06 (guard `approvalStatus`/`clientConfirmedAt` dipindah ke level data, +`party.accountOwnerId`) TANPA mengubah signature/guard existing (`stage !== 'won-requested'`, duplicate-project prevention via `projectId`).
+- `QuotationApprovalStatus` (`draft`/`submitted`/`approved`/`rejected`, Prompt 19) — **tidak direstrukturisasi** Section 06 meski Wajib menyebut "return for revision"; "reject" berfungsi sekaligus sebagai "return for revision" (D-063), bukan status paralel baru.
+- `recordClientConfirmation` (Section 05) — **tidak diubah signature/body-nya** Section 08; hanya dipanggil dari titik akses baru (`/client/opportunities/[id]`, self-service Client) selain titik akses AE-facing existing (`/crm/opportunities/[id]`). `DOCUMENTS` (`app/data/activity.ts`) — **tetap bukan `reactive()`**, Client Portal hanya membaca (read-only), tidak ada mutator create (D-065, keputusan disengaja).
+- `ProjectStatus` (8 nilai, D-028) — **tidak direstrukturisasi** Section 09 meski `ProjectOrderStatus` (10 nilai) ditambahkan; derivasi via `getProjectOrderStatus()` (D-066), pola sama D-053/D-056. `app/pages/projects/[id]/index.vue` — 8-tab shell TETAP LOCKED (D-026/D-027), Section 09 hanya menambah SectionCard baru DI DALAM tab Overview/Tasks existing, TIDAK menambah tab ke-9.
 
 ## 6. Known Issues dan Validation Status
 
-Divalidasi ulang langsung pada tanggal update dokumen ini (Prompt 20):
+**Catatan currency dokumen ini:** bagian 2/4 (narasi "2x"/daftar selector per-section) di atas TIDAK diperbarui oleh Section 10–16 (terhenti di 2j/Section 09) — bagian 1 (Current Phase), 6, 7, 8 tetap dijaga current oleh Section 17, tapi rincian selector/type/fixture Section 10–16 hanya tercatat lengkap di `docs/mockup-change-impact-log.md` (CI-040 s/d CI-046) dan masing-masing `docs/mockup-section-reports/section-1{0-6}-*.md` — bukan gap tersembunyi Section 17 (ditemukan saat audit awal section ini, dicatat apa adanya, TIDAK diperbaiki retroaktif karena di luar scope literal Section 17).
+
+Divalidasi ulang langsung pada tanggal update dokumen ini (Section 17):
 
 | Cek | Hasil | Catatan |
 |---|---|---|
 | `npx nuxi prepare` | **Sukses** | |
-| `npm run build` | **Sukses** | Client & server bundle ter-build sukses, chunk `leads-*`/`opportunities-*`/`customer-journey-*` ter-compile dengan perubahan Prompt 20. |
-| Smoke test HTTP (~27 route, baru+existing representatif) | **Sukses** | Seluruhnya HTTP 200 |
-| Smoke test konten | **Sukses** | Badge status workflow sesuai per skenario opportunity (OPP-005 "Pending Management Approval", OPP-006 "Approved"+tombol "Mark as Won" aktif, OPP-007 "Pending Requirement", OPP-009 "Ready for Quotation"+"Buat Quotation" aktif, OPP-010 "Quotation Draft"+"Edit Quotation"+Service Breakdown tampil); Leads list menampilkan lead existing tanpa error; Lead Source Recap (Total 10/Qualified 3/Opportunities 2/Won 1) tidak berubah |
-| Regresi route existing (Dashboard, CRM, Projects, Vendors, Finance, Reports, Admin, Customer Journey, Activity Center, Supplier) | **Tidak berubah** kontennya, tetap HTTP 200 | |
+| `npm run build` | **Sukses** | 2x run (termasuk setelah perbaikan default clarification thread) — chunk `procurement-*`/`rfq-*`/`service-orders-*`/`performance-*` ter-compile dengan perubahan Section 17. |
+| Smoke test HTTP (~29 route, baru+existing representatif) | **Sukses** | Seluruhnya HTTP 200 |
+| Smoke test konten | **Sukses** | `/procurement/rfq/RFQ-004` menampilkan vendor terpilih "Trans Wahana Logistik"; `/procurement/service-orders/SO-001` menampilkan status "Fulfilled"; `/procurement/rfq/RFQ-999`/`/procurement/service-orders/SO-999` menampilkan not-found (bukan crash); `/vendors` menampilkan kolom Kategori/Status; `/vendors/VND-006?tab=documents` menampilkan dokumen PT ABC; `/admin/roles` menampilkan kolom "Procurement" |
+| Regresi route existing (Dashboard, CRM, Projects, Vendors, Finance, Reports, Admin, Accommodation, Transportation, MICE, Ticketing, Supplier) | **Tidak berubah** kontennya, tetap HTTP 200 | |
 | `npx vitest run` | **"No test files found", exit code 0 (harness)** | Pre-existing |
 | `npx nuxi typecheck` | **Gagal — `vue-tsc` tidak terpasang** | Q8 belum diselesaikan |
 | Lint | **Tidak tersedia** | Q8 belum diselesaikan |
-| Verifikasi interaktif (isi form Qualification/Requirement Detail live, klik Mark as Won) | **Tidak dilakukan headless** | Keterbatasan tooling konsisten sejak Section 06 — dimitigasi lewat code review ketat terhadap seluruh gate baru (`getLeadMissingQualification`, `getOpportunityRequirementGate`, gate tombol "Mark as Won") dan smoke test SSR konten per skenario |
+| Verifikasi interaktif (klik Select vendor RFQ, Acknowledge/Fulfill Service Order, submit Invoice) | **Tidak dilakukan headless** | Keterbatasan tooling konsisten sejak Section 06 — dimitigasi lewat code review ketat terhadap seluruh guard (`selectRfqVendor`/`updateServiceOrderStatus`/`submitSupplierInvoice`) dan smoke test SSR konten per skenario |
 
 **Known issues terbuka:**
-- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. Belum diselesaikan sejak Section 06, termasuk di change request ini.
-- Q12 — self-service submit quotation dari `/supplier/orders` tidak diimplementasikan (deferred, `docs/mockup-open-questions.md`, tidak berubah).
+- **Q8 — Tooling lint/typecheck/test.** Tetap `NEEDS_VALIDATION`. Belum diselesaikan sejak Section 06, termasuk di Section 17.
+- ~~Q12 — self-service submit quotation dari `/supplier/orders`~~ — **RESOLVED Section 17** (RFQ Inbox + Invoice Submission di `/supplier/rfq`/`/supplier/service-orders`, lihat D-074).
 - Payment terms/margin-cost summary tidak digerbangi hard-block pada Requirement Gate (D-055, kondisional tanpa mekanisme konfigurasi eksplisit — dicatat sebagai keputusan, bukan gap tersembunyi).
 - Export mock Reports tidak dikerjakan (Section 16, tidak berubah).
 - Verifikasi interaktif tidak dilakukan secara headless (keterbatasan tooling, konsisten sejak Section 06).
+- "On-time %" Procurement Performance Review (Section 17) disederhanakan sebagai rasio Service Order `fulfilled` terhadap total — tidak ada field due-date terpisah (dicatat sebagai keputusan D-074, bukan gap tersembunyi).
 - Q7, Q9, Q10, Q11 — tidak berubah.
 
 ## 7. Next Recommended Section
 
-Skema lama (Prompt 0–20): tidak ada section/change baku selanjutnya. Skema baru (Section 00–24): Section 06 (Management Approval, Won dan Client Activation — melengkapi gap PARTIAL: approval queue agregat, notifikasi/queue client confirmation Management-facing, Q14) direkomendasikan sebagai kandidat berikutnya berbasis dependency (lihat `docs/frontend-implementation-roadmap.md`), tapi menunggu perintah eksplisit user.
+Skema lama (Prompt 0–20): tidak ada section/change baku selanjutnya. Skema baru (Section 00–24): Section 18 (Booking dan Service Orders — halaman konsolidasi tampilan booking lintas Section 13-16, BERBEDA dari `ServiceOrder` Procurement Section 17, lihat `docs/frontend-known-issues.md` bagian 13) direkomendasikan sebagai kandidat berikutnya berbasis dependency (lihat `docs/frontend-implementation-roadmap.md`), tapi menunggu perintah eksplisit user.
 
 ## 8. Last Updated
 
-- **Date:** 2026-07-31
-- **Updater:** Section 05 (Account Executive Opportunity dan Quotation, skema roadmap Section 00–24 baru) execution — Duplicate Quotation, Compare Versions (nilai total), Send to Client (mock), Withdraw Submission, PDF/Print Preview (`quotation-preview`, baru), field komersial Quotation (tax/markup/currency/validity/terms/inclusions/exclusions), Client Confirmation (gerbang tambahan sebelum Mark as Won) di `/crm/opportunities/[id]`. `npx nuxi prepare` + `npm run build` diverifikasi sukses.
+- **Date:** 2026-08-01
+- **Updater:** Section 17 (Supplier dan Procurement, skema roadmap Section 00–24 baru) execution — modul top-level baru `/procurement` (RFQ formal/comparison/clarification/selection, Service Order/amendment/acknowledgment/fulfillment, Procurement Performance Review, D-074); `/vendors` diperluas aditif (`category`/`status`/`documents`, tab "Documents" baru); `/supplier` diperluas (RFQ Inbox, Service Order Inbox, Invoice Submission preview — resolusi Q12); ringkasan RFQ/Service Order di tab "Itinerary & Services" `/projects/[id]`; Matrix Role `/admin/roles` +kolom "Procurement". `npx nuxi prepare` + `npm run build` sukses (2x run).
+- **Update sebelumnya (Section 16, 2026-08-01):** Modul top-level baru `/mice` (`MiceEvent` — brief/venue/sessions/participant categories/BOQ/staffing/checklist/client approval/change order/incident/deliverables), ringkasan MICE Event di tab Itinerary & Services. Lihat `docs/mockup-section-reports/section-16-mice.md`.
+- **Update sebelumnya (Section 09, 2026-07-31):** `ProjectOrderStatus` 10-nilai dirivasi (D-066); Accept/Return Handover dengan reason; transisi `Project.status` dengan guard+reason wajib; Team assignment; Tasks tab ditulis ulang (milestone/dependency/assignee); `ProjectRisk` (entitas baru); Closure Checklist shell. Bug fix link opportunity asal (CI-039).
+- **Update sebelumnya (Section 08, sama tanggal):** `/client` ditulis ulang total (dashboard, profile+contacts, Action Center, travel request); route baru `/client/opportunities/[id]` (accept/reject self-service, CI-038) dan `/client/project-orders/[id]` (6 tab). **Catatan penting yang tetap berlaku:** verifikasi interaktif role Client TIDAK dapat dilakukan via smoke test SSR/curl (role-switching client-only via `localStorage`).
+- **Update sebelumnya (Section 07, sama tanggal):** Panel "Customer Journey Funnel" 7-tahap dengan drill-down di `/customer-journey`; bug fix AE portfolio scoping (CI-037); toggle "Hanya Portfolio Saya" + filter owner/date baru di Customers/Project Orders list.
+- **Update sebelumnya (Section 06, sama tanggal):** `/crm/quotations` ditulis ulang menjadi Management Approval Queue; histori approve/reject via `PartyActivity`; guard `approvalStatus`/`clientConfirmedAt` dipindah ke level data (`approveOpportunityWon`); `party.accountOwnerId` reaffirmation saat Won.
+- **Update sebelumnya (Section 05, sama tanggal):** Duplicate Quotation, Compare Versions (nilai total), Send to Client (mock), Withdraw Submission, PDF/Print Preview (`quotation-preview`), field komersial Quotation (tax/markup/currency/validity/terms/inclusions/exclusions), Client Confirmation AE-facing di `/crm/opportunities/[id]`.
 - **Update susulan (bug fix, sama tanggal):** User melaporkan app gagal mount di browser ("500 Internal Server Error — Failed to execute 'structuredClone' on 'Window'"). Root cause: `app/plugins/mock-reset.client.ts` (Section 01) memanggil `structuredClone()` langsung terhadap array `reactive()` Vue — tidak pernah terdeteksi oleh smoke test `curl` manapun sejak Section 01 karena kode client-only tidak dieksekusi saat SSR. Diperbaiki di `app/utils/mock-reset.ts` (`structuredClone` → `deepClone` berbasis JSON). Detail: `docs/mockup-change-impact-log.md` CI-035, `docs/frontend-known-issues.md` bagian 0b.

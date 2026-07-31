@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import type { ActivityEntry, ProjectDocument, ProjectTask, SystemEvent } from '~/types/activity'
+import type { ActivityEntry, ProjectDocument, ProjectTask, ProjectRisk, ShiftNote, SystemEvent } from '~/types/activity'
 
 /** `reactive()` (Section 09) — approve Won harus mencatat entri Activity baru untuk project yang baru dibuat. */
 
@@ -58,21 +58,49 @@ export const DOCUMENTS: ProjectDocument[] = [
   { id: 'DOC-1033', projectId: 'PRJ-103', name: 'Kontrak_Vendor_MICE.pdf', uploadedAt: '2026-06-10' },
 ]
 
-export const TASKS: ProjectTask[] = [
-  { id: 'TSK-1011', projectId: 'PRJ-101', title: 'Konfirmasi manifest penumpang', status: 'done' },
+/**
+ * `reactive()` (Section 09 — roadmap Section 00–24 baru) — Tasks tab sebelumnya read-only murni (tidak
+ * ada create/edit sama sekali meski `dueAt` sudah ada di type sejak Foundation); `createProjectTask`/
+ * `updateProjectTask` (`app/data/index.ts`) butuh array reaktif. `isMilestone`/`dependsOnTaskId`/
+ * `assignedTo` (Wajib "Milestones, tasks, dependencies") dibackfill aditif pada beberapa baris existing
+ * untuk mendemokan fitur tanpa mengubah task lama yang sudah berjalan.
+ */
+export const TASKS: ProjectTask[] = reactive([
+  { id: 'TSK-1011', projectId: 'PRJ-101', title: 'Konfirmasi manifest penumpang', status: 'done', assignedTo: 'USR-004' },
 
-  { id: 'TSK-1021', projectId: 'PRJ-102', title: 'Reschedule hotel booking', status: 'in-progress' },
-  { id: 'TSK-1022', projectId: 'PRJ-102', title: 'Update traveler manifest', status: 'overdue', dueAt: '2026-07-22' },
+  // isBlocked/blockedReason (Section 12 baru, Wajib "blocker") — dibackfill pada 1 task per skenario yang paling wajar diblokir oleh faktor eksternal (bukan seluruh task, agar tetap merepresentasikan kondisi realistis campuran blocked/tidak).
+  { id: 'TSK-1021', projectId: 'PRJ-102', title: 'Reschedule hotel booking', status: 'in-progress', assignedTo: 'USR-005', isBlocked: true, blockedReason: 'Menunggu konfirmasi ketersediaan kamar Suite dari hotel' },
+  { id: 'TSK-1022', projectId: 'PRJ-102', title: 'Update traveler manifest', status: 'overdue', dueAt: '2026-07-22', assignedTo: 'USR-004', dependsOnTaskId: 'TSK-1021' },
   // TSK-1023 (Section 06/Dashboard): melengkapi task dengan dueAt di masa depan agar widget
   // "Milestone/task mendatang" (Project Manager) punya data selain yang overdue.
   { id: 'TSK-1023', projectId: 'PRJ-102', title: 'Follow-up pembayaran termin tambahan ke client', status: 'not-started', dueAt: '2026-08-01' },
 
-  { id: 'TSK-1031', projectId: 'PRJ-103', title: 'Finalisasi rooming list Group C', status: 'in-progress' },
-  { id: 'TSK-1032', projectId: 'PRJ-103', title: 'Konfirmasi venue MICE hari ke-2', status: 'pending-confirmation' },
-  { id: 'TSK-1033', projectId: 'PRJ-103', title: 'Kirim rundown acara ke client', status: 'not-started' },
-  { id: 'TSK-1034', projectId: 'PRJ-103', title: 'Rekonsiliasi actual cost transportation', status: 'overdue', dueAt: '2026-07-25' },
-  { id: 'TSK-1035', projectId: 'PRJ-103', title: 'Verifikasi ulang manifest VIP sebelum keberangkatan', status: 'in-progress', dueAt: '2026-08-05' },
-]
+  { id: 'TSK-1031', projectId: 'PRJ-103', title: 'Finalisasi rooming list Group C', status: 'in-progress', isMilestone: true, assignedTo: 'USR-005' },
+  { id: 'TSK-1032', projectId: 'PRJ-103', title: 'Konfirmasi venue MICE hari ke-2', status: 'pending-confirmation', isMilestone: true, assignedTo: 'USR-007' },
+  { id: 'TSK-1033', projectId: 'PRJ-103', title: 'Kirim rundown acara ke client', status: 'not-started', dependsOnTaskId: 'TSK-1032' },
+  { id: 'TSK-1034', projectId: 'PRJ-103', title: 'Rekonsiliasi actual cost transportation', status: 'overdue', dueAt: '2026-07-25', assignedTo: 'USR-006' },
+  { id: 'TSK-1035', projectId: 'PRJ-103', title: 'Verifikasi ulang manifest VIP sebelum keberangkatan', status: 'in-progress', dueAt: '2026-08-05', isMilestone: true },
+])
+
+/**
+ * Project Risk (Section 09 — roadmap Section 00–24 baru, Wajib "risks"). Diseed pada `PRJ-103` (project
+ * `complex`, MICE 60 pax — skenario paling wajar untuk risk tracking nyata), tidak dipaksakan ke seluruh
+ * project demo lain.
+ */
+export const PROJECT_RISKS: ProjectRisk[] = reactive([
+  { id: 'RSK-1031', projectId: 'PRJ-103', title: 'Ketersediaan venue MICE hari ke-2 belum terkonfirmasi final', description: 'Venue alternatif perlu disiapkan bila konfirmasi tidak turun H-7.', severity: 'high', status: 'open', raisedBy: 'USR-002', createdAt: '2026-07-20' },
+  { id: 'RSK-1032', projectId: 'PRJ-103', title: 'Cuaca ekstrem berpotensi mengganggu sesi outdoor', description: 'Rencana cadangan indoor perlu disiapkan tim Operations.', severity: 'medium', status: 'mitigated', raisedBy: 'USR-006', createdAt: '2026-07-18' },
+])
+
+/**
+ * "On-trip updates dan shift notes mock" (Section 12 — roadmap Section 00–24 baru, Wajib). Diseed pada
+ * `PRJ-103` (satu-satunya project berstatus `in-progress`/on-trip pada tanggal referensi demo, skenario
+ * paling wajar untuk shift handover nyata), tidak dipaksakan ke project lain yang belum berjalan.
+ */
+export const SHIFT_NOTES: ShiftNote[] = reactive([
+  { id: 'SFT-1031', projectId: 'PRJ-103', authorId: 'USR-006', shift: 'pagi', note: 'Seluruh group tiba tepat waktu, transportasi bandara-hotel lancar tanpa kendala.', createdAt: '2026-08-10' },
+  { id: 'SFT-1032', projectId: 'PRJ-103', authorId: 'USR-007', shift: 'siang', note: 'Venue MICE hari ke-1 sudah siap, AV testing selesai. Serah terima ke shift malam untuk persiapan hari ke-2.', createdAt: '2026-08-11' },
+])
 
 /**
  * System Event (Prompt 19 — Change Request, Activity Center Super Admin). Log mock lintas-modul,

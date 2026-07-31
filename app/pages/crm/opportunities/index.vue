@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { Search } from 'lucide-vue-next'
 import { OPPORTUNITIES, QUOTATIONS, PARTIES, getPartyById, getQuotationByOpportunity } from '~/data'
 import { OPPORTUNITY_STAGES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
@@ -9,10 +10,12 @@ import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownLis
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Opportunities' })
 
+const route = useRoute()
 const { canView } = usePermissions()
 
 const searchQuery = ref('')
-const stageFilter = ref('all')
+/** Drill-down (Section 07, Customer Journey Funnel) — `?stage=won` dari `/customer-journey` deep-link langsung ke Opportunity Won. */
+const stageFilter = ref((route.query.stage as string) || 'all')
 const partyFilter = ref('all')
 
 /** Pipeline visualization (Section 08) — dikelompokkan per stage, seluruh party (tidak terpengaruh filter di bawah). */

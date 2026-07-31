@@ -9,6 +9,7 @@ import {
   updateOpportunityRequirement, updateQuotationDetails, approveOpportunityWon,
   submitQuotationForApproval, approveQuotation, rejectQuotation,
   duplicateQuotationVersion, sendQuotationToClient, withdrawQuotationSubmission, recordClientConfirmation,
+  getCostSheetsByOpportunity, getCostSheetBreakdown,
 } from '~/data'
 import {
   OPPORTUNITY_STAGES, OPPORTUNITY_WORKFLOW_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES,
@@ -52,6 +53,9 @@ const missingRequirements = computed(() => (opportunity.value ? getOpportunityMi
 const requirementGateWarnings = computed(() => (opportunity.value ? getOpportunityRequirementGate(opportunity.value.id) : []))
 /** Status workflow AE-facing (Prompt 20-10/14) — "indikator stage yang jelas", menggantikan label lama yang membingungkan. */
 const workflowStatus = computed(() => (opportunity.value ? getOpportunityWorkflowStatus(opportunity.value.id) : undefined))
+
+/** Product Planning dan Costing (Section 10) — Cost Sheet yang melekat pada Opportunity ini, kolaborasi Product Planner↔AE. Pengelolaan lengkap (edit/apply) tetap di modul Product Planning, di sini murni ringkasan + link. */
+const costSheets = computed(() => (opportunity.value ? getCostSheetsByOpportunity(opportunity.value.id) : []))
 
 const summaryMetadata = computed(() => {
   if (!opportunity.value) return []
@@ -639,6 +643,29 @@ function submitActivity() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+      </SectionCard>
+
+      <!-- Product Planning & Costing (Section 10) -->
+      <SectionCard title="Product Planning & Costing" description="Cost Sheet yang disiapkan Product Planner untuk Opportunity ini — kolaborasi sebelum Quotation dibentuk.">
+        <template #actions>
+          <NuxtLink :to="`/product-planning/cost-sheets?opportunityId=${opportunity.id}&create=1`">
+            <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Buat Cost Sheet</Button>
+          </NuxtLink>
+        </template>
+        <ul v-if="costSheets.length > 0" class="divide-y divide-border">
+          <li v-for="sheet in costSheets" :key="sheet.id" class="py-2.5 flex items-center justify-between gap-2">
+            <div class="min-w-0">
+              <NuxtLink :to="`/product-planning/cost-sheets/${sheet.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ sheet.name }}</NuxtLink>
+              <p class="text-xs text-muted-foreground">v{{ sheet.version }} · {{ sheet.travelerCount }} pax</p>
+            </div>
+            <div class="flex items-center gap-2 shrink-0">
+              <span class="text-sm text-foreground">{{ formatCurrencyIdr(getCostSheetBreakdown(sheet).totalSellIdr) }}</span>
+              <StatusBadge :label="sheet.status === 'final' ? 'Final' : 'Draft'" :tone="sheet.status === 'final' ? 'success' : 'neutral'" />
+              <StatusBadge v-if="sheet.appliedToQuotationId" label="Applied" tone="info" />
+            </div>
+          </li>
+        </ul>
+        <EmptyState v-else title="Belum ada Cost Sheet" description="Product Planner belum menyiapkan estimasi biaya untuk Opportunity ini." />
       </SectionCard>
 
       <!-- Quotation -->

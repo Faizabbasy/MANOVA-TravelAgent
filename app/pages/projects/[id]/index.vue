@@ -1,26 +1,40 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2 } from 'lucide-vue-next'
+import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus } from 'lucide-vue-next'
 import {
-  getProjectById, getPartyById, getUserById, getVendorById,
-  getProjectServices, getItineraryItems, updateServiceStatus,
+  getProjectById, getPartyById, getUserById, getVendorById, getOpportunityById, getQuotationByOpportunity,
+  getProjectServices, getItineraryItems, updateServiceStatus, updateItineraryItem,
   getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation,
   getTravelerGroups, getTravelers, getRoomAssignments,
-  createTraveler, updateTraveler, removeTraveler, importTravelersMock,
+  createTraveler, updateTraveler, removeTraveler,
+  toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
   getInvoicesByProject, getPaymentsByInvoice, getInvoiceOutstandingIdr, getProjectOutstandingIdr, getCommittedVendorCostIdr,
-  getTasksByProject, getDocumentsByProject, getActivitiesByProject,
+  getTasksByProject, getDocumentsByProject, getActivitiesByProject, getRisksByProject,
   createChangeEntry, approveChangeEntry, rejectChangeEntry,
+  getProjectOrderStatus, acceptProjectHandover, returnProjectHandover, markProjectReady,
+  getProjectStatusTransitions, updateProjectStatus, updateProjectClosureChecklist,
+  addProjectTeamMember, removeProjectTeamMember,
+  createProjectTask, updateProjectTask, createProjectRisk, updateProjectRiskStatus,
+  toggleTaskBlocked, getServiceReadinessMatrix, getDepartureReadiness, getProjectAttentionQueue,
+  getShiftNotes, createShiftNote,
+  getFlightBookingsByProject,
+  getHotelBookingsByProject,
+  getTransportBookingsByProject,
+  getMiceEventsByProject,
+  getServiceOrdersByProject, getRfqsByProject,
+  USERS,
 } from '~/data'
+import type { TravelerImportPreviewRow } from '~/data'
 import {
-  PROJECT_STATUSES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, SERVICE_TYPES,
+  PROJECT_STATUSES, PROJECT_CHARACTERISTICS, PROJECT_ORDER_STATUSES, SERVICE_STATUSES, SERVICE_TYPES,
   INVOICE_STATUSES, TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES,
-  CHANGE_CATEGORIES, CHANGE_APPROVAL_STATUSES, findStatusOption,
+  CHANGE_CATEGORIES, CHANGE_APPROVAL_STATUSES, RISK_SEVERITIES, RISK_STATUSES, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, SERVICE_ORDER_STATUSES, RFQ_STATUSES, findStatusOption,
 } from '~/constants/status'
-import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatTravelerCount } from '~/utils/format'
+import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatTravelerCount, maskDocumentNumber } from '~/utils/format'
 import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, invoiceAgingDays } from '~/utils/attention'
-import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus } from '~/types/project'
-import type { ChangeCategory } from '~/types/activity'
+import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ProjectStatus, ProjectClosureChecklist } from '~/types/project'
+import type { ChangeCategory, ProjectRiskSeverity, ProjectTask, ShiftPeriod } from '~/types/activity'
 import type { Invoice } from '~/types/finance'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
@@ -85,6 +99,187 @@ const owner = computed(() => project.value ? getUserById(project.value.ownerId) 
 const team = computed(() => project.value
   ? project.value.teamUserIds.map(id => getUserById(id)).filter((user): user is NonNullable<typeof user> => Boolean(user))
   : [])
+
+/**
+ * Project Order dan Handover (Section 09 — roadmap Section 00–24 baru). Narrow role exception, pola sama
+ * `canManageTravelers` di atas — hanya PM/Super Admin yang mengelola handover/status/team/closure checklist
+ * (bukan `canManage('project')` generik, agar Management yang punya `APPROVE` tidak ikut lolos untuk aksi
+ * operasional harian yang bukan wewenangnya).
+ */
+const canManageProjectOrder = computed(() => ['project-manager', 'super-admin'].includes(currentRole.value))
+
+const sourceOpportunity = computed(() => project.value?.opportunityId ? getOpportunityById(project.value.opportunityId) : undefined)
+const accountExecutive = computed(() => sourceOpportunity.value ? getUserById(sourceOpportunity.value.ownerId) : undefined)
+const sourceQuotation = computed(() => sourceOpportunity.value ? getQuotationByOpportunity(sourceOpportunity.value.id) : undefined)
+const orderStatus = computed(() => project.value ? getProjectOrderStatus(project.value) : undefined)
+
+const isReturnHandoverDialogOpen = ref(false)
+const returnHandoverReason = ref('')
+
+function submitAcceptHandover() {
+  if (!project.value) return
+  const result = acceptProjectHandover(project.value.id, currentUser.value.id)
+  if (!result) {
+    showToast('Accept Handover Gagal', 'Project Order tidak lagi berstatus Handover Pending.', 'error')
+    return
+  }
+  showToast('Handover Diterima', 'Project Order memasuki tahap Planning.', 'success')
+}
+
+function submitReturnHandover() {
+  if (!project.value || !returnHandoverReason.value.trim()) return
+  const result = returnProjectHandover(project.value.id, returnHandoverReason.value.trim(), currentUser.value.id)
+  if (!result) {
+    showToast('Return Handover Gagal', 'Project Order tidak lagi berstatus Handover Pending.', 'error')
+    return
+  }
+  returnHandoverReason.value = ''
+  isReturnHandoverDialogOpen.value = false
+  showToast('Handover Dikembalikan', 'Alasan tercatat di Activity — AE perlu menindaklanjuti.', 'warning')
+}
+
+function submitMarkReady() {
+  if (!project.value) return
+  const result = markProjectReady(project.value.id)
+  if (!result) {
+    showToast('Gagal', 'Project Order tidak lagi berstatus Confirmed.', 'error')
+    return
+  }
+  showToast('Project Order Ready', 'Ditandai siap keberangkatan.', 'success')
+}
+
+/* Status transitions — guard peta transisi + reason wajib untuk On Hold/Cancelled (Wajib "Transition guards dan visible reason"). */
+const nextStatusOptions = computed(() => project.value ? getProjectStatusTransitions(project.value.status) : [])
+const isStatusDialogOpen = ref(false)
+const pendingStatus = ref<ProjectStatus | null>(null)
+const statusReason = ref('')
+const statusReasonRequired = computed(() => pendingStatus.value === 'on-hold' || pendingStatus.value === 'cancelled')
+
+function openStatusDialog(status: ProjectStatus) {
+  pendingStatus.value = status
+  statusReason.value = ''
+  isStatusDialogOpen.value = true
+}
+
+function submitStatusTransition() {
+  if (!project.value || !pendingStatus.value) return
+  if (statusReasonRequired.value && !statusReason.value.trim()) return
+  const result = updateProjectStatus(project.value.id, pendingStatus.value, currentUser.value.id, statusReason.value.trim() || undefined)
+  if (!result) {
+    showToast('Transisi Gagal', 'Status tidak lagi memungkinkan transisi ini.', 'error')
+    return
+  }
+  isStatusDialogOpen.value = false
+  showToast('Status Diperbarui', `Project Order kini berstatus "${findStatusOption(PROJECT_STATUSES, pendingStatus.value).label}".`, 'success')
+  pendingStatus.value = null
+}
+
+/* Team assignment */
+const isTeamDialogOpen = ref(false)
+const teamMemberToAdd = ref('')
+const teamOptions = computed(() => USERS.filter(user => !project.value?.teamUserIds.includes(user.id) && user.id !== project.value?.ownerId))
+
+function submitAddTeamMember() {
+  if (!project.value || !teamMemberToAdd.value) return
+  addProjectTeamMember(project.value.id, teamMemberToAdd.value)
+  teamMemberToAdd.value = ''
+  isTeamDialogOpen.value = false
+}
+
+function submitRemoveTeamMember(userId: string) {
+  if (!project.value) return
+  removeProjectTeamMember(project.value.id, userId)
+}
+
+/* Closure checklist shell */
+const CLOSURE_CHECKLIST_ITEMS: { key: keyof ProjectClosureChecklist; label: string }[] = [
+  { key: 'financeSettled', label: 'Finance diselesaikan (invoice lunas, tidak ada outstanding)' },
+  { key: 'documentsArchived', label: 'Dokumen diarsipkan' },
+  { key: 'feedbackCollected', label: 'Feedback client dikumpulkan' },
+  { key: 'assetsReturned', label: 'Aset/perlengkapan dikembalikan' },
+]
+
+function toggleClosureItem(key: 'financeSettled' | 'documentsArchived' | 'feedbackCollected' | 'assetsReturned', value: boolean) {
+  if (!project.value) return
+  updateProjectClosureChecklist(project.value.id, { [key]: value })
+}
+
+/* Risks */
+const risks = computed(() => project.value ? getRisksByProject(project.value.id) : [])
+const isRiskDialogOpen = ref(false)
+const riskTitle = ref('')
+const riskDescription = ref('')
+const riskSeverity = ref<ProjectRiskSeverity>('medium')
+
+function submitRisk() {
+  if (!project.value || !riskTitle.value.trim()) return
+  createProjectRisk({
+    projectId: project.value.id,
+    title: riskTitle.value.trim(),
+    description: riskDescription.value.trim() || undefined,
+    severity: riskSeverity.value,
+    raisedBy: currentUser.value.id,
+  })
+  riskTitle.value = ''
+  riskDescription.value = ''
+  riskSeverity.value = 'medium'
+  isRiskDialogOpen.value = false
+  showToast('Risk Dicatat', 'Risk baru ditambahkan ke Project Order ini.', 'success')
+}
+
+function cycleRiskStatus(riskId: string, currentStatus: 'open' | 'mitigated' | 'closed') {
+  const next = currentStatus === 'open' ? 'mitigated' : currentStatus === 'mitigated' ? 'closed' : 'open'
+  updateProjectRiskStatus(riskId, next)
+}
+
+/* Tasks / Milestones / Dependencies */
+const isTaskDialogOpen = ref(false)
+const editingTaskId = ref<string | null>(null)
+const taskTitle = ref('')
+const taskDueAt = ref('')
+const taskIsMilestone = ref(false)
+const taskDependsOn = ref('')
+const taskAssignedTo = ref('')
+
+function openCreateTask() {
+  editingTaskId.value = null
+  taskTitle.value = ''
+  taskDueAt.value = ''
+  taskIsMilestone.value = false
+  taskDependsOn.value = ''
+  taskAssignedTo.value = ''
+  isTaskDialogOpen.value = true
+}
+
+function submitTask() {
+  if (!project.value || !taskTitle.value.trim()) return
+  const payload = {
+    title: taskTitle.value.trim(),
+    dueAt: taskDueAt.value || undefined,
+    isMilestone: taskIsMilestone.value || undefined,
+    dependsOnTaskId: taskDependsOn.value || undefined,
+    assignedTo: taskAssignedTo.value || undefined,
+  }
+  if (editingTaskId.value) {
+    updateProjectTask(editingTaskId.value, payload)
+    showToast('Task Diperbarui', `"${payload.title}" berhasil disimpan.`)
+  } else {
+    createProjectTask({ projectId: project.value.id, ...payload })
+    showToast('Task Ditambahkan', `"${payload.title}" berhasil ditambahkan.`)
+  }
+  isTaskDialogOpen.value = false
+}
+
+function taskTitleById(taskId?: string) {
+  if (!taskId) return undefined
+  return tasks.value.find(t => t.id === taskId)?.title
+}
+
+function handleTaskStatusChange(taskId: string, event: Event) {
+  const newStatus = (event.target as HTMLSelectElement).value as 'not-started' | 'in-progress' | 'pending-confirmation' | 'done' | 'overdue'
+  updateProjectTask(taskId, { status: newStatus })
+}
+
 const services = computed(() => project.value ? getProjectServices(project.value.id) : [])
 const itineraryItems = computed(() => project.value ? getItineraryItems(project.value.id) : [])
 
@@ -115,6 +310,15 @@ function servicesByType(type: ServiceTypeKey) {
   return services.value.filter(service => service.type === type)
 }
 
+/** Ticketing (Section 13 baru) — ringkasan Flight Booking di tab Itinerary & Services, pengelolaan lengkap tetap di modul `/ticketing`. */
+const flightBookings = computed(() => project.value ? getFlightBookingsByProject(project.value.id) : [])
+const hotelBookings = computed(() => project.value ? getHotelBookingsByProject(project.value.id) : [])
+const transportBookings = computed(() => project.value ? getTransportBookingsByProject(project.value.id) : [])
+const miceEvents = computed(() => project.value ? getMiceEventsByProject(project.value.id) : [])
+/** Procurement summary (Section 17 baru) — Service Order dan RFQ terhubung ke project ini, ringkasan saja, pengelolaan lengkap di modul /procurement. */
+const projectServiceOrders = computed(() => project.value ? getServiceOrdersByProject(project.value.id) : [])
+const projectRfqs = computed(() => project.value ? getRfqsByProject(project.value.id) : [])
+
 function serviceReadinessLabel(type: ServiceTypeKey) {
   const list = servicesByType(type)
   const ready = list.filter(service => ['confirmed', 'completed'].includes(service.status)).length
@@ -128,6 +332,76 @@ function handleServiceStatusChange(serviceId: string, event: Event) {
   const service = updateServiceStatus(serviceId, newStatus)
   if (!service) return
   showToast('Status Layanan Diperbarui', `"${service.label}" kini berstatus "${findStatusOption(SERVICE_STATUSES, newStatus).label}".`)
+}
+
+/**
+ * Section 12 baru (roadmap Section 00–24) — "operational command center". Narrow role exception yang sama
+ * dengan komentar `SERVICE_TYPE_ROLE_MAP` di atas: PM/Operations/Super Admin mengelola SELURUH sub-section
+ * operasional umum (readiness gate bersifat advisory/read-only untuk semua yang `canView('project')`,
+ * hanya aksi tulis — toggle internal-only, shift notes — yang digerbangi).
+ */
+const canManageOperations = computed(() => ['project-manager', 'operations', 'super-admin'].includes(currentRole.value))
+
+/** "Service readiness matrix" dan "Departure readiness gates" — derivasi murni, lihat `app/data/index.ts`. */
+const serviceReadinessMatrix = computed(() => project.value ? getServiceReadinessMatrix(project.value.id) : [])
+const departureReadiness = computed(() => project.value ? getDepartureReadiness(project.value.id) : undefined)
+
+/** "Attention/exception queue" — item diklik untuk lompat ke tab terkait. */
+const attentionQueue = computed(() => project.value ? getProjectAttentionQueue(project.value.id) : [])
+function goToAttentionTab(tab: ProjectDetailTab) {
+  activeTab.value = tab
+}
+
+/** "Calendar/timeline views" — toggle tampilan itinerary, data sama persis (bukan komponen calendar baru). */
+const itineraryViewMode = ref<'list' | 'timeline'>('list')
+
+/** "Internal vs client-shared itinerary" — toggle tunggal per item, hanya `canManageOperations`. */
+function toggleItineraryVisibility(item: { id: string; visibleToClient?: boolean }) {
+  const makeInternal = item.visibleToClient !== false
+  updateItineraryItem(item.id, { visibleToClient: !makeInternal })
+  showToast(
+    makeInternal ? 'Ditandai Internal Only' : 'Ditandai Terlihat Client',
+    makeInternal ? 'Item ini kini disembunyikan dari Client Portal.' : 'Item ini kini terlihat oleh Client.',
+    'info',
+  )
+}
+
+/** "On-trip updates dan shift notes mock" */
+const shiftNotes = computed(() => project.value ? getShiftNotes(project.value.id) : [])
+const isShiftNoteDialogOpen = ref(false)
+const shiftNoteShift = ref<ShiftPeriod>('pagi')
+const shiftNoteText = ref('')
+
+function submitShiftNote() {
+  if (!project.value || !shiftNoteText.value.trim()) return
+  createShiftNote({ projectId: project.value.id, authorId: currentUser.value.id, shift: shiftNoteShift.value, note: shiftNoteText.value.trim() })
+  shiftNoteText.value = ''
+  shiftNoteShift.value = 'pagi'
+  isShiftNoteDialogOpen.value = false
+  showToast('Shift Note Dicatat', 'Catatan serah-terima shift berhasil ditambahkan.', 'success')
+}
+
+/** "Blocker" (Tasks) — dialog untuk memblokir (wajib alasan); buka blokir langsung tanpa dialog (tidak butuh alasan). */
+const isBlockDialogOpen = ref(false)
+const blockingTask = ref<ProjectTask | null>(null)
+const blockReason = ref('')
+
+function openBlockDialog(task: ProjectTask) {
+  blockingTask.value = task
+  blockReason.value = ''
+  isBlockDialogOpen.value = true
+}
+
+function submitBlockTask() {
+  if (!blockingTask.value || !blockReason.value.trim()) return
+  toggleTaskBlocked(blockingTask.value.id, blockReason.value.trim())
+  isBlockDialogOpen.value = false
+  showToast('Task Diblokir', `"${blockingTask.value.title}" ditandai diblokir.`, 'warning')
+}
+
+function unblockTask(task: ProjectTask) {
+  toggleTaskBlocked(task.id)
+  showToast('Blokir Dibuka', `"${task.title}" tidak lagi diblokir.`, 'info')
 }
 
 const groups = computed(() => project.value ? getTravelerGroups(project.value.id) : [])
@@ -274,9 +548,11 @@ function goToActivityTab() {
   activeTab.value = 'activity-changes'
 }
 
-/* Travelers tab (Section 11) — filter/search/CRUD state. */
+/* Travelers tab (Section 11 lama + Section 11 baru "Traveler dan Travel Documents") — filter/search/CRUD state. */
 
 const roomAssignments = computed(() => project.value ? getRoomAssignments(project.value.id) : [])
+/** "Readiness indicator" (Section 11 baru) — DIRIVASI, lihat `getTravelerReadiness` (`app/data/index.ts`). */
+const travelerReadiness = computed(() => project.value ? getTravelerReadiness(project.value.id) : undefined)
 
 function travelerNameById(id: string) {
   return travelers.value.find(t => t.id === id)?.name ?? id
@@ -291,9 +567,31 @@ function travelerDocumentMissing(traveler: Traveler) {
   return isTravelerDocumentMissing(traveler, project.value?.travelStartDate)
 }
 
+/**
+ * "Sensitive values masked sesuai role" (Section 11 baru, Wajib) — hanya `canManageTravelers` (PM/Super
+ * Admin) yang melihat nomor dokumen penuh; role lain (Management, Finance, Sales, AE, sub-domain
+ * Ticketing/Accommodation/Transportation/MICE, dst.) melihat versi masked (`maskDocumentNumber`).
+ */
 function passportSummary(traveler: Traveler) {
   if (!traveler.passportNumber || !traveler.passportExpiryDate) return 'Belum diisi'
-  return `${traveler.passportNumber} · ${formatDate(traveler.passportExpiryDate)}`
+  const number = canManageTravelers.value ? traveler.passportNumber : maskDocumentNumber(traveler.passportNumber)
+  return `${number} · ${formatDate(traveler.passportExpiryDate)}`
+}
+
+function idNumberSummary(traveler: Traveler) {
+  if (!traveler.idNumber) return '—'
+  return canManageTravelers.value ? traveler.idNumber : maskDocumentNumber(traveler.idNumber)
+}
+
+function visaSummary(traveler: Traveler) {
+  if (!traveler.visaNumber) return '—'
+  const number = canManageTravelers.value ? traveler.visaNumber : maskDocumentNumber(traveler.visaNumber)
+  return traveler.visaExpiryDate ? `${number} · ${formatDate(traveler.visaExpiryDate)}` : number
+}
+
+function companionSummary(traveler: Traveler) {
+  if (!traveler.companionOfTravelerId) return null
+  return `Mendampingi: ${travelerNameById(traveler.companionOfTravelerId)}`
 }
 
 const travelerSearch = ref('')
@@ -318,18 +616,33 @@ const formName = ref('')
 const formGroupId = ref('')
 const formPassportNumber = ref('')
 const formPassportExpiryDate = ref('')
+const formIdNumber = ref('')
+const formVisaNumber = ref('')
+const formVisaExpiryDate = ref('')
 const formEmergencyContactName = ref('')
 const formEmergencyContactPhone = ref('')
+const formDietaryRestrictions = ref('')
+const formAccessibilityNeeds = ref('')
 const formSpecialRequest = ref('')
+const formCompanionOfTravelerId = ref('')
+
+/** Opsi dropdown "Companion of" — kecualikan traveler yang sedang diedit sendiri (tidak boleh mendampingi diri sendiri). */
+const companionOptions = computed(() => travelers.value.filter(t => t.id !== editingTravelerId.value))
 
 function resetTravelerForm() {
   formName.value = ''
   formGroupId.value = ''
   formPassportNumber.value = ''
   formPassportExpiryDate.value = ''
+  formIdNumber.value = ''
+  formVisaNumber.value = ''
+  formVisaExpiryDate.value = ''
   formEmergencyContactName.value = ''
   formEmergencyContactPhone.value = ''
+  formDietaryRestrictions.value = ''
+  formAccessibilityNeeds.value = ''
   formSpecialRequest.value = ''
+  formCompanionOfTravelerId.value = ''
 }
 
 function openCreateTraveler() {
@@ -344,9 +657,15 @@ function openEditTraveler(traveler: Traveler) {
   formGroupId.value = traveler.groupId ?? ''
   formPassportNumber.value = traveler.passportNumber ?? ''
   formPassportExpiryDate.value = traveler.passportExpiryDate ?? ''
+  formIdNumber.value = traveler.idNumber ?? ''
+  formVisaNumber.value = traveler.visaNumber ?? ''
+  formVisaExpiryDate.value = traveler.visaExpiryDate ?? ''
   formEmergencyContactName.value = traveler.emergencyContactName ?? ''
   formEmergencyContactPhone.value = traveler.emergencyContactPhone ?? ''
+  formDietaryRestrictions.value = traveler.dietaryRestrictions ?? ''
+  formAccessibilityNeeds.value = traveler.accessibilityNeeds ?? ''
   formSpecialRequest.value = traveler.specialRequest ?? ''
+  formCompanionOfTravelerId.value = traveler.companionOfTravelerId ?? ''
   isTravelerDialogOpen.value = true
 }
 
@@ -357,9 +676,15 @@ function submitTraveler() {
     name: formName.value.trim(),
     passportNumber: formPassportNumber.value.trim() || undefined,
     passportExpiryDate: formPassportExpiryDate.value || undefined,
+    idNumber: formIdNumber.value.trim() || undefined,
+    visaNumber: formVisaNumber.value.trim() || undefined,
+    visaExpiryDate: formVisaExpiryDate.value || undefined,
     emergencyContactName: formEmergencyContactName.value.trim() || undefined,
     emergencyContactPhone: formEmergencyContactPhone.value.trim() || undefined,
+    dietaryRestrictions: formDietaryRestrictions.value.trim() || undefined,
+    accessibilityNeeds: formAccessibilityNeeds.value.trim() || undefined,
     specialRequest: formSpecialRequest.value.trim() || undefined,
+    companionOfTravelerId: formCompanionOfTravelerId.value || undefined,
   }
   if (editingTravelerId.value) {
     updateTraveler(editingTravelerId.value, payload)
@@ -381,10 +706,43 @@ function executeDeleteTraveler() {
   travelerToDelete.value = null
 }
 
-function runImportMock() {
+/** "Internal verification" (Section 11 baru) — toggle tunggal, hanya `canManageTravelers`. */
+function toggleVerification(traveler: Traveler) {
+  toggleTravelerVerification(traveler.id, currentUser.value.id)
+  showToast(
+    traveler.documentsVerifiedAt ? 'Verifikasi Dibatalkan' : 'Dokumen Terverifikasi',
+    `${traveler.name} ditandai ${traveler.documentsVerifiedAt ? 'belum diverifikasi' : 'sudah diverifikasi'}.`,
+    'info',
+  )
+}
+
+/** "Bulk import preview dan error report mock" (Section 11 baru) — menggantikan `importTravelersMock` lama (CI-041), lihat `app/data/index.ts`. */
+const isImportPreviewOpen = ref(false)
+const importPreviewRows = ref<TravelerImportPreviewRow[]>([])
+const importCommitted = ref(false)
+const importCommittedCount = ref(0)
+
+const importValidCount = computed(() => importPreviewRows.value.filter(row => row.errors.length === 0).length)
+const importErrorCount = computed(() => importPreviewRows.value.filter(row => row.errors.length > 0).length)
+
+function openImportPreview() {
   if (!project.value) return
-  const created = importTravelersMock(project.value.id, 3)
-  showToast('Import (Mock) Selesai', `${created.length} baris traveler ditambahkan — lengkapi data dokumennya secara manual. Ini simulasi, bukan import file sungguhan.`, 'info')
+  importPreviewRows.value = previewTravelerImportMock(project.value.id, 5)
+  importCommitted.value = false
+  importCommittedCount.value = 0
+  isImportPreviewOpen.value = true
+}
+
+function confirmImport() {
+  if (!project.value) return
+  const created = commitTravelerImport(project.value.id, importPreviewRows.value)
+  importCommittedCount.value = created.length
+  importCommitted.value = true
+  showToast(
+    'Import (Mock) Selesai',
+    `${created.length} baris berhasil diimpor, ${importErrorCount.value} baris gagal (lihat error report) — lengkapi data dokumennya secara manual. Ini simulasi, bukan import file sungguhan.`,
+    importErrorCount.value > 0 ? 'warning' : 'success',
+  )
 }
 
 const summaryMetadata = computed(() => {
@@ -393,7 +751,9 @@ const summaryMetadata = computed(() => {
     { label: 'Client', value: party.value?.name ?? '—' },
     { label: 'Destinasi', value: project.value.destination },
     { label: 'Tanggal Perjalanan', value: formatDateRange(project.value.travelStartDate, project.value.travelEndDate) },
-    { label: 'Project Owner', value: owner.value?.name ?? '—' },
+    { label: 'Project Owner (PM)', value: owner.value?.name ?? '—' },
+    { label: 'Account Executive', value: accountExecutive.value?.name ?? '—' },
+    { label: 'Status Internal', value: findStatusOption(PROJECT_STATUSES, project.value.status).label },
     { label: 'Jumlah Traveler', value: formatTravelerCount(project.value.travelerCount) },
     { label: 'Budget', value: formatCurrencyIdr(project.value.budgetIdr) },
     { label: 'Actual Cost', value: formatCurrencyIdr(project.value.actualCostIdr) },
@@ -426,8 +786,9 @@ const summaryMetadata = computed(() => {
       >
         <template #actions>
           <StatusBadge
-            :label="findStatusOption(PROJECT_STATUSES, project.status).label"
-            :tone="findStatusOption(PROJECT_STATUSES, project.status).tone"
+            v-if="orderStatus"
+            :label="findStatusOption(PROJECT_ORDER_STATUSES, orderStatus).label"
+            :tone="findStatusOption(PROJECT_ORDER_STATUSES, orderStatus).tone"
           />
           <StatusBadge
             :label="findStatusOption(PROJECT_CHARACTERISTICS, project.characteristic).label"
@@ -459,13 +820,170 @@ const summaryMetadata = computed(() => {
                 />
               </div>
               <p class="text-sm text-muted-foreground mb-4">
-                Project ini berasal dari opportunity <NuxtLink v-if="project.opportunityId" to="/crm/opportunities" class="text-primary hover:underline">{{ project.opportunityId }}</NuxtLink><span v-else>—</span>.
+                Project ini berasal dari opportunity
+                <NuxtLink v-if="project.opportunityId" :to="`/crm/opportunities/${project.opportunityId}`" class="text-primary hover:underline">{{ project.opportunityId }}</NuxtLink><span v-else>—</span>,
+                quotation approved <span class="text-foreground font-medium">{{ sourceQuotation ? formatCurrencyIdr(sourceQuotation.amountIdr) : '—' }}</span>.
               </p>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Tim Project</p>
-              <div class="flex flex-wrap gap-2">
-                <StatusBadge :label="`Owner: ${owner?.name ?? '—'}`" tone="primary" />
-                <StatusBadge v-for="member in team" :key="member.id" :label="member.name" tone="neutral" />
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Tim Project</p>
+                <Dialog v-if="canManageProjectOrder" v-model:open="isTeamDialogOpen">
+                  <DialogTrigger as-child>
+                    <Button size="sm" variant="ghost">+ Tambah Anggota</Button>
+                  </DialogTrigger>
+                  <DialogContent class="max-w-sm">
+                    <DialogHeader>
+                      <DialogTitle>Tambah Anggota Tim</DialogTitle>
+                      <DialogDescription>Anggota baru akan ditambahkan ke `teamUserIds` project ini.</DialogDescription>
+                    </DialogHeader>
+                    <div class="space-y-1.5 py-2">
+                      <Label for="team-member">User</Label>
+                      <select id="team-member" v-model="teamMemberToAdd" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="" disabled>Pilih user</option>
+                        <option v-for="user in teamOptions" :key="user.id" :value="user.id">{{ user.name }} ({{ user.role }})</option>
+                      </select>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" @click="isTeamDialogOpen = false">Batal</Button>
+                      <Button :disabled="!teamMemberToAdd" @click="submitAddTeamMember">Tambah</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
+              <div class="flex flex-wrap gap-2">
+                <StatusBadge :label="`PM: ${owner?.name ?? '—'}`" tone="primary" />
+                <StatusBadge :label="`AE: ${accountExecutive?.name ?? '—'}`" tone="info" />
+                <span v-for="member in team" :key="member.id" class="inline-flex items-center gap-1 rounded-full border border-input px-2.5 py-0.5 text-xs text-foreground">
+                  {{ member.name }} <span class="text-muted-foreground">({{ member.role }})</span>
+                  <button v-if="canManageProjectOrder" type="button" class="ml-1 text-muted-foreground hover:text-destructive" @click="submitRemoveTeamMember(member.id)">×</button>
+                </span>
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Handover &amp; Project Status" description="AE-to-PM handover dan transisi status Project Order.">
+              <div class="flex items-center gap-2 mb-4">
+                <StatusBadge v-if="orderStatus" :label="findStatusOption(PROJECT_ORDER_STATUSES, orderStatus).label" :tone="findStatusOption(PROJECT_ORDER_STATUSES, orderStatus).tone" />
+              </div>
+
+              <template v-if="orderStatus === 'handover-pending'">
+                <p class="text-sm text-foreground mb-3">Project Order ini menunggu diterima oleh Project Manager sebelum planning dapat dimulai. Seluruh data komersial (quotation, budget) sudah tersedia penuh.</p>
+                <p v-if="project.handoverReturnReason" class="text-sm text-warning mb-3">Sebelumnya dikembalikan dengan alasan: "{{ project.handoverReturnReason }}"</p>
+                <div v-if="canManageProjectOrder" class="flex flex-wrap gap-2">
+                  <Button size="sm" @click="submitAcceptHandover">Accept Handover</Button>
+                  <Dialog v-model:open="isReturnHandoverDialogOpen">
+                    <DialogTrigger as-child>
+                      <Button size="sm" variant="outline">Return Handover</Button>
+                    </DialogTrigger>
+                    <DialogContent class="max-w-md">
+                      <DialogHeader>
+                        <DialogTitle>Return Handover</DialogTitle>
+                        <DialogDescription>Project Order dikembalikan ke AE dengan alasan — status tetap Handover Pending.</DialogDescription>
+                      </DialogHeader>
+                      <div class="space-y-1.5 py-2">
+                        <Label for="return-reason">Alasan</Label>
+                        <Input id="return-reason" v-model="returnHandoverReason" placeholder="mis. Data traveler awal belum lengkap" />
+                      </div>
+                      <DialogFooter>
+                        <Button variant="outline" @click="isReturnHandoverDialogOpen = false">Batal</Button>
+                        <Button variant="destructive" :disabled="!returnHandoverReason.trim()" @click="submitReturnHandover">Return Handover</Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              </template>
+              <template v-else>
+                <p v-if="project.handoverAcceptedAt" class="text-xs text-muted-foreground mb-3">
+                  Handover diterima {{ getUserById(project.handoverAcceptedBy ?? '')?.name ?? '—' }} pada {{ formatDate(project.handoverAcceptedAt) }}.
+                </p>
+                <div v-if="canManageProjectOrder" class="flex flex-wrap gap-2">
+                  <Button v-if="orderStatus === 'confirmed'" size="sm" variant="outline" @click="submitMarkReady">Tandai Ready</Button>
+                  <Button
+                    v-for="nextStatus in nextStatusOptions"
+                    :key="nextStatus"
+                    size="sm"
+                    :variant="['on-hold', 'cancelled'].includes(nextStatus) ? 'destructive' : 'outline'"
+                    @click="openStatusDialog(nextStatus)"
+                  >{{ findStatusOption(PROJECT_STATUSES, nextStatus).label }}</Button>
+                </div>
+              </template>
+
+              <Dialog v-model:open="isStatusDialogOpen">
+                <DialogContent class="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Ubah Status ke "{{ pendingStatus ? findStatusOption(PROJECT_STATUSES, pendingStatus).label : '' }}"</DialogTitle>
+                    <DialogDescription v-if="statusReasonRequired">Alasan wajib diisi dan akan tercatat di Activity (visible ke seluruh tim).</DialogDescription>
+                  </DialogHeader>
+                  <div v-if="statusReasonRequired" class="space-y-1.5 py-2">
+                    <Label for="status-reason">Alasan</Label>
+                    <Input id="status-reason" v-model="statusReason" placeholder="mis. Client meminta penundaan sementara" />
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" @click="isStatusDialogOpen = false">Batal</Button>
+                    <Button :disabled="statusReasonRequired && !statusReason.trim()" @click="submitStatusTransition">Konfirmasi</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </SectionCard>
+
+            <SectionCard title="Risks">
+              <template v-if="canManageProjectOrder" #actions>
+                <Dialog v-model:open="isRiskDialogOpen">
+                  <DialogTrigger as-child>
+                    <Button size="sm" variant="outline">+ Catat Risk</Button>
+                  </DialogTrigger>
+                  <DialogContent class="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Catat Risk Baru</DialogTitle>
+                    </DialogHeader>
+                    <div class="space-y-4 py-2">
+                      <div class="space-y-1.5"><Label for="risk-title">Judul</Label><Input id="risk-title" v-model="riskTitle" /></div>
+                      <div class="space-y-1.5"><Label for="risk-desc">Deskripsi</Label><textarea id="risk-desc" v-model="riskDescription" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" /></div>
+                      <div class="space-y-1.5">
+                        <Label for="risk-severity">Severity</Label>
+                        <select id="risk-severity" v-model="riskSeverity" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                          <option v-for="sev in RISK_SEVERITIES" :key="sev.value" :value="sev.value">{{ sev.label }}</option>
+                        </select>
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" @click="isRiskDialogOpen = false">Batal</Button>
+                      <Button :disabled="!riskTitle.trim()" @click="submitRisk">Simpan</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </template>
+              <ul v-if="risks.length" class="divide-y divide-border">
+                <li v-for="risk in risks" :key="risk.id" class="py-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <p class="text-sm font-medium text-foreground">{{ risk.title }}</p>
+                    <div class="flex items-center gap-2 shrink-0">
+                      <StatusBadge :label="findStatusOption(RISK_SEVERITIES, risk.severity).label" :tone="findStatusOption(RISK_SEVERITIES, risk.severity).tone" />
+                      <button
+                        type="button"
+                        class="disabled:cursor-not-allowed"
+                        :disabled="!canManageProjectOrder"
+                        @click="canManageProjectOrder && cycleRiskStatus(risk.id, risk.status)"
+                      >
+                        <StatusBadge :label="findStatusOption(RISK_STATUSES, risk.status).label" :tone="findStatusOption(RISK_STATUSES, risk.status).tone" />
+                      </button>
+                    </div>
+                  </div>
+                  <p v-if="risk.description" class="text-xs text-muted-foreground mt-1">{{ risk.description }}</p>
+                </li>
+              </ul>
+              <EmptyState v-else title="Belum ada risk tercatat" />
+            </SectionCard>
+
+            <SectionCard title="Closure Checklist" description="Shell — akan digerbangi penuh ke transisi Closed pada section akhir.">
+              <ul class="space-y-2">
+                <li v-for="item in CLOSURE_CHECKLIST_ITEMS" :key="item.key" class="flex items-center gap-2">
+                  <Checkbox
+                    :model-value="project.closureChecklist?.[item.key] ?? false"
+                    :disabled="!canManageProjectOrder"
+                    @update:model-value="(value) => toggleClosureItem(item.key, Boolean(value))"
+                  />
+                  <span class="text-sm text-foreground">{{ item.label }}</span>
+                </li>
+              </ul>
             </SectionCard>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -505,6 +1023,58 @@ const summaryMetadata = computed(() => {
 
         <TabsContent value="itinerary-services">
           <div class="space-y-6">
+            <!-- Departure Readiness Gate (Section 12 baru) -->
+            <SectionCard v-if="departureReadiness" title="Departure Readiness Gate" description="Ringkasan kesiapan lintas-domain sebelum keberangkatan — advisory, tidak memblokir transisi status.">
+              <template #actions>
+                <NuxtLink :to="`/projects/${project.id}/run-sheet-preview`" target="_blank">
+                  <Button size="sm" variant="outline"><Printer class="h-4 w-4 mr-1.5" />Run Sheet / Export Preview</Button>
+                </NuxtLink>
+              </template>
+              <div class="flex items-center gap-3 mb-4">
+                <StatusBadge :label="departureReadiness.isReady ? 'Ready to Depart' : 'Belum Siap'" :tone="departureReadiness.isReady ? 'success' : 'warning'" />
+                <p class="text-sm text-muted-foreground">
+                  <template v-if="departureReadiness.daysUntilDeparture >= 0">H-{{ departureReadiness.daysUntilDeparture }} menuju keberangkatan</template>
+                  <template v-else>Keberangkatan sudah lewat {{ Math.abs(departureReadiness.daysUntilDeparture) }} hari lalu</template>
+                </p>
+              </div>
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
+                <div class="rounded-lg border border-border p-3">
+                  <p class="text-xs text-muted-foreground">Dokumen Traveler</p>
+                  <p class="text-lg font-semibold text-foreground">{{ departureReadiness.travelerReadinessPercent }}%</p>
+                </div>
+                <div class="rounded-lg border border-border p-3">
+                  <p class="text-xs text-muted-foreground">Layanan Confirmed</p>
+                  <p class="text-lg font-semibold text-foreground">{{ departureReadiness.servicesConfirmedPercent }}%</p>
+                </div>
+                <div class="rounded-lg border border-border p-3">
+                  <p class="text-xs text-muted-foreground">Task Diblokir</p>
+                  <p class="text-lg font-semibold text-foreground">{{ departureReadiness.blockedTasksCount }}</p>
+                </div>
+                <div class="rounded-lg border border-border p-3">
+                  <p class="text-xs text-muted-foreground">Risk Terbuka</p>
+                  <p class="text-lg font-semibold text-foreground">{{ departureReadiness.openRisksCount }}</p>
+                </div>
+              </div>
+              <div v-if="departureReadiness.blockingReasons.length > 0" class="text-xs text-muted-foreground">
+                <p class="font-semibold uppercase tracking-wide mb-1">Belum Terpenuhi</p>
+                <ul class="list-disc list-inside space-y-0.5">
+                  <li v-for="(reason, index) in departureReadiness.blockingReasons" :key="index">{{ reason }}</li>
+                </ul>
+              </div>
+            </SectionCard>
+
+            <!-- Attention / Exception Queue (Section 12 baru) -->
+            <SectionCard v-if="attentionQueue.length > 0" title="Attention / Exception Queue" description="Item lintas-domain yang butuh perhatian — klik untuk lompat ke tab terkait.">
+              <ul class="divide-y divide-border">
+                <li v-for="(item, index) in attentionQueue" :key="index" class="py-2">
+                  <button type="button" class="flex items-center gap-2 text-left w-full hover:text-primary" @click="goToAttentionTab(item.tab)">
+                    <AlertTriangle class="h-4 w-4 shrink-0" :class="item.severity === 'high' ? 'text-destructive' : 'text-amber-500'" />
+                    <span class="text-sm text-foreground">{{ item.message }}</span>
+                  </button>
+                </li>
+              </ul>
+            </SectionCard>
+
             <SectionCard
               v-if="project.characteristic === 'high-change' && changedServicesCount > 0"
               title="Penanda Perubahan"
@@ -516,23 +1086,55 @@ const summaryMetadata = computed(() => {
               <Button size="sm" variant="outline" @click="goToActivityTab">Lihat Activity & Changes</Button>
             </SectionCard>
 
-            <SectionCard title="Daily Itinerary" description="Jadwal harian perjalanan.">
+            <!-- Service Readiness Matrix (Section 12 baru) -->
+            <SectionCard v-if="serviceReadinessMatrix.length > 0" title="Service Readiness Matrix" description="Agregat kesiapan layanan per tipe.">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Tipe Layanan</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Confirmed/Completed</TableHead>
+                    <TableHead>% Siap</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in serviceReadinessMatrix" :key="row.type">
+                    <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, row.type).label" :tone="findStatusOption(SERVICE_TYPES, row.type).tone" /></TableCell>
+                    <TableCell class="text-muted-foreground">{{ row.total }}</TableCell>
+                    <TableCell class="text-muted-foreground">{{ row.confirmedCount }}</TableCell>
+                    <TableCell class="text-foreground font-medium">{{ row.percent }}%</TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </SectionCard>
+
+            <SectionCard title="Daily Itinerary" description="Jadwal harian perjalanan (timezone lokal ditampilkan berdampingan jam).">
+              <template #actions>
+                <div class="flex items-center gap-1">
+                  <button type="button" class="px-3 py-1.5 text-xs rounded-lg border" :class="itineraryViewMode === 'list' ? 'border-primary/40 bg-primary/5 text-primary' : 'border-border text-muted-foreground'" @click="itineraryViewMode = 'list'">List</button>
+                  <button type="button" class="px-3 py-1.5 text-xs rounded-lg border" :class="itineraryViewMode === 'timeline' ? 'border-primary/40 bg-primary/5 text-primary' : 'border-border text-muted-foreground'" @click="itineraryViewMode = 'timeline'">Timeline</button>
+                </div>
+              </template>
               <div v-if="itineraryByDate.length" class="space-y-4">
-                <div v-for="day in itineraryByDate" :key="day.date">
+                <div v-for="day in itineraryByDate" :key="day.date" :class="itineraryViewMode === 'timeline' ? 'relative pl-4 border-l-2 border-border' : ''">
                   <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{{ formatDayLabel(day.date) }}</p>
                   <ul class="divide-y divide-border">
-                    <li v-for="item in day.items" :key="item.id" class="py-2 flex items-start gap-3">
-                      <span class="text-xs text-muted-foreground w-14 shrink-0">{{ item.time ?? '—' }}</span>
+                    <li v-for="item in day.items" :key="item.id" class="py-2 flex items-start gap-3" :class="itineraryViewMode === 'timeline' ? 'relative before:absolute before:-left-[21px] before:top-3 before:h-2.5 before:w-2.5 before:rounded-full before:bg-primary' : ''">
+                      <span class="text-xs text-muted-foreground w-24 shrink-0">{{ item.time ?? '—' }}<template v-if="item.timezone"> ({{ item.timezone }})</template></span>
                       <div class="min-w-0 flex-1">
                         <p class="text-sm text-foreground">{{ item.title }}</p>
                         <p v-if="item.description" class="text-xs text-muted-foreground">{{ item.description }}</p>
                         <p v-if="item.groupId" class="text-xs text-muted-foreground">Group: {{ groupNameById(item.groupId) }}</p>
                       </div>
+                      <StatusBadge v-if="item.visibleToClient === false" label="Internal Only" tone="neutral" />
                       <StatusBadge
                         v-if="item.serviceType"
                         :label="findStatusOption(SERVICE_TYPES, item.serviceType).label"
                         :tone="findStatusOption(SERVICE_TYPES, item.serviceType).tone"
                       />
+                      <button v-if="canManageOperations" type="button" class="text-xs text-primary hover:underline shrink-0" @click="toggleItineraryVisibility(item)">
+                        {{ item.visibleToClient === false ? 'Tampilkan ke Client' : 'Jadikan Internal' }}
+                      </button>
                     </li>
                   </ul>
                 </div>
@@ -585,9 +1187,116 @@ const summaryMetadata = computed(() => {
                   </TableEmpty>
                 </TableBody>
               </Table>
+
+              <!-- Flight Bookings (Section 13 baru) — ringkasan, pengelolaan lengkap di modul /ticketing. -->
+              <div v-if="type.value === 'flight'" class="mt-4 pt-4 border-t border-border">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Flight Bookings</p>
+                  <NuxtLink v-if="canManageServiceType('flight')" :to="`/ticketing?projectId=${project.id}&create=1`">
+                    <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Buat Flight Booking</Button>
+                  </NuxtLink>
+                </div>
+                <ul v-if="flightBookings.length" class="divide-y divide-border">
+                  <li v-for="booking in flightBookings" :key="booking.id" class="py-2 flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                      <NuxtLink :to="`/ticketing/${booking.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ booking.id }}</NuxtLink>
+                      <p class="text-xs text-muted-foreground">PNR: {{ booking.pnr ?? 'Belum terbit' }} · {{ booking.travelerIds.length }} pax</p>
+                    </div>
+                    <StatusBadge :label="findStatusOption(FLIGHT_BOOKING_STATUSES, booking.status).label" :tone="findStatusOption(FLIGHT_BOOKING_STATUSES, booking.status).tone" />
+                  </li>
+                </ul>
+                <EmptyState v-else title="Belum ada Flight Booking" description="Buat Flight Booking untuk mengelola PNR, options, deadline, dan lifecycle tiket." />
+              </div>
+
+              <!-- Hotel Bookings (Section 14 baru) — ringkasan, pengelolaan lengkap di modul /accommodation. -->
+              <div v-if="type.value === 'hotel'" class="mt-4 pt-4 border-t border-border">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Hotel Bookings</p>
+                  <NuxtLink v-if="canManageServiceType('hotel')" :to="`/accommodation?projectId=${project.id}&create=1`">
+                    <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Buat Hotel Booking</Button>
+                  </NuxtLink>
+                </div>
+                <ul v-if="hotelBookings.length" class="divide-y divide-border">
+                  <li v-for="booking in hotelBookings" :key="booking.id" class="py-2 flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                      <NuxtLink :to="`/accommodation/${booking.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ booking.id }}</NuxtLink>
+                      <p class="text-xs text-muted-foreground">Konfirmasi: {{ booking.confirmationNumber ?? 'Belum terbit' }} · {{ booking.travelerIds.length }} pax</p>
+                    </div>
+                    <StatusBadge :label="findStatusOption(HOTEL_BOOKING_STATUSES, booking.status).label" :tone="findStatusOption(HOTEL_BOOKING_STATUSES, booking.status).tone" />
+                  </li>
+                </ul>
+                <EmptyState v-else title="Belum ada Hotel Booking" description="Buat Hotel Booking untuk mengelola room block, check-in/out, dan lifecycle voucher." />
+              </div>
+
+              <!-- Transport Bookings (Section 15 baru) — ringkasan, pengelolaan lengkap di modul /transportation. -->
+              <div v-if="type.value === 'transportation'" class="mt-4 pt-4 border-t border-border">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Transport Bookings</p>
+                  <NuxtLink v-if="canManageServiceType('transportation')" :to="`/transportation?projectId=${project.id}&create=1`">
+                    <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Buat Transport Booking</Button>
+                  </NuxtLink>
+                </div>
+                <ul v-if="transportBookings.length" class="divide-y divide-border">
+                  <li v-for="booking in transportBookings" :key="booking.id" class="py-2 flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                      <NuxtLink :to="`/transportation/${booking.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ booking.id }}</NuxtLink>
+                      <p class="text-xs text-muted-foreground">Unit: {{ booking.assignedVehiclePlateNumber ?? 'Belum ditugaskan' }} · {{ booking.travelerIds.length }} pax</p>
+                    </div>
+                    <StatusBadge :label="findStatusOption(TRANSPORT_BOOKING_STATUSES, booking.status).label" :tone="findStatusOption(TRANSPORT_BOOKING_STATUSES, booking.status).tone" />
+                  </li>
+                </ul>
+                <EmptyState v-else title="Belum ada Transport Booking" description="Buat Transport Booking untuk mengelola dispatch, manifest, dan lifecycle assignment." />
+              </div>
+
+              <!-- MICE Events (Section 16 baru) — ringkasan, pengelolaan lengkap di modul /mice. -->
+              <div v-if="type.value === 'mice'" class="mt-4 pt-4 border-t border-border">
+                <div class="flex items-center justify-between mb-2">
+                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">MICE Events</p>
+                  <NuxtLink v-if="canManageServiceType('mice')" :to="`/mice?projectId=${project.id}&create=1`">
+                    <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Buat MICE Event</Button>
+                  </NuxtLink>
+                </div>
+                <ul v-if="miceEvents.length" class="divide-y divide-border">
+                  <li v-for="event in miceEvents" :key="event.id" class="py-2 flex items-center justify-between gap-2">
+                    <div class="min-w-0">
+                      <NuxtLink :to="`/mice/${event.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ event.venueName ?? event.id }}</NuxtLink>
+                      <p class="text-xs text-muted-foreground">{{ event.sessions.length }} sesi · {{ event.participantCategories.reduce((sum, c) => sum + c.expectedCount, 0) }} pax diharapkan</p>
+                    </div>
+                    <StatusBadge :label="findStatusOption(MICE_EVENT_STATUSES, event.status).label" :tone="findStatusOption(MICE_EVENT_STATUSES, event.status).tone" />
+                  </li>
+                </ul>
+                <EmptyState v-else title="Belum ada MICE Event" description="Buat MICE Event untuk mengelola brief, venue, sessions, BOQ, staffing, dan checklist." />
+              </div>
             </SectionCard>
 
             <EmptyState v-if="visibleServiceTypes.length === 0" :icon="Truck" title="Belum ada layanan tercatat untuk project ini" />
+
+            <!-- Procurement summary (Section 17 baru) — ringkasan RFQ dan Service Order, pengelolaan lengkap di modul /procurement. -->
+            <SectionCard v-if="projectRfqs.length || projectServiceOrders.length" title="Procurement — RFQ dan Service Order" description="Ringkasan sourcing formal dan Service Order untuk project ini.">
+              <template #actions>
+                <NuxtLink to="/procurement">
+                  <Button size="sm" variant="outline">Buka Procurement</Button>
+                </NuxtLink>
+              </template>
+              <div v-if="projectRfqs.length" class="mb-4">
+                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">RFQ</p>
+                <ul class="divide-y divide-border">
+                  <li v-for="rfq in projectRfqs" :key="rfq.id" class="py-2 flex items-center justify-between gap-2">
+                    <NuxtLink :to="`/procurement/rfq/${rfq.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ rfq.title }}</NuxtLink>
+                    <StatusBadge :label="findStatusOption(RFQ_STATUSES, rfq.status).label" :tone="findStatusOption(RFQ_STATUSES, rfq.status).tone" />
+                  </li>
+                </ul>
+              </div>
+              <div v-if="projectServiceOrders.length">
+                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Service Orders</p>
+                <ul class="divide-y divide-border">
+                  <li v-for="so in projectServiceOrders" :key="so.id" class="py-2 flex items-center justify-between gap-2">
+                    <NuxtLink :to="`/procurement/service-orders/${so.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ so.id }} — {{ getVendorById(so.vendorId)?.name ?? so.vendorId }}</NuxtLink>
+                    <StatusBadge :label="findStatusOption(SERVICE_ORDER_STATUSES, so.status).label" :tone="findStatusOption(SERVICE_ORDER_STATUSES, so.status).tone" />
+                  </li>
+                </ul>
+              </div>
+            </SectionCard>
 
             <SectionCard title="Operational Tasks" :description="`${tasks.length} task tercatat untuk project ini`">
               <template v-if="tasks.length" #actions>
@@ -604,6 +1313,51 @@ const summaryMetadata = computed(() => {
               </ul>
               <EmptyState v-else title="Belum ada task tercatat" />
             </SectionCard>
+
+            <!-- On-Trip Updates / Shift Notes (Section 12 baru) -->
+            <SectionCard title="On-Trip Updates / Shift Notes" description="Catatan serah-terima operasional selama trip berlangsung (mock).">
+              <template v-if="canManageOperations" #actions>
+                <Dialog v-model:open="isShiftNoteDialogOpen">
+                  <DialogTrigger as-child>
+                    <Button size="sm" variant="outline">+ Catat Shift Note</Button>
+                  </DialogTrigger>
+                  <DialogContent class="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Catat Shift Note Baru</DialogTitle>
+                      <DialogDescription>Catatan serah-terima antar staf lapangan — mock, bukan sistem shift roster sungguhan.</DialogDescription>
+                    </DialogHeader>
+                    <div class="space-y-4 py-2">
+                      <div class="space-y-1.5">
+                        <Label for="shift-period">Shift</Label>
+                        <select id="shift-period" v-model="shiftNoteShift" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                          <option value="pagi">Pagi</option>
+                          <option value="siang">Siang</option>
+                          <option value="malam">Malam</option>
+                        </select>
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="shift-note">Catatan</Label>
+                        <textarea id="shift-note" v-model="shiftNoteText" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Seluruh peserta sudah check-in, tidak ada kendala." />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" @click="isShiftNoteDialogOpen = false">Batal</Button>
+                      <Button :disabled="!shiftNoteText.trim()" @click="submitShiftNote">Simpan</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </template>
+              <ul v-if="shiftNotes.length" class="divide-y divide-border">
+                <li v-for="note in shiftNotes" :key="note.id" class="py-3">
+                  <div class="flex items-center gap-2">
+                    <StatusBadge :label="note.shift === 'pagi' ? 'Pagi' : note.shift === 'siang' ? 'Siang' : 'Malam'" tone="info" />
+                    <span class="text-xs text-muted-foreground">{{ getUserById(note.authorId)?.name ?? note.authorId }} · {{ formatDate(note.createdAt) }}</span>
+                  </div>
+                  <p class="text-sm text-foreground mt-1">{{ note.note }}</p>
+                </li>
+              </ul>
+              <EmptyState v-else title="Belum ada shift note tercatat" />
+            </SectionCard>
           </div>
         </TabsContent>
 
@@ -613,63 +1367,119 @@ const summaryMetadata = computed(() => {
               title="Travelers"
               :description="`${travelers.length} dari ${formatTravelerCount(project.travelerCount)} tercatat detail profilnya`"
             >
-              <template v-if="canManageTravelers" #actions>
+              <template #actions>
                 <div class="flex items-center gap-2">
-                  <Button size="sm" variant="outline" @click="runImportMock"><Upload class="h-4 w-4 mr-1.5" />Import (Mock)</Button>
-                  <Dialog v-model:open="isTravelerDialogOpen">
-                    <DialogTrigger as-child>
-                      <Button size="sm" @click="openCreateTraveler"><UserPlus class="h-4 w-4 mr-1.5" />Tambah Traveler</Button>
-                    </DialogTrigger>
-                    <DialogContent class="max-w-lg">
-                      <DialogHeader>
-                        <DialogTitle>{{ editingTravelerId ? 'Edit Traveler' : 'Tambah Traveler Baru' }}</DialogTitle>
-                        <DialogDescription>Profil traveler untuk project {{ project.name }}.</DialogDescription>
-                      </DialogHeader>
-                      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
-                        <div class="space-y-1.5 sm:col-span-2">
-                          <Label for="traveler-name">Nama</Label>
-                          <Input id="traveler-name" v-model="formName" placeholder="Nama lengkap traveler" />
+                  <NuxtLink :to="`/projects/${project.id}/manifest-preview`" target="_blank">
+                    <Button size="sm" variant="outline"><Printer class="h-4 w-4 mr-1.5" />Manifest / Export Preview</Button>
+                  </NuxtLink>
+                  <template v-if="canManageTravelers">
+                    <Button size="sm" variant="outline" @click="openImportPreview"><Upload class="h-4 w-4 mr-1.5" />Import (Mock)</Button>
+                    <Dialog v-model:open="isTravelerDialogOpen">
+                      <DialogTrigger as-child>
+                        <Button size="sm" @click="openCreateTraveler"><UserPlus class="h-4 w-4 mr-1.5" />Tambah Traveler</Button>
+                      </DialogTrigger>
+                      <DialogScrollContent class="max-w-lg">
+                        <DialogHeader>
+                          <DialogTitle>{{ editingTravelerId ? 'Edit Traveler' : 'Tambah Traveler Baru' }}</DialogTitle>
+                          <DialogDescription>Profil traveler untuk project {{ project.name }}.</DialogDescription>
+                        </DialogHeader>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 py-2">
+                          <div class="space-y-1.5 sm:col-span-2">
+                            <Label for="traveler-name">Nama</Label>
+                            <Input id="traveler-name" v-model="formName" placeholder="Nama lengkap traveler" />
+                          </div>
+                          <div class="space-y-1.5">
+                            <Label for="traveler-group">Group (opsional)</Label>
+                            <select
+                              id="traveler-group"
+                              v-model="formGroupId"
+                              class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                            >
+                              <option value="">Tanpa Group</option>
+                              <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
+                            </select>
+                          </div>
+                          <div class="space-y-1.5">
+                            <Label for="traveler-companion">Mendampingi Traveler Lain (opsional)</Label>
+                            <select
+                              id="traveler-companion"
+                              v-model="formCompanionOfTravelerId"
+                              class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                            >
+                              <option value="">Bukan companion</option>
+                              <option v-for="candidate in companionOptions" :key="candidate.id" :value="candidate.id">{{ candidate.name }}</option>
+                            </select>
+                          </div>
+                          <div class="space-y-1.5">
+                            <Label for="traveler-passport-number">Nomor Paspor (opsional)</Label>
+                            <Input id="traveler-passport-number" v-model="formPassportNumber" placeholder="mis. B1234567" />
+                          </div>
+                          <div class="space-y-1.5">
+                            <Label for="traveler-passport-expiry">Tanggal Kedaluwarsa Paspor (opsional)</Label>
+                            <Input id="traveler-passport-expiry" v-model="formPassportExpiryDate" type="date" />
+                          </div>
+                          <div class="space-y-1.5">
+                            <Label for="traveler-id-number">Nomor ID/KTP (opsional)</Label>
+                            <Input id="traveler-id-number" v-model="formIdNumber" placeholder="mis. 3271xxxxxxxxxxxx" />
+                          </div>
+                          <div class="space-y-1.5">
+                            <Label for="traveler-visa-number">Nomor Visa (opsional)</Label>
+                            <Input id="traveler-visa-number" v-model="formVisaNumber" placeholder="mis. V9876543" />
+                          </div>
+                          <div class="space-y-1.5">
+                            <Label for="traveler-visa-expiry">Tanggal Kedaluwarsa Visa (opsional)</Label>
+                            <Input id="traveler-visa-expiry" v-model="formVisaExpiryDate" type="date" />
+                          </div>
+                          <div class="space-y-1.5">
+                            <Label for="traveler-emergency-name">Nama Kontak Darurat (opsional)</Label>
+                            <Input id="traveler-emergency-name" v-model="formEmergencyContactName" placeholder="Nama kontak darurat" />
+                          </div>
+                          <div class="space-y-1.5">
+                            <Label for="traveler-emergency-phone">Telepon Kontak Darurat (opsional)</Label>
+                            <Input id="traveler-emergency-phone" v-model="formEmergencyContactPhone" placeholder="08xx-xxxx-xxxx" />
+                          </div>
+                          <div class="space-y-1.5">
+                            <Label for="traveler-dietary">Dietary Restriction (opsional)</Label>
+                            <Input id="traveler-dietary" v-model="formDietaryRestrictions" placeholder="mis. Vegetarian, tanpa seafood" />
+                          </div>
+                          <div class="space-y-1.5">
+                            <Label for="traveler-accessibility">Accessibility Needs (opsional)</Label>
+                            <Input id="traveler-accessibility" v-model="formAccessibilityNeeds" placeholder="mis. Kursi roda, pendamping naik tangga" />
+                          </div>
+                          <div class="space-y-1.5 sm:col-span-2">
+                            <Label for="traveler-special-request">Special Request Lainnya (opsional)</Label>
+                            <Input id="traveler-special-request" v-model="formSpecialRequest" placeholder="mis. Kamar berdekatan dengan rekan tim" />
+                          </div>
                         </div>
-                        <div class="space-y-1.5 sm:col-span-2">
-                          <Label for="traveler-group">Group (opsional)</Label>
-                          <select
-                            id="traveler-group"
-                            v-model="formGroupId"
-                            class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-                          >
-                            <option value="">Tanpa Group</option>
-                            <option v-for="group in groups" :key="group.id" :value="group.id">{{ group.name }}</option>
-                          </select>
-                        </div>
-                        <div class="space-y-1.5">
-                          <Label for="traveler-passport-number">Nomor Paspor (opsional)</Label>
-                          <Input id="traveler-passport-number" v-model="formPassportNumber" placeholder="mis. B1234567" />
-                        </div>
-                        <div class="space-y-1.5">
-                          <Label for="traveler-passport-expiry">Tanggal Kedaluwarsa Paspor (opsional)</Label>
-                          <Input id="traveler-passport-expiry" v-model="formPassportExpiryDate" type="date" />
-                        </div>
-                        <div class="space-y-1.5">
-                          <Label for="traveler-emergency-name">Nama Kontak Darurat (opsional)</Label>
-                          <Input id="traveler-emergency-name" v-model="formEmergencyContactName" placeholder="Nama kontak darurat" />
-                        </div>
-                        <div class="space-y-1.5">
-                          <Label for="traveler-emergency-phone">Telepon Kontak Darurat (opsional)</Label>
-                          <Input id="traveler-emergency-phone" v-model="formEmergencyContactPhone" placeholder="08xx-xxxx-xxxx" />
-                        </div>
-                        <div class="space-y-1.5 sm:col-span-2">
-                          <Label for="traveler-special-request">Special Request (opsional)</Label>
-                          <Input id="traveler-special-request" v-model="formSpecialRequest" placeholder="mis. Kebutuhan kursi roda, menu khusus" />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <Button variant="outline" @click="isTravelerDialogOpen = false">Batal</Button>
-                        <Button :disabled="!formName.trim()" @click="submitTraveler">Simpan</Button>
-                      </DialogFooter>
-                    </DialogContent>
-                  </Dialog>
+                        <DialogFooter>
+                          <Button variant="outline" @click="isTravelerDialogOpen = false">Batal</Button>
+                          <Button :disabled="!formName.trim()" @click="submitTraveler">Simpan</Button>
+                        </DialogFooter>
+                      </DialogScrollContent>
+                    </Dialog>
+                  </template>
                 </div>
               </template>
+
+              <!-- Readiness indicator (Section 11 baru) -->
+              <div v-if="travelerReadiness && travelerReadiness.total > 0" class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+                <div class="rounded-lg border border-border p-3">
+                  <p class="text-xs text-muted-foreground">Dokumen Lengkap</p>
+                  <p class="text-lg font-semibold text-foreground">{{ travelerReadiness.documentsCompleteCount }}/{{ travelerReadiness.total }}</p>
+                </div>
+                <div class="rounded-lg border border-border p-3">
+                  <p class="text-xs text-muted-foreground">Terverifikasi</p>
+                  <p class="text-lg font-semibold text-foreground">{{ travelerReadiness.verifiedCount }}/{{ travelerReadiness.total }}</p>
+                </div>
+                <div class="rounded-lg border border-border p-3">
+                  <p class="text-xs text-muted-foreground">Rooming Ditugaskan</p>
+                  <p class="text-lg font-semibold text-foreground">{{ travelerReadiness.roomingAssignedCount }}/{{ travelerReadiness.total }}</p>
+                </div>
+                <div class="rounded-lg border border-border p-3">
+                  <p class="text-xs text-muted-foreground">Readiness</p>
+                  <p class="text-lg font-semibold text-foreground">{{ travelerReadiness.readinessPercent }}%</p>
+                </div>
+              </div>
 
               <div v-if="groups.length" class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
                 <div v-for="group in groups" :key="group.id" class="p-4 rounded-lg border border-border">
@@ -714,26 +1524,54 @@ const summaryMetadata = computed(() => {
                   <TableRow>
                     <TableHead>Nama</TableHead>
                     <TableHead>Group</TableHead>
-                    <TableHead>Dokumen Paspor</TableHead>
+                    <TableHead>Dokumen (Paspor / ID / Visa)</TableHead>
                     <TableHead>Kontak Darurat</TableHead>
-                    <TableHead>Special Request</TableHead>
+                    <TableHead>Catatan</TableHead>
                     <TableHead>Status Dokumen</TableHead>
+                    <TableHead>Verifikasi</TableHead>
                     <TableHead v-if="canManageTravelers">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   <TableRow v-for="traveler in filteredTravelers" :key="traveler.id">
-                    <TableCell class="font-medium text-foreground">{{ traveler.name }}</TableCell>
+                    <TableCell class="font-medium text-foreground">
+                      {{ traveler.name }}
+                      <p v-if="companionSummary(traveler)" class="text-xs font-normal text-muted-foreground">{{ companionSummary(traveler) }}</p>
+                    </TableCell>
                     <TableCell class="text-muted-foreground">{{ groupNameById(traveler.groupId) }}</TableCell>
-                    <TableCell class="text-muted-foreground">{{ passportSummary(traveler) }}</TableCell>
+                    <TableCell class="text-muted-foreground text-xs">
+                      <p>Paspor: {{ passportSummary(traveler) }}</p>
+                      <p>ID: {{ idNumberSummary(traveler) }}</p>
+                      <p>Visa: {{ visaSummary(traveler) }}</p>
+                    </TableCell>
                     <TableCell class="text-muted-foreground">
                       <template v-if="traveler.emergencyContactName">{{ traveler.emergencyContactName }}<template v-if="traveler.emergencyContactPhone"> · {{ traveler.emergencyContactPhone }}</template></template>
                       <template v-else>—</template>
                     </TableCell>
-                    <TableCell class="text-muted-foreground">{{ traveler.specialRequest ?? '—' }}</TableCell>
+                    <TableCell class="text-muted-foreground text-xs">
+                      <p v-if="traveler.dietaryRestrictions">Dietary: {{ traveler.dietaryRestrictions }}</p>
+                      <p v-if="traveler.accessibilityNeeds">Accessibility: {{ traveler.accessibilityNeeds }}</p>
+                      <p v-if="traveler.specialRequest">Lainnya: {{ traveler.specialRequest }}</p>
+                      <p v-if="!traveler.dietaryRestrictions && !traveler.accessibilityNeeds && !traveler.specialRequest">—</p>
+                    </TableCell>
                     <TableCell>
                       <StatusBadge v-if="travelerDocumentMissing(traveler)" label="Dokumen Belum Lengkap" tone="destructive" />
                       <StatusBadge v-else label="Dokumen Lengkap" tone="success" />
+                    </TableCell>
+                    <TableCell>
+                      <button
+                        v-if="canManageTravelers"
+                        type="button"
+                        class="inline-flex"
+                        @click="toggleVerification(traveler)"
+                      >
+                        <StatusBadge v-if="traveler.documentsVerifiedAt" label="Terverifikasi" tone="success" />
+                        <StatusBadge v-else label="Belum Diverifikasi" tone="neutral" />
+                      </button>
+                      <template v-else>
+                        <StatusBadge v-if="traveler.documentsVerifiedAt" label="Terverifikasi" tone="success" />
+                        <StatusBadge v-else label="Belum Diverifikasi" tone="neutral" />
+                      </template>
                     </TableCell>
                     <TableCell v-if="canManageTravelers">
                       <div class="flex items-center gap-1">
@@ -742,13 +1580,14 @@ const summaryMetadata = computed(() => {
                       </div>
                     </TableCell>
                   </TableRow>
-                  <TableEmpty v-if="travelers.length > 0 && filteredTravelers.length === 0" :colspan="canManageTravelers ? 7 : 6">
+                  <TableEmpty v-if="travelers.length > 0 && filteredTravelers.length === 0" :colspan="canManageTravelers ? 8 : 7">
                     Tidak ada traveler yang cocok dengan filter saat ini.
                   </TableEmpty>
                 </TableBody>
               </Table>
 
               <EmptyState v-if="travelers.length === 0" :icon="Users" title="Belum ada traveler tercatat" description="Tambahkan traveler secara manual atau gunakan Import (Mock) untuk mensimulasikan hasil import." />
+              <p v-if="!canManageTravelers && travelers.length > 0" class="mt-3 text-xs text-muted-foreground">Nomor dokumen (paspor/ID/visa) ditampilkan tersamar untuk role ini — hanya Project Manager dan Super Admin yang melihat nomor penuh.</p>
             </SectionCard>
           </div>
 
@@ -765,6 +1604,46 @@ const summaryMetadata = computed(() => {
                 <Button variant="destructive" @click="executeDeleteTraveler">Hapus</Button>
               </DialogFooter>
             </DialogContent>
+          </Dialog>
+
+          <!-- Bulk import preview + error report mock (Section 11 baru) -->
+          <Dialog v-model:open="isImportPreviewOpen">
+            <DialogScrollContent class="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Import Traveler (Mock) — Preview</DialogTitle>
+                <DialogDescription>Simulasi hasil parsing file (bukan file sungguhan) — tinjau baris di bawah sebelum mengimpor. Baris dengan error akan dilewati.</DialogDescription>
+              </DialogHeader>
+              <div class="py-2">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama</TableHead>
+                      <TableHead>Nomor Paspor</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="(row, index) in importPreviewRows" :key="index">
+                      <TableCell :class="row.name.trim() ? 'text-foreground' : 'text-muted-foreground italic'">{{ row.name.trim() || '(kosong)' }}</TableCell>
+                      <TableCell class="text-muted-foreground">{{ row.passportNumber ?? '—' }}</TableCell>
+                      <TableCell>
+                        <StatusBadge v-if="row.errors.length === 0" label="Valid" tone="success" />
+                        <div v-else class="space-y-0.5">
+                          <StatusBadge label="Error" tone="destructive" />
+                          <p v-for="(error, errIndex) in row.errors" :key="errIndex" class="text-xs text-destructive">{{ error }}</p>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+                <p class="mt-3 text-sm text-muted-foreground">{{ importValidCount }} baris valid, {{ importErrorCount }} baris error (error report — baris ini tidak akan diimpor).</p>
+                <p v-if="importCommitted" class="mt-2 text-sm font-medium text-foreground">{{ importCommittedCount }} traveler berhasil diimpor — lengkapi data dokumennya secara manual.</p>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" @click="isImportPreviewOpen = false">{{ importCommitted ? 'Tutup' : 'Batal' }}</Button>
+                <Button v-if="!importCommitted" :disabled="importValidCount === 0" @click="confirmImport">Import Baris Valid ({{ importValidCount }})</Button>
+              </DialogFooter>
+            </DialogScrollContent>
           </Dialog>
         </TabsContent>
 
@@ -903,18 +1782,95 @@ const summaryMetadata = computed(() => {
         </TabsContent>
 
         <TabsContent value="tasks">
-          <SectionCard title="Tasks">
+          <SectionCard title="Tasks &amp; Milestones">
+            <template v-if="canManageProjectOrder" #actions>
+              <Button size="sm" variant="outline" @click="openCreateTask">+ Tambah Task</Button>
+            </template>
             <ul class="divide-y divide-border">
-              <li v-for="task in tasks" :key="task.id" class="py-3 flex items-center justify-between gap-3">
-                <span class="text-sm text-foreground">{{ task.title }}</span>
-                <StatusBadge
-                  :label="findStatusOption(TASK_STATUSES, task.status).label"
-                  :tone="findStatusOption(TASK_STATUSES, task.status).tone"
-                />
+              <li v-for="task in tasks" :key="task.id" class="py-3">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="min-w-0 flex items-center gap-2">
+                    <span v-if="task.isMilestone" class="shrink-0 text-[10px] font-semibold uppercase tracking-wide rounded-full bg-primary/10 text-primary px-2 py-0.5">Milestone</span>
+                    <span class="text-sm text-foreground truncate">{{ task.title }}</span>
+                    <StatusBadge v-if="task.isBlocked" label="Blocked" tone="destructive" />
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    <template v-if="canManageProjectOrder">
+                      <Button v-if="task.isBlocked" size="sm" variant="ghost" @click="unblockTask(task)">Buka Blokir</Button>
+                      <Button v-else size="sm" variant="ghost" @click="openBlockDialog(task)">Blokir</Button>
+                    </template>
+                    <select
+                      :value="task.status"
+                      :disabled="!canManageProjectOrder"
+                      class="appearance-none px-2 py-1 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:cursor-not-allowed"
+                      @change="handleTaskStatusChange(task.id, $event)"
+                    >
+                      <option v-for="status in TASK_STATUSES" :key="status.value" :value="status.value">{{ status.label }}</option>
+                    </select>
+                  </div>
+                </div>
+                <p class="text-xs text-muted-foreground mt-1">
+                  <template v-if="task.dueAt">Due {{ formatDate(task.dueAt) }}<template v-if="task.assignedTo || task.dependsOnTaskId"> · </template></template>
+                  <template v-if="task.assignedTo">{{ getUserById(task.assignedTo)?.name ?? task.assignedTo }}<template v-if="task.dependsOnTaskId"> · </template></template>
+                  <template v-if="task.dependsOnTaskId">Depends on: {{ taskTitleById(task.dependsOnTaskId) ?? task.dependsOnTaskId }}</template>
+                </p>
+                <p v-if="task.isBlocked" class="text-xs text-destructive mt-1">Blocked: {{ task.blockedReason }}</p>
               </li>
             </ul>
             <EmptyState v-if="tasks.length === 0" title="Belum ada task tercatat" />
           </SectionCard>
+
+          <Dialog v-model:open="isBlockDialogOpen">
+            <DialogContent class="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Blokir Task</DialogTitle>
+                <DialogDescription>"{{ blockingTask?.title }}" akan ditandai diblokir sampai dibuka kembali secara manual.</DialogDescription>
+              </DialogHeader>
+              <div class="space-y-1.5 py-2">
+                <Label for="block-reason">Alasan</Label>
+                <Input id="block-reason" v-model="blockReason" placeholder="mis. Menunggu konfirmasi vendor" />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" @click="isBlockDialogOpen = false">Batal</Button>
+                <Button variant="destructive" :disabled="!blockReason.trim()" @click="submitBlockTask">Blokir</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog v-model:open="isTaskDialogOpen">
+            <DialogContent class="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Tambah Task</DialogTitle>
+              </DialogHeader>
+              <div class="space-y-4 py-2">
+                <div class="space-y-1.5"><Label for="task-title">Judul</Label><Input id="task-title" v-model="taskTitle" /></div>
+                <div class="space-y-1.5"><Label for="task-due">Jatuh Tempo</Label><Input id="task-due" v-model="taskDueAt" type="date" /></div>
+                <div class="space-y-1.5">
+                  <Label for="task-assignee">Assignee</Label>
+                  <select id="task-assignee" v-model="taskAssignedTo" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="">Tidak ditugaskan</option>
+                    <option v-if="owner" :value="owner.id">{{ owner.name }}</option>
+                    <option v-for="member in team" :key="member.id" :value="member.id">{{ member.name }}</option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="task-depends">Depends On</Label>
+                  <select id="task-depends" v-model="taskDependsOn" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="">Tidak ada</option>
+                    <option v-for="t in tasks" :key="t.id" :value="t.id">{{ t.title }}</option>
+                  </select>
+                </div>
+                <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <Checkbox v-model="taskIsMilestone" />
+                  Tandai sebagai Milestone
+                </label>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" @click="isTaskDialogOpen = false">Batal</Button>
+                <Button :disabled="!taskTitle.trim()" @click="submitTask">Simpan</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="documents">

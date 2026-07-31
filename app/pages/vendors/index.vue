@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { Search, Plus } from 'lucide-vue-next'
 import { VENDORS, getServicesByVendor, createVendor } from '~/data'
-import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
+import { SERVICE_TYPES, VENDOR_STATUSES, findStatusOption } from '~/constants/status'
 import type { ServiceTypeKey } from '~/types/project'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -35,12 +35,14 @@ const newName = ref('')
 const newServiceType = ref<ServiceTypeKey>('flight')
 const newContactName = ref('')
 const newContactPhone = ref('')
+const newCategory = ref('')
 
 function resetCreateForm() {
   newName.value = ''
   newServiceType.value = 'flight'
   newContactName.value = ''
   newContactPhone.value = ''
+  newCategory.value = ''
 }
 
 function submitCreate() {
@@ -50,6 +52,7 @@ function submitCreate() {
     serviceType: newServiceType.value,
     contactName: newContactName.value.trim(),
     contactPhone: newContactPhone.value.trim() || undefined,
+    category: newCategory.value.trim() || undefined,
   })
   resetCreateForm()
   isCreateOpen.value = false
@@ -88,6 +91,10 @@ function submitCreate() {
                 >
                   <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
                 </select>
+              </div>
+              <div class="space-y-1.5">
+                <Label for="vendor-category">Kategori (opsional)</Label>
+                <Input id="vendor-category" v-model="newCategory" placeholder="mis. Hotel Budget, MICE Full-Service" />
               </div>
               <div class="space-y-1.5">
                 <Label for="vendor-contact-name">Nama Contact</Label>
@@ -130,6 +137,8 @@ function submitCreate() {
             <TableRow>
               <TableHead>Vendor</TableHead>
               <TableHead>Jenis Layanan</TableHead>
+              <TableHead>Kategori</TableHead>
+              <TableHead>Status</TableHead>
               <TableHead>Kontak</TableHead>
               <TableHead>Penugasan Aktif</TableHead>
             </TableRow>
@@ -143,10 +152,17 @@ function submitCreate() {
                   :tone="findStatusOption(SERVICE_TYPES, row.vendor.serviceType).tone"
                 />
               </TableCell>
+              <TableCell class="text-muted-foreground">{{ row.vendor.category ?? '—' }}</TableCell>
+              <TableCell>
+                <StatusBadge
+                  :label="findStatusOption(VENDOR_STATUSES, row.vendor.status ?? 'active').label"
+                  :tone="findStatusOption(VENDOR_STATUSES, row.vendor.status ?? 'active').tone"
+                />
+              </TableCell>
               <TableCell class="text-muted-foreground">{{ row.vendor.contactName }}</TableCell>
               <TableCell class="text-muted-foreground">{{ row.activeAssignmentCount }} service</TableCell>
             </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="4">
+            <TableEmpty v-if="rows.length === 0" :colspan="6">
               {{ searchQuery || serviceTypeFilter !== 'all' ? 'Tidak ada vendor yang cocok dengan filter.' : 'Belum ada vendor.' }}
             </TableEmpty>
           </TableBody>

@@ -37,6 +37,49 @@ export interface ProjectTask {
   title: string
   status: 'not-started' | 'in-progress' | 'pending-confirmation' | 'done' | 'overdue'
   dueAt?: string
+  /** Section 09 (roadmap Section 00–24 baru) — task ditandai sebagai milestone, bukan entitas paralel ("Milestones, tasks" Wajib dipenuhi lewat satu model yang sama). */
+  isMilestone?: boolean
+  /** Dependency sederhana single-link (Section 09) — task ini baru relevan/dapat dimulai setelah `dependsOnTaskId` selesai. Bukan DAG penuh, cukup untuk mendemokan konsep "dependencies". */
+  dependsOnTaskId?: ID
+  assignedTo?: ID
+  /** "Blocker" (Section 12 — roadmap Section 00–24 baru, Wajib "Tasks, checklist, owner, deadline, blocker, dependency"). Terpisah dari `status` — task bisa `in-progress` TAPI blocked (menunggu sesuatu di luar kendali assignee), bukan status baru yang menimpa `status` existing (LOCKED, dipakai luas). */
+  isBlocked?: boolean
+  blockedReason?: string
+}
+
+/** Risk severity/status (Section 09 — roadmap Section 00–24 baru, Wajib "risks"). */
+export type ProjectRiskSeverity = 'low' | 'medium' | 'high'
+export type ProjectRiskStatus = 'open' | 'mitigated' | 'closed'
+
+/** Project-level risk tracking (Section 09) — entitas baru, tidak ada model existing yang cocok (`Opportunity.requirementDetail.riskNotes` adalah teks bebas satu kali di tahap AE, bukan daftar risk yang bisa dilacak per-Project sepanjang lifecycle). */
+export interface ProjectRisk {
+  id: ID
+  projectId: ID
+  title: string
+  description?: string
+  severity: ProjectRiskSeverity
+  status: ProjectRiskStatus
+  raisedBy: ID
+  createdAt: string
+}
+
+/** Shift identifier (Section 12) — pola kerja shift umum operasional travel (bukan jam presisi). */
+export type ShiftPeriod = 'pagi' | 'siang' | 'malam'
+
+/**
+ * "On-trip updates dan shift notes mock" (Section 12 — roadmap Section 00–24 baru, Wajib) — log operasional
+ * ringkas selama trip berlangsung, TERPISAH dari `ActivityEntry` (tab "Activity & Changes", berorientasi
+ * governance/approval perubahan) — shift note murni catatan serah-terima antar staf lapangan, tidak
+ * memerlukan status approval/review. Entitas baru karena semantiknya (siapa jaga shift apa, catatan
+ * kondisi lapangan) tidak cocok dipaksakan ke `ActivityEntry` yang sudah punya flag `isChange`/`approvalStatus`.
+ */
+export interface ShiftNote {
+  id: ID
+  projectId: ID
+  authorId: ID
+  shift: ShiftPeriod
+  note: string
+  createdAt: string
 }
 
 /**

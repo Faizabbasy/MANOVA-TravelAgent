@@ -56,6 +56,20 @@ Sejak 2026-08-01, `prompts/01-PROTOKOL-WAJIB.md` versi "FRONTEND-ONLY CONTINUATI
 | 03 | Public Lead Intake | [`section-03-public-lead-intake.md`](./section-03-public-lead-intake.md) | COMPLETED |
 | 04 | Sales Leads dan Qualification | [`section-04-sales-leads-qualification.md`](./section-04-sales-leads-qualification.md) | COMPLETED |
 | 05 | Account Executive Opportunity dan Quotation | [`section-05-ae-opportunity-quotation.md`](./section-05-ae-opportunity-quotation.md) | COMPLETED |
+| 06 | Management Approval, Won dan Client Activation | [`section-06-management-approval-won.md`](./section-06-management-approval-won.md) | COMPLETED |
+| 07 | Customer Journey | [`section-07-customer-journey.md`](./section-07-customer-journey.md) | COMPLETED |
+| 08 | Client Portal | [`section-08-client-portal.md`](./section-08-client-portal.md) | COMPLETED |
+| 09 | Project Order dan Handover | [`section-09-project-order-handover.md`](./section-09-project-order-handover.md) | COMPLETED |
+| 10 | Product Planning dan Costing | [`section-10-product-planning-costing.md`](./section-10-product-planning-costing.md) | COMPLETED |
+| 11 | Traveler dan Travel Documents | [`section-11-traveler-documents.md`](./section-11-traveler-documents.md) | COMPLETED |
+| 12 | Itinerary, Operations, Tasks dan Readiness | [`section-12-itinerary-operations-readiness.md`](./section-12-itinerary-operations-readiness.md) | COMPLETED |
+| 13 | Ticketing | [`section-13-ticketing.md`](./section-13-ticketing.md) | COMPLETED |
+| 14 | Accommodation | [`section-14-accommodation.md`](./section-14-accommodation.md) | COMPLETED |
+| 15 | Transportation | [`section-15-transportation.md`](./section-15-transportation.md) | COMPLETED |
+| 16 | MICE dan Event | [`section-16-mice.md`](./section-16-mice.md) | COMPLETED |
+| 17 | Supplier dan Procurement | [`section-17-supplier-procurement.md`](./section-17-supplier-procurement.md) | COMPLETED |
+
+**Catatan disambiguasi (D-057):** `section-17-supplier-procurement.md` (baris di atas, roadmap Section 00–24 baru) TIDAK BOLEH tertukar dengan `section-17-administration.md` (skema lama Prompt 0–20, tabel "Daftar Laporan" di atas — topik Administration, COMPLETED sejak sebelumnya) — keduanya sengaja bernomor sama ("17") karena berasal dari dua skema penomoran berbeda yang berdampingan (lihat bagian "Roadmap Section 00–24" di atas), BUKAN duplikat/konflik.
 
 ## Isi Minimum Setiap Laporan
 

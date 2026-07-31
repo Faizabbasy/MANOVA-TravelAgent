@@ -10,7 +10,7 @@ import type { ServiceTypeKey } from './project'
  * "Lead→Qualified→Create Opportunity→Quotation→Management Approval→Won→Active Client→Project Order" (bukan
  * "Convert to Customer" — istilah tsb sengaja tidak dipakai sesuai instruksi literal Prompt 19-5A).
  */
-export type LeadSource = 'website' | 'instagram' | 'tiktok' | 'whatsapp' | 'referral' | 'event' | 'email' | 'sales-outreach' | 'other'
+export type LeadSource = 'website' | 'instagram' | 'tiktok' | 'whatsapp' | 'referral' | 'event' | 'email' | 'sales-outreach' | 'client-portal' | 'other'
 
 export type LeadStage = 'new' | 'contacted' | 'qualified' | 'unqualified'
 

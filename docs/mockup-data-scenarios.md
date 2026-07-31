@@ -387,6 +387,114 @@ Melengkapi 4j/4k dengan skenario "duplicate suggestion"/"merge suggestion" (Sect
 
 ---
 
+## 4m. Product Planning dan Costing Detail (ditambahkan Section 10 — roadmap Section 00–24 baru)
+
+Entitas baru `ProductTemplate`/`CostSheet` (`app/data/products.ts`) — lihat D-067 (`docs/mockup-design-decisions.md`) untuk rasional lengkap.
+
+- **`PRD-001`/`PRD-002`** (Manila/Abu Dhabi, status `active`) dan **`PRD-003`** (Palu, status `draft` — masih disempurnakan Product Planner). Masing-masing punya 2-4 `serviceAlternatives` (mis. hotel bintang 3 vs 4 vs 5, flight budget vs full-service) dengan satu opsi ditandai `isRecommended`.
+- **`CS-001`** (link `PRD-001`+`OPP-001`) dan **`CS-002`** (link `PRD-002`+`OPP-002`) — Cost Sheet historis yang SUDAH `applied` (`status: 'final'`) ke `QUO-001`/`QUO-002` (kedua Opportunity sudah `won`), mendemokan snapshot konsep secara nyata (bukan seeded-done kosmetik — field `appliedToQuotationId`/`appliedAt` benar-benar terisi dan dikunci dari edit).
+- **`CS-005`** (link `PRD-002`, TANPA `opportunityId`) — Cost Sheet baseline berdiri sendiri, referensi Planner sebelum ada Opportunity spesifik ke destinasi tsb.
+- **`CS-003`**/**`CS-004`** ("Economy Scenario"/"Premium Scenario", keduanya link `PRD-003`+`OPP-009`, status `draft`) — demo hidup "Scenario/version comparison": `OPP-009` (stage `requirement-gathering`, "Ready for Quotation") BELUM punya Quotation, sehingga tombol "Apply to Quotation" pada kedua Cost Sheet ini benar-benar aktif dan fungsional (bukan hanya UI dekoratif) — total sell terhitung Rp254.310.000 (Economy, sebelum tax) dan lebih tinggi untuk Premium (hotel + venue upgrade).
+- Total sell hasil kalkulasi Cost Sheet SENGAJA tidak dipaksa sama persis dengan `Quotation.amountIdr` historis (`CS-001` vs `QUO-001`, `CS-002` vs `QUO-002`) — variance kecil merefleksikan negosiasi AE, bukan bug data.
+
+---
+
+## 4n. Traveler Document Detail (ditambahkan Section 11 — roadmap Section 00–24 baru)
+
+Field baru (`idNumber`/`visaNumber`/`visaExpiryDate`/`dietaryRestrictions`/`accessibilityNeeds`/`companionOfTravelerId`/`documentsVerifiedAt`) di-backfill selektif pada `TRAVELERS` existing (`app/data/projects.ts`) — lihat D-068 (`docs/mockup-design-decisions.md`).
+
+- **`TRV-1011`** (PRJ-101, Hendra Wijaya) — `idNumber` + sudah `documentsVerifiedAt` (Terverifikasi). **`TRV-1016`** (Nadia Puspita) — `dietaryRestrictions: 'Vegetarian'` + `companionOfTravelerId: 'TRV-1011'` (demo "Mendampingi: Hendra Wijaya").
+- **`TRV-1021`** (PRJ-102, Sarah Amelia, destinasi Abu Dhabi — visa wajib untuk WNI) — `visaNumber`+`visaExpiryDate` lengkap, tetap "Dokumen Lengkap", sudah terverifikasi. **`TRV-1025`** (Citra Ananda) — `visaNumber` TANPA `visaExpiryDate`: sebelum Section 11 baru berstatus "Dokumen Lengkap" (paspornya valid), kini SENGAJA berubah menjadi "Dokumen Belum Lengkap" oleh aturan visa baru (`isTravelerDocumentMissing`) — perubahan status yang disengaja (demo aturan baru), bukan regresi. **`TRV-1024`** (Bayu Aditya) — `dietaryRestrictions`+`accessibilityNeeds` contoh kombinasi.
+- **`TRV-1031`** (PRJ-103, Dedi Kurniawan, destinasi domestik — tanpa field visa) — `accessibilityNeeds` (dipindah dari `specialRequest` lama ke field dedicated yang lebih tepat), `idNumber`, sudah terverifikasi. **`TRV-1032`** (Michael Tanuwijaya) — sudah terverifikasi. **`TRV-1036`** (Reza Firmansyah) — `companionOfTravelerId: 'TRV-1031'` (mendampingi Dedi — konsisten keduanya sudah berbagi kamar "Suite VIP 1" di `ROOM_ASSIGNMENTS` sejak Section 11 lama).
+- Traveler lain (12 dari 17) TIDAK diberi field baru — tetap merepresentasikan kondisi "belum dilengkapi" yang realistis (readiness indicator per project tidak pernah 100% seluruhnya, mencerminkan kondisi nyata operasional).
+
+---
+
+## 4o. Operational Command Center Detail (ditambahkan Section 12 — roadmap Section 00–24 baru)
+
+Field `timezone`/`visibleToClient` (`ItineraryItem`) dan `isBlocked`/`blockedReason` (`ProjectTask`), plus entitas baru `ShiftNote` — lihat D-069 (`docs/mockup-design-decisions.md`).
+
+- **`ITIN-1015`** (PRJ-101), **`ITIN-1026`** (PRJ-102), **`ITIN-1037`** (PRJ-103) — 3 item itinerary BARU, seluruhnya `visibleToClient: false` (briefing/koordinasi internal). Mendemokan "Internal vs client-shared itinerary": tampil di `/projects/[id]` (badge "Internal Only") TAPI TIDAK tampil di `/client/project-orders/[id]`.
+- Seluruh 17 `ItineraryItem` existing diberi `timezone` (Asia/Jakarta untuk keberangkatan dari Jakarta, Asia/Manila/Asia/Dubai/Asia/Makassar sesuai destinasi masing-masing).
+- **`TSK-1021`** (PRJ-102, "Reschedule hotel booking") — di-backfill `isBlocked: true` dengan alasan "Menunggu konfirmasi ketersediaan kamar Suite dari hotel". Mengubah Departure Readiness Gate PRJ-102 dari (sebelumnya tidak ada indikator) menjadi "Belum Siap" — demo hidup, bukan regresi.
+- **`SFT-1031`**/**`SFT-1032`** (PRJ-103, satu-satunya project `in-progress` pada tanggal referensi demo) — 2 `ShiftNote` shift pagi dan siang, mendemokan on-trip updates/shift handover.
+
+---
+
+## 4p. Ticketing Detail (ditambahkan Section 13 — roadmap Section 00–24 baru)
+
+Entitas baru `FlightBooking` (`app/data/ticketing.ts`) — lihat D-070 (`docs/mockup-design-decisions.md`).
+
+- **`FLT-1011`** (PRJ-101, `issued`) — menautkan `serviceId: 'SVC-1011'`, `pnr: 'MNL8201'` (mengikuti persis `SVC-1011.bookingReference`), 6 traveler (seluruh traveler PRJ-101), opsi terpilih Rp12.500.000/pax (mengikuti `CS-001.costPerPaxIdr`), Net Cost Rp75.000.000 = Sell Price Rp95.000.000 (persis `QUO-001.amountIdr`).
+- **`FLT-1021`** (PRJ-102, `reissued`) — menautkan `serviceId: 'SVC-1021'`, `pnr: 'AUH9221'`, `hasScheduleChange: true` merujuk `CHG-1021` (perubahan tanggal 15–19 Sep → 22–26 Sep, Section 14 lama) sebagai alasan reissue — narasi konsisten lintas-modul, bukan kebetulan.
+- **`FLT-1023`** (PRJ-102, `refunded`, TANPA `serviceId` — booking individual traveler) — 1 traveler (Bayu Aditya), `statusReason` "mengundurkan diri karena keperluan mendesak".
+- **`FLT-1031`** (PRJ-103, `issued`) — menautkan `serviceId: 'SVC-1031'`, Group Management (`GRP-001`, 2 traveler bernama).
+- **`FLT-1032`** (PRJ-103, `hold`) — menautkan `serviceId: 'SVC-1032'` (sebelumnya `pending-confirmation` tanpa `bookingReference` — konsisten belum ada PNR), Group Partner/VIP (`GRP-003`), `ticketingDeadline` H+3 dari tanggal referensi demo (mendemokan urgensi).
+- **`FLT-1033`** (PRJ-103, `requested`, TANPA `serviceId`) — 2 opsi belum dipilih, `travelerIds` kosong (belum ditugaskan, mewakili "seluruh group" yang belum diformalkan).
+- Mencakup 5 dari 7 status lifecycle (`requested`/`hold`/`issued`/`reissued`/`refunded`); `confirmed`/`cancelled` sengaja tidak di-seed (reachable lewat transisi UI, diverifikasi code review).
+
+---
+
+## 4q. Accommodation Detail (ditambahkan Section 14 — roadmap Section 00–24 baru)
+
+Entitas baru `HotelBooking` (`app/data/accommodation.ts`) — lihat D-071 (`docs/mockup-design-decisions.md`), pola arsitektur IDENTIK D-070.
+
+- **`HTL-1022`** (PRJ-102, `amended`) — menautkan `serviceId: 'SVC-1022'`, `confirmationNumber: 'AUH-A104'` (mengikuti persis `SVC-1022.bookingReference`), 6 traveler sampel (mewakili 18 pax Room Block A), opsi terpilih upgrade ke Suite Rp1.800.000/malam, `amendmentNote` merujuk narasi upgrade yang sama seperti `ITIN-1022`/`ITIN-1026`, Net Cost Rp129.600.000 / Sell Price Rp152.900.000.
+- **`HTL-1023`** (PRJ-102, `cancelled`) — menautkan `serviceId: 'SVC-1023'` (Room Block B, 3 pax, tanpa `bookingReference` — konsisten belum pernah confirmed), dibatalkan SETELAH `cancellationDeadline` sehingga `cancellationPenaltyIdr: 2.025.000` (15% dari estimasi) — mendemokan "penalty" Wajib literal dengan angka bukan nol.
+- **`HTL-1033`** (PRJ-103, `confirmed`) — menautkan `serviceId: 'SVC-1033'` DAN `groupId: 'GRP-001'` (Management, 10 pax) — rooming list (`getHotelRoomingList`) menampilkan `ROOM-001` existing (Section 11) tanpa duplikasi data, `earlyCheckInRequested: true` (kedatangan pagi hari sama dengan check-in).
+- **`HTL-1034`** (PRJ-103, `quoted`, TANPA `serviceId`) — `groupId: 'GRP-002'` (Sales Team, 25 pax), 2 opsi property (Bintang 3 vs Bintang 4) mengikuti persis `costPerPaxIdr` `CS-003`/`CS-004` dibagi 4 malam, belum ada Net Cost/Sell Price (harga belum final di tahap `quoted`).
+- **`HTL-1035`** (PRJ-103, `confirmed`) — `groupId: 'GRP-003'` (Partner/VIP), HANYA 2 traveler (Dedi Kurniawan + companion) — mendemokan "individual" dari acceptance literal ("individual maupun group") dalam satu entitas yang sama, `policies` menyebut kebutuhan aksesibilitas kursi roda (`TRV-1031.accessibilityNeeds`, direuse langsung sebagai "Traveler special requests", bukan field baru), `lateCheckOutRequested: true`.
+- **`HTL-1036`** (PRJ-102, `requested`, TANPA `serviceId`/`groupId`/opsi/traveler) — permintaan overflow kamar untuk traveler yang menyusul belakangan, mewakili tahap paling awal sourcing.
+- Mencakup 5 dari 7 status lifecycle (`requested`/`quoted`/`confirmed`/`amended`/`cancelled`); `completed`/`no-show` sengaja tidak di-seed (reachable lewat transisi UI, diverifikasi code review, konsisten pola Section 13).
+
+---
+
+## 4r. Transportation Detail (ditambahkan Section 15 — roadmap Section 00–24 baru)
+
+Entitas baru `TransportBooking` (`app/data/transportation.ts`) — lihat D-072 (`docs/mockup-design-decisions.md`), pola arsitektur IDENTIK D-070/D-071. Seluruh fixture berada di PRJ-103 (satu-satunya project dengan `transportation` di `serviceScope`).
+
+- **`TRN-1034`** (Management/`GRP-001`, 10 pax, `assigned`) — menautkan `serviceId: 'SVC-1034'` ("Ground Transportation", masih `pending-confirmation` — `VQ-009`/`VQ-010` di `app/data/vendors.ts` masih `submitted`, TIDAK diputuskan/diubah oleh section ini), 3 leg multi-day dispatch (airport-hotel, hotel-venue, hotel-airport), unit+driver sudah ditugaskan (`DN 1234 AB`, Herman Wijaya), `standbyHours`/`tollFeeIdr` terisi.
+- **`TRN-1035`** (Sales Team/`GRP-002`, 25 pax, `confirmed`) — mendemokan "Change": jadwal City Tour dimajukan 2 jam (`hasChange`/`changeNote`).
+- **`TRN-1036`** (Partner-VIP/`GRP-003`, `completed`) — HANYA 2 traveler (Dedi Kurniawan + companion), kendaraan van beraksesibilitas kursi roda (reuse `TRV-1031.accessibilityNeeds`), mendemokan "Incident": unit awal diganti karena kendala AC (`hasIncident`/`incidentNote`).
+- **`TRN-1037`** (individual, TANPA `groupId`, `cancelled`) — 1 traveler, dibatalkan sebelum eksekusi karena peserta memakai kendaraan pribadi.
+- **`TRN-1038`** (TANPA `groupId`/`serviceId`, `quoted`) — permintaan overflow day charter untuk agenda MICE, 2 opsi kendaraan dibandingkan, belum ada assignment/driver.
+- Mencakup 5 dari 7 status lifecycle (`quoted`/`assigned`/`confirmed`/`completed`/`cancelled`); `requested`/`no-show` sengaja tidak di-seed (reachable lewat transisi UI, diverifikasi code review, konsisten pola Section 13/14).
+
+---
+
+## 4s. MICE Detail (ditambahkan Section 16 — roadmap Section 00–24 baru)
+
+Entitas baru `MiceEvent` (`app/data/mice.ts`) — lihat D-073 (`docs/mockup-design-decisions.md`), pola arsitektur IDENTIK D-070/D-071/D-072. SATU fixture (`MICE-1035`), berbeda dari Section 13-15 yang memiliki banyak baris — realita satu event MICE utama per project.
+
+- **`MICE-1035`** (PRJ-103, `in-progress`, client approval `approved`) — menautkan `serviceId: 'SVC-1035'` ("Venue & Rundown Acara", `confirmed`, `bookingReference: 'MICE-PLW-VEN01'`) dan vendor `VND-004` (Cendana MICE Organizer, `VQ-006` accepted Rp280.000.000) untuk mayoritas baris BOQ — total BOQ (netCost ~Rp235,5 juta / sellPrice ~Rp282 juta) berada dalam skala yang sama TANPA memaksakan kesamaan angka persis.
+- **2 session**: Hari 1 (`isConfirmed: true`, kapasitas 150, matching `SFT-1032` shift note existing "Venue MICE hari ke-1 sudah siap") dan Hari 2 (`isConfirmed: false`, venue alternatif kapasitas 100 — menautkan langsung ke `TSK-1032` "Konfirmasi venue MICE hari ke-2" dan `RSK-1031` "Ketersediaan venue MICE hari ke-2 belum terkonfirmasi final", `app/data/activity.ts`).
+- **4 participant category** (Delegate 60, VIP 10, Local Guest 40, Staff 15 — total 125 pax expected) — total 125 > kapasitas venue Hari 2 (100), MENDEMOKAN "Capacity and schedule conflicts" (Wajib) secara nyata, bukan skenario rekayasa lepas konteks. Attendance (`actualCount`) sudah terisi untuk Hari 1 (120 dari 125 hadir — Local Guest 35 dari 40, sisanya sesuai target).
+- **6 baris BOQ** lintas seluruh kategori (catering/av/staging/equipment/booth/other), 5 baris ke `VND-004`, 1 baris (dokumentasi) ke `VND-007`.
+- **Staffing**: `USR-007` (Lina Marlina, role `mice`, PIC utama — konsisten `SFT-1032`), `USR-002` (Project Manager, owner PRJ-103), `USR-009` (liaison vendor/logistik, sudah di `teamUserIds` PRJ-103).
+- **Checklist** 5 item (permit/setup/rehearsal sudah selesai untuk Hari 1, setup Hari 2 dan teardown belum).
+- **Change Order** aktif — menautkan narasi venue Hari 2 (`RSK-1031`/`TSK-1032`) dan rundown belum dikirim client (`TSK-1033`). **Incident** aktif — keterlambatan unit AV cadangan Hari 1, diatasi tanpa mengganggu jadwal.
+- Deliverables (3 item) belum ada yang terkirim — realistis, event masih `in-progress` (Hari 2 belum selesai).
+
+---
+
+## 4t. Procurement Detail (ditambahkan Section 17 — roadmap Section 00–24 baru)
+
+Entitas baru `RFQ`/`RFQInvitation`/`RFQResponse`/`RFQClarificationMessage`/`ServiceOrder`/`ServiceOrderAmendment`/`SupplierInvoice` (`app/data/procurement.ts`) — lihat D-074 (`docs/mockup-design-decisions.md`). Seluruh `vendorId` mereuse `VENDORS` existing (`app/data/vendors.ts`), TIDAK ada entitas Supplier paralel. `VND-006` (PT ABC) dan `VND-007` (PT EFG) dipakai luas, melanjutkan skenario "produk berbeda" yang sudah dimulai Prompt 19 (`VENDOR_PRODUCTS`).
+
+**4 RFQ, merentang seluruh status literal:**
+- **`RFQ-001`** (`draft`, PRJ-102, hotel) — belum dikirim ke vendor manapun, mendemokan state awal sebelum "Kirim ke Vendor" diklik.
+- **`RFQ-002`** (`responses-in`, PRJ-103, mice) — mengundang `VND-004` (Cendana MICE Organizer) dan `VND-007` (PT EFG), keduanya sudah merespons (`RFQRESP-001`/`002`, Rp21.000.000/Rp20.600.000) — melengkapi BOQ `MICE-1035` (Section 16), belum diputuskan.
+- **`RFQ-003`** (`clarification`, PRJ-103, hotel VIP suite) — mengundang `VND-002` (Hotel Prima Mitra) dan `VND-006` (PT ABC), keduanya merespons; thread klarifikasi 2 pesan aktif dengan PT ABC (`RFQCLR-001`/`002`, kebijakan pembatalan) — mendemokan clarification thread dua-arah secara nyata.
+- **`RFQ-004`** (`closed`, PRJ-103, transportasi VIP) — mengundang `VND-003` (Trans Wahana Logistik) dan `VND-005` (CV Wisata Kargo Ekspres), `VND-003` terpilih (`selectedVendorId`) dan `RFQRESP-005` `selected` (Rp3.400.000), `RFQRESP-006` otomatis `rejected`. SENGAJA TIDAK menautkan `serviceId` ke `SVC-1034` (Ground Transportation PRJ-103, tetap milik skenario comparison VQ-009/VQ-010 Section 13 lama yang masih `pending-confirmation`) — kebutuhan VIP transfer terpisah, menghindari dua mekanisme keputusan vendor untuk baris service yang sama.
+
+**2 Service Order, "one plain, one amended" sesuai kebutuhan literal:**
+- **`SO-001`** (`fulfilled`, hasil formal `RFQ-004` → `VND-003`, PRJ-103) — netCost Rp3.400.000/sellPrice Rp4.200.000, `acknowledgedAt`/`fulfilledAt` terisi. 2 Supplier Invoice: `SINV-001` (`approved`, Rp4.200.000, pembayaran final) dan `SINV-002` (`under-review`, Rp450.000, biaya tol tambahan).
+- **`SO-002`** (`amended`, engagement langsung tanpa RFQ, `VND-006` → PT ABC, PRJ-102) — netCost Rp9.600.000/sellPrice Rp12.000.000, 1 `ServiceOrderAmendment` (`SOA-001`, upgrade Deluxe→Suite). 2 Supplier Invoice: `SINV-003` (`rejected`, submission awal sebelum amendment, catatan review "jumlah belum sesuai") dan `SINV-004` (`submitted`, submission ulang setelah koreksi) — mendemokan siklus reject→resubmit self-service (resolusi Q12).
+
+**Procurement Performance Review** (`/procurement/performance`) — derivasi murni dari data di atas: `VND-003` (win rate 100%, 1/1 RFQ menang, 1/1 Service Order fulfilled — on-time 100%), `VND-006` (belum menang RFQ, tapi punya riwayat Service Order/invoice), `VND-004`/`VND-007` (masing-masing 1 respons RFQ-002, belum diputuskan — win rate belum terhitung).
+
+---
+
 ## 5. Role-Restricted Finance View (bukan record baru, kondisi tampilan atas PRJ-103)
 
 Menggunakan **PRJ-103** sebagai subjek konkret untuk mendemonstrasikan Role & Access Matrix (`docs/route-and-role-matrix.md` bagian 5) pada tab "Finance":
@@ -446,6 +554,7 @@ Setiap ID pada dokumen ini **wajib dipakai identik** di seluruh titik implementa
 - `VENDORS` sejak Section 13 juga `reactive()` (bagian 4g) — `createVendor`/`createVendorContact`/`submitVendorQuotation`/`acceptVendorQuotation`/`rejectVendorQuotation` (`app/data/index.ts`) ter-propagate seketika ke `/vendors`, Vendor Detail, dan tab "Vendors" Project Detail tanpa reload. `acceptVendorQuotation` memanggil `updateServiceStatus` (Section 12) untuk mengonfirmasi service — bukan mutasi `PROJECT_SERVICES` paralel.
 - `ACTIVITIES` sejak Section 09 sudah `reactive()`; Section 14 menambah `createChangeEntry`/`approveChangeEntry`/`rejectChangeEntry` (`app/data/index.ts`) yang memutasi array yang sama — ter-propagate seketika ke tab "Activity & Changes" DAN (via `isChange`/`reviewed` yang tidak diubah semantiknya) widget attention/recent-activity existing (Section 06/10) tanpa reload. ID Change baru mengikuti prefix `CHG-` sekuensial global (bagian 4h).
 - **Prompt 19 (Change Request):** prefix ID baru — `LED-` Lead, `LACT-` Lead Activity, `VPR-` Vendor Product, `EVT-` System Event (bagian 4j). `LEADS`/`LEAD_ACTIVITIES`/`VENDOR_PRODUCTS` seluruhnya `reactive()` (pola sama sejak Section 07) — `createLead`/`createLeadActivity`/`archiveLead`/`qualifyLeadAndCreateOpportunity`/`createVendorProduct` (`app/data/index.ts`) ter-propagate seketika tanpa reload. `qualifyLeadAndCreateOpportunity` mencari `Party` existing berdasarkan nama company dulu (cegah duplicate company) sebelum membuat baru — ID `PTY-`/`OPP-` baru tetap mengikuti skema sekuensial yang sama. `SYSTEM_EVENTS` (Activity Center) BUKAN `reactive()` — murni log seed statis, tidak ada mutator (tidak ada aksi UI yang menambah event baru pada implementasi ini).
+- **Section 17 (Procurement):** prefix ID baru — `RFQ-` RFQ, `RFQINV-` RFQ Invitation, `RFQRESP-` RFQ Response, `RFQCLR-` RFQ Clarification Message, `SO-` Service Order, `SOA-` Service Order Amendment, `SINV-` Supplier Invoice, `VDOC-` Vendor Document (bagian 4t). `RFQS`/`RFQ_INVITATIONS`/`RFQ_RESPONSES`/`RFQ_CLARIFICATIONS`/`SERVICE_ORDERS`/`SERVICE_ORDER_AMENDMENTS`/`SUPPLIER_INVOICES`/`VENDOR_DOCUMENTS` seluruhnya `reactive()` (pola sama sejak Section 07) — `createRfq`/`sendRfqToVendors`/`submitRfqResponse`/`addRfqClarificationMessage`/`selectRfqVendor`/`closeRfq`/`createServiceOrder`/`updateServiceOrderStatus`/`amendServiceOrder`/`submitSupplierInvoice`/`reviewSupplierInvoice`/`createVendorDocument` (`app/data/index.ts`) ter-propagate seketika tanpa reload. `VENDORS` (Section 13 lama) diperluas aditif (`category`/`status`/`documents`) via `updateVendor` — bukan entitas baru.
 
 ## 8. Batasan
 

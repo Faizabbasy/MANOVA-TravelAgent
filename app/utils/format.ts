@@ -52,3 +52,11 @@ export function formatTravelerCount(count: number): string {
 export function daysUntil(isoDate: string, referenceIso: string): number {
   return differenceInCalendarDays(parseISO(isoDate), parseISO(referenceIso))
 }
+
+/** "Sensitive values masked sesuai role" (Section 11) — menyisakan 4 karakter terakhir, sisanya diganti `•`. */
+export function maskDocumentNumber(value?: string): string {
+  if (!value) return '—'
+  const trimmed = value.trim()
+  if (trimmed.length <= 4) return '•'.repeat(trimmed.length)
+  return `${'•'.repeat(trimmed.length - 4)}${trimmed.slice(-4)}`
+}

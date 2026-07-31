@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import type { Vendor, VendorContact, VendorQuotation, VendorActivity, VendorProduct } from '~/types/vendor'
+import type { Vendor, VendorContact, VendorQuotation, VendorActivity, VendorProduct, VendorDocument } from '~/types/vendor'
 
 /**
  * `reactive()` (Section 13) — melanjutkan pola Section 07/08/09/10/11/12. Tambah vendor/contact/quotation
@@ -12,14 +12,24 @@ import type { Vendor, VendorContact, VendorQuotation, VendorActivity, VendorProd
  * supplier user sendiri (`app/data/users.ts` USR-015/016, terisolasi via `User.vendorId`) dan katalog
  * produk/layanan berbeda (`VENDOR_PRODUCTS` di bawah) — bukan sekadar vendor tambahan biasa.
  */
+/** `category`/`status` (Section 17) — field aditif, seluruh vendor existing di-backfill `status: 'active'` (regression-safe, tidak ada vendor lama yang berubah perilaku tampilan list/detail). */
 export const VENDORS: Vendor[] = reactive([
-  { id: 'VND-001', name: 'CV Tiket Mitra Nusantara', serviceType: 'flight', contactName: 'Yusuf Maulana' },
-  { id: 'VND-002', name: 'Hotel Prima Mitra', serviceType: 'hotel', contactName: 'Rina Kartika' },
-  { id: 'VND-003', name: 'Trans Wahana Logistik', serviceType: 'transportation', contactName: 'Bimo Saputro' },
-  { id: 'VND-004', name: 'Cendana MICE Organizer', serviceType: 'mice', contactName: 'Wulan Permatasari' },
-  { id: 'VND-005', name: 'CV Wisata Kargo Ekspres', serviceType: 'transportation', contactName: 'Agus Salim' },
-  { id: 'VND-006', name: 'PT ABC', serviceType: 'hotel', contactName: 'Hasan Alfarizi' },
-  { id: 'VND-007', name: 'PT EFG', serviceType: 'mice', contactName: 'Ika Puspitasari' },
+  { id: 'VND-001', name: 'CV Tiket Mitra Nusantara', serviceType: 'flight', contactName: 'Yusuf Maulana', category: 'Flight Consolidator', status: 'active' },
+  { id: 'VND-002', name: 'Hotel Prima Mitra', serviceType: 'hotel', contactName: 'Rina Kartika', category: 'Hotel Full-Service', status: 'active' },
+  { id: 'VND-003', name: 'Trans Wahana Logistik', serviceType: 'transportation', contactName: 'Bimo Saputro', category: 'Ground Transportation', status: 'active' },
+  { id: 'VND-004', name: 'Cendana MICE Organizer', serviceType: 'mice', contactName: 'Wulan Permatasari', category: 'MICE Full-Service', status: 'active' },
+  { id: 'VND-005', name: 'CV Wisata Kargo Ekspres', serviceType: 'transportation', contactName: 'Agus Salim', category: 'Ground Transportation', status: 'pending' },
+  { id: 'VND-006', name: 'PT ABC', serviceType: 'hotel', contactName: 'Hasan Alfarizi', category: 'Hotel Budget', status: 'active' },
+  { id: 'VND-007', name: 'PT EFG', serviceType: 'mice', contactName: 'Ika Puspitasari', category: 'MICE Vendor Package', status: 'active' },
+])
+
+/** Dokumen vendor (Section 17) — preview mock (bukan file upload nyata, D-006), dipakai tab "Documents" Vendor Detail. */
+export const VENDOR_DOCUMENTS: VendorDocument[] = reactive([
+  { id: 'VDOC-001', vendorId: 'VND-002', name: 'Kontrak Kerjasama Hotel Prima Mitra 2026.pdf', type: 'Kontrak', uploadedAt: '2026-05-02' },
+  { id: 'VDOC-002', vendorId: 'VND-003', name: 'NPWP Trans Wahana Logistik.pdf', type: 'NPWP', uploadedAt: '2026-04-18' },
+  { id: 'VDOC-003', vendorId: 'VND-006', name: 'Kontrak Kerjasama PT ABC 2026.pdf', type: 'Kontrak', uploadedAt: '2026-06-01' },
+  { id: 'VDOC-004', vendorId: 'VND-006', name: 'Sertifikat Standar Layanan PT ABC.pdf', type: 'Sertifikasi', uploadedAt: '2026-06-01' },
+  { id: 'VDOC-005', vendorId: 'VND-007', name: 'Kontrak Kerjasama PT EFG 2026.pdf', type: 'Kontrak', uploadedAt: '2026-06-05' },
 ])
 
 /** Backfill 1 contact per vendor dari `Vendor.contactName` existing (Foundation) — bukan data baru, hanya diberi wadah tab "Contacts". */

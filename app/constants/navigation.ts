@@ -11,6 +11,12 @@ import {
   Activity,
   Truck,
   Users,
+  Package,
+  Plane,
+  BedDouble,
+  Bus,
+  Presentation,
+  ClipboardList,
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
 
@@ -66,11 +72,42 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Prospects', to: '/crm/prospects', icon: Target, moduleKey: 'crm' },
       { label: 'Clients', to: '/crm/clients', icon: Target, moduleKey: 'crm' },
       { label: 'Opportunities', to: '/crm/opportunities', icon: Target, moduleKey: 'crm' },
-      { label: 'Quotations', to: '/crm/quotations', icon: Target, moduleKey: 'crm', comingSoon: true },
+      { label: 'Quotations', to: '/crm/quotations', icon: Target, moduleKey: 'crm' },
+    ],
+  },
+  /** Product Planning (Section 10) — katalog Product/Package Template dan Cost Sheet, kolaborasi AE/Operations/Finance. */
+  {
+    label: 'Product Planning',
+    to: '/product-planning',
+    icon: Package,
+    moduleKey: 'product-planning',
+    children: [
+      { label: 'Product Templates', to: '/product-planning', icon: Package, moduleKey: 'product-planning' },
+      { label: 'Cost Sheets', to: '/product-planning/cost-sheets', icon: Package, moduleKey: 'product-planning' },
     ],
   },
   { label: 'Projects', to: '/projects', icon: FolderKanban, moduleKey: 'project' },
+  /** Ticketing (Section 13) — FlightBooking lifecycle lintas project, pemilik utama role `ticketing`. */
+  { label: 'Ticketing', to: '/ticketing', icon: Plane, moduleKey: 'ticketing' },
+  /** Accommodation (Section 14) — HotelBooking lifecycle lintas project, pemilik utama role `accommodation`, pola arsitektur IDENTIK Ticketing (D-070). */
+  { label: 'Accommodation', to: '/accommodation', icon: BedDouble, moduleKey: 'accommodation' },
+  /** Transportation (Section 15) — TransportBooking lifecycle lintas project, pemilik utama role `transportation`, pola arsitektur IDENTIK Ticketing/Accommodation (D-070/D-071). */
+  { label: 'Transportation', to: '/transportation', icon: Bus, moduleKey: 'transportation' },
+  /** MICE (Section 16) — MiceEvent lifecycle lintas project, pemilik utama role `mice`, pola arsitektur IDENTIK Ticketing/Accommodation/Transportation (D-070/D-071/D-072). */
+  { label: 'MICE', to: '/mice', icon: Presentation, moduleKey: 'mice' },
   { label: 'Vendors', to: '/vendors', icon: Building2, moduleKey: 'vendor' },
+  /** Procurement (Section 17) — RFQ/Service Order/Supplier Invoice lifecycle lintas project, pemilik utama role `procurement`, MENDAMPINGI (bukan menggantikan) Vendors (master data) dan Supplier Portal (self-service). */
+  {
+    label: 'Procurement',
+    to: '/procurement',
+    icon: ClipboardList,
+    moduleKey: 'procurement',
+    children: [
+      { label: 'RFQ', to: '/procurement', icon: ClipboardList, moduleKey: 'procurement' },
+      { label: 'Service Orders', to: '/procurement?tab=service-orders', icon: ClipboardList, moduleKey: 'procurement' },
+      { label: 'Performance Review', to: '/procurement/performance', icon: ClipboardList, moduleKey: 'procurement' },
+    ],
+  },
   {
     label: 'Finance',
     to: '/finance',
@@ -105,8 +142,10 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { label: 'Products', to: '/supplier/products', icon: Truck, moduleKey: 'supplier-portal' },
       { label: 'Orders', to: '/supplier/orders', icon: Truck, moduleKey: 'supplier-portal' },
+      { label: 'RFQ Inbox', to: '/supplier/rfq', icon: Truck, moduleKey: 'supplier-portal' },
+      { label: 'Service Orders', to: '/supplier/service-orders', icon: Truck, moduleKey: 'supplier-portal' },
     ],
   },
-  /** Client Portal (Section 02) — External Partners, hanya `client` (dan Super Admin untuk oversight), pola identik Supplier Portal. Shell minimal (Section 02) — fitur penuh Section 08. */
+  /** Client Portal (Section 02, fitur penuh Section 08) — External Partners, hanya `client` (dan Super Admin untuk oversight), pola identik Supplier Portal. */
   { label: 'Client Portal', to: '/client', icon: Users, moduleKey: 'client-portal' },
 ]

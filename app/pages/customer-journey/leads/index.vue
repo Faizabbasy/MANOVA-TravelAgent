@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { Search, Plus, List, LayoutGrid, Inbox as InboxIcon, Archive as ArchiveIcon } from 'lucide-vue-next'
 import {
   LEADS, USERS, getLeadActivities, getLeadFollowUps, createLead, createLeadActivity, archiveLead,
@@ -23,10 +24,13 @@ const { canView } = usePermissions()
 /** Narrow role exception (pola Section 07/08) — Sales mengelola screening/qualification, AE menerima handover, Super Admin oversight. */
 const canManageLead = computed(() => ['sales', 'account-executive', 'super-admin'].includes(currentRole.value))
 
+const route = useRoute()
+
 const viewMode = ref<'table' | 'kanban' | 'inbox'>('table')
 
 const searchQuery = ref('')
-const stageFilter = ref<'all' | LeadStage>('all')
+/** Drill-down (Section 07, Customer Journey Funnel) — `?stage=qualified` dari `/customer-journey` deep-link langsung ke Lead qualified. */
+const stageFilter = ref<'all' | LeadStage>((route.query.stage as LeadStage) || 'all')
 const ownerFilter = ref<'all' | string>('all')
 const sourceFilter = ref<'all' | LeadSource>('all')
 const showArchived = ref(false)

@@ -143,4 +143,12 @@ export interface Quotation {
   exclusions?: string
   /** "Send mock ke client" — timestamp simulasi, TIDAK mengirim email/WA nyata (D-006). */
   sentToClientAt?: string
+
+  /**
+   * Section 10 — Product Planning dan Costing. Referensi Cost Sheet yang dipakai membentuk quotation ini
+   * (lihat `applyCostSheetToQuotation`, `app/data/index.ts`) — traceability collaboration Product
+   * Planner↔AE, TIDAK menggantikan `estimatedCostIdr`/`estimatedMarginIdr` yang tetap disalin (snapshot)
+   * ke field di atas agar Quotation tetap berdiri sendiri meski Cost Sheet sumber kelak direvisi.
+   */
+  costSheetId?: ID
 }

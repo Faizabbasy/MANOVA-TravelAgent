@@ -1,18 +1,20 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search } from 'lucide-vue-next'
-import { PROJECTS, getPartyById, getOpportunityById, getUserById } from '~/data'
+import { PROJECTS, getPartyById, getOpportunityById, getUserById, getProjectsByAccountExecutive } from '~/data'
 import { PROJECT_STATUSES, PROJECT_CHARACTERISTICS, findStatusOption } from '~/constants/status'
-import { formatDateRange } from '~/utils/format'
+import { formatDateRange, daysUntil } from '~/utils/format'
+import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 import type { Project } from '~/types/project'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Project Orders' })
 
 const { canView } = usePermissions()
-const { currentRole } = useCurrentUser()
+const { currentUser, currentRole } = useCurrentUser()
 /** Sales dibatasi ke Lead saja pada Customer Journey (docs Prompt 19-10) — narrow exception. */
 const hasAccess = computed(() => canView('crm') && currentRole.value !== 'sales')
+const isAeScoped = computed(() => currentRole.value === 'account-executive')
 
 const searchQuery = ref('')
 const statusFilter = ref<'all' | Project['status']>('all')
@@ -20,6 +22,10 @@ const typeFilter = ref<'all' | Project['characteristic']>('all')
 const clientFilter = ref<'all' | string>('all')
 const accountExecutiveFilter = ref<'all' | string>('all')
 const projectManagerFilter = ref<'all' | string>('all')
+/** "Date" (Wajib "Filters by source, owner, stage, client, date, project type") — periode keberangkatan, pola sama `reports/index.vue`. */
+const departurePeriodFilter = ref<'all' | '30' | '60' | '90'>('all')
+/** "AE data scope ke portfolio miliknya" (Section 07, Wajib) — default ON untuk AE. */
+const portfolioOnly = ref(isAeScoped.value)
 
 const clientOptions = computed(() => {
   const ids = [...new Set(PROJECTS.map(p => p.partyId))]
@@ -35,7 +41,8 @@ const projectManagerOptions = computed(() => {
 })
 
 const rows = computed(() => {
-  let result = PROJECTS.map(project => ({
+  const base = isAeScoped.value && portfolioOnly.value ? getProjectsByAccountExecutive(currentUser.value.id) : PROJECTS
+  let result = base.map(project => ({
     project,
     party: getPartyById(project.partyId),
     accountExecutiveId: project.opportunityId ? getOpportunityById(project.opportunityId)?.ownerId : undefined,
@@ -46,6 +53,12 @@ const rows = computed(() => {
   if (clientFilter.value !== 'all') result = result.filter(row => row.project.partyId === clientFilter.value)
   if (accountExecutiveFilter.value !== 'all') result = result.filter(row => row.accountExecutiveId === accountExecutiveFilter.value)
   if (projectManagerFilter.value !== 'all') result = result.filter(row => row.project.ownerId === projectManagerFilter.value)
+  if (departurePeriodFilter.value !== 'all') {
+    result = result.filter((row) => {
+      const days = daysUntil(row.project.travelStartDate, DEMO_REFERENCE_DATE)
+      return days >= 0 && days <= Number(departurePeriodFilter.value)
+    })
+  }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(row => row.project.name.toLowerCase().includes(q) || row.project.id.toLowerCase().includes(q))
@@ -90,6 +103,16 @@ const rows = computed(() => {
           <option value="all">Semua Project Manager</option>
           <option v-for="user in projectManagerOptions" :key="user.id" :value="user.id">{{ user.name }}</option>
         </select>
+        <select v-model="departurePeriodFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+          <option value="all">Semua Periode Keberangkatan</option>
+          <option value="30">30 Hari ke Depan</option>
+          <option value="60">60 Hari ke Depan</option>
+          <option value="90">90 Hari ke Depan</option>
+        </select>
+        <label v-if="isAeScoped" class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+          <Checkbox v-model="portfolioOnly" />
+          Hanya Portfolio Saya
+        </label>
       </div>
 
       <SectionCard>

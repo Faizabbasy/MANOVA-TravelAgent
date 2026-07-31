@@ -1,7 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { Search } from 'lucide-vue-next'
-import { PARTIES, getUserById, getOpportunitiesByParty, getProjectsByParty } from '~/data'
+import { PARTIES, getUserById, getOpportunitiesByParty, getProjectsByParty, getPartiesByAccountOwner } from '~/data'
 import { findStatusOption } from '~/constants/status'
 import type { StatusOption } from '~/types/common'
 import type { PartyLifecycleStatus } from '~/types/party'
@@ -9,10 +10,12 @@ import type { PartyLifecycleStatus } from '~/types/party'
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Customers' })
 
+const route = useRoute()
 const { canView } = usePermissions()
-const { currentRole } = useCurrentUser()
+const { currentUser, currentRole } = useCurrentUser()
 /** Sales dibatasi ke Lead saja pada Customer Journey (docs Prompt 19-10 "Sales: terbatas pada Lead") — narrow exception, halaman lain (`crm`) tetap generik. */
 const hasAccess = computed(() => canView('crm') && currentRole.value !== 'sales')
+const isAeScoped = computed(() => currentRole.value === 'account-executive')
 
 const LIFECYCLE_STATUSES: StatusOption<PartyLifecycleStatus>[] = [
   { value: 'prospect', label: 'Prospect', tone: 'warning', order: 1 },
@@ -20,15 +23,24 @@ const LIFECYCLE_STATUSES: StatusOption<PartyLifecycleStatus>[] = [
 ]
 
 const searchQuery = ref('')
-const statusFilter = ref<'all' | PartyLifecycleStatus>('all')
+/** Drill-down (Section 07, Customer Journey Funnel) — `?status=client` dari `/customer-journey` deep-link ke Active Client saja. */
+const statusFilter = ref<'all' | PartyLifecycleStatus>((route.query.status as PartyLifecycleStatus) || 'all')
 const industryFilter = ref('all')
 const cityFilter = ref('all')
+const ownerFilter = ref('all')
+/** "AE data scope ke portfolio miliknya" (Section 07, Wajib) — default ON untuk AE, tidak berlaku/tidak tampil untuk role lain (Super Admin/Management selalu melihat seluruh data). */
+const portfolioOnly = ref(isAeScoped.value)
 
+const ownerOptions = computed(() => {
+  const ids = [...new Set(PARTIES.map(p => p.accountOwnerId).filter(Boolean))] as string[]
+  return ids.map(id => getUserById(id)).filter((user): user is NonNullable<typeof user> => Boolean(user))
+})
 const industryOptions = computed(() => [...new Set(PARTIES.map(p => p.industry).filter(Boolean))] as string[])
 const cityOptions = computed(() => [...new Set(PARTIES.map(p => p.city).filter(Boolean))] as string[])
 
 const rows = computed(() => {
-  let result = PARTIES.map(party => ({
+  const base = isAeScoped.value && portfolioOnly.value ? getPartiesByAccountOwner(currentUser.value.id) : PARTIES
+  let result = base.map(party => ({
     party,
     opportunityCount: getOpportunitiesByParty(party.id).length,
     projectOrderCount: getProjectsByParty(party.id).length,
@@ -37,6 +49,7 @@ const rows = computed(() => {
   if (statusFilter.value !== 'all') result = result.filter(row => row.party.lifecycleStatus === statusFilter.value)
   if (industryFilter.value !== 'all') result = result.filter(row => row.party.industry === industryFilter.value)
   if (cityFilter.value !== 'all') result = result.filter(row => row.party.city === cityFilter.value)
+  if (ownerFilter.value !== 'all') result = result.filter(row => row.party.accountOwnerId === ownerFilter.value)
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(row => row.party.name.toLowerCase().includes(q))
@@ -73,6 +86,14 @@ const rows = computed(() => {
           <option value="all">Semua Kota</option>
           <option v-for="city in cityOptions" :key="city" :value="city">{{ city }}</option>
         </select>
+        <select v-if="!isAeScoped" v-model="ownerFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+          <option value="all">Semua Account Owner</option>
+          <option v-for="user in ownerOptions" :key="user.id" :value="user.id">{{ user.name }}</option>
+        </select>
+        <label v-if="isAeScoped" class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+          <Checkbox v-model="portfolioOnly" />
+          Hanya Portfolio Saya
+        </label>
       </div>
 
       <SectionCard>
@@ -101,7 +122,7 @@ const rows = computed(() => {
               <TableCell>{{ row.projectOrderCount }}</TableCell>
             </TableRow>
             <TableEmpty v-if="rows.length === 0" :colspan="7">
-              {{ searchQuery || statusFilter !== 'all' || industryFilter !== 'all' || cityFilter !== 'all' ? 'Tidak ada company yang cocok dengan filter.' : 'Belum ada company.' }}
+              {{ searchQuery || statusFilter !== 'all' || industryFilter !== 'all' || cityFilter !== 'all' || ownerFilter !== 'all' ? 'Tidak ada company yang cocok dengan filter.' : (portfolioOnly ? 'Belum ada company di portfolio Anda.' : 'Belum ada company.') }}
             </TableEmpty>
           </TableBody>
         </Table>

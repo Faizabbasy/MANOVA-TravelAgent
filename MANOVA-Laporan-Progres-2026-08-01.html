@@ -1,0 +1,675 @@
+<title>MANOVA — Laporan Progres Pengembangan Frontend</title>
+<meta name="description" content="Laporan status pengembangan dashboard MANOVA per 1 Agustus 2026">
+<style>
+  :root{
+    --paper:#F6F4EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1B2A2E;
+    --ink-soft:#4B5B5D;
+    --line:#DAD5C8;
+    --line-strong:#C3BCA9;
+    --accent:#1E5F63;
+    --accent-soft:#DCEAE9;
+    --accent-ink:#0F3B3E;
+    --amber:#B5732A;
+    --amber-soft:#F3E4CF;
+    --amber-ink:#5C3813;
+    --done:#3C7A57;
+    --done-soft:#DCEBE0;
+    --done-ink:#1E4A30;
+    --pending:#8A6A4A;
+    --pending-soft:#EFE6DA;
+    --pending-ink:#4A3A28;
+    --shadow: 0 1px 2px rgba(27,42,46,0.06), 0 6px 20px -8px rgba(27,42,46,0.12);
+  }
+
+  :root[data-theme="dark"]{
+    --paper:#12191A;
+    --paper-raised:#182223;
+    --ink:#E9ECE9;
+    --ink-soft:#A9B6B4;
+    --line:#2A3739;
+    --line-strong:#3A4A4C;
+    --accent:#63B0AC;
+    --accent-soft:#1D3436;
+    --accent-ink:#B9E3DF;
+    --amber:#E0A257;
+    --amber-soft:#3A2E1C;
+    --amber-ink:#F0C48D;
+    --done:#7FC79A;
+    --done-soft:#1E3226;
+    --done-ink:#A9E0BC;
+    --pending:#C9A67E;
+    --pending-soft:#332720;
+    --pending-ink:#E0C7A6;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -10px rgba(0,0,0,0.5);
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12191A;
+      --paper-raised:#182223;
+      --ink:#E9ECE9;
+      --ink-soft:#A9B6B4;
+      --line:#2A3739;
+      --line-strong:#3A4A4C;
+      --accent:#63B0AC;
+      --accent-soft:#1D3436;
+      --accent-ink:#B9E3DF;
+      --amber:#E0A257;
+      --amber-soft:#3A2E1C;
+      --amber-ink:#F0C48D;
+      --done:#7FC79A;
+      --done-soft:#1E3226;
+      --done-ink:#A9E0BC;
+      --pending:#C9A67E;
+      --pending-soft:#332720;
+      --pending-ink:#E0C7A6;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -10px rgba(0,0,0,0.5);
+    }
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .heading, h1, h2, h3{
+    font-family:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,serif;
+    font-weight:600;
+    color:var(--ink);
+    text-wrap:balance;
+    letter-spacing:0.01em;
+  }
+
+  .mono, .stat-num, .chip, td.num, th.num{
+    font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,Menlo,monospace;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .page{
+    max-width:860px;
+    margin:0 auto;
+    padding:56px 28px 96px;
+  }
+
+  /* ---------- Header ---------- */
+  header.report-head{
+    border-bottom:2px solid var(--line-strong);
+    padding-bottom:28px;
+    margin-bottom:36px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .eyebrow{
+    font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--accent);
+    display:inline-block;
+  }
+  h1.title{
+    font-size:2.15rem;
+    margin:0;
+    line-height:1.15;
+  }
+  .subtitle{
+    color:var(--ink-soft);
+    font-size:1.05rem;
+    margin:0;
+    max-width:60ch;
+  }
+  .meta-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:22px;
+    margin-top:6px;
+    font-size:0.85rem;
+    color:var(--ink-soft);
+  }
+  .meta-row strong{ color:var(--ink); font-weight:600; }
+
+  /* ---------- Summary card ---------- */
+  .summary{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-left:4px solid var(--accent);
+    border-radius:6px;
+    padding:24px 26px;
+    box-shadow:var(--shadow);
+    margin-bottom:40px;
+  }
+  .summary h2{
+    font-size:1.05rem;
+    margin:0 0 12px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--accent-ink);
+  }
+  .summary p{ margin:0 0 12px; }
+  .summary p:last-child{ margin-bottom:0; }
+
+  /* ---------- Stat row ---------- */
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:44px;
+  }
+  .stat{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:18px 16px;
+    box-shadow:var(--shadow);
+  }
+  .stat-num{
+    font-size:1.9rem;
+    font-weight:700;
+    color:var(--accent-ink);
+    line-height:1;
+  }
+  .stat-num small{
+    font-size:1rem;
+    font-weight:500;
+    color:var(--ink-soft);
+  }
+  .stat-bar{
+    height:5px;
+    border-radius:3px;
+    background:var(--line);
+    margin:10px 0 8px;
+    overflow:hidden;
+  }
+  .stat-bar > span{
+    display:block;
+    height:100%;
+    background:var(--accent);
+    border-radius:3px;
+  }
+  .stat-label{
+    font-size:0.82rem;
+    color:var(--ink-soft);
+  }
+
+  @media (max-width:640px){
+    .stats{ grid-template-columns:repeat(2,1fr); }
+  }
+
+  /* ---------- Section headers ---------- */
+  section{ margin-bottom:44px; }
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    border-left:3px solid var(--accent);
+    padding-left:14px;
+    margin-bottom:18px;
+  }
+  .section-head h2{
+    font-size:1.4rem;
+    margin:0;
+  }
+  .section-head .section-note{
+    font-size:0.85rem;
+    color:var(--ink-soft);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  }
+
+  /* ---------- Status chip ---------- */
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.72rem;
+    font-weight:600;
+    letter-spacing:0.03em;
+    padding:3px 9px;
+    border-radius:100px;
+    white-space:nowrap;
+  }
+  .chip::before{
+    content:"";
+    width:6px; height:6px;
+    border-radius:50%;
+  }
+  .chip.done{ background:var(--done-soft); color:var(--done-ink); }
+  .chip.done::before{ background:var(--done); }
+  .chip.partial{ background:var(--amber-soft); color:var(--amber-ink); }
+  .chip.partial::before{ background:var(--amber); }
+  .chip.pending{ background:var(--pending-soft); color:var(--pending-ink); }
+  .chip.pending::before{ background:var(--pending); }
+
+  /* ---------- Phase blocks ---------- */
+  .phase-block{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+    margin-bottom:18px;
+  }
+  .phase-block .phase-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 20px;
+    background:var(--accent-soft);
+    border-bottom:1px solid var(--line);
+  }
+  .phase-block .phase-head h3{
+    margin:0;
+    font-size:1.05rem;
+    color:var(--accent-ink);
+  }
+  .phase-block .phase-body{ padding:6px 20px 14px; }
+  .phase-block .phase-body p{ margin:10px 0; color:var(--ink-soft); font-size:0.94rem; }
+
+  /* ---------- Roadmap table ---------- */
+  .table-wrap{
+    overflow-x:auto;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:var(--paper-raised);
+    box-shadow:var(--shadow);
+  }
+  table{
+    border-collapse:collapse;
+    width:100%;
+    font-size:0.88rem;
+  }
+  thead th{
+    text-align:left;
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+    padding:12px 16px;
+    border-bottom:1px solid var(--line-strong);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:10px 16px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr.highlight td{ background:var(--accent-soft); }
+  td.num{ color:var(--ink-soft); width:2.4em; }
+  td.name{ font-weight:500; }
+  td.status{ white-space:nowrap; }
+  td.note{ color:var(--ink-soft); font-size:0.86rem; }
+
+  /* ---------- Capability list ---------- */
+  .capability{
+    display:grid;
+    gap:14px;
+  }
+  .cap-item{
+    display:grid;
+    grid-template-columns:200px 1fr;
+    gap:18px;
+    padding:16px 20px;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:var(--shadow);
+  }
+  .cap-item .cap-name{
+    font-weight:600;
+    color:var(--accent-ink);
+  }
+  .cap-item .cap-name .cap-sub{
+    display:block;
+    font-weight:400;
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+  .cap-item p{ margin:0; font-size:0.93rem; color:var(--ink-soft); }
+  .cap-item.new{ border-left:3px solid var(--amber); }
+  .cap-item.new .cap-name::after{
+    content:"BARU";
+    display:inline-block;
+    margin-left:8px;
+    font-family:ui-monospace,monospace;
+    font-size:0.62rem;
+    letter-spacing:0.06em;
+    background:var(--amber-soft);
+    color:var(--amber-ink);
+    padding:2px 6px;
+    border-radius:4px;
+    vertical-align:middle;
+  }
+
+  @media (max-width:640px){
+    .cap-item{ grid-template-columns:1fr; }
+  }
+
+  /* ---------- Next up list ---------- */
+  .next-list{
+    display:grid;
+    gap:10px;
+  }
+  .next-item{
+    display:flex;
+    gap:14px;
+    padding:12px 16px;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+  }
+  .next-item .next-tag{
+    font-family:ui-monospace,monospace;
+    font-size:0.72rem;
+    color:var(--ink-soft);
+    min-width:3.6em;
+    padding-top:2px;
+  }
+  .next-item p{ margin:0; font-size:0.93rem; }
+  .next-item p strong{ color:var(--ink); }
+
+  /* ---------- Risk callout ---------- */
+  .risk{
+    background:var(--amber-soft);
+    border:1px solid var(--line);
+    border-left:4px solid var(--amber);
+    border-radius:6px;
+    padding:18px 22px;
+  }
+  .risk h3{
+    margin:0 0 8px;
+    font-size:1rem;
+    color:var(--amber-ink);
+  }
+  .risk ul{ margin:0; padding-left:20px; }
+  .risk li{ margin-bottom:8px; color:var(--ink-soft); font-size:0.93rem; }
+  .risk li:last-child{ margin-bottom:0; }
+  .risk li strong{ color:var(--ink); }
+
+  footer{
+    margin-top:56px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-size:0.8rem;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+
+  a{ color:var(--accent-ink); }
+
+  /* ---------- Download actions ---------- */
+  .actions{
+    display:flex;
+    gap:10px;
+    margin:18px 0 4px;
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    font-size:0.86rem;
+    font-weight:600;
+    padding:9px 16px;
+    border-radius:6px;
+    border:1px solid transparent;
+    cursor:pointer;
+    transition:filter 0.15s ease, transform 0.1s ease;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .btn-primary{ background:var(--accent); color:#fff; }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  :root[data-theme="dark"] .btn-primary{ color:#0B1414; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .btn-primary{ color:#0B1414; }
+  }
+  .btn-ghost{ background:var(--paper-raised); color:var(--ink); border-color:var(--line-strong); }
+  .btn-ghost:hover{ background:var(--accent-soft); }
+  .btn svg{ width:15px; height:15px; flex:none; }
+
+  @media print{
+    body{ background:#fff; }
+    .stat, .phase-block, .table-wrap, .cap-item, .next-item, .risk{ box-shadow:none; }
+    .actions{ display:none; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="report-head">
+    <div class="eyebrow"><span class="dot"></span>Laporan Internal &middot; Pengembangan Produk</div>
+    <h1 class="title">MANOVA — Laporan Progres Pengembangan Frontend</h1>
+    <p class="subtitle">Dashboard operasional Travel Agent B2B — dari lead masuk sampai penyelesaian project (tiket, hotel, transportasi, MICE, keuangan, dan pelaporan).</p>
+    <div class="meta-row">
+      <span>Periode: <strong>29 Jul – 1 Agu 2026</strong></span>
+      <span>Milestone terbaru: <strong>Section 14 — Accommodation</strong></span>
+      <span>Status build: <strong>Sukses, tanpa error</strong></span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-pdf" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        Unduh sebagai PDF
+      </button>
+      <button class="btn btn-ghost" id="btn-html" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        Unduh file HTML
+      </button>
+    </div>
+  </header>
+
+  <div class="summary">
+    <h2>Ringkasan</h2>
+    <p>MANOVA sedang dibangun sebagai <strong>frontend mockup fungsional</strong> — seluruh alur kerja, halaman, dan aturan akses per role sudah dapat dicoba end-to-end dengan data simulasi, namun <strong>belum tersambung ke backend/database produksi sungguhan</strong>. Pendekatan ini dipilih agar alur bisnis dan kebutuhan data tervalidasi lebih dulu sebelum tim masuk ke tahap pengembangan backend.</p>
+    <p>Fondasi sistem (18 tahap awal, mencakup CRM, Opportunity, Project, Finance, Reports, Administration, ditambah 2 permintaan perubahan besar untuk alur Customer Journey dan Sales Qualification) <strong>sudah 100% selesai</strong>. Di atas fondasi itu, tim kini menjalankan roadmap penyempurnaan 25 tahap (Section 00–24) untuk melengkapi detail operasional per lini layanan — <strong>15 dari 25 tahap sudah selesai (60%)</strong>, termasuk dua modul lifecycle penuh yang baru rampung minggu ini: <strong>Ticketing</strong> (penerbangan) dan <strong>Accommodation</strong> (hotel).</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num">15<small>/25</small></div>
+      <div class="stat-bar"><span style="width:60%"></span></div>
+      <div class="stat-label">Tahap roadmap penyempurnaan selesai (60%)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">20<small>/20</small></div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Tahap fondasi &amp; modul inti selesai (100%)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">16</div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Role pengguna berbeda sudah didukung</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">14x</div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Build sukses berturut-turut, nol regresi</div>
+    </div>
+  </div>
+
+  <section>
+    <div class="section-head">
+      <h2>Perjalanan Proyek</h2>
+      <span class="section-note">Dua fase kerja, berjalan berkelanjutan</span>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head">
+        <h3>Fase 1 — Fondasi &amp; Modul Inti</h3>
+        <span class="chip done">Selesai 100%</span>
+      </div>
+      <div class="phase-body">
+        <p><strong>18 tahap awal</strong> (Konteks bisnis → Audit → Arsitektur informasi → Dashboard → CRM → Opportunity/Quotation → Project → Traveler → Itinerary → Vendor → Finance → Reports → Administration → Regresi akhir), ditambah <strong>2 permintaan perubahan besar</strong>: perombakan alur Customer Journey/Account Executive/Supplier/Commercial Approval, dan penyempurnaan alur Sales Qualification ke Account Executive. Seluruhnya menjadi dasar yang sekarang disempurnakan pada Fase 2.</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head">
+        <h3>Fase 2 — Penyempurnaan Operasional (Roadmap 25 Tahap)</h3>
+        <span class="chip partial">Berjalan — 60%</span>
+      </div>
+      <div class="phase-body">
+        <p>Melengkapi detail operasional yang belum tersentuh Fase 1: kualifikasi lead terstruktur, Client Portal, Product Planning &amp; Costing, dokumen traveler, kesiapan keberangkatan, dan — yang paling baru — lifecycle penuh per lini layanan (Ticketing, Accommodation, menyusul Transportation &amp; MICE). Rincian per tahap ada di tabel berikut.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Rincian Roadmap Penyempurnaan</h2>
+      <span class="section-note">25 tahap, Section 00–24</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th class="num">No.</th>
+            <th>Tahap</th>
+            <th>Status</th>
+            <th>Catatan</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="num">00</td><td class="name">Rekonsiliasi Progres Awal</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Audit kondisi eksisting vs roadmap baru</td></tr>
+          <tr><td class="num">01</td><td class="name">Fondasi Frontend &amp; Tata Kelola State</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Reset data demo, struktur data terpusat</td></tr>
+          <tr><td class="num">02</td><td class="name">Role, Akses &amp; Navigasi</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">16 role final, matrix akses per modul</td></tr>
+          <tr><td class="num">03</td><td class="name">Intake Lead Publik</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Form lead publik tanpa login</td></tr>
+          <tr><td class="num">04</td><td class="name">Lead Sales &amp; Kualifikasi</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Edit, reopen, deteksi duplikat</td></tr>
+          <tr><td class="num">05</td><td class="name">Opportunity &amp; Quotation (Account Executive)</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Duplikat/compare versi, preview PDF</td></tr>
+          <tr><td class="num">06</td><td class="name">Approval Management, Won &amp; Aktivasi Client</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Antrean approval komersial</td></tr>
+          <tr><td class="num">07</td><td class="name">Customer Journey</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Funnel konversi 7 tahap + drill-down</td></tr>
+          <tr><td class="num">08</td><td class="name">Client Portal</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Akses mandiri untuk klien</td></tr>
+          <tr><td class="num">09</td><td class="name">Project Order &amp; Handover</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Serah terima AE → Project Manager</td></tr>
+          <tr><td class="num">10</td><td class="name">Product Planning &amp; Costing</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Katalog paket + cost sheet</td></tr>
+          <tr><td class="num">11</td><td class="name">Traveler &amp; Dokumen Perjalanan</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Paspor/visa, rooming list</td></tr>
+          <tr><td class="num">12</td><td class="name">Itinerary, Operasional, Task &amp; Kesiapan</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Run sheet, indikator siap berangkat</td></tr>
+          <tr><td class="num">13</td><td class="name">Ticketing (Penerbangan)</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Lifecycle penuh: request → issued/refund</td></tr>
+          <tr class="highlight"><td class="num">14</td><td class="name">Accommodation (Hotel)</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Lifecycle penuh — baru rampung</td></tr>
+          <tr><td class="num">15</td><td class="name">Transportation</td><td class="status"><span class="chip partial">Sebagian</span></td><td class="note">Berikutnya — pola sama Accommodation</td></tr>
+          <tr><td class="num">16</td><td class="name">MICE &amp; Event</td><td class="status"><span class="chip partial">Sebagian</span></td><td class="note">Venue/BOQ/staffing menyusul</td></tr>
+          <tr><td class="num">17</td><td class="name">Supplier &amp; Procurement</td><td class="status"><span class="chip partial">Sebagian</span></td><td class="note">RFQ formal & perbandingan penawaran</td></tr>
+          <tr><td class="num">18</td><td class="name">Booking &amp; Service Order (konsolidasi)</td><td class="status"><span class="chip pending">Belum mulai</span></td><td class="note">Menunggu Section 15–16 rampung</td></tr>
+          <tr><td class="num">19</td><td class="name">Perubahan, Refund &amp; Insiden</td><td class="status"><span class="chip partial">Sebagian</span></td><td class="note">Pencatatan insiden terstruktur</td></tr>
+          <tr><td class="num">20</td><td class="name">Keuangan Project</td><td class="status"><span class="chip partial">Sebagian</span></td><td class="note">Status refund/kredit</td></tr>
+          <tr><td class="num">21</td><td class="name">Dokumen, Komunikasi &amp; Notifikasi</td><td class="status"><span class="chip partial">Sebagian</span></td><td class="note">Pusat dokumen &amp; notifikasi terpadu</td></tr>
+          <tr><td class="num">22</td><td class="name">Dashboard, Laporan &amp; Activity Center</td><td class="status"><span class="chip partial">Sebagian</span></td><td class="note">Widget untuk role baru</td></tr>
+          <tr><td class="num">23</td><td class="name">Administrasi &amp; Master Data</td><td class="status"><span class="chip partial">Sebagian</span></td><td class="note">Master data mata uang, pajak, dll.</td></tr>
+          <tr><td class="num">24</td><td class="name">Regresi Akhir &amp; Panduan Implementasi</td><td class="status"><span class="chip pending">Belum mulai</span></td><td class="note">Tahap penutup, menunggu 01–23</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Yang Sudah Bisa Dipakai Hari Ini</h2>
+      <span class="section-note">Dicoba dengan data simulasi, alur lengkap end-to-end</span>
+    </div>
+    <div class="capability">
+      <div class="cap-item">
+        <div class="cap-name">Sales &amp; CRM<span class="cap-sub">Lead → Opportunity → Won</span></div>
+        <p>Lead masuk (manual maupun form publik), kualifikasi terstruktur, data prospect/client, penawaran (quotation) dengan versi, approval komersial oleh Management, sampai otomatis menjadi Project ketika deal dimenangkan.</p>
+      </div>
+      <div class="cap-item">
+        <div class="cap-name">Customer Journey<span class="cap-sub">Corong konversi</span></div>
+        <p>Dashboard funnel 7 tahap (Lead → Qualified → Opportunity → Approved → Won → Client → Project Order) lengkap dengan persentase konversi dan tautan langsung ke datanya.</p>
+      </div>
+      <div class="cap-item">
+        <div class="cap-name">Client Portal<span class="cap-sub">Akses mandiri klien</span></div>
+        <p>Klien dapat login sendiri: melihat dan mengonfirmasi/merevisi penawaran, mengajukan permintaan trip baru, memantau itinerary dan dokumen traveler, serta mengajukan perubahan — tanpa melihat biaya/margin internal.</p>
+      </div>
+      <div class="cap-item">
+        <div class="cap-name">Product Planning &amp; Costing<span class="cap-sub">Perencana produk</span></div>
+        <p>Katalog paket perjalanan dan lembar kalkulasi biaya (cost sheet) per traveler, dengan markup, pajak, dan perbandingan skenario.</p>
+      </div>
+      <div class="cap-item">
+        <div class="cap-name">Operasional Project<span class="cap-sub">Traveler &amp; itinerary</span></div>
+        <p>Data traveler dan dokumen perjalanan (paspor/visa), rooming list, itinerary harian, indikator kesiapan keberangkatan, task, dan catatan serah-terima shift lapangan.</p>
+      </div>
+      <div class="cap-item">
+        <div class="cap-name">Ticketing<span class="cap-sub">Penerbangan</span></div>
+        <p>Alur lengkap dari permintaan tiket, perbandingan opsi maskapai, sampai status Hold/Confirm/Issue/Reissue/Cancel/Refund — termasuk pratinjau e-ticket yang otomatis menyembunyikan biaya internal dari klien.</p>
+      </div>
+      <div class="cap-item new">
+        <div class="cap-name">Accommodation<span class="cap-sub">Hotel — baru rampung</span></div>
+        <p>Sourcing hotel dan perbandingan properti, room block untuk rombongan maupun kamar individu, check-in/out termasuk permintaan lebih awal/lebih lambat, konfirmasi dan voucher, sampai amandemen/pembatalan/no-show berikut penaltinya — juga dengan pratinjau voucher yang menyembunyikan biaya internal.</p>
+      </div>
+      <div class="cap-item">
+        <div class="cap-name">Keuangan &amp; Laporan<span class="cap-sub">Finance, Reports, Admin</span></div>
+        <p>Invoice dan pembayaran, perbandingan budget vs realisasi, laporan agregat lintas modul, serta pengaturan role/akses dan jejak audit di halaman Administrasi.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Rencana Berikutnya</h2>
+      <span class="section-note">Menunggu arahan untuk lanjut</span>
+    </div>
+    <div class="next-list">
+      <div class="next-item"><span class="next-tag">§15</span><p><strong>Transportation</strong> — modul transportasi darat dengan pola arsitektur yang sama seperti Ticketing/Accommodation, direkomendasikan sebagai langkah berikutnya.</p></div>
+      <div class="next-item"><span class="next-tag">§16</span><p><strong>MICE &amp; Event</strong> — modul venue, susunan acara (BOQ), dan staffing untuk kegiatan MICE.</p></div>
+      <div class="next-item"><span class="next-tag">§17</span><p><strong>Supplier &amp; Procurement</strong> — alur permintaan penawaran (RFQ) formal dan perbandingan vendor.</p></div>
+      <div class="next-item"><span class="next-tag">§18–24</span><p>Konsolidasi booking lintas modul, penyempurnaan keuangan/insiden/dokumen, dashboard lanjutan, master data administrasi, dan regresi akhir sebagai penutup roadmap.</p></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Catatan &amp; Hal yang Perlu Diperhatikan</h2>
+    </div>
+    <div class="risk">
+      <h3>Untuk perhatian sebelum lanjut ke tahap produksi</h3>
+      <ul>
+        <li><strong>Masih tahap mockup frontend</strong> — seluruh data yang tampil adalah data simulasi. Belum ada backend, database, atau integrasi nyata ke sistem maskapai/hotel/pembayaran. Ini disengaja agar validasi alur kerja selesai lebih dulu sebelum investasi ke backend.</li>
+        <li><strong>Perkakas quality-check otomatis (lint &amp; type-check) belum dipasang</strong> — keputusan yang sengaja ditunda sejak awal proyek agar tidak menambah dependency sebelum benar-benar dibutuhkan. Build produksi tetap berjalan sukses di setiap tahap; ini murni pekerjaan rumah yang perlu diselesaikan sebelum handover ke tim backend.</li>
+        <li><strong>Verifikasi visual interaktif</strong> (klik tombol, ganti role secara langsung) masih dilakukan lewat pemeriksaan kode dan pengecekan konten halaman — bukan pengujian otomatis di browser. Disarankan ada sesi demo langsung sebelum keputusan lanjut ke backend.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <span>Disusun dari dokumentasi progres proyek (mockup-progress.md, mockup-section-progress.md, frontend-implementation-roadmap.md).</span>
+    <span>Per 1 Agustus 2026</span>
+  </footer>
+
+</div>
+
+<script>
+  document.getElementById('btn-pdf').addEventListener('click', function () {
+    window.print();
+  });
+
+  document.getElementById('btn-html').addEventListener('click', function () {
+    var doc = '<!doctype html>\n' + document.documentElement.outerHTML;
+    var blob = new Blob([doc], { type: 'text/html' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'MANOVA-Laporan-Progres-2026-08-01.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  });
+</script>

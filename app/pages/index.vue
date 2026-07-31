@@ -359,12 +359,15 @@ const showProductPlannerWelcome = visibleTo('product-planner')
         <NuxtLink to="/vendors"><Button size="sm">Buka Vendors</Button></NuxtLink>
       </SectionCard>
 
-      <SectionCard v-if="showProductPlannerWelcome" title="Referensi Costing">
+      <SectionCard v-if="showProductPlannerWelcome" title="Product Planning dan Costing">
         <p class="text-sm text-muted-foreground mb-3">
-          Modul Product Planning dan Costing dedicated belum tersedia (Section 10). Sementara itu, lihat Opportunity
-          dan Requirement Detail sebagai referensi kebutuhan costing.
+          Kelola katalog Product/Package Template dan siapkan Cost Sheet (traveler-based costing, markup/tax/contingency)
+          untuk dipakai Account Executive membentuk Quotation.
         </p>
-        <NuxtLink to="/crm/opportunities"><Button size="sm">Buka Opportunities</Button></NuxtLink>
+        <div class="flex flex-wrap gap-2">
+          <NuxtLink to="/product-planning"><Button size="sm">Buka Product Planning</Button></NuxtLink>
+          <NuxtLink to="/product-planning/cost-sheets"><Button size="sm" variant="outline">Buka Cost Sheets</Button></NuxtLink>
+        </div>
       </SectionCard>
 
       <SectionCard v-if="showPipeline" title="Opportunity Pipeline" description="Dikelompokkan per stage, seluruh party.">

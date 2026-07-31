@@ -56,12 +56,22 @@ export function isFollowUpUpcoming(activity: { dueAt?: string }, referenceIso = 
   return days >= 0 && days <= UPCOMING_FOLLOWUP_WINDOW_DAYS
 }
 
-/** Missing document indicator (Section 11) — belum ada nomor/tanggal expiry, atau paspor tidak cukup berlaku saat keberangkatan. */
+/**
+ * Missing document indicator (Section 11) — belum ada nomor/tanggal expiry paspor, atau paspor tidak cukup
+ * berlaku saat keberangkatan. Section 11 (roadmap Section 00–24 baru) menambahkan pengecekan visa —
+ * TAPI HANYA bila `visaNumber` sudah diisi (visa opsional, tidak seluruh destinasi mewajibkannya): bila
+ * diisi, `visaExpiryDate` wajib ada dan tidak boleh kedaluwarsa sebelum keberangkatan. Traveler tanpa
+ * `visaNumber` sama sekali TIDAK terpengaruh perubahan ini (perilaku identik seperti sebelum Section 11 baru).
+ */
 export function isTravelerDocumentMissing(traveler: Traveler, travelStartDate?: string): boolean {
   if (!traveler.passportNumber || !traveler.passportExpiryDate) return true
   if (travelStartDate) {
     const validityRemainingAtTravel = daysUntil(traveler.passportExpiryDate, travelStartDate)
     if (validityRemainingAtTravel < PASSPORT_EXPIRY_WARNING_DAYS) return true
+  }
+  if (traveler.visaNumber) {
+    if (!traveler.visaExpiryDate) return true
+    if (travelStartDate && daysUntil(traveler.visaExpiryDate, travelStartDate) < 0) return true
   }
   return false
 }

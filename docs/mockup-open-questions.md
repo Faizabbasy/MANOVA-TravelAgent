@@ -64,11 +64,11 @@ Status dokumen: **direstrukturisasi di Prompt 4** sesuai Prompt 4 bagian F. Bagi
 
 ### Q12 — Self-Service Quotation Submission dari Supplier Portal (Prompt 19)
 - **Category:** Business Rule / Scope Boundary
-- **Blocking:** **Non-blocking / Deferred** — literal Prompt 19-7 hanya meminta supplier "melihat" assignment/quotation/order sendiri, tidak eksplisit meminta aksi submit quotation baru dari portal supplier sendiri (submit quotation sejauh ini tetap terjadi dari sisi internal, Vendor Detail — Section 13).
-- **Impact:** `/supplier/orders` saat ini read-only (tabel assignment + quotation), tidak ada form submit quotation baru dari sisi supplier. Bila ke depannya supplier diharapkan bisa mengajukan quotation sendiri (bukan hanya dilihat), perlu form baru + kemungkinan notifikasi ke internal.
-- **Recommendation:** Tunggu konfirmasi eksplisit — menambah form submit di `/supplier/orders` adalah perubahan aditif kecil (`submitVendorQuotation`, `app/data/index.ts`, sudah ada dan reusable) bila benar-benar dibutuhkan.
+- **Blocking:** ~~Non-blocking / Deferred~~ — **RESOLVED Section 17** (2026-08-01, D-074, `docs/mockup-design-decisions.md`).
+- **Impact:** `/supplier/orders` (Section 13 lama, VendorQuotation submit-accept-reject) TETAP read-only sebagaimana adanya — TIDAK diubah. Sebagai gantinya, Section 17 menambahkan jalur self-service BARU dan lebih lengkap: `/supplier/rfq/[id]` (respons harga per-line-item terhadap RFQ formal yang mengundang company, resubmit diizinkan sampai keputusan diambil) DAN `/supplier/service-orders/[id]` (Invoice Submission preview form — `submitSupplierInvoice`, hanya untuk Service Order berstatus `fulfilled` milik vendor yang sama). Ini melebihi resolusi literal Q12 asli (yang hanya membahas quotation submission) — sekaligus menutup kebutuhan "supplier quotation, documents, fulfillment updates, invoice submission preview" dari Wajib Section 17.
+- **Recommendation:** Tidak berlaku lagi — sudah dikerjakan. `submitVendorQuotation` (Section 13) tetap TIDAK dipanggil dari sisi supplier (deliberate, dua jalur berbeda — lihat D-074 poin 2).
 - **Owner:** Tidak diketahui.
-- **Status:** `DEFERRED`.
+- **Status:** `RESOLVED` (Section 17).
 
 ---
 
@@ -87,10 +87,10 @@ Section 00 (`prompts/Section 00 — Current Progress Reconciliation.md`, dijalan
 ### Q14 — Dedicated Management Approval Queue Belum Ada
 - **Category:** UX / Information Architecture
 - **Blocking:** **Blocking sebelum Section 06 (Management Approval, Won dan Client Activation)** dianggap selesai penuh.
-- **Impact:** Commercial Approval (submit/approve/reject Quotation) saat ini hanya dapat diakses per-Opportunity dari `/crm/opportunities/[id]` — tidak ada halaman agregat "Approval Queue" yang menampilkan seluruh quotation menunggu approval lintas Opportunity untuk Management. ~~Client confirmation (gerbang tambahan sebelum Mark as Won per Section 06) juga belum ada representasinya di data model maupun UI.~~ **Sebagian RESOLVED oleh Section 05** (2026-07-31, D-062): `Opportunity.clientConfirmedAt`/`clientConfirmationNote` + `recordClientConfirmation` + dialog AE-facing sudah ada, Mark as Won sudah digerbangi. Sisa scope Section 06: halaman "Approval Queue" agregat (belum ada) dan notifikasi Management-facing untuk opportunity yang menunggu client confirmation (belum ada).
-- **Recommendation:** Section 06 menambahkan halaman/queue baru untuk Approval Queue agregat dan visibilitas status client confirmation lintas Opportunity (field `Opportunity.clientConfirmedAt` sudah tersedia untuk dikonsumsi, tidak perlu field baru).
+- **Impact:** ~~Commercial Approval (submit/approve/reject Quotation) saat ini hanya dapat diakses per-Opportunity dari `/crm/opportunities/[id]` — tidak ada halaman agregat "Approval Queue" yang menampilkan seluruh quotation menunggu approval lintas Opportunity untuk Management. Client confirmation (gerbang tambahan sebelum Mark as Won per Section 06) juga belum ada representasinya di data model maupun UI.~~ **RESOLVED sepenuhnya oleh Section 05+06** (2026-07-31, D-062/D-063): `Opportunity.clientConfirmedAt`/`clientConfirmationNote` + `recordClientConfirmation` + dialog AE-facing (Section 05); halaman agregat `/crm/quotations` (Section 06) dengan 3 tab — Menunggu Approval, Menunggu Client Confirmation (visibilitas Management), Semua Quotation — plus dialog review detail (margin/discount/tax/markup/terms/complexity/risk) dan aksi Approve/Reject langsung dari queue.
+- **Recommendation:** Tidak ada — resolved. Notifikasi push/email untuk Management (di luar scope literal, tidak ada integrasi nyata per protokol) tetap tidak dikerjakan, dicatat sebagai batasan mock yang disengaja, bukan gap tersembunyi.
 - **Owner:** Tidak diketahui.
-- **Status:** `NEEDS_VALIDATION` (sisa scope Approval Queue).
+- **Status:** `RESOLVED` (Section 06, 2026-07-31).
 
 ### Q15 — Public Lead Intake Belum Ada
 - **Category:** Scope Boundary
@@ -103,10 +103,10 @@ Section 00 (`prompts/Section 00 — Current Progress Reconciliation.md`, dijalan
 ### Q16 — Taksonomi Status Project Order Baru vs `ProjectStatus` Existing
 - **Category:** Data Model / Business Rule
 - **Blocking:** **Blocking sebelum Section 09 (Project Order dan Handover)** — perlu keputusan desain eksplisit (LOCKED) sebelum diimplementasikan, mengikuti pola D-049/D-055 (aditif/dirivasi) alih-alih merestrukturisasi.
-- **Impact:** Section 09 meminta status Project Order: Created, Handover Pending, Planning, Confirmed, Ready, In Progress, Completed, Closed, On Hold, Cancelled — berbeda dari `ProjectStatus` existing (`draft`/`planning`/`confirmed`/`in-progress`/`ongoing-trip`/`completed`/`on-hold`/`cancelled`, D-028 LOCKED, dipakai luas Section 08–18/Prompt 19). Tidak ada mekanisme "AE-to-PM handover accept/return" saat ini — Project langsung dibuat dengan PM default (`DEFAULT_PROJECT_OWNER_ID`) tanpa langkah accept eksplisit.
-- **Recommendation:** Evaluasi opsi sama seperti D-053/D-056 (Prompt 20): derivasi status tampilan baru dari kombinasi `ProjectStatus` + field handover baru, TANPA merestrukturisasi `ProjectStatus` yang sudah LOCKED dan dipakai luas — dikerjakan saat Section 09 dimulai, bukan Section 00.
+- **Impact:** ~~Section 09 meminta status Project Order: Created, Handover Pending, Planning, Confirmed, Ready, In Progress, Completed, Closed, On Hold, Cancelled — berbeda dari `ProjectStatus` existing... Tidak ada mekanisme "AE-to-PM handover accept/return" saat ini.~~ **RESOLVED** (2026-07-31, D-066): `ProjectOrderStatus` (10 nilai) dirivasi via `getProjectOrderStatus()` dari `ProjectStatus` (tidak diubah) + field handover/ready/closure baru. `acceptProjectHandover`/`returnProjectHandover` (baru) melengkapi mekanisme Accept/Return Handover dengan reason.
+- **Recommendation:** Tidak ada — resolved sesuai rekomendasi asli (derivasi aditif, pola D-053/D-056).
 - **Owner:** Tidak diketahui.
-- **Status:** `NEEDS_VALIDATION`.
+- **Status:** `RESOLVED` (Section 09, 2026-07-31).
 
 Detail temuan lengkap: `docs/mockup-section-reports/section-00-current-progress-reconciliation.md`, `docs/frontend-known-issues.md`.
 

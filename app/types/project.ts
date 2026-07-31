@@ -38,6 +38,39 @@ export type ProjectDetailTab =
   | 'documents'
   | 'activity-changes'
 
+/**
+ * "Project Order Status" (Section 09 — roadmap Section 00–24 baru, D-066) — 10 nilai literal Wajib
+ * (Created/Handover Pending/Planning/Confirmed/Ready/In Progress/Completed/Closed/On Hold/Cancelled),
+ * DIRIVASI dari kombinasi `Project.status` (8 nilai, LOCKED D-028) + field handover/ready/closure baru di
+ * bawah — BUKAN pengganti/restrukturisasi `ProjectStatus`, mengikuti pola D-049/D-053/D-056 (lihat
+ * `getProjectOrderStatus`, `app/data/index.ts`). `'created'` secara praktik tidak pernah persisten (mirip
+ * `OpportunityStage.won-requested`) — project selalu lahir langsung sebagai `draft`/Handover Pending.
+ */
+export type ProjectOrderStatus =
+  | 'created'
+  | 'handover-pending'
+  | 'planning'
+  | 'confirmed'
+  | 'ready'
+  | 'in-progress'
+  | 'completed'
+  | 'closed'
+  | 'on-hold'
+  | 'cancelled'
+
+/**
+ * Closure checklist SHELL (Section 09, Wajib "Closure checklist shell untuk dipenuhi section akhir") —
+ * seluruh item dapat ditoggle PM/Super Admin sekarang (mock, tidak menggerbangi apa pun), TIDAK ada logic
+ * yang menghubungkannya ke transisi status/Closed secara otomatis — pemenuhan penuh (gating, dst.) sengaja
+ * diserahkan ke section akhir (Section 24) sesuai instruksi literal.
+ */
+export interface ProjectClosureChecklist {
+  financeSettled: boolean
+  documentsArchived: boolean
+  feedbackCollected: boolean
+  assetsReturned: boolean
+}
+
 export interface Project {
   id: ID
   name: string
@@ -57,6 +90,23 @@ export interface Project {
   quotationAmountIdr: number
   budgetIdr: number
   actualCostIdr: number
+
+  /**
+   * AE-to-PM Handover (Section 09 — roadmap Section 00–24 baru). Diisi lewat `acceptProjectHandover`/
+   * `returnProjectHandover` (`app/data/index.ts`) — PM menerima atau mengembalikan handover Project Order
+   * baru dengan alasan (Wajib "PM Accept/Return Handover dengan reason"). Sebelum di-`accept`, Project
+   * Order tetap tampil "Handover Pending" di `getProjectOrderStatus` — TIDAK kehilangan data komersial
+   * apa pun (quotation/budget sudah terisi penuh sejak `approveOpportunityWon`, Section 05/06).
+   */
+  handoverAcceptedAt?: string
+  handoverAcceptedBy?: ID
+  handoverReturnedAt?: string
+  handoverReturnReason?: string
+  /** PM menandai Project Order siap keberangkatan (dari status `confirmed`) — `getProjectOrderStatus` mengembalikan `'ready'`. */
+  readyAt?: string
+  /** Diisi saat closure checklist (lihat `ProjectClosureChecklist`) dianggap tuntas — `getProjectOrderStatus` mengembalikan `'closed'` alih-alih `'completed'`. */
+  closedAt?: string
+  closureChecklist?: ProjectClosureChecklist
 }
 
 export interface ProjectService {
@@ -70,7 +120,7 @@ export interface ProjectService {
   bookingReference?: string
 }
 
-/** Daily itinerary (Section 12) — jadwal harian per project, tab "Itinerary & Services". */
+/** Daily itinerary (Section 12 lama) — jadwal harian per project, tab "Itinerary & Services". */
 export interface ItineraryItem {
   id: ID
   projectId: ID
@@ -81,6 +131,10 @@ export interface ItineraryItem {
   serviceType?: ServiceTypeKey
   /** Referensi ke `TravelerGroup` (Section 11) — harus memakai ID group yang sudah ada, bukan dibuat baru. */
   groupId?: ID
+  /** "Timezone-aware schedule" (Section 12 baru, roadmap Section 00–24) — label IANA zona waktu lokasi item ini, mis. "Asia/Manila". Teks murni untuk ditampilkan berdampingan `time` — bukan konversi timezone otomatis (tidak ada integrasi/library kalender nyata, D-006). */
+  timezone?: string
+  /** "Internal vs client-shared itinerary" (Section 12 baru, Wajib) — default `true` bila kosong (item lama tetap tampil ke Client tanpa migrasi). `false` = catatan operasional internal, disaring dari `/client/project-orders/[id]`. */
+  visibleToClient?: boolean
 }
 
 export interface TravelerGroup {
@@ -102,6 +156,20 @@ export interface Traveler {
   emergencyContactName?: string
   emergencyContactPhone?: string
   specialRequest?: string
+
+  /** Section 11 (roadmap Section 00–24 baru) — "Passport/ID/visa metadata". ID = KTP/national ID, terpisah dari paspor. */
+  idNumber?: string
+  visaNumber?: string
+  /** Bila `visaNumber` terisi, `visaExpiryDate` ikut dinilai oleh `isTravelerDocumentMissing` (`app/utils/attention.ts`) — visa opsional (tidak seluruh destinasi butuh visa), tapi bila sudah diisi harus lengkap/valid. */
+  visaExpiryDate?: string
+  /** "Dietary, accessibility" (Wajib) — dipisah dari `specialRequest` (freeform "lainnya") agar dapat ditampilkan sebagai kategori sendiri di manifest/rooming list export. */
+  dietaryRestrictions?: string
+  accessibilityNeeds?: string
+  /** "Companion" (Wajib "Group, rooming, companion") — traveler ini mendampingi traveler lain (mis. anak/pasangan), referensi ke `Traveler.id` lain di project yang sama. */
+  companionOfTravelerId?: ID
+  /** "Internal verification" (Wajib) — dicatat lewat `verifyTravelerDocuments`/`unverifyTravelerDocuments` (`app/data/index.ts`), terpisah dari `isTravelerDocumentMissing` (computed kelengkapan) — verification adalah tindakan manusia (staf internal mengonfirmasi dokumen sudah diperiksa), bukan hasil derivasi otomatis. */
+  documentsVerifiedAt?: string
+  documentsVerifiedBy?: ID
 }
 
 export type RoomType = 'single' | 'twin' | 'suite'

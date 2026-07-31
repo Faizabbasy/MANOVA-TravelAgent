@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Building2, Package, FileText, CheckCircle2 } from 'lucide-vue-next'
-import { getVendorById, getServicesByVendor, getVendorQuotations, getVendorProducts } from '~/data'
+import { Building2, Package, FileText, ClipboardList, Send } from 'lucide-vue-next'
+import { getVendorById, getServicesByVendor, getVendorQuotations, getVendorProducts, getRfqsForVendor, getServiceOrdersByVendor } from '~/data'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Supplier Portal' })
@@ -13,9 +13,14 @@ const vendor = computed(() => (vendorScopeId.value ? getVendorById(vendorScopeId
 const assignments = computed(() => (vendorScopeId.value ? getServicesByVendor(vendorScopeId.value) : []))
 const quotations = computed(() => (vendorScopeId.value ? getVendorQuotations(vendorScopeId.value) : []))
 const products = computed(() => (vendorScopeId.value ? getVendorProducts(vendorScopeId.value) : []))
+/** RFQ Inbox dan Service Orders (Section 17) — di-scope `vendorScopeId`, pola sama data existing di atas. */
+const rfqs = computed(() => (vendorScopeId.value ? getRfqsForVendor(vendorScopeId.value) : []))
+const serviceOrders = computed(() => (vendorScopeId.value ? getServiceOrdersByVendor(vendorScopeId.value) : []))
 
 const acceptedQuotationCount = computed(() => quotations.value.filter(q => q.status === 'accepted').length)
 const pendingQuotationCount = computed(() => quotations.value.filter(q => q.status === 'submitted').length)
+const rfqNeedingResponseCount = computed(() => rfqs.value.filter(rfq => ['sent', 'responses-in', 'comparison', 'clarification'].includes(rfq.status)).length)
+const activeServiceOrderCount = computed(() => serviceOrders.value.filter(so => !['fulfilled', 'cancelled'].includes(so.status)).length)
 </script>
 
 <template>
@@ -32,8 +37,8 @@ const pendingQuotationCount = computed(() => quotations.value.filter(q => q.stat
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Active Assignments" :value="String(assignments.length)" :icon="Building2" />
         <StatsCard title="Produk/Layanan" :value="String(products.length)" :icon="Package" />
-        <StatsCard title="Quotation Menunggu" :value="String(pendingQuotationCount)" :icon="FileText" icon-color="warning" />
-        <StatsCard title="Quotation Diterima" :value="String(acceptedQuotationCount)" :icon="CheckCircle2" icon-color="success" />
+        <StatsCard title="RFQ Perlu Respons" :value="String(rfqNeedingResponseCount)" :icon="ClipboardList" icon-color="warning" />
+        <StatsCard title="Service Order Aktif" :value="String(activeServiceOrderCount)" :icon="Send" icon-color="warning" />
       </div>
 
       <SectionCard title="Profil Company">
@@ -53,6 +58,16 @@ const pendingQuotationCount = computed(() => quotations.value.filter(q => q.stat
         <NuxtLink to="/supplier/orders">
           <SectionCard title="Assignment & Quotation" description="Order/assignment dan status quotation milik company Anda.">
             <FileText class="h-5 w-5 text-muted-foreground" />
+          </SectionCard>
+        </NuxtLink>
+        <NuxtLink to="/supplier/rfq">
+          <SectionCard title="RFQ Inbox" :description="`${pendingQuotationCount + rfqNeedingResponseCount} item menunggu respons Anda (RFQ + quotation langsung).`">
+            <ClipboardList class="h-5 w-5 text-muted-foreground" />
+          </SectionCard>
+        </NuxtLink>
+        <NuxtLink to="/supplier/service-orders">
+          <SectionCard title="Service Orders" :description="`${activeServiceOrderCount} Service Order aktif — acknowledge, fulfillment, dan invoice submission.`">
+            <Send class="h-5 w-5 text-muted-foreground" />
           </SectionCard>
         </NuxtLink>
       </div>

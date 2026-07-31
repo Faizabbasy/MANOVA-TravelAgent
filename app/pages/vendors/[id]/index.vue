@@ -4,11 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus } from 'lucide-vue-next'
 import {
   getVendorById, getVendorContacts, getVendorQuotations, getVendorActivities, getServicesByVendor,
-  createVendorContact, submitVendorQuotation,
+  createVendorContact, submitVendorQuotation, updateVendor,
   getProjectById, PROJECTS, getProjectServices,
   getVendorProducts, createVendorProduct,
+  getVendorDocuments, createVendorDocument,
 } from '~/data'
-import { SERVICE_TYPES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES, findStatusOption } from '~/constants/status'
+import { SERVICE_TYPES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES, VENDOR_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import type { VendorDetailTab } from '~/types/vendor'
 import type { ServiceTypeKey } from '~/types/project'
@@ -40,19 +41,53 @@ const TABS: { value: VendorDetailTab; label: string }[] = [
   { value: 'services', label: 'Services' },
   { value: 'quotations', label: 'Quotations' },
   { value: 'products', label: 'Products' },
+  { value: 'documents', label: 'Documents' },
   { value: 'contacts', label: 'Contacts' },
 ]
+
+/** Dokumen (Section 17) — preview mock (D-006), tab "Documents". */
+const documents = computed(() => (vendor.value ? getVendorDocuments(vendor.value.id) : []))
 
 const summaryMetadata = computed(() => {
   if (!vendor.value) return []
   return [
     { label: 'Jenis Layanan', value: findStatusOption(SERVICE_TYPES, vendor.value.serviceType).label },
+    { label: 'Kategori', value: vendor.value.category ?? '—' },
     { label: 'Contact Utama', value: `${vendor.value.contactName}${vendor.value.contactPhone ? ` · ${vendor.value.contactPhone}` : ''}` },
     { label: 'Jumlah Contact', value: String(contacts.value.length) },
     { label: 'Penugasan Aktif', value: `${assignedServices.value.length} service` },
     { label: 'Jumlah Quotation', value: String(quotations.value.length) },
+    { label: 'Jumlah Dokumen', value: String(documents.value.length) },
   ]
 })
+
+/* Edit category/status (Section 17) */
+const isVendorEditOpen = ref(false)
+const editCategory = ref('')
+const editStatus = ref<'active' | 'inactive' | 'pending'>('active')
+function openVendorEdit() {
+  if (!vendor.value) return
+  editCategory.value = vendor.value.category ?? ''
+  editStatus.value = vendor.value.status ?? 'active'
+  isVendorEditOpen.value = true
+}
+function submitVendorEdit() {
+  if (!vendor.value) return
+  updateVendor(vendor.value.id, { category: editCategory.value.trim() || undefined, status: editStatus.value })
+  isVendorEditOpen.value = false
+}
+
+/* Tambah Document (Section 17) */
+const isDocumentDialogOpen = ref(false)
+const documentName = ref('')
+const documentType = ref('')
+function submitDocument() {
+  if (!vendor.value || !documentName.value.trim() || !documentType.value.trim()) return
+  createVendorDocument({ vendorId: vendor.value.id, name: documentName.value.trim(), type: documentType.value.trim() })
+  documentName.value = ''
+  documentType.value = ''
+  isDocumentDialogOpen.value = false
+}
 
 function projectName(projectId: string) {
   return getProjectById(projectId)?.name ?? projectId
@@ -163,10 +198,17 @@ function submitQuotation() {
         :breadcrumb="[{ label: 'Vendors', to: '/vendors' }, { label: vendor.name }]"
       >
         <template #actions>
-          <StatusBadge
-            :label="findStatusOption(SERVICE_TYPES, vendor.serviceType).label"
-            :tone="findStatusOption(SERVICE_TYPES, vendor.serviceType).tone"
-          />
+          <div class="flex flex-wrap items-center gap-2">
+            <StatusBadge
+              :label="findStatusOption(SERVICE_TYPES, vendor.serviceType).label"
+              :tone="findStatusOption(SERVICE_TYPES, vendor.serviceType).tone"
+            />
+            <StatusBadge
+              :label="findStatusOption(VENDOR_STATUSES, vendor.status ?? 'active').label"
+              :tone="findStatusOption(VENDOR_STATUSES, vendor.status ?? 'active').tone"
+            />
+            <Button v-if="canManageVendor" size="sm" variant="outline" @click="openVendorEdit">Edit Kategori/Status</Button>
+          </div>
         </template>
       </PageHeader>
 
@@ -369,6 +411,56 @@ function submitQuotation() {
           </SectionCard>
         </TabsContent>
 
+        <TabsContent value="documents">
+          <SectionCard title="Documents" description="Dokumen vendor (kontrak, sertifikasi, NPWP, dsb.) — preview mock, bukan file upload nyata.">
+            <template #actions>
+              <Dialog v-if="canManageVendor" v-model:open="isDocumentDialogOpen">
+                <DialogTrigger as-child>
+                  <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Tambah Dokumen</Button>
+                </DialogTrigger>
+                <DialogContent class="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Tambah Dokumen Baru</DialogTitle>
+                    <DialogDescription>Preview mock — bukan file upload nyata (D-006).</DialogDescription>
+                  </DialogHeader>
+                  <div class="space-y-4 py-2">
+                    <div class="space-y-1.5">
+                      <Label for="vdoc-name">Nama Dokumen</Label>
+                      <Input id="vdoc-name" v-model="documentName" placeholder="mis. Kontrak Kerjasama 2026.pdf" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="vdoc-type">Tipe</Label>
+                      <Input id="vdoc-type" v-model="documentType" placeholder="mis. Kontrak, NPWP, Sertifikasi" />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" @click="isDocumentDialogOpen = false">Batal</Button>
+                    <Button :disabled="!documentName.trim() || !documentType.trim()" @click="submitDocument">Simpan</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </template>
+
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama Dokumen</TableHead>
+                  <TableHead>Tipe</TableHead>
+                  <TableHead>Diunggah</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="document in documents" :key="document.id">
+                  <TableCell class="font-medium text-foreground">{{ document.name }}</TableCell>
+                  <TableCell><StatusBadge :label="document.type" tone="neutral" /></TableCell>
+                  <TableCell class="text-muted-foreground">{{ formatDate(document.uploadedAt) }}</TableCell>
+                </TableRow>
+                <TableEmpty v-if="documents.length === 0" :colspan="3">Belum ada dokumen untuk vendor ini.</TableEmpty>
+              </TableBody>
+            </Table>
+          </SectionCard>
+        </TabsContent>
+
         <TabsContent value="contacts">
           <SectionCard title="Contacts">
             <template #actions>
@@ -419,6 +511,32 @@ function submitQuotation() {
           </SectionCard>
         </TabsContent>
       </Tabs>
+
+      <!-- Edit kategori/status vendor (Section 17) -->
+      <Dialog v-model:open="isVendorEditOpen">
+        <DialogContent class="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Edit Kategori/Status Vendor</DialogTitle>
+            <DialogDescription>Kategori sourcing dan lifecycle vendor sebagai partner.</DialogDescription>
+          </DialogHeader>
+          <div class="space-y-4 py-2">
+            <div class="space-y-1.5">
+              <Label for="edit-vendor-category">Kategori</Label>
+              <Input id="edit-vendor-category" v-model="editCategory" placeholder="mis. Hotel Budget, MICE Full-Service" />
+            </div>
+            <div class="space-y-1.5">
+              <Label for="edit-vendor-status">Status</Label>
+              <select id="edit-vendor-status" v-model="editStatus" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option v-for="option in VENDOR_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
+              </select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="isVendorEditOpen = false">Batal</Button>
+            <Button @click="submitVendorEdit">Simpan</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </template>
   </div>
 </template>

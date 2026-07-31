@@ -486,6 +486,170 @@ Setiap entri wajib memuat: Change ID dan tanggal · Triggering section · Previo
 - **Regression checks:** Direproduksi dan diverifikasi lewat skrip Node (`structuredClone` vs `JSON`-based clone terhadap `reactive()` array Vue identik). `npm run build` dijalankan ulang setelah fix.
 - **Dokumentasi yang diperbarui:** `docs/frontend-known-issues.md` (bagian baru).
 
+## CI-036 — Gerbang "Mark as Won" Dipindah ke Level Data (`approveOpportunityWon`), Bukan Hanya UI
+
+- **Change ID / Tanggal:** CI-036 · 2026-07-31
+- **Triggering section:** Section 06 — Management Approval, Won dan Client Activation.
+- **Previous section affected:** Section 05 (gerbang `clientConfirmedAt` awalnya hanya dicek di `submitMarkAsWon`, `/crm/opportunities/[id]`) dan Section 09 (`approveOpportunityWon`, pemilik asli mutator ini).
+- **Alasan perubahan:** Section 06 Wajib literal "Seluruh permitted dan forbidden flow dapat diuji melalui role switcher" — forbidden flow (Mark as Won tanpa Commercial Approval/Client Confirmation) sebelumnya hanya dicegah lewat tombol `disabled` di UI, bukan benar-benar diblokir bila mutator dipanggil dari jalur lain.
+- **Files affected:** `app/data/index.ts` (`approveOpportunityWon` +guard `quotation.approvalStatus === 'approved' && opportunity.clientConfirmedAt`, +`party.accountOwnerId` reaffirmation).
+- **Previous behavior:** `approveOpportunityWon` hanya memvalidasi `stage === 'won-requested'` dan requirement dasar (destinasi/tanggal/traveler/quotation ada) — tidak memvalidasi status approval/confirmation quotation.
+- **New behavior:** Memanggil `approveOpportunityWon` pada Opportunity yang quotation-nya belum `approved` atau `clientConfirmedAt` belum terisi sekarang mengembalikan `undefined` (gagal), sama seperti bila tombol UI disabled diklik paksa.
+- **Risk:** Sangat rendah — guard hanya menambah kondisi penolakan pada path yang SEBELUMNYA sudah selalu dipanggil dengan kedua syarat terpenuhi (UI sudah menggerbanginya sejak Section 05). Data historis (`OPP-001`/`002`/`003`/`008`, sudah `won`) tidak tersentuh karena guard `stage !== 'won-requested'` mengembalikan lebih dulu.
+- **Regression checks:** `npm run build` sukses; smoke test konten mengonfirmasi `OPP-006` tetap menampilkan tombol Mark as Won disabled (perilaku UI tidak berubah, kini didukung guard data); `OPP-001` (won lama) tetap menampilkan link "Lihat Project hasil konversi" tanpa perubahan.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-063.
+
+## CI-037 — Bug Fix: AE Portfolio Scoping Tidak Bekerja untuk Lead dan Client di Customer Journey Dashboard
+
+- **Change ID / Tanggal:** CI-037 · 2026-07-31
+- **Triggering section:** Section 07 — Customer Journey.
+- **Previous section affected:** Prompt 19 — Change Request (Customer Journey, Account Executive, Supplier, Commercial Approval), pemilik asli `/customer-journey/index.vue` dan literal "AE data scope ke portfolio miliknya".
+- **Alasan perubahan:** Audit Section 07 menemukan `scopedLeads` (dashboard utama) untuk role `account-executive` mengembalikan SELURUH `LEADS` tanpa scoping apa pun (hanya role `sales` yang di-scope ke `ownerId`) — AE melihat angka Lead yang identik dengan Super Admin, bertentangan dengan Wajib literal Prompt 19-10/Section 07. "Active Clients" juga selalu dihitung dari seluruh `PARTIES` tanpa scoping AE sama sekali.
+- **Files affected:** `app/pages/customer-journey/index.vue` (`scopedLeads` +cabang `account-executive` → filter `handedOverTo === currentUser.id`; `scopedParties` baru, dipakai `activeClientCount` dan funnel tahap "Client"), `app/data/index.ts` (`+getPartiesByAccountOwner`).
+- **Previous behavior:** AE melihat "Lead Aktif"/"Lead Qualified"/"Active Clients" dengan angka yang sama persis dengan Super Admin (data seluruh sistem, bukan portfolio sendiri).
+- **New behavior:** AE melihat angka Lead (via `handedOverTo`) dan Active Client (via `Party.accountOwnerId`) yang sudah ter-scope ke portfolio mereka sendiri — konsisten dengan Opportunity/Project Order yang SUDAH ter-scope benar sejak awal.
+- **Risk:** Rendah — perbaikan aditif pada computed existing, tidak mengubah struktur data atau route. Role selain AE (Super Admin/Management/Sales/Viewer) tidak terpengaruh (cabang `else` tetap mengembalikan data penuh seperti semula).
+- **Regression checks:** `npm run build` sukses; smoke test konten mengonfirmasi funnel/stat card tetap menampilkan angka penuh untuk role default (Super Admin: Lead 10, Client 3) — regresi terhadap perilaku Super Admin/role lain dikonfirmasi tidak berubah.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-064.
+
+## CI-038 — Client Kini Dapat Mengonfirmasi Quotation Sendiri (Self-Service), Melengkapi Gap Section 05
+
+- **Change ID / Tanggal:** CI-038 · 2026-07-31
+- **Triggering section:** Section 08 — Client Portal.
+- **Previous section affected:** Section 05 — Account Executive Opportunity dan Quotation (pemilik asli `recordClientConfirmation`, sebelumnya hanya dipanggil dari UI AE-facing di `/crm/opportunities/[id]`).
+- **Alasan perubahan:** Section 08 Wajib "Quotation view, revision request, accept/reject confirmation mock" secara literal meminta Client dapat mengonfirmasi quotation-nya sendiri — `recordClientConfirmation` (mutator generik, menerima `actorId` apa pun) sudah cukup untuk ini tanpa perubahan signature, hanya perlu titik akses baru dari `/client/opportunities/[id]`.
+- **Files affected:** `app/pages/client/opportunities/[id]/index.vue` (baru — memanggil `recordClientConfirmation(opportunityId, currentUser.id, note)` saat Client klik "Setujui Quotation").
+- **Previous behavior:** Client confirmation hanya bisa dicatat AE secara manual (mewakili Client) dari Opportunity Detail internal — Client sendiri tidak punya akses sama sekali ke tindakan ini (dicatat eksplisit sebagai known-issue Section 05: "AE mencatat client confirmation secara manual, bukan self-service client").
+- **New behavior:** Client dapat login ke `/client/opportunities/[id]` dan mengonfirmasi (atau menyatakan keberatan) quotation-nya sendiri. AE tetap dapat mencatat manual sebagai fallback (tombol existing di Opportunity Detail tidak dihapus/diubah) — dua jalur ke mutator yang sama, bukan duplikasi logic.
+- **Risk:** Rendah — `recordClientConfirmation` tidak diubah sama sekali (signature, guard, efek samping identik). Risiko utama (Client mengklaim identitas lain) dimitigasi oleh isolasi `clientScopeId` yang memastikan Client hanya bisa memanggil aksi ini untuk Opportunity milik company-nya sendiri.
+- **Regression checks:** `npm run build` sukses; smoke test route `/client/opportunities/OPP-001` dan `/crm/opportunities/OPP-006` (AE-facing, existing) keduanya tetap HTTP 200 tanpa perubahan perilaku existing.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-065.
+
+## CI-039 — Bug Fix: Link "Opportunity Asal" di Project Detail Overview Mengarah ke List, Bukan Detail Spesifik
+
+- **Change ID / Tanggal:** CI-039 · 2026-07-31
+- **Triggering section:** Section 09 — Project Order dan Handover.
+- **Previous section affected:** Section 10 — Project Core (pemilik asli tab Overview `/projects/[id]/index.vue`).
+- **Alasan perubahan:** Audit Section 09 ("Source Opportunity dan approved Quotation" Wajib) menemukan link "Project ini berasal dari opportunity {{ project.opportunityId }}" mengarah ke `/crm/opportunities` (halaman list, statis, tidak memakai `project.opportunityId` sama sekali) — bukan ke Opportunity spesifiknya. Bug kecil, ditemukan dan diperbaiki bersamaan saat menambahkan referensi Quotation approved di section yang sama.
+- **Files affected:** `app/pages/projects/[id]/index.vue` (`to="/crm/opportunities"` → `` `to=\`/crm/opportunities/${project.opportunityId}\`` ``).
+- **Previous behavior:** Klik link "opportunity {{ ID }}" selalu membuka `/crm/opportunities` (list lengkap), user harus mencari sendiri opportunity yang dimaksud.
+- **New behavior:** Klik link langsung membuka `/crm/opportunities/{{ id }}` (detail spesifik).
+- **Risk:** Sangat rendah — satu baris, murni memperbaiki URL yang salah, tidak ada logic lain yang berubah.
+- **Regression checks:** `npm run build` sukses; smoke test `/projects/PRJ-101` mengonfirmasi href baru `/crm/opportunities/OPP-001` (dikonfirmasi via curl+grep).
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-066.
+
+## CI-040 — Product Planning dan Costing Menambahkan Referensi Aditif ke Quotation, Opportunity Detail, Dashboard Widget Product Planner, dan Matrix Role
+
+- **Change ID / Tanggal:** CI-040 · 2026-07-31
+- **Triggering section:** Section 10 — Product Planning dan Costing.
+- **Previous section affected:** Section 05/08 (`app/types/opportunity.ts`, pemilik asli `Quotation`), Section 08 (pemilik asli halaman Opportunity Detail), Section 02 (pemilik asli widget welcome Product Planner di Dashboard dan kolom Matrix Role `/admin/roles`).
+- **Alasan perubahan:** Section 10 Wajib "Snapshot konsep ketika dipakai pada quotation/project" dan "Collaboration dengan AE, Operations, Finance" mensyaratkan traceability dari `Quotation` kembali ke `CostSheet` sumbernya, dan titik kolaborasi yang terlihat di Opportunity Detail (bukan hanya di modul Product Planning terpisah). Widget Dashboard Product Planner (Section 02, CI-030) sebelumnya eksplisit berkata "modul dedicated belum tersedia" — kini modulnya ada, widget usang tersebut wajib diperbarui. Matrix Role (`/admin/roles`) memakai daftar `modules` hardcoded yang harus disinkronkan dengan `ModuleKey` baru agar kolom baru tidak hilang dari tampilan.
+- **Files affected:** `app/types/opportunity.ts` (`Quotation` +`costSheetId?: ID`, aditif, opsional), `app/pages/crm/opportunities/[id]/index.vue` (+SectionCard "Product Planning & Costing" ringkasan Cost Sheet sebelum SectionCard Quotation, +import 2 selector), `app/pages/index.vue` (SectionCard "Product Planning dan Costing" menggantikan "Referensi Costing" placeholder), `app/pages/admin/roles.vue` (+1 baris `modules`, +update teks `ROLE_NOTES['product-planner']`/`['account-executive']`).
+- **Previous behavior:** `Quotation` tidak punya field `costSheetId`; Opportunity Detail tidak menampilkan apa pun terkait costing internal; widget Dashboard Product Planner mengarahkan ke `/crm/opportunities` dengan pesan "modul belum tersedia"; Matrix Role hanya menampilkan 7 kolom modul.
+- **New behavior:** `Quotation.costSheetId` terisi otomatis saat `applyCostSheetToQuotation` dipanggil (opsional, tidak mengubah quotation lama manapun — seluruh `QUOTATIONS` existing tetap `undefined` kecuali QUO-001/QUO-002 yang di-backfill via fixture `CS-001`/`CS-002`); Opportunity Detail menampilkan ringkasan Cost Sheet + link "Buat Cost Sheet"; widget Dashboard dan Matrix Role kini mengarah ke modul nyata.
+- **Risk:** Rendah — seluruh perubahan aditif (field opsional baru, SectionCard baru, 1 baris array, teks). Tidak ada field/komponen/route existing yang dihapus atau diubah maknanya. `Quotation` yang tidak pernah disentuh `applyCostSheetToQuotation` (mayoritas fixture existing) berperilaku identik seperti sebelumnya.
+- **Regression checks:** `npm run build` sukses 2x; smoke test konten mengonfirmasi `/crm/opportunities/OPP-001` (Won, Cost Sheet applied) menampilkan badge "Applied" dan `/crm/opportunities/OPP-009` (belum ada Quotation) menampilkan 2 Cost Sheet draft (Economy/Premium Scenario); `/admin/roles` menampilkan kolom "Product Planning"; regresi tab lain Opportunity Detail dan halaman Dashboard/Matrix Role lain dikonfirmasi tidak berubah.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-067.
+
+## CI-041 — `importTravelersMock` (Section 11 Lama) Dihapus, Digantikan Alur Preview+Commit; Form Traveler Client Portal Diperkaya
+
+- **Change ID / Tanggal:** CI-041 · 2026-07-31
+- **Triggering section:** Section 11 — Traveler dan Travel Documents (roadmap Section 00–24 baru).
+- **Previous section affected:** Section 11 lama/Prompt 11 (pemilik asli `importTravelersMock` dan tab Travelers `/projects/[id]`), Section 08 (pemilik asli form traveler self-submission `/client/project-orders/[id]`).
+- **Alasan perubahan:** Section 11 baru Wajib literal "Bulk import preview dan error report mock" — `importTravelersMock` lama langsung membuat baris tanpa tahap preview/validasi, tidak memenuhi literal ini. Field dokumen baru (ID/visa/dietary/accessibility) perlu tersedia juga di form self-submission Client Portal agar traveler data tetap satu sumber kebenaran yang konsisten (Wajib acceptance "Traveler data digunakan konsisten").
+- **Files affected:** `app/data/index.ts` (`importTravelersMock` DIHAPUS, `+previewTravelerImportMock`, `+commitTravelerImport`, `+toggleTravelerVerification`, `+getTravelerReadiness`, `CreateTravelerInput` +6 field), `app/pages/projects/[id]/index.vue` (tombol "Import (Mock)" kini membuka dialog preview, bukan langsung membuat baris), `app/pages/client/project-orders/[id]/index.vue` (form traveler +5 field baru: ID/visa/visa-expiry/dietary/accessibility).
+- **Previous behavior:** Klik "Import (Mock)" langsung membuat 3 baris traveler kosong (dokumen belum lengkap) tanpa langkah konfirmasi. Form traveler Client Portal hanya punya passport/emergency contact/special request.
+- **New behavior:** Klik "Import (Mock)" membuka dialog preview 5 baris (sebagian sengaja mengandung error — nama kosong/paspor duplikat), user meninjau error report lalu menekan "Import Baris Valid (N)" untuk benar-benar membuat baris (hanya yang valid). Form traveler Client Portal kini punya field yang sama lengkapnya dengan form internal (kecuali companion/verification yang tetap internal-only).
+- **Risk:** Rendah — `importTravelersMock` hanya dipanggil dari satu titik (sudah diperbarui bersamaan), tidak ada consumer lain yang patah. Field baru pada form Client Portal aditif (opsional), tidak mengubah field existing.
+- **Regression checks:** `npm run build` sukses 2x; smoke test konten mengonfirmasi tab Travelers `/projects/PRJ-101`/`102`/`103` menampilkan readiness indicator dan badge verifikasi/dokumen yang cocok dengan fixture baru (dihitung ulang manual); regresi tab lain Project Detail dan Client Portal dikonfirmasi tidak berubah.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-068.
+
+## CI-042 — Client Portal Itinerary Kini Difilter `visibleToClient`; Tab Itinerary & Services dan Tasks (Section 12 Lama/Section 09) Diperkaya Total
+
+- **Change ID / Tanggal:** CI-042 · 2026-08-01
+- **Triggering section:** Section 12 — Itinerary, Operations, Tasks dan Readiness (roadmap Section 00–24 baru).
+- **Previous section affected:** Section 08 (pemilik asli tab Itinerary `/client/project-orders/[id]`), Section 12 lama/Prompt 12 (pemilik asli tab Itinerary & Services `/projects/[id]`), Section 09 (pemilik asli tab Tasks `/projects/[id]`).
+- **Alasan perubahan:** Section 12 baru Wajib literal "Internal vs client-shared itinerary" — item operasional internal (mis. briefing tim) tidak boleh terlihat Client. Sebelumnya `/client/project-orders/[id]` memakai `getItineraryItems` mentah (menampilkan SEMUA item tanpa filter apa pun) — satu-satunya perubahan pada halaman Client Portal ini adalah mengganti selector, bukan mengubah UI/field lain.
+- **Files affected:** `app/pages/client/project-orders/[id]/index.vue` (`getItineraryItems` → `getClientVisibleItineraryItems`), `app/pages/projects/[id]/index.vue` (tab Itinerary & Services +4 SectionCard baru, tab Tasks +toggle blocker), `app/data/projects.ts` (+3 `ItineraryItem` internal-only baru, backfill `timezone`), `app/data/activity.ts` (+`SHIFT_NOTES`, `TSK-1021` di-backfill `isBlocked`).
+- **Previous behavior:** Client Portal menampilkan seluruh itinerary tanpa pengecualian; tab Itinerary & Services `/projects/[id]` tidak punya readiness/attention/shift-note apa pun; Tasks tidak punya konsep blocker.
+- **New behavior:** Client Portal hanya menampilkan item `visibleToClient !== false` (3 item baru sengaja disembunyikan, item lama tetap tampil seperti sebelumnya — `undefined` diperlakukan sebagai `true`). Tab internal menampilkan Departure Readiness Gate, Service Readiness Matrix, Attention/Exception Queue, dan On-Trip Updates/Shift Notes baru; Tasks menampilkan badge dan toggle Blocked.
+- **Risk:** Rendah — filter aditif (item lama tanpa `visibleToClient` tetap `true`/tampil, tidak ada yang tiba-tiba hilang dari Client Portal kecuali 3 item baru yang memang sengaja dibuat internal). SectionCard baru di tab internal ditambahkan, tidak ada yang dihapus.
+- **Regression checks:** `npm run build` sukses 2x; smoke test konten mengonfirmasi `/client/project-orders/PRJ-102?tab=itinerary` TIDAK menampilkan "Serah Terima Room Block..." (item internal baru) TAPI tetap menampilkan "Corporate Gathering" (item lama); regresi tab lain Project Detail dan Client Portal dikonfirmasi tidak berubah.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-069.
+
+## CI-043 — Ticketing Menambahkan Ringkasan Flight Booking di Tab Itinerary & Services, Kolom Matrix Role
+
+- **Change ID / Tanggal:** CI-043 · 2026-08-01
+- **Triggering section:** Section 13 — Ticketing.
+- **Previous section affected:** Section 12 lama/Foundation (pemilik asli tab "Itinerary & Services" dan model `ProjectService`), Section 02/17 lama (pemilik asli Matrix Role `/admin/roles`).
+- **Alasan perubahan:** Section 13 Wajib "Segments dan traveler assignment" dan acceptance "Ticketing role dapat mengelola flight" perlu titik akses yang terlihat DI DALAM konteks satu project (bukan hanya dari modul `/ticketing` terpisah) — SectionCard "Flight Bookings" ditambahkan sebagai ringkasan+link, bukan duplikasi data (`ProjectService` tidak diubah shape-nya).
+- **Files affected:** `app/pages/projects/[id]/index.vue` (+blok "Flight Bookings" di sub-section flight, +import `getFlightBookingsByProject`/`FLIGHT_BOOKING_STATUSES`), `app/pages/admin/roles.vue` (+1 baris `modules`, +update teks `ROLE_NOTES['ticketing']`).
+- **Previous behavior:** Sub-section flight tab Itinerary & Services hanya menampilkan tabel `ProjectService` generik (label/vendor/booking reference/status); Matrix Role hanya 9 kolom modul.
+- **New behavior:** Sub-section flight kini juga menampilkan daftar `FlightBooking` terkait (PNR/status/traveler count) dengan link ke `/ticketing/[id]`, dan tombol "Buat Flight Booking" (prefill `projectId`). Matrix Role menampilkan kolom "Ticketing" baru.
+- **Risk:** Rendah — seluruh perubahan aditif (blok baru, 1 baris array, teks). `ProjectService`/tabel existing tidak diubah/dihapus.
+- **Regression checks:** `npm run build` sukses; smoke test konten mengonfirmasi `/projects/PRJ-101?tab=itinerary-services` menampilkan Flight Booking FLT-1011 dengan status "Issued", `/admin/roles` menampilkan kolom "Ticketing"; regresi tab lain Project Detail dan halaman Matrix Role lain dikonfirmasi tidak berubah.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-070.
+
+---
+
+## CI-044 — Accommodation Menambahkan Ringkasan Hotel Booking di Tab Itinerary & Services, Kolom Matrix Role
+
+- **Change ID / Tanggal:** CI-044 · 2026-08-01
+- **Triggering section:** Section 14 — Accommodation.
+- **Previous section affected:** Section 12 lama/Foundation (pemilik asli tab "Itinerary & Services" dan model `ProjectService`), Section 02/17 lama (pemilik asli Matrix Role `/admin/roles`), Section 11 (pemilik asli `TravelerGroup`/`RoomAssignment`/`Traveler.specialRequest` yang direuse read-only oleh Hotel Booking Detail).
+- **Alasan perubahan:** Section 14 Wajib "Room block, occupancy, rooming list" dan acceptance "Accommodation role dapat menangani individual maupun group" perlu titik akses yang terlihat DI DALAM konteks satu project (bukan hanya dari modul `/accommodation` terpisah) — SectionCard "Hotel Bookings" ditambahkan sebagai ringkasan+link, bukan duplikasi data (`ProjectService` tidak diubah shape-nya); rooming list Hotel Booking Detail membaca `RoomAssignment` existing lewat `getHotelRoomingList` (read-only, tidak menulis).
+- **Files affected:** `app/pages/projects/[id]/index.vue` (+blok "Hotel Bookings" di sub-section hotel, +import `getHotelBookingsByProject`/`HOTEL_BOOKING_STATUSES`), `app/pages/admin/roles.vue` (+1 baris `modules`, +update teks `ROLE_NOTES['accommodation']`).
+- **Previous behavior:** Sub-section hotel tab Itinerary & Services hanya menampilkan tabel `ProjectService` generik (label/vendor/booking reference/status); Matrix Role hanya 10 kolom modul (setelah Section 13).
+- **New behavior:** Sub-section hotel kini juga menampilkan daftar `HotelBooking` terkait (konfirmasi/status/traveler count) dengan link ke `/accommodation/[id]`, dan tombol "Buat Hotel Booking" (prefill `projectId`). Matrix Role menampilkan kolom "Accommodation" baru.
+- **Risk:** Rendah — seluruh perubahan aditif (blok baru, 1 baris array, teks). `ProjectService`/`TravelerGroup`/`RoomAssignment`/`Traveler`/tabel existing tidak diubah/dihapus.
+- **Regression checks:** `npm run build` sukses; smoke test konten mengonfirmasi `/projects/PRJ-102?tab=itinerary-services` menampilkan Hotel Booking HTL-1022 dengan status "Amended" dan konfirmasi "AUH-A104", `/admin/roles` menampilkan kolom "Accommodation"; regresi tab lain Project Detail, tab Travelers (rooming list Section 11), dan halaman Matrix Role lain dikonfirmasi tidak berubah.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-071.
+
+---
+
+## CI-045 — Transportation Menambahkan Ringkasan Transport Booking di Tab Itinerary & Services, Kolom Matrix Role
+
+- **Change ID / Tanggal:** CI-045 · 2026-08-01
+- **Triggering section:** Section 15 — Transportation.
+- **Previous section affected:** Section 12 lama/Foundation (pemilik asli tab "Itinerary & Services" dan model `ProjectService`), Section 02/17 lama (pemilik asli Matrix Role `/admin/roles`), Section 13 lama (pemilik asli `VendorQuotation` SVC-1034, TIDAK diubah statusnya).
+- **Alasan perubahan:** Section 15 Wajib "Manifest/group allocation" dan acceptance "Transportation role dapat merencanakan dan menutup seluruh service" perlu titik akses yang terlihat DI DALAM konteks satu project (bukan hanya dari modul `/transportation` terpisah) — SectionCard "Transport Bookings" ditambahkan sebagai ringkasan+link, bukan duplikasi data (`ProjectService` tidak diubah shape-nya).
+- **Files affected:** `app/pages/projects/[id]/index.vue` (+blok "Transport Bookings" di sub-section transportation, +import `getTransportBookingsByProject`/`TRANSPORT_BOOKING_STATUSES`), `app/pages/admin/roles.vue` (+1 baris `modules`, +update teks `ROLE_NOTES['transportation']`).
+- **Previous behavior:** Sub-section transportation tab Itinerary & Services hanya menampilkan tabel `ProjectService` generik (label/vendor/booking reference/status); Matrix Role hanya 11 kolom modul (setelah Section 14).
+- **New behavior:** Sub-section transportation kini juga menampilkan daftar `TransportBooking` terkait (unit/status/traveler count) dengan link ke `/transportation/[id]`, dan tombol "Buat Transport Booking" (prefill `projectId`). Matrix Role menampilkan kolom "Transportation" baru.
+- **Risk:** Rendah — seluruh perubahan aditif (blok baru, 1 baris array, teks). `ProjectService`/`TravelerGroup`/`VendorQuotation`/tabel existing tidak diubah/dihapus.
+- **Regression checks:** `npm run build` sukses; smoke test konten mengonfirmasi `/projects/PRJ-103?tab=itinerary-services` menampilkan Transport Booking `TRN-1034` s/d `TRN-1038` dengan status masing-masing, `/admin/roles` menampilkan kolom "Transportation"; regresi tab lain Project Detail dan halaman Matrix Role lain dikonfirmasi tidak berubah.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-072.
+
+---
+
+## CI-046 — MICE Menambahkan Ringkasan MICE Event di Tab Itinerary & Services, Kolom Matrix Role
+
+- **Change ID / Tanggal:** CI-046 · 2026-08-01
+- **Triggering section:** Section 16 — MICE dan Event.
+- **Previous section affected:** Section 12 lama/Foundation (pemilik asli tab "Itinerary & Services" dan model `ProjectService`), Section 02/17 lama (pemilik asli Matrix Role `/admin/roles`), Section 09/12 lama (pemilik asli `RSK-1031`/`TSK-1032`/`TSK-1033`/`SFT-1032`, HANYA dirujuk secara naratif, TIDAK diubah).
+- **Alasan perubahan:** Section 16 acceptance "MICE role dapat mengelola event dari planning sampai post-event completion" perlu titik akses yang terlihat DI DALAM konteks satu project (bukan hanya dari modul `/mice` terpisah) — SectionCard "MICE Events" ditambahkan sebagai ringkasan+link, bukan duplikasi data (`ProjectService` tidak diubah shape-nya).
+- **Files affected:** `app/pages/projects/[id]/index.vue` (+blok "MICE Events" di sub-section mice, +import `getMiceEventsByProject`/`MICE_EVENT_STATUSES`), `app/pages/admin/roles.vue` (+1 baris `modules`, +update teks `ROLE_NOTES['mice']`).
+- **Previous behavior:** Sub-section mice tab Itinerary & Services hanya menampilkan tabel `ProjectService` generik; Matrix Role hanya 12 kolom modul (setelah Section 15).
+- **New behavior:** Sub-section mice kini juga menampilkan daftar `MiceEvent` terkait (venue/status/jumlah sesi/pax) dengan link ke `/mice/[id]`, dan tombol "Buat MICE Event" (prefill `projectId`). Matrix Role menampilkan kolom "MICE" baru.
+- **Risk:** Rendah — seluruh perubahan aditif (blok baru, 1 baris array, teks). `ProjectService`/`TravelerGroup`/`Vendor`/`RSK-1031`/`TSK-1032`/`1033`/tabel existing tidak diubah/dihapus.
+- **Regression checks:** `npm run build` sukses; smoke test konten mengonfirmasi `/projects/PRJ-103?tab=itinerary-services` menampilkan MICE Event `MICE-1035` dengan status "In Progress", `/admin/roles` menampilkan kolom "MICE"; regresi tab lain Project Detail dan halaman Matrix Role lain dikonfirmasi tidak berubah.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-073.
+
+---
+
+## CI-047 — Procurement Menambahkan Ekstensi Aditif ke Vendor Directory, Supplier Portal, Project Detail, Matrix Role, Nav, dan ModuleKey
+
+- **Change ID / Tanggal:** CI-047 · 2026-08-01
+- **Triggering section:** Section 17 — Supplier dan Procurement.
+- **Previous section affected:** Section 13 lama (pemilik asli `/vendors`, `Vendor`, `app/data/vendors.ts`); Prompt 19 (pemilik asli `/supplier`, Supplier Portal, vendor isolation `vendorScopeId`); Section 12 lama/Foundation (pemilik asli tab Project Detail); Section 02/17 lama (pemilik asli Matrix Role `/admin/roles`, `ModuleKey`, `ROLE_MODULE_ACCESS`, `NAV_ITEMS`).
+- **Alasan perubahan:** Section 17 acceptance "Procurement dan Supplier dapat menjalankan sourcing sampai fulfillment handoff" membutuhkan titik integrasi aditif ke lima area existing: (1) `Vendor` diperluas `category`/`status`/`documents` (Wajib literal "Supplier companies, contacts, categories, documents, status"), (2) Supplier Portal diperluas RFQ Inbox/Service Order Inbox/Invoice Submission (Wajib literal "Supplier dashboard dan portal... invoice submission preview"), (3) Project Detail mendapat ringkasan RFQ/Service Order (pola sama CI-043/044/045/046), (4) Matrix Role +kolom `procurement`, (5) `ModuleKey`+`NAV_ITEMS`+`ROLE_MODULE_ACCESS` +`procurement`. Seluruhnya mengikuti pola aditif yang sama seperti CI-043/044/045/046 (Ticketing/Accommodation/Transportation/MICE menambahkan ringkasan+kolom matrix serupa untuk section masing-masing).
+- **Files affected:** `app/types/vendor.ts` (+`category`/`status`/`documents` pada `Vendor`, +`VendorDocument`, `VendorDetailTab` +`documents`), `app/data/vendors.ts` (+`VENDOR_DOCUMENTS`, backfill `category`/`status` seluruh 7 vendor existing), `app/pages/vendors/index.vue` (+kolom Kategori/Status, +field kategori di form Tambah Vendor), `app/pages/vendors/[id]/index.vue` (+tab "Documents", +dialog Edit Kategori/Status), `app/pages/supplier/index.vue` (+2 stat card, +2 link card RFQ Inbox/Service Orders), `app/pages/projects/[id]/index.vue` (+SectionCard "Procurement — RFQ dan Service Order" di sub-section Itinerary & Services, +import `getServiceOrdersByProject`/`getRfqsByProject`), `app/pages/admin/roles.vue` (+1 baris `modules`, +update teks `ROLE_NOTES['procurement']`), `app/types/user.ts` (`ModuleKey` +`procurement`), `app/constants/roles.ts` (`ROLE_MODULE_ACCESS` +kolom `procurement` seluruh 16 role), `app/constants/navigation.ts` (+menu "Procurement" 3-child, +2 child Supplier Portal "RFQ Inbox"/"Service Orders").
+- **Previous behavior:** `Vendor` hanya `id`/`name`/`serviceType`/`contactName`/`contactPhone` (5 field), Vendor Detail 5 tab tanpa Documents; Supplier Portal dashboard hanya 2 link card (Products/Orders); Project Detail sub-section Itinerary & Services tidak punya blok Procurement; Matrix Role 13 kolom modul (setelah Section 16); Supplier Portal nav hanya 2 child.
+- **New behavior:** `Vendor` +3 field aditif (opsional, seluruh 7 vendor existing di-backfill `status: 'active'`, `category` terisi deskriptif — regression-safe, tidak ada consumer existing yang bergantung pada field ini tidak ada); Vendor Detail 6 tab; Supplier Portal dashboard 4 link card; Project Detail menampilkan RFQ/Service Order terhubung (bila ada) dengan link ke `/procurement/*`; Matrix Role 14 kolom modul; Supplier Portal nav 4 child.
+- **Risk:** Rendah. Seluruh perubahan aditif — field/tab/kolom/nav-item baru, tidak ada field/tab/kolom/route existing yang dihapus atau diubah shape/perilakunya. `VendorContact`/`VendorQuotation`/`VendorActivity`/`VendorProduct` (Section 13 lama/Prompt 19) TIDAK disentuh. `getServicesByVendor`/`submitVendorQuotation`/`acceptVendorQuotation`/`rejectVendorQuotation` (Section 13 lama) TIDAK diubah signature/perilakunya.
+- **Regression checks:** `npx nuxi prepare` + `npm run build` sukses (2x run, termasuk setelah perbaikan default clarification thread). Smoke test konten (curl+grep) mengonfirmasi `/vendors` menampilkan kolom Kategori/Status baru, `/vendors/VND-006?tab=documents` menampilkan dokumen PT ABC, `/supplier` menampilkan 4 link card, `/projects/PRJ-103?tab=itinerary-services` menampilkan blok "Procurement — RFQ dan Service Order" dengan RFQ-004, `/admin/roles` menampilkan kolom "Procurement"; regresi `/vendors/VND-002` (vendor existing tanpa dokumen), `/supplier/products`, `/supplier/orders`, `/projects/PRJ-101`/`PRJ-102` (tab lain), `/accommodation`, `/transportation`, `/mice`, `/ticketing` dikonfirmasi tetap HTTP 200 tanpa perubahan konten existing.
+- **Dokumentasi yang diperbarui:** `docs/mockup-design-decisions.md` D-074, `docs/mockup-data-scenarios.md` (bagian baru), `docs/frontend-known-issues.md` bagian 12/13, `docs/mockup-open-questions.md` Q12 (RESOLVED), `docs/mockup-implementation-state.md`, `docs/mockup-section-reports/section-17-supplier-procurement.md`.
+
 ---
 
 *(Entri berikutnya akan ditambahkan begitu sebuah section mengubah hasil section sebelumnya — lihat protokol bagian C untuk kriteria kapan perubahan section lama diperbolehkan.)*

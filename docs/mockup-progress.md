@@ -196,3 +196,147 @@ Log kronologis progres pengerjaan mockup MANOVA di atas template Nuxt 4 existing
 - **Decisions:** D-062 dicatat di `docs/mockup-design-decisions.md`.
 - **Open issues:** Q8 tetap terbuka. Q14 (Approval Queue agregat Management-facing) sebagian resolved, sisa scope tetap Section 06.
 - **Next recommended prompt:** Section 06 (Management Approval, Won dan Client Activation), berbasis dependency — menunggu perintah user.
+
+## Entri 15 — Section 06 (Roadmap Baru): Management Approval, Won dan Client Activation
+
+- **Date:** 2026-07-31
+- **Phase:** Section 06 (`prompts/SECTION_06_Management_Approval_Won_Client_Activation.md`) — section ketujuh roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Melengkapi gap PARTIAL yang ditemukan Section 00/Q14 di atas fondasi Commercial Approval (Prompt 19) dan Client Confirmation AE-facing (Section 05): `/crm/quotations` (sebelumnya placeholder) ditulis ulang menjadi Management Approval Queue — 3 tab (Menunggu Approval/Menunggu Client Confirmation/Semua Quotation), dialog review detail (margin/discount/tax/markup/terms/complexity-dirivasi/risk), aksi Approve/Reject dengan catatan wajib. "Reject" berfungsi sekaligus sebagai "Return for Revision" (D-063, tidak ada status paralel baru — quotation `rejected` tetap dapat direvisi AE lewat "Create New Version"). `submitQuotationForApproval`/`approveQuotation`/`rejectQuotation` kini mencatat `PartyActivity` per keputusan (histori, reuse tab "Activity/Follow-up" existing). Guard `quotation.approvalStatus === 'approved' && opportunity.clientConfirmedAt` dipindah dari UI-only ke level data (`approveOpportunityWon`) — forbidden flow benar-benar diblokir, bukan hanya tombol disabled. `party.accountOwnerId` ditegaskan ulang saat Won. Duplicate Client/Project Order prevention diverifikasi ulang (sudah ada sejak Section 09, tidak perlu perubahan). Detail lengkap: `docs/mockup-section-reports/section-06-management-approval-won.md`.
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-036 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test HTTP ~29 route (baru+existing) seluruhnya 200; verifikasi konten (tab count "Menunggu Approval (1)"/"Menunggu Client Confirmation (1)"/"Semua Quotation (8)" cocok fixture, QUO-005 muncul di tab pending-approval via `?tab=pending-approval`, OPP-006 muncul di tab pending-confirmation via `?tab=pending-confirmation`, Mark as Won OPP-006 tetap disabled); regresi OPP-001/002/003 (won lama) dikonfirmasi tidak berubah; `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-063 dicatat di `docs/mockup-design-decisions.md`.
+- **Open issues:** Q8 tetap terbuka. Q14 RESOLVED sepenuhnya.
+- **Next recommended prompt:** Section 07 (Customer Journey), berbasis dependency — menunggu perintah user.
+
+## Entri 16 — Section 07 (Roadmap Baru): Customer Journey
+
+- **Date:** 2026-07-31
+- **Phase:** Section 07 (`prompts/SECTION_07_Customer_Journey.md`) — section kedelapan roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Melengkapi Customer Journey Dashboard. Audit mengonfirmasi mayoritas Wajib sudah COMPLETED sejak Prompt 19 (Leads Table/Kanban/Inbox+drawer, Customers list, Customer Detail 6-tab persis literal — Overview/Contacts/Opportunities/Project Orders/Activities/Documents, Project Orders list dan detail, tidak ada dataset paralel). 2 gap dikerjakan: (1) **Overview funnel** — panel baru "Customer Journey Funnel" (7 tahap: Lead→Qualified→Opportunity→Approved→Won→Client→Project Order), setiap tahap dihitung sebagai snapshot independen (bukan cohort historis, D-064), menampilkan conversion % dari tahap sebelumnya, dan dapat diklik untuk **drill-down** — deep-link dengan query filter otomatis ter-seed (`/customer-journey/leads?stage=`, `/crm/opportunities?stage=`, `/crm/quotations?tab=all&status=`, `/customer-journey/customers?status=`). (2) **Filters lengkap + AE data scope** — ditemukan bug AE portfolio scoping (Lead/Client dashboard TIDAK ter-scope, hanya Opportunity/Project Order yang benar) diperbaiki (CI-037); toggle "Hanya Portfolio Saya" (default ON untuk AE, pola sama Leads Section 04) ditambahkan di Customers dan Project Orders list; filter owner (Customers) dan periode keberangkatan (Project Orders) ditambahkan melengkapi 6 dimensi filter literal (source/owner/stage/client/date/project type). Detail lengkap: `docs/mockup-section-reports/section-07-customer-journey.md`.
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-037 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses (2x — run pertama gagal karena tag `<p>` tidak tertutup di edit awal, diperbaiki); smoke test HTTP ~30 route seluruhnya 200; verifikasi konten (funnel Super Admin: Lead 10/Qualified 3/Opportunity 10/Approved 5/Won 4/Client 3/Project Order 4 — seluruhnya cocok fixture yang dihitung ulang manual; drill-down `?stage=`/`?status=` dikonfirmasi memilih opsi filter yang tepat di halaman tujuan via inspeksi `<option selected>`); regresi lintas modul dikonfirmasi tidak berubah; `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-064 dicatat di `docs/mockup-design-decisions.md`.
+- **Open issues:** Q8 tetap terbuka. Tidak ada open question baru.
+- **Next recommended prompt:** Section 08 (Client Portal), berbasis dependency — menunggu perintah user.
+
+## Entri 17 — Section 08 (Roadmap Baru): Client Portal
+
+- **Date:** 2026-07-31
+- **Phase:** Section 08 (`prompts/SECTION_08_Client_Portal.md`) — section kesembilan roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Implementasi role Client secara lengkap di atas shell minimal Section 02. `/client` ditulis ulang total: profile+contacts (dengan dialog "Tambah Kontak"), Action Center (agregat notifikasi: quotation menunggu konfirmasi, dokumen traveler belum lengkap, invoice overdue — lintas seluruh Opportunity/Project Order company), Support (kontak Account Executive), travel request creation (dialog, membuat `Lead` baru `source: 'client-portal'` + qualification draft langsung terisi). 2 route baru: `/client/opportunities/[id]` (quotation view tersanitasi — total/discount/tax/currency/validity/terms/inclusions/exclusions/service breakdown, TANPA cost/margin internal — plus Request Revision dan Accept/Reject self-service, reuse `recordClientConfirmation` Section 05); `/client/project-orders/[id]` (6 tab: Overview+Support AE-PM, Itinerary, Travelers dengan submission form, Documents read-only, Finance Invoice/Payment sell-side, Change Request dengan kategori dibatasi non-internal). Seluruh aksi reuse mutator generik existing (`createContact`/`createLead`/`updateLeadQualification`/`recordClientConfirmation`/`createPartyActivity`/`createTraveler`/`updateTraveler`/`createChangeEntry`) — TIDAK ADA mutator baru. Sanitization field internal cost/margin diverifikasi eksplisit lewat grep audit (D-065). Detail lengkap: `docs/mockup-section-reports/section-08-client-portal.md`.
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-038 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test HTTP ~20 route seluruhnya 200 (termasuk `/client/opportunities/OPP-999`/`/client/project-orders/PRJ-999` not-found); regresi lintas modul dikonfirmasi tidak berubah; grep audit mengonfirmasi nol kecocokan field terlarang (`estimatedCostIdr`/`estimatedMarginIdr`/`markupIdr`/`budgetIdr`/`actualCostIdr`/`approvedBy`/`approvalNote`) di 3 file Client Portal. **Keterbatasan dicatat eksplisit:** verifikasi interaktif konten role Client tidak dapat dilakukan via SSR/curl (role-switching client-only, SSR selalu default Super Admin tanpa `clientScopeId` — `/client/*` selalu menampilkan `RoleAccessState` di bawah curl, perilaku benar tapi tidak membuktikan konten Client-facing sesungguhnya) — dimitigasi lewat code review ketat dan cross-check fixture manual (`PTY-001`/`USR-019`, `PTY-002`/`USR-020`). `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-065 dicatat di `docs/mockup-design-decisions.md`.
+- **Open issues:** Q8 tetap terbuka. Shared documents read-only (bukan two-way upload) dicatat sebagai keputusan disengaja (D-065), bukan gap tersembunyi.
+- **Next recommended prompt:** Section 09 (Project Order dan Handover), berbasis dependency — menunggu perintah user.
+
+## Entri 18 — Section 09 (Roadmap Baru): Project Order dan Handover
+
+- **Date:** 2026-07-31
+- **Phase:** Section 09 (`prompts/SECTION_09_Project_Order_Handover.md`) — section kesepuluh roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Lengkapi Project Order frontend sesuai literal Wajib. Q16 (blocking) diresolusi: `ProjectOrderStatus` (10 nilai: Created/Handover Pending/Planning/Confirmed/Ready/In Progress/Completed/Closed/On Hold/Cancelled) dirivasi via `getProjectOrderStatus()` dari `ProjectStatus` (8 nilai, LOCKED D-028, TIDAK direstrukturisasi) + field handover/ready/closure baru pada `Project`, pola sama D-053/D-056 (D-066). Audit langsung kode menemukan `project.status` sebelumnya TIDAK PERNAH punya mutator sama sekali (statis sejak fixture) — ditutup dengan `updateProjectStatus` (peta transisi eksplisit, reason wajib untuk On Hold/Cancelled, dicatat sebagai Activity visible). `acceptProjectHandover`/`returnProjectHandover` (baru) melengkapi "PM Accept/Return Handover dengan reason" — acceptance criterion "PM dapat menerima handover dan memulai planning tanpa kehilangan data komersial" terpenuhi otomatis (quotation/budget sudah terisi penuh sejak Section 05/06, mutator baru tidak menyentuhnya). Team assignment (`addProjectTeamMember`/`removeProjectTeamMember`, baru — `teamUserIds` sebelumnya tanpa mutator). Tasks tab ditulis ulang total (sebelumnya read-only murni) — create/edit, milestone flag, dependency single-link, assignee (`isMilestone`/`dependsOnTaskId`/`assignedTo` aditif pada `ProjectTask`, `TASKS` jadi `reactive()`). `ProjectRisk` (entitas baru, bukan reuse paksa dari model lain yang tidak cocok). Closure Checklist (shell, 4 item, sengaja tidak menggerbangi apa pun sampai Section 24). Bug fix (ditemukan+ditutup section sama): link "opportunity asal" mengarah ke list bukan detail spesifik (CI-039). Detail lengkap: `docs/mockup-section-reports/section-09-project-order-handover.md`.
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-039 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses di percobaan pertama; smoke test HTTP ~18 route seluruhnya 200; verifikasi konten (`PRJ-104` menampilkan "Handover Pending"+tombol Accept/Return Handover; `PRJ-101` menampilkan "Confirmed"+"Tandai Ready"+tanggal handover diterima; `PRJ-102` "Planning"; `PRJ-103` menampilkan 2 risk yang diseed + 3 badge Milestone + 1 dependency di tab Tasks; link opportunity mengarah ke `/crm/opportunities/OPP-001` bukan list); regresi lintas modul dikonfirmasi tidak berubah; `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-066 dicatat di `docs/mockup-design-decisions.md`.
+- **Open issues:** Q8 tetap terbuka. Q16 RESOLVED sepenuhnya. Closure Checklist tetap shell (disengaja, Section 24).
+- **Next recommended prompt:** Section 10 (Product Planning dan Costing), berbasis dependency — menunggu perintah user.
+
+## Entri 19 — Section 10 (Roadmap Baru): Product Planning dan Costing
+
+- **Date:** 2026-07-31
+- **Phase:** Section 10 (`prompts/SECTION_10_Product_Planning_Costing.md`) — section kesebelas roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Modul baru penuh (`NOT_STARTED` sepenuhnya per audit Section 00) untuk Product Planner/Travel Consultant — narasi lengkap: `docs/mockup-section-reports/section-10-product-planning-costing.md`. Ringkasan: dua entitas baru (`ProductTemplate` — katalog paket, itinerary concept, service alternatives, inclusions/exclusions/assumptions/validity; `CostSheet` — traveler-based costing, markup/tax/contingency/currency, scenario/version comparison) diimplementasikan di modul route baru `/product-planning` dan `/product-planning/cost-sheets` (masing-masing list+detail). Kolaborasi dengan AE/Operations/Finance lewat modul `product-planning` (`VIEW`) + ringkasan Cost Sheet di Opportunity Detail. Snapshot konsep — `applyCostSheetToQuotation` menyalin hasil kalkulasi ke Quotation lalu mengunci Cost Sheet (`status: 'final'`). Internal costing dikonfirmasi tidak terlihat Client lewat grep audit eksplisit.
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-040 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses 2x; smoke test HTTP seluruh route baru+representatif existing seluruhnya 200; verifikasi konten (breakdown CS-003 dihitung ulang manual dan cocok persis Rp267.025.500, CS-001 applied terkunci, CS-005 standalone tanpa tombol Apply); `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-067 dicatat di `docs/mockup-design-decisions.md` Kelompok K.
+- **Open issues:** Q8 tetap terbuka. Tidak ada open question baru.
+- **Next recommended prompt:** Section 11 (Traveler dan Travel Documents), berbasis dependency — menunggu perintah user.
+
+## Entri 20 — Section 11 (Roadmap Baru): Traveler dan Travel Documents
+
+- **Date:** 2026-07-31
+- **Phase:** Section 11 (`prompts/SECTION_11_Traveler_Travel_Documents.md`) — section kedua belas roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Melengkapi seluruh gap literal di atas fondasi traveler/participant existing (Section 11 lama/Prompt 11, "Client self-submission" sudah RESOLVED sejak Section 08) — narasi lengkap: `docs/mockup-section-reports/section-11-traveler-documents.md`. Ringkasan: `Traveler` +7 field aditif (ID/visa/dietary/accessibility/companion/internal verification); `isTravelerDocumentMissing` mengevaluasi visa kondisional; `maskDocumentNumber` (sensitive values masked sesuai role — hanya PM/Super Admin melihat penuh); `previewTravelerImportMock`/`commitTravelerImport` (bulk import preview+error report, menggantikan `importTravelersMock` lama); `getTravelerReadiness` (readiness indicator, 4 stat tile); `/projects/[id]/manifest-preview` (manifest/rooming list export preview, pola `quotation-preview.vue`).
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-041 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses 2x; smoke test HTTP seluruh route baru+representatif existing seluruhnya 200; verifikasi konten (readiness tile PRJ-101 6/6 dokumen lengkap dihitung ulang manual dan cocok, kondisi visa baru PRJ-102 mengubah 1 traveler jadi "Belum Lengkap" sesuai desain, manifest preview PRJ-103 menampilkan rooming list); `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-068 dicatat di `docs/mockup-design-decisions.md` Kelompok K.
+- **Open issues:** Q8 tetap terbuka. Tiket/asuransi tetap `KNOWN_GAP` (di luar Wajib literal section ini).
+- **Next recommended prompt:** Section 12 (Itinerary, Operations, Tasks dan Readiness), berbasis dependency — menunggu perintah user.
+
+## Entri 21 — Section 12 (Roadmap Baru): Itinerary, Operations, Tasks dan Readiness
+
+- **Date:** 2026-08-01
+- **Phase:** Section 12 (`prompts/SECTION_12_Itinerary_Operations_Tasks_Readiness.md`) — section ketiga belas roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** "Operational command center" — melengkapi seluruh gap literal di atas fondasi Day-by-day itinerary dan Tasks (Section 12 lama/Section 09) — narasi lengkap: `docs/mockup-section-reports/section-12-itinerary-operations-readiness.md`. Ringkasan: timezone-aware schedule (`ItineraryItem.timezone`); internal vs client-shared itinerary (`visibleToClient`, `getClientVisibleItineraryItems`); task blocker (`isBlocked`/`blockedReason`); service readiness matrix dan departure readiness gate (`getServiceReadinessMatrix`/`getDepartureReadiness`, ADVISORY — tidak menggerbangi transisi status); run sheet print preview (`/projects/[id]/run-sheet-preview`); attention/exception queue lintas tab; on-trip updates/shift notes (`ShiftNote`, entitas baru); toggle List/Timeline pada Daily Itinerary.
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-042 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test HTTP seluruh route baru+representatif existing seluruhnya 200; verifikasi konten (PRJ-101 "Ready to Depart", PRJ-102 "Belum Siap" + attention queue + badge Blocked, Client Portal PRJ-102 mengonfirmasi item internal-only tersaring); `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-069 dicatat di `docs/mockup-design-decisions.md` Kelompok K.
+- **Open issues:** Q8 tetap terbuka. Halaman dedicated per sub-domain (Ticketing/Accommodation/Transportation/MICE) tetap milik Section 13-16.
+- **Next recommended prompt:** Section 13 (Ticketing), berbasis dependency — menunggu perintah user.
+
+## Entri 22 — Section 13 (Roadmap Baru): Ticketing
+
+- **Date:** 2026-08-01
+- **Phase:** Section 13 (`prompts/SECTION_13_Ticketing.md`) — section keempat belas roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Melengkapi lifecycle flight frontend penuh — narasi lengkap: `docs/mockup-section-reports/section-13-ticketing.md`. Ringkasan: entitas baru `FlightBooking` (terpisah dari `ProjectService` generik, `serviceId` opsional menautkan balik) dengan options/segments/traveler assignment/deadline/fare rules/net cost vs sell price; lifecycle 7-status (`requested`/`hold`/`confirmed`/`issued`/`reissued`/`cancelled`/`refunded`) dengan alasan wajib untuk Cancel/Refund; modul top-level baru `/ticketing` (list+detail) MENDAMPINGI ringkasan di tab Itinerary & Services Project Detail (resolusi eksplisit ketegangan dengan D-020, dicatat D-070, preseden untuk Section 14-16); e-ticket preview print-friendly yang disanitasi (tidak pernah menampilkan net cost internal).
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-043 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test HTTP seluruh route baru+representatif existing seluruhnya 200; verifikasi konten (6 Flight Booking dengan 5 status lifecycle terwakili, banner Schedule Change FLT-1021, sanitasi net cost e-ticket preview terverifikasi); `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-070 dicatat di `docs/mockup-design-decisions.md` Kelompok K.
+- **Open issues:** Q8 tetap terbuka. Accommodation/Transportation/MICE (Section 14-16) tetap `KNOWN_GAP`, preseden arsitektur D-070 didokumentasikan untuk diikuti.
+- **Next recommended prompt:** Section 14 (Accommodation), berbasis dependency — menunggu perintah user.
+
+## Entri 23 — Section 14 (Roadmap Baru): Accommodation
+
+- **Date:** 2026-08-01
+- **Phase:** Section 14 (`prompts/SECTION_14_Accommodation.md`) — section kelima belas roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Melengkapi lifecycle hotel frontend penuh — narasi lengkap: `docs/mockup-section-reports/section-14-accommodation.md`. Ringkasan: entitas baru `HotelBooking` (terpisah dari `ProjectService` generik, `serviceId` opsional menautkan balik), pola arsitektur IDENTIK Ticketing (D-070/D-071); modul top-level baru `/accommodation` (list+detail) MENDAMPINGI ringkasan di tab Itinerary & Services Project Detail; lifecycle 7-status (`requested`/`quoted`/`confirmed`/`amended`/`completed`/`cancelled`/`no-show`) dengan alasan wajib untuk Cancel/No-Show; "Room block, occupancy, rooming list" dan "Traveler special requests" DIREUSE dari `TravelerGroup`/`RoomAssignment`/`Traveler` (Section 11) via `groupId`/`travelerIds` — bukan dataset paralel; voucher preview print-friendly yang disanitasi (tidak pernah menampilkan net cost internal); fixture mendemokan baik booking group (Room Block 18/10/25 pax) maupun individual (VIP suite aksesibilitas 2 traveler), sesuai acceptance literal.
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-044 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test HTTP seluruh route baru+representatif existing seluruhnya 200; verifikasi konten (6 Hotel Booking dengan 5 status lifecycle terwakili, rooming list HTL-1033 mengonfirmasi reuse `ROOM-001` persis, sanitasi net cost voucher preview terverifikasi presisi — Sell Price Rp152.900.000 tampil, Net Cost Rp129.600.000 dan teks "Net Cost" sama sekali tidak muncul); `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-071 dicatat di `docs/mockup-design-decisions.md` Kelompok K.
+- **Open issues:** Q8 tetap terbuka. Transportation/MICE (Section 15-16) tetap `KNOWN_GAP`, preseden arsitektur D-070/D-071 didokumentasikan untuk diikuti.
+- **Next recommended prompt:** Section 15 (Transportation), berbasis dependency — menunggu perintah user.
+
+## Entri 25 — Section 16 (Roadmap Baru): MICE dan Event
+
+- **Date:** 2026-08-01
+- **Phase:** Section 16 (`prompts/SECTION_16_MICE_Event.md`) — section ketujuh belas roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Melengkapi lifecycle MICE/Event frontend penuh — narasi lengkap: `docs/mockup-section-reports/section-16-mice.md`. Ringkasan: entitas baru `MiceEvent` (terpisah dari `ProjectService` generik, `serviceId` opsional menautkan balik), pola arsitektur IDENTIK Ticketing/Accommodation/Transportation (D-070/D-071/D-072/D-073) — berbeda dari section-section tsb, `MiceEvent` berupa SATU struktur kaya (sessions/participant categories/BOQ/staffing/checklist/deliverables) alih-alih banyak booking terpisah, sesuai realita bisnis satu event MICE per project. Modul top-level baru `/mice` (list+detail) MENDAMPINGI ringkasan di tab Itinerary & Services Project Detail; lifecycle 5-status (`planning`/`confirmed`/`in-progress`/`completed`/`cancelled`) untuk acceptance "planning sampai post-event completion"; "Client approval states" terpisah dari status event (pola sama Commercial Approval D-049); "Capacity and schedule conflicts" sebagai derivasi advisory yang MENDEMOKAN kondisi nyata (venue Hari 2 kapasitas 100 < 125 peserta diharapkan, menautkan ke `RSK-1031`/`TSK-1032` existing); "Staffing/PIC" dan "Vendor packages" DIREUSE dari `User`/`Vendor` existing; DUA dokumen client-facing tersanitasi (Rundown dan BOQ, keduanya tanpa net cost internal).
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-046 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test HTTP seluruh route baru+representatif existing seluruhnya 200; verifikasi konten (capacity conflict terverifikasi presisi — "kapasitas ruangan (100 pax) lebih kecil dari total peserta yang diharapkan (125 pax)"; BOQ preview total Rp282.000.000 dihitung ulang manual dan cocok persis, nol kemunculan net cost di kedua dokumen client-facing); `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-073 dicatat di `docs/mockup-design-decisions.md` Kelompok K.
+- **Open issues:** Q8 tetap terbuka. Seluruh 4 sub-domain operasional (Section 13-16) kini RESOLVED — tidak ada lagi `KNOWN_GAP` role-only tersisa di kelompok ini.
+- **Next recommended prompt:** Section 17 (Supplier dan Procurement), berbasis dependency — menunggu perintah user.
+
+## Entri 24 — Section 15 (Roadmap Baru): Transportation
+
+- **Date:** 2026-08-01
+- **Phase:** Section 15 (`prompts/SECTION_15_Transportation.md`) — section keenam belas roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Melengkapi lifecycle transportasi darat frontend penuh — narasi lengkap: `docs/mockup-section-reports/section-15-transportation.md`. Ringkasan: entitas baru `TransportBooking` (terpisah dari `ProjectService` generik, `serviceId` opsional menautkan balik), pola arsitektur IDENTIK Ticketing/Accommodation (D-070/D-071/D-072); modul top-level baru `/transportation` (list+detail) MENDAMPINGI ringkasan di tab Itinerary & Services Project Detail; lifecycle 7-status (`requested`/`quoted`/`assigned`/`confirmed`/`completed`/`cancelled`/`no-show`) mengikuti urutan literal Quote→Assignment→Confirmation, dengan alasan wajib untuk Cancel/No-Show; "Manifest/group allocation" DIREUSE dari `TravelerGroup`/`Traveler` (Section 11) — bukan dataset paralel; "Multi-leg dispatch" via embedded `TransportLeg[]`; "Standby/overtime/toll" sebagai field eksplisit; DUA dokumen print-friendly terpisah (Service Order client-facing tersanitasi vs Driver Sheet internal TANPA informasi harga sama sekali); fixture mendemokan individual (`TRN-1037`) maupun group (`TRN-1034`/`1035`/`1036`), plus "Change" dan "Incident" sebagai flag terpisah.
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-045 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses; smoke test HTTP seluruh route baru+representatif existing seluruhnya 200; verifikasi konten (5 Transport Booking dengan 5 status lifecycle terwakili, manifest TRN-1036 mengonfirmasi reuse aksesibilitas traveler dari Section 11, sanitasi harga terverifikasi presisi — Service Order menampilkan Sell Price Rp7.200.000, Driver Sheet TIDAK menampilkan angka Rupiah sama sekali); `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-072 dicatat di `docs/mockup-design-decisions.md` Kelompok K.
+- **Open issues:** Q8 tetap terbuka. MICE (Section 16) tetap `KNOWN_GAP`, preseden arsitektur D-070/D-071/D-072 didokumentasikan untuk diikuti.
+- **Next recommended prompt:** Section 16 (MICE dan Event), berbasis dependency — menunggu perintah user.
+
+## Entri 26 — Section 17 (Roadmap Baru): Supplier dan Procurement
+
+- **Date:** 2026-08-01
+- **Phase:** Section 17 (`prompts/SECTION_17_Supplier_Procurement.md`) — section kedelapan belas roadmap Section 00–24 baru.
+- **Status:** Selesai.
+- **Completed:** Melengkapi Procurement dan Supplier Portal penuh — narasi lengkap: `docs/mockup-section-reports/section-17-supplier-procurement.md`. Ringkasan: entitas baru `RFQ`/`RFQInvitation`/`RFQResponse`/`RFQClarificationMessage`/`ServiceOrder`/`ServiceOrderAmendment`/`SupplierInvoice` (seluruhnya mereuse `Vendor.id` existing, bukan Supplier paralel), pola arsitektur MENDAMPINGI (bukan menggantikan) `/vendors` (master data, Section 13 lama) dan `/supplier` (self-service, Prompt 19), IDENTIK D-070/D-071/D-072/D-073. Modul top-level baru `/procurement` (dashboard RFQ+Service Order, RFQ detail dengan side-by-side comparison + clarification thread + formal Select, Service Order detail dengan amendment history + fulfillment timeline, Procurement Performance Review derivasi murni). `/vendors` diperluas aditif `category`/`status`/`documents` (tab "Documents" baru). `/supplier` diperluas RFQ Inbox (respons per-line-item + clarification reply) dan Service Order Inbox (acknowledge + fulfillment + Invoice Submission preview — resolusi Q12). `VendorQuotation` submit/accept/reject (Section 13 lama) TIDAK diubah — jalur RFQ formal adalah TAMBAHAN, bukan pengganti.
+- **Files changed:** Lihat `docs/mockup-change-impact-log.md` CI-047 dan laporan section untuk daftar lengkap.
+- **Validation:** `npx nuxi prepare` + `npm run build` sukses (2x run); smoke test HTTP ~29 route baru+representatif existing seluruhnya 200 (termasuk not-found RFQ/Service Order); verifikasi konten (RFQ-004 menampilkan vendor terpilih "Trans Wahana Logistik", SO-001 "Fulfilled", clarification thread PT ABC 2 pesan tampil, Documents tab PT ABC/PT EFG tampil, kolom "Procurement" Matrix Role tampil); `vitest`/`typecheck`/lint tetap pre-existing gap (Q8).
+- **Decisions:** D-074 dicatat di `docs/mockup-design-decisions.md` Kelompok K.
+- **Open issues:** Q8 tetap terbuka. Q12 RESOLVED. "On-time %" Performance Review disederhanakan (tidak ada field due-date terpisah, D-074).
+- **Next recommended prompt:** Section 18 (Booking dan Service Orders), berbasis dependency — menunggu perintah user.

@@ -14,6 +14,7 @@ export const PROJECTS: Project[] = reactive([
     characteristic: 'normal', serviceScope: ['flight'], travelerCount: 6,
     ownerId: 'USR-002', teamUserIds: ['USR-004'], status: 'confirmed',
     quotationAmountIdr: 95_000_000, budgetIdr: 85_000_000, actualCostIdr: 82_500_000,
+    handoverAcceptedAt: '2026-06-26', handoverAcceptedBy: 'USR-002',
   },
   {
     id: 'PRJ-102', name: 'Abu Dhabi Corporate Gathering', partyId: 'PTY-002', opportunityId: 'OPP-002',
@@ -21,6 +22,7 @@ export const PROJECTS: Project[] = reactive([
     characteristic: 'high-change', serviceScope: ['flight', 'hotel'], travelerCount: 18,
     ownerId: 'USR-013', teamUserIds: ['USR-004', 'USR-005'], status: 'planning',
     quotationAmountIdr: 345_000_000, budgetIdr: 310_000_000, actualCostIdr: 335_000_000,
+    handoverAcceptedAt: '2026-06-21', handoverAcceptedBy: 'USR-013',
   },
   {
     id: 'PRJ-103', name: 'Palu MICE Conference 2026', partyId: 'PTY-003', opportunityId: 'OPP-003',
@@ -28,12 +30,16 @@ export const PROJECTS: Project[] = reactive([
     characteristic: 'complex', serviceScope: ['flight', 'hotel', 'transportation', 'mice'], travelerCount: 60,
     ownerId: 'USR-002', teamUserIds: ['USR-004', 'USR-005', 'USR-006', 'USR-007', 'USR-009'], status: 'in-progress',
     quotationAmountIdr: 1_400_000_000, budgetIdr: 1_250_000_000, actualCostIdr: 1_180_000_000,
+    handoverAcceptedAt: '2026-06-06', handoverAcceptedBy: 'USR-002',
   },
   /**
    * PRJ-104 (Prompt 19 — Change Request) — Project Order kedua untuk repeat client PTY-001 (sumber:
    * OPP-008/QUO-008, `app/data/opportunities.ts`), memenuhi skenario "Active Client dengan beberapa
    * Project Orders". Sengaja `draft`/actualCost 0 — project baru saja terbentuk dari Won, belum ada
    * service/vendor/invoice yang diisi Operations (kondisi realistis, bukan gap tersembunyi).
+   * Section 09 (roadmap Section 00–24 baru) — `handoverAcceptedAt` SENGAJA dibiarkan kosong (berbeda dari
+   * PRJ-101/102/103 yang di-backfill "sudah accepted") agar skenario "Handover Pending" + tombol Accept/
+   * Return Handover benar-benar demonstrable pada data yang realistis (project yang memang baru saja Won).
    */
   {
     id: 'PRJ-104', name: 'Manila Follow-up Training Q1 2027', partyId: 'PTY-001', opportunityId: 'OPP-008',
@@ -70,27 +76,36 @@ export const PROJECT_SERVICES: ProjectService[] = reactive([
 ])
 
 /** Daily itinerary (Section 12) — jadwal harian per project, `groupId` merujuk `TravelerGroup` (Section 11) yang sudah ada. */
+/**
+ * `timezone`/`visibleToClient` (Section 12 baru, roadmap Section 00–24) — backfill aditif. Satu item
+ * internal-only per project (`ITIN-1015`/`ITIN-1026`/`ITIN-1037`) ditambahkan sebagai catatan operasional
+ * yang TIDAK boleh terlihat Client (briefing internal, bukan bagian itinerary yang disepakati client) —
+ * mendemokan "Internal vs client-shared itinerary" secara nyata, bukan hanya field kosong tanpa contoh.
+ */
 export const ITINERARY_ITEMS: ItineraryItem[] = reactive([
   // PRJ-101 — Manila, 20-23 Agustus 2026, flight only.
-  { id: 'ITIN-1011', projectId: 'PRJ-101', date: '2026-08-20', time: '08:00', title: 'Keberangkatan Jakarta → Manila', description: 'Seluruh 6 traveler berangkat bersama', serviceType: 'flight' },
-  { id: 'ITIN-1012', projectId: 'PRJ-101', date: '2026-08-21', time: '09:00', title: 'Agenda Bisnis Hari 1', description: 'Pertemuan dengan client di kantor cabang Manila' },
-  { id: 'ITIN-1013', projectId: 'PRJ-101', date: '2026-08-22', time: '09:00', title: 'Agenda Bisnis Hari 2', description: 'Kunjungan lokasi mitra' },
-  { id: 'ITIN-1014', projectId: 'PRJ-101', date: '2026-08-23', time: '15:00', title: 'Kepulangan Manila → Jakarta', serviceType: 'flight' },
+  { id: 'ITIN-1011', projectId: 'PRJ-101', date: '2026-08-20', time: '08:00', title: 'Keberangkatan Jakarta → Manila', description: 'Seluruh 6 traveler berangkat bersama', serviceType: 'flight', timezone: 'Asia/Jakarta' },
+  { id: 'ITIN-1012', projectId: 'PRJ-101', date: '2026-08-21', time: '09:00', title: 'Agenda Bisnis Hari 1', description: 'Pertemuan dengan client di kantor cabang Manila', timezone: 'Asia/Manila' },
+  { id: 'ITIN-1013', projectId: 'PRJ-101', date: '2026-08-22', time: '09:00', title: 'Agenda Bisnis Hari 2', description: 'Kunjungan lokasi mitra', timezone: 'Asia/Manila' },
+  { id: 'ITIN-1014', projectId: 'PRJ-101', date: '2026-08-23', time: '15:00', title: 'Kepulangan Manila → Jakarta', serviceType: 'flight', timezone: 'Asia/Manila' },
+  { id: 'ITIN-1015', projectId: 'PRJ-101', date: '2026-08-20', time: '06:00', title: 'Briefing Internal Tim Sebelum Keberangkatan', description: 'Pengecekan dokumen dan manifest oleh Ticketing — tidak ditampilkan ke client', timezone: 'Asia/Jakarta', visibleToClient: false },
 
   // PRJ-102 — Abu Dhabi, 22-26 September 2026 (revised), flight + hotel.
-  { id: 'ITIN-1021', projectId: 'PRJ-102', date: '2026-09-22', time: '10:00', title: 'Keberangkatan Jakarta → Abu Dhabi', serviceType: 'flight' },
-  { id: 'ITIN-1022', projectId: 'PRJ-102', date: '2026-09-22', time: '20:00', title: 'Check-in Hotel (Room Block A)', description: 'Check-in setelah upgrade tipe kamar ke Suite', serviceType: 'hotel' },
-  { id: 'ITIN-1023', projectId: 'PRJ-102', date: '2026-09-23', time: '09:00', title: 'Corporate Gathering — Hari 1' },
-  { id: 'ITIN-1024', projectId: 'PRJ-102', date: '2026-09-25', time: '09:00', title: 'Corporate Gathering — Hari 2' },
-  { id: 'ITIN-1025', projectId: 'PRJ-102', date: '2026-09-26', time: '14:00', title: 'Kepulangan Abu Dhabi → Jakarta', serviceType: 'flight' },
+  { id: 'ITIN-1021', projectId: 'PRJ-102', date: '2026-09-22', time: '10:00', title: 'Keberangkatan Jakarta → Abu Dhabi', serviceType: 'flight', timezone: 'Asia/Jakarta' },
+  { id: 'ITIN-1022', projectId: 'PRJ-102', date: '2026-09-22', time: '20:00', title: 'Check-in Hotel (Room Block A)', description: 'Check-in setelah upgrade tipe kamar ke Suite', serviceType: 'hotel', timezone: 'Asia/Dubai' },
+  { id: 'ITIN-1023', projectId: 'PRJ-102', date: '2026-09-23', time: '09:00', title: 'Corporate Gathering — Hari 1', timezone: 'Asia/Dubai' },
+  { id: 'ITIN-1024', projectId: 'PRJ-102', date: '2026-09-25', time: '09:00', title: 'Corporate Gathering — Hari 2', timezone: 'Asia/Dubai' },
+  { id: 'ITIN-1025', projectId: 'PRJ-102', date: '2026-09-26', time: '14:00', title: 'Kepulangan Abu Dhabi → Jakarta', serviceType: 'flight', timezone: 'Asia/Dubai' },
+  { id: 'ITIN-1026', projectId: 'PRJ-102', date: '2026-09-22', time: '18:00', title: 'Serah Terima Room Block ke Tim Accommodation', description: 'Koordinasi internal upgrade Suite — tidak ditampilkan ke client', timezone: 'Asia/Dubai', visibleToClient: false },
 
   // PRJ-103 — Palu, 10-14 Agustus 2026, flight+hotel+transportation+MICE, 3 traveler group.
-  { id: 'ITIN-1031', projectId: 'PRJ-103', date: '2026-08-10', time: '07:00', title: 'Kedatangan Group Management', description: 'Batch 1 tiba di Palu', serviceType: 'flight', groupId: 'GRP-001' },
-  { id: 'ITIN-1032', projectId: 'PRJ-103', date: '2026-08-10', time: '15:00', title: 'Kedatangan Group Partner / VIP', description: 'Batch 2 (VIP) menyusul', serviceType: 'flight', groupId: 'GRP-003' },
-  { id: 'ITIN-1033', projectId: 'PRJ-103', date: '2026-08-11', time: '08:00', title: 'MICE Conference — Hari 1', serviceType: 'mice' },
-  { id: 'ITIN-1034', projectId: 'PRJ-103', date: '2026-08-12', time: '08:00', title: 'MICE Conference — Hari 2', serviceType: 'mice' },
-  { id: 'ITIN-1035', projectId: 'PRJ-103', date: '2026-08-13', time: '10:00', title: 'City Tour & Free Program', serviceType: 'transportation' },
-  { id: 'ITIN-1036', projectId: 'PRJ-103', date: '2026-08-14', time: '16:00', title: 'Kepulangan Seluruh Group', serviceType: 'flight' },
+  { id: 'ITIN-1031', projectId: 'PRJ-103', date: '2026-08-10', time: '07:00', title: 'Kedatangan Group Management', description: 'Batch 1 tiba di Palu', serviceType: 'flight', groupId: 'GRP-001', timezone: 'Asia/Makassar' },
+  { id: 'ITIN-1032', projectId: 'PRJ-103', date: '2026-08-10', time: '15:00', title: 'Kedatangan Group Partner / VIP', description: 'Batch 2 (VIP) menyusul', serviceType: 'flight', groupId: 'GRP-003', timezone: 'Asia/Makassar' },
+  { id: 'ITIN-1033', projectId: 'PRJ-103', date: '2026-08-11', time: '08:00', title: 'MICE Conference — Hari 1', serviceType: 'mice', timezone: 'Asia/Makassar' },
+  { id: 'ITIN-1034', projectId: 'PRJ-103', date: '2026-08-12', time: '08:00', title: 'MICE Conference — Hari 2', serviceType: 'mice', timezone: 'Asia/Makassar' },
+  { id: 'ITIN-1035', projectId: 'PRJ-103', date: '2026-08-13', time: '10:00', title: 'City Tour & Free Program', serviceType: 'transportation', timezone: 'Asia/Makassar' },
+  { id: 'ITIN-1036', projectId: 'PRJ-103', date: '2026-08-14', time: '16:00', title: 'Kepulangan Seluruh Group', serviceType: 'flight', timezone: 'Asia/Makassar' },
+  { id: 'ITIN-1037', projectId: 'PRJ-103', date: '2026-08-11', time: '07:00', title: 'Briefing Tim Operations Sebelum Hari MICE', description: 'Cek kesiapan venue dan AV, alokasi shift staf — tidak ditampilkan ke client', timezone: 'Asia/Makassar', visibleToClient: false },
 ])
 
 /**
@@ -109,32 +124,41 @@ export const TRAVELER_GROUPS: TravelerGroup[] = reactive([
   { id: 'GRP-003', projectId: 'PRJ-103', name: 'Partner / VIP', paxCount: 25, roomingNote: '2 suite VIP (termasuk kebutuhan aksesibilitas)' },
 ])
 
+/**
+ * Field Section 11 baru (roadmap Section 00–24) di-backfill selektif — bukan seluruh 17 traveler, agar
+ * setiap kondisi (visa lengkap/tidak lengkap, companion, verified/belum, dietary/accessibility) punya
+ * contoh nyata tanpa mengubah makna profil existing. `idNumber` KTP fiktif format 16 digit standar.
+ */
 export const TRAVELERS: Traveler[] = reactive([
   // PRJ-101 — Normal Project, travelerCount 6, seluruhnya profil lengkap (skenario "berjalan mulus").
-  { id: 'TRV-1011', projectId: 'PRJ-101', name: 'Hendra Wijaya', passportNumber: 'B1234561', passportExpiryDate: '2029-04-10', emergencyContactName: 'Rina Wijaya', emergencyContactPhone: '0812-1000-1001' },
+  { id: 'TRV-1011', projectId: 'PRJ-101', name: 'Hendra Wijaya', passportNumber: 'B1234561', passportExpiryDate: '2029-04-10', emergencyContactName: 'Rina Wijaya', emergencyContactPhone: '0812-1000-1001', idNumber: '3171012501850001', documentsVerifiedAt: '2026-07-15', documentsVerifiedBy: 'USR-002' },
   { id: 'TRV-1012', projectId: 'PRJ-101', name: 'Siti Rahmawati', passportNumber: 'B1234562', passportExpiryDate: '2029-06-15', emergencyContactName: 'Budi Rahman', emergencyContactPhone: '0812-1000-1002' },
   { id: 'TRV-1013', projectId: 'PRJ-101', name: 'Agus Setiawan', passportNumber: 'B1234563', passportExpiryDate: '2028-11-02', emergencyContactName: 'Wati Setiawan', emergencyContactPhone: '0812-1000-1003' },
   { id: 'TRV-1014', projectId: 'PRJ-101', name: 'Dewi Lestari', passportNumber: 'B1234564', passportExpiryDate: '2029-01-20', emergencyContactName: 'Hadi Lestari', emergencyContactPhone: '0812-1000-1004' },
   { id: 'TRV-1015', projectId: 'PRJ-101', name: 'Rian Firmansyah', passportNumber: 'B1234565', passportExpiryDate: '2028-09-30' },
-  { id: 'TRV-1016', projectId: 'PRJ-101', name: 'Nadia Puspita', passportNumber: 'B1234566', passportExpiryDate: '2029-03-05', emergencyContactName: 'Sari Puspita', emergencyContactPhone: '0812-1000-1006' },
+  { id: 'TRV-1016', projectId: 'PRJ-101', name: 'Nadia Puspita', passportNumber: 'B1234566', passportExpiryDate: '2029-03-05', emergencyContactName: 'Sari Puspita', emergencyContactPhone: '0812-1000-1006', dietaryRestrictions: 'Vegetarian', companionOfTravelerId: 'TRV-1011' },
 
   // PRJ-102 — High-Change Project, travelerCount 18 (sampel). Salah satu paspor akan kedaluwarsa < 6 bulan
   // dari tanggal keberangkatan (docs/mockup-data-scenarios.md bagian 2.4), satu lagi sengaja belum lengkap
-  // sama sekali — mendemonstrasikan dua varian missing-document indicator.
-  { id: 'TRV-1021', projectId: 'PRJ-102', name: 'Sarah Amelia', passportNumber: 'C2234561', passportExpiryDate: '2028-12-01', emergencyContactName: 'Fajar Amelia', emergencyContactPhone: '0813-2000-2001' },
+  // sama sekali — mendemonstrasikan dua varian missing-document indicator. UAE mewajibkan visa untuk WNI —
+  // destinasi ini dipakai sebagai contoh field visa (Section 11 baru): TRV-1021 visa lengkap (tetap
+  // "Dokumen Lengkap"), TRV-1025 visa TANPA tanggal kedaluwarsa (sebelumnya lengkap, kini sengaja berubah
+  // "Dokumen Belum Lengkap" oleh aturan visa baru — didokumentasikan, bukan regresi tersembunyi).
+  { id: 'TRV-1021', projectId: 'PRJ-102', name: 'Sarah Amelia', passportNumber: 'C2234561', passportExpiryDate: '2028-12-01', emergencyContactName: 'Fajar Amelia', emergencyContactPhone: '0813-2000-2001', visaNumber: 'UAE-VS-88213', visaExpiryDate: '2027-06-30', documentsVerifiedAt: '2026-07-20', documentsVerifiedBy: 'USR-013' },
   { id: 'TRV-1022', projectId: 'PRJ-102', name: 'Yusuf Maulana', passportNumber: 'C2234562', passportExpiryDate: '2027-01-15', emergencyContactName: 'Lia Maulana', emergencyContactPhone: '0813-2000-2002', specialRequest: 'Permintaan menu makanan halal khusus' },
   { id: 'TRV-1023', projectId: 'PRJ-102', name: 'Indah Permatasari', emergencyContactName: 'Doni Permata', emergencyContactPhone: '0813-2000-2003' },
-  { id: 'TRV-1024', projectId: 'PRJ-102', name: 'Bayu Aditya', passportNumber: 'C2234564', passportExpiryDate: '2028-08-18' },
-  { id: 'TRV-1025', projectId: 'PRJ-102', name: 'Citra Ananda', passportNumber: 'C2234565', passportExpiryDate: '2029-02-22', emergencyContactName: 'Wahyu Ananda', emergencyContactPhone: '0813-2000-2005' },
+  { id: 'TRV-1024', projectId: 'PRJ-102', name: 'Bayu Aditya', passportNumber: 'C2234564', passportExpiryDate: '2028-08-18', dietaryRestrictions: 'Tanpa seafood', accessibilityNeeds: 'Kursi roda saat transit bandara' },
+  { id: 'TRV-1025', projectId: 'PRJ-102', name: 'Citra Ananda', passportNumber: 'C2234565', passportExpiryDate: '2029-02-22', emergencyContactName: 'Wahyu Ananda', emergencyContactPhone: '0813-2000-2005', visaNumber: 'UAE-VS-88220' },
   { id: 'TRV-1026', projectId: 'PRJ-102', name: 'Fikri Ramadhan', passportNumber: 'C2234566', passportExpiryDate: '2028-10-11', emergencyContactName: 'Mega Ramadhan', emergencyContactPhone: '0813-2000-2006' },
 
   // PRJ-103 — Complex Project, travelerCount 60 (sampel per group, rooming list lihat ROOM_ASSIGNMENTS).
-  { id: 'TRV-1031', projectId: 'PRJ-103', groupId: 'GRP-003', name: 'Dedi Kurniawan', passportNumber: 'D3334561', passportExpiryDate: '2028-05-14', emergencyContactName: 'Ani Kurniawan', emergencyContactPhone: '0814-3000-3001', specialRequest: 'Membutuhkan akses kursi roda' },
-  { id: 'TRV-1032', projectId: 'PRJ-103', groupId: 'GRP-001', name: 'Michael Tanuwijaya', passportNumber: 'D3334562', passportExpiryDate: '2029-07-09', emergencyContactName: 'Grace Tanuwijaya', emergencyContactPhone: '0814-3000-3002' },
+  // Destinasi domestik (Palu) — tidak diberi field visa (realistis, tidak seluruh destinasi butuh visa).
+  { id: 'TRV-1031', projectId: 'PRJ-103', groupId: 'GRP-003', name: 'Dedi Kurniawan', passportNumber: 'D3334561', passportExpiryDate: '2028-05-14', emergencyContactName: 'Ani Kurniawan', emergencyContactPhone: '0814-3000-3001', accessibilityNeeds: 'Membutuhkan akses kursi roda', idNumber: '7371014503880002', documentsVerifiedAt: '2026-07-22', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-1032', projectId: 'PRJ-103', groupId: 'GRP-001', name: 'Michael Tanuwijaya', passportNumber: 'D3334562', passportExpiryDate: '2029-07-09', emergencyContactName: 'Grace Tanuwijaya', emergencyContactPhone: '0814-3000-3002', documentsVerifiedAt: '2026-07-22', documentsVerifiedBy: 'USR-002' },
   { id: 'TRV-1033', projectId: 'PRJ-103', groupId: 'GRP-001', name: 'Putri Anggraeni', passportNumber: 'D3334563', passportExpiryDate: '2028-12-25', emergencyContactName: 'Rudi Anggraeni', emergencyContactPhone: '0814-3000-3003' },
   { id: 'TRV-1034', projectId: 'PRJ-103', groupId: 'GRP-002', name: 'Taufik Hidayat', emergencyContactName: 'Sinta Hidayat', emergencyContactPhone: '0814-3000-3004' },
   { id: 'TRV-1035', projectId: 'PRJ-103', groupId: 'GRP-002', name: 'Ayu Wulandari', passportNumber: 'D3334565', passportExpiryDate: '2029-05-30' },
-  { id: 'TRV-1036', projectId: 'PRJ-103', groupId: 'GRP-003', name: 'Reza Firmansyah', passportNumber: 'D3334566', passportExpiryDate: '2028-08-08', emergencyContactName: 'Nia Firmansyah', emergencyContactPhone: '0814-3000-3006' },
+  { id: 'TRV-1036', projectId: 'PRJ-103', groupId: 'GRP-003', name: 'Reza Firmansyah', passportNumber: 'D3334566', passportExpiryDate: '2028-08-08', emergencyContactName: 'Nia Firmansyah', emergencyContactPhone: '0814-3000-3006', companionOfTravelerId: 'TRV-1031' },
 ])
 
 /** Rooming list eksplisit (Section 11) — hanya untuk traveler bernama yang datanya sudah tercatat di atas. */
