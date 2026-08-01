@@ -38,8 +38,14 @@ const totalQualified = computed(() => LEADS.filter(lead => lead.stage === 'quali
 const totalOpportunities = computed(() => LEADS.filter(lead => lead.opportunityId).length)
 const totalWon = computed(() => LEADS.filter(lead => lead.opportunityId && getOpportunityById(lead.opportunityId)?.stage === 'won').length)
 
+/**
+ * Section 24 regression fix: `Array.prototype.sort` mutates in place. Sorting `recapRows.value` directly
+ * mutated the SAME array instance cached by the `recapRows` computed (used unsorted by "Detail per Sumber"
+ * table below) as a side effect of this unrelated computed — silently reordering that table depending on
+ * Vue's evaluation order. Copy before sorting so `recapRows` stays in its own declared `LEAD_SOURCES` order.
+ */
 const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
-  recapRows.value
+  [...recapRows.value]
     .sort((a, b) => b.totalLeads - a.totalLeads)
     .map(row => ({ key: row.source.value, label: row.source.label, tone: row.source.tone, count: row.totalLeads })),
 )

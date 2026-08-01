@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { SYSTEM_EVENTS, getUserById } from '~/data'
+import { SYSTEM_EVENTS, VENDOR_QUOTATIONS, getUserById, getOpportunityById, getQuotationById, getPartyById, getProjectById } from '~/data'
 import { formatDateTime } from '~/utils/format'
-import type { SystemEventModule } from '~/types/activity'
+import type { SystemEvent, SystemEventModule } from '~/types/activity'
 import type { BadgeTone } from '~/types/common'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -53,6 +53,37 @@ const moduleCounts = computed(() => {
   for (const event of SYSTEM_EVENTS) map.set(event.module, (map.get(event.module) ?? 0) + 1)
   return map
 })
+
+/**
+ * Drill-down link per event (Section 22) — memetakan `module`+`entityId` ke route detail yang SUDAH ADA,
+ * HANYA bila pemetaannya aman/jelas (reuse selector `~/data` existing, tidak menebak route). Module `lead`
+ * (tidak ada route `[id]`, hanya drawer di `/customer-journey/leads`), `finance` (`entityId` berupa
+ * INV-xxx/PAY-xxx, `/finance/invoices` tidak punya route/filter per-ID), dan `user` (`/admin/users` tidak
+ * punya route `[id]`) SENGAJA tidak menghasilkan link — bukan gap tersembunyi, didokumentasikan di
+ * `docs/frontend-known-issues.md` bagian 17.
+ */
+function eventLink(event: SystemEvent): string | undefined {
+  if (!event.entityId) return undefined
+  switch (event.module) {
+    case 'opportunity':
+      return getOpportunityById(event.entityId) ? `/crm/opportunities/${event.entityId}` : undefined
+    case 'quotation': {
+      const quotation = getQuotationById(event.entityId)
+      return quotation ? `/crm/opportunities/${quotation.opportunityId}` : undefined
+    }
+    case 'client':
+      return getPartyById(event.entityId) ? `/crm/parties/${event.entityId}` : undefined
+    case 'project-order':
+      return getProjectById(event.entityId) ? `/projects/${event.entityId}` : undefined
+    case 'vendor': {
+      // `entityId` untuk module `vendor` adalah ID VendorQuotation (mis. VQ-009), bukan ID Vendor — tautkan ke Vendor pemilik quotation tsb.
+      const vendorQuotation = VENDOR_QUOTATIONS.find(q => q.id === event.entityId)
+      return vendorQuotation ? `/vendors/${vendorQuotation.vendorId}` : undefined
+    }
+    default:
+      return undefined
+  }
+}
 </script>
 
 <template>
@@ -90,7 +121,8 @@ const moduleCounts = computed(() => {
         <ul v-if="filteredEvents.length" class="divide-y divide-border">
           <li v-for="event in filteredEvents" :key="event.id" class="py-3 flex items-start justify-between gap-4">
             <div class="min-w-0">
-              <p class="text-sm text-foreground">{{ event.message }}</p>
+              <NuxtLink v-if="eventLink(event)" :to="eventLink(event) ?? '/activity-center'" class="text-sm text-foreground hover:underline">{{ event.message }}</NuxtLink>
+              <p v-else class="text-sm text-foreground">{{ event.message }}</p>
               <p class="text-xs text-muted-foreground">
                 {{ formatDateTime(event.createdAt) }}
                 <template v-if="event.entityId"> · <span class="font-mono">{{ event.entityId }}</span></template>

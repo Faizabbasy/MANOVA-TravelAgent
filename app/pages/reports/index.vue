@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
-import { Handshake, FolderKanban, PlaneTakeoff, Building2, Wallet, Receipt } from 'lucide-vue-next'
+import { ref, computed } from 'vue'
+import { Handshake, FolderKanban, PlaneTakeoff, Building2, Wallet, Receipt, Download, Save, X, Clock } from 'lucide-vue-next'
 import {
   PROJECTS, OPPORTUNITIES, QUOTATIONS, VENDOR_QUOTATIONS, INVOICES,
   getProjectById, getProjectServices, getServicesForProjects, getVendorById,
   getCommittedVendorCostIdr, getInvoiceOutstandingIdr,
+  getSavedViewsForUser, createSavedView, deleteSavedView, applySavedView,
 } from '~/data'
 import {
   PROJECT_STATUSES, PROJECT_CHARACTERISTICS, OPPORTUNITY_STAGES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES,
@@ -19,14 +20,19 @@ import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownLis
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Reports' })
 
-const { currentRole } = useCurrentUser()
+const { currentRole, currentUser } = useCurrentUser()
 const { canView } = usePermissions()
+const { showToast } = useToast()
 
-// Simulasi loading state singkat (pola Dashboard Section 06) — data fixture sebenarnya sinkron.
-const isLoading = ref(true)
-onMounted(() => {
-  setTimeout(() => { isLoading.value = false }, 400)
-})
+/**
+ * Section 22 (D-079) — SSR loading-skeleton fix (identik rasional Dashboard `app/pages/index.vue`).
+ * Bug ini yang persis dicatat `docs/frontend-known-issues.md` bagian 15/17 ("reports/index.vue SSR selalu
+ * menampilkan LoadingState") — root cause `isLoading` hanya di-toggle lewat `setTimeout` di `onMounted`
+ * yang tidak pernah berjalan saat SSR. Data di halaman ini seluruhnya fixture sinkron, tidak ada alasan
+ * genuine untuk menahan render — dihilangkan sepenuhnya (bukan diberi delay client-only, agar konten yang
+ * sudah benar dari SSR tidak sempat "hilang" lagi jadi skeleton setelah hydration).
+ */
+const isLoading = ref(false)
 
 function visibleTo(...roles: RoleId[]) {
   return computed(() => roles.includes(currentRole.value))
@@ -48,6 +54,68 @@ function matchesFilters(project: Project): boolean {
 
 const filteredProjects = computed(() => PROJECTS.filter(matchesFilters))
 const filteredProjectIds = computed(() => filteredProjects.value.map(p => p.id))
+
+/**
+ * Saved Views (Section 22, D-079) — membungkus 3 filter Reports yang SUDAH ADA di atas. Centralized
+ * reactive mock state (`app/data/reporting.ts`), per user login — konsisten pola Dashboard, BUKAN
+ * localStorage/sessionStorage.
+ */
+const mySavedViews = computed(() => getSavedViewsForUser(currentUser.value.id, 'reports'))
+const isSaveViewOpen = ref(false)
+const newViewLabel = ref('')
+
+function submitSaveView() {
+  const label = newViewLabel.value.trim()
+  if (!label) return
+  createSavedView({
+    userId: currentUser.value.id,
+    page: 'reports',
+    label,
+    filters: { status: statusFilter.value, type: typeFilter.value, period: periodFilter.value },
+  })
+  showToast('Saved View Disimpan', `"${label}" tersimpan — dapat diterapkan ulang kapan saja.`, 'success')
+  newViewLabel.value = ''
+  isSaveViewOpen.value = false
+}
+
+function applyView(id: string) {
+  const view = applySavedView(id)
+  if (!view) return
+  statusFilter.value = (view.filters.status ?? 'all') as typeof statusFilter.value
+  typeFilter.value = (view.filters.type ?? 'all') as typeof typeFilter.value
+  periodFilter.value = (view.filters.period ?? 'all') as typeof periodFilter.value
+  showToast('Saved View Diterapkan', `Filter "${view.label}" diterapkan.`, 'success')
+}
+
+function removeView(id: string, label: string) {
+  deleteSavedView(id)
+  showToast('Saved View Dihapus', `"${label}" telah dihapus.`, 'info')
+}
+
+/**
+ * Export mock (Section 22) — CSV/PDF placeholder. TIDAK ADA file yang benar-benar dihasilkan (larangan
+ * protokol eksplisit) — murni simulasi nama file + toast, konsisten pola D-006.
+ */
+const EXPORT_SECTIONS = [
+  { key: 'sales-pipeline', label: 'Sales Pipeline' },
+  { key: 'project-performance', label: 'Project Performance' },
+  { key: 'departure-readiness', label: 'Upcoming Departure dan Service Readiness' },
+  { key: 'vendor-summary', label: 'Vendor Summary' },
+  { key: 'budget-margin', label: 'Budget vs Actual dan Margin' },
+  { key: 'invoice-aging', label: 'Invoice Aging dan Outstanding' },
+  { key: 'sla-quotation-performance', label: 'SLA dan Quotation Performance' },
+  { key: 'full-report', label: 'Seluruh Laporan' },
+]
+const isExportOpen = ref(false)
+const exportSectionKey = ref(EXPORT_SECTIONS[EXPORT_SECTIONS.length - 1].key)
+const exportFormat = ref<'csv' | 'pdf'>('csv')
+
+function submitExport() {
+  const section = EXPORT_SECTIONS.find(item => item.key === exportSectionKey.value)
+  const filename = `${exportSectionKey.value}-${DEMO_REFERENCE_DATE}.${exportFormat.value}`
+  showToast('Export Disiapkan', `${filename} — bagian "${section?.label}" (mock, tidak ada file yang benar-benar dihasilkan).`, 'success')
+  isExportOpen.value = false
+}
 
 /* ==================================================
  * Section 1 — Sales Pipeline (Sales/Management/Super Admin/Viewer)
@@ -207,6 +275,39 @@ function agingLabel(days: number): string {
 }
 
 /* ==================================================
+ * Section 7 — SLA dan Quotation Performance (Section 22, BARU — bukan reuse section 1-6).
+ * Domain Opportunity/Quotation (sama seperti Sales Pipeline) — TIDAK terpengaruh filter Project di atas.
+ * Metrik dihitung dari `Opportunity.createdAt` → `Quotation.createdAt` (bukan `Quotation.sentToClientAt`,
+ * yang HANYA terisi untuk 1 dari seluruh quotation saat ini — field opsional, belum konsisten dipakai
+ * cukup untuk jadi metrik utama, lihat kartu terpisah di bawah). Threshold SLA (3 hari) adalah ASUMSI MOCK
+ * eksplisit untuk demo — BUKAN SLA kontraktual nyata dengan client (D-079). "Approval cycle time" (dari
+ * literal Section 22 Wajib) TIDAK dihitung — `Quotation` tidak memiliki field timestamp `approvedAt`
+ * tersimpan (hanya `approvedBy`/`approvalNote`), lihat `docs/frontend-known-issues.md` bagian 17.
+ * ================================================== */
+const QUOTATION_SLA_THRESHOLD_DAYS = 3
+
+const opportunityQuotationCycle = computed(() => OPPORTUNITIES
+  .map((opportunity) => {
+    const quotation = QUOTATIONS.find(q => q.opportunityId === opportunity.id)
+    if (!quotation) return null
+    const cycleDays = daysUntil(quotation.createdAt, opportunity.createdAt)
+    return { opportunity, quotation, cycleDays, withinSla: cycleDays <= QUOTATION_SLA_THRESHOLD_DAYS }
+  })
+  .filter((row): row is NonNullable<typeof row> => row !== null)
+  .sort((a, b) => b.cycleDays - a.cycleDays))
+
+const avgQuotationCycleDays = computed(() => {
+  if (opportunityQuotationCycle.value.length === 0) return 0
+  const sum = opportunityQuotationCycle.value.reduce((acc, row) => acc + row.cycleDays, 0)
+  return Math.round((sum / opportunityQuotationCycle.value.length) * 10) / 10
+})
+const withinSlaPct = computed(() => {
+  if (opportunityQuotationCycle.value.length === 0) return 0
+  return (opportunityQuotationCycle.value.filter(row => row.withinSla).length / opportunityQuotationCycle.value.length) * 100
+})
+const quotationsSentToClient = computed(() => QUOTATIONS.filter(q => q.sentToClientAt))
+
+/* ==================================================
  * Visibilitas per section (docs/route-and-role-matrix.md bagian 5/6 — lihat catatan implementasi Section 16
  * di dokumen tsb untuk pemetaan 6 section granular terhadap 4 section yang tercatat di bagian 5).
  * `account-executive` ditambahkan Prompt 19 (Change Request) — AE mengambil alih pengelolaan Opportunity/
@@ -219,6 +320,8 @@ const showDepartureReadiness = visibleTo('project-manager', 'management', 'super
 const showVendorSummary = visibleTo('project-manager', 'finance', 'management', 'super-admin', 'viewer')
 const showBudgetMargin = visibleTo('finance', 'management', 'super-admin', 'viewer')
 const showInvoiceAging = visibleTo('finance', 'management', 'super-admin', 'viewer')
+/** SLA dan Quotation Performance (Section 22) — sama seperti Sales Pipeline (domain Opportunity/Quotation, dikelola Sales/AE, dipantau Management). */
+const showSlaPerformance = visibleTo('sales', 'account-executive', 'management', 'super-admin', 'viewer')
 </script>
 
 <template>
@@ -227,7 +330,40 @@ const showInvoiceAging = visibleTo('finance', 'management', 'super-admin', 'view
       title="Reports"
       description="Sales Pipeline, Project Performance, Vendor Summary, Budget vs Actual, dan Finance Summary — seluruhnya diturunkan dari data domain yang sama dengan modul sumber."
       :breadcrumb="[{ label: 'Reports' }]"
-    />
+    >
+      <template #actions>
+        <Dialog v-model:open="isExportOpen">
+          <DialogTrigger as-child>
+            <Button size="sm" variant="outline"><Download class="h-4 w-4 mr-1.5" />Export</Button>
+          </DialogTrigger>
+          <DialogContent class="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Export Report</DialogTitle>
+              <DialogDescription>Mock export — tidak ada file yang benar-benar dihasilkan, murni simulasi (D-006).</DialogDescription>
+            </DialogHeader>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="export-section">Bagian</Label>
+                <select id="export-section" v-model="exportSectionKey" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="section in EXPORT_SECTIONS" :key="section.key" :value="section.key">{{ section.label }}</option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
+                <Label for="export-format">Format</Label>
+                <select id="export-format" v-model="exportFormat" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="csv">CSV</option>
+                  <option value="pdf">PDF</option>
+                </select>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" @click="isExportOpen = false">Batal</Button>
+              <Button @click="submitExport">Export</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </template>
+    </PageHeader>
 
     <RoleAccessState v-if="!canView('reports')" module-label="modul Reports" />
 
@@ -235,7 +371,29 @@ const showInvoiceAging = visibleTo('finance', 'management', 'super-admin', 'view
       <LoadingState v-if="isLoading" message="Menyusun laporan..." :rows="5" />
 
       <template v-else>
-        <SectionCard title="Filter" description="Berlaku untuk seluruh section berbasis Project di bawah (Sales Pipeline tidak terpengaruh).">
+        <SectionCard title="Filter" description="Berlaku untuk seluruh section berbasis Project di bawah (Sales Pipeline dan SLA/Quotation Performance tidak terpengaruh).">
+          <template #actions>
+            <Dialog v-model:open="isSaveViewOpen">
+              <DialogTrigger as-child>
+                <Button size="sm" variant="outline"><Save class="h-4 w-4 mr-1.5" />Simpan View</Button>
+              </DialogTrigger>
+              <DialogContent class="max-w-sm">
+                <DialogHeader>
+                  <DialogTitle>Simpan Saved View</DialogTitle>
+                  <DialogDescription>Menyimpan kombinasi filter aktif saat ini (mock, tersimpan per user login, bukan localStorage).</DialogDescription>
+                </DialogHeader>
+                <div class="space-y-1.5 py-2">
+                  <Label for="reports-view-label">Nama View</Label>
+                  <Input id="reports-view-label" v-model="newViewLabel" placeholder="mis. Project In Progress Kuartal Ini" />
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" @click="isSaveViewOpen = false">Batal</Button>
+                  <Button :disabled="!newViewLabel.trim()" @click="submitSaveView">Simpan</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </template>
+
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Select v-model="statusFilter">
               <SelectTrigger><SelectValue placeholder="Status Project" /></SelectTrigger>
@@ -263,6 +421,16 @@ const showInvoiceAging = visibleTo('finance', 'management', 'super-admin', 'view
               </SelectContent>
             </Select>
           </div>
+
+          <div v-if="mySavedViews.length" class="mt-4 pt-4 border-t border-border flex flex-wrap items-center gap-2">
+            <span class="text-xs text-muted-foreground shrink-0">Saved Views:</span>
+            <div v-for="view in mySavedViews" :key="view.id" class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 pl-3 pr-1 py-1 text-xs">
+              <button type="button" class="text-foreground hover:underline" @click="applyView(view.id)">{{ view.label }}</button>
+              <button type="button" class="text-muted-foreground hover:text-destructive p-0.5" title="Hapus" @click="removeView(view.id, view.label)">
+                <X class="h-3 w-3" />
+              </button>
+            </div>
+          </div>
         </SectionCard>
 
         <!-- Section 1: Sales Pipeline -->
@@ -273,6 +441,17 @@ const showInvoiceAging = visibleTo('finance', 'management', 'super-admin', 'view
             <StatsCard title="Win Rate" :value="formatPercentage(winRatePct)" :subtitle="`${wonCount} Won / ${lostCount} Lost`" :icon="Handshake" icon-color="success" />
           </div>
           <StatusBreakdownList :items="salesPipelineItems" empty-label="Tidak ada opportunity dalam pipeline" />
+          <div v-if="salesPipelineItems.length" class="mt-4 pt-4 border-t border-border flex flex-wrap items-center gap-2">
+            <span class="text-xs text-muted-foreground shrink-0">Lihat detail per stage:</span>
+            <NuxtLink
+              v-for="item in salesPipelineItems"
+              :key="item.key"
+              :to="`/crm/opportunities?stage=${item.key}`"
+              class="text-xs text-primary hover:underline"
+            >
+              {{ item.label }} ({{ item.count }})
+            </NuxtLink>
+          </div>
         </SectionCard>
 
         <!-- Section 2: Project Performance -->
@@ -320,6 +499,11 @@ const showInvoiceAging = visibleTo('finance', 'management', 'super-admin', 'view
 
         <!-- Section 4: Vendor Summary -->
         <SectionCard v-if="showVendorSummary" title="Vendor Summary" description="Status quotation vendor dan committed cost sesuai filter project aktif.">
+          <template #actions>
+            <NuxtLink to="/procurement/performance">
+              <Button size="sm" variant="outline">Procurement Performance Review</Button>
+            </NuxtLink>
+          </template>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
             <StatsCard title="Vendor Aktif" :value="String(activeVendorCount)" :icon="Building2" />
             <StatsCard title="Committed Vendor Cost" :value="formatCurrencyIdr(totalCommittedVendorCostIdr)" :icon="Building2" icon-color="primary" />
@@ -372,7 +556,7 @@ const showInvoiceAging = visibleTo('finance', 'management', 'super-admin', 'view
         </SectionCard>
 
         <!-- Section 6: Invoice Aging dan Outstanding -->
-        <SectionCard v-if="showInvoiceAging" title="Invoice Aging dan Outstanding" description="Invoice belum lunas lintas project sesuai filter aktif, diurutkan dari yang paling overdue.">
+        <SectionCard v-if="showInvoiceAging" title="Invoice Aging dan Outstanding" description="Invoice belum lunas lintas project sesuai filter aktif, diurutkan dari yang paling overdue. Klik baris untuk membuka tab Finance pada Project terkait.">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
             <StatsCard title="Total Outstanding" :value="formatCurrencyIdr(totalOutstandingIdr)" :icon="Receipt" icon-color="warning" />
             <StatsCard title="Invoice Overdue" :value="String(overdueInvoiceCount)" :icon="Receipt" icon-color="destructive" />
@@ -389,7 +573,12 @@ const showInvoiceAging = visibleTo('finance', 'management', 'super-admin', 'view
               </TableRow>
             </TableHeader>
             <TableBody>
-              <TableRow v-for="row in outstandingInvoiceRows" :key="row.invoice.id">
+              <TableRow
+                v-for="row in outstandingInvoiceRows"
+                :key="row.invoice.id"
+                class="cursor-pointer hover:bg-muted/50"
+                @click="navigateTo(`/projects/${row.invoice.projectId}?tab=finance`)"
+              >
                 <TableCell class="font-medium text-foreground">{{ row.invoice.label }}</TableCell>
                 <TableCell class="text-muted-foreground">{{ row.projectName }}</TableCell>
                 <TableCell>{{ formatCurrencyIdr(row.outstandingIdr) }}</TableCell>
@@ -399,6 +588,60 @@ const showInvoiceAging = visibleTo('finance', 'management', 'super-admin', 'view
             </TableBody>
           </Table>
           <EmptyState v-else title="Tidak ada invoice outstanding sesuai filter" />
+        </SectionCard>
+
+        <!-- Section 7: SLA dan Quotation Performance (Section 22, BARU) -->
+        <SectionCard
+          v-if="showSlaPerformance"
+          title="SLA dan Quotation Performance"
+          description="Cycle time Opportunity Created → Quotation Dibuat, lintas party (domain Opportunity/Quotation, tidak terpengaruh filter project di atas)."
+        >
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+            <StatsCard title="Rata-rata Cycle Time" :value="`${avgQuotationCycleDays} hari`" :icon="Clock" />
+            <StatsCard
+              title="Dalam Threshold SLA"
+              :value="formatPercentage(withinSlaPct)"
+              :subtitle="`Threshold mock: ${QUOTATION_SLA_THRESHOLD_DAYS} hari`"
+              :icon="Clock"
+              :icon-color="withinSlaPct >= 50 ? 'success' : 'warning'"
+            />
+            <StatsCard title="Quotation Terkirim ke Client" :value="String(quotationsSentToClient.length)" :subtitle="`dari ${QUOTATIONS.length} quotation`" :icon="Clock" />
+          </div>
+          <p class="text-xs text-muted-foreground mb-4">
+            Threshold SLA {{ QUOTATION_SLA_THRESHOLD_DAYS }} hari adalah <strong>asumsi mock untuk demo</strong>, bukan SLA kontraktual nyata dengan client.
+            "Approval cycle time" (Wajib literal Section 22) tidak dapat dihitung — Quotation tidak menyimpan timestamp <code>approvedAt</code>
+            (hanya <code>approvedBy</code>/<code>approvalNote</code>), lihat known issues.
+          </p>
+          <Table v-if="opportunityQuotationCycle.length">
+            <TableHeader>
+              <TableRow>
+                <TableHead>Opportunity</TableHead>
+                <TableHead>Quotation</TableHead>
+                <TableHead>Opportunity Dibuat</TableHead>
+                <TableHead>Quotation Dibuat</TableHead>
+                <TableHead>Cycle Time</TableHead>
+                <TableHead>SLA</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow
+                v-for="row in opportunityQuotationCycle"
+                :key="row.quotation.id"
+                class="cursor-pointer hover:bg-muted/50"
+                @click="navigateTo(`/crm/opportunities/${row.opportunity.id}`)"
+              >
+                <TableCell class="font-medium text-foreground">{{ row.opportunity.title }}</TableCell>
+                <TableCell class="text-muted-foreground">{{ row.quotation.id }}</TableCell>
+                <TableCell class="text-muted-foreground">{{ formatDate(row.opportunity.createdAt) }}</TableCell>
+                <TableCell class="text-muted-foreground">{{ formatDate(row.quotation.createdAt) }}</TableCell>
+                <TableCell>{{ row.cycleDays }} hari</TableCell>
+                <TableCell>
+                  <StatusBadge :label="row.withinSla ? 'Dalam SLA' : 'Melebihi SLA'" :tone="row.withinSla ? 'success' : 'destructive'" />
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+          <EmptyState v-else title="Belum ada Opportunity dengan Quotation untuk dihitung cycle time-nya" />
         </SectionCard>
       </template>
     </template>

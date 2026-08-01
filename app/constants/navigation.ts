@@ -187,6 +187,8 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Users', to: '/admin/users', icon: ShieldCheck, moduleKey: 'administration' },
       { label: 'Roles and Permissions', to: '/admin/roles', icon: ShieldCheck, moduleKey: 'administration' },
       { label: 'Audit Trail', to: '/admin/audit-trail', icon: ShieldCheck, moduleKey: 'administration' },
+      /** Organization Profile (Section 23 — Administration, Master Data dan Audit, roadmap Section 00–24 baru, D-080). Ditambahkan sebagai anak ke-5, tidak merestrukturisasi 4 anak existing. */
+      { label: 'Organization Profile', to: '/admin/organization', icon: ShieldCheck, moduleKey: 'administration' },
     ],
   },
   /** Supplier Portal (Prompt 19) — External Partners, hanya `supplier` (dan Super Admin untuk oversight, lihat `ROLE_MODULE_ACCESS['supplier-portal']`). */

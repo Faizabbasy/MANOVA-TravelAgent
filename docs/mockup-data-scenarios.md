@@ -596,6 +596,40 @@ Entitas baru `RFQ`/`RFQInvitation`/`RFQResponse`/`RFQClarificationMessage`/`Serv
 
 ---
 
+## 4y. Saved Views dan SLA Metric Detail (ditambahkan Section 22 — roadmap Section 00–24 baru)
+
+`SavedView` baru (`app/data/reporting.ts`, D-079) — fully additive, membungkus filter existing Dashboard/Reports.
+
+**Saved View seed (`SAVED_VIEWS`, 2 baris) — satu per halaman, per user berbeda:**
+- `SVW-001` — `userId: USR-010` (Admin MANOVA, Super Admin), `page: dashboard`, label "Project Confirmed — 60 Hari ke Depan", `filters: { status: 'confirmed', period: '60' }` — muncul di daftar Saved Views Dashboard saat login sebagai Super Admin (default demo user).
+- `SVW-002` — `userId: USR-003` (Sari Wijaya, Management), `page: reports`, label "Project In Progress — Kuartal Ini", `filters: { status: 'in-progress', period: '90' }` — muncul di daftar Saved Views Reports saat login sebagai Management (tidak terlihat untuk role lain, `getSavedViewsForUser` di-scope per `userId`).
+
+**SLA dan Quotation Performance (SectionCard baru ke-7, Reports) — dihitung dari `Opportunity.createdAt`→`Quotation.createdAt`, DERIVED, bukan record fixture baru:**
+- 8 pasangan Opportunity/Quotation (`OPP-001`→`QUO-001`, `OPP-002`→`QUO-002`, `OPP-003`→`QUO-003`, `OPP-004`→`QUO-004`, `OPP-005`→`QUO-005`, `OPP-006`→`QUO-006`, `OPP-008`→`QUO-008`, `OPP-010`→`QUO-010`) menghasilkan cycle time 15/19/21/0/13/7/0/0 hari — rata-rata **9,4 hari** (75 hari / 8), **38%** (3/8, dibulatkan dari 37,5%) dalam threshold mock 3 hari. `OPP-007`/`OPP-009` (belum ada quotation) TIDAK ikut dihitung (konsisten Sales Pipeline Section 16 lama, "Nilai Pipeline Terbuka" juga mengecualikan opportunity tanpa quotation).
+- `QUO-006` adalah **satu-satunya** quotation dengan `sentToClientAt` terisi (`2026-07-23`, Section 05) — ditampilkan sebagai stat "Quotation Terkirim ke Client" terpisah (1 dari 8), BUKAN dipakai sebagai metrik cycle-time utama karena datanya sparse.
+- "Approval cycle time" TIDAK dapat dihitung — `Quotation` tidak punya field `approvedAt` tersimpan (hanya `approvedBy`/`approvalNote`) — didokumentasikan sebagai gap data model, bukan diisi dengan tanggal fabrikasi.
+
+---
+
+## 4z. Master Data, Organization Profile, User Status dan Audit Log Baru (ditambahkan Section 23 — roadmap Section 00–24 baru, D-080)
+
+**Master Data (`app/data/master-data.ts`) — 4 kategori lama migrasi (ID/value TIDAK berubah, sekarang `reactive()`) + 11 kategori baru, seed demo:**
+- **Operational Reference (baru):** `AIRPORTS` (6 baris — CGK/MNL/AUH/PLW/DPS/SIN, konsisten dengan skenario PRJ-101 Manila/PRJ-102 Abu Dhabi/PRJ-103 Palu/Bali), `AIRLINES` (5 baris — Garuda Indonesia/Lion Air/Citilink/Philippine Airlines/Etihad), `MASTER_HOTELS` (4 baris, satu per destinasi utama demo).
+- **Commercial & Finance (baru):** `MASTER_CURRENCIES` (4 baris — IDR/USD/SGD/EUR, mencakup keempat nilai `InvoiceCurrency` Section 20 agar cek "in-use" bermakna — `INV-1041` [PRJ-104, `currency: 'USD'`] akan terhitung 1 saat kategori `CUR-002` USD di-edit/deactivate), `TAX_RULES` (2 baris — PPN 11%, PPh 23), `PAYMENT_TERMS` (3 baris), `CANCELLATION_RULES` (4 baris — 2 flight, 2 hotel, referensi/konfigurasi murni, TIDAK menggerbangi `CancellationRecord` LOCKED).
+- **System Configuration (baru, display/config preview murni):** `NUMBERING_SCHEMES` (3 baris — Invoice/Project/Opportunity, `nextNumberPreview` label saja), `DOCUMENT_TEMPLATES` (3 baris), `READINESS_GATE_CONFIGS` (4 baris — Flight Confirmed/Hotel Confirmed/Traveler Documents Verified/Outstanding Invoice Lunas), `ASSIGNMENT_RULES` (3 baris — Lead routing, PM rotasi Won).
+- **Usage-count demo genuine:** `DST-001` "Manila, Filipina" akan terhitung 2 (`PRJ-101`, `PRJ-104` — keduanya destinasi Manila) saat di-edit/deactivate di `/admin/master-data`; `PT-002` "High-Change Project" akan terhitung 1 (`PRJ-102`, `characteristic: 'high-change'`); `ST-001` "Flight" akan terhitung sesuai jumlah `ProjectService` tipe flight lintas seluruh project.
+
+**Organization Profile (`ORGANIZATION_PROFILE`, singleton) — seed:** `ORG-001`, legal name "PT Manova Wisata Nusantara", display name "MANOVA Travel", alamat Jakarta Selatan, default currency IDR, `updatedBy: USR-010` (Admin MANOVA). Dapat diedit via `/admin/organization` oleh role dengan `MANAGE`+ modul `administration` (Super Admin).
+
+**User status (Access Review, `app/data/users.ts`) — 2 dari 19 user diseed `suspended`:**
+- `USR-011` (Dewi Anggraini, Viewer) — `suspendedReason: "Sedang cuti panjang, akses dinonaktifkan sementara."`, `suspendedAt: 2026-07-20`. Dipilih karena role Viewer read-only tidak berada di tengah alur demo aktif section mana pun.
+- `USR-016` (Ika Puspitasari, Supplier PT EFG, `vendorId: VND-007`) — `suspendedReason: "Vendor PT EFG tidak aktif, menunggu proses re-registrasi."`, `suspendedAt: 2026-07-25`. Dipilih karena `VND-007` tidak dipakai project/booking aktif mana pun saat ini.
+- 17 user lain tetap `status: 'active'` — tidak ada perubahan perilaku demo existing (role switcher `/admin`/`/admin/users` tetap menampilkan seluruh 19 user apa adanya, suspend hanya menambah badge status + mencegah kebingungan visual, TIDAK memblokir role-switch demo secara teknis).
+
+**Audit Log baru (`SystemEvent`, `module: 'administration'`) — reachable HANYA lewat aksi runtime (tidak diseed statis), pola sama `Invoice.status === 'void'` (Section 20, D-077):** setiap create/edit/deactivate/reactivate master data, update Organization Profile, atau suspend/reactivate user di `/admin/*` akan langsung memunculkan entri baru di SectionCard "Log Sistem (Non-Project)" (`/admin/audit-trail`), dan dapat ditemukan lewat search box baru pada halaman yang sama.
+
+---
+
 ## 5. Role-Restricted Finance View (bukan record baru, kondisi tampilan atas PRJ-103)
 
 Menggunakan **PRJ-103** sebagai subjek konkret untuk mendemonstrasikan Role & Access Matrix (`docs/route-and-role-matrix.md` bagian 5) pada tab "Finance":

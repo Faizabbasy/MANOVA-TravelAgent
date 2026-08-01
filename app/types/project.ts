@@ -59,16 +59,30 @@ export type ProjectOrderStatus =
   | 'cancelled'
 
 /**
- * Closure checklist SHELL (Section 09, Wajib "Closure checklist shell untuk dipenuhi section akhir") —
- * seluruh item dapat ditoggle PM/Super Admin sekarang (mock, tidak menggerbangi apa pun), TIDAK ada logic
- * yang menghubungkannya ke transisi status/Closed secara otomatis — pemenuhan penuh (gating, dst.) sengaja
- * diserahkan ke section akhir (Section 24) sesuai instruksi literal.
+ * Closure checklist (Section 09 shell, Wajib "Closure checklist shell untuk dipenuhi section akhir") —
+ * 4 item awal dapat ditoggle PM/Super Admin (mock), `financeSettled` digerbangi NYATA sejak Section 20
+ * (`evaluateFinanceClosureGate`/`closeProjectFinance`, JANGAN ditoggle manual lagi).
+ *
+ * Section 24 (final section) EXTENDS additif — `servicesCompleted`/`unresolvedIssuesHandled`/
+ * `documentsComplete` adalah derivasi READ-ONLY yang ditulis HANYA oleh `evaluateProjectClosureGate`
+ * sesaat sebelum `closeProject` berhasil (bukan checkbox manual seperti 4 item lama, karena ketiganya
+ * sudah punya sumber kebenaran sendiri — service/booking status, Incident/ChangeRequest, Document expiry
+ * — men-toggle manual akan membuatnya bisa stale/bohong). `clientFeedback`/`finalNote` diisi manusia
+ * (Management/PM) saat mengeksekusi `closeProject` — Wajib literal Section 24 "client feedback/final
+ * note". `Project.closedAt`/`closedBy` (bukan field di sini, lihat interface `Project` di bawah) TETAP
+ * satu-satunya sumber kebenaran "Closed" via `getProjectOrderStatus()` (D-066) — tidak diduplikasi di sini.
  */
 export interface ProjectClosureChecklist {
   financeSettled: boolean
   documentsArchived: boolean
   feedbackCollected: boolean
   assetsReturned: boolean
+  /** Section 24 — snapshot hasil `evaluateProjectClosureGate` saat `closeProject` terakhir berhasil dipanggil. */
+  servicesCompleted: boolean
+  unresolvedIssuesHandled: boolean
+  documentsComplete: boolean
+  clientFeedback?: string
+  finalNote?: string
 }
 
 export interface Project {
@@ -106,6 +120,8 @@ export interface Project {
   readyAt?: string
   /** Diisi saat closure checklist (lihat `ProjectClosureChecklist`) dianggap tuntas — `getProjectOrderStatus` mengembalikan `'closed'` alih-alih `'completed'`. */
   closedAt?: string
+  /** Section 24 — actor yang mengeksekusi `closeProject` (pola sama `handoverAcceptedBy`). Aditif, sengaja TIDAK menduplikasi `closedAt` ke dalam `ProjectClosureChecklist` — satu sumber kebenaran saja. */
+  closedBy?: ID
   closureChecklist?: ProjectClosureChecklist
 }
 

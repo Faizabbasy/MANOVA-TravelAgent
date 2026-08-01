@@ -72,6 +72,9 @@ Sejak 2026-08-01, `prompts/01-PROTOKOL-WAJIB.md` versi "FRONTEND-ONLY CONTINUATI
 | 19 | Changes, Cancellation, Refund dan Incident | [`section-19-change-cancel-refund-incident.md`](./section-19-change-cancel-refund-incident.md) | COMPLETED |
 | 20 | Project Finance | [`section-20-project-finance.md`](./section-20-project-finance.md) | COMPLETED |
 | 21 | Documents, Communication dan Notifications | [`section-21-documents-comms-notifications.md`](./section-21-documents-comms-notifications.md) | COMPLETED |
+| 22 | Dashboards, Reports, Lead Recap dan Activity Center | [`section-22-dashboards-reports-activity.md`](./section-22-dashboards-reports-activity.md) | COMPLETED |
+| 23 | Administration, Master Data dan Audit | [`section-23-admin-master-audit.md`](./section-23-admin-master-audit.md) | COMPLETED |
+| 24 | Full Regression dan Final Implementation Guide | [`section-24-full-regression-final-docs.md`](./section-24-full-regression-final-docs.md) | **COMPLETED — SECTION TERAKHIR, ROADMAP 25-TAHAP SELESAI** |
 
 **Catatan disambiguasi (D-057):** `section-17-supplier-procurement.md` (baris di atas, roadmap Section 00–24 baru) TIDAK BOLEH tertukar dengan `section-17-administration.md` (skema lama Prompt 0–20, tabel "Daftar Laporan" di atas — topik Administration, COMPLETED sejak sebelumnya) — keduanya sengaja bernomor sama ("17") karena berasal dari dua skema penomoran berbeda yang berdampingan (lihat bagian "Roadmap Section 00–24" di atas), BUKAN duplikat/konflik. Pola yang sama berlaku untuk `section-18-booking-service-orders.md` (roadmap Section 00–24 baru) vs `section-18-regression-demo-readiness.md` (skema lama Prompt 0–20, topik Regression and Demo Readiness) — dua topik berbeda total, bernomor sama karena skema berbeda.
 

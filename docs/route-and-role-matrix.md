@@ -1,5 +1,7 @@
 # Route and Role Matrix — MANOVA (Prompt 3, dilengkapi di Prompt 4, route diaktifkan di Prompt 5)
 
+> **SUPERSEDED (Section 24, 2026-08-01)** — dokumen ini adalah artefak skema lama (Prompt 0–18) dan TIDAK mencerminkan ~10 modul top-level baru maupun 16 role final (dulu 11) yang dibangun Section 02–23 roadmap Section 00–24. Body dokumen di bawah **dipertahankan apa adanya** sebagai jejak historis (bukan dihapus/ditulis ulang). Untuk kondisi terkini, lihat `app/constants/roles.ts` (`ROLE_MODULE_ACCESS`, sumber tunggal kode) dan `docs/frontend-module-map.md`.
+
 Status dokumen: hasil finalisasi rancangan (LOCKED kecuali ditandai lain). **Prompt 5 telah mengaktifkan foundation shell untuk seluruh route di bagian 0** — build sukses dan smoke-test SSR (11 route, seluruhnya HTTP 200) mengonfirmasi route benar-benar ada di codebase sekarang, bukan lagi rancangan murni.
 Landasan: `docs/mockup-information-architecture.md` (bagian 2–6), `docs/template-reuse-mapping.md`, keputusan LOCKED Prompt 0, `docs/mockup-design-decisions.md`.
 

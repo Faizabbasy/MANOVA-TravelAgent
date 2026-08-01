@@ -1,5 +1,7 @@
 # Mockup Scope — MANOVA
 
+> **SUPERSEDED (Section 24, 2026-08-01)** — dokumen ini adalah artefak skema lama (Prompt 0–18) dan TIDAK mencerminkan ~10 modul top-level baru yang dibangun Section 03–23 roadmap Section 00–24 (Product Planning, Ticketing, Accommodation, Transportation, MICE, Booking & Service Order Center, Procurement, Changes & Incidents, Documents & Communication, Client/Supplier Portal penuh, dll.). Body dokumen di bawah **dipertahankan apa adanya** sebagai jejak historis (bukan dihapus/ditulis ulang). Untuk kondisi terkini, lihat `docs/frontend-module-map.md` dan (setelah Phase 2 Section 24) `docs/frontend-end-to-end-implementation-guide.md`.
+
 Status dokumen: **belum ada implementasi.** Disusun awal di Prompt 2 (gap analysis), route/IA/role difinalisasi di Prompt 3, **dirapikan dan dilengkapi di Prompt 4** menjadi dokumen scope yang utuh (product objective, business context, assumptions, constraints, acceptance criteria, definition of done) sesuai Prompt 4 bagian B. Tidak ada informasi valid dari versi sebelumnya yang dihapus.
 
 ---

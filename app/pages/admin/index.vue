@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Database, Users, ShieldCheck, History, UserCheck } from 'lucide-vue-next'
+import { Database, Users, ShieldCheck, History, UserCheck, Building2 } from 'lucide-vue-next'
 import { ROLES } from '~/constants/roles'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -10,9 +10,11 @@ const { users, currentUser, setCurrentUser } = useCurrentUser()
 
 const links = [
   { label: 'Master Data', description: 'Kelola daftar master lintas modul', to: '/admin/master-data', icon: Database },
-  { label: 'Users', description: 'Kelola user & assignment role', to: '/admin/users', icon: Users },
+  { label: 'Users', description: 'Kelola user, suspend/reaktivasi, dan access review', to: '/admin/users', icon: Users },
   { label: 'Roles and Permissions', description: 'Role & access matrix', to: '/admin/roles', icon: ShieldCheck },
-  { label: 'Audit Trail', description: 'Log aktivitas lintas modul', to: '/admin/audit-trail', icon: History },
+  { label: 'Audit Trail', description: 'Log aktivitas lintas modul, dengan pencarian', to: '/admin/audit-trail', icon: History },
+  /** Organization Profile (Section 23 — Administration, Master Data dan Audit, roadmap Section 00–24 baru, D-080). Kartu ke-5, pola sama 4 kartu existing. */
+  { label: 'Organization Profile', description: 'Profil perusahaan travel agency (singleton)', to: '/admin/organization', icon: Building2 },
 ]
 
 const canAdmin = computed(() => canView('administration'))

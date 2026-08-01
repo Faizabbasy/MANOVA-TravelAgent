@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { ACTIVITIES, PROJECTS, getUserById, getProjectById } from '~/data'
+import { Search } from 'lucide-vue-next'
+import { ACTIVITIES, SYSTEM_EVENTS, PROJECTS, getUserById, getProjectById } from '~/data'
 import { formatDateTime } from '~/utils/format'
 import { ROLES } from '~/constants/roles'
 import { findStatusOption } from '~/constants/status'
@@ -10,10 +11,19 @@ useHead({ title: 'Audit Trail — Administration' })
 
 const { canView } = usePermissions()
 
-// Filters
+// Filters (3 dropdown existing, TIDAK diubah/direstrukturisasi)
 const projectFilter = ref<'all' | string>('all')
 const typeFilter = ref<'all' | 'change' | 'activity'>('all')
 const reviewFilter = ref<'all' | 'reviewed' | 'unreviewed'>('all')
+
+/**
+ * Free-text search (Section 23 — Administration, Master Data dan Audit, roadmap Section 00–24 baru,
+ * D-080, Wajib "Audit trail search"). Aditif ke 3 filter dropdown existing — TIDAK menghapus/merestrukturisasi
+ * apa pun. Mencari lintas `ActivityEntry.message`/`reason`/`impactNote`/`category` (existing, di atas) DAN
+ * `SystemEvent.message`/`type` (SectionCard baru "Log Sistem (Non-Project)" di bawah) — dua entitas berbeda,
+ * satu search box, tanpa membuat entitas audit ketiga (menghormati D-076).
+ */
+const searchQuery = ref('')
 
 // All entries sorted latest-first
 const allEntries = [...ACTIVITIES].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -33,7 +43,26 @@ const filteredEntries = computed(() => {
   } else if (reviewFilter.value === 'unreviewed') {
     result = result.filter(e => !e.reviewed)
   }
+  if (searchQuery.value.trim()) {
+    const q = searchQuery.value.trim().toLowerCase()
+    result = result.filter(e =>
+      e.message.toLowerCase().includes(q)
+      || (e.reason ?? '').toLowerCase().includes(q)
+      || (e.impactNote ?? '').toLowerCase().includes(q)
+      || (e.category ?? '').toLowerCase().includes(q)
+      || (e.beforeValue ?? '').toLowerCase().includes(q)
+      || (e.afterValue ?? '').toLowerCase().includes(q),
+    )
+  }
   return result
+})
+
+// Log Sistem (Non-Project) — SystemEvent, module 'administration' dkk. (Prompt 19 + Section 23). Search-only, TIDAK punya 3 filter dropdown existing (scope berbeda dari ActivityEntry — lintas-modul, bukan project-scoped).
+const allSystemEvents = [...SYSTEM_EVENTS].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+const filteredSystemEvents = computed(() => {
+  if (!searchQuery.value.trim()) return allSystemEvents
+  const q = searchQuery.value.trim().toLowerCase()
+  return allSystemEvents.filter(e => e.message.toLowerCase().includes(q) || e.type.toLowerCase().includes(q) || e.module.toLowerCase().includes(q))
 })
 
 // Stats
@@ -91,6 +120,12 @@ const CAT_TONE: Record<string, string> = {
             {{ unreviewedCount }}
           </p>
         </div>
+      </div>
+
+      <!-- Search (Section 23, D-080) — lintas ActivityEntry dan SystemEvent, aditif ke 3 filter dropdown di bawah -->
+      <div class="relative max-w-sm w-full">
+        <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input v-model="searchQuery" placeholder="Cari pesan, alasan, dampak, kategori..." class="pl-9" />
       </div>
 
       <!-- Filters -->
@@ -209,6 +244,37 @@ const CAT_TONE: Record<string, string> = {
                 <span class="font-medium">Dampak:</span> {{ entry.impactNote }}
               </div>
             </div>
+          </li>
+        </ul>
+      </SectionCard>
+
+      <!--
+        Log Sistem (Non-Project) — SystemEvent (Section 23, D-080). SectionCard TERPISAH, aditif di bawah
+        log ActivityEntry existing di atas (TIDAK digabung jadi satu list — dua entitas berbeda shape/scope,
+        ActivityEntry project-scoped vs SystemEvent lintas-modul level-atas). Search box di atas berlaku ke
+        KEDUA section ini sekaligus.
+      -->
+      <SectionCard
+        title="Log Sistem (Non-Project)"
+        description="SystemEvent lintas-modul level-atas (lead/opportunity/quotation/client/project-order/vendor/finance/user/administration) — termasuk aksi admin baru (master data, organization profile, suspend/reactivate user)."
+      >
+        <EmptyState
+          v-if="filteredSystemEvents.length === 0"
+          title="Tidak ada entri"
+          description="Tidak ada log sistem yang cocok dengan pencarian."
+        />
+        <ul v-else class="divide-y divide-border">
+          <li v-for="event in filteredSystemEvents" :key="event.id" class="py-3 space-y-1">
+            <div class="flex items-start justify-between gap-4">
+              <p class="text-sm text-foreground leading-snug flex-1 min-w-0">{{ event.message }}</p>
+              <StatusBadge :label="event.module" tone="neutral" class="shrink-0" />
+            </div>
+            <p class="text-xs text-muted-foreground">
+              <span class="font-mono">{{ event.type }}</span>
+              &nbsp;·&nbsp;{{ formatDateTime(event.createdAt) }}
+              <template v-if="event.userId">&nbsp;·&nbsp;{{ userLabel(event.userId) }}</template>
+              &nbsp;·&nbsp;<span class="font-mono text-xs">{{ event.id }}</span>
+            </p>
           </li>
         </ul>
       </SectionCard>

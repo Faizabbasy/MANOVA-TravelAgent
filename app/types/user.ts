@@ -53,11 +53,18 @@ export type ModuleKey =
   | 'changes'
   | 'documents'
 
+/** Access review / suspend state (Section 23 — Administration, Master Data dan Audit, D-080). */
+export type UserStatus = 'active' | 'suspended'
+
 export interface User {
   id: ID
   name: string
   email: string
   role: RoleId
+  status: UserStatus
+  /** WAJIB diisi saat `status` berpindah ke `suspended` — pola alasan-wajib yang sama dengan seluruh transisi destruktif lain di codebase ini. Dikosongkan kembali oleh `reactivateUser`. */
+  suspendedReason?: string
+  suspendedAt?: string
   /** Vendor isolation (Prompt 19) — hanya terisi untuk role `supplier`; menentukan satu-satunya `Vendor` company yang boleh dilihat user ini. */
   vendorId?: ID
   /** Client isolation (Section 02) — hanya terisi untuk role `client`; menentukan satu-satunya `Party` (company) yang boleh dilihat user ini di `/client/*`. */

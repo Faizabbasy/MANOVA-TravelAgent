@@ -14,13 +14,14 @@ Status dokumen: **direstrukturisasi di Prompt 4** sesuai Prompt 4 bagian F. Bagi
 
 ### Q8 — Kelengkapan Tooling Lint/Typecheck/Test
 - **Category:** Tooling / Code Quality
-- **Blocking:** **Blocking before module implementation** — **masih belum diselesaikan setelah Prompt 5** (lihat update di bawah). Tidak memblokir Foundation itu sendiri (build tetap jadi quality gate yang valid), tapi harus diselesaikan sebelum masuk fase CRM.
-- **Impact:** Tanpa script `lint`/`typecheck`/`test`, regresi kualitas kode di seluruh fase implementasi berikutnya (CRM s/d Administration) tidak akan tertangkap otomatis (risiko dicatat sejak audit Prompt 1 bagian 13).
-- **Recommendation:** Lengkapi `eslint` inti + tambah script `lint`; putuskan juga script `typecheck` (catatan: `nuxi typecheck` memicu instalasi `vue-tsc` yang belum ada di lockfile — evaluasi dulu terhadap kebijakan penambahan package D-036 sebelum instal). Lepas `@nuxtjs/eslint-config-typescript` sebagai devDependency mati bila memang tidak dipakai.
+- **Blocking:** ~~Blocking before module implementation~~ — **RESOLVED Section 24** (2026-08-01).
+- **Impact:** `eslint`+`vue-tsc` kini terpasang dan diverifikasi (`npm run lint`/`npm run typecheck` berfungsi). Regresi kualitas kode sepanjang Section 06–23 TIDAK tertangkap otomatis oleh lint/typecheck (hanya `build` sebagai gate) — dicatat sebagai keterbatasan historis yang genuinely berlaku selama itu, sekarang ditutup.
+- **Recommendation:** Tidak berlaku lagi — sudah dikerjakan (`eslint@8.57.1`+`vue-tsc@2.2.12` via `pnpm add -D`, `.eslintrc.cjs` baru, script `lint`/`typecheck` di `package.json`). Detail lengkap termasuk hasil lint (~9.428 temuan style, non-blocking): `docs/frontend-known-issues.md` bagian 19, `docs/mockup-section-reports/section-24-full-regression-final-docs.md`.
 - **Owner:** Tidak diketahui (keputusan teknis tim implementasi).
 - **Update Prompt 5:** Foundation coding **tidak** menginstal `eslint`/`vue-tsc` (lihat D-045, `docs/mockup-design-decisions.md`) karena Prompt 5 sendiri tidak secara eksplisit memerintahkan instalasi package baru. Validasi yang dijalankan sebagai gantinya: `pnpm run build` (sukses, exit 0, 3x run) dan `pnpm exec vitest run` (0 test file, pre-existing). Q8 tetap terbuka, sekarang eksplisit sebagai blocker sebelum Prompt 6 (CRM) dimulai.
 - **Update Prompt 19 (Change Request, 2026-07-30):** Tetap belum diselesaikan — `npm run build` sukses, `npx vitest run` "No test files found", `npx nuxi typecheck` gagal (`vue-tsc` tidak terpasang). Instalasi package baru tetap di luar scope literal Prompt 19 (D-036 tidak berubah).
-- **Status:** `NEEDS_VALIDATION`.
+- **Update Section 24 (2026-08-01, FINAL):** `eslint`/`vue-tsc` terpasang, `lint`/`typecheck` script berfungsi, build tetap sukses (exit 0), typecheck 0 error. Test (`vitest`) TETAP "No test files found" — tidak ada test file ditulis sepanjang 24 section (di luar scope literal manapun, dicatat sebagai keterbatasan bukan kegagalan).
+- **Status:** `RESOLVED` (Section 24).
 
 ---
 
@@ -28,11 +29,11 @@ Status dokumen: **direstrukturisasi di Prompt 4** sesuai Prompt 4 bagian F. Bagi
 
 ### Q7 — Adopsi `vee-validate` + `zod` untuk Form Baru
 - **Category:** Implementation Pattern
-- **Blocking:** **Non-blocking** — form baru bisa dimulai dengan pola manual existing dan dimigrasikan kemudian bila diputuskan lain; tidak menghentikan progres modul manapun.
-- **Impact:** Risiko dua pola validasi berbeda hidup berdampingan tanpa alasan terdokumentasi bila tidak diputuskan sebelum banyak form baru dibangun (CRM, Traveler, Vendor, dll.).
-- **Recommendation:** Adopsi `vee-validate`+`zod` untuk seluruh form baru MANOVA — dependency sudah terpasang (0% dipakai saat ini per audit Prompt 1), sejalan dengan kebijakan penambahan package (D-036: pakai yang sudah ada sebelum mengusulkan alternatif). Pola manual existing (`create.vue`/`edit.vue`) tidak perlu dimigrasi paksa, cukup tidak dijadikan acuan untuk form baru.
+- **Blocking:** ~~Non-blocking~~ — **selesai tidak-diblokir**: 24 section (Section 00–24) berjalan penuh memakai pola manual existing tanpa migrasi, tanpa insiden kualitas tercatat akibat pola ini.
+- **Impact:** Risiko dua pola validasi berbeda hidup berdampingan tidak pernah terjadi — seluruh form baru sepanjang roadmap (Lead Qualification, Requirement Detail, Quotation, Cost Sheet, RFQ, Booking lifecycle, Change Request, Invoice, Master Data, dst.) konsisten memakai pola manual (`ref`+validasi inline).
+- **Recommendation:** Tidak berlaku lagi sebagai rekomendasi aktif untuk roadmap ini (sudah selesai). Migrasi ke `vee-validate`+`zod` tetap layak dipertimbangkan HANYA bila proyek dilanjutkan ke fase pengembangan berikutnya di luar roadmap 25-tahap ini — lihat `docs/frontend-end-to-end-implementation-guide.md` bagian 8.
 - **Owner:** Tidak diketahui.
-- **Status:** `PROPOSED` (rekomendasi di atas, menunggu konfirmasi tim implementasi).
+- **Status:** `DEFERRED_PERMANENTLY` (Section 24, 2026-08-01 — keputusan final, bukan lagi terbuka; lihat `docs/frontend-known-issues.md` bagian 19).
 
 ---
 

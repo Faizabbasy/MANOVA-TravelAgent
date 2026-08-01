@@ -11,6 +11,7 @@ import {
   toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
   getInvoicesByProject, getPaymentsByInvoice, getInvoiceOutstandingIdr, getProjectOutstandingIdr, getCommittedVendorCostIdr,
   getCreditNotesByProject, getDebitNotesByProject, getSupplierInvoicesByProject, evaluateFinanceClosureGate, closeProjectFinance,
+  evaluateProjectClosureGate, closeProject, getProjectClosureSummary,
   getTasksByProject, getDocumentsByProject, getActivitiesByProject, getRisksByProject,
   createChangeEntry, approveChangeEntry, rejectChangeEntry,
   getProjectOrderStatus, acceptProjectHandover, returnProjectHandover, markProjectReady,
@@ -206,6 +207,32 @@ const CLOSURE_CHECKLIST_ITEMS: { key: keyof ProjectClosureChecklist; label: stri
 function toggleClosureItem(key: 'financeSettled' | 'documentsArchived' | 'feedbackCollected' | 'assetsReturned', value: boolean) {
   if (!project.value) return
   updateProjectClosureChecklist(project.value.id, { [key]: value })
+}
+
+/**
+ * "Project Closed" (Section 24 — final section). Pola sama Close Finance (Section 20): gate advisory
+ * (`evaluateProjectClosureGate`) ditampilkan sebelum aksi, blocker list bila belum siap. Role gate
+ * "Management/PM" (Wajib literal) — pola narrow-role-exception sama `canManageProjectOrder` di atas,
+ * ditambah `management` (bukan hanya PM/Super Admin, karena Wajib eksplisit menyebut Management).
+ */
+const canCloseProject = computed(() => ['project-manager', 'management', 'super-admin'].includes(currentRole.value))
+const projectClosureGate = computed(() => project.value ? evaluateProjectClosureGate(project.value.id) : { ready: false, blockers: [] })
+const isProjectAlreadyClosed = computed(() => !!project.value?.closedAt)
+const projectClosureSummary = computed(() => project.value ? getProjectClosureSummary(project.value.id) : undefined)
+const closeProjectFinalNote = ref('')
+const closeProjectClientFeedback = ref('')
+const closedByName = computed(() => project.value?.closedBy ? (getUserById(project.value.closedBy)?.name ?? project.value.closedBy) : '')
+
+function submitCloseProject() {
+  if (!project.value) return
+  const result = closeProject(project.value.id, currentUser.value.id, closeProjectFinalNote.value, closeProjectClientFeedback.value)
+  if (result.success) {
+    showToast('Project Ditutup', `Project ${project.value.name} berhasil ditutup (Closed).`, 'success')
+    closeProjectFinalNote.value = ''
+    closeProjectClientFeedback.value = ''
+  } else {
+    showToast('Belum Bisa Ditutup', result.blockers[0] ?? 'Final note wajib diisi.', 'error')
+  }
 }
 
 /* Risks */
@@ -1057,6 +1084,47 @@ const summaryMetadata = computed(() => {
                   <span v-if="item.key === 'financeSettled'" class="text-xs text-muted-foreground">(dikelola lewat aksi &quot;Close Finance&quot; di tab Finance, Section 20)</span>
                 </li>
               </ul>
+            </SectionCard>
+
+            <SectionCard title="Project Closure" description="Gate final sebelum Project Order berstatus Closed — services completed, finance finalized, unresolved issues handled, documents complete.">
+              <template v-if="isProjectAlreadyClosed">
+                <p class="text-sm text-success flex items-center gap-1.5 mb-3"><CheckCircle2 class="h-4 w-4" />Project ini sudah Closed{{ project.closedAt ? ` pada ${formatDate(project.closedAt)}` : '' }}{{ closedByName ? ` oleh ${closedByName}` : '' }}.</p>
+                <p v-if="project.closureChecklist?.finalNote" class="text-sm text-foreground mb-1"><span class="text-muted-foreground">Final note:</span> {{ project.closureChecklist.finalNote }}</p>
+                <p v-if="project.closureChecklist?.clientFeedback" class="text-sm text-foreground mb-3"><span class="text-muted-foreground">Client feedback:</span> {{ project.closureChecklist.clientFeedback }}</p>
+                <div v-if="projectClosureSummary" class="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2 border-t border-border">
+                  <div><p class="text-xs text-muted-foreground">Total Services</p><p class="text-sm font-semibold text-foreground">{{ projectClosureSummary.totalServices }}</p></div>
+                  <div><p class="text-xs text-muted-foreground">Total Booking</p><p class="text-sm font-semibold text-foreground">{{ projectClosureSummary.totalBookings }}</p></div>
+                  <div><p class="text-xs text-muted-foreground">Total Invoiced</p><p class="text-sm font-semibold text-foreground">{{ formatCurrencyIdr(projectClosureSummary.totalInvoicedIdr) }}</p></div>
+                  <div><p class="text-xs text-muted-foreground">Total Paid</p><p class="text-sm font-semibold text-foreground">{{ formatCurrencyIdr(projectClosureSummary.totalPaidIdr) }}</p></div>
+                  <div><p class="text-xs text-muted-foreground">Incident Resolved</p><p class="text-sm font-semibold text-foreground">{{ projectClosureSummary.incidentsResolved }}/{{ projectClosureSummary.incidentsTotal }}</p></div>
+                  <div><p class="text-xs text-muted-foreground">Change Request Implemented</p><p class="text-sm font-semibold text-foreground">{{ projectClosureSummary.changeRequestsImplemented }}/{{ projectClosureSummary.changeRequestsTotal }}</p></div>
+                </div>
+              </template>
+              <template v-else>
+                <template v-if="projectClosureGate.ready">
+                  <p class="text-sm text-success mb-3 flex items-center gap-1.5"><CheckCircle2 class="h-4 w-4" />Tidak ada blocker — siap ditutup (Closed).</p>
+                </template>
+                <template v-else>
+                  <p class="text-sm text-muted-foreground mb-2">Blocker yang harus diselesaikan sebelum Project dapat ditutup:</p>
+                  <ul class="list-disc list-inside text-sm text-destructive mb-3">
+                    <li v-for="(blocker, index) in projectClosureGate.blockers" :key="index">{{ blocker }}</li>
+                  </ul>
+                </template>
+                <template v-if="canCloseProject">
+                  <div class="space-y-2 max-w-xl">
+                    <div class="space-y-1">
+                      <Label for="close-project-final-note">Final Note <span class="text-destructive">*</span></Label>
+                      <textarea id="close-project-final-note" v-model="closeProjectFinalNote" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Ringkasan penutupan project (wajib)" />
+                    </div>
+                    <div class="space-y-1">
+                      <Label for="close-project-client-feedback">Client Feedback (opsional)</Label>
+                      <textarea id="close-project-client-feedback" v-model="closeProjectClientFeedback" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Feedback dari client, bila ada" />
+                    </div>
+                    <Button size="sm" :disabled="!projectClosureGate.ready || !closeProjectFinalNote.trim()" @click="submitCloseProject">Close Project</Button>
+                  </div>
+                </template>
+                <p v-else class="text-xs text-muted-foreground">Hanya Management/Project Manager/Super Admin yang dapat menutup project.</p>
+              </template>
             </SectionCard>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">

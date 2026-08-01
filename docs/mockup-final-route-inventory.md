@@ -1,5 +1,7 @@
 # Final Route Inventory — MANOVA Travel Agent Mockup
 
+> **SUPERSEDED (Section 24, 2026-08-01)** — dokumen ini adalah artefak skema lama (Prompt 0–18, ~26 route) dan TIDAK mencerminkan ~83 route final yang ada sekarang setelah Section 03–23 roadmap Section 00–24. Body dokumen di bawah **dipertahankan apa adanya** sebagai jejak historis (bukan dihapus/ditulis ulang). Untuk inventarisasi route terkini, lihat `docs/frontend-module-map.md` dan (setelah Phase 2 Section 24) route inventory final Section 24.
+
 Inventarisasi **kondisi aktual final** seluruh route yang ter-generate Nuxt dari direktori `app/pages/`. Status berdasarkan hasil audit langsung pada Section 18 — Regression and Demo Readiness.
 
 > **Legend Status:**

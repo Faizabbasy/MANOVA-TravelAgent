@@ -32,9 +32,13 @@ Status: `COMPLETED` (memenuhi seluruh "Wajib" section baru), `PARTIAL` (sebagian
 | 19 | Changes, Cancellation, Refund dan Incident | COMPLETED (2026-08-01) | `/changes` (baru), `/changes/[id]` (baru), `/changes/cancellations/[id]` (baru), `/changes/refunds/[id]` (baru), `/changes/incidents/[id]` (baru), Tab "Activity & Changes" `/projects/[id]` (diperkaya), tab "Changes & Incidents" `/client/project-orders/[id]` (diperkaya), hook `createCancellationRecord` di `/ticketing/[id]`, `/accommodation/[id]`, `/transportation/[id]`, `/mice/[id]` |
 | 20 | Project Finance | COMPLETED | `/finance/invoices`, `/finance/payments`, `/finance/notes`, `/finance/reconciliation`, tab "Finance" `/projects/[id]`, tab "Finance" `/client/project-orders/[id]` |
 | 21 | Documents, Communication dan Notifications | COMPLETED (2026-08-01) | `/documents` (baru, 3 tab), tab "Documents" `/projects/[id]` (diperkaya), tab "Activity & Changes" `/projects/[id]` (+Communication +Unified Timeline), `NotificationPanel.vue`/`TopHeader.vue` (direwire) |
-| 22 | Dashboards, Reports, Lead Recap dan Activity Center | PARTIAL | `/`, `/reports`, `/customer-journey/lead-sources`, `/activity-center` |
-| 23 | Administration, Master Data dan Audit | PARTIAL | `/admin`, `/admin/users`, `/admin/roles`, `/admin/master-data`, `/admin/audit-trail` |
-| 24 | Full Regression dan Final Implementation Guide | NOT_STARTED | — (final section) |
+| 22 | Dashboards, Reports, Lead Recap dan Activity Center | COMPLETED (2026-08-01) | `/` (SSR fix, Saved Views), `/reports` (SSR fix, Saved Views, Export mock, drill-down, +section "SLA dan Quotation Performance", cross-link Procurement Performance), `/customer-journey/lead-sources` (tidak disentuh, sudah lengkap), `/activity-center` (+drill-down link per event), `/supplier` (+Action Center) |
+| 23 | Administration, Master Data dan Audit | COMPLETED (2026-08-01) | `/admin` (+kartu ke-5), `/admin/users` (+tab Access Review, +suspend/reactivate), `/admin/roles` (tidak disentuh, LOCKED), `/admin/master-data` (rewrite — 3 kelompok x 15 sub-tab, CRUD mock), `/admin/audit-trail` (+search, +SectionCard Log Sistem), `/admin/organization` (baru) |
+| 24 | Full Regression dan Final Implementation Guide | **COMPLETED (2026-08-01)** | `/projects/[id]` (+SectionCard "Project Closure", Overview tab), `.eslintrc.cjs`+`package.json` script `lint`/`typecheck` (baru), `docs/frontend-end-to-end-implementation-guide.md`+`docs/frontend-demo-and-review-guide.md` (baru) — **roadmap 25-tahap (Section 00–24) SELESAI, tidak ada section berikutnya.** |
+
+## 1a. Penutup — Roadmap 25-Tahap Selesai (Section 24, 2026-08-01)
+
+Section 24 adalah section TERAKHIR dari roadmap ini. Seluruh Section 00–24 kini `COMPLETED`. Ringkasan kontribusi Section 24 terhadap module map: (1) regresi penuh dikonfirmasi terhadap seluruh baris tabel di atas (89 route, 16 role) — tidak ada koreksi status ditemukan (berbeda dari Section 22 yang mengoreksi 1 klaim stale Section 22 sendiri); (2) modul baru `app/data/index.ts` `evaluateProjectClosureGate`/`closeProject`/`getProjectClosureSummary` mengisi mekanisme Project Closed yang sebelumnya shell murni sejak Section 09; (3) tooling `lint`/`typecheck` terpasang pertama kali (Q8 RESOLVED, lihat `docs/mockup-open-questions.md`); (4) 2 bug nyata diperbaiki (`app/pages/customer-journey/lead-sources/index.vue`, `app/pages/accommodation/[id]/index.vue`+`app/pages/transportation/[id]/index.vue`). Tidak ada route/module baru selain SectionCard "Project Closure" — Section 24 secara eksplisit adalah regression+dokumentasi, bukan pembangunan fitur baru. Detail lengkap: `docs/mockup-section-reports/section-24-full-regression-final-docs.md`.
 
 ## 2. Route Inventory Aktual (per 2026-08-01)
 
@@ -60,7 +64,7 @@ Status: `COMPLETED` (memenuhi seluruh "Wajib" section baru), `PARTIAL` (sebagian
 /expenses, /tasks (route lama/locked, tidak di sidebar — lihat docs/mockup-final-route-inventory.md)
 ```
 
-Section 00 tidak membuat route baru (audit-only). Section 01 tidak membuat route baru (murni file utilitas + 1 section baru di `/settings`). **Section 02 menambah 1 route baru: `/client`** (shell minimal, lihat bagian 3). **Section 03 menambah 1 route baru: `/lead-intake`** (public, di luar dashboard internal — lihat `docs/mockup-design-decisions.md` D-060).
+Section 00 tidak membuat route baru (audit-only). Section 01 tidak membuat route baru (murni file utilitas + 1 section baru di `/settings`). **Section 02 menambah 1 route baru: `/client`** (shell minimal, lihat bagian 3). **Section 03 menambah 1 route baru: `/lead-intake`** (public, di luar dashboard internal — lihat `docs/mockup-design-decisions.md` D-060). **Section 24 tidak menambah route baru** — murni SectionCard aditif ("Project Closure") di dalam `/projects/[id]` tab Overview existing, plus dokumentasi. Total final: **82 file page, 89 route** (termasuk dynamic `[id]`/print-preview/not-found probe) — lihat `docs/mockup-final-route-inventory-v2.md` untuk inventory lengkap final.
 
 ## 3. Role Inventory Aktual vs Role Final Roadmap Baru
 

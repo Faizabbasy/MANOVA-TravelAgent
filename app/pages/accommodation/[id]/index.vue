@@ -420,9 +420,9 @@ function submitEdit() {
             <div class="space-y-2 pt-2 border-t border-border">
               <Label>Traveler Assignment</Label>
               <div class="flex flex-wrap gap-2">
-                <label v-for="traveler in projectTravelers" :key="traveler.id" class="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border border-border cursor-pointer">
-                  <Checkbox :model-value="editTravelerIds.includes(traveler.id)" @update:model-value="toggleEditTraveler(traveler.id)" />
-                  {{ traveler.name }}
+                <label v-for="t in projectTravelers" :key="t.id" class="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border border-border cursor-pointer">
+                  <Checkbox :model-value="editTravelerIds.includes(t.id)" @update:model-value="toggleEditTraveler(t.id)" />
+                  {{ t.name }}
                 </label>
               </div>
             </div>

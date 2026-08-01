@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Building2, Package, FileText, ClipboardList, Send } from 'lucide-vue-next'
-import { getVendorById, getServicesByVendor, getVendorQuotations, getVendorProducts, getRfqsForVendor, getServiceOrdersByVendor } from '~/data'
+import { Building2, Package, FileText, ClipboardList, Send, Bell } from 'lucide-vue-next'
+import { getVendorById, getServicesByVendor, getVendorQuotations, getVendorProducts, getRfqsForVendor, getServiceOrdersByVendor, getSupplierInvoicesByServiceOrder } from '~/data'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Supplier Portal' })
@@ -21,6 +21,31 @@ const acceptedQuotationCount = computed(() => quotations.value.filter(q => q.sta
 const pendingQuotationCount = computed(() => quotations.value.filter(q => q.status === 'submitted').length)
 const rfqNeedingResponseCount = computed(() => rfqs.value.filter(rfq => ['sent', 'responses-in', 'comparison', 'clarification'].includes(rfq.status)).length)
 const activeServiceOrderCount = computed(() => serviceOrders.value.filter(so => !['fulfilled', 'cancelled'].includes(so.status)).length)
+
+/**
+ * Action Center (Section 22) — mengagregasi item actionable milik vendor login, seluruhnya reuse selector
+ * Section 17 (`rfqs`/`serviceOrders` di atas, `getSupplierInvoicesByServiceOrder` baru diimpor) yang sudah
+ * di-scope `vendorScopeId` — pola sama `app/pages/client/index.vue` (Action Center Client Portal).
+ * TIDAK membuat data/entitas baru, murni derivasi read-only dari `RFQ`/`ServiceOrder`/`SupplierInvoice`.
+ */
+const actionItems = computed(() => {
+  const items: { key: string; label: string; to: string; tone: 'warning' | 'destructive' }[] = []
+  for (const rfq of rfqs.value) {
+    if (['sent', 'responses-in'].includes(rfq.status)) {
+      items.push({ key: `rfq-respond-${rfq.id}`, label: `RFQ "${rfq.title}" menunggu respons Anda`, to: `/supplier/rfq/${rfq.id}`, tone: 'warning' })
+    } else if (rfq.status === 'clarification') {
+      items.push({ key: `rfq-clarify-${rfq.id}`, label: `Klarifikasi terbuka pada RFQ "${rfq.title}"`, to: `/supplier/rfq/${rfq.id}`, tone: 'warning' })
+    }
+  }
+  for (const so of serviceOrders.value) {
+    if (so.status === 'sent') {
+      items.push({ key: `so-ack-${so.id}`, label: `Service Order ${so.id} menunggu acknowledgment Anda`, to: `/supplier/service-orders/${so.id}`, tone: 'warning' })
+    } else if (so.status === 'fulfilled' && getSupplierInvoicesByServiceOrder(so.id).length === 0) {
+      items.push({ key: `so-invoice-${so.id}`, label: `Service Order ${so.id} sudah fulfilled — ajukan invoice Anda`, to: `/supplier/service-orders/${so.id}`, tone: 'destructive' })
+    }
+  }
+  return items
+})
 </script>
 
 <template>
@@ -40,6 +65,18 @@ const activeServiceOrderCount = computed(() => serviceOrders.value.filter(so => 
         <StatsCard title="RFQ Perlu Respons" :value="String(rfqNeedingResponseCount)" :icon="ClipboardList" icon-color="warning" />
         <StatsCard title="Service Order Aktif" :value="String(activeServiceOrderCount)" :icon="Send" icon-color="warning" />
       </div>
+
+      <SectionCard title="Action Center" description="Hal-hal yang perlu tindakan Anda.">
+        <ul v-if="actionItems.length" class="divide-y divide-border">
+          <li v-for="item in actionItems" :key="item.key" class="py-3">
+            <NuxtLink :to="item.to" class="flex items-center gap-3 group">
+              <Bell class="h-4 w-4 shrink-0" :class="item.tone === 'destructive' ? 'text-destructive' : 'text-warning'" />
+              <span class="text-sm text-foreground group-hover:underline">{{ item.label }}</span>
+            </NuxtLink>
+          </li>
+        </ul>
+        <EmptyState v-else :icon="Bell" title="Tidak ada tindakan yang perlu dilakukan saat ini" />
+      </SectionCard>
 
       <SectionCard title="Profil Company">
         <DetailMetadataList :items="[

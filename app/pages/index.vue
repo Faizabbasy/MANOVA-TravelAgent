@@ -1,12 +1,13 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import {
-  FolderKanban, Handshake, PlaneTakeoff, AlertTriangle, Receipt, Users,
+  FolderKanban, Handshake, PlaneTakeoff, AlertTriangle, Receipt, Users, Save, X,
 } from 'lucide-vue-next'
 import {
   PROJECTS, OPPORTUNITIES, QUOTATIONS, PARTIES, USERS,
   getPartyById, getProjectById, getInvoicesByProject, getTasksByProject, getActivitiesByProject,
   getServicesForProjects, getUpcomingTasks, getRecentChanges, getUpcomingFollowUps,
+  getSavedViewsForUser, createSavedView, deleteSavedView, applySavedView,
 } from '~/data'
 import {
   PROJECT_STATUSES, OPPORTUNITY_STAGES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, findStatusOption,
@@ -24,12 +25,18 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Dashboard' })
 
 const { currentRole, currentUser } = useCurrentUser()
+const { showToast } = useToast()
 
-// Simulasi loading state singkat (Prompt 5-N: "loading state dapat disimulasikan") — data fixture sebenarnya sinkron.
-const isLoading = ref(true)
-onMounted(() => {
-  setTimeout(() => { isLoading.value = false }, 400)
-})
+/**
+ * Section 22 (D-079) — SSR loading-skeleton fix. Sebelumnya `isLoading` hanya berubah ke `false` lewat
+ * `setTimeout` di `onMounted`, yang TIDAK PERNAH berjalan saat SSR — hasilnya HTML hasil render server
+ * selalu berupa skeleton kosong ("Memuat ringkasan dashboard...", ditemukan Section 20 saat regresi
+ * `docs/frontend-known-issues.md` bagian 15). Data di halaman ini seluruhnya fixture sinkron (bukan
+ * fetch async nyata) sehingga TIDAK ADA alasan genuine untuk menahan render — `isLoading` dihilangkan
+ * (selalu `false`), bukan diberi delay buatan client-only, karena delay client-only akan memaksa konten
+ * yang sudah benar dari SSR untuk sempat "hilang" lagi jadi skeleton setelah hydration (regresi UX baru).
+ */
+const isLoading = ref(false)
 
 function visibleTo(...roles: RoleId[]) {
   return computed(() => roles.includes(currentRole.value))
@@ -57,6 +64,48 @@ const ownerOptions = computed(() => {
   const ids = [...new Set(PROJECTS.map(p => p.ownerId))]
   return ids.map(id => USERS.find(u => u.id === id)).filter((user): user is NonNullable<typeof user> => Boolean(user))
 })
+
+/**
+ * Saved Views (Section 22, D-079) — membungkus 5 filter Dashboard yang SUDAH ADA di atas, bukan filter
+ * baru. Centralized reactive mock state (`app/data/reporting.ts`), per user login (`currentUser.value.id`)
+ * — sengaja BUKAN localStorage/sessionStorage, konsisten pola seluruh fixture lain di codebase.
+ */
+const mySavedViews = computed(() => getSavedViewsForUser(currentUser.value.id, 'dashboard'))
+const isSaveViewOpen = ref(false)
+const newViewLabel = ref('')
+
+function submitSaveView() {
+  const label = newViewLabel.value.trim()
+  if (!label) return
+  createSavedView({
+    userId: currentUser.value.id,
+    page: 'dashboard',
+    label,
+    filters: {
+      status: statusFilter.value, type: typeFilter.value, client: clientFilter.value,
+      owner: ownerFilter.value, period: periodFilter.value,
+    },
+  })
+  showToast('Saved View Disimpan', `"${label}" tersimpan — dapat diterapkan ulang kapan saja.`, 'success')
+  newViewLabel.value = ''
+  isSaveViewOpen.value = false
+}
+
+function applyView(id: string) {
+  const view = applySavedView(id)
+  if (!view) return
+  statusFilter.value = (view.filters.status ?? 'all') as typeof statusFilter.value
+  typeFilter.value = (view.filters.type ?? 'all') as typeof typeFilter.value
+  clientFilter.value = view.filters.client ?? 'all'
+  ownerFilter.value = view.filters.owner ?? 'all'
+  periodFilter.value = (view.filters.period ?? 'all') as typeof periodFilter.value
+  showToast('Saved View Diterapkan', `Filter "${view.label}" diterapkan.`, 'success')
+}
+
+function removeView(id: string, label: string) {
+  deleteSavedView(id)
+  showToast('Saved View Dihapus', `"${label}" telah dihapus.`, 'info')
+}
 
 function matchesCommonFilters(project: Project): boolean {
   if (statusFilter.value !== 'all' && project.status !== statusFilter.value) return false
@@ -290,6 +339,28 @@ const showProductPlannerWelcome = visibleTo('product-planner')
     </div>
 
     <SectionCard v-if="showFilters" title="Filter" description="Berlaku untuk seluruh widget berbasis project di bawah.">
+      <template #actions>
+        <Dialog v-model:open="isSaveViewOpen">
+          <DialogTrigger as-child>
+            <Button size="sm" variant="outline"><Save class="h-4 w-4 mr-1.5" />Simpan View</Button>
+          </DialogTrigger>
+          <DialogContent class="max-w-sm">
+            <DialogHeader>
+              <DialogTitle>Simpan Saved View</DialogTitle>
+              <DialogDescription>Menyimpan kombinasi filter aktif saat ini (mock, tersimpan per user login, bukan localStorage).</DialogDescription>
+            </DialogHeader>
+            <div class="space-y-1.5 py-2">
+              <Label for="dashboard-view-label">Nama View</Label>
+              <Input id="dashboard-view-label" v-model="newViewLabel" placeholder="mis. Project Confirmed Bulan Ini" />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" @click="isSaveViewOpen = false">Batal</Button>
+              <Button :disabled="!newViewLabel.trim()" @click="submitSaveView">Simpan</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </template>
+
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
         <Select v-model="statusFilter">
           <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
@@ -332,6 +403,16 @@ const showProductPlannerWelcome = visibleTo('product-planner')
             <SelectItem value="90">90 Hari ke Depan</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      <div v-if="mySavedViews.length" class="mt-4 pt-4 border-t border-border flex flex-wrap items-center gap-2">
+        <span class="text-xs text-muted-foreground shrink-0">Saved Views:</span>
+        <div v-for="view in mySavedViews" :key="view.id" class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 pl-3 pr-1 py-1 text-xs">
+          <button type="button" class="text-foreground hover:underline" @click="applyView(view.id)">{{ view.label }}</button>
+          <button type="button" class="text-muted-foreground hover:text-destructive p-0.5" title="Hapus" @click="removeView(view.id, view.label)">
+            <X class="h-3 w-3" />
+          </button>
+        </div>
       </div>
     </SectionCard>
 

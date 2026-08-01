@@ -15,14 +15,20 @@ import { RFQS, RFQ_INVITATIONS, RFQ_RESPONSES, RFQ_CLARIFICATIONS, SERVICE_ORDER
 import { BOOKING_ORCHESTRATION_RECORDS } from './booking-orchestration'
 import { CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS } from './change-incident'
 import { DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS } from './document-comms'
-import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, DEMO_REFERENCE_DATE } from '~/utils/attention'
+import { SAVED_VIEWS } from './reporting'
+import {
+  MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
+  AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
+  NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES, ORGANIZATION_PROFILE,
+} from './master-data'
+import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
 import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES } from '~/constants/status'
 import type { Project, ServiceTypeKey, ServiceStatus, Traveler, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType } from '~/types/party'
 import type { Opportunity, OpportunityStage, Quotation, OpportunityWorkflowStatus } from '~/types/opportunity'
 import type { Vendor, VendorContact, VendorQuotation, VendorProduct, VendorDocument } from '~/types/vendor'
-import type { ActivityEntry, ChangeCategory, ProjectTask, ProjectRisk, ProjectRiskSeverity, ShiftNote, ShiftPeriod } from '~/types/activity'
+import type { ActivityEntry, ChangeCategory, ProjectTask, ProjectRisk, ProjectRiskSeverity, ShiftNote, ShiftPeriod, SystemEvent } from '~/types/activity'
 import type { Lead, LeadActivity } from '~/types/lead'
 import type { ProductTemplate, ProductTemplateStatus, ProductServiceAlternative, CostSheet, CostSheetLineItem } from '~/types/product'
 import type { FlightBooking, FlightBookingStatus, FlightOption, FlightSegment } from '~/types/ticketing'
@@ -34,6 +40,9 @@ import type { BookingDomain, BookingOrchestrationRecord, BookingAttempt, Booking
 import type { ChangeRequest, ChangeRequestSource, ChangeRequestStatus, AffectedEntityRef, CancellationRecord, RefundRequest, RefundRequestStatus, Incident, IncidentSeverity, IncidentStatus, IncidentCommunicationEntry } from '~/types/change-incident'
 import type { Invoice, InvoiceCurrency, InvoiceType, ExchangeRateSnapshot, Payment, CreditNote, DebitNote } from '~/types/finance'
 import type { Document, DocumentEntityType, DocumentAccessLevel, Message, MessageChannel, MessageDeliveryStatus, Notification, NotificationType, UnifiedTimelineEntry } from '~/types/document-comms'
+import type { SavedView, SavedViewPage } from '~/types/reporting'
+import type { MasterDataItem, Airport, Airline, Hotel, MasterCurrency, TaxRule, PaymentTerm, CancellationRule, NumberingScheme, DocumentTemplate, ReadinessGateConfig, AssignmentRule, OrganizationProfile, MasterDataCategoryKey } from '~/types/master-data'
+import type { User } from '~/types/user'
 
 export {
   USERS,
@@ -53,6 +62,10 @@ export {
   BOOKING_ORCHESTRATION_RECORDS,
   CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS,
   DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS,
+  SAVED_VIEWS,
+  MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
+  AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
+  NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES, ORGANIZATION_PROFILE,
 }
 
 /** Helper selector sederhana (Prompt 5-H) — hindari query ad-hoc berulang di tiap halaman. */
@@ -518,10 +531,150 @@ export function updateProjectClosureChecklist(projectId: string, patch: Partial<
   if (!project) return undefined
   project.closureChecklist = {
     financeSettled: false, documentsArchived: false, feedbackCollected: false, assetsReturned: false,
+    servicesCompleted: false, unresolvedIssuesHandled: false, documentsComplete: false,
     ...project.closureChecklist,
     ...patch,
   }
   return project
+}
+
+export interface ProjectClosureGateResult {
+  ready: boolean
+  blockers: string[]
+}
+
+/** Booking terminal status per domain (Flight/Hotel/Transport) — reuse `BOOKING_ACTIVE_CHECK_TERMINAL` (Section 18) di bawah, dideklarasikan sebelum dipakai. MICE dicek terpisah (`MiceEventStatus` hanya 5 nilai, tidak butuh map). */
+
+/**
+ * "Project Closed" gate (Section 24 — final section, resolves `docs/frontend-workflow-map.md` langkah 23
+ * dari PARTIAL). Pola SAMA `evaluateFinanceClosureGate`/`closeProjectFinance` (Section 20, D-077) —
+ * derivasi murni (bukan field tersimpan yang bisa stale). SENGAJA TIDAK merestrukturisasi `ProjectStatus`
+ * (8 nilai, LOCKED D-028) atau `PROJECT_STATUS_TRANSITIONS` — "Closed" TETAP dirivasi via
+ * `getProjectOrderStatus()` dari `project.status === 'completed' && project.closedAt` (D-066, LOCKED).
+ * `ready: true` hanya bila SEMUA: (1) `project.status === 'completed'`, (2) seluruh `ProjectService`
+ * (generik, `getProjectServices`) berstatus `completed`/`cancelled`, (3) seluruh `FlightBooking`/
+ * `HotelBooking`/`TransportBooking`/`MiceEvent` project ini berstatus terminal per domain (reuse
+ * `BOOKING_ACTIVE_CHECK_TERMINAL`, Section 18 — TIDAK menduplikasi daftar status terminal), (4)
+ * `closureChecklist.financeSettled` true (REUSE gate Section 20, TIDAK dihitung ulang di sini), (5)
+ * tidak ada `Incident` project ini berstatus `open`/`investigating`/`escalated`, (6) tidak ada
+ * `ChangeRequest` berstatus `submitted`/`under-review`, (7) tidak ada `Document` project ini yang sudah
+ * `isDocumentExpired` (best-effort — bukan validasi "seluruh dokumen wajib ada", karena tidak ada daftar
+ * dokumen wajib per project type di data model manapun; hanya menangkap dokumen yang SUDAH ada dan SUDAH
+ * eksplisit kedaluwarsa).
+ */
+export function evaluateProjectClosureGate(projectId: string): ProjectClosureGateResult {
+  const blockers: string[] = []
+  const project = getProjectById(projectId)
+  if (!project) return { ready: false, blockers: ['Project tidak ditemukan.'] }
+
+  if (project.status !== 'completed') {
+    blockers.push(`Status Project Order masih "${project.status}" — harus mencapai "completed" terlebih dahulu (lewat Close Project Order) sebelum dapat ditutup.`)
+  }
+
+  const nonTerminalServiceCount = getProjectServices(project.id)
+    .filter(service => service.status !== 'completed' && service.status !== 'cancelled').length
+  if (nonTerminalServiceCount > 0) blockers.push(`${nonTerminalServiceCount} service (tab Itinerary & Services) belum berstatus completed/cancelled.`)
+
+  const nonTerminalFlightCount = FLIGHT_BOOKINGS.filter(b => b.projectId === project.id && !BOOKING_ACTIVE_CHECK_TERMINAL.flight.includes(b.status)).length
+  const nonTerminalHotelCount = HOTEL_BOOKINGS.filter(b => b.projectId === project.id && !BOOKING_ACTIVE_CHECK_TERMINAL.hotel.includes(b.status)).length
+  const nonTerminalTransportCount = TRANSPORT_BOOKINGS.filter(b => b.projectId === project.id && !BOOKING_ACTIVE_CHECK_TERMINAL.transport.includes(b.status)).length
+  const nonTerminalMiceCount = MICE_EVENTS.filter(e => e.projectId === project.id && e.status !== 'completed' && e.status !== 'cancelled').length
+  const nonTerminalBookingCount = nonTerminalFlightCount + nonTerminalHotelCount + nonTerminalTransportCount + nonTerminalMiceCount
+  if (nonTerminalBookingCount > 0) blockers.push(`${nonTerminalBookingCount} booking Flight/Hotel/Transport/MICE belum berstatus terminal (issued/refunded/completed/cancelled/no-show sesuai domain).`)
+
+  if (!project.closureChecklist?.financeSettled) blockers.push('Finance belum diselesaikan — jalankan "Close Finance" di tab Finance (Section 20) terlebih dahulu.')
+
+  const openIncidentCount = getIncidentsByProject(project.id)
+    .filter(incident => incident.status === 'open' || incident.status === 'investigating' || incident.status === 'escalated').length
+  if (openIncidentCount > 0) blockers.push(`${openIncidentCount} Incident project ini masih terbuka (open/investigating/escalated).`)
+
+  const openChangeRequestCount = getChangeRequestsByProject(project.id)
+    .filter(request => request.status === 'submitted' || request.status === 'under-review').length
+  if (openChangeRequestCount > 0) blockers.push(`${openChangeRequestCount} Change Request project ini masih menunggu keputusan (submitted/under-review).`)
+
+  const expiredDocumentCount = getDocumentsForProject(project.id).filter(document => isDocumentExpired(document.expiresAt)).length
+  if (expiredDocumentCount > 0) blockers.push(`${expiredDocumentCount} dokumen project ini sudah kedaluwarsa (isDocumentExpired) — perbarui atau ganti sebelum menutup project.`)
+
+  return { ready: blockers.length === 0, blockers }
+}
+
+/**
+ * "Close Project" action (Section 24, Wajib literal: "services completed, finance finalized, unresolved
+ * issues handled, documents complete, client feedback/final note, closure summary"). Gerbang: HANYA
+ * berhasil bila `evaluateProjectClosureGate` mengembalikan `ready: true` DAN `finalNote` diisi (Wajib
+ * "client feedback/final note" — minimal salah satu narrative field terisi, `finalNote` wajib karena
+ * `clientFeedback` bisa jujur kosong bila client tidak memberi feedback tertulis). Menyetel
+ * `Project.closedAt`/`closedBy` (dipakai `getProjectOrderStatus()`, D-066, LOCOKED — TIDAK diubah) dan
+ * mengisi 3 field derivasi baru + narrative di `closureChecklist` sebagai SNAPSHOT hasil gate saat itu
+ * (bukan sumber kebenaran independen — re-run `evaluateProjectClosureGate` tetap yang dipercaya bila
+ * dicek ulang). Role gate (Management/PM) diterapkan di level UI (`canCloseProject`, pola narrow-role-
+ * exception sama `canManageProjectOrder`), BUKAN di sini — konsisten dengan `closeProjectFinance`/
+ * `updateProjectStatus` yang juga tidak melakukan role-check sendiri di data layer.
+ */
+export function closeProject(projectId: string, actorId: string, finalNote: string, clientFeedback?: string): { success: boolean; blockers: string[] } {
+  const project = getProjectById(projectId)
+  if (!project) return { success: false, blockers: ['Project tidak ditemukan.'] }
+  if (project.closedAt) return { success: false, blockers: ['Project ini sudah ditutup sebelumnya.'] }
+  if (!finalNote.trim()) return { success: false, blockers: ['Final note wajib diisi sebelum menutup project.'] }
+
+  const gate = evaluateProjectClosureGate(projectId)
+  if (!gate.ready) return { success: false, blockers: gate.blockers }
+
+  project.closedAt = DEMO_REFERENCE_DATE
+  project.closedBy = actorId
+  project.closureChecklist = {
+    financeSettled: true, documentsArchived: project.closureChecklist?.documentsArchived ?? false,
+    feedbackCollected: project.closureChecklist?.feedbackCollected ?? false, assetsReturned: project.closureChecklist?.assetsReturned ?? false,
+    ...project.closureChecklist,
+    servicesCompleted: true, unresolvedIssuesHandled: true, documentsComplete: true,
+    finalNote: finalNote.trim(), clientFeedback: clientFeedback?.trim() || undefined,
+  }
+
+  const actor = getUserById(actorId)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId,
+    message: `Project Order ditutup (Close Project) oleh ${actor?.name ?? actorId}. Final note: "${finalNote.trim()}".${clientFeedback?.trim() ? ` Client feedback: "${clientFeedback.trim()}".` : ''}`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return { success: true, blockers: [] }
+}
+
+export interface ProjectClosureSummary {
+  totalServices: number
+  totalBookings: number
+  totalInvoicedIdr: number
+  totalPaidIdr: number
+  incidentsTotal: number
+  incidentsResolved: number
+  changeRequestsTotal: number
+  changeRequestsImplemented: number
+}
+
+/**
+ * Closure summary (Wajib "closure summary") — SELURUH angka derivasi dari data existing (bukan fabrikasi).
+ * Dipanggil setelah `closeProject` berhasil (atau kapan pun untuk pratinjau) untuk ditampilkan di UI.
+ */
+export function getProjectClosureSummary(projectId: string): ProjectClosureSummary {
+  const totalServices = getProjectServices(projectId).length
+  const totalBookings = FLIGHT_BOOKINGS.filter(b => b.projectId === projectId).length
+    + HOTEL_BOOKINGS.filter(b => b.projectId === projectId).length
+    + TRANSPORT_BOOKINGS.filter(b => b.projectId === projectId).length
+    + MICE_EVENTS.filter(e => e.projectId === projectId).length
+  const invoices = getInvoicesByProject(projectId)
+  const totalInvoicedIdr = invoices.reduce((sum, invoice) => sum + invoice.amountIdr, 0)
+  const totalPaidIdr = invoices.reduce((sum, invoice) => sum + getPaymentsByInvoice(invoice.id).reduce((s, p) => s + p.amountIdr, 0), 0)
+  const incidents = getIncidentsByProject(projectId)
+  const changeRequests = getChangeRequestsByProject(projectId)
+  return {
+    totalServices,
+    totalBookings,
+    totalInvoicedIdr,
+    totalPaidIdr,
+    incidentsTotal: incidents.length,
+    incidentsResolved: incidents.filter(i => i.status === 'resolved' || i.status === 'closed').length,
+    changeRequestsTotal: changeRequests.length,
+    changeRequestsImplemented: changeRequests.filter(c => c.status === 'implemented').length,
+  }
 }
 
 /** Team assignment (Wajib "Team assignment dan role responsibilities") — `teamUserIds` sudah ada sejak Foundation, sebelumnya tidak ada mutator untuk mengelolanya. */
@@ -3761,4 +3914,193 @@ export function getUnifiedActivityTimeline(entityType: DocumentEntityType, entit
 
   const filtered = viewerAccessLevel === 'internal' ? entries : entries.filter(entry => !entry.internalOnly)
   return filtered.sort((a, b) => a.at.localeCompare(b.at))
+}
+
+/**
+ * Saved Views (Section 22 — Dashboards, Reports, Lead Recap dan Activity Center, D-079). Centralized
+ * reactive mock state (BUKAN localStorage/sessionStorage — konsisten dengan seluruh fixture lain di
+ * codebase). `applySavedView` HANYA mengembalikan `filters` tersimpan — pemanggil (halaman Dashboard/
+ * Reports) yang bertanggung jawab menuliskannya kembali ke ref filter existing masing-masing, bukan
+ * fungsi ini yang memutasi state halaman (data layer tidak boleh bergantung pada Vue ref komponen).
+ */
+export const getSavedViewsForUser = (userId: string, page: SavedViewPage) =>
+  SAVED_VIEWS.filter(view => view.userId === userId && view.page === page).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+export function createSavedView(input: { userId: string; page: SavedViewPage; label: string; filters: Record<string, string> }): SavedView {
+  const view: SavedView = { id: nextSequentialId('SVW-', SAVED_VIEWS), createdAt: DEMO_REFERENCE_DATE, ...input }
+  SAVED_VIEWS.push(view)
+  return view
+}
+
+export function deleteSavedView(id: string): void {
+  const index = SAVED_VIEWS.findIndex(view => view.id === id)
+  if (index !== -1) SAVED_VIEWS.splice(index, 1)
+}
+
+export const applySavedView = (id: string): SavedView | undefined => SAVED_VIEWS.find(view => view.id === id)
+
+/**
+ * Section 23 — Administration, Master Data dan Audit (roadmap Section 00–24 baru, D-080). `pushSystemEvent`
+ * adalah helper generik pertama yang benar-benar memutasi `SYSTEM_EVENTS` (sebelumnya didokumentasikan
+ * sebagai "log statis", `app/utils/mock-reset.ts`) — pola identik `pushNotification` (Section 21) di atas.
+ * Dipakai SELURUH mutator admin baru di bawah (master data create/edit/deactivate/reactivate, update
+ * Organization Profile, suspend/reactivate user) — setiap aksi tulis admin non-project-scoped WAJIB
+ * menghasilkan satu `SystemEvent` `module: 'administration'`, memenuhi "Audit trail search" (Wajib literal)
+ * tanpa menciptakan entitas audit ketiga (menghormati D-076 "satu audit trail" untuk perubahan project-scoped
+ * — `SystemEvent` sendiri sudah menjadi mekanisme terpisah sejak Prompt 19, bukan hal baru).
+ */
+function pushSystemEvent(type: string, message: string, entityId?: string, userId?: string): SystemEvent {
+  const event: SystemEvent = { id: nextSequentialId('EVT-', SYSTEM_EVENTS), module: 'administration', type, message, entityId, userId, createdAt: DEMO_REFERENCE_DATE }
+  SYSTEM_EVENTS.push(event)
+  return event
+}
+
+/**
+ * Master Data — registry generik (Section 23, D-080). Memetakan `MasterDataCategoryKey` ke array reactive
+ * + prefix ID yang tepat, dipakai `createMasterDataRecord`/`updateMasterDataRecord`/`deactivateMasterDataRecord`/
+ * `reactivateMasterDataRecord` di bawah. Opsi GENERIK (bukan 15×3 fungsi bernama-spesifik per kategori)
+ * dipilih karena brief Section 23 secara eksplisit mengizinkan keduanya ("generic per-category, or
+ * per-category-specific functions — your call") dan 15 kategori dengan shape berbeda-beda akan menghasilkan
+ * ~45 fungsi thin-wrapper nyaris identik bila dibuat spesifik — generik lebih mudah diaudit/di-maintain
+ * tanpa kehilangan type-safety di titik pemanggilan (page tetap mengimpor tipe spesifik per kategori untuk
+ * form-nya masing-masing). 4 kategori pertama (`project-type`/`service-type`/`destination`/`vendor-category`)
+ * adalah migrasi Section 17 lama (`MasterDataItem`, ID/label/description dipertahankan persis).
+ */
+type MasterDataRecordShape = { id: string; isActive: boolean } & Record<string, unknown>
+
+const MASTER_DATA_REGISTRY: Record<MasterDataCategoryKey, { list: MasterDataRecordShape[]; prefix: string; label: string }> = {
+  'project-type': { list: MASTER_PROJECT_TYPES as unknown as MasterDataRecordShape[], prefix: 'PT-', label: 'Tipe Project' },
+  'service-type': { list: MASTER_SERVICE_TYPES as unknown as MasterDataRecordShape[], prefix: 'ST-', label: 'Tipe Layanan' },
+  destination: { list: MASTER_DESTINATIONS as unknown as MasterDataRecordShape[], prefix: 'DST-', label: 'Destinasi' },
+  'vendor-category': { list: MASTER_VENDOR_CATEGORIES as unknown as MasterDataRecordShape[], prefix: 'VC-', label: 'Kategori Vendor' },
+  airport: { list: AIRPORTS as unknown as MasterDataRecordShape[], prefix: 'APT-', label: 'Airport' },
+  airline: { list: AIRLINES as unknown as MasterDataRecordShape[], prefix: 'ALN-', label: 'Airline' },
+  hotel: { list: MASTER_HOTELS as unknown as MasterDataRecordShape[], prefix: 'MHTL-', label: 'Hotel' },
+  currency: { list: MASTER_CURRENCIES as unknown as MasterDataRecordShape[], prefix: 'CUR-', label: 'Currency' },
+  'tax-rule': { list: TAX_RULES as unknown as MasterDataRecordShape[], prefix: 'TAX-', label: 'Tax Rule' },
+  'payment-term': { list: PAYMENT_TERMS as unknown as MasterDataRecordShape[], prefix: 'PTM-', label: 'Payment Term' },
+  'cancellation-rule': { list: CANCELLATION_RULES as unknown as MasterDataRecordShape[], prefix: 'CXR-', label: 'Cancellation Rule' },
+  'numbering-scheme': { list: NUMBERING_SCHEMES as unknown as MasterDataRecordShape[], prefix: 'NUM-', label: 'Numbering Scheme' },
+  'document-template': { list: DOCUMENT_TEMPLATES as unknown as MasterDataRecordShape[], prefix: 'DTPL-', label: 'Document Template' },
+  'readiness-gate': { list: READINESS_GATE_CONFIGS as unknown as MasterDataRecordShape[], prefix: 'RGC-', label: 'Readiness Gate' },
+  'assignment-rule': { list: ASSIGNMENT_RULES as unknown as MasterDataRecordShape[], prefix: 'ASR-', label: 'Assignment Rule' },
+}
+
+export function getMasterDataCategoryMeta(key: MasterDataCategoryKey) {
+  return { label: MASTER_DATA_REGISTRY[key].label, list: MASTER_DATA_REGISTRY[key].list }
+}
+
+function masterDataRecordDisplayName(record: MasterDataRecordShape): string {
+  return String(record.label ?? record.name ?? record.code ?? record.id)
+}
+
+export function createMasterDataRecord(key: MasterDataCategoryKey, input: Record<string, unknown>, actorId: string): MasterDataRecordShape {
+  const entry = MASTER_DATA_REGISTRY[key]
+  const record: MasterDataRecordShape = { id: nextSequentialId(entry.prefix, entry.list), isActive: true, ...input }
+  entry.list.push(record)
+  pushSystemEvent('master-data-created', `${entry.label} "${masterDataRecordDisplayName(record)}" ditambahkan`, record.id, actorId)
+  return record
+}
+
+export function updateMasterDataRecord(key: MasterDataCategoryKey, id: string, patch: Record<string, unknown>, actorId: string): MasterDataRecordShape | undefined {
+  const entry = MASTER_DATA_REGISTRY[key]
+  const record = entry.list.find(item => item.id === id)
+  if (!record) return undefined
+  Object.assign(record, patch)
+  pushSystemEvent('master-data-updated', `${entry.label} "${masterDataRecordDisplayName(record)}" diperbarui`, record.id, actorId)
+  return record
+}
+
+export function deactivateMasterDataRecord(key: MasterDataCategoryKey, id: string, actorId: string): MasterDataRecordShape | undefined {
+  const entry = MASTER_DATA_REGISTRY[key]
+  const record = entry.list.find(item => item.id === id)
+  if (!record) return undefined
+  record.isActive = false
+  pushSystemEvent('master-data-deactivated', `${entry.label} "${masterDataRecordDisplayName(record)}" dinonaktifkan`, record.id, actorId)
+  return record
+}
+
+export function reactivateMasterDataRecord(key: MasterDataCategoryKey, id: string, actorId: string): MasterDataRecordShape | undefined {
+  const entry = MASTER_DATA_REGISTRY[key]
+  const record = entry.list.find(item => item.id === id)
+  if (!record) return undefined
+  record.isActive = true
+  pushSystemEvent('master-data-reactivated', `${entry.label} "${masterDataRecordDisplayName(record)}" diaktifkan kembali`, record.id, actorId)
+  return record
+}
+
+/**
+ * "Historical snapshot warning ketika master berubah" (Wajib literal Section 23) — cek genuine SEDAPAT
+ * MUNGKIN, JUJUR bila tidak feasible (kembalikan `null`, bukan angka fabrikasi — instruksi eksplisit "be
+ * honest in the UI copy"). Genuine untuk 4 kategori yang punya cross-reference bersih: `currency` (exact
+ * match `Invoice.currency`), `destination` (fuzzy match prefix nama kota terhadap `Project.destination`
+ * bebas-teks — format tidak selalu identik persis, mis. "Abu Dhabi, UAE" vs "Abu Dhabi, Uni Emirat Arab"),
+ * `project-type`/`service-type` (peta ID tetap→field typed `Project.characteristic`/`ProjectService.type`,
+ * HANYA berlaku untuk 3/5 ID seed asli — record baru yang dibuat user lewat UI tidak punya sesuatu untuk
+ * dipetakan, `null`). Kategori lain (`vendor-category` — `Vendor.category` bebas-teks TIDAK match label
+ * secara andal, mis. "Flight Consolidator" vs "Maskapai / Airline"; `airport`/`airline`/`hotel`/`tax-rule`/
+ * `payment-term`/`cancellation-rule`/`numbering-scheme`/`document-template`/`readiness-gate`/`assignment-rule`
+ * — TIDAK ADA entitas existing yang menautkan ID-nya sama sekali, kategori-kategori ini genuinely baru
+ * tanpa consumer) SENGAJA `null` — UI menampilkan peringatan generik, bukan angka yang mengarang.
+ */
+export function getMasterDataUsageCount(key: MasterDataCategoryKey, id: string): number | null {
+  const entry = MASTER_DATA_REGISTRY[key]
+  const record = entry.list.find(item => item.id === id)
+  if (!record) return 0
+
+  if (key === 'currency') {
+    return INVOICES.filter(invoice => invoice.currency === record.code).length
+  }
+  if (key === 'destination') {
+    const city = String(record.label).split(',')[0].trim().toLowerCase()
+    return PROJECTS.filter(project => project.destination.split(',')[0].trim().toLowerCase() === city).length
+  }
+  if (key === 'project-type') {
+    const characteristicById: Record<string, string> = { 'PT-001': 'normal', 'PT-002': 'high-change', 'PT-003': 'complex' }
+    const characteristic = characteristicById[id]
+    return characteristic ? PROJECTS.filter(project => project.characteristic === characteristic).length : null
+  }
+  if (key === 'service-type') {
+    const typeById: Record<string, string> = { 'ST-001': 'flight', 'ST-002': 'hotel', 'ST-003': 'transportation', 'ST-004': 'mice', 'ST-005': 'additional' }
+    const serviceType = typeById[id]
+    return serviceType ? PROJECT_SERVICES.filter(service => service.type === serviceType).length : null
+  }
+  // Kategori tanpa cross-reference bersih (lihat komentar di atas) — jujur, bukan fabrikasi.
+  return null
+}
+
+/**
+ * Organization Profile (Section 23, baru) — singleton, `Object.assign` in-place (pola sama `Object.assign`
+ * partial-update entitas singleton lain di codebase ini, mis. `existing` di `submitRfqResponse`).
+ * `updatedAt`/`updatedBy` SELALU ditulis ulang oleh mutator, tidak pernah oleh form langsung.
+ */
+export function updateOrganizationProfile(patch: Partial<Omit<OrganizationProfile, 'id' | 'updatedAt' | 'updatedBy'>>, actorId: string): OrganizationProfile {
+  Object.assign(ORGANIZATION_PROFILE, patch, { updatedAt: DEMO_REFERENCE_DATE, updatedBy: actorId })
+  pushSystemEvent('organization-profile-updated', `Profil Organisasi "${ORGANIZATION_PROFILE.displayName}" diperbarui`, ORGANIZATION_PROFILE.id, actorId)
+  return ORGANIZATION_PROFILE
+}
+
+/**
+ * User suspend/access review (Section 23, Wajib "Access review and suspended user state"). Alasan WAJIB
+ * saat suspend (pola sama seluruh transisi destruktif lain di codebase ini, mis. `voidInvoice`/
+ * `rejectChangeRequest`). `reactivateUser` mengosongkan `suspendedReason`/`suspendedAt` kembali.
+ */
+export function suspendUser(userId: string, reason: string, actorId: string): User | undefined {
+  const user = USERS.find(item => item.id === userId)
+  if (!user || !reason.trim()) return undefined
+  user.status = 'suspended'
+  user.suspendedReason = reason.trim()
+  user.suspendedAt = DEMO_REFERENCE_DATE
+  pushSystemEvent('user-suspended', `User ${user.name} (${user.email}) disuspend — ${reason.trim()}`, user.id, actorId)
+  return user
+}
+
+export function reactivateUser(userId: string, actorId: string): User | undefined {
+  const user = USERS.find(item => item.id === userId)
+  if (!user) return undefined
+  user.status = 'active'
+  user.suspendedReason = undefined
+  user.suspendedAt = undefined
+  pushSystemEvent('user-reactivated', `User ${user.name} (${user.email}) diaktifkan kembali`, user.id, actorId)
+  return user
 }

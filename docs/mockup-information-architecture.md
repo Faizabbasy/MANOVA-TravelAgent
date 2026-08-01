@@ -1,5 +1,7 @@
 # Mockup Information Architecture — MANOVA (Prompt 3)
 
+> **SUPERSEDED (Section 24, 2026-08-01)** — dokumen ini adalah artefak skema lama (Prompt 0–18) dan TIDAK mencerminkan ~10 modul top-level baru yang dibangun Section 03–23 roadmap Section 00–24 (Product Planning, Ticketing, Accommodation, Transportation, MICE, Booking & Service Order Center, Procurement, Changes & Incidents, Documents & Communication, Client/Supplier Portal penuh, dll.). Body dokumen di bawah **dipertahankan apa adanya** sebagai jejak historis (bukan dihapus/ditulis ulang). Untuk kondisi terkini, lihat `docs/frontend-module-map.md` dan (setelah Phase 2 Section 24) `docs/frontend-end-to-end-implementation-guide.md`.
+
 Status dokumen: **hasil finalisasi rancangan IA.** Tidak ada kode yang diubah, tidak ada halaman diimplementasikan, tidak ada rename massal, tidak ada fitur dihapus. Keputusan pada dokumen ini berstatus **LOCKED** kecuali ditandai lain — ini adalah tahap yang secara eksplisit diminta untuk "memfinalisasikan rancangan" (Prompt 3), berbeda dengan Prompt 2 yang murni gap analysis. Detail penuh tiap keputusan beserta alasannya ada di `docs/mockup-design-decisions.md`; ringkasan status per keputusan juga tercermin di sana.
 
 Landasan: keputusan LOCKED Prompt 0, hasil gap analysis Prompt 2 (`docs/template-reuse-mapping.md`), dan resolusi open questions Prompt 2 (`docs/mockup-open-questions.md` — Q1–Q6 diselesaikan di tahap ini, ditandai `[RESOLVED]`).

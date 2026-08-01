@@ -3,8 +3,16 @@
  * menyimpan snapshot nilai awal seluruh `reactive()` array terpusat (`app/data/*.ts`) begitu aplikasi
  * pertama kali dimuat di browser (dipanggil dari `app/plugins/mock-reset.client.ts`), lalu menyediakan
  * `resetMockState()` untuk mengembalikan seluruh state ke kondisi seed tsb — dipakai tombol "Reset Demo
- * Data" (`app/pages/settings.vue`). TIDAK menyentuh `USERS` (bukan `reactive()`, tidak pernah dimutasi —
- * tidak ada `createUser`) maupun `SYSTEM_EVENTS` (didokumentasikan sebagai log statis, `app/data/activity.ts`).
+ * Data" (`app/pages/settings.vue`).
+ *
+ * CATATAN (Section 23 — Administration, Master Data dan Audit, roadmap Section 00–24 baru): registry di
+ * bawah ini TIDAK diperluas lagi sejak Section 09 (pola konsisten dengan seluruh array `reactive()` baru
+ * Section 10-23 lain — `RFQS`/`CHANGE_REQUESTS`/`DOCUMENT_RECORDS`/`SAVED_VIEWS`/dst. — yang juga tidak
+ * pernah ditambahkan ke sini). Klaim lama "`USERS` bukan `reactive()`, tidak pernah dimutasi" dan
+ * "`SYSTEM_EVENTS` log statis" SUDAH TIDAK BERLAKU sejak Section 23 — `USERS` kini `reactive()` (`suspendUser`/
+ * `reactivateUser`, `app/data/index.ts`) dan `SYSTEM_EVENTS` kini menerima entri baru (`pushSystemEvent`,
+ * dipanggil dari mutator Section 23) — keduanya SENGAJA tidak didaftarkan di sini, mengikuti preseden yang
+ * sama dengan array-array Section 10-22 di atas, bukan regresi/kelalaian yang tidak disadari.
  */
 
 type ResettableArrays = Record<string, unknown[]>
