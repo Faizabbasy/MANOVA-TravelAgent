@@ -45,6 +45,38 @@ export const ACTIVITIES: ActivityEntry[] = reactive([
   },
   /** PRJ-104 (Prompt 19) — mengikuti pola entri `approveOpportunityWon` (Section 09) untuk project yang di-seed langsung. */
   { id: 'ACT-1041', projectId: 'PRJ-104', message: 'Project PRJ-104 dibuat dari Opportunity OPP-008 (Won oleh Sari Wijaya/Management)', isChange: false, reviewed: true, createdAt: '2026-07-24' },
+
+  /**
+   * `CHG-1032`/`1033`/`1034` (Section 19 — Changes, Cancellation, Refund dan Incident) — ditambahkan ADITIF
+   * (entri existing di atas TIDAK diubah) sebagai `activityEntryId` untuk `ChangeRequest` baru
+   * (`CR-004`/`CR-005`/`CR-006`, `app/data/change-incident.ts`) yang tidak punya padanan `ActivityEntry`
+   * existing — menjaga `ActivityEntry` tetap SATU-SATUNYA audit trail (docs/mockup-information-architecture.md
+   * bagian 4, LOCKED), konsisten perilaku `createChangeRequest` (`app/data/index.ts`) yang selalu memanggil
+   * `createChangeEntry` saat membuat `ChangeRequest` baru lewat UI.
+   */
+  {
+    id: 'CHG-1032', projectId: 'PRJ-103', message: 'Vendor mengusulkan upgrade armada dari 2 unit Minibus menjadi 1 unit Bus',
+    isChange: true, reviewed: false, createdAt: '2026-07-18',
+    category: 'vendor', reason: 'Availability minibus terbatas menjelang tanggal keberangkatan', requestedBy: 'USR-015',
+    beforeValue: '2 unit Minibus (16 seat)', afterValue: '1 unit Bus (40 seat)', approvalStatus: 'pending',
+    impactNote: 'Perlu update assigned vehicle dan capacity check manifest Group Sales Team.',
+  },
+  {
+    id: 'CHG-1033', projectId: 'PRJ-101', message: 'Client meminta reschedule keberangkatan H-1 untuk e-ticket yang sudah issued',
+    isChange: true, reviewed: true, createdAt: '2026-07-19',
+    category: 'itinerary', reason: 'Permintaan reschedule mendadak dari klien', requestedBy: 'USR-019',
+    beforeValue: 'Keberangkatan 20 Agu 2026 pagi', afterValue: 'Permintaan reschedule ke 21 Agu 2026',
+    approvalStatus: 'rejected', approvedBy: 'USR-003',
+    impactNote: 'E-ticket sudah issued dan di luar fare rules reschedule H-1.',
+  },
+  {
+    id: 'CHG-1034', projectId: 'PRJ-103', message: 'Rundown venue MICE ditambah satu breakout room paralel',
+    isChange: true, reviewed: true, createdAt: '2026-07-21',
+    category: 'service', reason: 'Permintaan sesi paralel tambahan dari tim internal', requestedBy: 'USR-007',
+    beforeValue: 'Ballroom A, sesi tunggal', afterValue: 'Ballroom A + Breakout Room B, dua sesi paralel',
+    approvalStatus: 'approved', approvedBy: 'USR-003',
+    impactNote: 'BOQ dan staffing perlu ditambah untuk breakout room kedua.',
+  },
 ])
 
 export const DOCUMENTS: ProjectDocument[] = [

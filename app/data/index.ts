@@ -3,7 +3,7 @@ import { USERS } from './users'
 import { OPPORTUNITIES, QUOTATIONS } from './opportunities'
 import { VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES, VENDOR_PRODUCTS, VENDOR_DOCUMENTS } from './vendors'
 import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS } from './projects'
-import { INVOICES, PAYMENTS } from './finance'
+import { INVOICES, PAYMENTS, CREDIT_NOTES, DEBIT_NOTES } from './finance'
 import { ACTIVITIES, DOCUMENTS, TASKS, PROJECT_RISKS, SHIFT_NOTES, SYSTEM_EVENTS } from './activity'
 import { LEADS, LEAD_ACTIVITIES } from './leads'
 import { PRODUCT_TEMPLATES, COST_SHEETS } from './products'
@@ -12,9 +12,12 @@ import { HOTEL_BOOKINGS } from './accommodation'
 import { TRANSPORT_BOOKINGS } from './transportation'
 import { MICE_EVENTS } from './mice'
 import { RFQS, RFQ_INVITATIONS, RFQ_RESPONSES, RFQ_CLARIFICATIONS, SERVICE_ORDERS, SERVICE_ORDER_AMENDMENTS, SUPPLIER_INVOICES } from './procurement'
+import { BOOKING_ORCHESTRATION_RECORDS } from './booking-orchestration'
+import { CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS } from './change-incident'
+import { DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS } from './document-comms'
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, DEMO_REFERENCE_DATE } from '~/utils/attention'
-import { formatCurrencyIdr, daysUntil } from '~/utils/format'
-import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
+import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
+import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES } from '~/constants/status'
 import type { Project, ServiceTypeKey, ServiceStatus, Traveler, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType } from '~/types/party'
 import type { Opportunity, OpportunityStage, Quotation, OpportunityWorkflowStatus } from '~/types/opportunity'
@@ -26,7 +29,11 @@ import type { FlightBooking, FlightBookingStatus, FlightOption, FlightSegment } 
 import type { HotelBooking, HotelBookingStatus, HotelOption } from '~/types/accommodation'
 import type { TransportBooking, TransportBookingStatus, TransportOption, TransportLeg } from '~/types/transportation'
 import type { MiceEvent, MiceEventStatus, MiceApprovalStatus } from '~/types/mice'
-import type { RFQ, RFQStatus, RFQLineItem, RFQInvitation, RFQResponse, RFQResponseLineItem, RFQClarificationMessage, ServiceOrder, ServiceOrderStatus, ServiceOrderLineItem, ServiceOrderAmendment, SupplierInvoice, SupplierInvoiceStatus } from '~/types/procurement'
+import type { RFQ, RFQStatus, RFQLineItem, RFQInvitation, RFQResponse, RFQResponseLineItem, RFQClarificationMessage, ServiceOrder, ServiceOrderStatus, ServiceOrderLineItem, ServiceOrderAmendment, SupplierInvoice, SupplierInvoiceStatus, SupplierInvoiceMatchStatus } from '~/types/procurement'
+import type { BookingDomain, BookingOrchestrationRecord, BookingAttempt, BookingAttemptOutcome, BookingPaymentGateStatus, BookingTimelineEntry, BookingTimelineDependencyView } from '~/types/booking-orchestration'
+import type { ChangeRequest, ChangeRequestSource, ChangeRequestStatus, AffectedEntityRef, CancellationRecord, RefundRequest, RefundRequestStatus, Incident, IncidentSeverity, IncidentStatus, IncidentCommunicationEntry } from '~/types/change-incident'
+import type { Invoice, InvoiceCurrency, InvoiceType, ExchangeRateSnapshot, Payment, CreditNote, DebitNote } from '~/types/finance'
+import type { Document, DocumentEntityType, DocumentAccessLevel, Message, MessageChannel, MessageDeliveryStatus, Notification, NotificationType, UnifiedTimelineEntry } from '~/types/document-comms'
 
 export {
   USERS,
@@ -34,7 +41,7 @@ export {
   OPPORTUNITIES, QUOTATIONS,
   VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES, VENDOR_PRODUCTS, VENDOR_DOCUMENTS,
   PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS,
-  INVOICES, PAYMENTS,
+  INVOICES, PAYMENTS, CREDIT_NOTES, DEBIT_NOTES,
   ACTIVITIES, DOCUMENTS, TASKS, PROJECT_RISKS, SHIFT_NOTES, SYSTEM_EVENTS,
   LEADS, LEAD_ACTIVITIES,
   PRODUCT_TEMPLATES, COST_SHEETS,
@@ -43,6 +50,9 @@ export {
   TRANSPORT_BOOKINGS,
   MICE_EVENTS,
   RFQS, RFQ_INVITATIONS, RFQ_RESPONSES, RFQ_CLARIFICATIONS, SERVICE_ORDERS, SERVICE_ORDER_AMENDMENTS, SUPPLIER_INVOICES,
+  BOOKING_ORCHESTRATION_RECORDS,
+  CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS,
+  DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS,
 }
 
 /** Helper selector sederhana (Prompt 5-H) — hindari query ad-hoc berulang di tiap halaman. */
@@ -54,6 +64,8 @@ export const getOpportunitiesByParty = (partyId: string) => OPPORTUNITIES.filter
 export const getOpportunityById = (id: string) => OPPORTUNITIES.find(opp => opp.id === id)
 export const getProjectsByParty = (partyId: string) => PROJECTS.filter(project => project.partyId === partyId)
 export const getQuotationByOpportunity = (opportunityId: string) => QUOTATIONS.find(quotation => quotation.opportunityId === opportunityId)
+/** Section 19 — "Additional quotation/change order" (`ChangeRequest.linkedQuotationId`), dipakai `/changes/[id]`. */
+export const getQuotationById = (id: string) => QUOTATIONS.find(quotation => quotation.id === id)
 /** Management Approval Queue (Section 06) — quotation menunggu Commercial Approval, lintas seluruh Opportunity. */
 export const getQuotationsPendingApproval = () => QUOTATIONS.filter(quotation => quotation.approvalStatus === 'submitted')
 /** Management Approval Queue (Section 06) — Opportunity yang quotation-nya sudah approved tapi Client Confirmation (Section 05, AE-facing) belum dicatat; visibilitas Management, bukan aksi (client confirmation tetap tanggung jawab AE). */
@@ -114,12 +126,30 @@ export function getTravelersMissingDocuments(projectId: string) {
 export const getInvoicesByProject = (projectId: string) => INVOICES.filter(invoice => invoice.projectId === projectId)
 export const getPaymentsByInvoice = (invoiceId: string) => PAYMENTS.filter(payment => payment.invoiceId === invoiceId)
 
-/** Project Finance (Section 15) — sisa tagihan satu invoice (amount dikurangi payment yang sudah diterima). */
+/** Credit Note (Section 20) — daftar Credit Note satu invoice/project. `Invoice.amountIdr` TIDAK PERNAH ditulis ulang — dipakai `getInvoiceOutstandingIdr` untuk mengurangi outstanding on-the-fly. */
+export const getCreditNotesByInvoice = (invoiceId: string) => CREDIT_NOTES.filter(note => note.invoiceId === invoiceId)
+export function getCreditNotesByProject(projectId: string): CreditNote[] {
+  const invoiceIds = new Set(getInvoicesByProject(projectId).map(invoice => invoice.id))
+  return CREDIT_NOTES.filter(note => invoiceIds.has(note.invoiceId))
+}
+/** Debit Note (Section 20) — murni informasional (Wajib), TIDAK mempengaruhi kalkulasi outstanding mana pun. */
+export const getDebitNotesByProject = (projectId: string) => DEBIT_NOTES.filter(note => note.projectId === projectId)
+
+/**
+ * Project Finance (Section 15, diperluas Section 20 — D-077) — sisa tagihan satu invoice (amount dikurangi
+ * payment yang sudah diterima DAN Credit Note `issued`/`applied` milik invoice tsb). Invoice `'void'`
+ * (Section 20, transisi terminal baru) selalu mengembalikan 0 — invoice yang dibatalkan tidak pernah
+ * outstanding.
+ */
 export function getInvoiceOutstandingIdr(invoiceId: string): number {
   const invoice = INVOICES.find(item => item.id === invoiceId)
   if (!invoice) return 0
+  if (invoice.status === 'void') return 0
   const paid = getPaymentsByInvoice(invoiceId).reduce((sum, payment) => sum + payment.amountIdr, 0)
-  return Math.max(invoice.amountIdr - paid, 0)
+  const credited = getCreditNotesByInvoice(invoiceId)
+    .filter(note => note.status === 'issued' || note.status === 'applied')
+    .reduce((sum, note) => sum + note.amountIdr, 0)
+  return Math.max(invoice.amountIdr - paid - credited, 0)
 }
 
 /** Total outstanding satu project — dipakai tampilan "ringkas" (Sales/role tanpa akses modul Finance) dan Finance tab penuh. */
@@ -134,6 +164,248 @@ export function getCommittedVendorCostIdr(projectId: string): number {
   return VENDOR_QUOTATIONS
     .filter(quotation => quotation.projectId === projectId && quotation.status === 'accepted')
     .reduce((sum, quotation) => sum + quotation.amountIdr, 0)
+}
+
+/**
+ * Project Finance mutators (Section 20 — Project Finance, roadmap Section 00–24 baru, D-077). Seluruhnya
+ * frontend-only/mock (D-006) — "Record Payment" murni status/ledger update, BUKAN payment gateway nyata.
+ * `Invoice.amountIdr` TIDAK PERNAH ditulis ulang oleh mutator mana pun di sini — histori tetap utuh, sesuai
+ * pola yang sudah dipakai sejak Section 13 (VendorQuotation) dan konsisten dengan `CreditNote`/`DebitNote`.
+ */
+
+export interface CreateInvoiceInput {
+  projectId: string
+  label: string
+  amountIdr: number
+  currency: InvoiceCurrency
+  invoiceType: InvoiceType
+  dueAt: string
+  exchangeRateSnapshot?: ExchangeRateSnapshot
+}
+
+/** Membuat Invoice baru berstatus `unpaid`. `exchangeRateSnapshot` hanya disimpan bila `currency !== 'IDR'`. */
+export function createInvoice(input: CreateInvoiceInput): Invoice | undefined {
+  const project = getProjectById(input.projectId)
+  if (!project || !input.label.trim() || input.amountIdr <= 0 || !input.dueAt) return undefined
+  const invoice: Invoice = {
+    id: nextSequentialId('INV-', INVOICES),
+    projectId: input.projectId,
+    label: input.label.trim(),
+    amountIdr: input.amountIdr,
+    issuedAt: DEMO_REFERENCE_DATE,
+    dueAt: input.dueAt,
+    status: 'unpaid',
+    currency: input.currency,
+    invoiceType: input.invoiceType,
+    exchangeRateSnapshot: input.currency !== 'IDR' ? input.exchangeRateSnapshot : undefined,
+  }
+  INVOICES.push(invoice)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: input.projectId,
+    message: `Invoice ${invoice.id} (${invoice.label}) diterbitkan senilai ${formatCurrencyIdr(invoice.amountIdr)} (${invoice.invoiceType}).`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return invoice
+}
+
+/**
+ * Void Invoice — transisi terminal, alasan WAJIB (pola sama section lain, mis. `rejectChangeRequest`). Invoice
+ * yang sudah `paid` atau sudah `void` DIBLOKIR (mengembalikan `undefined`) — UI wajib menampilkan pesan jelas,
+ * bukan membiarkan aksi silent-fail (lihat `app/pages/finance/invoices.vue`, tombol Void disembunyikan/disabled
+ * dengan penjelasan untuk invoice yang tidak eligible).
+ */
+export function voidInvoice(invoiceId: string, reason: string, actorId: string): Invoice | undefined {
+  const invoice = INVOICES.find(item => item.id === invoiceId)
+  if (!invoice || !reason.trim()) return undefined
+  if (invoice.status === 'paid' || invoice.status === 'void') return undefined
+  invoice.status = 'void'
+  invoice.voidedAt = DEMO_REFERENCE_DATE
+  invoice.voidReason = reason.trim()
+  const actor = getUserById(actorId)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: invoice.projectId,
+    message: `Invoice ${invoice.id} dibatalkan (void) oleh ${actor?.name ?? actorId}. Alasan: ${invoice.voidReason}`,
+    isChange: true, reviewed: false, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return invoice
+}
+
+export interface RecordPaymentInput {
+  invoiceId: string
+  amountIdr: number
+  recordedBy: string
+  method?: string
+}
+
+/**
+ * Record Payment — mock ledger update murni (D-006, bukan payment gateway nyata). Recompute `Invoice.status`
+ * lewat `getInvoiceOutstandingIdr` existing (TIDAK menduplikasi math outstanding) — `unpaid`/`partially-paid`
+ * → `paid` otomatis begitu outstanding mencapai 0. Diblokir untuk invoice `paid`/`void` (tidak ada yang perlu
+ * dibayar lagi) atau jumlah invalid.
+ */
+export function recordPayment(input: RecordPaymentInput): Payment | undefined {
+  const invoice = INVOICES.find(item => item.id === input.invoiceId)
+  if (!invoice || input.amountIdr <= 0) return undefined
+  if (invoice.status === 'paid' || invoice.status === 'void') return undefined
+  const outstandingBefore = getInvoiceOutstandingIdr(input.invoiceId)
+  if (outstandingBefore <= 0) return undefined
+
+  const payment: Payment = {
+    id: nextSequentialId('PAY-', PAYMENTS),
+    invoiceId: input.invoiceId,
+    amountIdr: Math.min(input.amountIdr, outstandingBefore),
+    receivedAt: DEMO_REFERENCE_DATE,
+    method: input.method,
+    recordedBy: input.recordedBy,
+  }
+  PAYMENTS.push(payment)
+  invoice.status = getInvoiceOutstandingIdr(input.invoiceId) <= 0 ? 'paid' : 'partially-paid'
+
+  const actor = getUserById(input.recordedBy)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: invoice.projectId,
+    message: `Payment ${payment.id} sebesar ${formatCurrencyIdr(payment.amountIdr)} dicatat untuk Invoice ${invoice.id} oleh ${actor?.name ?? input.recordedBy}. Invoice kini berstatus "${invoice.status}".`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return payment
+}
+
+export interface IssueCreditNoteInput {
+  invoiceId: string
+  amountIdr: number
+  reason: string
+  refundRequestId?: string
+}
+
+/** Issue Credit Note — mengurangi outstanding invoice terkait (via `getInvoiceOutstandingIdr`) tanpa menulis ulang `Invoice.amountIdr`. Dipanggil manual dari `/finance/invoices.vue` ATAU otomatis dari `updateRefundRequestStatus` (lihat hook di bawah, D-077 menutup forward dependency D-076/Section 19). */
+export function issueCreditNote(input: IssueCreditNoteInput): CreditNote | undefined {
+  const invoice = INVOICES.find(item => item.id === input.invoiceId)
+  if (!invoice || input.amountIdr <= 0 || !input.reason.trim()) return undefined
+  const note: CreditNote = {
+    id: nextSequentialId('CN-', CREDIT_NOTES),
+    invoiceId: input.invoiceId,
+    refundRequestId: input.refundRequestId,
+    amountIdr: input.amountIdr,
+    issuedAt: DEMO_REFERENCE_DATE,
+    reason: input.reason.trim(),
+    status: 'issued',
+  }
+  CREDIT_NOTES.push(note)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: invoice.projectId,
+    message: `Credit Note ${note.id} senilai ${formatCurrencyIdr(note.amountIdr)} diterbitkan untuk Invoice ${invoice.id}. Alasan: ${note.reason}`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return note
+}
+
+export interface IssueDebitNoteInput {
+  projectId: string
+  amountIdr: number
+  reason: string
+  invoiceId?: string
+}
+
+/** Issue Debit Note — murni informasional (Wajib), TIDAK mempengaruhi kalkulasi outstanding invoice mana pun. */
+export function issueDebitNote(input: IssueDebitNoteInput): DebitNote | undefined {
+  const project = getProjectById(input.projectId)
+  if (!project || input.amountIdr <= 0 || !input.reason.trim()) return undefined
+  const note: DebitNote = {
+    id: nextSequentialId('DN-', DEBIT_NOTES),
+    projectId: input.projectId,
+    invoiceId: input.invoiceId,
+    amountIdr: input.amountIdr,
+    issuedAt: DEMO_REFERENCE_DATE,
+    reason: input.reason.trim(),
+    status: 'issued',
+  }
+  DEBIT_NOTES.push(note)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: input.projectId,
+    message: `Debit Note ${note.id} senilai ${formatCurrencyIdr(note.amountIdr)} diterbitkan. Alasan: ${note.reason}`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return note
+}
+
+/** AP reconciliation (Section 20) — Supplier Invoice satu project, lintas seluruh Service Order project tsb (dipakai AP summary Project Detail Finance tab dan `evaluateFinanceClosureGate`). */
+export function getSupplierInvoicesByProject(projectId: string): SupplierInvoice[] {
+  const serviceOrderIds = new Set(SERVICE_ORDERS.filter(so => so.projectId === projectId).map(so => so.id))
+  return SUPPLIER_INVOICES.filter(invoice => serviceOrderIds.has(invoice.serviceOrderId))
+}
+
+/** Reconciliation workspace (Section 20, Wajib) — worklist Supplier Invoice yang eksplisit ditandai `unmatched`/`disputed`. Invoice tanpa `matchStatus` sama sekali (belum ditriase) TIDAK muncul di sini — konsisten field opsional aditif. */
+export function getSupplierInvoiceReconciliationQueue(): SupplierInvoice[] {
+  return SUPPLIER_INVOICES.filter(invoice => invoice.matchStatus === 'unmatched' || invoice.matchStatus === 'disputed')
+}
+
+/** Update match status AP (Section 20) — pola sama `reviewSupplierInvoice` (Section 17, actorId untuk audit trail `ActivityEntry` project terkait via `ServiceOrder.projectId`, `note` opsional). */
+export function updateSupplierInvoiceMatchStatus(id: string, status: SupplierInvoiceMatchStatus, actorId: string, note?: string): SupplierInvoice | undefined {
+  const invoice = SUPPLIER_INVOICES.find(item => item.id === id)
+  if (!invoice) return undefined
+  invoice.matchStatus = status
+  const serviceOrder = getServiceOrderById(invoice.serviceOrderId)
+  if (serviceOrder?.projectId) {
+    const actor = getUserById(actorId)
+    ACTIVITIES.push({
+      id: nextSequentialId('ACT-', ACTIVITIES), projectId: serviceOrder.projectId,
+      message: `Supplier Invoice ${invoice.id} (${getVendorById(invoice.vendorId)?.name ?? invoice.vendorId}) match status diubah menjadi "${status}" oleh ${actor?.name ?? actorId}.${note ? ` Catatan: ${note}` : ''}`,
+      isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+    })
+  }
+  return invoice
+}
+
+export interface FinanceClosureGateResult {
+  ready: boolean
+  blockers: string[]
+}
+
+/**
+ * Financial closure gate (Section 20, Wajib) — derivasi murni (BUKAN field tersimpan yang bisa stale, pola
+ * sama `getCostSheetBreakdown`/`getServiceReadinessMatrix`). `ready: true` hanya bila: (1) tidak ada Invoice
+ * project ini yang outstanding > 0 (`getInvoiceOutstandingIdr`, sudah memperhitungkan Credit Note dan status
+ * `void`), (2) tidak ada Refund Request project ini yang masih non-terminal
+ * (`requested`/`under-review`/`approved`), (3) tidak ada Supplier Invoice/AP project ini yang `matchStatus`
+ * terisi tapi bukan `matched`. Dipakai `closeProjectFinance` (gate) dan ditampilkan di `/finance` (agregat)
+ * dan tab Finance Project Detail.
+ */
+export function evaluateFinanceClosureGate(projectId: string): FinanceClosureGateResult {
+  const blockers: string[] = []
+
+  const outstandingInvoiceCount = getInvoicesByProject(projectId).filter(invoice => getInvoiceOutstandingIdr(invoice.id) > 0).length
+  if (outstandingInvoiceCount > 0) blockers.push(`${outstandingInvoiceCount} invoice masih memiliki outstanding balance.`)
+
+  const nonTerminalRefundCount = getRefundRequestsByProject(projectId)
+    .filter(request => request.status === 'requested' || request.status === 'under-review' || request.status === 'approved').length
+  if (nonTerminalRefundCount > 0) blockers.push(`${nonTerminalRefundCount} Refund Request belum selesai (belum processed/rejected).`)
+
+  const unmatchedSupplierInvoiceCount = getSupplierInvoicesByProject(projectId)
+    .filter(invoice => invoice.matchStatus && invoice.matchStatus !== 'matched').length
+  if (unmatchedSupplierInvoiceCount > 0) blockers.push(`${unmatchedSupplierInvoiceCount} Supplier Invoice (AP) belum matched.`)
+
+  return { ready: blockers.length === 0, blockers }
+}
+
+/**
+ * "Close Finance" action (Section 20, Wajib) — mengisi `ProjectClosureChecklist.financeSettled` (shell inert
+ * sejak Section 09/D-066) dengan logic gate NYATA untuk pertama kalinya, MEREUSE `updateProjectClosureChecklist`
+ * existing (bukan menulis ulang shape-nya). HANYA berhasil bila `evaluateFinanceClosureGate` mengembalikan
+ * `ready: true` — bila tidak, mengembalikan blockers tanpa mengubah apa pun (UI wajib menampilkan daftar
+ * blocker, bukan membiarkan aksi silent-fail).
+ */
+export function closeProjectFinance(projectId: string, actorId: string): { success: boolean; blockers: string[] } {
+  const gate = evaluateFinanceClosureGate(projectId)
+  if (!gate.ready) return { success: false, blockers: gate.blockers }
+  const updated = updateProjectClosureChecklist(projectId, { financeSettled: true })
+  if (!updated) return { success: false, blockers: ['Project tidak ditemukan.'] }
+  const actor = getUserById(actorId)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId,
+    message: `Finance ditutup (Close Finance) oleh ${actor?.name ?? actorId} — seluruh outstanding invoice, Refund Request, dan AP matching sudah selesai.`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return { success: true, blockers: [] }
 }
 
 export const getActivitiesByProject = (projectId: string) => ACTIVITIES.filter(activity => activity.projectId === projectId)
@@ -280,12 +552,18 @@ export interface CreateProjectTaskInput {
 export function createProjectTask(input: CreateProjectTaskInput): ProjectTask {
   const task: ProjectTask = { id: nextSequentialId('TSK-', TASKS), status: 'not-started', ...input }
   TASKS.push(task)
+  // Hook Section 21 (D-078, CI-051, hook #4a) — task assignment saat pembuatan memicu Notification type 'assignment'.
+  if (task.assignedTo) pushNotification(task.assignedTo, 'assignment', 'Anda ditugaskan pada task baru', `Task "${task.title}" ditugaskan kepada Anda.`, 'project', task.projectId)
   return task
 }
 
 export function updateProjectTask(taskId: string, patch: Partial<Omit<ProjectTask, 'id' | 'projectId'>>): ProjectTask | undefined {
   const task = TASKS.find(item => item.id === taskId)
   if (!task) return undefined
+  // Hook Section 21 (D-078, CI-051, hook #4b) — reassignment task memicu Notification type 'assignment' ke assignee baru. Guard mencegah notifikasi berulang saat patch tidak mengubah assignedTo.
+  if (patch.assignedTo && patch.assignedTo !== task.assignedTo) {
+    pushNotification(patch.assignedTo, 'assignment', 'Anda ditugaskan pada task baru', `Task "${task.title}" ditugaskan kepada Anda.`, 'project', task.projectId)
+  }
   Object.assign(task, patch)
   return task
 }
@@ -337,8 +615,9 @@ export function getProjectsNeedingAttention() {
   )
 }
 
+/** Section 20 — `'void'` dikecualikan bersama `'paid'` (invoice dibatalkan bukan "outstanding"). */
 export function getOutstandingInvoices() {
-  return INVOICES.filter(invoice => invoice.status !== 'paid')
+  return INVOICES.filter(invoice => invoice.status !== 'paid' && invoice.status !== 'void')
 }
 
 /** Selector tambahan Section 06 (Dashboard) — dipakai widget role-aware ("milik sendiri", service readiness, dll). */
@@ -1032,7 +1311,7 @@ export function getDepartureReadiness(projectId: string): DepartureReadinessSumm
   const servicesConfirmedPercent = totalServices === 0 ? 0 : Math.round((confirmedServices / totalServices) * 100)
   const blockedTasksCount = getTasksByProject(projectId).filter(task => task.isBlocked).length
   const openRisksCount = getRisksByProject(projectId).filter(risk => risk.status === 'open').length
-  const outstandingInvoiceCount = getInvoicesByProject(projectId).filter(invoice => invoice.status !== 'paid').length
+  const outstandingInvoiceCount = getInvoicesByProject(projectId).filter(invoice => invoice.status !== 'paid' && invoice.status !== 'void').length
 
   const blockingReasons: string[] = []
   if (travelerReadiness.total > 0 && travelerReadiness.documentsCompleteCount < travelerReadiness.total) {
@@ -1177,6 +1456,7 @@ export function updateFlightBookingStatus(bookingId: string, newStatus: FlightBo
   booking.status = newStatus
   booking.updatedAt = DEMO_REFERENCE_DATE
   if (reason) booking.statusReason = reason.trim()
+  syncBookingPaymentGateOnStatusChange('flight', booking.id, booking.projectId, newStatus)
 
   const actor = getUserById(actorId)
   ACTIVITIES.push({
@@ -1277,6 +1557,7 @@ export function updateHotelBookingStatus(bookingId: string, newStatus: HotelBook
   booking.status = newStatus
   booking.updatedAt = DEMO_REFERENCE_DATE
   if (reason) booking.statusReason = reason.trim()
+  syncBookingPaymentGateOnStatusChange('hotel', booking.id, booking.projectId, newStatus)
 
   const actor = getUserById(actorId)
   ACTIVITIES.push({
@@ -1377,6 +1658,7 @@ export function updateTransportBookingStatus(bookingId: string, newStatus: Trans
   booking.status = newStatus
   booking.updatedAt = DEMO_REFERENCE_DATE
   if (reason) booking.statusReason = reason.trim()
+  syncBookingPaymentGateOnStatusChange('transport', booking.id, booking.projectId, newStatus)
 
   const actor = getUserById(actorId)
   ACTIVITIES.push({
@@ -1501,6 +1783,7 @@ export function updateMiceEventStatus(eventId: string, newStatus: MiceEventStatu
   event.status = newStatus
   event.updatedAt = DEMO_REFERENCE_DATE
   if (reason) event.statusReason = reason.trim()
+  syncBookingPaymentGateOnStatusChange('mice', event.id, event.projectId, newStatus)
 
   const actor = getUserById(actorId)
   ACTIVITIES.push({
@@ -1560,6 +1843,323 @@ export function toggleMiceDeliverable(eventId: string, index: number): MiceEvent
   event.deliverables[index].isDelivered = !event.deliverables[index].isDelivered
   event.updatedAt = DEMO_REFERENCE_DATE
   return event
+}
+
+/**
+ * Booking dan Service Orders (Section 18 — roadmap Section 00–24 baru). Consolidation/orchestration LAYER di
+ * atas Flight/Hotel/Transport/MICE booking (Section 13-16) — lihat `BookingOrchestrationRecord`/
+ * `BookingTimelineEntry` (`app/types/booking-orchestration.ts`) untuk rasional model lengkap. Fully additive:
+ * TIDAK ADA field ditambahkan ke `FlightBooking`/`HotelBooking`/`TransportBooking`/`MiceEvent`, dan
+ * `createFlightBooking`/`createHotelBooking`/`createTransportBooking`/`createMiceEvent` (Section 13-16,
+ * LOCKED) TIDAK disentuh sama sekali — record orchestration dibuat lazily lewat
+ * `getOrCreateBookingOrchestrationRecord` di bawah, dipanggil dari `getBookingTimeline` (baca) dan dari titik
+ * transisi status/duplicate-flag (tulis) sehingga booking baru yang dibuat lewat UI otomatis tercakup tanpa
+ * perlu mengubah 4 fungsi create tsb.
+ */
+
+export const getBookingOrchestrationRecord = (bookingType: BookingDomain, bookingId: string) =>
+  BOOKING_ORCHESTRATION_RECORDS.find(record => record.bookingType === bookingType && record.bookingId === bookingId)
+
+function getOrCreateBookingOrchestrationRecord(bookingType: BookingDomain, bookingId: string, projectId: string): BookingOrchestrationRecord {
+  const existing = getBookingOrchestrationRecord(bookingType, bookingId)
+  if (existing) return existing
+  const record: BookingOrchestrationRecord = {
+    id: nextSequentialId('BKO-', BOOKING_ORCHESTRATION_RECORDS),
+    bookingType, bookingId, projectId,
+    paymentGateStatus: 'not-required',
+    attemptLog: [],
+  }
+  BOOKING_ORCHESTRATION_RECORDS.push(record)
+  return record
+}
+
+function getBookingStatusValue(bookingType: BookingDomain, bookingId: string): string | undefined {
+  if (bookingType === 'flight') return getFlightBookingById(bookingId)?.status
+  if (bookingType === 'hotel') return getHotelBookingById(bookingId)?.status
+  if (bookingType === 'transport') return getTransportBookingById(bookingId)?.status
+  return getMiceEventById(bookingId)?.status
+}
+
+/** Status yang dianggap "confirmed-equivalent" per domain — dipakai untuk (a) menilai dependency terpenuhi, (b) memicu payment gate `pending` (poin "Confirmation and payment gates", Wajib). */
+const BOOKING_CONFIRMED_STATUSES: Record<BookingDomain, string[]> = {
+  flight: ['confirmed', 'issued', 'reissued'],
+  hotel: ['confirmed', 'amended', 'completed'],
+  transport: ['assigned', 'confirmed', 'completed'],
+  mice: ['confirmed', 'in-progress', 'completed'],
+}
+const BOOKING_COMPLETED_STATUSES: Record<BookingDomain, string[]> = {
+  flight: ['issued', 'reissued'],
+  hotel: ['completed'],
+  transport: ['completed'],
+  mice: ['completed'],
+}
+const BOOKING_CANCELLED_STATUSES: Record<BookingDomain, string[]> = {
+  flight: ['cancelled', 'refunded'],
+  hotel: ['cancelled', 'no-show'],
+  transport: ['cancelled', 'no-show'],
+  mice: ['cancelled'],
+}
+
+type BookingStatusBucket = 'processing' | 'confirmed' | 'completed' | 'cancelled'
+
+function bookingStatusBucket(bookingType: BookingDomain, status: string): BookingStatusBucket {
+  if (BOOKING_CANCELLED_STATUSES[bookingType].includes(status)) return 'cancelled'
+  if (BOOKING_COMPLETED_STATUSES[bookingType].includes(status)) return 'completed'
+  if (BOOKING_CONFIRMED_STATUSES[bookingType].includes(status)) return 'confirmed'
+  return 'processing'
+}
+
+/**
+ * "Internal/supplier/client-visible status mapping" (Wajib) — bucket 4-kategori yang disederhanakan dari
+ * vocabulary status existing masing-masing domain (BUKAN enum baru), dipakai untuk label supplier/client;
+ * `internalStatus` tetap memakai label penuh vocabulary asli (lihat `buildBookingTimelineEntry`).
+ */
+const BOOKING_CLIENT_STATUS_LABEL: Record<BookingStatusBucket, string> = {
+  processing: 'Diproses', confirmed: 'Dikonfirmasi', completed: 'Selesai', cancelled: 'Dibatalkan',
+}
+const BOOKING_SUPPLIER_STATUS_LABEL: Record<BookingStatusBucket, string> = {
+  processing: 'Menunggu Aksi', confirmed: 'Dalam Pengerjaan', completed: 'Terpenuhi', cancelled: 'Dibatalkan',
+}
+
+const BOOKING_DOMAIN_LABEL: Record<BookingDomain, string> = { flight: 'Flight', hotel: 'Hotel', transport: 'Transport', mice: 'MICE' }
+
+interface BookingDescriptor {
+  label: string
+  reference?: string
+  travelerCount: number
+  startDate?: string
+  deadlineDate?: string
+  detailHref: string
+  voucherHref?: string
+  netCostIdr?: number
+  sellPriceIdr?: number
+  status: string
+  statusLabel: string
+  statusTone: string
+  domainExceptions: string[]
+}
+
+function describeFlightBookingForTimeline(booking: FlightBooking): BookingDescriptor {
+  const selected = booking.options.find(option => option.isSelected) ?? booking.options[0]
+  const firstSegment = booking.segments[0]
+  const statusOption = findStatusOption(FLIGHT_BOOKING_STATUSES, booking.status)
+  return {
+    label: selected ? selected.airline : (firstSegment ? `${firstSegment.origin} → ${firstSegment.destination}` : booking.id),
+    reference: booking.pnr,
+    travelerCount: booking.travelerIds.length,
+    startDate: firstSegment?.departureAt,
+    deadlineDate: booking.ticketingDeadline,
+    detailHref: `/ticketing/${booking.id}`,
+    voucherHref: `/ticketing/${booking.id}/eticket-preview`,
+    netCostIdr: booking.netCostIdr,
+    sellPriceIdr: booking.sellPriceIdr,
+    status: booking.status, statusLabel: statusOption.label, statusTone: statusOption.tone,
+    domainExceptions: booking.hasScheduleChange ? [`Perubahan jadwal: ${booking.scheduleChangeNote ?? 'catatan belum diisi'}`] : [],
+  }
+}
+
+function describeHotelBookingForTimeline(booking: HotelBooking): BookingDescriptor {
+  const selected = booking.options.find(option => option.isSelected) ?? booking.options[0]
+  const statusOption = findStatusOption(HOTEL_BOOKING_STATUSES, booking.status)
+  return {
+    label: selected ? `${selected.propertyName} — ${selected.roomType}` : booking.id,
+    reference: booking.confirmationNumber,
+    travelerCount: booking.travelerIds.length,
+    startDate: booking.checkInDate,
+    deadlineDate: booking.cancellationDeadline,
+    detailHref: `/accommodation/${booking.id}`,
+    voucherHref: `/accommodation/${booking.id}/voucher-preview`,
+    netCostIdr: booking.netCostIdr,
+    sellPriceIdr: booking.sellPriceIdr,
+    status: booking.status, statusLabel: statusOption.label, statusTone: statusOption.tone,
+    domainExceptions: booking.status === 'amended' ? [`Amandemen booking: ${booking.amendmentNote ?? 'catatan belum diisi'}`] : [],
+  }
+}
+
+function describeTransportBookingForTimeline(booking: TransportBooking): BookingDescriptor {
+  const selected = booking.options.find(option => option.isSelected) ?? booking.options[0]
+  const firstLeg = booking.legs[0]
+  const statusOption = findStatusOption(TRANSPORT_BOOKING_STATUSES, booking.status)
+  const exceptions: string[] = []
+  if (booking.hasChange) exceptions.push(`Perubahan rencana: ${booking.changeNote ?? 'catatan belum diisi'}`)
+  if (booking.hasIncident) exceptions.push(`Insiden operasional: ${booking.incidentNote ?? 'catatan belum diisi'}`)
+  return {
+    label: selected ? `${findStatusOption(VEHICLE_TYPES, selected.vehicleType).label}${booking.assignedVehiclePlateNumber ? ` — ${booking.assignedVehiclePlateNumber}` : ''}` : (firstLeg?.label ?? booking.id),
+    reference: booking.assignedVehiclePlateNumber,
+    travelerCount: booking.travelerIds.length,
+    startDate: firstLeg?.scheduledAt,
+    deadlineDate: undefined,
+    detailHref: `/transportation/${booking.id}`,
+    voucherHref: `/transportation/${booking.id}/service-order-preview`,
+    netCostIdr: booking.netCostIdr,
+    sellPriceIdr: booking.sellPriceIdr,
+    status: booking.status, statusLabel: statusOption.label, statusTone: statusOption.tone,
+    domainExceptions: exceptions,
+  }
+}
+
+function describeMiceEventForTimeline(event: MiceEvent): BookingDescriptor {
+  const totalExpected = event.participantCategories.reduce((sum, category) => sum + category.expectedCount, 0)
+  const firstSession = event.sessions[0]
+  const statusOption = findStatusOption(MICE_EVENT_STATUSES, event.status)
+  const exceptions: string[] = []
+  if (event.hasChangeOrder) exceptions.push(`Change order: ${event.changeOrderNote ?? 'catatan belum diisi'}`)
+  if (event.hasIncident) exceptions.push(`Insiden operasional: ${event.incidentNote ?? 'catatan belum diisi'}`)
+  exceptions.push(...getMiceScheduleConflicts(event))
+  const service = event.serviceId ? PROJECT_SERVICES.find(item => item.id === event.serviceId) : undefined
+  return {
+    label: event.venueName ?? event.id,
+    reference: service?.bookingReference,
+    travelerCount: totalExpected,
+    startDate: firstSession?.startAt,
+    deadlineDate: undefined,
+    detailHref: `/mice/${event.id}`,
+    voucherHref: `/mice/${event.id}/rundown-preview`,
+    netCostIdr: getMiceBoqTotals(event).netCostIdr,
+    sellPriceIdr: getMiceBoqTotals(event).sellPriceIdr,
+    status: event.status, statusLabel: statusOption.label, statusTone: statusOption.tone,
+    domainExceptions: exceptions,
+  }
+}
+
+function describeDependencyLabel(dep: { bookingType: BookingDomain, bookingId: string }): string {
+  return `${BOOKING_DOMAIN_LABEL[dep.bookingType]} ${dep.bookingId}`
+}
+
+function buildBookingTimelineEntry(bookingType: BookingDomain, bookingId: string, projectId: string, descriptor: BookingDescriptor): BookingTimelineEntry {
+  const record = getOrCreateBookingOrchestrationRecord(bookingType, bookingId, projectId)
+  const project = getProjectById(projectId)
+  const bucket = bookingStatusBucket(bookingType, descriptor.status)
+
+  const dependencies: BookingTimelineDependencyView[] = (record.dependsOn ?? []).map((dep) => {
+    const depStatus = getBookingStatusValue(dep.bookingType, dep.bookingId)
+    const depBucket = depStatus ? bookingStatusBucket(dep.bookingType, depStatus) : undefined
+    return {
+      bookingType: dep.bookingType,
+      bookingId: dep.bookingId,
+      label: describeDependencyLabel(dep),
+      isSatisfied: depBucket === 'confirmed' || depBucket === 'completed',
+    }
+  })
+
+  const exceptions: string[] = [...descriptor.domainExceptions]
+  for (const dep of dependencies) {
+    if (!dep.isSatisfied) exceptions.push(`Dependency belum terpenuhi: ${dep.label} (menunggu konfirmasi).`)
+  }
+  const lastAttempt = record.attemptLog[record.attemptLog.length - 1]
+  if (lastAttempt?.outcome === 'failed') exceptions.push(`Percobaan booking terakhir gagal (${formatDateTime(lastAttempt.at)}) — menunggu retry/manual fallback.`)
+  if (record.flaggedDuplicate) exceptions.push('Ditandai sebagai duplicate booking yang disengaja (dibuat dengan konfirmasi eksplisit).')
+
+  return {
+    orchestrationId: record.id,
+    bookingType, bookingId, projectId,
+    projectName: project?.name ?? projectId,
+    label: descriptor.label,
+    reference: descriptor.reference,
+    travelerCount: descriptor.travelerCount,
+    startDate: descriptor.startDate,
+    deadlineDate: descriptor.deadlineDate,
+    internalStatus: descriptor.statusLabel,
+    internalStatusTone: descriptor.statusTone,
+    supplierVisibleStatus: BOOKING_SUPPLIER_STATUS_LABEL[bucket],
+    clientVisibleStatus: BOOKING_CLIENT_STATUS_LABEL[bucket],
+    detailHref: descriptor.detailHref,
+    voucherHref: descriptor.voucherHref,
+    netCostIdr: descriptor.netCostIdr,
+    sellPriceIdr: descriptor.sellPriceIdr,
+    dependencies,
+    paymentGateStatus: record.paymentGateStatus,
+    attemptLog: record.attemptLog,
+    exceptions,
+  }
+}
+
+/** "Semua Flight/Hotel/Transport/MICE service requirement dalam satu timeline" (Wajib) — DERIVASI murni, pola sama `getServiceReadinessMatrix`/`getProjectAttentionQueue` (Section 12 baru). Tanpa `projectId` = seluruh project (dipakai `/bookings`); dengan `projectId` = terskop satu project (dipakai tab Itinerary & Services). */
+export function getBookingTimeline(projectId?: string): BookingTimelineEntry[] {
+  const flights = projectId ? getFlightBookingsByProject(projectId) : FLIGHT_BOOKINGS
+  const hotels = projectId ? getHotelBookingsByProject(projectId) : HOTEL_BOOKINGS
+  const transports = projectId ? getTransportBookingsByProject(projectId) : TRANSPORT_BOOKINGS
+  const miceEvents = projectId ? getMiceEventsByProject(projectId) : MICE_EVENTS
+
+  const entries: BookingTimelineEntry[] = [
+    ...flights.map(booking => buildBookingTimelineEntry('flight', booking.id, booking.projectId, describeFlightBookingForTimeline(booking))),
+    ...hotels.map(booking => buildBookingTimelineEntry('hotel', booking.id, booking.projectId, describeHotelBookingForTimeline(booking))),
+    ...transports.map(booking => buildBookingTimelineEntry('transport', booking.id, booking.projectId, describeTransportBookingForTimeline(booking))),
+    ...miceEvents.map(event => buildBookingTimelineEntry('mice', event.id, event.projectId, describeMiceEventForTimeline(event))),
+  ]
+  return entries.sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''))
+}
+
+/** "Exception list" (Wajib) — seluruh entri timeline (lintas project) dengan minimal satu exception, dipakai `/bookings/exceptions`. */
+export function getBookingExceptionQueue(): BookingTimelineEntry[] {
+  return getBookingTimeline().filter(entry => entry.exceptions.length > 0)
+}
+
+/** "Confirmation and payment gates" (Wajib) — aksi Operations/Finance-facing "Mark Payment Cleared" di `/bookings`. Mock murni (D-006) — TIDAK ADA payment gateway/processing nyata, TIDAK menyentuh `app/data/finance.ts`/`Invoice`/`Payment` (Section 20 baru PARTIAL, di luar scope section ini). */
+export function setBookingPaymentGateStatus(orchestrationId: string, status: BookingPaymentGateStatus, actorId: string): BookingOrchestrationRecord | undefined {
+  const record = BOOKING_ORCHESTRATION_RECORDS.find(item => item.id === orchestrationId)
+  if (!record || record.paymentGateStatus === status) return record
+  const previous = record.paymentGateStatus
+  record.paymentGateStatus = status
+  const actor = getUserById(actorId)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES),
+    projectId: record.projectId,
+    message: `Payment gate ${BOOKING_DOMAIN_LABEL[record.bookingType]} Booking ${record.bookingId} diubah dari "${previous}" menjadi "${status}" oleh ${actor?.name ?? actorId}.`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return record
+}
+
+/** Dipanggil dari `updateFlightBookingStatus`/`updateHotelBookingStatus`/`updateTransportBookingStatus`/`updateMiceEventStatus` — begitu booking mencapai status confirmed-equivalent, gate bergerak `not-required` → `pending` (tidak menimpa `pending`/`cleared` yang sudah ada). */
+function syncBookingPaymentGateOnStatusChange(bookingType: BookingDomain, bookingId: string, projectId: string, newStatus: string) {
+  if (!BOOKING_CONFIRMED_STATUSES[bookingType].includes(newStatus)) return
+  const record = getOrCreateBookingOrchestrationRecord(bookingType, bookingId, projectId)
+  if (record.paymentGateStatus === 'not-required') record.paymentGateStatus = 'pending'
+}
+
+/** "Failure/retry/manual fallback simulation" (Wajib) — dipanggil dari `/bookings` untuk menambah entri percobaan (mock, D-006) pada booking manapun. */
+export function appendBookingAttempt(orchestrationId: string, outcome: BookingAttemptOutcome, note: string | undefined, actorId: string): BookingOrchestrationRecord | undefined {
+  const record = BOOKING_ORCHESTRATION_RECORDS.find(item => item.id === orchestrationId)
+  if (!record) return undefined
+  const attempt: BookingAttempt = { id: `${record.id}-ATT-${record.attemptLog.length + 1}`, at: DEMO_REFERENCE_DATE, outcome, note: note?.trim() || undefined }
+  record.attemptLog.push(attempt)
+  const actor = getUserById(actorId)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES),
+    projectId: record.projectId,
+    message: `Percobaan booking ${BOOKING_DOMAIN_LABEL[record.bookingType]} ${record.bookingId} dicatat: "${outcome}" oleh ${actor?.name ?? actorId}.${note ? ` Catatan: ${note}` : ''}`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return record
+}
+
+/** "Duplicate booking prevention" (Wajib, hanya Flight/Hotel/Transport — MICE satu event per project, tidak relevan) — status non-terminal per domain dianggap "active"; dipanggil dari dialog create booking `/ticketing`, `/accommodation`, `/transportation` SEBELUM memanggil `createFlightBooking`/`createHotelBooking`/`createTransportBooking`. */
+const BOOKING_ACTIVE_CHECK_TERMINAL: Record<'flight' | 'hotel' | 'transport', string[]> = {
+  flight: ['cancelled', 'refunded'],
+  hotel: ['cancelled', 'no-show'],
+  transport: ['cancelled', 'no-show'],
+}
+
+export function findActiveBookingConflicts(bookingType: 'flight' | 'hotel' | 'transport', projectId: string, serviceId: string): string[] {
+  const terminal = BOOKING_ACTIVE_CHECK_TERMINAL[bookingType]
+  if (bookingType === 'flight') return FLIGHT_BOOKINGS.filter(b => b.projectId === projectId && b.serviceId === serviceId && !terminal.includes(b.status)).map(b => b.id)
+  if (bookingType === 'hotel') return HOTEL_BOOKINGS.filter(b => b.projectId === projectId && b.serviceId === serviceId && !terminal.includes(b.status)).map(b => b.id)
+  return TRANSPORT_BOOKINGS.filter(b => b.projectId === projectId && b.serviceId === serviceId && !terminal.includes(b.status)).map(b => b.id)
+}
+
+/** Dipanggil SETELAH `createFlightBooking`/`createHotelBooking`/`createTransportBooking` bila user mengonfirmasi "lanjutkan sebagai duplicate yang disengaja" pada dialog peringatan `findActiveBookingConflicts`. */
+export function flagBookingOrchestrationDuplicate(bookingType: BookingDomain, bookingId: string, projectId: string, actorId: string, conflictingBookingIds: string[]): BookingOrchestrationRecord {
+  const record = getOrCreateBookingOrchestrationRecord(bookingType, bookingId, projectId)
+  record.flaggedDuplicate = true
+  const actor = getUserById(actorId)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES),
+    projectId,
+    message: `${BOOKING_DOMAIN_LABEL[bookingType]} Booking ${bookingId} dibuat sebagai duplicate booking yang disengaja (booking aktif lain untuk service yang sama: ${conflictingBookingIds.join(', ')}) — dikonfirmasi oleh ${actor?.name ?? actorId}.`,
+    isChange: true, reviewed: false, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return record
 }
 
 /**
@@ -2557,4 +3157,608 @@ export function getVendorsWithProcurementActivity(): Vendor[] {
     ...SERVICE_ORDERS.map(so => so.vendorId),
   ])
   return VENDORS.filter(vendor => ids.has(vendor.id))
+}
+
+/**
+ * Changes, Cancellation, Refund dan Incident (Section 19 — roadmap Section 00–24 baru, D-076). Fully
+ * additive di atas `FlightBooking`/`HotelBooking`/`TransportBooking`/`MiceEvent` (Section 13-16),
+ * `Invoice`/`Payment` (Foundation), dan `ActivityEntry`/`createChangeEntry`/`approveChangeEntry`/
+ * `rejectChangeEntry` (Section 14 lama) — lihat `app/types/change-incident.ts` untuk rasional lengkap.
+ */
+
+export const getChangeRequestById = (id: string) => CHANGE_REQUESTS.find(item => item.id === id)
+export const getChangeRequestsByProject = (projectId: string) => CHANGE_REQUESTS
+  .filter(item => item.projectId === projectId)
+  .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
+
+export interface CreateChangeRequestInput {
+  projectId: string
+  source: ChangeRequestSource
+  requestedBy: string
+  affectedEntities?: AffectedEntityRef[]
+  beforeSummary: string
+  afterSummary: string
+  operationalImpact?: string
+  commercialImpactIdr?: number
+  financialImpactNote?: string
+  timelineImpactNote?: string
+  linkedQuotationId?: string
+  /** Kategori dampak untuk `ActivityEntry` yang otomatis dibuat (Section 14 lama) — default `'other'`. */
+  category?: ChangeCategory
+}
+
+/** Membuat `ChangeRequest` BARU sekaligus `ActivityEntry` (`createChangeEntry`, Section 14 lama) agar audit trail project tetap satu sumber kebenaran (D-076) — TIDAK PERNAH membuat log terpisah/kedua. */
+export function createChangeRequest(input: CreateChangeRequestInput): ChangeRequest {
+  const entry = createChangeEntry({
+    projectId: input.projectId,
+    category: input.category ?? 'other',
+    reason: `${input.beforeSummary} → ${input.afterSummary}`,
+    requestedBy: input.requestedBy,
+    beforeValue: input.beforeSummary,
+    afterValue: input.afterSummary,
+    impactNote: input.operationalImpact,
+  })
+
+  const request: ChangeRequest = {
+    id: nextSequentialId('CR-', CHANGE_REQUESTS),
+    projectId: input.projectId,
+    source: input.source,
+    requestedBy: input.requestedBy,
+    submittedAt: DEMO_REFERENCE_DATE,
+    affectedEntities: input.affectedEntities ?? [],
+    beforeSummary: input.beforeSummary,
+    afterSummary: input.afterSummary,
+    operationalImpact: input.operationalImpact,
+    commercialImpactIdr: input.commercialImpactIdr,
+    financialImpactNote: input.financialImpactNote,
+    timelineImpactNote: input.timelineImpactNote,
+    status: 'submitted',
+    linkedQuotationId: input.linkedQuotationId,
+    activityEntryId: entry.id,
+  }
+  CHANGE_REQUESTS.push(request)
+  return request
+}
+
+const CHANGE_REQUEST_TRANSITIONS: Record<ChangeRequestStatus, ChangeRequestStatus[]> = {
+  submitted: ['under-review', 'approved', 'rejected'],
+  'under-review': ['approved', 'rejected'],
+  approved: ['implemented'],
+  rejected: [],
+  implemented: [],
+}
+
+export function getChangeRequestStatusTransitions(current: ChangeRequestStatus): ChangeRequestStatus[] {
+  return CHANGE_REQUEST_TRANSITIONS[current] ?? []
+}
+
+/** Dipanggil hanya dari UI yang sudah memfilter `canApprove('project')` (Management/Super Admin — pola sama Section 14 lama `approveChangeEntry`, BUKAN rank modul `changes`). */
+export function approveChangeRequest(requestId: string, approverId: string): ChangeRequest | undefined {
+  const request = getChangeRequestById(requestId)
+  if (!request || !getChangeRequestStatusTransitions(request.status).includes('approved')) return undefined
+  request.status = 'approved'
+  request.approvedBy = approverId
+  request.approvedAt = DEMO_REFERENCE_DATE
+  if (request.activityEntryId) approveChangeEntry(request.activityEntryId, approverId)
+  // Hook Section 21 (D-078, CI-051, hook #3a) — keputusan approval memicu Notification type 'change' ke pengaju.
+  pushNotification(request.requestedBy, 'change', `Change Request ${request.id} disetujui`, `${request.beforeSummary} → ${request.afterSummary} telah disetujui.`, 'change-request', request.id)
+  return request
+}
+
+/** Alasan wajib (pola sama `updateFlightBookingStatus` dkk., D-070/D-071/D-072). */
+export function rejectChangeRequest(requestId: string, approverId: string, reason: string): ChangeRequest | undefined {
+  const request = getChangeRequestById(requestId)
+  if (!request || !reason.trim() || !getChangeRequestStatusTransitions(request.status).includes('rejected')) return undefined
+  request.status = 'rejected'
+  request.approvedBy = approverId
+  request.approvedAt = DEMO_REFERENCE_DATE
+  request.rejectionReason = reason.trim()
+  if (request.activityEntryId) rejectChangeEntry(request.activityEntryId, approverId)
+  // Hook Section 21 (D-078, CI-051, hook #3b) — keputusan penolakan memicu Notification type 'change' ke pengaju.
+  pushNotification(request.requestedBy, 'change', `Change Request ${request.id} ditolak`, `${request.beforeSummary} → ${request.afterSummary} ditolak. Alasan: ${request.rejectionReason}`, 'change-request', request.id)
+  return request
+}
+
+export function markChangeRequestUnderReview(requestId: string, actorId: string): ChangeRequest | undefined {
+  const request = getChangeRequestById(requestId)
+  if (!request || !getChangeRequestStatusTransitions(request.status).includes('under-review')) return undefined
+  request.status = 'under-review'
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId,
+    message: `Change Request ${request.id} sedang direview oleh ${getUserById(actorId)?.name ?? actorId}.`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return request
+}
+
+export function markChangeRequestImplemented(requestId: string, actorId: string): ChangeRequest | undefined {
+  const request = getChangeRequestById(requestId)
+  if (!request || !getChangeRequestStatusTransitions(request.status).includes('implemented')) return undefined
+  request.status = 'implemented'
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId,
+    message: `Change Request ${request.id} telah diimplementasikan oleh ${getUserById(actorId)?.name ?? actorId}.`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return request
+}
+
+/**
+ * `CancellationRecord` — lapisan penalty-tracking SERAGAM lintas 4 tipe booking (Wajib), dibuat ADITIF dari
+ * hook UI-level di halaman detail booking masing-masing domain (`app/pages/ticketing/[id]/index.vue` dkk.)
+ * begitu status berpindah ke cancel-equivalent — TIDAK mengubah guard/transition-map/reason-wajib
+ * `update*BookingStatus` existing (LOCKED).
+ */
+export const getCancellationRecordById = (id: string) => CANCELLATION_RECORDS.find(item => item.id === id)
+export const getCancellationRecordsByProject = (projectId: string) => CANCELLATION_RECORDS
+  .filter(item => item.projectId === projectId)
+  .sort((a, b) => b.cancelledAt.localeCompare(a.cancelledAt))
+export const getCancellationRecordByBooking = (bookingType: BookingDomain, bookingId: string) => CANCELLATION_RECORDS
+  .find(item => item.bookingType === bookingType && item.bookingId === bookingId)
+
+export interface CreateCancellationRecordInput {
+  projectId: string
+  bookingType: BookingDomain
+  bookingId: string
+  reason: string
+  penaltyIdr?: number
+  cancelledBy: string
+  refundEligible: boolean
+}
+
+export function createCancellationRecord(input: CreateCancellationRecordInput): CancellationRecord {
+  const record: CancellationRecord = {
+    id: nextSequentialId('CNX-', CANCELLATION_RECORDS),
+    projectId: input.projectId,
+    bookingType: input.bookingType,
+    bookingId: input.bookingId,
+    reason: input.reason,
+    penaltyIdr: input.penaltyIdr,
+    cancelledAt: DEMO_REFERENCE_DATE,
+    cancelledBy: input.cancelledBy,
+    refundEligible: input.refundEligible,
+  }
+  CANCELLATION_RECORDS.push(record)
+  const actor = getUserById(input.cancelledBy)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: input.projectId,
+    message: `${BOOKING_DOMAIN_LABEL[input.bookingType]} Booking ${input.bookingId} dibatalkan oleh ${actor?.name ?? input.cancelledBy}.${input.penaltyIdr ? ` Penalty: ${formatCurrencyIdr(input.penaltyIdr)}.` : ' Tidak ada penalty.'}`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return record
+}
+
+/**
+ * `RefundRequest` — SENGAJA self-contained, TIDAK menyentuh `Invoice`/`Payment` (Section 20 baru masih
+ * PARTIAL — `docs/frontend-known-issues.md` bagian 15, forward dependency eksplisit). `creditStatus` field
+ * mock murni, BUKAN integrasi `CreditNote` nyata.
+ */
+export const getRefundRequestById = (id: string) => REFUND_REQUESTS.find(item => item.id === id)
+export const getRefundRequestsByProject = (projectId: string) => REFUND_REQUESTS
+  .filter(item => item.projectId === projectId)
+  .sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
+
+export interface CreateRefundRequestInput {
+  projectId: string
+  cancellationId?: string
+  invoiceId?: string
+  type: 'partial' | 'full'
+  amountIdr: number
+  requestedBy: string
+}
+
+export function createRefundRequest(input: CreateRefundRequestInput): RefundRequest {
+  const request: RefundRequest = {
+    id: nextSequentialId('REF-', REFUND_REQUESTS),
+    projectId: input.projectId,
+    cancellationId: input.cancellationId,
+    invoiceId: input.invoiceId,
+    type: input.type,
+    amountIdr: input.amountIdr,
+    status: 'requested',
+    requestedAt: DEMO_REFERENCE_DATE,
+    requestedBy: input.requestedBy,
+    creditStatus: 'pending',
+  }
+  REFUND_REQUESTS.push(request)
+  const actor = getUserById(input.requestedBy)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: input.projectId,
+    message: `Refund Request ${request.id} (${input.type === 'full' ? 'penuh' : 'sebagian'}, ${formatCurrencyIdr(input.amountIdr)}) diajukan oleh ${actor?.name ?? input.requestedBy}.`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return request
+}
+
+const REFUND_REQUEST_TRANSITIONS: Record<RefundRequestStatus, RefundRequestStatus[]> = {
+  requested: ['under-review', 'approved', 'rejected'],
+  'under-review': ['approved', 'rejected'],
+  approved: ['processed'],
+  rejected: [],
+  processed: [],
+}
+
+export function getRefundRequestStatusTransitions(current: RefundRequestStatus): RefundRequestStatus[] {
+  return REFUND_REQUEST_TRANSITIONS[current] ?? []
+}
+
+/**
+ * Reason wajib untuk `rejected` (pola sama `ChangeRequest`/section lain). `creditStatus` otomatis mengikuti:
+ * `processed` → `issued`, `rejected` → `not-applicable`.
+ *
+ * **Hook Section 20 (D-077, satu-satunya touch point yang diizinkan eksplisit ke fungsi Section 19 ini)** —
+ * begitu status mencapai `processed` DAN `request.invoiceId` terisi, `issueCreditNote` (Section 20) turut
+ * dipanggil untuk menerbitkan `CreditNote` NYATA ke Finance — menutup forward dependency eksplisit yang
+ * didokumentasikan D-076/`docs/frontend-known-issues.md` bagian 15 ("RefundRequest.creditStatus MOCK
+ * self-contained, belum terintegrasi ke CreditNote nyata"). Guard/transition-map/reason-wajib existing DI
+ * ATAS TIDAK diubah — hook ini murni ADITIF setelah `request.status`/`creditStatus` sudah di-set.
+ */
+export function updateRefundRequestStatus(requestId: string, newStatus: RefundRequestStatus, actorId: string, reason?: string): RefundRequest | undefined {
+  const request = getRefundRequestById(requestId)
+  if (!request || !getRefundRequestStatusTransitions(request.status).includes(newStatus)) return undefined
+  if (newStatus === 'rejected' && !reason?.trim()) return undefined
+
+  const fromLabel = request.status
+  request.status = newStatus
+  if (newStatus === 'approved') { request.approvedBy = actorId; request.approvedAt = DEMO_REFERENCE_DATE }
+  if (newStatus === 'rejected') { request.approvedBy = actorId; request.approvedAt = DEMO_REFERENCE_DATE; request.rejectionReason = reason!.trim(); request.creditStatus = 'not-applicable' }
+  if (newStatus === 'processed') {
+    request.creditStatus = 'issued'
+    if (request.invoiceId) {
+      issueCreditNote({
+        invoiceId: request.invoiceId,
+        amountIdr: request.amountIdr,
+        reason: `Refund processed: ${request.id}`,
+        refundRequestId: request.id,
+      })
+    }
+  }
+
+  const actor = getUserById(actorId)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId,
+    message: `Refund Request ${request.id} status diubah dari "${fromLabel}" menjadi "${newStatus}" oleh ${actor?.name ?? actorId}.${reason ? ` Alasan: ${reason}` : ''}`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return request
+}
+
+/**
+ * `Incident` — severity/owner/escalation/communication/resolution (Wajib). Dapat berupa project-level
+ * (`bookingId` kosong) atau tertaut ke satu booking spesifik lintas 4 domain.
+ */
+export const getIncidentById = (id: string) => INCIDENTS.find(item => item.id === id)
+export const getIncidentsByProject = (projectId: string) => INCIDENTS
+  .filter(item => item.projectId === projectId)
+  .sort((a, b) => (b.resolvedAt ?? '9999').localeCompare(a.resolvedAt ?? '9999'))
+export const getAllIncidents = () => INCIDENTS
+/** Exception queue Incident (dipakai `/changes`) — belum `resolved`/`closed`. */
+export const getOpenIncidentQueue = () => INCIDENTS.filter(item => item.status !== 'resolved' && item.status !== 'closed')
+
+export interface CreateIncidentInput {
+  projectId: string
+  bookingType?: BookingDomain
+  bookingId?: string
+  title: string
+  description: string
+  severity: IncidentSeverity
+  ownerId: string
+}
+
+export function createIncident(input: CreateIncidentInput): Incident {
+  const incident: Incident = {
+    id: nextSequentialId('INC-', INCIDENTS),
+    projectId: input.projectId,
+    bookingType: input.bookingType,
+    bookingId: input.bookingId,
+    title: input.title,
+    description: input.description,
+    severity: input.severity,
+    ownerId: input.ownerId,
+    status: 'open',
+    communicationLog: [],
+  }
+  INCIDENTS.push(incident)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: input.projectId,
+    message: `Incident ${incident.id} dicatat: "${input.title}" (severity ${input.severity}) oleh ${getUserById(input.ownerId)?.name ?? input.ownerId}.`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return incident
+}
+
+const INCIDENT_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
+  open: ['investigating', 'escalated', 'resolved'],
+  investigating: ['escalated', 'resolved'],
+  escalated: ['investigating', 'resolved'],
+  resolved: ['closed'],
+  closed: [],
+}
+
+export function getIncidentStatusTransitions(current: IncidentStatus): IncidentStatus[] {
+  return INCIDENT_TRANSITIONS[current] ?? []
+}
+
+/** Transisi status umum (bukan escalate/resolve — keduanya punya mutator sendiri karena butuh field tambahan). */
+export function updateIncidentStatus(incidentId: string, newStatus: IncidentStatus, actorId: string): Incident | undefined {
+  const incident = getIncidentById(incidentId)
+  if (!incident || !getIncidentStatusTransitions(incident.status).includes(newStatus)) return undefined
+  const fromLabel = incident.status
+  incident.status = newStatus
+  const actor = getUserById(actorId)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: incident.projectId,
+    message: `Incident ${incident.id} status diubah dari "${fromLabel}" menjadi "${newStatus}" oleh ${actor?.name ?? actorId}.`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return incident
+}
+
+export function escalateIncident(incidentId: string, escalatedTo: string, actorId: string, note?: string): Incident | undefined {
+  const incident = getIncidentById(incidentId)
+  if (!incident || !getIncidentStatusTransitions(incident.status).includes('escalated')) return undefined
+  incident.status = 'escalated'
+  incident.escalatedTo = escalatedTo
+  const actor = getUserById(actorId)
+  const target = getUserById(escalatedTo)
+  incident.communicationLog.push({
+    id: `${incident.id}-COM-${incident.communicationLog.length + 1}`, at: DEMO_REFERENCE_DATE, from: actorId,
+    message: `Dieskalasi ke ${target?.name ?? escalatedTo} oleh ${actor?.name ?? actorId}.${note ? ` Catatan: ${note}` : ''}`,
+  })
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: incident.projectId,
+    message: `Incident ${incident.id} dieskalasi ke ${target?.name ?? escalatedTo} oleh ${actor?.name ?? actorId}.`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  // Hook Section 21 (D-078, CI-051, hook #2) — eskalasi memicu Notification type 'escalation' ke target eskalasi.
+  pushNotification(escalatedTo, 'escalation', `Incident ${incident.id} dieskalasi kepada Anda`, `${incident.title} dieskalasi oleh ${actor?.name ?? actorId}.${note ? ` Catatan: ${note}` : ''}`, 'incident', incident.id)
+  return incident
+}
+
+/** "Communication" (Wajib) — log narasi murni (mock, D-006), tidak mengubah `status`. */
+export function appendIncidentCommunication(incidentId: string, fromUserId: string, message: string): Incident | undefined {
+  const incident = getIncidentById(incidentId)
+  if (!incident || !message.trim()) return undefined
+  const entry: IncidentCommunicationEntry = { id: `${incident.id}-COM-${incident.communicationLog.length + 1}`, at: DEMO_REFERENCE_DATE, from: fromUserId, message: message.trim() }
+  incident.communicationLog.push(entry)
+  return incident
+}
+
+/** Resolution note wajib (pola sama alasan wajib transisi destruktif section lain). */
+export function resolveIncident(incidentId: string, resolutionNote: string, actorId: string): Incident | undefined {
+  const incident = getIncidentById(incidentId)
+  if (!incident || !resolutionNote.trim() || !getIncidentStatusTransitions(incident.status).includes('resolved')) return undefined
+  incident.status = 'resolved'
+  incident.resolutionNote = resolutionNote.trim()
+  incident.resolvedAt = DEMO_REFERENCE_DATE
+  const actor = getUserById(actorId)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES), projectId: incident.projectId,
+    message: `Incident ${incident.id} diselesaikan oleh ${actor?.name ?? actorId}. Resolusi: ${incident.resolutionNote}`,
+    isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE,
+  })
+  return incident
+}
+
+/**
+ * Documents, Communication dan Notifications (Section 21 — roadmap Section 00–24 baru, D-078). Fully
+ * additive di atas `ProjectDocument`/`getDocumentsByProject`/`getDocumentsByParty` (Section 14 lama/Prompt
+ * 19, `app/types/activity.ts`) dan `VendorDocument` (Section 17, `app/types/vendor.ts`) — TIDAK satu pun
+ * dari ketiganya diubah shape/perilakunya. Lihat `app/types/document-comms.ts` untuk rasional arsitektur
+ * lengkap dan `docs/mockup-change-impact-log.md` CI-051 untuk daftar hook point cross-section.
+ */
+
+/* --- Documents --- */
+export const getDocumentById = (id: string) => DOCUMENT_RECORDS.find(item => item.id === id)
+export const getDocumentsByEntity = (entityType: DocumentEntityType, entityId: string) =>
+  DOCUMENT_RECORDS.filter(item => item.entityType === entityType && item.entityId === entityId)
+
+/**
+ * Union dokumen baru (`Document`, Section 21) DENGAN dokumen lama (`ProjectDocument` via
+ * `getDocumentsByProject`, Section 14 lama) untuk satu project — TIDAK menggantikan/menghapus data lama,
+ * murni menggabungkan view (pola sama `getDocumentsByParty`, Prompt 19, yang juga hanya menggabungkan).
+ * Dokumen legacy diberi `category: 'Legacy'`/`accessLevel: 'internal'`/`version: 1` sebagai default tampilan
+ * yang wajar (field tsb tidak ada di `ProjectDocument` asli).
+ */
+export function getDocumentsForProject(projectId: string): Document[] {
+  const newDocs = DOCUMENT_RECORDS.filter(item => item.projectId === projectId)
+  const legacyDocs: Document[] = getDocumentsByProject(projectId).map(legacy => ({
+    id: legacy.id,
+    entityType: 'project' as DocumentEntityType,
+    entityId: projectId,
+    projectId,
+    name: legacy.name,
+    category: 'Legacy',
+    version: 1,
+    uploadedAt: legacy.uploadedAt,
+    accessLevel: 'internal' as DocumentAccessLevel,
+    sourceType: 'uploaded' as const,
+  }))
+  return [...newDocs, ...legacyDocs].sort((a, b) => (b.uploadedAt ?? b.generatedAt ?? '').localeCompare(a.uploadedAt ?? a.generatedAt ?? ''))
+}
+
+export interface CreateDocumentInput {
+  entityType: DocumentEntityType
+  entityId: string
+  projectId?: string
+  name: string
+  category: string
+  accessLevel: DocumentAccessLevel
+  expiresAt?: string
+  uploadedBy?: string
+}
+
+/** Upload mock (Wajib "Categories, versions, expiry, access level") — `sourceType` selalu `'uploaded'` (dokumen `'generated'` HANYA dibuat lewat 9 halaman preview existing, tidak lewat form ini). */
+export function createDocument(input: CreateDocumentInput): Document {
+  const document: Document = {
+    id: nextSequentialId('DOC-C', DOCUMENT_RECORDS),
+    entityType: input.entityType,
+    entityId: input.entityId,
+    projectId: input.projectId,
+    name: input.name,
+    category: input.category,
+    version: 1,
+    uploadedAt: DEMO_REFERENCE_DATE,
+    expiresAt: input.expiresAt,
+    accessLevel: input.accessLevel,
+    sourceType: 'uploaded',
+    uploadedBy: input.uploadedBy,
+  }
+  DOCUMENT_RECORDS.push(document)
+  return document
+}
+
+/* --- Messages --- */
+export const getMessageById = (id: string) => MESSAGE_RECORDS.find(item => item.id === id)
+export const getMessagesByEntity = (entityType: DocumentEntityType, entityId: string) =>
+  MESSAGE_RECORDS.filter(item => item.entityType === entityType && item.entityId === entityId)
+    .sort((a, b) => a.sentAt.localeCompare(b.sentAt))
+
+export interface SendMessageInput {
+  entityType: DocumentEntityType
+  entityId: string
+  projectId?: string
+  channel: MessageChannel
+  senderId: string
+  body: string
+  mentions?: string[]
+  deliveryChannel?: 'email' | 'whatsapp'
+}
+
+/**
+ * Mengirim pesan baru (Wajib "Internal notes, client messages, supplier messages" + "Email/WhatsApp delivery
+ * status simulation tanpa klaim integrasi"). Settle DETERMINISTIK ke status akhir (bukan tetap `queued` yang
+ * memerlukan fake async timer, D-006) — `internal-note` selalu `sent` (tidak ada channel eksternal),
+ * `client-message`/`supplier-message` selalu `delivered` via `deliveryChannel` (default `email`). Skenario
+ * `failed`/`queued` didemokan lewat fixture seed (`MSG-003`/`MSG-008`), bukan dari jalur create ini — pola
+ * sama preseden `Quotation.sentToClientAt` (Section 05, satu timestamp flip deterministik). Bila `mentions`
+ * terisi, `pushNotification` type `mention` dikirim ke tiap user yang di-mention (hook kurasi #1, CI-051).
+ */
+export function sendMessage(input: SendMessageInput): Message {
+  const message: Message = {
+    id: nextSequentialId('MSG-', MESSAGE_RECORDS),
+    entityType: input.entityType,
+    entityId: input.entityId,
+    projectId: input.projectId,
+    channel: input.channel,
+    senderId: input.senderId,
+    body: input.body,
+    mentions: input.mentions,
+    sentAt: DEMO_REFERENCE_DATE,
+    deliveryStatus: input.channel === 'internal-note' ? 'sent' : 'delivered',
+    deliveryChannel: input.channel === 'internal-note' ? undefined : (input.deliveryChannel ?? 'email'),
+  }
+  MESSAGE_RECORDS.push(message)
+
+  const sender = getUserById(input.senderId)
+  for (const mentionedUserId of input.mentions ?? []) {
+    pushNotification(mentionedUserId, 'mention', `Anda disebut oleh ${sender?.name ?? input.senderId}`, message.body, input.entityType, input.entityId)
+  }
+
+  return message
+}
+
+/* --- Notifications --- */
+export const getNotificationById = (id: string) => NOTIFICATION_RECORDS.find(item => item.id === id)
+export const getNotificationsForUser = (userId: string) =>
+  NOTIFICATION_RECORDS.filter(item => item.userId === userId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+export const getUnreadNotificationCount = (userId: string) =>
+  NOTIFICATION_RECORDS.filter(item => item.userId === userId && !item.read).length
+
+export function markNotificationRead(id: string): Notification | undefined {
+  const notification = getNotificationById(id)
+  if (!notification) return undefined
+  notification.read = true
+  return notification
+}
+
+export function markAllNotificationsRead(userId: string): void {
+  NOTIFICATION_RECORDS.filter(item => item.userId === userId).forEach((item) => { item.read = true })
+}
+
+export function removeNotification(id: string): void {
+  const index = NOTIFICATION_RECORDS.findIndex(item => item.id === id)
+  if (index !== -1) NOTIFICATION_RECORDS.splice(index, 1)
+}
+
+/**
+ * Helper mutator pusat (Wajib "Mentions, assignments, reminders, escalation") — dipanggil HANYA dari titik
+ * pemicu KURASI (bukan seluruh mutator lintas codebase, preseden D-075 "representatif, bukan menyeluruh").
+ * Lihat `docs/mockup-change-impact-log.md` CI-051 untuk daftar 4 hook point yang diizinkan eksplisit di
+ * section ini (`sendMessage` mentions, `escalateIncident`, `approveChangeRequest`/`rejectChangeRequest`,
+ * `createProjectTask`/`updateProjectTask`).
+ */
+export function pushNotification(userId: string, type: NotificationType, title: string, body: string, entityType?: DocumentEntityType, entityId?: string): Notification {
+  const notification: Notification = {
+    id: nextSequentialId('NOT-', NOTIFICATION_RECORDS),
+    userId,
+    type,
+    title,
+    body,
+    entityType,
+    entityId,
+    createdAt: DEMO_REFERENCE_DATE,
+    read: false,
+  }
+  NOTIFICATION_RECORDS.push(notification)
+  return notification
+}
+
+/**
+ * "Unified activity timeline dengan filtering akses" (Wajib) — derived view-model, pola sama
+ * `getBookingTimeline` (D-075)/`getServiceReadinessMatrix` (Section 12), BUKAN entitas tersimpan. Untuk
+ * `entityType === 'project'`, Document/Message diagregasi lewat `projectId` (bukan hanya `entityType:
+ * 'project'` yang sempit — dokumen/pesan sub-entity seperti flight/hotel/transport/mice yang tertaut
+ * `projectId` yang sama TETAP relevan untuk timeline project). Untuk entity lain, agregasi persis
+ * `entityType`+`entityId`. `SystemEvent` (Prompt 19) SELALU `internalOnly: true` (log lintas-modul level
+ * sistem, tidak pernah untuk konsumsi Client/Supplier). Acceptance literal "tidak bocor lintas role"
+ * dipenuhi dengan memfilter `internalOnly` bila `viewerAccessLevel !== 'internal'`.
+ */
+export function getUnifiedActivityTimeline(entityType: DocumentEntityType, entityId: string, viewerAccessLevel: DocumentAccessLevel): UnifiedTimelineEntry[] {
+  const entries: UnifiedTimelineEntry[] = []
+  const isProjectScope = entityType === 'project'
+
+  if (isProjectScope) {
+    for (const activity of getActivitiesByProject(entityId)) {
+      entries.push({
+        id: activity.id,
+        at: activity.createdAt,
+        kind: 'activity',
+        label: activity.isChange ? `Change${activity.category ? ` (${activity.category})` : ''}` : 'Activity',
+        detail: activity.message,
+        internalOnly: false,
+      })
+    }
+  }
+
+  for (const event of SYSTEM_EVENTS.filter(item => item.entityId === entityId)) {
+    entries.push({ id: event.id, at: event.createdAt, kind: 'system-event', label: event.type, detail: event.message, internalOnly: true })
+  }
+
+  const relevantDocuments = isProjectScope ? DOCUMENT_RECORDS.filter(doc => doc.projectId === entityId) : getDocumentsByEntity(entityType, entityId)
+  for (const document of relevantDocuments) {
+    entries.push({
+      id: document.id,
+      at: document.uploadedAt ?? document.generatedAt ?? '',
+      kind: 'document',
+      label: document.sourceType === 'generated' ? 'Dokumen Digenerate' : 'Dokumen Diunggah',
+      detail: `${document.name} (${document.category})`,
+      internalOnly: document.accessLevel === 'internal',
+    })
+  }
+
+  const relevantMessages = isProjectScope ? MESSAGE_RECORDS.filter(msg => msg.projectId === entityId) : getMessagesByEntity(entityType, entityId)
+  for (const message of relevantMessages) {
+    entries.push({
+      id: message.id,
+      at: message.sentAt,
+      kind: 'message',
+      label: message.channel === 'internal-note' ? 'Internal Note' : message.channel === 'client-message' ? 'Client Message' : 'Supplier Message',
+      detail: message.body,
+      internalOnly: message.channel === 'internal-note',
+    })
+  }
+
+  const filtered = viewerAccessLevel === 'internal' ? entries : entries.filter(entry => !entry.internalOnly)
+  return filtered.sort((a, b) => a.at.localeCompare(b.at))
 }

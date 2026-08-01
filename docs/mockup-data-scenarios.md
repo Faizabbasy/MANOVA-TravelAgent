@@ -495,6 +495,107 @@ Entitas baru `RFQ`/`RFQInvitation`/`RFQResponse`/`RFQClarificationMessage`/`Serv
 
 ---
 
+## 4u. Booking Orchestration Detail (ditambahkan Section 18 — roadmap Section 00–24 baru)
+
+`BookingOrchestrationRecord` (`app/data/booking-orchestration.ts`, D-075) — SATU record per SETIAP fixture Flight/Hotel/Transport/MICE existing (Section 13-16), 18 total (`BKO-001` s/d `BKO-018`): 6 Flight (`FLT-1011`/`1021`/`1023`/`1031`/`1032`/`1033`), 6 Hotel (`HTL-1022`/`1023`/`1033`/`1034`/`1035`/`1036`), 5 Transport (`TRN-1034`/`1035`/`1036`/`1037`/`1038`), 1 MICE (`MICE-1035`) — tidak ada yang terlewat (diverifikasi silang terhadap seluruh fixture `app/data/ticketing.ts`/`accommodation.ts`/`transportation.ts`/`mice.ts`).
+
+**Dependency chain nyata** — `BKO-014` (`TRN-1035`, Transport, Sales Team GRP-002, `confirmed`) `dependsOn` `BKO-010` (`HTL-1034`, Hotel, Sales Team GRP-002 juga, masih `quoted` — BELUM confirmed): transfer darat rombongan yang sama seharusnya menunggu hotel dikonfirmasi dulu — mendemokan "blocked dependency" exception secara nyata (`/bookings/exceptions` menampilkan "Dependency belum terpenuhi: Hotel HTL-1034").
+
+**Payment gate states, seluruh 3 nilai literal terwakili:**
+- `cleared` (4 booking): `FLT-1011`/`FLT-1031` (issued penuh), `HTL-1033` (confirmed dengan voucher terbit), `TRN-1036` (completed).
+- `pending` (6 booking): `FLT-1021` (reissued), `HTL-1022`/`HTL-1035` (confirmed/amended), `TRN-1034`/`TRN-1035` (assigned/confirmed), `MICE-1035` (in-progress) — seluruhnya sudah confirmed-equivalent tapi belum ditandai lunas, tampil dengan tombol "Mark Payment Cleared" (Operations) di `/bookings`.
+- `not-required` (8 booking): sisanya — masih di tahap awal/hold/quoted/cancelled/refunded/requested, belum relevan untuk gate finansial.
+
+**Failure → retry → manual fallback** — `BKO-002` (`FLT-1021`, Abu Dhabi, `reissued`) — 2 `BookingAttempt`: percobaan reissue otomatis pertama `failed` (timeout GDS mock, 2026-07-05 09:00) diikuti `manual-fallback` (2026-07-05 10:30, tim Ticketing memproses manual lewat counter airline) — menautkan langsung ke `scheduleChangeNote` existing (`FlightBooking`, Section 13), bukan detail lepas konteks. Karena percobaan TERAKHIR berhasil (`manual-fallback`), `FLT-1021` TIDAK memicu exception "percobaan gagal" — exception yang tampil untuknya murni dari flag domain `hasScheduleChange` existing (konsisten logika `buildBookingTimelineEntry`: hanya percobaan terakhir yang `failed` yang memicu exception baru).
+
+**Duplicate flag** — `BKO-012` (`HTL-1036`, Hotel, PRJ-102, `requested`) — permintaan kamar overflow untuk traveler yang menyusul belakangan pada project yang SUDAH punya Hotel Booking aktif (`HTL-1022`, `amended`) — `flaggedDuplicate: true`, mendemokan booking yang SENGAJA dibuat sebagai duplicate (dikonfirmasi eksplisit lewat dialog "Booking Aktif Sudah Ada" di `/accommodation`), bukan kesalahan input.
+
+**Exception Queue** (`/bookings/exceptions`) — 6 booking membutuhkan perhatian per skenario di atas: `FLT-1021` (schedule change), `HTL-1022` (amended), `HTL-1036` (duplicate flag), `TRN-1035` (blocked dependency), `TRN-1036` (incident operasional existing, Section 15), `MICE-1035` (change order + incident + capacity conflict existing, Section 16, `getMiceScheduleConflicts` di-reuse langsung).
+
+---
+
+## 4v. Changes, Cancellation, Refund dan Incident Detail (ditambahkan Section 19 — roadmap Section 00–24 baru)
+
+`ChangeRequest`/`CancellationRecord`/`RefundRequest`/`Incident` (`app/data/change-incident.ts`, D-076) — fully additive, ditautkan ke fixture existing (bukan skenario lepas konteks).
+
+**Change Requests (`CR-001` s/d `CR-006`), seluruh 3 sumber dan 5 status literal terwakili:**
+- Sumber: `internal` (`CR-001`/`CR-003`/`CR-006`), `client` (`CR-002`/`CR-005`), `supplier` (`CR-004`).
+- Status: `approved` (`CR-001` menaut `CHG-1021` existing, `CR-003` menaut `CHG-1031` existing), `under-review` (`CR-002` menaut `CHG-1023` existing, selaras `approvalStatus: 'pending'`), `submitted` (`CR-004`, menaut `ActivityEntry` BARU `CHG-1032` — vendor mengusulkan upgrade armada transport), `rejected` (`CR-005`, menaut `CHG-1033` BARU — client minta reschedule H-1 untuk e-ticket yang sudah issued, ditolak karena fare rules), `implemented` (`CR-006`, menaut `CHG-1034` BARU — rundown MICE ditambah breakout room). `CR-001`/`CR-002`/`CR-003` mendemokan `activityEntryId` menaut ke `ActivityEntry` LAMA (Section 14, `CHG-1021`/`1023`/`1031`) — bukti `ChangeRequest` adalah lapisan tambahan di atas audit trail yang sudah ada, bukan log kedua yang terpisah.
+
+**Cancellations (`CNX-001` s/d `CNX-003`), dengan dan tanpa penalty:**
+- `CNX-001` (Flight `FLT-1023`, PRJ-102, `refunded`) — penalty Rp5.000.000, `refundEligible: true`.
+- `CNX-002` (Hotel `HTL-1023`, PRJ-102, `cancelled`) — penalty Rp3.750.000 (selaras narasi existing "penalti 15%", D-071), `refundEligible: true`.
+- `CNX-003` (Transport `TRN-1037`, PRJ-103, `cancelled`) — TANPA penalty, `refundEligible: false` (traveler beralih kendaraan pribadi sebelum deposit).
+
+**Refund Requests (`REF-001` s/d `REF-005`), seluruh 5 status literal, partial/full, satu `creditStatus: 'issued'`:**
+- `REF-001` (`processed`, full audit trail approve→process, `creditStatus: 'issued'`, menaut `CNX-001`+`INV-1021`, partial Rp45.000.000).
+- `REF-002` (`approved`, `creditStatus: 'pending'`, menaut `CNX-002`+`INV-1022`, full Rp21.250.000).
+- `REF-003` (`under-review`, menaut `CNX-003` [tanpa penalty, murni deposit], full Rp2.000.000).
+- `REF-004` (`requested`, TANPA `cancellationId` — goodwill refund menaut langsung `INV-1011`, partial Rp5.000.000).
+- `REF-005` (`rejected`, `creditStatus: 'not-applicable'`, TANPA `cancellationId`, menaut `INV-1032`, partial Rp10.000.000 — melewati batas waktu kebijakan).
+
+**Incidents (`INC-001` s/d `INC-004`), seluruh 4 severity, satu `escalated`, satu multi-entry communication log, booking-linked dan project-level:**
+- `INC-001` (severity `high`, Transport `TRN-1034`, PRJ-103, status `escalated` ke Operations `USR-009`, `communicationLog` 2 entri — kendaraan mogok saat penjemputan Group Sales Team).
+- `INC-002` (severity `medium`, Flight `FLT-1021`, PRJ-102, status `resolved` dengan `resolutionNote`, menaut narasi `scheduleChangeNote` existing).
+- `INC-003` (severity `critical`, PRJ-103, project-level TANPA `bookingId` — peringatan cuaca ekstrem Palu, status `open`).
+- `INC-004` (severity `low`, PRJ-101, project-level TANPA `bookingId`, status `closed` dengan `resolutionNote` — keterlambatan dokumen traveler, sudah lengkap H-2).
+
+---
+
+## 4w. Project Finance Detail (ditambahkan Section 20 — roadmap Section 00–24 baru)
+
+`Invoice`/`Payment` diperluas aditif, `CreditNote`/`DebitNote` baru, `SupplierInvoice` +AP scheduling/match-status (`app/data/finance.ts`/`app/data/procurement.ts`, D-077). Seluruh backfill fixture existing (`currency: 'IDR'`, `invoiceType`, `recordedBy: 'USR-008'`) TIDAK mengubah satu pun angka yang sudah divalidasi sejak Section 15/16 (bagian 1.3/2.3/3.3 di bawah) — diverifikasi ulang lewat smoke test Section 20.
+
+**Invoice `invoiceType` backfill (nilai efektif `amountIdr`/`status` TIDAK berubah):**
+- `INV-1011` (PRJ-101, paid) → `final` (satu-satunya invoice project, penutup).
+- `INV-1021` (PRJ-102, partially-paid, "Termin Awal") → `dp`.
+- `INV-1022` (PRJ-102, unpaid, invoice tambahan perubahan kamar) → `progress`.
+- `INV-1031` (PRJ-103, paid, "Termin 1") → `dp`.
+- `INV-1032` (PRJ-103, unpaid, "Termin 2") → `final`.
+- `INV-1041` (BARU, PRJ-104 — sebelumnya nol invoice, tidak pernah divalidasi angka apa pun oleh section manapun) → `dp`, currency `USD`, `exchangeRateSnapshot` (rate 15.600/USD, snapshot 2026-07-20), amountIdr Rp20.000.000, unpaid, jatuh tempo 2026-08-20 (skenario "belum jatuh tempo" — mendemokan multi-currency + DP tanpa risiko regresi angka lama).
+
+**Credit/Debit Note seed:**
+- `CN-001` (Credit Note, `INV-1011` PRJ-101, sudah `paid`) — Rp2.000.000, "Penyesuaian billing minor — kelebihan pembebanan airport tax". SENGAJA ditaruh di invoice yang outstanding-nya sudah 0 (floor `Math.max(...,0)` menjaga nol perubahan efektif) — BUKAN pada `INV-1021` (REF-001, sudah `creditStatus: 'issued'` sejak Section 19) untuk menghindari mengubah Outstanding PRJ-102 (Rp95.000.000) yang sudah divalidasi presisi sejak Section 15/16. Hook `issueCreditNote` di `updateRefundRequestStatus` bersifat PROSPEKTIF (hanya berlaku transisi status baru sejak Section 20 berjalan) — lihat D-077.
+- `DN-001` (Debit Note, PRJ-102, terkait `INV-1022`) — Rp5.000.000, "Biaya tambahan perubahan kamar melebihi kuota yang disepakati". Murni informasional, TIDAK menambah `amountIdr` `INV-1022`.
+
+**Supplier Invoice AP match-status backfill (`app/data/procurement.ts`):**
+- `SINV-001` (approved, SO-001/PRJ-103) → `matched`, `paymentScheduleDate: '2026-08-20'`.
+- `SINV-002` (under-review, SO-001/PRJ-103, biaya tol tambahan) → `unmatched` — mendemokan reconciliation workspace.
+- `SINV-003` (rejected, SO-002/PRJ-102) → TIDAK diisi (moot, tidak relevan direkonsiliasi).
+- `SINV-004` (submitted, SO-002/PRJ-102, submission ulang) → `disputed` — mendemokan state ketiga reconciliation (jumlah sesuai submission tapi menunggu konfirmasi pajak terpisah dari vendor).
+
+**Financial Closure Gate (`evaluateFinanceClosureGate`) — hasil per project (kondisi seed saat ini, diverifikasi presisi lewat smoke test SSR, akan berubah begitu user melakukan aksi Record Payment/proses Refund/Mark Matched):**
+- PRJ-101: 1 blocker — `REF-004` (`requested`, non-terminal).
+- PRJ-102: 3 blocker — 2 invoice outstanding (`INV-1021`/`INV-1022`), `REF-002` (`approved`, non-terminal), `SINV-004` (`disputed`, SO-002).
+- PRJ-103: 3 blocker — `INV-1032` outstanding, `REF-003` (`under-review`, non-terminal), `SINV-002` (`unmatched`, SO-001 — SO-001 projectId `PRJ-103`).
+- PRJ-104: 1 blocker — `INV-1041` outstanding (belum dibayar, belum jatuh tempo).
+
+---
+
+## 4x. Documents, Communication dan Notifications Detail (ditambahkan Section 21 — roadmap Section 00–24 baru)
+
+`Document`/`Message`/`Notification` baru (`app/data/document-comms.ts`, D-078) — fully additive di atas `ProjectDocument`/`VendorDocument` existing.
+
+**Document seed (`DOCUMENT_RECORDS`, 16 baris) — cakupan lintas 12 `entityType`, mix access-level/source-type/expiry:**
+- `DOC-C001` (project PRJ-101, uploaded, internal) s.d. `DOC-C010` (project PRJ-103, generated, client) — mencakup quotation (`DOC-C002`→`OPP-001/quotation-preview`), flight (`DOC-C003`→`FLT-1011/eticket-preview`), hotel (`DOC-C004`→`HTL-1033/voucher-preview`), transport client+internal (`DOC-C005`/`DOC-C006`→`TRN-1034/service-order-preview`+`driver-sheet-preview`), mice client+internal (`DOC-C007`/`DOC-C008`→`MICE-1035/rundown-preview`+`boq-preview`), project-level generated (`DOC-C009`/`DOC-C010`→`PRJ-103/run-sheet-preview`+`manifest-preview`) — seluruh `previewRoute` diverifikasi menaut ke route preview REAL yang sudah ada di codebase (bukan ditebak).
+- `DOC-C011` (vendor VND-006, uploaded, supplier) — `expiresAt: '2026-07-01'`, SUDAH EXPIRED relatif terhadap `DEMO_REFERENCE_DATE` (2026-07-29) — mendemokan badge "Expired" di `/documents` dan tab Documents Project Detail.
+- `DOC-C012` (party PTY-001, uploaded, client) — `expiresAt: '2026-08-10'`, dalam jendela "akan kedaluwarsa" 30 hari (`DOCUMENT_EXPIRY_WARNING_DAYS`) — mendemokan badge "Segera".
+- `DOC-C013` (invoice INV-1011), `DOC-C014` (traveler TRV-1021, `expiresAt` selaras `visaExpiryDate` traveler asli), `DOC-C015` (change-request CR-004), `DOC-C016` (incident INC-001) — melengkapi cakupan `entityType` lintas seluruh 12 nilai.
+
+**Message seed (`MESSAGE_RECORDS`, 8 baris) — 3 channel, 4 `deliveryStatus`, mentions:**
+- `MSG-001` (internal-note, PRJ-101, mentions `USR-004`) dan `MSG-006` (internal-note, incident INC-001, mentions `USR-009`) — memicu `Notification` type `mention` via `sendMessage`.
+- `MSG-002` (client-message, PRJ-102, delivered/email), `MSG-003` (client-message, PRJ-102, **failed**/whatsapp — satu-satunya delivery gagal), `MSG-007` (client-message, change-request CR-002, delivered/whatsapp, sender `USR-020` client).
+- `MSG-004`/`MSG-005` (supplier-message, vendor VND-006, pasangan tanya-jawab Operations↔Supplier, sent/email dan delivered/email).
+- `MSG-008` (internal-note, PRJ-104, mentions `USR-004`, **queued** — satu-satunya status queued, mendemokan state "belum settle" di fixture meski `sendMessage` runtime settle deterministik).
+
+**Notification seed (`NOTIFICATION_RECORDS`, 9 baris) — 5 user berbeda (`USR-002`/`003`/`004`/`006`/`009`), mixed read/unread, seluruh 8 `NotificationType`:**
+- `NOT-001` (mention, USR-004, unread), `NOT-002` (escalation, USR-009, read), `NOT-003` (change, USR-003, unread), `NOT-004` (assignment, USR-004, read), `NOT-005` (mention, USR-009, unread), `NOT-006` (reminder, USR-002, unread), `NOT-007` (document, USR-003, unread), `NOT-008` (message, USR-004, unread), `NOT-009` (incident, USR-006, read).
+- Login sebagai `USR-004` (Andi Pratama, Ticketing, via Settings role switcher) untuk demo bell popover dengan 3 unread (`NOT-001`/`004` read jadi 2 unread aktual — cek `getUnreadNotificationCount('USR-004')` di runtime); login sebagai `USR-009` (Fajar Nugroho, Operations) untuk demo eskalasi Incident yang sudah diterima.
+
+**Hook notification-push langsung dapat didemokan (bukan hanya via seed statis):** eskalasi Incident baru dari `/changes/incidents/[id]` memicu notifikasi ke user yang dieskalasi; Approve/Reject Change Request dari `/changes/[id]` memicu notifikasi ke `requestedBy`; assign/reassign task dari tab "Tasks" Project Detail memicu notifikasi ke assignee baru; compose pesan dengan mentions dari `/documents` atau tab "Communication" Project Detail memicu notifikasi mention.
+
+---
+
 ## 5. Role-Restricted Finance View (bukan record baru, kondisi tampilan atas PRJ-103)
 
 Menggunakan **PRJ-103** sebagai subjek konkret untuk mendemonstrasikan Role & Access Matrix (`docs/route-and-role-matrix.md` bagian 5) pada tab "Finance":

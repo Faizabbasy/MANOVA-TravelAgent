@@ -128,6 +128,9 @@ export interface ServiceOrderAmendment {
 /** Preview/mock murni — TIDAK ADA payment gateway/processing nyata (larangan protokol eksplisit). */
 export type SupplierInvoiceStatus = 'submitted' | 'under-review' | 'approved' | 'rejected'
 
+/** AP reconciliation match status (Section 20 — Project Finance, roadmap Section 00–24 baru). Field OPSIONAL — tidak diisi berarti belum ditriase lewat workspace reconciliation (`/finance/reconciliation`, `updateSupplierInvoiceMatchStatus`). */
+export type SupplierInvoiceMatchStatus = 'matched' | 'unmatched' | 'disputed'
+
 export interface SupplierInvoice {
   id: ID
   serviceOrderId: ID
@@ -140,4 +143,7 @@ export interface SupplierInvoice {
   /** Reuse `User.id` (role `procurement`/`finance`). */
   reviewedBy?: ID
   reviewNote?: string
+  /** AP scheduling/match-status (Section 20, aditif) — kapan pembayaran ke vendor dijadwalkan (mock murni, D-006, bukan payment gateway nyata). */
+  paymentScheduleDate?: string
+  matchStatus?: SupplierInvoiceMatchStatus
 }

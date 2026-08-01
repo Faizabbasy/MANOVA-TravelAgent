@@ -30,6 +30,9 @@ export type PermissionLevel = 'NONE' | 'VIEW' | 'MANAGE' | 'APPROVE' | 'ADMIN'
  * `transportation` (Section 15) — menggerbangi `/transportation/*` (`TransportBooking` lifecycle), pola arsitektur IDENTIK `ticketing`/`accommodation` (D-070/D-071); `transportation` `MANAGE`, `management`/`finance`/`project-manager`/`operations`/`viewer` `VIEW`, role lain `NONE`.
  * `mice` (Section 16) — menggerbangi `/mice/*` (`MiceEvent` lifecycle), pola arsitektur IDENTIK `ticketing`/`accommodation`/`transportation` (D-070/D-071/D-072); `mice` `MANAGE`, `management`/`finance`/`project-manager`/`operations`/`viewer` `VIEW`, role lain `NONE`.
  * `procurement` (Section 17) — menggerbangi `/procurement/*` (`RFQ`/`ServiceOrder`/`SupplierInvoice` lifecycle, D-074), TERPISAH dari `vendor` (direktori master data, tetap ada). `procurement` `MANAGE`, `management`/`finance`/`project-manager`/`operations`/`viewer` `VIEW`, role lain `NONE`.
+ * `bookings` (Section 18, D-075) — menggerbangi `/bookings/*` (Booking Orchestration/Timeline konsolidasi lintas Flight/Hotel/Transport/MICE, D-070/D-071/D-072/D-073 — BUKAN `ServiceOrder` Procurement Section 17, lihat `docs/frontend-known-issues.md` bagian 13 disambiguasi). `operations` `MANAGE` (acceptance literal "satu sumber kebenaran seluruh service"), `project-manager`/`management`/`finance`/`viewer` `VIEW`, role lain (termasuk `ticketing`/`accommodation`/`transportation`/`mice` — tetap mengelola modul masing-masing langsung, bukan lewat konsolidasi ini) `NONE`.
+ * `changes` (Section 19, D-076) — menggerbangi `/changes/*` (`ChangeRequest`/`CancellationRecord`/`RefundRequest`/`Incident` — exception management lintas Flight/Hotel/Transport/MICE, fully additive di atas Section 13-18). `operations`/`project-manager` `MANAGE` (pemilik operasional exception harian), `management`/`finance`/`viewer` `VIEW` (Management tetap approver komersial lewat `canApprove('project')` existing, pola sama Section 14 lama), role lain `NONE` — Client/Supplier mengakses versi sanitized lewat `client-portal`/`supplier-portal` masing-masing, bukan modul ini.
+ * `documents` (Section 21, D-078) — menggerbangi `/documents/*` (Document center konsolidasi/Communication/Notification center, fully additive di atas `ProjectDocument`/`VendorDocument`). `management`/`project-manager`/`operations` `MANAGE` (pemilik pengelolaan dokumen/komunikasi operasional harian), mayoritas role internal lain `VIEW` (kolaborasi lintas modul), `client`/`supplier` `NONE` di modul top-level ini — mereka tetap mendapat scoped view lewat `client-portal`/`supplier-portal` masing-masing (dokumen/pesan client/supplier-facing existing, TIDAK lewat modul ini).
  */
 export type ModuleKey =
   | 'crm'
@@ -46,6 +49,9 @@ export type ModuleKey =
   | 'transportation'
   | 'mice'
   | 'procurement'
+  | 'bookings'
+  | 'changes'
+  | 'documents'
 
 export interface User {
   id: ID

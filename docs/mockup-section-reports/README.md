@@ -68,8 +68,14 @@ Sejak 2026-08-01, `prompts/01-PROTOKOL-WAJIB.md` versi "FRONTEND-ONLY CONTINUATI
 | 15 | Transportation | [`section-15-transportation.md`](./section-15-transportation.md) | COMPLETED |
 | 16 | MICE dan Event | [`section-16-mice.md`](./section-16-mice.md) | COMPLETED |
 | 17 | Supplier dan Procurement | [`section-17-supplier-procurement.md`](./section-17-supplier-procurement.md) | COMPLETED |
+| 18 | Booking dan Service Orders | [`section-18-booking-service-orders.md`](./section-18-booking-service-orders.md) | COMPLETED |
+| 19 | Changes, Cancellation, Refund dan Incident | [`section-19-change-cancel-refund-incident.md`](./section-19-change-cancel-refund-incident.md) | COMPLETED |
+| 20 | Project Finance | [`section-20-project-finance.md`](./section-20-project-finance.md) | COMPLETED |
+| 21 | Documents, Communication dan Notifications | [`section-21-documents-comms-notifications.md`](./section-21-documents-comms-notifications.md) | COMPLETED |
 
-**Catatan disambiguasi (D-057):** `section-17-supplier-procurement.md` (baris di atas, roadmap Section 00–24 baru) TIDAK BOLEH tertukar dengan `section-17-administration.md` (skema lama Prompt 0–20, tabel "Daftar Laporan" di atas — topik Administration, COMPLETED sejak sebelumnya) — keduanya sengaja bernomor sama ("17") karena berasal dari dua skema penomoran berbeda yang berdampingan (lihat bagian "Roadmap Section 00–24" di atas), BUKAN duplikat/konflik.
+**Catatan disambiguasi (D-057):** `section-17-supplier-procurement.md` (baris di atas, roadmap Section 00–24 baru) TIDAK BOLEH tertukar dengan `section-17-administration.md` (skema lama Prompt 0–20, tabel "Daftar Laporan" di atas — topik Administration, COMPLETED sejak sebelumnya) — keduanya sengaja bernomor sama ("17") karena berasal dari dua skema penomoran berbeda yang berdampingan (lihat bagian "Roadmap Section 00–24" di atas), BUKAN duplikat/konflik. Pola yang sama berlaku untuk `section-18-booking-service-orders.md` (roadmap Section 00–24 baru) vs `section-18-regression-demo-readiness.md` (skema lama Prompt 0–20, topik Regression and Demo Readiness) — dua topik berbeda total, bernomor sama karena skema berbeda.
+
+**Catatan disambiguasi konten (bukan penomoran file, D-075):** `section-18-booking-service-orders.md` (di sini) membahas `BookingOrchestrationRecord`/`BookingTimelineEntry` — consolidation layer timeline booking lintas Flight/Hotel/Transport/MICE (Operations-facing). Ini BERBEDA dari `ServiceOrder` (`app/types/procurement.ts`, dibahas di `section-17-supplier-procurement.md`) yang merupakan dokumen formal Procurement→vendor. Nama mirip ("Service Order" muncul di label nav "Booking & Service Order Center") tapi konsep dan entitas TIDAK sama — lihat `docs/frontend-known-issues.md` bagian 13.
 
 ## Isi Minimum Setiap Laporan
 

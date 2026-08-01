@@ -1,7 +1,7 @@
 import type { StatusOption } from '~/types/common'
 import type { OpportunityStage, QuotationApprovalStatus, OpportunityWorkflowStatus } from '~/types/opportunity'
 import type { ProjectStatus, ProjectCharacteristic, ServiceStatus, ServiceTypeKey, RoomType, ProjectOrderStatus } from '~/types/project'
-import type { InvoiceStatus } from '~/types/finance'
+import type { InvoiceStatus, InvoiceCurrency, InvoiceType, CreditNoteStatus, DebitNoteStatus } from '~/types/finance'
 import type { PartyActivityType } from '~/types/party'
 import type { VendorQuotationStatus, VendorStatus } from '~/types/vendor'
 import type { ChangeCategory, ChangeApprovalStatus, ProjectRiskSeverity, ProjectRiskStatus } from '~/types/activity'
@@ -10,7 +10,10 @@ import type { FlightBookingStatus, CabinClass } from '~/types/ticketing'
 import type { HotelBookingStatus, MealPlan } from '~/types/accommodation'
 import type { TransportBookingStatus, VehicleType } from '~/types/transportation'
 import type { MiceEventStatus, MiceApprovalStatus, MiceBoqCategory, MiceChecklistTask } from '~/types/mice'
-import type { RFQStatus, ServiceOrderStatus, SupplierInvoiceStatus } from '~/types/procurement'
+import type { RFQStatus, ServiceOrderStatus, SupplierInvoiceStatus, SupplierInvoiceMatchStatus } from '~/types/procurement'
+import type { BookingPaymentGateStatus, BookingAttemptOutcome } from '~/types/booking-orchestration'
+import type { ChangeRequestSource, ChangeRequestStatus, RefundRequestStatus, IncidentSeverity, IncidentStatus, RefundRequest } from '~/types/change-incident'
+import type { DocumentAccessLevel, DocumentEntityType, MessageChannel, MessageDeliveryStatus, NotificationType } from '~/types/document-comms'
 
 /**
  * Source of truth untuk seluruh status/enum MANOVA (Prompt 5-G, menggeneralisasi D-038).
@@ -138,10 +141,46 @@ export const PARTY_ACTIVITY_TYPES: StatusOption<PartyActivityType>[] = [
   { value: 'follow-up', label: 'Follow-up', tone: 'warning', order: 5 },
 ]
 
+/** Section 20 — `'void'` ditambahkan (transisi terminal baru, `voidInvoice`). */
 export const INVOICE_STATUSES: StatusOption<InvoiceStatus>[] = [
   { value: 'unpaid', label: 'Belum Dibayar', tone: 'warning', order: 1 },
   { value: 'partially-paid', label: 'Dibayar Sebagian', tone: 'info', order: 2 },
   { value: 'paid', label: 'Lunas', tone: 'success', order: 3 },
+  { value: 'void', label: 'Void', tone: 'neutral', order: 4 },
+]
+
+/** Multi-currency display (Section 20, Wajib) — dipakai `/finance/invoices`, tab Finance Project Detail. */
+export const INVOICE_CURRENCIES: StatusOption<InvoiceCurrency>[] = [
+  { value: 'IDR', label: 'IDR', tone: 'neutral', order: 1 },
+  { value: 'USD', label: 'USD', tone: 'info', order: 2 },
+  { value: 'SGD', label: 'SGD', tone: 'info', order: 3 },
+  { value: 'EUR', label: 'EUR', tone: 'info', order: 4 },
+]
+
+/** Termin/tipe invoice (Section 20, Wajib "Client invoice, DP"). */
+export const INVOICE_TYPES: StatusOption<InvoiceType>[] = [
+  { value: 'dp', label: 'Down Payment', tone: 'primary', order: 1 },
+  { value: 'progress', label: 'Termin/Progress', tone: 'info', order: 2 },
+  { value: 'final', label: 'Final', tone: 'success', order: 3 },
+]
+
+/** AP reconciliation match status (Section 20, Wajib) — dipakai `/finance/reconciliation`, AP summary tab Finance Project Detail. */
+export const SUPPLIER_INVOICE_MATCH_STATUSES: StatusOption<SupplierInvoiceMatchStatus>[] = [
+  { value: 'matched', label: 'Matched', tone: 'success', order: 1 },
+  { value: 'unmatched', label: 'Unmatched', tone: 'warning', order: 2 },
+  { value: 'disputed', label: 'Disputed', tone: 'destructive', order: 3 },
+]
+
+/** Credit Note (Section 20, Wajib) — dipakai `/finance/notes`. */
+export const CREDIT_NOTE_STATUSES: StatusOption<CreditNoteStatus>[] = [
+  { value: 'issued', label: 'Diterbitkan', tone: 'info', order: 1 },
+  { value: 'applied', label: 'Diterapkan', tone: 'success', order: 2 },
+]
+
+/** Debit Note (Section 20, Wajib) — dipakai `/finance/notes`. */
+export const DEBIT_NOTE_STATUSES: StatusOption<DebitNoteStatus>[] = [
+  { value: 'issued', label: 'Diterbitkan', tone: 'warning', order: 1 },
+  { value: 'settled', label: 'Diselesaikan', tone: 'success', order: 2 },
 ]
 
 export const ATTENTION_SEVERITIES: StatusOption<'low' | 'medium' | 'high'>[] = [
@@ -339,6 +378,119 @@ export const SUPPLIER_INVOICE_STATUSES: StatusOption<SupplierInvoiceStatus>[] = 
   { value: 'under-review', label: 'Sedang Direview', tone: 'warning', order: 2 },
   { value: 'approved', label: 'Disetujui', tone: 'success', order: 3 },
   { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 4 },
+]
+
+/** "Confirmation and payment gates" (Section 18, Wajib) — mock gate finansial murni (D-006), dipakai `/bookings` dan tab Itinerary & Services. */
+export const BOOKING_PAYMENT_GATE_STATUSES: StatusOption<BookingPaymentGateStatus>[] = [
+  { value: 'not-required', label: 'Belum Relevan', tone: 'neutral', order: 1 },
+  { value: 'pending', label: 'Menunggu Pembayaran', tone: 'warning', order: 2 },
+  { value: 'cleared', label: 'Lunas', tone: 'success', order: 3 },
+]
+
+/** "Failure/retry/manual fallback simulation" (Section 18, Wajib) — narasi/log murni (D-006), dipakai `/bookings`. */
+export const BOOKING_ATTEMPT_OUTCOMES: StatusOption<BookingAttemptOutcome>[] = [
+  { value: 'success', label: 'Berhasil', tone: 'success', order: 1 },
+  { value: 'failed', label: 'Gagal', tone: 'destructive', order: 2 },
+  { value: 'manual-fallback', label: 'Manual Fallback', tone: 'warning', order: 3 },
+]
+
+/** Sumber Change Request (Section 19, Wajib "Change request dari Client/Internal/Supplier") — dipakai `/changes`. */
+export const CHANGE_REQUEST_SOURCES: StatusOption<ChangeRequestSource>[] = [
+  { value: 'client', label: 'Client', tone: 'info', order: 1 },
+  { value: 'internal', label: 'Internal', tone: 'primary', order: 2 },
+  { value: 'supplier', label: 'Supplier', tone: 'warning', order: 3 },
+]
+
+/** Status lifecycle Change Request (Section 19, Wajib "Approval states") — dipakai `/changes`. */
+export const CHANGE_REQUEST_STATUSES: StatusOption<ChangeRequestStatus>[] = [
+  { value: 'submitted', label: 'Diajukan', tone: 'neutral', order: 1 },
+  { value: 'under-review', label: 'Sedang Direview', tone: 'warning', order: 2 },
+  { value: 'approved', label: 'Disetujui', tone: 'success', order: 3 },
+  { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 4 },
+  { value: 'implemented', label: 'Diimplementasikan', tone: 'purple', order: 5 },
+]
+
+/** Status lifecycle Refund Request (Section 19, Wajib "Refund request, approval, partial/full") — dipakai `/changes`. */
+export const REFUND_REQUEST_STATUSES: StatusOption<RefundRequestStatus>[] = [
+  { value: 'requested', label: 'Diajukan', tone: 'neutral', order: 1 },
+  { value: 'under-review', label: 'Sedang Direview', tone: 'warning', order: 2 },
+  { value: 'approved', label: 'Disetujui', tone: 'success', order: 3 },
+  { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 4 },
+  { value: 'processed', label: 'Diproses', tone: 'purple', order: 5 },
+]
+
+/** `RefundRequest.creditStatus` (Section 19) — field mock self-contained, BUKAN integrasi `CreditNote` nyata (forward dependency Section 20, `docs/frontend-known-issues.md` bagian 15). */
+export const REFUND_CREDIT_STATUSES: StatusOption<RefundRequest['creditStatus']>[] = [
+  { value: 'pending', label: 'Menunggu', tone: 'warning', order: 1 },
+  { value: 'issued', label: 'Diterbitkan', tone: 'success', order: 2 },
+  { value: 'not-applicable', label: 'Tidak Berlaku', tone: 'neutral', order: 3 },
+]
+
+/** Severity Incident (Section 19, Wajib) — dipakai `/changes`. */
+export const INCIDENT_SEVERITIES: StatusOption<IncidentSeverity>[] = [
+  { value: 'low', label: 'Rendah', tone: 'neutral', order: 1 },
+  { value: 'medium', label: 'Sedang', tone: 'warning', order: 2 },
+  { value: 'high', label: 'Tinggi', tone: 'destructive', order: 3 },
+  { value: 'critical', label: 'Kritis', tone: 'destructive', order: 4 },
+]
+
+/** Status lifecycle Incident (Section 19, Wajib "Owner, escalation, communication, resolution") — dipakai `/changes`. */
+export const INCIDENT_STATUSES: StatusOption<IncidentStatus>[] = [
+  { value: 'open', label: 'Open', tone: 'neutral', order: 1 },
+  { value: 'investigating', label: 'Investigating', tone: 'info', order: 2 },
+  { value: 'escalated', label: 'Escalated', tone: 'destructive', order: 3 },
+  { value: 'resolved', label: 'Resolved', tone: 'success', order: 4 },
+  { value: 'closed', label: 'Closed', tone: 'neutral', order: 5 },
+]
+
+/** Entitas pemilik dokumen/pesan (Section 21) — dipakai `/documents` (dialog upload/compose) dan `getUnifiedActivityTimeline`. */
+export const DOCUMENT_ENTITY_TYPES: StatusOption<DocumentEntityType>[] = [
+  { value: 'project', label: 'Project', tone: 'neutral', order: 1 },
+  { value: 'party', label: 'Party (Company)', tone: 'info', order: 2 },
+  { value: 'vendor', label: 'Vendor', tone: 'warning', order: 3 },
+  { value: 'traveler', label: 'Traveler', tone: 'neutral', order: 4 },
+  { value: 'quotation', label: 'Quotation', tone: 'primary', order: 5 },
+  { value: 'flight', label: 'Flight', tone: 'info', order: 6 },
+  { value: 'hotel', label: 'Hotel', tone: 'info', order: 7 },
+  { value: 'transport', label: 'Transport', tone: 'info', order: 8 },
+  { value: 'mice', label: 'MICE', tone: 'info', order: 9 },
+  { value: 'invoice', label: 'Invoice', tone: 'success', order: 10 },
+  { value: 'change-request', label: 'Change Request', tone: 'warning', order: 11 },
+  { value: 'incident', label: 'Incident', tone: 'destructive', order: 12 },
+]
+
+/** Access level dokumen/pesan (Section 21, Wajib "Internal/client/supplier visibility") — dipakai `/documents`, tab "Documents" Project Detail. */
+export const DOCUMENT_ACCESS_LEVELS: StatusOption<DocumentAccessLevel>[] = [
+  { value: 'internal', label: 'Internal', tone: 'neutral', order: 1 },
+  { value: 'client', label: 'Client', tone: 'info', order: 2 },
+  { value: 'supplier', label: 'Supplier', tone: 'warning', order: 3 },
+]
+
+/** Channel pesan (Section 21, Wajib "Internal notes, client messages, supplier messages") — dipakai `/documents`. */
+export const MESSAGE_CHANNELS: StatusOption<MessageChannel>[] = [
+  { value: 'internal-note', label: 'Internal Note', tone: 'neutral', order: 1 },
+  { value: 'client-message', label: 'Client Message', tone: 'info', order: 2 },
+  { value: 'supplier-message', label: 'Supplier Message', tone: 'warning', order: 3 },
+]
+
+/** Status delivery mock (Section 21, Wajib "Email/WhatsApp delivery status simulation tanpa klaim integrasi") — dipakai `/documents`. */
+export const MESSAGE_DELIVERY_STATUSES: StatusOption<MessageDeliveryStatus>[] = [
+  { value: 'queued', label: 'Antre', tone: 'neutral', order: 1 },
+  { value: 'sent', label: 'Terkirim', tone: 'info', order: 2 },
+  { value: 'delivered', label: 'Diterima', tone: 'success', order: 3 },
+  { value: 'failed', label: 'Gagal', tone: 'destructive', order: 4 },
+]
+
+/** Tipe notifikasi in-app (Section 21, Wajib "Mentions, assignments, reminders, escalation") — dipakai `/documents` tab Notifications dan `NotificationPanel.vue`. */
+export const NOTIFICATION_TYPES: StatusOption<NotificationType>[] = [
+  { value: 'mention', label: 'Mention', tone: 'info', order: 1 },
+  { value: 'assignment', label: 'Assignment', tone: 'info', order: 2 },
+  { value: 'reminder', label: 'Reminder', tone: 'warning', order: 3 },
+  { value: 'escalation', label: 'Escalation', tone: 'destructive', order: 4 },
+  { value: 'change', label: 'Change', tone: 'warning', order: 5 },
+  { value: 'incident', label: 'Incident', tone: 'destructive', order: 6 },
+  { value: 'document', label: 'Document', tone: 'info', order: 7 },
+  { value: 'message', label: 'Message', tone: 'neutral', order: 8 },
 ]
 
 export function findStatusOption<T extends string>(list: StatusOption<T>[], value: T): StatusOption<T> {

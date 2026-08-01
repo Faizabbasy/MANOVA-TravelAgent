@@ -6,6 +6,7 @@ import {
   getHotelBookingById, getHotelBookingMarginIdr, getHotelBookingStatusTransitions,
   updateHotelBooking, updateHotelBookingStatus, selectHotelOption,
   getProjectById, getTravelers, getHotelRoomingList, getTravelerGroups,
+  createCancellationRecord,
 } from '~/data'
 import { HOTEL_BOOKING_STATUSES, MEAL_PLANS, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -61,6 +62,10 @@ const summaryMetadata = computed(() => {
 const isStatusDialogOpen = ref(false)
 const pendingStatus = ref<HotelBookingStatus | null>(null)
 const statusReason = ref('')
+/** "Cancellation and penalty" (Section 19, D-076) — hook ADITIF, lihat komentar identik `app/pages/ticketing/[id]/index.vue`. */
+const CANCELLATION_TRIGGER_STATUSES: HotelBookingStatus[] = ['cancelled', 'no-show']
+const cancellationPenalty = ref<number | null>(null)
+const cancellationRefundEligible = ref(true)
 
 function statusRequiresReason(status: HotelBookingStatus) {
   return status === 'cancelled' || status === 'no-show'
@@ -70,6 +75,8 @@ function requestStatusChange(newStatus: HotelBookingStatus) {
   if (statusRequiresReason(newStatus)) {
     pendingStatus.value = newStatus
     statusReason.value = ''
+    cancellationPenalty.value = (newStatus === 'no-show' ? booking.value?.noShowPenaltyIdr : booking.value?.cancellationPenaltyIdr) ?? null
+    cancellationRefundEligible.value = newStatus !== 'no-show'
     isStatusDialogOpen.value = true
     return
   }
@@ -80,9 +87,18 @@ function requestStatusChange(newStatus: HotelBookingStatus) {
 
 function submitStatusChange() {
   if (!booking.value || !pendingStatus.value || !statusReason.value.trim()) return
-  const result = updateHotelBookingStatus(booking.value.id, pendingStatus.value, currentUser.value.id, statusReason.value.trim())
+  const targetStatus = pendingStatus.value
+  const result = updateHotelBookingStatus(booking.value.id, targetStatus, currentUser.value.id, statusReason.value.trim())
   isStatusDialogOpen.value = false
-  if (result) showToast('Status Diperbarui', `Hotel Booking kini berstatus "${findStatusOption(HOTEL_BOOKING_STATUSES, pendingStatus.value).label}".`, 'success')
+  if (!result) return
+  if (CANCELLATION_TRIGGER_STATUSES.includes(targetStatus)) {
+    createCancellationRecord({
+      projectId: result.projectId, bookingType: 'hotel', bookingId: result.id,
+      reason: statusReason.value.trim(), penaltyIdr: cancellationPenalty.value ?? undefined,
+      cancelledBy: currentUser.value.id, refundEligible: cancellationRefundEligible.value,
+    })
+  }
+  showToast('Status Diperbarui', `Hotel Booking kini berstatus "${findStatusOption(HOTEL_BOOKING_STATUSES, targetStatus).label}".`, 'success')
 }
 
 function submitSelectOption(index: number) {
@@ -300,9 +316,22 @@ function submitEdit() {
             <DialogTitle>{{ pendingStatus ? findStatusOption(HOTEL_BOOKING_STATUSES, pendingStatus).label : '' }} Hotel Booking</DialogTitle>
             <DialogDescription>Alasan wajib dicatat untuk transisi ini — akan tersimpan sebagai jejak historis di Activity & Changes project terkait.</DialogDescription>
           </DialogHeader>
-          <div class="space-y-1.5 py-2">
-            <Label for="status-reason">Alasan</Label>
-            <Input id="status-reason" v-model="statusReason" placeholder="mis. Traveler membatalkan menginap" />
+          <div class="space-y-4 py-2">
+            <div class="space-y-1.5">
+              <Label for="status-reason">Alasan</Label>
+              <Input id="status-reason" v-model="statusReason" placeholder="mis. Traveler membatalkan menginap" />
+            </div>
+            <template v-if="pendingStatus && CANCELLATION_TRIGGER_STATUSES.includes(pendingStatus)">
+              <div class="space-y-1.5 pt-2 border-t border-border">
+                <Label for="status-penalty">Penalty (Rp, opsional)</Label>
+                <Input id="status-penalty" v-model.number="cancellationPenalty" type="number" placeholder="0" />
+              </div>
+              <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <Checkbox v-model="cancellationRefundEligible" />
+                Refund Eligible
+              </label>
+              <p class="text-xs text-muted-foreground">Sebuah Cancellation Record akan otomatis dicatat (Section 19) — dapat ditindaklanjuti dengan Refund Request di modul Changes & Incidents.</p>
+            </template>
           </div>
           <DialogFooter>
             <Button variant="outline" @click="isStatusDialogOpen = false">Batal</Button>

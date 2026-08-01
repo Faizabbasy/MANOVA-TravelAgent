@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus } from 'lucide-vue-next'
-import { HOTEL_BOOKINGS, PROJECTS, getProjectById, createHotelBooking } from '~/data'
+import { HOTEL_BOOKINGS, PROJECTS, getProjectById, createHotelBooking, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
 import { HOTEL_BOOKING_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 
@@ -10,7 +10,9 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Accommodation' })
 
 const route = useRoute()
+const { currentUser } = useCurrentUser()
 const { canView, canManage } = usePermissions()
+const { showToast } = useToast()
 const canManageAccommodation = computed(() => canManage('accommodation'))
 
 const searchQuery = ref('')
@@ -61,16 +63,43 @@ function openCreateDialog() {
 
 watch(() => route.query.create, (value) => { if (value === '1') openCreateDialog() }, { immediate: true })
 
+/** "Duplicate booking prevention" (Section 18, Wajib) — cek booking Hotel aktif lain untuk project+service yang sama sebelum membuat. */
+const isDuplicateConfirmOpen = ref(false)
+const duplicateConflictIds = ref<string[]>([])
+
 function submitCreate() {
   if (!newProjectId.value) return
+  if (newServiceId.value) {
+    const conflicts = findActiveBookingConflicts('hotel', newProjectId.value, newServiceId.value)
+    if (conflicts.length > 0) {
+      duplicateConflictIds.value = conflicts
+      isDuplicateConfirmOpen.value = true
+      return
+    }
+  }
+  performCreate()
+}
+
+function performCreate() {
   const booking = createHotelBooking({
     projectId: newProjectId.value,
     serviceId: newServiceId.value || undefined,
     checkInDate: newCheckInDate.value || undefined,
     checkOutDate: newCheckOutDate.value || undefined,
   })
+  if (duplicateConflictIds.value.length > 0) {
+    flagBookingOrchestrationDuplicate('hotel', booking.id, booking.projectId, currentUser.value.id, duplicateConflictIds.value)
+    showToast('Hotel Booking Dibuat (Duplicate)', 'Ditandai sebagai duplicate booking yang disengaja — tercatat di Activity & Changes project terkait.', 'success')
+  }
   isCreateOpen.value = false
+  isDuplicateConfirmOpen.value = false
+  duplicateConflictIds.value = []
   navigateTo(`/accommodation/${booking.id}`)
+}
+
+function cancelDuplicateCreate() {
+  isDuplicateConfirmOpen.value = false
+  duplicateConflictIds.value = []
 }
 </script>
 
@@ -113,6 +142,23 @@ function submitCreate() {
             <DialogFooter>
               <Button variant="outline" @click="isCreateOpen = false">Batal</Button>
               <Button :disabled="!newProjectId" @click="submitCreate">Simpan</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <!-- Duplicate booking prevention (Section 18, Wajib) — konfirmasi eksplisit wajib sebelum melanjutkan. -->
+        <Dialog v-model:open="isDuplicateConfirmOpen">
+          <DialogContent class="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Booking Aktif Sudah Ada</DialogTitle>
+              <DialogDescription>
+                Sudah ada Hotel Booking aktif untuk service yang sama pada project ini: {{ duplicateConflictIds.join(', ') }}.
+                Lanjutkan sebagai duplicate booking yang disengaja?
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="outline" @click="cancelDuplicateCreate">Batal</Button>
+              <Button variant="destructive" @click="performCreate">Lanjutkan sebagai Duplicate</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

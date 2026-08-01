@@ -5,11 +5,12 @@ import { FileX, Plus } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getOpportunityById, getUserById,
   getClientVisibleItineraryItems, getTravelers, createTraveler, updateTraveler,
-  getDocumentsByProject, getInvoicesByProject, getPaymentsByInvoice, getActivitiesByProject,
-  createChangeEntry,
+  getDocumentsByProject, getInvoicesByProject, getPaymentsByInvoice,
+  createChangeRequest, getChangeRequestsByProject, getIncidentsByProject,
 } from '~/data'
 import {
-  PROJECT_STATUSES, SERVICE_TYPES, CHANGE_CATEGORIES, CHANGE_APPROVAL_STATUSES, INVOICE_STATUSES,
+  PROJECT_STATUSES, SERVICE_TYPES, CHANGE_CATEGORIES, INVOICE_STATUSES, INVOICE_TYPES,
+  CHANGE_REQUEST_STATUSES, INCIDENT_STATUSES,
   findStatusOption,
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatDayLabel } from '~/utils/format'
@@ -52,7 +53,7 @@ const TABS = [
   { value: 'travelers', label: 'Travelers' },
   { value: 'documents', label: 'Documents' },
   { value: 'finance', label: 'Finance' },
-  { value: 'changes', label: 'Change Request' },
+  { value: 'changes', label: 'Changes & Incidents' },
 ]
 
 const serviceScopeOptions = computed(() => SERVICE_TYPES.filter(type => project.value?.serviceScope.includes(type.value)))
@@ -61,7 +62,15 @@ const itineraryItems = computed(() => (project.value ? getClientVisibleItinerary
 const travelers = computed(() => (project.value ? getTravelers(project.value.id) : []))
 const documents = computed(() => (project.value ? getDocumentsByProject(project.value.id) : []))
 const invoices = computed(() => (project.value ? getInvoicesByProject(project.value.id) : []))
-const changeEntries = computed(() => (project.value ? getActivitiesByProject(project.value.id).filter(entry => entry.isChange) : []))
+/**
+ * Change Request + Incident sanitized view (Section 19, D-076) — hanya status + before/after summary untuk
+ * Change Request (TIDAK PERNAH `operationalImpact`/`commercialImpactIdr`/`financialImpactNote`, internal-only
+ * bahkan untuk request milik Client sendiri), dan hanya status + resolution note untuk Incident (TIDAK PERNAH
+ * `severity`/`escalatedTo`/`communicationLog`, internal-only mutlak) — pola sanitasi sama Sections 13-16
+ * (client hanya melihat `sellPriceIdr`, tidak pernah `netCostIdr`).
+ */
+const projectChangeRequests = computed(() => (project.value ? getChangeRequestsByProject(project.value.id) : []))
+const projectIncidents = computed(() => (project.value ? getIncidentsByProject(project.value.id) : []))
 
 /**
  * Travelers — Wajib "Traveler/participant submission" (Section 08) + "Client self-submission" (Section 11
@@ -125,7 +134,11 @@ function submitTraveler() {
   isTravelerDialogOpen.value = false
 }
 
-/* Change Request — reuse `createChangeEntry` (Section 14), kategori dibatasi ke yang relevan bagi client (bukan `vendor`/`budget`, internal-only). */
+/**
+ * Change Request (Section 19, D-076) — reuse `createChangeRequest` (yang otomatis memanggil `createChangeEntry`
+ * Section 14 lama agar audit trail internal tetap satu sumber kebenaran), kategori dibatasi ke yang relevan
+ * bagi client (bukan `vendor`/`budget`, internal-only).
+ */
 const CLIENT_CHANGE_CATEGORIES: ChangeCategory[] = ['traveler', 'itinerary', 'service', 'other']
 const isChangeDialogOpen = ref(false)
 const changeCategory = ref<ChangeCategory>('other')
@@ -133,16 +146,19 @@ const changeReason = ref('')
 
 function submitChangeRequest() {
   if (!project.value || !changeReason.value.trim()) return
-  createChangeEntry({
+  const request = createChangeRequest({
     projectId: project.value.id,
-    category: changeCategory.value,
-    reason: changeReason.value.trim(),
+    source: 'client',
     requestedBy: currentUser.value.id,
+    affectedEntities: [{ entityType: 'project', entityId: project.value.id }],
+    beforeSummary: 'Kondisi saat ini',
+    afterSummary: changeReason.value.trim(),
+    category: changeCategory.value,
   })
   changeReason.value = ''
   changeCategory.value = 'other'
   isChangeDialogOpen.value = false
-  showToast('Permintaan Perubahan Terkirim', 'Tim kami akan meninjau permintaan Anda.', 'success')
+  showToast('Permintaan Perubahan Terkirim', `${request.id} — tim kami akan meninjau permintaan Anda.`, 'success')
 }
 </script>
 
@@ -294,11 +310,12 @@ function submitChangeRequest() {
         </TabsContent>
 
         <TabsContent value="finance">
-          <SectionCard title="Invoice">
+          <SectionCard title="Invoice" description="Menampilkan status DP/termin dan currency invoice — nilai selalu dalam Rupiah (currency asing hanya penanda referensi, sudah dikonversi).">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Invoice</TableHead>
+                  <TableHead>Tipe</TableHead>
                   <TableHead>Jumlah</TableHead>
                   <TableHead>Jatuh Tempo</TableHead>
                   <TableHead>Status</TableHead>
@@ -307,13 +324,19 @@ function submitChangeRequest() {
               <TableBody>
                 <TableRow v-for="invoice in invoices" :key="invoice.id">
                   <TableCell class="font-medium text-foreground">{{ invoice.label }}</TableCell>
+                  <TableCell>
+                    <div class="flex flex-col gap-1">
+                      <StatusBadge :label="findStatusOption(INVOICE_TYPES, invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, invoice.invoiceType).tone" />
+                      <span v-if="invoice.currency !== 'IDR'" class="text-xs text-muted-foreground">{{ invoice.currency }}</span>
+                    </div>
+                  </TableCell>
                   <TableCell>{{ formatCurrencyIdr(invoice.amountIdr) }}</TableCell>
                   <TableCell :class="isInvoiceOverdue(invoice) ? 'text-destructive' : 'text-muted-foreground'">
                     {{ formatDate(invoice.dueAt) }}<template v-if="isInvoiceOverdue(invoice)"> ({{ invoiceAgingDays(invoice) * -1 }} hari overdue)</template>
                   </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(INVOICE_STATUSES, invoice.status).tone" /></TableCell>
                 </TableRow>
-                <TableEmpty v-if="invoices.length === 0" :colspan="4">Belum ada invoice untuk Project Order ini.</TableEmpty>
+                <TableEmpty v-if="invoices.length === 0" :colspan="5">Belum ada invoice untuk Project Order ini.</TableEmpty>
               </TableBody>
             </Table>
           </SectionCard>
@@ -359,21 +382,31 @@ function submitChangeRequest() {
                 </DialogContent>
               </Dialog>
             </template>
-            <ul v-if="changeEntries.length" class="divide-y divide-border">
-              <li v-for="entry in changeEntries" :key="entry.id" class="py-3">
+            <ul v-if="projectChangeRequests.length" class="divide-y divide-border">
+              <li v-for="item in projectChangeRequests" :key="item.id" class="py-3">
                 <div class="flex items-center justify-between gap-3">
-                  <p class="text-sm font-medium text-foreground">{{ entry.category ? findStatusOption(CHANGE_CATEGORIES, entry.category).label : 'Perubahan' }}</p>
-                  <StatusBadge
-                    v-if="entry.approvalStatus"
-                    :label="findStatusOption(CHANGE_APPROVAL_STATUSES, entry.approvalStatus).label"
-                    :tone="findStatusOption(CHANGE_APPROVAL_STATUSES, entry.approvalStatus).tone"
-                  />
+                  <p class="text-sm font-medium text-foreground">{{ item.afterSummary }}</p>
+                  <StatusBadge :label="findStatusOption(CHANGE_REQUEST_STATUSES, item.status).label" :tone="findStatusOption(CHANGE_REQUEST_STATUSES, item.status).tone" />
                 </div>
-                <p class="text-sm text-muted-foreground">{{ entry.reason }}</p>
-                <p class="text-xs text-muted-foreground mt-1">{{ formatDate(entry.createdAt) }}</p>
+                <p class="text-sm text-muted-foreground">Sebelum: {{ item.beforeSummary }}</p>
+                <p class="text-xs text-muted-foreground mt-1">{{ formatDate(item.submittedAt) }}</p>
               </li>
             </ul>
             <EmptyState v-else title="Belum ada permintaan perubahan" description="Ajukan perubahan bila ada detail Project Order yang perlu disesuaikan." />
+          </SectionCard>
+
+          <SectionCard title="Incidents" description="Status dan resolusi insiden yang berkaitan dengan Project Order Anda.">
+            <ul v-if="projectIncidents.length" class="divide-y divide-border">
+              <li v-for="item in projectIncidents" :key="item.id" class="py-3">
+                <div class="flex items-center justify-between gap-3">
+                  <p class="text-sm font-medium text-foreground">{{ item.title }}</p>
+                  <StatusBadge :label="findStatusOption(INCIDENT_STATUSES, item.status).label" :tone="findStatusOption(INCIDENT_STATUSES, item.status).tone" />
+                </div>
+                <p v-if="item.resolutionNote" class="text-sm text-muted-foreground mt-1">Resolusi: {{ item.resolutionNote }}</p>
+                <p v-else class="text-sm text-muted-foreground mt-1">Sedang ditangani oleh tim kami.</p>
+              </li>
+            </ul>
+            <EmptyState v-else title="Tidak ada Incident tercatat" description="Belum ada insiden operasional yang berkaitan dengan Project Order ini." />
           </SectionCard>
         </TabsContent>
       </Tabs>

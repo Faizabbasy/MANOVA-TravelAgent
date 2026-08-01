@@ -1,93 +1,60 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import { Bell, CheckCircle2, AlertCircle, Clock, FolderKanban, DollarSign, Users, X } from 'lucide-vue-next'
+import { computed } from 'vue'
+import type { Component } from 'vue'
+import { Bell, AtSign, UserPlus, Clock, Siren, FileWarning, AlertCircle, FileText, MessageSquare, X } from 'lucide-vue-next'
+import {
+  getNotificationsForUser, getUnreadNotificationCount,
+  markNotificationRead, markAllNotificationsRead, removeNotification as removeNotificationRecord,
+} from '~/data'
+import type { NotificationType } from '~/types/document-comms'
+import { formatDate } from '~/utils/format'
 
-interface Notification {
-  id: string
-  type: 'success' | 'warning' | 'info' | 'error'
-  title: string
-  message: string
-  time: string
-  read: boolean
-  icon?: any
+/**
+ * Notification Panel (Section 21 — Documents, Communication dan Notifications, D-078). REWIRED dari data
+ * hardcoded fake ("Website Redesign project completed", dsb. — leftover starter-template boilerplate, zero
+ * koneksi ke data aplikasi ini) menjadi `Notification` nyata (`app/types/document-comms.ts`,
+ * `getNotificationsForUser`/`getUnreadNotificationCount`/`markNotificationRead`/`markAllNotificationsRead`/
+ * `removeNotification`, `app/data/index.ts`). Shell UI (popover, list styling, mark-as-read/remove
+ * interaction) DIPERTAHANKAN persis seperti sebelumnya — ini adalah AKTIVASI boilerplate mati, bukan
+ * mengubah fitur yang sudah bekerja (`docs/mockup-change-impact-log.md` CI-051).
+ */
+
+const { currentUser } = useCurrentUser()
+
+const notifications = computed(() => getNotificationsForUser(currentUser.value.id))
+const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.id))
+
+const markAsRead = (id: string) => markNotificationRead(id)
+const markAllAsRead = () => markAllNotificationsRead(currentUser.value.id)
+const removeNotification = (id: string) => removeNotificationRecord(id)
+
+const TYPE_ICON_MAP: Record<NotificationType, Component> = {
+  mention: AtSign,
+  assignment: UserPlus,
+  reminder: Clock,
+  escalation: Siren,
+  change: FileWarning,
+  incident: AlertCircle,
+  document: FileText,
+  message: MessageSquare,
 }
 
-const notifications = ref<Notification[]>([
-  {
-    id: '1',
-    type: 'success',
-    title: 'Project Completed',
-    message: 'Website Redesign project has been marked as completed',
-    time: '5 min ago',
-    read: false,
-    icon: CheckCircle2
-  },
-  {
-    id: '2',
-    type: 'warning',
-    title: 'Budget Alert',
-    message: 'Mobile App project is at 85% of allocated budget',
-    time: '1 hour ago',
-    read: false,
-    icon: DollarSign
-  },
-  {
-    id: '3',
-    type: 'info',
-    title: 'New Task Assigned',
-    message: 'You have been assigned to "API Integration" task',
-    time: '2 hours ago',
-    read: false,
-    icon: FolderKanban
-  },
-  {
-    id: '4',
-    type: 'info',
-    title: 'Team Member Added',
-    message: 'Sarah Johnson joined the Marketing Campaign project',
-    time: '3 hours ago',
-    read: true,
-    icon: Users
-  },
-  {
-    id: '5',
-    type: 'error',
-    title: 'Deadline Approaching',
-    message: 'E-commerce Platform deadline is in 2 days',
-    time: '5 hours ago',
-    read: true,
-    icon: Clock
-  },
-  {
-    id: '6',
-    type: 'success',
-    title: 'Payment Received',
-    message: 'Client payment of $12,500 has been received',
-    time: '1 day ago',
-    read: true,
-    icon: DollarSign
-  }
-])
-
-const unreadCount = computed(() => notifications.value.filter(n => !n.read).length)
-
-const markAsRead = (id: string) => {
-  const notification = notifications.value.find(n => n.id === id)
-  if (notification) {
-    notification.read = true
-  }
+/** Bucket warna disederhanakan dari 8 `NotificationType` menjadi 4 tone existing (pola sama badge tone lintas codebase). */
+const TYPE_TONE_MAP: Record<NotificationType, 'success' | 'warning' | 'info' | 'error'> = {
+  mention: 'info',
+  assignment: 'info',
+  reminder: 'warning',
+  escalation: 'error',
+  change: 'warning',
+  incident: 'error',
+  document: 'info',
+  message: 'info',
 }
 
-const markAllAsRead = () => {
-  notifications.value.forEach(n => n.read = true)
-}
+const getTypeIcon = (type: NotificationType) => TYPE_ICON_MAP[type]
 
-const removeNotification = (id: string) => {
-  notifications.value = notifications.value.filter(n => n.id !== id)
-}
-
-const getTypeColor = (type: string) => {
-  switch (type) {
+const getTypeColor = (type: NotificationType) => {
+  switch (TYPE_TONE_MAP[type]) {
     case 'success':
       return 'text-success'
     case 'warning':
@@ -99,8 +66,8 @@ const getTypeColor = (type: string) => {
   }
 }
 
-const getTypeBg = (type: string) => {
-  switch (type) {
+const getTypeBg = (type: NotificationType) => {
+  switch (TYPE_TONE_MAP[type]) {
     case 'success':
       return 'bg-success/10'
     case 'warning':
@@ -112,8 +79,12 @@ const getTypeBg = (type: string) => {
   }
 }
 
+function goToAllNotifications() {
+  navigateTo('/documents?tab=notifications')
+}
+
 defineExpose({
-  unreadCount
+  unreadCount,
 })
 </script>
 
@@ -132,8 +103,8 @@ defineExpose({
           v-if="unreadCount > 0"
           variant="ghost"
           size="sm"
-          @click="markAllAsRead"
           class="text-xs h-7"
+          @click="markAllAsRead"
         >
           Mark all read
         </Button>
@@ -156,7 +127,7 @@ defineExpose({
           <div
             :class="[
               'p-4 hover:bg-muted/50 transition-colors cursor-pointer',
-              !notification.read && 'bg-primary/5'
+              !notification.read && 'bg-primary/5',
             ]"
             @click="markAsRead(notification.id)"
           >
@@ -164,7 +135,7 @@ defineExpose({
               <!-- Icon -->
               <div :class="['p-2 rounded-lg h-fit', getTypeBg(notification.type)]">
                 <component
-                  :is="notification.icon"
+                  :is="getTypeIcon(notification.type)"
                   :class="['h-4 w-4', getTypeColor(notification.type)]"
                 />
               </div>
@@ -176,17 +147,17 @@ defineExpose({
                     {{ notification.title }}
                   </h4>
                   <button
-                    @click.stop="removeNotification(notification.id)"
                     class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
+                    @click.stop="removeNotification(notification.id)"
                   >
                     <X class="h-3 w-3 text-muted-foreground" />
                   </button>
                 </div>
                 <p class="text-sm text-muted-foreground mb-2">
-                  {{ notification.message }}
+                  {{ notification.body }}
                 </p>
                 <div class="flex items-center gap-2">
-                  <span class="text-xs text-muted-foreground">{{ notification.time }}</span>
+                  <span class="text-xs text-muted-foreground">{{ formatDate(notification.createdAt) }}</span>
                   <span v-if="!notification.read" class="w-1.5 h-1.5 bg-primary rounded-full" />
                 </div>
               </div>
@@ -199,7 +170,7 @@ defineExpose({
 
     <!-- Footer -->
     <div class="p-3 border-t border-border">
-      <Button variant="ghost" class="w-full text-sm" size="sm">
+      <Button variant="ghost" class="w-full text-sm" size="sm" @click="goToAllNotifications">
         View all notifications
       </Button>
     </div>

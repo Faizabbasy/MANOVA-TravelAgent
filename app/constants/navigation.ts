@@ -17,6 +17,9 @@ import {
   Bus,
   Presentation,
   ClipboardList,
+  CalendarClock,
+  AlertTriangle,
+  FileText,
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
 
@@ -96,6 +99,57 @@ export const NAV_ITEMS: NavItem[] = [
   /** MICE (Section 16) — MiceEvent lifecycle lintas project, pemilik utama role `mice`, pola arsitektur IDENTIK Ticketing/Accommodation/Transportation (D-070/D-071/D-072). */
   { label: 'MICE', to: '/mice', icon: Presentation, moduleKey: 'mice' },
   { label: 'Vendors', to: '/vendors', icon: Building2, moduleKey: 'vendor' },
+  /**
+   * Booking & Service Order Center (Section 18, D-075) — timeline konsolidasi lintas Flight/Hotel/Transport/
+   * MICE (Section 13-16), pemilik utama role `operations`. Label sengaja "Booking & Service Order Center"
+   * (istilah UI-only) — BUKAN nama entitas baru, agar tidak bertabrakan dengan `ServiceOrder` Procurement
+   * (Section 17, `/procurement`), lihat `docs/frontend-known-issues.md` bagian 13.
+   */
+  {
+    label: 'Booking & Service Order Center',
+    to: '/bookings',
+    icon: CalendarClock,
+    moduleKey: 'bookings',
+    children: [
+      { label: 'Timeline', to: '/bookings', icon: CalendarClock, moduleKey: 'bookings' },
+      { label: 'Exceptions', to: '/bookings/exceptions', icon: CalendarClock, moduleKey: 'bookings' },
+    ],
+  },
+  /**
+   * Changes & Incidents (Section 19, D-076) — `ChangeRequest`/`CancellationRecord`/`RefundRequest`/`Incident`
+   * lintas project, pemilik utama role `operations`/`project-manager`. Fully additive di atas Booking
+   * Orchestration (Section 18) dan `ActivityEntry` (Section 14 lama, `CHG-*` tetap satu-satunya audit trail).
+   */
+  {
+    label: 'Changes & Incidents',
+    to: '/changes',
+    icon: AlertTriangle,
+    moduleKey: 'changes',
+    children: [
+      { label: 'Change Requests', to: '/changes', icon: AlertTriangle, moduleKey: 'changes' },
+      { label: 'Cancellations', to: '/changes?tab=cancellations', icon: AlertTriangle, moduleKey: 'changes' },
+      { label: 'Refunds', to: '/changes?tab=refunds', icon: AlertTriangle, moduleKey: 'changes' },
+      { label: 'Incidents', to: '/changes?tab=incidents', icon: AlertTriangle, moduleKey: 'changes' },
+    ],
+  },
+  /**
+   * Documents & Communication (Section 21, D-078) — Document center konsolidasi (categories/version/expiry/
+   * access level), Messages (internal notes/client/supplier messages), dan Notification center in-app —
+   * fully additive di atas `ProjectDocument`/`getDocumentsByParty` (Section 14 lama/Prompt 19) dan
+   * `VendorDocument` (Section 17). Tab "Notifications" adalah tujuan kanonik "View all notifications" dari
+   * `NotificationPanel.vue` (bell popover, TopHeader).
+   */
+  {
+    label: 'Documents & Communication',
+    to: '/documents',
+    icon: FileText,
+    moduleKey: 'documents',
+    children: [
+      { label: 'Documents', to: '/documents', icon: FileText, moduleKey: 'documents' },
+      { label: 'Messages', to: '/documents?tab=messages', icon: FileText, moduleKey: 'documents' },
+      { label: 'Notifications', to: '/documents?tab=notifications', icon: FileText, moduleKey: 'documents' },
+    ],
+  },
   /** Procurement (Section 17) — RFQ/Service Order/Supplier Invoice lifecycle lintas project, pemilik utama role `procurement`, MENDAMPINGI (bukan menggantikan) Vendors (master data) dan Supplier Portal (self-service). */
   {
     label: 'Procurement',
@@ -116,6 +170,8 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { label: 'Invoices', to: '/finance/invoices', icon: Wallet, moduleKey: 'finance' },
       { label: 'Payments', to: '/finance/payments', icon: Wallet, moduleKey: 'finance' },
+      { label: 'Credit/Debit Notes', to: '/finance/notes', icon: Wallet, moduleKey: 'finance' },
+      { label: 'Reconciliation', to: '/finance/reconciliation', icon: Wallet, moduleKey: 'finance' },
     ],
   },
   { label: 'Reports', to: '/reports', icon: BarChart3, moduleKey: 'reports' },

@@ -138,10 +138,17 @@ export const SERVICE_ORDER_AMENDMENTS: ServiceOrderAmendment[] = reactive([
  * Merentang seluruh status literal: `SINV-001` (approved, pembayaran final SO-001), `SINV-002` (under-review,
  * biaya tol tambahan SO-001), `SINV-003` (rejected, submission pertama SO-002 — jumlah tidak sesuai amendment),
  * `SINV-004` (submitted, submission ulang SO-002 setelah koreksi) — resolusi Q12 (`docs/mockup-open-questions.md`).
+ *
+ * `paymentScheduleDate`/`matchStatus` (Section 20 — Project Finance, roadmap Section 00–24 baru, aditif):
+ * `SINV-001` (`approved`) → `matched` + `paymentScheduleDate` terjadwal (AP siap dibayar). `SINV-002`
+ * (`under-review`) → `unmatched` (mendemokan reconciliation workspace `/finance/reconciliation`). `SINV-003`
+ * (`rejected`) → TIDAK diisi (moot, tidak relevan direkonsiliasi). `SINV-004` (`submitted`) → `disputed`
+ * (mendemokan state ketiga reconciliation — jumlah sesuai submission tapi menunggu konfirmasi pajak
+ * terpisah dari vendor).
  */
 export const SUPPLIER_INVOICES: SupplierInvoice[] = reactive([
-  { id: 'SINV-001', serviceOrderId: 'SO-001', vendorId: 'VND-003', amountIdr: 4_200_000, submittedAt: '2026-08-11', status: 'approved', note: 'Invoice final airport transfer VIP.', reviewedAt: '2026-08-12', reviewedBy: 'USR-018' },
-  { id: 'SINV-002', serviceOrderId: 'SO-001', vendorId: 'VND-003', amountIdr: 450_000, submittedAt: '2026-08-12', status: 'under-review', note: 'Biaya tol tambahan rute bandara alternatif.' },
+  { id: 'SINV-001', serviceOrderId: 'SO-001', vendorId: 'VND-003', amountIdr: 4_200_000, submittedAt: '2026-08-11', status: 'approved', note: 'Invoice final airport transfer VIP.', reviewedAt: '2026-08-12', reviewedBy: 'USR-018', matchStatus: 'matched', paymentScheduleDate: '2026-08-20' },
+  { id: 'SINV-002', serviceOrderId: 'SO-001', vendorId: 'VND-003', amountIdr: 450_000, submittedAt: '2026-08-12', status: 'under-review', note: 'Biaya tol tambahan rute bandara alternatif.', matchStatus: 'unmatched' },
   { id: 'SINV-003', serviceOrderId: 'SO-002', vendorId: 'VND-006', amountIdr: 11_000_000, submittedAt: '2026-07-08', status: 'rejected', note: 'Invoice awal sebelum amendment.', reviewedAt: '2026-07-19', reviewedBy: 'USR-018', reviewNote: 'Jumlah belum sesuai amendment upgrade Suite (SOA-001) — mohon submit ulang dengan nominal terbaru.' },
-  { id: 'SINV-004', serviceOrderId: 'SO-002', vendorId: 'VND-006', amountIdr: 12_000_000, submittedAt: '2026-07-20', status: 'submitted', note: 'Submission ulang mengikuti amendment SOA-001.' },
+  { id: 'SINV-004', serviceOrderId: 'SO-002', vendorId: 'VND-006', amountIdr: 12_000_000, submittedAt: '2026-07-20', status: 'submitted', note: 'Submission ulang mengikuti amendment SOA-001.', matchStatus: 'disputed' },
 ])

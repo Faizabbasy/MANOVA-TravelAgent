@@ -22,6 +22,9 @@ const modules: { key: ModuleKey; label: string; description: string }[] = [
   { key: 'transportation', label: 'Transportation', description: 'Transport Booking lifecycle (Section 15)' },
   { key: 'mice', label: 'MICE', description: 'MICE Event lifecycle (Section 16)' },
   { key: 'procurement', label: 'Procurement', description: 'RFQ/Service Order/Supplier Invoice lifecycle (Section 17)' },
+  { key: 'bookings', label: 'Bookings', description: 'Booking & Service Order Center — timeline konsolidasi (Section 18)' },
+  { key: 'changes', label: 'Changes & Incidents', description: 'Change Request/Cancellation/Refund/Incident (Section 19)' },
+  { key: 'documents', label: 'Documents & Communication', description: 'Document center, Messages, Notification center (Section 21)' },
 ]
 
 const PERMISSION_META: Record<PermissionLevel, { tone: string; description: string }> = {
@@ -43,8 +46,8 @@ const ROLE_NOTES: Partial<Record<string, string>> = {
   'account-executive': 'Kelola Opportunity/Requirement/Quotation sampai Won. Submit Quotation untuk Commercial Approval, Mark as Won setelah disetujui Management. Lihat Cost Sheet Product Planner sebagai referensi (Section 10).',
   sales: 'Kelola Lead (screening, qualification, assign ke Account Executive). Hanya lihat Opportunity hasil handover secara terbatas.',
   'product-planner': 'Manage penuh Product Template catalog dan Cost Sheet (Section 10). Lihat Opportunity/Project/Vendor sebagai referensi costing.',
-  'project-manager': 'Manage seluruh tab project. Hanya lihat budget vs actual project miliknya.',
-  operations: 'Manage tab Itinerary & Services (koordinasi umum). Tidak ada akses CRM/Finance.',
+  'project-manager': 'Manage seluruh tab project, termasuk modul Changes & Incidents penuh (Change Request/Cancellation/Refund/Incident, Section 19). Hanya lihat budget vs actual project miliknya.',
+  operations: 'Manage tab Itinerary & Services (koordinasi umum), modul Booking & Service Order Center penuh (timeline konsolidasi, payment gate, exception queue, Section 18), dan modul Changes & Incidents penuh (Section 19). Tidak ada akses CRM/Finance.',
   ticketing: 'Manage penuh modul Ticketing (Flight Booking lifecycle, Section 13) dan sub-section Flight di Itinerary & Services. Tidak ada akses CRM/Finance.',
   accommodation: 'Manage penuh modul Accommodation (Hotel Booking lifecycle, Section 14) dan sub-section Hotel di Itinerary & Services. Tidak ada akses CRM/Finance.',
   transportation: 'Manage penuh modul Transportation (Transport Booking lifecycle, Section 15) dan sub-section Transportation di Itinerary & Services. Tidak ada akses CRM/Finance.',

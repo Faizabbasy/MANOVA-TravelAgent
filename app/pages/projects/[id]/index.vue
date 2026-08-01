@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus } from 'lucide-vue-next'
+import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2 } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getUserById, getVendorById, getOpportunityById, getQuotationByOpportunity,
   getProjectServices, getItineraryItems, updateServiceStatus, updateItineraryItem,
@@ -10,6 +10,7 @@ import {
   createTraveler, updateTraveler, removeTraveler,
   toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
   getInvoicesByProject, getPaymentsByInvoice, getInvoiceOutstandingIdr, getProjectOutstandingIdr, getCommittedVendorCostIdr,
+  getCreditNotesByProject, getDebitNotesByProject, getSupplierInvoicesByProject, evaluateFinanceClosureGate, closeProjectFinance,
   getTasksByProject, getDocumentsByProject, getActivitiesByProject, getRisksByProject,
   createChangeEntry, approveChangeEntry, rejectChangeEntry,
   getProjectOrderStatus, acceptProjectHandover, returnProjectHandover, markProjectReady,
@@ -18,31 +19,34 @@ import {
   createProjectTask, updateProjectTask, createProjectRisk, updateProjectRiskStatus,
   toggleTaskBlocked, getServiceReadinessMatrix, getDepartureReadiness, getProjectAttentionQueue,
   getShiftNotes, createShiftNote,
-  getFlightBookingsByProject,
-  getHotelBookingsByProject,
-  getTransportBookingsByProject,
-  getMiceEventsByProject,
+  getBookingTimeline,
   getServiceOrdersByProject, getRfqsByProject,
+  getChangeRequestsByProject, getCancellationRecordsByProject, getRefundRequestsByProject, getIncidentsByProject,
+  getDocumentsForProject, MESSAGE_RECORDS, sendMessage, getUnifiedActivityTimeline,
   USERS,
 } from '~/data'
 import type { TravelerImportPreviewRow } from '~/data'
 import {
   PROJECT_STATUSES, PROJECT_CHARACTERISTICS, PROJECT_ORDER_STATUSES, SERVICE_STATUSES, SERVICE_TYPES,
-  INVOICE_STATUSES, TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES,
-  CHANGE_CATEGORIES, CHANGE_APPROVAL_STATUSES, RISK_SEVERITIES, RISK_STATUSES, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, SERVICE_ORDER_STATUSES, RFQ_STATUSES, findStatusOption,
+  INVOICE_STATUSES, INVOICE_TYPES, TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES,
+  CHANGE_CATEGORIES, CHANGE_APPROVAL_STATUSES, RISK_SEVERITIES, RISK_STATUSES, BOOKING_PAYMENT_GATE_STATUSES, SERVICE_ORDER_STATUSES, RFQ_STATUSES, findStatusOption,
+  CHANGE_REQUEST_SOURCES, CHANGE_REQUEST_STATUSES, REFUND_REQUEST_STATUSES, REFUND_CREDIT_STATUSES, INCIDENT_SEVERITIES, INCIDENT_STATUSES,
+  CREDIT_NOTE_STATUSES, DEBIT_NOTE_STATUSES, SUPPLIER_INVOICE_MATCH_STATUSES, SUPPLIER_INVOICE_STATUSES,
+  DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES,
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatTravelerCount, maskDocumentNumber } from '~/utils/format'
-import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, invoiceAgingDays } from '~/utils/attention'
+import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, invoiceAgingDays, isDocumentExpired, isDocumentExpiringSoon } from '~/utils/attention'
 import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ProjectStatus, ProjectClosureChecklist } from '~/types/project'
 import type { ChangeCategory, ProjectRiskSeverity, ProjectTask, ShiftPeriod } from '~/types/activity'
 import type { Invoice } from '~/types/finance'
+import type { MessageChannel } from '~/types/document-comms'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
-const { canView, canApprove, canViewFinancials } = usePermissions()
+const { canView, canApprove, canManage, canViewFinancials } = usePermissions()
 const { currentRole, currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
@@ -310,11 +314,20 @@ function servicesByType(type: ServiceTypeKey) {
   return services.value.filter(service => service.type === type)
 }
 
-/** Ticketing (Section 13 baru) — ringkasan Flight Booking di tab Itinerary & Services, pengelolaan lengkap tetap di modul `/ticketing`. */
-const flightBookings = computed(() => project.value ? getFlightBookingsByProject(project.value.id) : [])
-const hotelBookings = computed(() => project.value ? getHotelBookingsByProject(project.value.id) : [])
-const transportBookings = computed(() => project.value ? getTransportBookingsByProject(project.value.id) : [])
-const miceEvents = computed(() => project.value ? getMiceEventsByProject(project.value.id) : [])
+/**
+ * Booking Timeline (Section 18, D-075) — MENGGANTIKAN 4 blok ringkasan terpisah Flight/Hotel/Transport/MICE
+ * (Section 13-16 lama) dengan SATU list terunifikasi, terskop project ini, pola sama `getBookingTimeline()`
+ * yang dipakai `/bookings` (cross-project) — informasi identik (referensi/status/deadline/voucher/exception/
+ * dependency/payment-gate), hanya pre-filtered. Pengelolaan lifecycle detail TETAP di modul masing-masing
+ * (`/ticketing`, `/accommodation`, `/transportation`, `/mice`), aksi payment gate/percobaan TETAP di `/bookings`.
+ */
+const projectBookingTimeline = computed(() => project.value ? getBookingTimeline(project.value.id) : [])
+const BOOKING_DOMAIN_LABEL_MAP: Record<string, string> = { flight: 'Flight', hotel: 'Hotel', transport: 'Transport', mice: 'MICE' }
+const BOOKING_DOMAIN_TONE_MAP: Record<string, string> = { flight: 'info', hotel: 'purple', transport: 'warning', mice: 'primary' }
+/** Path modul create-booking (Section 13-16) per tipe layanan — dipakai tombol "Buat Booking" quick-create per sub-section. */
+const BOOKING_MODULE_PATH: Partial<Record<ServiceTypeKey, string>> = {
+  flight: '/ticketing', hotel: '/accommodation', transportation: '/transportation', mice: '/mice',
+}
 /** Procurement summary (Section 17 baru) — Service Order dan RFQ terhubung ke project ini, ringkasan saja, pengelolaan lengkap di modul /procurement. */
 const projectServiceOrders = computed(() => project.value ? getServiceOrdersByProject(project.value.id) : [])
 const projectRfqs = computed(() => project.value ? getRfqsByProject(project.value.id) : [])
@@ -425,8 +438,24 @@ const committedVendorCostIdr = computed(() => project.value ? getCommittedVendor
 const marginIdr = computed(() => project.value ? project.value.quotationAmountIdr - project.value.actualCostIdr : 0)
 const varianceIdr = computed(() => project.value ? project.value.budgetIdr - project.value.actualCostIdr : 0)
 
+/** Section 20 — Credit/Debit Note, AP summary (Supplier Invoice), dan financial closure gate untuk project ini. */
+const canManageFinance = computed(() => canManage('finance'))
+const projectCreditNotes = computed(() => project.value ? getCreditNotesByProject(project.value.id) : [])
+const projectDebitNotes = computed(() => project.value ? getDebitNotesByProject(project.value.id) : [])
+const projectSupplierInvoices = computed(() => project.value ? getSupplierInvoicesByProject(project.value.id) : [])
+const financeClosureGate = computed(() => project.value ? evaluateFinanceClosureGate(project.value.id) : { ready: false, blockers: [] })
+const isFinanceAlreadySettled = computed(() => !!project.value?.closureChecklist?.financeSettled)
+
+function submitCloseFinance() {
+  if (!project.value) return
+  const result = closeProjectFinance(project.value.id, currentUser.value.id)
+  if (result.success) showToast('Finance Ditutup', `Finance project ${project.value.name} berhasil ditutup.`, 'success')
+  else showToast('Belum Bisa Ditutup', `${result.blockers.length} blocker masih terbuka — lihat daftar di atas.`, 'error')
+}
+
 function invoiceAgingLabel(invoice: Invoice) {
   if (invoice.status === 'paid') return 'Lunas'
+  if (invoice.status === 'void') return 'Void'
   const days = invoiceAgingDays(invoice)
   if (days < 0) return `${Math.abs(days)} hari overdue`
   if (days === 0) return 'Jatuh tempo hari ini'
@@ -438,6 +467,12 @@ function paymentsForInvoice(invoiceId: string) {
 }
 const tasks = computed(() => project.value ? getTasksByProject(project.value.id) : [])
 const documents = computed(() => project.value ? getDocumentsByProject(project.value.id) : [])
+/** Section 21 (D-078) — union `Document` baru + `ProjectDocument` legacy di atas, dipakai tab "Documents" yang diperkaya (category/version/expiry/access level). `documents` legacy TETAP dipakai apa adanya untuk widget Overview "recentDocuments" (tidak diubah). */
+const unifiedDocuments = computed(() => project.value ? getDocumentsForProject(project.value.id) : [])
+/** Section 21 (D-078) — Communication (internal notes/client messages/supplier messages) untuk project ini, agregasi lewat `projectId` (bukan hanya entityType 'project' sempit — pesan tertaut sub-entity seperti booking/incident yang punya `projectId` sama tetap relevan). */
+const projectMessages = computed(() => project.value ? MESSAGE_RECORDS.filter(item => item.projectId === project.value!.id).slice().sort((a, b) => b.sentAt.localeCompare(a.sentAt)) : [])
+/** Section 21 (D-078) — unified activity timeline internal-view (Wajib "Unified activity timeline dengan filtering akses"). */
+const unifiedTimeline = computed(() => project.value ? getUnifiedActivityTimeline('project', project.value.id, 'internal') : [])
 const activities = computed(() => project.value ? getActivitiesByProject(project.value.id) : [])
 const changesOnly = ref(false)
 /** "Changes only" ditampilkan sebagai timeline kronologis (ascending) — "All" tetap urutan natural existing. */
@@ -484,6 +519,32 @@ function submitChangeEntry() {
   showToast('Perubahan Dicatat', 'Change baru dicatat, menunggu approval Management/Super Admin.')
 }
 
+/** Communication (Section 21, D-078) — compose pesan baru (internal note/client/supplier message) untuk project ini. */
+const isMessageDialogOpen = ref(false)
+const messageChannel = ref<MessageChannel>('internal-note')
+const messageBody = ref('')
+
+function resetMessageForm() {
+  messageChannel.value = 'internal-note'
+  messageBody.value = ''
+}
+
+function submitMessage() {
+  if (!project.value || !messageBody.value.trim()) return
+  const message = sendMessage({
+    entityType: 'project',
+    entityId: project.value.id,
+    projectId: project.value.id,
+    channel: messageChannel.value,
+    senderId: currentUser.value.id,
+    body: messageBody.value.trim(),
+    deliveryChannel: messageChannel.value === 'internal-note' ? undefined : 'email',
+  })
+  resetMessageForm()
+  isMessageDialogOpen.value = false
+  showToast('Pesan Terkirim', `Status: ${findStatusOption(MESSAGE_DELIVERY_STATUSES, message.deliveryStatus).label} (simulasi, bukan email/WA nyata).`)
+}
+
 function handleApproveChange(entryId: string) {
   const entry = approveChangeEntry(entryId, currentUser.value.id)
   if (!entry) return
@@ -495,6 +556,17 @@ function handleRejectChange(entryId: string) {
   if (!entry) return
   showToast('Perubahan Ditolak', `Change ${entry.id} ditolak.`, 'info')
 }
+
+/**
+ * Changes, Cancellation, Refund dan Incident (Section 19, D-076) — surgical addition ke tab "Activity &
+ * Changes" existing (Section 14 lama, di atas TIDAK diubah). Struktur Cancellation/Refund/Incident tampil
+ * SEBAGAI TAMBAHAN, bukan pengganti list `ActivityEntry`. Aksi (approve/reject/status transition) tetap
+ * dilakukan di halaman detail masing-masing (`/changes/**`) — di sini murni ringkasan + link.
+ */
+const projectChangeRequests = computed(() => (project.value ? getChangeRequestsByProject(project.value.id) : []))
+const projectCancellations = computed(() => (project.value ? getCancellationRecordsByProject(project.value.id) : []))
+const projectRefunds = computed(() => (project.value ? getRefundRequestsByProject(project.value.id) : []))
+const projectIncidents = computed(() => (project.value ? getIncidentsByProject(project.value.id) : []))
 
 /**
  * Vendor assignment + comparison (Section 13) — quotation dibaca dari `VENDOR_QUOTATIONS` (Section 13),
@@ -978,10 +1050,11 @@ const summaryMetadata = computed(() => {
                 <li v-for="item in CLOSURE_CHECKLIST_ITEMS" :key="item.key" class="flex items-center gap-2">
                   <Checkbox
                     :model-value="project.closureChecklist?.[item.key] ?? false"
-                    :disabled="!canManageProjectOrder"
-                    @update:model-value="(value) => toggleClosureItem(item.key, Boolean(value))"
+                    :disabled="item.key === 'financeSettled' ? true : !canManageProjectOrder"
+                    @update:model-value="(value) => item.key !== 'financeSettled' && toggleClosureItem(item.key, Boolean(value))"
                   />
                   <span class="text-sm text-foreground">{{ item.label }}</span>
+                  <span v-if="item.key === 'financeSettled'" class="text-xs text-muted-foreground">(dikelola lewat aksi &quot;Close Finance&quot; di tab Finance, Section 20)</span>
                 </li>
               </ul>
             </SectionCard>
@@ -1188,88 +1261,58 @@ const summaryMetadata = computed(() => {
                 </TableBody>
               </Table>
 
-              <!-- Flight Bookings (Section 13 baru) — ringkasan, pengelolaan lengkap di modul /ticketing. -->
-              <div v-if="type.value === 'flight'" class="mt-4 pt-4 border-t border-border">
-                <div class="flex items-center justify-between mb-2">
-                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Flight Bookings</p>
-                  <NuxtLink v-if="canManageServiceType('flight')" :to="`/ticketing?projectId=${project.id}&create=1`">
-                    <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Buat Flight Booking</Button>
-                  </NuxtLink>
-                </div>
-                <ul v-if="flightBookings.length" class="divide-y divide-border">
-                  <li v-for="booking in flightBookings" :key="booking.id" class="py-2 flex items-center justify-between gap-2">
-                    <div class="min-w-0">
-                      <NuxtLink :to="`/ticketing/${booking.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ booking.id }}</NuxtLink>
-                      <p class="text-xs text-muted-foreground">PNR: {{ booking.pnr ?? 'Belum terbit' }} · {{ booking.travelerIds.length }} pax</p>
-                    </div>
-                    <StatusBadge :label="findStatusOption(FLIGHT_BOOKING_STATUSES, booking.status).label" :tone="findStatusOption(FLIGHT_BOOKING_STATUSES, booking.status).tone" />
-                  </li>
-                </ul>
-                <EmptyState v-else title="Belum ada Flight Booking" description="Buat Flight Booking untuk mengelola PNR, options, deadline, dan lifecycle tiket." />
-              </div>
-
-              <!-- Hotel Bookings (Section 14 baru) — ringkasan, pengelolaan lengkap di modul /accommodation. -->
-              <div v-if="type.value === 'hotel'" class="mt-4 pt-4 border-t border-border">
-                <div class="flex items-center justify-between mb-2">
-                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Hotel Bookings</p>
-                  <NuxtLink v-if="canManageServiceType('hotel')" :to="`/accommodation?projectId=${project.id}&create=1`">
-                    <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Buat Hotel Booking</Button>
-                  </NuxtLink>
-                </div>
-                <ul v-if="hotelBookings.length" class="divide-y divide-border">
-                  <li v-for="booking in hotelBookings" :key="booking.id" class="py-2 flex items-center justify-between gap-2">
-                    <div class="min-w-0">
-                      <NuxtLink :to="`/accommodation/${booking.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ booking.id }}</NuxtLink>
-                      <p class="text-xs text-muted-foreground">Konfirmasi: {{ booking.confirmationNumber ?? 'Belum terbit' }} · {{ booking.travelerIds.length }} pax</p>
-                    </div>
-                    <StatusBadge :label="findStatusOption(HOTEL_BOOKING_STATUSES, booking.status).label" :tone="findStatusOption(HOTEL_BOOKING_STATUSES, booking.status).tone" />
-                  </li>
-                </ul>
-                <EmptyState v-else title="Belum ada Hotel Booking" description="Buat Hotel Booking untuk mengelola room block, check-in/out, dan lifecycle voucher." />
-              </div>
-
-              <!-- Transport Bookings (Section 15 baru) — ringkasan, pengelolaan lengkap di modul /transportation. -->
-              <div v-if="type.value === 'transportation'" class="mt-4 pt-4 border-t border-border">
-                <div class="flex items-center justify-between mb-2">
-                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Transport Bookings</p>
-                  <NuxtLink v-if="canManageServiceType('transportation')" :to="`/transportation?projectId=${project.id}&create=1`">
-                    <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Buat Transport Booking</Button>
-                  </NuxtLink>
-                </div>
-                <ul v-if="transportBookings.length" class="divide-y divide-border">
-                  <li v-for="booking in transportBookings" :key="booking.id" class="py-2 flex items-center justify-between gap-2">
-                    <div class="min-w-0">
-                      <NuxtLink :to="`/transportation/${booking.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ booking.id }}</NuxtLink>
-                      <p class="text-xs text-muted-foreground">Unit: {{ booking.assignedVehiclePlateNumber ?? 'Belum ditugaskan' }} · {{ booking.travelerIds.length }} pax</p>
-                    </div>
-                    <StatusBadge :label="findStatusOption(TRANSPORT_BOOKING_STATUSES, booking.status).label" :tone="findStatusOption(TRANSPORT_BOOKING_STATUSES, booking.status).tone" />
-                  </li>
-                </ul>
-                <EmptyState v-else title="Belum ada Transport Booking" description="Buat Transport Booking untuk mengelola dispatch, manifest, dan lifecycle assignment." />
-              </div>
-
-              <!-- MICE Events (Section 16 baru) — ringkasan, pengelolaan lengkap di modul /mice. -->
-              <div v-if="type.value === 'mice'" class="mt-4 pt-4 border-t border-border">
-                <div class="flex items-center justify-between mb-2">
-                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">MICE Events</p>
-                  <NuxtLink v-if="canManageServiceType('mice')" :to="`/mice?projectId=${project.id}&create=1`">
-                    <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Buat MICE Event</Button>
-                  </NuxtLink>
-                </div>
-                <ul v-if="miceEvents.length" class="divide-y divide-border">
-                  <li v-for="event in miceEvents" :key="event.id" class="py-2 flex items-center justify-between gap-2">
-                    <div class="min-w-0">
-                      <NuxtLink :to="`/mice/${event.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ event.venueName ?? event.id }}</NuxtLink>
-                      <p class="text-xs text-muted-foreground">{{ event.sessions.length }} sesi · {{ event.participantCategories.reduce((sum, c) => sum + c.expectedCount, 0) }} pax diharapkan</p>
-                    </div>
-                    <StatusBadge :label="findStatusOption(MICE_EVENT_STATUSES, event.status).label" :tone="findStatusOption(MICE_EVENT_STATUSES, event.status).tone" />
-                  </li>
-                </ul>
-                <EmptyState v-else title="Belum ada MICE Event" description="Buat MICE Event untuk mengelola brief, venue, sessions, BOQ, staffing, dan checklist." />
+              <!-- "Buat Booking" quick-create (Section 13-16) — daftar booking sendiri kini terkonsolidasi di SectionCard "Booking Timeline" (Section 18) di bawah, bukan diulang per tipe layanan di sini. -->
+              <div v-if="BOOKING_MODULE_PATH[type.value] && canManageServiceType(type.value)" class="mt-4 pt-4 border-t border-border flex justify-end">
+                <NuxtLink :to="`${BOOKING_MODULE_PATH[type.value]}?projectId=${project.id}&create=1`">
+                  <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Buat {{ type.label }} Booking</Button>
+                </NuxtLink>
               </div>
             </SectionCard>
 
             <EmptyState v-if="visibleServiceTypes.length === 0" :icon="Truck" title="Belum ada layanan tercatat untuk project ini" />
+
+            <!--
+              Booking Timeline (Section 18, D-075) — SATU list terunifikasi lintas Flight/Hotel/Transport/MICE
+              MENGGANTIKAN 4 blok ringkasan terpisah lama (Section 13-16, lihat CI-048). Informasi identik
+              dengan `/bookings` (booking reference/status internal-supplier-client/deadline/voucher/exception/
+              dependency/payment-gate), hanya pre-filtered ke project ini. Aksi Mark Payment Cleared/Catat
+              Percobaan TETAP di `/bookings` (bukan di sini) — tab ini murni ringkasan+link, konsisten pola
+              ringkasan Procurement di bawah.
+            -->
+            <SectionCard v-if="projectBookingTimeline.length" title="Booking Timeline" description="Konsolidasi Flight/Hotel/Transport/MICE booking untuk project ini — satu sumber kebenaran seluruh service (Section 18).">
+              <template #actions>
+                <NuxtLink :to="`/bookings?projectId=${project.id}`">
+                  <Button size="sm" variant="outline">Buka Booking Center</Button>
+                </NuxtLink>
+              </template>
+              <ul class="divide-y divide-border">
+                <li v-for="entry in projectBookingTimeline" :key="`${entry.bookingType}-${entry.bookingId}`" class="py-3">
+                  <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="min-w-0">
+                      <div class="flex items-center gap-1.5">
+                        <StatusBadge :label="BOOKING_DOMAIN_LABEL_MAP[entry.bookingType]" :tone="BOOKING_DOMAIN_TONE_MAP[entry.bookingType]" />
+                        <NuxtLink :to="entry.detailHref" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ entry.bookingId }}</NuxtLink>
+                        <span class="text-xs text-muted-foreground">{{ entry.label }}</span>
+                      </div>
+                      <p class="text-xs text-muted-foreground mt-0.5">
+                        Ref: {{ entry.reference ?? 'Belum terbit' }} · {{ entry.travelerCount }} pax
+                        <template v-if="entry.deadlineDate"> · Deadline: {{ formatDate(entry.deadlineDate) }}</template>
+                      </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <StatusBadge :label="entry.internalStatus" :tone="entry.internalStatusTone" />
+                      <StatusBadge :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
+                      <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank">
+                        <Button size="sm" variant="ghost">Voucher</Button>
+                      </NuxtLink>
+                    </div>
+                  </div>
+                  <ul v-if="entry.exceptions.length" class="mt-1.5 space-y-0.5">
+                    <li v-for="(exception, index) in entry.exceptions" :key="index" class="text-xs text-destructive">{{ exception }}</li>
+                  </ul>
+                </li>
+              </ul>
+            </SectionCard>
 
             <!-- Procurement summary (Section 17 baru) — ringkasan RFQ dan Service Order, pengelolaan lengkap di modul /procurement. -->
             <SectionCard v-if="projectRfqs.length || projectServiceOrders.length" title="Procurement — RFQ dan Service Order" description="Ringkasan sourcing formal dan Service Order untuk project ini.">
@@ -1727,6 +1770,7 @@ const summaryMetadata = computed(() => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Invoice</TableHead>
+                      <TableHead>Tipe</TableHead>
                       <TableHead>Jumlah</TableHead>
                       <TableHead>Jatuh Tempo</TableHead>
                       <TableHead>Status</TableHead>
@@ -1736,6 +1780,12 @@ const summaryMetadata = computed(() => {
                   <TableBody>
                     <TableRow v-for="invoice in invoices" :key="invoice.id">
                       <TableCell class="text-foreground">{{ invoice.label }}</TableCell>
+                      <TableCell>
+                        <div class="flex flex-col gap-1">
+                          <StatusBadge :label="findStatusOption(INVOICE_TYPES, invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, invoice.invoiceType).tone" />
+                          <span v-if="invoice.currency !== 'IDR'" class="text-xs text-muted-foreground">{{ invoice.currency }}</span>
+                        </div>
+                      </TableCell>
                       <TableCell>{{ formatCurrencyIdr(invoice.amountIdr) }}</TableCell>
                       <TableCell class="text-muted-foreground">{{ formatDate(invoice.dueAt) }}</TableCell>
                       <TableCell>
@@ -1746,9 +1796,10 @@ const summaryMetadata = computed(() => {
                       </TableCell>
                       <TableCell :class="isInvoiceOverdue(invoice) ? 'text-destructive' : 'text-muted-foreground'">{{ invoiceAgingLabel(invoice) }}</TableCell>
                     </TableRow>
-                    <TableEmpty v-if="invoices.length === 0" :colspan="5">Belum ada invoice.</TableEmpty>
+                    <TableEmpty v-if="invoices.length === 0" :colspan="6">Belum ada invoice.</TableEmpty>
                   </TableBody>
                 </Table>
+                <p class="text-xs text-muted-foreground mt-3">Kelola pembuatan invoice, payment, void, dan Credit Note lengkap dari <NuxtLink to="/finance/invoices" class="text-primary hover:underline">Finance &gt; Invoices</NuxtLink>.</p>
               </SectionCard>
 
               <SectionCard title="Riwayat Pembayaran">
@@ -1758,7 +1809,7 @@ const summaryMetadata = computed(() => {
                       <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">{{ invoice.label }}</p>
                       <ul class="divide-y divide-border">
                         <li v-for="payment in paymentsForInvoice(invoice.id)" :key="payment.id" class="py-2 flex items-center justify-between gap-3">
-                          <span class="text-sm text-foreground">{{ formatCurrencyIdr(payment.amountIdr) }}</span>
+                          <span class="text-sm text-foreground">{{ formatCurrencyIdr(payment.amountIdr) }}<span v-if="payment.method" class="text-xs text-muted-foreground"> ({{ payment.method }})</span></span>
                           <span class="text-xs text-muted-foreground">{{ formatDate(payment.receivedAt) }}</span>
                         </li>
                       </ul>
@@ -1766,6 +1817,82 @@ const summaryMetadata = computed(() => {
                   </template>
                 </div>
                 <EmptyState v-else title="Belum ada payment tercatat" />
+              </SectionCard>
+
+              <SectionCard title="Credit / Debit Notes" description="Kelola dari Finance &gt; Credit/Debit Notes.">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Credit Notes</p>
+                    <ul v-if="projectCreditNotes.length" class="divide-y divide-border">
+                      <li v-for="note in projectCreditNotes" :key="note.id" class="py-2">
+                        <div class="flex items-center justify-between gap-2">
+                          <span class="text-sm text-foreground">{{ note.id }} — {{ formatCurrencyIdr(note.amountIdr) }}</span>
+                          <StatusBadge :label="findStatusOption(CREDIT_NOTE_STATUSES, note.status).label" :tone="findStatusOption(CREDIT_NOTE_STATUSES, note.status).tone" />
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-0.5">{{ note.reason }}</p>
+                      </li>
+                    </ul>
+                    <p v-else class="text-xs text-muted-foreground">Belum ada Credit Note.</p>
+                  </div>
+                  <div>
+                    <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Debit Notes</p>
+                    <ul v-if="projectDebitNotes.length" class="divide-y divide-border">
+                      <li v-for="note in projectDebitNotes" :key="note.id" class="py-2">
+                        <div class="flex items-center justify-between gap-2">
+                          <span class="text-sm text-foreground">{{ note.id }} — {{ formatCurrencyIdr(note.amountIdr) }}</span>
+                          <StatusBadge :label="findStatusOption(DEBIT_NOTE_STATUSES, note.status).label" :tone="findStatusOption(DEBIT_NOTE_STATUSES, note.status).tone" />
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-0.5">{{ note.reason }}</p>
+                      </li>
+                    </ul>
+                    <p v-else class="text-xs text-muted-foreground">Belum ada Debit Note.</p>
+                  </div>
+                </div>
+              </SectionCard>
+
+              <SectionCard title="AP Summary (Supplier Invoice)" description="Reconciliation lengkap di Finance &gt; Reconciliation.">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Supplier Invoice</TableHead>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Jumlah</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Match Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="supplierInvoice in projectSupplierInvoices" :key="supplierInvoice.id">
+                      <TableCell class="text-foreground">{{ supplierInvoice.id }}</TableCell>
+                      <TableCell class="text-muted-foreground">{{ getVendorById(supplierInvoice.vendorId)?.name ?? supplierInvoice.vendorId }}</TableCell>
+                      <TableCell>{{ formatCurrencyIdr(supplierInvoice.amountIdr) }}</TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).tone" /></TableCell>
+                      <TableCell>
+                        <StatusBadge v-if="supplierInvoice.matchStatus" :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).label" :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).tone" />
+                        <span v-else class="text-xs text-muted-foreground">Belum ditriase</span>
+                      </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="projectSupplierInvoices.length === 0" :colspan="5">Belum ada Supplier Invoice untuk project ini.</TableEmpty>
+                  </TableBody>
+                </Table>
+              </SectionCard>
+
+              <SectionCard title="Close Finance" description="Financial closure gate — mengisi Closure Checklist &quot;Finance diselesaikan&quot;.">
+                <template v-if="isFinanceAlreadySettled">
+                  <p class="text-sm text-success flex items-center gap-1.5"><CheckCircle2 class="h-4 w-4" />Finance project ini sudah ditutup.</p>
+                </template>
+                <template v-else>
+                  <template v-if="financeClosureGate.ready">
+                    <p class="text-sm text-success mb-3 flex items-center gap-1.5"><CheckCircle2 class="h-4 w-4" />Tidak ada blocker — siap Close Finance.</p>
+                  </template>
+                  <template v-else>
+                    <p class="text-sm text-muted-foreground mb-2">Blocker yang harus diselesaikan sebelum Close Finance:</p>
+                    <ul class="list-disc list-inside text-sm text-destructive mb-3">
+                      <li v-for="(blocker, index) in financeClosureGate.blockers" :key="index">{{ blocker }}</li>
+                    </ul>
+                  </template>
+                  <Button v-if="canManageFinance" size="sm" :disabled="!financeClosureGate.ready" @click="submitCloseFinance">Close Finance</Button>
+                </template>
               </SectionCard>
             </template>
 
@@ -1874,14 +2001,44 @@ const summaryMetadata = computed(() => {
         </TabsContent>
 
         <TabsContent value="documents">
-          <SectionCard title="Documents">
-            <ul class="divide-y divide-border">
-              <li v-for="document in documents" :key="document.id" class="py-3 flex items-center justify-between gap-3">
-                <span class="text-sm text-foreground">{{ document.name }}</span>
-                <span class="text-xs text-muted-foreground">{{ formatDate(document.uploadedAt) }}</span>
-              </li>
-            </ul>
-            <EmptyState v-if="documents.length === 0" title="Belum ada dokumen diunggah" />
+          <SectionCard title="Documents" description="Category/version/expiry/access level (Section 21, D-078) — menggabungkan dokumen lama (legacy, tanpa category) dengan dokumen baru. Kelola dokumen lintas-project di modul Documents & Communication.">
+            <template #actions>
+              <NuxtLink to="/documents"><Button size="sm" variant="outline">Buka Documents & Communication</Button></NuxtLink>
+            </template>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Document</TableHead>
+                  <TableHead>Category</TableHead>
+                  <TableHead>Version</TableHead>
+                  <TableHead>Access Level</TableHead>
+                  <TableHead>Expiry</TableHead>
+                  <TableHead>Source</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="document in unifiedDocuments" :key="document.id">
+                  <TableCell class="font-medium text-foreground max-w-[240px] truncate">{{ document.name }}</TableCell>
+                  <TableCell class="text-muted-foreground">{{ document.category }}</TableCell>
+                  <TableCell class="text-muted-foreground">v{{ document.version }}</TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).tone" /></TableCell>
+                  <TableCell>
+                    <template v-if="document.expiresAt">
+                      <StatusBadge
+                        :label="isDocumentExpired(document.expiresAt) ? `Expired ${formatDate(document.expiresAt)}` : isDocumentExpiringSoon(document.expiresAt) ? `Segera: ${formatDate(document.expiresAt)}` : formatDate(document.expiresAt)"
+                        :tone="isDocumentExpired(document.expiresAt) ? 'destructive' : isDocumentExpiringSoon(document.expiresAt) ? 'warning' : 'neutral'"
+                      />
+                    </template>
+                    <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
+                  </TableCell>
+                  <TableCell>
+                    <NuxtLink v-if="document.sourceType === 'generated' && document.previewRoute" :to="document.previewRoute" target="_blank" class="text-xs text-primary hover:underline">Preview</NuxtLink>
+                    <span v-else class="text-xs text-muted-foreground">{{ document.category === 'Legacy' ? 'Legacy' : 'Uploaded' }}</span>
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="unifiedDocuments.length === 0" :colspan="6">Belum ada dokumen diunggah</TableEmpty>
+              </TableBody>
+            </Table>
           </SectionCard>
         </TabsContent>
 
@@ -1975,6 +2132,137 @@ const summaryMetadata = computed(() => {
               </li>
             </ul>
             <EmptyState v-if="visibleActivities.length === 0" title="Belum ada aktivitas tercatat" />
+          </SectionCard>
+
+          <SectionCard title="Communication" description="Internal notes, client messages, dan supplier messages untuk project ini (Section 21, D-078). Delivery status Email/WhatsApp simulasi mock — tanpa klaim integrasi nyata.">
+            <template #actions>
+              <Dialog v-model:open="isMessageDialogOpen">
+                <DialogTrigger as-child>
+                  <Button size="sm" variant="outline">Kirim Pesan</Button>
+                </DialogTrigger>
+                <DialogContent class="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Kirim Pesan Baru</DialogTitle>
+                    <DialogDescription>Internal note hanya terlihat internal — client/supplier message akan tampil pada Client/Supplier Portal terkait.</DialogDescription>
+                  </DialogHeader>
+                  <div class="space-y-4 py-2">
+                    <div class="space-y-1.5">
+                      <Label for="msg-channel-project">Channel</Label>
+                      <select id="msg-channel-project" v-model="messageChannel" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option v-for="option in MESSAGE_CHANNELS" :key="option.value" :value="option.value">{{ option.label }}</option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="msg-body-project">Pesan</Label>
+                      <textarea id="msg-body-project" v-model="messageBody" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" @click="isMessageDialogOpen = false">Batal</Button>
+                    <Button :disabled="!messageBody.trim()" @click="submitMessage">Kirim</Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </template>
+            <ul v-if="projectMessages.length" class="divide-y divide-border">
+              <li v-for="message in projectMessages" :key="message.id" class="py-3">
+                <div class="flex items-center gap-1.5 mb-1">
+                  <StatusBadge :label="findStatusOption(MESSAGE_CHANNELS, message.channel).label" :tone="findStatusOption(MESSAGE_CHANNELS, message.channel).tone" />
+                  <StatusBadge :label="findStatusOption(MESSAGE_DELIVERY_STATUSES, message.deliveryStatus).label" :tone="findStatusOption(MESSAGE_DELIVERY_STATUSES, message.deliveryStatus).tone" />
+                  <span class="text-xs text-muted-foreground">{{ getUserById(message.senderId)?.name ?? message.senderId }} · {{ formatDate(message.sentAt) }}</span>
+                </div>
+                <p class="text-sm text-foreground">{{ message.body }}</p>
+              </li>
+            </ul>
+            <EmptyState v-else title="Belum ada pesan tercatat" />
+          </SectionCard>
+
+          <SectionCard title="Unified Activity Timeline (Internal View)" description="Menggabungkan Activity/Change, System Event, Document (upload/generate), dan Message satu entity secara kronologis (Section 21, D-078). Tampilan internal-view — versi client/supplier-safe memfilter entri internalOnly.">
+            <ul v-if="unifiedTimeline.length" class="divide-y divide-border">
+              <li v-for="entry in unifiedTimeline" :key="`${entry.kind}-${entry.id}`" class="py-2.5 flex items-start justify-between gap-3">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5 mb-0.5">
+                    <StatusBadge :label="entry.label" :tone="entry.internalOnly ? 'neutral' : 'info'" />
+                    <span v-if="entry.internalOnly" class="text-[10px] uppercase tracking-wide text-muted-foreground">Internal Only</span>
+                  </div>
+                  <p class="text-sm text-foreground truncate max-w-[560px]">{{ entry.detail }}</p>
+                </div>
+                <span class="text-xs text-muted-foreground shrink-0">{{ formatDate(entry.at) }}</span>
+              </li>
+            </ul>
+            <EmptyState v-else title="Belum ada entri timeline" />
+          </SectionCard>
+
+          <SectionCard title="Change Requests" description="Change Request terstruktur (before/after, dampak, approval) — Section 19, D-076. Lihat modul Changes & Incidents untuk daftar lengkap lintas project.">
+            <template #actions>
+              <NuxtLink to="/changes"><Button size="sm" variant="outline">Buka Changes & Incidents</Button></NuxtLink>
+            </template>
+            <ul v-if="projectChangeRequests.length" class="divide-y divide-border">
+              <li v-for="item in projectChangeRequests" :key="item.id" class="py-3">
+                <NuxtLink :to="`/changes/${item.id}`" class="flex items-center justify-between gap-3 group">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-1.5 mb-1">
+                      <StatusBadge :label="findStatusOption(CHANGE_REQUEST_SOURCES, item.source).label" :tone="findStatusOption(CHANGE_REQUEST_SOURCES, item.source).tone" />
+                      <span class="text-sm font-medium text-foreground group-hover:underline">{{ item.id }}</span>
+                    </div>
+                    <p class="text-xs text-muted-foreground truncate">{{ item.beforeSummary }} → {{ item.afterSummary }}</p>
+                  </div>
+                  <StatusBadge :label="findStatusOption(CHANGE_REQUEST_STATUSES, item.status).label" :tone="findStatusOption(CHANGE_REQUEST_STATUSES, item.status).tone" />
+                </NuxtLink>
+              </li>
+            </ul>
+            <EmptyState v-else title="Belum ada Change Request terstruktur" />
+          </SectionCard>
+
+          <SectionCard title="Cancellations" description="Penalty-tracking seragam lintas Flight/Hotel/Transport/MICE — dibuat otomatis saat booking dibatalkan.">
+            <ul v-if="projectCancellations.length" class="divide-y divide-border">
+              <li v-for="item in projectCancellations" :key="item.id" class="py-3">
+                <NuxtLink :to="`/changes/cancellations/${item.id}`" class="flex items-center justify-between gap-3 group">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-foreground group-hover:underline">{{ item.id }} — {{ item.bookingType }} {{ item.bookingId }}</p>
+                    <p class="text-xs text-muted-foreground truncate">{{ item.reason }}</p>
+                  </div>
+                  <div class="text-right shrink-0">
+                    <p class="text-xs text-muted-foreground">{{ item.penaltyIdr !== undefined ? formatCurrencyIdr(item.penaltyIdr) : 'Tidak ada penalty' }}</p>
+                    <StatusBadge :label="item.refundEligible ? 'Refund Eligible' : 'Tidak Eligible'" :tone="item.refundEligible ? 'success' : 'neutral'" />
+                  </div>
+                </NuxtLink>
+              </li>
+            </ul>
+            <EmptyState v-else title="Belum ada Cancellation tercatat" />
+          </SectionCard>
+
+          <SectionCard title="Refund Requests">
+            <ul v-if="projectRefunds.length" class="divide-y divide-border">
+              <li v-for="item in projectRefunds" :key="item.id" class="py-3">
+                <NuxtLink :to="`/changes/refunds/${item.id}`" class="flex items-center justify-between gap-3 group">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-foreground group-hover:underline">{{ item.id }} ({{ item.type === 'full' ? 'Full' : 'Partial' }})</p>
+                    <p class="text-xs text-muted-foreground">{{ formatCurrencyIdr(item.amountIdr) }} · Credit: {{ findStatusOption(REFUND_CREDIT_STATUSES, item.creditStatus).label }}</p>
+                  </div>
+                  <StatusBadge :label="findStatusOption(REFUND_REQUEST_STATUSES, item.status).label" :tone="findStatusOption(REFUND_REQUEST_STATUSES, item.status).tone" />
+                </NuxtLink>
+              </li>
+            </ul>
+            <EmptyState v-else title="Belum ada Refund Request" />
+          </SectionCard>
+
+          <SectionCard title="Incidents">
+            <ul v-if="projectIncidents.length" class="divide-y divide-border">
+              <li v-for="item in projectIncidents" :key="item.id" class="py-3">
+                <NuxtLink :to="`/changes/incidents/${item.id}`" class="flex items-center justify-between gap-3 group">
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-1.5 mb-1">
+                      <StatusBadge :label="findStatusOption(INCIDENT_SEVERITIES, item.severity).label" :tone="findStatusOption(INCIDENT_SEVERITIES, item.severity).tone" />
+                      <span class="text-sm font-medium text-foreground group-hover:underline">{{ item.title }}</span>
+                    </div>
+                    <p class="text-xs text-muted-foreground">{{ item.bookingId ? `${item.bookingType} ${item.bookingId}` : 'Project-level' }}</p>
+                  </div>
+                  <StatusBadge :label="findStatusOption(INCIDENT_STATUSES, item.status).label" :tone="findStatusOption(INCIDENT_STATUSES, item.status).tone" />
+                </NuxtLink>
+              </li>
+            </ul>
+            <EmptyState v-else title="Belum ada Incident tercatat" />
           </SectionCard>
         </TabsContent>
       </Tabs>
