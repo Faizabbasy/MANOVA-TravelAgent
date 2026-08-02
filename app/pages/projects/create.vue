@@ -3,22 +3,22 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import {
   ArrowLeft, ArrowRight, Check, Plus, Trash2,
-  Briefcase, Calendar, DollarSign, Users, Target,
-  AlertCircle, ChevronDown,
+  Briefcase, Calendar, DollarSign, Target,
+  AlertCircle, ChevronDown
 } from 'lucide-vue-next'
 
 definePageMeta({
   layout: 'dashboard',
-  middleware: 'auth',
+  middleware: 'auth'
 })
 
 const router = useRouter()
 
 // ── Steps config ─────────────────────────────────────────────────────────────
 const steps = [
-  { id: 1, label: 'Basics',   icon: Briefcase, description: 'Project name & info' },
-  { id: 2, label: 'Planning', icon: Target,    description: 'Timeline & priority' },
-  { id: 3, label: 'Budget',   icon: DollarSign, description: 'Financial details' },
+  { id: 1, label: 'Basics', icon: Briefcase, description: 'Project name & info' },
+  { id: 2, label: 'Planning', icon: Target, description: 'Timeline & priority' },
+  { id: 3, label: 'Budget', icon: DollarSign, description: 'Financial details' }
 ]
 
 const currentStep = ref(1)
@@ -44,42 +44,41 @@ const form = ref({
 
   // Step 3
   contractValue: '',
-  budget: '',
+  budget: ''
 })
 
 // ── Validation ────────────────────────────────────────────────────────────────
 const errors = ref<Record<string, string>>({})
 
-function validateStep(step: number): boolean {
+function validateStep (step: number): boolean {
   errors.value = {}
   if (step === 1) {
-    if (!form.value.name.trim())        errors.value.name = 'Project name is required'
-    if (!form.value.description.trim()) errors.value.description = 'Description is required'
-    if (!form.value.client.trim())      errors.value.client = 'Client name is required'
-    if (!form.value.category)           errors.value.category = 'Please select a category'
+    if (!form.value.name.trim()) { errors.value.name = 'Project name is required' }
+    if (!form.value.description.trim()) { errors.value.description = 'Description is required' }
+    if (!form.value.client.trim()) { errors.value.client = 'Client name is required' }
+    if (!form.value.category) { errors.value.category = 'Please select a category' }
   }
   if (step === 2) {
-    if (!form.value.startDate) errors.value.startDate = 'Start date is required'
-    if (!form.value.dueDate)   errors.value.dueDate = 'Due date is required'
-    if (form.value.startDate && form.value.dueDate && form.value.dueDate <= form.value.startDate)
-      errors.value.dueDate = 'Due date must be after start date'
+    if (!form.value.startDate) { errors.value.startDate = 'Start date is required' }
+    if (!form.value.dueDate) { errors.value.dueDate = 'Due date is required' }
+    if (form.value.startDate && form.value.dueDate && form.value.dueDate <= form.value.startDate) { errors.value.dueDate = 'Due date must be after start date' }
   }
   if (step === 3) {
-    if (!form.value.budget) errors.value.budget = 'Budget is required'
+    if (!form.value.budget) { errors.value.budget = 'Budget is required' }
     const b = parseFloat(form.value.budget)
-    if (isNaN(b) || b <= 0) errors.value.budget = 'Enter a valid budget amount'
+    if (isNaN(b) || b <= 0) { errors.value.budget = 'Enter a valid budget amount' }
   }
   return Object.keys(errors.value).length === 0
 }
 
 // ── Navigation ────────────────────────────────────────────────────────────────
-function nextStep() {
-  if (!validateStep(currentStep.value)) return
-  if (currentStep.value < steps.length) currentStep.value++
+function nextStep () {
+  if (!validateStep(currentStep.value)) { return }
+  if (currentStep.value < steps.length) { currentStep.value++ }
 }
 
-function prevStep() {
-  if (currentStep.value > 1) currentStep.value--
+function prevStep () {
+  if (currentStep.value > 1) { currentStep.value-- }
 }
 
 // ── Objectives ────────────────────────────────────────────────────────────────
@@ -87,27 +86,27 @@ const filledObjectives = computed(() =>
   form.value.objectives.filter(o => o.trim())
 )
 
-function addObjective() {
-  if (form.value.objectives.length < 6) form.value.objectives.push('')
+function addObjective () {
+  if (form.value.objectives.length < 6) { form.value.objectives.push('') }
 }
 
-function removeObjective(i: number) {
-  if (form.value.objectives.length > 1) form.value.objectives.splice(i, 1)
+function removeObjective (i: number) {
+  if (form.value.objectives.length > 1) { form.value.objectives.splice(i, 1) }
 }
 
 // ── Priority & Status options ─────────────────────────────────────────────────
 const priorityOptions = [
   { value: 'critical', label: 'Critical', color: 'text-destructive', bg: 'bg-destructive/10 border-destructive/30' },
-  { value: 'high',     label: 'High',     color: 'text-warning',     bg: 'bg-warning/10 border-warning/30' },
-  { value: 'medium',   label: 'Medium',   color: 'text-primary',     bg: 'bg-primary/10 border-primary/30' },
-  { value: 'low',      label: 'Low',      color: 'text-muted-foreground', bg: 'bg-muted border-border' },
+  { value: 'high', label: 'High', color: 'text-warning', bg: 'bg-warning/10 border-warning/30' },
+  { value: 'medium', label: 'Medium', color: 'text-primary', bg: 'bg-primary/10 border-primary/30' },
+  { value: 'low', label: 'Low', color: 'text-muted-foreground', bg: 'bg-muted border-border' }
 ]
 
 const statusOptions = [
-  { value: 'planning',    label: 'Planning' },
+  { value: 'planning', label: 'Planning' },
   { value: 'in-progress', label: 'In Progress' },
-  { value: 'at-risk',     label: 'At Risk' },
-  { value: 'completed',   label: 'Completed' },
+  { value: 'at-risk', label: 'At Risk' },
+  { value: 'completed', label: 'Completed' }
 ]
 
 const categoryOptions = [
@@ -118,7 +117,7 @@ const categoryOptions = [
   'Infrastructure',
   'Marketing',
   'Consulting',
-  'Other',
+  'Other'
 ]
 
 const departmentOptions = [
@@ -128,12 +127,12 @@ const departmentOptions = [
   'Product',
   'Operations',
   'Finance',
-  'Sales',
+  'Sales'
 ]
 
 // ── Submit ────────────────────────────────────────────────────────────────────
-async function handleSubmit() {
-  if (!validateStep(3)) return
+async function handleSubmit () {
+  if (!validateStep(3)) { return }
   isSubmitting.value = true
   await new Promise(resolve => setTimeout(resolve, 1200))
   isSubmitting.value = false
@@ -147,17 +146,10 @@ const progressPercent = computed(() =>
   ((currentStep.value - 1) / (steps.length - 1)) * 100
 )
 
-// ── Formatting helpers ────────────────────────────────────────────────────────
-function formatCurrency(val: string) {
-  const n = parseFloat(val.replace(/[^0-9.]/g, ''))
-  if (isNaN(n)) return ''
-  return n.toLocaleString('en-US')
-}
 </script>
 
 <template>
   <div class="max-w-3xl mx-auto py-2 pb-12">
-
     <!-- ── Back link ─────────────────────────────────────────────────────── -->
     <NuxtLink
       to="/projects"
@@ -169,8 +161,12 @@ function formatCurrency(val: string) {
 
     <!-- ── Page title ─────────────────────────────────────────────────────── -->
     <div class="mb-8">
-      <h1 class="text-2xl font-bold text-foreground">Create New Project</h1>
-      <p class="text-sm text-muted-foreground mt-1">Fill in the details below to set up your new project.</p>
+      <h1 class="text-2xl font-bold text-foreground">
+        Create New Project
+      </h1>
+      <p class="text-sm text-muted-foreground mt-1">
+        Fill in the details below to set up your new project.
+      </p>
     </div>
 
     <!-- ── Step indicator ─────────────────────────────────────────────────── -->
@@ -188,7 +184,7 @@ function formatCurrency(val: string) {
       <!-- Step pills -->
       <div class="flex items-start gap-2">
         <div
-          v-for="(step, i) in steps"
+          v-for="step in steps"
           :key="step.id"
           class="flex-1"
         >
@@ -217,8 +213,12 @@ function formatCurrency(val: string) {
                   'text-xs font-semibold leading-tight',
                   step.id <= currentStep ? 'text-foreground' : 'text-muted-foreground',
                 ]"
-              >{{ step.label }}</p>
-              <p class="text-[11px] text-muted-foreground leading-tight hidden sm:block">{{ step.description }}</p>
+              >
+                {{ step.label }}
+              </p>
+              <p class="text-[11px] text-muted-foreground leading-tight hidden sm:block">
+                {{ step.description }}
+              </p>
             </div>
           </div>
         </div>
@@ -227,7 +227,6 @@ function formatCurrency(val: string) {
 
     <!-- ── Form card ──────────────────────────────────────────────────────── -->
     <div class="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-
       <!-- Step 1 — Basics ──────────────────────────────────────────────────── -->
       <Transition name="slide-fade" mode="out-in">
         <div v-if="currentStep === 1" key="step1" class="p-6 sm:p-8">
@@ -236,8 +235,12 @@ function formatCurrency(val: string) {
               <Briefcase class="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h2 class="text-base font-semibold text-foreground">Project Basics</h2>
-              <p class="text-xs text-muted-foreground">Core information about your project</p>
+              <h2 class="text-base font-semibold text-foreground">
+                Project Basics
+              </h2>
+              <p class="text-xs text-muted-foreground">
+                Core information about your project
+              </p>
             </div>
           </div>
 
@@ -261,7 +264,7 @@ function formatCurrency(val: string) {
                       : 'border-input focus:ring-primary/20 focus:border-primary',
                   ]"
                   @input="delete errors.name"
-                />
+                >
                 <span class="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] text-muted-foreground">
                   {{ form.name.length }}/80
                 </span>
@@ -315,7 +318,7 @@ function formatCurrency(val: string) {
                     : 'border-input focus:ring-primary/20 focus:border-primary',
                 ]"
                 @input="delete errors.client"
-              />
+              >
               <p v-if="errors.client" class="text-xs text-destructive flex items-center gap-1">
                 <AlertCircle class="h-3 w-3" /> {{ errors.client }}
               </p>
@@ -341,8 +344,12 @@ function formatCurrency(val: string) {
                     ]"
                     @change="delete errors.category"
                   >
-                    <option value="" disabled>Select category</option>
-                    <option v-for="opt in categoryOptions" :key="opt" :value="opt">{{ opt }}</option>
+                    <option value="" disabled>
+                      Select category
+                    </option>
+                    <option v-for="opt in categoryOptions" :key="opt" :value="opt">
+                      {{ opt }}
+                    </option>
                   </select>
                   <ChevronDown class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 </div>
@@ -360,8 +367,12 @@ function formatCurrency(val: string) {
                     class="w-full appearance-none px-3 py-2.5 text-sm rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
                     :class="{ 'text-muted-foreground': !form.department }"
                   >
-                    <option value="">Select department</option>
-                    <option v-for="opt in departmentOptions" :key="opt" :value="opt">{{ opt }}</option>
+                    <option value="">
+                      Select department
+                    </option>
+                    <option v-for="opt in departmentOptions" :key="opt" :value="opt">
+                      {{ opt }}
+                    </option>
                   </select>
                   <ChevronDown class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 </div>
@@ -379,8 +390,12 @@ function formatCurrency(val: string) {
               <Target class="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h2 class="text-base font-semibold text-foreground">Planning</h2>
-              <p class="text-xs text-muted-foreground">Timeline, priority and project objectives</p>
+              <h2 class="text-base font-semibold text-foreground">
+                Planning
+              </h2>
+              <p class="text-xs text-muted-foreground">
+                Timeline, priority and project objectives
+              </p>
             </div>
           </div>
 
@@ -394,7 +409,7 @@ function formatCurrency(val: string) {
                   type="text"
                   placeholder="e.g. Sarah Johnson"
                   class="w-full px-3 py-2.5 text-sm rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                />
+                >
               </div>
               <div class="space-y-1.5">
                 <label class="text-sm font-medium text-foreground">Status</label>
@@ -403,7 +418,9 @@ function formatCurrency(val: string) {
                     v-model="form.status"
                     class="w-full appearance-none px-3 py-2.5 text-sm rounded-lg border border-input bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all cursor-pointer"
                   >
-                    <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
+                      {{ opt.label }}
+                    </option>
                   </select>
                   <ChevronDown class="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 </div>
@@ -418,20 +435,20 @@ function formatCurrency(val: string) {
                   v-for="opt in priorityOptions"
                   :key="opt.value"
                   type="button"
-                  @click="form.priority = opt.value"
                   :class="[
                     'flex flex-col items-center gap-1 py-3 px-2 rounded-xl border-2 text-xs font-semibold transition-all cursor-pointer',
                     form.priority === opt.value
                       ? `${opt.bg} ${opt.color}`
                       : 'border-border bg-background text-muted-foreground hover:border-border/80 hover:bg-muted/50',
                   ]"
+                  @click="form.priority = opt.value"
                 >
                   <div
                     :class="[
                       'w-2.5 h-2.5 rounded-full',
                       opt.value === 'critical' ? 'bg-destructive' :
-                      opt.value === 'high'     ? 'bg-warning' :
-                      opt.value === 'medium'   ? 'bg-primary' : 'bg-muted-foreground',
+                      opt.value === 'high' ? 'bg-warning' :
+                      opt.value === 'medium' ? 'bg-primary' : 'bg-muted-foreground',
                     ]"
                   />
                   {{ opt.label }}
@@ -461,7 +478,7 @@ function formatCurrency(val: string) {
                         : 'border-input focus:ring-primary/20 focus:border-primary',
                     ]"
                     @change="delete errors.startDate"
-                  />
+                  >
                 </div>
                 <p v-if="errors.startDate" class="text-xs text-destructive flex items-center gap-1">
                   <AlertCircle class="h-3 w-3" /> {{ errors.startDate }}
@@ -485,7 +502,7 @@ function formatCurrency(val: string) {
                         : 'border-input focus:ring-primary/20 focus:border-primary',
                     ]"
                     @change="delete errors.dueDate"
-                  />
+                  >
                 </div>
                 <p v-if="errors.dueDate" class="text-xs text-destructive flex items-center gap-1">
                   <AlertCircle class="h-3 w-3" /> {{ errors.dueDate }}
@@ -507,18 +524,20 @@ function formatCurrency(val: string) {
                 >
                   <div
                     class="flex items-center justify-center w-5 h-5 rounded-full bg-primary/10 text-primary text-[10px] font-bold shrink-0"
-                  >{{ i + 1 }}</div>
+                  >
+                    {{ i + 1 }}
+                  </div>
                   <input
                     v-model="form.objectives[i]"
                     type="text"
                     :placeholder="`Objective ${i + 1}…`"
                     class="flex-1 px-3 py-2 text-sm rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                  />
+                  >
                   <button
                     v-if="form.objectives.length > 1"
                     type="button"
-                    @click="removeObjective(i)"
                     class="opacity-0 group-hover:opacity-100 flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer"
+                    @click="removeObjective(i)"
                   >
                     <Trash2 class="h-3.5 w-3.5" />
                   </button>
@@ -527,8 +546,8 @@ function formatCurrency(val: string) {
               <button
                 v-if="form.objectives.length < 6"
                 type="button"
-                @click="addObjective"
                 class="flex items-center gap-1.5 text-xs text-primary hover:text-primary/80 font-medium transition-colors cursor-pointer mt-1"
+                @click="addObjective"
               >
                 <Plus class="h-3.5 w-3.5" />
                 Add objective
@@ -546,8 +565,12 @@ function formatCurrency(val: string) {
               <DollarSign class="h-5 w-5 text-primary" />
             </div>
             <div>
-              <h2 class="text-base font-semibold text-foreground">Budget</h2>
-              <p class="text-xs text-muted-foreground">Financial details and contract value</p>
+              <h2 class="text-base font-semibold text-foreground">
+                Budget
+              </h2>
+              <p class="text-xs text-muted-foreground">
+                Financial details and contract value
+              </p>
             </div>
           </div>
 
@@ -565,9 +588,11 @@ function formatCurrency(val: string) {
                     step="100"
                     placeholder="0"
                     class="w-full pl-7 pr-3 py-2.5 text-sm rounded-lg border border-input bg-background text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
-                  />
+                  >
                 </div>
-                <p class="text-xs text-muted-foreground">Total contract amount with client</p>
+                <p class="text-xs text-muted-foreground">
+                  Total contract amount with client
+                </p>
               </div>
 
               <div class="space-y-1.5">
@@ -589,12 +614,14 @@ function formatCurrency(val: string) {
                         : 'border-input focus:ring-primary/20 focus:border-primary',
                     ]"
                     @input="delete errors.budget"
-                  />
+                  >
                 </div>
                 <p v-if="errors.budget" class="text-xs text-destructive flex items-center gap-1">
                   <AlertCircle class="h-3 w-3" /> {{ errors.budget }}
                 </p>
-                <p v-else class="text-xs text-muted-foreground">Internal budget allocated for this project</p>
+                <p v-else class="text-xs text-muted-foreground">
+                  Internal budget allocated for this project
+                </p>
               </div>
             </div>
 
@@ -623,8 +650,8 @@ function formatCurrency(val: string) {
                     :class="[
                       'font-medium capitalize',
                       form.priority === 'critical' ? 'text-destructive' :
-                      form.priority === 'high'     ? 'text-warning' :
-                      form.priority === 'medium'   ? 'text-primary' : 'text-muted-foreground',
+                      form.priority === 'high' ? 'text-warning' :
+                      form.priority === 'medium' ? 'text-primary' : 'text-muted-foreground',
                     ]"
                   >{{ form.priority }}</span>
                 </div>
@@ -683,16 +710,16 @@ function formatCurrency(val: string) {
         <button
           v-if="currentStep === 1"
           type="button"
-          @click="router.push('/projects')"
           class="px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground border border-border hover:border-foreground/20 rounded-lg transition-all cursor-pointer"
+          @click="router.push('/projects')"
         >
           Cancel
         </button>
         <button
           v-else
           type="button"
-          @click="prevStep"
           class="inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground border border-border hover:border-foreground/20 rounded-lg transition-all cursor-pointer"
+          @click="prevStep"
         >
           <ArrowLeft class="h-4 w-4" />
           Back
@@ -705,8 +732,8 @@ function formatCurrency(val: string) {
         <button
           v-if="currentStep < steps.length"
           type="button"
-          @click="nextStep"
           class="inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-all cursor-pointer shadow-sm"
+          @click="nextStep"
         >
           Continue
           <ArrowRight class="h-4 w-4" />
@@ -715,7 +742,6 @@ function formatCurrency(val: string) {
           v-else
           type="button"
           :disabled="isSubmitting || submitted"
-          @click="handleSubmit"
           :class="[
             'inline-flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-lg transition-all cursor-pointer shadow-sm',
             submitted
@@ -724,6 +750,7 @@ function formatCurrency(val: string) {
                 ? 'bg-primary/70 text-primary-foreground cursor-not-allowed'
                 : 'bg-primary text-primary-foreground hover:bg-primary/90',
           ]"
+          @click="handleSubmit"
         >
           <template v-if="submitted">
             <Check class="h-4 w-4" />
@@ -731,8 +758,15 @@ function formatCurrency(val: string) {
           </template>
           <template v-else-if="isSubmitting">
             <svg class="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+              <circle
+                class="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                stroke-width="4"
+              />
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
             Creating…
           </template>
@@ -743,7 +777,6 @@ function formatCurrency(val: string) {
         </button>
       </div>
     </div>
-
   </div>
 </template>
 

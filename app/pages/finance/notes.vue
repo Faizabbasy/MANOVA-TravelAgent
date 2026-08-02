@@ -26,16 +26,16 @@ const canManageFinance = computed(() => canManage('finance'))
 type NotesTab = 'credit' | 'debit'
 const activeTab = computed<NotesTab>({
   get: () => (route.query.tab === 'debit' ? 'debit' : 'credit'),
-  set: value => router.replace({ query: { ...route.query, tab: value } }),
+  set: value => router.replace({ query: { ...route.query, tab: value } })
 })
 
-function invoiceLabel(invoiceId?: string) {
-  if (!invoiceId) return '—'
+function invoiceLabel (invoiceId?: string) {
+  if (!invoiceId) { return '—' }
   return INVOICES.find(invoice => invoice.id === invoiceId)?.label ?? invoiceId
 }
 
-function projectOfInvoice(invoiceId?: string) {
-  if (!invoiceId) return undefined
+function projectOfInvoice (invoiceId?: string) {
+  if (!invoiceId) { return undefined }
   const invoice = INVOICES.find(item => item.id === invoiceId)
   return invoice ? getProjectById(invoice.projectId) : undefined
 }
@@ -70,20 +70,20 @@ const newAmount = ref<number | null>(null)
 const newReason = ref('')
 const projectInvoices = computed(() => (newProjectId.value ? INVOICES.filter(invoice => invoice.projectId === newProjectId.value) : []))
 
-function resetForm() {
+function resetForm () {
   newProjectId.value = ''
   newInvoiceId.value = ''
   newAmount.value = null
   newReason.value = ''
 }
 
-function submitDebitNote() {
-  if (!newProjectId.value || !newAmount.value || !newReason.value.trim()) return
+function submitDebitNote () {
+  if (!newProjectId.value || !newAmount.value || !newReason.value.trim()) { return }
   const note = issueDebitNote({
     projectId: newProjectId.value,
     invoiceId: newInvoiceId.value || undefined,
     amountIdr: newAmount.value,
-    reason: newReason.value.trim(),
+    reason: newReason.value.trim()
   })
   if (!note) { showToast('Gagal Membuat Debit Note', 'Periksa kembali project, jumlah, dan alasan.', 'error'); return }
   resetForm()
@@ -102,7 +102,9 @@ function submitDebitNote() {
       <template v-if="canManageFinance && activeTab === 'debit'" #actions>
         <Dialog v-model:open="isCreateOpen">
           <DialogTrigger as-child>
-            <Button size="sm"><Plus class="h-4 w-4 mr-1.5" />Buat Debit Note</Button>
+            <Button size="sm">
+              <Plus class="h-4 w-4 mr-1.5" />Buat Debit Note
+            </Button>
           </DialogTrigger>
           <DialogContent class="max-w-md">
             <DialogHeader>
@@ -113,15 +115,23 @@ function submitDebitNote() {
               <div class="space-y-1.5">
                 <Label for="dn-project">Project</Label>
                 <select id="dn-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="" disabled>Pilih project</option>
-                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+                  <option value="" disabled>
+                    Pilih project
+                  </option>
+                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
                 </select>
               </div>
               <div class="space-y-1.5">
                 <Label for="dn-invoice">Invoice Terkait (opsional)</Label>
                 <select id="dn-invoice" v-model="newInvoiceId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="">Tidak terkait invoice tertentu</option>
-                  <option v-for="invoice in projectInvoices" :key="invoice.id" :value="invoice.id">{{ invoice.label }}</option>
+                  <option value="">
+                    Tidak terkait invoice tertentu
+                  </option>
+                  <option v-for="invoice in projectInvoices" :key="invoice.id" :value="invoice.id">
+                    {{ invoice.label }}
+                  </option>
                 </select>
               </div>
               <div class="space-y-1.5">
@@ -134,8 +144,12 @@ function submitDebitNote() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">Batal</Button>
-              <Button :disabled="!newProjectId || !newAmount || !newReason.trim()" @click="submitDebitNote">Terbitkan</Button>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newProjectId || !newAmount || !newReason.trim()" @click="submitDebitNote">
+                Terbitkan
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -147,8 +161,12 @@ function submitDebitNote() {
     <template v-else>
       <Tabs v-model="activeTab">
         <TabsList>
-          <TabsTrigger value="credit">Credit Notes</TabsTrigger>
-          <TabsTrigger value="debit">Debit Notes</TabsTrigger>
+          <TabsTrigger value="credit">
+            Credit Notes
+          </TabsTrigger>
+          <TabsTrigger value="debit">
+            Debit Notes
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="credit">
@@ -171,12 +189,24 @@ function submitDebitNote() {
               </TableHeader>
               <TableBody>
                 <TableRow v-for="row in creditRows" :key="row.note.id">
-                  <TableCell class="font-medium text-foreground">{{ row.note.id }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.invoiceLabel }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.project?.name ?? '—' }}</TableCell>
-                  <TableCell class="text-foreground">{{ formatCurrencyIdr(row.note.amountIdr) }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ formatDate(row.note.issuedAt) }}</TableCell>
-                  <TableCell class="text-muted-foreground max-w-[260px] truncate">{{ row.note.reason }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.note.id }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.invoiceLabel }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(row.note.amountIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(row.note.issuedAt) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground max-w-[260px] truncate">
+                    {{ row.note.reason }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(CREDIT_NOTE_STATUSES, row.note.status).label" :tone="findStatusOption(CREDIT_NOTE_STATUSES, row.note.status).tone" /></TableCell>
                 </TableRow>
                 <TableEmpty v-if="creditRows.length === 0" :colspan="7">
@@ -207,12 +237,24 @@ function submitDebitNote() {
               </TableHeader>
               <TableBody>
                 <TableRow v-for="row in debitRows" :key="row.note.id">
-                  <TableCell class="font-medium text-foreground">{{ row.note.id }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.project?.name ?? row.note.projectId }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ invoiceLabel(row.note.invoiceId) }}</TableCell>
-                  <TableCell class="text-foreground">{{ formatCurrencyIdr(row.note.amountIdr) }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ formatDate(row.note.issuedAt) }}</TableCell>
-                  <TableCell class="text-muted-foreground max-w-[260px] truncate">{{ row.note.reason }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.note.id }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? row.note.projectId }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ invoiceLabel(row.note.invoiceId) }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(row.note.amountIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(row.note.issuedAt) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground max-w-[260px] truncate">
+                    {{ row.note.reason }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(DEBIT_NOTE_STATUSES, row.note.status).label" :tone="findStatusOption(DEBIT_NOTE_STATUSES, row.note.status).tone" /></TableCell>
                 </TableRow>
                 <TableEmpty v-if="debitRows.length === 0" :colspan="7">

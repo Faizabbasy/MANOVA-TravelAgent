@@ -27,21 +27,27 @@ const { toasts } = useToast()
             toast.type === 'info' && 'border-primary/20',
           )"
         >
-          <div :class="cn(
-            'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
-            toast.type === 'success' && 'bg-success/10 text-success',
-            toast.type === 'error' && 'bg-destructive/10 text-destructive',
-            toast.type === 'warning' && 'bg-warning/10 text-warning',
-            toast.type === 'info' && 'bg-primary/10 text-primary',
-          )">
+          <div
+            :class="cn(
+              'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
+              toast.type === 'success' && 'bg-success/10 text-success',
+              toast.type === 'error' && 'bg-destructive/10 text-destructive',
+              toast.type === 'warning' && 'bg-warning/10 text-warning',
+              toast.type === 'info' && 'bg-primary/10 text-primary',
+            )"
+          >
             <CheckCircle2 v-if="toast.type === 'success'" class="h-4 w-4" />
             <XCircle v-else-if="toast.type === 'error'" class="h-4 w-4" />
             <AlertTriangle v-else-if="toast.type === 'warning'" class="h-4 w-4" />
             <Info v-else class="h-4 w-4" />
           </div>
           <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-foreground">{{ toast.title }}</p>
-            <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">{{ toast.message }}</p>
+            <p class="text-sm font-semibold text-foreground">
+              {{ toast.title }}
+            </p>
+            <p class="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              {{ toast.message }}
+            </p>
           </div>
         </div>
       </TransitionGroup>

@@ -1,4 +1,4 @@
-export default defineNuxtRouteMiddleware((to, from) => {
+export default defineNuxtRouteMiddleware((to) => {
   // Check if running on client side
   if (process.client) {
     const isAuthenticated = localStorage.getItem('isAuthenticated')

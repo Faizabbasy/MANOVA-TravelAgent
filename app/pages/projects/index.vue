@@ -1,11 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search, Calendar, Users, Wallet } from 'lucide-vue-next'
-import { PROJECTS, USERS, getPartyById } from '~/data'
+import { PROJECTS, USERS, getPartyById, getInvoicesByProject, getTasksByProject, getActivitiesByProject } from '~/data'
 import { PROJECT_STATUSES, PROJECT_CHARACTERISTICS, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange, formatTravelerCount } from '~/utils/format'
 import { isProjectNeedingAttention, isUpcomingDeparture } from '~/utils/attention'
-import { getInvoicesByProject, getTasksByProject, getActivitiesByProject } from '~/data'
 import type { Project } from '~/types/project'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -31,9 +30,9 @@ const ownerOptions = computed(() => {
 
 /** Progress linear (Section 10) — hanya berlaku untuk status di jalur utama; On Hold/Cancelled bukan progres linear. */
 const LINEAR_STATUSES: Project['status'][] = ['draft', 'planning', 'confirmed', 'in-progress', 'ongoing-trip', 'completed']
-function getProjectProgress(project: Project): number | null {
+function getProjectProgress (project: Project): number | null {
   const index = LINEAR_STATUSES.indexOf(project.status)
-  if (index === -1) return null
+  if (index === -1) { return null }
   return Math.round((index / (LINEAR_STATUSES.length - 1)) * 100)
 }
 
@@ -45,7 +44,7 @@ const filteredProjects = computed(() => {
     result = result.filter(project =>
       project.name.toLowerCase().includes(q) ||
       project.id.toLowerCase().includes(q) ||
-      project.destination.toLowerCase().includes(q),
+      project.destination.toLowerCase().includes(q)
     )
   }
 
@@ -63,18 +62,18 @@ const filteredProjects = computed(() => {
   }
 
   return [...result].sort((a, b) => {
-    if (sortBy.value === 'name') return a.name.localeCompare(b.name)
-    if (sortBy.value === 'budget') return b.budgetIdr - a.budgetIdr
+    if (sortBy.value === 'name') { return a.name.localeCompare(b.name) }
+    if (sortBy.value === 'budget') { return b.budgetIdr - a.budgetIdr }
     return a.travelStartDate.localeCompare(b.travelStartDate)
   })
 })
 
-function needsAttention(projectId: string) {
+function needsAttention (projectId: string) {
   const project = PROJECTS.find(p => p.id === projectId)!
   return isProjectNeedingAttention(project, {
     invoices: getInvoicesByProject(projectId),
     tasks: getTasksByProject(projectId),
-    activities: getActivitiesByProject(projectId),
+    activities: getActivitiesByProject(projectId)
   })
 }
 </script>
@@ -102,37 +101,59 @@ function needsAttention(projectId: string) {
           v-model="selectedStatus"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="all">Semua Status</option>
-          <option v-for="option in PROJECT_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
+          <option value="all">
+            Semua Status
+          </option>
+          <option v-for="option in PROJECT_STATUSES" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
         </select>
         <select
           v-model="selectedType"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="all">Semua Tipe</option>
-          <option v-for="option in PROJECT_CHARACTERISTICS" :key="option.value" :value="option.value">{{ option.label }}</option>
+          <option value="all">
+            Semua Tipe
+          </option>
+          <option v-for="option in PROJECT_CHARACTERISTICS" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
         </select>
         <select
           v-model="selectedClient"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="all">Semua Client</option>
-          <option v-for="party in clientOptions" :key="party.id" :value="party.id">{{ party.name }}</option>
+          <option value="all">
+            Semua Client
+          </option>
+          <option v-for="party in clientOptions" :key="party.id" :value="party.id">
+            {{ party.name }}
+          </option>
         </select>
         <select
           v-model="selectedOwner"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="all">Semua Owner</option>
-          <option v-for="user in ownerOptions" :key="user.id" :value="user.id">{{ user.name }}</option>
+          <option value="all">
+            Semua Owner
+          </option>
+          <option v-for="user in ownerOptions" :key="user.id" :value="user.id">
+            {{ user.name }}
+          </option>
         </select>
         <select
           v-model="sortBy"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="date">Urutkan: Tanggal Keberangkatan</option>
-          <option value="name">Urutkan: Nama (A-Z)</option>
-          <option value="budget">Urutkan: Budget Tertinggi</option>
+          <option value="date">
+            Urutkan: Tanggal Keberangkatan
+          </option>
+          <option value="name">
+            Urutkan: Nama (A-Z)
+          </option>
+          <option value="budget">
+            Urutkan: Budget Tertinggi
+          </option>
         </select>
       </div>
 
@@ -158,21 +179,31 @@ function needsAttention(projectId: string) {
             </div>
           </div>
 
-          <h3 class="text-lg font-semibold text-foreground">{{ project.name }}</h3>
-          <p class="text-sm text-muted-foreground mt-1">{{ getPartyById(project.partyId)?.name }} · {{ project.destination }}</p>
+          <h3 class="text-lg font-semibold text-foreground">
+            {{ project.name }}
+          </h3>
+          <p class="text-sm text-muted-foreground mt-1">
+            {{ getPartyById(project.partyId)?.name }} · {{ project.destination }}
+          </p>
 
           <div class="grid grid-cols-3 gap-4 pt-4 mt-4 border-t border-border">
             <div class="flex items-center gap-2">
               <Calendar class="h-4 w-4 text-muted-foreground shrink-0" />
-              <p class="text-sm text-foreground">{{ formatDateRange(project.travelStartDate, project.travelEndDate) }}</p>
+              <p class="text-sm text-foreground">
+                {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
+              </p>
             </div>
             <div class="flex items-center gap-2">
               <Users class="h-4 w-4 text-muted-foreground shrink-0" />
-              <p class="text-sm text-foreground">{{ formatTravelerCount(project.travelerCount) }}</p>
+              <p class="text-sm text-foreground">
+                {{ formatTravelerCount(project.travelerCount) }}
+              </p>
             </div>
             <div class="flex items-center gap-2">
               <Wallet class="h-4 w-4 text-muted-foreground shrink-0" />
-              <p class="text-sm text-foreground">{{ formatCurrencyIdr(project.budgetIdr) }}</p>
+              <p class="text-sm text-foreground">
+                {{ formatCurrencyIdr(project.budgetIdr) }}
+              </p>
             </div>
           </div>
 

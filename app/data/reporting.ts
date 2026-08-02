@@ -15,7 +15,7 @@ export const SAVED_VIEWS: SavedView[] = reactive([
     page: 'dashboard',
     label: 'Project Confirmed — 60 Hari ke Depan',
     filters: { status: 'confirmed', period: '60' },
-    createdAt: '2026-07-28',
+    createdAt: '2026-07-28'
   },
   {
     id: 'SVW-002',
@@ -23,6 +23,6 @@ export const SAVED_VIEWS: SavedView[] = reactive([
     page: 'reports',
     label: 'Project In Progress — Kuartal Ini',
     filters: { status: 'in-progress', period: '90' },
-    createdAt: '2026-07-29',
-  },
+    createdAt: '2026-07-29'
+  }
 ])

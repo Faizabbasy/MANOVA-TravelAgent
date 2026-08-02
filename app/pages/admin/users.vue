@@ -2,10 +2,11 @@
 import { ref, computed } from 'vue'
 import { Search, UserCheck, UserX } from 'lucide-vue-next'
 import { USERS, suspendUser, reactivateUser } from '~/data'
-import { ROLES } from '~/constants/roles'
 import { findStatusOption } from '~/constants/status'
-import type { User } from '~/types/user'
-import type { RoleId } from '~/types/user'
+import type { User, RoleId, ModuleKey } from '~/types/user'
+
+/** Modul yang dapat diakses role tertentu (ringkas) — dari ROLE_MODULE_ACCESS existing. */
+import { ROLES, ROLE_MODULE_ACCESS } from '~/constants/roles'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Users — Administration' })
@@ -31,7 +32,7 @@ const filteredUsers = computed(() => {
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(u =>
-      u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q),
+      u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
     )
   }
   return result
@@ -41,32 +42,28 @@ const filteredUsers = computed(() => {
 const selectedUser = ref<User | null>(null)
 const isDetailOpen = ref(false)
 
-function openDetail(user: User) {
+function openDetail (user: User) {
   selectedUser.value = user
   isDetailOpen.value = true
 }
 
-function closeDetail() {
+function closeDetail () {
   isDetailOpen.value = false
   selectedUser.value = null
 }
 
-function switchToUser(userId: string) {
+function switchToUser (userId: string) {
   setCurrentUser(userId)
   closeDetail()
 }
 
-function getRoleLabel(roleId: RoleId): string {
+function getRoleLabel (roleId: RoleId): string {
   return findStatusOption(ROLES, roleId).label
 }
 
-function getRoleTone(roleId: RoleId) {
+function getRoleTone (roleId: RoleId) {
   return findStatusOption(ROLES, roleId).tone
 }
-
-/** Modul yang dapat diakses role tertentu (ringkas) — dari ROLE_MODULE_ACCESS existing. */
-import { ROLE_MODULE_ACCESS } from '~/constants/roles'
-import type { ModuleKey } from '~/types/user'
 
 const MODULE_LABELS: { key: ModuleKey; label: string }[] = [
   { key: 'crm', label: 'CRM' },
@@ -74,7 +71,7 @@ const MODULE_LABELS: { key: ModuleKey; label: string }[] = [
   { key: 'vendor', label: 'Vendor' },
   { key: 'finance', label: 'Finance' },
   { key: 'reports', label: 'Reports' },
-  { key: 'administration', label: 'Administration' },
+  { key: 'administration', label: 'Administration' }
 ]
 
 const PERMISSION_TONE: Record<string, string> = {
@@ -82,10 +79,10 @@ const PERMISSION_TONE: Record<string, string> = {
   VIEW: 'info',
   MANAGE: 'primary',
   APPROVE: 'warning',
-  ADMIN: 'destructive',
+  ADMIN: 'destructive'
 }
 
-function permTone(level: string) {
+function permTone (level: string) {
   return PERMISSION_TONE[level] ?? 'neutral'
 }
 
@@ -99,13 +96,13 @@ const isSuspendOpen = ref(false)
 const suspendTarget = ref<User | null>(null)
 const suspendReason = ref('')
 
-function openSuspendDialog(user: User) {
+function openSuspendDialog (user: User) {
   suspendTarget.value = user
   suspendReason.value = ''
   isSuspendOpen.value = true
 }
 
-function submitSuspend() {
+function submitSuspend () {
   if (!suspendTarget.value || !suspendReason.value.trim()) {
     showToast('Gagal Suspend', 'Alasan suspend wajib diisi.', 'error')
     return
@@ -114,14 +111,14 @@ function submitSuspend() {
   if (!result) { showToast('Gagal Suspend', 'Terjadi kesalahan.', 'error'); return }
   showToast('User Disuspend', `${result.name} tidak lagi aktif. Tercatat di Audit Trail.`, 'success')
   isSuspendOpen.value = false
-  if (selectedUser.value?.id === result.id) selectedUser.value = result
+  if (selectedUser.value?.id === result.id) { selectedUser.value = result }
 }
 
-function doReactivate(user: User) {
+function doReactivate (user: User) {
   const result = reactivateUser(user.id, currentUser.value.id)
-  if (!result) return
+  if (!result) { return }
   showToast('User Diaktifkan Kembali', `${result.name} aktif kembali.`, 'success')
-  if (selectedUser.value?.id === result.id) selectedUser.value = result
+  if (selectedUser.value?.id === result.id) { selectedUser.value = result }
 }
 
 /**
@@ -155,7 +152,9 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
     <template v-else>
       <Tabs v-model="activeTab">
         <TabsList>
-          <TabsTrigger value="directory">Directory</TabsTrigger>
+          <TabsTrigger value="directory">
+            Directory
+          </TabsTrigger>
           <TabsTrigger value="access-review">
             Access Review
             <StatusBadge v-if="suspendedUsers.length > 0" :label="String(suspendedUsers.length)" tone="warning" class="ml-1.5" />
@@ -174,8 +173,12 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
                 v-model="roleFilter"
                 class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
               >
-                <option value="all">Semua Role</option>
-                <option v-for="role in ROLES" :key="role.value" :value="role.value">{{ role.label }}</option>
+                <option value="all">
+                  Semua Role
+                </option>
+                <option v-for="role in ROLES" :key="role.value" :value="role.value">
+                  {{ role.label }}
+                </option>
               </select>
             </div>
 
@@ -200,8 +203,12 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
                     class="cursor-pointer hover:bg-muted/50"
                     @click="openDetail(user)"
                   >
-                    <TableCell class="font-medium text-foreground">{{ user.name }}</TableCell>
-                    <TableCell class="text-muted-foreground">{{ user.email }}</TableCell>
+                    <TableCell class="font-medium text-foreground">
+                      {{ user.name }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ user.email }}
+                    </TableCell>
                     <TableCell>
                       <StatusBadge
                         :label="getRoleLabel(user.role)"
@@ -272,13 +279,19 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
                     <TableHead>Nama</TableHead>
                     <TableHead>Email</TableHead>
                     <TableHead>Role</TableHead>
-                    <TableHead v-if="canManageUsers" class="text-right">Aksi</TableHead>
+                    <TableHead v-if="canManageUsers" class="text-right">
+                      Aksi
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   <TableRow v-for="user in accessReviewUsers" :key="user.id">
-                    <TableCell class="font-medium text-foreground">{{ user.name }}</TableCell>
-                    <TableCell class="text-muted-foreground">{{ user.email }}</TableCell>
+                    <TableCell class="font-medium text-foreground">
+                      {{ user.name }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ user.email }}
+                    </TableCell>
                     <TableCell><StatusBadge :label="getRoleLabel(user.role)" :tone="getRoleTone(user.role)" /></TableCell>
                     <TableCell v-if="canManageUsers" class="text-right">
                       <button class="text-xs text-muted-foreground hover:text-destructive transition-colors" @click="openSuspendDialog(user)">
@@ -298,8 +311,12 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
               <ul class="divide-y divide-border">
                 <li v-for="user in suspendedUsers" :key="user.id" class="py-3 flex items-start justify-between gap-4">
                   <div>
-                    <p class="text-sm font-medium text-foreground">{{ user.name }} <span class="text-xs text-muted-foreground font-normal">({{ user.email }})</span></p>
-                    <p class="text-xs text-muted-foreground mt-0.5">{{ user.suspendedReason }} — {{ user.suspendedAt }}</p>
+                    <p class="text-sm font-medium text-foreground">
+                      {{ user.name }} <span class="text-xs text-muted-foreground font-normal">({{ user.email }})</span>
+                    </p>
+                    <p class="text-xs text-muted-foreground mt-0.5">
+                      {{ user.suspendedReason }} — {{ user.suspendedAt }}
+                    </p>
                   </div>
                   <button v-if="canManageUsers" class="text-xs text-muted-foreground hover:text-success transition-colors shrink-0" @click="doReactivate(user)">
                     Aktifkan Kembali
@@ -323,7 +340,9 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
             <Input id="suspend-reason" v-model="suspendReason" placeholder="mis. Cuti panjang, vendor tidak aktif, dst." />
           </div>
           <DialogFooter>
-            <Button variant="outline" @click="isSuspendOpen = false">Batal</Button>
+            <Button variant="outline" @click="isSuspendOpen = false">
+              Batal
+            </Button>
             <Button variant="destructive" :disabled="!suspendReason.trim()" @click="submitSuspend">
               <UserX class="h-4 w-4 mr-1.5" />Suspend
             </Button>
@@ -356,7 +375,9 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
 
             <!-- Access matrix for this role -->
             <div>
-              <p class="text-sm font-medium mb-2">Akses Modul</p>
+              <p class="text-sm font-medium mb-2">
+                Akses Modul
+              </p>
               <div class="grid grid-cols-2 gap-2">
                 <div
                   v-for="mod in MODULE_LABELS"
@@ -374,7 +395,9 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
           </div>
 
           <DialogFooter class="gap-2">
-            <Button variant="outline" @click="closeDetail">Tutup</Button>
+            <Button variant="outline" @click="closeDetail">
+              Tutup
+            </Button>
             <Button
               v-if="selectedUser && selectedUser.id !== currentUser.id"
               variant="default"

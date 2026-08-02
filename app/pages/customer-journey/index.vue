@@ -3,9 +3,9 @@ import { computed } from 'vue'
 import { Users, Target, Building2, FolderKanban, BarChart3 } from 'lucide-vue-next'
 import {
   LEADS, OPPORTUNITIES, PARTIES, PROJECTS,
-  getOpportunitiesByOwner, getProjectsByAccountExecutive, getPartiesByAccountOwner, getQuotationByOpportunity,
+  getOpportunitiesByOwner, getProjectsByAccountExecutive, getPartiesByAccountOwner, getQuotationByOpportunity
 } from '~/data'
-import { LEAD_STAGES, OPPORTUNITY_STAGES, findStatusOption } from '~/constants/status'
+import { LEAD_STAGES, OPPORTUNITY_STAGES } from '~/constants/status'
 import { formatCurrencyIdr, formatPercentage } from '~/utils/format'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
@@ -26,8 +26,8 @@ const isAeScoped = computed(() => currentRole.value === 'account-executive')
  * (`handedOverTo`, field yang sama dipakai toggle "Assigned to Me" di `/customer-journey/leads`).
  */
 const scopedLeads = computed(() => {
-  if (currentRole.value === 'sales') return LEADS.filter(lead => lead.ownerId === currentUser.value.id)
-  if (isAeScoped.value) return LEADS.filter(lead => lead.handedOverTo === currentUser.value.id)
+  if (currentRole.value === 'sales') { return LEADS.filter(lead => lead.ownerId === currentUser.value.id) }
+  if (isAeScoped.value) { return LEADS.filter(lead => lead.handedOverTo === currentUser.value.id) }
   return LEADS
 })
 const scopedOpportunities = computed(() => (isAeScoped.value ? getOpportunitiesByOwner(currentUser.value.id) : OPPORTUNITIES))
@@ -63,19 +63,19 @@ const funnelStages = computed(() => {
     { key: 'approved', label: 'Approved', count: approvedOpportunityCount, to: '/crm/quotations?tab=all&status=approved' },
     { key: 'won', label: 'Won', count: wonOpportunityCount, to: '/crm/opportunities?stage=won' },
     { key: 'client', label: 'Client', count: activeClientCount.value, to: '/customer-journey/customers?status=client' },
-    { key: 'project-order', label: 'Project Order', count: scopedProjectOrders.value ? scopedProjectOrders.value.length : PROJECTS.length, to: '/customer-journey/project-orders' },
+    { key: 'project-order', label: 'Project Order', count: scopedProjectOrders.value ? scopedProjectOrders.value.length : PROJECTS.length, to: '/customer-journey/project-orders' }
   ]
   const maxCount = Math.max(1, ...raw.map(stage => stage.count))
   return raw.map((stage, index) => ({
     ...stage,
     barPct: (stage.count / maxCount) * 100,
-    conversionPct: index === 0 ? null : (raw[index - 1].count === 0 ? 0 : (stage.count / raw[index - 1].count) * 100),
+    conversionPct: index === 0 ? null : (raw[index - 1].count === 0 ? 0 : (stage.count / raw[index - 1].count) * 100)
   }))
 })
 
 const leadStageBreakdown = computed<StatusBreakdownItem[]>(() => {
   const byStage = new Map<string, number>()
-  for (const lead of scopedLeads.value.filter(l => !l.archived)) byStage.set(lead.stage, (byStage.get(lead.stage) ?? 0) + 1)
+  for (const lead of scopedLeads.value.filter(l => !l.archived)) { byStage.set(lead.stage, (byStage.get(lead.stage) ?? 0) + 1) }
   return LEAD_STAGES
     .filter(stage => byStage.has(stage.value))
     .sort((a, b) => a.order - b.order)
@@ -84,7 +84,7 @@ const leadStageBreakdown = computed<StatusBreakdownItem[]>(() => {
 
 const opportunityStageBreakdown = computed<StatusBreakdownItem[]>(() => {
   const byStage = new Map<string, number>()
-  for (const opp of scopedOpportunities.value) byStage.set(opp.stage, (byStage.get(opp.stage) ?? 0) + 1)
+  for (const opp of scopedOpportunities.value) { byStage.set(opp.stage, (byStage.get(opp.stage) ?? 0) + 1) }
   return OPPORTUNITY_STAGES
     .filter(stage => byStage.has(stage.value))
     .sort((a, b) => a.order - b.order)
@@ -95,7 +95,7 @@ const links = [
   { label: 'Leads', to: '/customer-journey/leads', icon: Users, description: 'Table/Kanban/Inbox, screening dan qualification.' },
   { label: 'Customers', to: '/customer-journey/customers', icon: Building2, description: 'Directory company, Account Owner, lifecycle.', leadOnly: false },
   { label: 'Project Orders', to: '/customer-journey/project-orders', icon: FolderKanban, description: 'Seluruh Project Order lintas client.', leadOnly: false },
-  { label: 'Lead Source Recap', to: '/customer-journey/lead-sources', icon: BarChart3, description: 'Rekap performa sumber lead dan conversion rate.', leadOnly: false },
+  { label: 'Lead Source Recap', to: '/customer-journey/lead-sources', icon: BarChart3, description: 'Rekap performa sumber lead dan conversion rate.', leadOnly: false }
 ]
 </script>
 
@@ -110,7 +110,9 @@ const links = [
     <RoleAccessState v-if="!canView('crm')" module-label="modul Customer Journey" />
 
     <template v-else>
-      <p v-if="isAeScoped" class="text-xs text-muted-foreground -mt-2">Menampilkan portfolio Anda saja (Lead di-handover ke Anda, Opportunity/Company/Project Order milik Anda). Management/Super Admin melihat seluruh data.</p>
+      <p v-if="isAeScoped" class="text-xs text-muted-foreground -mt-2">
+        Menampilkan portfolio Anda saja (Lead di-handover ke Anda, Opportunity/Company/Project Order milik Anda). Management/Super Admin melihat seluruh data.
+      </p>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <StatsCard title="Lead Aktif" :value="String(activeLeadCount)" :icon="Users" />
@@ -159,7 +161,9 @@ const links = [
         <SectionCard v-if="scopedProjectOrders" title="Project Orders Milik Saya">
           <ul v-if="scopedProjectOrders.length" class="divide-y divide-border">
             <li v-for="project in scopedProjectOrders" :key="project.id" class="py-3 flex items-center justify-between gap-3">
-              <NuxtLink :to="`/customer-journey/project-orders/${project.id}`" class="text-sm font-medium text-foreground hover:underline truncate">{{ project.name }}</NuxtLink>
+              <NuxtLink :to="`/customer-journey/project-orders/${project.id}`" class="text-sm font-medium text-foreground hover:underline truncate">
+                {{ project.name }}
+              </NuxtLink>
               <span class="text-xs text-muted-foreground shrink-0">{{ project.id }}</span>
             </li>
           </ul>
@@ -168,7 +172,7 @@ const links = [
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <NuxtLink v-for="link in links" :key="link.to" v-show="!isLeadOnlyView || link.label === 'Leads'" :to="link.to">
+        <NuxtLink v-for="link in links" v-show="!isLeadOnlyView || link.label === 'Leads'" :key="link.to" :to="link.to">
           <SectionCard :title="link.label" :description="link.description">
             <component :is="link.icon" class="h-5 w-5 text-muted-foreground" />
           </SectionCard>

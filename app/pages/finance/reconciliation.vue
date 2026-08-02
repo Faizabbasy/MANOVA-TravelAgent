@@ -25,20 +25,20 @@ const canManageFinance = computed(() => canManage('finance'))
 
 const searchQuery = ref('')
 
-function serviceOrderOf(invoice: SupplierInvoice) {
+function serviceOrderOf (invoice: SupplierInvoice) {
   return getServiceOrderById(invoice.serviceOrderId)
 }
-function projectOf(invoice: SupplierInvoice) {
+function projectOf (invoice: SupplierInvoice) {
   const so = serviceOrderOf(invoice)
   return so?.projectId ? getProjectById(so.projectId) : undefined
 }
-function vendorName(invoice: SupplierInvoice) {
+function vendorName (invoice: SupplierInvoice) {
   return getVendorById(invoice.vendorId)?.name ?? invoice.vendorId
 }
 
 const rows = computed(() => {
   let result = getSupplierInvoiceReconciliationQueue().map(invoice => ({
-    invoice, project: projectOf(invoice), vendorLabel: vendorName(invoice),
+    invoice, project: projectOf(invoice), vendorLabel: vendorName(invoice)
   }))
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
@@ -50,9 +50,9 @@ const rows = computed(() => {
 const unmatchedCount = computed(() => rows.value.filter(row => row.invoice.matchStatus === 'unmatched').length)
 const disputedCount = computed(() => rows.value.filter(row => row.invoice.matchStatus === 'disputed').length)
 
-function markMatched(id: string) {
+function markMatched (id: string) {
   const result = updateSupplierInvoiceMatchStatus(id, 'matched', currentUser.value.id)
-  if (result) showToast('Supplier Invoice Matched', `${result.id} kini berstatus "Matched".`, 'success')
+  if (result) { showToast('Supplier Invoice Matched', `${result.id} kini berstatus "Matched".`, 'success') }
 }
 
 /* Flag Disputed */
@@ -60,17 +60,17 @@ const isDisputeOpen = ref(false)
 const disputeTargetId = ref('')
 const disputeNote = ref('')
 
-function openDisputeDialog(id: string) {
+function openDisputeDialog (id: string) {
   disputeTargetId.value = id
   disputeNote.value = ''
   isDisputeOpen.value = true
 }
 
-function submitDispute() {
-  if (!disputeTargetId.value || !disputeNote.value.trim()) return
+function submitDispute () {
+  if (!disputeTargetId.value || !disputeNote.value.trim()) { return }
   const result = updateSupplierInvoiceMatchStatus(disputeTargetId.value, 'disputed', currentUser.value.id, disputeNote.value.trim())
   isDisputeOpen.value = false
-  if (result) showToast('Supplier Invoice Disputed', `${result.id} ditandai "Disputed".`, 'info')
+  if (result) { showToast('Supplier Invoice Disputed', `${result.id} ditandai "Disputed".`, 'info') }
 }
 </script>
 
@@ -106,16 +106,28 @@ function submitDispute() {
               <TableHead>Jadwal Pembayaran</TableHead>
               <TableHead>Status Invoice</TableHead>
               <TableHead>Match Status</TableHead>
-              <TableHead v-if="canManageFinance">Aksi</TableHead>
+              <TableHead v-if="canManageFinance">
+                Aksi
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-for="row in rows" :key="row.invoice.id">
-              <TableCell class="font-medium text-foreground">{{ row.invoice.id }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.vendorLabel }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.project?.name ?? '—' }}</TableCell>
-              <TableCell class="text-foreground">{{ formatCurrencyIdr(row.invoice.amountIdr) }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.invoice.paymentScheduleDate ? formatDate(row.invoice.paymentScheduleDate) : 'Belum dijadwalkan' }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ row.invoice.id }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.vendorLabel }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.project?.name ?? '—' }}
+              </TableCell>
+              <TableCell class="text-foreground">
+                {{ formatCurrencyIdr(row.invoice.amountIdr) }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.invoice.paymentScheduleDate ? formatDate(row.invoice.paymentScheduleDate) : 'Belum dijadwalkan' }}
+              </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, row.invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, row.invoice.status).tone" /></TableCell>
               <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, row.invoice.matchStatus!).label" :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, row.invoice.matchStatus!).tone" /></TableCell>
               <TableCell v-if="canManageFinance">
@@ -123,7 +135,9 @@ function submitDispute() {
                   <Button size="sm" variant="outline" @click="markMatched(row.invoice.id)">
                     <CheckCircle2 class="h-3.5 w-3.5 mr-1" />Mark Matched
                   </Button>
-                  <Button v-if="row.invoice.matchStatus !== 'disputed'" size="sm" variant="ghost" @click="openDisputeDialog(row.invoice.id)">Flag Disputed</Button>
+                  <Button v-if="row.invoice.matchStatus !== 'disputed'" size="sm" variant="ghost" @click="openDisputeDialog(row.invoice.id)">
+                    Flag Disputed
+                  </Button>
                 </div>
               </TableCell>
             </TableRow>
@@ -146,8 +160,12 @@ function submitDispute() {
           <Input id="dispute-note" v-model="disputeNote" placeholder="mis. Jumlah tidak sesuai Service Order, menunggu konfirmasi vendor" />
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="isDisputeOpen = false">Batal</Button>
-          <Button variant="destructive" :disabled="!disputeNote.trim()" @click="submitDispute">Konfirmasi</Button>
+          <Button variant="outline" @click="isDisputeOpen = false">
+            Batal
+          </Button>
+          <Button variant="destructive" :disabled="!disputeNote.trim()" @click="submitDispute">
+            Konfirmasi
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

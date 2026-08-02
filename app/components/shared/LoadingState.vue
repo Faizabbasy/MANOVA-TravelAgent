@@ -4,7 +4,7 @@ withDefaults(defineProps<{
   rows?: number
 }>(), {
   message: 'Memuat data...',
-  rows: 3,
+  rows: 3
 })
 </script>
 

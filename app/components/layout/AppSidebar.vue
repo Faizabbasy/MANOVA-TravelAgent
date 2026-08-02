@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, reactive } from 'vue'
-import { cn } from '~/lib/utils'
 import {
   Search,
   ChevronDown,
@@ -8,8 +7,9 @@ import {
   User,
   PanelLeftClose,
   PanelLeftOpen,
-  Plane,
+  Plane
 } from 'lucide-vue-next'
+import { cn } from '~/lib/utils'
 import { NAV_ITEMS, type NavItem } from '~/constants/navigation'
 
 const route = useRoute()
@@ -25,16 +25,16 @@ const handleLogout = () => {
 }
 
 /** `roles` (Prompt 19) — narrow override, dicek DULU (menggantikan `moduleKey`) bila diisi; selain itu perilaku identik sebelumnya. */
-function isNavItemVisible(item: NavItem) {
-  if (item.roles) return item.roles.includes(currentRole.value)
+function isNavItemVisible (item: NavItem) {
+  if (item.roles) { return item.roles.includes(currentRole.value) }
   return !item.moduleKey || canView(item.moduleKey)
 }
 
 const visibleItems = computed(() =>
   NAV_ITEMS.filter(isNavItemVisible).map(item => ({
     ...item,
-    children: item.children?.filter(isNavItemVisible),
-  })),
+    children: item.children?.filter(isNavItemVisible)
+  }))
 )
 
 const isActive = (to: string) => route.path === to
@@ -42,11 +42,11 @@ const isSectionActive = (item: NavItem) =>
   route.path === item.to || Boolean(item.children?.some(child => route.path === child.to))
 
 const expanded = reactive<Record<string, boolean>>({})
-function isExpanded(item: NavItem) {
-  if (item.label in expanded) return expanded[item.label]
+function isExpanded (item: NavItem) {
+  if (item.label in expanded) { return expanded[item.label] }
   return isSectionActive(item)
 }
-function toggleExpanded(item: NavItem) {
+function toggleExpanded (item: NavItem) {
   expanded[item.label] = !isExpanded(item)
 }
 </script>
@@ -60,7 +60,8 @@ function toggleExpanded(item: NavItem) {
       )"
     >
       <!-- Logo + Toggle -->
-      <div class="h-16 flex items-center border-b border-border shrink-0"
+      <div
+        class="h-16 flex items-center border-b border-border shrink-0"
         :class="isCollapsed ? 'justify-center px-0' : 'px-4 gap-2'"
       >
         <div v-if="!isCollapsed" class="flex items-center gap-2 flex-1 min-w-0">
@@ -73,12 +74,12 @@ function toggleExpanded(item: NavItem) {
           <Plane class="h-4 w-4" />
         </div>
         <button
-          @click="toggle"
           :class="cn(
             'p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground shrink-0',
             isCollapsed && 'mx-auto'
           )"
           :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          @click="toggle"
         >
           <PanelLeftClose v-if="!isCollapsed" class="h-5 w-5" />
           <PanelLeftOpen v-else class="h-5 w-5" />
@@ -102,7 +103,9 @@ function toggleExpanded(item: NavItem) {
               <Search class="h-4 w-4 text-muted-foreground" />
             </button>
           </TooltipTrigger>
-          <TooltipContent side="right">Search</TooltipContent>
+          <TooltipContent side="right">
+            Search
+          </TooltipContent>
         </Tooltip>
       </div>
 
@@ -125,7 +128,9 @@ function toggleExpanded(item: NavItem) {
                   <component :is="item.icon" class="h-4 w-4" />
                 </NuxtLink>
               </TooltipTrigger>
-              <TooltipContent side="right">{{ item.label }}</TooltipContent>
+              <TooltipContent side="right">
+                {{ item.label }}
+              </TooltipContent>
             </Tooltip>
 
             <!-- Expanded: full link, with optional nested children -->
@@ -146,8 +151,8 @@ function toggleExpanded(item: NavItem) {
                 </NuxtLink>
                 <button
                   v-if="item.children?.length"
-                  @click="toggleExpanded(item)"
                   class="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  @click="toggleExpanded(item)"
                 >
                   <ChevronDown :class="cn('h-3.5 w-3.5 transition-transform', isExpanded(item) && 'rotate-180')" />
                 </button>
@@ -190,8 +195,12 @@ function toggleExpanded(item: NavItem) {
               <PopoverContent class="w-56 p-0" align="end" side="top" :side-offset="8">
                 <div class="p-2">
                   <div class="px-2 py-2">
-                    <p class="text-sm font-medium text-foreground">{{ currentUser.name }}</p>
-                    <p class="text-xs text-muted-foreground">{{ currentUser.email }}</p>
+                    <p class="text-sm font-medium text-foreground">
+                      {{ currentUser.name }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ currentUser.email }}
+                    </p>
                   </div>
                   <Separator class="my-2" />
                   <button
@@ -212,7 +221,9 @@ function toggleExpanded(item: NavItem) {
               </PopoverContent>
             </Popover>
           </TooltipTrigger>
-          <TooltipContent side="right">{{ currentUser.name }}</TooltipContent>
+          <TooltipContent side="right">
+            {{ currentUser.name }}
+          </TooltipContent>
         </Tooltip>
 
         <!-- Expanded: full profile -->
@@ -223,8 +234,12 @@ function toggleExpanded(item: NavItem) {
                 <AvatarFallback>{{ currentUser.name.slice(0, 2).toUpperCase() }}</AvatarFallback>
               </Avatar>
               <div class="flex-1 min-w-0">
-                <p class="text-sm font-bold text-foreground truncate">{{ currentUser.name }}</p>
-                <p class="text-xs text-muted-foreground truncate">{{ currentUser.email }}</p>
+                <p class="text-sm font-bold text-foreground truncate">
+                  {{ currentUser.name }}
+                </p>
+                <p class="text-xs text-muted-foreground truncate">
+                  {{ currentUser.email }}
+                </p>
               </div>
               <ChevronDown class="h-4 w-4 text-muted-foreground" />
             </div>
@@ -232,8 +247,12 @@ function toggleExpanded(item: NavItem) {
           <PopoverContent class="w-56 p-0" align="end" side="top" :side-offset="8">
             <div class="p-2">
               <div class="px-2 py-2">
-                <p class="text-sm font-medium text-foreground">{{ currentUser.name }}</p>
-                <p class="text-xs text-muted-foreground">{{ currentUser.email }}</p>
+                <p class="text-sm font-medium text-foreground">
+                  {{ currentUser.name }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ currentUser.email }}
+                </p>
               </div>
               <Separator class="my-2" />
               <button

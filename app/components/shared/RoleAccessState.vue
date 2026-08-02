@@ -4,7 +4,7 @@ import { ShieldAlert } from 'lucide-vue-next'
 withDefaults(defineProps<{
   moduleLabel?: string
 }>(), {
-  moduleLabel: 'modul ini',
+  moduleLabel: 'modul ini'
 })
 </script>
 

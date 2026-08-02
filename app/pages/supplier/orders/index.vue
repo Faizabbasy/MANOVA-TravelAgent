@@ -14,7 +14,7 @@ const vendor = computed(() => (vendorScopeId.value ? getVendorById(vendorScopeId
 const assignments = computed(() => (vendorScopeId.value ? getServicesByVendor(vendorScopeId.value) : []))
 const quotations = computed(() => (vendorScopeId.value ? getVendorQuotations(vendorScopeId.value) : []))
 
-function projectLabel(projectId: string) {
+function projectLabel (projectId: string) {
   return getProjectById(projectId)?.name ?? projectId
 }
 </script>
@@ -42,12 +42,20 @@ function projectLabel(projectId: string) {
           </TableHeader>
           <TableBody>
             <TableRow v-for="service in assignments" :key="service.id">
-              <TableCell class="text-muted-foreground">{{ projectLabel(service.projectId) }}</TableCell>
-              <TableCell class="font-medium text-foreground">{{ service.label }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ projectLabel(service.projectId) }}
+              </TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ service.label }}
+              </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(SERVICE_STATUSES, service.status).label" :tone="findStatusOption(SERVICE_STATUSES, service.status).tone" /></TableCell>
-              <TableCell class="text-muted-foreground">{{ service.bookingReference ?? '—' }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ service.bookingReference ?? '—' }}
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="assignments.length === 0" :colspan="4">Belum ada assignment.</TableEmpty>
+            <TableEmpty v-if="assignments.length === 0" :colspan="4">
+              Belum ada assignment.
+            </TableEmpty>
           </TableBody>
         </Table>
       </SectionCard>
@@ -65,13 +73,23 @@ function projectLabel(projectId: string) {
           </TableHeader>
           <TableBody>
             <TableRow v-for="quotation in quotations" :key="quotation.id">
-              <TableCell class="text-muted-foreground">{{ projectLabel(quotation.projectId) }}</TableCell>
-              <TableCell class="font-medium text-foreground">{{ formatCurrencyIdr(quotation.amountIdr) }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ projectLabel(quotation.projectId) }}
+              </TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ formatCurrencyIdr(quotation.amountIdr) }}
+              </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).label" :tone="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).tone" /></TableCell>
-              <TableCell class="text-muted-foreground">{{ formatDate(quotation.submittedAt) }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ quotation.notes ?? '—' }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ formatDate(quotation.submittedAt) }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ quotation.notes ?? '—' }}
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="quotations.length === 0" :colspan="5">Belum ada quotation.</TableEmpty>
+            <TableEmpty v-if="quotations.length === 0" :colspan="5">
+              Belum ada quotation.
+            </TableEmpty>
           </TableBody>
         </Table>
       </SectionCard>

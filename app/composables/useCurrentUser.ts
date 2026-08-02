@@ -11,7 +11,7 @@ let hydrated = false
  * Current user & role mock (Prompt 5-I). Satu source of truth reactive, tanpa authentication backend.
  * Dipakai bersama oleh navigation visibility, dashboard, dan role switcher di halaman Settings.
  */
-export function useCurrentUser() {
+export function useCurrentUser () {
   if (process.client && !hydrated) {
     hydrated = true
     const stored = localStorage.getItem(STORAGE_KEY)
@@ -23,8 +23,8 @@ export function useCurrentUser() {
   const currentUser = computed(() => getUserById(currentUserId.value) ?? USERS[0])
   const currentRole = computed<RoleId>(() => currentUser.value.role)
 
-  function setCurrentUser(userId: string) {
-    if (!getUserById(userId)) return
+  function setCurrentUser (userId: string) {
+    if (!getUserById(userId)) { return }
     currentUserId.value = userId
     if (process.client) {
       localStorage.setItem(STORAGE_KEY, userId)
@@ -35,6 +35,6 @@ export function useCurrentUser() {
     users: USERS,
     currentUser,
     currentRole,
-    setCurrentUser,
+    setCurrentUser
   }
 }

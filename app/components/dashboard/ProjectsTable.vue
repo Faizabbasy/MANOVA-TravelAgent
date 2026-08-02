@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { cn } from '~/lib/utils'
 import { MoreHorizontal, TrendingUp, TrendingDown, Minus } from 'lucide-vue-next'
+import { cn } from '~/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
@@ -10,7 +10,7 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
+  TableRow
 } from '@/components/ui/table'
 
 const projects = [
@@ -22,7 +22,7 @@ const projects = [
     spent: 38500,
     status: 'on-track',
     progress: 72,
-    health: 'healthy',
+    health: 'healthy'
   },
   {
     id: 'PRJ-002',
@@ -32,7 +32,7 @@ const projects = [
     spent: 92000,
     status: 'over-budget',
     progress: 85,
-    health: 'at-risk',
+    health: 'at-risk'
   },
   {
     id: 'PRJ-003',
@@ -42,7 +42,7 @@ const projects = [
     spent: 48000,
     status: 'on-track',
     progress: 58,
-    health: 'healthy',
+    health: 'healthy'
   },
   {
     id: 'PRJ-004',
@@ -52,7 +52,7 @@ const projects = [
     spent: 35500,
     status: 'at-risk',
     progress: 45,
-    health: 'warning',
+    health: 'warning'
   },
   {
     id: 'PRJ-005',
@@ -62,20 +62,20 @@ const projects = [
     spent: 24000,
     status: 'on-track',
     progress: 92,
-    health: 'healthy',
-  },
+    health: 'healthy'
+  }
 ]
 
 const statusConfig = {
   'on-track': { label: 'On Track', className: 'bg-success/10 text-success hover:bg-success/20' },
   'at-risk': { label: 'At Risk', className: 'bg-warning/10 text-warning hover:bg-warning/20' },
-  'over-budget': { label: 'Over Budget', className: 'bg-destructive/10 text-destructive hover:bg-destructive/20' },
+  'over-budget': { label: 'Over Budget', className: 'bg-destructive/10 text-destructive hover:bg-destructive/20' }
 }
 
 const healthConfig = {
   healthy: { icon: TrendingUp, className: 'text-success' },
   warning: { icon: Minus, className: 'text-warning' },
-  'at-risk': { icon: TrendingDown, className: 'text-destructive' },
+  'at-risk': { icon: TrendingDown, className: 'text-destructive' }
 }
 </script>
 
@@ -84,10 +84,16 @@ const healthConfig = {
     <div class="p-6 border-b border-border">
       <div class="flex items-center justify-between">
         <div>
-          <h3 class="text-lg font-semibold text-foreground">Active Projects</h3>
-          <p class="text-sm text-muted-foreground mt-1">Monitor project health and performance</p>
+          <h3 class="text-lg font-semibold text-foreground">
+            Active Projects
+          </h3>
+          <p class="text-sm text-muted-foreground mt-1">
+            Monitor project health and performance
+          </p>
         </div>
-        <Button variant="outline" size="sm">View All</Button>
+        <Button variant="outline" size="sm">
+          View All
+        </Button>
       </div>
     </div>
 
@@ -95,13 +101,27 @@ const healthConfig = {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Project</TableHead>
-            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Client</TableHead>
-            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Budget</TableHead>
-            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Spent</TableHead>
-            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Progress</TableHead>
-            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Status</TableHead>
-            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">Health</TableHead>
+            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">
+              Project
+            </TableHead>
+            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">
+              Client
+            </TableHead>
+            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">
+              Budget
+            </TableHead>
+            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">
+              Spent
+            </TableHead>
+            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">
+              Progress
+            </TableHead>
+            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">
+              Status
+            </TableHead>
+            <TableHead class="text-xs font-medium text-muted-foreground uppercase tracking-wider px-6 py-4">
+              Health
+            </TableHead>
             <TableHead class="px-6 py-4" />
           </TableRow>
         </TableHeader>
@@ -113,8 +133,12 @@ const healthConfig = {
           >
             <TableCell class="px-6 py-4">
               <div>
-                <p class="text-sm font-medium text-foreground">{{ project.name }}</p>
-                <p class="text-xs text-muted-foreground">{{ project.id }}</p>
+                <p class="text-sm font-medium text-foreground">
+                  {{ project.name }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ project.id }}
+                </p>
               </div>
             </TableCell>
             <TableCell class="px-6 py-4">
@@ -124,10 +148,12 @@ const healthConfig = {
               <span class="text-sm font-medium text-foreground">${{ project.budget.toLocaleString() }}</span>
             </TableCell>
             <TableCell class="px-6 py-4">
-              <span :class="cn(
-                'text-sm font-medium',
-                project.spent > project.budget ? 'text-destructive' : 'text-foreground'
-              )">
+              <span
+                :class="cn(
+                  'text-sm font-medium',
+                  project.spent > project.budget ? 'text-destructive' : 'text-foreground'
+                )"
+              >
                 ${{ project.spent.toLocaleString() }}
               </span>
             </TableCell>

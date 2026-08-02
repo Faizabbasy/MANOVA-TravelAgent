@@ -20,7 +20,7 @@ export const ROLES: StatusOption<RoleId>[] = [
   { value: 'finance', label: 'Finance', tone: 'success', order: 13 },
   { value: 'viewer', label: 'Viewer / Auditor', tone: 'neutral', order: 14 },
   { value: 'client', label: 'Client', tone: 'warning', order: 15 },
-  { value: 'supplier', label: 'Supplier', tone: 'warning', order: 16 },
+  { value: 'supplier', label: 'Supplier', tone: 'warning', order: 16 }
 ]
 
 /**
@@ -74,10 +74,10 @@ export const ROLE_MODULE_ACCESS: Record<RoleId, Record<ModuleKey, PermissionLeve
   /** Client (baru, Section 02) — External Partner, tidak punya akses modul internal apa pun (Prompt 0-H/Protokol: "Jangan menampilkan internal cost/margin kepada Client"); seluruh visibilitas dibatasi ke `client-portal`, diisolasi per `clientPartyId` (`usePermissions().clientScopeId`, pola identik `vendorScopeId`). Shell minimal (`/client`) dibangun Section 02; fitur penuh (quotation confirm, document, dst.) menjadi tanggung jawab Section 08. `product-planning`/`ticketing`/`procurement`/`bookings` `NONE` — internal costing/lifecycle/sourcing/orchestration tidak boleh terlihat Client (Wajib literal). */
   client: { crm: 'NONE', project: 'NONE', vendor: 'NONE', finance: 'NONE', reports: 'NONE', administration: 'NONE', 'supplier-portal': 'NONE', 'client-portal': 'MANAGE', 'product-planning': 'NONE', ticketing: 'NONE', accommodation: 'NONE', transportation: 'NONE', mice: 'NONE', procurement: 'NONE', bookings: 'NONE', changes: 'NONE', documents: 'NONE' },
   /** Supplier (Prompt 19) — External Partner, tidak punya akses modul internal apa pun; seluruh visibilitas dibatasi ke `supplier-portal` dan diisolasi lebih lanjut per `vendorId` (`usePermissions`/halaman `/supplier/*`), BUKAN lewat `vendor`/`procurement` module (yang tetap "internal, lihat semua vendor/RFQ"). RFQ/Service Order/Invoice milik Supplier tetap diakses lewat `supplier-portal` (`/supplier/rfq`, `/supplier/service-orders`), bukan `procurement`. `bookings` `NONE` — modul internal Operations, tidak relevan untuk Supplier. */
-  supplier: { crm: 'NONE', project: 'NONE', vendor: 'NONE', finance: 'NONE', reports: 'NONE', administration: 'NONE', 'supplier-portal': 'MANAGE', 'client-portal': 'NONE', 'product-planning': 'NONE', ticketing: 'NONE', accommodation: 'NONE', transportation: 'NONE', mice: 'NONE', procurement: 'NONE', bookings: 'NONE', changes: 'NONE', documents: 'NONE' },
+  supplier: { crm: 'NONE', project: 'NONE', vendor: 'NONE', finance: 'NONE', reports: 'NONE', administration: 'NONE', 'supplier-portal': 'MANAGE', 'client-portal': 'NONE', 'product-planning': 'NONE', ticketing: 'NONE', accommodation: 'NONE', transportation: 'NONE', mice: 'NONE', procurement: 'NONE', bookings: 'NONE', changes: 'NONE', documents: 'NONE' }
 }
 
 /** Role yang dapat melihat breakdown finansial penuh (Budget/Actual/Margin) — docs/route-and-role-matrix.md bagian 5.1. */
 export const FULL_FINANCIAL_VISIBILITY_ROLES: RoleId[] = [
-  'super-admin', 'management', 'finance', 'project-manager', 'viewer',
+  'super-admin', 'management', 'finance', 'project-manager', 'viewer'
 ]

@@ -1,15 +1,14 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Handshake, FolderKanban, PlaneTakeoff, Building2, Wallet, Receipt, Download, Save, X, Clock } from 'lucide-vue-next'
+import { Handshake, FolderKanban, Building2, Wallet, Receipt, Download, Save, X, Clock } from 'lucide-vue-next'
 import {
   PROJECTS, OPPORTUNITIES, QUOTATIONS, VENDOR_QUOTATIONS, INVOICES,
   getProjectById, getProjectServices, getServicesForProjects, getVendorById,
   getCommittedVendorCostIdr, getInvoiceOutstandingIdr,
-  getSavedViewsForUser, createSavedView, deleteSavedView, applySavedView,
+  getSavedViewsForUser, createSavedView, deleteSavedView, applySavedView
 } from '~/data'
 import {
-  PROJECT_STATUSES, PROJECT_CHARACTERISTICS, OPPORTUNITY_STAGES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES,
-  findStatusOption,
+  PROJECT_STATUSES, PROJECT_CHARACTERISTICS, OPPORTUNITY_STAGES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatPercentage, daysUntil } from '~/utils/format'
 import { isUpcomingDeparture, invoiceAgingDays, DEMO_REFERENCE_DATE } from '~/utils/attention'
@@ -34,7 +33,7 @@ const { showToast } = useToast()
  */
 const isLoading = ref(false)
 
-function visibleTo(...roles: RoleId[]) {
+function visibleTo (...roles: RoleId[]) {
   return computed(() => roles.includes(currentRole.value))
 }
 
@@ -45,10 +44,10 @@ const statusFilter = ref<'all' | Project['status']>('all')
 const typeFilter = ref<'all' | Project['characteristic']>('all')
 const periodFilter = ref<'all' | '30' | '60' | '90'>('all')
 
-function matchesFilters(project: Project): boolean {
-  if (statusFilter.value !== 'all' && project.status !== statusFilter.value) return false
-  if (typeFilter.value !== 'all' && project.characteristic !== typeFilter.value) return false
-  if (periodFilter.value !== 'all' && daysUntil(project.travelStartDate, DEMO_REFERENCE_DATE) > Number(periodFilter.value)) return false
+function matchesFilters (project: Project): boolean {
+  if (statusFilter.value !== 'all' && project.status !== statusFilter.value) { return false }
+  if (typeFilter.value !== 'all' && project.characteristic !== typeFilter.value) { return false }
+  if (periodFilter.value !== 'all' && daysUntil(project.travelStartDate, DEMO_REFERENCE_DATE) > Number(periodFilter.value)) { return false }
   return true
 }
 
@@ -64,30 +63,30 @@ const mySavedViews = computed(() => getSavedViewsForUser(currentUser.value.id, '
 const isSaveViewOpen = ref(false)
 const newViewLabel = ref('')
 
-function submitSaveView() {
+function submitSaveView () {
   const label = newViewLabel.value.trim()
-  if (!label) return
+  if (!label) { return }
   createSavedView({
     userId: currentUser.value.id,
     page: 'reports',
     label,
-    filters: { status: statusFilter.value, type: typeFilter.value, period: periodFilter.value },
+    filters: { status: statusFilter.value, type: typeFilter.value, period: periodFilter.value }
   })
   showToast('Saved View Disimpan', `"${label}" tersimpan — dapat diterapkan ulang kapan saja.`, 'success')
   newViewLabel.value = ''
   isSaveViewOpen.value = false
 }
 
-function applyView(id: string) {
+function applyView (id: string) {
   const view = applySavedView(id)
-  if (!view) return
+  if (!view) { return }
   statusFilter.value = (view.filters.status ?? 'all') as typeof statusFilter.value
   typeFilter.value = (view.filters.type ?? 'all') as typeof typeFilter.value
   periodFilter.value = (view.filters.period ?? 'all') as typeof periodFilter.value
   showToast('Saved View Diterapkan', `Filter "${view.label}" diterapkan.`, 'success')
 }
 
-function removeView(id: string, label: string) {
+function removeView (id: string, label: string) {
   deleteSavedView(id)
   showToast('Saved View Dihapus', `"${label}" telah dihapus.`, 'info')
 }
@@ -104,13 +103,13 @@ const EXPORT_SECTIONS = [
   { key: 'budget-margin', label: 'Budget vs Actual dan Margin' },
   { key: 'invoice-aging', label: 'Invoice Aging dan Outstanding' },
   { key: 'sla-quotation-performance', label: 'SLA dan Quotation Performance' },
-  { key: 'full-report', label: 'Seluruh Laporan' },
+  { key: 'full-report', label: 'Seluruh Laporan' }
 ]
 const isExportOpen = ref(false)
 const exportSectionKey = ref(EXPORT_SECTIONS[EXPORT_SECTIONS.length - 1].key)
 const exportFormat = ref<'csv' | 'pdf'>('csv')
 
-function submitExport() {
+function submitExport () {
   const section = EXPORT_SECTIONS.find(item => item.key === exportSectionKey.value)
   const filename = `${exportSectionKey.value}-${DEMO_REFERENCE_DATE}.${exportFormat.value}`
   showToast('Export Disiapkan', `${filename} — bagian "${section?.label}" (mock, tidak ada file yang benar-benar dihasilkan).`, 'success')
@@ -143,7 +142,7 @@ const salesPipelineItems = computed<StatusBreakdownItem[]>(() => {
   return OPPORTUNITY_STAGES
     .filter(stage => byStage.has(stage.value))
     .sort((a, b) => a.order - b.order)
-    .map(stage => {
+    .map((stage) => {
       const entry = byStage.get(stage.value)!
       return { key: stage.value, label: stage.label, tone: stage.tone, count: entry.count, secondaryLabel: entry.value > 0 ? formatCurrencyIdr(entry.value) : undefined }
     })
@@ -156,12 +155,12 @@ const activeProjectCount = computed(() => filteredProjects.value.filter(p => !['
 const completedProjectCount = computed(() => filteredProjects.value.filter(p => p.status === 'completed').length)
 const onHoldProjectCount = computed(() => filteredProjects.value.filter(p => p.status === 'on-hold').length)
 const avgTravelerCount = computed(() => {
-  if (filteredProjects.value.length === 0) return 0
+  if (filteredProjects.value.length === 0) { return 0 }
   return Math.round(filteredProjects.value.reduce((sum, p) => sum + p.travelerCount, 0) / filteredProjects.value.length)
 })
 const projectsByStatusItems = computed<StatusBreakdownItem[]>(() => {
   const byStatus = new Map<string, number>()
-  for (const project of filteredProjects.value) byStatus.set(project.status, (byStatus.get(project.status) ?? 0) + 1)
+  for (const project of filteredProjects.value) { byStatus.set(project.status, (byStatus.get(project.status) ?? 0) + 1) }
   return PROJECT_STATUSES
     .filter(status => byStatus.has(status.value))
     .sort((a, b) => a.order - b.order)
@@ -169,7 +168,7 @@ const projectsByStatusItems = computed<StatusBreakdownItem[]>(() => {
 })
 const projectsByCharacteristicItems = computed<StatusBreakdownItem[]>(() => {
   const byChar = new Map<string, number>()
-  for (const project of filteredProjects.value) byChar.set(project.characteristic, (byChar.get(project.characteristic) ?? 0) + 1)
+  for (const project of filteredProjects.value) { byChar.set(project.characteristic, (byChar.get(project.characteristic) ?? 0) + 1) }
   return PROJECT_CHARACTERISTICS
     .filter(type => byChar.has(type.value))
     .sort((a, b) => a.order - b.order)
@@ -182,20 +181,20 @@ const projectsByCharacteristicItems = computed<StatusBreakdownItem[]>(() => {
 const upcomingDepartureProjects = computed(() =>
   filteredProjects.value
     .filter(project => isUpcomingDeparture(project))
-    .sort((a, b) => daysUntil(a.travelStartDate, DEMO_REFERENCE_DATE) - daysUntil(b.travelStartDate, DEMO_REFERENCE_DATE)),
+    .sort((a, b) => daysUntil(a.travelStartDate, DEMO_REFERENCE_DATE) - daysUntil(b.travelStartDate, DEMO_REFERENCE_DATE))
 )
 const serviceReadinessItems = computed<StatusBreakdownItem[]>(() => {
   const services = getServicesForProjects(filteredProjectIds.value)
   const byStatus = new Map<string, number>()
-  for (const service of services) byStatus.set(service.status, (byStatus.get(service.status) ?? 0) + 1)
+  for (const service of services) { byStatus.set(service.status, (byStatus.get(service.status) ?? 0) + 1) }
   return SERVICE_STATUSES
     .filter(status => byStatus.has(status.value))
     .sort((a, b) => a.order - b.order)
     .map(status => ({ key: status.value, label: status.label, tone: status.tone, count: byStatus.get(status.value)! }))
 })
-function readinessFraction(projectId: string): string {
+function readinessFraction (projectId: string): string {
   const services = getProjectServices(projectId)
-  if (services.length === 0) return '0/0'
+  if (services.length === 0) { return '0/0' }
   const confirmed = services.filter(service => ['confirmed', 'completed'].includes(service.status)).length
   return `${confirmed}/${services.length}`
 }
@@ -206,7 +205,7 @@ function readinessFraction(projectId: string): string {
 const scopedVendorQuotations = computed(() => VENDOR_QUOTATIONS.filter(q => filteredProjectIds.value.includes(q.projectId)))
 const vendorQuotationStatusItems = computed<StatusBreakdownItem[]>(() => {
   const byStatus = new Map<string, number>()
-  for (const quotation of scopedVendorQuotations.value) byStatus.set(quotation.status, (byStatus.get(quotation.status) ?? 0) + 1)
+  for (const quotation of scopedVendorQuotations.value) { byStatus.set(quotation.status, (byStatus.get(quotation.status) ?? 0) + 1) }
   return VENDOR_QUOTATION_STATUSES
     .filter(status => byStatus.has(status.value))
     .sort((a, b) => a.order - b.order)
@@ -217,7 +216,7 @@ const activeVendorCount = computed(() => new Set(scopedVendorQuotations.value.fi
 const topVendorRows = computed(() => {
   const byVendor = new Map<string, { vendorId: string; committedIdr: number; assignments: number }>()
   for (const quotation of scopedVendorQuotations.value) {
-    if (quotation.status !== 'accepted') continue
+    if (quotation.status !== 'accepted') { continue }
     const entry = byVendor.get(quotation.vendorId) ?? { vendorId: quotation.vendorId, committedIdr: 0, assignments: 0 }
     entry.committedIdr += quotation.amountIdr
     entry.assignments += 1
@@ -250,9 +249,9 @@ const outstandingInvoiceRows = computed(() =>
       invoice,
       projectName: getProjectById(invoice.projectId)?.name ?? invoice.projectId,
       agingDays: invoiceAgingDays(invoice),
-      outstandingIdr: getInvoiceOutstandingIdr(invoice.id),
+      outstandingIdr: getInvoiceOutstandingIdr(invoice.id)
     }))
-    .sort((a, b) => a.agingDays - b.agingDays),
+    .sort((a, b) => a.agingDays - b.agingDays)
 )
 const totalOutstandingIdr = computed(() => outstandingInvoiceRows.value.reduce((sum, row) => sum + row.outstandingIdr, 0))
 const overdueInvoiceCount = computed(() => outstandingInvoiceRows.value.filter(row => row.agingDays < 0).length)
@@ -261,16 +260,16 @@ const AGING_BUCKETS = [
   { key: 'current', label: 'Belum Jatuh Tempo', tone: 'success' as const, test: (days: number) => days >= 0 },
   { key: 'b1-30', label: 'Overdue 1–30 Hari', tone: 'warning' as const, test: (days: number) => days < 0 && days >= -30 },
   { key: 'b31-60', label: 'Overdue 31–60 Hari', tone: 'warning' as const, test: (days: number) => days < -30 && days >= -60 },
-  { key: 'b60plus', label: 'Overdue 60+ Hari', tone: 'destructive' as const, test: (days: number) => days < -60 },
+  { key: 'b60plus', label: 'Overdue 60+ Hari', tone: 'destructive' as const, test: (days: number) => days < -60 }
 ]
 const invoiceAgingItems = computed<StatusBreakdownItem[]>(() =>
   AGING_BUCKETS
     .map(bucket => ({ key: bucket.key, label: bucket.label, tone: bucket.tone, count: outstandingInvoiceRows.value.filter(row => bucket.test(row.agingDays)).length }))
-    .filter(item => item.count > 0),
+    .filter(item => item.count > 0)
 )
-function agingLabel(days: number): string {
-  if (days < 0) return `${Math.abs(days)} hari overdue`
-  if (days === 0) return 'Jatuh tempo hari ini'
+function agingLabel (days: number): string {
+  if (days < 0) { return `${Math.abs(days)} hari overdue` }
+  if (days === 0) { return 'Jatuh tempo hari ini' }
   return `Jatuh tempo dalam ${days} hari`
 }
 
@@ -289,7 +288,7 @@ const QUOTATION_SLA_THRESHOLD_DAYS = 3
 const opportunityQuotationCycle = computed(() => OPPORTUNITIES
   .map((opportunity) => {
     const quotation = QUOTATIONS.find(q => q.opportunityId === opportunity.id)
-    if (!quotation) return null
+    if (!quotation) { return null }
     const cycleDays = daysUntil(quotation.createdAt, opportunity.createdAt)
     return { opportunity, quotation, cycleDays, withinSla: cycleDays <= QUOTATION_SLA_THRESHOLD_DAYS }
   })
@@ -297,12 +296,12 @@ const opportunityQuotationCycle = computed(() => OPPORTUNITIES
   .sort((a, b) => b.cycleDays - a.cycleDays))
 
 const avgQuotationCycleDays = computed(() => {
-  if (opportunityQuotationCycle.value.length === 0) return 0
+  if (opportunityQuotationCycle.value.length === 0) { return 0 }
   const sum = opportunityQuotationCycle.value.reduce((acc, row) => acc + row.cycleDays, 0)
   return Math.round((sum / opportunityQuotationCycle.value.length) * 10) / 10
 })
 const withinSlaPct = computed(() => {
-  if (opportunityQuotationCycle.value.length === 0) return 0
+  if (opportunityQuotationCycle.value.length === 0) { return 0 }
   return (opportunityQuotationCycle.value.filter(row => row.withinSla).length / opportunityQuotationCycle.value.length) * 100
 })
 const quotationsSentToClient = computed(() => QUOTATIONS.filter(q => q.sentToClientAt))
@@ -334,7 +333,9 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
       <template #actions>
         <Dialog v-model:open="isExportOpen">
           <DialogTrigger as-child>
-            <Button size="sm" variant="outline"><Download class="h-4 w-4 mr-1.5" />Export</Button>
+            <Button size="sm" variant="outline">
+              <Download class="h-4 w-4 mr-1.5" />Export
+            </Button>
           </DialogTrigger>
           <DialogContent class="max-w-sm">
             <DialogHeader>
@@ -345,20 +346,30 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
               <div class="space-y-1.5">
                 <Label for="export-section">Bagian</Label>
                 <select id="export-section" v-model="exportSectionKey" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="section in EXPORT_SECTIONS" :key="section.key" :value="section.key">{{ section.label }}</option>
+                  <option v-for="section in EXPORT_SECTIONS" :key="section.key" :value="section.key">
+                    {{ section.label }}
+                  </option>
                 </select>
               </div>
               <div class="space-y-1.5">
                 <Label for="export-format">Format</Label>
                 <select id="export-format" v-model="exportFormat" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="csv">CSV</option>
-                  <option value="pdf">PDF</option>
+                  <option value="csv">
+                    CSV
+                  </option>
+                  <option value="pdf">
+                    PDF
+                  </option>
                 </select>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isExportOpen = false">Batal</Button>
-              <Button @click="submitExport">Export</Button>
+              <Button variant="outline" @click="isExportOpen = false">
+                Batal
+              </Button>
+              <Button @click="submitExport">
+                Export
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -375,7 +386,9 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
           <template #actions>
             <Dialog v-model:open="isSaveViewOpen">
               <DialogTrigger as-child>
-                <Button size="sm" variant="outline"><Save class="h-4 w-4 mr-1.5" />Simpan View</Button>
+                <Button size="sm" variant="outline">
+                  <Save class="h-4 w-4 mr-1.5" />Simpan View
+                </Button>
               </DialogTrigger>
               <DialogContent class="max-w-sm">
                 <DialogHeader>
@@ -387,8 +400,12 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
                   <Input id="reports-view-label" v-model="newViewLabel" placeholder="mis. Project In Progress Kuartal Ini" />
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" @click="isSaveViewOpen = false">Batal</Button>
-                  <Button :disabled="!newViewLabel.trim()" @click="submitSaveView">Simpan</Button>
+                  <Button variant="outline" @click="isSaveViewOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!newViewLabel.trim()" @click="submitSaveView">
+                    Simpan
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -398,26 +415,42 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
             <Select v-model="statusFilter">
               <SelectTrigger><SelectValue placeholder="Status Project" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                <SelectItem v-for="status in PROJECT_STATUSES" :key="status.value" :value="status.value">{{ status.label }}</SelectItem>
+                <SelectItem value="all">
+                  Semua Status
+                </SelectItem>
+                <SelectItem v-for="status in PROJECT_STATUSES" :key="status.value" :value="status.value">
+                  {{ status.label }}
+                </SelectItem>
               </SelectContent>
             </Select>
 
             <Select v-model="typeFilter">
               <SelectTrigger><SelectValue placeholder="Tipe Project" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua Tipe</SelectItem>
-                <SelectItem v-for="type in PROJECT_CHARACTERISTICS" :key="type.value" :value="type.value">{{ type.label }}</SelectItem>
+                <SelectItem value="all">
+                  Semua Tipe
+                </SelectItem>
+                <SelectItem v-for="type in PROJECT_CHARACTERISTICS" :key="type.value" :value="type.value">
+                  {{ type.label }}
+                </SelectItem>
               </SelectContent>
             </Select>
 
             <Select v-model="periodFilter">
               <SelectTrigger><SelectValue placeholder="Periode Keberangkatan" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Semua Periode</SelectItem>
-                <SelectItem value="30">30 Hari ke Depan</SelectItem>
-                <SelectItem value="60">60 Hari ke Depan</SelectItem>
-                <SelectItem value="90">90 Hari ke Depan</SelectItem>
+                <SelectItem value="all">
+                  Semua Periode
+                </SelectItem>
+                <SelectItem value="30">
+                  30 Hari ke Depan
+                </SelectItem>
+                <SelectItem value="60">
+                  60 Hari ke Depan
+                </SelectItem>
+                <SelectItem value="90">
+                  90 Hari ke Depan
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -425,7 +458,9 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
           <div v-if="mySavedViews.length" class="mt-4 pt-4 border-t border-border flex flex-wrap items-center gap-2">
             <span class="text-xs text-muted-foreground shrink-0">Saved Views:</span>
             <div v-for="view in mySavedViews" :key="view.id" class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 pl-3 pr-1 py-1 text-xs">
-              <button type="button" class="text-foreground hover:underline" @click="applyView(view.id)">{{ view.label }}</button>
+              <button type="button" class="text-foreground hover:underline" @click="applyView(view.id)">
+                {{ view.label }}
+              </button>
               <button type="button" class="text-muted-foreground hover:text-destructive p-0.5" title="Hapus" @click="removeView(view.id, view.label)">
                 <X class="h-3 w-3" />
               </button>
@@ -464,11 +499,15 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
           </div>
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Berdasarkan Status</p>
+              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Berdasarkan Status
+              </p>
               <StatusBreakdownList :items="projectsByStatusItems" empty-label="Tidak ada project sesuai filter" />
             </div>
             <div>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Berdasarkan Tipe</p>
+              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Berdasarkan Tipe
+              </p>
               <StatusBreakdownList :items="projectsByCharacteristicItems" empty-label="Tidak ada project sesuai filter" />
             </div>
           </div>
@@ -478,12 +517,18 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
         <SectionCard v-if="showDepartureReadiness" title="Upcoming Departure dan Service Readiness" description="Keberangkatan dalam 30 hari ke depan dan status kesiapan layanan sesuai filter aktif.">
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Upcoming Departures</p>
+              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Upcoming Departures
+              </p>
               <ul v-if="upcomingDepartureProjects.length" class="divide-y divide-border">
                 <li v-for="project in upcomingDepartureProjects" :key="project.id" class="py-3 flex items-center justify-between gap-3">
                   <div class="min-w-0">
-                    <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:underline truncate block">{{ project.name }}</NuxtLink>
-                    <p class="text-xs text-muted-foreground truncate">{{ project.destination }} · {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}</p>
+                    <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:underline truncate block">
+                      {{ project.name }}
+                    </NuxtLink>
+                    <p class="text-xs text-muted-foreground truncate">
+                      {{ project.destination }} · {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
+                    </p>
                   </div>
                   <span class="text-xs text-muted-foreground shrink-0">Readiness {{ readinessFraction(project.id) }}</span>
                 </li>
@@ -491,7 +536,9 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
               <EmptyState v-else title="Tidak ada keberangkatan sesuai filter" />
             </div>
             <div>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Service Readiness</p>
+              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Service Readiness
+              </p>
               <StatusBreakdownList :items="serviceReadinessItems" empty-label="Tidak ada service sesuai filter" />
             </div>
           </div>
@@ -501,7 +548,9 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
         <SectionCard v-if="showVendorSummary" title="Vendor Summary" description="Status quotation vendor dan committed cost sesuai filter project aktif.">
           <template #actions>
             <NuxtLink to="/procurement/performance">
-              <Button size="sm" variant="outline">Procurement Performance Review</Button>
+              <Button size="sm" variant="outline">
+                Procurement Performance Review
+              </Button>
             </NuxtLink>
           </template>
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -511,11 +560,15 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
           </div>
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Status Quotation</p>
+              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Status Quotation
+              </p>
               <StatusBreakdownList :items="vendorQuotationStatusItems" empty-label="Tidak ada quotation vendor sesuai filter" />
             </div>
             <div>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Top Vendor (Committed Cost)</p>
+              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+                Top Vendor (Committed Cost)
+              </p>
               <Table v-if="topVendorRows.length">
                 <TableHeader>
                   <TableRow>
@@ -526,9 +579,13 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
                 </TableHeader>
                 <TableBody>
                   <TableRow v-for="row in topVendorRows" :key="row.vendorId" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/vendors/${row.vendorId}`)">
-                    <TableCell class="font-medium text-foreground">{{ row.vendor?.name ?? row.vendorId }}</TableCell>
+                    <TableCell class="font-medium text-foreground">
+                      {{ row.vendor?.name ?? row.vendorId }}
+                    </TableCell>
                     <TableCell>{{ formatCurrencyIdr(row.committedIdr) }}</TableCell>
-                    <TableCell class="text-muted-foreground">{{ row.assignments }}</TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.assignments }}
+                    </TableCell>
                   </TableRow>
                 </TableBody>
               </Table>
@@ -579,11 +636,19 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
                 class="cursor-pointer hover:bg-muted/50"
                 @click="navigateTo(`/projects/${row.invoice.projectId}?tab=finance`)"
               >
-                <TableCell class="font-medium text-foreground">{{ row.invoice.label }}</TableCell>
-                <TableCell class="text-muted-foreground">{{ row.projectName }}</TableCell>
+                <TableCell class="font-medium text-foreground">
+                  {{ row.invoice.label }}
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ row.projectName }}
+                </TableCell>
                 <TableCell>{{ formatCurrencyIdr(row.outstandingIdr) }}</TableCell>
-                <TableCell class="text-muted-foreground">{{ formatDate(row.invoice.dueAt) }}</TableCell>
-                <TableCell :class="row.agingDays < 0 ? 'text-destructive' : 'text-muted-foreground'">{{ agingLabel(row.agingDays) }}</TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ formatDate(row.invoice.dueAt) }}
+                </TableCell>
+                <TableCell :class="row.agingDays < 0 ? 'text-destructive' : 'text-muted-foreground'">
+                  {{ agingLabel(row.agingDays) }}
+                </TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -630,10 +695,18 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
                 class="cursor-pointer hover:bg-muted/50"
                 @click="navigateTo(`/crm/opportunities/${row.opportunity.id}`)"
               >
-                <TableCell class="font-medium text-foreground">{{ row.opportunity.title }}</TableCell>
-                <TableCell class="text-muted-foreground">{{ row.quotation.id }}</TableCell>
-                <TableCell class="text-muted-foreground">{{ formatDate(row.opportunity.createdAt) }}</TableCell>
-                <TableCell class="text-muted-foreground">{{ formatDate(row.quotation.createdAt) }}</TableCell>
+                <TableCell class="font-medium text-foreground">
+                  {{ row.opportunity.title }}
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ row.quotation.id }}
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ formatDate(row.opportunity.createdAt) }}
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ formatDate(row.quotation.createdAt) }}
+                </TableCell>
                 <TableCell>{{ row.cycleDays }} hari</TableCell>
                 <TableCell>
                   <StatusBadge :label="row.withinSla ? 'Dalam SLA' : 'Melebihi SLA'" :tone="row.withinSla ? 'success' : 'destructive'" />

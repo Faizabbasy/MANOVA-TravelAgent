@@ -29,11 +29,15 @@ export const BOOKING_ORCHESTRATION_RECORDS: BookingOrchestrationRecord[] = react
   // --- Flight (Section 13) ---
   { id: 'BKO-001', bookingType: 'flight', bookingId: 'FLT-1011', projectId: 'PRJ-101', paymentGateStatus: 'cleared', attemptLog: [] },
   {
-    id: 'BKO-002', bookingType: 'flight', bookingId: 'FLT-1021', projectId: 'PRJ-102', paymentGateStatus: 'pending',
+    id: 'BKO-002',
+    bookingType: 'flight',
+    bookingId: 'FLT-1021',
+    projectId: 'PRJ-102',
+    paymentGateStatus: 'pending',
     attemptLog: [
       { id: 'BKO-002-ATT-1', at: '2026-07-05T09:00', outcome: 'failed', note: 'Percobaan reissue otomatis ke sistem airline gagal — response timeout dari GDS mock saat menyesuaikan jadwal baru (lihat CHG-1021).' },
-      { id: 'BKO-002-ATT-2', at: '2026-07-05T10:30', outcome: 'manual-fallback', note: 'Reissue berhasil diproses manual oleh tim Ticketing lewat kontak langsung ke counter airline — tiket terbit dengan jadwal baru 22–26 Sep 2026.' },
-    ],
+      { id: 'BKO-002-ATT-2', at: '2026-07-05T10:30', outcome: 'manual-fallback', note: 'Reissue berhasil diproses manual oleh tim Ticketing lewat kontak langsung ke counter airline — tiket terbit dengan jadwal baru 22–26 Sep 2026.' }
+    ]
   },
   { id: 'BKO-003', bookingType: 'flight', bookingId: 'FLT-1031', projectId: 'PRJ-103', paymentGateStatus: 'cleared', attemptLog: [] },
   { id: 'BKO-004', bookingType: 'flight', bookingId: 'FLT-1032', projectId: 'PRJ-103', paymentGateStatus: 'not-required', attemptLog: [] },
@@ -47,20 +51,30 @@ export const BOOKING_ORCHESTRATION_RECORDS: BookingOrchestrationRecord[] = react
   { id: 'BKO-010', bookingType: 'hotel', bookingId: 'HTL-1034', projectId: 'PRJ-103', paymentGateStatus: 'not-required', attemptLog: [] },
   { id: 'BKO-011', bookingType: 'hotel', bookingId: 'HTL-1035', projectId: 'PRJ-103', paymentGateStatus: 'pending', attemptLog: [] },
   {
-    id: 'BKO-012', bookingType: 'hotel', bookingId: 'HTL-1036', projectId: 'PRJ-102', paymentGateStatus: 'not-required', attemptLog: [],
-    flaggedDuplicate: true,
+    id: 'BKO-012',
+    bookingType: 'hotel',
+    bookingId: 'HTL-1036',
+    projectId: 'PRJ-102',
+    paymentGateStatus: 'not-required',
+    attemptLog: [],
+    flaggedDuplicate: true
   },
 
   // --- Transport (Section 15) ---
   { id: 'BKO-013', bookingType: 'transport', bookingId: 'TRN-1034', projectId: 'PRJ-103', paymentGateStatus: 'pending', attemptLog: [] },
   {
-    id: 'BKO-014', bookingType: 'transport', bookingId: 'TRN-1035', projectId: 'PRJ-103', paymentGateStatus: 'pending', attemptLog: [],
-    dependsOn: [{ bookingType: 'hotel', bookingId: 'HTL-1034' }],
+    id: 'BKO-014',
+    bookingType: 'transport',
+    bookingId: 'TRN-1035',
+    projectId: 'PRJ-103',
+    paymentGateStatus: 'pending',
+    attemptLog: [],
+    dependsOn: [{ bookingType: 'hotel', bookingId: 'HTL-1034' }]
   },
   { id: 'BKO-015', bookingType: 'transport', bookingId: 'TRN-1036', projectId: 'PRJ-103', paymentGateStatus: 'cleared', attemptLog: [] },
   { id: 'BKO-016', bookingType: 'transport', bookingId: 'TRN-1037', projectId: 'PRJ-103', paymentGateStatus: 'not-required', attemptLog: [] },
   { id: 'BKO-017', bookingType: 'transport', bookingId: 'TRN-1038', projectId: 'PRJ-103', paymentGateStatus: 'not-required', attemptLog: [] },
 
   // --- MICE (Section 16) ---
-  { id: 'BKO-018', bookingType: 'mice', bookingId: 'MICE-1035', projectId: 'PRJ-103', paymentGateStatus: 'pending', attemptLog: [] },
+  { id: 'BKO-018', bookingType: 'mice', bookingId: 'MICE-1035', projectId: 'PRJ-103', paymentGateStatus: 'pending', attemptLog: [] }
 ])

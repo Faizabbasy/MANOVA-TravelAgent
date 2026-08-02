@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { Search } from 'lucide-vue-next'
 import { OPPORTUNITIES, QUOTATIONS, PARTIES, getPartyById, getQuotationByOpportunity } from '~/data'
 import { OPPORTUNITY_STAGES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
-import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
+import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -42,7 +42,7 @@ const rows = computed(() => {
     opportunity,
     party: getPartyById(opportunity.partyId),
     quotation: getQuotationByOpportunity(opportunity.id),
-    stage: findStatusOption(OPPORTUNITY_STAGES, opportunity.stage),
+    stage: findStatusOption(OPPORTUNITY_STAGES, opportunity.stage)
   }))
 
   if (searchQuery.value.trim()) {
@@ -84,15 +84,23 @@ const rows = computed(() => {
           v-model="stageFilter"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="all">Semua Stage</option>
-          <option v-for="stage in OPPORTUNITY_STAGES" :key="stage.value" :value="stage.value">{{ stage.label }}</option>
+          <option value="all">
+            Semua Stage
+          </option>
+          <option v-for="stage in OPPORTUNITY_STAGES" :key="stage.value" :value="stage.value">
+            {{ stage.label }}
+          </option>
         </select>
         <select
           v-model="partyFilter"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="all">Semua Party</option>
-          <option v-for="party in PARTIES" :key="party.id" :value="party.id">{{ party.name }}</option>
+          <option value="all">
+            Semua Party
+          </option>
+          <option v-for="party in PARTIES" :key="party.id" :value="party.id">
+            {{ party.name }}
+          </option>
         </select>
       </div>
 
@@ -116,10 +124,16 @@ const rows = computed(() => {
               class="cursor-pointer hover:bg-muted/50"
               @click="navigateTo(`/crm/opportunities/${row.opportunity.id}`)"
             >
-              <TableCell class="font-medium text-foreground">{{ row.opportunity.title }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.party?.name ?? '—' }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ row.opportunity.title }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.party?.name ?? '—' }}
+              </TableCell>
               <TableCell><StatusBadge :label="row.stage.label" :tone="row.stage.tone" /></TableCell>
-              <TableCell class="text-muted-foreground">{{ row.opportunity.destination }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.opportunity.destination }}
+              </TableCell>
               <TableCell>{{ formatCurrencyIdr(row.quotation ? row.quotation.amountIdr : row.opportunity.estimatedValueIdr) }}</TableCell>
               <TableCell>
                 <div class="flex flex-wrap gap-1">
@@ -131,7 +145,9 @@ const rows = computed(() => {
                   />
                 </div>
               </TableCell>
-              <TableCell class="text-muted-foreground">{{ formatDate(row.opportunity.createdAt) }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ formatDate(row.opportunity.createdAt) }}
+              </TableCell>
             </TableRow>
             <TableEmpty v-if="rows.length === 0" :colspan="7">
               {{ searchQuery || stageFilter !== 'all' || partyFilter !== 'all' ? 'Tidak ada opportunity yang cocok dengan filter.' : 'Belum ada opportunity.' }}

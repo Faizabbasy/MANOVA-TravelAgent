@@ -31,7 +31,7 @@ const rows = computed(() => {
   let result = prospects.value.map(party => ({
     party,
     primaryContact: getContactsByParty(party.id)[0],
-    activeOpportunityCount: getOpportunitiesByParty(party.id).filter(opp => !['won', 'lost'].includes(opp.stage)).length,
+    activeOpportunityCount: getOpportunitiesByParty(party.id).filter(opp => !['won', 'lost'].includes(opp.stage)).length
   }))
 
   if (searchQuery.value.trim()) {
@@ -50,8 +50,8 @@ const isCreateOpen = ref(false)
 const newName = ref('')
 const newIndustry = ref('')
 
-function submitCreate() {
-  if (!newName.value.trim()) return
+function submitCreate () {
+  if (!newName.value.trim()) { return }
   const party = createParty({ name: newName.value.trim(), industry: newIndustry.value.trim() || undefined })
   newName.value = ''
   newIndustry.value = ''
@@ -88,8 +88,12 @@ function submitCreate() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">Batal</Button>
-              <Button :disabled="!newName.trim()" @click="submitCreate">Simpan</Button>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newName.trim()" @click="submitCreate">
+                Simpan
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -108,8 +112,12 @@ function submitCreate() {
           v-model="sortBy"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="name">Urutkan: Nama (A-Z)</option>
-          <option value="created">Urutkan: Terbaru Dibuat</option>
+          <option value="name">
+            Urutkan: Nama (A-Z)
+          </option>
+          <option value="created">
+            Urutkan: Terbaru Dibuat
+          </option>
         </select>
       </div>
 
@@ -126,10 +134,16 @@ function submitCreate() {
           </TableHeader>
           <TableBody>
             <TableRow v-for="row in rows" :key="row.party.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/crm/parties/${row.party.id}`)">
-              <TableCell class="font-medium text-foreground">{{ row.party.name }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.primaryContact?.name ?? '—' }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ row.party.name }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.primaryContact?.name ?? '—' }}
+              </TableCell>
               <TableCell>{{ row.activeOpportunityCount }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ formatDate(row.party.createdAt) }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ formatDate(row.party.createdAt) }}
+              </TableCell>
               <TableCell><StatusBadge label="Prospect" tone="info" /></TableCell>
             </TableRow>
             <TableEmpty v-if="rows.length === 0" :colspan="5">

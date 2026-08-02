@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Wallet } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getOpportunityById, getQuotationByOpportunity, getUserById,
-  getActivitiesByProject, getDocumentsByProject,
+  getActivitiesByProject, getDocumentsByProject
 } from '~/data'
 import { PROJECT_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatTravelerCount } from '~/utils/format'
@@ -32,7 +32,7 @@ const documents = computed(() => (project.value ? getDocumentsByProject(project.
 const varianceIdr = computed(() => project.value ? project.value.budgetIdr - project.value.actualCostIdr : 0)
 
 const overviewMetadata = computed(() => {
-  if (!project.value) return []
+  if (!project.value) { return [] }
   return [
     { label: 'Client', value: party.value?.name ?? '—' },
     { label: 'Account Executive', value: accountExecutive.value?.name ?? '—' },
@@ -41,7 +41,7 @@ const overviewMetadata = computed(() => {
     { label: 'Tanggal Perjalanan', value: formatDateRange(project.value.travelStartDate, project.value.travelEndDate) },
     { label: 'Jumlah Traveler', value: formatTravelerCount(project.value.travelerCount) },
     { label: 'Related Opportunity', value: opportunity.value?.title ?? '—' },
-    { label: 'Approved Quotation', value: quotation.value ? formatCurrencyIdr(quotation.value.amountIdr) : '—' },
+    { label: 'Approved Quotation', value: quotation.value ? formatCurrencyIdr(quotation.value.amountIdr) : '—' }
   ]
 })
 </script>
@@ -52,7 +52,9 @@ const overviewMetadata = computed(() => {
       <PageHeader title="Project Order Tidak Ditemukan" :breadcrumb="[{ label: 'Customer Journey', to: '/customer-journey' }, { label: 'Project Orders', to: '/customer-journey/project-orders' }, { label: 'Not Found' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Project Order tidak ditemukan" :description="`Project Order dengan ID '${route.params.id}' tidak ada di data demo saat ini.`">
-          <Button @click="router.push('/customer-journey/project-orders')">Kembali ke Daftar Project Orders</Button>
+          <Button @click="router.push('/customer-journey/project-orders')">
+            Kembali ke Daftar Project Orders
+          </Button>
         </EmptyState>
       </SectionCard>
     </template>
@@ -67,14 +69,18 @@ const overviewMetadata = computed(() => {
       >
         <template #actions>
           <StatusBadge :label="findStatusOption(PROJECT_STATUSES, project.status).label" :tone="findStatusOption(PROJECT_STATUSES, project.status).tone" />
-          <NuxtLink :to="`/projects/${project.id}`" class="text-sm text-primary hover:underline">Buka Project Workspace penuh →</NuxtLink>
+          <NuxtLink :to="`/projects/${project.id}`" class="text-sm text-primary hover:underline">
+            Buka Project Workspace penuh →
+          </NuxtLink>
         </template>
       </PageHeader>
 
       <SectionCard title="Overview">
         <DetailMetadataList :items="overviewMetadata" />
         <div class="mt-4 pt-4 border-t border-border">
-          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Service Scope</p>
+          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Service Scope
+          </p>
           <div class="flex flex-wrap gap-2">
             <StatusBadge
               v-for="type in SERVICE_TYPES.filter(t => project?.serviceScope.includes(t.value))"
@@ -93,7 +99,9 @@ const overviewMetadata = computed(() => {
           <StatsCard title="Variance" :value="formatCurrencyIdr(varianceIdr)" :icon="Wallet" :icon-color="varianceIdr >= 0 ? 'success' : 'destructive'" />
           <StatsCard title="Nilai Quotation" :value="formatCurrencyIdr(project.quotationAmountIdr)" :icon="Wallet" icon-color="primary" />
         </div>
-        <p class="text-xs text-muted-foreground mt-3">Detail lengkap Budget/Actual/Margin/Invoice/Payment tersedia di tab "Finance" pada Project Workspace.</p>
+        <p class="text-xs text-muted-foreground mt-3">
+          Detail lengkap Budget/Actual/Margin/Invoice/Payment tersedia di tab "Finance" pada Project Workspace.
+        </p>
       </SectionCard>
 
       <SectionCard title="Documents">
@@ -109,8 +117,12 @@ const overviewMetadata = computed(() => {
       <SectionCard title="Activity">
         <ul v-if="activities.length" class="divide-y divide-border">
           <li v-for="activity in activities" :key="activity.id" class="py-3">
-            <p class="text-sm text-foreground">{{ activity.message }}</p>
-            <p class="text-xs text-muted-foreground">{{ formatDate(activity.createdAt) }}</p>
+            <p class="text-sm text-foreground">
+              {{ activity.message }}
+            </p>
+            <p class="text-xs text-muted-foreground">
+              {{ formatDate(activity.createdAt) }}
+            </p>
           </li>
         </ul>
         <EmptyState v-else title="Belum ada activity" />

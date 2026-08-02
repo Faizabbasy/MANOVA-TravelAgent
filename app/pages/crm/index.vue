@@ -13,14 +13,14 @@ const summary = computed(() => ({
   prospects: PARTIES.filter(party => party.lifecycleStatus === 'prospect').length,
   clients: PARTIES.filter(party => party.lifecycleStatus === 'client').length,
   activeOpportunities: OPPORTUNITIES.filter(opp => !['won', 'lost'].includes(opp.stage)).length,
-  quotations: QUOTATIONS.length,
+  quotations: QUOTATIONS.length
 }))
 
 const cards = computed(() => [
   { label: 'Prospects', value: summary.value.prospects, icon: Target, to: '/crm/prospects' },
   { label: 'Clients', value: summary.value.clients, icon: Users, to: '/crm/clients' },
   { label: 'Opportunity Aktif', value: summary.value.activeOpportunities, icon: Handshake, to: '/crm/opportunities' },
-  { label: 'Quotations', value: summary.value.quotations, icon: FileText, to: '/crm/quotations' },
+  { label: 'Quotations', value: summary.value.quotations, icon: FileText, to: '/crm/quotations' }
 ])
 </script>
 

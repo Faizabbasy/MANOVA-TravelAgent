@@ -4,7 +4,7 @@ import { useRoute } from 'vue-router'
 import { Search, Plus } from 'lucide-vue-next'
 import { FLIGHT_BOOKINGS, PROJECTS, getProjectById, createFlightBooking, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
 import { FLIGHT_BOOKING_STATUSES, findStatusOption } from '~/constants/status'
-import { formatCurrencyIdr, formatDate } from '~/utils/format'
+import { formatDate } from '~/utils/format'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Ticketing' })
@@ -21,21 +21,21 @@ const projectFilter = ref('all')
 
 const rows = computed(() => {
   let result = FLIGHT_BOOKINGS.map(booking => ({ booking, project: getProjectById(booking.projectId) }))
-  if (statusFilter.value !== 'all') result = result.filter(row => row.booking.status === statusFilter.value)
-  if (projectFilter.value !== 'all') result = result.filter(row => row.booking.projectId === projectFilter.value)
+  if (statusFilter.value !== 'all') { result = result.filter(row => row.booking.status === statusFilter.value) }
+  if (projectFilter.value !== 'all') { result = result.filter(row => row.booking.projectId === projectFilter.value) }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(row =>
-      (row.booking.pnr ?? '').toLowerCase().includes(q)
-      || (row.project?.name ?? '').toLowerCase().includes(q)
-      || row.booking.segments.some(segment => `${segment.origin} ${segment.destination}`.toLowerCase().includes(q)),
+      (row.booking.pnr ?? '').toLowerCase().includes(q) ||
+      (row.project?.name ?? '').toLowerCase().includes(q) ||
+      row.booking.segments.some(segment => `${segment.origin} ${segment.destination}`.toLowerCase().includes(q))
     )
   }
   return result.sort((a, b) => b.booking.createdAt.localeCompare(a.booking.createdAt))
 })
 
-function routeLabel(booking: typeof FLIGHT_BOOKINGS[number]) {
-  if (booking.segments.length === 0) return '—'
+function routeLabel (booking: typeof FLIGHT_BOOKINGS[number]) {
+  if (booking.segments.length === 0) { return '—' }
   const first = booking.segments[0]
   const last = booking.segments[booking.segments.length - 1]
   return booking.segments.length === 1 ? `${first.origin} → ${first.destination}` : `${first.origin} → ${last.destination} (${booking.segments.length} segmen)`
@@ -47,27 +47,27 @@ const newProjectId = ref('')
 const newServiceId = ref('')
 const newTicketingDeadline = ref('')
 
-function resetCreateForm() {
+function resetCreateForm () {
   newProjectId.value = ''
   newServiceId.value = ''
   newTicketingDeadline.value = ''
 }
 
-function openCreateDialog() {
+function openCreateDialog () {
   resetCreateForm()
-  if (typeof route.query.projectId === 'string') newProjectId.value = route.query.projectId
-  if (typeof route.query.serviceId === 'string') newServiceId.value = route.query.serviceId
+  if (typeof route.query.projectId === 'string') { newProjectId.value = route.query.projectId }
+  if (typeof route.query.serviceId === 'string') { newServiceId.value = route.query.serviceId }
   isCreateOpen.value = true
 }
 
-watch(() => route.query.create, (value) => { if (value === '1') openCreateDialog() }, { immediate: true })
+watch(() => route.query.create, (value) => { if (value === '1') { openCreateDialog() } }, { immediate: true })
 
 /** "Duplicate booking prevention" (Section 18, Wajib) — cek booking Flight aktif lain untuk project+service yang sama sebelum membuat. */
 const isDuplicateConfirmOpen = ref(false)
 const duplicateConflictIds = ref<string[]>([])
 
-function submitCreate() {
-  if (!newProjectId.value) return
+function submitCreate () {
+  if (!newProjectId.value) { return }
   if (newServiceId.value) {
     const conflicts = findActiveBookingConflicts('flight', newProjectId.value, newServiceId.value)
     if (conflicts.length > 0) {
@@ -79,11 +79,11 @@ function submitCreate() {
   performCreate()
 }
 
-function performCreate() {
+function performCreate () {
   const booking = createFlightBooking({
     projectId: newProjectId.value,
     serviceId: newServiceId.value || undefined,
-    ticketingDeadline: newTicketingDeadline.value || undefined,
+    ticketingDeadline: newTicketingDeadline.value || undefined
   })
   if (duplicateConflictIds.value.length > 0) {
     flagBookingOrchestrationDuplicate('flight', booking.id, booking.projectId, currentUser.value.id, duplicateConflictIds.value)
@@ -95,7 +95,7 @@ function performCreate() {
   navigateTo(`/ticketing/${booking.id}`)
 }
 
-function cancelDuplicateCreate() {
+function cancelDuplicateCreate () {
   isDuplicateConfirmOpen.value = false
   duplicateConflictIds.value = []
 }
@@ -111,7 +111,9 @@ function cancelDuplicateCreate() {
       <template v-if="canManageTicketing" #actions>
         <Dialog v-model:open="isCreateOpen">
           <DialogTrigger as-child>
-            <Button @click="openCreateDialog"><Plus class="h-4 w-4 mr-1.5" />Buat Flight Booking</Button>
+            <Button @click="openCreateDialog">
+              <Plus class="h-4 w-4 mr-1.5" />Buat Flight Booking
+            </Button>
           </DialogTrigger>
           <DialogContent class="max-w-md">
             <DialogHeader>
@@ -122,8 +124,12 @@ function cancelDuplicateCreate() {
               <div class="space-y-1.5">
                 <Label for="flt-project">Project</Label>
                 <select id="flt-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="" disabled>Pilih project</option>
-                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+                  <option value="" disabled>
+                    Pilih project
+                  </option>
+                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
                 </select>
               </div>
               <div class="space-y-1.5">
@@ -132,8 +138,12 @@ function cancelDuplicateCreate() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">Batal</Button>
-              <Button :disabled="!newProjectId" @click="submitCreate">Simpan</Button>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newProjectId" @click="submitCreate">
+                Simpan
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -149,8 +159,12 @@ function cancelDuplicateCreate() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" @click="cancelDuplicateCreate">Batal</Button>
-              <Button variant="destructive" @click="performCreate">Lanjutkan sebagai Duplicate</Button>
+              <Button variant="outline" @click="cancelDuplicateCreate">
+                Batal
+              </Button>
+              <Button variant="destructive" @click="performCreate">
+                Lanjutkan sebagai Duplicate
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -166,12 +180,20 @@ function cancelDuplicateCreate() {
           <Input v-model="searchQuery" placeholder="Cari PNR, project, atau rute..." class="pl-9" />
         </div>
         <select v-model="statusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Status</option>
-          <option v-for="option in FLIGHT_BOOKING_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
+          <option value="all">
+            Semua Status
+          </option>
+          <option v-for="option in FLIGHT_BOOKING_STATUSES" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
         </select>
         <select v-model="projectFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Project</option>
-          <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+          <option value="all">
+            Semua Project
+          </option>
+          <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+            {{ project.name }}
+          </option>
         </select>
       </div>
 
@@ -189,11 +211,21 @@ function cancelDuplicateCreate() {
           </TableHeader>
           <TableBody>
             <TableRow v-for="row in rows" :key="row.booking.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/ticketing/${row.booking.id}`)">
-              <TableCell class="font-medium text-foreground">{{ row.booking.pnr ?? '—' }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.project?.name ?? row.booking.projectId }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ routeLabel(row.booking) }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.booking.travelerIds.length }} pax</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.booking.ticketingDeadline ? formatDate(row.booking.ticketingDeadline) : '—' }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ row.booking.pnr ?? '—' }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.project?.name ?? row.booking.projectId }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ routeLabel(row.booking) }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.booking.travelerIds.length }} pax
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.booking.ticketingDeadline ? formatDate(row.booking.ticketingDeadline) : '—' }}
+              </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).tone" /></TableCell>
             </TableRow>
             <TableEmpty v-if="rows.length === 0" :colspan="6">

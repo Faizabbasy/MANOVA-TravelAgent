@@ -37,5 +37,5 @@ export const USERS: User[] = reactive([
   { id: 'USR-017', name: 'Teguh Santosa', email: 'teguh.santosa@manova.id', role: 'product-planner', status: 'active' },
   { id: 'USR-018', name: 'Wulan Kartika', email: 'wulan.kartika@manova.id', role: 'procurement', status: 'active' },
   { id: 'USR-019', name: 'Hendra Wijaya', email: 'hendra.wijaya@cipta-distribusi.example', role: 'client', status: 'active', clientPartyId: 'PTY-001' },
-  { id: 'USR-020', name: 'Sarah Amelia', email: 'sarah.amelia@alam-raya.example', role: 'client', status: 'active', clientPartyId: 'PTY-002' },
+  { id: 'USR-020', name: 'Sarah Amelia', email: 'sarah.amelia@alam-raya.example', role: 'client', status: 'active', clientPartyId: 'PTY-002' }
 ])

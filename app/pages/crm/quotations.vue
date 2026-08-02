@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import {
   QUOTATIONS, getOpportunityById, getPartyById, getUserById, getQuotationByOpportunity,
   getQuotationsPendingApproval, getOpportunitiesPendingClientConfirmation,
-  approveQuotation, rejectQuotation,
+  approveQuotation, rejectQuotation
 } from '~/data'
 import { QUOTATION_APPROVAL_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -33,19 +33,19 @@ const canApproveCommercial = computed(() => canApprove('crm'))
 /** Tab state via query param (pola sama Project Detail, `projects/[id]/index.vue`) — deep-linkable dan dapat diverifikasi lewat curl/smoke test tanpa interaksi JS. */
 const activeTab = computed<string>({
   get: () => (route.query.tab as string) || 'pending-approval',
-  set: value => router.replace({ query: { ...route.query, tab: value } }),
+  set: value => router.replace({ query: { ...route.query, tab: value } })
 })
 
-function opportunityTitle(opportunityId: string) {
+function opportunityTitle (opportunityId: string) {
   return getOpportunityById(opportunityId)?.title ?? opportunityId
 }
 
-function partyName(opportunityId: string) {
+function partyName (opportunityId: string) {
   const opportunity = getOpportunityById(opportunityId)
   return opportunity ? (getPartyById(opportunity.partyId)?.name ?? '—') : '—'
 }
 
-function ownerName(opportunityId: string) {
+function ownerName (opportunityId: string) {
   const opportunity = getOpportunityById(opportunityId)
   return opportunity ? (getUserById(opportunity.ownerId)?.name ?? opportunity.ownerId) : '—'
 }
@@ -62,13 +62,13 @@ const allQuotations = computed(() => [...QUOTATIONS]
  * "Complexity" (Wajib "Detail review ... complexity") — DIRIVASI dari jumlah service scope dan estimasi
  * traveler, bukan field tersimpan baru (konsisten pola `getOpportunityWorkflowStatus`, D-049/D-062).
  */
-function complexityLabel(opportunityId: string): string {
+function complexityLabel (opportunityId: string): string {
   const opportunity = getOpportunityById(opportunityId)
-  if (!opportunity) return '—'
+  if (!opportunity) { return '—' }
   const serviceCount = opportunity.serviceScope.length
   const pax = opportunity.travelerEstimate ?? 0
-  if (serviceCount >= 3 || pax >= 40) return 'Kompleks'
-  if (serviceCount === 2 || pax >= 15) return 'Sedang'
+  if (serviceCount >= 3 || pax >= 40) { return 'Kompleks' }
+  if (serviceCount === 2 || pax >= 15) { return 'Sedang' }
   return 'Sederhana'
 }
 
@@ -79,14 +79,14 @@ const decisionNote = ref('')
 
 const selectedOpportunity = computed(() => (selectedQuotation.value ? getOpportunityById(selectedQuotation.value.opportunityId) : undefined))
 
-function openReview(quotation: Quotation) {
+function openReview (quotation: Quotation) {
   selectedQuotation.value = quotation
   decisionNote.value = ''
   isReviewOpen.value = true
 }
 
-function submitApprove() {
-  if (!selectedQuotation.value) return
+function submitApprove () {
+  if (!selectedQuotation.value) { return }
   const result = approveQuotation(selectedQuotation.value.id, currentUser.value.id, decisionNote.value.trim() || undefined)
   if (!result) {
     showToast('Approve Gagal', 'Quotation tidak lagi berstatus menunggu approval.', 'error')
@@ -96,8 +96,8 @@ function submitApprove() {
   isReviewOpen.value = false
 }
 
-function submitReject() {
-  if (!selectedQuotation.value || !decisionNote.value.trim()) return
+function submitReject () {
+  if (!selectedQuotation.value || !decisionNote.value.trim()) { return }
   const result = rejectQuotation(selectedQuotation.value.id, currentUser.value.id, decisionNote.value.trim())
   if (!result) {
     showToast('Reject Gagal', 'Quotation tidak lagi berstatus menunggu approval.', 'error')
@@ -121,9 +121,15 @@ function submitReject() {
     <template v-else>
       <Tabs v-model="activeTab">
         <TabsList>
-          <TabsTrigger value="pending-approval">Menunggu Approval ({{ pendingApproval.length }})</TabsTrigger>
-          <TabsTrigger value="pending-confirmation">Menunggu Client Confirmation ({{ pendingConfirmation.length }})</TabsTrigger>
-          <TabsTrigger value="all">Semua Quotation ({{ allQuotations.length }})</TabsTrigger>
+          <TabsTrigger value="pending-approval">
+            Menunggu Approval ({{ pendingApproval.length }})
+          </TabsTrigger>
+          <TabsTrigger value="pending-confirmation">
+            Menunggu Client Confirmation ({{ pendingConfirmation.length }})
+          </TabsTrigger>
+          <TabsTrigger value="all">
+            Semua Quotation ({{ allQuotations.length }})
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="pending-approval">
@@ -142,17 +148,31 @@ function submitReject() {
               </TableHeader>
               <TableBody>
                 <TableRow v-for="quotation in pendingApproval" :key="quotation.id" class="cursor-pointer hover:bg-muted/50" @click="openReview(quotation)">
-                  <TableCell class="font-medium text-foreground">{{ quotation.id }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ opportunityTitle(quotation.opportunityId) }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ partyName(quotation.opportunityId) }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ ownerName(quotation.opportunityId) }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ quotation.id }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ opportunityTitle(quotation.opportunityId) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ partyName(quotation.opportunityId) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ ownerName(quotation.opportunityId) }}
+                  </TableCell>
                   <TableCell>{{ formatCurrencyIdr(quotation.amountIdr) }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ formatDate(quotation.createdAt) }}</TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(quotation.createdAt) }}
+                  </TableCell>
                   <TableCell>
-                    <Button size="sm" variant="outline" @click.stop="openReview(quotation)">Review</Button>
+                    <Button size="sm" variant="outline" @click.stop="openReview(quotation)">
+                      Review
+                    </Button>
                   </TableCell>
                 </TableRow>
-                <TableEmpty v-if="pendingApproval.length === 0" :colspan="7">Tidak ada quotation yang menunggu approval saat ini.</TableEmpty>
+                <TableEmpty v-if="pendingApproval.length === 0" :colspan="7">
+                  Tidak ada quotation yang menunggu approval saat ini.
+                </TableEmpty>
               </TableBody>
             </Table>
           </SectionCard>
@@ -173,16 +193,28 @@ function submitReject() {
               </TableHeader>
               <TableBody>
                 <TableRow v-for="opportunity in pendingConfirmation" :key="opportunity.id" class="hover:bg-muted/50">
-                  <TableCell class="font-medium text-foreground">{{ opportunity.title }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ getPartyById(opportunity.partyId)?.name ?? '—' }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ getUserById(opportunity.ownerId)?.name ?? opportunity.ownerId }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ opportunity.title }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ getPartyById(opportunity.partyId)?.name ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ getUserById(opportunity.ownerId)?.name ?? opportunity.ownerId }}
+                  </TableCell>
                   <TableCell>{{ formatCurrencyIdr(getQuotationByOpportunity(opportunity.id)?.amountIdr ?? 0) }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ getUserById(getQuotationByOpportunity(opportunity.id)?.approvedBy ?? '')?.name ?? '—' }}</TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ getUserById(getQuotationByOpportunity(opportunity.id)?.approvedBy ?? '')?.name ?? '—' }}
+                  </TableCell>
                   <TableCell>
-                    <NuxtLink :to="`/crm/opportunities/${opportunity.id}`" class="text-sm text-primary hover:underline">Lihat Opportunity →</NuxtLink>
+                    <NuxtLink :to="`/crm/opportunities/${opportunity.id}`" class="text-sm text-primary hover:underline">
+                      Lihat Opportunity →
+                    </NuxtLink>
                   </TableCell>
                 </TableRow>
-                <TableEmpty v-if="pendingConfirmation.length === 0" :colspan="6">Tidak ada opportunity yang menunggu client confirmation saat ini.</TableEmpty>
+                <TableEmpty v-if="pendingConfirmation.length === 0" :colspan="6">
+                  Tidak ada opportunity yang menunggu client confirmation saat ini.
+                </TableEmpty>
               </TableBody>
             </Table>
           </SectionCard>
@@ -205,23 +237,37 @@ function submitReject() {
               </TableHeader>
               <TableBody>
                 <TableRow v-for="quotation in allQuotations" :key="quotation.id" class="cursor-pointer hover:bg-muted/50" @click="openReview(quotation)">
-                  <TableCell class="font-medium text-foreground">{{ quotation.id }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ opportunityTitle(quotation.opportunityId) }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ partyName(quotation.opportunityId) }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ quotation.id }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ opportunityTitle(quotation.opportunityId) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ partyName(quotation.opportunityId) }}
+                  </TableCell>
                   <TableCell>{{ formatCurrencyIdr(quotation.amountIdr) }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ quotation.version }}</TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ quotation.version }}
+                  </TableCell>
                   <TableCell>
                     <StatusBadge
                       :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').label"
                       :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').tone"
                     />
                   </TableCell>
-                  <TableCell class="text-muted-foreground">{{ formatDate(quotation.createdAt) }}</TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(quotation.createdAt) }}
+                  </TableCell>
                   <TableCell>
-                    <Button size="sm" variant="outline" @click.stop="openReview(quotation)">Detail</Button>
+                    <Button size="sm" variant="outline" @click.stop="openReview(quotation)">
+                      Detail
+                    </Button>
                   </TableCell>
                 </TableRow>
-                <TableEmpty v-if="allQuotations.length === 0" :colspan="8">Belum ada quotation.</TableEmpty>
+                <TableEmpty v-if="allQuotations.length === 0" :colspan="8">
+                  Belum ada quotation.
+                </TableEmpty>
               </TableBody>
             </Table>
           </SectionCard>
@@ -248,20 +294,24 @@ function submitReject() {
             <StatusBadge :label="`Versi ${selectedQuotation.version}`" tone="info" />
           </div>
 
-          <DetailMetadataList :items="[
-            { label: 'Nilai Quotation', value: formatCurrencyIdr(selectedQuotation.amountIdr) },
-            { label: 'Discount', value: selectedQuotation.discountIdr ? formatCurrencyIdr(selectedQuotation.discountIdr) : '—' },
-            { label: 'Tax / Fee', value: selectedQuotation.taxIdr ? formatCurrencyIdr(selectedQuotation.taxIdr) : '—' },
-            { label: 'Markup', value: selectedQuotation.markupIdr ? formatCurrencyIdr(selectedQuotation.markupIdr) : '—' },
-            { label: 'Estimated Margin', value: selectedQuotation.estimatedMarginIdr ? formatCurrencyIdr(selectedQuotation.estimatedMarginIdr) : '—' },
-            { label: 'Payment Terms', value: selectedQuotation.paymentTerms || '—' },
-            { label: 'Valid Until', value: selectedQuotation.validUntil ? formatDate(selectedQuotation.validUntil) : '—' },
-            { label: 'Complexity', value: complexityLabel(selectedOpportunity.id) },
-            { label: 'Risk Notes', value: selectedOpportunity.requirementDetail?.riskNotes || '—' },
-          ]" />
+          <DetailMetadataList
+            :items="[
+              { label: 'Nilai Quotation', value: formatCurrencyIdr(selectedQuotation.amountIdr) },
+              { label: 'Discount', value: selectedQuotation.discountIdr ? formatCurrencyIdr(selectedQuotation.discountIdr) : '—' },
+              { label: 'Tax / Fee', value: selectedQuotation.taxIdr ? formatCurrencyIdr(selectedQuotation.taxIdr) : '—' },
+              { label: 'Markup', value: selectedQuotation.markupIdr ? formatCurrencyIdr(selectedQuotation.markupIdr) : '—' },
+              { label: 'Estimated Margin', value: selectedQuotation.estimatedMarginIdr ? formatCurrencyIdr(selectedQuotation.estimatedMarginIdr) : '—' },
+              { label: 'Payment Terms', value: selectedQuotation.paymentTerms || '—' },
+              { label: 'Valid Until', value: selectedQuotation.validUntil ? formatDate(selectedQuotation.validUntil) : '—' },
+              { label: 'Complexity', value: complexityLabel(selectedOpportunity.id) },
+              { label: 'Risk Notes', value: selectedOpportunity.requirementDetail?.riskNotes || '—' },
+            ]"
+          />
 
           <div v-if="selectedQuotation.serviceBreakdown && selectedQuotation.serviceBreakdown.length > 0" class="mt-2">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Service Breakdown</p>
+            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Service Breakdown
+            </p>
             <ul class="divide-y divide-border">
               <li v-for="(item, index) in selectedQuotation.serviceBreakdown" :key="index" class="py-2 flex items-center justify-between gap-2">
                 <span class="text-sm text-foreground">{{ findStatusOption(SERVICE_TYPES, item.service).label }}<template v-if="item.description"> — {{ item.description }}</template></span>
@@ -270,9 +320,13 @@ function submitReject() {
             </ul>
           </div>
 
-          <p v-if="selectedQuotation.approvalNote" class="text-sm text-muted-foreground mt-2">Catatan keputusan terakhir: {{ selectedQuotation.approvalNote }}</p>
+          <p v-if="selectedQuotation.approvalNote" class="text-sm text-muted-foreground mt-2">
+            Catatan keputusan terakhir: {{ selectedQuotation.approvalNote }}
+          </p>
 
-          <NuxtLink :to="`/crm/opportunities/${selectedOpportunity.id}`" class="text-sm text-primary hover:underline block mt-2">Lihat Opportunity lengkap →</NuxtLink>
+          <NuxtLink :to="`/crm/opportunities/${selectedOpportunity.id}`" class="text-sm text-primary hover:underline block mt-2">
+            Lihat Opportunity lengkap →
+          </NuxtLink>
 
           <DialogFooter class="mt-4">
             <template v-if="canApproveCommercial && selectedQuotation.approvalStatus === 'submitted'">
@@ -280,13 +334,21 @@ function submitReject() {
                 <Label for="decision-note">Catatan Keputusan</Label>
                 <Input id="decision-note" v-model="decisionNote" placeholder="mis. Disetujui sesuai standar margin / Margin terlalu rendah, revisi harga" />
                 <div class="flex justify-end gap-2 pt-1">
-                  <Button variant="outline" @click="isReviewOpen = false">Batal</Button>
-                  <Button variant="destructive" :disabled="!decisionNote.trim()" :title="!decisionNote.trim() ? 'Catatan wajib diisi untuk reject' : undefined" @click="submitReject">Reject (Return for Revision)</Button>
-                  <Button @click="submitApprove">Approve</Button>
+                  <Button variant="outline" @click="isReviewOpen = false">
+                    Batal
+                  </Button>
+                  <Button variant="destructive" :disabled="!decisionNote.trim()" :title="!decisionNote.trim() ? 'Catatan wajib diisi untuk reject' : undefined" @click="submitReject">
+                    Reject (Return for Revision)
+                  </Button>
+                  <Button @click="submitApprove">
+                    Approve
+                  </Button>
                 </div>
               </div>
             </template>
-            <Button v-else variant="outline" @click="isReviewOpen = false">Tutup</Button>
+            <Button v-else variant="outline" @click="isReviewOpen = false">
+              Tutup
+            </Button>
           </DialogFooter>
         </template>
       </DialogScrollContent>

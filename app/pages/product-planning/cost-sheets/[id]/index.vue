@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus, Trash2 } from 'lucide-vue-next'
 import {
   getCostSheetById, getCostSheetBreakdown, getCostSheetsByOpportunity, getProductTemplateById, getOpportunityById,
-  updateCostSheet, duplicateCostSheetVersion, applyCostSheetToQuotation,
+  updateCostSheet, duplicateCostSheetVersion, applyCostSheetToQuotation
 } from '~/data'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -29,10 +29,9 @@ const opportunity = computed(() => (costSheet.value?.opportunityId ? getOpportun
 
 /** Scenario/version comparison (Wajib) — Cost Sheet lain yang melekat pada Opportunity yang sama. */
 const scenarioSiblings = computed(() => {
-  if (!costSheet.value?.opportunityId) return []
+  if (!costSheet.value?.opportunityId) { return [] }
   return getCostSheetsByOpportunity(costSheet.value.opportunityId).filter(sheet => sheet.id !== costSheet.value!.id)
 })
-const isCompareOpen = ref(false)
 const compareTargetId = ref('')
 const compareTarget = computed(() => scenarioSiblings.value.find(sheet => sheet.id === compareTargetId.value))
 const compareBreakdown = computed(() => (compareTarget.value ? getCostSheetBreakdown(compareTarget.value) : undefined))
@@ -40,14 +39,14 @@ const compareBreakdown = computed(() => (compareTarget.value ? getCostSheetBreak
 const isVersionCompareOpen = ref(false)
 
 const summaryMetadata = computed(() => {
-  if (!costSheet.value) return []
+  if (!costSheet.value) { return [] }
   return [
     { label: 'Product Template', value: product.value?.name ?? '—' },
     { label: 'Opportunity', value: opportunity.value?.title ?? '—' },
     { label: 'Traveler Count', value: `${costSheet.value.travelerCount} pax` },
     { label: 'Currency', value: costSheet.value.currency },
     { label: 'Versi', value: `v${costSheet.value.version}` },
-    { label: 'Dibuat', value: formatDate(costSheet.value.createdAt) },
+    { label: 'Dibuat', value: formatDate(costSheet.value.createdAt) }
   ]
 })
 
@@ -67,8 +66,8 @@ const editValidityStart = ref('')
 const editValidityEnd = ref('')
 const editLineItems = ref<CostSheetLineItem[]>([])
 
-function openEditDialog() {
-  if (!costSheet.value) return
+function openEditDialog () {
+  if (!costSheet.value) { return }
   editName.value = costSheet.value.name
   editTravelerCount.value = costSheet.value.travelerCount
   editCurrency.value = costSheet.value.currency
@@ -85,16 +84,16 @@ function openEditDialog() {
   isEditOpen.value = true
 }
 
-function addLineItemRow() {
+function addLineItemRow () {
   editLineItems.value.push({ service: 'flight' as ServiceTypeKey, description: '', costPerPaxIdr: 0 })
 }
 
-function removeLineItemRow(index: number) {
+function removeLineItemRow (index: number) {
   editLineItems.value.splice(index, 1)
 }
 
-function submitEdit() {
-  if (!costSheet.value || !editName.value.trim() || !editTravelerCount.value) return
+function submitEdit () {
+  if (!costSheet.value || !editName.value.trim() || !editTravelerCount.value) { return }
   updateCostSheet(costSheet.value.id, {
     name: editName.value.trim(),
     travelerCount: editTravelerCount.value,
@@ -108,20 +107,20 @@ function submitEdit() {
     assumptions: editAssumptions.value.trim() || undefined,
     validityStart: editValidityStart.value || undefined,
     validityEnd: editValidityEnd.value || undefined,
-    lineItems: editLineItems.value.filter(item => item.costPerPaxIdr > 0),
+    lineItems: editLineItems.value.filter(item => item.costPerPaxIdr > 0)
   })
   isEditOpen.value = false
 }
 
-function submitDuplicate() {
-  if (!costSheet.value) return
+function submitDuplicate () {
+  if (!costSheet.value) { return }
   const duplicated = duplicateCostSheetVersion(costSheet.value.id)
-  if (duplicated) showToast('Versi Baru Dibuat', `${duplicated.name} kini versi ${duplicated.version}, siap direvisi.`, 'success')
+  if (duplicated) { showToast('Versi Baru Dibuat', `${duplicated.name} kini versi ${duplicated.version}, siap direvisi.`, 'success') }
 }
 
 const isApplyDialogOpen = ref(false)
-function submitApplyToQuotation() {
-  if (!costSheet.value) return
+function submitApplyToQuotation () {
+  if (!costSheet.value) { return }
   const quotation = applyCostSheetToQuotation(costSheet.value.id, currentUser.value.id)
   isApplyDialogOpen.value = false
   if (quotation) {
@@ -142,7 +141,9 @@ function submitApplyToQuotation() {
           title="Cost Sheet tidak ditemukan"
           :description="`Cost Sheet dengan ID '${route.params.id}' tidak ada di data demo saat ini.`"
         >
-          <Button @click="router.push('/product-planning/cost-sheets')">Kembali ke Daftar Cost Sheet</Button>
+          <Button @click="router.push('/product-planning/cost-sheets')">
+            Kembali ke Daftar Cost Sheet
+          </Button>
         </EmptyState>
       </SectionCard>
     </template>
@@ -155,11 +156,17 @@ function submitApplyToQuotation() {
           <div class="flex flex-wrap items-center gap-2">
             <StatusBadge :label="costSheet.status === 'final' ? 'Final (Locked)' : 'Draft'" :tone="costSheet.status === 'final' ? 'success' : 'neutral'" />
             <template v-if="canManageCostSheet">
-              <Button v-if="costSheet.status !== 'final'" size="sm" variant="outline" @click="openEditDialog">Edit Cost Sheet</Button>
-              <Button size="sm" variant="outline" @click="submitDuplicate">Duplicate as New Version</Button>
+              <Button v-if="costSheet.status !== 'final'" size="sm" variant="outline" @click="openEditDialog">
+                Edit Cost Sheet
+              </Button>
+              <Button size="sm" variant="outline" @click="submitDuplicate">
+                Duplicate as New Version
+              </Button>
               <Dialog v-if="costSheet.opportunityId && !costSheet.appliedToQuotationId" v-model:open="isApplyDialogOpen">
                 <DialogTrigger as-child>
-                  <Button size="sm">Apply to Quotation</Button>
+                  <Button size="sm">
+                    Apply to Quotation
+                  </Button>
                 </DialogTrigger>
                 <DialogContent class="max-w-md">
                   <DialogHeader>
@@ -170,8 +177,12 @@ function submitApplyToQuotation() {
                     </DialogDescription>
                   </DialogHeader>
                   <DialogFooter>
-                    <Button variant="outline" @click="isApplyDialogOpen = false">Batal</Button>
-                    <Button @click="submitApplyToQuotation">Terapkan</Button>
+                    <Button variant="outline" @click="isApplyDialogOpen = false">
+                      Batal
+                    </Button>
+                    <Button @click="submitApplyToQuotation">
+                      Terapkan
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -181,7 +192,11 @@ function submitApplyToQuotation() {
       </PageHeader>
 
       <div v-if="costSheet.appliedToQuotationId" class="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
-        <p class="text-foreground">Cost Sheet ini sudah diterapkan (snapshot) ke <NuxtLink :to="`/crm/opportunities/${costSheet.opportunityId}`" class="text-primary hover:underline font-medium">Quotation {{ costSheet.appliedToQuotationId }}</NuxtLink> pada {{ formatDate(costSheet.appliedAt!) }} — tidak dapat diedit lagi.</p>
+        <p class="text-foreground">
+          Cost Sheet ini sudah diterapkan (snapshot) ke <NuxtLink :to="`/crm/opportunities/${costSheet.opportunityId}`" class="text-primary hover:underline font-medium">
+            Quotation {{ costSheet.appliedToQuotationId }}
+          </NuxtLink> pada {{ formatDate(costSheet.appliedAt!) }} — tidak dapat diedit lagi.
+        </p>
       </div>
 
       <SectionCard>
@@ -201,23 +216,47 @@ function submitApplyToQuotation() {
           <TableBody>
             <TableRow v-for="(item, index) in costSheet.lineItems" :key="index">
               <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, item.service).label" :tone="findStatusOption(SERVICE_TYPES, item.service).tone" /></TableCell>
-              <TableCell class="text-muted-foreground">{{ item.description ?? '—' }}</TableCell>
-              <TableCell class="text-foreground">{{ formatCurrencyIdr(item.costPerPaxIdr) }}</TableCell>
-              <TableCell class="text-foreground">{{ formatCurrencyIdr(item.costPerPaxIdr * costSheet.travelerCount) }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ item.description ?? '—' }}
+              </TableCell>
+              <TableCell class="text-foreground">
+                {{ formatCurrencyIdr(item.costPerPaxIdr) }}
+              </TableCell>
+              <TableCell class="text-foreground">
+                {{ formatCurrencyIdr(item.costPerPaxIdr * costSheet.travelerCount) }}
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="costSheet.lineItems.length === 0" :colspan="4">Belum ada line item biaya.</TableEmpty>
+            <TableEmpty v-if="costSheet.lineItems.length === 0" :colspan="4">
+              Belum ada line item biaya.
+            </TableEmpty>
           </TableBody>
         </Table>
 
         <div v-if="breakdown" class="mt-4 pt-4 border-t border-border grid gap-2 sm:grid-cols-2 max-w-xl">
-          <div class="flex items-center justify-between text-sm"><span class="text-muted-foreground">Base Cost</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.baseCostIdr) }}</span></div>
-          <div class="flex items-center justify-between text-sm"><span class="text-muted-foreground">Contingency ({{ costSheet.contingencyPercent }}%)</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.contingencyIdr) }}</span></div>
-          <div class="flex items-center justify-between text-sm"><span class="text-muted-foreground">Cost + Contingency</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.costWithContingencyIdr) }}</span></div>
-          <div class="flex items-center justify-between text-sm"><span class="text-muted-foreground">Markup ({{ costSheet.markupPercent }}%)</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.markupIdr) }}</span></div>
-          <div class="flex items-center justify-between text-sm"><span class="text-muted-foreground">Subtotal</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.subtotalIdr) }}</span></div>
-          <div class="flex items-center justify-between text-sm"><span class="text-muted-foreground">Tax / Fee ({{ costSheet.taxPercent }}%)</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.taxIdr) }}</span></div>
-          <div class="flex items-center justify-between text-base font-semibold sm:col-span-2 pt-2 border-t border-border"><span class="text-foreground">Total Sell</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.totalSellIdr) }}</span></div>
-          <div class="flex items-center justify-between text-sm sm:col-span-2"><span class="text-muted-foreground">Estimasi Margin</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.marginIdr) }}</span></div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-muted-foreground">Base Cost</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.baseCostIdr) }}</span>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-muted-foreground">Contingency ({{ costSheet.contingencyPercent }}%)</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.contingencyIdr) }}</span>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-muted-foreground">Cost + Contingency</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.costWithContingencyIdr) }}</span>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-muted-foreground">Markup ({{ costSheet.markupPercent }}%)</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.markupIdr) }}</span>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-muted-foreground">Subtotal</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.subtotalIdr) }}</span>
+          </div>
+          <div class="flex items-center justify-between text-sm">
+            <span class="text-muted-foreground">Tax / Fee ({{ costSheet.taxPercent }}%)</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.taxIdr) }}</span>
+          </div>
+          <div class="flex items-center justify-between text-base font-semibold sm:col-span-2 pt-2 border-t border-border">
+            <span class="text-foreground">Total Sell</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.totalSellIdr) }}</span>
+          </div>
+          <div class="flex items-center justify-between text-sm sm:col-span-2">
+            <span class="text-muted-foreground">Estimasi Margin</span><span class="text-foreground">{{ formatCurrencyIdr(breakdown.marginIdr) }}</span>
+          </div>
         </div>
 
         <div v-if="costSheet.supersededTotalSellIdr" class="mt-3 text-xs text-muted-foreground">
@@ -227,12 +266,20 @@ function submitApplyToQuotation() {
           </button>
           <div v-if="isVersionCompareOpen" class="mt-2 grid grid-cols-2 gap-3 rounded-lg border border-border p-3">
             <div>
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Versi Sebelumnya</p>
-              <p class="text-sm text-foreground">{{ formatCurrencyIdr(costSheet.supersededTotalSellIdr) }}</p>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Versi Sebelumnya
+              </p>
+              <p class="text-sm text-foreground">
+                {{ formatCurrencyIdr(costSheet.supersededTotalSellIdr) }}
+              </p>
             </div>
             <div>
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Versi {{ costSheet.version }} (Saat Ini)</p>
-              <p class="text-sm text-foreground">{{ formatCurrencyIdr(breakdown!.totalSellIdr) }}</p>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Versi {{ costSheet.version }} (Saat Ini)
+              </p>
+              <p class="text-sm text-foreground">
+                {{ formatCurrencyIdr(breakdown!.totalSellIdr) }}
+              </p>
             </div>
           </div>
         </div>
@@ -241,21 +288,39 @@ function submitApplyToQuotation() {
       <SectionCard v-if="scenarioSiblings.length > 0" title="Scenario Comparison" description="Cost Sheet lain yang melekat pada Opportunity yang sama.">
         <div class="space-y-3">
           <select v-model="compareTargetId" class="w-full max-w-sm appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-            <option value="">Pilih skenario untuk dibandingkan</option>
-            <option v-for="sibling in scenarioSiblings" :key="sibling.id" :value="sibling.id">{{ sibling.name }}</option>
+            <option value="">
+              Pilih skenario untuk dibandingkan
+            </option>
+            <option v-for="sibling in scenarioSiblings" :key="sibling.id" :value="sibling.id">
+              {{ sibling.name }}
+            </option>
           </select>
           <div v-if="compareTarget && compareBreakdown" class="grid gap-3 sm:grid-cols-2 rounded-lg border border-border p-3">
             <div>
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ costSheet.name }} (Saat Ini)</p>
-              <p class="text-lg font-semibold text-foreground">{{ formatCurrencyIdr(breakdown!.totalSellIdr) }}</p>
-              <p class="text-xs text-muted-foreground">Margin {{ formatCurrencyIdr(breakdown!.marginIdr) }}</p>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {{ costSheet.name }} (Saat Ini)
+              </p>
+              <p class="text-lg font-semibold text-foreground">
+                {{ formatCurrencyIdr(breakdown!.totalSellIdr) }}
+              </p>
+              <p class="text-xs text-muted-foreground">
+                Margin {{ formatCurrencyIdr(breakdown!.marginIdr) }}
+              </p>
             </div>
             <div>
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{{ compareTarget.name }}</p>
-              <p class="text-lg font-semibold text-foreground">{{ formatCurrencyIdr(compareBreakdown.totalSellIdr) }}</p>
-              <p class="text-xs text-muted-foreground">Margin {{ formatCurrencyIdr(compareBreakdown.marginIdr) }}</p>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {{ compareTarget.name }}
+              </p>
+              <p class="text-lg font-semibold text-foreground">
+                {{ formatCurrencyIdr(compareBreakdown.totalSellIdr) }}
+              </p>
+              <p class="text-xs text-muted-foreground">
+                Margin {{ formatCurrencyIdr(compareBreakdown.marginIdr) }}
+              </p>
             </div>
-            <p class="col-span-2 text-[11px] text-muted-foreground">Selisih total sell: {{ formatCurrencyIdr(Math.abs(breakdown!.totalSellIdr - compareBreakdown.totalSellIdr)) }}.</p>
+            <p class="col-span-2 text-[11px] text-muted-foreground">
+              Selisih total sell: {{ formatCurrencyIdr(Math.abs(breakdown!.totalSellIdr - compareBreakdown.totalSellIdr)) }}.
+            </p>
           </div>
         </div>
       </SectionCard>
@@ -263,20 +328,36 @@ function submitApplyToQuotation() {
       <SectionCard v-if="costSheet.inclusions || costSheet.exclusions || costSheet.assumptions || costSheet.notes" title="Inclusions, Exclusions, Assumptions dan Catatan">
         <div class="grid gap-3 sm:grid-cols-2">
           <div v-if="costSheet.inclusions">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Inclusions</p>
-            <p class="text-xs text-foreground whitespace-pre-line">{{ costSheet.inclusions }}</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              Inclusions
+            </p>
+            <p class="text-xs text-foreground whitespace-pre-line">
+              {{ costSheet.inclusions }}
+            </p>
           </div>
           <div v-if="costSheet.exclusions">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Exclusions</p>
-            <p class="text-xs text-foreground whitespace-pre-line">{{ costSheet.exclusions }}</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              Exclusions
+            </p>
+            <p class="text-xs text-foreground whitespace-pre-line">
+              {{ costSheet.exclusions }}
+            </p>
           </div>
           <div v-if="costSheet.assumptions">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Assumptions</p>
-            <p class="text-xs text-foreground whitespace-pre-line">{{ costSheet.assumptions }}</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              Assumptions
+            </p>
+            <p class="text-xs text-foreground whitespace-pre-line">
+              {{ costSheet.assumptions }}
+            </p>
           </div>
           <div v-if="costSheet.notes">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Catatan Kolaborasi</p>
-            <p class="text-xs text-foreground whitespace-pre-line">{{ costSheet.notes }}</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              Catatan Kolaborasi
+            </p>
+            <p class="text-xs text-foreground whitespace-pre-line">
+              {{ costSheet.notes }}
+            </p>
           </div>
         </div>
       </SectionCard>
@@ -320,11 +401,15 @@ function submitApplyToQuotation() {
             <div class="space-y-2 pt-2 border-t border-border">
               <div class="flex items-center justify-between">
                 <Label>Line Items</Label>
-                <Button size="sm" variant="outline" type="button" @click="addLineItemRow"><Plus class="h-3.5 w-3.5 mr-1" />Tambah</Button>
+                <Button size="sm" variant="outline" type="button" @click="addLineItemRow">
+                  <Plus class="h-3.5 w-3.5 mr-1" />Tambah
+                </Button>
               </div>
               <div v-for="(item, index) in editLineItems" :key="index" class="grid grid-cols-12 gap-2 items-center">
                 <select v-model="item.service" class="col-span-2 appearance-none px-2 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
+                  <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+                    {{ type.label }}
+                  </option>
                 </select>
                 <Input v-model="item.description" placeholder="Deskripsi" class="col-span-6 h-8 text-xs" />
                 <Input v-model.number="item.costPerPaxIdr" type="number" placeholder="Biaya/pax" class="col-span-3 h-8 text-xs" />
@@ -332,7 +417,9 @@ function submitApplyToQuotation() {
                   <Trash2 class="h-4 w-4" />
                 </button>
               </div>
-              <p v-if="editLineItems.length === 0" class="text-xs text-muted-foreground">Belum ada line item — klik "Tambah" untuk menambahkan.</p>
+              <p v-if="editLineItems.length === 0" class="text-xs text-muted-foreground">
+                Belum ada line item — klik "Tambah" untuk menambahkan.
+              </p>
             </div>
 
             <div class="grid gap-4 sm:grid-cols-2">
@@ -365,8 +452,12 @@ function submitApplyToQuotation() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" @click="isEditOpen = false">Batal</Button>
-            <Button :disabled="!editName.trim() || !editTravelerCount" @click="submitEdit">Simpan</Button>
+            <Button variant="outline" @click="isEditOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!editName.trim() || !editTravelerCount" @click="submitEdit">
+              Simpan
+            </Button>
           </DialogFooter>
         </DialogScrollContent>
       </Dialog>

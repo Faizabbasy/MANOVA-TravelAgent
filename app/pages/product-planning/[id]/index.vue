@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus, Trash2 } from 'lucide-vue-next'
 import {
   getProductTemplateById, getCostSheetsByProduct, getCostSheetBreakdown,
-  updateProductTemplate, updateProductTemplateStatus, getProductTemplateStatusTransitions,
+  updateProductTemplate, updateProductTemplateStatus, getProductTemplateStatusTransitions
 } from '~/data'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -26,26 +26,26 @@ const costSheets = computed(() => (product.value ? getCostSheetsByProduct(produc
 const STATUS_LABELS: Record<ProductTemplateStatus, { label: string; tone: 'neutral' | 'success' | 'warning' }> = {
   draft: { label: 'Draft', tone: 'neutral' },
   active: { label: 'Active', tone: 'success' },
-  archived: { label: 'Archived', tone: 'warning' },
+  archived: { label: 'Archived', tone: 'warning' }
 }
 
 const summaryMetadata = computed(() => {
-  if (!product.value) return []
+  if (!product.value) { return [] }
   return [
     { label: 'Destinasi', value: product.value.destination },
     { label: 'Basis Traveler-Based Costing', value: `${product.value.basePaxCount} pax` },
     { label: 'Validity', value: product.value.validityStart && product.value.validityEnd ? `${formatDate(product.value.validityStart)} – ${formatDate(product.value.validityEnd)}` : '—' },
     { label: 'Jumlah Cost Sheet', value: String(costSheets.value.length) },
-    { label: 'Dibuat', value: formatDate(product.value.createdAt) },
+    { label: 'Dibuat', value: formatDate(product.value.createdAt) }
   ]
 })
 
-function transitionLabel(status: ProductTemplateStatus) {
+function transitionLabel (status: ProductTemplateStatus) {
   return STATUS_LABELS[status].label
 }
 
-function submitStatusTransition(status: ProductTemplateStatus) {
-  if (!product.value) return
+function submitStatusTransition (status: ProductTemplateStatus) {
+  if (!product.value) { return }
   updateProductTemplateStatus(product.value.id, status)
 }
 
@@ -63,14 +63,14 @@ const editValidityStart = ref('')
 const editValidityEnd = ref('')
 const editAlternatives = ref<ProductServiceAlternative[]>([])
 
-function toggleEditServiceScope(type: ServiceTypeKey) {
+function toggleEditServiceScope (type: ServiceTypeKey) {
   editServiceScope.value = editServiceScope.value.includes(type)
     ? editServiceScope.value.filter(item => item !== type)
     : [...editServiceScope.value, type]
 }
 
-function openEditDialog() {
-  if (!product.value) return
+function openEditDialog () {
+  if (!product.value) { return }
   editName.value = product.value.name
   editDestination.value = product.value.destination
   editServiceScope.value = [...product.value.serviceScope]
@@ -85,16 +85,16 @@ function openEditDialog() {
   isEditOpen.value = true
 }
 
-function addAlternativeRow() {
+function addAlternativeRow () {
   editAlternatives.value.push({ service: 'flight', label: '', costPerPaxIdr: 0, isRecommended: false })
 }
 
-function removeAlternativeRow(index: number) {
+function removeAlternativeRow (index: number) {
   editAlternatives.value.splice(index, 1)
 }
 
-function submitEdit() {
-  if (!product.value || !editName.value.trim() || !editDestination.value.trim() || editServiceScope.value.length === 0 || !editBasePaxCount.value) return
+function submitEdit () {
+  if (!product.value || !editName.value.trim() || !editDestination.value.trim() || editServiceScope.value.length === 0 || !editBasePaxCount.value) { return }
   updateProductTemplate(product.value.id, {
     name: editName.value.trim(),
     destination: editDestination.value.trim(),
@@ -106,7 +106,7 @@ function submitEdit() {
     assumptions: editAssumptions.value.trim() || undefined,
     validityStart: editValidityStart.value || undefined,
     validityEnd: editValidityEnd.value || undefined,
-    serviceAlternatives: editAlternatives.value.filter(alt => alt.label.trim() && alt.costPerPaxIdr > 0),
+    serviceAlternatives: editAlternatives.value.filter(alt => alt.label.trim() && alt.costPerPaxIdr > 0)
   })
   isEditOpen.value = false
 }
@@ -122,7 +122,9 @@ function submitEdit() {
           title="Product Template tidak ditemukan"
           :description="`Product Template dengan ID '${route.params.id}' tidak ada di data demo saat ini.`"
         >
-          <Button @click="router.push('/product-planning')">Kembali ke Daftar Product Template</Button>
+          <Button @click="router.push('/product-planning')">
+            Kembali ke Daftar Product Template
+          </Button>
         </EmptyState>
       </SectionCard>
     </template>
@@ -135,12 +137,18 @@ function submitEdit() {
           <div class="flex flex-wrap items-center gap-2">
             <StatusBadge :label="STATUS_LABELS[product.status].label" :tone="STATUS_LABELS[product.status].tone" />
             <template v-if="canManageProduct">
-              <Button size="sm" variant="outline" @click="openEditDialog">Edit Template</Button>
+              <Button size="sm" variant="outline" @click="openEditDialog">
+                Edit Template
+              </Button>
               <Button
-                v-for="next in getProductTemplateStatusTransitions(product.status)" :key="next"
-                size="sm" variant="outline"
+                v-for="next in getProductTemplateStatusTransitions(product.status)"
+                :key="next"
+                size="sm"
+                variant="outline"
                 @click="submitStatusTransition(next)"
-              >Tandai {{ transitionLabel(next) }}</Button>
+              >
+                Tandai {{ transitionLabel(next) }}
+              </Button>
             </template>
           </div>
         </template>
@@ -154,7 +162,9 @@ function submitEdit() {
       </SectionCard>
 
       <SectionCard v-if="product.itineraryConcept" title="Itinerary Concept">
-        <p class="text-sm text-foreground whitespace-pre-line">{{ product.itineraryConcept }}</p>
+        <p class="text-sm text-foreground whitespace-pre-line">
+          {{ product.itineraryConcept }}
+        </p>
       </SectionCard>
 
       <SectionCard title="Service Alternatives" description="Opsi layanan yang dibandingkan sebelum dituangkan ke Cost Sheet.">
@@ -171,15 +181,23 @@ function submitEdit() {
           <TableBody>
             <TableRow v-for="(alt, index) in product.serviceAlternatives" :key="index">
               <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, alt.service).label" :tone="findStatusOption(SERVICE_TYPES, alt.service).tone" /></TableCell>
-              <TableCell class="font-medium text-foreground">{{ alt.label }}</TableCell>
-              <TableCell class="text-foreground">{{ formatCurrencyIdr(alt.costPerPaxIdr) }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ alt.notes ?? '—' }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ alt.label }}
+              </TableCell>
+              <TableCell class="text-foreground">
+                {{ formatCurrencyIdr(alt.costPerPaxIdr) }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ alt.notes ?? '—' }}
+              </TableCell>
               <TableCell>
                 <StatusBadge v-if="alt.isRecommended" label="Direkomendasikan" tone="success" />
                 <span v-else class="text-muted-foreground text-sm">—</span>
               </TableCell>
             </TableRow>
-            <TableEmpty v-if="product.serviceAlternatives.length === 0" :colspan="5">Belum ada alternatif layanan tercatat.</TableEmpty>
+            <TableEmpty v-if="product.serviceAlternatives.length === 0" :colspan="5">
+              Belum ada alternatif layanan tercatat.
+            </TableEmpty>
           </TableBody>
         </Table>
       </SectionCard>
@@ -187,16 +205,28 @@ function submitEdit() {
       <SectionCard v-if="product.inclusions || product.exclusions || product.assumptions" title="Inclusions, Exclusions dan Assumptions">
         <div class="grid gap-3 sm:grid-cols-3">
           <div v-if="product.inclusions">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Inclusions</p>
-            <p class="text-xs text-foreground whitespace-pre-line">{{ product.inclusions }}</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              Inclusions
+            </p>
+            <p class="text-xs text-foreground whitespace-pre-line">
+              {{ product.inclusions }}
+            </p>
           </div>
           <div v-if="product.exclusions">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Exclusions</p>
-            <p class="text-xs text-foreground whitespace-pre-line">{{ product.exclusions }}</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              Exclusions
+            </p>
+            <p class="text-xs text-foreground whitespace-pre-line">
+              {{ product.exclusions }}
+            </p>
           </div>
           <div v-if="product.assumptions">
-            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Assumptions</p>
-            <p class="text-xs text-foreground whitespace-pre-line">{{ product.assumptions }}</p>
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+              Assumptions
+            </p>
+            <p class="text-xs text-foreground whitespace-pre-line">
+              {{ product.assumptions }}
+            </p>
           </div>
         </div>
       </SectionCard>
@@ -204,7 +234,9 @@ function submitEdit() {
       <SectionCard title="Cost Sheet Terkait">
         <template v-if="canManageProduct" #actions>
           <NuxtLink :to="`/product-planning/cost-sheets?productId=${product.id}&create=1`">
-            <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Buat Cost Sheet dari Template Ini</Button>
+            <Button size="sm" variant="outline">
+              <Plus class="h-4 w-4 mr-1.5" />Buat Cost Sheet dari Template Ini
+            </Button>
           </NuxtLink>
         </template>
         <Table>
@@ -218,12 +250,20 @@ function submitEdit() {
           </TableHeader>
           <TableBody>
             <TableRow v-for="sheet in costSheets" :key="sheet.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/product-planning/cost-sheets/${sheet.id}`)">
-              <TableCell class="font-medium text-foreground">{{ sheet.name }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ sheet.opportunityId ?? '—' }}</TableCell>
-              <TableCell class="text-foreground">{{ formatCurrencyIdr(getCostSheetBreakdown(sheet).totalSellIdr) }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ sheet.name }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ sheet.opportunityId ?? '—' }}
+              </TableCell>
+              <TableCell class="text-foreground">
+                {{ formatCurrencyIdr(getCostSheetBreakdown(sheet).totalSellIdr) }}
+              </TableCell>
               <TableCell><StatusBadge :label="sheet.status === 'final' ? 'Final' : 'Draft'" :tone="sheet.status === 'final' ? 'success' : 'neutral'" /></TableCell>
             </TableRow>
-            <TableEmpty v-if="costSheets.length === 0" :colspan="4">Belum ada Cost Sheet dari template ini.</TableEmpty>
+            <TableEmpty v-if="costSheets.length === 0" :colspan="4">
+              Belum ada Cost Sheet dari template ini.
+            </TableEmpty>
           </TableBody>
         </Table>
       </SectionCard>
@@ -249,11 +289,15 @@ function submitEdit() {
               <Label>Service Scope</Label>
               <div class="flex flex-wrap gap-2">
                 <button
-                  v-for="type in SERVICE_TYPES" :key="type.value" type="button"
+                  v-for="type in SERVICE_TYPES"
+                  :key="type.value"
+                  type="button"
                   class="px-3 py-1.5 text-xs rounded-lg border transition-colors"
                   :class="editServiceScope.includes(type.value) ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground hover:bg-muted/50'"
                   @click="toggleEditServiceScope(type.value)"
-                >{{ type.label }}</button>
+                >
+                  {{ type.label }}
+                </button>
               </div>
             </div>
             <div class="grid gap-4 sm:grid-cols-3">
@@ -278,11 +322,15 @@ function submitEdit() {
             <div class="space-y-2 pt-2 border-t border-border">
               <div class="flex items-center justify-between">
                 <Label>Service Alternatives</Label>
-                <Button size="sm" variant="outline" type="button" @click="addAlternativeRow"><Plus class="h-3.5 w-3.5 mr-1" />Tambah</Button>
+                <Button size="sm" variant="outline" type="button" @click="addAlternativeRow">
+                  <Plus class="h-3.5 w-3.5 mr-1" />Tambah
+                </Button>
               </div>
               <div v-for="(alt, index) in editAlternatives" :key="index" class="grid grid-cols-12 gap-2 items-center">
                 <select v-model="alt.service" class="col-span-2 appearance-none px-2 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
+                  <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+                    {{ type.label }}
+                  </option>
                 </select>
                 <Input v-model="alt.label" placeholder="Nama opsi" class="col-span-4 h-8 text-xs" />
                 <Input v-model.number="alt.costPerPaxIdr" type="number" placeholder="Biaya/pax" class="col-span-2 h-8 text-xs" />
@@ -291,7 +339,9 @@ function submitEdit() {
                   <Trash2 class="h-4 w-4" />
                 </button>
               </div>
-              <p v-if="editAlternatives.length === 0" class="text-xs text-muted-foreground">Belum ada alternatif — klik "Tambah" untuk menambahkan.</p>
+              <p v-if="editAlternatives.length === 0" class="text-xs text-muted-foreground">
+                Belum ada alternatif — klik "Tambah" untuk menambahkan.
+              </p>
             </div>
 
             <div class="grid gap-3 sm:grid-cols-3 pt-2 border-t border-border">
@@ -310,8 +360,12 @@ function submitEdit() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" @click="isEditOpen = false">Batal</Button>
-            <Button :disabled="!editName.trim() || !editDestination.trim() || editServiceScope.length === 0 || !editBasePaxCount" @click="submitEdit">Simpan</Button>
+            <Button variant="outline" @click="isEditOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!editName.trim() || !editDestination.trim() || editServiceScope.length === 0 || !editBasePaxCount" @click="submitEdit">
+              Simpan
+            </Button>
           </DialogFooter>
         </DialogScrollContent>
       </Dialog>

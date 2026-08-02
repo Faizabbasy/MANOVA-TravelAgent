@@ -17,7 +17,7 @@ const serviceTypeFilter = ref('all')
 const rows = computed(() => {
   let result = VENDORS.map(vendor => ({
     vendor,
-    activeAssignmentCount: getServicesByVendor(vendor.id).length,
+    activeAssignmentCount: getServicesByVendor(vendor.id).length
   }))
 
   if (serviceTypeFilter.value !== 'all') {
@@ -37,7 +37,7 @@ const newContactName = ref('')
 const newContactPhone = ref('')
 const newCategory = ref('')
 
-function resetCreateForm() {
+function resetCreateForm () {
   newName.value = ''
   newServiceType.value = 'flight'
   newContactName.value = ''
@@ -45,14 +45,14 @@ function resetCreateForm() {
   newCategory.value = ''
 }
 
-function submitCreate() {
-  if (!newName.value.trim() || !newContactName.value.trim()) return
+function submitCreate () {
+  if (!newName.value.trim() || !newContactName.value.trim()) { return }
   const vendor = createVendor({
     name: newName.value.trim(),
     serviceType: newServiceType.value,
     contactName: newContactName.value.trim(),
     contactPhone: newContactPhone.value.trim() || undefined,
-    category: newCategory.value.trim() || undefined,
+    category: newCategory.value.trim() || undefined
   })
   resetCreateForm()
   isCreateOpen.value = false
@@ -89,7 +89,9 @@ function submitCreate() {
                   v-model="newServiceType"
                   class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
                 >
-                  <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
+                  <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+                    {{ type.label }}
+                  </option>
                 </select>
               </div>
               <div class="space-y-1.5">
@@ -106,8 +108,12 @@ function submitCreate() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">Batal</Button>
-              <Button :disabled="!newName.trim() || !newContactName.trim()" @click="submitCreate">Simpan</Button>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newName.trim() || !newContactName.trim()" @click="submitCreate">
+                Simpan
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -126,8 +132,12 @@ function submitCreate() {
           v-model="serviceTypeFilter"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="all">Semua Jenis Layanan</option>
-          <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
+          <option value="all">
+            Semua Jenis Layanan
+          </option>
+          <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+            {{ type.label }}
+          </option>
         </select>
       </div>
 
@@ -145,22 +155,30 @@ function submitCreate() {
           </TableHeader>
           <TableBody>
             <TableRow v-for="row in rows" :key="row.vendor.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/vendors/${row.vendor.id}`)">
-              <TableCell class="font-medium text-foreground">{{ row.vendor.name }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ row.vendor.name }}
+              </TableCell>
               <TableCell>
                 <StatusBadge
                   :label="findStatusOption(SERVICE_TYPES, row.vendor.serviceType).label"
                   :tone="findStatusOption(SERVICE_TYPES, row.vendor.serviceType).tone"
                 />
               </TableCell>
-              <TableCell class="text-muted-foreground">{{ row.vendor.category ?? '—' }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.vendor.category ?? '—' }}
+              </TableCell>
               <TableCell>
                 <StatusBadge
                   :label="findStatusOption(VENDOR_STATUSES, row.vendor.status ?? 'active').label"
                   :tone="findStatusOption(VENDOR_STATUSES, row.vendor.status ?? 'active').tone"
                 />
               </TableCell>
-              <TableCell class="text-muted-foreground">{{ row.vendor.contactName }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.activeAssignmentCount }} service</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.vendor.contactName }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.activeAssignmentCount }} service
+              </TableCell>
             </TableRow>
             <TableEmpty v-if="rows.length === 0" :colspan="6">
               {{ searchQuery || serviceTypeFilter !== 'all' ? 'Tidak ada vendor yang cocok dengan filter.' : 'Belum ada vendor.' }}

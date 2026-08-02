@@ -17,7 +17,7 @@ const rows = computed(() => {
     party,
     primaryContact: getContactsByParty(party.id)[0],
     projectCount: getProjectsByParty(party.id).length,
-    opportunityCount: getOpportunitiesByParty(party.id).length,
+    opportunityCount: getOpportunitiesByParty(party.id).length
   }))
 
   if (searchQuery.value.trim()) {
@@ -58,10 +58,14 @@ const rows = computed(() => {
           </TableHeader>
           <TableBody>
             <TableRow v-for="row in rows" :key="row.party.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/crm/parties/${row.party.id}`)">
-              <TableCell class="font-medium text-foreground">{{ row.party.name }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ row.party.name }}
+              </TableCell>
               <TableCell>{{ row.projectCount }}</TableCell>
               <TableCell>{{ row.opportunityCount }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.primaryContact?.name ?? '—' }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.primaryContact?.name ?? '—' }}
+              </TableCell>
               <TableCell><StatusBadge label="Client" tone="success" /></TableCell>
             </TableRow>
             <TableEmpty v-if="rows.length === 0" :colspan="5">

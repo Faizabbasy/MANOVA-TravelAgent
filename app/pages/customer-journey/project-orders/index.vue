@@ -45,14 +45,14 @@ const rows = computed(() => {
   let result = base.map(project => ({
     project,
     party: getPartyById(project.partyId),
-    accountExecutiveId: project.opportunityId ? getOpportunityById(project.opportunityId)?.ownerId : undefined,
+    accountExecutiveId: project.opportunityId ? getOpportunityById(project.opportunityId)?.ownerId : undefined
   }))
 
-  if (statusFilter.value !== 'all') result = result.filter(row => row.project.status === statusFilter.value)
-  if (typeFilter.value !== 'all') result = result.filter(row => row.project.characteristic === typeFilter.value)
-  if (clientFilter.value !== 'all') result = result.filter(row => row.project.partyId === clientFilter.value)
-  if (accountExecutiveFilter.value !== 'all') result = result.filter(row => row.accountExecutiveId === accountExecutiveFilter.value)
-  if (projectManagerFilter.value !== 'all') result = result.filter(row => row.project.ownerId === projectManagerFilter.value)
+  if (statusFilter.value !== 'all') { result = result.filter(row => row.project.status === statusFilter.value) }
+  if (typeFilter.value !== 'all') { result = result.filter(row => row.project.characteristic === typeFilter.value) }
+  if (clientFilter.value !== 'all') { result = result.filter(row => row.project.partyId === clientFilter.value) }
+  if (accountExecutiveFilter.value !== 'all') { result = result.filter(row => row.accountExecutiveId === accountExecutiveFilter.value) }
+  if (projectManagerFilter.value !== 'all') { result = result.filter(row => row.project.ownerId === projectManagerFilter.value) }
   if (departurePeriodFilter.value !== 'all') {
     result = result.filter((row) => {
       const days = daysUntil(row.project.travelStartDate, DEMO_REFERENCE_DATE)
@@ -84,30 +84,58 @@ const rows = computed(() => {
           <Input v-model="searchQuery" placeholder="Cari nama atau nomor Project Order..." class="pl-9" />
         </div>
         <select v-model="clientFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Client</option>
-          <option v-for="party in clientOptions" :key="party.id" :value="party.id">{{ party.name }}</option>
+          <option value="all">
+            Semua Client
+          </option>
+          <option v-for="party in clientOptions" :key="party.id" :value="party.id">
+            {{ party.name }}
+          </option>
         </select>
         <select v-model="statusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Status</option>
-          <option v-for="status in PROJECT_STATUSES" :key="status.value" :value="status.value">{{ status.label }}</option>
+          <option value="all">
+            Semua Status
+          </option>
+          <option v-for="status in PROJECT_STATUSES" :key="status.value" :value="status.value">
+            {{ status.label }}
+          </option>
         </select>
         <select v-model="typeFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Tipe</option>
-          <option v-for="type in PROJECT_CHARACTERISTICS" :key="type.value" :value="type.value">{{ type.label }}</option>
+          <option value="all">
+            Semua Tipe
+          </option>
+          <option v-for="type in PROJECT_CHARACTERISTICS" :key="type.value" :value="type.value">
+            {{ type.label }}
+          </option>
         </select>
         <select v-model="accountExecutiveFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Account Executive</option>
-          <option v-for="user in accountExecutiveOptions" :key="user.id" :value="user.id">{{ user.name }}</option>
+          <option value="all">
+            Semua Account Executive
+          </option>
+          <option v-for="user in accountExecutiveOptions" :key="user.id" :value="user.id">
+            {{ user.name }}
+          </option>
         </select>
         <select v-model="projectManagerFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Project Manager</option>
-          <option v-for="user in projectManagerOptions" :key="user.id" :value="user.id">{{ user.name }}</option>
+          <option value="all">
+            Semua Project Manager
+          </option>
+          <option v-for="user in projectManagerOptions" :key="user.id" :value="user.id">
+            {{ user.name }}
+          </option>
         </select>
         <select v-model="departurePeriodFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Periode Keberangkatan</option>
-          <option value="30">30 Hari ke Depan</option>
-          <option value="60">60 Hari ke Depan</option>
-          <option value="90">90 Hari ke Depan</option>
+          <option value="all">
+            Semua Periode Keberangkatan
+          </option>
+          <option value="30">
+            30 Hari ke Depan
+          </option>
+          <option value="60">
+            60 Hari ke Depan
+          </option>
+          <option value="90">
+            90 Hari ke Depan
+          </option>
         </select>
         <label v-if="isAeScoped" class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
           <Checkbox v-model="portfolioOnly" />
@@ -129,14 +157,26 @@ const rows = computed(() => {
           </TableHeader>
           <TableBody>
             <TableRow v-for="row in rows" :key="row.project.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/customer-journey/project-orders/${row.project.id}`)">
-              <TableCell class="font-medium text-foreground">{{ row.project.name }}<span class="block text-xs text-muted-foreground font-normal">{{ row.project.id }}</span></TableCell>
-              <TableCell class="text-muted-foreground">{{ row.party?.name ?? '—' }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ row.project.name }}<span class="block text-xs text-muted-foreground font-normal">{{ row.project.id }}</span>
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.party?.name ?? '—' }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
+              </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(PROJECT_STATUSES, row.project.status).label" :tone="findStatusOption(PROJECT_STATUSES, row.project.status).tone" /></TableCell>
-              <TableCell class="text-muted-foreground">{{ row.accountExecutiveId ? getUserById(row.accountExecutiveId)?.name ?? '—' : '—' }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ getUserById(row.project.ownerId)?.name ?? '—' }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.accountExecutiveId ? getUserById(row.accountExecutiveId)?.name ?? '—' : '—' }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ getUserById(row.project.ownerId)?.name ?? '—' }}
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">Tidak ada Project Order yang cocok dengan filter.</TableEmpty>
+            <TableEmpty v-if="rows.length === 0" :colspan="6">
+              Tidak ada Project Order yang cocok dengan filter.
+            </TableEmpty>
           </TableBody>
         </Table>
       </SectionCard>

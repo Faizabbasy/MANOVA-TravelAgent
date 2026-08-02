@@ -6,37 +6,37 @@ import { id as localeId } from 'date-fns/locale'
 const idrFormatter = new Intl.NumberFormat('id-ID', {
   style: 'currency',
   currency: 'IDR',
-  maximumFractionDigits: 0,
+  maximumFractionDigits: 0
 })
 
 const numberFormatter = new Intl.NumberFormat('id-ID')
 
-export function formatCurrencyIdr(value: number): string {
+export function formatCurrencyIdr (value: number): string {
   return idrFormatter.format(value)
 }
 
-export function formatNumber(value: number): string {
+export function formatNumber (value: number): string {
   return numberFormatter.format(value)
 }
 
-export function formatPercentage(value: number, fractionDigits = 0): string {
+export function formatPercentage (value: number, fractionDigits = 0): string {
   return `${value.toFixed(fractionDigits)}%`
 }
 
-export function formatDate(isoDate: string): string {
+export function formatDate (isoDate: string): string {
   return format(parseISO(isoDate), 'd MMM yyyy', { locale: localeId })
 }
 
-export function formatDateTime(isoDate: string): string {
+export function formatDateTime (isoDate: string): string {
   return format(parseISO(isoDate), 'd MMM yyyy, HH:mm', { locale: localeId })
 }
 
 /** Header hari untuk daily itinerary (Section 12) — mis. "Kamis, 20 Agu 2026". */
-export function formatDayLabel(isoDate: string): string {
+export function formatDayLabel (isoDate: string): string {
   return format(parseISO(isoDate), 'EEEE, d MMM yyyy', { locale: localeId })
 }
 
-export function formatDateRange(startIso: string, endIso: string): string {
+export function formatDateRange (startIso: string, endIso: string): string {
   const start = parseISO(startIso)
   const end = parseISO(endIso)
   const sameMonth = start.getMonth() === end.getMonth() && start.getFullYear() === end.getFullYear()
@@ -45,18 +45,18 @@ export function formatDateRange(startIso: string, endIso: string): string {
   return `${startLabel} – ${endLabel}`
 }
 
-export function formatTravelerCount(count: number): string {
+export function formatTravelerCount (count: number): string {
   return `${formatNumber(count)} traveler`
 }
 
-export function daysUntil(isoDate: string, referenceIso: string): number {
+export function daysUntil (isoDate: string, referenceIso: string): number {
   return differenceInCalendarDays(parseISO(isoDate), parseISO(referenceIso))
 }
 
 /** "Sensitive values masked sesuai role" (Section 11) — menyisakan 4 karakter terakhir, sisanya diganti `•`. */
-export function maskDocumentNumber(value?: string): string {
-  if (!value) return '—'
+export function maskDocumentNumber (value?: string): string {
+  if (!value) { return '—' }
   const trimmed = value.trim()
-  if (trimmed.length <= 4) return '•'.repeat(trimmed.length)
+  if (trimmed.length <= 4) { return '•'.repeat(trimmed.length) }
   return `${'•'.repeat(trimmed.length - 4)}${trimmed.slice(-4)}`
 }

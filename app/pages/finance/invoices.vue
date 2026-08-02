@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { Search, FileX, Plus } from 'lucide-vue-next'
 import {
   INVOICES, PROJECTS, getProjectById, getPaymentsByInvoice, getInvoiceOutstandingIdr, getCreditNotesByInvoice,
-  createInvoice, recordPayment, voidInvoice, issueCreditNote,
+  createInvoice, recordPayment, voidInvoice, issueCreditNote
 } from '~/data'
 import { INVOICE_STATUSES, INVOICE_CURRENCIES, INVOICE_TYPES, CREDIT_NOTE_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -27,16 +27,16 @@ const canManageFinance = computed(() => canManage('finance'))
 const searchQuery = ref('')
 const statusFilter = ref('all')
 
-function projectName(projectId: string) {
+function projectName (projectId: string) {
   return getProjectById(projectId)?.name ?? projectId
 }
 
-function agingLabel(invoice: Invoice) {
-  if (invoice.status === 'paid') return 'Lunas'
-  if (invoice.status === 'void') return 'Void'
+function agingLabel (invoice: Invoice) {
+  if (invoice.status === 'paid') { return 'Lunas' }
+  if (invoice.status === 'void') { return 'Void' }
   const days = invoiceAgingDays(invoice)
-  if (days < 0) return `${Math.abs(days)} hari overdue`
-  if (days === 0) return 'Jatuh tempo hari ini'
+  if (days < 0) { return `${Math.abs(days)} hari overdue` }
+  if (days === 0) { return 'Jatuh tempo hari ini' }
   return `Jatuh tempo dalam ${days} hari`
 }
 
@@ -61,7 +61,7 @@ const selectedOutstanding = computed(() => selectedInvoice.value ? getInvoiceOut
 const canVoidSelected = computed(() => !!selectedInvoice.value && selectedInvoice.value.status !== 'paid' && selectedInvoice.value.status !== 'void')
 const canRecordPaymentSelected = computed(() => !!selectedInvoice.value && selectedInvoice.value.status !== 'paid' && selectedInvoice.value.status !== 'void' && selectedOutstanding.value > 0)
 
-function openDetail(invoice: Invoice) {
+function openDetail (invoice: Invoice) {
   selectedInvoice.value = invoice
   isDetailOpen.value = true
 }
@@ -76,7 +76,7 @@ const newInvoiceType = ref<InvoiceType>('progress')
 const newDueAt = ref('')
 const newFxRate = ref<number | null>(null)
 
-function resetCreateForm() {
+function resetCreateForm () {
   newProjectId.value = ''
   newLabel.value = ''
   newAmount.value = null
@@ -86,8 +86,8 @@ function resetCreateForm() {
   newFxRate.value = null
 }
 
-function submitCreateInvoice() {
-  if (!newProjectId.value || !newLabel.value.trim() || !newAmount.value || !newDueAt.value) return
+function submitCreateInvoice () {
+  if (!newProjectId.value || !newLabel.value.trim() || !newAmount.value || !newDueAt.value) { return }
   const invoice = createInvoice({
     projectId: newProjectId.value,
     label: newLabel.value.trim(),
@@ -97,7 +97,7 @@ function submitCreateInvoice() {
     dueAt: newDueAt.value,
     exchangeRateSnapshot: newCurrency.value !== 'IDR' && newFxRate.value
       ? { rate: newFxRate.value, baseCurrency: 'IDR', capturedAt: new Date().toISOString().slice(0, 10) }
-      : undefined,
+      : undefined
   })
   if (!invoice) { showToast('Gagal Membuat Invoice', 'Periksa kembali project, label, jumlah, dan jatuh tempo.', 'error'); return }
   resetCreateForm()
@@ -110,36 +110,34 @@ const isPaymentOpen = ref(false)
 const paymentAmount = ref<number | null>(null)
 const paymentMethod = ref('bank-transfer')
 
-function openPaymentDialog() {
+function openPaymentDialog () {
   paymentAmount.value = selectedOutstanding.value
   paymentMethod.value = 'bank-transfer'
   isPaymentOpen.value = true
 }
 
-function submitPayment() {
-  if (!selectedInvoice.value || !paymentAmount.value || paymentAmount.value <= 0) return
+function submitPayment () {
+  if (!selectedInvoice.value || !paymentAmount.value || paymentAmount.value <= 0) { return }
   const payment = recordPayment({
     invoiceId: selectedInvoice.value.id,
     amountIdr: paymentAmount.value,
     recordedBy: currentUser.value.id,
-    method: paymentMethod.value || undefined,
+    method: paymentMethod.value || undefined
   })
   isPaymentOpen.value = false
-  if (payment) showToast('Payment Dicatat', `${payment.id} sebesar ${formatCurrencyIdr(payment.amountIdr)} tercatat.`, 'success')
-  else showToast('Gagal Mencatat Payment', 'Invoice tidak eligible menerima payment (sudah lunas/void) atau jumlah tidak valid.', 'error')
+  if (payment) { showToast('Payment Dicatat', `${payment.id} sebesar ${formatCurrencyIdr(payment.amountIdr)} tercatat.`, 'success') } else { showToast('Gagal Mencatat Payment', 'Invoice tidak eligible menerima payment (sudah lunas/void) atau jumlah tidak valid.', 'error') }
 }
 
 /* Void Invoice */
 const isVoidOpen = ref(false)
 const voidReason = ref('')
 
-function submitVoid() {
-  if (!selectedInvoice.value || !voidReason.value.trim()) return
+function submitVoid () {
+  if (!selectedInvoice.value || !voidReason.value.trim()) { return }
   const result = voidInvoice(selectedInvoice.value.id, voidReason.value.trim(), currentUser.value.id)
   isVoidOpen.value = false
   voidReason.value = ''
-  if (result) { showToast('Invoice Divoid', `${result.id} kini berstatus "Void".`, 'info'); isDetailOpen.value = false }
-  else showToast('Gagal Void Invoice', 'Invoice yang sudah lunas atau sudah void tidak dapat divoid lagi.', 'error')
+  if (result) { showToast('Invoice Divoid', `${result.id} kini berstatus "Void".`, 'info'); isDetailOpen.value = false } else { showToast('Gagal Void Invoice', 'Invoice yang sudah lunas atau sudah void tidak dapat divoid lagi.', 'error') }
 }
 
 /* Issue Credit Note */
@@ -147,22 +145,21 @@ const isCreditNoteOpen = ref(false)
 const creditNoteAmount = ref<number | null>(null)
 const creditNoteReason = ref('')
 
-function openCreditNoteDialog() {
+function openCreditNoteDialog () {
   creditNoteAmount.value = null
   creditNoteReason.value = ''
   isCreditNoteOpen.value = true
 }
 
-function submitCreditNote() {
-  if (!selectedInvoice.value || !creditNoteAmount.value || !creditNoteReason.value.trim()) return
+function submitCreditNote () {
+  if (!selectedInvoice.value || !creditNoteAmount.value || !creditNoteReason.value.trim()) { return }
   const note = issueCreditNote({
     invoiceId: selectedInvoice.value.id,
     amountIdr: creditNoteAmount.value,
-    reason: creditNoteReason.value.trim(),
+    reason: creditNoteReason.value.trim()
   })
   isCreditNoteOpen.value = false
-  if (note) showToast('Credit Note Diterbitkan', `${note.id} senilai ${formatCurrencyIdr(note.amountIdr)} diterbitkan.`, 'success')
-  else showToast('Gagal Menerbitkan Credit Note', 'Periksa kembali jumlah dan alasan.', 'error')
+  if (note) { showToast('Credit Note Diterbitkan', `${note.id} senilai ${formatCurrencyIdr(note.amountIdr)} diterbitkan.`, 'success') } else { showToast('Gagal Menerbitkan Credit Note', 'Periksa kembali jumlah dan alasan.', 'error') }
 }
 </script>
 
@@ -176,7 +173,9 @@ function submitCreditNote() {
       <template v-if="canManageFinance" #actions>
         <Dialog v-model:open="isCreateOpen">
           <DialogTrigger as-child>
-            <Button size="sm"><Plus class="h-4 w-4 mr-1.5" />Buat Invoice</Button>
+            <Button size="sm">
+              <Plus class="h-4 w-4 mr-1.5" />Buat Invoice
+            </Button>
           </DialogTrigger>
           <DialogScrollContent class="max-w-lg">
             <DialogHeader>
@@ -187,8 +186,12 @@ function submitCreditNote() {
               <div class="space-y-1.5">
                 <Label for="inv-project">Project</Label>
                 <select id="inv-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="" disabled>Pilih project</option>
-                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+                  <option value="" disabled>
+                    Pilih project
+                  </option>
+                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
                 </select>
               </div>
               <div class="space-y-1.5">
@@ -209,25 +212,35 @@ function submitCreditNote() {
                 <div class="space-y-1.5">
                   <Label for="inv-currency">Currency</Label>
                   <select id="inv-currency" v-model="newCurrency" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="option in INVOICE_CURRENCIES" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    <option v-for="option in INVOICE_CURRENCIES" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
                   </select>
                 </div>
                 <div class="space-y-1.5">
                   <Label for="inv-type">Tipe</Label>
                   <select id="inv-type" v-model="newInvoiceType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="option in INVOICE_TYPES" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    <option v-for="option in INVOICE_TYPES" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
                   </select>
                 </div>
               </div>
               <div v-if="newCurrency !== 'IDR'" class="space-y-1.5">
                 <Label for="inv-fx">Exchange Rate Snapshot (1 {{ newCurrency }} = ? IDR)</Label>
                 <Input id="inv-fx" v-model.number="newFxRate" type="number" placeholder="mis. 15600" />
-                <p class="text-xs text-muted-foreground">Mock snapshot — dicatat sekali saat invoice diterbitkan, tidak mengikuti kurs pasar nyata.</p>
+                <p class="text-xs text-muted-foreground">
+                  Mock snapshot — dicatat sekali saat invoice diterbitkan, tidak mengikuti kurs pasar nyata.
+                </p>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">Batal</Button>
-              <Button :disabled="!newProjectId || !newLabel.trim() || !newAmount || !newDueAt" @click="submitCreateInvoice">Simpan</Button>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newProjectId || !newLabel.trim() || !newAmount || !newDueAt" @click="submitCreateInvoice">
+                Simpan
+              </Button>
             </DialogFooter>
           </DialogScrollContent>
         </Dialog>
@@ -246,8 +259,12 @@ function submitCreditNote() {
           v-model="statusFilter"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="all">Semua Status</option>
-          <option v-for="status in INVOICE_STATUSES" :key="status.value" :value="status.value">{{ status.label }}</option>
+          <option value="all">
+            Semua Status
+          </option>
+          <option v-for="status in INVOICE_STATUSES" :key="status.value" :value="status.value">
+            {{ status.label }}
+          </option>
         </select>
       </div>
 
@@ -266,8 +283,12 @@ function submitCreditNote() {
           </TableHeader>
           <TableBody>
             <TableRow v-for="row in rows" :key="row.invoice.id" class="cursor-pointer hover:bg-muted/50" @click="openDetail(row.invoice)">
-              <TableCell class="font-medium text-foreground">{{ row.invoice.label }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.projectLabel }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ row.invoice.label }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.projectLabel }}
+              </TableCell>
               <TableCell>
                 <div class="flex flex-col gap-1">
                   <StatusBadge :label="findStatusOption(INVOICE_TYPES, row.invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, row.invoice.invoiceType).tone" />
@@ -275,14 +296,18 @@ function submitCreditNote() {
                 </div>
               </TableCell>
               <TableCell>{{ formatCurrencyIdr(row.invoice.amountIdr) }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ formatDate(row.invoice.dueAt) }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ formatDate(row.invoice.dueAt) }}
+              </TableCell>
               <TableCell>
                 <StatusBadge
                   :label="findStatusOption(INVOICE_STATUSES, row.invoice.status).label"
                   :tone="findStatusOption(INVOICE_STATUSES, row.invoice.status).tone"
                 />
               </TableCell>
-              <TableCell :class="isInvoiceOverdue(row.invoice) ? 'text-destructive' : 'text-muted-foreground'">{{ agingLabel(row.invoice) }}</TableCell>
+              <TableCell :class="isInvoiceOverdue(row.invoice) ? 'text-destructive' : 'text-muted-foreground'">
+                {{ agingLabel(row.invoice) }}
+              </TableCell>
             </TableRow>
             <TableEmpty v-if="rows.length === 0" :colspan="7">
               {{ searchQuery || statusFilter !== 'all' ? 'Tidak ada invoice yang cocok dengan filter.' : 'Belum ada invoice.' }}
@@ -299,21 +324,27 @@ function submitCreditNote() {
             <DialogTitle>{{ selectedInvoice.label }}</DialogTitle>
             <DialogDescription>{{ projectName(selectedInvoice.projectId) }}</DialogDescription>
           </DialogHeader>
-          <DetailMetadataList :items="[
-            { label: 'Jumlah', value: formatCurrencyIdr(selectedInvoice.amountIdr) },
-            { label: 'Currency', value: selectedInvoice.currency + (selectedInvoice.exchangeRateSnapshot ? ` (1 ${selectedInvoice.currency} = ${formatCurrencyIdr(selectedInvoice.exchangeRateSnapshot.rate)}, snapshot ${formatDate(selectedInvoice.exchangeRateSnapshot.capturedAt)})` : '') },
-            { label: 'Tipe', value: findStatusOption(INVOICE_TYPES, selectedInvoice.invoiceType).label },
-            { label: 'Diterbitkan', value: formatDate(selectedInvoice.issuedAt) },
-            { label: 'Jatuh Tempo', value: formatDate(selectedInvoice.dueAt) },
-            { label: 'Outstanding', value: formatCurrencyIdr(selectedOutstanding) },
-            { label: 'Aging', value: agingLabel(selectedInvoice) },
-          ]" />
+          <DetailMetadataList
+            :items="[
+              { label: 'Jumlah', value: formatCurrencyIdr(selectedInvoice.amountIdr) },
+              { label: 'Currency', value: selectedInvoice.currency + (selectedInvoice.exchangeRateSnapshot ? ` (1 ${selectedInvoice.currency} = ${formatCurrencyIdr(selectedInvoice.exchangeRateSnapshot.rate)}, snapshot ${formatDate(selectedInvoice.exchangeRateSnapshot.capturedAt)})` : '') },
+              { label: 'Tipe', value: findStatusOption(INVOICE_TYPES, selectedInvoice.invoiceType).label },
+              { label: 'Diterbitkan', value: formatDate(selectedInvoice.issuedAt) },
+              { label: 'Jatuh Tempo', value: formatDate(selectedInvoice.dueAt) },
+              { label: 'Outstanding', value: formatCurrencyIdr(selectedOutstanding) },
+              { label: 'Aging', value: agingLabel(selectedInvoice) },
+            ]"
+          />
 
           <template v-if="selectedInvoice.status === 'void'">
-            <p class="text-xs text-destructive mt-3">Invoice divoid pada {{ formatDate(selectedInvoice.voidedAt ?? '') }}. Alasan: {{ selectedInvoice.voidReason }}</p>
+            <p class="text-xs text-destructive mt-3">
+              Invoice divoid pada {{ formatDate(selectedInvoice.voidedAt ?? '') }}. Alasan: {{ selectedInvoice.voidReason }}
+            </p>
           </template>
 
-          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">Riwayat Pembayaran</p>
+          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">
+            Riwayat Pembayaran
+          </p>
           <ul v-if="selectedPayments.length" class="divide-y divide-border">
             <li v-for="payment in selectedPayments" :key="payment.id" class="py-2 flex items-center justify-between gap-3">
               <span class="text-sm text-foreground">{{ formatCurrencyIdr(payment.amountIdr) }}<span v-if="payment.method" class="text-xs text-muted-foreground"> ({{ payment.method }})</span></span>
@@ -323,7 +354,9 @@ function submitCreditNote() {
           <EmptyState v-else :icon="FileX" title="Belum ada payment tercatat" />
 
           <template v-if="selectedCreditNotes.length">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">Credit Note</p>
+            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">
+              Credit Note
+            </p>
             <ul class="divide-y divide-border">
               <li v-for="note in selectedCreditNotes" :key="note.id" class="py-2 flex items-center justify-between gap-3">
                 <span class="text-sm text-foreground">{{ note.id }} — {{ formatCurrencyIdr(note.amountIdr) }}</span>
@@ -333,10 +366,18 @@ function submitCreditNote() {
           </template>
 
           <DialogFooter v-if="canManageFinance" class="flex-wrap gap-2 mt-4">
-            <Button v-if="canRecordPaymentSelected" size="sm" @click="openPaymentDialog">Record Payment</Button>
-            <Button size="sm" variant="outline" :disabled="selectedInvoice.status === 'void'" @click="openCreditNoteDialog">Issue Credit Note</Button>
-            <Button v-if="canVoidSelected" size="sm" variant="destructive" @click="isVoidOpen = true">Void Invoice</Button>
-            <p v-else class="text-xs text-muted-foreground w-full">Invoice yang sudah lunas atau sudah void tidak dapat divoid.</p>
+            <Button v-if="canRecordPaymentSelected" size="sm" @click="openPaymentDialog">
+              Record Payment
+            </Button>
+            <Button size="sm" variant="outline" :disabled="selectedInvoice.status === 'void'" @click="openCreditNoteDialog">
+              Issue Credit Note
+            </Button>
+            <Button v-if="canVoidSelected" size="sm" variant="destructive" @click="isVoidOpen = true">
+              Void Invoice
+            </Button>
+            <p v-else class="text-xs text-muted-foreground w-full">
+              Invoice yang sudah lunas atau sudah void tidak dapat divoid.
+            </p>
           </DialogFooter>
         </template>
       </DialogScrollContent>
@@ -353,20 +394,32 @@ function submitCreditNote() {
           <div class="space-y-1.5">
             <Label for="pay-amount">Jumlah (Rp)</Label>
             <Input id="pay-amount" v-model.number="paymentAmount" type="number" />
-            <p class="text-xs text-muted-foreground">Outstanding saat ini: {{ formatCurrencyIdr(selectedOutstanding) }}</p>
+            <p class="text-xs text-muted-foreground">
+              Outstanding saat ini: {{ formatCurrencyIdr(selectedOutstanding) }}
+            </p>
           </div>
           <div class="space-y-1.5">
             <Label for="pay-method">Metode</Label>
             <select id="pay-method" v-model="paymentMethod" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="bank-transfer">Bank Transfer</option>
-              <option value="credit-card">Credit Card</option>
-              <option value="cash">Cash</option>
+              <option value="bank-transfer">
+                Bank Transfer
+              </option>
+              <option value="credit-card">
+                Credit Card
+              </option>
+              <option value="cash">
+                Cash
+              </option>
             </select>
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="isPaymentOpen = false">Batal</Button>
-          <Button :disabled="!paymentAmount || paymentAmount <= 0" @click="submitPayment">Simpan</Button>
+          <Button variant="outline" @click="isPaymentOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!paymentAmount || paymentAmount <= 0" @click="submitPayment">
+            Simpan
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -383,8 +436,12 @@ function submitCreditNote() {
           <Input id="void-reason" v-model="voidReason" placeholder="mis. Invoice diterbitkan duplikat" />
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="isVoidOpen = false">Batal</Button>
-          <Button variant="destructive" :disabled="!voidReason.trim()" @click="submitVoid">Konfirmasi Void</Button>
+          <Button variant="outline" @click="isVoidOpen = false">
+            Batal
+          </Button>
+          <Button variant="destructive" :disabled="!voidReason.trim()" @click="submitVoid">
+            Konfirmasi Void
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -407,8 +464,12 @@ function submitCreditNote() {
           </div>
         </div>
         <DialogFooter>
-          <Button variant="outline" @click="isCreditNoteOpen = false">Batal</Button>
-          <Button :disabled="!creditNoteAmount || !creditNoteReason.trim()" @click="submitCreditNote">Terbitkan</Button>
+          <Button variant="outline" @click="isCreditNoteOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!creditNoteAmount || !creditNoteReason.trim()" @click="submitCreditNote">
+            Terbitkan
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

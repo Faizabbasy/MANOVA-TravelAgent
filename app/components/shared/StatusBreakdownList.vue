@@ -28,7 +28,7 @@ const barToneClasses: Record<BadgeTone, string> = {
   warning: 'bg-warning',
   destructive: 'bg-destructive',
   info: 'bg-chart-5',
-  purple: 'bg-chart-4',
+  purple: 'bg-chart-4'
 }
 
 const maxCount = computed(() => Math.max(1, ...props.items.map(item => item.count)))

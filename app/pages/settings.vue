@@ -12,7 +12,7 @@ const { showToast } = useToast()
 /** State reset / seed scenario (Section 01) — mengembalikan seluruh mock data ke kondisi seed awal. */
 const isResetDialogOpen = ref(false)
 
-function submitReset() {
+function submitReset () {
   const success = resetMockState()
   isResetDialogOpen.value = false
   if (!success) {
@@ -49,11 +49,11 @@ function submitReset() {
         <button
           v-for="user in users"
           :key="user.id"
-          @click="setCurrentUser(user.id)"
           class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm text-left transition-colors"
           :class="user.id === currentUser.id
             ? 'border-primary/40 bg-primary/5 text-primary'
             : 'border-border hover:bg-muted text-foreground'"
+          @click="setCurrentUser(user.id)"
         >
           <span>
             <span class="font-medium">{{ user.name }}</span>
@@ -69,7 +69,9 @@ function submitReset() {
     >
       <Dialog v-model:open="isResetDialogOpen">
         <DialogTrigger as-child>
-          <Button variant="outline" :disabled="!hasMockSnapshot()">Reset Demo Data</Button>
+          <Button variant="outline" :disabled="!hasMockSnapshot()">
+            Reset Demo Data
+          </Button>
         </DialogTrigger>
         <DialogContent class="max-w-md">
           <DialogHeader>
@@ -80,8 +82,12 @@ function submitReset() {
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" @click="isResetDialogOpen = false">Batal</Button>
-            <Button variant="destructive" @click="submitReset">Reset Demo Data</Button>
+            <Button variant="outline" @click="isResetDialogOpen = false">
+              Batal
+            </Button>
+            <Button variant="destructive" @click="submitReset">
+              Reset Demo Data
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

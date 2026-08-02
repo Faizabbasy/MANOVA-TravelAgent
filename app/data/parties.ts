@@ -19,14 +19,14 @@ export const PARTIES: Party[] = reactive([
   { id: 'PTY-001', name: 'PT Cipta Distribusi Nusantara', lifecycleStatus: 'client', createdAt: '2026-05-20', accountOwnerId: 'USR-014', size: '201-500', city: 'Jakarta', phone: '021-5550-1001' },
   { id: 'PTY-002', name: 'PT Alam Raya Group', lifecycleStatus: 'client', createdAt: '2026-05-10', accountOwnerId: 'USR-014', size: '501-1000', city: 'Surabaya', phone: '031-5550-1002' },
   { id: 'PTY-003', name: 'PT Sinergi Korporindo', lifecycleStatus: 'client', createdAt: '2026-04-25', accountOwnerId: 'USR-014', size: '1000+', city: 'Jakarta', phone: '021-5550-1003' },
-  { id: 'PTY-004', name: 'PT Melati Wisata Kreasi', lifecycleStatus: 'prospect', createdAt: '2026-06-10', accountOwnerId: 'USR-014', size: '51-200', city: 'Bandung', phone: '022-5550-1004' },
+  { id: 'PTY-004', name: 'PT Melati Wisata Kreasi', lifecycleStatus: 'prospect', createdAt: '2026-06-10', accountOwnerId: 'USR-014', size: '51-200', city: 'Bandung', phone: '022-5550-1004' }
 ])
 
 export const CONTACTS: ContactPerson[] = reactive([
   { id: 'CP-001', partyId: 'PTY-001', name: 'Hendra Wijaya', title: 'Operations Manager' },
   { id: 'CP-002', partyId: 'PTY-002', name: 'Sarah Amelia', title: 'HR Manager' },
   { id: 'CP-003', partyId: 'PTY-003', name: 'Michael Tanuwijaya', title: 'Event Coordinator' },
-  { id: 'CP-004', partyId: 'PTY-004', name: 'Nadia Ramadhani', title: 'Procurement Officer' },
+  { id: 'CP-004', partyId: 'PTY-004', name: 'Nadia Ramadhani', title: 'Procurement Officer' }
 ])
 
 /**
@@ -42,5 +42,5 @@ export const PARTY_ACTIVITIES: PartyActivity[] = reactive([
   { id: 'PACT-003', partyId: 'PTY-004', opportunityId: 'OPP-005', type: 'email', message: 'Mengirimkan draft quotation Bali Team Building 2026', ownerId: 'USR-001', createdAt: '2026-07-18' },
   { id: 'PACT-004', partyId: 'PTY-004', opportunityId: 'OPP-005', type: 'follow-up', message: 'Follow-up keputusan quotation Bali Team Building 2026', ownerId: 'USR-001', createdAt: '2026-07-20', dueAt: '2026-08-03' },
   { id: 'PACT-005', partyId: 'PTY-001', opportunityId: 'OPP-006', type: 'follow-up', message: 'Follow-up peluang repeat business Manila Q4 2026', ownerId: 'USR-001', createdAt: '2026-07-16', dueAt: '2026-08-02' },
-  { id: 'PACT-006', partyId: 'PTY-002', type: 'note', message: 'Catatan internal: client sensitif terhadap perubahan tanggal setelah reschedule hotel', ownerId: 'USR-001', createdAt: '2026-07-12' },
+  { id: 'PACT-006', partyId: 'PTY-002', type: 'note', message: 'Catatan internal: client sensitif terhadap perubahan tanggal setelah reschedule hotel', ownerId: 'USR-001', createdAt: '2026-07-12' }
 ])

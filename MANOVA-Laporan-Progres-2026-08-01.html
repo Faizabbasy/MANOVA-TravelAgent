@@ -482,6 +482,7 @@
     <h2>Ringkasan</h2>
     <p>MANOVA sedang dibangun sebagai <strong>frontend mockup fungsional</strong> — seluruh alur kerja, halaman, dan aturan akses per role sudah dapat dicoba end-to-end dengan data simulasi, namun <strong>belum tersambung ke backend/database produksi sungguhan</strong>. Pendekatan ini dipilih agar alur bisnis dan kebutuhan data tervalidasi lebih dulu sebelum tim masuk ke tahap pengembangan backend.</p>
     <p>Fondasi sistem (18 tahap awal, mencakup CRM, Opportunity, Project, Finance, Reports, Administration, ditambah 2 permintaan perubahan besar untuk alur Customer Journey dan Sales Qualification) <strong>sudah 100% selesai</strong>. Di atas fondasi itu, tim kini menjalankan roadmap penyempurnaan 25 tahap (Section 00–24) untuk melengkapi detail operasional per lini layanan — <strong>15 dari 25 tahap sudah selesai (60%)</strong>, termasuk dua modul lifecycle penuh yang baru rampung minggu ini: <strong>Ticketing</strong> (penerbangan) dan <strong>Accommodation</strong> (hotel).</p>
+    <p><strong>Inisiatif terpisah dan baru pada periode 31 Jul – 1 Agu 2026:</strong> fitur <strong>Client–Vendor Commodity</strong> (Vendor mempublikasikan komoditas yang dapat dicari, dipilih, di-hold sementara, dan dikonfirmasi menjadi Order oleh Client) dikerjakan lengkap dari domain model sampai regresi (6 fase kerja) — lihat bagian "Client–Vendor Commodity" di bawah untuk rincian penuh, termasuk keterbatasan yang masih ada.</p>
   </div>
 
   <div class="stats">
@@ -634,6 +635,152 @@
     </div>
   </section>
 
+  <section id="commodity">
+    <div class="section-head">
+      <h2>Client–Vendor Commodity</h2>
+      <span class="section-note">Inisiatif baru, terpisah dari roadmap 25 tahap · Periode 31 Jul – 1 Agu 2026 · 6 fase kerja (Phase 1–6)</span>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head">
+        <h3>Apa yang dibangun</h3>
+        <span class="chip partial">Selesai untuk lingkup Phase 1–6, dengan keterbatasan</span>
+      </div>
+      <div class="phase-body">
+        <p>Alur baru di luar roadmap Section 00–24: Vendor mempublikasikan komoditas (kamar, tiket, slot venue, dsb.) yang dapat dicari dan dicocokkan otomatis oleh Client terhadap kebutuhannya (<em>matching</em>), dipilih dan ditahan sementara (<em>Soft Hold</em>), lalu dikonfirmasi Vendor menjadi Order dengan snapshot harga permanen — lengkap dengan ringkasan "Sold Commodities" di sisi Vendor. Dikerjakan bertahap lewat 6 fase (<span class="mono">phases/PHASE_01</span> sampai <span class="mono">PHASE_06</span>): domain model &amp; data, CRUD Vendor, CRUD Client, katalog/matching/selection, Vendor Orders, dan regresi/edge-case. <strong>Belum ditulis status 100%</strong> — lihat tabel "Fitur &amp; Status" (baris bertanda "Belum ada"/"Sebagian") dan "Known Limitations" di bawah untuk bagian yang masih terbatas.</p>
+      </div>
+    </div>
+
+    <h3>Fitur &amp; Status</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Area</th><th>Status</th><th>Catatan</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="name">Vendor — Commodity Product/Variant/Availability CRUD</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Create/Read/Update/Delete (guarded) + transisi Publish/Unpublish/Archive</td></tr>
+          <tr><td class="name">Client — Commodity Requirement CRUD</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Edit/Delete dibatasi status <span class="mono">draft</span>/<span class="mono">open</span></td></tr>
+          <tr><td class="name">Katalog, Matching (Exact/Near/Alternative), Compare</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Rule-based deterministik, compare maks. 4</td></tr>
+          <tr><td class="name">Selection (variant + qty + rank), Save Draft, Submit</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Guard duplikat rank/commodity, validasi quantity vs availability</td></tr>
+          <tr><td class="name">Soft Hold, cancel, expiry sweep</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Sweep lazy dijalankan di halaman Client <strong>dan</strong> Vendor (Phase 6 fix)</td></tr>
+          <tr><td class="name">Confirmation (Vendor) → Order + price/name snapshot</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Ditolak bila produk sudah archived/expired/suspended (Phase 6 fix)</td></tr>
+          <tr><td class="name">Order status progression &amp; sinkron ke Client</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Confirmed→Booked→In Service→Completed, Selection ikut tersinkron</td></tr>
+          <tr><td class="name">Sold Commodities summary (Vendor)</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Qty, jumlah order, revenue per komoditas</td></tr>
+          <tr><td class="name">Isolasi permission Vendor/Client + sanitasi harga internal</td><td class="status"><span class="chip done">Selesai</span></td><td class="note">Diverifikasi test isolasi di seluruh fase</td></tr>
+          <tr><td class="name">Halaman "My Orders" khusus Client (daftar Order, bukan Selection)</td><td class="status"><span class="chip pending">Belum ada</span></td><td class="note"><span class="mono">getCommodityOrdersByClient</span> sudah ada di data layer, belum dipakai UI manapun — Client saat ini melihat status via tabel Selected Commodities pada halaman Requirement/Katalog</td></tr>
+          <tr><td class="name">Peringatan/blokir Archive saat masih ada Selection aktif</td><td class="status"><span class="chip partial">Sebagian</span></td><td class="note">Jalur "menjual" (konfirmasi Order) sudah diblokir; aksi Archive itu sendiri belum memperingatkan vendor</td></tr>
+          <tr><td class="name">Riwayat status Order (audit trail per transisi)</td><td class="status"><span class="chip pending">Belum ada</span></td><td class="note">Status Timeline di UI adalah representasi visual, bukan log timestamp tersimpan</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Matriks CRUD Aktual</h3>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr><th>Entitas</th><th>Create</th><th>Read</th><th>Update</th><th>Delete</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="name">Commodity Product (Vendor)</td><td>✅</td><td>✅</td><td>✅</td><td class="note">✅ hanya draft &amp; tidak direferensikan; selain itu pakai Archive</td></tr>
+          <tr><td class="name">Commodity Variant (Vendor)</td><td>✅</td><td>✅</td><td>✅</td><td class="note">✅ guarded, tidak boleh direferensikan Availability/Selection</td></tr>
+          <tr><td class="name">Availability Slot (Vendor)</td><td>✅</td><td>✅</td><td class="note">✅ kapasitas &amp; metadata terpisah</td><td class="note">✅ guarded, held+booked harus 0</td></tr>
+          <tr><td class="name">Commodity Requirement (Client)</td><td>✅</td><td>✅</td><td class="note">✅ hanya status draft</td><td class="note">✅ hanya draft/open</td></tr>
+          <tr><td class="name">Commodity Selection (Client create)</td><td>✅</td><td>✅</td><td class="note">✅ via transisi status (hold/confirm/cancel/expire)</td><td class="note">❌ tidak ada delete — dibatalkan lewat status <span class="mono">cancelled</span></td></tr>
+          <tr><td class="name">Commodity Order (sistem-generated)</td><td class="note">✅ hanya dari Selection <span class="mono">confirmed</span></td><td>✅</td><td class="note">✅ transisi status + sinkron Selection</td><td class="note">❌ tidak ada delete — catatan permanen</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Route</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Route</th><th>Role</th><th>Fungsi</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">/supplier/commodities</td><td>Vendor</td><td class="note">List + Create Commodity Product</td></tr>
+          <tr><td class="mono">/supplier/commodities/[id]</td><td>Vendor</td><td class="note">Detail — Variant, Availability, Publish/Unpublish/Archive</td></tr>
+          <tr><td class="mono">/supplier/commodities/[id]/edit</td><td>Vendor</td><td class="note">Edit Commodity Product</td></tr>
+          <tr><td class="mono">/supplier/commodity-orders</td><td>Vendor</td><td class="note">Vendor Orders — Menunggu Konfirmasi, list Order, Sold Commodities</td></tr>
+          <tr><td class="mono">/supplier/commodity-orders/[id]</td><td>Vendor</td><td class="note">Detail Order — status timeline, transisi status</td></tr>
+          <tr><td class="mono">/client/project-orders/[id]?tab=commodity</td><td>Client</td><td class="note">CRUD Commodity Requirement</td></tr>
+          <tr><td class="mono">/client/catalog/[requirementId]</td><td>Client</td><td class="note">Katalog, Matching, Compare, Selection, Selected Commodities</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Sinkronisasi End-to-End</h3>
+    <div class="phase-block">
+      <div class="phase-body">
+        <p><strong>Vendor publish → Client select → Hold → Confirmed → Vendor sold</strong>, dibuktikan lewat integration test (<span class="mono">commodity-vendor-orders.test.ts</span>): Vendor publish komoditas → <span class="mono">getCatalogVisibleCommodities</span> menampilkannya ke Client → Client submit selection → <span class="mono">submitAndHoldCommoditySelection</span> menahan stok (Soft Hold) → Vendor <span class="mono">confirmCommodityOrderFromSelection</span> memindahkan held→booked dan membuat Order snapshot → <span class="mono">isCommodityOrderSold</span> bernilai true, tampil di ringkasan Sold Commodities. Status Order (<span class="mono">booked</span>/<span class="mono">completed</span>/<span class="mono">cancelled</span>) disinkronkan balik ke Selection sehingga Client selalu melihat status yang sama dengan Vendor. Rincian lengkap 13 skenario (happy path + alternative path) ada di <span class="mono">docs/MANOVA-Client-Vendor-Commodity-End-to-End-Flow.md</span> (baru dibuat).</p>
+      </div>
+    </div>
+
+    <h3>Hasil Validasi Aktual</h3>
+    <div class="stats">
+      <div class="stat">
+        <div class="stat-num">91<small>/91</small></div>
+        <div class="stat-bar"><span style="width:100%"></span></div>
+        <div class="stat-label">Test lulus (vitest, 6 file test)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">0<small> error</small></div>
+        <div class="stat-bar"><span style="width:100%"></span></div>
+        <div class="stat-label">Typecheck (vue-tsc --noEmit)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">0<small> baru</small></div>
+        <div class="stat-bar"><span style="width:100%"></span></div>
+        <div class="stat-label">Error/warning lint pada file Commodity (119 error pre-existing di nuxt.config.ts/tailwind.config.ts, di luar scope)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">✓</div>
+        <div class="stat-bar"><span style="width:100%"></span></div>
+        <div class="stat-label">Build produksi sukses (nuxt build, exit 0)</div>
+      </div>
+    </div>
+    <p style="color:var(--ink-soft); font-size:0.86rem; margin-top:10px;">Catatan proses: percobaan build pertama gagal (<span class="mono">ENOENT manifest.json</span>) karena bentrok dengan proses <span class="mono">nuxt dev</span> yang sedang berjalan bersamaan di lock file <span class="mono">.nuxt/nuxt.lock</span> (port 8080) — bukan defect kode. Build diulang dan sukses bersih. Dicatat di sini agar tidak ada hasil yang ditutupi.</p>
+
+    <h3>Temuan Bug Phase 6 &amp; Perbaikan</h3>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Defect</th><th>Perbaikan</th></tr></thead>
+        <tbody>
+          <tr><td class="note">Soft Hold pada komoditas yang sudah di-archive/suspend tetap bisa dikonfirmasi jadi Order</td><td class="note">Guard status produk di <span class="mono">confirmCommodityOrderFromSelection</span></td></tr>
+          <tr><td class="note">Halaman Vendor Orders tidak menyapu hold kadaluarsa — bisa mengonfirmasi hold yang sudah expired</td><td class="note">Panggil <span class="mono">sweepExpiredHolds()</span> di halaman Vendor Orders</td></tr>
+          <tr><td class="note">Katalog Client blank tanpa pesan saat search tidak menemukan hasil (walau ada match asli)</td><td class="note">Empty state kedua berbasis hasil terfilter</td></tr>
+          <tr><td class="note">Dialog Buat Komoditas/Tambah Variant/Tambah Availability tidak reset saat Batal/Escape</td><td class="note"><span class="mono">watch()</span> pada state <span class="mono">open</span> tiap dialog</td></tr>
+          <tr><td class="note">5 aksi Vendor (publish/unpublish/archive/hapus variant/hapus slot) gagal senyap tanpa feedback</td><td class="note">Toast error ditambahkan konsisten dengan pola existing</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="risk">
+      <h3>Known Limitations</h3>
+      <ul>
+        <li><strong>Archive/Unpublish tidak memperingatkan</strong> bila masih ada Selection aktif yang mereferensikan komoditas — dampak "menjual" sudah dicegah di jalur konfirmasi Order, tapi aksi Archive sendiri tidak memberi sinyal proaktif ke vendor.</li>
+        <li><strong>Tidak ada log riwayat status Order tersimpan</strong> — "Status Timeline" adalah representasi visual dari status saat ini, bukan audit trail bertimestamp per transisi.</li>
+        <li><strong>Pembatalan Order setelah Booked/In Service tidak mengembalikan booked quantity</strong> ke Availability Slot — batasan yang sama dengan pola existing di level Selection, disengaja di luar scope regresi Phase 6.</li>
+        <li><strong>Belum ada halaman "My Orders" khusus Client</strong> — Client melihat status Order lewat tabel Selected Commodities (berbasis Selection), bukan lewat daftar/detail Order tersendiri walau data layer (<span class="mono">getCommodityOrdersByClient</span>) sudah tersedia.</li>
+        <li><strong>Belum tersambung backend/database sungguhan</strong> — konsisten dengan seluruh aplikasi, seluruh state adalah <span class="mono">reactive()</span> in-memory yang reset saat reload.</li>
+      </ul>
+    </div>
+
+    <h3>Remaining Work</h3>
+    <div class="next-list">
+      <div class="next-item"><span class="next-tag">P1</span><p><strong>Halaman "My Orders" Client</strong> — daftar dan detail Order berbasis <span class="mono">getCommodityOrdersByClient</span> yang sudah tersedia di data layer.</p></div>
+      <div class="next-item"><span class="next-tag">P2</span><p><strong>Peringatan Archive/Unpublish</strong> saat masih ada Selection aktif mereferensikan komoditas.</p></div>
+      <div class="next-item"><span class="next-tag">P3</span><p><strong>Rilis stok saat Order dibatalkan</strong> setelah Booked/In Service (release <span class="mono">bookedQuantity</span> kembali ke Availability Slot).</p></div>
+      <div class="next-item"><span class="next-tag">P4</span><p><strong>Log riwayat status Order</strong> bertimestamp, bila dibutuhkan untuk audit trail di luar tampilan timeline visual saat ini.</p></div>
+    </div>
+
+    <h3>File yang Dibuat/Diubah (kumulatif Phase 1–6)</h3>
+    <div class="phase-block">
+      <div class="phase-body">
+        <p><strong>Dibuat:</strong> <span class="mono">app/types/{commodity,availability,requirement,selection,commodity-order}.ts</span>, <span class="mono">app/data/{commodities,availability,requirements,selections,commodity-orders}.ts</span>, 6 file test <span class="mono">app/data/commodity*.test.ts</span>, <span class="mono">app/pages/client/catalog/[requirementId]/index.vue</span>, <span class="mono">app/pages/supplier/commodities/{index,[id]/index,[id]/edit}.vue</span>, <span class="mono">app/pages/supplier/commodity-orders/{index,[id]/index}.vue</span>, <span class="mono">docs/MANOVA-Client-Vendor-Commodity-End-to-End-Flow.md</span>.</p>
+        <p><strong>Diubah:</strong> <span class="mono">app/data/index.ts</span> (seluruh fungsi selector/mutator domain Commodity), <span class="mono">app/constants/status.ts</span> (status options), <span class="mono">app/constants/navigation.ts</span> (entri "Komoditas Saya" &amp; "Vendor Orders"), <span class="mono">app/pages/client/project-orders/[id]/index.vue</span> (tab Kebutuhan Komoditas), dan file laporan ini.</p>
+      </div>
+    </div>
+  </section>
+
   <section>
     <div class="section-head">
       <h2>Catatan &amp; Hal yang Perlu Diperhatikan</h2>
@@ -649,7 +796,7 @@
   </section>
 
   <footer>
-    <span>Disusun dari dokumentasi progres proyek (mockup-progress.md, mockup-section-progress.md, frontend-implementation-roadmap.md).</span>
+    <span>Disusun dari dokumentasi progres proyek (mockup-progress.md, mockup-section-progress.md, frontend-implementation-roadmap.md) dan, untuk bagian Client–Vendor Commodity, dari phases/PHASE_01–06 serta docs/MANOVA-Client-Vendor-Commodity-End-to-End-Flow.md.</span>
     <span>Per 1 Agustus 2026</span>
   </footer>
 

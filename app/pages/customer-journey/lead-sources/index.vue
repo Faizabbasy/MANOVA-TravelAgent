@@ -29,7 +29,7 @@ const recapRows = computed(() => LEAD_SOURCES.map((source) => {
     qualifiedLeads: qualified.length,
     opportunitiesCreated: opportunitiesCreated.length,
     wonOpportunities: won.length,
-    conversionRatePct: leads.length === 0 ? 0 : (won.length / leads.length) * 100,
+    conversionRatePct: leads.length === 0 ? 0 : (won.length / leads.length) * 100
   }
 }).filter(row => row.totalLeads > 0))
 
@@ -47,7 +47,7 @@ const totalWon = computed(() => LEADS.filter(lead => lead.opportunityId && getOp
 const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
   [...recapRows.value]
     .sort((a, b) => b.totalLeads - a.totalLeads)
-    .map(row => ({ key: row.source.value, label: row.source.label, tone: row.source.tone, count: row.totalLeads })),
+    .map(row => ({ key: row.source.value, label: row.source.label, tone: row.source.tone, count: row.totalLeads }))
 )
 </script>
 
@@ -96,7 +96,9 @@ const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
               <TableCell>{{ row.wonOpportunities }}</TableCell>
               <TableCell>{{ formatPercentage(row.conversionRatePct) }}</TableCell>
             </TableRow>
-            <TableEmpty v-if="recapRows.length === 0" :colspan="6">Belum ada data lead.</TableEmpty>
+            <TableEmpty v-if="recapRows.length === 0" :colspan="6">
+              Belum ada data lead.
+            </TableEmpty>
           </TableBody>
         </Table>
       </SectionCard>

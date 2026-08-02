@@ -11,11 +11,11 @@ const { canView } = usePermissions()
 
 const searchQuery = ref('')
 
-function invoiceOf(invoiceId: string) {
+function invoiceOf (invoiceId: string) {
   return INVOICES.find(invoice => invoice.id === invoiceId)
 }
 
-function projectNameOfInvoice(invoiceId: string) {
+function projectNameOfInvoice (invoiceId: string) {
   const invoice = invoiceOf(invoiceId)
   return invoice ? (getProjectById(invoice.projectId)?.name ?? invoice.projectId) : '—'
 }
@@ -24,7 +24,7 @@ const rows = computed(() => {
   let result = PAYMENTS.map(payment => ({
     payment,
     invoiceLabel: invoiceOf(payment.invoiceId)?.label ?? payment.invoiceId,
-    projectLabel: projectNameOfInvoice(payment.invoiceId),
+    projectLabel: projectNameOfInvoice(payment.invoiceId)
   }))
 
   if (searchQuery.value.trim()) {
@@ -63,10 +63,16 @@ const rows = computed(() => {
           </TableHeader>
           <TableBody>
             <TableRow v-for="row in rows" :key="row.payment.id">
-              <TableCell class="font-medium text-foreground">{{ row.invoiceLabel }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.projectLabel }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ row.invoiceLabel }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.projectLabel }}
+              </TableCell>
               <TableCell>{{ formatCurrencyIdr(row.payment.amountIdr) }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ formatDate(row.payment.receivedAt) }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ formatDate(row.payment.receivedAt) }}
+              </TableCell>
             </TableRow>
             <TableEmpty v-if="rows.length === 0" :colspan="4">
               {{ searchQuery ? 'Tidak ada payment yang cocok dengan pencarian.' : 'Belum ada payment.' }}

@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus } from 'lucide-vue-next'
 import {
   getPartyById, getContactsByParty, getOpportunitiesByParty, getPartyActivities, getProjectsByParty,
-  getQuotationByOpportunity, createContact, createPartyActivity,
+  getQuotationByOpportunity, createContact, createPartyActivity
 } from '~/data'
 import { OPPORTUNITY_STAGES, PROJECT_STATUSES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
@@ -35,7 +35,7 @@ const showProjectsTab = computed(() => party.value?.lifecycleStatus === 'client'
 
 const activeTab = computed<PartyDetailTab>({
   get: () => (route.query.tab as PartyDetailTab) || 'overview',
-  set: value => router.replace({ query: { ...route.query, tab: value } }),
+  set: value => router.replace({ query: { ...route.query, tab: value } })
 })
 
 const TABS = computed(() => {
@@ -43,21 +43,21 @@ const TABS = computed(() => {
     { value: 'overview', label: 'Overview' },
     { value: 'contacts', label: 'Contacts' },
     { value: 'opportunities', label: 'Opportunities' },
-    { value: 'activities', label: 'Activities' },
+    { value: 'activities', label: 'Activities' }
   ]
-  if (showProjectsTab.value) base.push({ value: 'projects', label: 'Projects' })
+  if (showProjectsTab.value) { base.push({ value: 'projects', label: 'Projects' }) }
   return base
 })
 
 const summaryMetadata = computed(() => {
-  if (!party.value) return []
+  if (!party.value) { return [] }
   return [
     { label: 'Lifecycle Status', value: party.value.lifecycleStatus === 'client' ? 'Client' : 'Prospect' },
     { label: 'Industri', value: party.value.industry ?? '—' },
     { label: 'Dibuat', value: formatDate(party.value.createdAt) },
     { label: 'Jumlah Contact', value: String(contacts.value.length) },
     { label: 'Jumlah Opportunity', value: String(opportunities.value.length) },
-    { label: 'Jumlah Project', value: String(projects.value.length) },
+    { label: 'Jumlah Project', value: String(projects.value.length) }
   ]
 })
 
@@ -68,14 +68,14 @@ const contactTitle = ref('')
 const contactEmail = ref('')
 const contactPhone = ref('')
 
-function submitContact() {
-  if (!party.value || !contactName.value.trim() || !contactTitle.value.trim()) return
+function submitContact () {
+  if (!party.value || !contactName.value.trim() || !contactTitle.value.trim()) { return }
   createContact({
     partyId: party.value.id,
     name: contactName.value.trim(),
     title: contactTitle.value.trim(),
     email: contactEmail.value.trim() || undefined,
-    phone: contactPhone.value.trim() || undefined,
+    phone: contactPhone.value.trim() || undefined
   })
   contactName.value = ''
   contactTitle.value = ''
@@ -90,14 +90,14 @@ const activityType = ref<PartyActivityType>('call')
 const activityMessage = ref('')
 const activityDueAt = ref('')
 
-function submitActivity() {
-  if (!party.value || !activityMessage.value.trim()) return
+function submitActivity () {
+  if (!party.value || !activityMessage.value.trim()) { return }
   createPartyActivity({
     partyId: party.value.id,
     type: activityType.value,
     message: activityMessage.value.trim(),
     ownerId: currentUser.value.id,
-    dueAt: activityDueAt.value || undefined,
+    dueAt: activityDueAt.value || undefined
   })
   activityMessage.value = ''
   activityDueAt.value = ''
@@ -116,7 +116,9 @@ function submitActivity() {
           title="Party tidak ditemukan"
           :description="`Party dengan ID '${route.params.id}' tidak ada di data demo saat ini.`"
         >
-          <Button @click="router.push('/crm')">Kembali ke CRM</Button>
+          <Button @click="router.push('/crm')">
+            Kembali ke CRM
+          </Button>
         </EmptyState>
       </SectionCard>
     </template>
@@ -139,7 +141,9 @@ function submitActivity() {
 
       <Tabs v-model="activeTab">
         <TabsList>
-          <TabsTrigger v-for="tab in TABS" :key="tab.value" :value="tab.value">{{ tab.label }}</TabsTrigger>
+          <TabsTrigger v-for="tab in TABS" :key="tab.value" :value="tab.value">
+            {{ tab.label }}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -154,8 +158,12 @@ function submitActivity() {
                 di bawah, tidak hilang setelah lifecycle berubah.
               </template>
             </p>
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Contact Utama</p>
-            <p v-if="contacts[0]" class="text-sm text-foreground">{{ contacts[0].name }} — <span class="text-muted-foreground">{{ contacts[0].title }}</span></p>
+            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Contact Utama
+            </p>
+            <p v-if="contacts[0]" class="text-sm text-foreground">
+              {{ contacts[0].name }} — <span class="text-muted-foreground">{{ contacts[0].title }}</span>
+            </p>
             <EmptyState v-else title="Belum ada contact tercatat" />
           </SectionCard>
         </TabsContent>
@@ -165,7 +173,9 @@ function submitActivity() {
             <template #actions>
               <Dialog v-if="canManageParty" v-model:open="isContactDialogOpen">
                 <DialogTrigger as-child>
-                  <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Tambah Contact</Button>
+                  <Button size="sm" variant="outline">
+                    <Plus class="h-4 w-4 mr-1.5" />Tambah Contact
+                  </Button>
                 </DialogTrigger>
                 <DialogContent class="max-w-md">
                   <DialogHeader>
@@ -191,8 +201,12 @@ function submitActivity() {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" @click="isContactDialogOpen = false">Batal</Button>
-                    <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">Simpan</Button>
+                    <Button variant="outline" @click="isContactDialogOpen = false">
+                      Batal
+                    </Button>
+                    <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
+                      Simpan
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -200,9 +214,15 @@ function submitActivity() {
 
             <ul class="divide-y divide-border">
               <li v-for="contact in contacts" :key="contact.id" class="py-3">
-                <p class="text-sm font-medium text-foreground">{{ contact.name }}</p>
+                <p class="text-sm font-medium text-foreground">
+                  {{ contact.name }}
+                </p>
                 <p class="text-xs text-muted-foreground">
-                  {{ contact.title }}<template v-if="contact.email"> · {{ contact.email }}</template><template v-if="contact.phone"> · {{ contact.phone }}</template>
+                  {{ contact.title }}<template v-if="contact.email">
+                    · {{ contact.email }}
+                  </template><template v-if="contact.phone">
+                    · {{ contact.phone }}
+                  </template>
                 </p>
               </li>
             </ul>
@@ -228,7 +248,9 @@ function submitActivity() {
                   class="cursor-pointer hover:bg-muted/50"
                   @click="navigateTo(`/crm/opportunities/${opportunity.id}`)"
                 >
-                  <TableCell class="font-medium text-foreground">{{ opportunity.title }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ opportunity.title }}
+                  </TableCell>
                   <TableCell>
                     <StatusBadge
                       :label="findStatusOption(OPPORTUNITY_STAGES, opportunity.stage).label"
@@ -238,9 +260,13 @@ function submitActivity() {
                   <TableCell>
                     {{ getQuotationByOpportunity(opportunity.id) ? formatCurrencyIdr(getQuotationByOpportunity(opportunity.id)!.amountIdr) : '—' }}
                   </TableCell>
-                  <TableCell class="text-muted-foreground">{{ formatDate(opportunity.createdAt) }}</TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(opportunity.createdAt) }}
+                  </TableCell>
                 </TableRow>
-                <TableEmpty v-if="opportunities.length === 0" :colspan="4">Belum ada opportunity untuk party ini.</TableEmpty>
+                <TableEmpty v-if="opportunities.length === 0" :colspan="4">
+                  Belum ada opportunity untuk party ini.
+                </TableEmpty>
               </TableBody>
             </Table>
           </SectionCard>
@@ -251,7 +277,9 @@ function submitActivity() {
             <template #actions>
               <Dialog v-if="canManageParty" v-model:open="isActivityDialogOpen">
                 <DialogTrigger as-child>
-                  <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Catat Activity</Button>
+                  <Button size="sm" variant="outline">
+                    <Plus class="h-4 w-4 mr-1.5" />Catat Activity
+                  </Button>
                 </DialogTrigger>
                 <DialogContent class="max-w-md">
                   <DialogHeader>
@@ -266,7 +294,9 @@ function submitActivity() {
                         v-model="activityType"
                         class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
                       >
-                        <option v-for="type in PARTY_ACTIVITY_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
+                        <option v-for="type in PARTY_ACTIVITY_TYPES" :key="type.value" :value="type.value">
+                          {{ type.label }}
+                        </option>
                       </select>
                     </div>
                     <div class="space-y-1.5">
@@ -279,8 +309,12 @@ function submitActivity() {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" @click="isActivityDialogOpen = false">Batal</Button>
-                    <Button :disabled="!activityMessage.trim()" @click="submitActivity">Simpan</Button>
+                    <Button variant="outline" @click="isActivityDialogOpen = false">
+                      Batal
+                    </Button>
+                    <Button :disabled="!activityMessage.trim()" @click="submitActivity">
+                      Simpan
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -289,9 +323,13 @@ function submitActivity() {
             <ul class="divide-y divide-border">
               <li v-for="activity in activities" :key="activity.id" class="py-3 flex items-start justify-between gap-3">
                 <div class="min-w-0">
-                  <p class="text-sm text-foreground">{{ activity.message }}</p>
+                  <p class="text-sm text-foreground">
+                    {{ activity.message }}
+                  </p>
                   <p class="text-xs text-muted-foreground">
-                    {{ formatDate(activity.createdAt) }}<template v-if="activity.dueAt"> · Follow-up dijadwalkan {{ formatDate(activity.dueAt) }}</template>
+                    {{ formatDate(activity.createdAt) }}<template v-if="activity.dueAt">
+                      · Follow-up dijadwalkan {{ formatDate(activity.dueAt) }}
+                    </template>
                   </p>
                 </div>
                 <StatusBadge
@@ -309,8 +347,12 @@ function submitActivity() {
             <ul class="divide-y divide-border">
               <li v-for="project in projects" :key="project.id" class="py-3 flex items-center justify-between gap-3">
                 <div class="min-w-0">
-                  <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:underline truncate block">{{ project.name }}</NuxtLink>
-                  <p class="text-xs text-muted-foreground truncate">{{ project.destination }} · {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}</p>
+                  <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:underline truncate block">
+                    {{ project.name }}
+                  </NuxtLink>
+                  <p class="text-xs text-muted-foreground truncate">
+                    {{ project.destination }} · {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
+                  </p>
                 </div>
                 <StatusBadge
                   :label="findStatusOption(PROJECT_STATUSES, project.status).label"

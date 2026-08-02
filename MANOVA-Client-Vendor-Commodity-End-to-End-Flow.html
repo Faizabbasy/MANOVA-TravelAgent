@@ -1,0 +1,792 @@
+<title>MANOVA — Client–Vendor Commodity: Flow End-to-End</title>
+<meta name="description" content="Dokumentasi flow end-to-end fitur Client–Vendor Commodity — happy path dan alternative path, per 1 Agustus 2026">
+<style>
+  :root{
+    --paper:#F6F4EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1B2A2E;
+    --ink-soft:#4B5B5D;
+    --line:#DAD5C8;
+    --line-strong:#C3BCA9;
+    --accent:#1E5F63;
+    --accent-soft:#DCEAE9;
+    --accent-ink:#0F3B3E;
+    --amber:#B5732A;
+    --amber-soft:#F3E4CF;
+    --amber-ink:#5C3813;
+    --done:#3C7A57;
+    --done-soft:#DCEBE0;
+    --done-ink:#1E4A30;
+    --pending:#8A6A4A;
+    --pending-soft:#EFE6DA;
+    --pending-ink:#4A3A28;
+    --shadow: 0 1px 2px rgba(27,42,46,0.06), 0 6px 20px -8px rgba(27,42,46,0.12);
+  }
+
+  :root[data-theme="dark"]{
+    --paper:#12191A;
+    --paper-raised:#182223;
+    --ink:#E9ECE9;
+    --ink-soft:#A9B6B4;
+    --line:#2A3739;
+    --line-strong:#3A4A4C;
+    --accent:#63B0AC;
+    --accent-soft:#1D3436;
+    --accent-ink:#B9E3DF;
+    --amber:#E0A257;
+    --amber-soft:#3A2E1C;
+    --amber-ink:#F0C48D;
+    --done:#7FC79A;
+    --done-soft:#1E3226;
+    --done-ink:#A9E0BC;
+    --pending:#C9A67E;
+    --pending-soft:#332720;
+    --pending-ink:#E0C7A6;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -10px rgba(0,0,0,0.5);
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12191A;
+      --paper-raised:#182223;
+      --ink:#E9ECE9;
+      --ink-soft:#A9B6B4;
+      --line:#2A3739;
+      --line-strong:#3A4A4C;
+      --accent:#63B0AC;
+      --accent-soft:#1D3436;
+      --accent-ink:#B9E3DF;
+      --amber:#E0A257;
+      --amber-soft:#3A2E1C;
+      --amber-ink:#F0C48D;
+      --done:#7FC79A;
+      --done-soft:#1E3226;
+      --done-ink:#A9E0BC;
+      --pending:#C9A67E;
+      --pending-soft:#332720;
+      --pending-ink:#E0C7A6;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -10px rgba(0,0,0,0.5);
+    }
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .heading, h1, h2, h3{
+    font-family:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,serif;
+    font-weight:600;
+    color:var(--ink);
+    text-wrap:balance;
+    letter-spacing:0.01em;
+  }
+
+  .mono, .stat-num, .chip, td.num, th.num{
+    font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,Menlo,monospace;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .page{
+    max-width:860px;
+    margin:0 auto;
+    padding:56px 28px 96px;
+  }
+
+  header.report-head{
+    border-bottom:2px solid var(--line-strong);
+    padding-bottom:28px;
+    margin-bottom:36px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .eyebrow{
+    font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--accent);
+    display:inline-block;
+  }
+  h1.title{
+    font-size:2.15rem;
+    margin:0;
+    line-height:1.15;
+  }
+  .subtitle{
+    color:var(--ink-soft);
+    font-size:1.05rem;
+    margin:0;
+    max-width:64ch;
+  }
+  .meta-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:22px;
+    margin-top:6px;
+    font-size:0.85rem;
+    color:var(--ink-soft);
+  }
+  .meta-row strong{ color:var(--ink); font-weight:600; }
+
+  .summary{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-left:4px solid var(--accent);
+    border-radius:6px;
+    padding:24px 26px;
+    box-shadow:var(--shadow);
+    margin-bottom:40px;
+  }
+  .summary h2{
+    font-size:1.05rem;
+    margin:0 0 12px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--accent-ink);
+  }
+  .summary p{ margin:0 0 12px; }
+  .summary p:last-child{ margin-bottom:0; }
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:44px;
+  }
+  .stat{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:18px 16px;
+    box-shadow:var(--shadow);
+  }
+  .stat-num{
+    font-size:1.9rem;
+    font-weight:700;
+    color:var(--accent-ink);
+    line-height:1;
+  }
+  .stat-num small{
+    font-size:1rem;
+    font-weight:500;
+    color:var(--ink-soft);
+  }
+  .stat-bar{
+    height:5px;
+    border-radius:3px;
+    background:var(--line);
+    margin:10px 0 8px;
+    overflow:hidden;
+  }
+  .stat-bar > span{
+    display:block;
+    height:100%;
+    background:var(--accent);
+    border-radius:3px;
+  }
+  .stat-label{
+    font-size:0.82rem;
+    color:var(--ink-soft);
+  }
+
+  @media (max-width:640px){
+    .stats{ grid-template-columns:repeat(2,1fr); }
+  }
+
+  section{ margin-bottom:44px; }
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    border-left:3px solid var(--accent);
+    padding-left:14px;
+    margin-bottom:18px;
+  }
+  .section-head h2{
+    font-size:1.4rem;
+    margin:0;
+  }
+  .section-head .section-note{
+    font-size:0.85rem;
+    color:var(--ink-soft);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  }
+
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.72rem;
+    font-weight:600;
+    letter-spacing:0.03em;
+    padding:3px 9px;
+    border-radius:100px;
+    white-space:nowrap;
+  }
+  .chip::before{
+    content:"";
+    width:6px; height:6px;
+    border-radius:50%;
+  }
+  .chip.done{ background:var(--done-soft); color:var(--done-ink); }
+  .chip.done::before{ background:var(--done); }
+  .chip.partial{ background:var(--amber-soft); color:var(--amber-ink); }
+  .chip.partial::before{ background:var(--amber); }
+  .chip.pending{ background:var(--pending-soft); color:var(--pending-ink); }
+  .chip.pending::before{ background:var(--pending); }
+
+  .phase-block{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+    margin-bottom:18px;
+  }
+  .phase-block .phase-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 20px;
+    background:var(--accent-soft);
+    border-bottom:1px solid var(--line);
+  }
+  .phase-block .phase-head h3{
+    margin:0;
+    font-size:1.05rem;
+    color:var(--accent-ink);
+  }
+  .phase-block .phase-body{ padding:14px 20px 16px; }
+  .phase-block .phase-body p{ margin:10px 0; color:var(--ink-soft); font-size:0.94rem; }
+  .phase-block .phase-body p:first-child{ margin-top:0; }
+  .phase-block .phase-body p strong.path-label{ color:var(--ink); }
+
+  .table-wrap{
+    overflow-x:auto;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:var(--paper-raised);
+    box-shadow:var(--shadow);
+  }
+  table{
+    border-collapse:collapse;
+    width:100%;
+    font-size:0.88rem;
+  }
+  thead th{
+    text-align:left;
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+    padding:12px 16px;
+    border-bottom:1px solid var(--line-strong);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:10px 16px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr.highlight td{ background:var(--accent-soft); }
+  td.num{ color:var(--ink-soft); width:2.4em; }
+  td.name{ font-weight:500; }
+  td.status{ white-space:nowrap; }
+  td.note{ color:var(--ink-soft); font-size:0.86rem; }
+
+  /* ---------- Flow diagram (chip chain) ---------- */
+  .flow-diagram{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:var(--shadow);
+    padding:22px 24px;
+    margin-bottom:18px;
+  }
+  .flow-chain{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+  }
+  .flow-step{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.82rem;
+    font-weight:600;
+    padding:8px 14px;
+    border-radius:8px;
+    border:1px solid var(--line-strong);
+    background:var(--accent-soft);
+    color:var(--accent-ink);
+    white-space:nowrap;
+  }
+  .flow-step .flow-step-num{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:18px; height:18px;
+    border-radius:50%;
+    background:var(--accent);
+    color:var(--paper-raised);
+    font-size:0.68rem;
+    font-family:ui-monospace,monospace;
+  }
+  .flow-arrow{ color:var(--ink-soft); font-size:1rem; flex:none; }
+  .flow-legend{
+    margin-top:16px;
+    padding-top:14px;
+    border-top:1px dashed var(--line-strong);
+    display:grid;
+    gap:8px;
+  }
+  .flow-legend-item{
+    display:flex;
+    gap:10px;
+    align-items:baseline;
+    font-size:0.86rem;
+    color:var(--ink-soft);
+  }
+  .flow-legend-item .chip{ flex:none; }
+
+  @media (max-width:640px){
+    .flow-chain{ flex-direction:column; align-items:stretch; }
+    .flow-step{ justify-content:center; }
+    .flow-arrow{ text-align:center; transform:rotate(90deg); }
+  }
+
+  .capability{
+    display:grid;
+    gap:14px;
+  }
+  .cap-item{
+    display:grid;
+    grid-template-columns:200px 1fr;
+    gap:18px;
+    padding:16px 20px;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:var(--shadow);
+  }
+  .cap-item .cap-name{
+    font-weight:600;
+    color:var(--accent-ink);
+  }
+  .cap-item .cap-name .cap-sub{
+    display:block;
+    font-weight:400;
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    margin-top:2px;
+  }
+  .cap-item p{ margin:0; font-size:0.93rem; color:var(--ink-soft); }
+
+  @media (max-width:640px){
+    .cap-item{ grid-template-columns:1fr; }
+  }
+
+  .next-list{
+    display:grid;
+    gap:10px;
+  }
+  .next-item{
+    display:flex;
+    gap:14px;
+    padding:12px 16px;
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+  }
+  .next-item .next-tag{
+    font-family:ui-monospace,monospace;
+    font-size:0.72rem;
+    color:var(--ink-soft);
+    min-width:3.6em;
+    padding-top:2px;
+  }
+  .next-item p{ margin:0; font-size:0.93rem; }
+  .next-item p strong{ color:var(--ink); }
+
+  .risk{
+    background:var(--amber-soft);
+    border:1px solid var(--line);
+    border-left:4px solid var(--amber);
+    border-radius:6px;
+    padding:18px 22px;
+  }
+  .risk h3{
+    margin:0 0 8px;
+    font-size:1rem;
+    color:var(--amber-ink);
+  }
+  .risk ul{ margin:0; padding-left:20px; }
+  .risk li{ margin-bottom:8px; color:var(--ink-soft); font-size:0.93rem; }
+  .risk li:last-child{ margin-bottom:0; }
+  .risk li strong{ color:var(--ink); }
+
+  footer{
+    margin-top:56px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-size:0.8rem;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+
+  a{ color:var(--accent-ink); }
+
+  .actions{
+    display:flex;
+    gap:10px;
+    margin:18px 0 4px;
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    font-size:0.86rem;
+    font-weight:600;
+    padding:9px 16px;
+    border-radius:6px;
+    border:1px solid transparent;
+    cursor:pointer;
+    transition:filter 0.15s ease, transform 0.1s ease;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .btn-primary{ background:var(--accent); color:#fff; }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  :root[data-theme="dark"] .btn-primary{ color:#0B1414; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .btn-primary{ color:#0B1414; }
+  }
+  .btn-ghost{ background:var(--paper-raised); color:var(--ink); border-color:var(--line-strong); }
+  .btn-ghost:hover{ background:var(--accent-soft); }
+  .btn svg{ width:15px; height:15px; flex:none; }
+
+  @media print{
+    body{ background:#fff; }
+    .stat, .phase-block, .table-wrap, .cap-item, .next-item, .risk, .flow-diagram{ box-shadow:none; }
+    .actions{ display:none; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="report-head">
+    <div class="eyebrow"><span class="dot"></span>Dokumentasi Teknis &middot; Client–Vendor Commodity</div>
+    <h1 class="title">Client–Vendor Commodity — Flow End-to-End</h1>
+    <p class="subtitle">Alur penuh Vendor mempublikasikan komoditas sampai Client memilih, menahan sementara (Soft Hold), dan Vendor mengonfirmasinya menjadi Order terjual — happy path dan alternative path, berdasarkan implementasi aktual (Phase 1–6).</p>
+    <div class="meta-row">
+      <span>Periode: <strong>31 Jul – 1 Agu 2026</strong></span>
+      <span>Cakupan: <strong>Phase 1–6 (Domain, CRUD, Katalog, Vendor Orders, Regresi)</strong></span>
+      <span>Status validasi: <strong>91/91 test lulus, 0 error typecheck/lint, build sukses</strong></span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-pdf" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        Unduh sebagai PDF
+      </button>
+      <button class="btn btn-ghost" id="btn-html" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        Unduh file HTML
+      </button>
+    </div>
+  </header>
+
+  <div class="summary">
+    <h2>Ringkasan</h2>
+    <p>Fitur Client–Vendor Commodity memungkinkan Vendor mempublikasikan komoditas (kamar, tiket, slot venue, dsb.) yang dapat dicari dan dicocokkan otomatis oleh Client terhadap kebutuhannya, dipilih dan ditahan sementara (Soft Hold), lalu dikonfirmasi Vendor menjadi Order dengan snapshot harga permanen — lengkap dengan ringkasan "Sold Commodities" di sisi Vendor.</p>
+    <p>Dokumen ini adalah versi visual/HTML dari <span class="mono">docs/MANOVA-Client-Vendor-Commodity-End-to-End-Flow.md</span>, dapat diunduh sebagai PDF (tombol di atas) untuk dibagikan ke pihak yang tidak membuka repository langsung.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num">13</div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Skenario flow didokumentasikan (happy + alternative path)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">7</div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Route (halaman) Vendor + Client</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">6</div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Entitas domain (Product, Variant, Slot, Requirement, Selection, Order)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">91<small>/91</small></div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Test lulus (vitest)</div>
+    </div>
+  </div>
+
+  <section>
+    <div class="section-head">
+      <h2>Diagram Alur Utama</h2>
+      <span class="section-note">Jalur happy path — lihat tabel skenario di bawah untuk cabang alternative path</span>
+    </div>
+    <div class="flow-diagram">
+      <div class="flow-chain">
+        <span class="flow-step"><span class="flow-step-num">1</span>Vendor Publish</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step"><span class="flow-step-num">2</span>Client Lihat Katalog</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step"><span class="flow-step-num">3</span>Buat Requirement</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step"><span class="flow-step-num">4</span>Matching</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step"><span class="flow-step-num">5</span>Selection</span>
+      </div>
+      <div class="flow-chain" style="margin-top:8px;">
+        <span class="flow-step"><span class="flow-step-num">6</span>Soft Hold</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step"><span class="flow-step-num">7</span>Vendor Confirmation</span>
+        <span class="flow-arrow">→</span>
+        <span class="flow-step" style="background:var(--done-soft); color:var(--done-ink); border-color:var(--done);"><span class="flow-step-num" style="background:var(--done);">8</span>Vendor Sold</span>
+      </div>
+      <div class="flow-legend">
+        <div class="flow-legend-item"><span class="chip partial">Cabang</span><span>Hold Expired — Soft Hold yang lewat batas waktu disapu otomatis (<span class="mono">sweepExpiredHolds</span>), stok dikembalikan, tidak lanjut ke Confirmation.</span></div>
+        <div class="flow-legend-item"><span class="chip partial">Cabang</span><span>Sold Out — komoditas hilang dari Katalog begitu sisa stok agregat 0, tapi Soft Hold yang sudah ada sebelumnya tetap sah dikonfirmasi.</span></div>
+        <div class="flow-legend-item"><span class="chip partial">Cabang</span><span>Commodity Archived — Vendor mengarsipkan komoditas; Soft Hold lama pada komoditas tsb ditolak saat Confirmation (Phase 6 fix).</span></div>
+        <div class="flow-legend-item"><span class="chip partial">Cabang</span><span>Availability Changed — perubahan kapasitas Vendor langsung memengaruhi status Katalog di langkah 2 tanpa refresh manual.</span></div>
+        <div class="flow-legend-item"><span class="chip pending">Cross-cutting</span><span>Permission Boundary — isolasi Vendor (<span class="mono">vendorScopeId</span>) dan Client (<span class="mono">clientScopeId</span>) berlaku di SETIAP langkah 1–8, bukan satu titik saja.</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Arsitektur Data</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Lapisan</th><th>File</th><th>Isi</th></tr></thead>
+        <tbody>
+          <tr><td class="name">Types</td><td class="mono note">app/types/{commodity,availability,requirement,selection,commodity-order}.ts</td><td class="note">Definisi TypeScript murni</td></tr>
+          <tr><td class="name">Mock data</td><td class="mono note">app/data/{commodities,availability,requirements,selections,commodity-orders}.ts</td><td class="note">Seed data reaktif per entitas</td></tr>
+          <tr><td class="name">Data/mutation layer</td><td class="mono note">app/data/index.ts</td><td class="note">Satu-satunya titik mutasi sah — seluruh create/update/delete/transition</td></tr>
+          <tr><td class="name">Status constants</td><td class="mono note">app/constants/status.ts</td><td class="note">StatusOption per entitas (label/warna/urutan)</td></tr>
+          <tr><td class="name">Pages Vendor</td><td class="mono note">app/pages/supplier/{commodities,commodity-orders}/**</td><td class="note">Kelola Product/Variant/Availability, Orders, Sold Summary</td></tr>
+          <tr><td class="name">Pages Client</td><td class="mono note">app/pages/client/{project-orders,catalog}/**</td><td class="note">Requirement, Katalog/Matching/Selection/Hold</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Route</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Route</th><th>Role</th><th>Fungsi</th></tr></thead>
+        <tbody>
+          <tr><td class="mono">/supplier/commodities</td><td>Vendor</td><td class="note">List + Create Commodity Product</td></tr>
+          <tr><td class="mono">/supplier/commodities/[id]</td><td>Vendor</td><td class="note">Detail — Variant, Availability, Publish/Unpublish/Archive</td></tr>
+          <tr><td class="mono">/supplier/commodities/[id]/edit</td><td>Vendor</td><td class="note">Edit Commodity Product</td></tr>
+          <tr><td class="mono">/supplier/commodity-orders</td><td>Vendor</td><td class="note">Menunggu Konfirmasi, list Order, Sold Commodities</td></tr>
+          <tr><td class="mono">/supplier/commodity-orders/[id]</td><td>Vendor</td><td class="note">Detail Order — status timeline, transisi status</td></tr>
+          <tr><td class="mono">/client/project-orders/[id]?tab=commodity</td><td>Client</td><td class="note">CRUD Commodity Requirement</td></tr>
+          <tr><td class="mono">/client/catalog/[requirementId]</td><td>Client</td><td class="note">Katalog, Matching, Compare, Selection, Selected Commodities</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>13 Skenario — Happy Path &amp; Alternative Path</h2>
+      <span class="section-note">Sesuai instruksi Phase 7 — seluruh happy path dan alternative path didokumentasikan</span>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>1. Vendor create dan publish commodity</h3><span class="chip done">Selesai</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> <span class="mono">/supplier/commodities</span> → "Buat Komoditas" → <span class="mono">createCommodityProduct</span> (status <span class="mono">draft</span>) → tambah Variant/Availability Slot → "Publish" → <span class="mono">updateCommodityProductStatus</span> → otomatis naik ke <span class="mono">available</span>/<span class="mono">limited</span> via <span class="mono">syncCommodityProductAvailabilityStatus</span>.</p>
+        <p><strong class="path-label">Alternative path:</strong> Publish ditolak bila status bukan <span class="mono">draft</span>/<span class="mono">suspended</span> — toast error (Phase 6 fix). Harga pokok internal tidak pernah dirender ke Client.</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>2. Client melihat catalog</h3><span class="chip done">Selesai</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> <span class="mono">/client/catalog/[requirementId]</span> → <span class="mono">getCatalogVisibleCommodities()</span> menyaring HANYA <span class="mono">published</span>/<span class="mono">available</span>/<span class="mono">limited</span> DAN sisa stok &gt; 0.</p>
+        <p><strong class="path-label">Alternative path:</strong> Tidak ada match sama sekali → <em>EmptyState</em> "No Match". Ada match tapi search filter kosong → <em>EmptyState</em> "Tidak Ada Hasil" terpisah (Phase 6 fix).</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>3. Client membuat requirement</h3><span class="chip done">Selesai</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> <span class="mono">/client/project-orders/[id]?tab=commodity</span> → "Tambah Kebutuhan Komoditas" → <span class="mono">createCommodityRequirement</span> (status <span class="mono">draft</span>).</p>
+        <p><strong class="path-label">Alternative path:</strong> Edit hanya saat <span class="mono">draft</span>, Delete hanya <span class="mono">draft</span>/<span class="mono">open</span> — ditegakkan di data layer, bukan hanya UI.</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>4. Matching</h3><span class="chip done">Selesai</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> <span class="mono">matchCommoditiesForRequirement</span> — rule deterministik (kategori + kuantitas + cakupan tanggal) → tier <span class="mono">exact-match</span>/<span class="mono">near-match</span>/<span class="mono">alternative</span>, dikelompokkan 3 SectionCard.</p>
+        <p><strong class="path-label">Alternative path:</strong> Kategori berbeda atau availability 0 → <span class="mono">no-match</span>, disaring dari hasil (tidak tampil sebagai grup kosong).</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>5. Client selection</h3><span class="chip done">Selesai</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> Dialog pilih Variant + Quantity (dibatasi sisa availability) + Choice Rank (Primary/Secondary/Third) → "Simpan Draft" atau "Ajukan Selection".</p>
+        <p><strong class="path-label">Alternative path:</strong> Rank/commodity duplikat aktif → <span class="mono">hasActiveSelectionWithRank</span>/<span class="mono">hasActiveDuplicateSelection</span> menolak dengan toast error, bukan silent no-op.</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>6. Soft Hold</h3><span class="chip done">Selesai</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> <span class="mono">submitAndHoldCommoditySelection</span> — availability dicek ulang, <span class="mono">heldQuantity</span> naik, <span class="mono">holdExpiresAt</span> = H+3 dari tanggal acuan.</p>
+        <p><strong class="path-label">Alternative path:</strong> Stok habis tepat saat submit → rollback status + toast error. Client dapat membatalkan hold kapan saja (<span class="mono">cancelCommoditySelectionHold</span>, stok dikembalikan).</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>7. Confirmation</h3><span class="chip done">Selesai</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> Vendor di <span class="mono">/supplier/commodity-orders</span> → "Menunggu Konfirmasi" → "Konfirmasi Order" → <span class="mono">confirmCommodityOrderFromSelection</span>: Soft Hold→Confirmed (held→booked) → snapshot Order baru.</p>
+        <p><strong class="path-label">Alternative path:</strong> Komoditas sudah archived/suspended/expired → ditolak eksplisit (Phase 6 fix). Order duplikat untuk selection yang sama → ditolak.</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>8. Vendor sold commodity</h3><span class="chip done">Selesai</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> <span class="mono">isCommodityOrderSold</span> = <span class="mono">confirmed</span>/<span class="mono">booked</span>/<span class="mono">in-service</span>/<span class="mono">completed</span>. Status timeline di Order detail + ringkasan "Sold Commodities" (qty, revenue, jumlah order) di Vendor Orders.</p>
+        <p><strong class="path-label">Alternative path:</strong> Order dibatalkan → langsung tidak lagi dihitung sold; Selection ikut disinkron sehingga Client melihat status yang sama.</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>9. Hold expired</h3><span class="chip done">Selesai</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> <span class="mono">sweepExpiredHolds()</span> — sapuan lazy (bukan cron), mengembalikan stok dan mengubah status ke <span class="mono">expired</span>. Dipanggil di halaman Client <strong>dan</strong> Vendor (Phase 6 fix — sebelumnya hanya sisi Client).</p>
+        <p><strong class="path-label">Alternative path:</strong> Selection yang sudah <span class="mono">expired</span> tidak bisa lagi dikonfirmasi.</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>10. Sold out</h3><span class="chip done">Selesai</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> Setiap mutasi Availability memicu <span class="mono">syncCommodityProductAvailabilityStatus</span> — sisa stok 0 → <span class="mono">sold-out</span>, otomatis hilang dari katalog.</p>
+        <p><strong class="path-label">Alternative path:</strong> Selection yang sudah Soft Hold SEBELUM produk sold-out (karena selection itu sendiri yang menghabiskan stok) tetap sah dikonfirmasi — diverifikasi eksplisit di test regresi.</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>11. Commodity archived</h3><span class="chip partial">Selesai, dengan keterbatasan</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> Vendor "Archive" → <span class="mono">updateCommodityProductStatus(id, 'archived')</span> → hilang dari katalog, data historis tetap utuh.</p>
+        <p><strong class="path-label">Alternative path (defect Phase 6, sudah diperbaiki):</strong> Soft Hold lama pada komoditas yang di-archive sekarang ditolak saat Confirmation. <strong>Keterbatasan yang masih ada:</strong> aksi Archive sendiri tidak memperingatkan vendor bila masih ada Selection aktif — hanya jalur "menjual" yang dijaga.</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>12. Availability changed</h3><span class="chip done">Selesai</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> <span class="mono">updateAvailabilitySlotTotal</span> — setiap perubahan memicu ulang <span class="mono">syncCommodityProductAvailabilityStatus</span>, katalog Client selalu konsisten tanpa refresh manual.</p>
+        <p><strong class="path-label">Alternative path:</strong> Kapasitas baru negatif atau lebih kecil dari <span class="mono">bookedQuantity</span> → ditolak, toast error.</p>
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>13. Permission boundary</h3><span class="chip done">Selesai</span></div>
+      <div class="phase-body">
+        <p><strong class="path-label">Happy path:</strong> Isolasi Vendor (<span class="mono">vendorScopeId</span>) dan Client (<span class="mono">clientScopeId</span>) diterapkan di setiap selector data dan setiap halaman (<span class="mono">isOwn</span> + <span class="mono">RoleAccessState</span>). Client tidak pernah melihat harga pokok/margin Vendor; Order snapshot tidak berubah walau harga produk diedit setelahnya.</p>
+        <p><strong class="path-label">Alternative path:</strong> Akses ID yang tidak ada/bukan milik sendiri lewat URL langsung → halaman "Tidak Ditemukan" yang aman, tidak pernah crash.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Matriks CRUD Aktual</h2>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Entitas</th><th>Create</th><th>Read</th><th>Update</th><th>Delete</th></tr></thead>
+        <tbody>
+          <tr><td class="name">Commodity Product (Vendor)</td><td>✅</td><td>✅</td><td>✅</td><td class="note">✅ hanya draft &amp; tidak direferensikan; selain itu pakai Archive</td></tr>
+          <tr><td class="name">Commodity Variant (Vendor)</td><td>✅</td><td>✅</td><td>✅</td><td class="note">✅ guarded, tidak boleh direferensikan Availability/Selection</td></tr>
+          <tr><td class="name">Availability Slot (Vendor)</td><td>✅</td><td>✅</td><td class="note">✅ kapasitas &amp; metadata terpisah</td><td class="note">✅ guarded, held+booked harus 0</td></tr>
+          <tr><td class="name">Commodity Requirement (Client)</td><td>✅</td><td>✅</td><td class="note">✅ hanya status draft</td><td class="note">✅ hanya draft/open</td></tr>
+          <tr><td class="name">Commodity Selection (Client create)</td><td>✅</td><td>✅</td><td class="note">✅ via transisi status</td><td class="note">❌ tidak ada delete — dibatalkan lewat status cancelled</td></tr>
+          <tr><td class="name">Commodity Order (sistem-generated)</td><td class="note">✅ hanya dari Selection confirmed</td><td>✅</td><td class="note">✅ transisi status + sinkron Selection</td><td class="note">❌ tidak ada delete — catatan permanen</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Known Limitations</h2>
+    </div>
+    <div class="risk">
+      <h3>Belum sepenuhnya lengkap — status TIDAK 100%</h3>
+      <ul>
+        <li><strong>Archive/Unpublish tidak memperingatkan</strong> bila masih ada Selection aktif yang mereferensikan komoditas.</li>
+        <li><strong>Tidak ada log riwayat status Order tersimpan</strong> — Status Timeline adalah representasi visual, bukan audit trail bertimestamp.</li>
+        <li><strong>Pembatalan Order setelah Booked/In Service tidak mengembalikan booked quantity</strong> ke Availability Slot.</li>
+        <li><strong>Belum ada halaman "My Orders" khusus Client</strong> — Client melihat status via tabel Selected Commodities, bukan daftar Order tersendiri (data layer <span class="mono">getCommodityOrdersByClient</span> sudah ada, UI belum).</li>
+        <li><strong>Belum tersambung backend/database sungguhan</strong> — seluruh state adalah <span class="mono">reactive()</span> in-memory.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <span>Sumber: docs/MANOVA-Client-Vendor-Commodity-End-to-End-Flow.md, phases/PHASE_01–06, MANOVA-Laporan-Progres-2026-08-01.html.</span>
+    <span>Per 1 Agustus 2026</span>
+  </footer>
+
+</div>
+
+<script>
+  document.getElementById('btn-pdf').addEventListener('click', function () {
+    window.print();
+  });
+
+  document.getElementById('btn-html').addEventListener('click', function () {
+    var doc = '<!doctype html>\n' + document.documentElement.outerHTML;
+    var blob = new Blob([doc], { type: 'text/html' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'MANOVA-Client-Vendor-Commodity-End-to-End-Flow.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  });
+</script>

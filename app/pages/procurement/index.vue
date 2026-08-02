@@ -17,7 +17,7 @@ const canManageProcurement = computed(() => canManage('procurement'))
 
 const activeTab = computed<'rfq' | 'service-orders'>({
   get: () => (route.query.tab === 'service-orders' ? 'service-orders' : 'rfq'),
-  set: value => router.replace({ query: { ...route.query, tab: value } }),
+  set: value => router.replace({ query: { ...route.query, tab: value } })
 })
 
 /* Quick stats */
@@ -31,7 +31,7 @@ const rfqSearch = ref('')
 const rfqStatusFilter = ref('all')
 const rfqRows = computed(() => {
   let result = RFQS.map(rfq => ({ rfq, project: rfq.projectId ? getProjectById(rfq.projectId) : undefined }))
-  if (rfqStatusFilter.value !== 'all') result = result.filter(row => row.rfq.status === rfqStatusFilter.value)
+  if (rfqStatusFilter.value !== 'all') { result = result.filter(row => row.rfq.status === rfqStatusFilter.value) }
   if (rfqSearch.value.trim()) {
     const q = rfqSearch.value.toLowerCase()
     result = result.filter(row => row.rfq.title.toLowerCase().includes(q) || (row.project?.name ?? '').toLowerCase().includes(q))
@@ -44,7 +44,7 @@ const soSearch = ref('')
 const soStatusFilter = ref('all')
 const soRows = computed(() => {
   let result = SERVICE_ORDERS.map(so => ({ so, project: so.projectId ? getProjectById(so.projectId) : undefined, vendor: getVendorById(so.vendorId) }))
-  if (soStatusFilter.value !== 'all') result = result.filter(row => row.so.status === soStatusFilter.value)
+  if (soStatusFilter.value !== 'all') { result = result.filter(row => row.so.status === soStatusFilter.value) }
   if (soSearch.value.trim()) {
     const q = soSearch.value.toLowerCase()
     result = result.filter(row => (row.vendor?.name ?? '').toLowerCase().includes(q) || (row.project?.name ?? '').toLowerCase().includes(q))
@@ -63,7 +63,7 @@ const newLineDescription = ref('')
 const newLineQuantity = ref<number | null>(null)
 const newLineUnit = ref('')
 
-function resetCreateForm() {
+function resetCreateForm () {
   newTitle.value = ''
   newProjectId.value = ''
   newServiceType.value = 'hotel'
@@ -74,8 +74,8 @@ function resetCreateForm() {
   newLineUnit.value = ''
 }
 
-function submitCreate() {
-  if (!newTitle.value.trim() || !newLineDescription.value.trim() || !newLineQuantity.value) return
+function submitCreate () {
+  if (!newTitle.value.trim() || !newLineDescription.value.trim() || !newLineQuantity.value) { return }
   const rfq = createRfq({
     title: newTitle.value.trim(),
     projectId: newProjectId.value || undefined,
@@ -83,7 +83,7 @@ function submitCreate() {
     lineItems: [{ description: newLineDescription.value.trim(), quantity: newLineQuantity.value, unit: newLineUnit.value.trim() || 'unit' }],
     dueAt: newDueAt.value || undefined,
     notes: newNotes.value.trim() || undefined,
-    createdBy: currentUser.value.id,
+    createdBy: currentUser.value.id
   })
   resetCreateForm()
   isCreateOpen.value = false
@@ -116,14 +116,20 @@ function submitCreate() {
               <div class="space-y-1.5">
                 <Label for="rfq-project">Project (opsional)</Label>
                 <select id="rfq-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="">Belum terhubung ke project</option>
-                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+                  <option value="">
+                    Belum terhubung ke project
+                  </option>
+                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
                 </select>
               </div>
               <div class="space-y-1.5">
                 <Label for="rfq-service-type">Jenis Layanan</Label>
                 <select id="rfq-service-type" v-model="newServiceType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
+                  <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+                    {{ type.label }}
+                  </option>
                 </select>
               </div>
               <div class="grid grid-cols-3 gap-2">
@@ -150,8 +156,12 @@ function submitCreate() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">Batal</Button>
-              <Button :disabled="!newTitle.trim() || !newLineDescription.trim() || !newLineQuantity" @click="submitCreate">Simpan</Button>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newTitle.trim() || !newLineDescription.trim() || !newLineQuantity" @click="submitCreate">
+                Simpan
+              </Button>
             </DialogFooter>
           </DialogScrollContent>
         </Dialog>
@@ -170,8 +180,12 @@ function submitCreate() {
 
       <Tabs v-model="activeTab">
         <TabsList>
-          <TabsTrigger value="rfq">RFQ</TabsTrigger>
-          <TabsTrigger value="service-orders">Service Orders</TabsTrigger>
+          <TabsTrigger value="rfq">
+            RFQ
+          </TabsTrigger>
+          <TabsTrigger value="service-orders">
+            Service Orders
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="rfq">
@@ -181,8 +195,12 @@ function submitCreate() {
               <Input v-model="rfqSearch" placeholder="Cari judul RFQ atau project..." class="pl-9" />
             </div>
             <select v-model="rfqStatusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Status</option>
-              <option v-for="option in RFQ_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
+              <option value="all">
+                Semua Status
+              </option>
+              <option v-for="option in RFQ_STATUSES" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
             </select>
           </div>
           <SectionCard>
@@ -198,10 +216,16 @@ function submitCreate() {
               </TableHeader>
               <TableBody>
                 <TableRow v-for="row in rfqRows" :key="row.rfq.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/procurement/rfq/${row.rfq.id}`)">
-                  <TableCell class="font-medium text-foreground">{{ row.rfq.title }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.project?.name ?? '—' }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.rfq.title }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? '—' }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, row.rfq.serviceType).label" :tone="findStatusOption(SERVICE_TYPES, row.rfq.serviceType).tone" /></TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.rfq.dueAt ?? '—' }}</TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.rfq.dueAt ?? '—' }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(RFQ_STATUSES, row.rfq.status).label" :tone="findStatusOption(RFQ_STATUSES, row.rfq.status).tone" /></TableCell>
                 </TableRow>
                 <TableEmpty v-if="rfqRows.length === 0" :colspan="5">
@@ -219,8 +243,12 @@ function submitCreate() {
               <Input v-model="soSearch" placeholder="Cari vendor atau project..." class="pl-9" />
             </div>
             <select v-model="soStatusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Status</option>
-              <option v-for="option in SERVICE_ORDER_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
+              <option value="all">
+                Semua Status
+              </option>
+              <option v-for="option in SERVICE_ORDER_STATUSES" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
             </select>
           </div>
           <SectionCard>
@@ -235,9 +263,15 @@ function submitCreate() {
               </TableHeader>
               <TableBody>
                 <TableRow v-for="row in soRows" :key="row.so.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/procurement/service-orders/${row.so.id}`)">
-                  <TableCell class="font-medium text-foreground">{{ row.vendor?.name ?? row.so.vendorId }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.project?.name ?? '—' }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.so.rfqId ?? '— (engagement langsung)' }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.vendor?.name ?? row.so.vendorId }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.so.rfqId ?? '— (engagement langsung)' }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).label" :tone="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).tone" /></TableCell>
                 </TableRow>
                 <TableEmpty v-if="soRows.length === 0" :colspan="4">

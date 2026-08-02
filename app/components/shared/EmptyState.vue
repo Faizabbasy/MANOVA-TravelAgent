@@ -7,7 +7,7 @@ withDefaults(defineProps<{
   title: string
   description?: string
 }>(), {
-  icon: () => Inbox,
+  icon: () => Inbox
 })
 </script>
 
@@ -16,8 +16,12 @@ withDefaults(defineProps<{
     <div class="p-4 rounded-full bg-muted mb-4">
       <component :is="icon" class="h-7 w-7 text-muted-foreground" />
     </div>
-    <p class="text-sm font-medium text-foreground">{{ title }}</p>
-    <p v-if="description" class="text-xs text-muted-foreground mt-1 max-w-sm">{{ description }}</p>
+    <p class="text-sm font-medium text-foreground">
+      {{ title }}
+    </p>
+    <p v-if="description" class="text-xs text-muted-foreground mt-1 max-w-sm">
+      {{ description }}
+    </p>
     <div v-if="$slots.default" class="mt-4">
       <slot />
     </div>

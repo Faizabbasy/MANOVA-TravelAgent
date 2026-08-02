@@ -39,8 +39,8 @@ onMounted(async () => {
       data: coloredData.value.map(d => d.valueIdr),
       backgroundColor: coloredData.value.map(d => d.color),
       borderWidth: 0,
-      spacing: 2,
-    }],
+      spacing: 2
+    }]
   }
 
   chartOptions.value = {
@@ -51,10 +51,10 @@ onMounted(async () => {
       legend: { display: false },
       tooltip: {
         callbacks: {
-          label: (context: any) => formatCurrencyIdr(context.parsed),
-        },
-      },
-    },
+          label: (context: any) => formatCurrencyIdr(context.parsed)
+        }
+      }
+    }
   }
 })
 </script>

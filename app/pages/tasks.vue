@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { cn } from '~/lib/utils'
 import { Plus, Search, MoreHorizontal, Calendar, Flag, SlidersHorizontal, X, ChevronDown } from 'lucide-vue-next'
+import { cn } from '~/lib/utils'
 
 definePageMeta({
   layout: 'dashboard',
@@ -18,7 +18,7 @@ const tasks = [
     status: 'in-progress',
     dueDate: 'Today',
     assignee: { name: 'Sarah Chen', avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=32&h=32&fit=crop&crop=face', initials: 'SC' },
-    labels: ['Design', 'Mobile'],
+    labels: ['Design', 'Mobile']
   },
   {
     id: 2,
@@ -29,7 +29,7 @@ const tasks = [
     status: 'pending',
     dueDate: 'Tomorrow',
     assignee: { name: 'Mike Johnson', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face', initials: 'MJ' },
-    labels: ['Development', 'API'],
+    labels: ['Development', 'API']
   },
   {
     id: 3,
@@ -40,7 +40,7 @@ const tasks = [
     status: 'pending',
     dueDate: 'Jan 18',
     assignee: { name: 'Emily Davis', avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face', initials: 'ED' },
-    labels: ['Meeting', 'Presentation'],
+    labels: ['Meeting', 'Presentation']
   },
   {
     id: 4,
@@ -51,7 +51,7 @@ const tasks = [
     status: 'overdue',
     dueDate: 'Overdue',
     assignee: { name: 'Alex Thompson', avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face', initials: 'AT' },
-    labels: ['Bug', 'Critical'],
+    labels: ['Bug', 'Critical']
   },
   {
     id: 5,
@@ -62,7 +62,7 @@ const tasks = [
     status: 'pending',
     dueDate: 'Jan 20',
     assignee: { name: 'Jessica Lee', avatar: 'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=32&h=32&fit=crop&crop=face', initials: 'JL' },
-    labels: ['Research', 'UX'],
+    labels: ['Research', 'UX']
   },
   {
     id: 6,
@@ -73,32 +73,32 @@ const tasks = [
     status: 'completed',
     dueDate: 'Completed',
     assignee: { name: 'Mike Johnson', avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face', initials: 'MJ' },
-    labels: ['Backend', 'Performance'],
-  },
+    labels: ['Backend', 'Performance']
+  }
 ]
 
 const priorityConfig: Record<string, { label: string; className: string }> = {
   critical: { label: 'Critical', className: 'text-destructive' },
-  high:     { label: 'High',     className: 'text-warning' },
-  medium:   { label: 'Medium',   className: 'text-primary' },
-  low:      { label: 'Low',      className: 'text-muted-foreground' },
+  high: { label: 'High', className: 'text-warning' },
+  medium: { label: 'Medium', className: 'text-primary' },
+  low: { label: 'Low', className: 'text-muted-foreground' }
 }
 
 const statusConfig: Record<string, { label: string; className: string }> = {
   'in-progress': { label: 'In Progress', className: 'bg-primary/10 text-primary' },
-  'pending':     { label: 'Pending',     className: 'bg-muted text-muted-foreground' },
-  'overdue':     { label: 'Overdue',     className: 'bg-destructive/10 text-destructive' },
-  'completed':   { label: 'Completed',  className: 'bg-success/10 text-success' },
+  pending: { label: 'Pending', className: 'bg-muted text-muted-foreground' },
+  overdue: { label: 'Overdue', className: 'bg-destructive/10 text-destructive' },
+  completed: { label: 'Completed', className: 'bg-success/10 text-success' }
 }
 
 const projects = [...new Set(tasks.map(t => t.project))]
 
 // ── Filter state ───────────────────────────────────────────────────────────
-const searchQuery      = ref('')
-const selectedStatus   = ref('all')
+const searchQuery = ref('')
+const selectedStatus = ref('all')
 const selectedPriority = ref('all')
-const selectedProject  = ref('all')
-const showFilters      = ref(false)
+const selectedProject = ref('all')
+const showFilters = ref(false)
 
 const activeFilterCount = computed(() =>
   (selectedStatus.value !== 'all' ? 1 : 0) +
@@ -119,23 +119,20 @@ const filteredTasks = computed(() => {
     )
   }
 
-  if (selectedStatus.value !== 'all')
-    result = result.filter(t => t.status === selectedStatus.value)
+  if (selectedStatus.value !== 'all') { result = result.filter(t => t.status === selectedStatus.value) }
 
-  if (selectedPriority.value !== 'all')
-    result = result.filter(t => t.priority === selectedPriority.value)
+  if (selectedPriority.value !== 'all') { result = result.filter(t => t.priority === selectedPriority.value) }
 
-  if (selectedProject.value !== 'all')
-    result = result.filter(t => t.project === selectedProject.value)
+  if (selectedProject.value !== 'all') { result = result.filter(t => t.project === selectedProject.value) }
 
   return result
 })
 
-function clearFilters() {
-  searchQuery.value      = ''
-  selectedStatus.value   = 'all'
+function clearFilters () {
+  searchQuery.value = ''
+  selectedStatus.value = 'all'
   selectedPriority.value = 'all'
-  selectedProject.value  = 'all'
+  selectedProject.value = 'all'
 }
 </script>
 
@@ -144,8 +141,12 @@ function clearFilters() {
     <!-- Header -->
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold text-foreground">Tasks</h1>
-        <p class="text-sm text-muted-foreground mt-1">Track and manage all your tasks</p>
+        <h1 class="text-2xl font-bold text-foreground">
+          Tasks
+        </h1>
+        <p class="text-sm text-muted-foreground mt-1">
+          Track and manage all your tasks
+        </p>
       </div>
       <Button class="gap-2">
         <Plus class="h-4 w-4" />
@@ -162,17 +163,17 @@ function clearFilters() {
             v-model="searchQuery"
             placeholder="Search tasks..."
             class="w-full pl-9 pr-4 py-2 text-sm rounded-lg border border-input bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring transition-shadow"
-          />
+          >
         </div>
 
         <button
-          @click="showFilters = !showFilters"
           :class="cn(
             'flex items-center gap-2 px-3 py-2 text-sm font-medium rounded-lg border transition-colors',
             showFilters || activeFilterCount > 0
               ? 'border-primary/40 bg-primary/5 text-primary'
               : 'border-border hover:bg-muted text-foreground'
           )"
+          @click="showFilters = !showFilters"
         >
           <SlidersHorizontal class="h-4 w-4" />
           Filters
@@ -186,8 +187,8 @@ function clearFilters() {
 
         <button
           v-if="activeFilterCount > 0 || searchQuery"
-          @click="clearFilters"
           class="flex items-center gap-1.5 px-3 py-2 text-sm rounded-lg border border-border text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          @click="clearFilters"
         >
           <X class="h-3.5 w-3.5" />
           Clear
@@ -212,11 +213,21 @@ function clearFilters() {
               v-model="selectedStatus"
               class="appearance-none pl-3 pr-8 py-1.5 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
             >
-              <option value="all">All Statuses</option>
-              <option value="in-progress">In Progress</option>
-              <option value="pending">Pending</option>
-              <option value="overdue">Overdue</option>
-              <option value="completed">Completed</option>
+              <option value="all">
+                All Statuses
+              </option>
+              <option value="in-progress">
+                In Progress
+              </option>
+              <option value="pending">
+                Pending
+              </option>
+              <option value="overdue">
+                Overdue
+              </option>
+              <option value="completed">
+                Completed
+              </option>
             </select>
             <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           </div>
@@ -227,11 +238,21 @@ function clearFilters() {
               v-model="selectedPriority"
               class="appearance-none pl-3 pr-8 py-1.5 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
             >
-              <option value="all">All Priorities</option>
-              <option value="critical">Critical</option>
-              <option value="high">High</option>
-              <option value="medium">Medium</option>
-              <option value="low">Low</option>
+              <option value="all">
+                All Priorities
+              </option>
+              <option value="critical">
+                Critical
+              </option>
+              <option value="high">
+                High
+              </option>
+              <option value="medium">
+                Medium
+              </option>
+              <option value="low">
+                Low
+              </option>
             </select>
             <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           </div>
@@ -242,8 +263,12 @@ function clearFilters() {
               v-model="selectedProject"
               class="appearance-none pl-3 pr-8 py-1.5 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
             >
-              <option value="all">All Projects</option>
-              <option v-for="p in projects" :key="p" :value="p">{{ p }}</option>
+              <option value="all">
+                All Projects
+              </option>
+              <option v-for="p in projects" :key="p" :value="p">
+                {{ p }}
+              </option>
             </select>
             <ChevronDown class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
           </div>
@@ -291,9 +316,15 @@ function clearFilters() {
         <div class="p-4 rounded-full bg-muted mb-4">
           <Search class="h-8 w-8 text-muted-foreground" />
         </div>
-        <p class="text-sm font-medium text-foreground">No tasks found</p>
-        <p class="text-xs text-muted-foreground mt-1 mb-4">Try adjusting your search or filters</p>
-        <button @click="clearFilters" class="text-xs text-primary hover:underline font-medium">Clear all filters</button>
+        <p class="text-sm font-medium text-foreground">
+          No tasks found
+        </p>
+        <p class="text-xs text-muted-foreground mt-1 mb-4">
+          Try adjusting your search or filters
+        </p>
+        <button class="text-xs text-primary hover:underline font-medium" @click="clearFilters">
+          Clear all filters
+        </button>
       </div>
 
       <div v-else class="divide-y divide-border">
@@ -307,13 +338,17 @@ function clearFilters() {
             <div class="flex-1 min-w-0">
               <div class="flex items-start justify-between gap-4">
                 <div>
-                  <h3 :class="cn(
-                    'text-sm font-medium',
-                    task.status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'
-                  )">
+                  <h3
+                    :class="cn(
+                      'text-sm font-medium',
+                      task.status === 'completed' ? 'text-muted-foreground line-through' : 'text-foreground'
+                    )"
+                  >
                     {{ task.title }}
                   </h3>
-                  <p class="text-sm text-muted-foreground mt-1">{{ task.description }}</p>
+                  <p class="text-sm text-muted-foreground mt-1">
+                    {{ task.description }}
+                  </p>
                   <div class="flex items-center gap-3 mt-3">
                     <span class="text-xs text-muted-foreground">{{ task.project }}</span>
                     <div class="flex items-center gap-1.5">

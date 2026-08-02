@@ -21,22 +21,22 @@ const projectFilter = ref('all')
 
 const rows = computed(() => {
   let result = TRANSPORT_BOOKINGS.map(booking => ({ booking, project: getProjectById(booking.projectId) }))
-  if (statusFilter.value !== 'all') result = result.filter(row => row.booking.status === statusFilter.value)
-  if (projectFilter.value !== 'all') result = result.filter(row => row.booking.projectId === projectFilter.value)
+  if (statusFilter.value !== 'all') { result = result.filter(row => row.booking.status === statusFilter.value) }
+  if (projectFilter.value !== 'all') { result = result.filter(row => row.booking.projectId === projectFilter.value) }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(row =>
-      (row.booking.assignedVehiclePlateNumber ?? '').toLowerCase().includes(q)
-      || (row.booking.driverName ?? '').toLowerCase().includes(q)
-      || (row.project?.name ?? '').toLowerCase().includes(q)
-      || row.booking.legs.some(leg => `${leg.pickupLocation} ${leg.dropoffLocation}`.toLowerCase().includes(q)),
+      (row.booking.assignedVehiclePlateNumber ?? '').toLowerCase().includes(q) ||
+      (row.booking.driverName ?? '').toLowerCase().includes(q) ||
+      (row.project?.name ?? '').toLowerCase().includes(q) ||
+      row.booking.legs.some(leg => `${leg.pickupLocation} ${leg.dropoffLocation}`.toLowerCase().includes(q))
     )
   }
   return result.sort((a, b) => b.booking.createdAt.localeCompare(a.booking.createdAt))
 })
 
-function routeLabel(booking: typeof TRANSPORT_BOOKINGS[number]) {
-  if (booking.legs.length === 0) return '—'
+function routeLabel (booking: typeof TRANSPORT_BOOKINGS[number]) {
+  if (booking.legs.length === 0) { return '—' }
   const first = booking.legs[0]
   const last = booking.legs[booking.legs.length - 1]
   return booking.legs.length === 1 ? `${first.pickupLocation} → ${first.dropoffLocation}` : `${first.pickupLocation} → ${last.dropoffLocation} (${booking.legs.length} leg)`
@@ -47,26 +47,26 @@ const isCreateOpen = ref(false)
 const newProjectId = ref('')
 const newServiceId = ref('')
 
-function resetCreateForm() {
+function resetCreateForm () {
   newProjectId.value = ''
   newServiceId.value = ''
 }
 
-function openCreateDialog() {
+function openCreateDialog () {
   resetCreateForm()
-  if (typeof route.query.projectId === 'string') newProjectId.value = route.query.projectId
-  if (typeof route.query.serviceId === 'string') newServiceId.value = route.query.serviceId
+  if (typeof route.query.projectId === 'string') { newProjectId.value = route.query.projectId }
+  if (typeof route.query.serviceId === 'string') { newServiceId.value = route.query.serviceId }
   isCreateOpen.value = true
 }
 
-watch(() => route.query.create, (value) => { if (value === '1') openCreateDialog() }, { immediate: true })
+watch(() => route.query.create, (value) => { if (value === '1') { openCreateDialog() } }, { immediate: true })
 
 /** "Duplicate booking prevention" (Section 18, Wajib) — cek booking Transport aktif lain untuk project+service yang sama sebelum membuat. */
 const isDuplicateConfirmOpen = ref(false)
 const duplicateConflictIds = ref<string[]>([])
 
-function submitCreate() {
-  if (!newProjectId.value) return
+function submitCreate () {
+  if (!newProjectId.value) { return }
   if (newServiceId.value) {
     const conflicts = findActiveBookingConflicts('transport', newProjectId.value, newServiceId.value)
     if (conflicts.length > 0) {
@@ -78,10 +78,10 @@ function submitCreate() {
   performCreate()
 }
 
-function performCreate() {
+function performCreate () {
   const booking = createTransportBooking({
     projectId: newProjectId.value,
-    serviceId: newServiceId.value || undefined,
+    serviceId: newServiceId.value || undefined
   })
   if (duplicateConflictIds.value.length > 0) {
     flagBookingOrchestrationDuplicate('transport', booking.id, booking.projectId, currentUser.value.id, duplicateConflictIds.value)
@@ -93,7 +93,7 @@ function performCreate() {
   navigateTo(`/transportation/${booking.id}`)
 }
 
-function cancelDuplicateCreate() {
+function cancelDuplicateCreate () {
   isDuplicateConfirmOpen.value = false
   duplicateConflictIds.value = []
 }
@@ -109,7 +109,9 @@ function cancelDuplicateCreate() {
       <template v-if="canManageTransportation" #actions>
         <Dialog v-model:open="isCreateOpen">
           <DialogTrigger as-child>
-            <Button @click="openCreateDialog"><Plus class="h-4 w-4 mr-1.5" />Buat Transport Booking</Button>
+            <Button @click="openCreateDialog">
+              <Plus class="h-4 w-4 mr-1.5" />Buat Transport Booking
+            </Button>
           </DialogTrigger>
           <DialogContent class="max-w-md">
             <DialogHeader>
@@ -120,14 +122,22 @@ function cancelDuplicateCreate() {
               <div class="space-y-1.5">
                 <Label for="trn-project">Project</Label>
                 <select id="trn-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="" disabled>Pilih project</option>
-                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+                  <option value="" disabled>
+                    Pilih project
+                  </option>
+                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
                 </select>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">Batal</Button>
-              <Button :disabled="!newProjectId" @click="submitCreate">Simpan</Button>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newProjectId" @click="submitCreate">
+                Simpan
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -143,8 +153,12 @@ function cancelDuplicateCreate() {
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="outline" @click="cancelDuplicateCreate">Batal</Button>
-              <Button variant="destructive" @click="performCreate">Lanjutkan sebagai Duplicate</Button>
+              <Button variant="outline" @click="cancelDuplicateCreate">
+                Batal
+              </Button>
+              <Button variant="destructive" @click="performCreate">
+                Lanjutkan sebagai Duplicate
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -160,12 +174,20 @@ function cancelDuplicateCreate() {
           <Input v-model="searchQuery" placeholder="Cari plat nomor, driver, project, atau rute..." class="pl-9" />
         </div>
         <select v-model="statusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Status</option>
-          <option v-for="option in TRANSPORT_BOOKING_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
+          <option value="all">
+            Semua Status
+          </option>
+          <option v-for="option in TRANSPORT_BOOKING_STATUSES" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
         </select>
         <select v-model="projectFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Project</option>
-          <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+          <option value="all">
+            Semua Project
+          </option>
+          <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+            {{ project.name }}
+          </option>
         </select>
       </div>
 
@@ -183,11 +205,21 @@ function cancelDuplicateCreate() {
           </TableHeader>
           <TableBody>
             <TableRow v-for="row in rows" :key="row.booking.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/transportation/${row.booking.id}`)">
-              <TableCell class="font-medium text-foreground">{{ row.booking.assignedVehiclePlateNumber ?? row.booking.driverName ?? '—' }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.project?.name ?? row.booking.projectId }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ routeLabel(row.booking) }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.booking.travelerIds.length }} pax</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.booking.legs[0]?.scheduledAt ? formatDateTime(row.booking.legs[0].scheduledAt) : '—' }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ row.booking.assignedVehiclePlateNumber ?? row.booking.driverName ?? '—' }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.project?.name ?? row.booking.projectId }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ routeLabel(row.booking) }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.booking.travelerIds.length }} pax
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.booking.legs[0]?.scheduledAt ? formatDateTime(row.booking.legs[0].scheduledAt) : '—' }}
+              </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(TRANSPORT_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(TRANSPORT_BOOKING_STATUSES, row.booking.status).tone" /></TableCell>
             </TableRow>
             <TableEmpty v-if="rows.length === 0" :colspan="6">

@@ -30,7 +30,7 @@ export const PRODUCT_TEMPLATES: ProductTemplate[] = reactive([
     itineraryConcept: '3 hari 2 malam, flight only untuk keperluan bisnis singkat — akomodasi diatur sendiri oleh client.',
     serviceAlternatives: [
       { service: 'flight', label: 'Ekonomi — Maskapai Budget', costPerPaxIdr: 3_200_000, isRecommended: false, notes: 'Jadwal terbatas, tanpa bagasi tambahan.' },
-      { service: 'flight', label: 'Ekonomi — Maskapai Full Service', costPerPaxIdr: 4_100_000, isRecommended: true, notes: 'Jadwal pagi tersedia, termasuk bagasi 20kg.' },
+      { service: 'flight', label: 'Ekonomi — Maskapai Full Service', costPerPaxIdr: 4_100_000, isRecommended: true, notes: 'Jadwal pagi tersedia, termasuk bagasi 20kg.' }
     ],
     inclusions: 'Tiket pesawat PP kelas ekonomi, bagasi 20kg (opsi full-service).',
     exclusions: 'Akomodasi, transportasi darat, konsumsi, asuransi perjalanan.',
@@ -39,7 +39,7 @@ export const PRODUCT_TEMPLATES: ProductTemplate[] = reactive([
     validityEnd: '2026-12-31',
     basePaxCount: 6,
     createdBy: 'USR-017',
-    createdAt: '2026-06-05',
+    createdAt: '2026-06-05'
   },
   {
     id: 'PRD-002',
@@ -51,7 +51,7 @@ export const PRODUCT_TEMPLATES: ProductTemplate[] = reactive([
     serviceAlternatives: [
       { service: 'hotel', label: 'Hotel Bintang 4 — Business District', costPerPaxIdr: 4_500_000, isRecommended: true, notes: '4 malam, termasuk sarapan dan 1 meeting room.' },
       { service: 'hotel', label: 'Hotel Bintang 5 — Corniche View', costPerPaxIdr: 7_200_000, isRecommended: false, notes: '4 malam, upgrade fasilitas ballroom.' },
-      { service: 'flight', label: 'Ekonomi — Direct Flight', costPerPaxIdr: 9_800_000, isRecommended: true },
+      { service: 'flight', label: 'Ekonomi — Direct Flight', costPerPaxIdr: 9_800_000, isRecommended: true }
     ],
     inclusions: 'Tiket pesawat PP, hotel sesuai pilihan (4 malam, sarapan), transportasi bandara-hotel PP.',
     exclusions: 'Makan siang/malam di luar itinerary, aktivitas pribadi, visa (diurus terpisah).',
@@ -60,7 +60,7 @@ export const PRODUCT_TEMPLATES: ProductTemplate[] = reactive([
     validityEnd: '2027-03-31',
     basePaxCount: 15,
     createdBy: 'USR-017',
-    createdAt: '2026-05-20',
+    createdAt: '2026-05-20'
   },
   {
     id: 'PRD-003',
@@ -73,7 +73,7 @@ export const PRODUCT_TEMPLATES: ProductTemplate[] = reactive([
       { service: 'hotel', label: 'Hotel Bintang 3 — Standard', costPerPaxIdr: 3_600_000, isRecommended: false },
       { service: 'hotel', label: 'Hotel Bintang 4 — Convention Center', costPerPaxIdr: 5_400_000, isRecommended: true, notes: 'Dekat venue acara, hemat waktu transportasi.' },
       { service: 'mice', label: 'Venue Standard — Ballroom + AV Dasar', costPerPaxIdr: 1_200_000, isRecommended: false },
-      { service: 'mice', label: 'Venue Premium — Ballroom + Full AV + Staffing', costPerPaxIdr: 2_100_000, isRecommended: true },
+      { service: 'mice', label: 'Venue Premium — Ballroom + Full AV + Staffing', costPerPaxIdr: 2_100_000, isRecommended: true }
     ],
     inclusions: 'Tiket pesawat PP, hotel, transportasi charter bandara-hotel-venue, venue acara + AV.',
     exclusions: 'Konsumsi di luar rangkaian acara resmi, akomodasi tambahan H-1/H+1, dokumentasi profesional.',
@@ -82,8 +82,8 @@ export const PRODUCT_TEMPLATES: ProductTemplate[] = reactive([
     validityEnd: '2027-06-30',
     basePaxCount: 25,
     createdBy: 'USR-017',
-    createdAt: '2026-07-25',
-  },
+    createdAt: '2026-07-25'
+  }
 ])
 
 export const COST_SHEETS: CostSheet[] = reactive([
@@ -95,7 +95,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     travelerCount: 6,
     currency: 'IDR',
     lineItems: [
-      { service: 'flight', description: 'Tiket PP ekonomi full-service, booking last-minute (6 pax)', costPerPaxIdr: 12_500_000 },
+      { service: 'flight', description: 'Tiket PP ekonomi full-service, booking last-minute (6 pax)', costPerPaxIdr: 12_500_000 }
     ],
     markupPercent: 15,
     taxPercent: 5,
@@ -107,7 +107,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     createdBy: 'USR-017',
     createdAt: '2026-06-12',
     appliedToQuotationId: 'QUO-001',
-    appliedAt: '2026-06-24',
+    appliedAt: '2026-06-24'
   },
   {
     id: 'CS-002',
@@ -118,7 +118,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     currency: 'IDR',
     lineItems: [
       { service: 'flight', description: 'Tiket PP direct flight (15 pax)', costPerPaxIdr: 9_800_000 },
-      { service: 'hotel', description: 'Hotel bintang 4, 4 malam (15 pax)', costPerPaxIdr: 4_500_000 },
+      { service: 'hotel', description: 'Hotel bintang 4, 4 malam (15 pax)', costPerPaxIdr: 4_500_000 }
     ],
     markupPercent: 15,
     taxPercent: 5,
@@ -130,7 +130,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     createdBy: 'USR-017',
     createdAt: '2026-06-08',
     appliedToQuotationId: 'QUO-002',
-    appliedAt: '2026-06-19',
+    appliedAt: '2026-06-19'
   },
   {
     id: 'CS-005',
@@ -140,7 +140,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     currency: 'IDR',
     lineItems: [
       { service: 'flight', description: 'Tiket PP direct flight (referensi baseline)', costPerPaxIdr: 9_800_000 },
-      { service: 'hotel', description: 'Hotel bintang 4, 4 malam (referensi baseline)', costPerPaxIdr: 4_500_000 },
+      { service: 'hotel', description: 'Hotel bintang 4, 4 malam (referensi baseline)', costPerPaxIdr: 4_500_000 }
     ],
     markupPercent: 15,
     taxPercent: 5,
@@ -149,7 +149,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     version: 1,
     createdBy: 'USR-017',
     createdAt: '2026-05-22',
-    notes: 'Baseline referensi — belum terikat Opportunity spesifik, dipakai sebagai starting point saat AE membawa deal baru ke destinasi ini.',
+    notes: 'Baseline referensi — belum terikat Opportunity spesifik, dipakai sebagai starting point saat AE membawa deal baru ke destinasi ini.'
   },
   {
     id: 'CS-003',
@@ -162,7 +162,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
       { service: 'flight', description: 'Tiket PP ekonomi (25 pax)', costPerPaxIdr: 3_400_000 },
       { service: 'hotel', description: 'Hotel bintang 3, 4 malam (25 pax)', costPerPaxIdr: 3_600_000 },
       { service: 'transportation', description: 'Transportasi charter bandara-hotel-venue PP', costPerPaxIdr: 450_000 },
-      { service: 'mice', description: 'Venue standard (Ballroom + AV dasar)', costPerPaxIdr: 1_200_000 },
+      { service: 'mice', description: 'Venue standard (Ballroom + AV dasar)', costPerPaxIdr: 1_200_000 }
     ],
     markupPercent: 12,
     taxPercent: 5,
@@ -171,7 +171,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     version: 1,
     createdBy: 'USR-017',
     createdAt: '2026-07-28',
-    notes: 'Skenario ekonomis — margin lebih tipis, cocok bila budget client terbatas.',
+    notes: 'Skenario ekonomis — margin lebih tipis, cocok bila budget client terbatas.'
   },
   {
     id: 'CS-004',
@@ -184,7 +184,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
       { service: 'flight', description: 'Tiket PP ekonomi, jadwal fleksibel (25 pax)', costPerPaxIdr: 3_400_000 },
       { service: 'hotel', description: 'Hotel bintang 4 dekat convention center, 4 malam (25 pax)', costPerPaxIdr: 5_400_000 },
       { service: 'transportation', description: 'Transportasi charter bandara-hotel-venue PP', costPerPaxIdr: 450_000 },
-      { service: 'mice', description: 'Venue premium (Ballroom + Full AV + Staffing)', costPerPaxIdr: 2_100_000 },
+      { service: 'mice', description: 'Venue premium (Ballroom + Full AV + Staffing)', costPerPaxIdr: 2_100_000 }
     ],
     markupPercent: 12,
     taxPercent: 5,
@@ -193,6 +193,6 @@ export const COST_SHEETS: CostSheet[] = reactive([
     version: 1,
     createdBy: 'USR-017',
     createdAt: '2026-07-29',
-    notes: 'Skenario premium — pengalaman lebih baik untuk delegasi VIP, margin lebih tebal.',
-  },
+    notes: 'Skenario premium — pengalaman lebih baik untuk delegasi VIP, margin lebih tebal.'
+  }
 ])

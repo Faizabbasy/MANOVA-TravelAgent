@@ -32,7 +32,9 @@ const rows = computed(() => getBookingExceptionQueue())
     >
       <template #actions>
         <NuxtLink to="/bookings">
-          <Button size="sm" variant="outline">Kembali ke Timeline</Button>
+          <Button size="sm" variant="outline">
+            Kembali ke Timeline
+          </Button>
         </NuxtLink>
       </template>
     </PageHeader>
@@ -46,7 +48,9 @@ const rows = computed(() => getBookingExceptionQueue())
             <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
               <div class="flex items-center gap-2">
                 <StatusBadge :label="DOMAIN_LABEL[entry.bookingType]" :tone="DOMAIN_TONE[entry.bookingType]" />
-                <NuxtLink :to="entry.detailHref" class="text-sm font-medium text-foreground hover:text-primary hover:underline">{{ entry.bookingId }}</NuxtLink>
+                <NuxtLink :to="entry.detailHref" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
+                  {{ entry.bookingId }}
+                </NuxtLink>
                 <span class="text-xs text-muted-foreground">— {{ entry.label }} · {{ entry.projectName }}</span>
               </div>
               <div class="flex items-center gap-2">

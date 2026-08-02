@@ -21,21 +21,21 @@ const newCategory = ref<ServiceTypeKey>('hotel')
 const newDescription = ref('')
 const newPrice = ref<number | null>(null)
 
-function resetForm() {
+function resetForm () {
   newName.value = ''
   newCategory.value = 'hotel'
   newDescription.value = ''
   newPrice.value = null
 }
 
-function submitCreate() {
-  if (!vendorScopeId.value || !newName.value.trim()) return
+function submitCreate () {
+  if (!vendorScopeId.value || !newName.value.trim()) { return }
   createVendorProduct({
     vendorId: vendorScopeId.value,
     name: newName.value.trim(),
     category: newCategory.value,
     description: newDescription.value.trim() || undefined,
-    priceIdr: newPrice.value ?? undefined,
+    priceIdr: newPrice.value ?? undefined
   })
   resetForm()
   isCreateOpen.value = false
@@ -67,7 +67,9 @@ function submitCreate() {
               <div class="space-y-1.5">
                 <Label for="product-category">Kategori</Label>
                 <select id="product-category" v-model="newCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
+                  <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+                    {{ type.label }}
+                  </option>
                 </select>
               </div>
               <div class="space-y-1.5">
@@ -80,8 +82,12 @@ function submitCreate() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">Batal</Button>
-              <Button :disabled="!newName.trim()" @click="submitCreate">Simpan</Button>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newName.trim()" @click="submitCreate">
+                Simpan
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -103,12 +109,18 @@ function submitCreate() {
           </TableHeader>
           <TableBody>
             <TableRow v-for="product in products" :key="product.id">
-              <TableCell class="font-medium text-foreground">{{ product.name }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ product.name }}
+              </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, product.category).label" :tone="findStatusOption(SERVICE_TYPES, product.category).tone" /></TableCell>
-              <TableCell class="text-muted-foreground">{{ product.description ?? '—' }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ product.description ?? '—' }}
+              </TableCell>
               <TableCell>{{ product.priceIdr ? formatCurrencyIdr(product.priceIdr) : '—' }}</TableCell>
             </TableRow>
-            <TableEmpty v-if="products.length === 0" :colspan="4">Belum ada produk/layanan.</TableEmpty>
+            <TableEmpty v-if="products.length === 0" :colspan="4">
+              Belum ada produk/layanan.
+            </TableEmpty>
           </TableBody>
         </Table>
       </SectionCard>

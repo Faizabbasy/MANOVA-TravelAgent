@@ -24,7 +24,7 @@ const modules: { key: ModuleKey; label: string; description: string }[] = [
   { key: 'procurement', label: 'Procurement', description: 'RFQ/Service Order/Supplier Invoice lifecycle (Section 17)' },
   { key: 'bookings', label: 'Bookings', description: 'Booking & Service Order Center — timeline konsolidasi (Section 18)' },
   { key: 'changes', label: 'Changes & Incidents', description: 'Change Request/Cancellation/Refund/Incident (Section 19)' },
-  { key: 'documents', label: 'Documents & Communication', description: 'Document center, Messages, Notification center (Section 21)' },
+  { key: 'documents', label: 'Documents & Communication', description: 'Document center, Messages, Notification center (Section 21)' }
 ]
 
 const PERMISSION_META: Record<PermissionLevel, { tone: string; description: string }> = {
@@ -32,10 +32,10 @@ const PERMISSION_META: Record<PermissionLevel, { tone: string; description: stri
   VIEW: { tone: 'info', description: 'Hanya baca' },
   MANAGE: { tone: 'primary', description: 'Baca + tulis + hapus' },
   APPROVE: { tone: 'warning', description: 'Manage + aksi approval' },
-  ADMIN: { tone: 'destructive', description: 'Akses penuh termasuk admin' },
+  ADMIN: { tone: 'destructive', description: 'Akses penuh termasuk admin' }
 }
 
-function permTone(level: PermissionLevel) {
+function permTone (level: PermissionLevel) {
   return PERMISSION_META[level].tone
 }
 
@@ -56,7 +56,7 @@ const ROLE_NOTES: Partial<Record<string, string>> = {
   finance: 'Manage Invoice & Payment. Lihat Finance tab project. Tidak ada akses CRM write.',
   viewer: 'Akses baca ke seluruh modul. Tidak ada aksi tulis. Hanya lihat Audit Trail di Administration.',
   client: 'External — hanya akses Client Portal, ter-isolasi ke company sendiri. Tidak melihat internal cost/margin atau company lain.',
-  supplier: 'External — hanya akses Supplier Portal, ter-isolasi ke vendor company sendiri. Tidak melihat vendor lain.',
+  supplier: 'External — hanya akses Supplier Portal, ter-isolasi ke vendor company sendiri. Tidak melihat vendor lain.'
 }
 
 // Legend
@@ -94,7 +94,9 @@ const levelOrder: PermissionLevel[] = ['NONE', 'VIEW', 'MANAGE', 'APPROVE', 'ADM
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead class="min-w-[160px] whitespace-nowrap">Role</TableHead>
+                <TableHead class="min-w-[160px] whitespace-nowrap">
+                  Role
+                </TableHead>
                 <TableHead v-for="mod in modules" :key="mod.key" class="text-center whitespace-nowrap min-w-[100px]">
                   <span class="font-medium">{{ mod.label }}</span>
                   <span class="block text-xs font-normal text-muted-foreground">{{ mod.description }}</span>

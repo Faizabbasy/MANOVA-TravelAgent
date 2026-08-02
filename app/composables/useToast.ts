@@ -13,14 +13,14 @@ export interface ToastItem {
 const toasts = ref<ToastItem[]>([])
 let toastId = 0
 
-export function useToast() {
-  function showToast(title: string, message: string, type: ToastItem['type'] = 'success') {
+export function useToast () {
+  function showToast (title: string, message: string, type: ToastItem['type'] = 'success') {
     const id = ++toastId
     toasts.value.push({ id, title, message, type })
     setTimeout(() => removeToast(id), 4000)
   }
 
-  function removeToast(id: number) {
+  function removeToast (id: number) {
     toasts.value = toasts.value.filter(toast => toast.id !== id)
   }
 

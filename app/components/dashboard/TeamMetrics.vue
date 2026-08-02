@@ -6,7 +6,7 @@ const teamMembers = [
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=32&h=32&fit=crop&crop=face',
     initials: 'SC',
     utilization: 92,
-    tasks: 8,
+    tasks: 8
   },
   {
     name: 'Mike Johnson',
@@ -14,7 +14,7 @@ const teamMembers = [
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=32&h=32&fit=crop&crop=face',
     initials: 'MJ',
     utilization: 85,
-    tasks: 12,
+    tasks: 12
   },
   {
     name: 'Emily Davis',
@@ -22,7 +22,7 @@ const teamMembers = [
     avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=32&h=32&fit=crop&crop=face',
     initials: 'ED',
     utilization: 78,
-    tasks: 15,
+    tasks: 15
   },
   {
     name: 'Alex Thompson',
@@ -30,16 +30,20 @@ const teamMembers = [
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=32&h=32&fit=crop&crop=face',
     initials: 'AT',
     utilization: 95,
-    tasks: 10,
-  },
+    tasks: 10
+  }
 ]
 </script>
 
 <template>
   <div class="bg-card rounded-xl card-shadow animate-fade-in">
     <div class="p-6 border-b border-border">
-      <h3 class="text-lg font-semibold text-foreground">Team Utilization</h3>
-      <p class="text-sm text-muted-foreground mt-1">Current workload distribution</p>
+      <h3 class="text-lg font-semibold text-foreground">
+        Team Utilization
+      </h3>
+      <p class="text-sm text-muted-foreground mt-1">
+        Current workload distribution
+      </p>
     </div>
 
     <div class="divide-y divide-border">
@@ -56,12 +60,20 @@ const teamMembers = [
           <div class="flex-1 min-w-0">
             <div class="flex items-center justify-between mb-2">
               <div>
-                <p class="text-sm font-medium text-foreground">{{ member.name }}</p>
-                <p class="text-xs text-muted-foreground">{{ member.role }}</p>
+                <p class="text-sm font-medium text-foreground">
+                  {{ member.name }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ member.role }}
+                </p>
               </div>
               <div class="text-right">
-                <p class="text-sm font-semibold text-foreground">{{ member.utilization }}%</p>
-                <p class="text-xs text-muted-foreground">{{ member.tasks }} tasks</p>
+                <p class="text-sm font-semibold text-foreground">
+                  {{ member.utilization }}%
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ member.tasks }} tasks
+                </p>
               </div>
             </div>
             <Progress

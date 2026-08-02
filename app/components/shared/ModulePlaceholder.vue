@@ -12,7 +12,7 @@ withDefaults(defineProps<{
   breadcrumb?: BreadcrumbItem[]
   phase?: string
 }>(), {
-  breadcrumb: () => [],
+  breadcrumb: () => []
 })
 </script>
 

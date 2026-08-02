@@ -27,20 +27,20 @@ const form = ref({
   defaultCurrencyCode: ORGANIZATION_PROFILE.defaultCurrencyCode,
   businessHours: ORGANIZATION_PROFILE.businessHours,
   contactEmail: ORGANIZATION_PROFILE.contactEmail,
-  contactPhone: ORGANIZATION_PROFILE.contactPhone,
+  contactPhone: ORGANIZATION_PROFILE.contactPhone
 })
 
 const isDirty = ref(false)
 watch(form, () => { isDirty.value = true }, { deep: true })
 
 const isValid = computed(() =>
-  form.value.legalName.trim().length > 0
-  && form.value.displayName.trim().length > 0
-  && form.value.address.trim().length > 0
-  && form.value.contactEmail.trim().length > 0,
+  form.value.legalName.trim().length > 0 &&
+  form.value.displayName.trim().length > 0 &&
+  form.value.address.trim().length > 0 &&
+  form.value.contactEmail.trim().length > 0
 )
 
-function resetForm() {
+function resetForm () {
   form.value = {
     legalName: ORGANIZATION_PROFILE.legalName,
     displayName: ORGANIZATION_PROFILE.displayName,
@@ -48,12 +48,12 @@ function resetForm() {
     defaultCurrencyCode: ORGANIZATION_PROFILE.defaultCurrencyCode,
     businessHours: ORGANIZATION_PROFILE.businessHours,
     contactEmail: ORGANIZATION_PROFILE.contactEmail,
-    contactPhone: ORGANIZATION_PROFILE.contactPhone,
+    contactPhone: ORGANIZATION_PROFILE.contactPhone
   }
   isDirty.value = false
 }
 
-function submit() {
+function submit () {
   if (!isValid.value) {
     showToast('Gagal Menyimpan', 'Legal Name, Display Name, Address, dan Contact Email wajib diisi.', 'error')
     return
@@ -66,9 +66,9 @@ function submit() {
       defaultCurrencyCode: form.value.defaultCurrencyCode.trim(),
       businessHours: form.value.businessHours.trim(),
       contactEmail: form.value.contactEmail.trim(),
-      contactPhone: form.value.contactPhone.trim(),
+      contactPhone: form.value.contactPhone.trim()
     },
-    currentUser.value.id,
+    currentUser.value.id
   )
   isDirty.value = false
   showToast('Profil Organisasi Disimpan', 'Perubahan tercatat di Audit Trail.', 'success')
@@ -134,8 +134,12 @@ function submit() {
         </p>
 
         <div v-if="canEdit" class="flex items-center gap-2 mt-4">
-          <Button :disabled="!isDirty || !isValid" @click="submit">Simpan Perubahan</Button>
-          <Button variant="outline" :disabled="!isDirty" @click="resetForm">Batal</Button>
+          <Button :disabled="!isDirty || !isValid" @click="submit">
+            Simpan Perubahan
+          </Button>
+          <Button variant="outline" :disabled="!isDirty" @click="resetForm">
+            Batal
+          </Button>
         </div>
       </SectionCard>
     </template>

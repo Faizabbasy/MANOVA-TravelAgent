@@ -14,7 +14,7 @@ const links = [
   { label: 'Roles and Permissions', description: 'Role & access matrix', to: '/admin/roles', icon: ShieldCheck },
   { label: 'Audit Trail', description: 'Log aktivitas lintas modul, dengan pencarian', to: '/admin/audit-trail', icon: History },
   /** Organization Profile (Section 23 — Administration, Master Data dan Audit, roadmap Section 00–24 baru, D-080). Kartu ke-5, pola sama 4 kartu existing. */
-  { label: 'Organization Profile', description: 'Profil perusahaan travel agency (singleton)', to: '/admin/organization', icon: Building2 },
+  { label: 'Organization Profile', description: 'Profil perusahaan travel agency (singleton)', to: '/admin/organization', icon: Building2 }
 ]
 
 const canAdmin = computed(() => canView('administration'))
@@ -54,11 +54,11 @@ const canAdmin = computed(() => canView('administration'))
           <button
             v-for="user in users"
             :key="user.id"
-            @click="setCurrentUser(user.id)"
             class="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border text-sm text-left transition-colors"
             :class="user.id === currentUser.id
               ? 'border-primary/40 bg-primary/5 text-primary'
               : 'border-border hover:bg-muted text-foreground'"
+            @click="setCurrentUser(user.id)"
           >
             <span>
               <span class="font-medium">{{ user.name }}</span>

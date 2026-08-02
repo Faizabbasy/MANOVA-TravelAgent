@@ -5,7 +5,7 @@ import {
   MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
   AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
   NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES,
-  createMasterDataRecord, updateMasterDataRecord, deactivateMasterDataRecord, reactivateMasterDataRecord, getMasterDataUsageCount,
+  createMasterDataRecord, updateMasterDataRecord, deactivateMasterDataRecord, reactivateMasterDataRecord, getMasterDataUsageCount
 } from '~/data'
 import type { MasterDataCategoryKey } from '~/types/master-data'
 
@@ -62,8 +62,8 @@ const GROUPS: GroupDef[] = [
       { key: 'vendor-category', label: 'Kategori Vendor', description: 'Jenis layanan yang disediakan vendor.', list: MASTER_VENDOR_CATEGORIES, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'text' }] },
       { key: 'airport', label: 'Airport', description: 'Referensi bandara. TIDAK ditautkan sebagai foreign key ke FlightBooking (LOCKED) — murni referensi admin.', list: AIRPORTS, fields: [{ key: 'iataCode', label: 'Kode IATA', type: 'text', placeholder: 'mis. CGK' }, { key: 'name', label: 'Nama Airport', type: 'text' }, { key: 'city', label: 'Kota', type: 'text' }] },
       { key: 'airline', label: 'Airline', description: 'Referensi maskapai. TIDAK ditautkan sebagai foreign key ke FlightBooking (LOCKED) — murni referensi admin.', list: AIRLINES, fields: [{ key: 'iataCode', label: 'Kode IATA', type: 'text', placeholder: 'mis. GA' }, { key: 'name', label: 'Nama Airline', type: 'text' }] },
-      { key: 'hotel', label: 'Hotel', description: 'Referensi hotel. TIDAK ditautkan sebagai foreign key ke HotelBooking (LOCKED) — murni referensi admin.', list: MASTER_HOTELS, fields: [{ key: 'name', label: 'Nama Hotel', type: 'text' }, { key: 'city', label: 'Kota', type: 'text' }, { key: 'starRating', label: 'Star Rating', type: 'number' }] },
-    ],
+      { key: 'hotel', label: 'Hotel', description: 'Referensi hotel. TIDAK ditautkan sebagai foreign key ke HotelBooking (LOCKED) — murni referensi admin.', list: MASTER_HOTELS, fields: [{ key: 'name', label: 'Nama Hotel', type: 'text' }, { key: 'city', label: 'Kota', type: 'text' }, { key: 'starRating', label: 'Star Rating', type: 'number' }] }
+    ]
   },
   {
     id: 'commercial',
@@ -73,8 +73,8 @@ const GROUPS: GroupDef[] = [
       { key: 'currency', label: 'Currencies', description: 'Berelasi konseptual dengan Invoice.currency (Section 20) — tidak memutasi type Invoice.', list: MASTER_CURRENCIES, fields: [{ key: 'code', label: 'Kode', type: 'text', placeholder: 'mis. USD' }, { key: 'name', label: 'Nama', type: 'text' }, { key: 'symbol', label: 'Simbol', type: 'text' }] },
       { key: 'tax-rule', label: 'Tax Rules', description: 'Aturan pajak referensi.', list: TAX_RULES, fields: [{ key: 'name', label: 'Nama', type: 'text' }, { key: 'ratePercent', label: 'Rate (%)', type: 'number' }, { key: 'appliesTo', label: 'Berlaku Untuk', type: 'text' }] },
       { key: 'payment-term', label: 'Payment Terms', description: 'Termin pembayaran referensi.', list: PAYMENT_TERMS, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'daysDue', label: 'Jatuh Tempo (hari)', type: 'number' }] },
-      { key: 'cancellation-rule', label: 'Cancellation Rules', description: 'Konfigurasi/referensi SAJA — TIDAK menyentuh transition guard CancellationRecord (LOCKED, Section 13-19).', list: CANCELLATION_RULES, fields: [{ key: 'name', label: 'Nama', type: 'text' }, { key: 'daysBeforeDeparture', label: 'Hari Sebelum Keberangkatan', type: 'number' }, { key: 'penaltyPercent', label: 'Penalty (%)', type: 'number' }, { key: 'appliesToBookingType', label: 'Berlaku Untuk Tipe Booking', type: 'text', placeholder: 'mis. flight' }] },
-    ],
+      { key: 'cancellation-rule', label: 'Cancellation Rules', description: 'Konfigurasi/referensi SAJA — TIDAK menyentuh transition guard CancellationRecord (LOCKED, Section 13-19).', list: CANCELLATION_RULES, fields: [{ key: 'name', label: 'Nama', type: 'text' }, { key: 'daysBeforeDeparture', label: 'Hari Sebelum Keberangkatan', type: 'number' }, { key: 'penaltyPercent', label: 'Penalty (%)', type: 'number' }, { key: 'appliesToBookingType', label: 'Berlaku Untuk Tipe Booking', type: 'text', placeholder: 'mis. flight' }] }
+    ]
   },
   {
     id: 'system',
@@ -84,16 +84,27 @@ const GROUPS: GroupDef[] = [
       { key: 'numbering-scheme', label: 'Numbering Scheme', description: 'Preview/konfigurasi SAJA — bukan counter nyata yang dipakai ID generation (LOCKED).', list: NUMBERING_SCHEMES, fields: [{ key: 'entityType', label: 'Entity Type', type: 'text' }, { key: 'prefix', label: 'Prefix', type: 'text' }, { key: 'nextNumberPreview', label: 'Preview Nomor Berikutnya', type: 'text' }] },
       { key: 'document-template', label: 'Document Template', description: 'Referensi longgar ke Document.category (Section 21) — tidak memutasi type Document.', list: DOCUMENT_TEMPLATES, fields: [{ key: 'name', label: 'Nama Template', type: 'text' }, { key: 'category', label: 'Kategori', type: 'text' }, { key: 'appliesToDocumentCategory', label: 'Berlaku Untuk Kategori Dokumen', type: 'text' }, { key: 'bodyPreview', label: 'Preview Isi', type: 'textarea' }] },
       { key: 'readiness-gate', label: 'Readiness Gate', description: 'Konfigurasi display SAJA — TIDAK me-rewire derivasi departure-readiness (LOCKED, Section 12).', list: READINESS_GATE_CONFIGS, fields: [{ key: 'name', label: 'Nama Gate', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'textarea' }, { key: 'appliesToModule', label: 'Berlaku Untuk Modul', type: 'text' }] },
-      { key: 'assignment-rule', label: 'Assignment Rule', description: 'Konfigurasi display SAJA — TIDAK me-rewire mutator lead-routing (LOCKED, Section 04).', list: ASSIGNMENT_RULES, fields: [{ key: 'name', label: 'Nama Rule', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'textarea' }, { key: 'triggerCondition', label: 'Trigger Condition', type: 'text' }, { key: 'targetRole', label: 'Target Role', type: 'text' }] },
-    ],
-  },
+      { key: 'assignment-rule', label: 'Assignment Rule', description: 'Konfigurasi display SAJA — TIDAK me-rewire mutator lead-routing (LOCKED, Section 04).', list: ASSIGNMENT_RULES, fields: [{ key: 'name', label: 'Nama Rule', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'textarea' }, { key: 'triggerCondition', label: 'Trigger Condition', type: 'text' }, { key: 'targetRole', label: 'Target Role', type: 'text' }] }
+    ]
+  }
 ]
 
 const CATEGORY_ICONS: Record<MasterDataCategoryKey, any> = {
-  'project-type': FolderKanban, 'service-type': Layers, destination: MapPin, 'vendor-category': Building2,
-  airport: Plane, airline: Plane, hotel: BedDouble,
-  currency: Coins, 'tax-rule': Percent, 'payment-term': CalendarClock, 'cancellation-rule': ShieldAlert,
-  'numbering-scheme': Hash, 'document-template': FileText, 'readiness-gate': Gauge, 'assignment-rule': Route,
+  'project-type': FolderKanban,
+  'service-type': Layers,
+  destination: MapPin,
+  'vendor-category': Building2,
+  airport: Plane,
+  airline: Plane,
+  hotel: BedDouble,
+  currency: Coins,
+  'tax-rule': Percent,
+  'payment-term': CalendarClock,
+  'cancellation-rule': ShieldAlert,
+  'numbering-scheme': Hash,
+  'document-template': FileText,
+  'readiness-gate': Gauge,
+  'assignment-rule': Route
 }
 
 const activeGroupId = ref(GROUPS[0].id)
@@ -108,16 +119,16 @@ watch(activeGroupId, () => { activeCategoryKey.value = activeGroup.value.categor
 const activeFilter = ref<'all' | 'active' | 'inactive'>('all')
 const displayedItems = computed(() => {
   const items = activeCategory.value.list
-  if (activeFilter.value === 'active') return items.filter(i => i.isActive)
-  if (activeFilter.value === 'inactive') return items.filter(i => !i.isActive)
+  if (activeFilter.value === 'active') { return items.filter(i => i.isActive) }
+  if (activeFilter.value === 'inactive') { return items.filter(i => !i.isActive) }
   return items
 })
 
-function totalActive(items: Array<Record<string, any>>) {
+function totalActive (items: Array<Record<string, any>>) {
   return items.filter(i => i.isActive).length
 }
 
-function itemDisplayName(item: Record<string, any>): string {
+function itemDisplayName (item: Record<string, any>): string {
   return String(item.label ?? item.name ?? item.code ?? item.id)
 }
 
@@ -127,19 +138,19 @@ const formMode = ref<'create' | 'edit'>('create')
 const editingId = ref<string | null>(null)
 const formValues = reactive<Record<string, any>>({})
 
-function openCreate() {
+function openCreate () {
   formMode.value = 'create'
   editingId.value = null
-  for (const key in formValues) delete formValues[key]
-  for (const field of activeCategory.value.fields) formValues[field.key] = field.type === 'number' ? null : ''
+  for (const key in formValues) { delete formValues[key] }
+  for (const field of activeCategory.value.fields) { formValues[field.key] = field.type === 'number' ? null : '' }
   isFormOpen.value = true
 }
 
-function openEdit(item: Record<string, any>) {
+function openEdit (item: Record<string, any>) {
   formMode.value = 'edit'
   editingId.value = item.id
-  for (const key in formValues) delete formValues[key]
-  for (const field of activeCategory.value.fields) formValues[field.key] = item[field.key] ?? (field.type === 'number' ? null : '')
+  for (const key in formValues) { delete formValues[key] }
+  for (const field of activeCategory.value.fields) { formValues[field.key] = item[field.key] ?? (field.type === 'number' ? null : '') }
   isFormOpen.value = true
 }
 
@@ -154,7 +165,7 @@ const usageCount = ref<number | null>(0)
 const pendingConfirmLabel = ref('')
 let pendingConfirmAction: (() => void) | null = null
 
-function confirmOrRun(itemId: string, itemName: string, actionLabel: string, run: () => void) {
+function confirmOrRun (itemId: string, itemName: string, actionLabel: string, run: () => void) {
   const count = getMasterDataUsageCount(activeCategoryKey.value, itemId)
   if (count === 0) { run(); return }
   usageCount.value = count
@@ -163,19 +174,19 @@ function confirmOrRun(itemId: string, itemName: string, actionLabel: string, run
   isUsageDialogOpen.value = true
 }
 
-function confirmPendingAction() {
+function confirmPendingAction () {
   pendingConfirmAction?.()
   isUsageDialogOpen.value = false
   pendingConfirmAction = null
 }
 
-function cancelPendingAction() {
+function cancelPendingAction () {
   isUsageDialogOpen.value = false
   pendingConfirmAction = null
 }
 
 /* ---------- Submit create/edit ---------- */
-function submitForm() {
+function submitForm () {
   if (!isFormValid.value) {
     showToast('Gagal Menyimpan', 'Seluruh field wajib diisi.', 'error')
     return
@@ -202,7 +213,7 @@ function submitForm() {
 }
 
 /* ---------- Deactivate / Reactivate ---------- */
-function requestDeactivate(item: Record<string, any>) {
+function requestDeactivate (item: Record<string, any>) {
   const name = itemDisplayName(item)
   confirmOrRun(item.id, name, 'Nonaktifkan', () => {
     deactivateMasterDataRecord(activeCategoryKey.value, item.id, currentUser.value.id)
@@ -210,7 +221,7 @@ function requestDeactivate(item: Record<string, any>) {
   })
 }
 
-function reactivateItem(item: Record<string, any>) {
+function reactivateItem (item: Record<string, any>) {
   const name = itemDisplayName(item)
   reactivateMasterDataRecord(activeCategoryKey.value, item.id, currentUser.value.id)
   showToast('Data Diaktifkan Kembali', `${activeCategory.value.label} "${name}" aktif kembali.`, 'success')
@@ -265,9 +276,15 @@ function reactivateItem(item: Record<string, any>) {
               v-model="activeFilter"
               class="appearance-none px-3 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
             >
-              <option value="all">Semua</option>
-              <option value="active">Aktif saja</option>
-              <option value="inactive">Non-aktif saja</option>
+              <option value="all">
+                Semua
+              </option>
+              <option value="active">
+                Aktif saja
+              </option>
+              <option value="inactive">
+                Non-aktif saja
+              </option>
             </select>
             <Button v-if="canEdit" size="sm" @click="openCreate">
               <Plus class="h-4 w-4 mr-1.5" />Tambah
@@ -286,14 +303,22 @@ function reactivateItem(item: Record<string, any>) {
             <TableHeader>
               <TableRow>
                 <TableHead>ID</TableHead>
-                <TableHead v-for="field in activeCategory.fields" :key="field.key">{{ field.label }}</TableHead>
-                <TableHead class="text-center">Status</TableHead>
-                <TableHead v-if="canEdit" class="text-right">Aksi</TableHead>
+                <TableHead v-for="field in activeCategory.fields" :key="field.key">
+                  {{ field.label }}
+                </TableHead>
+                <TableHead class="text-center">
+                  Status
+                </TableHead>
+                <TableHead v-if="canEdit" class="text-right">
+                  Aksi
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               <TableRow v-for="item in displayedItems" :key="item.id">
-                <TableCell class="font-mono text-xs text-muted-foreground">{{ item.id }}</TableCell>
+                <TableCell class="font-mono text-xs text-muted-foreground">
+                  {{ item.id }}
+                </TableCell>
                 <TableCell v-for="field in activeCategory.fields" :key="field.key" class="text-sm text-foreground max-w-[240px]">
                   <span v-if="field.type === 'textarea'" class="line-clamp-2 text-muted-foreground">{{ item[field.key] || '—' }}</span>
                   <span v-else>{{ item[field.key] ?? '—' }}</span>
@@ -358,8 +383,12 @@ function reactivateItem(item: Record<string, any>) {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" @click="isFormOpen = false">Batal</Button>
-            <Button :disabled="!isFormValid" @click="submitForm">Simpan</Button>
+            <Button variant="outline" @click="isFormOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!isFormValid" @click="submitForm">
+              Simpan
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -378,10 +407,16 @@ function reactivateItem(item: Record<string, any>) {
               </template>
             </DialogDescription>
           </DialogHeader>
-          <p class="text-sm text-foreground">Lanjutkan: <span class="font-medium">{{ pendingConfirmLabel }}</span>?</p>
+          <p class="text-sm text-foreground">
+            Lanjutkan: <span class="font-medium">{{ pendingConfirmLabel }}</span>?
+          </p>
           <DialogFooter>
-            <Button variant="outline" @click="cancelPendingAction">Batal</Button>
-            <Button @click="confirmPendingAction">Lanjutkan</Button>
+            <Button variant="outline" @click="cancelPendingAction">
+              Batal
+            </Button>
+            <Button @click="confirmPendingAction">
+              Lanjutkan
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

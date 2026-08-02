@@ -14,7 +14,7 @@ const toneClasses: Record<BadgeTone, string> = {
   warning: 'bg-warning/10 text-warning',
   destructive: 'bg-destructive/10 text-destructive',
   info: 'bg-chart-5/10 text-chart-5',
-  purple: 'bg-chart-4/10 text-chart-4',
+  purple: 'bg-chart-4/10 text-chart-4'
 }
 </script>
 

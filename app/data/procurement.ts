@@ -19,37 +19,60 @@ import type { RFQ, RFQInvitation, RFQResponse, RFQClarificationMessage, ServiceO
  */
 export const RFQS: RFQ[] = reactive([
   {
-    id: 'RFQ-001', projectId: 'PRJ-102', title: 'RFQ Akomodasi Tambahan — Rooming Group B',
-    serviceType: 'hotel', status: 'draft',
+    id: 'RFQ-001',
+    projectId: 'PRJ-102',
+    title: 'RFQ Akomodasi Tambahan — Rooming Group B',
+    serviceType: 'hotel',
+    status: 'draft',
     lineItems: [{ description: 'Kamar Twin tambahan (rooming ulang Group B)', quantity: 3, unit: 'kamar/4 malam' }],
     notes: 'Menyusul konsolidasi Room Block B ke Block A (SVC-1023) — dibutuhkan opsi cadangan bila ada penambahan peserta.',
-    createdBy: 'USR-018', createdAt: '2026-07-25',
+    createdBy: 'USR-018',
+    createdAt: '2026-07-25'
   },
   {
-    id: 'RFQ-002', projectId: 'PRJ-103', title: 'RFQ Vendor Package Tambahan — Dokumentasi & Booth Sponsor',
-    serviceType: 'mice', status: 'responses-in',
+    id: 'RFQ-002',
+    projectId: 'PRJ-103',
+    title: 'RFQ Vendor Package Tambahan — Dokumentasi & Booth Sponsor',
+    serviceType: 'mice',
+    status: 'responses-in',
     lineItems: [
       { description: 'Dokumentasi foto dan video profesional (2 hari)', quantity: 2, unit: 'hari' },
-      { description: 'Booth sponsor tambahan', quantity: 2, unit: 'unit' },
+      { description: 'Booth sponsor tambahan', quantity: 2, unit: 'unit' }
     ],
-    dueAt: '2026-07-30', notes: 'Melengkapi BOQ MICE-1035 — dibandingkan sebelum memutuskan vendor dokumentasi final.',
-    createdBy: 'USR-018', createdAt: '2026-07-18', updatedAt: '2026-07-24',
+    dueAt: '2026-07-30',
+    notes: 'Melengkapi BOQ MICE-1035 — dibandingkan sebelum memutuskan vendor dokumentasi final.',
+    createdBy: 'USR-018',
+    createdAt: '2026-07-18',
+    updatedAt: '2026-07-24'
   },
   {
-    id: 'RFQ-003', projectId: 'PRJ-103', title: 'RFQ Akomodasi VIP Suite Tambahan',
-    serviceType: 'hotel', status: 'clarification',
+    id: 'RFQ-003',
+    projectId: 'PRJ-103',
+    title: 'RFQ Akomodasi VIP Suite Tambahan',
+    serviceType: 'hotel',
+    status: 'clarification',
     lineItems: [{ description: 'VIP Suite kapasitas 2 pax, aksesibilitas', quantity: 2, unit: 'kamar/4 malam' }],
-    dueAt: '2026-08-02', notes: 'Untuk 2 tamu VIP tambahan di luar Room Block existing (SVC-1033).',
-    createdBy: 'USR-018', createdAt: '2026-07-20', updatedAt: '2026-07-27',
+    dueAt: '2026-08-02',
+    notes: 'Untuk 2 tamu VIP tambahan di luar Room Block existing (SVC-1033).',
+    createdBy: 'USR-018',
+    createdAt: '2026-07-20',
+    updatedAt: '2026-07-27'
   },
   {
-    id: 'RFQ-004', projectId: 'PRJ-103', title: 'RFQ Transportasi Bandara — Grup VIP Tambahan',
-    serviceType: 'transportation', status: 'closed',
+    id: 'RFQ-004',
+    projectId: 'PRJ-103',
+    title: 'RFQ Transportasi Bandara — Grup VIP Tambahan',
+    serviceType: 'transportation',
+    status: 'closed',
     lineItems: [{ description: 'Airport transfer VIP (sedan eksekutif)', quantity: 4, unit: 'trip' }],
-    dueAt: '2026-07-10', selectedVendorId: 'VND-003',
+    dueAt: '2026-07-10',
+    selectedVendorId: 'VND-003',
     notes: 'Kebutuhan transfer VIP terpisah dari Ground Transportation rombongan utama (SVC-1034).',
-    createdBy: 'USR-018', createdAt: '2026-06-28', updatedAt: '2026-07-12', closedAt: '2026-07-12',
-  },
+    createdBy: 'USR-018',
+    createdAt: '2026-06-28',
+    updatedAt: '2026-07-12',
+    closedAt: '2026-07-12'
+  }
 ])
 
 export const RFQ_INVITATIONS: RFQInvitation[] = reactive([
@@ -58,52 +81,80 @@ export const RFQ_INVITATIONS: RFQInvitation[] = reactive([
   { id: 'RFQINV-003', rfqId: 'RFQ-003', vendorId: 'VND-002', status: 'responded', invitedAt: '2026-07-20' },
   { id: 'RFQINV-004', rfqId: 'RFQ-003', vendorId: 'VND-006', status: 'responded', invitedAt: '2026-07-20' },
   { id: 'RFQINV-005', rfqId: 'RFQ-004', vendorId: 'VND-003', status: 'responded', invitedAt: '2026-06-28' },
-  { id: 'RFQINV-006', rfqId: 'RFQ-004', vendorId: 'VND-005', status: 'responded', invitedAt: '2026-06-28' },
+  { id: 'RFQINV-006', rfqId: 'RFQ-004', vendorId: 'VND-005', status: 'responded', invitedAt: '2026-06-28' }
 ])
 
 export const RFQ_RESPONSES: RFQResponse[] = reactive([
   {
-    id: 'RFQRESP-001', rfqId: 'RFQ-002', vendorId: 'VND-004',
+    id: 'RFQRESP-001',
+    rfqId: 'RFQ-002',
+    vendorId: 'VND-004',
     lineItems: [
       { description: 'Dokumentasi foto dan video profesional (2 hari)', unitPriceIdr: 6_500_000, quantity: 2 },
-      { description: 'Booth sponsor tambahan', unitPriceIdr: 4_000_000, quantity: 2 },
+      { description: 'Booth sponsor tambahan', unitPriceIdr: 4_000_000, quantity: 2 }
     ],
-    totalAmountIdr: 21_000_000, notes: 'Termasuk editing dan highlight reel.', status: 'submitted', submittedAt: '2026-07-22',
+    totalAmountIdr: 21_000_000,
+    notes: 'Termasuk editing dan highlight reel.',
+    status: 'submitted',
+    submittedAt: '2026-07-22'
   },
   {
-    id: 'RFQRESP-002', rfqId: 'RFQ-002', vendorId: 'VND-007',
+    id: 'RFQRESP-002',
+    rfqId: 'RFQ-002',
+    vendorId: 'VND-007',
     lineItems: [
       { description: 'Dokumentasi foto dan video profesional (2 hari)', unitPriceIdr: 5_800_000, quantity: 2 },
-      { description: 'Booth sponsor tambahan', unitPriceIdr: 4_500_000, quantity: 2 },
+      { description: 'Booth sponsor tambahan', unitPriceIdr: 4_500_000, quantity: 2 }
     ],
-    totalAmountIdr: 20_600_000, notes: 'Paket termasuk operator drone untuk shot udara.', status: 'submitted', submittedAt: '2026-07-24',
+    totalAmountIdr: 20_600_000,
+    notes: 'Paket termasuk operator drone untuk shot udara.',
+    status: 'submitted',
+    submittedAt: '2026-07-24'
   },
   {
-    id: 'RFQRESP-003', rfqId: 'RFQ-003', vendorId: 'VND-002',
+    id: 'RFQRESP-003',
+    rfqId: 'RFQ-003',
+    vendorId: 'VND-002',
     lineItems: [{ description: 'VIP Suite kapasitas 2 pax, aksesibilitas', unitPriceIdr: 3_200_000, quantity: 8 }],
-    totalAmountIdr: 25_600_000, notes: 'Free upgrade late check-out.', status: 'submitted', submittedAt: '2026-07-23',
+    totalAmountIdr: 25_600_000,
+    notes: 'Free upgrade late check-out.',
+    status: 'submitted',
+    submittedAt: '2026-07-23'
   },
   {
-    id: 'RFQRESP-004', rfqId: 'RFQ-003', vendorId: 'VND-006',
+    id: 'RFQRESP-004',
+    rfqId: 'RFQ-003',
+    vendorId: 'VND-006',
     lineItems: [{ description: 'VIP Suite kapasitas 2 pax, aksesibilitas', unitPriceIdr: 2_900_000, quantity: 8 }],
-    totalAmountIdr: 23_200_000, notes: 'Harga khusus partner — menunggu konfirmasi kebijakan pembatalan.', status: 'submitted', submittedAt: '2026-07-26',
+    totalAmountIdr: 23_200_000,
+    notes: 'Harga khusus partner — menunggu konfirmasi kebijakan pembatalan.',
+    status: 'submitted',
+    submittedAt: '2026-07-26'
   },
   {
-    id: 'RFQRESP-005', rfqId: 'RFQ-004', vendorId: 'VND-003',
+    id: 'RFQRESP-005',
+    rfqId: 'RFQ-004',
+    vendorId: 'VND-003',
     lineItems: [{ description: 'Airport transfer VIP (sedan eksekutif)', unitPriceIdr: 850_000, quantity: 4 }],
-    totalAmountIdr: 3_400_000, status: 'selected', submittedAt: '2026-07-02',
+    totalAmountIdr: 3_400_000,
+    status: 'selected',
+    submittedAt: '2026-07-02'
   },
   {
-    id: 'RFQRESP-006', rfqId: 'RFQ-004', vendorId: 'VND-005',
+    id: 'RFQRESP-006',
+    rfqId: 'RFQ-004',
+    vendorId: 'VND-005',
     lineItems: [{ description: 'Airport transfer VIP (sedan eksekutif)', unitPriceIdr: 950_000, quantity: 4 }],
-    totalAmountIdr: 3_800_000, status: 'rejected', submittedAt: '2026-07-03',
-  },
+    totalAmountIdr: 3_800_000,
+    status: 'rejected',
+    submittedAt: '2026-07-03'
+  }
 ])
 
 /** Thread klarifikasi RFQ-003 dengan PT ABC (VND-006) — dua arah, menjaga status RFQ tetap `clarification` sampai terjawab. */
 export const RFQ_CLARIFICATIONS: RFQClarificationMessage[] = reactive([
   { id: 'RFQCLR-001', rfqId: 'RFQ-003', vendorId: 'VND-006', from: 'procurement', message: 'Mohon konfirmasi kebijakan pembatalan/no-show untuk harga khusus partner yang diajukan.', createdAt: '2026-07-27' },
-  { id: 'RFQCLR-002', rfqId: 'RFQ-003', vendorId: 'VND-006', from: 'supplier', message: 'Pembatalan H-3 dikenakan penalti 20%, di bawah H-3 dikenakan 50%. Akan kami kirimkan dokumen kebijakan resmi.', createdAt: '2026-07-28' },
+  { id: 'RFQCLR-002', rfqId: 'RFQ-003', vendorId: 'VND-006', from: 'supplier', message: 'Pembatalan H-3 dikenakan penalti 20%, di bawah H-3 dikenakan 50%. Akan kami kirimkan dokumen kebijakan resmi.', createdAt: '2026-07-28' }
 ])
 
 /**
@@ -114,23 +165,35 @@ export const RFQ_CLARIFICATIONS: RFQClarificationMessage[] = reactive([
  */
 export const SERVICE_ORDERS: ServiceOrder[] = reactive([
   {
-    id: 'SO-001', rfqId: 'RFQ-004', vendorId: 'VND-003', projectId: 'PRJ-103',
+    id: 'SO-001',
+    rfqId: 'RFQ-004',
+    vendorId: 'VND-003',
+    projectId: 'PRJ-103',
     lineItems: [{ description: 'Airport transfer VIP (sedan eksekutif)', quantity: 4, unit: 'trip' }],
-    status: 'fulfilled', netCostIdr: 3_400_000, sellPriceIdr: 4_200_000,
-    acknowledgedAt: '2026-07-13', fulfilledAt: '2026-08-11',
-    createdAt: '2026-07-12', updatedAt: '2026-08-11',
+    status: 'fulfilled',
+    netCostIdr: 3_400_000,
+    sellPriceIdr: 4_200_000,
+    acknowledgedAt: '2026-07-13',
+    fulfilledAt: '2026-08-11',
+    createdAt: '2026-07-12',
+    updatedAt: '2026-08-11'
   },
   {
-    id: 'SO-002', vendorId: 'VND-006', projectId: 'PRJ-102',
+    id: 'SO-002',
+    vendorId: 'VND-006',
+    projectId: 'PRJ-102',
     lineItems: [{ description: 'Kamar Deluxe upgrade ke Suite (rooming tambahan)', quantity: 2, unit: 'kamar/4 malam' }],
-    status: 'amended', netCostIdr: 9_600_000, sellPriceIdr: 12_000_000,
+    status: 'amended',
+    netCostIdr: 9_600_000,
+    sellPriceIdr: 12_000_000,
     acknowledgedAt: '2026-07-05',
-    createdAt: '2026-07-01', updatedAt: '2026-07-19',
-  },
+    createdAt: '2026-07-01',
+    updatedAt: '2026-07-19'
+  }
 ])
 
 export const SERVICE_ORDER_AMENDMENTS: ServiceOrderAmendment[] = reactive([
-  { id: 'SOA-001', serviceOrderId: 'SO-002', reason: 'Upgrade tipe kamar dari Deluxe ke Suite atas permintaan klien — penyesuaian harga net cost dan sell price.', changedAt: '2026-07-19', changedBy: 'USR-018' },
+  { id: 'SOA-001', serviceOrderId: 'SO-002', reason: 'Upgrade tipe kamar dari Deluxe ke Suite atas permintaan klien — penyesuaian harga net cost dan sell price.', changedAt: '2026-07-19', changedBy: 'USR-018' }
 ])
 
 /**
@@ -150,5 +213,5 @@ export const SUPPLIER_INVOICES: SupplierInvoice[] = reactive([
   { id: 'SINV-001', serviceOrderId: 'SO-001', vendorId: 'VND-003', amountIdr: 4_200_000, submittedAt: '2026-08-11', status: 'approved', note: 'Invoice final airport transfer VIP.', reviewedAt: '2026-08-12', reviewedBy: 'USR-018', matchStatus: 'matched', paymentScheduleDate: '2026-08-20' },
   { id: 'SINV-002', serviceOrderId: 'SO-001', vendorId: 'VND-003', amountIdr: 450_000, submittedAt: '2026-08-12', status: 'under-review', note: 'Biaya tol tambahan rute bandara alternatif.', matchStatus: 'unmatched' },
   { id: 'SINV-003', serviceOrderId: 'SO-002', vendorId: 'VND-006', amountIdr: 11_000_000, submittedAt: '2026-07-08', status: 'rejected', note: 'Invoice awal sebelum amendment.', reviewedAt: '2026-07-19', reviewedBy: 'USR-018', reviewNote: 'Jumlah belum sesuai amendment upgrade Suite (SOA-001) — mohon submit ulang dengan nominal terbaru.' },
-  { id: 'SINV-004', serviceOrderId: 'SO-002', vendorId: 'VND-006', amountIdr: 12_000_000, submittedAt: '2026-07-20', status: 'submitted', note: 'Submission ulang mengikuti amendment SOA-001.', matchStatus: 'disputed' },
+  { id: 'SINV-004', serviceOrderId: 'SO-002', vendorId: 'VND-006', amountIdr: 12_000_000, submittedAt: '2026-07-20', status: 'submitted', note: 'Submission ulang mengikuti amendment SOA-001.', matchStatus: 'disputed' }
 ])

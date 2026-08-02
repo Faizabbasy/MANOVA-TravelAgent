@@ -7,7 +7,7 @@ import { Button } from '~/components/ui/button'
 import { Label } from '~/components/ui/label'
 
 definePageMeta({
-  layout: false,
+  layout: false
 })
 
 const router = useRouter()
@@ -16,7 +16,7 @@ const password = ref('')
 const isLoading = ref(false)
 const error = ref('')
 
-const handleLogin = async () => {
+const handleLogin = () => {
   error.value = ''
 
   if (!email.value || !password.value) {
@@ -55,11 +55,15 @@ const handleLogin = async () => {
       <!-- Login Card -->
       <div class="bg-card rounded-3xl p-8 card-shadow">
         <div class="mb-6">
-          <h1 class="text-2xl font-bold text-foreground mb-2">Selamat datang kembali</h1>
-          <p class="text-sm text-muted-foreground">Masuk untuk mengakses MANOVA</p>
+          <h1 class="text-2xl font-bold text-foreground mb-2">
+            Selamat datang kembali
+          </h1>
+          <p class="text-sm text-muted-foreground">
+            Masuk untuk mengakses MANOVA
+          </p>
         </div>
 
-        <form @submit.prevent="handleLogin" class="space-y-4">
+        <form class="space-y-4" @submit.prevent="handleLogin">
           <!-- Email Field -->
           <div class="space-y-2">
             <Label for="email">Email</Label>
@@ -117,7 +121,9 @@ const handleLogin = async () => {
           </p>
           <p class="text-xs text-muted-foreground">
             Ingin mengajukan permintaan perjalanan?
-            <NuxtLink to="/lead-intake" class="text-primary hover:underline">Isi form di sini</NuxtLink>
+            <NuxtLink to="/lead-intake" class="text-primary hover:underline">
+              Isi form di sini
+            </NuxtLink>
           </p>
         </div>
       </div>

@@ -30,26 +30,26 @@ const CATEGORY_COPY: Record<LeadServiceCategory, { title: string; description: s
     title: 'Corporate Travel',
     description: 'Perjalanan bisnis untuk tim atau karyawan perusahaan Anda.',
     destinationLabel: 'Tujuan Perjalanan Bisnis',
-    travelerLabel: 'Perkiraan Jumlah Karyawan',
+    travelerLabel: 'Perkiraan Jumlah Karyawan'
   },
   'group-travel': {
     title: 'Group Travel',
     description: 'Perjalanan rombongan/grup untuk komunitas, sekolah, atau organisasi.',
     destinationLabel: 'Tujuan Perjalanan Grup',
-    travelerLabel: 'Perkiraan Jumlah Peserta',
+    travelerLabel: 'Perkiraan Jumlah Peserta'
   },
   'individual-travel': {
     title: 'Individual Travel',
     description: 'Perjalanan pribadi untuk Anda dan keluarga.',
     destinationLabel: 'Tujuan Perjalanan',
-    travelerLabel: 'Perkiraan Jumlah Traveler',
+    travelerLabel: 'Perkiraan Jumlah Traveler'
   },
   'mice-event': {
     title: 'MICE / Event',
     description: 'Meeting, Incentive, Conference, atau Exhibition.',
     destinationLabel: 'Lokasi / Venue Acara',
-    travelerLabel: 'Perkiraan Jumlah Peserta Acara',
-  },
+    travelerLabel: 'Perkiraan Jumlah Peserta Acara'
+  }
 }
 
 const VALID_CATEGORIES = LEAD_SERVICE_CATEGORIES.map(option => option.value)
@@ -57,7 +57,7 @@ const queryType = route.query.type
 const selectedCategory = ref<LeadServiceCategory>(
   typeof queryType === 'string' && VALID_CATEGORIES.includes(queryType as LeadServiceCategory)
     ? (queryType as LeadServiceCategory)
-    : 'corporate-travel',
+    : 'corporate-travel'
 )
 
 /* UTM/source/referrer preview (Wajib) — capture query string + document.referrer, tampil sebagai preview transparan. */
@@ -70,15 +70,15 @@ onMounted(() => {
 })
 const hasTrackingData = computed(() => Boolean(utmSource.value || utmMedium.value || utmCampaign.value || referrer.value))
 
-function mapUtmSourceToLeadSource(value: string): LeadSource {
+function mapUtmSourceToLeadSource (value: string): LeadSource {
   const v = value.toLowerCase()
-  if (v.includes('instagram')) return 'instagram'
-  if (v.includes('tiktok')) return 'tiktok'
-  if (v.includes('whatsapp') || v === 'wa') return 'whatsapp'
-  if (v.includes('referral') || v.includes('refer')) return 'referral'
-  if (v.includes('event')) return 'event'
-  if (v.includes('email') || v.includes('newsletter')) return 'email'
-  if (v.includes('google') || v.includes('website') || v.includes('web')) return 'website'
+  if (v.includes('instagram')) { return 'instagram' }
+  if (v.includes('tiktok')) { return 'tiktok' }
+  if (v.includes('whatsapp') || v === 'wa') { return 'whatsapp' }
+  if (v.includes('referral') || v.includes('refer')) { return 'referral' }
+  if (v.includes('event')) { return 'event' }
+  if (v.includes('email') || v.includes('newsletter')) { return 'email' }
+  if (v.includes('google') || v.includes('website') || v.includes('web')) { return 'website' }
   return 'other'
 }
 
@@ -100,9 +100,9 @@ const duplicateMatch = computed<Lead | undefined>(() => getLeadDuplicateCandidat
 /* Validation */
 const missingFields = computed(() => {
   const missing: string[] = []
-  if (!contactName.value.trim()) missing.push('Nama Kontak belum diisi')
-  if (!phone.value.trim() && !email.value.trim()) missing.push('Isi minimal salah satu: Telepon atau Email')
-  if (!consentAccepted.value) missing.push('Persetujuan (consent) belum dicentang')
+  if (!contactName.value.trim()) { missing.push('Nama Kontak belum diisi') }
+  if (!phone.value.trim() && !email.value.trim()) { missing.push('Isi minimal salah satu: Telepon atau Email') }
+  if (!consentAccepted.value) { missing.push('Persetujuan (consent) belum dicentang') }
   return missing
 })
 const hasAttemptedSubmit = ref(false)
@@ -111,9 +111,9 @@ const hasAttemptedSubmit = ref(false)
 const viewState = ref<'form' | 'success' | 'error'>('form')
 const createdLead = ref<Lead | null>(null)
 
-function submitIntake() {
+function submitIntake () {
   hasAttemptedSubmit.value = true
-  if (missingFields.value.length > 0) return
+  if (missingFields.value.length > 0) { return }
 
   try {
     const lead = createLead({
@@ -122,14 +122,14 @@ function submitIntake() {
       source: sourceField.value,
       ownerId: PUBLIC_INTAKE_OWNER_ID,
       phone: phone.value.trim() || undefined,
-      email: email.value.trim() || undefined,
+      email: email.value.trim() || undefined
     })
 
     const trackingParts = [
       utmSource.value && `utm_source=${utmSource.value}`,
       utmMedium.value && `utm_medium=${utmMedium.value}`,
       utmCampaign.value && `utm_campaign=${utmCampaign.value}`,
-      referrer.value && `referrer=${referrer.value}`,
+      referrer.value && `referrer=${referrer.value}`
     ].filter(Boolean)
 
     updateLeadQualification(lead.id, {
@@ -137,7 +137,7 @@ function submitIntake() {
       destination: destination.value.trim() || undefined,
       travelerEstimate: travelerEstimate.value ?? undefined,
       requirementSummary: requirementSummary.value.trim() || undefined,
-      qualificationNotes: `Submission dari form publik Lead Intake (${CATEGORY_COPY[selectedCategory.value].title}).${trackingParts.length ? ` Tracking: ${trackingParts.join(', ')}.` : ''}`,
+      qualificationNotes: `Submission dari form publik Lead Intake (${CATEGORY_COPY[selectedCategory.value].title}).${trackingParts.length ? ` Tracking: ${trackingParts.join(', ')}.` : ''}`
     })
 
     createdLead.value = lead
@@ -147,7 +147,7 @@ function submitIntake() {
   }
 }
 
-function resetForm() {
+function resetForm () {
   contactName.value = ''
   companyName.value = ''
   phone.value = ''
@@ -180,16 +180,24 @@ function resetForm() {
             <div class="p-4 rounded-full bg-success/10 mb-4">
               <CheckCircle2 class="h-8 w-8 text-success" />
             </div>
-            <h1 class="text-xl font-bold text-foreground mb-2">Permintaan Anda Telah Diterima</h1>
+            <h1 class="text-xl font-bold text-foreground mb-2">
+              Permintaan Anda Telah Diterima
+            </h1>
             <p class="text-sm text-muted-foreground max-w-md">
               Terima kasih, {{ createdLead.name }}. Tim MANOVA akan menghubungi Anda melalui
               {{ createdLead.phone || createdLead.email }} dalam 1x24 jam kerja (simulasi mockup).
             </p>
             <div class="mt-4 px-4 py-2 rounded-lg bg-muted">
-              <p class="text-xs text-muted-foreground">Nomor Referensi</p>
-              <p class="text-sm font-mono font-semibold text-foreground">{{ createdLead.id }}</p>
+              <p class="text-xs text-muted-foreground">
+                Nomor Referensi
+              </p>
+              <p class="text-sm font-mono font-semibold text-foreground">
+                {{ createdLead.id }}
+              </p>
             </div>
-            <Button class="mt-6" variant="outline" @click="resetForm">Ajukan Permintaan Baru</Button>
+            <Button class="mt-6" variant="outline" @click="resetForm">
+              Ajukan Permintaan Baru
+            </Button>
           </div>
         </template>
 
@@ -206,8 +214,12 @@ function resetForm() {
         <!-- Form -->
         <template v-else>
           <div class="mb-6">
-            <h1 class="text-2xl font-bold text-foreground mb-2">Ajukan Permintaan Perjalanan</h1>
-            <p class="text-sm text-muted-foreground">Ceritakan kebutuhan perjalanan Anda, tim kami akan segera menghubungi.</p>
+            <h1 class="text-2xl font-bold text-foreground mb-2">
+              Ajukan Permintaan Perjalanan
+            </h1>
+            <p class="text-sm text-muted-foreground">
+              Ceritakan kebutuhan perjalanan Anda, tim kami akan segera menghubungi.
+            </p>
           </div>
 
           <!-- Jenis Kebutuhan -->
@@ -227,7 +239,9 @@ function resetForm() {
                 {{ CATEGORY_COPY[option.value].title }}
               </button>
             </div>
-            <p class="text-xs text-muted-foreground pt-1">{{ CATEGORY_COPY[selectedCategory].description }}</p>
+            <p class="text-xs text-muted-foreground pt-1">
+              {{ CATEGORY_COPY[selectedCategory].description }}
+            </p>
           </div>
 
           <form class="space-y-4" @submit.prevent="submitIntake">
@@ -249,7 +263,9 @@ function resetForm() {
                 <Input id="li-email" v-model="email" type="email" placeholder="nama@example.com" />
               </div>
             </div>
-            <p class="text-xs text-muted-foreground -mt-2">Isi minimal salah satu: Telepon atau Email, agar tim kami dapat menghubungi Anda.</p>
+            <p class="text-xs text-muted-foreground -mt-2">
+              Isi minimal salah satu: Telepon atau Email, agar tim kami dapat menghubungi Anda.
+            </p>
 
             <div v-if="duplicateMatch" class="rounded-lg border border-info/30 bg-info/5 p-3">
               <p class="text-sm text-info">
@@ -284,7 +300,9 @@ function resetForm() {
                 v-model="sourceField"
                 class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
               >
-                <option v-for="option in LEAD_SOURCES" :key="option.value" :value="option.value">{{ option.label }}</option>
+                <option v-for="option in LEAD_SOURCES" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
               </select>
             </div>
 
@@ -293,12 +311,22 @@ function resetForm() {
               <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
                 <ShieldCheck class="h-3.5 w-3.5" />Data Kunjungan (Preview)
               </p>
-              <p v-if="!hasTrackingData" class="text-xs text-muted-foreground">Kunjungan langsung — tidak ada data UTM atau referrer terdeteksi.</p>
+              <p v-if="!hasTrackingData" class="text-xs text-muted-foreground">
+                Kunjungan langsung — tidak ada data UTM atau referrer terdeteksi.
+              </p>
               <ul v-else class="text-xs text-muted-foreground space-y-0.5">
-                <li v-if="utmSource">utm_source: {{ utmSource }}</li>
-                <li v-if="utmMedium">utm_medium: {{ utmMedium }}</li>
-                <li v-if="utmCampaign">utm_campaign: {{ utmCampaign }}</li>
-                <li v-if="referrer">referrer: {{ referrer }}</li>
+                <li v-if="utmSource">
+                  utm_source: {{ utmSource }}
+                </li>
+                <li v-if="utmMedium">
+                  utm_medium: {{ utmMedium }}
+                </li>
+                <li v-if="utmCampaign">
+                  utm_campaign: {{ utmCampaign }}
+                </li>
+                <li v-if="referrer">
+                  referrer: {{ referrer }}
+                </li>
               </ul>
             </div>
 
@@ -320,13 +348,19 @@ function resetForm() {
             </div>
 
             <div v-if="hasAttemptedSubmit && missingFields.length > 0" class="rounded-lg border border-warning/30 bg-warning/5 p-3">
-              <p class="text-sm font-medium text-warning">Sebelum mengirim, lengkapi dahulu:</p>
+              <p class="text-sm font-medium text-warning">
+                Sebelum mengirim, lengkapi dahulu:
+              </p>
               <ul class="mt-1 text-xs text-muted-foreground list-disc list-inside">
-                <li v-for="item in missingFields" :key="item">{{ item }}</li>
+                <li v-for="item in missingFields" :key="item">
+                  {{ item }}
+                </li>
               </ul>
             </div>
 
-            <Button type="submit" class="w-full">Kirim Permintaan</Button>
+            <Button type="submit" class="w-full">
+              Kirim Permintaan
+            </Button>
           </form>
         </template>
 

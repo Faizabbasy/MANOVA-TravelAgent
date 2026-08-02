@@ -11,7 +11,7 @@ const { canView } = usePermissions()
 /** DERIVASI murni dari `RFQ`/`RFQResponse`/`ServiceOrder` existing — lihat `getVendorProcurementPerformance` (`app/data/index.ts`), bukan field tersimpan. */
 const rows = computed(() => getVendorsWithProcurementActivity().map(vendor => ({
   vendor,
-  performance: getVendorProcurementPerformance(vendor.id),
+  performance: getVendorProcurementPerformance(vendor.id)
 })))
 </script>
 
@@ -44,17 +44,35 @@ const rows = computed(() => getVendorsWithProcurementActivity().map(vendor => ({
             <TableBody>
               <TableRow v-for="row in rows" :key="row.vendor.id">
                 <TableCell class="font-medium text-foreground">
-                  <NuxtLink :to="`/vendors/${row.vendor.id}`" class="hover:text-primary hover:underline">{{ row.vendor.name }}</NuxtLink>
+                  <NuxtLink :to="`/vendors/${row.vendor.id}`" class="hover:text-primary hover:underline">
+                    {{ row.vendor.name }}
+                  </NuxtLink>
                 </TableCell>
-                <TableCell class="text-muted-foreground">{{ row.performance.rfqInvitedCount }}</TableCell>
-                <TableCell class="text-muted-foreground">{{ row.performance.rfqRespondedCount }}</TableCell>
-                <TableCell class="text-muted-foreground">{{ row.performance.rfqWinCount }}</TableCell>
-                <TableCell class="text-foreground">{{ row.performance.winRatePercent !== undefined ? `${row.performance.winRatePercent}%` : '—' }}</TableCell>
-                <TableCell class="text-muted-foreground">{{ row.performance.avgResponseDays !== undefined ? `${row.performance.avgResponseDays} hari` : '—' }}</TableCell>
-                <TableCell class="text-muted-foreground">{{ row.performance.fulfilledServiceOrderCount }} / {{ row.performance.serviceOrderCount }}</TableCell>
-                <TableCell class="text-foreground">{{ row.performance.onTimeFulfillmentPercent !== undefined ? `${row.performance.onTimeFulfillmentPercent}%` : '—' }}</TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ row.performance.rfqInvitedCount }}
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ row.performance.rfqRespondedCount }}
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ row.performance.rfqWinCount }}
+                </TableCell>
+                <TableCell class="text-foreground">
+                  {{ row.performance.winRatePercent !== undefined ? `${row.performance.winRatePercent}%` : '—' }}
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ row.performance.avgResponseDays !== undefined ? `${row.performance.avgResponseDays} hari` : '—' }}
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ row.performance.fulfilledServiceOrderCount }} / {{ row.performance.serviceOrderCount }}
+                </TableCell>
+                <TableCell class="text-foreground">
+                  {{ row.performance.onTimeFulfillmentPercent !== undefined ? `${row.performance.onTimeFulfillmentPercent}%` : '—' }}
+                </TableCell>
               </TableRow>
-              <TableEmpty v-if="rows.length === 0" :colspan="8">Belum ada aktivitas RFQ/Service Order untuk vendor manapun.</TableEmpty>
+              <TableEmpty v-if="rows.length === 0" :colspan="8">
+                Belum ada aktivitas RFQ/Service Order untuk vendor manapun.
+              </TableEmpty>
             </TableBody>
           </Table>
         </div>
@@ -75,12 +93,20 @@ const rows = computed(() => getVendorsWithProcurementActivity().map(vendor => ({
           </TableHeader>
           <TableBody>
             <TableRow v-for="response in row.performance.quotationHistory" :key="response.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/procurement/rfq/${response.rfqId}`)">
-              <TableCell class="font-medium text-foreground">{{ response.rfqId }}</TableCell>
-              <TableCell class="text-foreground">{{ formatCurrencyIdr(response.totalAmountIdr) }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ formatDate(response.submittedAt) }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ response.rfqId }}
+              </TableCell>
+              <TableCell class="text-foreground">
+                {{ formatCurrencyIdr(response.totalAmountIdr) }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ formatDate(response.submittedAt) }}
+              </TableCell>
               <TableCell><StatusBadge :label="response.status" :tone="response.status === 'selected' ? 'success' : response.status === 'rejected' ? 'destructive' : 'info'" /></TableCell>
             </TableRow>
-            <TableEmpty v-if="row.performance.quotationHistory.length === 0" :colspan="4">Belum ada riwayat quotation.</TableEmpty>
+            <TableEmpty v-if="row.performance.quotationHistory.length === 0" :colspan="4">
+              Belum ada riwayat quotation.
+            </TableEmpty>
           </TableBody>
         </Table>
       </SectionCard>

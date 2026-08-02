@@ -7,22 +7,22 @@ const RANK: Record<PermissionLevel, number> = { NONE: 0, VIEW: 1, MANAGE: 2, APP
  * Helper `canView`/`canManage` terpusat (Prompt 5-I) — jangan sebar logic permission ke banyak komponen.
  * Mengikuti Role & Access Matrix docs/route-and-role-matrix.md bagian 5.
  */
-export function usePermissions() {
+export function usePermissions () {
   const { currentRole, currentUser } = useCurrentUser()
 
-  function accessLevel(moduleKey: ModuleKey): PermissionLevel {
+  function accessLevel (moduleKey: ModuleKey): PermissionLevel {
     return ROLE_MODULE_ACCESS[currentRole.value][moduleKey]
   }
 
-  function canView(moduleKey: ModuleKey): boolean {
+  function canView (moduleKey: ModuleKey): boolean {
     return RANK[accessLevel(moduleKey)] >= RANK.VIEW
   }
 
-  function canManage(moduleKey: ModuleKey): boolean {
+  function canManage (moduleKey: ModuleKey): boolean {
     return RANK[accessLevel(moduleKey)] >= RANK.MANAGE
   }
 
-  function canApprove(moduleKey: ModuleKey): boolean {
+  function canApprove (moduleKey: ModuleKey): boolean {
     return RANK[accessLevel(moduleKey)] >= RANK.APPROVE
   }
 

@@ -26,7 +26,7 @@ export const DOCUMENT_RECORDS: Document[] = reactive([
   { id: 'DOC-C013', entityType: 'invoice', entityId: 'INV-1011', projectId: 'PRJ-101', name: 'Bukti Transfer INV-1011.pdf', category: 'Finance', version: 1, uploadedAt: '2026-07-10', accessLevel: 'internal', sourceType: 'uploaded', uploadedBy: 'USR-008' },
   { id: 'DOC-C014', entityType: 'traveler', entityId: 'TRV-1021', projectId: 'PRJ-102', name: 'Scan Visa TRV-1021.pdf', category: 'Travel Document', version: 1, uploadedAt: '2026-07-05', expiresAt: '2027-06-30', accessLevel: 'internal', sourceType: 'uploaded', uploadedBy: 'USR-013' },
   { id: 'DOC-C015', entityType: 'change-request', entityId: 'CR-004', projectId: 'PRJ-103', name: 'Dokumentasi Perubahan Armada CR-004.pdf', category: 'Change Documentation', version: 1, uploadedAt: '2026-07-18', accessLevel: 'internal', sourceType: 'uploaded', uploadedBy: 'USR-009' },
-  { id: 'DOC-C016', entityType: 'incident', entityId: 'INC-001', projectId: 'PRJ-103', name: 'Laporan Insiden INC-001.pdf', category: 'Incident Report', version: 1, uploadedAt: '2026-07-19', accessLevel: 'internal', sourceType: 'uploaded', uploadedBy: 'USR-009' },
+  { id: 'DOC-C016', entityType: 'incident', entityId: 'INC-001', projectId: 'PRJ-103', name: 'Laporan Insiden INC-001.pdf', category: 'Incident Report', version: 1, uploadedAt: '2026-07-19', accessLevel: 'internal', sourceType: 'uploaded', uploadedBy: 'USR-009' }
 ])
 
 /**
@@ -42,7 +42,7 @@ export const MESSAGE_RECORDS: Message[] = reactive([
   { id: 'MSG-005', entityType: 'vendor', entityId: 'VND-006', projectId: 'PRJ-103', channel: 'supplier-message', senderId: 'USR-015', body: 'Kamar Suite tersedia, konfirmasi tertulis kami kirim dalam 1x24 jam.', sentAt: '2026-07-15', deliveryStatus: 'delivered', deliveryChannel: 'email' },
   { id: 'MSG-006', entityType: 'incident', entityId: 'INC-001', projectId: 'PRJ-103', channel: 'internal-note', senderId: 'USR-006', body: 'Update lapangan: unit cadangan sudah tiba, seluruh traveler kembali on schedule.', mentions: ['USR-009'], sentAt: '2026-07-19', deliveryStatus: 'sent' },
   { id: 'MSG-007', entityType: 'change-request', entityId: 'CR-002', projectId: 'PRJ-102', channel: 'client-message', senderId: 'USR-020', body: 'Konfirmasi permintaan upgrade kamar dari kami, mohon info tambahan biaya yang perlu dibayar.', sentAt: '2026-07-12', deliveryStatus: 'delivered', deliveryChannel: 'whatsapp' },
-  { id: 'MSG-008', entityType: 'project', entityId: 'PRJ-104', projectId: 'PRJ-104', channel: 'internal-note', senderId: 'USR-002', body: 'Project baru PRJ-104 dibuat dari Opportunity OPP-008, mohon Ticketing mulai proses awal.', mentions: ['USR-004'], sentAt: '2026-07-24', deliveryStatus: 'queued' },
+  { id: 'MSG-008', entityType: 'project', entityId: 'PRJ-104', projectId: 'PRJ-104', channel: 'internal-note', senderId: 'USR-002', body: 'Project baru PRJ-104 dibuat dari Opportunity OPP-008, mohon Ticketing mulai proses awal.', mentions: ['USR-004'], sentAt: '2026-07-24', deliveryStatus: 'queued' }
 ])
 
 /**
@@ -60,5 +60,5 @@ export const NOTIFICATION_RECORDS: Notification[] = reactive([
   { id: 'NOT-006', userId: 'USR-002', type: 'reminder', title: 'Follow-up pembayaran termin tambahan', body: 'Task follow-up pembayaran termin tambahan ke client PRJ-102 jatuh tempo 2026-08-01.', entityType: 'project', entityId: 'PRJ-102', createdAt: '2026-07-25', read: false },
   { id: 'NOT-007', userId: 'USR-003', type: 'document', title: 'Dokumen NPWP PT Cipta Distribusi akan kedaluwarsa', body: 'Dokumen NPWP PTY-001 akan kedaluwarsa pada 2026-08-10.', entityType: 'party', entityId: 'PTY-001', createdAt: '2026-07-29', read: false },
   { id: 'NOT-008', userId: 'USR-004', type: 'message', title: 'Pesan baru pada project PRJ-104', body: 'Doni Saputra mengirim catatan internal baru pada PRJ-104.', entityType: 'project', entityId: 'PRJ-104', createdAt: '2026-07-24', read: false },
-  { id: 'NOT-009', userId: 'USR-006', type: 'incident', title: 'Incident baru tercatat pada booking TRN-1034', body: 'Incident INC-001 (armada mogok) tercatat pada booking Anda.', entityType: 'incident', entityId: 'INC-001', createdAt: '2026-07-19', read: true },
+  { id: 'NOT-009', userId: 'USR-006', type: 'incident', title: 'Incident baru tercatat pada booking TRN-1034', body: 'Incident INC-001 (armada mogok) tercatat pada booking Anda.', entityType: 'incident', entityId: 'INC-001', createdAt: '2026-07-19', read: true }
 ])

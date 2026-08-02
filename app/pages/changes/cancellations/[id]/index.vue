@@ -27,18 +27,18 @@ const project = computed(() => (record.value ? getProjectById(record.value.proje
 const relatedRefunds = computed(() => (record.value ? getRefundRequestsByProject(record.value.projectId).filter(r => r.cancellationId === record.value?.id) : []))
 
 const summaryMetadata = computed(() => {
-  if (!record.value) return []
+  if (!record.value) { return [] }
   return [
     { label: 'Project', value: project.value?.name ?? record.value.projectId },
     { label: 'Booking', value: `${record.value.bookingType} ${record.value.bookingId}` },
     { label: 'Dibatalkan Oleh', value: getUserById(record.value.cancelledBy)?.name ?? record.value.cancelledBy },
     { label: 'Tanggal Dibatalkan', value: formatDate(record.value.cancelledAt) },
-    { label: 'Penalty', value: record.value.penaltyIdr !== undefined ? formatCurrencyIdr(record.value.penaltyIdr) : 'Tidak ada penalty' },
+    { label: 'Penalty', value: record.value.penaltyIdr !== undefined ? formatCurrencyIdr(record.value.penaltyIdr) : 'Tidak ada penalty' }
   ]
 })
 
 const bookingDetailHref = computed(() => {
-  if (!record.value) return undefined
+  if (!record.value) { return undefined }
   const prefix: Record<string, string> = { flight: '/ticketing', hotel: '/accommodation', transport: '/transportation', mice: '/mice' }
   return `${prefix[record.value.bookingType]}/${record.value.bookingId}`
 })
@@ -48,17 +48,20 @@ const isRefundDialogOpen = ref(false)
 const refundType = ref<'partial' | 'full'>('partial')
 const refundAmount = ref<number | null>(null)
 
-function openRefundDialog() {
+function openRefundDialog () {
   refundType.value = 'partial'
   refundAmount.value = null
   isRefundDialogOpen.value = true
 }
 
-function submitRefund() {
-  if (!record.value || !refundAmount.value) return
+function submitRefund () {
+  if (!record.value || !refundAmount.value) { return }
   const refund = createRefundRequest({
-    projectId: record.value.projectId, cancellationId: record.value.id,
-    type: refundType.value, amountIdr: refundAmount.value, requestedBy: currentUser.value.id,
+    projectId: record.value.projectId,
+    cancellationId: record.value.id,
+    type: refundType.value,
+    amountIdr: refundAmount.value,
+    requestedBy: currentUser.value.id
   })
   isRefundDialogOpen.value = false
   showToast('Refund Request Diajukan', `${refund.id} tercatat berstatus "Diajukan".`, 'success')
@@ -72,7 +75,9 @@ function submitRefund() {
       <PageHeader title="Cancellation Tidak Ditemukan" :breadcrumb="[{ label: 'Changes & Incidents', to: '/changes?tab=cancellations' }, { label: 'Not Found' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Cancellation tidak ditemukan" :description="`Cancellation dengan ID '${route.params.id}' tidak ada di data demo saat ini.`">
-          <Button @click="router.push('/changes?tab=cancellations')">Kembali ke Changes & Incidents</Button>
+          <Button @click="router.push('/changes?tab=cancellations')">
+            Kembali ke Changes & Incidents
+          </Button>
         </EmptyState>
       </SectionCard>
     </template>
@@ -85,9 +90,13 @@ function submitRefund() {
           <div class="flex flex-wrap items-center gap-2">
             <StatusBadge :label="record.refundEligible ? 'Refund Eligible' : 'Tidak Eligible'" :tone="record.refundEligible ? 'success' : 'neutral'" />
             <NuxtLink v-if="bookingDetailHref" :to="bookingDetailHref">
-              <Button size="sm" variant="outline">Lihat Booking</Button>
+              <Button size="sm" variant="outline">
+                Lihat Booking
+              </Button>
             </NuxtLink>
-            <Button v-if="canManageChanges && record.refundEligible" size="sm" @click="openRefundDialog"><Plus class="h-4 w-4 mr-1.5" />Ajukan Refund</Button>
+            <Button v-if="canManageChanges && record.refundEligible" size="sm" @click="openRefundDialog">
+              <Plus class="h-4 w-4 mr-1.5" />Ajukan Refund
+            </Button>
           </div>
         </template>
       </PageHeader>
@@ -97,7 +106,9 @@ function submitRefund() {
       </SectionCard>
 
       <SectionCard title="Alasan Pembatalan">
-        <p class="text-sm text-foreground whitespace-pre-line">{{ record.reason }}</p>
+        <p class="text-sm text-foreground whitespace-pre-line">
+          {{ record.reason }}
+        </p>
       </SectionCard>
 
       <SectionCard title="Refund Request Terkait">
@@ -105,8 +116,12 @@ function submitRefund() {
           <li v-for="refund in relatedRefunds" :key="refund.id" class="py-3">
             <NuxtLink :to="`/changes/refunds/${refund.id}`" class="flex items-center justify-between gap-3 group">
               <div class="min-w-0">
-                <p class="text-sm font-medium text-foreground group-hover:underline">{{ refund.id }}</p>
-                <p class="text-xs text-muted-foreground">{{ refund.type === 'full' ? 'Full' : 'Partial' }} — {{ formatCurrencyIdr(refund.amountIdr) }}</p>
+                <p class="text-sm font-medium text-foreground group-hover:underline">
+                  {{ refund.id }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ refund.type === 'full' ? 'Full' : 'Partial' }} — {{ formatCurrencyIdr(refund.amountIdr) }}
+                </p>
               </div>
               <StatusBadge :label="findStatusOption(REFUND_REQUEST_STATUSES, refund.status).label" :tone="findStatusOption(REFUND_REQUEST_STATUSES, refund.status).tone" />
             </NuxtLink>
@@ -127,8 +142,12 @@ function submitRefund() {
               <div class="space-y-1.5">
                 <Label for="refund-type">Tipe</Label>
                 <select id="refund-type" v-model="refundType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="partial">Partial</option>
-                  <option value="full">Full</option>
+                  <option value="partial">
+                    Partial
+                  </option>
+                  <option value="full">
+                    Full
+                  </option>
                 </select>
               </div>
               <div class="space-y-1.5">
@@ -138,8 +157,12 @@ function submitRefund() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" @click="isRefundDialogOpen = false">Batal</Button>
-            <Button :disabled="!refundAmount" @click="submitRefund">Kirim</Button>
+            <Button variant="outline" @click="isRefundDialogOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!refundAmount" @click="submitRefund">
+              Kirim
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

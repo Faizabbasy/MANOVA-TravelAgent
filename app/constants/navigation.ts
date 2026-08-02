@@ -19,7 +19,7 @@ import {
   ClipboardList,
   CalendarClock,
   AlertTriangle,
-  FileText,
+  FileText
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
 
@@ -63,8 +63,8 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Leads', to: '/customer-journey/leads', icon: Route, moduleKey: 'crm' },
       { label: 'Customers', to: '/customer-journey/customers', icon: Route, roles: ['super-admin', 'management', 'account-executive', 'project-manager', 'finance', 'viewer'] },
       { label: 'Project Orders', to: '/customer-journey/project-orders', icon: Route, roles: ['super-admin', 'management', 'account-executive', 'project-manager', 'finance', 'viewer'] },
-      { label: 'Lead Source Recap', to: '/customer-journey/lead-sources', icon: Route, roles: ['super-admin', 'management', 'account-executive', 'project-manager', 'finance', 'viewer'] },
-    ],
+      { label: 'Lead Source Recap', to: '/customer-journey/lead-sources', icon: Route, roles: ['super-admin', 'management', 'account-executive', 'project-manager', 'finance', 'viewer'] }
+    ]
   },
   {
     label: 'CRM',
@@ -75,8 +75,8 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Prospects', to: '/crm/prospects', icon: Target, moduleKey: 'crm' },
       { label: 'Clients', to: '/crm/clients', icon: Target, moduleKey: 'crm' },
       { label: 'Opportunities', to: '/crm/opportunities', icon: Target, moduleKey: 'crm' },
-      { label: 'Quotations', to: '/crm/quotations', icon: Target, moduleKey: 'crm' },
-    ],
+      { label: 'Quotations', to: '/crm/quotations', icon: Target, moduleKey: 'crm' }
+    ]
   },
   /** Product Planning (Section 10) — katalog Product/Package Template dan Cost Sheet, kolaborasi AE/Operations/Finance. */
   {
@@ -86,8 +86,8 @@ export const NAV_ITEMS: NavItem[] = [
     moduleKey: 'product-planning',
     children: [
       { label: 'Product Templates', to: '/product-planning', icon: Package, moduleKey: 'product-planning' },
-      { label: 'Cost Sheets', to: '/product-planning/cost-sheets', icon: Package, moduleKey: 'product-planning' },
-    ],
+      { label: 'Cost Sheets', to: '/product-planning/cost-sheets', icon: Package, moduleKey: 'product-planning' }
+    ]
   },
   { label: 'Projects', to: '/projects', icon: FolderKanban, moduleKey: 'project' },
   /** Ticketing (Section 13) — FlightBooking lifecycle lintas project, pemilik utama role `ticketing`. */
@@ -112,8 +112,8 @@ export const NAV_ITEMS: NavItem[] = [
     moduleKey: 'bookings',
     children: [
       { label: 'Timeline', to: '/bookings', icon: CalendarClock, moduleKey: 'bookings' },
-      { label: 'Exceptions', to: '/bookings/exceptions', icon: CalendarClock, moduleKey: 'bookings' },
-    ],
+      { label: 'Exceptions', to: '/bookings/exceptions', icon: CalendarClock, moduleKey: 'bookings' }
+    ]
   },
   /**
    * Changes & Incidents (Section 19, D-076) — `ChangeRequest`/`CancellationRecord`/`RefundRequest`/`Incident`
@@ -129,8 +129,8 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Change Requests', to: '/changes', icon: AlertTriangle, moduleKey: 'changes' },
       { label: 'Cancellations', to: '/changes?tab=cancellations', icon: AlertTriangle, moduleKey: 'changes' },
       { label: 'Refunds', to: '/changes?tab=refunds', icon: AlertTriangle, moduleKey: 'changes' },
-      { label: 'Incidents', to: '/changes?tab=incidents', icon: AlertTriangle, moduleKey: 'changes' },
-    ],
+      { label: 'Incidents', to: '/changes?tab=incidents', icon: AlertTriangle, moduleKey: 'changes' }
+    ]
   },
   /**
    * Documents & Communication (Section 21, D-078) — Document center konsolidasi (categories/version/expiry/
@@ -147,8 +147,8 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { label: 'Documents', to: '/documents', icon: FileText, moduleKey: 'documents' },
       { label: 'Messages', to: '/documents?tab=messages', icon: FileText, moduleKey: 'documents' },
-      { label: 'Notifications', to: '/documents?tab=notifications', icon: FileText, moduleKey: 'documents' },
-    ],
+      { label: 'Notifications', to: '/documents?tab=notifications', icon: FileText, moduleKey: 'documents' }
+    ]
   },
   /** Procurement (Section 17) — RFQ/Service Order/Supplier Invoice lifecycle lintas project, pemilik utama role `procurement`, MENDAMPINGI (bukan menggantikan) Vendors (master data) dan Supplier Portal (self-service). */
   {
@@ -159,8 +159,8 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { label: 'RFQ', to: '/procurement', icon: ClipboardList, moduleKey: 'procurement' },
       { label: 'Service Orders', to: '/procurement?tab=service-orders', icon: ClipboardList, moduleKey: 'procurement' },
-      { label: 'Performance Review', to: '/procurement/performance', icon: ClipboardList, moduleKey: 'procurement' },
-    ],
+      { label: 'Performance Review', to: '/procurement/performance', icon: ClipboardList, moduleKey: 'procurement' }
+    ]
   },
   {
     label: 'Finance',
@@ -171,8 +171,8 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Invoices', to: '/finance/invoices', icon: Wallet, moduleKey: 'finance' },
       { label: 'Payments', to: '/finance/payments', icon: Wallet, moduleKey: 'finance' },
       { label: 'Credit/Debit Notes', to: '/finance/notes', icon: Wallet, moduleKey: 'finance' },
-      { label: 'Reconciliation', to: '/finance/reconciliation', icon: Wallet, moduleKey: 'finance' },
-    ],
+      { label: 'Reconciliation', to: '/finance/reconciliation', icon: Wallet, moduleKey: 'finance' }
+    ]
   },
   { label: 'Reports', to: '/reports', icon: BarChart3, moduleKey: 'reports' },
   /** Activity Center (Prompt 19) — literal "Super Admin Dashboard" saja, `roles` override karena modul `administration` juga memberi Management/Viewer `VIEW`. */
@@ -188,8 +188,8 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Roles and Permissions', to: '/admin/roles', icon: ShieldCheck, moduleKey: 'administration' },
       { label: 'Audit Trail', to: '/admin/audit-trail', icon: ShieldCheck, moduleKey: 'administration' },
       /** Organization Profile (Section 23 — Administration, Master Data dan Audit, roadmap Section 00–24 baru, D-080). Ditambahkan sebagai anak ke-5, tidak merestrukturisasi 4 anak existing. */
-      { label: 'Organization Profile', to: '/admin/organization', icon: ShieldCheck, moduleKey: 'administration' },
-    ],
+      { label: 'Organization Profile', to: '/admin/organization', icon: ShieldCheck, moduleKey: 'administration' }
+    ]
   },
   /** Supplier Portal (Prompt 19) — External Partners, hanya `supplier` (dan Super Admin untuk oversight, lihat `ROLE_MODULE_ACCESS['supplier-portal']`). */
   {
@@ -202,8 +202,12 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Orders', to: '/supplier/orders', icon: Truck, moduleKey: 'supplier-portal' },
       { label: 'RFQ Inbox', to: '/supplier/rfq', icon: Truck, moduleKey: 'supplier-portal' },
       { label: 'Service Orders', to: '/supplier/service-orders', icon: Truck, moduleKey: 'supplier-portal' },
-    ],
+      /** Commodity (Phase 2 — Client–Vendor Commodity) — katalog Commodity Product milik vendor sendiri, terpisah dari "Products" (VendorProduct, Prompt 19) yang tetap dipertahankan apa adanya. */
+      { label: 'Komoditas Saya', to: '/supplier/commodities', icon: Package, moduleKey: 'supplier-portal' },
+      /** Vendor Orders (Phase 5 — Client–Vendor Commodity) — Order dan Sold Commodities summary dari CommodityOrder, rute terpisah dari "Orders" (`/supplier/orders`, domain ServiceOrder/RFQ lama yang berbeda, D-070 dst) agar tidak bertabrakan. */
+      { label: 'Vendor Orders', to: '/supplier/commodity-orders', icon: Package, moduleKey: 'supplier-portal' }
+    ]
   },
   /** Client Portal (Section 02, fitur penuh Section 08) — External Partners, hanya `client` (dan Super Admin untuk oversight), pola identik Supplier Portal. */
-  { label: 'Client Portal', to: '/client', icon: Users, moduleKey: 'client-portal' },
+  { label: 'Client Portal', to: '/client', icon: Users, moduleKey: 'client-portal' }
 ]

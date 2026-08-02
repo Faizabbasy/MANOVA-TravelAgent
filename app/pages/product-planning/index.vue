@@ -16,7 +16,7 @@ const canManageProduct = computed(() => canManage('product-planning'))
 const STATUS_OPTIONS: { value: ProductTemplateStatus; label: string; tone: 'neutral' | 'success' | 'warning' }[] = [
   { value: 'draft', label: 'Draft', tone: 'neutral' },
   { value: 'active', label: 'Active', tone: 'success' },
-  { value: 'archived', label: 'Archived', tone: 'warning' },
+  { value: 'archived', label: 'Archived', tone: 'warning' }
 ]
 
 const searchQuery = ref('')
@@ -26,11 +26,11 @@ const serviceFilter = ref('all')
 const rows = computed(() => {
   let result = PRODUCT_TEMPLATES.map(product => ({
     product,
-    costSheetCount: getCostSheetsByProduct(product.id).length,
+    costSheetCount: getCostSheetsByProduct(product.id).length
   }))
 
-  if (statusFilter.value !== 'all') result = result.filter(row => row.product.status === statusFilter.value)
-  if (serviceFilter.value !== 'all') result = result.filter(row => row.product.serviceScope.includes(serviceFilter.value as ServiceTypeKey))
+  if (statusFilter.value !== 'all') { result = result.filter(row => row.product.status === statusFilter.value) }
+  if (serviceFilter.value !== 'all') { result = result.filter(row => row.product.serviceScope.includes(serviceFilter.value as ServiceTypeKey)) }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(row => row.product.name.toLowerCase().includes(q) || row.product.destination.toLowerCase().includes(q))
@@ -46,13 +46,13 @@ const newServiceScope = ref<ServiceTypeKey[]>([])
 const newBasePaxCount = ref<number | null>(null)
 const newItineraryConcept = ref('')
 
-function toggleServiceScope(type: ServiceTypeKey) {
+function toggleServiceScope (type: ServiceTypeKey) {
   newServiceScope.value = newServiceScope.value.includes(type)
     ? newServiceScope.value.filter(item => item !== type)
     : [...newServiceScope.value, type]
 }
 
-function resetCreateForm() {
+function resetCreateForm () {
   newName.value = ''
   newDestination.value = ''
   newServiceScope.value = []
@@ -60,15 +60,15 @@ function resetCreateForm() {
   newItineraryConcept.value = ''
 }
 
-function submitCreate() {
-  if (!newName.value.trim() || !newDestination.value.trim() || newServiceScope.value.length === 0 || !newBasePaxCount.value) return
+function submitCreate () {
+  if (!newName.value.trim() || !newDestination.value.trim() || newServiceScope.value.length === 0 || !newBasePaxCount.value) { return }
   const product = createProductTemplate({
     name: newName.value.trim(),
     destination: newDestination.value.trim(),
     serviceScope: newServiceScope.value,
     basePaxCount: newBasePaxCount.value,
     itineraryConcept: newItineraryConcept.value.trim() || undefined,
-    createdBy: currentUser.value.id,
+    createdBy: currentUser.value.id
   })
   resetCreateForm()
   isCreateOpen.value = false
@@ -106,11 +106,15 @@ function submitCreate() {
                 <Label>Service Scope</Label>
                 <div class="flex flex-wrap gap-2">
                   <button
-                    v-for="type in SERVICE_TYPES" :key="type.value" type="button"
+                    v-for="type in SERVICE_TYPES"
+                    :key="type.value"
+                    type="button"
                     class="px-3 py-1.5 text-xs rounded-lg border transition-colors"
                     :class="newServiceScope.includes(type.value) ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground hover:bg-muted/50'"
                     @click="toggleServiceScope(type.value)"
-                  >{{ type.label }}</button>
+                  >
+                    {{ type.label }}
+                  </button>
                 </div>
               </div>
               <div class="space-y-1.5">
@@ -123,8 +127,12 @@ function submitCreate() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">Batal</Button>
-              <Button :disabled="!newName.trim() || !newDestination.trim() || newServiceScope.length === 0 || !newBasePaxCount" @click="submitCreate">Simpan</Button>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newName.trim() || !newDestination.trim() || newServiceScope.length === 0 || !newBasePaxCount" @click="submitCreate">
+                Simpan
+              </Button>
             </DialogFooter>
           </DialogScrollContent>
         </Dialog>
@@ -140,12 +148,20 @@ function submitCreate() {
           <Input v-model="searchQuery" placeholder="Cari nama atau destinasi..." class="pl-9" />
         </div>
         <select v-model="statusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Status</option>
-          <option v-for="option in STATUS_OPTIONS" :key="option.value" :value="option.value">{{ option.label }}</option>
+          <option value="all">
+            Semua Status
+          </option>
+          <option v-for="option in STATUS_OPTIONS" :key="option.value" :value="option.value">
+            {{ option.label }}
+          </option>
         </select>
         <select v-model="serviceFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Service</option>
-          <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
+          <option value="all">
+            Semua Service
+          </option>
+          <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+            {{ type.label }}
+          </option>
         </select>
       </div>
 
@@ -163,15 +179,23 @@ function submitCreate() {
           </TableHeader>
           <TableBody>
             <TableRow v-for="row in rows" :key="row.product.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/product-planning/${row.product.id}`)">
-              <TableCell class="font-medium text-foreground">{{ row.product.name }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.product.destination }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ row.product.name }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.product.destination }}
+              </TableCell>
               <TableCell>
                 <div class="flex flex-wrap gap-1">
                   <StatusBadge v-for="type in row.product.serviceScope" :key="type" :label="findStatusOption(SERVICE_TYPES, type).label" :tone="findStatusOption(SERVICE_TYPES, type).tone" />
                 </div>
               </TableCell>
-              <TableCell class="text-muted-foreground">{{ row.product.basePaxCount }} pax</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.costSheetCount }} cost sheet</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.product.basePaxCount }} pax
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.costSheetCount }} cost sheet
+              </TableCell>
               <TableCell>
                 <StatusBadge
                   :label="STATUS_OPTIONS.find(o => o.value === row.product.status)?.label ?? row.product.status"

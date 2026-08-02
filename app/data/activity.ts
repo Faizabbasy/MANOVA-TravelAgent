@@ -15,33 +15,68 @@ export const ACTIVITIES: ActivityEntry[] = reactive([
   { id: 'ACT-1011', projectId: 'PRJ-101', message: 'E-ticket diterbitkan untuk seluruh traveler', isChange: false, reviewed: true, createdAt: '2026-06-26' },
 
   {
-    id: 'CHG-1021', projectId: 'PRJ-102', message: 'Tanggal perjalanan berubah dari 15–19 Sep menjadi 22–26 Sep 2026',
-    isChange: true, reviewed: true, createdAt: '2026-07-08',
-    category: 'itinerary', reason: 'Perubahan jadwal keberangkatan dari sisi klien', requestedBy: 'USR-013',
-    beforeValue: '15–19 Sep 2026', afterValue: '22–26 Sep 2026', approvalStatus: 'approved', approvedBy: 'USR-003',
-    impactNote: 'Itinerary harian serta booking flight dan hotel perlu disesuaikan ulang.',
+    id: 'CHG-1021',
+    projectId: 'PRJ-102',
+    message: 'Tanggal perjalanan berubah dari 15–19 Sep menjadi 22–26 Sep 2026',
+    isChange: true,
+    reviewed: true,
+    createdAt: '2026-07-08',
+    category: 'itinerary',
+    reason: 'Perubahan jadwal keberangkatan dari sisi klien',
+    requestedBy: 'USR-013',
+    beforeValue: '15–19 Sep 2026',
+    afterValue: '22–26 Sep 2026',
+    approvalStatus: 'approved',
+    approvedBy: 'USR-003',
+    impactNote: 'Itinerary harian serta booking flight dan hotel perlu disesuaikan ulang.'
   },
   {
-    id: 'CHG-1022', projectId: 'PRJ-102', message: 'Jumlah traveler bertambah dari 15 menjadi 18 pax',
-    isChange: true, reviewed: true, createdAt: '2026-07-08',
-    category: 'traveler', reason: 'Penambahan peserta dari sisi klien', requestedBy: 'USR-013',
-    beforeValue: '15 pax', afterValue: '18 pax', approvalStatus: 'approved', approvedBy: 'USR-003',
-    impactNote: 'Kapasitas rooming list dan alokasi kursi penerbangan perlu ditambah.',
+    id: 'CHG-1022',
+    projectId: 'PRJ-102',
+    message: 'Jumlah traveler bertambah dari 15 menjadi 18 pax',
+    isChange: true,
+    reviewed: true,
+    createdAt: '2026-07-08',
+    category: 'traveler',
+    reason: 'Penambahan peserta dari sisi klien',
+    requestedBy: 'USR-013',
+    beforeValue: '15 pax',
+    afterValue: '18 pax',
+    approvalStatus: 'approved',
+    approvedBy: 'USR-003',
+    impactNote: 'Kapasitas rooming list dan alokasi kursi penerbangan perlu ditambah.'
   },
   {
-    id: 'CHG-1023', projectId: 'PRJ-102', message: 'Tipe kamar hotel di-upgrade dari Deluxe ke Suite (berdampak biaya)',
-    isChange: true, reviewed: false, createdAt: '2026-07-12',
-    category: 'service', reason: 'Permintaan upgrade kamar dari klien', requestedBy: 'USR-005',
-    beforeValue: 'Deluxe', afterValue: 'Suite', approvalStatus: 'pending',
-    impactNote: 'Actual cost meningkat sekitar Rp25.000.000 dibanding budget awal Room Block A.',
+    id: 'CHG-1023',
+    projectId: 'PRJ-102',
+    message: 'Tipe kamar hotel di-upgrade dari Deluxe ke Suite (berdampak biaya)',
+    isChange: true,
+    reviewed: false,
+    createdAt: '2026-07-12',
+    category: 'service',
+    reason: 'Permintaan upgrade kamar dari klien',
+    requestedBy: 'USR-005',
+    beforeValue: 'Deluxe',
+    afterValue: 'Suite',
+    approvalStatus: 'pending',
+    impactNote: 'Actual cost meningkat sekitar Rp25.000.000 dibanding budget awal Room Block A.'
   },
 
   {
-    id: 'CHG-1031', projectId: 'PRJ-103', message: 'Jumlah peserta Group Sales Team bertambah dari 20 menjadi 25 pax',
-    isChange: true, reviewed: true, createdAt: '2026-07-10',
-    category: 'traveler', reason: 'Penambahan peserta Group Sales Team', requestedBy: 'USR-002',
-    beforeValue: '20 pax', afterValue: '25 pax', approvalStatus: 'approved', approvedBy: 'USR-003',
-    impactNote: 'Rooming list Group Sales Team (GRP-002) disesuaikan menjadi 12 twin + 1 single.',
+    id: 'CHG-1031',
+    projectId: 'PRJ-103',
+    message: 'Jumlah peserta Group Sales Team bertambah dari 20 menjadi 25 pax',
+    isChange: true,
+    reviewed: true,
+    createdAt: '2026-07-10',
+    category: 'traveler',
+    reason: 'Penambahan peserta Group Sales Team',
+    requestedBy: 'USR-002',
+    beforeValue: '20 pax',
+    afterValue: '25 pax',
+    approvalStatus: 'approved',
+    approvedBy: 'USR-003',
+    impactNote: 'Rooming list Group Sales Team (GRP-002) disesuaikan menjadi 12 twin + 1 single.'
   },
   /** PRJ-104 (Prompt 19) — mengikuti pola entri `approveOpportunityWon` (Section 09) untuk project yang di-seed langsung. */
   { id: 'ACT-1041', projectId: 'PRJ-104', message: 'Project PRJ-104 dibuat dari Opportunity OPP-008 (Won oleh Sari Wijaya/Management)', isChange: false, reviewed: true, createdAt: '2026-07-24' },
@@ -55,28 +90,52 @@ export const ACTIVITIES: ActivityEntry[] = reactive([
    * `createChangeEntry` saat membuat `ChangeRequest` baru lewat UI.
    */
   {
-    id: 'CHG-1032', projectId: 'PRJ-103', message: 'Vendor mengusulkan upgrade armada dari 2 unit Minibus menjadi 1 unit Bus',
-    isChange: true, reviewed: false, createdAt: '2026-07-18',
-    category: 'vendor', reason: 'Availability minibus terbatas menjelang tanggal keberangkatan', requestedBy: 'USR-015',
-    beforeValue: '2 unit Minibus (16 seat)', afterValue: '1 unit Bus (40 seat)', approvalStatus: 'pending',
-    impactNote: 'Perlu update assigned vehicle dan capacity check manifest Group Sales Team.',
+    id: 'CHG-1032',
+    projectId: 'PRJ-103',
+    message: 'Vendor mengusulkan upgrade armada dari 2 unit Minibus menjadi 1 unit Bus',
+    isChange: true,
+    reviewed: false,
+    createdAt: '2026-07-18',
+    category: 'vendor',
+    reason: 'Availability minibus terbatas menjelang tanggal keberangkatan',
+    requestedBy: 'USR-015',
+    beforeValue: '2 unit Minibus (16 seat)',
+    afterValue: '1 unit Bus (40 seat)',
+    approvalStatus: 'pending',
+    impactNote: 'Perlu update assigned vehicle dan capacity check manifest Group Sales Team.'
   },
   {
-    id: 'CHG-1033', projectId: 'PRJ-101', message: 'Client meminta reschedule keberangkatan H-1 untuk e-ticket yang sudah issued',
-    isChange: true, reviewed: true, createdAt: '2026-07-19',
-    category: 'itinerary', reason: 'Permintaan reschedule mendadak dari klien', requestedBy: 'USR-019',
-    beforeValue: 'Keberangkatan 20 Agu 2026 pagi', afterValue: 'Permintaan reschedule ke 21 Agu 2026',
-    approvalStatus: 'rejected', approvedBy: 'USR-003',
-    impactNote: 'E-ticket sudah issued dan di luar fare rules reschedule H-1.',
+    id: 'CHG-1033',
+    projectId: 'PRJ-101',
+    message: 'Client meminta reschedule keberangkatan H-1 untuk e-ticket yang sudah issued',
+    isChange: true,
+    reviewed: true,
+    createdAt: '2026-07-19',
+    category: 'itinerary',
+    reason: 'Permintaan reschedule mendadak dari klien',
+    requestedBy: 'USR-019',
+    beforeValue: 'Keberangkatan 20 Agu 2026 pagi',
+    afterValue: 'Permintaan reschedule ke 21 Agu 2026',
+    approvalStatus: 'rejected',
+    approvedBy: 'USR-003',
+    impactNote: 'E-ticket sudah issued dan di luar fare rules reschedule H-1.'
   },
   {
-    id: 'CHG-1034', projectId: 'PRJ-103', message: 'Rundown venue MICE ditambah satu breakout room paralel',
-    isChange: true, reviewed: true, createdAt: '2026-07-21',
-    category: 'service', reason: 'Permintaan sesi paralel tambahan dari tim internal', requestedBy: 'USR-007',
-    beforeValue: 'Ballroom A, sesi tunggal', afterValue: 'Ballroom A + Breakout Room B, dua sesi paralel',
-    approvalStatus: 'approved', approvedBy: 'USR-003',
-    impactNote: 'BOQ dan staffing perlu ditambah untuk breakout room kedua.',
-  },
+    id: 'CHG-1034',
+    projectId: 'PRJ-103',
+    message: 'Rundown venue MICE ditambah satu breakout room paralel',
+    isChange: true,
+    reviewed: true,
+    createdAt: '2026-07-21',
+    category: 'service',
+    reason: 'Permintaan sesi paralel tambahan dari tim internal',
+    requestedBy: 'USR-007',
+    beforeValue: 'Ballroom A, sesi tunggal',
+    afterValue: 'Ballroom A + Breakout Room B, dua sesi paralel',
+    approvalStatus: 'approved',
+    approvedBy: 'USR-003',
+    impactNote: 'BOQ dan staffing perlu ditambah untuk breakout room kedua.'
+  }
 ])
 
 export const DOCUMENTS: ProjectDocument[] = [
@@ -87,7 +146,7 @@ export const DOCUMENTS: ProjectDocument[] = [
 
   { id: 'DOC-1031', projectId: 'PRJ-103', name: 'Rundown_Acara_MICE_Palu.pdf', uploadedAt: '2026-07-01' },
   { id: 'DOC-1032', projectId: 'PRJ-103', name: 'Rooming_List_Draft_GroupC.xlsx', uploadedAt: '2026-07-15' },
-  { id: 'DOC-1033', projectId: 'PRJ-103', name: 'Kontrak_Vendor_MICE.pdf', uploadedAt: '2026-06-10' },
+  { id: 'DOC-1033', projectId: 'PRJ-103', name: 'Kontrak_Vendor_MICE.pdf', uploadedAt: '2026-06-10' }
 ]
 
 /**
@@ -111,7 +170,7 @@ export const TASKS: ProjectTask[] = reactive([
   { id: 'TSK-1032', projectId: 'PRJ-103', title: 'Konfirmasi venue MICE hari ke-2', status: 'pending-confirmation', isMilestone: true, assignedTo: 'USR-007' },
   { id: 'TSK-1033', projectId: 'PRJ-103', title: 'Kirim rundown acara ke client', status: 'not-started', dependsOnTaskId: 'TSK-1032' },
   { id: 'TSK-1034', projectId: 'PRJ-103', title: 'Rekonsiliasi actual cost transportation', status: 'overdue', dueAt: '2026-07-25', assignedTo: 'USR-006' },
-  { id: 'TSK-1035', projectId: 'PRJ-103', title: 'Verifikasi ulang manifest VIP sebelum keberangkatan', status: 'in-progress', dueAt: '2026-08-05', isMilestone: true },
+  { id: 'TSK-1035', projectId: 'PRJ-103', title: 'Verifikasi ulang manifest VIP sebelum keberangkatan', status: 'in-progress', dueAt: '2026-08-05', isMilestone: true }
 ])
 
 /**
@@ -121,7 +180,7 @@ export const TASKS: ProjectTask[] = reactive([
  */
 export const PROJECT_RISKS: ProjectRisk[] = reactive([
   { id: 'RSK-1031', projectId: 'PRJ-103', title: 'Ketersediaan venue MICE hari ke-2 belum terkonfirmasi final', description: 'Venue alternatif perlu disiapkan bila konfirmasi tidak turun H-7.', severity: 'high', status: 'open', raisedBy: 'USR-002', createdAt: '2026-07-20' },
-  { id: 'RSK-1032', projectId: 'PRJ-103', title: 'Cuaca ekstrem berpotensi mengganggu sesi outdoor', description: 'Rencana cadangan indoor perlu disiapkan tim Operations.', severity: 'medium', status: 'mitigated', raisedBy: 'USR-006', createdAt: '2026-07-18' },
+  { id: 'RSK-1032', projectId: 'PRJ-103', title: 'Cuaca ekstrem berpotensi mengganggu sesi outdoor', description: 'Rencana cadangan indoor perlu disiapkan tim Operations.', severity: 'medium', status: 'mitigated', raisedBy: 'USR-006', createdAt: '2026-07-18' }
 ])
 
 /**
@@ -131,7 +190,7 @@ export const PROJECT_RISKS: ProjectRisk[] = reactive([
  */
 export const SHIFT_NOTES: ShiftNote[] = reactive([
   { id: 'SFT-1031', projectId: 'PRJ-103', authorId: 'USR-006', shift: 'pagi', note: 'Seluruh group tiba tepat waktu, transportasi bandara-hotel lancar tanpa kendala.', createdAt: '2026-08-10' },
-  { id: 'SFT-1032', projectId: 'PRJ-103', authorId: 'USR-007', shift: 'siang', note: 'Venue MICE hari ke-1 sudah siap, AV testing selesai. Serah terima ke shift malam untuk persiapan hari ke-2.', createdAt: '2026-08-11' },
+  { id: 'SFT-1032', projectId: 'PRJ-103', authorId: 'USR-007', shift: 'siang', note: 'Venue MICE hari ke-1 sudah siap, AV testing selesai. Serah terima ke shift malam untuk persiapan hari ke-2.', createdAt: '2026-08-11' }
 ])
 
 /**
@@ -162,5 +221,5 @@ export const SYSTEM_EVENTS: SystemEvent[] = reactive([
   { id: 'EVT-019', module: 'opportunity', type: 'opportunity-won', message: 'Opportunity OPP-008 (repeat client PT Cipta Distribusi Nusantara) ditandai Won', entityId: 'OPP-008', userId: 'USR-003', createdAt: '2026-07-24' },
   { id: 'EVT-020', module: 'project-order', type: 'project-order-created', message: 'Project Order PRJ-104 dibuat dari Opportunity OPP-008 — Project Order kedua PT Cipta Distribusi Nusantara', entityId: 'PRJ-104', createdAt: '2026-07-24' },
   { id: 'EVT-021', module: 'user', type: 'user-created', message: 'Supplier user Hasan Alfarizi (PT ABC) ditambahkan, terisolasi ke VND-006', entityId: 'USR-015', userId: 'USR-010', createdAt: '2026-07-27' },
-  { id: 'EVT-022', module: 'user', type: 'user-created', message: 'Supplier user Ika Puspitasari (PT EFG) ditambahkan, terisolasi ke VND-007', entityId: 'USR-016', userId: 'USR-010', createdAt: '2026-07-27' },
+  { id: 'EVT-022', module: 'user', type: 'user-created', message: 'Supplier user Ika Puspitasari (PT EFG) ditambahkan, terisolasi ke VND-007', entityId: 'USR-016', userId: 'USR-010', createdAt: '2026-07-27' }
 ])

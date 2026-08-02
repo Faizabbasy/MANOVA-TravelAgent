@@ -23,7 +23,7 @@ const preparedBy = computed(() => (opportunity.value ? getUserById(opportunity.v
 
 useHead({ title: computed(() => quotation.value ? `Quotation ${quotation.value.id} — Preview` : 'Quotation Tidak Ditemukan') })
 
-function printPage() {
+function printPage () {
   window.print()
 }
 </script>
@@ -53,60 +53,110 @@ function printPage() {
 
       <template v-else>
         <div class="mb-4 flex items-center justify-between print:hidden">
-          <NuxtLink :to="`/crm/opportunities/${opportunity.id}`" class="text-sm text-primary hover:underline">← Kembali ke Opportunity</NuxtLink>
-          <Button size="sm" @click="printPage">Print / Save as PDF</Button>
+          <NuxtLink :to="`/crm/opportunities/${opportunity.id}`" class="text-sm text-primary hover:underline">
+            ← Kembali ke Opportunity
+          </NuxtLink>
+          <Button size="sm" @click="printPage">
+            Print / Save as PDF
+          </Button>
         </div>
 
         <div class="rounded-xl border border-border bg-card p-8 shadow-sm print:rounded-none print:border-0 print:shadow-none print:p-0">
           <div class="flex items-start justify-between border-b border-border pb-6 mb-6">
             <div>
-              <p class="text-2xl font-bold tracking-tight text-foreground">MANOVA</p>
-              <p class="text-xs text-muted-foreground">Travel Agent B2B — Quotation Document (Mock)</p>
+              <p class="text-2xl font-bold tracking-tight text-foreground">
+                MANOVA
+              </p>
+              <p class="text-xs text-muted-foreground">
+                Travel Agent B2B — Quotation Document (Mock)
+              </p>
             </div>
             <div class="text-right">
-              <p class="text-lg font-semibold text-foreground">QUOTATION</p>
-              <p class="text-sm text-muted-foreground">{{ quotation.id }} · Versi {{ quotation.version }}</p>
-              <p class="text-xs text-muted-foreground">Dibuat {{ formatDate(quotation.createdAt) }}</p>
-              <p v-if="quotation.validUntil" class="text-xs text-muted-foreground">Berlaku sampai {{ formatDate(quotation.validUntil) }}</p>
+              <p class="text-lg font-semibold text-foreground">
+                QUOTATION
+              </p>
+              <p class="text-sm text-muted-foreground">
+                {{ quotation.id }} · Versi {{ quotation.version }}
+              </p>
+              <p class="text-xs text-muted-foreground">
+                Dibuat {{ formatDate(quotation.createdAt) }}
+              </p>
+              <p v-if="quotation.validUntil" class="text-xs text-muted-foreground">
+                Berlaku sampai {{ formatDate(quotation.validUntil) }}
+              </p>
             </div>
           </div>
 
           <div class="grid grid-cols-2 gap-6 mb-6">
             <div>
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Bill To</p>
-              <p class="text-sm font-medium text-foreground">{{ party?.name ?? '—' }}</p>
-              <p v-if="opportunity.contactName" class="text-sm text-foreground">Attn: {{ opportunity.contactName }}</p>
-              <p v-if="party?.city" class="text-sm text-muted-foreground">{{ party.city }}</p>
-              <p v-if="party?.phone" class="text-sm text-muted-foreground">{{ party.phone }}</p>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Bill To
+              </p>
+              <p class="text-sm font-medium text-foreground">
+                {{ party?.name ?? '—' }}
+              </p>
+              <p v-if="opportunity.contactName" class="text-sm text-foreground">
+                Attn: {{ opportunity.contactName }}
+              </p>
+              <p v-if="party?.city" class="text-sm text-muted-foreground">
+                {{ party.city }}
+              </p>
+              <p v-if="party?.phone" class="text-sm text-muted-foreground">
+                {{ party.phone }}
+              </p>
             </div>
             <div>
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Trip Detail</p>
-              <p class="text-sm text-foreground">{{ opportunity.title }}</p>
-              <p class="text-sm text-muted-foreground">{{ opportunity.destination }}</p>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Trip Detail
+              </p>
+              <p class="text-sm text-foreground">
+                {{ opportunity.title }}
+              </p>
+              <p class="text-sm text-muted-foreground">
+                {{ opportunity.destination }}
+              </p>
               <p v-if="opportunity.travelStartDate && opportunity.travelEndDate" class="text-sm text-muted-foreground">
                 {{ formatDateRange(opportunity.travelStartDate, opportunity.travelEndDate) }}
               </p>
-              <p v-if="opportunity.travelerEstimate" class="text-sm text-muted-foreground">{{ opportunity.travelerEstimate }} pax</p>
-              <p v-if="preparedBy" class="text-sm text-muted-foreground">Disiapkan oleh {{ preparedBy.name }}</p>
+              <p v-if="opportunity.travelerEstimate" class="text-sm text-muted-foreground">
+                {{ opportunity.travelerEstimate }} pax
+              </p>
+              <p v-if="preparedBy" class="text-sm text-muted-foreground">
+                Disiapkan oleh {{ preparedBy.name }}
+              </p>
             </div>
           </div>
 
           <table class="w-full text-sm mb-6">
             <thead>
               <tr class="border-b border-border text-left text-[11px] uppercase tracking-wide text-muted-foreground">
-                <th class="py-2">Service</th>
-                <th class="py-2">Deskripsi</th>
-                <th class="py-2 text-right">Jumlah</th>
+                <th class="py-2">
+                  Service
+                </th>
+                <th class="py-2">
+                  Deskripsi
+                </th>
+                <th class="py-2 text-right">
+                  Jumlah
+                </th>
               </tr>
             </thead>
             <tbody>
               <tr v-for="(item, index) in quotation.serviceBreakdown" :key="index" class="border-b border-border/60">
-                <td class="py-2">{{ findStatusOption(SERVICE_TYPES, item.service).label }}</td>
-                <td class="py-2 text-muted-foreground">{{ item.description || '—' }}</td>
-                <td class="py-2 text-right">{{ formatCurrencyIdr(item.amountIdr) }}</td>
+                <td class="py-2">
+                  {{ findStatusOption(SERVICE_TYPES, item.service).label }}
+                </td>
+                <td class="py-2 text-muted-foreground">
+                  {{ item.description || '—' }}
+                </td>
+                <td class="py-2 text-right">
+                  {{ formatCurrencyIdr(item.amountIdr) }}
+                </td>
               </tr>
               <tr v-if="!quotation.serviceBreakdown || quotation.serviceBreakdown.length === 0">
-                <td colspan="3" class="py-2 text-muted-foreground">Belum ada service breakdown — nilai quotation ditampilkan sebagai total.</td>
+                <td colspan="3" class="py-2 text-muted-foreground">
+                  Belum ada service breakdown — nilai quotation ditampilkan sebagai total.
+                </td>
               </tr>
             </tbody>
           </table>
@@ -130,22 +180,38 @@ function printPage() {
 
           <div class="grid grid-cols-3 gap-6 mb-6 text-sm">
             <div v-if="quotation.inclusions">
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Inclusions</p>
-              <p class="text-foreground whitespace-pre-line">{{ quotation.inclusions }}</p>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Inclusions
+              </p>
+              <p class="text-foreground whitespace-pre-line">
+                {{ quotation.inclusions }}
+              </p>
             </div>
             <div v-if="quotation.exclusions">
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Exclusions</p>
-              <p class="text-foreground whitespace-pre-line">{{ quotation.exclusions }}</p>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Exclusions
+              </p>
+              <p class="text-foreground whitespace-pre-line">
+                {{ quotation.exclusions }}
+              </p>
             </div>
             <div v-if="quotation.paymentTerms">
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Payment Terms</p>
-              <p class="text-foreground whitespace-pre-line">{{ quotation.paymentTerms }}</p>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Payment Terms
+              </p>
+              <p class="text-foreground whitespace-pre-line">
+                {{ quotation.paymentTerms }}
+              </p>
             </div>
           </div>
 
           <div v-if="quotation.termsAndConditions" class="border-t border-border pt-4 text-xs text-muted-foreground">
-            <p class="font-semibold uppercase tracking-wide mb-1">Terms &amp; Conditions</p>
-            <p class="whitespace-pre-line">{{ quotation.termsAndConditions }}</p>
+            <p class="font-semibold uppercase tracking-wide mb-1">
+              Terms &amp; Conditions
+            </p>
+            <p class="whitespace-pre-line">
+              {{ quotation.termsAndConditions }}
+            </p>
           </div>
 
           <p class="mt-8 text-center text-[10px] text-muted-foreground">

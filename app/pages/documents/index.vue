@@ -1,18 +1,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Plus, FileText, MessageSquare, Bell, AlertTriangle, CheckCheck, X, ExternalLink } from 'lucide-vue-next'
+import { Search, Plus, FileText, Bell, AlertTriangle, CheckCheck, X, ExternalLink } from 'lucide-vue-next'
 import {
   PROJECTS, USERS,
   getProjectById, getUserById,
   DOCUMENT_RECORDS, MESSAGE_RECORDS,
   createDocument, sendMessage,
   getNotificationsForUser, getUnreadNotificationCount,
-  markNotificationRead, markAllNotificationsRead, removeNotification,
+  markNotificationRead, markAllNotificationsRead, removeNotification
 } from '~/data'
 import {
   DOCUMENT_ENTITY_TYPES, DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES, NOTIFICATION_TYPES,
-  findStatusOption,
+  findStatusOption
 } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import { isDocumentExpired, isDocumentExpiringSoon } from '~/utils/attention'
@@ -43,10 +43,10 @@ const activeTab = computed<DocTab>({
     const tab = route.query.tab as string
     return (['documents', 'messages', 'notifications'].includes(tab) ? tab : 'documents') as DocTab
   },
-  set: value => router.replace({ query: { ...route.query, tab: value } }),
+  set: value => router.replace({ query: { ...route.query, tab: value } })
 })
 
-function entityLabel(entityType: DocumentEntityType, entityId: string): string {
+function entityLabel (entityType: DocumentEntityType, entityId: string): string {
   return `${findStatusOption(DOCUMENT_ENTITY_TYPES, entityType).label} · ${entityId}`
 }
 
@@ -61,11 +61,11 @@ const documentCategories = computed(() => Array.from(new Set(DOCUMENT_RECORDS.ma
 
 const documentRows = computed(() => {
   let result = DOCUMENT_RECORDS.map(item => ({ item, project: item.projectId ? getProjectById(item.projectId) : undefined }))
-  if (docCategoryFilter.value !== 'all') result = result.filter(row => row.item.category === docCategoryFilter.value)
-  if (docAccessFilter.value !== 'all') result = result.filter(row => row.item.accessLevel === docAccessFilter.value)
-  if (docEntityFilter.value !== 'all') result = result.filter(row => row.item.entityType === docEntityFilter.value)
-  if (docExpiryFilter.value === 'expired') result = result.filter(row => isDocumentExpired(row.item.expiresAt))
-  if (docExpiryFilter.value === 'expiring-soon') result = result.filter(row => isDocumentExpiringSoon(row.item.expiresAt))
+  if (docCategoryFilter.value !== 'all') { result = result.filter(row => row.item.category === docCategoryFilter.value) }
+  if (docAccessFilter.value !== 'all') { result = result.filter(row => row.item.accessLevel === docAccessFilter.value) }
+  if (docEntityFilter.value !== 'all') { result = result.filter(row => row.item.entityType === docEntityFilter.value) }
+  if (docExpiryFilter.value === 'expired') { result = result.filter(row => isDocumentExpired(row.item.expiresAt)) }
+  if (docExpiryFilter.value === 'expiring-soon') { result = result.filter(row => isDocumentExpiringSoon(row.item.expiresAt)) }
   if (docSearch.value.trim()) {
     const q = docSearch.value.toLowerCase()
     result = result.filter(row => row.item.name.toLowerCase().includes(q) || row.item.entityId.toLowerCase().includes(q) || (row.project?.name ?? '').toLowerCase().includes(q))
@@ -85,7 +85,7 @@ const newDocCategory = ref('')
 const newDocAccessLevel = ref<DocumentAccessLevel>('internal')
 const newDocExpiresAt = ref('')
 
-function resetUploadForm() {
+function resetUploadForm () {
   newDocEntityType.value = 'project'
   newDocEntityId.value = ''
   newDocProjectId.value = ''
@@ -95,8 +95,8 @@ function resetUploadForm() {
   newDocExpiresAt.value = ''
 }
 
-function submitUpload() {
-  if (!newDocEntityId.value.trim() || !newDocName.value.trim() || !newDocCategory.value.trim()) return
+function submitUpload () {
+  if (!newDocEntityId.value.trim() || !newDocName.value.trim() || !newDocCategory.value.trim()) { return }
   const document = createDocument({
     entityType: newDocEntityType.value,
     entityId: newDocEntityId.value.trim(),
@@ -105,7 +105,7 @@ function submitUpload() {
     category: newDocCategory.value.trim(),
     accessLevel: newDocAccessLevel.value,
     expiresAt: newDocExpiresAt.value || undefined,
-    uploadedBy: currentUser.value.id,
+    uploadedBy: currentUser.value.id
   })
   resetUploadForm()
   isUploadOpen.value = false
@@ -118,7 +118,7 @@ const msgChannelFilter = ref<'all' | MessageChannel>('all')
 
 const messageRows = computed(() => {
   let result = MESSAGE_RECORDS.map(item => ({ item, project: item.projectId ? getProjectById(item.projectId) : undefined, sender: getUserById(item.senderId) }))
-  if (msgChannelFilter.value !== 'all') result = result.filter(row => row.item.channel === msgChannelFilter.value)
+  if (msgChannelFilter.value !== 'all') { result = result.filter(row => row.item.channel === msgChannelFilter.value) }
   if (msgSearch.value.trim()) {
     const q = msgSearch.value.toLowerCase()
     result = result.filter(row => row.item.body.toLowerCase().includes(q) || row.item.entityId.toLowerCase().includes(q) || (row.project?.name ?? '').toLowerCase().includes(q))
@@ -137,7 +137,7 @@ const newMsgBody = ref('')
 const newMsgMentions = ref<string[]>([])
 const newMsgDeliveryChannel = ref<'email' | 'whatsapp'>('email')
 
-function resetComposeForm() {
+function resetComposeForm () {
   newMsgEntityType.value = 'project'
   newMsgEntityId.value = ''
   newMsgProjectId.value = ''
@@ -147,14 +147,13 @@ function resetComposeForm() {
   newMsgDeliveryChannel.value = 'email'
 }
 
-function toggleMention(userId: string) {
+function toggleMention (userId: string) {
   const index = newMsgMentions.value.indexOf(userId)
-  if (index === -1) newMsgMentions.value.push(userId)
-  else newMsgMentions.value.splice(index, 1)
+  if (index === -1) { newMsgMentions.value.push(userId) } else { newMsgMentions.value.splice(index, 1) }
 }
 
-function submitCompose() {
-  if (!newMsgEntityId.value.trim() || !newMsgBody.value.trim()) return
+function submitCompose () {
+  if (!newMsgEntityId.value.trim() || !newMsgBody.value.trim()) { return }
   const message = sendMessage({
     entityType: newMsgEntityType.value,
     entityId: newMsgEntityId.value.trim(),
@@ -163,7 +162,7 @@ function submitCompose() {
     senderId: currentUser.value.id,
     body: newMsgBody.value.trim(),
     mentions: newMsgMentions.value.length ? [...newMsgMentions.value] : undefined,
-    deliveryChannel: newMsgChannel.value === 'internal-note' ? undefined : newMsgDeliveryChannel.value,
+    deliveryChannel: newMsgChannel.value === 'internal-note' ? undefined : newMsgDeliveryChannel.value
   })
   resetComposeForm()
   isComposeOpen.value = false
@@ -185,7 +184,9 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
       <template v-if="canManageDocuments && activeTab === 'documents'" #actions>
         <Dialog v-model:open="isUploadOpen">
           <DialogTrigger as-child>
-            <Button size="sm"><Plus class="h-4 w-4 mr-1.5" />Upload Document</Button>
+            <Button size="sm">
+              <Plus class="h-4 w-4 mr-1.5" />Upload Document
+            </Button>
           </DialogTrigger>
           <DialogScrollContent class="max-w-lg">
             <DialogHeader>
@@ -197,7 +198,9 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                 <div class="space-y-1.5">
                   <Label for="doc-entity-type">Entity Type</Label>
                   <select id="doc-entity-type" v-model="newDocEntityType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="option in DOCUMENT_ENTITY_TYPES" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    <option v-for="option in DOCUMENT_ENTITY_TYPES" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
                   </select>
                 </div>
                 <div class="space-y-1.5">
@@ -208,8 +211,12 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
               <div class="space-y-1.5">
                 <Label for="doc-project">Project (opsional, untuk filter cross-project)</Label>
                 <select id="doc-project" v-model="newDocProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="">Tidak terkait project tertentu</option>
-                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+                  <option value="">
+                    Tidak terkait project tertentu
+                  </option>
+                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
                 </select>
               </div>
               <div class="space-y-1.5">
@@ -224,7 +231,9 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                 <div class="space-y-1.5">
                   <Label for="doc-access">Access Level</Label>
                   <select id="doc-access" v-model="newDocAccessLevel" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="option in DOCUMENT_ACCESS_LEVELS" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    <option v-for="option in DOCUMENT_ACCESS_LEVELS" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
                   </select>
                 </div>
               </div>
@@ -234,8 +243,12 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isUploadOpen = false">Batal</Button>
-              <Button :disabled="!newDocEntityId.trim() || !newDocName.trim() || !newDocCategory.trim()" @click="submitUpload">Simpan</Button>
+              <Button variant="outline" @click="isUploadOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newDocEntityId.trim() || !newDocName.trim() || !newDocCategory.trim()" @click="submitUpload">
+                Simpan
+              </Button>
             </DialogFooter>
           </DialogScrollContent>
         </Dialog>
@@ -244,7 +257,9 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
       <template v-else-if="canManageDocuments && activeTab === 'messages'" #actions>
         <Dialog v-model:open="isComposeOpen">
           <DialogTrigger as-child>
-            <Button size="sm"><Plus class="h-4 w-4 mr-1.5" />New Message</Button>
+            <Button size="sm">
+              <Plus class="h-4 w-4 mr-1.5" />New Message
+            </Button>
           </DialogTrigger>
           <DialogScrollContent class="max-w-lg">
             <DialogHeader>
@@ -256,7 +271,9 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                 <div class="space-y-1.5">
                   <Label for="msg-entity-type">Entity Type</Label>
                   <select id="msg-entity-type" v-model="newMsgEntityType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="option in DOCUMENT_ENTITY_TYPES" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    <option v-for="option in DOCUMENT_ENTITY_TYPES" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
                   </select>
                 </div>
                 <div class="space-y-1.5">
@@ -267,22 +284,32 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
               <div class="space-y-1.5">
                 <Label for="msg-project">Project (opsional)</Label>
                 <select id="msg-project" v-model="newMsgProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="">Tidak terkait project tertentu</option>
-                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+                  <option value="">
+                    Tidak terkait project tertentu
+                  </option>
+                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
                 </select>
               </div>
               <div class="grid grid-cols-2 gap-3">
                 <div class="space-y-1.5">
                   <Label for="msg-channel">Channel</Label>
                   <select id="msg-channel" v-model="newMsgChannel" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="option in MESSAGE_CHANNELS" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    <option v-for="option in MESSAGE_CHANNELS" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
                   </select>
                 </div>
                 <div v-if="newMsgChannel !== 'internal-note'" class="space-y-1.5">
                   <Label for="msg-delivery-channel">Delivery Channel (mock)</Label>
                   <select id="msg-delivery-channel" v-model="newMsgDeliveryChannel" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="email">Email</option>
-                    <option value="whatsapp">WhatsApp</option>
+                    <option value="email">
+                      Email
+                    </option>
+                    <option value="whatsapp">
+                      WhatsApp
+                    </option>
                   </select>
                 </div>
               </div>
@@ -299,20 +326,28 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                     type="button"
                     :class="['px-2 py-1 text-xs rounded-full border', newMsgMentions.includes(user.id) ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground']"
                     @click="toggleMention(user.id)"
-                  >{{ user.name }}</button>
+                  >
+                    {{ user.name }}
+                  </button>
                 </div>
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isComposeOpen = false">Batal</Button>
-              <Button :disabled="!newMsgEntityId.trim() || !newMsgBody.trim()" @click="submitCompose">Kirim</Button>
+              <Button variant="outline" @click="isComposeOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newMsgEntityId.trim() || !newMsgBody.trim()" @click="submitCompose">
+                Kirim
+              </Button>
             </DialogFooter>
           </DialogScrollContent>
         </Dialog>
       </template>
 
       <template v-else-if="activeTab === 'notifications' && unreadCount > 0" #actions>
-        <Button size="sm" variant="outline" @click="markAllNotificationsRead(currentUser.id)"><CheckCheck class="h-4 w-4 mr-1.5" />Mark All Read</Button>
+        <Button size="sm" variant="outline" @click="markAllNotificationsRead(currentUser.id)">
+          <CheckCheck class="h-4 w-4 mr-1.5" />Mark All Read
+        </Button>
       </template>
     </PageHeader>
 
@@ -328,9 +363,15 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
 
       <Tabs v-model="activeTab">
         <TabsList>
-          <TabsTrigger value="documents">Documents</TabsTrigger>
-          <TabsTrigger value="messages">Messages</TabsTrigger>
-          <TabsTrigger value="notifications">Notifications</TabsTrigger>
+          <TabsTrigger value="documents">
+            Documents
+          </TabsTrigger>
+          <TabsTrigger value="messages">
+            Messages
+          </TabsTrigger>
+          <TabsTrigger value="notifications">
+            Notifications
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="documents">
@@ -340,21 +381,39 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
               <Input v-model="docSearch" placeholder="Cari nama dokumen, entity, atau project..." class="pl-9" />
             </div>
             <select v-model="docCategoryFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Category</option>
-              <option v-for="category in documentCategories" :key="category" :value="category">{{ category }}</option>
+              <option value="all">
+                Semua Category
+              </option>
+              <option v-for="category in documentCategories" :key="category" :value="category">
+                {{ category }}
+              </option>
             </select>
             <select v-model="docAccessFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Access Level</option>
-              <option v-for="option in DOCUMENT_ACCESS_LEVELS" :key="option.value" :value="option.value">{{ option.label }}</option>
+              <option value="all">
+                Semua Access Level
+              </option>
+              <option v-for="option in DOCUMENT_ACCESS_LEVELS" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
             </select>
             <select v-model="docEntityFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Entity Type</option>
-              <option v-for="option in DOCUMENT_ENTITY_TYPES" :key="option.value" :value="option.value">{{ option.label }}</option>
+              <option value="all">
+                Semua Entity Type
+              </option>
+              <option v-for="option in DOCUMENT_ENTITY_TYPES" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
             </select>
             <select v-model="docExpiryFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Status Expiry</option>
-              <option value="expired">Expired</option>
-              <option value="expiring-soon">Akan Kedaluwarsa</option>
+              <option value="all">
+                Semua Status Expiry
+              </option>
+              <option value="expired">
+                Expired
+              </option>
+              <option value="expiring-soon">
+                Akan Kedaluwarsa
+              </option>
             </select>
           </div>
           <SectionCard description="Dokumen 'uploaded' murni metadata mock; dokumen 'generated' menautkan ke halaman preview existing (tidak menduplikasi generator dokumen).">
@@ -373,11 +432,21 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
               </TableHeader>
               <TableBody>
                 <TableRow v-for="row in documentRows" :key="row.item.id">
-                  <TableCell class="font-medium text-foreground max-w-[220px] truncate">{{ row.item.name }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ entityLabel(row.item.entityType, row.item.entityId) }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.project?.name ?? '—' }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.item.category }}</TableCell>
-                  <TableCell class="text-muted-foreground">v{{ row.item.version }}</TableCell>
+                  <TableCell class="font-medium text-foreground max-w-[220px] truncate">
+                    {{ row.item.name }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ entityLabel(row.item.entityType, row.item.entityId) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.item.category }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    v{{ row.item.version }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).tone" /></TableCell>
                   <TableCell>
                     <template v-if="row.item.expiresAt">
@@ -410,8 +479,12 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
               <Input v-model="msgSearch" placeholder="Cari isi pesan, entity, atau project..." class="pl-9" />
             </div>
             <select v-model="msgChannelFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Channel</option>
-              <option v-for="option in MESSAGE_CHANNELS" :key="option.value" :value="option.value">{{ option.label }}</option>
+              <option value="all">
+                Semua Channel
+              </option>
+              <option v-for="option in MESSAGE_CHANNELS" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
             </select>
             <StatusBadge v-if="failedDeliveryCount > 0" :label="`${failedDeliveryCount} Gagal Terkirim`" tone="destructive" />
           </div>
@@ -430,12 +503,22 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
               </TableHeader>
               <TableBody>
                 <TableRow v-for="row in messageRows" :key="row.item.id">
-                  <TableCell class="text-muted-foreground">{{ entityLabel(row.item.entityType, row.item.entityId) }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.project?.name ?? '—' }}</TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ entityLabel(row.item.entityType, row.item.entityId) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? '—' }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(MESSAGE_CHANNELS, row.item.channel).label" :tone="findStatusOption(MESSAGE_CHANNELS, row.item.channel).tone" /></TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.sender?.name ?? row.item.senderId }}</TableCell>
-                  <TableCell class="text-muted-foreground max-w-[280px] truncate">{{ row.item.body }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ formatDate(row.item.sentAt) }}</TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.sender?.name ?? row.item.senderId }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground max-w-[280px] truncate">
+                    {{ row.item.body }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(row.item.sentAt) }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).label" :tone="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).tone" /></TableCell>
                 </TableRow>
                 <TableEmpty v-if="messageRows.length === 0" :colspan="7">
@@ -455,9 +538,15 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                     <StatusBadge :label="findStatusOption(NOTIFICATION_TYPES, notification.type).label" :tone="findStatusOption(NOTIFICATION_TYPES, notification.type).tone" />
                     <span v-if="!notification.read" class="w-1.5 h-1.5 bg-primary rounded-full" />
                   </div>
-                  <p class="text-sm font-medium text-foreground">{{ notification.title }}</p>
-                  <p class="text-sm text-muted-foreground">{{ notification.body }}</p>
-                  <p class="text-xs text-muted-foreground mt-0.5">{{ formatDate(notification.createdAt) }}</p>
+                  <p class="text-sm font-medium text-foreground">
+                    {{ notification.title }}
+                  </p>
+                  <p class="text-sm text-muted-foreground">
+                    {{ notification.body }}
+                  </p>
+                  <p class="text-xs text-muted-foreground mt-0.5">
+                    {{ formatDate(notification.createdAt) }}
+                  </p>
                 </div>
                 <button class="p-1 hover:bg-muted rounded shrink-0" @click="removeNotification(notification.id)">
                   <X class="h-3.5 w-3.5 text-muted-foreground" />

@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import {
   getPartyById, getContactsByParty, getOpportunitiesByParty, getProjectsByParty, getPartyActivities,
-  getDocumentsByParty, getUserById,
+  getDocumentsByParty, getUserById
 } from '~/data'
 import { OPPORTUNITY_STAGES, PROJECT_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
@@ -22,7 +22,7 @@ const hasAccess = computed(() => canView('crm') && currentRole.value !== 'sales'
 
 const LIFECYCLE_STATUSES: StatusOption<PartyLifecycleStatus>[] = [
   { value: 'prospect', label: 'Prospect', tone: 'warning', order: 1 },
-  { value: 'client', label: 'Active Client', tone: 'success', order: 2 },
+  { value: 'client', label: 'Active Client', tone: 'success', order: 2 }
 ]
 
 type CustomerDetailTab = 'overview' | 'contacts' | 'opportunities' | 'project-orders' | 'activities' | 'documents'
@@ -37,7 +37,7 @@ const activities = computed(() => (party.value ? getPartyActivities(party.value.
 const documents = computed(() => (party.value ? getDocumentsByParty(party.value.id) : []))
 
 const summaryMetadata = computed(() => {
-  if (!party.value) return []
+  if (!party.value) { return [] }
   return [
     { label: 'Status', value: findStatusOption(LIFECYCLE_STATUSES, party.value.lifecycleStatus).label },
     { label: 'Account Owner', value: party.value.accountOwnerId ? getUserById(party.value.accountOwnerId)?.name ?? '—' : '—' },
@@ -46,13 +46,13 @@ const summaryMetadata = computed(() => {
     { label: 'Kota', value: party.value.city ?? '—' },
     { label: 'Telepon', value: party.value.phone ?? '—' },
     { label: 'Total Opportunities', value: String(opportunities.value.length) },
-    { label: 'Total Project Orders', value: String(projectOrders.value.length) },
+    { label: 'Total Project Orders', value: String(projectOrders.value.length) }
   ]
 })
 
 const activeTab = computed<CustomerDetailTab>({
   get: () => (route.query.tab as CustomerDetailTab) || 'overview',
-  set: value => router.replace({ query: { ...route.query, tab: value } }),
+  set: value => router.replace({ query: { ...route.query, tab: value } })
 })
 
 const TABS: { value: CustomerDetailTab; label: string }[] = [
@@ -61,7 +61,7 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
   { value: 'opportunities', label: 'Opportunities' },
   { value: 'project-orders', label: 'Project Orders' },
   { value: 'activities', label: 'Activities' },
-  { value: 'documents', label: 'Documents' },
+  { value: 'documents', label: 'Documents' }
 ]
 </script>
 
@@ -71,7 +71,9 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
       <PageHeader title="Company Tidak Ditemukan" :breadcrumb="[{ label: 'Customer Journey', to: '/customer-journey' }, { label: 'Customers', to: '/customer-journey/customers' }, { label: 'Not Found' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Company tidak ditemukan" :description="`Company dengan ID '${route.params.id}' tidak ada di data demo saat ini.`">
-          <Button @click="router.push('/customer-journey/customers')">Kembali ke Daftar Customers</Button>
+          <Button @click="router.push('/customer-journey/customers')">
+            Kembali ke Daftar Customers
+          </Button>
         </EmptyState>
       </SectionCard>
     </template>
@@ -94,14 +96,18 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
 
       <Tabs v-model="activeTab">
         <TabsList>
-          <TabsTrigger v-for="tab in TABS" :key="tab.value" :value="tab.value">{{ tab.label }}</TabsTrigger>
+          <TabsTrigger v-for="tab in TABS" :key="tab.value" :value="tab.value">
+            {{ tab.label }}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
           <SectionCard title="Ringkasan">
             <p class="text-sm text-muted-foreground">
               Company ini merepresentasikan entitas Party/CRM yang sama dengan `/crm/prospects`/`/crm/clients` —
-              lihat juga <NuxtLink :to="`/crm/parties/${party.id}`" class="text-primary hover:underline">Party Detail (CRM)</NuxtLink> untuk tab Overview/Contacts/Opportunities/Activities standar.
+              lihat juga <NuxtLink :to="`/crm/parties/${party.id}`" class="text-primary hover:underline">
+                Party Detail (CRM)
+              </NuxtLink> untuk tab Overview/Contacts/Opportunities/Activities standar.
             </p>
           </SectionCard>
         </TabsContent>
@@ -110,8 +116,16 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
           <SectionCard title="Contacts">
             <ul v-if="contacts.length" class="divide-y divide-border">
               <li v-for="contact in contacts" :key="contact.id" class="py-3">
-                <p class="text-sm font-medium text-foreground">{{ contact.name }}</p>
-                <p class="text-xs text-muted-foreground">{{ contact.title }}<template v-if="contact.email"> · {{ contact.email }}</template><template v-if="contact.phone"> · {{ contact.phone }}</template></p>
+                <p class="text-sm font-medium text-foreground">
+                  {{ contact.name }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ contact.title }}<template v-if="contact.email">
+                    · {{ contact.email }}
+                  </template><template v-if="contact.phone">
+                    · {{ contact.phone }}
+                  </template>
+                </p>
               </li>
             </ul>
             <EmptyState v-else title="Belum ada contact person" />
@@ -131,9 +145,13 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
               </TableHeader>
               <TableBody>
                 <TableRow v-for="opp in opportunities" :key="opp.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/crm/opportunities/${opp.id}`)">
-                  <TableCell class="font-medium text-foreground">{{ opp.title }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ opp.title }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(OPPORTUNITY_STAGES, opp.stage).label" :tone="findStatusOption(OPPORTUNITY_STAGES, opp.stage).tone" /></TableCell>
-                  <TableCell class="text-muted-foreground">{{ getUserById(opp.ownerId)?.name ?? '—' }}</TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ getUserById(opp.ownerId)?.name ?? '—' }}
+                  </TableCell>
                   <TableCell>{{ formatCurrencyIdr(opp.estimatedValueIdr) }}</TableCell>
                 </TableRow>
               </TableBody>
@@ -155,9 +173,15 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
               </TableHeader>
               <TableBody>
                 <TableRow v-for="project in projectOrders" :key="project.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/customer-journey/project-orders/${project.id}`)">
-                  <TableCell class="font-medium text-foreground">{{ project.name }}<span class="block text-xs text-muted-foreground font-normal">{{ project.id }}</span></TableCell>
-                  <TableCell class="text-muted-foreground">{{ project.destination }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ formatDateRange(project.travelStartDate, project.travelEndDate) }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ project.name }}<span class="block text-xs text-muted-foreground font-normal">{{ project.id }}</span>
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ project.destination }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(PROJECT_STATUSES, project.status).label" :tone="findStatusOption(PROJECT_STATUSES, project.status).tone" /></TableCell>
                 </TableRow>
               </TableBody>
@@ -170,8 +194,14 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
           <SectionCard title="Activities">
             <ul v-if="activities.length" class="divide-y divide-border">
               <li v-for="activity in activities" :key="activity.id" class="py-3">
-                <p class="text-sm text-foreground">{{ activity.message }}</p>
-                <p class="text-xs text-muted-foreground">{{ formatDate(activity.createdAt) }}<template v-if="activity.dueAt"> · Follow-up dijadwalkan {{ formatDate(activity.dueAt) }}</template></p>
+                <p class="text-sm text-foreground">
+                  {{ activity.message }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ formatDate(activity.createdAt) }}<template v-if="activity.dueAt">
+                    · Follow-up dijadwalkan {{ formatDate(activity.dueAt) }}
+                  </template>
+                </p>
               </li>
             </ul>
             <EmptyState v-else title="Belum ada activity" />

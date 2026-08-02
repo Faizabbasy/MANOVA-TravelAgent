@@ -19,7 +19,7 @@ useHead({ title: computed(() => rfq.value ? `RFQ ${rfq.value.id}` : 'RFQ Tidak D
 
 /** Vendor isolation (Section 17) — hanya dapat diakses bila company diundang ke RFQ ini. */
 const isInvited = computed(() => {
-  if (!rfq.value || !vendorScopeId.value) return false
+  if (!rfq.value || !vendorScopeId.value) { return false }
   return getRfqsForVendor(vendorScopeId.value).some(item => item.id === rfq.value!.id)
 })
 
@@ -29,8 +29,8 @@ const clarifications = computed(() => (rfq.value && vendorScopeId.value ? getRfq
 
 /* Per-line-item pricing response form */
 const responseLines = ref<RFQResponseLineItem[]>([])
-function seedResponseForm() {
-  if (!rfq.value) return
+function seedResponseForm () {
+  if (!rfq.value) { return }
   if (myResponse.value) {
     responseLines.value = myResponse.value.lineItems.map(item => ({ ...item }))
   } else {
@@ -44,21 +44,21 @@ watch(myResponse, (value) => { responseNotes.value = value?.notes ?? '' }, { imm
 const responseTotal = computed(() => responseLines.value.reduce((sum, item) => sum + item.unitPriceIdr * item.quantity, 0))
 const canRespond = computed(() => rfq.value && !['closed'].includes(rfq.value.status) && (!myResponse.value || myResponse.value.status === 'submitted'))
 
-function submitResponse() {
-  if (!rfq.value || !vendorScopeId.value) return
+function submitResponse () {
+  if (!rfq.value || !vendorScopeId.value) { return }
   const result = submitRfqResponse({
     rfqId: rfq.value.id,
     vendorId: vendorScopeId.value,
     lineItems: responseLines.value,
-    notes: responseNotes.value.trim() || undefined,
+    notes: responseNotes.value.trim() || undefined
   })
-  if (result) showToast('Respons Terkirim', 'Penawaran harga berhasil diajukan.', 'success')
+  if (result) { showToast('Respons Terkirim', 'Penawaran harga berhasil diajukan.', 'success') }
 }
 
 /* Clarification thread */
 const newMessage = ref('')
-function submitClarification() {
-  if (!rfq.value || !vendorScopeId.value || !newMessage.value.trim()) return
+function submitClarification () {
+  if (!rfq.value || !vendorScopeId.value || !newMessage.value.trim()) { return }
   addRfqClarificationMessage({ rfqId: rfq.value.id, vendorId: vendorScopeId.value, from: 'supplier', message: newMessage.value.trim() })
   newMessage.value = ''
 }
@@ -70,7 +70,9 @@ function submitClarification() {
       <PageHeader title="RFQ Tidak Ditemukan" :breadcrumb="[{ label: 'Supplier Portal', to: '/supplier' }, { label: 'RFQ Inbox', to: '/supplier/rfq' }, { label: 'Not Found' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="RFQ tidak ditemukan" :description="`RFQ dengan ID '${route.params.id}' tidak ada atau company Anda belum diundang.`">
-          <Button @click="router.push('/supplier/rfq')">Kembali ke RFQ Inbox</Button>
+          <Button @click="router.push('/supplier/rfq')">
+            Kembali ke RFQ Inbox
+          </Button>
         </EmptyState>
       </SectionCard>
     </template>
@@ -85,12 +87,16 @@ function submitClarification() {
       </PageHeader>
 
       <SectionCard>
-        <p v-if="rfq.notes" class="text-sm text-foreground mb-4 whitespace-pre-line">{{ rfq.notes }}</p>
-        <DetailMetadataList :items="[
-          { label: 'Project', value: project?.name ?? '—' },
-          { label: 'Jenis Layanan', value: findStatusOption(SERVICE_TYPES, rfq.serviceType).label },
-          { label: 'Due Date', value: rfq.dueAt ? formatDate(rfq.dueAt) : '—' },
-        ]" />
+        <p v-if="rfq.notes" class="text-sm text-foreground mb-4 whitespace-pre-line">
+          {{ rfq.notes }}
+        </p>
+        <DetailMetadataList
+          :items="[
+            { label: 'Project', value: project?.name ?? '—' },
+            { label: 'Jenis Layanan', value: findStatusOption(SERVICE_TYPES, rfq.serviceType).label },
+            { label: 'Due Date', value: rfq.dueAt ? formatDate(rfq.dueAt) : '—' },
+          ]"
+        />
       </SectionCard>
 
       <SectionCard title="Kebutuhan (Line Items)">
@@ -104,9 +110,15 @@ function submitClarification() {
           </TableHeader>
           <TableBody>
             <TableRow v-for="(item, index) in rfq.lineItems" :key="index">
-              <TableCell class="text-foreground">{{ item.description }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ item.quantity }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ item.unit }}</TableCell>
+              <TableCell class="text-foreground">
+                {{ item.description }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ item.quantity }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ item.unit }}
+              </TableCell>
             </TableRow>
           </TableBody>
         </Table>
@@ -135,13 +147,23 @@ function submitClarification() {
         </div>
         <div class="flex items-center justify-between mt-4 pt-4 border-t border-border">
           <div>
-            <p class="text-xs text-muted-foreground">Total Penawaran</p>
-            <p class="text-lg font-semibold text-foreground">{{ formatCurrencyIdr(responseTotal) }}</p>
+            <p class="text-xs text-muted-foreground">
+              Total Penawaran
+            </p>
+            <p class="text-lg font-semibold text-foreground">
+              {{ formatCurrencyIdr(responseTotal) }}
+            </p>
           </div>
-          <Button :disabled="!canRespond" @click="submitResponse"><Send class="h-4 w-4 mr-1.5" />{{ myResponse ? 'Perbarui Penawaran' : 'Kirim Penawaran' }}</Button>
+          <Button :disabled="!canRespond" @click="submitResponse">
+            <Send class="h-4 w-4 mr-1.5" />{{ myResponse ? 'Perbarui Penawaran' : 'Kirim Penawaran' }}
+          </Button>
         </div>
-        <p v-if="!canRespond && rfq.status === 'closed'" class="mt-2 text-xs text-muted-foreground">RFQ ini sudah ditutup — penawaran tidak dapat diubah lagi.</p>
-        <p v-else-if="!canRespond" class="mt-2 text-xs text-muted-foreground">Penawaran Anda sudah diputuskan ("{{ myResponse?.status }}") — tidak dapat diubah lagi.</p>
+        <p v-if="!canRespond && rfq.status === 'closed'" class="mt-2 text-xs text-muted-foreground">
+          RFQ ini sudah ditutup — penawaran tidak dapat diubah lagi.
+        </p>
+        <p v-else-if="!canRespond" class="mt-2 text-xs text-muted-foreground">
+          Penawaran Anda sudah diputuskan ("{{ myResponse?.status }}") — tidak dapat diubah lagi.
+        </p>
       </SectionCard>
 
       <SectionCard title="Clarification Thread" description="Ajukan pertanyaan atau balas klarifikasi dari tim Procurement.">
@@ -151,13 +173,17 @@ function submitClarification() {
               <StatusBadge :label="message.from === 'procurement' ? 'Procurement' : 'Anda'" :tone="message.from === 'procurement' ? 'primary' : 'info'" />
               <span class="text-xs text-muted-foreground">{{ formatDateTime(message.createdAt) }}</span>
             </div>
-            <p class="text-sm text-foreground">{{ message.message }}</p>
+            <p class="text-sm text-foreground">
+              {{ message.message }}
+            </p>
           </li>
         </ul>
         <EmptyState v-else title="Belum ada pesan klarifikasi" />
         <div v-if="rfq.status !== 'closed'" class="flex items-center gap-2 mt-4">
           <Input v-model="newMessage" placeholder="Tulis pesan..." class="flex-1" />
-          <Button :disabled="!newMessage.trim()" @click="submitClarification">Kirim</Button>
+          <Button :disabled="!newMessage.trim()" @click="submitClarification">
+            Kirim
+          </Button>
         </div>
       </SectionCard>
     </template>

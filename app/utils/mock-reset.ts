@@ -27,13 +27,13 @@ let snapshot: Record<string, unknown[]> | null = null
  * bersarang, tanpa Date/Map/Set/function), jadi round-trip `JSON.stringify`/`JSON.parse` cukup — proses
  * ini juga otomatis "melepas" Proxy karena hasil akhirnya dibangun ulang sebagai object polos.
  */
-function deepClone<T>(value: T): T {
+function deepClone<T> (value: T): T {
   return JSON.parse(JSON.stringify(value)) as T
 }
 
 /** Dipanggil sekali di client plugin — idempotent (panggilan kedua diabaikan agar snapshot tidak tertimpa oleh state yang sudah bermutasi). */
-export function captureMockSnapshot(arrays: ResettableArrays) {
-  if (snapshot) return
+export function captureMockSnapshot (arrays: ResettableArrays) {
+  if (snapshot) { return }
   registry = arrays
   snapshot = {}
   for (const key in arrays) {
@@ -41,13 +41,13 @@ export function captureMockSnapshot(arrays: ResettableArrays) {
   }
 }
 
-export function hasMockSnapshot(): boolean {
+export function hasMockSnapshot (): boolean {
   return snapshot !== null
 }
 
 /** Mengembalikan seluruh reactive array terpusat ke kondisi seed awal (in-place, mempertahankan reference Proxy `reactive()` yang sama). */
-export function resetMockState(): boolean {
-  if (!registry || !snapshot) return false
+export function resetMockState (): boolean {
+  if (!registry || !snapshot) { return false }
   for (const key in registry) {
     const target = registry[key]
     const seed = snapshot[key]

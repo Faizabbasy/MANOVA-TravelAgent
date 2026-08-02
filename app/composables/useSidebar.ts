@@ -1,6 +1,6 @@
 const isCollapsed = ref(false)
 
-export function useSidebar() {
+export function useSidebar () {
   const toggle = () => {
     isCollapsed.value = !isCollapsed.value
   }
@@ -17,6 +17,6 @@ export function useSidebar() {
     isCollapsed: readonly(isCollapsed),
     toggle,
     collapse,
-    expand,
+    expand
   }
 }

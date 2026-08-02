@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import {
   getOpportunityById, getPartyById, getQuotationByOpportunity, getOpportunityWorkflowStatus,
-  createPartyActivity, recordClientConfirmation,
+  createPartyActivity, recordClientConfirmation
 } from '~/data'
 import { OPPORTUNITY_WORKFLOW_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
@@ -39,14 +39,14 @@ const canDecide = computed(() => Boolean(quotation.value?.approvalStatus === 'ap
 const isRevisionDialogOpen = ref(false)
 const revisionNote = ref('')
 
-function submitRevisionRequest() {
-  if (!opportunity.value || !revisionNote.value.trim()) return
+function submitRevisionRequest () {
+  if (!opportunity.value || !revisionNote.value.trim()) { return }
   createPartyActivity({
     partyId: opportunity.value.partyId,
     opportunityId: opportunity.value.id,
     type: 'note',
     message: `Client meminta revisi quotation. Catatan: ${revisionNote.value.trim()}`,
-    ownerId: currentUser.value.id,
+    ownerId: currentUser.value.id
   })
   revisionNote.value = ''
   isRevisionDialogOpen.value = false
@@ -57,8 +57,8 @@ function submitRevisionRequest() {
 const isAcceptDialogOpen = ref(false)
 const acceptNote = ref('')
 
-function submitAccept() {
-  if (!opportunity.value) return
+function submitAccept () {
+  if (!opportunity.value) { return }
   recordClientConfirmation(opportunity.value.id, currentUser.value.id, acceptNote.value.trim() || undefined)
   acceptNote.value = ''
   isAcceptDialogOpen.value = false
@@ -69,14 +69,14 @@ function submitAccept() {
 const isRejectDialogOpen = ref(false)
 const rejectNote = ref('')
 
-function submitReject() {
-  if (!opportunity.value || !rejectNote.value.trim()) return
+function submitReject () {
+  if (!opportunity.value || !rejectNote.value.trim()) { return }
   createPartyActivity({
     partyId: opportunity.value.partyId,
     opportunityId: opportunity.value.id,
     type: 'note',
     message: `Client TIDAK menyetujui quotation ini. Alasan: ${rejectNote.value.trim()}`,
-    ownerId: currentUser.value.id,
+    ownerId: currentUser.value.id
   })
   rejectNote.value = ''
   isRejectDialogOpen.value = false
@@ -90,7 +90,9 @@ function submitReject() {
       <PageHeader title="Tidak Ditemukan" :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Tidak Ditemukan' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Opportunity tidak ditemukan" description="Opportunity ini tidak ada atau bukan milik company Anda.">
-          <Button @click="router.push('/client')">Kembali ke Client Portal</Button>
+          <Button @click="router.push('/client')">
+            Kembali ke Client Portal
+          </Button>
         </EmptyState>
       </SectionCard>
     </template>
@@ -109,19 +111,23 @@ function submitReject() {
       </PageHeader>
 
       <SectionCard>
-        <DetailMetadataList :items="[
-          { label: 'Company', value: party?.name ?? '—' },
-          { label: 'Destinasi', value: opportunity.destination },
-          {
-            label: 'Tanggal Perkiraan',
-            value: opportunity.travelStartDate && opportunity.travelEndDate
-              ? formatDateRange(opportunity.travelStartDate, opportunity.travelEndDate)
-              : 'Belum ditentukan',
-          },
-          { label: 'Estimasi Traveler', value: opportunity.travelerEstimate ? `${opportunity.travelerEstimate} pax` : '—' },
-        ]" />
+        <DetailMetadataList
+          :items="[
+            { label: 'Company', value: party?.name ?? '—' },
+            { label: 'Destinasi', value: opportunity.destination },
+            {
+              label: 'Tanggal Perkiraan',
+              value: opportunity.travelStartDate && opportunity.travelEndDate
+                ? formatDateRange(opportunity.travelStartDate, opportunity.travelEndDate)
+                : 'Belum ditentukan',
+            },
+            { label: 'Estimasi Traveler', value: opportunity.travelerEstimate ? `${opportunity.travelerEstimate} pax` : '—' },
+          ]"
+        />
         <div v-if="opportunity.serviceScope.length" class="mt-4 pt-4 border-t border-border">
-          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Layanan</p>
+          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            Layanan
+          </p>
           <div class="flex flex-wrap gap-2">
             <StatusBadge
               v-for="type in serviceScopeOptions"
@@ -140,44 +146,70 @@ function submitReject() {
 
       <SectionCard v-if="quotation" title="Quotation">
         <div class="space-y-2">
-          <p class="text-2xl font-bold text-foreground">{{ formatCurrencyIdr(quotation.amountIdr) }}</p>
-          <p v-if="quotation.sentToClientAt" class="text-xs text-muted-foreground">Dikirim kepada Anda pada {{ formatDate(quotation.sentToClientAt) }}</p>
+          <p class="text-2xl font-bold text-foreground">
+            {{ formatCurrencyIdr(quotation.amountIdr) }}
+          </p>
+          <p v-if="quotation.sentToClientAt" class="text-xs text-muted-foreground">
+            Dikirim kepada Anda pada {{ formatDate(quotation.sentToClientAt) }}
+          </p>
 
           <div class="mt-2 pt-2 border-t border-border">
-            <DetailMetadataList :items="[
-              { label: 'Discount', value: quotation.discountIdr ? formatCurrencyIdr(quotation.discountIdr) : '—' },
-              { label: 'Tax / Fee', value: quotation.taxIdr ? formatCurrencyIdr(quotation.taxIdr) : '—' },
-              { label: 'Currency', value: quotation.currency || 'IDR' },
-              { label: 'Valid Until', value: quotation.validUntil ? formatDate(quotation.validUntil) : '—' },
-              { label: 'Payment Terms', value: quotation.paymentTerms || '—' },
-            ]" />
+            <DetailMetadataList
+              :items="[
+                { label: 'Discount', value: quotation.discountIdr ? formatCurrencyIdr(quotation.discountIdr) : '—' },
+                { label: 'Tax / Fee', value: quotation.taxIdr ? formatCurrencyIdr(quotation.taxIdr) : '—' },
+                { label: 'Currency', value: quotation.currency || 'IDR' },
+                { label: 'Valid Until', value: quotation.validUntil ? formatDate(quotation.validUntil) : '—' },
+                { label: 'Payment Terms', value: quotation.paymentTerms || '—' },
+              ]"
+            />
           </div>
 
           <div v-if="quotation.serviceBreakdown && quotation.serviceBreakdown.length > 0" class="mt-2">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Rincian Layanan</p>
+            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              Rincian Layanan
+            </p>
             <ul class="divide-y divide-border">
               <li v-for="(item, index) in quotation.serviceBreakdown" :key="index" class="py-2 flex items-center justify-between gap-2">
                 <div class="min-w-0">
-                  <p class="text-sm text-foreground">{{ findStatusOption(SERVICE_TYPES, item.service).label }}</p>
-                  <p v-if="item.description" class="text-xs text-muted-foreground truncate">{{ item.description }}</p>
+                  <p class="text-sm text-foreground">
+                    {{ findStatusOption(SERVICE_TYPES, item.service).label }}
+                  </p>
+                  <p v-if="item.description" class="text-xs text-muted-foreground truncate">
+                    {{ item.description }}
+                  </p>
                 </div>
-                <p class="text-sm text-foreground shrink-0">{{ formatCurrencyIdr(item.amountIdr) }}</p>
+                <p class="text-sm text-foreground shrink-0">
+                  {{ formatCurrencyIdr(item.amountIdr) }}
+                </p>
               </li>
             </ul>
           </div>
 
           <div v-if="quotation.termsAndConditions || quotation.inclusions || quotation.exclusions" class="mt-2 pt-2 border-t border-border grid gap-3 sm:grid-cols-3">
             <div v-if="quotation.inclusions">
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Termasuk</p>
-              <p class="text-xs text-foreground whitespace-pre-line">{{ quotation.inclusions }}</p>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Termasuk
+              </p>
+              <p class="text-xs text-foreground whitespace-pre-line">
+                {{ quotation.inclusions }}
+              </p>
             </div>
             <div v-if="quotation.exclusions">
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Tidak Termasuk</p>
-              <p class="text-xs text-foreground whitespace-pre-line">{{ quotation.exclusions }}</p>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Tidak Termasuk
+              </p>
+              <p class="text-xs text-foreground whitespace-pre-line">
+                {{ quotation.exclusions }}
+              </p>
             </div>
             <div v-if="quotation.termsAndConditions">
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Syarat &amp; Ketentuan</p>
-              <p class="text-xs text-foreground whitespace-pre-line">{{ quotation.termsAndConditions }}</p>
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
+                Syarat &amp; Ketentuan
+              </p>
+              <p class="text-xs text-foreground whitespace-pre-line">
+                {{ quotation.termsAndConditions }}
+              </p>
             </div>
           </div>
         </div>
@@ -188,10 +220,14 @@ function submitReject() {
               <StatusBadge label="Anda Sudah Mengonfirmasi" tone="success" />
               <span class="text-xs text-muted-foreground">pada {{ formatDate(opportunity.clientConfirmedAt) }}</span>
             </div>
-            <p v-if="opportunity.clientConfirmationNote" class="text-sm text-muted-foreground mt-1">Catatan Anda: {{ opportunity.clientConfirmationNote }}</p>
+            <p v-if="opportunity.clientConfirmationNote" class="text-sm text-muted-foreground mt-1">
+              Catatan Anda: {{ opportunity.clientConfirmationNote }}
+            </p>
           </template>
           <template v-else-if="canDecide">
-            <p class="text-sm text-foreground mb-3">Quotation ini sudah disetujui secara komersial oleh tim kami. Silakan konfirmasi persetujuan Anda, atau ajukan keberatan/revisi.</p>
+            <p class="text-sm text-foreground mb-3">
+              Quotation ini sudah disetujui secara komersial oleh tim kami. Silakan konfirmasi persetujuan Anda, atau ajukan keberatan/revisi.
+            </p>
             <div class="flex flex-wrap gap-2">
               <Dialog v-model:open="isAcceptDialogOpen">
                 <DialogTrigger as-child>
@@ -207,14 +243,20 @@ function submitReject() {
                     <Input id="accept-note" v-model="acceptNote" placeholder="mis. Disetujui, mohon segera diproses" />
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" @click="isAcceptDialogOpen = false">Batal</Button>
-                    <Button @click="submitAccept">Setujui</Button>
+                    <Button variant="outline" @click="isAcceptDialogOpen = false">
+                      Batal
+                    </Button>
+                    <Button @click="submitAccept">
+                      Setujui
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
               <Dialog v-model:open="isRejectDialogOpen">
                 <DialogTrigger as-child>
-                  <Button variant="outline">Tolak Quotation</Button>
+                  <Button variant="outline">
+                    Tolak Quotation
+                  </Button>
                 </DialogTrigger>
                 <DialogContent class="max-w-md">
                   <DialogHeader>
@@ -226,18 +268,26 @@ function submitReject() {
                     <Input id="reject-note" v-model="rejectNote" placeholder="mis. Harga di luar budget kami" />
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" @click="isRejectDialogOpen = false">Batal</Button>
-                    <Button variant="destructive" :disabled="!rejectNote.trim()" @click="submitReject">Tolak</Button>
+                    <Button variant="outline" @click="isRejectDialogOpen = false">
+                      Batal
+                    </Button>
+                    <Button variant="destructive" :disabled="!rejectNote.trim()" @click="submitReject">
+                      Tolak
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
             </div>
           </template>
-          <p v-else class="text-sm text-muted-foreground">Quotation ini masih dalam proses internal kami — konfirmasi akan tersedia setelah quotation final disetujui.</p>
+          <p v-else class="text-sm text-muted-foreground">
+            Quotation ini masih dalam proses internal kami — konfirmasi akan tersedia setelah quotation final disetujui.
+          </p>
 
           <Dialog v-model:open="isRevisionDialogOpen">
             <DialogTrigger as-child>
-              <Button size="sm" variant="ghost" class="mt-3">Minta Revisi</Button>
+              <Button size="sm" variant="ghost" class="mt-3">
+                Minta Revisi
+              </Button>
             </DialogTrigger>
             <DialogContent class="max-w-md">
               <DialogHeader>
@@ -249,8 +299,12 @@ function submitReject() {
                 <textarea id="revision-note" v-model="revisionNote" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Mohon tambahkan opsi hotel bintang 5" />
               </div>
               <DialogFooter>
-                <Button variant="outline" @click="isRevisionDialogOpen = false">Batal</Button>
-                <Button :disabled="!revisionNote.trim()" @click="submitRevisionRequest">Kirim Permintaan</Button>
+                <Button variant="outline" @click="isRevisionDialogOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!revisionNote.trim()" @click="submitRevisionRequest">
+                  Kirim Permintaan
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

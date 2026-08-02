@@ -4,9 +4,9 @@ import { useRoute } from 'vue-router'
 import { Search, Plus, List, LayoutGrid, Inbox as InboxIcon, Archive as ArchiveIcon } from 'lucide-vue-next'
 import {
   LEADS, USERS, getLeadActivities, getLeadFollowUps, createLead, createLeadActivity, archiveLead,
-  qualifyLeadAndCreateOpportunity, getLeadMissingQualification, updateLeadQualification, markLeadUnqualified,
+  qualifyLeadAndCreateOpportunity, updateLeadQualification, markLeadUnqualified,
   reopenLead, updateLeadContact, getLeadDuplicateCandidates, mergeLeadAsDuplicate,
-  getUserById,
+  getUserById
 } from '~/data'
 import { LEAD_SOURCES, LEAD_STAGES, LEAD_SERVICE_CATEGORIES, LEAD_URGENCY_LEVELS, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
@@ -45,10 +45,10 @@ const ownerOptions = computed(() => {
 
 const filteredLeads = computed(() => {
   let result = LEADS.filter(lead => lead.archived === showArchived.value)
-  if (stageFilter.value !== 'all') result = result.filter(lead => lead.stage === stageFilter.value)
-  if (ownerFilter.value !== 'all') result = result.filter(lead => lead.ownerId === ownerFilter.value)
-  if (sourceFilter.value !== 'all') result = result.filter(lead => lead.source === sourceFilter.value)
-  if (assignedToMeOnly.value) result = result.filter(lead => lead.handedOverTo === currentUser.value.id)
+  if (stageFilter.value !== 'all') { result = result.filter(lead => lead.stage === stageFilter.value) }
+  if (ownerFilter.value !== 'all') { result = result.filter(lead => lead.ownerId === ownerFilter.value) }
+  if (sourceFilter.value !== 'all') { result = result.filter(lead => lead.source === sourceFilter.value) }
+  if (assignedToMeOnly.value) { result = result.filter(lead => lead.handedOverTo === currentUser.value.id) }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(lead => lead.name.toLowerCase().includes(q) || (lead.companyName ?? '').toLowerCase().includes(q))
@@ -58,21 +58,21 @@ const filteredLeads = computed(() => {
 
 const leadsByStage = computed(() => {
   const map = new Map<LeadStage, Lead[]>()
-  for (const stage of LEAD_STAGES) map.set(stage.value, [])
-  for (const lead of filteredLeads.value) map.get(lead.stage)?.push(lead)
+  for (const stage of LEAD_STAGES) { map.set(stage.value, []) }
+  for (const lead of filteredLeads.value) { map.get(lead.stage)?.push(lead) }
   return map
 })
 
-function ownerName(ownerId: string) {
+function ownerName (ownerId: string) {
   return getUserById(ownerId)?.name ?? ownerId
 }
 
-function hasUpcomingFollowUp(leadId: string) {
+function hasUpcomingFollowUp (leadId: string) {
   return getLeadFollowUps(leadId).some(activity => isFollowUpUpcoming(activity))
 }
 
 /** Sinyal cepat duplikat di Table view (Section 04) — aksi lengkap "Tandai sebagai Duplikat" ada di drawer Overview. */
-function hasDuplicateCandidates(lead: Lead) {
+function hasDuplicateCandidates (lead: Lead) {
   return getLeadDuplicateCandidates({ phone: lead.phone, email: lead.email, excludeLeadId: lead.id }).length > 0
 }
 
@@ -87,7 +87,7 @@ const newEmail = ref('')
 /** Duplicate suggestion (Section 04) — pola sama dengan `/lead-intake` (Section 03), reuse selector bersama. */
 const newLeadDuplicates = computed(() => getLeadDuplicateCandidates({ phone: newPhone.value, email: newEmail.value }))
 
-function resetCreateForm() {
+function resetCreateForm () {
   newName.value = ''
   newCompanyName.value = ''
   newSource.value = 'website'
@@ -95,15 +95,15 @@ function resetCreateForm() {
   newEmail.value = ''
 }
 
-function submitCreate() {
-  if (!newName.value.trim()) return
+function submitCreate () {
+  if (!newName.value.trim()) { return }
   createLead({
     name: newName.value.trim(),
     companyName: newCompanyName.value.trim() || undefined,
     source: newSource.value,
     ownerId: currentUser.value.id,
     phone: newPhone.value.trim() || undefined,
-    email: newEmail.value.trim() || undefined,
+    email: newEmail.value.trim() || undefined
   })
   resetCreateForm()
   isCreateOpen.value = false
@@ -140,7 +140,7 @@ const qualSpecialRequestNote = ref('')
 const qualCommunicationNotes = ref('')
 const qualExpectedCloseDate = ref('')
 
-function syncQualificationForm(lead: Lead) {
+function syncQualificationForm (lead: Lead) {
   qualServiceCategory.value = lead.serviceCategory ?? ''
   qualDestination.value = lead.destination ?? ''
   qualTravelStart.value = lead.travelStartDate ?? ''
@@ -158,42 +158,41 @@ function syncQualificationForm(lead: Lead) {
   qualExpectedCloseDate.value = lead.expectedCloseDate ?? ''
 }
 
-function toggleQualServiceScope(type: ServiceTypeKey) {
+function toggleQualServiceScope (type: ServiceTypeKey) {
   const index = qualServiceScope.value.indexOf(type)
-  if (index === -1) qualServiceScope.value.push(type)
-  else qualServiceScope.value.splice(index, 1)
+  if (index === -1) { qualServiceScope.value.push(type) } else { qualServiceScope.value.splice(index, 1) }
 }
 
 /** Mirror `getLeadMissingQualification` (app/data/index.ts) terhadap state form LIVE (belum tersimpan), agar gate terlihat real-time saat mengisi form. */
 const qualificationMissing = computed(() => {
   const missing: string[] = []
-  if (!qualServiceCategory.value) missing.push('Jenis kebutuhan')
-  if (!qualDestination.value.trim()) missing.push('Destinasi belum diisi')
-  if (!qualTravelStart.value || !qualTravelEnd.value) missing.push('Periode perjalanan belum diisi')
-  if (!qualTravelerEstimate.value) missing.push('Estimasi traveler belum diisi')
-  if (qualServiceScope.value.length === 0) missing.push('Service scope belum dipilih')
-  if (!qualHandedOverTo.value) missing.push('Account Executive belum dipilih')
-  if (!qualRequirementSummary.value.trim()) missing.push('Ringkasan kebutuhan belum diisi')
+  if (!qualServiceCategory.value) { missing.push('Jenis kebutuhan') }
+  if (!qualDestination.value.trim()) { missing.push('Destinasi belum diisi') }
+  if (!qualTravelStart.value || !qualTravelEnd.value) { missing.push('Periode perjalanan belum diisi') }
+  if (!qualTravelerEstimate.value) { missing.push('Estimasi traveler belum diisi') }
+  if (qualServiceScope.value.length === 0) { missing.push('Service scope belum dipilih') }
+  if (!qualHandedOverTo.value) { missing.push('Account Executive belum dipilih') }
+  if (!qualRequirementSummary.value.trim()) { missing.push('Ringkasan kebutuhan belum diisi') }
   return missing
 })
 const qualificationCompletedCount = computed(() => 7 - qualificationMissing.value.length)
 
-function openDrawer(lead: Lead) {
+function openDrawer (lead: Lead) {
   selectedLeadId.value = lead.id
   drawerTab.value = 'overview'
   syncQualificationForm(lead)
   isDrawerOpen.value = true
 }
 
-function doArchive() {
-  if (!selectedLead.value) return
+function doArchive () {
+  if (!selectedLead.value) { return }
   archiveLead(selectedLead.value.id)
   isDrawerOpen.value = false
 }
 
 /** "Reopen" (Section 04) — kebalikan Archive, drawer tetap terbuka agar Sales bisa lanjut mengerjakan. */
-function doReopen() {
-  if (!selectedLead.value) return
+function doReopen () {
+  if (!selectedLead.value) { return }
   reopenLead(selectedLead.value.id)
 }
 
@@ -205,8 +204,8 @@ const editSource = ref<LeadSource>('website')
 const editPhone = ref('')
 const editEmail = ref('')
 
-function openEditLeadDialog() {
-  if (!selectedLead.value) return
+function openEditLeadDialog () {
+  if (!selectedLead.value) { return }
   editName.value = selectedLead.value.name
   editCompanyName.value = selectedLead.value.companyName ?? ''
   editSource.value = selectedLead.value.source
@@ -215,14 +214,14 @@ function openEditLeadDialog() {
   isEditLeadOpen.value = true
 }
 
-function submitEditLead() {
-  if (!selectedLead.value || !editName.value.trim()) return
+function submitEditLead () {
+  if (!selectedLead.value || !editName.value.trim()) { return }
   updateLeadContact(selectedLead.value.id, {
     name: editName.value.trim(),
     companyName: editCompanyName.value.trim() || undefined,
     source: editSource.value,
     phone: editPhone.value.trim() || undefined,
-    email: editEmail.value.trim() || undefined,
+    email: editEmail.value.trim() || undefined
   })
   isEditLeadOpen.value = false
 }
@@ -236,21 +235,21 @@ const selectedLeadDuplicates = computed(() => (
 const isMergeDialogOpen = ref(false)
 const mergeTarget = ref<Lead | null>(null)
 
-function openMergeDialog(candidate: Lead) {
+function openMergeDialog (candidate: Lead) {
   mergeTarget.value = candidate
   isMergeDialogOpen.value = true
 }
 
-function doMergeDuplicate() {
-  if (!selectedLead.value || !mergeTarget.value) return
+function doMergeDuplicate () {
+  if (!selectedLead.value || !mergeTarget.value) { return }
   mergeLeadAsDuplicate(selectedLead.value.id, mergeTarget.value.id, currentUser.value.id)
   isMergeDialogOpen.value = false
   mergeTarget.value = null
   isDrawerOpen.value = false
 }
 
-function saveQualificationDraft() {
-  if (!selectedLead.value) return
+function saveQualificationDraft () {
+  if (!selectedLead.value) { return }
   updateLeadQualification(selectedLead.value.id, {
     serviceCategory: qualServiceCategory.value || undefined,
     destination: qualDestination.value.trim() || undefined,
@@ -266,23 +265,23 @@ function saveQualificationDraft() {
     urgency: qualUrgency.value || undefined,
     specialRequestNote: qualSpecialRequestNote.value.trim() || undefined,
     qualificationNotes: qualCommunicationNotes.value.trim() || undefined,
-    expectedCloseDate: qualExpectedCloseDate.value || undefined,
+    expectedCloseDate: qualExpectedCloseDate.value || undefined
   })
 }
 
 const isQualifyDialogOpen = ref(false)
-function doQualifyAndCreateOpportunity() {
-  if (!selectedLead.value || qualificationMissing.value.length > 0) return
+function doQualifyAndCreateOpportunity () {
+  if (!selectedLead.value || qualificationMissing.value.length > 0) { return }
   saveQualificationDraft()
   const opportunity = qualifyLeadAndCreateOpportunity(selectedLead.value.id)
   isQualifyDialogOpen.value = false
-  if (opportunity) navigateTo(`/crm/opportunities/${opportunity.id}`)
+  if (opportunity) { navigateTo(`/crm/opportunities/${opportunity.id}`) }
 }
 
 const isUnqualifyDialogOpen = ref(false)
 const unqualifyNote = ref('')
-function doMarkUnqualified() {
-  if (!selectedLead.value) return
+function doMarkUnqualified () {
+  if (!selectedLead.value) { return }
   saveQualificationDraft()
   markLeadUnqualified(selectedLead.value.id, unqualifyNote.value.trim() || undefined)
   unqualifyNote.value = ''
@@ -296,14 +295,14 @@ const activityType = ref<PartyActivityType>('call')
 const activityMessage = ref('')
 const activityDueAt = ref('')
 
-function submitActivity() {
-  if (!selectedLead.value || !activityMessage.value.trim()) return
+function submitActivity () {
+  if (!selectedLead.value || !activityMessage.value.trim()) { return }
   createLeadActivity({
     leadId: selectedLead.value.id,
     type: activityType.value,
     message: activityMessage.value.trim(),
     ownerId: currentUser.value.id,
-    dueAt: activityDueAt.value || undefined,
+    dueAt: activityDueAt.value || undefined
   })
   activityMessage.value = ''
   activityDueAt.value = ''
@@ -341,7 +340,9 @@ function submitActivity() {
               <div class="space-y-1.5">
                 <Label for="lead-source">Sumber Lead</Label>
                 <select id="lead-source" v-model="newSource" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">{{ source.label }}</option>
+                  <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">
+                    {{ source.label }}
+                  </option>
                 </select>
               </div>
               <div class="space-y-1.5">
@@ -360,8 +361,12 @@ function submitActivity() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">Batal</Button>
-              <Button :disabled="!newName.trim()" @click="submitCreate">Simpan</Button>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newName.trim()" @click="submitCreate">
+                Simpan
+              </Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
@@ -377,16 +382,28 @@ function submitActivity() {
           <Input v-model="searchQuery" placeholder="Cari nama atau company..." class="pl-9" />
         </div>
         <select v-model="stageFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Stage</option>
-          <option v-for="stage in LEAD_STAGES" :key="stage.value" :value="stage.value">{{ stage.label }}</option>
+          <option value="all">
+            Semua Stage
+          </option>
+          <option v-for="stage in LEAD_STAGES" :key="stage.value" :value="stage.value">
+            {{ stage.label }}
+          </option>
         </select>
         <select v-model="ownerFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Owner</option>
-          <option v-for="user in ownerOptions" :key="user.id" :value="user.id">{{ user.name }}</option>
+          <option value="all">
+            Semua Owner
+          </option>
+          <option v-for="user in ownerOptions" :key="user.id" :value="user.id">
+            {{ user.name }}
+          </option>
         </select>
         <select v-model="sourceFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Sumber</option>
-          <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">{{ source.label }}</option>
+          <option value="all">
+            Semua Sumber
+          </option>
+          <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">
+            {{ source.label }}
+          </option>
         </select>
 
         <Button
@@ -394,16 +411,28 @@ function submitActivity() {
           :variant="assignedToMeOnly ? 'default' : 'outline'"
           size="sm"
           @click="assignedToMeOnly = !assignedToMeOnly"
-        >Assigned to Me</Button>
+        >
+          Assigned to Me
+        </Button>
 
         <div class="flex items-center gap-1 ml-auto">
-          <Button :variant="!showArchived ? 'default' : 'outline'" size="sm" @click="showArchived = false">Aktif</Button>
-          <Button :variant="showArchived ? 'default' : 'outline'" size="sm" @click="showArchived = true"><ArchiveIcon class="h-3.5 w-3.5 mr-1" />Archived</Button>
+          <Button :variant="!showArchived ? 'default' : 'outline'" size="sm" @click="showArchived = false">
+            Aktif
+          </Button>
+          <Button :variant="showArchived ? 'default' : 'outline'" size="sm" @click="showArchived = true">
+            <ArchiveIcon class="h-3.5 w-3.5 mr-1" />Archived
+          </Button>
         </div>
         <div class="flex items-center gap-1 rounded-lg border border-border p-0.5">
-          <Button :variant="viewMode === 'table' ? 'secondary' : 'ghost'" size="sm" @click="viewMode = 'table'"><List class="h-4 w-4" /></Button>
-          <Button :variant="viewMode === 'kanban' ? 'secondary' : 'ghost'" size="sm" @click="viewMode = 'kanban'"><LayoutGrid class="h-4 w-4" /></Button>
-          <Button :variant="viewMode === 'inbox' ? 'secondary' : 'ghost'" size="sm" @click="viewMode = 'inbox'"><InboxIcon class="h-4 w-4" /></Button>
+          <Button :variant="viewMode === 'table' ? 'secondary' : 'ghost'" size="sm" @click="viewMode = 'table'">
+            <List class="h-4 w-4" />
+          </Button>
+          <Button :variant="viewMode === 'kanban' ? 'secondary' : 'ghost'" size="sm" @click="viewMode = 'kanban'">
+            <LayoutGrid class="h-4 w-4" />
+          </Button>
+          <Button :variant="viewMode === 'inbox' ? 'secondary' : 'ghost'" size="sm" @click="viewMode = 'inbox'">
+            <InboxIcon class="h-4 w-4" />
+          </Button>
         </div>
       </div>
 
@@ -435,8 +464,12 @@ function submitActivity() {
               <TableCell>
                 <StatusBadge :label="findStatusOption(LEAD_STAGES, lead.stage).label" :tone="findStatusOption(LEAD_STAGES, lead.stage).tone" />
               </TableCell>
-              <TableCell class="text-muted-foreground">{{ ownerName(lead.ownerId) }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ formatDate(lead.lastUpdatedAt) }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ ownerName(lead.ownerId) }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ formatDate(lead.lastUpdatedAt) }}
+              </TableCell>
               <TableCell>
                 <StatusBadge v-if="hasUpcomingFollowUp(lead.id)" label="Follow-up Mendatang" tone="warning" />
                 <span v-else class="text-muted-foreground text-xs">—</span>
@@ -463,8 +496,12 @@ function submitActivity() {
               class="w-full text-left rounded-lg border border-border bg-card p-3 hover:bg-muted/50 transition-colors"
               @click="openDrawer(lead)"
             >
-              <p class="text-sm font-medium text-foreground truncate">{{ lead.name }}</p>
-              <p v-if="lead.companyName" class="text-xs text-muted-foreground truncate">{{ lead.companyName }}</p>
+              <p class="text-sm font-medium text-foreground truncate">
+                {{ lead.name }}
+              </p>
+              <p v-if="lead.companyName" class="text-xs text-muted-foreground truncate">
+                {{ lead.companyName }}
+              </p>
               <div class="flex items-center justify-between mt-2">
                 <StatusBadge :label="findStatusOption(LEAD_SOURCES, lead.source).label" :tone="findStatusOption(LEAD_SOURCES, lead.source).tone" />
                 <StatusBadge v-if="hasUpcomingFollowUp(lead.id)" label="Follow-up" tone="warning" />
@@ -489,10 +526,14 @@ function submitActivity() {
             </Avatar>
             <div class="min-w-0 flex-1">
               <div class="flex items-center gap-2">
-                <p class="text-sm font-medium text-foreground truncate">{{ lead.name }}</p>
+                <p class="text-sm font-medium text-foreground truncate">
+                  {{ lead.name }}
+                </p>
                 <span v-if="lead.companyName" class="text-xs text-muted-foreground truncate">· {{ lead.companyName }}</span>
               </div>
-              <p class="text-xs text-muted-foreground truncate">{{ lead.qualificationNotes || `Lead dari ${findStatusOption(LEAD_SOURCES, lead.source).label}` }}</p>
+              <p class="text-xs text-muted-foreground truncate">
+                {{ lead.qualificationNotes || `Lead dari ${findStatusOption(LEAD_SOURCES, lead.source).label}` }}
+              </p>
             </div>
             <div class="flex flex-col items-end gap-1 shrink-0">
               <StatusBadge :label="findStatusOption(LEAD_STAGES, lead.stage).label" :tone="findStatusOption(LEAD_STAGES, lead.stage).tone" />
@@ -528,47 +569,73 @@ function submitActivity() {
 
           <Tabs v-model="drawerTab" class="mt-4">
             <TabsList>
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="qualification">Qualification</TabsTrigger>
-              <TabsTrigger value="activities">Activities</TabsTrigger>
-              <TabsTrigger value="followups">Follow-ups</TabsTrigger>
+              <TabsTrigger value="overview">
+                Overview
+              </TabsTrigger>
+              <TabsTrigger value="qualification">
+                Qualification
+              </TabsTrigger>
+              <TabsTrigger value="activities">
+                Activities
+              </TabsTrigger>
+              <TabsTrigger value="followups">
+                Follow-ups
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="overview" class="space-y-4">
               <div v-if="canManageLead && !selectedLead.archived" class="flex justify-end">
-                <Button size="sm" variant="outline" @click="openEditLeadDialog">Edit Lead</Button>
+                <Button size="sm" variant="outline" @click="openEditLeadDialog">
+                  Edit Lead
+                </Button>
               </div>
-              <DetailMetadataList :items="[
-                { label: 'Nama Company', value: selectedLead.companyName || '—' },
-                { label: 'Owner (Sales)', value: ownerName(selectedLead.ownerId) },
-                { label: 'Account Executive Tujuan', value: selectedLead.handedOverTo ? ownerName(selectedLead.handedOverTo) : 'Belum ditentukan' },
-                { label: 'Telepon', value: selectedLead.phone || '—' },
-                { label: 'Email', value: selectedLead.email || '—' },
-                { label: 'Expected Close', value: selectedLead.expectedCloseDate ? formatDate(selectedLead.expectedCloseDate) : '—' },
-                { label: 'Dibuat', value: formatDate(selectedLead.createdAt) },
-              ]" />
+              <DetailMetadataList
+                :items="[
+                  { label: 'Nama Company', value: selectedLead.companyName || '—' },
+                  { label: 'Owner (Sales)', value: ownerName(selectedLead.ownerId) },
+                  { label: 'Account Executive Tujuan', value: selectedLead.handedOverTo ? ownerName(selectedLead.handedOverTo) : 'Belum ditentukan' },
+                  { label: 'Telepon', value: selectedLead.phone || '—' },
+                  { label: 'Email', value: selectedLead.email || '—' },
+                  { label: 'Expected Close', value: selectedLead.expectedCloseDate ? formatDate(selectedLead.expectedCloseDate) : '—' },
+                  { label: 'Dibuat', value: formatDate(selectedLead.createdAt) },
+                ]"
+              />
               <div>
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Qualification Summary</p>
-                <p class="text-sm text-foreground">{{ selectedLead.requirementSummary || 'Belum diisi — lihat tab Qualification.' }}</p>
+                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  Qualification Summary
+                </p>
+                <p class="text-sm text-foreground">
+                  {{ selectedLead.requirementSummary || 'Belum diisi — lihat tab Qualification.' }}
+                </p>
               </div>
               <div>
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">Catatan Hasil Komunikasi</p>
-                <p class="text-sm text-foreground">{{ selectedLead.qualificationNotes || 'Belum ada catatan.' }}</p>
+                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                  Catatan Hasil Komunikasi
+                </p>
+                <p class="text-sm text-foreground">
+                  {{ selectedLead.qualificationNotes || 'Belum ada catatan.' }}
+                </p>
               </div>
               <div v-if="selectedLead.opportunityId" class="rounded-lg border border-success/30 bg-success/5 p-3">
                 <p class="text-sm text-success">
                   Sudah dikonversi —
-                  <NuxtLink :to="`/crm/opportunities/${selectedLead.opportunityId}`" class="underline">lihat Opportunity {{ selectedLead.opportunityId }}</NuxtLink>
+                  <NuxtLink :to="`/crm/opportunities/${selectedLead.opportunityId}`" class="underline">
+                    lihat Opportunity {{ selectedLead.opportunityId }}
+                  </NuxtLink>
                 </p>
               </div>
 
               <!-- Merge suggestion (Section 04) -->
               <div v-if="selectedLeadDuplicates.length > 0" class="rounded-lg border border-warning/30 bg-warning/5 p-3">
-                <p class="text-sm font-medium text-warning mb-2">Lead Serupa Terdeteksi</p>
+                <p class="text-sm font-medium text-warning mb-2">
+                  Lead Serupa Terdeteksi
+                </p>
                 <ul class="space-y-2">
                   <li v-for="candidate in selectedLeadDuplicates" :key="candidate.id" class="flex items-center justify-between gap-2">
                     <span class="text-xs text-foreground">{{ candidate.name }} ({{ candidate.id }})<span v-if="candidate.companyName"> — {{ candidate.companyName }}</span></span>
-                    <Button v-if="canManageLead" size="sm" variant="outline" @click="openMergeDialog(candidate)">Tandai sebagai Duplikat</Button>
+                    <Button v-if="canManageLead" size="sm" variant="outline" @click="openMergeDialog(candidate)">
+                      Tandai sebagai Duplikat
+                    </Button>
                   </li>
                 </ul>
               </div>
@@ -576,14 +643,20 @@ function submitActivity() {
 
             <TabsContent value="qualification" class="space-y-4">
               <div v-if="selectedLead.opportunityId" class="rounded-lg border border-success/30 bg-success/5 p-3">
-                <p class="text-sm text-success">Lead ini sudah di-qualify dan dikonversi menjadi Opportunity — data qualification di bawah bersifat riwayat (read-only).</p>
+                <p class="text-sm text-success">
+                  Lead ini sudah di-qualify dan dikonversi menjadi Opportunity — data qualification di bawah bersifat riwayat (read-only).
+                </p>
               </div>
               <fieldset :disabled="!canManageLead || selectedLead.archived || Boolean(selectedLead.opportunityId)" class="space-y-4">
                 <div class="space-y-1.5">
                   <Label for="qual-service-category">Jenis Kebutuhan</Label>
                   <select id="qual-service-category" v-model="qualServiceCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="">Pilih jenis kebutuhan</option>
-                    <option v-for="opt in LEAD_SERVICE_CATEGORIES" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                    <option value="">
+                      Pilih jenis kebutuhan
+                    </option>
+                    <option v-for="opt in LEAD_SERVICE_CATEGORIES" :key="opt.value" :value="opt.value">
+                      {{ opt.label }}
+                    </option>
                   </select>
                 </div>
                 <div class="space-y-1.5">
@@ -614,7 +687,9 @@ function submitActivity() {
                       class="rounded-full border px-3 py-1 text-xs transition-colors"
                       :class="qualServiceScope.includes(type.value) ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground'"
                       @click="toggleQualServiceScope(type.value)"
-                    >{{ type.value === 'additional' ? 'Other' : type.label }}</button>
+                    >
+                      {{ type.value === 'additional' ? 'Other' : type.label }}
+                    </button>
                   </div>
                 </div>
                 <div class="space-y-1.5">
@@ -624,19 +699,25 @@ function submitActivity() {
                 <div class="space-y-1.5">
                   <Label for="qual-ae">Account Executive yang Menerima Lead</Label>
                   <select id="qual-ae" v-model="qualHandedOverTo" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="">Pilih Account Executive</option>
-                    <option v-for="ae in aeOptions" :key="ae.id" :value="ae.id">{{ ae.name }}</option>
+                    <option value="">
+                      Pilih Account Executive
+                    </option>
+                    <option v-for="ae in aeOptions" :key="ae.id" :value="ae.id">
+                      {{ ae.name }}
+                    </option>
                   </select>
                 </div>
 
                 <div class="pt-2 border-t border-border space-y-4">
-                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Field Opsional</p>
+                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                    Field Opsional
+                  </p>
                   <div class="space-y-1.5">
                     <Label for="qual-budget">Estimasi Budget / Budget Range</Label>
                     <Input id="qual-budget" v-model="qualBudgetRange" placeholder="mis. Rp 100 juta - Rp 150 juta" />
                   </div>
                   <div class="flex items-center gap-2">
-                    <input id="qual-flexible" v-model="qualDateFlexible" type="checkbox" class="h-4 w-4 rounded border-input" />
+                    <input id="qual-flexible" v-model="qualDateFlexible" type="checkbox" class="h-4 w-4 rounded border-input">
                     <Label for="qual-flexible" class="!mb-0">Fleksibilitas Tanggal</Label>
                   </div>
                   <div class="space-y-1.5">
@@ -646,8 +727,12 @@ function submitActivity() {
                   <div class="space-y-1.5">
                     <Label for="qual-urgency">Tingkat Urgensi</Label>
                     <select id="qual-urgency" v-model="qualUrgency" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                      <option value="">Belum ditentukan</option>
-                      <option v-for="opt in LEAD_URGENCY_LEVELS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                      <option value="">
+                        Belum ditentukan
+                      </option>
+                      <option v-for="opt in LEAD_URGENCY_LEVELS" :key="opt.value" :value="opt.value">
+                        {{ opt.label }}
+                      </option>
                     </select>
                   </div>
                   <div class="space-y-1.5">
@@ -666,17 +751,25 @@ function submitActivity() {
               </fieldset>
 
               <div v-if="qualificationMissing.length > 0" class="rounded-lg border border-warning/30 bg-warning/5 p-3">
-                <p class="text-sm font-medium text-warning">Belum bisa di-Qualify — field berikut belum lengkap:</p>
+                <p class="text-sm font-medium text-warning">
+                  Belum bisa di-Qualify — field berikut belum lengkap:
+                </p>
                 <ul class="mt-1 text-xs text-muted-foreground list-disc list-inside">
-                  <li v-for="item in qualificationMissing" :key="item">{{ item }}</li>
+                  <li v-for="item in qualificationMissing" :key="item">
+                    {{ item }}
+                  </li>
                 </ul>
               </div>
 
               <div v-if="canManageLead && !selectedLead.archived && !selectedLead.opportunityId" class="flex flex-wrap gap-2 pt-2">
-                <Button size="sm" variant="outline" @click="saveQualificationDraft">Simpan Draft</Button>
+                <Button size="sm" variant="outline" @click="saveQualificationDraft">
+                  Simpan Draft
+                </Button>
                 <Dialog v-model:open="isQualifyDialogOpen">
                   <DialogTrigger as-child>
-                    <Button size="sm" :disabled="qualificationMissing.length > 0">Qualify &amp; Create Opportunity</Button>
+                    <Button size="sm" :disabled="qualificationMissing.length > 0">
+                      Qualify &amp; Create Opportunity
+                    </Button>
                   </DialogTrigger>
                   <DialogContent class="max-w-md">
                     <DialogHeader>
@@ -687,14 +780,20 @@ function submitActivity() {
                       </DialogDescription>
                     </DialogHeader>
                     <DialogFooter>
-                      <Button variant="outline" @click="isQualifyDialogOpen = false">Batal</Button>
-                      <Button @click="doQualifyAndCreateOpportunity">Qualify &amp; Create Opportunity</Button>
+                      <Button variant="outline" @click="isQualifyDialogOpen = false">
+                        Batal
+                      </Button>
+                      <Button @click="doQualifyAndCreateOpportunity">
+                        Qualify &amp; Create Opportunity
+                      </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
                 <Dialog v-model:open="isUnqualifyDialogOpen">
                   <DialogTrigger as-child>
-                    <Button size="sm" variant="destructive">Mark as Unqualified</Button>
+                    <Button size="sm" variant="destructive">
+                      Mark as Unqualified
+                    </Button>
                   </DialogTrigger>
                   <DialogContent class="max-w-md">
                     <DialogHeader>
@@ -706,8 +805,12 @@ function submitActivity() {
                       <Input id="unqualify-note" v-model="unqualifyNote" placeholder="mis. Tidak ada budget/timeline konkret" />
                     </div>
                     <DialogFooter>
-                      <Button variant="outline" @click="isUnqualifyDialogOpen = false">Batal</Button>
-                      <Button variant="destructive" @click="doMarkUnqualified">Mark as Unqualified</Button>
+                      <Button variant="outline" @click="isUnqualifyDialogOpen = false">
+                        Batal
+                      </Button>
+                      <Button variant="destructive" @click="doMarkUnqualified">
+                        Mark as Unqualified
+                      </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
@@ -717,8 +820,12 @@ function submitActivity() {
             <TabsContent value="activities">
               <ul v-if="selectedActivities.length" class="divide-y divide-border">
                 <li v-for="activity in selectedActivities" :key="activity.id" class="py-3">
-                  <p class="text-sm text-foreground">{{ activity.message }}</p>
-                  <p class="text-xs text-muted-foreground">{{ ownerName(activity.ownerId) }} · {{ formatDate(activity.createdAt) }}</p>
+                  <p class="text-sm text-foreground">
+                    {{ activity.message }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ ownerName(activity.ownerId) }} · {{ formatDate(activity.createdAt) }}
+                  </p>
                 </li>
               </ul>
               <EmptyState v-else title="Belum ada activity" />
@@ -728,8 +835,12 @@ function submitActivity() {
               <ul v-if="selectedFollowUps.length" class="divide-y divide-border">
                 <li v-for="activity in selectedFollowUps" :key="activity.id" class="py-3 flex items-center justify-between gap-2">
                   <div class="min-w-0">
-                    <p class="text-sm text-foreground truncate">{{ activity.message }}</p>
-                    <p class="text-xs text-muted-foreground">{{ ownerName(activity.ownerId) }}</p>
+                    <p class="text-sm text-foreground truncate">
+                      {{ activity.message }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ ownerName(activity.ownerId) }}
+                    </p>
                   </div>
                   <StatusBadge :label="`Jadwal ${formatDate(activity.dueAt ?? '')}`" :tone="isFollowUpUpcoming(activity) ? 'warning' : 'neutral'" />
                 </li>
@@ -741,7 +852,9 @@ function submitActivity() {
           <div v-if="canManageLead" class="mt-4">
             <Dialog v-model:open="isActivityDialogOpen">
               <DialogTrigger as-child>
-                <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Catat Activity / Follow-up</Button>
+                <Button size="sm" variant="outline">
+                  <Plus class="h-4 w-4 mr-1.5" />Catat Activity / Follow-up
+                </Button>
               </DialogTrigger>
               <DialogContent class="max-w-md">
                 <DialogHeader>
@@ -752,7 +865,9 @@ function submitActivity() {
                   <div class="space-y-1.5">
                     <Label for="lead-activity-type">Jenis</Label>
                     <select id="lead-activity-type" v-model="activityType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                      <option v-for="type in PARTY_ACTIVITY_TYPES" :key="type.value" :value="type.value">{{ type.label }}</option>
+                      <option v-for="type in PARTY_ACTIVITY_TYPES" :key="type.value" :value="type.value">
+                        {{ type.label }}
+                      </option>
                     </select>
                   </div>
                   <div class="space-y-1.5">
@@ -765,8 +880,12 @@ function submitActivity() {
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button variant="outline" @click="isActivityDialogOpen = false">Batal</Button>
-                  <Button :disabled="!activityMessage.trim()" @click="submitActivity">Simpan</Button>
+                  <Button variant="outline" @click="isActivityDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!activityMessage.trim()" @click="submitActivity">
+                    Simpan
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
@@ -791,7 +910,9 @@ function submitActivity() {
                 <div class="space-y-1.5">
                   <Label for="edit-lead-source">Sumber Lead</Label>
                   <select id="edit-lead-source" v-model="editSource" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">{{ source.label }}</option>
+                    <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">
+                      {{ source.label }}
+                    </option>
                   </select>
                 </div>
                 <div class="space-y-1.5">
@@ -804,8 +925,12 @@ function submitActivity() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" @click="isEditLeadOpen = false">Batal</Button>
-                <Button :disabled="!editName.trim()" @click="submitEditLead">Simpan</Button>
+                <Button variant="outline" @click="isEditLeadOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!editName.trim()" @click="submitEditLead">
+                  Simpan
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -821,8 +946,12 @@ function submitActivity() {
                 </DialogDescription>
               </DialogHeader>
               <DialogFooter>
-                <Button variant="outline" @click="isMergeDialogOpen = false">Batal</Button>
-                <Button variant="destructive" @click="doMergeDuplicate">Tandai sebagai Duplikat</Button>
+                <Button variant="outline" @click="isMergeDialogOpen = false">
+                  Batal
+                </Button>
+                <Button variant="destructive" @click="doMergeDuplicate">
+                  Tandai sebagai Duplikat
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>

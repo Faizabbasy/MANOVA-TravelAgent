@@ -7,16 +7,19 @@ import {
   getClientVisibleItineraryItems, getTravelers, createTraveler, updateTraveler,
   getDocumentsByProject, getInvoicesByProject, getPaymentsByInvoice,
   createChangeRequest, getChangeRequestsByProject, getIncidentsByProject,
+  getCommodityRequirementsByProject, createCommodityRequirement, updateCommodityRequirement, deleteCommodityRequirement,
+  isCommodityRequirementEditable, isCommodityRequirementDeletable
 } from '~/data'
 import {
   PROJECT_STATUSES, SERVICE_TYPES, CHANGE_CATEGORIES, INVOICE_STATUSES, INVOICE_TYPES,
-  CHANGE_REQUEST_STATUSES, INCIDENT_STATUSES,
-  findStatusOption,
+  CHANGE_REQUEST_STATUSES, INCIDENT_STATUSES, COMMODITY_REQUIREMENT_STATUSES,
+  findStatusOption
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatDayLabel } from '~/utils/format'
 import { isTravelerDocumentMissing, isInvoiceOverdue, invoiceAgingDays } from '~/utils/attention'
-import type { Traveler } from '~/types/project'
+import type { Traveler, ServiceTypeKey } from '~/types/project'
 import type { ChangeCategory } from '~/types/activity'
+import type { CommodityRequirement } from '~/types/requirement'
 
 /**
  * Client-facing Project Order detail (Section 08). Sanitized — TIDAK PERNAH merender
@@ -45,7 +48,7 @@ const projectManager = computed(() => (project.value ? getUserById(project.value
 
 const activeTab = computed({
   get: () => (route.query.tab as string) || 'overview',
-  set: value => router.replace({ query: { ...route.query, tab: value } }),
+  set: value => router.replace({ query: { ...route.query, tab: value } })
 })
 const TABS = [
   { value: 'overview', label: 'Overview' },
@@ -54,6 +57,7 @@ const TABS = [
   { value: 'documents', label: 'Documents' },
   { value: 'finance', label: 'Finance' },
   { value: 'changes', label: 'Changes & Incidents' },
+  { value: 'commodity', label: 'Kebutuhan Komoditas' }
 ]
 
 const serviceScopeOptions = computed(() => SERVICE_TYPES.filter(type => project.value?.serviceScope.includes(type.value)))
@@ -71,6 +75,152 @@ const invoices = computed(() => (project.value ? getInvoicesByProject(project.va
  */
 const projectChangeRequests = computed(() => (project.value ? getChangeRequestsByProject(project.value.id) : []))
 const projectIncidents = computed(() => (project.value ? getIncidentsByProject(project.value.id) : []))
+
+/**
+ * Commodity Requirement (Phase 3 — Client–Vendor Commodity). Kebutuhan komoditas milik Client dalam
+ * project ini — TERPISAH dari Commodity Product (Phase 2, milik Vendor). Ownership sudah terjamin lewat
+ * `isOwnCompany` (project) di atas; requirement selalu dibuat dengan `projectId` + `clientPartyId`
+ * (`clientScopeId`) project yang sama, tidak ada jalur untuk membuat requirement di project lain.
+ */
+const requirements = computed(() => (project.value ? getCommodityRequirementsByProject(project.value.id) : []))
+
+const isRequirementDialogOpen = ref(false)
+const editingRequirement = ref<CommodityRequirement | null>(null)
+const reqCategory = ref<ServiceTypeKey>('hotel')
+const reqTitle = ref('')
+const reqQuantity = ref<number | null>(null)
+const reqNotes = ref('')
+// Category-specific fields (Phase 0 Section 5 — "Category-specific fields")
+const reqFlightOrigin = ref('')
+const reqFlightDestination = ref('')
+const reqFlightDepartureDate = ref('')
+const reqHotelCheckIn = ref('')
+const reqHotelCheckOut = ref('')
+const reqHotelRoomCount = ref<number | null>(null)
+const reqTransportVehicleType = ref('')
+const reqTransportServiceDate = ref('')
+const reqTransportRoute = ref('')
+const reqMiceEventType = ref('')
+const reqMiceParticipantCount = ref<number | null>(null)
+const reqMiceEventDate = ref('')
+
+function resetRequirementForm () {
+  reqCategory.value = 'hotel'
+  reqTitle.value = ''
+  reqQuantity.value = null
+  reqNotes.value = ''
+  reqFlightOrigin.value = ''
+  reqFlightDestination.value = ''
+  reqFlightDepartureDate.value = ''
+  reqHotelCheckIn.value = ''
+  reqHotelCheckOut.value = ''
+  reqHotelRoomCount.value = null
+  reqTransportVehicleType.value = ''
+  reqTransportServiceDate.value = ''
+  reqTransportRoute.value = ''
+  reqMiceEventType.value = ''
+  reqMiceParticipantCount.value = null
+  reqMiceEventDate.value = ''
+}
+
+function buildRequirementDetail (): CommodityRequirement['detail'] {
+  switch (reqCategory.value) {
+    case 'flight':
+      return { category: 'flight', origin: reqFlightOrigin.value.trim() || undefined, destination: reqFlightDestination.value.trim() || undefined, departureDate: reqFlightDepartureDate.value || undefined }
+    case 'hotel':
+      return { category: 'hotel', checkInDate: reqHotelCheckIn.value || undefined, checkOutDate: reqHotelCheckOut.value || undefined, roomCount: reqHotelRoomCount.value ?? undefined }
+    case 'transportation':
+      return { category: 'transportation', vehicleType: reqTransportVehicleType.value.trim() || undefined, serviceDate: reqTransportServiceDate.value || undefined, route: reqTransportRoute.value.trim() || undefined }
+    case 'mice':
+      return { category: 'mice', eventType: reqMiceEventType.value.trim() || undefined, participantCount: reqMiceParticipantCount.value ?? undefined, eventDate: reqMiceEventDate.value || undefined }
+    default:
+      return { category: 'additional' }
+  }
+}
+
+/** Prefill category-specific fields dari requirement existing saat membuka dialog Edit (Section 12 checklist: "Edit tidak prefill" adalah masalah yang harus dihindari). */
+function prefillRequirementDetail (detail: CommodityRequirement['detail']) {
+  if (!detail) { return }
+  if (detail.category === 'flight') {
+    reqFlightOrigin.value = detail.origin ?? ''
+    reqFlightDestination.value = detail.destination ?? ''
+    reqFlightDepartureDate.value = detail.departureDate ?? ''
+  } else if (detail.category === 'hotel') {
+    reqHotelCheckIn.value = detail.checkInDate ?? ''
+    reqHotelCheckOut.value = detail.checkOutDate ?? ''
+    reqHotelRoomCount.value = detail.roomCount ?? null
+  } else if (detail.category === 'transportation') {
+    reqTransportVehicleType.value = detail.vehicleType ?? ''
+    reqTransportServiceDate.value = detail.serviceDate ?? ''
+    reqTransportRoute.value = detail.route ?? ''
+  } else if (detail.category === 'mice') {
+    reqMiceEventType.value = detail.eventType ?? ''
+    reqMiceParticipantCount.value = detail.participantCount ?? null
+    reqMiceEventDate.value = detail.eventDate ?? ''
+  }
+}
+
+function openCreateRequirement () {
+  resetRequirementForm()
+  editingRequirement.value = null
+  isRequirementDialogOpen.value = true
+}
+
+function openEditRequirement (requirement: CommodityRequirement) {
+  if (!isCommodityRequirementEditable(requirement.status)) { return }
+  resetRequirementForm()
+  editingRequirement.value = requirement
+  reqCategory.value = requirement.category
+  reqTitle.value = requirement.title
+  reqQuantity.value = requirement.quantity
+  reqNotes.value = requirement.notes ?? ''
+  prefillRequirementDetail(requirement.detail)
+  isRequirementDialogOpen.value = true
+}
+
+function submitRequirement () {
+  if (!project.value || !clientScopeId.value || !reqTitle.value.trim() || !reqQuantity.value) { return }
+  if (editingRequirement.value) {
+    updateCommodityRequirement(editingRequirement.value.id, {
+      title: reqTitle.value.trim(),
+      quantity: reqQuantity.value,
+      notes: reqNotes.value.trim() || undefined,
+      detail: buildRequirementDetail()
+    })
+    showToast('Kebutuhan Diperbarui', `"${reqTitle.value.trim()}" berhasil diperbarui.`, 'success')
+  } else {
+    createCommodityRequirement({
+      projectId: project.value.id,
+      clientPartyId: clientScopeId.value,
+      category: reqCategory.value,
+      title: reqTitle.value.trim(),
+      quantity: reqQuantity.value,
+      notes: reqNotes.value.trim() || undefined,
+      detail: buildRequirementDetail()
+    })
+    showToast('Kebutuhan Ditambahkan', `"${reqTitle.value.trim()}" berhasil ditambahkan.`, 'success')
+  }
+  isRequirementDialogOpen.value = false
+}
+
+const viewingRequirement = ref<CommodityRequirement | null>(null)
+
+const confirmDeleteRequirement = ref<CommodityRequirement | null>(null)
+function requestDeleteRequirement (requirement: CommodityRequirement) {
+  if (!isCommodityRequirementDeletable(requirement.status)) { return }
+  confirmDeleteRequirement.value = requirement
+}
+function cancelDeleteRequirement () {
+  confirmDeleteRequirement.value = null
+}
+function confirmDeleteRequirementNow () {
+  const requirement = confirmDeleteRequirement.value
+  if (!requirement) { return }
+  if (deleteCommodityRequirement(requirement.id)) {
+    showToast('Kebutuhan Dihapus', `"${requirement.title}" berhasil dihapus.`, 'success')
+  }
+  confirmDeleteRequirement.value = null
+}
 
 /**
  * Travelers — Wajib "Traveler/participant submission" (Section 08) + "Client self-submission" (Section 11
@@ -93,7 +243,7 @@ const travelerDietary = ref('')
 const travelerAccessibility = ref('')
 const travelerSpecialRequest = ref('')
 
-function openTravelerDialog(traveler: Traveler | null) {
+function openTravelerDialog (traveler: Traveler | null) {
   editingTraveler.value = traveler
   travelerName.value = traveler?.name ?? ''
   travelerPassportNumber.value = traveler?.passportNumber ?? ''
@@ -109,8 +259,8 @@ function openTravelerDialog(traveler: Traveler | null) {
   isTravelerDialogOpen.value = true
 }
 
-function submitTraveler() {
-  if (!project.value || !travelerName.value.trim()) return
+function submitTraveler () {
+  if (!project.value || !travelerName.value.trim()) { return }
   const patch = {
     name: travelerName.value.trim(),
     passportNumber: travelerPassportNumber.value.trim() || undefined,
@@ -122,7 +272,7 @@ function submitTraveler() {
     emergencyContactPhone: travelerEmergencyPhone.value.trim() || undefined,
     dietaryRestrictions: travelerDietary.value.trim() || undefined,
     accessibilityNeeds: travelerAccessibility.value.trim() || undefined,
-    specialRequest: travelerSpecialRequest.value.trim() || undefined,
+    specialRequest: travelerSpecialRequest.value.trim() || undefined
   }
   if (editingTraveler.value) {
     updateTraveler(editingTraveler.value.id, patch)
@@ -144,8 +294,8 @@ const isChangeDialogOpen = ref(false)
 const changeCategory = ref<ChangeCategory>('other')
 const changeReason = ref('')
 
-function submitChangeRequest() {
-  if (!project.value || !changeReason.value.trim()) return
+function submitChangeRequest () {
+  if (!project.value || !changeReason.value.trim()) { return }
   const request = createChangeRequest({
     projectId: project.value.id,
     source: 'client',
@@ -153,7 +303,7 @@ function submitChangeRequest() {
     affectedEntities: [{ entityType: 'project', entityId: project.value.id }],
     beforeSummary: 'Kondisi saat ini',
     afterSummary: changeReason.value.trim(),
-    category: changeCategory.value,
+    category: changeCategory.value
   })
   changeReason.value = ''
   changeCategory.value = 'other'
@@ -168,7 +318,9 @@ function submitChangeRequest() {
       <PageHeader title="Tidak Ditemukan" :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Tidak Ditemukan' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Project Order tidak ditemukan" description="Project Order ini tidak ada atau bukan milik company Anda.">
-          <Button @click="router.push('/client')">Kembali ke Client Portal</Button>
+          <Button @click="router.push('/client')">
+            Kembali ke Client Portal
+          </Button>
         </EmptyState>
       </SectionCard>
     </template>
@@ -184,20 +336,26 @@ function submitChangeRequest() {
 
       <Tabs v-model="activeTab">
         <TabsList>
-          <TabsTrigger v-for="tab in TABS" :key="tab.value" :value="tab.value">{{ tab.label }}</TabsTrigger>
+          <TabsTrigger v-for="tab in TABS" :key="tab.value" :value="tab.value">
+            {{ tab.label }}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
           <SectionCard>
-            <DetailMetadataList :items="[
-              { label: 'Company', value: party?.name ?? '—' },
-              { label: 'Destinasi', value: project.destination },
-              { label: 'Tanggal', value: formatDateRange(project.travelStartDate, project.travelEndDate) },
-              { label: 'Jumlah Traveler', value: `${project.travelerCount} pax` },
-              { label: 'Total Paket', value: formatCurrencyIdr(project.quotationAmountIdr) },
-            ]" />
+            <DetailMetadataList
+              :items="[
+                { label: 'Company', value: party?.name ?? '—' },
+                { label: 'Destinasi', value: project.destination },
+                { label: 'Tanggal', value: formatDateRange(project.travelStartDate, project.travelEndDate) },
+                { label: 'Jumlah Traveler', value: `${project.travelerCount} pax` },
+                { label: 'Total Paket', value: formatCurrencyIdr(project.quotationAmountIdr) },
+              ]"
+            />
             <div v-if="serviceScopeOptions.length" class="mt-4 pt-4 border-t border-border">
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Layanan</p>
+              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                Layanan
+              </p>
               <div class="flex flex-wrap gap-2">
                 <StatusBadge v-for="type in serviceScopeOptions" :key="type.value" :label="type.label" :tone="type.tone" />
               </div>
@@ -205,10 +363,12 @@ function submitChangeRequest() {
           </SectionCard>
 
           <SectionCard title="Support — Tim Kami">
-            <DetailMetadataList :items="[
-              { label: 'Account Executive', value: accountExecutive?.name ?? 'Belum ditugaskan' },
-              { label: 'Project Manager', value: projectManager?.name ?? 'Belum ditugaskan' },
-            ]" />
+            <DetailMetadataList
+              :items="[
+                { label: 'Account Executive', value: accountExecutive?.name ?? 'Belum ditugaskan' },
+                { label: 'Project Manager', value: projectManager?.name ?? 'Belum ditugaskan' },
+              ]"
+            />
             <div class="mt-3 flex flex-wrap gap-3">
               <a v-if="accountExecutive" :href="`mailto:${accountExecutive.email}`" class="text-sm text-primary hover:underline">{{ accountExecutive.email }} (AE)</a>
               <a v-if="projectManager" :href="`mailto:${projectManager.email}`" class="text-sm text-primary hover:underline">{{ projectManager.email }} (PM)</a>
@@ -220,9 +380,17 @@ function submitChangeRequest() {
           <SectionCard title="Shared Itinerary">
             <ul v-if="itineraryItems.length" class="divide-y divide-border">
               <li v-for="item in itineraryItems" :key="item.id" class="py-3">
-                <p class="text-xs text-muted-foreground">{{ formatDayLabel(item.date) }}<template v-if="item.time"> · {{ item.time }}</template></p>
-                <p class="text-sm font-medium text-foreground">{{ item.title }}</p>
-                <p v-if="item.description" class="text-xs text-muted-foreground">{{ item.description }}</p>
+                <p class="text-xs text-muted-foreground">
+                  {{ formatDayLabel(item.date) }}<template v-if="item.time">
+                    · {{ item.time }}
+                  </template>
+                </p>
+                <p class="text-sm font-medium text-foreground">
+                  {{ item.title }}
+                </p>
+                <p v-if="item.description" class="text-xs text-muted-foreground">
+                  {{ item.description }}
+                </p>
               </li>
             </ul>
             <EmptyState v-else title="Itinerary belum tersedia" description="Itinerary akan tampil di sini setelah tim kami menyusunnya." />
@@ -232,7 +400,9 @@ function submitChangeRequest() {
         <TabsContent value="travelers">
           <SectionCard title="Traveler / Participant">
             <template #actions>
-              <Button size="sm" variant="outline" @click="openTravelerDialog(null)"><Plus class="h-4 w-4 mr-1.5" />Tambah Traveler</Button>
+              <Button size="sm" variant="outline" @click="openTravelerDialog(null)">
+                <Plus class="h-4 w-4 mr-1.5" />Tambah Traveler
+              </Button>
             </template>
             <Table>
               <TableHeader>
@@ -248,11 +418,25 @@ function submitChangeRequest() {
               </TableHeader>
               <TableBody>
                 <TableRow v-for="traveler in travelers" :key="traveler.id">
-                  <TableCell class="font-medium text-foreground">{{ traveler.name }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ traveler.passportNumber || '—' }}<template v-if="traveler.passportExpiryDate"> (exp. {{ formatDate(traveler.passportExpiryDate) }})</template></TableCell>
-                  <TableCell class="text-muted-foreground">{{ traveler.visaNumber || '—' }}<template v-if="traveler.visaExpiryDate"> (exp. {{ formatDate(traveler.visaExpiryDate) }})</template></TableCell>
-                  <TableCell class="text-muted-foreground">{{ traveler.emergencyContactName || '—' }}</TableCell>
-                  <TableCell class="text-muted-foreground text-xs">{{ [traveler.dietaryRestrictions, traveler.accessibilityNeeds, traveler.specialRequest].filter(Boolean).join(' · ') || '—' }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ traveler.name }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ traveler.passportNumber || '—' }}<template v-if="traveler.passportExpiryDate">
+                      (exp. {{ formatDate(traveler.passportExpiryDate) }})
+                    </template>
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ traveler.visaNumber || '—' }}<template v-if="traveler.visaExpiryDate">
+                      (exp. {{ formatDate(traveler.visaExpiryDate) }})
+                    </template>
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ traveler.emergencyContactName || '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground text-xs">
+                    {{ [traveler.dietaryRestrictions, traveler.accessibilityNeeds, traveler.specialRequest].filter(Boolean).join(' · ') || '—' }}
+                  </TableCell>
                   <TableCell>
                     <StatusBadge
                       :label="isTravelerDocumentMissing(traveler, project.travelStartDate) ? 'Dokumen Belum Lengkap' : 'Dokumen Lengkap'"
@@ -260,10 +444,14 @@ function submitChangeRequest() {
                     />
                   </TableCell>
                   <TableCell>
-                    <Button size="sm" variant="ghost" @click="openTravelerDialog(traveler)">Edit</Button>
+                    <Button size="sm" variant="ghost" @click="openTravelerDialog(traveler)">
+                      Edit
+                    </Button>
                   </TableCell>
                 </TableRow>
-                <TableEmpty v-if="travelers.length === 0" :colspan="7">Belum ada traveler tercatat. Tambahkan data traveler Anda.</TableEmpty>
+                <TableEmpty v-if="travelers.length === 0" :colspan="7">
+                  Belum ada traveler tercatat. Tambahkan data traveler Anda.
+                </TableEmpty>
               </TableBody>
             </Table>
           </SectionCard>
@@ -275,23 +463,49 @@ function submitChangeRequest() {
                 <DialogDescription>Lengkapi data traveler untuk keperluan dokumen perjalanan.</DialogDescription>
               </DialogHeader>
               <div class="space-y-4 py-2">
-                <div class="space-y-1.5"><Label for="trv-name">Nama Lengkap</Label><Input id="trv-name" v-model="travelerName" /></div>
-                <div class="grid grid-cols-2 gap-4">
-                  <div class="space-y-1.5"><Label for="trv-passport">Nomor Paspor</Label><Input id="trv-passport" v-model="travelerPassportNumber" /></div>
-                  <div class="space-y-1.5"><Label for="trv-passport-exp">Masa Berlaku Paspor</Label><Input id="trv-passport-exp" v-model="travelerPassportExpiry" type="date" /></div>
-                  <div class="space-y-1.5"><Label for="trv-id-number">Nomor ID/KTP (opsional)</Label><Input id="trv-id-number" v-model="travelerIdNumber" /></div>
-                  <div class="space-y-1.5"><Label for="trv-visa">Nomor Visa (opsional)</Label><Input id="trv-visa" v-model="travelerVisaNumber" /></div>
-                  <div class="space-y-1.5"><Label for="trv-visa-exp">Masa Berlaku Visa (opsional)</Label><Input id="trv-visa-exp" v-model="travelerVisaExpiry" type="date" /></div>
+                <div class="space-y-1.5">
+                  <Label for="trv-name">Nama Lengkap</Label><Input id="trv-name" v-model="travelerName" />
                 </div>
-                <div class="space-y-1.5"><Label for="trv-emergency-name">Nama Kontak Darurat</Label><Input id="trv-emergency-name" v-model="travelerEmergencyName" /></div>
-                <div class="space-y-1.5"><Label for="trv-emergency-phone">Telepon Kontak Darurat</Label><Input id="trv-emergency-phone" v-model="travelerEmergencyPhone" /></div>
-                <div class="space-y-1.5"><Label for="trv-dietary">Dietary Restriction (opsional)</Label><Input id="trv-dietary" v-model="travelerDietary" placeholder="mis. Vegetarian, tanpa seafood" /></div>
-                <div class="space-y-1.5"><Label for="trv-accessibility">Accessibility Needs (opsional)</Label><Input id="trv-accessibility" v-model="travelerAccessibility" placeholder="mis. Kursi roda" /></div>
-                <div class="space-y-1.5"><Label for="trv-special">Permintaan Khusus Lainnya</Label><Input id="trv-special" v-model="travelerSpecialRequest" /></div>
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="space-y-1.5">
+                    <Label for="trv-passport">Nomor Paspor</Label><Input id="trv-passport" v-model="travelerPassportNumber" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="trv-passport-exp">Masa Berlaku Paspor</Label><Input id="trv-passport-exp" v-model="travelerPassportExpiry" type="date" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="trv-id-number">Nomor ID/KTP (opsional)</Label><Input id="trv-id-number" v-model="travelerIdNumber" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="trv-visa">Nomor Visa (opsional)</Label><Input id="trv-visa" v-model="travelerVisaNumber" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="trv-visa-exp">Masa Berlaku Visa (opsional)</Label><Input id="trv-visa-exp" v-model="travelerVisaExpiry" type="date" />
+                  </div>
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="trv-emergency-name">Nama Kontak Darurat</Label><Input id="trv-emergency-name" v-model="travelerEmergencyName" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="trv-emergency-phone">Telepon Kontak Darurat</Label><Input id="trv-emergency-phone" v-model="travelerEmergencyPhone" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="trv-dietary">Dietary Restriction (opsional)</Label><Input id="trv-dietary" v-model="travelerDietary" placeholder="mis. Vegetarian, tanpa seafood" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="trv-accessibility">Accessibility Needs (opsional)</Label><Input id="trv-accessibility" v-model="travelerAccessibility" placeholder="mis. Kursi roda" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="trv-special">Permintaan Khusus Lainnya</Label><Input id="trv-special" v-model="travelerSpecialRequest" />
+                </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" @click="isTravelerDialogOpen = false">Batal</Button>
-                <Button :disabled="!travelerName.trim()" @click="submitTraveler">Simpan</Button>
+                <Button variant="outline" @click="isTravelerDialogOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!travelerName.trim()" @click="submitTraveler">
+                  Simpan
+                </Button>
               </DialogFooter>
             </DialogScrollContent>
           </Dialog>
@@ -323,7 +537,9 @@ function submitChangeRequest() {
               </TableHeader>
               <TableBody>
                 <TableRow v-for="invoice in invoices" :key="invoice.id">
-                  <TableCell class="font-medium text-foreground">{{ invoice.label }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ invoice.label }}
+                  </TableCell>
                   <TableCell>
                     <div class="flex flex-col gap-1">
                       <StatusBadge :label="findStatusOption(INVOICE_TYPES, invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, invoice.invoiceType).tone" />
@@ -332,11 +548,15 @@ function submitChangeRequest() {
                   </TableCell>
                   <TableCell>{{ formatCurrencyIdr(invoice.amountIdr) }}</TableCell>
                   <TableCell :class="isInvoiceOverdue(invoice) ? 'text-destructive' : 'text-muted-foreground'">
-                    {{ formatDate(invoice.dueAt) }}<template v-if="isInvoiceOverdue(invoice)"> ({{ invoiceAgingDays(invoice) * -1 }} hari overdue)</template>
+                    {{ formatDate(invoice.dueAt) }}<template v-if="isInvoiceOverdue(invoice)">
+                      ({{ invoiceAgingDays(invoice) * -1 }} hari overdue)
+                    </template>
                   </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(INVOICE_STATUSES, invoice.status).tone" /></TableCell>
                 </TableRow>
-                <TableEmpty v-if="invoices.length === 0" :colspan="5">Belum ada invoice untuk Project Order ini.</TableEmpty>
+                <TableEmpty v-if="invoices.length === 0" :colspan="5">
+                  Belum ada invoice untuk Project Order ini.
+                </TableEmpty>
               </TableBody>
             </Table>
           </SectionCard>
@@ -356,7 +576,9 @@ function submitChangeRequest() {
             <template #actions>
               <Dialog v-model:open="isChangeDialogOpen">
                 <DialogTrigger as-child>
-                  <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Ajukan Perubahan</Button>
+                  <Button size="sm" variant="outline">
+                    <Plus class="h-4 w-4 mr-1.5" />Ajukan Perubahan
+                  </Button>
                 </DialogTrigger>
                 <DialogContent class="max-w-md">
                   <DialogHeader>
@@ -367,7 +589,9 @@ function submitChangeRequest() {
                     <div class="space-y-1.5">
                       <Label for="change-category">Kategori</Label>
                       <select id="change-category" v-model="changeCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                        <option v-for="cat in CHANGE_CATEGORIES.filter(c => CLIENT_CHANGE_CATEGORIES.includes(c.value))" :key="cat.value" :value="cat.value">{{ cat.label }}</option>
+                        <option v-for="cat in CHANGE_CATEGORIES.filter(c => CLIENT_CHANGE_CATEGORIES.includes(c.value))" :key="cat.value" :value="cat.value">
+                          {{ cat.label }}
+                        </option>
                       </select>
                     </div>
                     <div class="space-y-1.5">
@@ -376,8 +600,12 @@ function submitChangeRequest() {
                     </div>
                   </div>
                   <DialogFooter>
-                    <Button variant="outline" @click="isChangeDialogOpen = false">Batal</Button>
-                    <Button :disabled="!changeReason.trim()" @click="submitChangeRequest">Kirim</Button>
+                    <Button variant="outline" @click="isChangeDialogOpen = false">
+                      Batal
+                    </Button>
+                    <Button :disabled="!changeReason.trim()" @click="submitChangeRequest">
+                      Kirim
+                    </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
@@ -385,11 +613,17 @@ function submitChangeRequest() {
             <ul v-if="projectChangeRequests.length" class="divide-y divide-border">
               <li v-for="item in projectChangeRequests" :key="item.id" class="py-3">
                 <div class="flex items-center justify-between gap-3">
-                  <p class="text-sm font-medium text-foreground">{{ item.afterSummary }}</p>
+                  <p class="text-sm font-medium text-foreground">
+                    {{ item.afterSummary }}
+                  </p>
                   <StatusBadge :label="findStatusOption(CHANGE_REQUEST_STATUSES, item.status).label" :tone="findStatusOption(CHANGE_REQUEST_STATUSES, item.status).tone" />
                 </div>
-                <p class="text-sm text-muted-foreground">Sebelum: {{ item.beforeSummary }}</p>
-                <p class="text-xs text-muted-foreground mt-1">{{ formatDate(item.submittedAt) }}</p>
+                <p class="text-sm text-muted-foreground">
+                  Sebelum: {{ item.beforeSummary }}
+                </p>
+                <p class="text-xs text-muted-foreground mt-1">
+                  {{ formatDate(item.submittedAt) }}
+                </p>
               </li>
             </ul>
             <EmptyState v-else title="Belum ada permintaan perubahan" description="Ajukan perubahan bila ada detail Project Order yang perlu disesuaikan." />
@@ -399,15 +633,208 @@ function submitChangeRequest() {
             <ul v-if="projectIncidents.length" class="divide-y divide-border">
               <li v-for="item in projectIncidents" :key="item.id" class="py-3">
                 <div class="flex items-center justify-between gap-3">
-                  <p class="text-sm font-medium text-foreground">{{ item.title }}</p>
+                  <p class="text-sm font-medium text-foreground">
+                    {{ item.title }}
+                  </p>
                   <StatusBadge :label="findStatusOption(INCIDENT_STATUSES, item.status).label" :tone="findStatusOption(INCIDENT_STATUSES, item.status).tone" />
                 </div>
-                <p v-if="item.resolutionNote" class="text-sm text-muted-foreground mt-1">Resolusi: {{ item.resolutionNote }}</p>
-                <p v-else class="text-sm text-muted-foreground mt-1">Sedang ditangani oleh tim kami.</p>
+                <p v-if="item.resolutionNote" class="text-sm text-muted-foreground mt-1">
+                  Resolusi: {{ item.resolutionNote }}
+                </p>
+                <p v-else class="text-sm text-muted-foreground mt-1">
+                  Sedang ditangani oleh tim kami.
+                </p>
               </li>
             </ul>
             <EmptyState v-else title="Tidak ada Incident tercatat" description="Belum ada insiden operasional yang berkaitan dengan Project Order ini." />
           </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="commodity">
+          <SectionCard title="Kebutuhan Komoditas" description="Kebutuhan komoditas yang Anda ajukan untuk project ini — terpisah dari katalog komoditas milik Vendor.">
+            <template #actions>
+              <Button size="sm" variant="outline" @click="openCreateRequirement">
+                <Plus class="h-4 w-4 mr-1.5" />Tambah Kebutuhan
+              </Button>
+            </template>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Judul</TableHead>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="requirement in requirements" :key="requirement.id">
+                  <TableCell class="font-medium text-foreground">
+                    {{ requirement.title }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(SERVICE_TYPES, requirement.category).label" :tone="findStatusOption(SERVICE_TYPES, requirement.category).tone" />
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ requirement.quantity }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(COMMODITY_REQUIREMENT_STATUSES, requirement.status).label" :tone="findStatusOption(COMMODITY_REQUIREMENT_STATUSES, requirement.status).tone" />
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex items-center gap-2">
+                      <Button size="sm" variant="ghost" @click="viewingRequirement = requirement">
+                        Detail
+                      </Button>
+                      <Button
+                        v-if="['open', 'matching', 'selection-in-progress'].includes(requirement.status)"
+                        size="sm"
+                        @click="router.push(`/client/catalog/${requirement.id}`)"
+                      >
+                        Cari Komoditas
+                      </Button>
+                      <Button v-if="isCommodityRequirementEditable(requirement.status)" size="sm" variant="outline" @click="openEditRequirement(requirement)">
+                        Edit
+                      </Button>
+                      <Button v-if="isCommodityRequirementDeletable(requirement.status)" size="sm" variant="destructive" @click="requestDeleteRequirement(requirement)">
+                        Hapus
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="requirements.length === 0" :colspan="5">
+                  Belum ada kebutuhan komoditas. Klik "Tambah Kebutuhan" untuk mengajukan.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </SectionCard>
+
+          <!-- ── Create/Edit Requirement Dialog ────────────────────────── -->
+          <Dialog v-model:open="isRequirementDialogOpen">
+            <DialogScrollContent class="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>{{ editingRequirement ? 'Edit Kebutuhan Komoditas' : 'Tambah Kebutuhan Komoditas' }}</DialogTitle>
+                <DialogDescription>Kebutuhan ini akan dicocokkan dengan komoditas yang tersedia dari Vendor.</DialogDescription>
+              </DialogHeader>
+              <div class="space-y-4 py-2">
+                <div class="space-y-1.5">
+                  <Label for="req-title">Judul Kebutuhan</Label>
+                  <Input id="req-title" v-model="reqTitle" placeholder="mis. Kamar untuk 20 peserta" />
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                  <div class="space-y-1.5">
+                    <Label for="req-category">Kategori</Label>
+                    <select id="req-category" v-model="reqCategory" :disabled="!!editingRequirement" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                      <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+                        {{ type.label }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="req-quantity">Jumlah</Label>
+                    <Input id="req-quantity" v-model.number="reqQuantity" type="number" placeholder="mis. 10" />
+                  </div>
+                </div>
+
+                <!-- Category-specific fields -->
+                <div v-if="reqCategory === 'flight'" class="grid grid-cols-2 gap-4">
+                  <div class="space-y-1.5">
+                    <Label for="req-flight-origin">Asal</Label><Input id="req-flight-origin" v-model="reqFlightOrigin" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="req-flight-destination">Tujuan</Label><Input id="req-flight-destination" v-model="reqFlightDestination" />
+                  </div>
+                  <div class="space-y-1.5 col-span-2">
+                    <Label for="req-flight-date">Tanggal Keberangkatan</Label><Input id="req-flight-date" v-model="reqFlightDepartureDate" type="date" />
+                  </div>
+                </div>
+                <div v-else-if="reqCategory === 'hotel'" class="grid grid-cols-2 gap-4">
+                  <div class="space-y-1.5">
+                    <Label for="req-hotel-checkin">Check-in</Label><Input id="req-hotel-checkin" v-model="reqHotelCheckIn" type="date" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="req-hotel-checkout">Check-out</Label><Input id="req-hotel-checkout" v-model="reqHotelCheckOut" type="date" />
+                  </div>
+                  <div class="space-y-1.5 col-span-2">
+                    <Label for="req-hotel-rooms">Jumlah Kamar</Label><Input id="req-hotel-rooms" v-model.number="reqHotelRoomCount" type="number" />
+                  </div>
+                </div>
+                <div v-else-if="reqCategory === 'transportation'" class="grid grid-cols-2 gap-4">
+                  <div class="space-y-1.5">
+                    <Label for="req-transport-vehicle">Jenis Kendaraan</Label><Input id="req-transport-vehicle" v-model="reqTransportVehicleType" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="req-transport-date">Tanggal Layanan</Label><Input id="req-transport-date" v-model="reqTransportServiceDate" type="date" />
+                  </div>
+                  <div class="space-y-1.5 col-span-2">
+                    <Label for="req-transport-route">Rute</Label><Input id="req-transport-route" v-model="reqTransportRoute" placeholder="mis. Bandara - Hotel" />
+                  </div>
+                </div>
+                <div v-else-if="reqCategory === 'mice'" class="grid grid-cols-2 gap-4">
+                  <div class="space-y-1.5">
+                    <Label for="req-mice-type">Jenis Event</Label><Input id="req-mice-type" v-model="reqMiceEventType" placeholder="mis. Annual Meeting" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="req-mice-participants">Jumlah Peserta</Label><Input id="req-mice-participants" v-model.number="reqMiceParticipantCount" type="number" />
+                  </div>
+                  <div class="space-y-1.5 col-span-2">
+                    <Label for="req-mice-date">Tanggal Event</Label><Input id="req-mice-date" v-model="reqMiceEventDate" type="date" />
+                  </div>
+                </div>
+
+                <div class="space-y-1.5">
+                  <Label for="req-notes">Catatan (opsional)</Label>
+                  <textarea id="req-notes" v-model="reqNotes" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" @click="isRequirementDialogOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!reqTitle.trim() || !reqQuantity" @click="submitRequirement">
+                  Simpan
+                </Button>
+              </DialogFooter>
+            </DialogScrollContent>
+          </Dialog>
+
+          <!-- ── Requirement Detail Dialog (read-only) ─────────────────── -->
+          <Dialog :open="viewingRequirement !== null" @update:open="val => { if (!val) viewingRequirement = null }">
+            <DialogContent v-if="viewingRequirement" class="max-w-md">
+              <DialogHeader>
+                <DialogTitle>{{ viewingRequirement.title }}</DialogTitle>
+              </DialogHeader>
+              <DetailMetadataList
+                :items="[
+                  { label: 'Kategori', value: findStatusOption(SERVICE_TYPES, viewingRequirement.category).label },
+                  { label: 'Jumlah', value: String(viewingRequirement.quantity) },
+                  { label: 'Status', value: findStatusOption(COMMODITY_REQUIREMENT_STATUSES, viewingRequirement.status).label },
+                  { label: 'Catatan', value: viewingRequirement.notes ?? '—' },
+                  { label: 'Dibuat', value: formatDate(viewingRequirement.createdAt) },
+                ]"
+              />
+            </DialogContent>
+          </Dialog>
+
+          <!-- ── Delete Confirmation Dialog ─────────────────────────────── -->
+          <Dialog :open="confirmDeleteRequirement !== null" @update:open="val => { if (!val) cancelDeleteRequirement() }">
+            <DialogContent v-if="confirmDeleteRequirement" class="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Hapus kebutuhan komoditas?</DialogTitle>
+                <DialogDescription>
+                  "{{ confirmDeleteRequirement.title }}" akan dihapus permanen. Tindakan ini tidak dapat dibatalkan.
+                </DialogDescription>
+              </DialogHeader>
+              <DialogFooter>
+                <Button variant="outline" @click="cancelDeleteRequirement">
+                  Batal
+                </Button>
+                <Button variant="destructive" @click="confirmDeleteRequirementNow">
+                  Hapus
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
       </Tabs>
     </template>

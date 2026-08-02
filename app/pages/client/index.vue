@@ -4,10 +4,10 @@ import { Building2, Briefcase, FolderKanban, Plus, Bell, Mail } from 'lucide-vue
 import {
   getPartyById, getOpportunitiesByParty, getProjectsByParty, getContactsByParty,
   getQuotationByOpportunity, getOpportunityWorkflowStatus, getTravelers, getInvoicesByProject,
-  createContact, createLead, updateLeadQualification, getUserById,
+  createContact, createLead, updateLeadQualification, getUserById
 } from '~/data'
 import { OPPORTUNITY_WORKFLOW_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
-import { formatDateRange, formatDate, formatCurrencyIdr } from '~/utils/format'
+import { formatDateRange, formatCurrencyIdr } from '~/utils/format'
 import { isTravelerDocumentMissing, isInvoiceOverdue } from '~/utils/attention'
 import type { ServiceTypeKey } from '~/types/project'
 
@@ -31,7 +31,7 @@ const party = computed(() => (clientScopeId.value ? getPartyById(clientScopeId.v
 const opportunities = computed(() => (clientScopeId.value ? getOpportunitiesByParty(clientScopeId.value) : []))
 const opportunitiesWithStatus = computed(() => opportunities.value.map(opportunity => ({
   opportunity,
-  workflowStatus: getOpportunityWorkflowStatus(opportunity.id),
+  workflowStatus: getOpportunityWorkflowStatus(opportunity.id)
 })))
 const projects = computed(() => (clientScopeId.value ? getProjectsByParty(clientScopeId.value) : []))
 const contacts = computed(() => (clientScopeId.value ? getContactsByParty(clientScopeId.value) : []))
@@ -47,7 +47,7 @@ const actionItems = computed(() => {
     }
   }
   for (const project of projects.value) {
-    if (['completed', 'cancelled'].includes(project.status)) continue
+    if (['completed', 'cancelled'].includes(project.status)) { continue }
     const missingDocs = getTravelers(project.id).filter(traveler => isTravelerDocumentMissing(traveler, project.travelStartDate))
     if (missingDocs.length > 0) {
       items.push({ key: `docs-${project.id}`, label: `${missingDocs.length} traveler di "${project.name}" belum lengkap dokumennya`, to: `/client/project-orders/${project.id}?tab=travelers`, tone: 'warning' })
@@ -67,14 +67,14 @@ const contactTitle = ref('')
 const contactEmail = ref('')
 const contactPhone = ref('')
 
-function submitContact() {
-  if (!party.value || !contactName.value.trim() || !contactTitle.value.trim()) return
+function submitContact () {
+  if (!party.value || !contactName.value.trim() || !contactTitle.value.trim()) { return }
   createContact({
     partyId: party.value.id,
     name: contactName.value.trim(),
     title: contactTitle.value.trim(),
     email: contactEmail.value.trim() || undefined,
-    phone: contactPhone.value.trim() || undefined,
+    phone: contactPhone.value.trim() || undefined
   })
   contactName.value = ''
   contactTitle.value = ''
@@ -93,20 +93,19 @@ const requestTravelerEstimate = ref<number | null>(null)
 const requestServiceScope = ref<ServiceTypeKey[]>([])
 const requestNotes = ref('')
 
-function toggleRequestServiceScope(type: ServiceTypeKey) {
+function toggleRequestServiceScope (type: ServiceTypeKey) {
   const index = requestServiceScope.value.indexOf(type)
-  if (index === -1) requestServiceScope.value.push(type)
-  else requestServiceScope.value.splice(index, 1)
+  if (index === -1) { requestServiceScope.value.push(type) } else { requestServiceScope.value.splice(index, 1) }
 }
 
-function submitTravelRequest() {
-  if (!party.value || !requestDestination.value.trim()) return
+function submitTravelRequest () {
+  if (!party.value || !requestDestination.value.trim()) { return }
   const lead = createLead({
     name: currentUser.value.name,
     companyName: party.value.name,
     source: 'client-portal',
     ownerId: party.value.accountOwnerId ?? 'USR-001',
-    email: currentUser.value.email,
+    email: currentUser.value.email
   })
   updateLeadQualification(lead.id, {
     destination: requestDestination.value.trim(),
@@ -115,7 +114,7 @@ function submitTravelRequest() {
     travelerEstimate: requestTravelerEstimate.value ?? undefined,
     serviceScope: requestServiceScope.value,
     requirementSummary: requestNotes.value.trim() || undefined,
-    handedOverTo: party.value.accountOwnerId,
+    handedOverTo: party.value.accountOwnerId
   })
   requestDestination.value = ''
   requestStart.value = ''
@@ -138,7 +137,9 @@ function submitTravelRequest() {
       <template v-if="party" #actions>
         <Dialog v-model:open="isRequestDialogOpen">
           <DialogTrigger as-child>
-            <Button size="sm"><Plus class="h-4 w-4 mr-1.5" />Ajukan Travel Request</Button>
+            <Button size="sm">
+              <Plus class="h-4 w-4 mr-1.5" />Ajukan Travel Request
+            </Button>
           </DialogTrigger>
           <DialogScrollContent class="max-w-lg">
             <DialogHeader>
@@ -174,7 +175,9 @@ function submitTravelRequest() {
                     class="rounded-full border px-3 py-1 text-xs transition-colors"
                     :class="requestServiceScope.includes(type.value) ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground'"
                     @click="toggleRequestServiceScope(type.value)"
-                  >{{ type.label }}</button>
+                  >
+                    {{ type.label }}
+                  </button>
                 </div>
               </div>
               <div class="space-y-1.5">
@@ -183,8 +186,12 @@ function submitTravelRequest() {
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isRequestDialogOpen = false">Batal</Button>
-              <Button :disabled="!requestDestination.trim()" @click="submitTravelRequest">Kirim Permintaan</Button>
+              <Button variant="outline" @click="isRequestDialogOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!requestDestination.trim()" @click="submitTravelRequest">
+                Kirim Permintaan
+              </Button>
             </DialogFooter>
           </DialogScrollContent>
         </Dialog>
@@ -214,21 +221,27 @@ function submitTravelRequest() {
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <SectionCard title="Profil Company">
-          <DetailMetadataList :items="[
-            { label: 'Nama Company', value: party.name },
-            { label: 'Kota', value: party.city || '—' },
-            { label: 'Telepon', value: party.phone || '—' },
-          ]" />
+          <DetailMetadataList
+            :items="[
+              { label: 'Nama Company', value: party.name },
+              { label: 'Kota', value: party.city || '—' },
+              { label: 'Telepon', value: party.phone || '—' },
+            ]"
+          />
         </SectionCard>
 
         <SectionCard title="Support">
-          <DetailMetadataList :items="[
-            { label: 'Account Executive', value: accountExecutive?.name ?? 'Belum ditugaskan' },
-          ]" />
+          <DetailMetadataList
+            :items="[
+              { label: 'Account Executive', value: accountExecutive?.name ?? 'Belum ditugaskan' },
+            ]"
+          />
           <a v-if="accountExecutive" :href="`mailto:${accountExecutive.email}`" class="mt-3 inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
             <Mail class="h-4 w-4" />{{ accountExecutive.email }}
           </a>
-          <p class="text-xs text-muted-foreground mt-2">Project Manager per Project Order tersedia di halaman detail masing-masing.</p>
+          <p class="text-xs text-muted-foreground mt-2">
+            Project Manager per Project Order tersedia di halaman detail masing-masing.
+          </p>
         </SectionCard>
       </div>
 
@@ -236,7 +249,9 @@ function submitTravelRequest() {
         <template #actions>
           <Dialog v-model:open="isContactDialogOpen">
             <DialogTrigger as-child>
-              <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Tambah Kontak</Button>
+              <Button size="sm" variant="outline">
+                <Plus class="h-4 w-4 mr-1.5" />Tambah Kontak
+              </Button>
             </DialogTrigger>
             <DialogContent class="max-w-md">
               <DialogHeader>
@@ -244,14 +259,26 @@ function submitTravelRequest() {
                 <DialogDescription>Kontak akan tampil untuk tim kami sebagai referensi komunikasi.</DialogDescription>
               </DialogHeader>
               <div class="space-y-4 py-2">
-                <div class="space-y-1.5"><Label for="contact-name">Nama</Label><Input id="contact-name" v-model="contactName" /></div>
-                <div class="space-y-1.5"><Label for="contact-title">Jabatan</Label><Input id="contact-title" v-model="contactTitle" /></div>
-                <div class="space-y-1.5"><Label for="contact-email">Email</Label><Input id="contact-email" v-model="contactEmail" type="email" /></div>
-                <div class="space-y-1.5"><Label for="contact-phone">Telepon</Label><Input id="contact-phone" v-model="contactPhone" /></div>
+                <div class="space-y-1.5">
+                  <Label for="contact-name">Nama</Label><Input id="contact-name" v-model="contactName" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="contact-title">Jabatan</Label><Input id="contact-title" v-model="contactTitle" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="contact-email">Email</Label><Input id="contact-email" v-model="contactEmail" type="email" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="contact-phone">Telepon</Label><Input id="contact-phone" v-model="contactPhone" />
+                </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" @click="isContactDialogOpen = false">Batal</Button>
-                <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">Simpan</Button>
+                <Button variant="outline" @click="isContactDialogOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
+                  Simpan
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -259,12 +286,20 @@ function submitTravelRequest() {
         <ul v-if="contacts.length" class="divide-y divide-border">
           <li v-for="contact in contacts" :key="contact.id" class="py-3 flex items-center justify-between gap-3">
             <div class="min-w-0">
-              <p class="text-sm font-medium text-foreground truncate">{{ contact.name }}</p>
-              <p class="text-xs text-muted-foreground truncate">{{ contact.title }}</p>
+              <p class="text-sm font-medium text-foreground truncate">
+                {{ contact.name }}
+              </p>
+              <p class="text-xs text-muted-foreground truncate">
+                {{ contact.title }}
+              </p>
             </div>
             <div class="text-right text-xs text-muted-foreground shrink-0">
-              <p v-if="contact.email">{{ contact.email }}</p>
-              <p v-if="contact.phone">{{ contact.phone }}</p>
+              <p v-if="contact.email">
+                {{ contact.email }}
+              </p>
+              <p v-if="contact.phone">
+                {{ contact.phone }}
+              </p>
             </div>
           </li>
         </ul>
@@ -276,8 +311,12 @@ function submitTravelRequest() {
           <li v-for="row in opportunitiesWithStatus" :key="row.opportunity.id" class="py-3">
             <NuxtLink :to="`/client/opportunities/${row.opportunity.id}`" class="flex items-center justify-between gap-3 group">
               <div class="min-w-0">
-                <p class="text-sm font-medium text-foreground truncate group-hover:underline">{{ row.opportunity.title }}</p>
-                <p class="text-xs text-muted-foreground truncate">{{ row.opportunity.destination }}</p>
+                <p class="text-sm font-medium text-foreground truncate group-hover:underline">
+                  {{ row.opportunity.title }}
+                </p>
+                <p class="text-xs text-muted-foreground truncate">
+                  {{ row.opportunity.destination }}
+                </p>
               </div>
               <StatusBadge
                 v-if="row.workflowStatus"
@@ -295,7 +334,9 @@ function submitTravelRequest() {
           <li v-for="project in projects" :key="project.id" class="py-3">
             <NuxtLink :to="`/client/project-orders/${project.id}`" class="flex items-center justify-between gap-3 group">
               <div class="min-w-0">
-                <p class="text-sm font-medium text-foreground truncate group-hover:underline">{{ project.name }}</p>
+                <p class="text-sm font-medium text-foreground truncate group-hover:underline">
+                  {{ project.name }}
+                </p>
                 <p class="text-xs text-muted-foreground truncate">
                   {{ project.destination }} · {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
                 </p>

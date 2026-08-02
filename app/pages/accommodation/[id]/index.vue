@@ -6,11 +6,11 @@ import {
   getHotelBookingById, getHotelBookingMarginIdr, getHotelBookingStatusTransitions,
   updateHotelBooking, updateHotelBookingStatus, selectHotelOption,
   getProjectById, getTravelers, getHotelRoomingList, getTravelerGroups,
-  createCancellationRecord,
+  createCancellationRecord
 } from '~/data'
 import { HOTEL_BOOKING_STATUSES, MEAL_PLANS, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
-import type { HotelBookingStatus, HotelOption, MealPlan } from '~/types/accommodation'
+import type { HotelBookingStatus, HotelOption } from '~/types/accommodation'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
@@ -32,21 +32,21 @@ const marginIdr = computed(() => (booking.value ? getHotelBookingMarginIdr(booki
 const roomingList = computed(() => (booking.value && project.value ? getHotelRoomingList(project.value.id, booking.value.groupId) : []))
 const group = computed(() => (booking.value?.groupId && project.value ? getTravelerGroups(project.value.id).find(g => g.id === booking.value?.groupId) : undefined))
 
-function traveler(id: string) {
+function traveler (id: string) {
   return projectTravelers.value.find(t => t.id === id)
 }
-function travelerName(id: string) {
+function travelerName (id: string) {
   return traveler(id)?.name ?? id
 }
 /** "Traveler special requests" (Wajib) — reuse `Traveler.specialRequest`/`dietaryRestrictions`/`accessibilityNeeds` (Section 11), bukan field baru. */
-function travelerSpecialRequest(id: string) {
+function travelerSpecialRequest (id: string) {
   const t = traveler(id)
-  if (!t) return undefined
+  if (!t) { return undefined }
   return [t.specialRequest, t.dietaryRestrictions, t.accessibilityNeeds].filter(Boolean).join(' · ') || undefined
 }
 
 const summaryMetadata = computed(() => {
-  if (!booking.value) return []
+  if (!booking.value) { return [] }
   return [
     { label: 'Project', value: project.value?.name ?? booking.value.projectId },
     { label: 'Konfirmasi', value: booking.value.confirmationNumber ?? 'Belum terbit' },
@@ -54,7 +54,7 @@ const summaryMetadata = computed(() => {
     { label: 'Check-out', value: booking.value.checkOutDate ? formatDate(booking.value.checkOutDate) : '—' },
     { label: 'Rooms Blocked', value: booking.value.roomsBlocked !== undefined ? `${booking.value.roomsBlocked} kamar` : '—' },
     { label: 'Traveler', value: `${booking.value.travelerIds.length} pax` },
-    { label: 'Dibuat', value: formatDate(booking.value.createdAt) },
+    { label: 'Dibuat', value: formatDate(booking.value.createdAt) }
   ]
 })
 
@@ -67,11 +67,11 @@ const CANCELLATION_TRIGGER_STATUSES: HotelBookingStatus[] = ['cancelled', 'no-sh
 const cancellationPenalty = ref<number | null>(null)
 const cancellationRefundEligible = ref(true)
 
-function statusRequiresReason(status: HotelBookingStatus) {
+function statusRequiresReason (status: HotelBookingStatus) {
   return status === 'cancelled' || status === 'no-show'
 }
 
-function requestStatusChange(newStatus: HotelBookingStatus) {
+function requestStatusChange (newStatus: HotelBookingStatus) {
   if (statusRequiresReason(newStatus)) {
     pendingStatus.value = newStatus
     statusReason.value = ''
@@ -80,29 +80,33 @@ function requestStatusChange(newStatus: HotelBookingStatus) {
     isStatusDialogOpen.value = true
     return
   }
-  if (!booking.value) return
+  if (!booking.value) { return }
   updateHotelBookingStatus(booking.value.id, newStatus, currentUser.value.id)
   showToast('Status Diperbarui', `Hotel Booking kini berstatus "${findStatusOption(HOTEL_BOOKING_STATUSES, newStatus).label}".`, 'success')
 }
 
-function submitStatusChange() {
-  if (!booking.value || !pendingStatus.value || !statusReason.value.trim()) return
+function submitStatusChange () {
+  if (!booking.value || !pendingStatus.value || !statusReason.value.trim()) { return }
   const targetStatus = pendingStatus.value
   const result = updateHotelBookingStatus(booking.value.id, targetStatus, currentUser.value.id, statusReason.value.trim())
   isStatusDialogOpen.value = false
-  if (!result) return
+  if (!result) { return }
   if (CANCELLATION_TRIGGER_STATUSES.includes(targetStatus)) {
     createCancellationRecord({
-      projectId: result.projectId, bookingType: 'hotel', bookingId: result.id,
-      reason: statusReason.value.trim(), penaltyIdr: cancellationPenalty.value ?? undefined,
-      cancelledBy: currentUser.value.id, refundEligible: cancellationRefundEligible.value,
+      projectId: result.projectId,
+      bookingType: 'hotel',
+      bookingId: result.id,
+      reason: statusReason.value.trim(),
+      penaltyIdr: cancellationPenalty.value ?? undefined,
+      cancelledBy: currentUser.value.id,
+      refundEligible: cancellationRefundEligible.value
     })
   }
   showToast('Status Diperbarui', `Hotel Booking kini berstatus "${findStatusOption(HOTEL_BOOKING_STATUSES, targetStatus).label}".`, 'success')
 }
 
-function submitSelectOption(index: number) {
-  if (!booking.value) return
+function submitSelectOption (index: number) {
+  if (!booking.value) { return }
   selectHotelOption(booking.value.id, index)
 }
 
@@ -123,8 +127,8 @@ const editNoShowPenalty = ref<number | null>(null)
 const editTravelerIds = ref<string[]>([])
 const editOptions = ref<HotelOption[]>([])
 
-function openEditDialog() {
-  if (!booking.value) return
+function openEditDialog () {
+  if (!booking.value) { return }
   editConfirmationNumber.value = booking.value.confirmationNumber ?? ''
   editCheckInDate.value = booking.value.checkInDate ?? ''
   editCheckOutDate.value = booking.value.checkOutDate ?? ''
@@ -142,21 +146,21 @@ function openEditDialog() {
   isEditOpen.value = true
 }
 
-function toggleEditTraveler(travelerId: string) {
+function toggleEditTraveler (travelerId: string) {
   editTravelerIds.value = editTravelerIds.value.includes(travelerId)
     ? editTravelerIds.value.filter(id => id !== travelerId)
     : [...editTravelerIds.value, travelerId]
 }
 
-function addOptionRow() {
+function addOptionRow () {
   editOptions.value.push({ propertyName: '', roomType: '', ratePlan: '', mealPlan: 'room-only', ratePerNightIdr: 0 })
 }
-function removeOptionRow(index: number) {
+function removeOptionRow (index: number) {
   editOptions.value.splice(index, 1)
 }
 
-function submitEdit() {
-  if (!booking.value) return
+function submitEdit () {
+  if (!booking.value) { return }
   updateHotelBooking(booking.value.id, {
     confirmationNumber: editConfirmationNumber.value.trim() || undefined,
     checkInDate: editCheckInDate.value || undefined,
@@ -171,7 +175,7 @@ function submitEdit() {
     cancellationPenaltyIdr: editCancellationPenalty.value ?? undefined,
     noShowPenaltyIdr: editNoShowPenalty.value ?? undefined,
     travelerIds: editTravelerIds.value,
-    options: editOptions.value.filter(option => option.propertyName.trim() && option.roomType.trim() && option.ratePerNightIdr > 0),
+    options: editOptions.value.filter(option => option.propertyName.trim() && option.roomType.trim() && option.ratePerNightIdr > 0)
   })
   isEditOpen.value = false
   showToast('Hotel Booking Diperbarui', 'Perubahan berhasil disimpan.', 'success')
@@ -188,7 +192,9 @@ function submitEdit() {
           title="Hotel Booking tidak ditemukan"
           :description="`Hotel Booking dengan ID '${route.params.id}' tidak ada di data demo saat ini.`"
         >
-          <Button @click="router.push('/accommodation')">Kembali ke Daftar Accommodation</Button>
+          <Button @click="router.push('/accommodation')">
+            Kembali ke Daftar Accommodation
+          </Button>
         </EmptyState>
       </SectionCard>
     </template>
@@ -201,23 +207,35 @@ function submitEdit() {
           <div class="flex flex-wrap items-center gap-2">
             <StatusBadge :label="findStatusOption(HOTEL_BOOKING_STATUSES, booking.status).label" :tone="findStatusOption(HOTEL_BOOKING_STATUSES, booking.status).tone" />
             <NuxtLink :to="`/accommodation/${booking.id}/voucher-preview`" target="_blank">
-              <Button size="sm" variant="outline"><Printer class="h-4 w-4 mr-1.5" />Voucher Preview</Button>
+              <Button size="sm" variant="outline">
+                <Printer class="h-4 w-4 mr-1.5" />Voucher Preview
+              </Button>
             </NuxtLink>
             <template v-if="canManageAccommodation">
-              <Button size="sm" variant="outline" @click="openEditDialog">Edit</Button>
+              <Button size="sm" variant="outline" @click="openEditDialog">
+                Edit
+              </Button>
               <Button
-                v-for="next in getHotelBookingStatusTransitions(booking.status)" :key="next"
-                size="sm" :variant="next === 'cancelled' || next === 'no-show' ? 'destructive' : 'outline'"
+                v-for="next in getHotelBookingStatusTransitions(booking.status)"
+                :key="next"
+                size="sm"
+                :variant="next === 'cancelled' || next === 'no-show' ? 'destructive' : 'outline'"
                 @click="requestStatusChange(next)"
-              >{{ findStatusOption(HOTEL_BOOKING_STATUSES, next).label }}</Button>
+              >
+                {{ findStatusOption(HOTEL_BOOKING_STATUSES, next).label }}
+              </Button>
             </template>
           </div>
         </template>
       </PageHeader>
 
       <div v-if="booking.status === 'amended' && booking.amendmentNote" class="rounded-lg border border-purple-500/40 bg-purple-500/5 px-4 py-3 text-sm">
-        <p class="font-semibold text-foreground">Amendment</p>
-        <p class="text-muted-foreground mt-1">{{ booking.amendmentNote }}</p>
+        <p class="font-semibold text-foreground">
+          Amendment
+        </p>
+        <p class="text-muted-foreground mt-1">
+          {{ booking.amendmentNote }}
+        </p>
       </div>
 
       <SectionCard>
@@ -238,23 +256,39 @@ function submitEdit() {
               <TableHead>Meal</TableHead>
               <TableHead>Rate/Malam</TableHead>
               <TableHead>Policies</TableHead>
-              <TableHead v-if="canManageAccommodation">Aksi</TableHead>
+              <TableHead v-if="canManageAccommodation">
+                Aksi
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             <TableRow v-for="(option, index) in booking.options" :key="index">
-              <TableCell class="text-foreground">{{ option.propertyName }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ option.roomType }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ option.ratePlan }}</TableCell>
+              <TableCell class="text-foreground">
+                {{ option.propertyName }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ option.roomType }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ option.ratePlan }}
+              </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(MEAL_PLANS, option.mealPlan).label" :tone="findStatusOption(MEAL_PLANS, option.mealPlan).tone" /></TableCell>
-              <TableCell class="text-foreground">{{ formatCurrencyIdr(option.ratePerNightIdr) }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ option.policies ?? '—' }}</TableCell>
+              <TableCell class="text-foreground">
+                {{ formatCurrencyIdr(option.ratePerNightIdr) }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ option.policies ?? '—' }}
+              </TableCell>
               <TableCell v-if="canManageAccommodation">
                 <StatusBadge v-if="option.isSelected" label="Dipilih" tone="success" />
-                <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">Pilih</Button>
+                <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">
+                  Pilih
+                </Button>
               </TableCell>
             </TableRow>
-            <TableEmpty v-if="booking.options.length === 0" :colspan="canManageAccommodation ? 7 : 6">Belum ada opsi tercatat.</TableEmpty>
+            <TableEmpty v-if="booking.options.length === 0" :colspan="canManageAccommodation ? 7 : 6">
+              Belum ada opsi tercatat.
+            </TableEmpty>
           </TableBody>
         </Table>
       </SectionCard>
@@ -266,8 +300,12 @@ function submitEdit() {
         <ul v-if="roomingList.length" class="divide-y divide-border">
           <li v-for="room in roomingList" :key="room.id" class="py-2 flex items-center justify-between gap-2">
             <div class="min-w-0">
-              <p class="text-sm font-medium text-foreground">{{ room.roomLabel }}</p>
-              <p class="text-xs text-muted-foreground">{{ room.travelerIds.map(travelerName).join(', ') || 'Belum ada traveler ditugaskan' }}</p>
+              <p class="text-sm font-medium text-foreground">
+                {{ room.roomLabel }}
+              </p>
+              <p class="text-xs text-muted-foreground">
+                {{ room.travelerIds.map(travelerName).join(', ') || 'Belum ada traveler ditugaskan' }}
+              </p>
             </div>
             <StatusBadge :label="room.roomType" tone="info" />
           </li>
@@ -278,8 +316,12 @@ function submitEdit() {
       <SectionCard title="Traveler / Special Requests" :description="`${booking.travelerIds.length} traveler ditugaskan pada booking ini`">
         <ul v-if="booking.travelerIds.length" class="divide-y divide-border">
           <li v-for="travelerId in booking.travelerIds" :key="travelerId" class="py-2">
-            <p class="text-sm font-medium text-foreground">{{ travelerName(travelerId) }}</p>
-            <p v-if="travelerSpecialRequest(travelerId)" class="text-xs text-muted-foreground mt-0.5">{{ travelerSpecialRequest(travelerId) }}</p>
+            <p class="text-sm font-medium text-foreground">
+              {{ travelerName(travelerId) }}
+            </p>
+            <p v-if="travelerSpecialRequest(travelerId)" class="text-xs text-muted-foreground mt-0.5">
+              {{ travelerSpecialRequest(travelerId) }}
+            </p>
           </li>
         </ul>
         <EmptyState v-else title="Belum ada traveler ditugaskan" />
@@ -288,25 +330,47 @@ function submitEdit() {
       <SectionCard title="Financial" description="Cancellation deadline, penalty, dan dampak finansial.">
         <div class="grid gap-3 sm:grid-cols-3 mb-3">
           <div v-if="canViewAccommodationFinancials" class="rounded-lg border border-border p-3">
-            <p class="text-xs text-muted-foreground">Net Cost (Internal)</p>
-            <p class="text-lg font-semibold text-foreground">{{ booking.netCostIdr !== undefined ? formatCurrencyIdr(booking.netCostIdr) : '—' }}</p>
+            <p class="text-xs text-muted-foreground">
+              Net Cost (Internal)
+            </p>
+            <p class="text-lg font-semibold text-foreground">
+              {{ booking.netCostIdr !== undefined ? formatCurrencyIdr(booking.netCostIdr) : '—' }}
+            </p>
           </div>
           <div class="rounded-lg border border-border p-3">
-            <p class="text-xs text-muted-foreground">Sell Price (Client)</p>
-            <p class="text-lg font-semibold text-foreground">{{ booking.sellPriceIdr !== undefined ? formatCurrencyIdr(booking.sellPriceIdr) : '—' }}</p>
+            <p class="text-xs text-muted-foreground">
+              Sell Price (Client)
+            </p>
+            <p class="text-lg font-semibold text-foreground">
+              {{ booking.sellPriceIdr !== undefined ? formatCurrencyIdr(booking.sellPriceIdr) : '—' }}
+            </p>
           </div>
           <div v-if="canViewAccommodationFinancials" class="rounded-lg border border-border p-3">
-            <p class="text-xs text-muted-foreground">Margin</p>
-            <p class="text-lg font-semibold text-foreground">{{ marginIdr !== undefined ? formatCurrencyIdr(marginIdr) : '—' }}</p>
+            <p class="text-xs text-muted-foreground">
+              Margin
+            </p>
+            <p class="text-lg font-semibold text-foreground">
+              {{ marginIdr !== undefined ? formatCurrencyIdr(marginIdr) : '—' }}
+            </p>
           </div>
         </div>
         <div class="grid gap-3 sm:grid-cols-3 mb-3 text-sm">
-          <p class="text-muted-foreground">Cancellation Deadline: <span class="text-foreground">{{ booking.cancellationDeadline ? formatDate(booking.cancellationDeadline) : '—' }}</span></p>
-          <p class="text-muted-foreground">Cancellation Penalty: <span class="text-foreground">{{ booking.cancellationPenaltyIdr !== undefined ? formatCurrencyIdr(booking.cancellationPenaltyIdr) : '—' }}</span></p>
-          <p class="text-muted-foreground">No-Show Penalty: <span class="text-foreground">{{ booking.noShowPenaltyIdr !== undefined ? formatCurrencyIdr(booking.noShowPenaltyIdr) : '—' }}</span></p>
+          <p class="text-muted-foreground">
+            Cancellation Deadline: <span class="text-foreground">{{ booking.cancellationDeadline ? formatDate(booking.cancellationDeadline) : '—' }}</span>
+          </p>
+          <p class="text-muted-foreground">
+            Cancellation Penalty: <span class="text-foreground">{{ booking.cancellationPenaltyIdr !== undefined ? formatCurrencyIdr(booking.cancellationPenaltyIdr) : '—' }}</span>
+          </p>
+          <p class="text-muted-foreground">
+            No-Show Penalty: <span class="text-foreground">{{ booking.noShowPenaltyIdr !== undefined ? formatCurrencyIdr(booking.noShowPenaltyIdr) : '—' }}</span>
+          </p>
         </div>
-        <p v-if="booking.statusReason" class="text-sm text-foreground whitespace-pre-line">{{ booking.statusReason }}</p>
-        <p v-if="!canViewAccommodationFinancials" class="mt-2 text-xs text-muted-foreground">Net cost internal tidak ditampilkan untuk role ini.</p>
+        <p v-if="booking.statusReason" class="text-sm text-foreground whitespace-pre-line">
+          {{ booking.statusReason }}
+        </p>
+        <p v-if="!canViewAccommodationFinancials" class="mt-2 text-xs text-muted-foreground">
+          Net cost internal tidak ditampilkan untuk role ini.
+        </p>
       </SectionCard>
 
       <!-- Status change dialog (cancelled/no-show — reason wajib) -->
@@ -330,12 +394,18 @@ function submitEdit() {
                 <Checkbox v-model="cancellationRefundEligible" />
                 Refund Eligible
               </label>
-              <p class="text-xs text-muted-foreground">Sebuah Cancellation Record akan otomatis dicatat (Section 19) — dapat ditindaklanjuti dengan Refund Request di modul Changes & Incidents.</p>
+              <p class="text-xs text-muted-foreground">
+                Sebuah Cancellation Record akan otomatis dicatat (Section 19) — dapat ditindaklanjuti dengan Refund Request di modul Changes & Incidents.
+              </p>
             </template>
           </div>
           <DialogFooter>
-            <Button variant="outline" @click="isStatusDialogOpen = false">Batal</Button>
-            <Button variant="destructive" :disabled="!statusReason.trim()" @click="submitStatusChange">Konfirmasi</Button>
+            <Button variant="outline" @click="isStatusDialogOpen = false">
+              Batal
+            </Button>
+            <Button variant="destructive" :disabled="!statusReason.trim()" @click="submitStatusChange">
+              Konfirmasi
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -401,20 +471,28 @@ function submitEdit() {
             <div class="space-y-2 pt-2 border-t border-border">
               <div class="flex items-center justify-between">
                 <Label>Hotel Options</Label>
-                <Button size="sm" variant="outline" type="button" @click="addOptionRow"><Plus class="h-3.5 w-3.5 mr-1" />Tambah</Button>
+                <Button size="sm" variant="outline" type="button" @click="addOptionRow">
+                  <Plus class="h-3.5 w-3.5 mr-1" />Tambah
+                </Button>
               </div>
               <div v-for="(option, index) in editOptions" :key="index" class="grid grid-cols-12 gap-2 items-center">
                 <Input v-model="option.propertyName" placeholder="Property" class="col-span-3 h-8 text-xs" />
                 <Input v-model="option.roomType" placeholder="Room Type" class="col-span-2 h-8 text-xs" />
                 <Input v-model="option.ratePlan" placeholder="Rate Plan" class="col-span-2 h-8 text-xs" />
                 <select v-model="option.mealPlan" class="col-span-2 appearance-none px-2 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="meal in MEAL_PLANS" :key="meal.value" :value="meal.value">{{ meal.label }}</option>
+                  <option v-for="meal in MEAL_PLANS" :key="meal.value" :value="meal.value">
+                    {{ meal.label }}
+                  </option>
                 </select>
                 <Input v-model.number="option.ratePerNightIdr" type="number" placeholder="Rate/Malam" class="col-span-2 h-8 text-xs" />
-                <button type="button" class="col-span-1 text-muted-foreground hover:text-destructive" @click="removeOptionRow(index)"><Trash2 class="h-4 w-4" /></button>
+                <button type="button" class="col-span-1 text-muted-foreground hover:text-destructive" @click="removeOptionRow(index)">
+                  <Trash2 class="h-4 w-4" />
+                </button>
                 <Input v-model="option.policies" placeholder="Policies (opsional)" class="col-span-11 h-8 text-xs" />
               </div>
-              <p v-if="editOptions.length === 0" class="text-xs text-muted-foreground">Belum ada opsi — klik "Tambah".</p>
+              <p v-if="editOptions.length === 0" class="text-xs text-muted-foreground">
+                Belum ada opsi — klik "Tambah".
+              </p>
             </div>
 
             <div class="space-y-2 pt-2 border-t border-border">
@@ -433,8 +511,12 @@ function submitEdit() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" @click="isEditOpen = false">Batal</Button>
-            <Button @click="submitEdit">Simpan</Button>
+            <Button variant="outline" @click="isEditOpen = false">
+              Batal
+            </Button>
+            <Button @click="submitEdit">
+              Simpan
+            </Button>
           </DialogFooter>
         </DialogScrollContent>
       </Dialog>

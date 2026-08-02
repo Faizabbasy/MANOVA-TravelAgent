@@ -46,12 +46,12 @@ const filteredEntries = computed(() => {
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.trim().toLowerCase()
     result = result.filter(e =>
-      e.message.toLowerCase().includes(q)
-      || (e.reason ?? '').toLowerCase().includes(q)
-      || (e.impactNote ?? '').toLowerCase().includes(q)
-      || (e.category ?? '').toLowerCase().includes(q)
-      || (e.beforeValue ?? '').toLowerCase().includes(q)
-      || (e.afterValue ?? '').toLowerCase().includes(q),
+      e.message.toLowerCase().includes(q) ||
+      (e.reason ?? '').toLowerCase().includes(q) ||
+      (e.impactNote ?? '').toLowerCase().includes(q) ||
+      (e.category ?? '').toLowerCase().includes(q) ||
+      (e.beforeValue ?? '').toLowerCase().includes(q) ||
+      (e.afterValue ?? '').toLowerCase().includes(q)
     )
   }
   return result
@@ -60,7 +60,7 @@ const filteredEntries = computed(() => {
 // Log Sistem (Non-Project) — SystemEvent, module 'administration' dkk. (Prompt 19 + Section 23). Search-only, TIDAK punya 3 filter dropdown existing (scope berbeda dari ActivityEntry — lintas-modul, bukan project-scoped).
 const allSystemEvents = [...SYSTEM_EVENTS].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 const filteredSystemEvents = computed(() => {
-  if (!searchQuery.value.trim()) return allSystemEvents
+  if (!searchQuery.value.trim()) { return allSystemEvents }
   const q = searchQuery.value.trim().toLowerCase()
   return allSystemEvents.filter(e => e.message.toLowerCase().includes(q) || e.type.toLowerCase().includes(q) || e.module.toLowerCase().includes(q))
 })
@@ -70,15 +70,15 @@ const totalEntries = computed(() => allEntries.length)
 const changeCount = computed(() => allEntries.filter(e => e.isChange).length)
 const unreviewedCount = computed(() => allEntries.filter(e => e.isChange && !e.reviewed).length)
 
-function userLabel(userId?: string): string {
-  if (!userId) return '—'
+function userLabel (userId?: string): string {
+  if (!userId) { return '—' }
   const user = getUserById(userId)
-  if (!user) return userId
+  if (!user) { return userId }
   const roleLabel = findStatusOption(ROLES, user.role).label
   return `${user.name} (${roleLabel})`
 }
 
-function projectLabel(projectId: string): string {
+function projectLabel (projectId: string): string {
   return getProjectById(projectId)?.name ?? projectId
 }
 
@@ -89,7 +89,7 @@ const CAT_TONE: Record<string, string> = {
   service: 'purple',
   vendor: 'warning',
   budget: 'destructive',
-  other: 'neutral',
+  other: 'neutral'
 }
 </script>
 
@@ -107,15 +107,25 @@ const CAT_TONE: Record<string, string> = {
       <!-- Summary stats -->
       <div class="grid grid-cols-3 gap-3">
         <div class="rounded-xl border border-border bg-card px-4 py-3 text-sm">
-          <p class="text-muted-foreground text-xs mb-0.5">Total Entri</p>
-          <p class="text-xl font-semibold text-foreground">{{ totalEntries }}</p>
+          <p class="text-muted-foreground text-xs mb-0.5">
+            Total Entri
+          </p>
+          <p class="text-xl font-semibold text-foreground">
+            {{ totalEntries }}
+          </p>
         </div>
         <div class="rounded-xl border border-border bg-card px-4 py-3 text-sm">
-          <p class="text-muted-foreground text-xs mb-0.5">Perubahan (isChange)</p>
-          <p class="text-xl font-semibold text-foreground">{{ changeCount }}</p>
+          <p class="text-muted-foreground text-xs mb-0.5">
+            Perubahan (isChange)
+          </p>
+          <p class="text-xl font-semibold text-foreground">
+            {{ changeCount }}
+          </p>
         </div>
         <div class="rounded-xl border border-border bg-card px-4 py-3 text-sm">
-          <p class="text-muted-foreground text-xs mb-0.5">Perubahan Belum Ditinjau</p>
+          <p class="text-muted-foreground text-xs mb-0.5">
+            Perubahan Belum Ditinjau
+          </p>
           <p class="text-xl font-semibold" :class="unreviewedCount > 0 ? 'text-warning' : 'text-success'">
             {{ unreviewedCount }}
           </p>
@@ -134,7 +144,9 @@ const CAT_TONE: Record<string, string> = {
           v-model="projectFilter"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="all">Semua Project</option>
+          <option value="all">
+            Semua Project
+          </option>
           <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
             {{ project.name }}
           </option>
@@ -144,18 +156,30 @@ const CAT_TONE: Record<string, string> = {
           v-model="typeFilter"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="all">Semua Tipe</option>
-          <option value="change">Perubahan saja</option>
-          <option value="activity">Aktivitas saja</option>
+          <option value="all">
+            Semua Tipe
+          </option>
+          <option value="change">
+            Perubahan saja
+          </option>
+          <option value="activity">
+            Aktivitas saja
+          </option>
         </select>
 
         <select
           v-model="reviewFilter"
           class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
         >
-          <option value="all">Semua Status Tinjauan</option>
-          <option value="reviewed">Sudah Ditinjau</option>
-          <option value="unreviewed">Belum Ditinjau</option>
+          <option value="all">
+            Semua Status Tinjauan
+          </option>
+          <option value="reviewed">
+            Sudah Ditinjau
+          </option>
+          <option value="unreviewed">
+            Belum Ditinjau
+          </option>
         </select>
 
         <span class="text-xs text-muted-foreground ml-auto">
@@ -179,7 +203,9 @@ const CAT_TONE: Record<string, string> = {
           >
             <div class="flex items-start justify-between gap-4">
               <div class="flex-1 min-w-0">
-                <p class="text-sm text-foreground leading-snug">{{ entry.message }}</p>
+                <p class="text-sm text-foreground leading-snug">
+                  {{ entry.message }}
+                </p>
                 <p class="text-xs text-muted-foreground mt-0.5">
                   <span class="font-medium text-foreground/70">{{ projectLabel(entry.projectId) }}</span>
                   &nbsp;·&nbsp;{{ formatDateTime(entry.createdAt) }}
@@ -266,13 +292,17 @@ const CAT_TONE: Record<string, string> = {
         <ul v-else class="divide-y divide-border">
           <li v-for="event in filteredSystemEvents" :key="event.id" class="py-3 space-y-1">
             <div class="flex items-start justify-between gap-4">
-              <p class="text-sm text-foreground leading-snug flex-1 min-w-0">{{ event.message }}</p>
+              <p class="text-sm text-foreground leading-snug flex-1 min-w-0">
+                {{ event.message }}
+              </p>
               <StatusBadge :label="event.module" tone="neutral" class="shrink-0" />
             </div>
             <p class="text-xs text-muted-foreground">
               <span class="font-mono">{{ event.type }}</span>
               &nbsp;·&nbsp;{{ formatDateTime(event.createdAt) }}
-              <template v-if="event.userId">&nbsp;·&nbsp;{{ userLabel(event.userId) }}</template>
+              <template v-if="event.userId">
+                &nbsp;·&nbsp;{{ userLabel(event.userId) }}
+              </template>
               &nbsp;·&nbsp;<span class="font-mono text-xs">{{ event.id }}</span>
             </p>
           </li>

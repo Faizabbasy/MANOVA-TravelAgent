@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Building2, Package, FileText, ClipboardList, Send, Bell } from 'lucide-vue-next'
-import { getVendorById, getServicesByVendor, getVendorQuotations, getVendorProducts, getRfqsForVendor, getServiceOrdersByVendor, getSupplierInvoicesByServiceOrder } from '~/data'
+import { Building2, Package, FileText, ClipboardList, Send, Bell, Layers, UploadCloud, PackageX } from 'lucide-vue-next'
+import { getVendorById, getServicesByVendor, getVendorQuotations, getVendorProducts, getRfqsForVendor, getServiceOrdersByVendor, getSupplierInvoicesByServiceOrder, getCommodityProductsByVendor } from '~/data'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Supplier Portal' })
@@ -17,10 +17,15 @@ const products = computed(() => (vendorScopeId.value ? getVendorProducts(vendorS
 const rfqs = computed(() => (vendorScopeId.value ? getRfqsForVendor(vendorScopeId.value) : []))
 const serviceOrders = computed(() => (vendorScopeId.value ? getServiceOrdersByVendor(vendorScopeId.value) : []))
 
-const acceptedQuotationCount = computed(() => quotations.value.filter(q => q.status === 'accepted').length)
 const pendingQuotationCount = computed(() => quotations.value.filter(q => q.status === 'submitted').length)
 const rfqNeedingResponseCount = computed(() => rfqs.value.filter(rfq => ['sent', 'responses-in', 'comparison', 'clarification'].includes(rfq.status)).length)
 const activeServiceOrderCount = computed(() => serviceOrders.value.filter(so => !['fulfilled', 'cancelled'].includes(so.status)).length)
+
+/** Commodity summary (Phase 2 — Client–Vendor Commodity) — dihitung real dari `getCommodityProductsByVendor`, mengisi gap "Belum Ada" pada audit Phase 0 (Section Vendor Dashboard). */
+const commodities = computed(() => (vendorScopeId.value ? getCommodityProductsByVendor(vendorScopeId.value) : []))
+const draftCommodityCount = computed(() => commodities.value.filter(c => c.status === 'draft').length)
+const publishedCommodityCount = computed(() => commodities.value.filter(c => ['published', 'available', 'limited'].includes(c.status)).length)
+const soldOutCommodityCount = computed(() => commodities.value.filter(c => c.status === 'sold-out').length)
 
 /**
  * Action Center (Section 22) — mengagregasi item actionable milik vendor login, seluruhnya reuse selector
@@ -66,6 +71,15 @@ const actionItems = computed(() => {
         <StatsCard title="Service Order Aktif" :value="String(activeServiceOrderCount)" :icon="Send" icon-color="warning" />
       </div>
 
+      <SectionCard title="Ringkasan Komoditas" description="Commodity Product milik company Anda.">
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatsCard title="Total Komoditas" :value="String(commodities.length)" :icon="Layers" />
+          <StatsCard title="Draft" :value="String(draftCommodityCount)" :icon="Package" />
+          <StatsCard title="Published" :value="String(publishedCommodityCount)" :icon="UploadCloud" icon-color="success" />
+          <StatsCard title="Sold Out" :value="String(soldOutCommodityCount)" :icon="PackageX" icon-color="destructive" />
+        </div>
+      </SectionCard>
+
       <SectionCard title="Action Center" description="Hal-hal yang perlu tindakan Anda.">
         <ul v-if="actionItems.length" class="divide-y divide-border">
           <li v-for="item in actionItems" :key="item.key" class="py-3">
@@ -79,14 +93,21 @@ const actionItems = computed(() => {
       </SectionCard>
 
       <SectionCard title="Profil Company">
-        <DetailMetadataList :items="[
-          { label: 'Nama Company', value: vendor.name },
-          { label: 'Jenis Layanan Utama', value: vendor.serviceType },
-          { label: 'Contact', value: vendor.contactName },
-        ]" />
+        <DetailMetadataList
+          :items="[
+            { label: 'Nama Company', value: vendor.name },
+            { label: 'Jenis Layanan Utama', value: vendor.serviceType },
+            { label: 'Contact', value: vendor.contactName },
+          ]"
+        />
       </SectionCard>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <NuxtLink to="/supplier/commodities">
+          <SectionCard title="Kelola Komoditas" :description="`${commodities.length} komoditas — publish, variant, dan availability.`">
+            <Layers class="h-5 w-5 text-muted-foreground" />
+          </SectionCard>
+        </NuxtLink>
         <NuxtLink to="/supplier/products">
           <SectionCard title="Kelola Produk/Layanan" description="Katalog produk/layanan milik company Anda.">
             <Package class="h-5 w-5 text-muted-foreground" />

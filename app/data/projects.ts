@@ -9,28 +9,64 @@ import type { Project, ProjectService, TravelerGroup, Traveler, RoomAssignment, 
 /** docs/mockup-data-scenarios.md bagian 1-3 — 3 skenario demo wajib (Normal/High-Change/Complex). */
 export const PROJECTS: Project[] = reactive([
   {
-    id: 'PRJ-101', name: 'Manila Business Trip', partyId: 'PTY-001', opportunityId: 'OPP-001',
-    destination: 'Manila, Filipina', travelStartDate: '2026-08-20', travelEndDate: '2026-08-23',
-    characteristic: 'normal', serviceScope: ['flight'], travelerCount: 6,
-    ownerId: 'USR-002', teamUserIds: ['USR-004'], status: 'confirmed',
-    quotationAmountIdr: 95_000_000, budgetIdr: 85_000_000, actualCostIdr: 82_500_000,
-    handoverAcceptedAt: '2026-06-26', handoverAcceptedBy: 'USR-002',
+    id: 'PRJ-101',
+    name: 'Manila Business Trip',
+    partyId: 'PTY-001',
+    opportunityId: 'OPP-001',
+    destination: 'Manila, Filipina',
+    travelStartDate: '2026-08-20',
+    travelEndDate: '2026-08-23',
+    characteristic: 'normal',
+    serviceScope: ['flight'],
+    travelerCount: 6,
+    ownerId: 'USR-002',
+    teamUserIds: ['USR-004'],
+    status: 'confirmed',
+    quotationAmountIdr: 95_000_000,
+    budgetIdr: 85_000_000,
+    actualCostIdr: 82_500_000,
+    handoverAcceptedAt: '2026-06-26',
+    handoverAcceptedBy: 'USR-002'
   },
   {
-    id: 'PRJ-102', name: 'Abu Dhabi Corporate Gathering', partyId: 'PTY-002', opportunityId: 'OPP-002',
-    destination: 'Abu Dhabi, Uni Emirat Arab', travelStartDate: '2026-09-22', travelEndDate: '2026-09-26',
-    characteristic: 'high-change', serviceScope: ['flight', 'hotel'], travelerCount: 18,
-    ownerId: 'USR-013', teamUserIds: ['USR-004', 'USR-005'], status: 'planning',
-    quotationAmountIdr: 345_000_000, budgetIdr: 310_000_000, actualCostIdr: 335_000_000,
-    handoverAcceptedAt: '2026-06-21', handoverAcceptedBy: 'USR-013',
+    id: 'PRJ-102',
+    name: 'Abu Dhabi Corporate Gathering',
+    partyId: 'PTY-002',
+    opportunityId: 'OPP-002',
+    destination: 'Abu Dhabi, Uni Emirat Arab',
+    travelStartDate: '2026-09-22',
+    travelEndDate: '2026-09-26',
+    characteristic: 'high-change',
+    serviceScope: ['flight', 'hotel'],
+    travelerCount: 18,
+    ownerId: 'USR-013',
+    teamUserIds: ['USR-004', 'USR-005'],
+    status: 'planning',
+    quotationAmountIdr: 345_000_000,
+    budgetIdr: 310_000_000,
+    actualCostIdr: 335_000_000,
+    handoverAcceptedAt: '2026-06-21',
+    handoverAcceptedBy: 'USR-013'
   },
   {
-    id: 'PRJ-103', name: 'Palu MICE Conference 2026', partyId: 'PTY-003', opportunityId: 'OPP-003',
-    destination: 'Palu, Indonesia', travelStartDate: '2026-08-10', travelEndDate: '2026-08-14',
-    characteristic: 'complex', serviceScope: ['flight', 'hotel', 'transportation', 'mice'], travelerCount: 60,
-    ownerId: 'USR-002', teamUserIds: ['USR-004', 'USR-005', 'USR-006', 'USR-007', 'USR-009'], status: 'in-progress',
-    quotationAmountIdr: 1_400_000_000, budgetIdr: 1_250_000_000, actualCostIdr: 1_180_000_000,
-    handoverAcceptedAt: '2026-06-06', handoverAcceptedBy: 'USR-002',
+    id: 'PRJ-103',
+    name: 'Palu MICE Conference 2026',
+    partyId: 'PTY-003',
+    opportunityId: 'OPP-003',
+    destination: 'Palu, Indonesia',
+    travelStartDate: '2026-08-10',
+    travelEndDate: '2026-08-14',
+    characteristic: 'complex',
+    serviceScope: ['flight', 'hotel', 'transportation', 'mice'],
+    travelerCount: 60,
+    ownerId: 'USR-002',
+    teamUserIds: ['USR-004', 'USR-005', 'USR-006', 'USR-007', 'USR-009'],
+    status: 'in-progress',
+    quotationAmountIdr: 1_400_000_000,
+    budgetIdr: 1_250_000_000,
+    actualCostIdr: 1_180_000_000,
+    handoverAcceptedAt: '2026-06-06',
+    handoverAcceptedBy: 'USR-002'
   },
   /**
    * PRJ-104 (Prompt 19 — Change Request) — Project Order kedua untuk repeat client PTY-001 (sumber:
@@ -42,12 +78,24 @@ export const PROJECTS: Project[] = reactive([
    * Return Handover benar-benar demonstrable pada data yang realistis (project yang memang baru saja Won).
    */
   {
-    id: 'PRJ-104', name: 'Manila Follow-up Training Q1 2027', partyId: 'PTY-001', opportunityId: 'OPP-008',
-    sourceQuotationId: 'QUO-008', destination: 'Manila, Filipina', travelStartDate: '2027-02-16', travelEndDate: '2027-02-18',
-    characteristic: 'normal', serviceScope: ['flight'], travelerCount: 8,
-    ownerId: 'USR-002', teamUserIds: [], status: 'draft',
-    quotationAmountIdr: 60_000_000, budgetIdr: 60_000_000, actualCostIdr: 0,
-  },
+    id: 'PRJ-104',
+    name: 'Manila Follow-up Training Q1 2027',
+    partyId: 'PTY-001',
+    opportunityId: 'OPP-008',
+    sourceQuotationId: 'QUO-008',
+    destination: 'Manila, Filipina',
+    travelStartDate: '2027-02-16',
+    travelEndDate: '2027-02-18',
+    characteristic: 'normal',
+    serviceScope: ['flight'],
+    travelerCount: 8,
+    ownerId: 'USR-002',
+    teamUserIds: [],
+    status: 'draft',
+    quotationAmountIdr: 60_000_000,
+    budgetIdr: 60_000_000,
+    actualCostIdr: 0
+  }
 ])
 
 /**
@@ -72,7 +120,7 @@ export const PROJECT_SERVICES: ProjectService[] = reactive([
   { id: 'SVC-1033', projectId: 'PRJ-103', type: 'hotel', label: 'Hotel Palu', status: 'confirmed', vendorId: 'VND-002', bookingReference: 'HTL-PLW-2200' },
   { id: 'SVC-1034', projectId: 'PRJ-103', type: 'transportation', label: 'Ground Transportation', status: 'pending-confirmation', vendorId: 'VND-003' },
   { id: 'SVC-1035', projectId: 'PRJ-103', type: 'mice', label: 'Venue & Rundown Acara', status: 'confirmed', vendorId: 'VND-004', bookingReference: 'MICE-PLW-VEN01' },
-  { id: 'SVC-1036', projectId: 'PRJ-103', type: 'additional', label: 'Asuransi Perjalanan Grup', status: 'confirmed', bookingReference: 'INS-PLW-2026' },
+  { id: 'SVC-1036', projectId: 'PRJ-103', type: 'additional', label: 'Asuransi Perjalanan Grup', status: 'confirmed', bookingReference: 'INS-PLW-2026' }
 ])
 
 /** Daily itinerary (Section 12) — jadwal harian per project, `groupId` merujuk `TravelerGroup` (Section 11) yang sudah ada. */
@@ -105,7 +153,7 @@ export const ITINERARY_ITEMS: ItineraryItem[] = reactive([
   { id: 'ITIN-1034', projectId: 'PRJ-103', date: '2026-08-12', time: '08:00', title: 'MICE Conference — Hari 2', serviceType: 'mice', timezone: 'Asia/Makassar' },
   { id: 'ITIN-1035', projectId: 'PRJ-103', date: '2026-08-13', time: '10:00', title: 'City Tour & Free Program', serviceType: 'transportation', timezone: 'Asia/Makassar' },
   { id: 'ITIN-1036', projectId: 'PRJ-103', date: '2026-08-14', time: '16:00', title: 'Kepulangan Seluruh Group', serviceType: 'flight', timezone: 'Asia/Makassar' },
-  { id: 'ITIN-1037', projectId: 'PRJ-103', date: '2026-08-11', time: '07:00', title: 'Briefing Tim Operations Sebelum Hari MICE', description: 'Cek kesiapan venue dan AV, alokasi shift staf — tidak ditampilkan ke client', timezone: 'Asia/Makassar', visibleToClient: false },
+  { id: 'ITIN-1037', projectId: 'PRJ-103', date: '2026-08-11', time: '07:00', title: 'Briefing Tim Operations Sebelum Hari MICE', description: 'Cek kesiapan venue dan AV, alokasi shift staf — tidak ditampilkan ke client', timezone: 'Asia/Makassar', visibleToClient: false }
 ])
 
 /**
@@ -121,7 +169,7 @@ export const ITINERARY_ITEMS: ItineraryItem[] = reactive([
 export const TRAVELER_GROUPS: TravelerGroup[] = reactive([
   { id: 'GRP-001', projectId: 'PRJ-103', name: 'Management', paxCount: 10, roomingNote: '5 kamar twin (10 pax)' },
   { id: 'GRP-002', projectId: 'PRJ-103', name: 'Sales Team', paxCount: 25, roomingNote: '12 kamar twin + 1 kamar single (25 pax)' },
-  { id: 'GRP-003', projectId: 'PRJ-103', name: 'Partner / VIP', paxCount: 25, roomingNote: '2 suite VIP (termasuk kebutuhan aksesibilitas)' },
+  { id: 'GRP-003', projectId: 'PRJ-103', name: 'Partner / VIP', paxCount: 25, roomingNote: '2 suite VIP (termasuk kebutuhan aksesibilitas)' }
 ])
 
 /**
@@ -158,12 +206,12 @@ export const TRAVELERS: Traveler[] = reactive([
   { id: 'TRV-1033', projectId: 'PRJ-103', groupId: 'GRP-001', name: 'Putri Anggraeni', passportNumber: 'D3334563', passportExpiryDate: '2028-12-25', emergencyContactName: 'Rudi Anggraeni', emergencyContactPhone: '0814-3000-3003' },
   { id: 'TRV-1034', projectId: 'PRJ-103', groupId: 'GRP-002', name: 'Taufik Hidayat', emergencyContactName: 'Sinta Hidayat', emergencyContactPhone: '0814-3000-3004' },
   { id: 'TRV-1035', projectId: 'PRJ-103', groupId: 'GRP-002', name: 'Ayu Wulandari', passportNumber: 'D3334565', passportExpiryDate: '2029-05-30' },
-  { id: 'TRV-1036', projectId: 'PRJ-103', groupId: 'GRP-003', name: 'Reza Firmansyah', passportNumber: 'D3334566', passportExpiryDate: '2028-08-08', emergencyContactName: 'Nia Firmansyah', emergencyContactPhone: '0814-3000-3006', companionOfTravelerId: 'TRV-1031' },
+  { id: 'TRV-1036', projectId: 'PRJ-103', groupId: 'GRP-003', name: 'Reza Firmansyah', passportNumber: 'D3334566', passportExpiryDate: '2028-08-08', emergencyContactName: 'Nia Firmansyah', emergencyContactPhone: '0814-3000-3006', companionOfTravelerId: 'TRV-1031' }
 ])
 
 /** Rooming list eksplisit (Section 11) — hanya untuk traveler bernama yang datanya sudah tercatat di atas. */
 export const ROOM_ASSIGNMENTS: RoomAssignment[] = reactive([
   { id: 'ROOM-001', projectId: 'PRJ-103', groupId: 'GRP-001', roomLabel: 'Twin 101', roomType: 'twin', travelerIds: ['TRV-1032', 'TRV-1033'] },
   { id: 'ROOM-002', projectId: 'PRJ-103', groupId: 'GRP-002', roomLabel: 'Twin 205', roomType: 'twin', travelerIds: ['TRV-1034', 'TRV-1035'] },
-  { id: 'ROOM-003', projectId: 'PRJ-103', groupId: 'GRP-003', roomLabel: 'Suite VIP 1', roomType: 'suite', travelerIds: ['TRV-1031', 'TRV-1036'] },
+  { id: 'ROOM-003', projectId: 'PRJ-103', groupId: 'GRP-003', roomLabel: 'Suite VIP 1', roomType: 'suite', travelerIds: ['TRV-1031', 'TRV-1036'] }
 ])

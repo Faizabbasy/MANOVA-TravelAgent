@@ -17,9 +17,13 @@ defineProps<{
     <li v-for="activity in items" :key="activity.id" class="py-3 flex items-start gap-3">
       <ActivityIcon class="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
       <div class="min-w-0 flex-1">
-        <p class="text-sm text-foreground">{{ activity.message }}</p>
+        <p class="text-sm text-foreground">
+          {{ activity.message }}
+        </p>
         <p class="text-xs text-muted-foreground">
-          <template v-if="activity.projectName">{{ activity.projectName }} · </template>{{ formatDateTime(activity.createdAt) }}
+          <template v-if="activity.projectName">
+            {{ activity.projectName }} ·
+          </template>{{ formatDateTime(activity.createdAt) }}
         </p>
       </div>
       <StatusBadge v-if="activity.isChange" label="Perubahan" tone="warning" />

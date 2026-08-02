@@ -4,13 +4,13 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
 
   typescript: {
-    strict: false,  // Match React's relaxed mode
+    strict: false, // Match React's relaxed mode
     typeCheck: false,
     shim: false
   },
 
   devServer: {
-    port: 8080,  // Same port as React
+    port: 8080, // Same port as React
     host: '0.0.0.0'
   },
 
@@ -47,7 +47,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'MANOVA',
-      titleTemplate: (title) => title && title !== 'MANOVA' ? `${title} · MANOVA` : 'MANOVA — Travel Operations Platform',
+      titleTemplate: title => title && title !== 'MANOVA' ? `${title} · MANOVA` : 'MANOVA — Travel Operations Platform',
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },

@@ -27,9 +27,30 @@ const goBack = () => {
             class="max-w-full h-auto"
           >
             <!-- Background circles (decorative) -->
-            <circle cx="80" cy="80" r="60" fill="hsl(241, 98%, 55%)" opacity="0.1" class="pulse-1" />
-            <circle cx="320" cy="220" r="50" fill="hsl(142, 76%, 36%)" opacity="0.1" class="pulse-2" />
-            <circle cx="200" cy="50" r="40" fill="hsl(38, 92%, 50%)" opacity="0.1" class="pulse-3" />
+            <circle
+              cx="80"
+              cy="80"
+              r="60"
+              fill="hsl(241, 98%, 55%)"
+              opacity="0.1"
+              class="pulse-1"
+            />
+            <circle
+              cx="320"
+              cy="220"
+              r="50"
+              fill="hsl(142, 76%, 36%)"
+              opacity="0.1"
+              class="pulse-2"
+            />
+            <circle
+              cx="200"
+              cy="50"
+              r="40"
+              fill="hsl(38, 92%, 50%)"
+              opacity="0.1"
+              class="pulse-3"
+            />
 
             <!-- 404 Text with gradient -->
             <defs>
@@ -55,28 +76,88 @@ const goBack = () => {
 
             <!-- Floating Document Icon -->
             <g class="animate-float">
-              <rect x="140" y="100" width="120" height="140" rx="8" fill="white" stroke="hsl(220, 13%, 91%)" stroke-width="2" />
-              <line x1="160" y1="130" x2="240" y2="130" stroke="hsl(220, 13%, 91%)" stroke-width="3" stroke-linecap="round" />
-              <line x1="160" y1="155" x2="240" y2="155" stroke="hsl(220, 13%, 91%)" stroke-width="3" stroke-linecap="round" />
-              <line x1="160" y1="180" x2="210" y2="180" stroke="hsl(220, 13%, 91%)" stroke-width="3" stroke-linecap="round" />
+              <rect
+                x="140"
+                y="100"
+                width="120"
+                height="140"
+                rx="8"
+                fill="white"
+                stroke="hsl(220, 13%, 91%)"
+                stroke-width="2"
+              />
+              <line
+                x1="160"
+                y1="130"
+                x2="240"
+                y2="130"
+                stroke="hsl(220, 13%, 91%)"
+                stroke-width="3"
+                stroke-linecap="round"
+              />
+              <line
+                x1="160"
+                y1="155"
+                x2="240"
+                y2="155"
+                stroke="hsl(220, 13%, 91%)"
+                stroke-width="3"
+                stroke-linecap="round"
+              />
+              <line
+                x1="160"
+                y1="180"
+                x2="210"
+                y2="180"
+                stroke="hsl(220, 13%, 91%)"
+                stroke-width="3"
+                stroke-linecap="round"
+              />
 
               <!-- Question mark on document -->
               <circle cx="200" cy="210" r="15" fill="hsl(241, 98%, 55%)" opacity="0.2" />
-              <text x="200" y="220" font-family="Arial" font-size="24" font-weight="bold" fill="hsl(241, 98%, 55%)" text-anchor="middle">?</text>
+              <text
+                x="200"
+                y="220"
+                font-family="Arial"
+                font-size="24"
+                font-weight="bold"
+                fill="hsl(241, 98%, 55%)"
+                text-anchor="middle"
+              >?</text>
             </g>
 
             <!-- Magnifying Glass -->
             <g class="animate-search">
-              <circle cx="280" cy="120" r="25" fill="none" stroke="hsl(241, 98%, 55%)" stroke-width="4" />
-              <line x1="298" y1="138" x2="320" y2="160" stroke="hsl(241, 98%, 55%)" stroke-width="4" stroke-linecap="round" />
+              <circle
+                cx="280"
+                cy="120"
+                r="25"
+                fill="none"
+                stroke="hsl(241, 98%, 55%)"
+                stroke-width="4"
+              />
+              <line
+                x1="298"
+                y1="138"
+                x2="320"
+                y2="160"
+                stroke="hsl(241, 98%, 55%)"
+                stroke-width="4"
+                stroke-linecap="round"
+              />
             </g>
           </svg>
         </div>
 
         <!-- Text Content -->
         <div class="text-center mb-8 space-y-3">
-          <h1 class="text-6xl font-bold text-foreground">404</h1>
-          <h2 class="text-2xl font-semibold text-foreground">Page Not Found</h2>
+          <h1 class="text-6xl font-bold text-foreground">
+            404
+          </h1>
+          <h2 class="text-2xl font-semibold text-foreground">
+            Page Not Found
+          </h2>
           <p class="text-muted-foreground max-w-md mx-auto">
             Oops! The page you're looking for seems to have wandered off.
             Let's get you back on track.
@@ -85,7 +166,7 @@ const goBack = () => {
 
         <!-- Action Buttons -->
         <div class="flex flex-wrap gap-3 justify-center">
-          <Button @click="goBack" variant="outline" size="lg" class="gap-2">
+          <Button variant="outline" size="lg" class="gap-2" @click="goBack">
             <ArrowLeft class="h-4 w-4" />
             Go Back
           </Button>

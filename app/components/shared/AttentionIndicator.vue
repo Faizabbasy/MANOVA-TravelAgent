@@ -7,7 +7,7 @@ const props = withDefaults(defineProps<{
   severity?: 'low' | 'medium' | 'high'
   label?: string
 }>(), {
-  severity: 'medium',
+  severity: 'medium'
 })
 
 const toneTextClasses: Record<BadgeTone, string> = {
@@ -17,7 +17,7 @@ const toneTextClasses: Record<BadgeTone, string> = {
   warning: 'text-warning',
   destructive: 'text-destructive',
   info: 'text-chart-5',
-  purple: 'text-chart-4',
+  purple: 'text-chart-4'
 }
 
 const option = computed(() => findStatusOption(ATTENTION_SEVERITIES, props.severity))

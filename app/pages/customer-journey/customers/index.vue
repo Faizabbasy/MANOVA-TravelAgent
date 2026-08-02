@@ -19,7 +19,7 @@ const isAeScoped = computed(() => currentRole.value === 'account-executive')
 
 const LIFECYCLE_STATUSES: StatusOption<PartyLifecycleStatus>[] = [
   { value: 'prospect', label: 'Prospect', tone: 'warning', order: 1 },
-  { value: 'client', label: 'Active Client', tone: 'success', order: 2 },
+  { value: 'client', label: 'Active Client', tone: 'success', order: 2 }
 ]
 
 const searchQuery = ref('')
@@ -43,13 +43,13 @@ const rows = computed(() => {
   let result = base.map(party => ({
     party,
     opportunityCount: getOpportunitiesByParty(party.id).length,
-    projectOrderCount: getProjectsByParty(party.id).length,
+    projectOrderCount: getProjectsByParty(party.id).length
   }))
 
-  if (statusFilter.value !== 'all') result = result.filter(row => row.party.lifecycleStatus === statusFilter.value)
-  if (industryFilter.value !== 'all') result = result.filter(row => row.party.industry === industryFilter.value)
-  if (cityFilter.value !== 'all') result = result.filter(row => row.party.city === cityFilter.value)
-  if (ownerFilter.value !== 'all') result = result.filter(row => row.party.accountOwnerId === ownerFilter.value)
+  if (statusFilter.value !== 'all') { result = result.filter(row => row.party.lifecycleStatus === statusFilter.value) }
+  if (industryFilter.value !== 'all') { result = result.filter(row => row.party.industry === industryFilter.value) }
+  if (cityFilter.value !== 'all') { result = result.filter(row => row.party.city === cityFilter.value) }
+  if (ownerFilter.value !== 'all') { result = result.filter(row => row.party.accountOwnerId === ownerFilter.value) }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(row => row.party.name.toLowerCase().includes(q))
@@ -75,20 +75,36 @@ const rows = computed(() => {
           <Input v-model="searchQuery" placeholder="Cari nama company..." class="pl-9" />
         </div>
         <select v-model="statusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Status</option>
-          <option v-for="status in LIFECYCLE_STATUSES" :key="status.value" :value="status.value">{{ status.label }}</option>
+          <option value="all">
+            Semua Status
+          </option>
+          <option v-for="status in LIFECYCLE_STATUSES" :key="status.value" :value="status.value">
+            {{ status.label }}
+          </option>
         </select>
         <select v-model="industryFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Industri</option>
-          <option v-for="industry in industryOptions" :key="industry" :value="industry">{{ industry }}</option>
+          <option value="all">
+            Semua Industri
+          </option>
+          <option v-for="industry in industryOptions" :key="industry" :value="industry">
+            {{ industry }}
+          </option>
         </select>
         <select v-model="cityFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Kota</option>
-          <option v-for="city in cityOptions" :key="city" :value="city">{{ city }}</option>
+          <option value="all">
+            Semua Kota
+          </option>
+          <option v-for="city in cityOptions" :key="city" :value="city">
+            {{ city }}
+          </option>
         </select>
         <select v-if="!isAeScoped" v-model="ownerFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">Semua Account Owner</option>
-          <option v-for="user in ownerOptions" :key="user.id" :value="user.id">{{ user.name }}</option>
+          <option value="all">
+            Semua Account Owner
+          </option>
+          <option v-for="user in ownerOptions" :key="user.id" :value="user.id">
+            {{ user.name }}
+          </option>
         </select>
         <label v-if="isAeScoped" class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
           <Checkbox v-model="portfolioOnly" />
@@ -111,13 +127,21 @@ const rows = computed(() => {
           </TableHeader>
           <TableBody>
             <TableRow v-for="row in rows" :key="row.party.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/customer-journey/customers/${row.party.id}`)">
-              <TableCell class="font-medium text-foreground">{{ row.party.name }}</TableCell>
+              <TableCell class="font-medium text-foreground">
+                {{ row.party.name }}
+              </TableCell>
               <TableCell>
                 <StatusBadge :label="findStatusOption(LIFECYCLE_STATUSES, row.party.lifecycleStatus).label" :tone="findStatusOption(LIFECYCLE_STATUSES, row.party.lifecycleStatus).tone" />
               </TableCell>
-              <TableCell class="text-muted-foreground">{{ row.party.city ?? '—' }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.party.phone ?? '—' }}</TableCell>
-              <TableCell class="text-muted-foreground">{{ row.party.accountOwnerId ? getUserById(row.party.accountOwnerId)?.name ?? '—' : '—' }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.party.city ?? '—' }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.party.phone ?? '—' }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ row.party.accountOwnerId ? getUserById(row.party.accountOwnerId)?.name ?? '—' : '—' }}
+              </TableCell>
               <TableCell>{{ row.opportunityCount }}</TableCell>
               <TableCell>{{ row.projectOrderCount }}</TableCell>
             </TableRow>

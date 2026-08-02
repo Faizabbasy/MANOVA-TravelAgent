@@ -1,7 +1,7 @@
 <template>
   <Transition name="loading">
     <div v-if="isLoading" class="loading-bar">
-      <div class="loading-bar-progress" :style="{ width: progress + '%' }"></div>
+      <div class="loading-bar-progress" :style="{ width: progress + '%' }" />
     </div>
   </Transition>
 </template>
@@ -20,7 +20,7 @@ const startLoading = () => {
   progress.value = 10
 
   // Simulate progress with slower increments for slower connections
-  if (interval) clearInterval(interval)
+  if (interval) { clearInterval(interval) }
   interval = setInterval(() => {
     // Slow down as we approach 90%
     const increment = progress.value < 70 ? Math.random() * 15 : Math.random() * 5
@@ -31,7 +31,7 @@ const startLoading = () => {
 }
 
 const finishLoading = () => {
-  if (interval) clearInterval(interval)
+  if (interval) { clearInterval(interval) }
   progress.value = 100
 
   // Keep the bar visible a bit longer before hiding
@@ -58,7 +58,7 @@ router.onError(() => {
 })
 
 onUnmounted(() => {
-  if (interval) clearInterval(interval)
+  if (interval) { clearInterval(interval) }
 })
 </script>
 

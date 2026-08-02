@@ -1,0 +1,734 @@
+<title>MANOVA — Flow End-to-End (Lead sampai Project Selesai)</title>
+<meta name="description" content="Peta flow end-to-end penuh MANOVA — 23 langkah Workflow Utama dari Lead sampai Project Closed, per 1 Agustus 2026">
+<style>
+  :root{
+    --paper:#F6F4EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1B2A2E;
+    --ink-soft:#4B5B5D;
+    --line:#DAD5C8;
+    --line-strong:#C3BCA9;
+    --accent:#1E5F63;
+    --accent-soft:#DCEAE9;
+    --accent-ink:#0F3B3E;
+    --amber:#B5732A;
+    --amber-soft:#F3E4CF;
+    --amber-ink:#5C3813;
+    --done:#3C7A57;
+    --done-soft:#DCEBE0;
+    --done-ink:#1E4A30;
+    --pending:#8A6A4A;
+    --pending-soft:#EFE6DA;
+    --pending-ink:#4A3A28;
+    --shadow: 0 1px 2px rgba(27,42,46,0.06), 0 6px 20px -8px rgba(27,42,46,0.12);
+  }
+
+  :root[data-theme="dark"]{
+    --paper:#12191A;
+    --paper-raised:#182223;
+    --ink:#E9ECE9;
+    --ink-soft:#A9B6B4;
+    --line:#2A3739;
+    --line-strong:#3A4A4C;
+    --accent:#63B0AC;
+    --accent-soft:#1D3436;
+    --accent-ink:#B9E3DF;
+    --amber:#E0A257;
+    --amber-soft:#3A2E1C;
+    --amber-ink:#F0C48D;
+    --done:#7FC79A;
+    --done-soft:#1E3226;
+    --done-ink:#A9E0BC;
+    --pending:#C9A67E;
+    --pending-soft:#332720;
+    --pending-ink:#E0C7A6;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -10px rgba(0,0,0,0.5);
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12191A;
+      --paper-raised:#182223;
+      --ink:#E9ECE9;
+      --ink-soft:#A9B6B4;
+      --line:#2A3739;
+      --line-strong:#3A4A4C;
+      --accent:#63B0AC;
+      --accent-soft:#1D3436;
+      --accent-ink:#B9E3DF;
+      --amber:#E0A257;
+      --amber-soft:#3A2E1C;
+      --amber-ink:#F0C48D;
+      --done:#7FC79A;
+      --done-soft:#1E3226;
+      --done-ink:#A9E0BC;
+      --pending:#C9A67E;
+      --pending-soft:#332720;
+      --pending-ink:#E0C7A6;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -10px rgba(0,0,0,0.5);
+    }
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .heading, h1, h2, h3{
+    font-family:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,serif;
+    font-weight:600;
+    color:var(--ink);
+    text-wrap:balance;
+    letter-spacing:0.01em;
+  }
+
+  .mono, .stat-num, .chip, td.num, th.num{
+    font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,Menlo,monospace;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .page{
+    max-width:900px;
+    margin:0 auto;
+    padding:56px 28px 96px;
+  }
+
+  header.report-head{
+    border-bottom:2px solid var(--line-strong);
+    padding-bottom:28px;
+    margin-bottom:36px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .eyebrow{
+    font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--accent);
+    display:inline-block;
+  }
+  h1.title{
+    font-size:2.1rem;
+    margin:0;
+    line-height:1.15;
+  }
+  .subtitle{
+    color:var(--ink-soft);
+    font-size:1.05rem;
+    margin:0;
+    max-width:66ch;
+  }
+  .meta-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:22px;
+    margin-top:6px;
+    font-size:0.85rem;
+    color:var(--ink-soft);
+  }
+  .meta-row strong{ color:var(--ink); font-weight:600; }
+
+  .summary{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-left:4px solid var(--accent);
+    border-radius:6px;
+    padding:24px 26px;
+    box-shadow:var(--shadow);
+    margin-bottom:40px;
+  }
+  .summary h2{
+    font-size:1.05rem;
+    margin:0 0 12px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--accent-ink);
+  }
+  .summary p{ margin:0 0 12px; }
+  .summary p:last-child{ margin-bottom:0; }
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:44px;
+  }
+  .stat{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:18px 16px;
+    box-shadow:var(--shadow);
+  }
+  .stat-num{
+    font-size:1.9rem;
+    font-weight:700;
+    color:var(--accent-ink);
+    line-height:1;
+  }
+  .stat-num small{
+    font-size:1rem;
+    font-weight:500;
+    color:var(--ink-soft);
+  }
+  .stat-bar{
+    height:5px;
+    border-radius:3px;
+    background:var(--line);
+    margin:10px 0 8px;
+    overflow:hidden;
+  }
+  .stat-bar > span{
+    display:block;
+    height:100%;
+    background:var(--accent);
+    border-radius:3px;
+  }
+  .stat-label{
+    font-size:0.82rem;
+    color:var(--ink-soft);
+  }
+
+  @media (max-width:640px){
+    .stats{ grid-template-columns:repeat(2,1fr); }
+  }
+
+  section{ margin-bottom:44px; }
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    border-left:3px solid var(--accent);
+    padding-left:14px;
+    margin-bottom:18px;
+  }
+  .section-head h2{
+    font-size:1.4rem;
+    margin:0;
+  }
+  .section-head .section-note{
+    font-size:0.85rem;
+    color:var(--ink-soft);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  }
+
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.72rem;
+    font-weight:600;
+    letter-spacing:0.03em;
+    padding:3px 9px;
+    border-radius:100px;
+    white-space:nowrap;
+  }
+  .chip::before{
+    content:"";
+    width:6px; height:6px;
+    border-radius:50%;
+  }
+  .chip.done{ background:var(--done-soft); color:var(--done-ink); }
+  .chip.done::before{ background:var(--done); }
+  .chip.partial{ background:var(--amber-soft); color:var(--amber-ink); }
+  .chip.partial::before{ background:var(--amber); }
+  .chip.pending{ background:var(--pending-soft); color:var(--pending-ink); }
+  .chip.pending::before{ background:var(--pending); }
+
+  .phase-block{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+    margin-bottom:18px;
+  }
+  .phase-block .phase-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 20px;
+    background:var(--accent-soft);
+    border-bottom:1px solid var(--line);
+  }
+  .phase-block .phase-head h3{
+    margin:0;
+    font-size:1.05rem;
+    color:var(--accent-ink);
+  }
+  .phase-block .phase-body{ padding:14px 20px 16px; }
+  .phase-block .phase-body p{ margin:10px 0; color:var(--ink-soft); font-size:0.94rem; }
+  .phase-block .phase-body p:first-child{ margin-top:0; }
+
+  .table-wrap{
+    overflow-x:auto;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:var(--paper-raised);
+    box-shadow:var(--shadow);
+  }
+  table{
+    border-collapse:collapse;
+    width:100%;
+    font-size:0.86rem;
+  }
+  thead th{
+    text-align:left;
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+    padding:12px 14px;
+    border-bottom:1px solid var(--line-strong);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:10px 14px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr.highlight td{ background:var(--amber-soft); }
+  td.num{ color:var(--ink-soft); width:2.2em; }
+  td.name{ font-weight:500; }
+  td.status{ white-space:nowrap; }
+  td.note{ color:var(--ink-soft); font-size:0.85rem; }
+
+  /* ---------- Flow diagram (grouped chip chain) ---------- */
+  .flow-diagram{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:var(--shadow);
+    padding:22px 24px;
+    margin-bottom:18px;
+  }
+  .flow-phase{ margin-bottom:16px; }
+  .flow-phase:last-child{ margin-bottom:0; }
+  .flow-phase-label{
+    font-size:0.72rem;
+    text-transform:uppercase;
+    letter-spacing:0.08em;
+    color:var(--ink-soft);
+    margin-bottom:8px;
+    font-family:ui-monospace,monospace;
+  }
+  .flow-chain{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+  }
+  .flow-step{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.8rem;
+    font-weight:600;
+    padding:7px 12px;
+    border-radius:8px;
+    border:1px solid var(--line-strong);
+    background:var(--accent-soft);
+    color:var(--accent-ink);
+    white-space:nowrap;
+  }
+  .flow-step.is-partial{ background:var(--amber-soft); color:var(--amber-ink); border-color:var(--amber); }
+  .flow-step .flow-step-num{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:17px; height:17px;
+    border-radius:50%;
+    background:var(--accent);
+    color:var(--paper-raised);
+    font-size:0.64rem;
+    font-family:ui-monospace,monospace;
+  }
+  .flow-step.is-partial .flow-step-num{ background:var(--amber); }
+  .flow-arrow{ color:var(--ink-soft); font-size:0.95rem; flex:none; }
+  .flow-branch{
+    margin-top:10px;
+    padding:10px 14px;
+    border-radius:6px;
+    border:1px dashed var(--line-strong);
+    background:var(--paper);
+    font-size:0.82rem;
+    color:var(--ink-soft);
+  }
+  .flow-branch strong{ color:var(--ink); }
+  .flow-legend{
+    margin-top:16px;
+    padding-top:14px;
+    border-top:1px dashed var(--line-strong);
+    display:grid;
+    gap:8px;
+  }
+  .flow-legend-item{
+    display:flex;
+    gap:10px;
+    align-items:baseline;
+    font-size:0.86rem;
+    color:var(--ink-soft);
+  }
+  .flow-legend-item .chip{ flex:none; }
+
+  @media (max-width:640px){
+    .flow-chain{ flex-direction:column; align-items:stretch; }
+    .flow-step{ justify-content:center; }
+    .flow-arrow{ text-align:center; transform:rotate(90deg); }
+  }
+
+  .risk{
+    background:var(--amber-soft);
+    border:1px solid var(--line);
+    border-left:4px solid var(--amber);
+    border-radius:6px;
+    padding:18px 22px;
+  }
+  .risk h3{
+    margin:0 0 8px;
+    font-size:1rem;
+    color:var(--amber-ink);
+  }
+  .risk ul{ margin:0; padding-left:20px; }
+  .risk li{ margin-bottom:8px; color:var(--ink-soft); font-size:0.93rem; }
+  .risk li:last-child{ margin-bottom:0; }
+  .risk li strong{ color:var(--ink); }
+
+  footer{
+    margin-top:56px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-size:0.8rem;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+
+  a{ color:var(--accent-ink); }
+
+  .actions{
+    display:flex;
+    gap:10px;
+    margin:18px 0 4px;
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    font-size:0.86rem;
+    font-weight:600;
+    padding:9px 16px;
+    border-radius:6px;
+    border:1px solid transparent;
+    cursor:pointer;
+    transition:filter 0.15s ease, transform 0.1s ease;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .btn-primary{ background:var(--accent); color:#fff; }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  :root[data-theme="dark"] .btn-primary{ color:#0B1414; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .btn-primary{ color:#0B1414; }
+  }
+  .btn-ghost{ background:var(--paper-raised); color:var(--ink); border-color:var(--line-strong); }
+  .btn-ghost:hover{ background:var(--accent-soft); }
+  .btn svg{ width:15px; height:15px; flex:none; }
+
+  @media print{
+    body{ background:#fff; }
+    .stat, .phase-block, .table-wrap, .risk, .flow-diagram{ box-shadow:none; }
+    .actions{ display:none; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="report-head">
+    <div class="eyebrow"><span class="dot"></span>Dokumentasi Teknis &middot; Flow End-to-End</div>
+    <h1 class="title">MANOVA — Flow End-to-End</h1>
+    <p class="subtitle">Perjalanan bisnis penuh: dari Lead masuk (publik maupun manual) sampai Project ditutup — 23 langkah Workflow Utama lintas seluruh role (Sales, Account Executive, Management, Project Manager, Operations, Ticketing/Accommodation/Transportation/MICE, Procurement, Finance, Client, Supplier/Vendor), bukan hanya satu modul.</p>
+    <div class="meta-row">
+      <span>Cakupan: <strong>Lead → Qualification → Opportunity → Quotation → Won → Project → Fulfillment → Finance → Closed</strong></span>
+      <span>Sumber: <strong>docs/frontend-workflow-map.md, docs/frontend-known-issues.md</strong></span>
+      <span>Status: <strong>22/23 langkah selesai, 1 langkah sebagian (#19)</strong></span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-pdf" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        Unduh sebagai PDF
+      </button>
+      <button class="btn btn-ghost" id="btn-html" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        Unduh file HTML
+      </button>
+    </div>
+  </header>
+
+  <div class="summary">
+    <h2>Ringkasan</h2>
+    <p>Dokumen ini memetakan <strong>seluruh perjalanan MANOVA</strong> — bukan hanya Client dan Vendor — mengikuti "Workflow Utama" 23 langkah yang menjadi acuan resmi proyek (`docs/frontend-workflow-map.md`, hasil regresi penuh Section 24): Lead → Sales Qualification → Account Executive → Opportunity → Requirement → Product Planning → Quotation → Management Approval → Client Confirmation → Won → Active Client → Project Order → Handover ke Project Manager → Planning → Traveler → Supplier Sourcing → Service Booking → Readiness → On Trip/Event → Changes/Incident → Finance → Completed → Closed.</p>
+    <p><strong>Client–Vendor Commodity</strong> (Vendor publish komoditas, Client pilih/hold/konfirmasi) adalah satu <em>jalur tambahan</em> yang beririsan dengan langkah Traveler Collection–Service Booking, dijelaskan detail di bagian 4 dan tetap punya dokumen sendiri (`docs/MANOVA-Client-Vendor-Commodity-End-to-End-Flow.md` / `.html`) — tidak dihapus, hanya tidak lagi berdiri sendiri sebagai "flow end-to-end" karena ruang lingkupnya memang lebih sempit dari itu.</p>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num">23</div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Langkah Workflow Utama, Lead sampai Closed</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">22<small>/23</small></div>
+      <div class="stat-bar"><span style="width:96%"></span></div>
+      <div class="stat-label">Langkah berstatus selesai — 1 langkah (#19) sebagian</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">16</div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Role berbeda terlibat sepanjang flow</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">4</div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Layer cross-cutting (Documents, Reports, Admin, Permission)</div>
+    </div>
+  </div>
+
+  <section>
+    <div class="section-head">
+      <h2>Diagram Alur Utama</h2>
+      <span class="section-note">Dikelompokkan per fase — lihat tabel 23 langkah untuk rincian tiap kotak</span>
+    </div>
+    <div class="flow-diagram">
+      <div class="flow-phase">
+        <div class="flow-phase-label">Fase 1 — Lead &amp; Sales</div>
+        <div class="flow-chain">
+          <span class="flow-step"><span class="flow-step-num">1</span>Public/Manual Lead</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">2</span>Sales Qualification</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">3</span>Assign AE</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">4</span>Opportunity</span>
+        </div>
+      </div>
+
+      <div class="flow-phase">
+        <div class="flow-phase-label">Fase 2 — Deal Making</div>
+        <div class="flow-chain">
+          <span class="flow-step"><span class="flow-step-num">5</span>Requirement Detail</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">6</span>Product Planning &amp; Costing</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">7</span>Quotation</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">8</span>Management Approval</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">9</span>Client Confirmation</span>
+        </div>
+      </div>
+
+      <div class="flow-phase">
+        <div class="flow-phase-label">Fase 3 — Won &amp; Activation</div>
+        <div class="flow-chain">
+          <span class="flow-step" style="background:var(--done-soft); color:var(--done-ink); border-color:var(--done);"><span class="flow-step-num" style="background:var(--done);">10</span>Opportunity Won</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step" style="background:var(--done-soft); color:var(--done-ink); border-color:var(--done);"><span class="flow-step-num" style="background:var(--done);">11</span>Active Client</span>
+        </div>
+      </div>
+
+      <div class="flow-phase">
+        <div class="flow-phase-label">Fase 4 — Project Setup</div>
+        <div class="flow-chain">
+          <span class="flow-step"><span class="flow-step-num">12</span>Project Order</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">13</span>AE-to-PM Handover</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">14</span>Planning</span>
+        </div>
+      </div>
+
+      <div class="flow-phase">
+        <div class="flow-phase-label">Fase 5 — Fulfillment</div>
+        <div class="flow-chain">
+          <span class="flow-step"><span class="flow-step-num">15</span>Traveler Collection</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">16</span>Supplier Sourcing</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">17</span>Service Booking</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">18</span>Readiness</span>
+        </div>
+        <div class="flow-branch">
+          <strong>Jalur tambahan (additive):</strong> Client–Vendor Commodity beririsan di sini — Vendor Publish → Client Katalog/Requirement/Selection → Soft Hold → Confirmation → Sold, sebagai alternatif/pelengkap Supplier Sourcing (#16) dan Service Booking (#17). Detail: bagian 4.
+        </div>
+      </div>
+
+      <div class="flow-phase">
+        <div class="flow-phase-label">Fase 6 — Delivery</div>
+        <div class="flow-chain">
+          <span class="flow-step is-partial"><span class="flow-step-num">19</span>On Trip / Event (Sebagian)</span>
+        </div>
+      </div>
+
+      <div class="flow-phase">
+        <div class="flow-phase-label">Fase 7 — Closure</div>
+        <div class="flow-chain">
+          <span class="flow-step"><span class="flow-step-num">20</span>Changes / Incident</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">21</span>Finance Finalization</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step"><span class="flow-step-num">22</span>Completed</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-step" style="background:var(--done-soft); color:var(--done-ink); border-color:var(--done);"><span class="flow-step-num" style="background:var(--done);">23</span>Closed</span>
+        </div>
+      </div>
+
+      <div class="flow-legend">
+        <div class="flow-legend-item"><span class="chip pending">Cross-cutting</span><span>Documents/Communication, Dashboard/Reports, Administration, dan Permission Boundary berlaku di SEMUA fase 1–7, bukan satu titik saja (lihat bagian 3).</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>23 Langkah Workflow Utama</h2>
+      <span class="section-note">Status, route, dan implementasi aktual per langkah</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th class="num">#</th><th>Langkah</th><th>Status</th><th>Route Utama</th><th>Ringkasan Implementasi</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td class="name">Public Lead</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/lead-intake</td><td class="note">Form publik tanpa login, 4 kategori, consent, deteksi duplikat</td></tr>
+          <tr><td class="num">1b</td><td class="name">Manual Lead</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/customer-journey/leads</td><td class="note">Dialog "New Lead" dibuat langsung Sales</td></tr>
+          <tr><td class="num">2</td><td class="name">Sales Qualification</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/customer-journey/leads</td><td class="note">Tab Qualification 13 field, gate kelengkapan</td></tr>
+          <tr><td class="num">3</td><td class="name">Assign Account Executive</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">(form Qualification)</td><td class="note">Field "AE yang Menerima Lead"</td></tr>
+          <tr><td class="num">4</td><td class="name">Opportunity</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/opportunities</td><td class="note">Auto-create saat Lead di-qualify, no-duplicate Party</td></tr>
+          <tr><td class="num">5</td><td class="name">Requirement Detail</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/opportunities/[id]</td><td class="note">14 field kebutuhan, gate sebelum Quotation</td></tr>
+          <tr><td class="num">6</td><td class="name">Product Planning &amp; Costing</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/product-planning</td><td class="note">Template produk + cost sheet, snapshot ke Quotation</td></tr>
+          <tr><td class="num">7</td><td class="name">Quotation</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/opportunities/[id]</td><td class="note">Create/Edit/Versi/Compare/Send/Withdraw, preview PDF</td></tr>
+          <tr><td class="num">8</td><td class="name">Management Approval</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/quotations</td><td class="note">Antrean approval komersial</td></tr>
+          <tr><td class="num">9</td><td class="name">Client Confirmation</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/client/opportunities/[id]</td><td class="note">Self-service Client: Accept/Reject/Request Revision</td></tr>
+          <tr class="highlight"><td class="num">10</td><td class="name">Opportunity Won</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/opportunities/[id]</td><td class="note">Tombol "Mark as Won" satu langkah</td></tr>
+          <tr class="highlight"><td class="num">11</td><td class="name">Active Client</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">(otomatis)</td><td class="note">Party.lifecycleStatus prospect → client</td></tr>
+          <tr><td class="num">12</td><td class="name">Project Order</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Project dibuat otomatis saat Won</td></tr>
+          <tr><td class="num">13</td><td class="name">AE-to-PM Handover</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Accept/Return Handover eksplisit oleh PM</td></tr>
+          <tr><td class="num">14</td><td class="name">Planning</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Status draft/planning, seluruh tab aktif</td></tr>
+          <tr><td class="num">15</td><td class="name">Traveler Collection</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id], /client/project-orders/[id]</td><td class="note">Data traveler, dokumen, rooming list, submission mandiri Client</td></tr>
+          <tr><td class="num">16</td><td class="name">Supplier Sourcing</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/procurement, /supplier/rfq</td><td class="note">RFQ formal invite/compare/klarifikasi/select</td></tr>
+          <tr><td class="num">17</td><td class="name">Service Booking</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/ticketing, /accommodation, /transportation, /mice, /bookings</td><td class="note">Lifecycle penuh per domain + konsolidasi timeline</td></tr>
+          <tr><td class="num">18</td><td class="name">Readiness</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Departure Readiness Gate — advisory, tidak memblokir</td></tr>
+          <tr class="highlight"><td class="num">19</td><td class="name">On Trip / Event</td><td class="status"><span class="chip partial">Sebagian</span></td><td class="mono note">run sheet, detail booking per domain</td><td class="note">Status ongoing-trip, run sheet, shift notes ada; belum lifecycle on-trip terpadu lintas domain</td></tr>
+          <tr><td class="num">20</td><td class="name">Changes / Incident</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/changes</td><td class="note">Change Request/Cancellation/Refund/Incident terstruktur</td></tr>
+          <tr><td class="num">21</td><td class="name">Finance Finalization</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/finance/invoices, /finance/reconciliation</td><td class="note">Invoice/Payment/Credit-Debit Note/Financial Closure Gate</td></tr>
+          <tr><td class="num">22</td><td class="name">Completed</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">(status project)</td><td class="note">ProjectStatus.completed</td></tr>
+          <tr class="highlight"><td class="num">23</td><td class="name">Closed</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Project Closure Gate — finance settled, service terminal, tidak ada incident/change terbuka</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="color:var(--ink-soft); font-size:0.85rem; margin-top:10px;">Catatan status: ringkasan penutup dokumen sumber (<span class="mono">docs/frontend-workflow-map.md</span>) menyebut seluruh 23 langkah "selesai", namun baris #19 pada tabel yang sama tetap ditandai eksplisit <strong>Sebagian</strong>. Dokumen ini mengikuti status per-baris yang lebih spesifik.</p>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Cross-Cutting Layer</h2>
+      <span class="section-note">Tidak menambah langkah baru — melengkapi SELURUH langkah di atas</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Layer</th><th>Route</th><th>Melengkapi Langkah</th></tr></thead>
+        <tbody>
+          <tr><td class="name">Documents, Communication &amp; Notifications</td><td class="mono note">/documents</td><td class="note">Seluruh langkah — dokumen booking (#17), notifikasi insiden/perubahan (#20)</td></tr>
+          <tr><td class="name">Dashboard, Reports &amp; Activity Center</td><td class="mono note">/, /reports, /activity-center</td><td class="note">Seluruh langkah — agregasi dan drill-down</td></tr>
+          <tr><td class="name">Administration &amp; Master Data</td><td class="mono note">/admin</td><td class="note">Seluruh langkah — role/akses, audit trail, master data</td></tr>
+          <tr><td class="name">Role &amp; Permission Boundary</td><td class="mono note">usePermissions()</td><td class="note">Seluruh langkah — isolasi data per role/company di setiap halaman</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Jalur Tambahan — Client–Vendor Commodity</h2>
+      <span class="section-note">Bukan bagian dari 23 langkah Workflow Utama — beririsan dengan #15–#17</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-body">
+        <p>Client–Vendor Commodity memberi Client cara lain memenuhi kebutuhan project langsung dari katalog komoditas Vendor — di luar RFQ/Service Order formal (#16) dan booking per-domain Flight/Hotel/Transport/MICE (#17):</p>
+        <div class="flow-chain" style="margin:14px 0;">
+          <span class="flow-step">Vendor Publish</span><span class="flow-arrow">→</span>
+          <span class="flow-step">Client Katalog</span><span class="flow-arrow">→</span>
+          <span class="flow-step">Requirement</span><span class="flow-arrow">→</span>
+          <span class="flow-step">Matching</span><span class="flow-arrow">→</span>
+          <span class="flow-step">Selection</span><span class="flow-arrow">→</span>
+          <span class="flow-step">Soft Hold</span><span class="flow-arrow">→</span>
+          <span class="flow-step">Confirmation</span><span class="flow-arrow">→</span>
+          <span class="flow-step" style="background:var(--done-soft); color:var(--done-ink); border-color:var(--done);">Sold</span>
+        </div>
+        <p>Route: <span class="mono">/supplier/commodities</span>, <span class="mono">/supplier/commodity-orders</span> (Vendor); <span class="mono">/client/project-orders/[id]?tab=commodity</span>, <span class="mono">/client/catalog/[requirementId]</span> (Client). Detail penuh 13 skenario happy/alternative path, matriks CRUD, dan known limitations tetap ada di <span class="mono">docs/MANOVA-Client-Vendor-Commodity-End-to-End-Flow.md</span> dan <span class="mono">MANOVA-Client-Vendor-Commodity-End-to-End-Flow.html</span> — tidak diubah oleh dokumen ini.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Known Gaps</h2>
+      <span class="section-note">Dilaporkan jujur, bukan disembunyikan — status TIDAK ditulis 100%</span>
+    </div>
+    <div class="risk">
+      <h3>Yang masih terbatas</h3>
+      <ul>
+        <li><strong>Langkah #19 (On Trip / Event) — Sebagian.</strong> Status <span class="mono">ongoing-trip</span>, run sheet, shift notes, dan 4 modul booking per domain sudah ada, tapi belum ada lifecycle "on-trip" terpadu lintas seluruh domain dalam satu tampilan.</li>
+        <li><strong>Accommodation (<span class="mono">HotelBooking</span>) tidak punya flag <span class="mono">hasScheduleChange</span></strong> setara Flight/Transport/MICE — gap parity kecil dan kosmetik, tidak memblokir alur Change Request.</li>
+        <li><strong>Project Closed "documents complete" bersifat best-effort</strong> — hanya mengecek tidak ada dokumen kedaluwarsa, belum ada daftar dokumen wajib per tipe project untuk dibandingkan.</li>
+        <li><strong>Client–Vendor Commodity punya known limitations sendiri</strong> (Archive tidak memperingatkan Selection aktif, belum ada halaman "My Orders" khusus Client, dsb.) — lihat dokumen detailnya.</li>
+        <li><strong>Tidak ada backend/database sungguhan</strong> di mana pun sepanjang flow — seluruh state adalah <span class="mono">reactive()</span> in-memory.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <span>Sumber: docs/frontend-workflow-map.md, docs/frontend-known-issues.md, docs/MANOVA-End-to-End-Flow.md.</span>
+    <span>Per 1 Agustus 2026</span>
+  </footer>
+
+</div>
+
+<script>
+  document.getElementById('btn-pdf').addEventListener('click', function () {
+    window.print();
+  });
+
+  document.getElementById('btn-html').addEventListener('click', function () {
+    var doc = '<!doctype html>\n' + document.documentElement.outerHTML;
+    var blob = new Blob([doc], { type: 'text/html' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'MANOVA-End-to-End-Flow.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  });
+</script>

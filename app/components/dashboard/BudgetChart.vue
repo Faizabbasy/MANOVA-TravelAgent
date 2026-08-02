@@ -7,7 +7,7 @@ import {
   LinearScale,
   BarElement,
   Tooltip,
-  Legend,
+  Legend
 } from 'chart.js'
 import { formatCurrencyIdr } from '~/utils/format'
 
@@ -27,7 +27,7 @@ const props = defineProps<{
 const totalBudget = computed(() => props.budgetIdr.reduce((sum, value) => sum + value, 0))
 const totalActual = computed(() => props.actualIdr.reduce((sum, value) => sum + value, 0))
 const variancePct = computed(() => {
-  if (totalBudget.value === 0) return 0
+  if (totalBudget.value === 0) { return 0 }
   return ((totalActual.value - totalBudget.value) / totalBudget.value) * 100
 })
 
@@ -64,15 +64,15 @@ onMounted(async () => {
         label: 'Budget',
         data: props.budgetIdr,
         backgroundColor: `hsla(${formatHSL(primaryColor.value)}, 0.7)`,
-        borderRadius: 4,
+        borderRadius: 4
       },
       {
         label: 'Actual',
         data: props.actualIdr,
         backgroundColor: `hsla(${formatHSL(actualColor)}, 0.7)`,
-        borderRadius: 4,
-      },
-    ],
+        borderRadius: 4
+      }
+    ]
   }
 
   chartOptions.value = {
@@ -85,8 +85,8 @@ onMounted(async () => {
         labels: {
           color: `hsl(${formatHSL(mutedColor.value)})`,
           font: { family: 'Plus Jakarta Sans, system-ui, sans-serif', size: 12 },
-          usePointStyle: true,
-        },
+          usePointStyle: true
+        }
       },
       tooltip: {
         enabled: true,
@@ -97,15 +97,15 @@ onMounted(async () => {
         bodyColor: `hsl(${formatHSL(foregroundColor.value)})`,
         padding: 12,
         callbacks: {
-          label: (context: any) => `${context.dataset.label}: ${formatCurrencyIdr(context.parsed.y)}`,
-        },
-      },
+          label: (context: any) => `${context.dataset.label}: ${formatCurrencyIdr(context.parsed.y)}`
+        }
+      }
     },
     scales: {
       x: {
         border: { display: false },
         grid: { display: false },
-        ticks: { color: `hsl(${formatHSL(mutedColor.value)})`, font: { size: 12 } },
+        ticks: { color: `hsl(${formatHSL(mutedColor.value)})`, font: { size: 12 } }
       },
       y: {
         border: { display: false },
@@ -113,10 +113,10 @@ onMounted(async () => {
         ticks: {
           color: `hsl(${formatHSL(mutedColor.value)})`,
           font: { size: 12 },
-          callback: (value: any) => `${(Number(value) / 1_000_000).toLocaleString('id-ID')} jt`,
-        },
-      },
-    },
+          callback: (value: any) => `${(Number(value) / 1_000_000).toLocaleString('id-ID')} jt`
+        }
+      }
+    }
   }
 })
 </script>
@@ -125,7 +125,9 @@ onMounted(async () => {
   <div>
     <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
       <div>
-        <p class="text-xs text-muted-foreground">Total Budget vs Actual</p>
+        <p class="text-xs text-muted-foreground">
+          Total Budget vs Actual
+        </p>
         <div class="flex items-center gap-2 mt-1">
           <span class="text-xl font-bold text-foreground">{{ formatCurrencyIdr(totalActual) }}</span>
           <span

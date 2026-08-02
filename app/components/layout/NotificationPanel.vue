@@ -4,7 +4,7 @@ import type { Component } from 'vue'
 import { Bell, AtSign, UserPlus, Clock, Siren, FileWarning, AlertCircle, FileText, MessageSquare, X } from 'lucide-vue-next'
 import {
   getNotificationsForUser, getUnreadNotificationCount,
-  markNotificationRead, markAllNotificationsRead, removeNotification as removeNotificationRecord,
+  markNotificationRead, markAllNotificationsRead, removeNotification as removeNotificationRecord
 } from '~/data'
 import type { NotificationType } from '~/types/document-comms'
 import { formatDate } from '~/utils/format'
@@ -36,7 +36,7 @@ const TYPE_ICON_MAP: Record<NotificationType, Component> = {
   change: FileWarning,
   incident: AlertCircle,
   document: FileText,
-  message: MessageSquare,
+  message: MessageSquare
 }
 
 /** Bucket warna disederhanakan dari 8 `NotificationType` menjadi 4 tone existing (pola sama badge tone lintas codebase). */
@@ -48,7 +48,7 @@ const TYPE_TONE_MAP: Record<NotificationType, 'success' | 'warning' | 'info' | '
   change: 'warning',
   incident: 'error',
   document: 'info',
-  message: 'info',
+  message: 'info'
 }
 
 const getTypeIcon = (type: NotificationType) => TYPE_ICON_MAP[type]
@@ -79,12 +79,12 @@ const getTypeBg = (type: NotificationType) => {
   }
 }
 
-function goToAllNotifications() {
+function goToAllNotifications () {
   navigateTo('/documents?tab=notifications')
 }
 
 defineExpose({
-  unreadCount,
+  unreadCount
 })
 </script>
 
@@ -94,7 +94,9 @@ defineExpose({
     <div class="p-4 border-b border-border">
       <div class="flex items-center justify-between mb-3">
         <div class="flex items-center gap-2">
-          <h3 class="font-semibold text-foreground">Notifications</h3>
+          <h3 class="font-semibold text-foreground">
+            Notifications
+          </h3>
           <Badge v-if="unreadCount > 0" variant="destructive" class="h-5 min-w-5 px-1.5">
             {{ unreadCount }}
           </Badge>
@@ -115,7 +117,9 @@ defineExpose({
     <div class="flex-1 overflow-y-auto">
       <div v-if="notifications.length === 0" class="p-8 text-center">
         <Bell class="h-12 w-12 mx-auto text-muted-foreground/50 mb-3" />
-        <p class="text-sm text-muted-foreground">No notifications yet</p>
+        <p class="text-sm text-muted-foreground">
+          No notifications yet
+        </p>
       </div>
 
       <div v-else>

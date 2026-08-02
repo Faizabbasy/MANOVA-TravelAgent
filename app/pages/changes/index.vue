@@ -6,16 +6,15 @@ import {
   PROJECTS, getProjectById, getUserById,
   CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS,
   createChangeRequest, createIncident, createRefundRequest,
-  getCancellationRecordsByProject,
+  getCancellationRecordsByProject
 } from '~/data'
 import {
   CHANGE_REQUEST_SOURCES, CHANGE_REQUEST_STATUSES, REFUND_REQUEST_STATUSES, REFUND_CREDIT_STATUSES,
-  INCIDENT_SEVERITIES, INCIDENT_STATUSES, findStatusOption,
+  INCIDENT_SEVERITIES, INCIDENT_STATUSES, findStatusOption
 } from '~/constants/status'
-import { formatCurrencyIdr, formatDate } from '~/utils/format'
-import type { ChangeRequestSource, AffectedEntityRef } from '~/types/change-incident'
+import { formatCurrencyIdr } from '~/utils/format'
+import type { ChangeRequestSource, AffectedEntityRef, IncidentSeverity } from '~/types/change-incident'
 import type { BookingDomain } from '~/types/booking-orchestration'
-import type { IncidentSeverity } from '~/types/change-incident'
 
 /**
  * Changes & Incidents — cross-project list (Section 19, D-076). Fully additive di atas Section 13-18 dan
@@ -39,7 +38,7 @@ const activeTab = computed<ChangesTab>({
     const tab = route.query.tab as string
     return (['change-requests', 'cancellations', 'refunds', 'incidents'].includes(tab) ? tab : 'change-requests') as ChangesTab
   },
-  set: value => router.replace({ query: { ...route.query, tab: value } }),
+  set: value => router.replace({ query: { ...route.query, tab: value } })
 })
 
 const openChangeRequestCount = computed(() => CHANGE_REQUESTS.filter(item => item.status === 'submitted' || item.status === 'under-review').length)
@@ -53,8 +52,8 @@ const crSourceFilter = ref<'all' | ChangeRequestSource>('all')
 const crStatusFilter = ref('all')
 const crRows = computed(() => {
   let result = CHANGE_REQUESTS.map(item => ({ item, project: getProjectById(item.projectId) }))
-  if (crSourceFilter.value !== 'all') result = result.filter(row => row.item.source === crSourceFilter.value)
-  if (crStatusFilter.value !== 'all') result = result.filter(row => row.item.status === crStatusFilter.value)
+  if (crSourceFilter.value !== 'all') { result = result.filter(row => row.item.source === crSourceFilter.value) }
+  if (crStatusFilter.value !== 'all') { result = result.filter(row => row.item.status === crStatusFilter.value) }
   if (crSearch.value.trim()) {
     const q = crSearch.value.toLowerCase()
     result = result.filter(row => row.item.beforeSummary.toLowerCase().includes(q) || row.item.afterSummary.toLowerCase().includes(q) || (row.project?.name ?? '').toLowerCase().includes(q) || row.item.id.toLowerCase().includes(q))
@@ -67,7 +66,7 @@ const cnxSearch = ref('')
 const cnxDomainFilter = ref<'all' | BookingDomain>('all')
 const cnxRows = computed(() => {
   let result = CANCELLATION_RECORDS.map(item => ({ item, project: getProjectById(item.projectId) }))
-  if (cnxDomainFilter.value !== 'all') result = result.filter(row => row.item.bookingType === cnxDomainFilter.value)
+  if (cnxDomainFilter.value !== 'all') { result = result.filter(row => row.item.bookingType === cnxDomainFilter.value) }
   if (cnxSearch.value.trim()) {
     const q = cnxSearch.value.toLowerCase()
     result = result.filter(row => row.item.bookingId.toLowerCase().includes(q) || row.item.reason.toLowerCase().includes(q) || (row.project?.name ?? '').toLowerCase().includes(q))
@@ -80,7 +79,7 @@ const refSearch = ref('')
 const refStatusFilter = ref('all')
 const refRows = computed(() => {
   let result = REFUND_REQUESTS.map(item => ({ item, project: getProjectById(item.projectId) }))
-  if (refStatusFilter.value !== 'all') result = result.filter(row => row.item.status === refStatusFilter.value)
+  if (refStatusFilter.value !== 'all') { result = result.filter(row => row.item.status === refStatusFilter.value) }
   if (refSearch.value.trim()) {
     const q = refSearch.value.toLowerCase()
     result = result.filter(row => row.item.id.toLowerCase().includes(q) || (row.project?.name ?? '').toLowerCase().includes(q))
@@ -94,8 +93,8 @@ const incSeverityFilter = ref<'all' | IncidentSeverity>('all')
 const incStatusFilter = ref('all')
 const incRows = computed(() => {
   let result = INCIDENTS.map(item => ({ item, project: getProjectById(item.projectId) }))
-  if (incSeverityFilter.value !== 'all') result = result.filter(row => row.item.severity === incSeverityFilter.value)
-  if (incStatusFilter.value !== 'all') result = result.filter(row => row.item.status === incStatusFilter.value)
+  if (incSeverityFilter.value !== 'all') { result = result.filter(row => row.item.severity === incSeverityFilter.value) }
+  if (incStatusFilter.value !== 'all') { result = result.filter(row => row.item.status === incStatusFilter.value) }
   if (incSearch.value.trim()) {
     const q = incSearch.value.toLowerCase()
     result = result.filter(row => row.item.title.toLowerCase().includes(q) || (row.project?.name ?? '').toLowerCase().includes(q))
@@ -113,7 +112,7 @@ const newChangeOperationalImpact = ref('')
 const newChangeCommercialImpact = ref<number | null>(null)
 const newChangeTimelineImpact = ref('')
 
-function resetChangeForm() {
+function resetChangeForm () {
   newChangeProjectId.value = ''
   newChangeSource.value = 'internal'
   newChangeBefore.value = ''
@@ -123,8 +122,8 @@ function resetChangeForm() {
   newChangeTimelineImpact.value = ''
 }
 
-function submitCreateChange() {
-  if (!newChangeProjectId.value || !newChangeBefore.value.trim() || !newChangeAfter.value.trim()) return
+function submitCreateChange () {
+  if (!newChangeProjectId.value || !newChangeBefore.value.trim() || !newChangeAfter.value.trim()) { return }
   const affectedEntities: AffectedEntityRef[] = [{ entityType: 'project', entityId: newChangeProjectId.value }]
   const request = createChangeRequest({
     projectId: newChangeProjectId.value,
@@ -135,7 +134,7 @@ function submitCreateChange() {
     afterSummary: newChangeAfter.value.trim(),
     operationalImpact: newChangeOperationalImpact.value.trim() || undefined,
     commercialImpactIdr: newChangeCommercialImpact.value ?? undefined,
-    timelineImpactNote: newChangeTimelineImpact.value.trim() || undefined,
+    timelineImpactNote: newChangeTimelineImpact.value.trim() || undefined
   })
   resetChangeForm()
   isCreateChangeOpen.value = false
@@ -150,21 +149,21 @@ const newIncidentTitle = ref('')
 const newIncidentDescription = ref('')
 const newIncidentSeverity = ref<IncidentSeverity>('medium')
 
-function resetIncidentForm() {
+function resetIncidentForm () {
   newIncidentProjectId.value = ''
   newIncidentTitle.value = ''
   newIncidentDescription.value = ''
   newIncidentSeverity.value = 'medium'
 }
 
-function submitCreateIncident() {
-  if (!newIncidentProjectId.value || !newIncidentTitle.value.trim() || !newIncidentDescription.value.trim()) return
+function submitCreateIncident () {
+  if (!newIncidentProjectId.value || !newIncidentTitle.value.trim() || !newIncidentDescription.value.trim()) { return }
   const incident = createIncident({
     projectId: newIncidentProjectId.value,
     title: newIncidentTitle.value.trim(),
     description: newIncidentDescription.value.trim(),
     severity: newIncidentSeverity.value,
-    ownerId: currentUser.value.id,
+    ownerId: currentUser.value.id
   })
   resetIncidentForm()
   isCreateIncidentOpen.value = false
@@ -180,21 +179,21 @@ const newRefundType = ref<'partial' | 'full'>('partial')
 const newRefundAmount = ref<number | null>(null)
 const projectCancellations = computed(() => (newRefundProjectId.value ? getCancellationRecordsByProject(newRefundProjectId.value) : []))
 
-function resetRefundForm() {
+function resetRefundForm () {
   newRefundProjectId.value = ''
   newRefundCancellationId.value = ''
   newRefundType.value = 'partial'
   newRefundAmount.value = null
 }
 
-function submitCreateRefund() {
-  if (!newRefundProjectId.value || !newRefundAmount.value) return
+function submitCreateRefund () {
+  if (!newRefundProjectId.value || !newRefundAmount.value) { return }
   const refund = createRefundRequest({
     projectId: newRefundProjectId.value,
     cancellationId: newRefundCancellationId.value || undefined,
     type: newRefundType.value,
     amountIdr: newRefundAmount.value,
-    requestedBy: currentUser.value.id,
+    requestedBy: currentUser.value.id
   })
   resetRefundForm()
   isCreateRefundOpen.value = false
@@ -214,7 +213,9 @@ function submitCreateRefund() {
         <div class="flex flex-wrap items-center gap-2">
           <Dialog v-model:open="isCreateChangeOpen">
             <DialogTrigger as-child>
-              <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Change Request</Button>
+              <Button size="sm" variant="outline">
+                <Plus class="h-4 w-4 mr-1.5" />Change Request
+              </Button>
             </DialogTrigger>
             <DialogScrollContent class="max-w-lg">
               <DialogHeader>
@@ -226,14 +227,20 @@ function submitCreateRefund() {
                   <div class="space-y-1.5">
                     <Label for="cr-project">Project</Label>
                     <select id="cr-project" v-model="newChangeProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                      <option value="" disabled>Pilih project</option>
-                      <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+                      <option value="" disabled>
+                        Pilih project
+                      </option>
+                      <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                        {{ project.name }}
+                      </option>
                     </select>
                   </div>
                   <div class="space-y-1.5">
                     <Label for="cr-source">Sumber</Label>
                     <select id="cr-source" v-model="newChangeSource" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                      <option v-for="option in CHANGE_REQUEST_SOURCES" :key="option.value" :value="option.value">{{ option.label }}</option>
+                      <option v-for="option in CHANGE_REQUEST_SOURCES" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </option>
                     </select>
                   </div>
                 </div>
@@ -261,15 +268,21 @@ function submitCreateRefund() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" @click="isCreateChangeOpen = false">Batal</Button>
-                <Button :disabled="!newChangeProjectId || !newChangeBefore.trim() || !newChangeAfter.trim()" @click="submitCreateChange">Simpan</Button>
+                <Button variant="outline" @click="isCreateChangeOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!newChangeProjectId || !newChangeBefore.trim() || !newChangeAfter.trim()" @click="submitCreateChange">
+                  Simpan
+                </Button>
               </DialogFooter>
             </DialogScrollContent>
           </Dialog>
 
           <Dialog v-model:open="isCreateRefundOpen">
             <DialogTrigger as-child>
-              <Button size="sm" variant="outline"><Plus class="h-4 w-4 mr-1.5" />Refund</Button>
+              <Button size="sm" variant="outline">
+                <Plus class="h-4 w-4 mr-1.5" />Refund
+              </Button>
             </DialogTrigger>
             <DialogContent class="max-w-md">
               <DialogHeader>
@@ -280,23 +293,35 @@ function submitCreateRefund() {
                 <div class="space-y-1.5">
                   <Label for="ref-project">Project</Label>
                   <select id="ref-project" v-model="newRefundProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="" disabled>Pilih project</option>
-                    <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+                    <option value="" disabled>
+                      Pilih project
+                    </option>
+                    <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                      {{ project.name }}
+                    </option>
                   </select>
                 </div>
                 <div class="space-y-1.5">
                   <Label for="ref-cancellation">Cancellation Terkait (opsional)</Label>
                   <select id="ref-cancellation" v-model="newRefundCancellationId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="">Tidak terkait cancellation tertentu</option>
-                    <option v-for="cnx in projectCancellations" :key="cnx.id" :value="cnx.id">{{ cnx.id }} — {{ cnx.bookingType }} {{ cnx.bookingId }}</option>
+                    <option value="">
+                      Tidak terkait cancellation tertentu
+                    </option>
+                    <option v-for="cnx in projectCancellations" :key="cnx.id" :value="cnx.id">
+                      {{ cnx.id }} — {{ cnx.bookingType }} {{ cnx.bookingId }}
+                    </option>
                   </select>
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                   <div class="space-y-1.5">
                     <Label for="ref-type">Tipe</Label>
                     <select id="ref-type" v-model="newRefundType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                      <option value="partial">Partial</option>
-                      <option value="full">Full</option>
+                      <option value="partial">
+                        Partial
+                      </option>
+                      <option value="full">
+                        Full
+                      </option>
                     </select>
                   </div>
                   <div class="space-y-1.5">
@@ -306,15 +331,21 @@ function submitCreateRefund() {
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" @click="isCreateRefundOpen = false">Batal</Button>
-                <Button :disabled="!newRefundProjectId || !newRefundAmount" @click="submitCreateRefund">Kirim</Button>
+                <Button variant="outline" @click="isCreateRefundOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!newRefundProjectId || !newRefundAmount" @click="submitCreateRefund">
+                  Kirim
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
 
           <Dialog v-model:open="isCreateIncidentOpen">
             <DialogTrigger as-child>
-              <Button size="sm"><Plus class="h-4 w-4 mr-1.5" />Incident</Button>
+              <Button size="sm">
+                <Plus class="h-4 w-4 mr-1.5" />Incident
+              </Button>
             </DialogTrigger>
             <DialogContent class="max-w-md">
               <DialogHeader>
@@ -325,8 +356,12 @@ function submitCreateRefund() {
                 <div class="space-y-1.5">
                   <Label for="inc-project">Project</Label>
                   <select id="inc-project" v-model="newIncidentProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="" disabled>Pilih project</option>
-                    <option v-for="project in PROJECTS" :key="project.id" :value="project.id">{{ project.name }}</option>
+                    <option value="" disabled>
+                      Pilih project
+                    </option>
+                    <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                      {{ project.name }}
+                    </option>
                   </select>
                 </div>
                 <div class="space-y-1.5">
@@ -340,13 +375,19 @@ function submitCreateRefund() {
                 <div class="space-y-1.5">
                   <Label for="inc-severity">Severity</Label>
                   <select id="inc-severity" v-model="newIncidentSeverity" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="option in INCIDENT_SEVERITIES" :key="option.value" :value="option.value">{{ option.label }}</option>
+                    <option v-for="option in INCIDENT_SEVERITIES" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
                   </select>
                 </div>
               </div>
               <DialogFooter>
-                <Button variant="outline" @click="isCreateIncidentOpen = false">Batal</Button>
-                <Button :disabled="!newIncidentProjectId || !newIncidentTitle.trim() || !newIncidentDescription.trim()" @click="submitCreateIncident">Simpan</Button>
+                <Button variant="outline" @click="isCreateIncidentOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!newIncidentProjectId || !newIncidentTitle.trim() || !newIncidentDescription.trim()" @click="submitCreateIncident">
+                  Simpan
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
@@ -366,10 +407,18 @@ function submitCreateRefund() {
 
       <Tabs v-model="activeTab">
         <TabsList>
-          <TabsTrigger value="change-requests">Change Requests</TabsTrigger>
-          <TabsTrigger value="cancellations">Cancellations</TabsTrigger>
-          <TabsTrigger value="refunds">Refunds</TabsTrigger>
-          <TabsTrigger value="incidents">Incidents</TabsTrigger>
+          <TabsTrigger value="change-requests">
+            Change Requests
+          </TabsTrigger>
+          <TabsTrigger value="cancellations">
+            Cancellations
+          </TabsTrigger>
+          <TabsTrigger value="refunds">
+            Refunds
+          </TabsTrigger>
+          <TabsTrigger value="incidents">
+            Incidents
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="change-requests">
@@ -379,12 +428,20 @@ function submitCreateRefund() {
               <Input v-model="crSearch" placeholder="Cari ringkasan atau project..." class="pl-9" />
             </div>
             <select v-model="crSourceFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Sumber</option>
-              <option v-for="option in CHANGE_REQUEST_SOURCES" :key="option.value" :value="option.value">{{ option.label }}</option>
+              <option value="all">
+                Semua Sumber
+              </option>
+              <option v-for="option in CHANGE_REQUEST_SOURCES" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
             </select>
             <select v-model="crStatusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Status</option>
-              <option v-for="option in CHANGE_REQUEST_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
+              <option value="all">
+                Semua Status
+              </option>
+              <option v-for="option in CHANGE_REQUEST_STATUSES" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
             </select>
           </div>
           <SectionCard>
@@ -400,10 +457,16 @@ function submitCreateRefund() {
               </TableHeader>
               <TableBody>
                 <TableRow v-for="row in crRows" :key="row.item.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/changes/${row.item.id}`)">
-                  <TableCell class="font-medium text-foreground">{{ row.item.id }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.project?.name ?? row.item.projectId }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.item.id }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? row.item.projectId }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(CHANGE_REQUEST_SOURCES, row.item.source).label" :tone="findStatusOption(CHANGE_REQUEST_SOURCES, row.item.source).tone" /></TableCell>
-                  <TableCell class="text-muted-foreground max-w-[320px] truncate">{{ row.item.beforeSummary }} → {{ row.item.afterSummary }}</TableCell>
+                  <TableCell class="text-muted-foreground max-w-[320px] truncate">
+                    {{ row.item.beforeSummary }} → {{ row.item.afterSummary }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(CHANGE_REQUEST_STATUSES, row.item.status).label" :tone="findStatusOption(CHANGE_REQUEST_STATUSES, row.item.status).tone" /></TableCell>
                 </TableRow>
                 <TableEmpty v-if="crRows.length === 0" :colspan="5">
@@ -421,11 +484,21 @@ function submitCreateRefund() {
               <Input v-model="cnxSearch" placeholder="Cari booking ID, alasan, atau project..." class="pl-9" />
             </div>
             <select v-model="cnxDomainFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Domain</option>
-              <option value="flight">Flight</option>
-              <option value="hotel">Hotel</option>
-              <option value="transport">Transport</option>
-              <option value="mice">MICE</option>
+              <option value="all">
+                Semua Domain
+              </option>
+              <option value="flight">
+                Flight
+              </option>
+              <option value="hotel">
+                Hotel
+              </option>
+              <option value="transport">
+                Transport
+              </option>
+              <option value="mice">
+                MICE
+              </option>
             </select>
           </div>
           <SectionCard description="Cancellation dibuat otomatis dari halaman detail booking (Ticketing/Accommodation/Transportation/MICE) saat status berpindah ke cancelled/no-show/refunded.">
@@ -442,11 +515,21 @@ function submitCreateRefund() {
               </TableHeader>
               <TableBody>
                 <TableRow v-for="row in cnxRows" :key="row.item.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/changes/cancellations/${row.item.id}`)">
-                  <TableCell class="font-medium text-foreground">{{ row.item.id }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.item.bookingType }} {{ row.item.bookingId }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.project?.name ?? row.item.projectId }}</TableCell>
-                  <TableCell class="text-muted-foreground max-w-[260px] truncate">{{ row.item.reason }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.item.penaltyIdr !== undefined ? formatCurrencyIdr(row.item.penaltyIdr) : 'Tidak ada' }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.item.id }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.item.bookingType }} {{ row.item.bookingId }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? row.item.projectId }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground max-w-[260px] truncate">
+                    {{ row.item.reason }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.item.penaltyIdr !== undefined ? formatCurrencyIdr(row.item.penaltyIdr) : 'Tidak ada' }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="row.item.refundEligible ? 'Eligible' : 'Tidak Eligible'" :tone="row.item.refundEligible ? 'success' : 'neutral'" /></TableCell>
                 </TableRow>
                 <TableEmpty v-if="cnxRows.length === 0" :colspan="6">
@@ -464,8 +547,12 @@ function submitCreateRefund() {
               <Input v-model="refSearch" placeholder="Cari ID refund atau project..." class="pl-9" />
             </div>
             <select v-model="refStatusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Status</option>
-              <option v-for="option in REFUND_REQUEST_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
+              <option value="all">
+                Semua Status
+              </option>
+              <option v-for="option in REFUND_REQUEST_STATUSES" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
             </select>
           </div>
           <SectionCard>
@@ -482,10 +569,18 @@ function submitCreateRefund() {
               </TableHeader>
               <TableBody>
                 <TableRow v-for="row in refRows" :key="row.item.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/changes/refunds/${row.item.id}`)">
-                  <TableCell class="font-medium text-foreground">{{ row.item.id }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.project?.name ?? row.item.projectId }}</TableCell>
-                  <TableCell class="text-muted-foreground capitalize">{{ row.item.type }}</TableCell>
-                  <TableCell class="text-foreground">{{ formatCurrencyIdr(row.item.amountIdr) }}</TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.item.id }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? row.item.projectId }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground capitalize">
+                    {{ row.item.type }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(row.item.amountIdr) }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(REFUND_REQUEST_STATUSES, row.item.status).label" :tone="findStatusOption(REFUND_REQUEST_STATUSES, row.item.status).tone" /></TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(REFUND_CREDIT_STATUSES, row.item.creditStatus).label" :tone="findStatusOption(REFUND_CREDIT_STATUSES, row.item.creditStatus).tone" /></TableCell>
                 </TableRow>
@@ -504,12 +599,20 @@ function submitCreateRefund() {
               <Input v-model="incSearch" placeholder="Cari judul atau project..." class="pl-9" />
             </div>
             <select v-model="incSeverityFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Severity</option>
-              <option v-for="option in INCIDENT_SEVERITIES" :key="option.value" :value="option.value">{{ option.label }}</option>
+              <option value="all">
+                Semua Severity
+              </option>
+              <option v-for="option in INCIDENT_SEVERITIES" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
             </select>
             <select v-model="incStatusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">Semua Status</option>
-              <option v-for="option in INCIDENT_STATUSES" :key="option.value" :value="option.value">{{ option.label }}</option>
+              <option value="all">
+                Semua Status
+              </option>
+              <option v-for="option in INCIDENT_STATUSES" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
             </select>
           </div>
           <SectionCard>
@@ -527,12 +630,22 @@ function submitCreateRefund() {
               <TableBody>
                 <TableRow v-for="row in incRows" :key="row.item.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/changes/incidents/${row.item.id}`)">
                   <TableCell class="min-w-[200px]">
-                    <p class="font-medium text-foreground">{{ row.item.id }}</p>
-                    <p class="text-xs text-muted-foreground truncate max-w-[220px]">{{ row.item.title }}</p>
+                    <p class="font-medium text-foreground">
+                      {{ row.item.id }}
+                    </p>
+                    <p class="text-xs text-muted-foreground truncate max-w-[220px]">
+                      {{ row.item.title }}
+                    </p>
                   </TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.project?.name ?? row.item.projectId }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ row.item.bookingId ? `${row.item.bookingType} ${row.item.bookingId}` : 'Project-level' }}</TableCell>
-                  <TableCell class="text-muted-foreground">{{ getUserById(row.item.ownerId)?.name ?? row.item.ownerId }}</TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? row.item.projectId }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.item.bookingId ? `${row.item.bookingType} ${row.item.bookingId}` : 'Project-level' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ getUserById(row.item.ownerId)?.name ?? row.item.ownerId }}
+                  </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(INCIDENT_SEVERITIES, row.item.severity).label" :tone="findStatusOption(INCIDENT_SEVERITIES, row.item.severity).tone" /></TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(INCIDENT_STATUSES, row.item.status).label" :tone="findStatusOption(INCIDENT_STATUSES, row.item.status).tone" /></TableCell>
                 </TableRow>
