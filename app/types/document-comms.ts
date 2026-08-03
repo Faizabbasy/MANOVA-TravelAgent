@@ -35,6 +35,9 @@ export type DocumentEntityType =
   | 'invoice'
   | 'change-request'
   | 'incident'
+  /** Repair Phase Section 3 (Request & Commercial) — bukan daftar tertutup (lihat komentar di atas), 2 nilai baru untuk `Notification.entityType` pada entitas Client Experience baru. */
+  | 'travel-request'
+  | 'approval'
 
 export interface Document {
   id: ID
@@ -55,6 +58,28 @@ export interface Document {
   /** Hanya untuk `sourceType: 'generated'` — menautkan ke salah satu dari 9 route preview existing yang SUDAH ADA di codebase (Section 05/09/13-16), TIDAK PERNAH route baru/fiktif. */
   previewRoute?: string
   uploadedBy?: ID
+  /**
+   * Version history (Repair Phase Section 5 — Execution & Changes, Master Prompt bagian C "Replace
+   * version"/"Version history"). Menaut ke `Document.id` versi sebelumnya dalam lineage yang sama — pola
+   * sama `ItineraryVersion.supersedesVersionId`. Versi lama TIDAK PERNAH ditimpa/dihapus (append-only).
+   */
+  supersedesId?: ID
+  /** Verification status (Repair Phase Section 5, Master Prompt bagian C "Verification") — ditandai tim internal, Client hanya melihat status (read-only dari sisi Client). */
+  verified?: boolean
+  verifiedBy?: ID
+  verifiedAt?: string
+}
+
+/** Kategori client-facing (Repair Phase Section 5, Master Prompt bagian C "Kategori") — derivasi dari `DocumentEntityType` lewat `getClientDocumentCategory` (`app/data/index.ts`), BUKAN field tersimpan baru di `Document`. */
+export type ClientDocumentCategory = 'commercial' | 'participant' | 'travel' | 'finance' | 'closing'
+
+/** Comment thread Document (Repair Phase Section 5, Wajib "Comment") — pola sama `ItineraryComment`/`ChangeRequestComment`. */
+export interface DocumentComment {
+  id: ID
+  documentId: ID
+  authorId: ID
+  body: string
+  createdAt: string
 }
 
 /** "Internal notes, client messages, supplier messages" (Wajib) — tiga channel eksplisit, masing-masing digerbangi visibilitas berbeda di UI (client/supplier TIDAK PERNAH melihat `internal-note`). */
@@ -83,10 +108,23 @@ export interface Message {
   deliveryStatus: MessageDeliveryStatus
   /** Label mock SAJA — TIDAK ADA integrasi email/WhatsApp nyata (larangan protokol eksplisit). */
   deliveryChannel?: 'email' | 'whatsapp'
+  /** Repair Phase Section 6 — Finance & Collaboration, Master Prompt bagian 13 "Attachment mock" — metadata nama file saja, pola sama `ChangeRequestAttachment`. */
+  attachmentName?: string
+  /** "Unread state" (Wajib) — userId yang sudah membaca pesan ini, diisi `markMessagesRead`. Opsional/aditif, pesan lama (seluruhnya internal/section sebelumnya) dianggap belum dibaca siapa pun sampai dibuka. */
+  readBy?: ID[]
 }
 
 /** "Mentions, assignments, reminders, escalation" (Wajib) + `change`/`incident`/`document` sebagai perluasan wajar cakupan notifikasi in-app. */
 export type NotificationType = 'mention' | 'assignment' | 'reminder' | 'escalation' | 'change' | 'incident' | 'document' | 'message'
+
+/**
+ * `NotificationCategory` (Repair Phase Section 2 — Home, Notifications) — 9 kategori client-facing eksplisit
+ * dari `prompts/repair_phases/MASTER-PROMPT.md` bagian G.2, TERPISAH dari `NotificationType` (LOCKED sejak
+ * Section 21, dipakai `NotificationPanel.vue`/`/documents` untuk icon/tone internal). Aditif murni — field
+ * opsional, 9 notifikasi lama (internal, Section 21) tidak diubah/diberi nilai; hanya notifikasi client baru
+ * (Section 2) yang mengisinya, dipakai filter category di `/client/notifications`.
+ */
+export type NotificationCategory = 'approval' | 'project' | 'participant' | 'reservation' | 'document' | 'payment' | 'trip' | 'support' | 'system'
 
 /**
  * `Notification` — in-app notification center (Wajib). Dipicu HANYA dari titik pemicu KURASI (bukan seluruh
@@ -105,6 +143,8 @@ export interface Notification {
   entityId?: ID
   createdAt: string
   read: boolean
+  /** Section 2 — client-facing category (lihat `NotificationCategory`). Kosong untuk notifikasi internal lama. */
+  category?: NotificationCategory
 }
 
 export type UnifiedTimelineEntryKind = 'activity' | 'system-event' | 'message' | 'document'

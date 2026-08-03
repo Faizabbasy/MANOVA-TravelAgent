@@ -2,6 +2,7 @@ import { daysUntil } from './format'
 import type { Project, Traveler } from '~/types/project'
 import type { Invoice } from '~/types/finance'
 import type { ProjectTask } from '~/types/activity'
+import type { Approval } from '~/types/client-approval'
 
 /**
  * Tanggal acuan "hari ini" untuk seluruh skenario demo (konsisten dengan docs/mockup-data-scenarios.md).
@@ -41,6 +42,21 @@ export function isInvoiceOverdue (invoice: Invoice, referenceIso = DEMO_REFERENC
 /** Aging (Section 15) — negatif berarti sudah lewat jatuh tempo sekian hari, positif berarti masih tersisa sekian hari. */
 export function invoiceAgingDays (invoice: Invoice, referenceIso = DEMO_REFERENCE_DATE): number {
   return daysUntil(invoice.dueAt, referenceIso)
+}
+
+/** Jendela "invoice akan jatuh tempo" (Repair Phase Section 2 — Dashboard "Invoice near due date") — pola sama `isDocumentExpiringSoon`, TIDAK overlap dengan `isInvoiceOverdue` (belum lewat jatuh tempo). */
+export const INVOICE_DUE_SOON_WINDOW_DAYS = 14
+
+export function isInvoiceDueSoon (invoice: Invoice, referenceIso = DEMO_REFERENCE_DATE): boolean {
+  if (invoice.status === 'paid' || invoice.status === 'void') { return false }
+  const days = daysUntil(invoice.dueAt, referenceIso)
+  return days >= 0 && days <= INVOICE_DUE_SOON_WINDOW_DAYS
+}
+
+/** "Expired" (Repair Phase Section 3 — Approval Center, Master Prompt bagian G.5) — derivasi, pola sama `isDocumentExpired`. `status` tetap `pending` sampai diputuskan; "Expired" murni tag tampilan untuk approval yang lewat `expiresAt` dan belum diputuskan. */
+export function isApprovalExpired (approval: Approval, referenceIso = DEMO_REFERENCE_DATE): boolean {
+  if (approval.status !== 'pending' || !approval.expiresAt) { return false }
+  return daysUntil(approval.expiresAt, referenceIso) < 0
 }
 
 export function isTaskOverdue (task: ProjectTask): boolean {

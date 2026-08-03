@@ -1,6 +1,23 @@
 import type { ID } from './common'
+import type { InvoiceCurrency } from './finance'
 
 export type PartyLifecycleStatus = 'prospect' | 'client'
+
+export type CompanyType = 'private-company' | 'bumn' | 'government-agency' | 'university' | 'foundation' | 'event-organizer' | 'travel-agent' | 'other'
+
+/**
+ * "Verification state for sensitive changes" (Repair Phase Section 7 — Insights & Company, Master Prompt
+ * bagian 18) — field legal/finansial sensitif (registrasi/pajak/billing/payment term) TIDAK PERNAH ditulis
+ * langsung oleh `updateCompanyProfile`; disimpan dulu ke `Party.pendingProfileChange`, baru diterapkan oleh
+ * `runCompanyProfileVerificationMock` (dipicu lazy, pola sama `runPaymentVerificationMock` Section 6).
+ */
+export interface SensitiveCompanyProfileFields {
+  registrationNumber?: string
+  npwp?: string
+  billingName?: string
+  billingAddress?: string
+  paymentTerm?: string
+}
 
 export interface Party {
   id: ID
@@ -14,6 +31,33 @@ export interface Party {
   phone?: string
   /** Account Executive pemilik relationship company ini (berbeda dari `Opportunity.ownerId` yang per-deal) — Prompt 19. */
   accountOwnerId?: ID
+
+  /**
+   * Company Profile (Repair Phase Section 7 — Insights & Company, Master Prompt bagian 18). Seluruhnya
+   * opsional/aditif — field lama TIDAK diubah/dihapus, halaman internal (`/crm/parties/[id]` dkk.) yang
+   * belum memakai field ini tetap berfungsi identik.
+   */
+  logoFileName?: string
+  companyType?: CompanyType
+  address?: string
+  province?: string
+  country?: string
+  postalCode?: string
+  website?: string
+  email?: string
+  preferredCurrency?: InvoiceCurrency
+  poRequired?: boolean
+  travelPreferences?: string
+  /** Field sensitif (Wajib "Verification state") — nilai AKTIF/terverifikasi, lihat `SensitiveCompanyProfileFields`. */
+  registrationNumber?: string
+  npwp?: string
+  billingName?: string
+  billingAddress?: string
+  paymentTerm?: string
+  /** Perubahan field sensitif yang belum diverifikasi — kosong berarti tidak ada perubahan pending. */
+  pendingProfileChange?: SensitiveCompanyProfileFields
+  pendingProfileChangeSubmittedAt?: string
+  pendingProfileChangeSubmittedBy?: ID
 }
 
 export interface ContactPerson {

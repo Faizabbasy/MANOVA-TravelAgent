@@ -41,6 +41,7 @@ export default defineNuxtConfig({
     { path: '~/components/layout', pathPrefix: false },
     { path: '~/components/dashboard', pathPrefix: false },
     { path: '~/components/shared', pathPrefix: false },
+    { path: '~/components/client', pathPrefix: false },
     { path: '~/components/ui', pathPrefix: false }
   ],
 

@@ -145,10 +145,43 @@ export interface Quotation {
   sentToClientAt?: string
 
   /**
+   * Repair Phase Section 3 (Request & Commercial) — dua field naratif aditif untuk halaman client
+   * "Quotations & Proposals" (Master Prompt bagian G.4 "Cancellation policy"/"Proposed itinerary").
+   * Free-text, pola sama `termsAndConditions`/`inclusions`/`exclusions` — TIDAK menambah entitas
+   * itinerary baru (itinerary sungguhan tetap `ItineraryItem`/`ItineraryVersion`, project-scoped,
+   * belum ada pra-Project; field ini murni ringkasan naratif AE untuk tahap proposal).
+   */
+  cancellationPolicy?: string
+  proposedItineraryNote?: string
+
+  /**
    * Section 10 — Product Planning dan Costing. Referensi Cost Sheet yang dipakai membentuk quotation ini
    * (lihat `applyCostSheetToQuotation`, `app/data/index.ts`) — traceability collaboration Product
    * Planner↔AE, TIDAK menggantikan `estimatedCostIdr`/`estimatedMarginIdr` yang tetap disalin (snapshot)
    * ke field di atas agar Quotation tetap berdiri sendiri meski Cost Sheet sumber kelak direvisi.
    */
   costSheetId?: ID
+}
+
+/**
+ * Repair Phase Section 3 (Request & Commercial) — Quotation attachment/comment mock. Entitas kecil
+ * berdiri sendiri (BUKAN `Document`/`Message`, `app/types/document-comms.ts`) karena modul `documents`
+ * (Section 21) sengaja masih `ROLE_MODULE_ACCESS.client.documents: 'NONE'` sampai section "Collaboration"
+ * mengaudit ulang visibilitasnya (lihat `docs/client-page-inventory.md` #2/#12) — Section 3 di luar scope
+ * itu, jadi TIDAK menyentuh `DOCUMENT_RECORDS`/`MESSAGE_RECORDS` sama sekali. Pola sama `TravelRequestAttachment`.
+ */
+export interface QuotationAttachment {
+  id: ID
+  quotationId: ID
+  fileName: string
+  uploadedAt: string
+  uploadedBy: ID
+}
+
+export interface QuotationComment {
+  id: ID
+  quotationId: ID
+  authorId: ID
+  body: string
+  createdAt: string
 }

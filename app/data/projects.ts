@@ -95,6 +95,109 @@ export const PROJECTS: Project[] = reactive([
     quotationAmountIdr: 60_000_000,
     budgetIdr: 60_000_000,
     actualCostIdr: 0
+  },
+  /**
+   * PRJ-201–204 (Client Experience — Repair Phase Section 1) — 4 dari 5 skenario demo wajib
+   * `docs/client-mock-data-scenarios.md` (skenario "Bali MICE Event" belum menjadi Project, masih tahap
+   * Lead — lihat `app/data/leads.ts` LED-012). Seluruhnya milik PTY-005 ("engagement langsung", tanpa
+   * `opportunityId`, konsisten pola Service Order tanpa RFQ) — company baru, TIDAK memakai/mengubah
+   * PRJ-101-104 yang sudah dipakai fixture/test section lain.
+   */
+  {
+    id: 'PRJ-201',
+    name: 'Korea Incentive Trip 2026',
+    partyId: 'PTY-005',
+    destination: 'Seoul, Korea Selatan',
+    travelStartDate: '2026-10-12',
+    travelEndDate: '2026-10-16',
+    characteristic: 'high-change',
+    serviceScope: ['flight', 'hotel'],
+    travelerCount: 45,
+    ownerId: 'USR-002',
+    teamUserIds: ['USR-004', 'USR-005'],
+    status: 'planning',
+    quotationAmountIdr: 980_000_000,
+    budgetIdr: 900_000_000,
+    actualCostIdr: 410_000_000,
+    handoverAcceptedAt: '2026-07-20',
+    handoverAcceptedBy: 'USR-002',
+    tourLeaderName: 'Sandi Wirawan',
+    tourLeaderPhone: '0812-7001-1001',
+    emergencyContactName: 'Manova 24/7 Operations',
+    emergencyContactPhone: '+62 21 5000 1188',
+    meetingPoint: 'Terminal 3 Bandara Soekarno-Hatta, konter check-in grup'
+  },
+  {
+    id: 'PRJ-202',
+    name: 'Abu Dhabi Business Delegation',
+    partyId: 'PTY-005',
+    destination: 'Abu Dhabi, Uni Emirat Arab',
+    travelStartDate: '2026-07-25',
+    travelEndDate: '2026-08-02',
+    characteristic: 'normal',
+    serviceScope: ['flight', 'hotel'],
+    travelerCount: 24,
+    ownerId: 'USR-002',
+    teamUserIds: ['USR-004'],
+    status: 'ongoing-trip',
+    quotationAmountIdr: 460_000_000,
+    budgetIdr: 420_000_000,
+    actualCostIdr: 415_000_000,
+    handoverAcceptedAt: '2026-07-10',
+    handoverAcceptedBy: 'USR-002',
+    tourLeaderName: 'Reza Pratama',
+    tourLeaderPhone: '0812-7002-1002',
+    emergencyContactName: 'Manova 24/7 Operations',
+    emergencyContactPhone: '+62 21 5000 1188',
+    meetingPoint: 'Lobi Hotel Emirates Palace, Abu Dhabi'
+  },
+  {
+    id: 'PRJ-203',
+    name: 'Manila Corporate Meeting 2026',
+    partyId: 'PTY-005',
+    destination: 'Manila, Filipina',
+    travelStartDate: '2026-06-10',
+    travelEndDate: '2026-06-13',
+    characteristic: 'normal',
+    serviceScope: ['flight'],
+    travelerCount: 12,
+    ownerId: 'USR-002',
+    teamUserIds: [],
+    status: 'completed',
+    quotationAmountIdr: 165_000_000,
+    budgetIdr: 150_000_000,
+    actualCostIdr: 148_000_000,
+    handoverAcceptedAt: '2026-05-15',
+    handoverAcceptedBy: 'USR-002',
+    tourLeaderName: 'Nadia Kusuma',
+    tourLeaderPhone: '0812-7003-1003',
+    emergencyContactName: 'Manova 24/7 Operations',
+    emergencyContactPhone: '+62 21 5000 1188',
+    meetingPoint: 'Lobi Manila Corporate Center'
+  },
+  {
+    id: 'PRJ-204',
+    name: 'Singapore Conference 2026',
+    partyId: 'PTY-005',
+    destination: 'Singapura',
+    travelStartDate: '2026-11-05',
+    travelEndDate: '2026-11-08',
+    characteristic: 'high-change',
+    serviceScope: ['flight', 'hotel'],
+    travelerCount: 15,
+    ownerId: 'USR-002',
+    teamUserIds: ['USR-004'],
+    status: 'confirmed',
+    quotationAmountIdr: 320_000_000,
+    budgetIdr: 300_000_000,
+    actualCostIdr: 90_000_000,
+    handoverAcceptedAt: '2026-07-18',
+    handoverAcceptedBy: 'USR-002',
+    tourLeaderName: 'Bagas Aditya',
+    tourLeaderPhone: '0812-7004-1004',
+    emergencyContactName: 'Manova 24/7 Operations',
+    emergencyContactPhone: '+62 21 5000 1188',
+    meetingPoint: 'Terminal 3 Bandara Soekarno-Hatta, konter check-in grup'
   }
 ])
 
@@ -120,7 +223,19 @@ export const PROJECT_SERVICES: ProjectService[] = reactive([
   { id: 'SVC-1033', projectId: 'PRJ-103', type: 'hotel', label: 'Hotel Palu', status: 'confirmed', vendorId: 'VND-002', bookingReference: 'HTL-PLW-2200' },
   { id: 'SVC-1034', projectId: 'PRJ-103', type: 'transportation', label: 'Ground Transportation', status: 'pending-confirmation', vendorId: 'VND-003' },
   { id: 'SVC-1035', projectId: 'PRJ-103', type: 'mice', label: 'Venue & Rundown Acara', status: 'confirmed', vendorId: 'VND-004', bookingReference: 'MICE-PLW-VEN01' },
-  { id: 'SVC-1036', projectId: 'PRJ-103', type: 'additional', label: 'Asuransi Perjalanan Grup', status: 'confirmed', bookingReference: 'INS-PLW-2026' }
+  { id: 'SVC-1036', projectId: 'PRJ-103', type: 'additional', label: 'Asuransi Perjalanan Grup', status: 'confirmed', bookingReference: 'INS-PLW-2026' },
+
+  /** PRJ-201-204 (Client Experience — Repair Phase Section 1) — merefleksikan narasi skenario Korea (hotel confirmed, flight belum), Abu Dhabi (seluruh confirmed, trip berjalan), Manila (seluruh completed), Singapore (masih pending menunggu revised quotation dari Change Request CR-005). */
+  { id: 'SVC-2011', projectId: 'PRJ-201', type: 'flight', label: 'Flight Jakarta–Seoul', status: 'pending-confirmation', vendorId: 'VND-001' },
+  { id: 'SVC-2012', projectId: 'PRJ-201', type: 'hotel', label: 'Hotel Seoul (45 pax)', status: 'confirmed', vendorId: 'VND-002', bookingReference: 'HTL-SEL-4501' },
+
+  { id: 'SVC-2021', projectId: 'PRJ-202', type: 'flight', label: 'Flight Jakarta–Abu Dhabi', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR-AUH5502' },
+  { id: 'SVC-2022', projectId: 'PRJ-202', type: 'hotel', label: 'Hotel Abu Dhabi (24 pax)', status: 'confirmed', vendorId: 'VND-002', bookingReference: 'HTL-AUH-2202' },
+
+  { id: 'SVC-2031', projectId: 'PRJ-203', type: 'flight', label: 'Flight Jakarta–Manila', status: 'completed', vendorId: 'VND-001', bookingReference: 'PNR-MNL7701' },
+
+  { id: 'SVC-2041', projectId: 'PRJ-204', type: 'flight', label: 'Flight Jakarta–Singapura', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR-SIN9901' },
+  { id: 'SVC-2042', projectId: 'PRJ-204', type: 'hotel', label: 'Hotel Singapura (15 pax)', status: 'changed', vendorId: 'VND-002' }
 ])
 
 /** Daily itinerary (Section 12) — jadwal harian per project, `groupId` merujuk `TravelerGroup` (Section 11) yang sudah ada. */
@@ -153,7 +268,21 @@ export const ITINERARY_ITEMS: ItineraryItem[] = reactive([
   { id: 'ITIN-1034', projectId: 'PRJ-103', date: '2026-08-12', time: '08:00', title: 'MICE Conference — Hari 2', serviceType: 'mice', timezone: 'Asia/Makassar' },
   { id: 'ITIN-1035', projectId: 'PRJ-103', date: '2026-08-13', time: '10:00', title: 'City Tour & Free Program', serviceType: 'transportation', timezone: 'Asia/Makassar' },
   { id: 'ITIN-1036', projectId: 'PRJ-103', date: '2026-08-14', time: '16:00', title: 'Kepulangan Seluruh Group', serviceType: 'flight', timezone: 'Asia/Makassar' },
-  { id: 'ITIN-1037', projectId: 'PRJ-103', date: '2026-08-11', time: '07:00', title: 'Briefing Tim Operations Sebelum Hari MICE', description: 'Cek kesiapan venue dan AV, alokasi shift staf — tidak ditampilkan ke client', timezone: 'Asia/Makassar', visibleToClient: false }
+  { id: 'ITIN-1037', projectId: 'PRJ-103', date: '2026-08-11', time: '07:00', title: 'Briefing Tim Operations Sebelum Hari MICE', description: 'Cek kesiapan venue dan AV, alokasi shift staf — tidak ditampilkan ke client', timezone: 'Asia/Makassar', visibleToClient: false },
+
+  // PRJ-201 — Korea Incentive Trip, itinerary masih "Waiting Approval" (Client Experience skenario A).
+  { id: 'ITIN-2011', projectId: 'PRJ-201', date: '2026-10-12', time: '09:00', title: 'Keberangkatan Jakarta → Seoul', serviceType: 'flight', timezone: 'Asia/Jakarta' },
+  { id: 'ITIN-2012', projectId: 'PRJ-201', date: '2026-10-16', time: '18:00', title: 'Kepulangan Seoul → Jakarta', serviceType: 'flight', timezone: 'Asia/Seoul' },
+
+  // PRJ-202 — Abu Dhabi Business Delegation, trip sedang berjalan (skenario B).
+  { id: 'ITIN-2021', projectId: 'PRJ-202', date: '2026-07-26', time: '09:00', title: 'Delegasi Bisnis — Hari 1', timezone: 'Asia/Dubai', location: 'Ballroom A, Hotel Emirates Palace' },
+  { id: 'ITIN-2022', projectId: 'PRJ-202', date: '2026-08-02', time: '14:00', title: 'Kepulangan Abu Dhabi → Jakarta', serviceType: 'flight', timezone: 'Asia/Dubai', location: 'Abu Dhabi International Airport, Terminal 1' },
+
+  // PRJ-203 — Manila Corporate Meeting, trip sudah selesai (skenario C).
+  { id: 'ITIN-2031', projectId: 'PRJ-203', date: '2026-06-11', time: '09:00', title: 'Corporate Meeting', timezone: 'Asia/Manila' },
+
+  // PRJ-204 — Singapore Conference, menunggu revised quotation dari Change Request (skenario E).
+  { id: 'ITIN-2041', projectId: 'PRJ-204', date: '2026-11-06', time: '09:00', title: 'Conference — Hari 1', timezone: 'Asia/Singapore' }
 ])
 
 /**
@@ -206,7 +335,24 @@ export const TRAVELERS: Traveler[] = reactive([
   { id: 'TRV-1033', projectId: 'PRJ-103', groupId: 'GRP-001', name: 'Putri Anggraeni', passportNumber: 'D3334563', passportExpiryDate: '2028-12-25', emergencyContactName: 'Rudi Anggraeni', emergencyContactPhone: '0814-3000-3003' },
   { id: 'TRV-1034', projectId: 'PRJ-103', groupId: 'GRP-002', name: 'Taufik Hidayat', emergencyContactName: 'Sinta Hidayat', emergencyContactPhone: '0814-3000-3004' },
   { id: 'TRV-1035', projectId: 'PRJ-103', groupId: 'GRP-002', name: 'Ayu Wulandari', passportNumber: 'D3334565', passportExpiryDate: '2029-05-30' },
-  { id: 'TRV-1036', projectId: 'PRJ-103', groupId: 'GRP-003', name: 'Reza Firmansyah', passportNumber: 'D3334566', passportExpiryDate: '2028-08-08', emergencyContactName: 'Nia Firmansyah', emergencyContactPhone: '0814-3000-3006', companionOfTravelerId: 'TRV-1031' }
+  { id: 'TRV-1036', projectId: 'PRJ-103', groupId: 'GRP-003', name: 'Reza Firmansyah', passportNumber: 'D3334566', passportExpiryDate: '2028-08-08', emergencyContactName: 'Nia Firmansyah', emergencyContactPhone: '0814-3000-3006', companionOfTravelerId: 'TRV-1031' },
+
+  /**
+   * PRJ-201-204 (Client Experience — Repair Phase Section 1) — sampel representatif (bukan 1:1 headcount
+   * `project.travelerCount`, pola sama fixture Foundation/Section 11), 1 traveler dokumen lengkap + 1
+   * belum lengkap per project agar completeness indicator (Section 11) tetap punya kondisi campuran nyata
+   * saat section "Core Project" membangun halaman Participants Client.
+   */
+  { id: 'TRV-2011', projectId: 'PRJ-201', name: 'Bram Setiadi', passportNumber: 'E5551001', passportExpiryDate: '2029-02-01', emergencyContactName: 'Rani Setiadi', emergencyContactPhone: '0815-5001-0001', documentsVerifiedAt: '2026-07-25', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-2012', projectId: 'PRJ-201', name: 'Melisa Tanto', emergencyContactName: 'Vino Tanto', emergencyContactPhone: '0815-5001-0002' },
+
+  { id: 'TRV-2021', projectId: 'PRJ-202', name: 'Farhan Nugroho', passportNumber: 'E5552001', passportExpiryDate: '2028-11-11', emergencyContactName: 'Dina Nugroho', emergencyContactPhone: '0815-5002-0001', documentsVerifiedAt: '2026-07-15', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-2022', projectId: 'PRJ-202', name: 'Clara Wibisono', passportNumber: 'E5552002', passportExpiryDate: '2029-01-09', documentsVerifiedAt: '2026-07-15', documentsVerifiedBy: 'USR-002' },
+
+  { id: 'TRV-2031', projectId: 'PRJ-203', name: 'Reno Adiputra', passportNumber: 'E5553001', passportExpiryDate: '2028-05-20', documentsVerifiedAt: '2026-06-01', documentsVerifiedBy: 'USR-002' },
+
+  { id: 'TRV-2041', projectId: 'PRJ-204', name: 'Kirana Salsabila', passportNumber: 'E5554001', passportExpiryDate: '2029-03-15', documentsVerifiedAt: '2026-07-19', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-2042', projectId: 'PRJ-204', name: 'Yoga Pranata', emergencyContactName: 'Sinta Pranata', emergencyContactPhone: '0815-5004-0002' }
 ])
 
 /** Rooming list eksplisit (Section 11) — hanya untuk traveler bernama yang datanya sudah tercatat di atas. */

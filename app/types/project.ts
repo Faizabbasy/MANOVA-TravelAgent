@@ -123,6 +123,19 @@ export interface Project {
   /** Section 24 — actor yang mengeksekusi `closeProject` (pola sama `handoverAcceptedBy`). Aditif, sengaja TIDAK menduplikasi `closedAt` ke dalam `ProjectClosureChecklist` — satu sumber kebenaran saja. */
   closedBy?: ID
   closureChecklist?: ProjectClosureChecklist
+
+  /**
+   * Trip Center kontak (Repair Phase Section 5 — Execution & Changes, Master Prompt bagian 10). Opsional —
+   * project lama tanpa nilai ini tetap tampil wajar (Trip Center menampilkan "Belum ditugaskan"), pola sama
+   * `handoverAcceptedBy` dkk. `emergencyContactName`/`Phone` adalah kontak darurat 24 jam Project Order
+   * (level project, BUKAN duplikasi `Traveler.emergencyContactName`/`Phone` yang per-traveler).
+   */
+  tourLeaderName?: string
+  tourLeaderPhone?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  /** Default meeting point pra-keberangkatan (mis. titik kumpul bandara) — dipakai Trip Center bila hari berjalan belum punya `ItineraryItem.location` sendiri. */
+  meetingPoint?: string
 }
 
 export interface ProjectService {
@@ -151,6 +164,8 @@ export interface ItineraryItem {
   timezone?: string
   /** "Internal vs client-shared itinerary" (Section 12 baru, Wajib) — default `true` bila kosong (item lama tetap tampil ke Client tanpa migrasi). `false` = catatan operasional internal, disaring dari `/client/project-orders/[id]`. */
   visibleToClient?: boolean
+  /** Meeting point/lokasi hari ini (Repair Phase Section 5 — Trip Center, Master Prompt bagian 10). Opsional, teks bebas mis. "Lobi Hotel, pukul 08:00". */
+  location?: string
 }
 
 export interface TravelerGroup {
@@ -186,6 +201,20 @@ export interface Traveler {
   /** "Internal verification" (Wajib) — dicatat lewat `verifyTravelerDocuments`/`unverifyTravelerDocuments` (`app/data/index.ts`), terpisah dari `isTravelerDocumentMissing` (computed kelengkapan) — verification adalah tindakan manusia (staf internal mengonfirmasi dokumen sudah diperiksa), bukan hasil derivasi otomatis. */
   documentsVerifiedAt?: string
   documentsVerifiedBy?: ID
+
+  /**
+   * Repair Phase Section 4 (Core Project) — "Mark VIP"/"Replace"/"Cancel" (Master Prompt bagian G.7).
+   * Aditif murni, tidak mengubah field existing. `cancelled`/`replacedByTravelerId` TIDAK menghapus baris
+   * (pola sama seluruh entitas lain di codebase — append-only, status berubah, bukan dihapus), agar riwayat
+   * (invoice/rooming/dokumen yang sudah menaut ke traveler ini) tetap konsisten.
+   */
+  isVip?: boolean
+  cancelled?: boolean
+  cancelReason?: string
+  /** Terisi pada traveler LAMA begitu digantikan — menaut ke traveler BARU hasil "Replace". */
+  replacedByTravelerId?: ID
+  /** Terisi pada traveler BARU hasil "Replace" — menaut balik ke traveler LAMA yang digantikannya. */
+  replacesTravelerId?: ID
 }
 
 export type RoomType = 'single' | 'twin' | 'suite'

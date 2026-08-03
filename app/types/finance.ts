@@ -12,8 +12,18 @@ import type { ID } from './common'
  * dengan total `CreditNote` berstatus `issued`/`applied` milik invoice tsb secara on-the-fly.
  */
 
-/** "Overdue" is derived (dueAt lewat, status != paid/void), bukan status tersimpan — lihat app/utils/attention.ts */
-export type InvoiceStatus = 'unpaid' | 'partially-paid' | 'paid' | 'void'
+/**
+ * "Overdue" is derived (dueAt lewat, status != paid/void), bukan status tersimpan — lihat app/utils/attention.ts.
+ * `'waiting-verification'`/`'disputed'` (Repair Phase Section 6 — Finance & Collaboration, Master Prompt
+ * bagian A "Status") ditambahkan ADITIF — 4 nilai lama (LOCKED, Section 20) tidak berubah maknanya, seluruh
+ * selektor existing (`getInvoiceOutstandingIdr`/`getProjectOutstandingIdr`/`isInvoiceOverdue`) tetap
+ * memperlakukan 2 nilai baru sebagai "belum lunas" secara otomatis (hanya `status === 'paid'`/`'void'` yang
+ * dikecualikan di seluruh selektor tsb, tidak berubah). "Draft"/"Issued"/"Viewed"/"Overdue"/"Cancelled"/
+ * "Refunded" (6 nilai lain Master Prompt) SENGAJA tidak ditambahkan sebagai status tersimpan — derivasi dari
+ * field lain (`viewedAt`, `isInvoiceOverdue`, `status: 'void'` sudah memenuhi "Cancelled") agar tidak ada dua
+ * representasi status yang bisa berbeda (LOCKED `void` tetap satu-satunya representasi "dibatalkan").
+ */
+export type InvoiceStatus = 'unpaid' | 'partially-paid' | 'paid' | 'void' | 'waiting-verification' | 'disputed'
 export type PaymentStatus = 'pending' | 'received'
 
 /** Multi-currency display (Section 20, Wajib) — `amountIdr` TETAP satu-satunya ledger/source of truth (nilai IDR), `currency`/`exchangeRateSnapshot` murni untuk tampilan asal invoice. */
@@ -44,6 +54,21 @@ export interface Invoice {
   /** Diisi oleh `voidInvoice` (Section 20) — alasan wajib, transisi terminal (pola sama section lain). */
   voidedAt?: string
   voidReason?: string
+
+  /**
+   * Repair Phase Section 6 — Finance & Collaboration (Master Prompt bagian A). Seluruhnya opsional/aditif.
+   * `viewedAt` — "Viewed" (Wajib), diisi `markInvoiceViewed` saat Client pertama kali membuka detail invoice.
+   * `paymentProof*` — "Upload payment proof"/"Payment reference"/"Submit payment confirmation" (Wajib),
+   * diisi `submitPaymentProof`. `dispute*` — "Raise dispute" (Wajib), diisi `raiseInvoiceDispute`.
+   */
+  viewedAt?: string
+  paymentProofUploadedAt?: string
+  paymentProofSubmittedBy?: ID
+  paymentProofReference?: string
+  paymentProofNote?: string
+  paymentProofAmountIdr?: number
+  disputeReason?: string
+  disputedAt?: string
 }
 
 export interface Payment {

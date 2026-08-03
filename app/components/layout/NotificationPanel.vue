@@ -19,7 +19,7 @@ import { formatDate } from '~/utils/format'
  * mengubah fitur yang sudah bekerja (`docs/mockup-change-impact-log.md` CI-051).
  */
 
-const { currentUser } = useCurrentUser()
+const { currentUser, currentRole } = useCurrentUser()
 
 const notifications = computed(() => getNotificationsForUser(currentUser.value.id))
 const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.id))
@@ -79,8 +79,9 @@ const getTypeBg = (type: NotificationType) => {
   }
 }
 
+/** Section 2 (Home) — tujuan "View all notifications" kini bercabang per role: Client punya halaman sendiri (`/client/notifications`, isolasi per `userId`), role internal tetap ke tab Notifications `/documents` (Section 21, tidak berubah). */
 function goToAllNotifications () {
-  navigateTo('/documents?tab=notifications')
+  navigateTo(currentRole.value === 'client' ? '/client/notifications' : '/documents?tab=notifications')
 }
 
 defineExpose({

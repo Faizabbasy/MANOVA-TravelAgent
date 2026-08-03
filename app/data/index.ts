@@ -14,14 +14,22 @@ import { TRANSPORT_BOOKINGS } from './transportation'
 import { MICE_EVENTS } from './mice'
 import { RFQS, RFQ_INVITATIONS, RFQ_RESPONSES, RFQ_CLARIFICATIONS, SERVICE_ORDERS, SERVICE_ORDER_AMENDMENTS, SUPPLIER_INVOICES } from './procurement'
 import { BOOKING_ORCHESTRATION_RECORDS } from './booking-orchestration'
-import { CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS } from './change-incident'
-import { DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS } from './document-comms'
+import { CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS, CHANGE_REQUEST_DRAFTS, CHANGE_REQUEST_COMMENTS, CHANGE_REQUEST_ATTACHMENTS } from './change-incident'
+import { DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS, DOCUMENT_COMMENTS } from './document-comms'
+import { TRIP_ANNOUNCEMENTS } from './trip-center'
 import { SAVED_VIEWS } from './reporting'
 import { COMMODITY_PRODUCTS, COMMODITY_VARIANTS } from './commodities'
 import { AVAILABILITY_SLOTS } from './availability'
 import { COMMODITY_REQUIREMENTS } from './requirements'
 import { COMMODITY_SELECTIONS } from './selections'
 import { COMMODITY_ORDERS } from './commodity-orders'
+import { TRAVEL_REQUESTS, TRAVEL_REQUEST_ATTACHMENTS, TRAVEL_REQUEST_ACTIVITIES } from './travel-requests'
+import { CLIENT_APPROVALS } from './client-approvals'
+import { ITINERARY_VERSIONS, ITINERARY_COMMENTS } from './itinerary-versions'
+import { RESERVATIONS } from './reservations'
+import { SUPPORT_TICKETS, SUPPORT_TICKET_REPLIES } from './support-tickets'
+import { FEEDBACK_RECORDS } from './feedback'
+import { QUOTATION_ATTACHMENTS, QUOTATION_COMMENTS } from './quotation-extras'
 import {
   MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
   AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
@@ -29,10 +37,10 @@ import {
 } from './master-data'
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
-import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES } from '~/constants/status'
-import type { Project, ServiceTypeKey, ServiceStatus, Traveler, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem } from '~/types/project'
-import type { Party, ContactPerson, PartyActivity, PartyActivityType } from '~/types/party'
-import type { Opportunity, OpportunityStage, Quotation, OpportunityWorkflowStatus } from '~/types/opportunity'
+import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES, PROJECT_STATUSES, SUPPORT_TICKET_CATEGORIES, INVOICE_STATUSES } from '~/constants/status'
+import type { Project, ProjectStatus, ServiceTypeKey, ServiceStatus, Traveler, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
+import type { Party, ContactPerson, PartyActivity, PartyActivityType, CompanyType, SensitiveCompanyProfileFields } from '~/types/party'
+import type { Opportunity, OpportunityStage, Quotation, OpportunityWorkflowStatus, QuotationAttachment, QuotationComment } from '~/types/opportunity'
 import type { Vendor, VendorContact, VendorQuotation, VendorProduct, VendorDocument } from '~/types/vendor'
 import type { ActivityEntry, ChangeCategory, ProjectTask, ProjectRisk, ProjectRiskSeverity, ShiftNote, ShiftPeriod, SystemEvent } from '~/types/activity'
 import type { Lead, LeadActivity } from '~/types/lead'
@@ -43,9 +51,9 @@ import type { TransportBooking, TransportBookingStatus, TransportLeg } from '~/t
 import type { MiceEvent, MiceEventStatus, MiceApprovalStatus } from '~/types/mice'
 import type { RFQ, RFQStatus, RFQLineItem, RFQResponse, RFQResponseLineItem, RFQClarificationMessage, ServiceOrder, ServiceOrderStatus, ServiceOrderLineItem, SupplierInvoice, SupplierInvoiceStatus, SupplierInvoiceMatchStatus } from '~/types/procurement'
 import type { BookingDomain, BookingOrchestrationRecord, BookingAttempt, BookingAttemptOutcome, BookingPaymentGateStatus, BookingTimelineEntry, BookingTimelineDependencyView } from '~/types/booking-orchestration'
-import type { ChangeRequest, ChangeRequestSource, ChangeRequestStatus, AffectedEntityRef, CancellationRecord, RefundRequest, RefundRequestStatus, Incident, IncidentSeverity, IncidentStatus, IncidentCommunicationEntry } from '~/types/change-incident'
+import type { ChangeRequest, ChangeRequestSource, ChangeRequestStatus, ChangeRequestType, AffectedEntityRef, CancellationRecord, RefundRequest, RefundRequestStatus, Incident, IncidentSeverity, IncidentStatus, IncidentCommunicationEntry, ChangeRequestDraft, ChangeRequestComment, ChangeRequestAttachment } from '~/types/change-incident'
 import type { Invoice, InvoiceCurrency, InvoiceType, ExchangeRateSnapshot, Payment, CreditNote, DebitNote } from '~/types/finance'
-import type { Document, DocumentEntityType, DocumentAccessLevel, Message, MessageChannel, Notification, NotificationType, UnifiedTimelineEntry } from '~/types/document-comms'
+import type { Document, DocumentEntityType, DocumentAccessLevel, Message, MessageChannel, Notification, NotificationType, NotificationCategory, UnifiedTimelineEntry, DocumentComment, ClientDocumentCategory } from '~/types/document-comms'
 import type { SavedView, SavedViewPage } from '~/types/reporting'
 import type { OrganizationProfile, MasterDataCategoryKey } from '~/types/master-data'
 import type { User } from '~/types/user'
@@ -54,6 +62,13 @@ import type { AvailabilitySlot } from '~/types/availability'
 import type { CommodityRequirement, RequirementStatus } from '~/types/requirement'
 import type { CommoditySelection, SelectionStatus } from '~/types/selection'
 import type { CommodityOrder, CommodityOrderStatus } from '~/types/commodity-order'
+import type { TravelRequest, TravelRequestAttachment, TravelRequestActivity } from '~/types/travel-request'
+import type { Approval } from '~/types/client-approval'
+import type { ItineraryVersion, ItineraryComment } from '~/types/itinerary-version'
+import type { Reservation, ReservationCategory } from '~/types/reservation'
+import type { SupportTicket, SupportTicketReply, SupportTicketCategory, SupportTicketPriority } from '~/types/support'
+import type { Feedback, FeedbackStatus } from '~/types/feedback'
+import type { TripAnnouncement } from '~/types/trip-center'
 
 export {
   USERS,
@@ -71,12 +86,20 @@ export {
   MICE_EVENTS,
   RFQS, RFQ_INVITATIONS, RFQ_RESPONSES, RFQ_CLARIFICATIONS, SERVICE_ORDERS, SERVICE_ORDER_AMENDMENTS, SUPPLIER_INVOICES,
   BOOKING_ORCHESTRATION_RECORDS,
-  CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS,
-  DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS,
+  CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS, CHANGE_REQUEST_DRAFTS, CHANGE_REQUEST_COMMENTS, CHANGE_REQUEST_ATTACHMENTS,
+  DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS, DOCUMENT_COMMENTS,
+  TRIP_ANNOUNCEMENTS,
   SAVED_VIEWS,
   MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
   AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
-  NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES, ORGANIZATION_PROFILE
+  NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES, ORGANIZATION_PROFILE,
+  TRAVEL_REQUESTS, TRAVEL_REQUEST_ATTACHMENTS, TRAVEL_REQUEST_ACTIVITIES,
+  CLIENT_APPROVALS,
+  ITINERARY_VERSIONS, ITINERARY_COMMENTS,
+  RESERVATIONS,
+  SUPPORT_TICKETS, SUPPORT_TICKET_REPLIES,
+  FEEDBACK_RECORDS,
+  QUOTATION_ATTACHMENTS, QUOTATION_COMMENTS
 }
 
 /** Helper selector sederhana (Prompt 5-H) — hindari query ad-hoc berulang di tiap halaman. */
@@ -134,6 +157,8 @@ export function updateItineraryItem (id: string, patch: Partial<Pick<ItineraryIt
 export const getTravelerGroups = (projectId: string) => TRAVELER_GROUPS.filter(group => group.projectId === projectId)
 export const getTravelers = (projectId: string) => TRAVELERS.filter(traveler => traveler.projectId === projectId)
 export const getTravelersByGroup = (groupId: string) => TRAVELERS.filter(traveler => traveler.groupId === groupId)
+/** Repair Phase Section 4 — Core Project (Participants lintas-project, `/client/participants/[id]`) — belum ada getter tunggal sebelumnya (konsumen lama selalu melalui `getTravelers(projectId)` per-project). */
+export const getTravelerById = (id: string) => TRAVELERS.find(traveler => traveler.id === id)
 export const getRoomAssignments = (projectId: string) => ROOM_ASSIGNMENTS.filter(room => room.projectId === projectId)
 /** "Room block, occupancy, rooming list" (Section 14, Wajib) — reuse `RoomAssignment`/`TravelerGroup` (Section 11) lewat `groupId`, bukan dataset paralel baru. */
 export const getHotelRoomingList = (projectId: string, groupId?: string) => {
@@ -972,6 +997,9 @@ export interface QuotationDetailInput {
   termsAndConditions?: string
   inclusions?: string
   exclusions?: string
+  /** Repair Phase Section 3 — lihat komentar `Quotation` (`app/types/opportunity.ts`). */
+  cancellationPolicy?: string
+  proposedItineraryNote?: string
 }
 
 export function updateQuotationDetails (quotationId: string, patch: QuotationDetailInput): Quotation | undefined {
@@ -1348,6 +1376,87 @@ export function toggleTravelerVerification (travelerId: string, actorId: string)
     traveler.documentsVerifiedBy = actorId
   }
   return traveler
+}
+
+/** "Mark VIP" (Repair Phase Section 4 — Core Project, Wajib) — toggle sederhana, bukan transisi destruktif jadi tidak butuh alasan. */
+export function setTravelerVip (id: string, isVip: boolean): Traveler | undefined {
+  const traveler = TRAVELERS.find(item => item.id === id)
+  if (!traveler) { return undefined }
+  traveler.isVip = isVip
+  return traveler
+}
+
+/**
+ * "Cancel" (Repair Phase Section 4, Wajib) — soft-cancel (baris TETAP ada, pola append-only sama seluruh
+ * entitas lain), alasan wajib. Berbeda dari `removeTraveler` (hard-delete di atas, dipakai untuk koreksi
+ * input keliru) — "Cancel" merepresentasikan keputusan bisnis (peserta batal berangkat), riwayat dokumen/
+ * rooming yang sudah menaut ke traveler ini tetap valid untuk ditelusuri.
+ */
+export function cancelTraveler (id: string, reason: string): Traveler | undefined {
+  const traveler = TRAVELERS.find(item => item.id === id)
+  if (!traveler || !reason.trim() || traveler.cancelled) { return undefined }
+  traveler.cancelled = true
+  traveler.cancelReason = reason.trim()
+  return traveler
+}
+
+/**
+ * "Replace" (Repair Phase Section 4, Wajib) — satu aksi atomik: traveler lama ditandai `cancelled`+
+ * `replacedByTravelerId`, traveler baru dibuat di project/group yang sama dengan `replacesTravelerId`
+ * menaut balik. Reuse `createTraveler` existing (tidak menduplikasi logic create).
+ */
+export function replaceTraveler (id: string, input: Omit<CreateTravelerInput, 'projectId' | 'groupId'>): { previous: Traveler; replacement: Traveler } | undefined {
+  const previous = TRAVELERS.find(item => item.id === id)
+  if (!previous || previous.cancelled) { return undefined }
+  const replacement = createTraveler({ ...input, projectId: previous.projectId, groupId: previous.groupId })
+  replacement.replacesTravelerId = previous.id
+  previous.cancelled = true
+  previous.cancelReason = `Digantikan oleh ${replacement.name} (${replacement.id}).`
+  previous.replacedByTravelerId = replacement.id
+  return { previous, replacement }
+}
+
+/**
+ * Rooming list mutators (Repair Phase Section 4, Wajib "Assign room"/"Assign roommate") — `getRoomAssignments`
+ * (Section 11) sebelumnya read-only, mutator dibangun di sini. "Assign roommate" = menambah traveler ke
+ * `RoomAssignment` existing lewat `setRoomAssignmentTravelers` (satu traveler otomatis dipindah bila
+ * sebelumnya ada di kamar lain pada project yang sama — tidak bisa dobel-assign).
+ */
+export interface CreateRoomAssignmentInput {
+  projectId: string
+  groupId: string
+  roomLabel: string
+  roomType: RoomType
+  travelerIds?: string[]
+}
+
+export function createRoomAssignment (input: CreateRoomAssignmentInput): RoomAssignment {
+  const room: RoomAssignment = {
+    id: nextSequentialId('ROOM-', ROOM_ASSIGNMENTS),
+    projectId: input.projectId,
+    groupId: input.groupId,
+    roomLabel: input.roomLabel,
+    roomType: input.roomType,
+    travelerIds: input.travelerIds ?? []
+  }
+  ROOM_ASSIGNMENTS.push(room)
+  return room
+}
+
+export function setRoomAssignmentTravelers (id: string, travelerIds: string[]): RoomAssignment | undefined {
+  const room = ROOM_ASSIGNMENTS.find(item => item.id === id)
+  if (!room) { return undefined }
+  for (const other of ROOM_ASSIGNMENTS) {
+    if (other.id === id || other.projectId !== room.projectId) { continue }
+    other.travelerIds = other.travelerIds.filter(travelerId => !travelerIds.includes(travelerId))
+  }
+  room.travelerIds = travelerIds
+  return room
+}
+
+export function removeRoomAssignment (id: string): void {
+  const index = ROOM_ASSIGNMENTS.findIndex(item => item.id === id)
+  if (index !== -1) { ROOM_ASSIGNMENTS.splice(index, 1) }
 }
 
 /**
@@ -3459,12 +3568,25 @@ export function createChangeRequest (input: CreateChangeRequestInput): ChangeReq
   return request
 }
 
+/**
+ * Repair Phase Section 5 — Execution & Changes: 6 target baru ditambahkan ADITIF (hanya menambah opsi
+ * transisi, tidak menghapus satu pun target lama) — `/changes` (internal, LOCKED) hanya pernah memeriksa
+ * `.includes('under-review'|'approved'|'rejected'|'implemented')`, seluruhnya tetap resolve identik untuk
+ * request lama. Target baru HANYA dijangkau lewat mutator client baru (`runChangeRequestMockReview` dkk.,
+ * di bawah), tidak pernah lewat `approveChangeRequest`/`rejectChangeRequest` internal.
+ */
 const CHANGE_REQUEST_TRANSITIONS: Record<ChangeRequestStatus, ChangeRequestStatus[]> = {
-  submitted: ['under-review', 'approved', 'rejected'],
-  'under-review': ['approved', 'rejected'],
-  approved: ['implemented'],
+  submitted: ['under-review', 'approved', 'rejected', 'cancelled'],
+  'under-review': ['approved', 'rejected', 'availability-check', 'not-feasible', 'cancelled'],
+  'availability-check': ['costing', 'not-feasible', 'rejected', 'cancelled'],
+  costing: ['waiting-client-approval', 'not-feasible', 'rejected', 'cancelled'],
+  'waiting-client-approval': ['in-execution', 'rejected', 'cancelled'],
+  approved: ['implemented', 'in-execution'],
+  'in-execution': ['implemented'],
+  implemented: [],
   rejected: [],
-  implemented: []
+  cancelled: [],
+  'not-feasible': []
 }
 
 export function getChangeRequestStatusTransitions (current: ChangeRequestStatus): ChangeRequestStatus[] {
@@ -3891,6 +4013,8 @@ export interface SendMessageInput {
   body: string
   mentions?: string[]
   deliveryChannel?: 'email' | 'whatsapp'
+  /** Repair Phase Section 6, Master Prompt bagian 13 "Attachment mock" — metadata nama file saja. */
+  attachmentName?: string
 }
 
 /**
@@ -3914,7 +4038,9 @@ export function sendMessage (input: SendMessageInput): Message {
     mentions: input.mentions,
     sentAt: DEMO_REFERENCE_DATE,
     deliveryStatus: input.channel === 'internal-note' ? 'sent' : 'delivered',
-    deliveryChannel: input.channel === 'internal-note' ? undefined : (input.deliveryChannel ?? 'email')
+    deliveryChannel: input.channel === 'internal-note' ? undefined : (input.deliveryChannel ?? 'email'),
+    attachmentName: input.attachmentName,
+    readBy: [input.senderId]
   }
   MESSAGE_RECORDS.push(message)
 
@@ -3956,7 +4082,7 @@ export function removeNotification (id: string): void {
  * section ini (`sendMessage` mentions, `escalateIncident`, `approveChangeRequest`/`rejectChangeRequest`,
  * `createProjectTask`/`updateProjectTask`).
  */
-export function pushNotification (userId: string, type: NotificationType, title: string, body: string, entityType?: DocumentEntityType, entityId?: string): Notification {
+export function pushNotification (userId: string, type: NotificationType, title: string, body: string, entityType?: DocumentEntityType, entityId?: string, category?: NotificationCategory): Notification {
   const notification: Notification = {
     id: nextSequentialId('NOT-', NOTIFICATION_RECORDS),
     userId,
@@ -3966,7 +4092,8 @@ export function pushNotification (userId: string, type: NotificationType, title:
     entityType,
     entityId,
     createdAt: DEMO_REFERENCE_DATE,
-    read: false
+    read: false,
+    category
   }
   NOTIFICATION_RECORDS.push(notification)
   return notification
@@ -5009,4 +5136,1539 @@ export function getVendorSoldCommoditiesSummary (vendorId: string): VendorSoldCo
     }
   }
   return Array.from(summaryByCommodity.values()).sort((a, b) => b.soldRevenueIdr - a.soldRevenueIdr)
+}
+
+// ============================================================================
+// Client Experience — Foundation selectors (Repair Phase Section 1)
+// ============================================================================
+// Read/filter primitives untuk 6 entitas baru (`TravelRequest`/`Approval`/`ItineraryVersion`/
+// `Reservation`/`SupportTicket`/`Feedback`) — array-nya masih kosong (belum ada halaman/mutator yang
+// mengonsumsi), fungsi di bawah disiapkan agar section implementasi ("Request & Commercial", "Core
+// Project", dst.) tinggal memakai, bukan menulis ulang. Create/update mutator sengaja BELUM ditambahkan
+// di Section 1 (foundation only) — akan ditambahkan section yang benar-benar membangun UI-nya, mengikuti
+// pola create*/update* section lain (guard transisi, validasi, dsb.) bukan generic setter tanpa aturan.
+
+export function getTravelRequestsByParty (clientPartyId: string): TravelRequest[] {
+  return TRAVEL_REQUESTS.filter(item => item.clientPartyId === clientPartyId)
+}
+export function getTravelRequestById (id: string): TravelRequest | undefined {
+  return TRAVEL_REQUESTS.find(item => item.id === id)
+}
+export function getTravelRequestAttachments (travelRequestId: string): TravelRequestAttachment[] {
+  return TRAVEL_REQUEST_ATTACHMENTS.filter(item => item.travelRequestId === travelRequestId)
+}
+
+export function getClientApprovalsByParty (clientPartyId: string): Approval[] {
+  return CLIENT_APPROVALS.filter(item => item.clientPartyId === clientPartyId)
+}
+export function getPendingClientApprovals (clientPartyId: string): Approval[] {
+  return getClientApprovalsByParty(clientPartyId).filter(item => item.status === 'pending')
+}
+
+export function getItineraryVersionsByProject (projectId: string): ItineraryVersion[] {
+  return ITINERARY_VERSIONS.filter(item => item.projectId === projectId).sort((a, b) => a.versionNumber - b.versionNumber)
+}
+export function getLatestItineraryVersion (projectId: string): ItineraryVersion | undefined {
+  const versions = getItineraryVersionsByProject(projectId)
+  return versions[versions.length - 1]
+}
+
+export function getReservationsByProject (projectId: string): Reservation[] {
+  return RESERVATIONS.filter(item => item.projectId === projectId)
+}
+
+export function getSupportTicketsByParty (clientPartyId: string): SupportTicket[] {
+  return SUPPORT_TICKETS.filter(item => item.clientPartyId === clientPartyId)
+}
+export function getSupportTicketById (id: string): SupportTicket | undefined {
+  return SUPPORT_TICKETS.find(item => item.id === id)
+}
+export function getSupportTicketReplies (ticketId: string): SupportTicketReply[] {
+  return SUPPORT_TICKET_REPLIES.filter(item => item.ticketId === ticketId)
+}
+
+export function getFeedbackByProject (projectId: string): Feedback | undefined {
+  return FEEDBACK_RECORDS.find(item => item.projectId === projectId)
+}
+export function getFeedbackByParty (clientPartyId: string): Feedback[] {
+  return FEEDBACK_RECORDS.filter(item => item.clientPartyId === clientPartyId)
+}
+
+/**
+ * "Project readiness" (Repair Phase Section 2 — Dashboard, diperluas Section 4 — Core Project, Master
+ * Prompt bagian G.1) — murni derivasi (bukan field tersimpan), menggabungkan sub-skor yang SUDAH ADA:
+ * `getTravelerReadiness` (Participants), `getServiceReadinessMatrix` (Reservation), outstanding invoice
+ * (Payment), dan `getLatestItineraryVersion` (Itinerary, baru Section 4 — memenuhi Cross-module Wajib
+ * "Itinerary published → ... → Client approval → Project readiness updated"). `itineraryPercent`
+ * `undefined` bila belum ada `ItineraryVersion` sama sekali — dikecualikan dari rata-rata (bukan dianggap
+ * 0%, konsisten pola "data belum ada ≠ skor jelek"). Dimensi "Commercial"/"Documents"/"Execution" (Master
+ * Prompt) masih belum punya data sumber client-safe (lihat known issue Section 2), tetap dikecualikan.
+ */
+export interface ClientProjectReadiness {
+  participantPercent: number
+  reservationPercent: number
+  paymentPercent: number
+  itineraryPercent?: number
+  overallPercent: number
+}
+
+const ITINERARY_VERSION_READINESS_PERCENT: Partial<Record<ItineraryVersion['status'], number>> = {
+  draft: 0,
+  'under-review': 40,
+  'revision-requested': 40,
+  'waiting-approval': 60,
+  approved: 100,
+  final: 100,
+  superseded: 100
+}
+
+export function getClientProjectReadiness (projectId: string): ClientProjectReadiness {
+  const participantPercent = getTravelerReadiness(projectId).readinessPercent
+  const serviceRows = getServiceReadinessMatrix(projectId)
+  const reservationPercent = serviceRows.length
+    ? Math.round(serviceRows.reduce((sum, row) => sum + row.percent, 0) / serviceRows.length)
+    : 0
+  const invoicedTotal = getInvoicesByProject(projectId).reduce((sum, invoice) => sum + invoice.amountIdr, 0)
+  const outstanding = getProjectOutstandingIdr(projectId)
+  const paymentPercent = invoicedTotal > 0 ? Math.round(((invoicedTotal - outstanding) / invoicedTotal) * 100) : 0
+  const latestItineraryVersion = getLatestItineraryVersion(projectId)
+  const itineraryPercent = latestItineraryVersion ? (ITINERARY_VERSION_READINESS_PERCENT[latestItineraryVersion.status] ?? 0) : undefined
+  const dimensions = [participantPercent, reservationPercent, paymentPercent, ...(itineraryPercent === undefined ? [] : [itineraryPercent])]
+  const overallPercent = Math.round(dimensions.reduce((sum, value) => sum + value, 0) / dimensions.length)
+  return { participantPercent, reservationPercent, paymentPercent, itineraryPercent, overallPercent }
+}
+
+// ============================================================================
+// Client Experience — Request & Commercial (Repair Phase Section 3)
+// ============================================================================
+// Travel Requests (CRUD + status flow + mock review), Quotations & Proposals (revision/version cascade,
+// attachment/comment mock), dan Approval Center generik. Prinsip utama: REUSE penuh pipeline
+// Lead→Opportunity→Quotation→Won yang sudah ada dan LOCKED (`createLead`/`updateLeadQualification`/
+// `qualifyLeadAndCreateOpportunity`/`createQuotation`/`submitQuotationForApproval`/`approveQuotation`/
+// `recordClientConfirmation`/`advanceOpportunityStage`/`approveOpportunityWon`) — TIDAK SATU PUN fungsi di
+// atas diubah bodinya; section ini murni mengorkestrasi pemanggilannya secara berurutan (pola sama
+// `submitMarkAsWon`, `app/pages/crm/opportunities/[id]/index.vue`, D-053) dari sisi Client.
+
+/* --- Travel Request activity timeline (pola sama LeadActivity, `app/types/lead.ts`) --- */
+export function getTravelRequestActivities (travelRequestId: string): TravelRequestActivity[] {
+  return TRAVEL_REQUEST_ACTIVITIES.filter(item => item.travelRequestId === travelRequestId).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
+function logTravelRequestActivity (travelRequestId: string, message: string, ownerId: string): TravelRequestActivity {
+  const activity: TravelRequestActivity = { id: nextSequentialId('TRACT-', TRAVEL_REQUEST_ACTIVITIES), travelRequestId, type: 'note', message, ownerId, createdAt: DEMO_REFERENCE_DATE }
+  TRAVEL_REQUEST_ACTIVITIES.push(activity)
+  return activity
+}
+
+/** Gate minimum untuk tombol "Submit" aktif (Wajib "Validation") — field dasar wajib sebelum permintaan dapat dikirim sama sekali. */
+export function getTravelRequestSubmitGate (travelRequest: Pick<TravelRequest, 'requestName' | 'destination' | 'serviceScope'>): string[] {
+  const missing: string[] = []
+  if (!travelRequest.requestName.trim()) { missing.push('Nama permintaan') }
+  if (!travelRequest.destination.trim()) { missing.push('Destinasi') }
+  if (travelRequest.serviceScope.length === 0) { missing.push('Layanan yang dibutuhkan') }
+  return missing
+}
+
+/**
+ * Gate "mock review" (Wajib "Mock review") — lebih ketat dari submit gate, menentukan apakah tim (mock)
+ * dapat langsung menyiapkan proposal atau harus meminta klarifikasi dulu. Deterministik berdasarkan
+ * kelengkapan field — BUKAN random/palsu — pola sama `getOpportunityMissingRequirements`/
+ * `getLeadMissingQualification`. Dipakai juga oleh `respondToTravelRequestClarification` untuk menilai
+ * ulang setelah Client menjawab klarifikasi.
+ */
+export function getTravelRequestReviewGate (travelRequest: TravelRequest): string[] {
+  const missing = getTravelRequestSubmitGate(travelRequest)
+  if (!travelRequest.dateFlexible && (!travelRequest.travelStartDate || !travelRequest.travelEndDate)) { missing.push('Tanggal perjalanan (atau tandai fleksibel)') }
+  if (!travelRequest.estimatedParticipants) { missing.push('Estimasi jumlah peserta') }
+  if (!travelRequest.estimatedBudgetIdr) { missing.push('Estimasi budget') }
+  if (travelRequest.serviceScope.includes('flight') && !travelRequest.flightRequirement) { missing.push('Detail kebutuhan flight') }
+  if (travelRequest.serviceScope.includes('hotel') && !travelRequest.hotelRequirement) { missing.push('Detail kebutuhan hotel') }
+  if (travelRequest.serviceScope.includes('transportation') && !travelRequest.transportationRequirement) { missing.push('Detail kebutuhan transportasi') }
+  if (travelRequest.serviceScope.includes('mice') && !travelRequest.miceRequirement) { missing.push('Detail kebutuhan MICE') }
+  return missing
+}
+
+export interface TravelRequestDraftInput {
+  requestName: string
+  contactPersonId?: string
+  tripType?: string
+  purpose?: string
+  destination: string
+  travelStartDate?: string
+  travelEndDate?: string
+  dateFlexible?: boolean
+  estimatedParticipants?: number
+  estimatedBudgetIdr?: number
+  currency?: string
+  serviceScope?: ServiceTypeKey[]
+  flightRequirement?: TravelRequest['flightRequirement']
+  hotelRequirement?: TravelRequest['hotelRequirement']
+  transportationRequirement?: TravelRequest['transportationRequirement']
+  miceRequirement?: TravelRequest['miceRequirement']
+  additionalServicesNote?: string
+}
+
+/** "Create" (Wajib) — selalu `draft`. */
+export function createTravelRequest (clientPartyId: string, input: TravelRequestDraftInput, actorId: string): TravelRequest {
+  const travelRequest: TravelRequest = {
+    id: nextSequentialId('TR-', TRAVEL_REQUESTS),
+    clientPartyId,
+    requestName: input.requestName,
+    contactPersonId: input.contactPersonId,
+    tripType: input.tripType,
+    purpose: input.purpose,
+    destination: input.destination,
+    travelStartDate: input.travelStartDate,
+    travelEndDate: input.travelEndDate,
+    dateFlexible: input.dateFlexible ?? false,
+    estimatedParticipants: input.estimatedParticipants,
+    estimatedBudgetIdr: input.estimatedBudgetIdr,
+    currency: input.currency,
+    serviceScope: input.serviceScope ?? [],
+    flightRequirement: input.flightRequirement,
+    hotelRequirement: input.hotelRequirement,
+    transportationRequirement: input.transportationRequirement,
+    miceRequirement: input.miceRequirement,
+    additionalServicesNote: input.additionalServicesNote,
+    status: 'draft',
+    createdAt: DEMO_REFERENCE_DATE
+  }
+  TRAVEL_REQUESTS.push(travelRequest)
+  logTravelRequestActivity(travelRequest.id, 'Draft Travel Request dibuat.', actorId)
+  return travelRequest
+}
+
+/** "Save draft"/"Edit draft" (Wajib) — hanya selagi `draft`/`need-clarification`, pola guard sama `updateQuotationDetails`. */
+export function updateTravelRequestDraft (id: string, patch: Partial<TravelRequestDraftInput>): TravelRequest | undefined {
+  const travelRequest = getTravelRequestById(id)
+  if (!travelRequest || !['draft', 'need-clarification'].includes(travelRequest.status)) { return undefined }
+  Object.assign(travelRequest, patch)
+  travelRequest.updatedAt = DEMO_REFERENCE_DATE
+  return travelRequest
+}
+
+/** "Duplicate" (Wajib) — salinan baru berstatus draft, TIDAK membawa `leadId`/`opportunityId`/status lama. */
+export function duplicateTravelRequest (id: string, actorId: string): TravelRequest | undefined {
+  const source = getTravelRequestById(id)
+  if (!source) { return undefined }
+  const duplicate: TravelRequest = {
+    ...source,
+    id: nextSequentialId('TR-', TRAVEL_REQUESTS),
+    requestName: `${source.requestName} (Copy)`,
+    status: 'draft',
+    createdAt: DEMO_REFERENCE_DATE,
+    updatedAt: undefined,
+    leadId: undefined,
+    opportunityId: undefined
+  }
+  TRAVEL_REQUESTS.push(duplicate)
+  logTravelRequestActivity(duplicate.id, `Duplikat dari ${source.id}.`, actorId)
+  return duplicate
+}
+
+/** "Cancel" (Wajib) — alasan wajib (pola mandatory-reason-on-destructive-transition), tidak dapat cancel yang sudah `cancelled`/`closed`/`converted-to-opportunity`. */
+export function cancelTravelRequest (id: string, actorId: string, reason: string): TravelRequest | undefined {
+  const travelRequest = getTravelRequestById(id)
+  if (!travelRequest || !reason.trim() || ['cancelled', 'closed', 'converted-to-opportunity'].includes(travelRequest.status)) { return undefined }
+  travelRequest.status = 'cancelled'
+  travelRequest.updatedAt = DEMO_REFERENCE_DATE
+  logTravelRequestActivity(id, `Dibatalkan oleh Client. Alasan: ${reason.trim()}`, actorId)
+  return travelRequest
+}
+
+/**
+ * Mock review internal (Wajib Cross-module: "Travel Request submitted → Activity created → Notification
+ * created → Mock review → Quotation appears", Master Prompt Flow 1). `getTravelRequestReviewGate`
+ * menentukan apakah proposal bisa langsung disiapkan atau perlu klarifikasi — deterministik, bukan acak.
+ * Begitu lolos gate, meng-cascade lewat pipeline Lead→Opportunity→Quotation existing yang SUDAH bekerja —
+ * "Mock Sales Review"/"Management Approval" disimulasikan instan (tidak ada aktor internal yang dapat
+ * diakses dari role Client), sehingga Client tetap bisa melihat hasil end-to-end tanpa berganti role.
+ */
+function runTravelRequestMockReview (travelRequest: TravelRequest, actorId: string): void {
+  const party = getPartyById(travelRequest.clientPartyId)
+  const reviewerId = party?.accountOwnerId ?? actorId
+
+  travelRequest.status = 'under-review'
+  travelRequest.updatedAt = DEMO_REFERENCE_DATE
+  logTravelRequestActivity(travelRequest.id, 'Status berubah menjadi Under Review — tim kami mulai meninjau permintaan Anda.', reviewerId)
+
+  const missing = getTravelRequestReviewGate(travelRequest)
+  if (missing.length > 0) {
+    travelRequest.status = 'need-clarification'
+    travelRequest.updatedAt = DEMO_REFERENCE_DATE
+    logTravelRequestActivity(travelRequest.id, `Butuh klarifikasi: ${missing.join(', ')}.`, reviewerId)
+    pushNotification(actorId, 'reminder', `Travel Request ${travelRequest.id} butuh klarifikasi`, `Mohon lengkapi: ${missing.join(', ')}.`, 'travel-request', travelRequest.id, 'project')
+    return
+  }
+
+  travelRequest.status = 'proposal-preparation'
+  travelRequest.updatedAt = DEMO_REFERENCE_DATE
+  logTravelRequestActivity(travelRequest.id, 'Status berubah menjadi Proposal Preparation — quotation sedang disiapkan.', reviewerId)
+  pushNotification(actorId, 'reminder', `Travel Request ${travelRequest.id} memasuki Proposal Preparation`, 'Tim kami sedang menyiapkan quotation untuk Anda.', 'travel-request', travelRequest.id, 'project')
+
+  const requester = getUserById(actorId)
+  const lead = createLead({
+    name: requester?.name ?? party?.name ?? 'Client',
+    companyName: party?.name,
+    source: 'client-portal',
+    ownerId: reviewerId,
+    email: requester?.email
+  })
+  updateLeadQualification(lead.id, {
+    serviceCategory: travelRequest.serviceScope.includes('mice') ? 'mice-event' : 'corporate-travel',
+    destination: travelRequest.destination,
+    travelStartDate: travelRequest.travelStartDate,
+    travelEndDate: travelRequest.travelEndDate,
+    travelerEstimate: travelRequest.estimatedParticipants,
+    serviceScope: travelRequest.serviceScope,
+    requirementSummary: travelRequest.purpose?.trim() || `Travel Request ${travelRequest.id}: ${travelRequest.requestName}`,
+    handedOverTo: reviewerId
+  })
+
+  const opportunity = qualifyLeadAndCreateOpportunity(lead.id)
+  if (!opportunity) {
+    // Pengaman jujur — reviewGate sudah menutupi seluruh field wajib `getLeadMissingQualification`, jalur ini
+    // seharusnya tidak pernah tercapai, tapi dicatat sebagai fallback bukan crash bila suatu saat terjadi.
+    logTravelRequestActivity(travelRequest.id, 'Proposal Preparation tertunda — data belum cukup untuk membentuk Opportunity.', reviewerId)
+    return
+  }
+
+  travelRequest.leadId = lead.id
+  travelRequest.opportunityId = opportunity.id
+  travelRequest.status = 'converted-to-opportunity'
+  travelRequest.updatedAt = DEMO_REFERENCE_DATE
+  logTravelRequestActivity(travelRequest.id, `Dikonversi menjadi Opportunity ${opportunity.id}.`, reviewerId)
+
+  const quotationAmount = travelRequest.estimatedBudgetIdr ?? 0
+  const quotation = createQuotation(opportunity.id, quotationAmount)
+  updateQuotationDetails(quotation.id, {
+    paymentTerms: 'DP 50% saat konfirmasi, pelunasan H-14 sebelum keberangkatan.',
+    serviceBreakdown: travelRequest.serviceScope.map(service => ({
+      service,
+      amountIdr: Math.round(quotationAmount / Math.max(travelRequest.serviceScope.length, 1))
+    })),
+    taxIdr: Math.round(quotationAmount * 0.11),
+    currency: travelRequest.currency || 'IDR',
+    validUntil: formatISO(addDays(parseISO(DEMO_REFERENCE_DATE), 14), { representation: 'date' }),
+    termsAndConditions: 'Harga dapat berubah sewaktu-waktu sebelum quotation dikonfirmasi oleh Anda.',
+    cancellationPolicy: 'Pembatalan H-14 dikenakan biaya 25%, H-7 dikenakan biaya 50%, H-1 dikenakan biaya 100% dari nilai quotation.',
+    proposedItineraryNote: `Itinerary awal akan disusun sesuai kebutuhan ${travelRequest.serviceScope.map(s => findStatusOption(SERVICE_TYPES, s).label).join(', ')} yang Anda ajukan.`
+  })
+  submitQuotationForApproval(quotation.id)
+  approveQuotation(quotation.id, reviewerId, 'Disetujui otomatis (mock Management approval).')
+  logTravelRequestActivity(travelRequest.id, `Quotation ${quotation.id} tersedia untuk ditinjau.`, reviewerId)
+  pushNotification(actorId, 'reminder', `Quotation untuk ${travelRequest.requestName} siap ditinjau`, `Quotation ${quotation.id} telah disiapkan dan disetujui tim kami — silakan tinjau di Quotations & Proposals.`, 'quotation', quotation.id, 'approval')
+}
+
+/** "Submit" (Wajib) — guard: status `draft`/`need-clarification` dan submit gate lolos; mencatat Activity + Notification lalu men-trigger mock review (Wajib Cross-module). */
+export function submitTravelRequest (id: string, actorId: string): TravelRequest | undefined {
+  const travelRequest = getTravelRequestById(id)
+  if (!travelRequest || !['draft', 'need-clarification'].includes(travelRequest.status) || getTravelRequestSubmitGate(travelRequest).length > 0) { return undefined }
+  travelRequest.status = 'submitted'
+  travelRequest.updatedAt = DEMO_REFERENCE_DATE
+  logTravelRequestActivity(id, 'Travel Request diajukan oleh Client.', actorId)
+  pushNotification(actorId, 'reminder', `Travel Request ${id} terkirim`, `Permintaan "${travelRequest.requestName}" telah diterima dan akan segera ditinjau.`, 'travel-request', id, 'project')
+  runTravelRequestMockReview(travelRequest, actorId)
+  return travelRequest
+}
+
+/** "Respond to clarification" (Wajib) — guard: status harus `need-clarification`; mencatat jawaban Client lalu menilai ulang lewat mock review yang sama. */
+export function respondToTravelRequestClarification (id: string, actorId: string, message: string): TravelRequest | undefined {
+  const travelRequest = getTravelRequestById(id)
+  if (!travelRequest || travelRequest.status !== 'need-clarification' || !message.trim()) { return undefined }
+  logTravelRequestActivity(id, `Client menjawab klarifikasi: ${message.trim()}`, actorId)
+  runTravelRequestMockReview(travelRequest, actorId)
+  return travelRequest
+}
+
+/** "Attachment mock" (Wajib) — metadata saja, bukan file upload sungguhan (D-006), pola sama `createDocument`. */
+export function addTravelRequestAttachment (travelRequestId: string, fileName: string, uploadedBy: string): TravelRequestAttachment {
+  const attachment: TravelRequestAttachment = { id: nextSequentialId('TRATT-', TRAVEL_REQUEST_ATTACHMENTS), travelRequestId, fileName, uploadedAt: DEMO_REFERENCE_DATE, uploadedBy }
+  TRAVEL_REQUEST_ATTACHMENTS.push(attachment)
+  logTravelRequestActivity(travelRequestId, `Attachment "${fileName}" diunggah (mock).`, uploadedBy)
+  return attachment
+}
+
+/* --- Quotation attachment/comment mock (Wajib "Attachments"/"Comments") --- */
+export function getQuotationAttachments (quotationId: string): QuotationAttachment[] {
+  return QUOTATION_ATTACHMENTS.filter(item => item.quotationId === quotationId)
+}
+export function addQuotationAttachment (quotationId: string, fileName: string, uploadedBy: string): QuotationAttachment {
+  const attachment: QuotationAttachment = { id: nextSequentialId('QATT-', QUOTATION_ATTACHMENTS), quotationId, fileName, uploadedAt: DEMO_REFERENCE_DATE, uploadedBy }
+  QUOTATION_ATTACHMENTS.push(attachment)
+  return attachment
+}
+export function getQuotationComments (quotationId: string): QuotationComment[] {
+  return QUOTATION_COMMENTS.filter(item => item.quotationId === quotationId).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+}
+export function addQuotationComment (quotationId: string, authorId: string, body: string): QuotationComment | undefined {
+  if (!body.trim()) { return undefined }
+  const comment: QuotationComment = { id: nextSequentialId('QCMT-', QUOTATION_COMMENTS), quotationId, authorId, body: body.trim(), createdAt: DEMO_REFERENCE_DATE }
+  QUOTATION_COMMENTS.push(comment)
+  return comment
+}
+
+/**
+ * "Request revision" (Wajib Cross-module: "Quotation revision requested → New status → Activity →
+ * Notification → New quotation version simulation"). Reuse `duplicateQuotationVersion`+
+ * `submitQuotationForApproval`+`approveQuotation` existing (pola sama D-053 "berurutan sinkron"; approve
+ * mock merepresentasikan Management menyetujui ulang versi revisi secara instan). `clientConfirmedAt`
+ * DIRESET — versi lama yang sempat dikonfirmasi Client sudah superseded, wajib dikonfirmasi ulang.
+ */
+export function requestQuotationRevision (opportunityId: string, actorId: string, note: string): Quotation | undefined {
+  const opportunity = getOpportunityById(opportunityId)
+  const quotation = getQuotationByOpportunity(opportunityId)
+  if (!opportunity || !quotation || !note.trim()) { return undefined }
+  createPartyActivity({ partyId: opportunity.partyId, opportunityId, type: 'note', message: `Client meminta revisi quotation. Catatan: ${note.trim()}`, ownerId: actorId })
+  opportunity.clientConfirmedAt = undefined
+  opportunity.clientConfirmationNote = undefined
+  duplicateQuotationVersion(quotation.id)
+  submitQuotationForApproval(quotation.id)
+  approveQuotation(quotation.id, quotation.approvedBy ?? actorId, 'Revisi disetujui otomatis (mock Management approval).')
+  pushNotification(actorId, 'change', `Quotation ${quotation.id} direvisi`, `Versi baru quotation (v${quotation.version}) telah disiapkan dan disetujui otomatis (mock) — mohon tinjau dan konfirmasi ulang.`, 'quotation', quotation.id, 'approval')
+  return quotation
+}
+
+/* --- Approval Center (Wajib) --- */
+export function getApprovalById (id: string): Approval | undefined {
+  return CLIENT_APPROVALS.find(item => item.id === id)
+}
+
+/** Push satu entri audit ke `ACTIVITIES` project terkait — "Audit history" (Wajib) memakai log yang sama dengan Dashboard "Recent Activity" (Section 2), bukan log kedua. */
+function logApprovalDecisionActivity (approval: Approval, message: string): void {
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES),
+    projectId: approval.projectId,
+    message,
+    isChange: true,
+    reviewed: true,
+    createdAt: DEMO_REFERENCE_DATE
+  })
+}
+
+/** "Approve" (Wajib) — guard: status harus `pending`. Bila `entityType === 'change-request'`, ikut men-sinkronkan `ChangeRequest.status` lewat `approveChangeRequest` existing (LOCKED, Section 19) agar tidak ada dua sumber kebenaran. */
+export function approveClientApproval (id: string, actorId: string, comment?: string): Approval | undefined {
+  const approval = getApprovalById(id)
+  if (!approval || approval.status !== 'pending') { return undefined }
+  approval.status = 'approved'
+  approval.decision = 'approve'
+  approval.decidedBy = actorId
+  approval.decidedAt = DEMO_REFERENCE_DATE
+  approval.comment = comment?.trim() || undefined
+  logApprovalDecisionActivity(approval, `Approval ${approval.id} (${approval.entityType}) disetujui oleh Client.${comment ? ` Catatan: ${comment.trim()}` : ''}`)
+  if (approval.entityType === 'change-request') { approveChangeRequest(approval.entityId, actorId) }
+  return approval
+}
+
+/** "Reject" (Wajib) — alasan wajib. Sinkron `rejectChangeRequest` untuk `entityType === 'change-request'`, pola sama `approveClientApproval`. */
+export function rejectClientApproval (id: string, actorId: string, reason: string): Approval | undefined {
+  const approval = getApprovalById(id)
+  if (!approval || approval.status !== 'pending' || !reason.trim()) { return undefined }
+  approval.status = 'rejected'
+  approval.decision = 'reject'
+  approval.decidedBy = actorId
+  approval.decidedAt = DEMO_REFERENCE_DATE
+  approval.reason = reason.trim()
+  logApprovalDecisionActivity(approval, `Approval ${approval.id} (${approval.entityType}) ditolak oleh Client. Alasan: ${reason.trim()}`)
+  if (approval.entityType === 'change-request') { rejectChangeRequest(approval.entityId, actorId, reason.trim()) }
+  return approval
+}
+
+/** "Request revision" (Wajib) — alasan wajib. `ChangeRequestStatus` tidak punya nilai "revision-requested" padanan (Section 19, LOCKED) — sengaja HANYA memutasi `Approval`, tidak menyentuh entitas yang ditautkan. */
+export function requestClientApprovalRevision (id: string, actorId: string, reason: string): Approval | undefined {
+  const approval = getApprovalById(id)
+  if (!approval || approval.status !== 'pending' || !reason.trim()) { return undefined }
+  approval.status = 'revision-requested'
+  approval.decision = 'request-revision'
+  approval.decidedBy = actorId
+  approval.decidedAt = DEMO_REFERENCE_DATE
+  approval.reason = reason.trim()
+  logApprovalDecisionActivity(approval, `Approval ${approval.id} (${approval.entityType}) diminta revisi oleh Client. Alasan: ${reason.trim()}`)
+  return approval
+}
+
+// ============================================================================
+// Client Experience — Core Project (Repair Phase Section 4)
+// ============================================================================
+// Itinerary versioning + comment mock, dan Reservations client-safe view — REUSE penuh selector/entitas
+// existing (`getClientVisibleItineraryItems`, `getBookingTimeline`), TIDAK ada dataset paralel baru untuk
+// booking (pola sama rekomendasi `docs/client-page-inventory.md` #9 opsi (b)).
+
+/* --- Itinerary comment (Wajib "Comment") --- */
+export function getItineraryComments (projectId: string): ItineraryComment[] {
+  return ITINERARY_COMMENTS.filter(item => item.projectId === projectId).sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+}
+export function addItineraryComment (projectId: string, authorId: string, body: string): ItineraryComment | undefined {
+  if (!body.trim()) { return undefined }
+  const comment: ItineraryComment = { id: nextSequentialId('ITCMT-', ITINERARY_COMMENTS), projectId, authorId, body: body.trim(), createdAt: DEMO_REFERENCE_DATE }
+  ITINERARY_COMMENTS.push(comment)
+  return comment
+}
+
+/** "Approve" (Wajib) — guard: versi harus `waiting-approval`/`under-review`. */
+export function approveItineraryVersion (versionId: string, actorId: string): ItineraryVersion | undefined {
+  const version = ITINERARY_VERSIONS.find(item => item.id === versionId)
+  if (!version || !['waiting-approval', 'under-review'].includes(version.status)) { return undefined }
+  version.status = 'approved'
+  pushNotification(actorId, 'reminder', `Itinerary v${version.versionNumber} disetujui`, `Anda telah menyetujui itinerary versi ${version.versionNumber}.`, 'project', version.projectId, 'trip')
+  return version
+}
+
+/**
+ * "Request revision" (Wajib "Setiap revision menghasilkan versi baru") — versi AKTIF ditandai
+ * `revision-requested` (baris TETAP ADA, tidak pernah ditimpa/dihapus), versi BARU dibuat menyalin item
+ * yang sama (konten harian itinerary tetap wewenang AE/Ops — Client hanya bisa MEMINTA revisi, bukan
+ * mengedit isi hari-per-hari, konsisten batasan role) berstatus `waiting-approval`, `supersedesVersionId`
+ * menaut ke versi lama. Bila project belum punya `ItineraryVersion` sama sekali, versi 1 dibentuk lebih
+ * dulu dari snapshot `getClientVisibleItineraryItems` sebagai baseline sebelum versi revisi dibuat.
+ */
+export function requestItineraryRevision (projectId: string, actorId: string, comment: string): ItineraryVersion | undefined {
+  if (!comment.trim()) { return undefined }
+  let current = getLatestItineraryVersion(projectId)
+  if (!current) {
+    const items = getClientVisibleItineraryItems(projectId)
+    if (items.length === 0) { return undefined }
+    current = {
+      id: nextSequentialId('ITVER-', ITINERARY_VERSIONS),
+      projectId,
+      versionNumber: 1,
+      status: 'revision-requested',
+      items: items.map(item => ({ ...item })),
+      createdAt: DEMO_REFERENCE_DATE,
+      createdBy: actorId,
+      comment: comment.trim()
+    }
+    ITINERARY_VERSIONS.push(current)
+  } else {
+    current.status = 'revision-requested'
+    current.comment = comment.trim()
+  }
+  const nextVersion: ItineraryVersion = {
+    id: nextSequentialId('ITVER-', ITINERARY_VERSIONS),
+    projectId,
+    versionNumber: current.versionNumber + 1,
+    status: 'waiting-approval',
+    items: current.items.map(item => ({ ...item })),
+    createdAt: DEMO_REFERENCE_DATE,
+    createdBy: actorId,
+    supersedesVersionId: current.id
+  }
+  ITINERARY_VERSIONS.push(nextVersion)
+  pushNotification(actorId, 'reminder', 'Revisi itinerary diajukan', `Permintaan revisi Anda telah dicatat — versi ${nextVersion.versionNumber} disiapkan menunggu approval.`, 'project', projectId, 'trip')
+  return nextVersion
+}
+
+/* --- Reservations (Wajib "Reservation monitoring") --- */
+const BOOKING_TYPE_TO_RESERVATION_CATEGORY: Record<BookingDomain, ReservationCategory> = {
+  flight: 'flight',
+  hotel: 'hotel',
+  transport: 'transportation',
+  mice: 'venue'
+}
+
+/**
+ * View-model reservation client-safe — field yang SENGAJA DIBUANG dari `BookingTimelineEntry`:
+ * `netCostIdr`/`sellPriceIdr` (internal cost/margin), `internalStatus`/`internalStatusTone`/
+ * `supplierVisibleStatus` (audiens lain), `dependencies`/`paymentGateStatus`/`attemptLog`/`exceptions`
+ * (operational internal), `detailHref`/`voucherHref` (route internal `/ticketing/**` dkk., `canView`
+ * gated ke modul yang `NONE` untuk client — TIDAK BISA dipakai langsung, lihat `/client/reservations/**`
+ * yang membangun preview client-safe sendiri).
+ */
+export interface ClientReservationView {
+  bookingType: BookingDomain
+  bookingId: string
+  category: ReservationCategory
+  projectId: string
+  projectName: string
+  label: string
+  reference?: string
+  travelerCount: number
+  startDate?: string
+  deadlineDate?: string
+  clientVisibleStatus: string
+}
+
+export function getClientReservations (projectId: string): ClientReservationView[] {
+  return getBookingTimeline(projectId).map(entry => ({
+    bookingType: entry.bookingType,
+    bookingId: entry.bookingId,
+    category: BOOKING_TYPE_TO_RESERVATION_CATEGORY[entry.bookingType],
+    projectId: entry.projectId,
+    projectName: entry.projectName,
+    label: entry.label,
+    reference: entry.reference,
+    travelerCount: entry.travelerCount,
+    startDate: entry.startDate,
+    deadlineDate: entry.deadlineDate,
+    clientVisibleStatus: entry.clientVisibleStatus
+  }))
+}
+
+// ============================================================================
+// Client Experience — Execution & Changes (Repair Phase Section 5)
+// ============================================================================
+// Trip Center (derivasi murni di atas Project/Itinerary/Reservation/Incident existing + `TripAnnouncement`
+// baru), Change Requests (draft → submit → mock impact review → keputusan Client, aditif di atas
+// `ChangeRequest` Section 19 LOCKED — lihat komentar `CHANGE_REQUEST_TRANSITIONS`), dan Documents
+// client-facing (reuse penuh `Document`/`DOCUMENT_RECORDS` Section 21, TIDAK ada dataset paralel).
+
+/* ---------------------------------------------------------------------------
+ * Trip Center
+ * ------------------------------------------------------------------------ */
+
+export type TripCenterMode = 'pre-departure' | 'active' | 'completed'
+
+/** Mode Trip Center (Master Prompt bagian A) — derivasi murni dari `Project.status`+tanggal, BUKAN field tersimpan baru. */
+export function getTripCenterMode (project: Project, referenceIso = DEMO_REFERENCE_DATE): TripCenterMode {
+  if (project.status === 'completed' || project.status === 'cancelled' || daysUntil(project.travelEndDate, referenceIso) < 0) { return 'completed' }
+  if (daysUntil(project.travelStartDate, referenceIso) <= 0 && daysUntil(project.travelEndDate, referenceIso) >= 0) { return 'active' }
+  return 'pre-departure'
+}
+
+export const getTripAnnouncementsByProject = (projectId: string) => TRIP_ANNOUNCEMENTS
+  .filter(item => item.projectId === projectId)
+  .sort((a, b) => b.publishedAt.localeCompare(a.publishedAt))
+
+/** "Confirm announcement" (Wajib) — idempotent, append-only ke `confirmedByUserIds`. */
+export function confirmTripAnnouncement (announcementId: string, userId: string): TripAnnouncement | undefined {
+  const announcement = TRIP_ANNOUNCEMENTS.find(item => item.id === announcementId)
+  if (!announcement) { return undefined }
+  if (!announcement.confirmedByUserIds.includes(userId)) { announcement.confirmedByUserIds.push(userId) }
+  return announcement
+}
+
+export interface TripCenterSchedule {
+  today: ItineraryItem[]
+  next?: ItineraryItem
+}
+
+/** "Today's schedule"/"Next activity" (Wajib) — derivasi `getClientVisibleItineraryItems`, TIDAK ada entitas jadwal paralel/duplikat. */
+export function getTripCenterSchedule (projectId: string, referenceIso = DEMO_REFERENCE_DATE): TripCenterSchedule {
+  const items = getClientVisibleItineraryItems(projectId)
+  const today = items.filter(item => item.date === referenceIso)
+  const next = items.filter(item => item.date > referenceIso)[0]
+  return { today, next }
+}
+
+/** "Meeting point" (Wajib) — item hari ini bila ada lokasinya, fallback ke default project-level (`Project.meetingPoint`). */
+export function getTripCenterMeetingPoint (project: Project, schedule: TripCenterSchedule): string | undefined {
+  return schedule.today.find(item => item.location)?.location ?? project.meetingPoint
+}
+
+/* ---------------------------------------------------------------------------
+ * Documents (client-facing) — reuse penuh `Document`/`DOCUMENT_RECORDS` (Section 21). `getDocumentsForProject`
+ * (union dokumen baru + legacy `ProjectDocument`, sudah ada di atas) TIDAK diubah/diduplikasi.
+ * ------------------------------------------------------------------------ */
+
+/** Kategori client-facing (Master Prompt bagian C "Kategori": Commercial/Participant/Travel/Finance/Closing) — derivasi dari `entityType`, BUKAN field tersimpan baru (`Document.category` tetap teks bebas internal apa adanya, dipakai `/documents` internal). */
+const DOCUMENT_ENTITY_TO_CLIENT_CATEGORY: Partial<Record<DocumentEntityType, ClientDocumentCategory>> = {
+  quotation: 'commercial',
+  'change-request': 'commercial',
+  traveler: 'participant',
+  flight: 'travel',
+  hotel: 'travel',
+  transport: 'travel',
+  mice: 'travel',
+  invoice: 'finance'
+}
+
+const CLIENT_DOCUMENT_CATEGORY_LABELS: Record<string, ClientDocumentCategory> = {
+  commercial: 'commercial', participant: 'participant', travel: 'travel', finance: 'finance', closing: 'closing'
+}
+
+/** Dokumen upload Client (`createClientDocument`) menyimpan salah satu 5 label ini langsung ke `Document.category` — dicek lebih dulu sebelum fallback derivasi `entityType` (dokumen lama/internal yang category-nya bukan salah satu dari 5 label ini). */
+export function getClientDocumentCategory (document: Document): ClientDocumentCategory {
+  const direct = CLIENT_DOCUMENT_CATEGORY_LABELS[document.category.toLowerCase()]
+  if (direct) { return direct }
+  return DOCUMENT_ENTITY_TO_CLIENT_CATEGORY[document.entityType] ?? 'closing'
+}
+
+/** Dokumen client-visible lintas seluruh Project Order + dokumen level company (`entityType: 'party'`) milik satu company. */
+export function getClientDocuments (partyId: string): Document[] {
+  const projectIds = new Set(getProjectsByParty(partyId).map(project => project.id))
+  return DOCUMENT_RECORDS
+    .filter(item => item.accessLevel === 'client' && ((item.projectId ? projectIds.has(item.projectId) : false) || (item.entityType === 'party' && item.entityId === partyId)))
+    .sort((a, b) => (b.uploadedAt ?? b.generatedAt ?? '').localeCompare(a.uploadedAt ?? a.generatedAt ?? ''))
+}
+
+export function getClientDocumentsByProject (projectId: string): Document[] {
+  return DOCUMENT_RECORDS.filter(item => item.accessLevel === 'client' && item.projectId === projectId)
+    .sort((a, b) => (b.uploadedAt ?? b.generatedAt ?? '').localeCompare(a.uploadedAt ?? a.generatedAt ?? ''))
+}
+
+export interface CreateClientDocumentInput {
+  projectId: string
+  name: string
+  category: ClientDocumentCategory
+  uploadedBy: string
+  expiresAt?: string
+}
+
+/** Upload mock oleh Client — selalu `entityType: 'project'`/`accessLevel: 'client'` (Client tidak pernah mengunggah dokumen internal/supplier). `category` disimpan sebagai nilai `ClientDocumentCategory` langsung agar `getClientDocumentCategory` resolve tanpa ambigu. */
+export function createClientDocument (input: CreateClientDocumentInput): Document {
+  return createDocument({
+    entityType: 'project',
+    entityId: input.projectId,
+    projectId: input.projectId,
+    name: input.name,
+    category: input.category,
+    accessLevel: 'client',
+    expiresAt: input.expiresAt,
+    uploadedBy: input.uploadedBy
+  })
+}
+
+/** "Replace version" (Wajib) — baris BARU append-only, `supersedesId` menaut versi lama (TIDAK PERNAH menimpa versi lama, pola sama `ItineraryVersion`). */
+export function replaceClientDocument (documentId: string, uploadedBy: string, expiresAt?: string): Document | undefined {
+  const previous = DOCUMENT_RECORDS.find(item => item.id === documentId)
+  if (!previous) { return undefined }
+  const next: Document = {
+    id: nextSequentialId('DOC-C', DOCUMENT_RECORDS),
+    entityType: previous.entityType,
+    entityId: previous.entityId,
+    projectId: previous.projectId,
+    name: previous.name,
+    category: previous.category,
+    version: previous.version + 1,
+    uploadedAt: DEMO_REFERENCE_DATE,
+    expiresAt: expiresAt ?? previous.expiresAt,
+    accessLevel: previous.accessLevel,
+    sourceType: 'uploaded',
+    uploadedBy,
+    supersedesId: previous.id
+  }
+  DOCUMENT_RECORDS.push(next)
+  return next
+}
+
+/** "Version history" (Wajib) — telusuri chain `supersedesId` dari root, urut lama → baru. */
+export function getDocumentVersionHistory (documentId: string): Document[] {
+  const byId = new Map(DOCUMENT_RECORDS.map(item => [item.id, item]))
+  let rootId = documentId
+  while (byId.get(rootId)?.supersedesId) { rootId = byId.get(rootId)!.supersedesId! }
+  const chain: Document[] = []
+  let current = byId.get(rootId)
+  while (current) {
+    chain.push(current)
+    current = DOCUMENT_RECORDS.find(item => item.supersedesId === current!.id)
+  }
+  return chain.sort((a, b) => a.version - b.version)
+}
+
+export const getDocumentComments = (documentId: string) => DOCUMENT_COMMENTS
+  .filter(item => item.documentId === documentId)
+  .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+
+export function addDocumentComment (documentId: string, authorId: string, body: string): DocumentComment | undefined {
+  if (!body.trim()) { return undefined }
+  const comment: DocumentComment = { id: nextSequentialId('DOCCMT-', DOCUMENT_COMMENTS), documentId, authorId, body: body.trim(), createdAt: DEMO_REFERENCE_DATE }
+  DOCUMENT_COMMENTS.push(comment)
+  return comment
+}
+
+/* ---------------------------------------------------------------------------
+ * Change Requests — Client draft → submit → mock impact review → keputusan Client
+ * ------------------------------------------------------------------------ */
+
+export const getChangeRequestsByParty = (partyId: string) => getProjectsByParty(partyId).flatMap(project => getChangeRequestsByProject(project.id))
+
+/* --- Draft ("Save draft", Wajib) — entitas terpisah dari `ChangeRequest`, lihat komentar `ChangeRequestDraft`. --- */
+export function getChangeRequestDraftsByParty (partyId: string): ChangeRequestDraft[] {
+  const projectIds = new Set(getProjectsByParty(partyId).map(project => project.id))
+  return CHANGE_REQUEST_DRAFTS.filter(item => projectIds.has(item.projectId)).sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+}
+export const getChangeRequestDraftById = (id: string) => CHANGE_REQUEST_DRAFTS.find(item => item.id === id)
+
+export interface SaveChangeRequestDraftInput {
+  id?: string
+  projectId: string
+  createdBy: string
+  changeType?: ChangeRequestType
+  beforeSummary: string
+  afterSummary: string
+}
+
+/** Create bila `id` kosong, update bila sudah ada (pola sama `updateTravelRequestDraft`). */
+export function saveChangeRequestDraft (input: SaveChangeRequestDraftInput): ChangeRequestDraft {
+  const existing = input.id ? getChangeRequestDraftById(input.id) : undefined
+  if (existing) {
+    existing.changeType = input.changeType
+    existing.beforeSummary = input.beforeSummary
+    existing.afterSummary = input.afterSummary
+    existing.updatedAt = DEMO_REFERENCE_DATE
+    return existing
+  }
+  const draft: ChangeRequestDraft = {
+    id: nextSequentialId('CRD-', CHANGE_REQUEST_DRAFTS),
+    projectId: input.projectId,
+    createdBy: input.createdBy,
+    changeType: input.changeType,
+    beforeSummary: input.beforeSummary,
+    afterSummary: input.afterSummary,
+    updatedAt: DEMO_REFERENCE_DATE
+  }
+  CHANGE_REQUEST_DRAFTS.push(draft)
+  return draft
+}
+
+export function deleteChangeRequestDraft (id: string): boolean {
+  const index = CHANGE_REQUEST_DRAFTS.findIndex(item => item.id === id)
+  if (index === -1) { return false }
+  CHANGE_REQUEST_DRAFTS.splice(index, 1)
+  return true
+}
+
+/* --- Mock impact review ("Mock Manova review" — Master Prompt bagian H Flow 5) --- */
+
+const CHANGE_TYPE_TO_CHANGE_CATEGORY: Record<ChangeRequestType, ChangeCategory> = {
+  'add-participant': 'traveler',
+  'remove-participant': 'traveler',
+  'replace-participant': 'traveler',
+  'change-date': 'itinerary',
+  'change-flight': 'service',
+  'change-hotel': 'service',
+  'add-transportation': 'service',
+  'add-activity': 'itinerary',
+  'upgrade-service': 'service',
+  'remove-service': 'service',
+  'change-itinerary': 'itinerary',
+  'cancel-service': 'service',
+  'cancel-project': 'other'
+}
+
+const CHANGE_TYPE_CANCELLATION_FEE_PERCENT: Partial<Record<ChangeRequestType, number>> = {
+  'cancel-project': 0.25,
+  'cancel-service': 0.15,
+  'change-date': 0.05,
+  'change-flight': 0.1
+}
+
+const CHANGE_TYPE_REBOOKING_REQUIRED: ChangeRequestType[] = ['change-date', 'change-flight', 'change-hotel', 'add-transportation', 'change-itinerary']
+
+/**
+ * Deterministik (pola sama `getTravelRequestReviewGate`, Repair Phase Section 3 — bukan nilai random).
+ * Tipe yang butuh re-booking dianggap tidak feasible bila keberangkatan tinggal H-7 atau kurang,
+ * merefleksikan batasan operasional realistis (reissue/rebooking mendadak sulit dieksekusi vendor).
+ */
+export function getChangeRequestReviewGate (request: ChangeRequest, referenceIso = DEMO_REFERENCE_DATE): { feasible: boolean; reason?: string } {
+  const project = getProjectById(request.projectId)
+  if (!project) { return { feasible: false, reason: 'Project Order tidak ditemukan.' } }
+  if (request.changeType && CHANGE_TYPE_REBOOKING_REQUIRED.includes(request.changeType) && daysUntil(project.travelStartDate, referenceIso) <= 7) {
+    return { feasible: false, reason: 'Permintaan memerlukan re-booking namun keberangkatan tinggal H-7 atau kurang — di luar fare rules/availability window standar.' }
+  }
+  return { feasible: true }
+}
+
+/** Estimasi cost impact deterministik (mock, BUKAN hasil integrasi vendor nyata) — proporsional nilai project per peserta; cancellation fee hanya untuk tipe yang relevan (lihat `CHANGE_TYPE_CANCELLATION_FEE_PERCENT`). */
+function estimateChangeRequestCostImpact (request: ChangeRequest, project: Project): { commercialImpactIdr: number; cancellationFeeIdr?: number } {
+  const commercialImpactIdr = Math.round((project.quotationAmountIdr / Math.max(project.travelerCount, 1)) * 0.15)
+  const feePercent = request.changeType ? CHANGE_TYPE_CANCELLATION_FEE_PERCENT[request.changeType] : undefined
+  const cancellationFeeIdr = feePercent ? Math.round(project.quotationAmountIdr * feePercent) : undefined
+  return { commercialImpactIdr, cancellationFeeIdr }
+}
+
+/**
+ * "Mock Manova review" (Master Prompt bagian H Flow 5) — cascade otomatis satu kali dipanggil setelah
+ * submit (pola sama `runTravelRequestMockReview`, Repair Phase Section 3): submitted → under-review →
+ * (availability-check → costing → waiting-client-approval) ATAU → not-feasible (`getChangeRequestReviewGate`).
+ */
+export function runChangeRequestMockReview (requestId: string): ChangeRequest | undefined {
+  const request = getChangeRequestById(requestId)
+  const project = request ? getProjectById(request.projectId) : undefined
+  if (!request || !project) { return undefined }
+
+  request.status = 'under-review'
+  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} sedang direview tim kami.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+
+  const gate = getChangeRequestReviewGate(request)
+  if (!gate.feasible) {
+    request.status = 'not-feasible'
+    request.rejectionReason = gate.reason
+    ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} tidak dapat diproses. Alasan: ${gate.reason}`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+    pushNotification(request.requestedBy, 'change', `Change Request ${request.id} tidak dapat diproses`, gate.reason ?? '', 'change-request', request.id, 'reservation')
+    return request
+  }
+
+  request.status = 'availability-check'
+  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} — ketersediaan telah dicek dan tersedia.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+
+  request.status = 'costing'
+  const { commercialImpactIdr, cancellationFeeIdr } = estimateChangeRequestCostImpact(request, project)
+  request.commercialImpactIdr = commercialImpactIdr
+  request.cancellationFeeIdr = cancellationFeeIdr
+  request.timelineImpactNote = request.timelineImpactNote ?? 'Tidak ada perubahan tanggal keberangkatan/kepulangan project secara keseluruhan.'
+  request.operationalImpact = request.operationalImpact ?? 'Tim operasional kami akan menyesuaikan booking/rooming/manifest terkait setelah Anda menyetujui.'
+  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} — estimasi biaya selesai dihitung.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+
+  request.status = 'waiting-client-approval'
+  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} menunggu persetujuan Anda atas estimasi dampak.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+  pushNotification(request.requestedBy, 'change', `Change Request ${request.id} menunggu persetujuan Anda`, 'Estimasi dampak biaya dan jadwal telah tersedia — mohon tinjau dan berikan keputusan.', 'change-request', request.id, 'reservation')
+  return request
+}
+
+/** "Submit" (Wajib) — memindahkan draft menjadi `ChangeRequest` nyata (`createChangeRequest`, LOCKED, `source: 'client'`), lalu langsung menjalankan mock review sekali jalan. */
+export function submitChangeRequestDraft (draftId: string): ChangeRequest | undefined {
+  const draft = getChangeRequestDraftById(draftId)
+  if (!draft || !draft.beforeSummary.trim() || !draft.afterSummary.trim()) { return undefined }
+  const request = createChangeRequest({
+    projectId: draft.projectId,
+    source: 'client',
+    requestedBy: draft.createdBy,
+    affectedEntities: [{ entityType: 'project', entityId: draft.projectId }],
+    beforeSummary: draft.beforeSummary,
+    afterSummary: draft.afterSummary,
+    category: draft.changeType ? CHANGE_TYPE_TO_CHANGE_CATEGORY[draft.changeType] : 'other'
+  })
+  request.changeType = draft.changeType
+  deleteChangeRequestDraft(draftId)
+  runChangeRequestMockReview(request.id)
+  return request
+}
+
+/* --- Approval decision (Wajib) — keputusan Client atas estimasi dampak `waiting-client-approval`. --- */
+
+/** Approve — cascade langsung ke `in-execution` (mock instan, pola sama auto-cascade Repair Phase Section 3). */
+export function approveChangeRequestImpact (requestId: string, actorId: string): ChangeRequest | undefined {
+  const request = getChangeRequestById(requestId)
+  if (!request || request.status !== 'waiting-client-approval') { return undefined }
+  request.approvedBy = actorId
+  request.approvedAt = DEMO_REFERENCE_DATE
+  request.status = 'in-execution'
+  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} disetujui oleh Client — eksekusi perubahan dimulai.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+  const project = getProjectById(request.projectId)
+  if (project) { pushNotification(project.ownerId, 'change', `Change Request ${request.id} disetujui Client`, `${request.beforeSummary} → ${request.afterSummary} telah disetujui Client, siap dieksekusi.`, 'change-request', request.id) }
+  return request
+}
+
+/** Reject — Client menolak estimasi dampak (mis. biaya terlalu tinggi); alasan wajib. */
+export function rejectChangeRequestImpact (requestId: string, actorId: string, reason: string): ChangeRequest | undefined {
+  const request = getChangeRequestById(requestId)
+  if (!request || request.status !== 'waiting-client-approval' || !reason.trim()) { return undefined }
+  request.status = 'rejected'
+  request.approvedBy = actorId
+  request.approvedAt = DEMO_REFERENCE_DATE
+  request.rejectionReason = reason.trim()
+  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} ditolak oleh Client. Alasan: ${reason.trim()}`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+  return request
+}
+
+/** Cancel — Client membatalkan permintaannya sendiri sebelum eksekusi dimulai; alasan wajib (pola sama `rejectChangeRequest`). */
+export const CANCELLABLE_CHANGE_REQUEST_STATUSES: ChangeRequestStatus[] = ['submitted', 'under-review', 'availability-check', 'costing', 'waiting-client-approval']
+export function cancelChangeRequest (requestId: string, reason: string): ChangeRequest | undefined {
+  const request = getChangeRequestById(requestId)
+  if (!request || !reason.trim() || !CANCELLABLE_CHANGE_REQUEST_STATUSES.includes(request.status)) { return undefined }
+  request.status = 'cancelled'
+  request.cancelReason = reason.trim()
+  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} dibatalkan oleh pengaju. Alasan: ${reason.trim()}`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+  return request
+}
+
+/* --- Comment/Attachment mock (Wajib) --- */
+export const getChangeRequestComments = (changeRequestId: string) => CHANGE_REQUEST_COMMENTS
+  .filter(item => item.changeRequestId === changeRequestId)
+  .sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+
+export function addChangeRequestComment (changeRequestId: string, authorId: string, body: string): ChangeRequestComment | undefined {
+  if (!body.trim()) { return undefined }
+  const comment: ChangeRequestComment = { id: nextSequentialId('CRCMT-', CHANGE_REQUEST_COMMENTS), changeRequestId, authorId, body: body.trim(), createdAt: DEMO_REFERENCE_DATE }
+  CHANGE_REQUEST_COMMENTS.push(comment)
+  return comment
+}
+
+export const getChangeRequestAttachments = (changeRequestId: string) => CHANGE_REQUEST_ATTACHMENTS.filter(item => item.changeRequestId === changeRequestId)
+
+export function addChangeRequestAttachmentMock (changeRequestId: string, fileName: string, uploadedBy: string): ChangeRequestAttachment | undefined {
+  if (!fileName.trim()) { return undefined }
+  const attachment: ChangeRequestAttachment = { id: nextSequentialId('CRATT-', CHANGE_REQUEST_ATTACHMENTS), changeRequestId, fileName: fileName.trim(), uploadedBy, uploadedAt: DEMO_REFERENCE_DATE }
+  CHANGE_REQUEST_ATTACHMENTS.push(attachment)
+  return attachment
+}
+
+/** "Activity history" (Wajib) — reuse `ACTIVITIES` project terkait, disaring pesan yang menyebut ID request ini (pola sama Approval Center audit history, Repair Phase Section 3). */
+export function getChangeRequestActivityHistory (changeRequestId: string, projectId: string) {
+  return getActivitiesByProject(projectId).filter(entry => entry.message.includes(changeRequestId))
+}
+
+// ============================================================================
+// Client Experience — Finance & Collaboration (Repair Phase Section 6)
+// ============================================================================
+// Finance & Billing (aditif di atas Invoice/Payment Section 20 LOCKED — "Client tidak boleh menandai Paid
+// sendiri", `recordPayment` LOCKED tetap satu-satunya jalur menulis Payment/flip status paid), Messages &
+// Activities (reuse penuh `Message`/`sendMessage`/`getUnifiedActivityTimeline` Section 21 LOCKED), dan
+// Issues & Support (`SupportTicket` foundation Section 1, mutator dibangun penuh di sini).
+
+/* ---------------------------------------------------------------------------
+ * Finance & Billing
+ * ------------------------------------------------------------------------ */
+
+export const getClientInvoices = (partyId: string) => getProjectsByParty(partyId).flatMap(project => getInvoicesByProject(project.id))
+
+/** "Viewed" (Wajib) — idempotent, hanya diisi sekali (kunjungan pertama). */
+export function markInvoiceViewed (invoiceId: string): Invoice | undefined {
+  const invoice = INVOICES.find(item => item.id === invoiceId)
+  if (!invoice || invoice.viewedAt) { return invoice }
+  invoice.viewedAt = DEMO_REFERENCE_DATE
+  return invoice
+}
+
+export interface SubmitPaymentProofInput {
+  invoiceId: string
+  submittedBy: string
+  reference: string
+  amountIdr: number
+  note?: string
+}
+
+/**
+ * "Upload payment proof"/"Payment reference"/"Submit payment confirmation" (Wajib) — SENGAJA TIDAK
+ * memanggil `recordPayment` (LOCKED) di sini, hanya mencatat metadata bukti + status `waiting-verification`
+ * ("Client tidak boleh menandai Paid sendiri", Master Prompt bagian A). `runPaymentVerificationMock` (di
+ * bawah) adalah SATU-SATUNYA jalur yang benar-benar memanggil `recordPayment` — dipicu lazy (bukan cascade
+ * instan di fungsi ini) agar status `waiting-verification` benar-benar terlihat sesaat oleh Client, bukan
+ * status transient yang langsung lenyap dalam mutator yang sama.
+ */
+export function submitPaymentProof (input: SubmitPaymentProofInput): Invoice | undefined {
+  const invoice = INVOICES.find(item => item.id === input.invoiceId)
+  if (!invoice || !input.reference.trim() || input.amountIdr <= 0) { return undefined }
+  if (invoice.status !== 'unpaid' && invoice.status !== 'partially-paid') { return undefined }
+  invoice.status = 'waiting-verification'
+  invoice.paymentProofUploadedAt = DEMO_REFERENCE_DATE
+  invoice.paymentProofSubmittedBy = input.submittedBy
+  invoice.paymentProofReference = input.reference.trim()
+  invoice.paymentProofNote = input.note?.trim() || undefined
+  invoice.paymentProofAmountIdr = input.amountIdr
+  const submitter = getUserById(input.submittedBy)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES),
+    projectId: invoice.projectId,
+    message: `Bukti pembayaran Invoice ${invoice.id} diunggah oleh ${submitter?.name ?? input.submittedBy} (Ref. ${invoice.paymentProofReference}), menunggu verifikasi.`,
+    isChange: false,
+    reviewed: false,
+    createdAt: DEMO_REFERENCE_DATE
+  })
+  const project = getProjectById(invoice.projectId)
+  if (project) { pushNotification(project.ownerId, 'reminder', `Bukti pembayaran Invoice ${invoice.id} menunggu verifikasi`, `${submitter?.name ?? input.submittedBy} mengunggah bukti pembayaran (Ref. ${invoice.paymentProofReference}).`, 'invoice', invoice.id, 'payment') }
+  return invoice
+}
+
+/**
+ * "Mock verification" (Master Prompt bagian H Flow 4) — dipanggil lazy (mis. saat halaman Billing/detail
+ * invoice mount, lihat `/client/billing/**`), BUKAN dari `submitPaymentProof` — mensimulasikan tim Finance
+ * memverifikasi di kunjungan berikutnya. Memanggil `recordPayment` (LOCKED, Section 20) apa adanya — jalur
+ * SATU-SATUNYA yang menulis `Payment`/flip status ke `paid`/`partially-paid`.
+ */
+export function runPaymentVerificationMock (invoiceId: string): Invoice | undefined {
+  const invoice = INVOICES.find(item => item.id === invoiceId)
+  if (!invoice || invoice.status !== 'waiting-verification') { return invoice }
+  const outstanding = getInvoiceOutstandingIdr(invoiceId)
+  recordPayment({ invoiceId, amountIdr: Math.min(invoice.paymentProofAmountIdr ?? outstanding, outstanding), recordedBy: 'USR-008', method: 'Bank Transfer' })
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES),
+    projectId: invoice.projectId,
+    message: `Pembayaran Invoice ${invoice.id} telah diverifikasi tim Finance kami.`,
+    isChange: false,
+    reviewed: true,
+    createdAt: DEMO_REFERENCE_DATE
+  })
+  if (invoice.paymentProofSubmittedBy) { pushNotification(invoice.paymentProofSubmittedBy, 'reminder', `Pembayaran Invoice ${invoice.id} terverifikasi`, 'Pembayaran Anda telah kami terima dan verifikasi. Terima kasih.', 'invoice', invoice.id, 'payment') }
+  return invoice
+}
+
+/** "Raise dispute" (Wajib) — alasan wajib, tidak dapat diajukan untuk invoice yang sudah `paid`/`void`. */
+export function raiseInvoiceDispute (invoiceId: string, actorId: string, reason: string): Invoice | undefined {
+  const invoice = INVOICES.find(item => item.id === invoiceId)
+  if (!invoice || !reason.trim() || invoice.status === 'paid' || invoice.status === 'void') { return undefined }
+  invoice.status = 'disputed'
+  invoice.disputeReason = reason.trim()
+  invoice.disputedAt = DEMO_REFERENCE_DATE
+  const actor = getUserById(actorId)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES),
+    projectId: invoice.projectId,
+    message: `Invoice ${invoice.id} disengketakan (dispute) oleh ${actor?.name ?? actorId}. Alasan: ${invoice.disputeReason}`,
+    isChange: true,
+    reviewed: false,
+    createdAt: DEMO_REFERENCE_DATE
+  })
+  const project = getProjectById(invoice.projectId)
+  if (project) { pushNotification(project.ownerId, 'reminder', `Invoice ${invoice.id} disengketakan Client`, `Alasan: ${invoice.disputeReason}`, 'invoice', invoice.id, 'payment') }
+  return invoice
+}
+
+export interface ClientFinanceSummary {
+  totalProjectValueIdr: number
+  totalInvoicedIdr: number
+  totalPaidIdr: number
+  outstandingIdr: number
+  overdueIdr: number
+  nextDueDate?: string
+}
+
+/** "Finance summary" (Wajib) — agregasi lintas seluruh Project Order company, reuse `getInvoiceOutstandingIdr`/`isInvoiceOverdue` apa adanya. */
+export function getClientFinanceSummary (partyId: string): ClientFinanceSummary {
+  const projects = getProjectsByParty(partyId)
+  const invoices = getClientInvoices(partyId)
+  const totalProjectValueIdr = projects.reduce((sum, project) => sum + project.quotationAmountIdr, 0)
+  const totalInvoicedIdr = invoices.reduce((sum, invoice) => sum + invoice.amountIdr, 0)
+  const outstandingIdr = invoices.reduce((sum, invoice) => sum + getInvoiceOutstandingIdr(invoice.id), 0)
+  const totalPaidIdr = totalInvoicedIdr - outstandingIdr
+  const overdueInvoices = invoices.filter(invoice => isInvoiceOverdue(invoice))
+  const overdueIdr = overdueInvoices.reduce((sum, invoice) => sum + getInvoiceOutstandingIdr(invoice.id), 0)
+  const nextDue = invoices
+    .filter(invoice => invoice.status !== 'paid' && invoice.status !== 'void' && getInvoiceOutstandingIdr(invoice.id) > 0)
+    .sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0]
+  return { totalProjectValueIdr, totalInvoicedIdr, totalPaidIdr, outstandingIdr, overdueIdr, nextDueDate: nextDue?.dueAt }
+}
+
+/* ---------------------------------------------------------------------------
+ * Messages & Activities — reuse penuh `Message`/`sendMessage`/`getUnifiedActivityTimeline` (Section 21).
+ * ------------------------------------------------------------------------ */
+
+/** "Client-visible" — TIDAK PERNAH `internal-note` (Wajib "Jangan tampilkan internal chat Manova"). */
+export const getClientProjectMessages = (projectId: string) => MESSAGE_RECORDS
+  .filter(item => item.projectId === projectId && item.channel !== 'internal-note')
+  .sort((a, b) => a.sentAt.localeCompare(b.sentAt))
+
+export function isMessageUnread (message: Message, userId: string): boolean {
+  return !(message.readBy ?? []).includes(userId)
+}
+
+/** "Unread state" (Wajib) — menandai seluruh pesan client-visible project ini sebagai sudah dibaca `userId`. */
+export function markProjectMessagesRead (projectId: string, userId: string): void {
+  for (const message of getClientProjectMessages(projectId)) {
+    if (!message.readBy) { message.readBy = [] }
+    if (!message.readBy.includes(userId)) { message.readBy.push(userId) }
+  }
+}
+
+export function getUnreadProjectMessageCount (projectId: string, userId: string): number {
+  return getClientProjectMessages(projectId).filter(message => isMessageUnread(message, userId)).length
+}
+
+/* ---------------------------------------------------------------------------
+ * Issues & Support
+ * ------------------------------------------------------------------------ */
+
+/** "Assigned Manova PIC" (Wajib) — auto-assign deterministik per kategori (mock triase, bukan random). */
+const SUPPORT_CATEGORY_PIC: Record<SupportTicketCategory, string> = {
+  reservation: 'USR-009',
+  participant: 'USR-002',
+  document: 'USR-002',
+  billing: 'USR-008',
+  operational: 'USR-009',
+  complaint: 'USR-003',
+  emergency: 'USR-003',
+  technical: 'USR-010',
+  'service-quality': 'USR-003'
+}
+
+/** SLA (Wajib) — jendela hari deterministik per priority, BUKAN nilai random. */
+const SUPPORT_TICKET_SLA_DAYS: Record<SupportTicketPriority, number> = { urgent: 1, high: 2, medium: 3, low: 5 }
+
+export function getSupportTicketSlaDueDate (ticket: SupportTicket): string {
+  return formatISO(addDays(parseISO(ticket.createdAt), SUPPORT_TICKET_SLA_DAYS[ticket.priority]), { representation: 'date' })
+}
+
+export function isSupportTicketSlaBreached (ticket: SupportTicket, referenceIso = DEMO_REFERENCE_DATE): boolean {
+  if (ticket.status === 'resolved' || ticket.status === 'closed') { return false }
+  return daysUntil(getSupportTicketSlaDueDate(ticket), referenceIso) < 0
+}
+
+export interface CreateSupportTicketInput {
+  clientPartyId: string
+  projectId?: string
+  category: SupportTicketCategory
+  priority: SupportTicketPriority
+  subject: string
+  description: string
+  createdBy: string
+  attachmentName?: string
+}
+
+/** "Create ticket" (Wajib) — auto-triage instan (mock): `open` → `assigned` ke PIC deterministik (`SUPPORT_CATEGORY_PIC`). */
+export function createSupportTicket (input: CreateSupportTicketInput): SupportTicket | undefined {
+  if (!input.subject.trim() || !input.description.trim()) { return undefined }
+  const assignedTo = SUPPORT_CATEGORY_PIC[input.category]
+  const ticket: SupportTicket = {
+    id: nextSequentialId('TCK-', SUPPORT_TICKETS),
+    clientPartyId: input.clientPartyId,
+    projectId: input.projectId,
+    category: input.category,
+    priority: input.priority,
+    status: 'assigned',
+    subject: input.subject.trim(),
+    description: input.description.trim(),
+    createdAt: DEMO_REFERENCE_DATE,
+    createdBy: input.createdBy,
+    assignedTo,
+    attachmentName: input.attachmentName
+  }
+  SUPPORT_TICKETS.push(ticket)
+  if (input.projectId) {
+    ACTIVITIES.push({
+      id: nextSequentialId('ACT-', ACTIVITIES),
+      projectId: input.projectId,
+      message: `Support Ticket ${ticket.id} dibuat: "${ticket.subject}".`,
+      isChange: false,
+      reviewed: false,
+      createdAt: DEMO_REFERENCE_DATE
+    })
+  }
+  pushNotification(assignedTo, 'assignment', `Support Ticket ${ticket.id} ditugaskan kepada Anda`, ticket.subject, 'project', ticket.projectId, 'support')
+  return ticket
+}
+
+/** "Reply" (Wajib) — bila Client membalas tiket berstatus `waiting-for-client`, otomatis kembali ke `in-progress` (deterministik, bukan tebakan). */
+export function replySupportTicket (ticketId: string, authorId: string, message: string, attachmentName?: string): SupportTicketReply | undefined {
+  const ticket = getSupportTicketById(ticketId)
+  if (!ticket || !message.trim()) { return undefined }
+  const reply: SupportTicketReply = { id: nextSequentialId('TCKR-', SUPPORT_TICKET_REPLIES), ticketId, authorId, message: message.trim(), createdAt: DEMO_REFERENCE_DATE, attachmentName }
+  SUPPORT_TICKET_REPLIES.push(reply)
+  if (authorId === ticket.createdBy && ticket.status === 'waiting-for-client') { ticket.status = 'in-progress' }
+  return reply
+}
+
+/** "Confirm resolution" (Wajib) — Client menutup tiket yang sudah `resolved`. */
+export function confirmSupportTicketResolution (ticketId: string): SupportTicket | undefined {
+  const ticket = getSupportTicketById(ticketId)
+  if (!ticket || ticket.status !== 'resolved') { return undefined }
+  ticket.status = 'closed'
+  return ticket
+}
+
+/** "Reopen" (Wajib) — Client belum puas dengan resolusi; alasan wajib, dicatat sebagai reply (audit trail satu thread, bukan field kedua). */
+export function reopenSupportTicket (ticketId: string, actorId: string, reason: string): SupportTicket | undefined {
+  const ticket = getSupportTicketById(ticketId)
+  if (!ticket || !reason.trim() || (ticket.status !== 'resolved' && ticket.status !== 'closed')) { return undefined }
+  ticket.status = 'reopened'
+  SUPPORT_TICKET_REPLIES.push({ id: nextSequentialId('TCKR-', SUPPORT_TICKET_REPLIES), ticketId, authorId: actorId, message: `Tiket dibuka kembali. Alasan: ${reason.trim()}`, createdAt: DEMO_REFERENCE_DATE })
+  if (ticket.assignedTo) { pushNotification(ticket.assignedTo, 'reminder', `Support Ticket ${ticket.id} dibuka kembali`, reason.trim(), 'project', ticket.projectId, 'support') }
+  return ticket
+}
+
+/** "Rating" (Wajib) — hanya untuk tiket yang sudah `resolved`/`closed`, 1-5. */
+export function rateSupportTicketResolution (ticketId: string, rating: number): SupportTicket | undefined {
+  const ticket = getSupportTicketById(ticketId)
+  if (!ticket || (ticket.status !== 'resolved' && ticket.status !== 'closed') || rating < 1 || rating > 5) { return undefined }
+  ticket.resolutionRating = rating
+  return ticket
+}
+
+// ============================================================================
+// Client Experience — Insights & Company (Repair Phase Section 7)
+// ============================================================================
+// Reports & Analytics (agregasi murni di atas Project/Invoice/Traveler/ChangeRequest/SupportTicket/Feedback
+// existing — TIDAK ada dataset laporan paralel), Feedback & Evaluation (`Feedback` foundation Section 1,
+// mutator dibangun di sini, menaut ADITIF ke `ProjectClosureChecklist.feedbackCollected`, LOCKED gate
+// `evaluateProjectClosureGate` Section 24 TIDAK disentuh), dan Company Profile (`Party` LOCKED diperluas
+// aditif, field sensitif melalui alur verifikasi mock — pola sama `runPaymentVerificationMock` Section 6).
+
+/* ---------------------------------------------------------------------------
+ * Feedback & Evaluation
+ * ------------------------------------------------------------------------ */
+
+export interface SaveFeedbackInput {
+  projectId: string
+  clientPartyId: string
+  submittedBy: string
+  overallExperience?: number
+  salesResponsiveness?: number
+  proposalQuality?: number
+  itineraryQuality?: number
+  hotelRating?: number
+  transportationRating?: number
+  tourLeaderRating?: number
+  operationSupportRating?: number
+  reservationHandlingRating?: number
+  communicationRating?: number
+  issueResolutionRating?: number
+  valueForMoneyRating?: number
+  recommendationScore?: number
+  comment?: string
+  improvementSuggestion?: string
+  testimonialConsent: boolean
+}
+
+const FEEDBACK_EDITABLE_STATUSES: FeedbackStatus[] = ['not-started', 'draft']
+
+/** "Save draft" (Wajib) — satu `Feedback` per project (create bila belum ada, update bila masih `draft`/`not-started`). */
+export function saveFeedbackDraft (input: SaveFeedbackInput): Feedback | undefined {
+  const existing = getFeedbackByProject(input.projectId)
+  if (existing && !FEEDBACK_EDITABLE_STATUSES.includes(existing.status)) { return undefined }
+  if (existing) {
+    Object.assign(existing, input, { status: 'draft' as FeedbackStatus })
+    return existing
+  }
+  const feedback: Feedback = { id: nextSequentialId('FDB-', FEEDBACK_RECORDS), createdAt: DEMO_REFERENCE_DATE, ...input, status: 'draft' }
+  FEEDBACK_RECORDS.push(feedback)
+  return feedback
+}
+
+/** Menaut ADITIF ke `ProjectClosureChecklist.feedbackCollected` — TIDAK PERNAH menyentuh field lain di checklist (`evaluateProjectClosureGate`, Section 24 LOCKED, bahkan tidak memeriksa field ini sebagai blocker, murni indikator progress). */
+function markProjectFeedbackCollected (projectId: string): void {
+  const project = getProjectById(projectId)
+  if (!project) { return }
+  const existing = project.closureChecklist
+  project.closureChecklist = {
+    financeSettled: existing?.financeSettled ?? false,
+    documentsArchived: existing?.documentsArchived ?? false,
+    feedbackCollected: true,
+    assetsReturned: existing?.assetsReturned ?? false,
+    servicesCompleted: existing?.servicesCompleted ?? false,
+    unresolvedIssuesHandled: existing?.unresolvedIssuesHandled ?? false,
+    documentsComplete: existing?.documentsComplete ?? false,
+    clientFeedback: existing?.clientFeedback,
+    finalNote: existing?.finalNote
+  }
+}
+
+/**
+ * "Submit" (Wajib) — validasi minimal (`overallExperience`+`recommendationScore` wajib terisi). Setelah
+ * submit: "Feedback status updated" (status → `submitted`) → "Activity created" (`ACTIVITIES`) →
+ * "Notification created" (ke PM project) → "Project closing progress updated" (`markProjectFeedbackCollected`).
+ */
+export function submitFeedback (input: SaveFeedbackInput): Feedback | undefined {
+  if (input.overallExperience === undefined || input.recommendationScore === undefined) { return undefined }
+  const existing = getFeedbackByProject(input.projectId)
+  if (existing && !FEEDBACK_EDITABLE_STATUSES.includes(existing.status)) { return undefined }
+  let feedback: Feedback
+  if (existing) {
+    Object.assign(existing, input)
+    feedback = existing
+  } else {
+    feedback = { id: nextSequentialId('FDB-', FEEDBACK_RECORDS), createdAt: DEMO_REFERENCE_DATE, ...input, status: 'draft' }
+    FEEDBACK_RECORDS.push(feedback)
+  }
+  feedback.status = 'submitted'
+  feedback.submittedAt = DEMO_REFERENCE_DATE
+  feedback.submittedBy = input.submittedBy
+
+  const project = getProjectById(input.projectId)
+  ACTIVITIES.push({
+    id: nextSequentialId('ACT-', ACTIVITIES),
+    projectId: input.projectId,
+    message: 'Feedback untuk Project Order ini telah dikirim oleh Client.',
+    isChange: false,
+    reviewed: false,
+    createdAt: DEMO_REFERENCE_DATE
+  })
+  if (project) {
+    pushNotification(project.ownerId, 'reminder', `Feedback baru — ${project.name}`, `Client mengirim feedback dengan skor keseluruhan ${input.overallExperience}/5.`, 'project', project.id)
+    markProjectFeedbackCollected(project.id)
+  }
+  return feedback
+}
+
+/* ---------------------------------------------------------------------------
+ * Company Profile
+ * ------------------------------------------------------------------------ */
+
+export interface UpdateCompanyProfileInput {
+  name?: string
+  industry?: string
+  size?: string
+  city?: string
+  phone?: string
+  email?: string
+  website?: string
+  address?: string
+  province?: string
+  country?: string
+  postalCode?: string
+  companyType?: CompanyType
+  preferredCurrency?: InvoiceCurrency
+  poRequired?: boolean
+  travelPreferences?: string
+  logoFileName?: string
+}
+
+/** "Save" field non-sensitif (Wajib) — langsung diterapkan, dicatat ke `PartyActivity` ("Change history"). */
+export function updateCompanyProfile (partyId: string, patch: UpdateCompanyProfileInput, actorId: string): Party | undefined {
+  const party = getPartyById(partyId)
+  if (!party) { return undefined }
+  Object.assign(party, patch)
+  createPartyActivity({ partyId, type: 'note', message: 'Company Profile diperbarui oleh Client.', ownerId: actorId })
+  return party
+}
+
+/** "Verification state for sensitive changes" (Wajib) — TIDAK langsung diterapkan, disimpan ke `pendingProfileChange` menunggu `runCompanyProfileVerificationMock`. */
+export function submitSensitiveCompanyProfileChange (partyId: string, patch: SensitiveCompanyProfileFields, actorId: string): Party | undefined {
+  const party = getPartyById(partyId)
+  if (!party) { return undefined }
+  const hasChange = Object.values(patch).some(value => value !== undefined && value.trim() !== '')
+  if (!hasChange) { return party }
+  party.pendingProfileChange = patch
+  party.pendingProfileChangeSubmittedAt = DEMO_REFERENCE_DATE
+  party.pendingProfileChangeSubmittedBy = actorId
+  createPartyActivity({ partyId, type: 'note', message: 'Perubahan data sensitif Company Profile (registrasi/pajak/billing) diajukan, menunggu verifikasi tim kami.', ownerId: actorId })
+  if (party.accountOwnerId) { pushNotification(party.accountOwnerId, 'reminder', `Perubahan data sensitif ${party.name} menunggu verifikasi`, 'Client mengajukan perubahan data registrasi/pajak/billing — mohon tinjau.', 'party', party.id) }
+  return party
+}
+
+/** Mock verifikasi (dipicu lazy saat halaman Company Profile mount, pola sama `runPaymentVerificationMock` Section 6) — satu-satunya jalur yang menerapkan `pendingProfileChange` ke field aktif. */
+export function runCompanyProfileVerificationMock (partyId: string): Party | undefined {
+  const party = getPartyById(partyId)
+  if (!party?.pendingProfileChange) { return party }
+  Object.assign(party, party.pendingProfileChange)
+  const submittedBy = party.pendingProfileChangeSubmittedBy
+  party.pendingProfileChange = undefined
+  party.pendingProfileChangeSubmittedAt = undefined
+  party.pendingProfileChangeSubmittedBy = undefined
+  createPartyActivity({ partyId, type: 'note', message: 'Perubahan data sensitif Company Profile telah terverifikasi tim kami.', ownerId: submittedBy ?? party.accountOwnerId ?? 'USR-002' })
+  if (submittedBy) { pushNotification(submittedBy, 'reminder', 'Data Company Profile terverifikasi', 'Perubahan data sensitif yang Anda ajukan telah diverifikasi tim kami.', 'party', party.id) }
+  return party
+}
+
+/** "Change history" (Wajib) — reuse `PartyActivity` (existing), disaring entri yang berkaitan Company Profile — bukan audit trail kedua. */
+export const getCompanyProfileChangeHistory = (partyId: string) => PARTY_ACTIVITIES
+  .filter(item => item.partyId === partyId && item.message.includes('Company Profile'))
+  .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+/** "Edit"/"Delete" Contacts (Wajib) — `createContact` sudah ada (Prompt 19), 2 mutator ini melengkapi CRUD. */
+export function updateContact (id: string, patch: Partial<Pick<ContactPerson, 'name' | 'title' | 'email' | 'phone'>>): ContactPerson | undefined {
+  const contact = CONTACTS.find(item => item.id === id)
+  if (!contact) { return undefined }
+  Object.assign(contact, patch)
+  return contact
+}
+
+export function deleteContact (id: string): boolean {
+  const index = CONTACTS.findIndex(item => item.id === id)
+  if (index === -1) { return false }
+  CONTACTS.splice(index, 1)
+  return true
+}
+
+/** "Legal document upload mock" (Wajib) — reuse penuh `Document`/`createDocument` (Section 21), `entityType: 'party'`, sudah tercakup `getClientDocuments` (Section 5) tanpa perubahan tambahan. */
+export function createCompanyDocument (input: { partyId: string; name: string; category: string; uploadedBy: string; expiresAt?: string }): Document {
+  return createDocument({ entityType: 'party', entityId: input.partyId, name: input.name, category: input.category, accessLevel: 'client', expiresAt: input.expiresAt, uploadedBy: input.uploadedBy })
+}
+
+/* ---------------------------------------------------------------------------
+ * Reports & Analytics — agregasi murni, TIDAK ada dataset laporan paralel.
+ * ------------------------------------------------------------------------ */
+
+export interface ClientReportFilters {
+  dateFrom?: string
+  dateTo?: string
+  projectId?: string
+  destination?: string
+  service?: ServiceTypeKey
+  status?: ProjectStatus
+}
+
+function matchesClientReportFilters (project: Project, filters: ClientReportFilters): boolean {
+  if (filters.projectId && project.id !== filters.projectId) { return false }
+  if (filters.destination && project.destination !== filters.destination) { return false }
+  if (filters.service && !project.serviceScope.includes(filters.service)) { return false }
+  if (filters.status && project.status !== filters.status) { return false }
+  if (filters.dateFrom && project.travelStartDate < filters.dateFrom) { return false }
+  if (filters.dateTo && project.travelStartDate > filters.dateTo) { return false }
+  return true
+}
+
+export interface ClientReportBreakdownRow { key: string; label: string; value: number }
+export interface ClientReportSeriesPoint { label: string; value: number }
+
+export interface ClientReportSummary {
+  totalTrips: number
+  totalProjects: number
+  totalParticipants: number
+  totalSpendingIdr: number
+  averageProjectValueIdr: number
+  upcomingTrips: number
+  completedTrips: number
+  outstandingInvoiceCount: number
+  outstandingInvoiceIdr: number
+  cancellationRatePercent: number
+  satisfactionAverage?: number
+  spendingByMonth: ClientReportSeriesPoint[]
+  changeRequestFrequencyByMonth: ClientReportSeriesPoint[]
+  spendingByDestination: ClientReportBreakdownRow[]
+  spendingByService: ClientReportBreakdownRow[]
+  tripsByStatus: ClientReportBreakdownRow[]
+  participantTrend: ClientReportSeriesPoint[]
+  issueCategory: ClientReportBreakdownRow[]
+  paymentStatus: ClientReportBreakdownRow[]
+}
+
+function monthLabel (isoDate: string): string {
+  return isoDate.slice(0, 7)
+}
+
+/** "Report derived from real mock state" (Wajib) — seluruh angka murni derivasi dari selector existing (`getInvoiceOutstandingIdr`/`getTravelers`/`getChangeRequestsByProject`/`getSupportTicketsByParty`/`getFeedbackByProject`), TIDAK ADA angka statis/dataset laporan paralel. */
+export function getClientReportSummary (partyId: string, filters: ClientReportFilters = {}): ClientReportSummary {
+  const projects = getProjectsByParty(partyId).filter(project => matchesClientReportFilters(project, filters))
+  const projectIds = new Set(projects.map(project => project.id))
+  const invoices = projects.flatMap(project => getInvoicesByProject(project.id))
+  const payments = invoices.flatMap(invoice => getPaymentsByInvoice(invoice.id))
+  const travelers = projects.flatMap(project => getTravelers(project.id))
+  const changeRequests = projects.flatMap(project => getChangeRequestsByProject(project.id))
+  const tickets = getSupportTicketsByParty(partyId).filter(ticket => !ticket.projectId || projectIds.has(ticket.projectId))
+  const feedbacks = projects
+    .map(project => getFeedbackByProject(project.id))
+    .filter((item): item is Feedback => Boolean(item) && item!.status !== 'draft' && item!.status !== 'not-started')
+
+  const totalSpendingIdr = payments.reduce((sum, payment) => sum + payment.amountIdr, 0)
+  const outstandingInvoices = invoices.filter(invoice => getInvoiceOutstandingIdr(invoice.id) > 0 && invoice.status !== 'void')
+
+  const monthMap = new Map<string, number>()
+  for (const payment of payments) { monthMap.set(monthLabel(payment.receivedAt), (monthMap.get(monthLabel(payment.receivedAt)) ?? 0) + payment.amountIdr) }
+  const spendingByMonth = [...monthMap.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([label, value]) => ({ label, value }))
+
+  const crMonthMap = new Map<string, number>()
+  for (const request of changeRequests) { crMonthMap.set(monthLabel(request.submittedAt), (crMonthMap.get(monthLabel(request.submittedAt)) ?? 0) + 1) }
+  const changeRequestFrequencyByMonth = [...crMonthMap.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([label, value]) => ({ label, value }))
+
+  const destinationMap = new Map<string, number>()
+  for (const project of projects) { destinationMap.set(project.destination, (destinationMap.get(project.destination) ?? 0) + project.quotationAmountIdr) }
+  const spendingByDestination = [...destinationMap.entries()].map(([key, value]) => ({ key, label: key, value })).sort((a, b) => b.value - a.value)
+
+  const serviceMap = new Map<ServiceTypeKey, number>()
+  for (const project of projects) {
+    const share = project.serviceScope.length ? project.quotationAmountIdr / project.serviceScope.length : 0
+    for (const service of project.serviceScope) { serviceMap.set(service, (serviceMap.get(service) ?? 0) + share) }
+  }
+  const spendingByService = [...serviceMap.entries()].map(([key, value]) => ({ key, label: findStatusOption(SERVICE_TYPES, key).label, value })).sort((a, b) => b.value - a.value)
+
+  const statusMap = new Map<string, number>()
+  for (const project of projects) { statusMap.set(project.status, (statusMap.get(project.status) ?? 0) + 1) }
+  const tripsByStatus = [...statusMap.entries()].map(([key, value]) => ({ key, label: findStatusOption(PROJECT_STATUSES, key as ProjectStatus).label, value }))
+
+  const participantTrend = [...projects]
+    .sort((a, b) => a.travelStartDate.localeCompare(b.travelStartDate))
+    .map(project => ({ label: project.name, value: getTravelers(project.id).length }))
+
+  const categoryMap = new Map<string, number>()
+  for (const ticket of tickets) { categoryMap.set(ticket.category, (categoryMap.get(ticket.category) ?? 0) + 1) }
+  const issueCategory = [...categoryMap.entries()].map(([key, value]) => ({ key, label: findStatusOption(SUPPORT_TICKET_CATEGORIES, key as SupportTicketCategory).label, value }))
+
+  const paymentStatusMap = new Map<string, number>()
+  for (const invoice of invoices) { paymentStatusMap.set(invoice.status, (paymentStatusMap.get(invoice.status) ?? 0) + 1) }
+  const paymentStatus = [...paymentStatusMap.entries()].map(([key, value]) => ({ key, label: findStatusOption(INVOICE_STATUSES, key as InvoiceStatus).label, value }))
+
+  const cancelledProjectCount = projects.filter(project => project.status === 'cancelled').length
+  const satisfactionScores = feedbacks.map(item => item.overallExperience).filter((score): score is number => score !== undefined)
+
+  return {
+    totalTrips: projects.length,
+    totalProjects: projects.length,
+    totalParticipants: travelers.length,
+    totalSpendingIdr,
+    averageProjectValueIdr: projects.length ? Math.round(projects.reduce((sum, project) => sum + project.quotationAmountIdr, 0) / projects.length) : 0,
+    upcomingTrips: projects.filter(project => getTripCenterMode(project) === 'pre-departure').length,
+    completedTrips: projects.filter(project => getTripCenterMode(project) === 'completed').length,
+    outstandingInvoiceCount: outstandingInvoices.length,
+    outstandingInvoiceIdr: outstandingInvoices.reduce((sum, invoice) => sum + getInvoiceOutstandingIdr(invoice.id), 0),
+    cancellationRatePercent: projects.length ? Math.round((cancelledProjectCount / projects.length) * 1000) / 10 : 0,
+    satisfactionAverage: satisfactionScores.length ? Math.round((satisfactionScores.reduce((sum, score) => sum + score, 0) / satisfactionScores.length) * 10) / 10 : undefined,
+    spendingByMonth,
+    changeRequestFrequencyByMonth,
+    spendingByDestination,
+    spendingByService,
+    tripsByStatus,
+    participantTrend,
+    issueCategory,
+    paymentStatus
+  }
 }

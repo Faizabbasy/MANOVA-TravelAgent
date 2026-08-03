@@ -19,12 +19,49 @@ export const PARTIES: Party[] = reactive([
   { id: 'PTY-001', name: 'PT Cipta Distribusi Nusantara', lifecycleStatus: 'client', createdAt: '2026-05-20', accountOwnerId: 'USR-014', size: '201-500', city: 'Jakarta', phone: '021-5550-1001' },
   { id: 'PTY-002', name: 'PT Alam Raya Group', lifecycleStatus: 'client', createdAt: '2026-05-10', accountOwnerId: 'USR-014', size: '501-1000', city: 'Surabaya', phone: '031-5550-1002' },
   { id: 'PTY-003', name: 'PT Sinergi Korporindo', lifecycleStatus: 'client', createdAt: '2026-04-25', accountOwnerId: 'USR-014', size: '1000+', city: 'Jakarta', phone: '021-5550-1003' },
-  { id: 'PTY-004', name: 'PT Melati Wisata Kreasi', lifecycleStatus: 'prospect', createdAt: '2026-06-10', accountOwnerId: 'USR-014', size: '51-200', city: 'Bandung', phone: '022-5550-1004' }
+  { id: 'PTY-004', name: 'PT Melati Wisata Kreasi', lifecycleStatus: 'prospect', createdAt: '2026-06-10', accountOwnerId: 'USR-014', size: '51-200', city: 'Bandung', phone: '022-5550-1004' },
+  /**
+   * PTY-005 (Client Experience — Repair Phase Section 1) — company demo khusus untuk 5 skenario
+   * `docs/client-mock-data-scenarios.md` (Korea/Abu Dhabi/Manila/Bali/Singapore), terpisah dari PTY-001-004
+   * agar tidak mencampur data yang sudah dipakai section/audit lain. Field Company Profile (Repair Phase
+   * Section 7) diisi lengkap sebagai skenario "View" — `pendingProfileChange` SENGAJA diisi (billing
+   * address baru) untuk mendemokan "Verification state for sensitive changes" belum terverifikasi.
+   */
+  {
+    id: 'PTY-005',
+    name: 'PT Java Bhakti Persada',
+    lifecycleStatus: 'client',
+    createdAt: '2026-06-01',
+    accountOwnerId: 'USR-014',
+    size: '501-1000',
+    city: 'Jakarta',
+    phone: '021-5550-1005',
+    companyType: 'private-company',
+    industry: 'Manufaktur & Distribusi',
+    address: 'Jl. Gatot Subroto Kav. 18, Menara Bhakti Lt. 12',
+    province: 'DKI Jakarta',
+    country: 'Indonesia',
+    postalCode: '12930',
+    website: 'https://javabhaktipersada.example',
+    email: 'corporate@java-bhakti.example',
+    registrationNumber: 'AHU-0012345.AH.01.01.2015',
+    npwp: '01.234.567.8-901.000',
+    billingName: 'PT Java Bhakti Persada',
+    billingAddress: 'Jl. Gatot Subroto Kav. 18, Menara Bhakti Lt. 12, Jakarta 12930',
+    paymentTerm: 'Net 30',
+    preferredCurrency: 'IDR',
+    poRequired: true,
+    travelPreferences: 'Preferensi maskapai full-service, hotel bintang 4-5, kamar non-smoking.',
+    pendingProfileChange: { billingAddress: 'Jl. Jenderal Sudirman Kav. 52-53, Menara Bhakti Baru Lt. 21, Jakarta 12190' },
+    pendingProfileChangeSubmittedAt: '2026-07-27',
+    pendingProfileChangeSubmittedBy: 'USR-021'
+  }
 ])
 
 export const CONTACTS: ContactPerson[] = reactive([
   { id: 'CP-001', partyId: 'PTY-001', name: 'Hendra Wijaya', title: 'Operations Manager' },
   { id: 'CP-002', partyId: 'PTY-002', name: 'Sarah Amelia', title: 'HR Manager' },
+  { id: 'CP-005', partyId: 'PTY-005', name: 'Dimas Pratama', title: 'Corporate Travel Coordinator', email: 'dimas.pratama@java-bhakti.example', phone: '0815-5000-5001' },
   { id: 'CP-003', partyId: 'PTY-003', name: 'Michael Tanuwijaya', title: 'Event Coordinator' },
   { id: 'CP-004', partyId: 'PTY-004', name: 'Nadia Ramadhani', title: 'Procurement Officer' }
 ])

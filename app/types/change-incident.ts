@@ -21,7 +21,23 @@ import type { BookingDomain } from './booking-orchestration'
 
 export type ChangeRequestSource = 'client' | 'internal' | 'supplier'
 
-export type ChangeRequestStatus = 'submitted' | 'under-review' | 'approved' | 'rejected' | 'implemented'
+/**
+ * 5 nilai awal (Section 19) TETAP dipakai apa adanya oleh flow internal (`/changes`, LOCKED — lihat
+ * `CHANGE_REQUEST_TRANSITIONS`, `app/data/index.ts`). 6 nilai baru (Repair Phase Section 5 — Execution &
+ * Changes, Master Prompt bagian B "Status flow") HANYA dipakai oleh alur `source: 'client'` yang melewati
+ * mock impact review (`runChangeRequestMockReview`) — additive murni, tidak ada nilai lama yang
+ * dihapus/diganti makna sehingga seluruh halaman internal existing tetap berperilaku identik.
+ */
+export type ChangeRequestStatus =
+  | 'submitted' | 'under-review' | 'approved' | 'rejected' | 'implemented'
+  | 'availability-check' | 'costing' | 'waiting-client-approval' | 'in-execution' | 'cancelled' | 'not-feasible'
+
+/** "Jenis" Change Request (Master Prompt bagian 11 lama / Repair Phase Section 5 bagian B) — dipakai form create Client, opsional (request internal/supplier lama tidak mengisi field ini). */
+export type ChangeRequestType =
+  | 'add-participant' | 'remove-participant' | 'replace-participant'
+  | 'change-date' | 'change-flight' | 'change-hotel' | 'add-transportation'
+  | 'add-activity' | 'upgrade-service' | 'remove-service' | 'change-itinerary'
+  | 'cancel-service' | 'cancel-project'
 
 /** Entitas yang terdampak satu Change Request — referensi ID lintas-domain, tidak pernah memutasi entitas yang ditunjuk. */
 export interface AffectedEntityRef {
@@ -38,6 +54,8 @@ export interface ChangeRequest {
   affectedEntities: AffectedEntityRef[]
   beforeSummary: string
   afterSummary: string
+  /** Repair Phase Section 5 — jenis perubahan client-facing, opsional (lihat `ChangeRequestType`). */
+  changeType?: ChangeRequestType
   /** Dampak operasional (Wajib) — teks bebas, mis. "Rooming list dan manifest transport perlu disusun ulang." */
   operationalImpact?: string
   /** Dampak komersial (Wajib) — nominal, internal-only (TIDAK boleh terlihat Client kecuali ini request milik Client sendiri, dan bahkan begitu tetap disanitasi di Client Portal — lihat `app/pages/client/project-orders/[id]/index.vue`). */
@@ -46,15 +64,55 @@ export interface ChangeRequest {
   financialImpactNote?: string
   /** Dampak timeline (Wajib) — mis. pergeseran tanggal keberangkatan/deadline. */
   timelineImpactNote?: string
+  /** Repair Phase Section 5 (Master Prompt bagian B "Cancellation fee") — nominal terpisah dari `commercialImpactIdr` (yang mencakup total dampak biaya lain), khusus penalti pembatalan/reissue. */
+  cancellationFeeIdr?: number
   status: ChangeRequestStatus
   approvedBy?: ID
   approvedAt?: string
-  /** Alasan wajib untuk `rejected` (pola sama `updateFlightBookingStatus`/section lain, D-070/D-071/D-072). */
+  /** Alasan wajib untuk `rejected`/`not-feasible` (pola sama `updateFlightBookingStatus`/section lain, D-070/D-071/D-072). */
   rejectionReason?: string
+  /** Alasan wajib untuk `cancelled` oleh pengaju sendiri (Repair Phase Section 5) — field terpisah dari `rejectionReason` (keputusan pihak lain) agar audit trail jelas siapa yang membatalkan. */
+  cancelReason?: string
   /** "Additional quotation/change order" (Wajib) — link opsional ke `Quotation` existing (`app/types/opportunity.ts`) bila perubahan ini memicu quotation tambahan. */
   linkedQuotationId?: ID
   /** Menautkan ke `ActivityEntry` (Section 14 lama, `CHG-*`) yang dibuat otomatis oleh `createChangeRequest` — audit trail tetap satu sumber kebenaran (`app/types/activity.ts`). */
   activityEntryId?: ID
+}
+
+/**
+ * Draft Change Request (Repair Phase Section 5, Master Prompt bagian B "Save draft") — SENGAJA entitas
+ * terpisah dari `ChangeRequest` (bukan `ChangeRequest.status: 'draft'`) agar draft yang belum disubmit
+ * TIDAK PERNAH muncul di `/changes` (dashboard internal, LOCKED) yang query langsung `CHANGE_REQUESTS`
+ * tanpa filter status — pola sama pemisahan `TravelRequest` dari `Lead` (Repair Phase Section 3). `submitChangeRequestDraft`
+ * (`app/data/index.ts`) memindahkan isi draft ini menjadi `ChangeRequest` nyata via `createChangeRequest`,
+ * lalu menghapus baris draft.
+ */
+export interface ChangeRequestDraft {
+  id: ID
+  projectId: ID
+  createdBy: ID
+  changeType?: ChangeRequestType
+  beforeSummary: string
+  afterSummary: string
+  updatedAt: string
+}
+
+/** Comment thread Change Request (Repair Phase Section 5, Wajib "Comment") — pola sama `ItineraryComment`/`QuotationComment`. */
+export interface ChangeRequestComment {
+  id: ID
+  changeRequestId: ID
+  authorId: ID
+  body: string
+  createdAt: string
+}
+
+/** Attachment mock (Repair Phase Section 5, Wajib "Attachment mock") — metadata saja, pola sama `TravelRequestAttachment`/`QuotationAttachment`. */
+export interface ChangeRequestAttachment {
+  id: ID
+  changeRequestId: ID
+  fileName: string
+  uploadedBy: ID
+  uploadedAt: string
 }
 
 /**

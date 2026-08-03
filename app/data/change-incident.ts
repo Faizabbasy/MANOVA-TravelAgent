@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import type { ChangeRequest, CancellationRecord, RefundRequest, Incident } from '~/types/change-incident'
+import type { ChangeRequest, CancellationRecord, RefundRequest, Incident, ChangeRequestDraft, ChangeRequestComment, ChangeRequestAttachment } from '~/types/change-incident'
 
 /**
  * `reactive()` (Section 19 — roadmap Section 00–24 baru) — melanjutkan pola Section 07 dst.
@@ -113,6 +113,28 @@ export const CHANGE_REQUESTS: ChangeRequest[] = reactive([
     approvedBy: 'USR-003',
     approvedAt: '2026-07-22',
     activityEntryId: 'CHG-1034'
+  },
+  /**
+   * CR-007 (Client Experience — Repair Phase Section 1) — skenario demo "Singapore Conference"
+   * (`docs/client-mock-data-scenarios.md`): perubahan besar dengan cancellation fee, revised quotation
+   * tersedia (`linkedQuotationId` sengaja kosong — belum ada Quotation nyata dibuat untuk PRJ-204,
+   * diisi section "Request & Commercial" saat quotation revisi sungguhan dibuat), approval masih pending.
+   * `activityEntryId` sengaja kosong (opsional) — tidak membuat `ActivityEntry` palsu hanya untuk seed ini.
+   */
+  {
+    id: 'CR-007',
+    projectId: 'PRJ-204',
+    source: 'client',
+    requestedBy: 'USR-021',
+    submittedAt: '2026-07-24',
+    affectedEntities: [{ entityType: 'hotel', entityId: 'SVC-2042' }, { entityType: 'project', entityId: 'PRJ-204' }],
+    beforeSummary: 'Konferensi 3 hari, 15 peserta, 1 hotel venue tunggal',
+    afterSummary: 'Konferensi diperpanjang 1 hari, venue hotel diganti ke properti lain',
+    operationalImpact: 'Perlu re-booking hotel dan penyesuaian seluruh jadwal harian.',
+    commercialImpactIdr: 42_000_000,
+    financialImpactNote: 'Termasuk cancellation fee hotel venue lama, menunggu revised quotation.',
+    timelineImpactNote: 'Tanggal kepulangan mundur 1 hari.',
+    status: 'under-review'
   }
 ])
 
@@ -217,6 +239,13 @@ export const REFUND_REQUESTS: RefundRequest[] = reactive([
     creditStatus: 'not-applicable'
   }
 ])
+
+/** Draft Change Request Client (Repair Phase Section 5) — kosong, dibuat/diisi lewat `saveChangeRequestDraft`. */
+export const CHANGE_REQUEST_DRAFTS: ChangeRequestDraft[] = reactive([])
+
+/** Comment/Attachment mock Change Request (Repair Phase Section 5) — kosong, pola sama `QUOTATION_COMMENTS`/`QUOTATION_ATTACHMENTS`. */
+export const CHANGE_REQUEST_COMMENTS: ChangeRequestComment[] = reactive([])
+export const CHANGE_REQUEST_ATTACHMENTS: ChangeRequestAttachment[] = reactive([])
 
 export const INCIDENTS: Incident[] = reactive([
   {

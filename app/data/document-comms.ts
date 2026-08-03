@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import type { Document, Message, Notification } from '~/types/document-comms'
+import type { Document, Message, Notification, DocumentComment } from '~/types/document-comms'
 
 /**
  * Fixture Documents, Communication dan Notifications (Section 21, D-078). `reactive()` (pola sama seluruh
@@ -22,7 +22,16 @@ export const DOCUMENT_RECORDS: Document[] = reactive([
   // Vendor document (Section 17 punya VendorDocument sendiri — DOC-C011 SENGAJA berbeda entitas/tujuan, mendemokan cakupan cross-domain modul ini, bukan duplikasi VendorDocument). Kedaluwarsa (EXPIRED, > DEMO_REFERENCE_DATE 2026-07-29).
   { id: 'DOC-C011', entityType: 'vendor', entityId: 'VND-006', name: 'Kontrak Vendor PT ABC.pdf', category: 'Contract', version: 1, uploadedAt: '2026-01-10', expiresAt: '2026-07-01', accessLevel: 'supplier', sourceType: 'uploaded', uploadedBy: 'USR-015' },
   // Upcoming-soon expiry (dalam 30 hari sejak DEMO_REFERENCE_DATE).
-  { id: 'DOC-C012', entityType: 'party', entityId: 'PTY-001', name: 'NPWP PT Cipta Distribusi Nusantara.pdf', category: 'Legal', version: 1, uploadedAt: '2026-05-01', expiresAt: '2026-08-10', accessLevel: 'client', sourceType: 'uploaded', uploadedBy: 'USR-019' },
+  { id: 'DOC-C012', entityType: 'party', entityId: 'PTY-001', name: 'NPWP PT Cipta Distribusi Nusantara.pdf', category: 'Legal', version: 1, uploadedAt: '2026-05-01', expiresAt: '2026-08-10', accessLevel: 'client', sourceType: 'uploaded', uploadedBy: 'USR-019', verified: true, verifiedBy: 'USR-002', verifiedAt: '2026-05-05' },
+  /**
+   * DOC-C017–019 (Repair Phase Section 5 — Execution & Changes) — dokumen client-visible pertama untuk
+   * `PTY-005` (skenario Client Experience), lintas 3 dari 5 kategori Master Prompt bagian C ("Commercial"
+   * via entityType `quotation`, "Travel" via entityType `flight`, "Closing" via entityType `project`
+   * run-sheet-equivalent). Mendemokan version history (`DOC-C019` men-supersede `DOC-C018`).
+   */
+  { id: 'DOC-C017', entityType: 'quotation', entityId: 'QUO-201', projectId: 'PRJ-201', name: 'Quotation Korea Incentive Trip 2026.pdf', category: 'Quotation', version: 1, uploadedAt: '2026-07-15', accessLevel: 'client', sourceType: 'uploaded', uploadedBy: 'USR-002', verified: true, verifiedBy: 'USR-002', verifiedAt: '2026-07-15' },
+  { id: 'DOC-C018', entityType: 'traveler', entityId: 'TRV-2021', projectId: 'PRJ-202', name: 'Manifest Peserta Abu Dhabi Business Delegation.pdf', category: 'Participant', version: 1, uploadedAt: '2026-07-12', accessLevel: 'client', sourceType: 'uploaded', uploadedBy: 'USR-002' },
+  { id: 'DOC-C019', entityType: 'traveler', entityId: 'TRV-2021', projectId: 'PRJ-202', name: 'Manifest Peserta Abu Dhabi Business Delegation.pdf', category: 'Participant', version: 2, uploadedAt: '2026-07-24', accessLevel: 'client', sourceType: 'uploaded', uploadedBy: 'USR-002', supersedesId: 'DOC-C018', verified: true, verifiedBy: 'USR-002', verifiedAt: '2026-07-24' },
   { id: 'DOC-C013', entityType: 'invoice', entityId: 'INV-1011', projectId: 'PRJ-101', name: 'Bukti Transfer INV-1011.pdf', category: 'Finance', version: 1, uploadedAt: '2026-07-10', accessLevel: 'internal', sourceType: 'uploaded', uploadedBy: 'USR-008' },
   { id: 'DOC-C014', entityType: 'traveler', entityId: 'TRV-1021', projectId: 'PRJ-102', name: 'Scan Visa TRV-1021.pdf', category: 'Travel Document', version: 1, uploadedAt: '2026-07-05', expiresAt: '2027-06-30', accessLevel: 'internal', sourceType: 'uploaded', uploadedBy: 'USR-013' },
   { id: 'DOC-C015', entityType: 'change-request', entityId: 'CR-004', projectId: 'PRJ-103', name: 'Dokumentasi Perubahan Armada CR-004.pdf', category: 'Change Documentation', version: 1, uploadedAt: '2026-07-18', accessLevel: 'internal', sourceType: 'uploaded', uploadedBy: 'USR-009' },
@@ -42,7 +51,15 @@ export const MESSAGE_RECORDS: Message[] = reactive([
   { id: 'MSG-005', entityType: 'vendor', entityId: 'VND-006', projectId: 'PRJ-103', channel: 'supplier-message', senderId: 'USR-015', body: 'Kamar Suite tersedia, konfirmasi tertulis kami kirim dalam 1x24 jam.', sentAt: '2026-07-15', deliveryStatus: 'delivered', deliveryChannel: 'email' },
   { id: 'MSG-006', entityType: 'incident', entityId: 'INC-001', projectId: 'PRJ-103', channel: 'internal-note', senderId: 'USR-006', body: 'Update lapangan: unit cadangan sudah tiba, seluruh traveler kembali on schedule.', mentions: ['USR-009'], sentAt: '2026-07-19', deliveryStatus: 'sent' },
   { id: 'MSG-007', entityType: 'change-request', entityId: 'CR-002', projectId: 'PRJ-102', channel: 'client-message', senderId: 'USR-020', body: 'Konfirmasi permintaan upgrade kamar dari kami, mohon info tambahan biaya yang perlu dibayar.', sentAt: '2026-07-12', deliveryStatus: 'delivered', deliveryChannel: 'whatsapp' },
-  { id: 'MSG-008', entityType: 'project', entityId: 'PRJ-104', projectId: 'PRJ-104', channel: 'internal-note', senderId: 'USR-002', body: 'Project baru PRJ-104 dibuat dari Opportunity OPP-008, mohon Ticketing mulai proses awal.', mentions: ['USR-004'], sentAt: '2026-07-24', deliveryStatus: 'queued' }
+  { id: 'MSG-008', entityType: 'project', entityId: 'PRJ-104', projectId: 'PRJ-104', channel: 'internal-note', senderId: 'USR-002', body: 'Project baru PRJ-104 dibuat dari Opportunity OPP-008, mohon Ticketing mulai proses awal.', mentions: ['USR-004'], sentAt: '2026-07-24', deliveryStatus: 'queued' },
+  /**
+   * MSG-009–011 (Repair Phase Section 6 — Finance & Collaboration) — conversation client-facing pertama
+   * untuk `PTY-005`/`USR-021` (PRJ-202, Abu Dhabi Business Delegation). `readBy` seed manual (bukan lewat
+   * `sendMessage`) — MSG-010 SENGAJA belum dibaca `USR-021` untuk mendemokan "Unread state".
+   */
+  { id: 'MSG-009', entityType: 'project', entityId: 'PRJ-202', projectId: 'PRJ-202', channel: 'client-message', senderId: 'USR-002', body: 'Selamat datang di Abu Dhabi! Tim kami siap membantu selama delegasi berlangsung. Jangan ragu menghubungi kami di sini bila ada kebutuhan mendadak.', sentAt: '2026-07-25', deliveryStatus: 'delivered', deliveryChannel: 'email', readBy: ['USR-002', 'USR-021'] },
+  { id: 'MSG-010', entityType: 'project', entityId: 'PRJ-202', projectId: 'PRJ-202', channel: 'client-message', senderId: 'USR-002', body: 'Update: driver dan armada untuk hari ke-2 sudah kami konfirmasi ulang, siap standby pukul 08:00 di lobi hotel.', sentAt: '2026-07-27', deliveryStatus: 'delivered', deliveryChannel: 'email', readBy: ['USR-002'] },
+  { id: 'MSG-011', entityType: 'project', entityId: 'PRJ-202', projectId: 'PRJ-202', channel: 'client-message', senderId: 'USR-021', body: 'Terima kasih infonya, kami tunggu di lobi.', sentAt: '2026-07-27', deliveryStatus: 'delivered', deliveryChannel: 'email', readBy: ['USR-021', 'USR-002'] }
 ])
 
 /**
@@ -60,5 +77,24 @@ export const NOTIFICATION_RECORDS: Notification[] = reactive([
   { id: 'NOT-006', userId: 'USR-002', type: 'reminder', title: 'Follow-up pembayaran termin tambahan', body: 'Task follow-up pembayaran termin tambahan ke client PRJ-102 jatuh tempo 2026-08-01.', entityType: 'project', entityId: 'PRJ-102', createdAt: '2026-07-25', read: false },
   { id: 'NOT-007', userId: 'USR-003', type: 'document', title: 'Dokumen NPWP PT Cipta Distribusi akan kedaluwarsa', body: 'Dokumen NPWP PTY-001 akan kedaluwarsa pada 2026-08-10.', entityType: 'party', entityId: 'PTY-001', createdAt: '2026-07-29', read: false },
   { id: 'NOT-008', userId: 'USR-004', type: 'message', title: 'Pesan baru pada project PRJ-104', body: 'Doni Saputra mengirim catatan internal baru pada PRJ-104.', entityType: 'project', entityId: 'PRJ-104', createdAt: '2026-07-24', read: false },
-  { id: 'NOT-009', userId: 'USR-006', type: 'incident', title: 'Incident baru tercatat pada booking TRN-1034', body: 'Incident INC-001 (armada mogok) tercatat pada booking Anda.', entityType: 'incident', entityId: 'INC-001', createdAt: '2026-07-19', read: true }
+  { id: 'NOT-009', userId: 'USR-006', type: 'incident', title: 'Incident baru tercatat pada booking TRN-1034', body: 'Incident INC-001 (armada mogok) tercatat pada booking Anda.', entityType: 'incident', entityId: 'INC-001', createdAt: '2026-07-19', read: true },
+  /**
+   * NOT-010–017 (Repair Phase Section 2 — Home, Notifications) — notifikasi client-facing pertama untuk
+   * `USR-021` (PTY-005, `docs/client-mock-data-scenarios.md`), seluruhnya derivasi jujur dari data yang
+   * sudah ada (`app/data/projects.ts`/`finance.ts`) — TIDAK ada nominal/cost internal (`commercialImpactIdr`
+   * dkk tetap disembunyikan, sesuai `app/types/change-incident.ts`). `category` diisi (9 kategori Master
+   * Prompt bagian G.2); `type` tetap salah satu dari 8 `NotificationType` existing (Section 21, LOCKED)
+   * agar `NotificationPanel.vue`/tab Notifications `/documents` tidak perlu berubah.
+   */
+  { id: 'NOT-010', userId: 'USR-021', type: 'document', category: 'participant', title: 'Dokumen traveler belum lengkap', body: 'Melisa Tanto (TRV-2012) pada Korea Incentive Trip 2026 belum melengkapi nomor paspor.', entityType: 'traveler', entityId: 'TRV-2012', createdAt: '2026-07-26', read: false },
+  { id: 'NOT-011', userId: 'USR-021', type: 'document', category: 'participant', title: 'Dokumen traveler belum lengkap', body: 'Yoga Pranata (TRV-2042) pada Singapore Conference 2026 belum melengkapi nomor paspor.', entityType: 'traveler', entityId: 'TRV-2042', createdAt: '2026-07-19', read: false },
+  { id: 'NOT-012', userId: 'USR-021', type: 'reminder', category: 'payment', title: 'Invoice Korea Incentive Trip belum lunas', body: 'Invoice Korea Incentive Trip (Termin Awal) masih memiliki sisa tagihan Rp245.000.000, jatuh tempo 15 Agu 2026.', entityType: 'invoice', entityId: 'INV-2011', createdAt: '2026-08-01', read: false },
+  { id: 'NOT-013', userId: 'USR-021', type: 'reminder', category: 'payment', title: 'Invoice Singapore Conference akan jatuh tempo', body: 'Invoice Singapore Conference (Termin Awal) jatuh tempo 5 Agu 2026, sisa tagihan Rp75.000.000.', entityType: 'invoice', entityId: 'INV-2041', createdAt: '2026-07-20', read: false },
+  { id: 'NOT-014', userId: 'USR-021', type: 'reminder', category: 'trip', title: 'Trip Abu Dhabi Business Delegation sedang berlangsung', body: 'Delegasi bisnis Anda sedang berjalan hingga 2 Agustus 2026 — pantau jadwal dan reservasi pada halaman Project Order.', entityType: 'project', entityId: 'PRJ-202', createdAt: '2026-07-25', read: true },
+  { id: 'NOT-015', userId: 'USR-021', type: 'reminder', category: 'payment', title: 'Invoice Abu Dhabi Business Delegation telah lunas', body: 'Pembayaran penuh untuk Invoice Abu Dhabi Business Delegation telah kami terima. Terima kasih.', entityType: 'invoice', entityId: 'INV-2021', createdAt: '2026-07-18', read: true },
+  { id: 'NOT-016', userId: 'USR-021', type: 'reminder', category: 'project', title: 'Manila Corporate Meeting 2026 telah selesai', body: 'Trip Manila Corporate Meeting 2026 Anda telah selesai — invoice final telah lunas.', entityType: 'project', entityId: 'PRJ-203', createdAt: '2026-06-13', read: true },
+  { id: 'NOT-017', userId: 'USR-021', type: 'change', category: 'reservation', title: 'Perubahan reservasi hotel pada Singapore Conference 2026', body: 'Hotel Singapura mengalami perubahan status reservasi — detail tersedia pada halaman Project Order Anda.', entityType: 'project', entityId: 'PRJ-204', createdAt: '2026-07-24', read: false }
 ])
+
+/** `DOCUMENT_COMMENTS` (Repair Phase Section 5, Wajib "Comment") — kosong, diisi lewat `addDocumentComment`. */
+export const DOCUMENT_COMMENTS: DocumentComment[] = reactive([])

@@ -19,7 +19,16 @@ import {
   ClipboardList,
   CalendarClock,
   AlertTriangle,
-  FileText
+  FileText,
+  Bell,
+  Send,
+  ClipboardCheck,
+  Calendar,
+  Compass,
+  GitPullRequest,
+  MessageSquare,
+  LifeBuoy,
+  Star
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
 
@@ -208,6 +217,77 @@ export const NAV_ITEMS: NavItem[] = [
       { label: 'Vendor Orders', to: '/supplier/commodity-orders', icon: Package, moduleKey: 'supplier-portal' }
     ]
   },
-  /** Client Portal (Section 02, fitur penuh Section 08) — External Partners, hanya `client` (dan Super Admin untuk oversight), pola identik Supplier Portal. */
-  { label: 'Client Portal', to: '/client', icon: Users, moduleKey: 'client-portal' }
+  /**
+   * Client Experience — 18 halaman (Repair Phase Section 1, "18-Page Client Experience" inisiatif,
+   * `prompts/repair_phases/MASTER-PROMPT.md` bagian E/F). Menggantikan satu entri "Client Portal" lama
+   * (Section 02/08) dengan 7 grup top-level — pola identik grup multi-anak lain (Customer Journey/CRM),
+   * karena `NavItem.children` hanya mendukung SATU level nesting (`app/components/layout/AppSidebar.vue`
+   * tidak punya header grup di dalam children). `/client`, `/client/opportunities/[id]`,
+   * `/client/project-orders/[id]`, `/client/catalog/[requirementId]` (halaman lama, sudah berfungsi penuh)
+   * TETAP ADA dan TIDAK dihapus — belum ditautkan ke nav baru ini sampai section implementasi masing-masing
+   * ("Home"/"Core Project"/dst.) mengonsolidasikannya ke IA baru (lihat `docs/client-page-inventory.md`).
+   * Seluruh item `moduleKey: 'client-portal'` (permission sama seperti sebelumnya, tidak ada modul baru).
+   * `comingSoon: true` pada 9 dari 18 route (shell `ModulePlaceholder`, belum ada bisnis logic) — "Dashboard"
+   * (existing), "Notifications" (Section 2), "Travel Requests"/"Quotations & Proposals"/"Approval Center"
+   * (Section 3), dan "Projects"/"Participants"/"Itineraries"/"Reservations" (Section 4 — Core Project) sudah
+   * berfungsi penuh, bukan shell.
+   */
+  {
+    label: 'Home',
+    to: '/client',
+    icon: LayoutDashboard,
+    moduleKey: 'client-portal',
+    children: [
+      { label: 'Dashboard', to: '/client', icon: LayoutDashboard, moduleKey: 'client-portal' },
+      { label: 'Notifications', to: '/client/notifications', icon: Bell, moduleKey: 'client-portal' }
+    ]
+  },
+  {
+    label: 'Request & Commercial',
+    to: '/client/travel-requests',
+    icon: Send,
+    moduleKey: 'client-portal',
+    children: [
+      { label: 'Travel Requests', to: '/client/travel-requests', icon: Send, moduleKey: 'client-portal' },
+      { label: 'Quotations & Proposals', to: '/client/quotations', icon: FileText, moduleKey: 'client-portal' },
+      { label: 'Approval Center', to: '/client/approvals', icon: ClipboardCheck, moduleKey: 'client-portal' }
+    ]
+  },
+  {
+    label: 'Travel Management',
+    to: '/client/projects',
+    icon: FolderKanban,
+    moduleKey: 'client-portal',
+    children: [
+      { label: 'Projects', to: '/client/projects', icon: FolderKanban, moduleKey: 'client-portal' },
+      { label: 'Participants', to: '/client/participants', icon: Users, moduleKey: 'client-portal' },
+      { label: 'Itineraries', to: '/client/itineraries', icon: Calendar, moduleKey: 'client-portal' },
+      { label: 'Reservations', to: '/client/reservations', icon: CalendarClock, moduleKey: 'client-portal' },
+      { label: 'Trip Center', to: '/client/trip-center', icon: Compass, moduleKey: 'client-portal' },
+      { label: 'Change Requests', to: '/client/change-requests', icon: GitPullRequest, moduleKey: 'client-portal' }
+    ]
+  },
+  {
+    label: 'Collaboration',
+    to: '/client/documents',
+    icon: FileText,
+    moduleKey: 'client-portal',
+    children: [
+      { label: 'Documents', to: '/client/documents', icon: FileText, moduleKey: 'client-portal' },
+      { label: 'Messages & Activities', to: '/client/messages', icon: MessageSquare, moduleKey: 'client-portal' },
+      { label: 'Issues & Support', to: '/client/support', icon: LifeBuoy, moduleKey: 'client-portal' }
+    ]
+  },
+  { label: 'Finance & Billing', to: '/client/billing', icon: Wallet, moduleKey: 'client-portal' },
+  {
+    label: 'Insights',
+    to: '/client/reports',
+    icon: BarChart3,
+    moduleKey: 'client-portal',
+    children: [
+      { label: 'Reports & Analytics', to: '/client/reports', icon: BarChart3, moduleKey: 'client-portal' },
+      { label: 'Feedback & Evaluation', to: '/client/feedback', icon: Star, moduleKey: 'client-portal' }
+    ]
+  },
+  { label: 'Company Profile', to: '/client/company-profile', icon: Building2, moduleKey: 'client-portal' }
 ]

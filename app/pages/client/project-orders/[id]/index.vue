@@ -8,11 +8,14 @@ import {
   getDocumentsByProject, getInvoicesByProject, getPaymentsByInvoice,
   createChangeRequest, getChangeRequestsByProject, getIncidentsByProject,
   getCommodityRequirementsByProject, createCommodityRequirement, updateCommodityRequirement, deleteCommodityRequirement,
-  isCommodityRequirementEditable, isCommodityRequirementDeletable
+  isCommodityRequirementEditable, isCommodityRequirementDeletable,
+  getServiceReadinessMatrix, getClientReservations, getActivitiesByProject, getProjectClosureSummary,
+  getLatestItineraryVersion, getClientDocumentsByProject, getClientDocumentCategory
 } from '~/data'
 import {
   PROJECT_STATUSES, SERVICE_TYPES, CHANGE_CATEGORIES, INVOICE_STATUSES, INVOICE_TYPES,
   CHANGE_REQUEST_STATUSES, INCIDENT_STATUSES, COMMODITY_REQUIREMENT_STATUSES,
+  RESERVATION_CATEGORIES, ITINERARY_VERSION_STATUSES, CLIENT_DOCUMENT_CATEGORIES,
   findStatusOption
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatDayLabel } from '~/utils/format'
@@ -20,6 +23,7 @@ import { isTravelerDocumentMissing, isInvoiceOverdue, invoiceAgingDays } from '~
 import type { Traveler, ServiceTypeKey } from '~/types/project'
 import type { ChangeCategory } from '~/types/activity'
 import type { CommodityRequirement } from '~/types/requirement'
+import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
 /**
  * Client-facing Project Order detail (Section 08). Sanitized — TIDAK PERNAH merender
@@ -50,13 +54,30 @@ const activeTab = computed({
   get: () => (route.query.tab as string) || 'overview',
   set: value => router.replace({ query: { ...route.query, tab: value } })
 })
+/**
+ * 12 tab Project Workspace (Repair Phase Section 4 — Core Project, Master Prompt bagian G.6) + 1 tab
+ * tambahan "Kebutuhan Komoditas" (Phase Client–Vendor Commodity, di luar 12 daftar Master Prompt, aditif).
+ * `value` DIPERTAHANKAN untuk 7 tab lama (travelers/finance/changes tetap value lama meski label berubah
+ * jadi Participants/Billing/Change Requests) — deep link existing (`?tab=travelers`/`finance`/`changes` dari
+ * Dashboard Section 2 dan Action Required) TIDAK boleh rusak. 6 tab baru: Timeline/Services/Reservations
+ * (README singkat + link ke halaman penuh `/client/reservations`)/Issues (dipisah dari "Changes & Incidents"
+ * lama)/Activities/Closing — seluruhnya READ-ONLY summary (Wajib "tab milik section lain boleh menampilkan
+ * summary terhubung, bukan implementasi ulang" — Documents/Billing sudah penuh sejak Section 08, Change
+ * Requests/Issues tetap read-only sampai section "Execution & Changes").
+ */
 const TABS = [
   { value: 'overview', label: 'Overview' },
+  { value: 'timeline', label: 'Timeline' },
+  { value: 'services', label: 'Services' },
+  { value: 'travelers', label: 'Participants' },
   { value: 'itinerary', label: 'Itinerary' },
-  { value: 'travelers', label: 'Travelers' },
+  { value: 'reservations', label: 'Reservations' },
   { value: 'documents', label: 'Documents' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'changes', label: 'Changes & Incidents' },
+  { value: 'finance', label: 'Billing' },
+  { value: 'changes', label: 'Change Requests' },
+  { value: 'issues', label: 'Issues' },
+  { value: 'activities', label: 'Activities' },
+  { value: 'closing', label: 'Closing' },
   { value: 'commodity', label: 'Kebutuhan Komoditas' }
 ]
 
@@ -65,6 +86,8 @@ const serviceScopeOptions = computed(() => SERVICE_TYPES.filter(type => project.
 const itineraryItems = computed(() => (project.value ? getClientVisibleItineraryItems(project.value.id) : []))
 const travelers = computed(() => (project.value ? getTravelers(project.value.id) : []))
 const documents = computed(() => (project.value ? getDocumentsByProject(project.value.id) : []))
+/** Repair Phase Section 5 (Execution & Changes) — dokumen client-visible kaya (kategori/versi/preview), MENDAMPINGI `documents` (legacy `ProjectDocument`, TIDAK diubah/dihapus) di tab "Documents" di bawah. */
+const richDocuments = computed(() => (project.value ? getClientDocumentsByProject(project.value.id) : []))
 const invoices = computed(() => (project.value ? getInvoicesByProject(project.value.id) : []))
 /**
  * Change Request + Incident sanitized view (Section 19, D-076) — hanya status + before/after summary untuk
@@ -75,6 +98,44 @@ const invoices = computed(() => (project.value ? getInvoicesByProject(project.va
  */
 const projectChangeRequests = computed(() => (project.value ? getChangeRequestsByProject(project.value.id) : []))
 const projectIncidents = computed(() => (project.value ? getIncidentsByProject(project.value.id) : []))
+
+/**
+ * Timeline (Repair Phase Section 4, tab baru) — milestone project derivasi murni dari field `Project`
+ * existing (`handoverAcceptedAt`/`travelStartDate`/`travelEndDate`/`readyAt`/`closedAt`), BUKAN entitas
+ * baru. `budgetIdr`/`actualCostIdr`/handover internal lain TETAP tidak pernah dirender (sanitasi sama).
+ */
+const projectMilestones = computed(() => {
+  if (!project.value) { return [] }
+  const items: { id: string; message: string; createdAt: string }[] = []
+  if (project.value.handoverAcceptedAt) { items.push({ id: 'handover', message: 'Project Order dikonfirmasi tim kami', createdAt: project.value.handoverAcceptedAt }) }
+  items.push({ id: 'start', message: `Keberangkatan — ${project.value.destination}`, createdAt: project.value.travelStartDate })
+  items.push({ id: 'end', message: 'Kepulangan', createdAt: project.value.travelEndDate })
+  if (project.value.readyAt) { items.push({ id: 'ready', message: 'Project ditandai siap berangkat (Ready)', createdAt: project.value.readyAt }) }
+  if (project.value.closedAt) { items.push({ id: 'closed', message: 'Project ditutup (Closed)', createdAt: project.value.closedAt }) }
+  return items.sort((a, b) => a.createdAt.localeCompare(b.createdAt))
+})
+
+/** Services (Repair Phase Section 4, tab baru) — reuse `getServiceReadinessMatrix` (Section 12), murni derivasi dari `PROJECT_SERVICES`, TIDAK ada cost/vendor internal. */
+const serviceReadinessItems = computed<StatusBreakdownItem[]>(() => {
+  if (!project.value) { return [] }
+  return getServiceReadinessMatrix(project.value.id).map(row => ({
+    key: row.type,
+    label: findStatusOption(SERVICE_TYPES, row.type).label,
+    tone: row.percent === 100 ? 'success' : 'warning',
+    count: row.confirmedCount,
+    secondaryLabel: `${row.confirmedCount}/${row.total} confirmed`
+  }))
+})
+
+/** Reservations (Repair Phase Section 4, Wajib) — reuse `getClientReservations` (derivasi `getBookingTimeline`, sanitized), TIDAK ada dataset booking paralel. */
+const reservations = computed(() => (project.value ? getClientReservations(project.value.id) : []))
+const latestItineraryVersion = computed(() => (project.value ? getLatestItineraryVersion(project.value.id) : undefined))
+
+/** Activities (Repair Phase Section 4, tab baru) — reuse `ACTIVITIES`/`getActivitiesByProject` (log audit satu-satunya, sama sumber dengan Dashboard "Recent Activity" Section 2). */
+const projectActivities = computed(() => (project.value ? getActivitiesByProject(project.value.id) : []))
+
+/** Closing (Repair Phase Section 4, tab baru) — reuse `getProjectClosureSummary` (Section 09/24, read-only aggregate), TIDAK ada mekanisme closure baru dari sisi Client (di luar scope section ini). */
+const closureSummary = computed(() => (project.value ? getProjectClosureSummary(project.value.id) : undefined))
 
 /**
  * Commodity Requirement (Phase 3 — Client–Vendor Commodity). Kebutuhan komoditas milik Client dalam
@@ -376,8 +437,23 @@ function submitChangeRequest () {
           </SectionCard>
         </TabsContent>
 
+        <TabsContent value="timeline">
+          <SectionCard title="Timeline" description="Milestone utama Project Order Anda.">
+            <ActivityTimeline :items="projectMilestones" empty-label="Belum ada milestone tercatat" />
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="services">
+          <SectionCard title="Services" description="Kesiapan layanan per jenis (jumlah service yang sudah confirmed dari total yang diajukan).">
+            <StatusBreakdownList :items="serviceReadinessItems" empty-label="Belum ada service tercatat" />
+          </SectionCard>
+        </TabsContent>
+
         <TabsContent value="itinerary">
           <SectionCard title="Shared Itinerary">
+            <template #actions>
+              <StatusBadge v-if="latestItineraryVersion" :label="findStatusOption(ITINERARY_VERSION_STATUSES, latestItineraryVersion.status).label" :tone="findStatusOption(ITINERARY_VERSION_STATUSES, latestItineraryVersion.status).tone" />
+            </template>
             <ul v-if="itineraryItems.length" class="divide-y divide-border">
               <li v-for="item in itineraryItems" :key="item.id" class="py-3">
                 <p class="text-xs text-muted-foreground">
@@ -394,6 +470,41 @@ function submitChangeRequest () {
               </li>
             </ul>
             <EmptyState v-else title="Itinerary belum tersedia" description="Itinerary akan tampil di sini setelah tim kami menyusunnya." />
+            <div class="mt-4 pt-4 border-t border-border">
+              <NuxtLink :to="`/client/itineraries/${project.id}`" class="text-sm text-primary hover:underline">
+                Kelola versi, bandingkan, komentar, dan approval →
+              </NuxtLink>
+            </div>
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="reservations">
+          <SectionCard title="Reservations" description="Status reservasi Flight/Hotel/Transportation/MICE untuk Project Order Anda — Client hanya dapat melihat status, perubahan diajukan lewat Change Request.">
+            <ul v-if="reservations.length" class="divide-y divide-border">
+              <li v-for="reservation in reservations" :key="`${reservation.bookingType}-${reservation.bookingId}`" class="py-3">
+                <div class="flex items-center justify-between gap-3">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ reservation.label }}
+                    </p>
+                    <p class="text-xs text-muted-foreground truncate">
+                      {{ findStatusOption(RESERVATION_CATEGORIES, reservation.category).label }}
+                      <template v-if="reservation.reference">
+                        · Ref. {{ reservation.reference }}
+                      </template>
+                      <template v-if="reservation.startDate">
+                        · {{ formatDate(reservation.startDate) }}
+                      </template>
+                    </p>
+                  </div>
+                  <StatusBadge :label="reservation.clientVisibleStatus" tone="info" />
+                </div>
+                <NuxtLink :to="`/client/reservations/${reservation.bookingType}/${reservation.bookingId}/preview`" class="text-xs text-primary hover:underline">
+                  Lihat konfirmasi/tiket →
+                </NuxtLink>
+              </li>
+            </ul>
+            <EmptyState v-else title="Belum ada reservasi tercatat" description="Reservasi akan tampil di sini setelah tim kami memproses booking Anda." />
           </SectionCard>
         </TabsContent>
 
@@ -404,56 +515,63 @@ function submitChangeRequest () {
                 <Plus class="h-4 w-4 mr-1.5" />Tambah Traveler
               </Button>
             </template>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Paspor</TableHead>
-                  <TableHead>Visa</TableHead>
-                  <TableHead>Kontak Darurat</TableHead>
-                  <TableHead>Catatan</TableHead>
-                  <TableHead>Status Dokumen</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="traveler in travelers" :key="traveler.id">
-                  <TableCell class="font-medium text-foreground">
-                    {{ traveler.name }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ traveler.passportNumber || '—' }}<template v-if="traveler.passportExpiryDate">
-                      (exp. {{ formatDate(traveler.passportExpiryDate) }})
-                    </template>
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ traveler.visaNumber || '—' }}<template v-if="traveler.visaExpiryDate">
-                      (exp. {{ formatDate(traveler.visaExpiryDate) }})
-                    </template>
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ traveler.emergencyContactName || '—' }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground text-xs">
-                    {{ [traveler.dietaryRestrictions, traveler.accessibilityNeeds, traveler.specialRequest].filter(Boolean).join(' · ') || '—' }}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      :label="isTravelerDocumentMissing(traveler, project.travelStartDate) ? 'Dokumen Belum Lengkap' : 'Dokumen Lengkap'"
-                      :tone="isTravelerDocumentMissing(traveler, project.travelStartDate) ? 'warning' : 'success'"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="ghost" @click="openTravelerDialog(traveler)">
-                      Edit
-                    </Button>
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="travelers.length === 0" :colspan="7">
-                  Belum ada traveler tercatat. Tambahkan data traveler Anda.
-                </TableEmpty>
-              </TableBody>
-            </Table>
+            <div class="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Paspor</TableHead>
+                    <TableHead>Visa</TableHead>
+                    <TableHead>Kontak Darurat</TableHead>
+                    <TableHead>Catatan</TableHead>
+                    <TableHead>Status Dokumen</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="traveler in travelers" :key="traveler.id">
+                    <TableCell class="font-medium text-foreground">
+                      {{ traveler.name }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ traveler.passportNumber || '—' }}<template v-if="traveler.passportExpiryDate">
+                        (exp. {{ formatDate(traveler.passportExpiryDate) }})
+                      </template>
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ traveler.visaNumber || '—' }}<template v-if="traveler.visaExpiryDate">
+                        (exp. {{ formatDate(traveler.visaExpiryDate) }})
+                      </template>
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ traveler.emergencyContactName || '—' }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground text-xs">
+                      {{ [traveler.dietaryRestrictions, traveler.accessibilityNeeds, traveler.specialRequest].filter(Boolean).join(' · ') || '—' }}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        :label="isTravelerDocumentMissing(traveler, project.travelStartDate) ? 'Dokumen Belum Lengkap' : 'Dokumen Lengkap'"
+                        :tone="isTravelerDocumentMissing(traveler, project.travelStartDate) ? 'warning' : 'success'"
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Button size="sm" variant="ghost" @click="openTravelerDialog(traveler)">
+                        Edit
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  <TableEmpty v-if="travelers.length === 0" :colspan="7">
+                    Belum ada traveler tercatat. Tambahkan data traveler Anda.
+                  </TableEmpty>
+                </TableBody>
+              </Table>
+            </div>
+            <div class="mt-4 pt-4 border-t border-border">
+              <NuxtLink to="/client/participants" class="text-sm text-primary hover:underline">
+                Kelola VIP, rooming, replace, dan bulk action lintas project →
+              </NuxtLink>
+            </div>
           </SectionCard>
 
           <Dialog v-model:open="isTravelerDialogOpen">
@@ -512,53 +630,88 @@ function submitChangeRequest () {
         </TabsContent>
 
         <TabsContent value="documents">
-          <SectionCard title="Shared Documents">
-            <ul v-if="documents.length" class="divide-y divide-border">
-              <li v-for="document in documents" :key="document.id" class="py-3 flex items-center justify-between gap-3">
-                <span class="text-sm text-foreground truncate">{{ document.name }}</span>
-                <span class="text-xs text-muted-foreground shrink-0">{{ formatDate(document.uploadedAt) }}</span>
+          <SectionCard title="Documents">
+            <template #actions>
+              <NuxtLink :to="`/client/documents?project=${project.id}`" class="text-xs text-primary hover:underline">
+                Buka Documents lengkap →
+              </NuxtLink>
+            </template>
+            <ul v-if="richDocuments.length" class="divide-y divide-border">
+              <li v-for="document in richDocuments" :key="document.id" class="py-3 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="text-sm text-foreground truncate">
+                    {{ document.name }} <span class="text-xs text-muted-foreground">v{{ document.version }}</span>
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ findStatusOption(CLIENT_DOCUMENT_CATEGORIES, getClientDocumentCategory(document)).label }}
+                    <template v-if="document.expiresAt">
+                      · Kedaluwarsa {{ formatDate(document.expiresAt) }}
+                    </template>
+                  </p>
+                </div>
+                <NuxtLink v-if="document.sourceType === 'generated' && document.previewRoute" :to="document.previewRoute" target="_blank" class="text-xs text-primary hover:underline shrink-0">
+                  Preview →
+                </NuxtLink>
               </li>
             </ul>
             <EmptyState v-else title="Belum ada dokumen dibagikan" description="Dokumen seperti tiket, voucher hotel, atau itinerary PDF akan tampil di sini setelah dibagikan tim kami." />
+            <div v-if="documents.length" class="mt-4 pt-4 border-t border-border">
+              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                Dokumen Lama
+              </p>
+              <ul class="divide-y divide-border">
+                <li v-for="document in documents" :key="document.id" class="py-2 flex items-center justify-between gap-3">
+                  <span class="text-sm text-foreground truncate">{{ document.name }}</span>
+                  <span class="text-xs text-muted-foreground shrink-0">{{ formatDate(document.uploadedAt) }}</span>
+                </li>
+              </ul>
+            </div>
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="finance">
           <SectionCard title="Invoice" description="Menampilkan status DP/termin dan currency invoice — nilai selalu dalam Rupiah (currency asing hanya penanda referensi, sudah dikonversi).">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Tipe</TableHead>
-                  <TableHead>Jumlah</TableHead>
-                  <TableHead>Jatuh Tempo</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="invoice in invoices" :key="invoice.id">
-                  <TableCell class="font-medium text-foreground">
-                    {{ invoice.label }}
-                  </TableCell>
-                  <TableCell>
-                    <div class="flex flex-col gap-1">
-                      <StatusBadge :label="findStatusOption(INVOICE_TYPES, invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, invoice.invoiceType).tone" />
-                      <span v-if="invoice.currency !== 'IDR'" class="text-xs text-muted-foreground">{{ invoice.currency }}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>{{ formatCurrencyIdr(invoice.amountIdr) }}</TableCell>
-                  <TableCell :class="isInvoiceOverdue(invoice) ? 'text-destructive' : 'text-muted-foreground'">
-                    {{ formatDate(invoice.dueAt) }}<template v-if="isInvoiceOverdue(invoice)">
-                      ({{ invoiceAgingDays(invoice) * -1 }} hari overdue)
-                    </template>
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(INVOICE_STATUSES, invoice.status).tone" /></TableCell>
-                </TableRow>
-                <TableEmpty v-if="invoices.length === 0" :colspan="5">
-                  Belum ada invoice untuk Project Order ini.
-                </TableEmpty>
-              </TableBody>
-            </Table>
+            <template #actions>
+              <NuxtLink :to="`/client/billing`" class="text-xs text-primary hover:underline">
+                Buka Finance & Billing lengkap →
+              </NuxtLink>
+            </template>
+            <div class="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice</TableHead>
+                    <TableHead>Tipe</TableHead>
+                    <TableHead>Jumlah</TableHead>
+                    <TableHead>Jatuh Tempo</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="invoice in invoices" :key="invoice.id">
+                    <TableCell class="font-medium text-foreground">
+                      {{ invoice.label }}
+                    </TableCell>
+                    <TableCell>
+                      <div class="flex flex-col gap-1">
+                        <StatusBadge :label="findStatusOption(INVOICE_TYPES, invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, invoice.invoiceType).tone" />
+                        <span v-if="invoice.currency !== 'IDR'" class="text-xs text-muted-foreground">{{ invoice.currency }}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{{ formatCurrencyIdr(invoice.amountIdr) }}</TableCell>
+                    <TableCell :class="isInvoiceOverdue(invoice) ? 'text-destructive' : 'text-muted-foreground'">
+                      {{ formatDate(invoice.dueAt) }}<template v-if="isInvoiceOverdue(invoice)">
+                        ({{ invoiceAgingDays(invoice) * -1 }} hari overdue)
+                      </template>
+                    </TableCell>
+                    <TableCell><StatusBadge :label="findStatusOption(INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(INVOICE_STATUSES, invoice.status).tone" /></TableCell>
+                  </TableRow>
+                  <TableEmpty v-if="invoices.length === 0" :colspan="5">
+                    Belum ada invoice untuk Project Order ini.
+                  </TableEmpty>
+                </TableBody>
+              </Table>
+            </div>
           </SectionCard>
 
           <SectionCard v-for="invoice in invoices.filter(inv => getPaymentsByInvoice(inv.id).length > 0)" :key="invoice.id" :title="`Riwayat Pembayaran — ${invoice.label}`">
@@ -574,41 +727,46 @@ function submitChangeRequest () {
         <TabsContent value="changes">
           <SectionCard title="Change Request">
             <template #actions>
-              <Dialog v-model:open="isChangeDialogOpen">
-                <DialogTrigger as-child>
-                  <Button size="sm" variant="outline">
-                    <Plus class="h-4 w-4 mr-1.5" />Ajukan Perubahan
-                  </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Ajukan Permintaan Perubahan</DialogTitle>
-                    <DialogDescription>Sampaikan perubahan yang Anda butuhkan untuk Project Order ini.</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                      <Label for="change-category">Kategori</Label>
-                      <select id="change-category" v-model="changeCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                        <option v-for="cat in CHANGE_CATEGORIES.filter(c => CLIENT_CHANGE_CATEGORIES.includes(c.value))" :key="cat.value" :value="cat.value">
-                          {{ cat.label }}
-                        </option>
-                      </select>
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="change-reason">Detail Permintaan</Label>
-                      <textarea id="change-reason" v-model="changeReason" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Jumlah peserta bertambah menjadi 25 orang" />
-                    </div>
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isChangeDialogOpen = false">
-                      Batal
+              <div class="flex items-center gap-3">
+                <NuxtLink to="/client/change-requests" class="text-xs text-primary hover:underline">
+                  Kelola lengkap →
+                </NuxtLink>
+                <Dialog v-model:open="isChangeDialogOpen">
+                  <DialogTrigger as-child>
+                    <Button size="sm" variant="outline">
+                      <Plus class="h-4 w-4 mr-1.5" />Ajukan Perubahan
                     </Button>
-                    <Button :disabled="!changeReason.trim()" @click="submitChangeRequest">
-                      Kirim
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  </DialogTrigger>
+                  <DialogContent class="max-w-md">
+                    <DialogHeader>
+                      <DialogTitle>Ajukan Permintaan Perubahan</DialogTitle>
+                      <DialogDescription>Sampaikan perubahan yang Anda butuhkan untuk Project Order ini.</DialogDescription>
+                    </DialogHeader>
+                    <div class="space-y-4 py-2">
+                      <div class="space-y-1.5">
+                        <Label for="change-category">Kategori</Label>
+                        <select id="change-category" v-model="changeCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                          <option v-for="cat in CHANGE_CATEGORIES.filter(c => CLIENT_CHANGE_CATEGORIES.includes(c.value))" :key="cat.value" :value="cat.value">
+                            {{ cat.label }}
+                          </option>
+                        </select>
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="change-reason">Detail Permintaan</Label>
+                        <textarea id="change-reason" v-model="changeReason" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Jumlah peserta bertambah menjadi 25 orang" />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button variant="outline" @click="isChangeDialogOpen = false">
+                        Batal
+                      </Button>
+                      <Button :disabled="!changeReason.trim()" @click="submitChangeRequest">
+                        Kirim
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+              </div>
             </template>
             <ul v-if="projectChangeRequests.length" class="divide-y divide-border">
               <li v-for="item in projectChangeRequests" :key="item.id" class="py-3">
@@ -628,8 +786,10 @@ function submitChangeRequest () {
             </ul>
             <EmptyState v-else title="Belum ada permintaan perubahan" description="Ajukan perubahan bila ada detail Project Order yang perlu disesuaikan." />
           </SectionCard>
+        </TabsContent>
 
-          <SectionCard title="Incidents" description="Status dan resolusi insiden yang berkaitan dengan Project Order Anda.">
+        <TabsContent value="issues">
+          <SectionCard title="Issues" description="Status dan resolusi insiden operasional yang berkaitan dengan Project Order Anda.">
             <ul v-if="projectIncidents.length" class="divide-y divide-border">
               <li v-for="item in projectIncidents" :key="item.id" class="py-3">
                 <div class="flex items-center justify-between gap-3">
@@ -646,7 +806,43 @@ function submitChangeRequest () {
                 </p>
               </li>
             </ul>
-            <EmptyState v-else title="Tidak ada Incident tercatat" description="Belum ada insiden operasional yang berkaitan dengan Project Order ini." />
+            <EmptyState v-else title="Tidak ada Issue tercatat" description="Belum ada insiden operasional yang berkaitan dengan Project Order ini." />
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="activities">
+          <SectionCard title="Activities" description="Riwayat aktivitas Project Order Anda.">
+            <ActivityTimeline
+              :items="projectActivities.map(activity => ({ id: activity.id, message: activity.message, createdAt: activity.createdAt }))"
+              empty-label="Belum ada aktivitas tercatat"
+            />
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="closing">
+          <SectionCard title="Closing" description="Ringkasan penutupan Project Order Anda.">
+            <template v-if="project.closedAt">
+              <StatusBadge label="Project Closed" tone="success" />
+              <p class="text-xs text-muted-foreground mt-2">
+                Ditutup pada {{ formatDate(project.closedAt) }}
+              </p>
+              <p v-if="project.closureChecklist?.finalNote" class="text-sm text-foreground mt-3">
+                {{ project.closureChecklist.finalNote }}
+              </p>
+            </template>
+            <EmptyState v-else title="Project belum ditutup" description="Ringkasan berikut adalah status berjalan, bukan hasil final." />
+            <div v-if="closureSummary" class="mt-4 pt-4 border-t border-border">
+              <DetailMetadataList
+                :items="[
+                  { label: 'Total Layanan', value: String(closureSummary.totalServices) },
+                  { label: 'Total Booking', value: String(closureSummary.totalBookings) },
+                  { label: 'Total Invoiced', value: formatCurrencyIdr(closureSummary.totalInvoicedIdr) },
+                  { label: 'Total Paid', value: formatCurrencyIdr(closureSummary.totalPaidIdr) },
+                  { label: 'Issues Selesai', value: `${closureSummary.incidentsResolved}/${closureSummary.incidentsTotal}` },
+                  { label: 'Change Request Diimplementasikan', value: `${closureSummary.changeRequestsImplemented}/${closureSummary.changeRequestsTotal}` },
+                ]"
+              />
+            </div>
           </SectionCard>
         </TabsContent>
 
@@ -657,56 +853,58 @@ function submitChangeRequest () {
                 <Plus class="h-4 w-4 mr-1.5" />Tambah Kebutuhan
               </Button>
             </template>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Judul</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Qty</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Aksi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="requirement in requirements" :key="requirement.id">
-                  <TableCell class="font-medium text-foreground">
-                    {{ requirement.title }}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge :label="findStatusOption(SERVICE_TYPES, requirement.category).label" :tone="findStatusOption(SERVICE_TYPES, requirement.category).tone" />
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ requirement.quantity }}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge :label="findStatusOption(COMMODITY_REQUIREMENT_STATUSES, requirement.status).label" :tone="findStatusOption(COMMODITY_REQUIREMENT_STATUSES, requirement.status).tone" />
-                  </TableCell>
-                  <TableCell>
-                    <div class="flex items-center gap-2">
-                      <Button size="sm" variant="ghost" @click="viewingRequirement = requirement">
-                        Detail
-                      </Button>
-                      <Button
-                        v-if="['open', 'matching', 'selection-in-progress'].includes(requirement.status)"
-                        size="sm"
-                        @click="router.push(`/client/catalog/${requirement.id}`)"
-                      >
-                        Cari Komoditas
-                      </Button>
-                      <Button v-if="isCommodityRequirementEditable(requirement.status)" size="sm" variant="outline" @click="openEditRequirement(requirement)">
-                        Edit
-                      </Button>
-                      <Button v-if="isCommodityRequirementDeletable(requirement.status)" size="sm" variant="destructive" @click="requestDeleteRequirement(requirement)">
-                        Hapus
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="requirements.length === 0" :colspan="5">
-                  Belum ada kebutuhan komoditas. Klik "Tambah Kebutuhan" untuk mengajukan.
-                </TableEmpty>
-              </TableBody>
-            </Table>
+            <div class="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Judul</TableHead>
+                    <TableHead>Kategori</TableHead>
+                    <TableHead>Qty</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead>Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="requirement in requirements" :key="requirement.id">
+                    <TableCell class="font-medium text-foreground">
+                      {{ requirement.title }}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge :label="findStatusOption(SERVICE_TYPES, requirement.category).label" :tone="findStatusOption(SERVICE_TYPES, requirement.category).tone" />
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ requirement.quantity }}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge :label="findStatusOption(COMMODITY_REQUIREMENT_STATUSES, requirement.status).label" :tone="findStatusOption(COMMODITY_REQUIREMENT_STATUSES, requirement.status).tone" />
+                    </TableCell>
+                    <TableCell>
+                      <div class="flex items-center gap-2">
+                        <Button size="sm" variant="ghost" @click="viewingRequirement = requirement">
+                          Detail
+                        </Button>
+                        <Button
+                          v-if="['open', 'matching', 'selection-in-progress'].includes(requirement.status)"
+                          size="sm"
+                          @click="router.push(`/client/catalog/${requirement.id}`)"
+                        >
+                          Cari Komoditas
+                        </Button>
+                        <Button v-if="isCommodityRequirementEditable(requirement.status)" size="sm" variant="outline" @click="openEditRequirement(requirement)">
+                          Edit
+                        </Button>
+                        <Button v-if="isCommodityRequirementDeletable(requirement.status)" size="sm" variant="destructive" @click="requestDeleteRequirement(requirement)">
+                          Hapus
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                  <TableEmpty v-if="requirements.length === 0" :colspan="5">
+                    Belum ada kebutuhan komoditas. Klik "Tambah Kebutuhan" untuk mengajukan.
+                  </TableEmpty>
+                </TableBody>
+              </Table>
+            </div>
           </SectionCard>
 
           <!-- ── Create/Edit Requirement Dialog ────────────────────────── -->

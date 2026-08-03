@@ -183,6 +183,27 @@ export const LEADS: Lead[] = reactive([
     createdAt: '2026-07-28',
     lastUpdatedAt: '2026-07-28',
     archived: false
+  },
+  /**
+   * LED-012 (Client Experience — Repair Phase Section 1) — skenario demo "Bali MICE Event"
+   * (`docs/client-mock-data-scenarios.md`): belum ada Quotation sama sekali, kebutuhan venue/event masih
+   * belum lengkap. `TravelRequest` (`app/types/travel-request.ts`) belum punya mutator/halaman sendiri
+   * (section "Request & Commercial") — untuk sementara skenario ini direpresentasikan lewat `Lead` existing.
+   */
+  {
+    id: 'LED-012',
+    name: 'Dimas Pratama',
+    companyName: 'PT Java Bhakti Persada',
+    source: 'client-portal',
+    stage: 'contacted',
+    ownerId: 'USR-001',
+    email: 'dimas.pratama@java-bhakti.example',
+    destination: 'Bali, Indonesia',
+    serviceCategory: 'mice-event',
+    qualificationNotes: 'Kebutuhan venue dan susunan acara MICE masih perlu klarifikasi lebih lanjut dari client sebelum quotation dapat disiapkan.',
+    createdAt: '2026-07-27',
+    lastUpdatedAt: '2026-07-29',
+    archived: false
   }
 ])
 
