@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, type ComputedRef } from 'vue'
 import {
-  FolderKanban, Handshake, PlaneTakeoff, AlertTriangle, Receipt, Users, Save, X
+  FolderKanban, Handshake, PlaneTakeoff, AlertTriangle, Receipt, Users, Save, X,
+  Wallet, PieChart, ListChecks, CheckCircle2, CalendarClock, History, Activity, ShieldCheck, Package, Building2
 } from 'lucide-vue-next'
 import {
   PROJECTS, OPPORTUNITIES, QUOTATIONS, PARTIES, USERS,
@@ -12,11 +13,12 @@ import {
 import {
   PROJECT_STATUSES, OPPORTUNITY_STAGES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, findStatusOption
 } from '~/constants/status'
-import { formatCurrencyIdr, formatDateRange, formatDateTime, daysUntil } from '~/utils/format'
+import { formatCurrencyIdr, formatDateRange, formatDateTime, formatDayLabel, daysUntil } from '~/utils/format'
 import {
   isUpcomingDeparture, isBudgetOverrun, isInvoiceOverdue, hasUnreviewedChange,
   isProjectNeedingAttention, DEMO_REFERENCE_DATE
 } from '~/utils/attention'
+import { ROLES } from '~/constants/roles'
 import type { RoleId } from '~/types/user'
 import type { Project, ServiceTypeKey } from '~/types/project'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
@@ -26,6 +28,10 @@ useHead({ title: 'Dashboard' })
 
 const { currentRole, currentUser } = useCurrentUser()
 const { showToast } = useToast()
+
+const roleLabel = computed(() => ROLES.find(role => role.value === currentRole.value)?.label ?? currentRole.value)
+const firstName = computed(() => currentUser.value.name.split(' ')[0])
+const dateLabel = computed(() => formatDayLabel(DEMO_REFERENCE_DATE))
 
 /**
  * Section 22 (D-079) — SSR loading-skeleton fix. Sebelumnya `isLoading` hanya berubah ke `false` lewat
@@ -245,6 +251,10 @@ const myAttentionProjects = computed(() => attentionOf(myProjectsAll.value))
 const myUpcomingTasks = computed(() => getUpcomingTasks(myProjectIds.value))
 const myRecentChanges = computed(() => getRecentChanges(myProjectIds.value, 5))
 
+/** "Project Saya" (bento merge) — active projects milik PM, dipecah jadi sub-bagian Perlu Perhatian/Lainnya agar tidak duplikat baris. */
+const myAttentionIds = computed(() => new Set(myAttentionProjects.value.map(p => p.id)))
+const myOtherActiveProjects = computed(() => myActiveProjects.value.filter(p => !myAttentionIds.value.has(p.id)))
+
 /** Service Readiness — Operations/Ticketing/Accommodation/Transportation/MICE/Super Admin. */
 const serviceReadinessType = computed<ServiceTypeKey | undefined>(() => ({
   ticketing: 'flight', accommodation: 'hotel', transportation: 'transportation', mice: 'mice'
@@ -276,6 +286,7 @@ const kpiCards = computed(() => [
     title: 'Active Projects',
     value: String(activeProjects.value.length),
     icon: FolderKanban,
+    color: 'blue' as const,
     visible: visibleTo('management', 'project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'finance', 'super-admin', 'viewer').value
   },
   {
@@ -283,6 +294,7 @@ const kpiCards = computed(() => [
     title: 'Open Opportunities',
     value: String(openOpportunities.value.length),
     icon: Handshake,
+    color: 'violet' as const,
     visible: visibleTo('sales', 'account-executive', 'management', 'super-admin', 'viewer').value
   },
   {
@@ -290,6 +302,7 @@ const kpiCards = computed(() => [
     title: 'Upcoming Departures',
     value: String(upcomingDepartures.value.length),
     icon: PlaneTakeoff,
+    color: 'cyan' as const,
     visible: visibleTo('project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'super-admin').value
   },
   {
@@ -297,7 +310,7 @@ const kpiCards = computed(() => [
     title: 'Project Perlu Perhatian',
     value: String(attentionProjects.value.length),
     icon: AlertTriangle,
-    iconColor: 'destructive' as const,
+    color: 'rose' as const,
     visible: visibleTo('management', 'super-admin', 'viewer').value
   },
   {
@@ -305,7 +318,7 @@ const kpiCards = computed(() => [
     title: 'Outstanding Invoices',
     value: formatCurrencyIdr(outstandingTotal.value),
     icon: Receipt,
-    iconColor: 'warning' as const,
+    color: 'amber' as const,
     visible: visibleTo('finance', 'management', 'super-admin', 'viewer').value
   },
   {
@@ -313,6 +326,7 @@ const kpiCards = computed(() => [
     title: 'Total User Demo',
     value: String(USERS.length),
     icon: Users,
+    color: 'teal' as const,
     visible: visibleTo('super-admin').value
   }
 ])
@@ -336,8 +350,7 @@ const showQuotationsPending = visibleTo('sales', 'account-executive', 'super-adm
 const showFollowUps = visibleTo('sales')
 const showUpcomingDepartures = visibleTo('project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'super-admin')
 const showServiceReadiness = visibleTo('operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'super-admin')
-const showMyActiveProjects = visibleTo('project-manager')
-const showMyAttention = visibleTo('project-manager')
+const showMyProjects = visibleTo('project-manager')
 const showMyTasks = visibleTo('project-manager')
 const showMyChanges = visibleTo('project-manager')
 const showAdminSummary = visibleTo('super-admin')
@@ -346,30 +359,160 @@ const showSupplierWelcome = visibleTo('supplier')
 const showClientWelcome = visibleTo('client')
 const showProcurementWelcome = visibleTo('procurement')
 const showProductPlannerWelcome = visibleTo('product-planner')
+
+/* ==================================================
+ * Grid tiering (Dashboard card redesign) — murni fungsi dari show* flag di atas (tidak ada logic role
+ * baru, tidak ada hardcode per-role) supaya otomatis menyesuaikan kombinasi widget apa pun yang terlihat
+ * untuk role yang sedang login. Grid kartu seragam — tidak ada lagi widget "hero" yang dibesarkan.
+ * ================================================== */
+/** "Perlu Ditindak" (bento merge) — gabungan Quotations Menunggu Keputusan + Follow-up Mendatang. */
+const showActionNeeded = computed(() => showQuotationsPending.value || showFollowUps.value)
+
+const HERO_PRIORITY: { key: string; visible: ComputedRef<boolean> }[] = [
+  { key: 'attention-global', visible: showAttentionGlobal },
+  { key: 'my-projects', visible: showMyProjects },
+  { key: 'outstanding', visible: showOutstanding },
+  { key: 'pipeline', visible: showPipeline },
+  { key: 'action-needed', visible: showActionNeeded },
+  { key: 'budget-vs-actual', visible: showBudgetVsActual },
+  { key: 'service-readiness', visible: showServiceReadiness },
+  { key: 'projects-by-status', visible: showProjectsByStatus },
+  { key: 'cost-breakdown', visible: showCostBreakdown },
+  { key: 'upcoming-departures', visible: showUpcomingDepartures },
+  { key: 'my-tasks', visible: showMyTasks },
+  { key: 'my-changes', visible: showMyChanges },
+  { key: 'recent-activity', visible: showRecentActivity },
+  { key: 'admin-summary', visible: showAdminSummary },
+  { key: 'welcome', visible: computed(() => showSupplierWelcome.value || showClientWelcome.value || showProcurementWelcome.value || showProductPlannerWelcome.value) }
+]
+
+const visibleWidgetCount = computed(() => HERO_PRIORITY.filter(widget => widget.visible.value).length)
+
+/** Widget berisi chart/tabel ringkasan — selalu diberi ruang lebih lebar di grid. */
+const WIDE_CONTENT_KEYS = new Set(['pipeline', 'budget-vs-actual', 'cost-breakdown', 'admin-summary'])
+
+function tierOf (key: string): 'default' | 'wide' | 'full' {
+  if (visibleWidgetCount.value === 1) { return 'full' }
+  return WIDE_CONTENT_KEYS.has(key) ? 'wide' : 'default'
+}
+
+const visibleKpiCards = computed(() => kpiCards.value.filter(card => card.visible))
+
+function kpiSubtitle (key: string): string | undefined {
+  if (key === 'outstanding') { return `${outstandingInvoices.value.length} invoice belum lunas` }
+  if (key === 'attention') { return 'Perlu tindak lanjut segera' }
+  return undefined
+}
 </script>
 
 <template>
-  <div class="space-y-6">
-    <PageHeader
-      title="Dashboard"
+  <div>
+    <DashboardHeader
+      :role-label="roleLabel"
+      :greeting="`Halo, ${firstName}.`"
+      :date-label="dateLabel"
       description="Ringkasan lintas-domain, konten menyesuaikan role yang sedang login."
     />
 
     <LoadingState v-if="isLoading" message="Memuat ringkasan dashboard..." :rows="4" />
 
     <template v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
-        <template v-for="card in kpiCards" :key="card.key">
-          <StatsCard v-if="card.visible" :title="card.title" :value="card.value" :icon="card.icon" :icon-color="card.iconColor" />
-        </template>
+      <div v-if="visibleKpiCards.length" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+        <DashboardStat
+          v-for="card in visibleKpiCards"
+          :key="card.key"
+          :label="card.title"
+          :value="card.value"
+          :icon="card.icon"
+          :color="card.color"
+          :subtitle="kpiSubtitle(card.key)"
+        />
       </div>
 
-      <SectionCard v-if="showFilters" title="Filter" description="Berlaku untuk seluruh widget berbasis project di bawah.">
-        <template #actions>
+      <div v-if="showFilters" class="rounded-2xl border border-border bg-card shadow-sm p-4 mb-6">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-semibold text-muted-foreground mr-1">Filter</span>
+
+          <Select v-model="statusFilter">
+            <SelectTrigger class="h-9 text-sm w-auto min-w-[140px]">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                Semua Status
+              </SelectItem>
+              <SelectItem v-for="status in PROJECT_STATUSES" :key="status.value" :value="status.value">
+                {{ status.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select v-model="typeFilter">
+            <SelectTrigger class="h-9 text-sm w-auto min-w-[140px]">
+              <SelectValue placeholder="Tipe Project" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                Semua Tipe
+              </SelectItem>
+              <SelectItem v-for="type in PROJECT_CHARACTERISTICS" :key="type.value" :value="type.value">
+                {{ type.label }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select v-model="clientFilter">
+            <SelectTrigger class="h-9 text-sm w-auto min-w-[140px]">
+              <SelectValue placeholder="Client" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                Semua Client
+              </SelectItem>
+              <SelectItem v-for="party in clientOptions" :key="party.id" :value="party.id">
+                {{ party.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select v-if="showOwnerFilter" v-model="ownerFilter">
+            <SelectTrigger class="h-9 text-sm w-auto min-w-[140px]">
+              <SelectValue placeholder="Owner" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                Semua Owner
+              </SelectItem>
+              <SelectItem v-for="user in ownerOptions" :key="user.id" :value="user.id">
+                {{ user.name }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Select v-model="periodFilter">
+            <SelectTrigger class="h-9 text-sm w-auto min-w-[170px]">
+              <SelectValue placeholder="Periode Keberangkatan" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">
+                Semua Periode
+              </SelectItem>
+              <SelectItem value="30">
+                30 Hari ke Depan
+              </SelectItem>
+              <SelectItem value="60">
+                60 Hari ke Depan
+              </SelectItem>
+              <SelectItem value="90">
+                90 Hari ke Depan
+              </SelectItem>
+            </SelectContent>
+          </Select>
+
           <Dialog v-model:open="isSaveViewOpen">
             <DialogTrigger as-child>
-              <Button size="sm" variant="outline">
-                <Save class="h-4 w-4 mr-1.5" />Simpan View
+              <Button size="sm" variant="outline" class="ml-auto">
+                <Save class="h-3.5 w-3.5 mr-1.5" />Simpan View
               </Button>
             </DialogTrigger>
             <DialogContent class="max-w-sm">
@@ -391,228 +534,180 @@ const showProductPlannerWelcome = visibleTo('product-planner')
               </DialogFooter>
             </DialogContent>
           </Dialog>
-        </template>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <Select v-model="statusFilter">
-            <SelectTrigger><SelectValue placeholder="Status" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                Semua Status
-              </SelectItem>
-              <SelectItem v-for="status in PROJECT_STATUSES" :key="status.value" :value="status.value">
-                {{ status.label }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select v-model="typeFilter">
-            <SelectTrigger><SelectValue placeholder="Tipe Project" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                Semua Tipe
-              </SelectItem>
-              <SelectItem v-for="type in PROJECT_CHARACTERISTICS" :key="type.value" :value="type.value">
-                {{ type.label }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select v-model="clientFilter">
-            <SelectTrigger><SelectValue placeholder="Client" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                Semua Client
-              </SelectItem>
-              <SelectItem v-for="party in clientOptions" :key="party.id" :value="party.id">
-                {{ party.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select v-if="showOwnerFilter" v-model="ownerFilter">
-            <SelectTrigger><SelectValue placeholder="Owner" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                Semua Owner
-              </SelectItem>
-              <SelectItem v-for="user in ownerOptions" :key="user.id" :value="user.id">
-                {{ user.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-
-          <Select v-model="periodFilter">
-            <SelectTrigger><SelectValue placeholder="Periode Keberangkatan" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">
-                Semua Periode
-              </SelectItem>
-              <SelectItem value="30">
-                30 Hari ke Depan
-              </SelectItem>
-              <SelectItem value="60">
-                60 Hari ke Depan
-              </SelectItem>
-              <SelectItem value="90">
-                90 Hari ke Depan
-              </SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
-        <div v-if="mySavedViews.length" class="mt-4 pt-4 border-t border-border flex flex-wrap items-center gap-2">
-          <span class="text-xs text-muted-foreground shrink-0">Saved Views:</span>
-          <div v-for="view in mySavedViews" :key="view.id" class="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 pl-3 pr-1 py-1 text-xs">
-            <button type="button" class="text-foreground hover:underline" @click="applyView(view.id)">
+        <div v-if="mySavedViews.length" class="flex items-center flex-wrap gap-2 mt-3 pt-3 border-t border-border">
+          <span class="text-xs text-muted-foreground">Saved:</span>
+          <div v-for="view in mySavedViews" :key="view.id" class="inline-flex items-center gap-1.5 rounded-full border border-border bg-muted/50 pl-3 pr-1.5 py-1 text-xs text-foreground">
+            <button type="button" class="hover:underline" @click="applyView(view.id)">
               {{ view.label }}
             </button>
-            <button type="button" class="text-muted-foreground hover:text-destructive p-0.5" title="Hapus" @click="removeView(view.id, view.label)">
+            <button type="button" class="text-muted-foreground hover:text-destructive p-0.5 rounded-full" title="Hapus" @click="removeView(view.id, view.label)">
               <X class="h-3 w-3" />
             </button>
           </div>
         </div>
-      </SectionCard>
+      </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SectionCard v-if="showSupplierWelcome" title="Supplier Portal">
-          <p class="text-sm text-muted-foreground mb-3">
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 grid-flow-row-dense">
+        <DashboardPanel v-if="showSupplierWelcome" title="Supplier Portal" :icon="Package" color="amber" :size="tierOf('welcome')">
+          <p class="text-sm text-muted-foreground leading-relaxed mb-4 max-w-prose">
             Dashboard lintas-domain ini menampilkan data internal MANOVA (project/CRM) yang tidak relevan untuk role Supplier.
             Gunakan Supplier Portal untuk melihat company, produk/layanan, dan assignment/quotation milik Anda sendiri.
           </p>
-          <NuxtLink to="/supplier">
-            <Button size="sm">
-              Buka Supplier Portal
-            </Button>
+          <NuxtLink to="/supplier" class="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+            Buka Supplier Portal →
           </NuxtLink>
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showClientWelcome" title="Client Portal">
-          <p class="text-sm text-muted-foreground mb-3">
+        <DashboardPanel v-if="showClientWelcome" title="Client Portal" :icon="Users" color="blue" :size="tierOf('welcome')">
+          <p class="text-sm text-muted-foreground leading-relaxed mb-4 max-w-prose">
             Dashboard lintas-domain ini menampilkan data internal MANOVA (project/CRM) yang tidak relevan untuk role Client.
             Gunakan Client Portal untuk melihat profil company, Opportunity, dan Project Order milik Anda sendiri.
           </p>
-          <NuxtLink to="/client">
-            <Button size="sm">
-              Buka Client Portal
-            </Button>
+          <NuxtLink to="/client" class="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+            Buka Client Portal →
           </NuxtLink>
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showProcurementWelcome" title="Vendor Management">
-          <p class="text-sm text-muted-foreground mb-3">
+        <DashboardPanel v-if="showProcurementWelcome" title="Vendor Management" :icon="Building2" color="teal" :size="tierOf('welcome')">
+          <p class="text-sm text-muted-foreground leading-relaxed mb-4 max-w-prose">
             Kelola direktori Vendor — tambah vendor baru, lihat penugasan aktif, dan katalog produk/layanan per vendor.
           </p>
-          <NuxtLink to="/vendors">
-            <Button size="sm">
-              Buka Vendors
-            </Button>
+          <NuxtLink to="/vendors" class="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+            Buka Vendors →
           </NuxtLink>
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showProductPlannerWelcome" title="Product Planning dan Costing">
-          <p class="text-sm text-muted-foreground mb-3">
+        <DashboardPanel v-if="showProductPlannerWelcome" title="Product Planning dan Costing" :icon="Wallet" color="violet" :size="tierOf('welcome')">
+          <p class="text-sm text-muted-foreground leading-relaxed mb-4 max-w-prose">
             Kelola katalog Product/Package Template dan siapkan Cost Sheet (traveler-based costing, markup/tax/contingency)
             untuk dipakai Account Executive membentuk Quotation.
           </p>
-          <div class="flex flex-wrap gap-2">
-            <NuxtLink to="/product-planning">
-              <Button size="sm">
-                Buka Product Planning
-              </Button>
+          <div class="flex flex-wrap gap-x-5 gap-y-2">
+            <NuxtLink to="/product-planning" class="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+              Buka Product Planning →
             </NuxtLink>
-            <NuxtLink to="/product-planning/cost-sheets">
-              <Button size="sm" variant="outline">
-                Buka Cost Sheets
-              </Button>
+            <NuxtLink to="/product-planning/cost-sheets" class="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+              Buka Cost Sheets →
             </NuxtLink>
           </div>
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showPipeline" title="Opportunity Pipeline" description="Dikelompokkan per stage, seluruh party.">
+        <DashboardPanel
+          v-if="showPipeline"
+          title="Opportunity Pipeline"
+          description="Dikelompokkan per stage, seluruh party."
+          :icon="Handshake"
+          color="violet"
+          :size="tierOf('pipeline')"
+        >
           <StatusBreakdownList :items="opportunityPipeline" empty-label="Tidak ada opportunity dalam pipeline" />
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showProjectsByStatus" title="Active Projects by Status">
+        <DashboardPanel v-if="showProjectsByStatus" title="Active Projects by Status" :icon="FolderKanban" color="blue" :size="tierOf('projects-by-status')">
           <StatusBreakdownList :items="projectsByStatus" empty-label="Tidak ada project sesuai filter" />
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showBudgetVsActual" title="Budget vs Actual">
-          <BudgetChart
-            v-if="budgetChartProjects.length > 0"
-            :labels="budgetChartProjects.map(p => p.name)"
-            :budget-idr="budgetChartProjects.map(p => p.budgetIdr)"
-            :actual-idr="budgetChartProjects.map(p => p.actualCostIdr)"
-          />
+        <DashboardPanel v-if="showBudgetVsActual" title="Budget vs Actual" :icon="Wallet" color="teal" :size="tierOf('budget-vs-actual')">
+          <template v-if="budgetChartProjects.length > 0">
+            <BudgetChart
+              :labels="budgetChartProjects.map(p => p.name)"
+              :budget-idr="budgetChartProjects.map(p => p.budgetIdr)"
+              :actual-idr="budgetChartProjects.map(p => p.actualCostIdr)"
+              :height-class="tierOf('budget-vs-actual') === 'default' ? 'h-[220px]' : 'h-[260px]'"
+            />
+          </template>
           <EmptyState v-else title="Tidak ada project sesuai filter" />
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showCostBreakdown" title="Cost Breakdown" description="Actual cost per project (belum tersedia breakdown per jenis layanan).">
+        <DashboardPanel
+          v-if="showCostBreakdown"
+          title="Cost Breakdown"
+          description="Actual cost per project (belum tersedia breakdown per jenis layanan)."
+          :icon="PieChart"
+          color="cyan"
+          :size="tierOf('cost-breakdown')"
+        >
           <ExpenseCategories v-if="costBreakdownItems.length > 0" :items="costBreakdownItems" />
           <EmptyState v-else title="Tidak ada project sesuai filter" />
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showQuotationsPending" title="Quotations Menunggu Keputusan">
-          <ul class="divide-y divide-border">
-            <li v-for="quotation in quotationsPendingDecision" :key="quotation.id" class="py-3 flex items-center justify-between gap-3">
-              <div class="min-w-0">
-                <p class="text-sm font-medium text-foreground truncate">
-                  {{ OPPORTUNITIES.find(o => o.id === quotation.opportunityId)?.title }}
+        <DashboardPanel v-if="showActionNeeded" title="Perlu Ditindak" :icon="ListChecks" color="amber" :size="tierOf('action-needed')">
+          <template v-if="showQuotationsPending">
+            <p v-if="showFollowUps" class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Quotation Menunggu Keputusan
+            </p>
+            <ul class="divide-y divide-border" :class="showFollowUps ? 'mb-5' : ''">
+              <li v-for="quotation in quotationsPendingDecision" :key="quotation.id" class="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ OPPORTUNITIES.find(o => o.id === quotation.opportunityId)?.title }}
+                  </p>
+                  <p class="text-xs text-muted-foreground mt-0.5 truncate">
+                    {{ getPartyById(OPPORTUNITIES.find(o => o.id === quotation.opportunityId)?.partyId ?? '')?.name }}
+                  </p>
+                </div>
+                <p class="text-sm font-semibold text-foreground tabular-nums shrink-0">
+                  {{ formatCurrencyIdr(quotation.amountIdr) }}
                 </p>
-                <p class="text-xs text-muted-foreground truncate">
-                  {{ getPartyById(OPPORTUNITIES.find(o => o.id === quotation.opportunityId)?.partyId ?? '')?.name }}
+              </li>
+            </ul>
+            <EmptyState v-if="quotationsPendingDecision.length === 0" title="Tidak ada quotation menunggu keputusan" />
+          </template>
+
+          <template v-if="showFollowUps">
+            <p v-if="showQuotationsPending" class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Follow-up Mendatang
+            </p>
+            <ul class="divide-y divide-border">
+              <li v-for="activity in myUpcomingFollowUps" :key="activity.id" class="py-3 first:pt-0 last:pb-0">
+                <p class="text-sm font-medium text-foreground">
+                  {{ activity.message }}
                 </p>
-              </div>
-              <p class="text-sm font-medium text-foreground shrink-0">
-                {{ formatCurrencyIdr(quotation.amountIdr) }}
-              </p>
-            </li>
-          </ul>
-          <EmptyState v-if="quotationsPendingDecision.length === 0" title="Tidak ada quotation menunggu keputusan" />
-        </SectionCard>
+                <p class="text-xs text-muted-foreground mt-0.5">
+                  {{ getPartyById(activity.partyId)?.name }} · Dijadwalkan {{ activity.dueAt }}
+                </p>
+              </li>
+            </ul>
+            <EmptyState v-if="myUpcomingFollowUps.length === 0" title="Tidak ada follow-up terjadwal dalam waktu dekat" />
+          </template>
+        </DashboardPanel>
 
-        <SectionCard v-if="showFollowUps" title="Follow-up Mendatang">
+        <DashboardPanel v-if="showUpcomingDepartures" title="Upcoming Departures" :icon="PlaneTakeoff" color="blue" :size="tierOf('upcoming-departures')">
           <ul class="divide-y divide-border">
-            <li v-for="activity in myUpcomingFollowUps" :key="activity.id" class="py-3">
-              <p class="text-sm text-foreground">
-                {{ activity.message }}
-              </p>
-              <p class="text-xs text-muted-foreground">
-                {{ getPartyById(activity.partyId)?.name }} · Dijadwalkan {{ activity.dueAt }}
-              </p>
-            </li>
-          </ul>
-          <EmptyState v-if="myUpcomingFollowUps.length === 0" title="Tidak ada follow-up terjadwal dalam waktu dekat" />
-        </SectionCard>
-
-        <SectionCard v-if="showUpcomingDepartures" title="Upcoming Departures">
-          <ul class="divide-y divide-border">
-            <li v-for="project in upcomingDepartures" :key="project.id" class="py-3">
-              <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:underline">
+            <li v-for="project in upcomingDepartures" :key="project.id" class="py-3 first:pt-0 last:pb-0">
+              <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
                 {{ project.name }}
               </NuxtLink>
-              <p class="text-xs text-muted-foreground">
+              <p class="text-xs text-muted-foreground mt-0.5">
                 {{ project.destination }} · {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
               </p>
             </li>
           </ul>
           <EmptyState v-if="upcomingDepartures.length === 0" title="Tidak ada keberangkatan sesuai filter" />
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showServiceReadiness" :title="`Service Readiness — ${serviceReadinessLabel}`">
+        <DashboardPanel
+          v-if="showServiceReadiness"
+          :title="`Service Readiness — ${serviceReadinessLabel}`"
+          :icon="CheckCircle2"
+          color="cyan"
+          :size="tierOf('service-readiness')"
+        >
           <StatusBreakdownList :items="serviceReadinessItems" empty-label="Tidak ada service sesuai filter" />
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showAttentionGlobal" title="Project Perlu Perhatian">
+        <DashboardPanel v-if="showAttentionGlobal" title="Project Perlu Perhatian" :icon="AlertTriangle" color="rose" :size="tierOf('attention-global')">
           <ul class="divide-y divide-border">
-            <li v-for="project in attentionProjects" :key="project.id" class="py-3">
+            <li v-for="project in attentionProjects" :key="project.id" class="py-3 first:pt-0 last:pb-0">
               <div class="flex items-center justify-between gap-2">
-                <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:underline">
+                <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
                   {{ project.name }}
                 </NuxtLink>
                 <AttentionIndicator severity="high" label="Perlu Perhatian" />
               </div>
-              <ul class="mt-1 text-xs text-muted-foreground list-disc list-inside">
+              <ul class="mt-1.5 pl-4 list-disc text-xs text-muted-foreground space-y-0.5">
                 <li v-for="reason in attentionReasons(project.id)" :key="reason">
                   {{ reason }}
                 </li>
@@ -620,55 +715,63 @@ const showProductPlannerWelcome = visibleTo('product-planner')
             </li>
           </ul>
           <EmptyState v-if="attentionProjects.length === 0" title="Tidak ada project yang butuh perhatian" />
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showMyActiveProjects" title="Active Projects Milik Saya">
-          <ul class="divide-y divide-border">
-            <li v-for="project in myActiveProjects" :key="project.id" class="py-3 flex items-center justify-between gap-3">
-              <div class="min-w-0">
-                <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:underline truncate block">
-                  {{ project.name }}
-                </NuxtLink>
-                <p class="text-xs text-muted-foreground truncate">
-                  {{ getPartyById(project.partyId)?.name }}
-                </p>
-              </div>
-              <StatusBadge
-                :label="findStatusOption(PROJECT_STATUSES, project.status).label"
-                :tone="findStatusOption(PROJECT_STATUSES, project.status).tone"
-              />
-            </li>
-          </ul>
-          <EmptyState v-if="myActiveProjects.length === 0" title="Tidak ada project aktif milik Anda" />
-        </SectionCard>
+        <DashboardPanel v-if="showMyProjects" title="Project Saya" :icon="FolderKanban" color="rose" :size="tierOf('my-projects')">
+          <template v-if="myAttentionProjects.length">
+            <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Perlu Perhatian
+            </p>
+            <ul class="divide-y divide-border mb-5">
+              <li v-for="project in myAttentionProjects" :key="project.id" class="py-3 first:pt-0 last:pb-0">
+                <div class="flex items-center justify-between gap-2">
+                  <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
+                    {{ project.name }}
+                  </NuxtLink>
+                  <AttentionIndicator severity="high" label="Perlu Perhatian" />
+                </div>
+                <ul class="mt-1.5 pl-4 list-disc text-xs text-muted-foreground space-y-0.5">
+                  <li v-for="reason in attentionReasons(project.id)" :key="reason">
+                    {{ reason }}
+                  </li>
+                </ul>
+              </li>
+            </ul>
+          </template>
 
-        <SectionCard v-if="showMyAttention" title="Attention — Project Milik Saya">
-          <ul class="divide-y divide-border">
-            <li v-for="project in myAttentionProjects" :key="project.id" class="py-3">
-              <div class="flex items-center justify-between gap-2">
-                <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:underline">
-                  {{ project.name }}
-                </NuxtLink>
-                <AttentionIndicator severity="high" label="Perlu Perhatian" />
-              </div>
-              <ul class="mt-1 text-xs text-muted-foreground list-disc list-inside">
-                <li v-for="reason in attentionReasons(project.id)" :key="reason">
-                  {{ reason }}
-                </li>
-              </ul>
-            </li>
-          </ul>
-          <EmptyState v-if="myAttentionProjects.length === 0" title="Tidak ada project Anda yang butuh perhatian" />
-        </SectionCard>
+          <template v-if="myOtherActiveProjects.length">
+            <p v-if="myAttentionProjects.length" class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              Lainnya
+            </p>
+            <ul class="divide-y divide-border">
+              <li v-for="project in myOtherActiveProjects" :key="project.id" class="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline truncate block">
+                    {{ project.name }}
+                  </NuxtLink>
+                  <p class="text-xs text-muted-foreground mt-0.5 truncate">
+                    {{ getPartyById(project.partyId)?.name }}
+                  </p>
+                </div>
+                <StatusBadge
+                  :label="findStatusOption(PROJECT_STATUSES, project.status).label"
+                  :tone="findStatusOption(PROJECT_STATUSES, project.status).tone"
+                />
+              </li>
+            </ul>
+          </template>
 
-        <SectionCard v-if="showMyTasks" title="Milestone / Task Mendatang">
+          <EmptyState v-if="myActiveProjects.length === 0 && myAttentionProjects.length === 0" title="Tidak ada project aktif milik Anda" />
+        </DashboardPanel>
+
+        <DashboardPanel v-if="showMyTasks" title="Milestone / Task Mendatang" :icon="CalendarClock" color="amber" :size="tierOf('my-tasks')">
           <ul class="divide-y divide-border">
-            <li v-for="task in myUpcomingTasks" :key="task.id" class="py-3 flex items-center justify-between gap-3">
+            <li v-for="task in myUpcomingTasks" :key="task.id" class="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
               <div class="min-w-0">
                 <p class="text-sm font-medium text-foreground truncate">
                   {{ task.title }}
                 </p>
-                <p class="text-xs text-muted-foreground truncate">
+                <p class="text-xs text-muted-foreground mt-0.5 truncate">
                   {{ getProjectById(task.projectId)?.name }}
                 </p>
               </div>
@@ -678,35 +781,35 @@ const showProductPlannerWelcome = visibleTo('product-planner')
             </li>
           </ul>
           <EmptyState v-if="myUpcomingTasks.length === 0" title="Tidak ada task mendatang" />
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showMyChanges" title="Change History Ringkas">
+        <DashboardPanel v-if="showMyChanges" title="Change History Ringkas" :icon="History" color="violet" :size="tierOf('my-changes')">
           <ul class="divide-y divide-border">
-            <li v-for="change in myRecentChanges" :key="change.id" class="py-3">
-              <p class="text-sm text-foreground">
+            <li v-for="change in myRecentChanges" :key="change.id" class="py-3 first:pt-0 last:pb-0">
+              <p class="text-sm font-medium text-foreground">
                 {{ change.message }}
               </p>
-              <p class="text-xs text-muted-foreground">
+              <p class="text-xs text-muted-foreground mt-0.5">
                 {{ getProjectById(change.projectId)?.name }} · {{ formatDateTime(change.createdAt) }}
               </p>
             </li>
           </ul>
           <EmptyState v-if="myRecentChanges.length === 0" title="Tidak ada perubahan terbaru pada project Anda" />
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showOutstanding" title="Outstanding Invoices">
+        <DashboardPanel v-if="showOutstanding" title="Outstanding Invoices" :icon="Receipt" color="amber" :size="tierOf('outstanding')">
           <ul class="divide-y divide-border">
-            <li v-for="invoice in outstandingInvoices" :key="invoice.id" class="py-3 flex items-center justify-between gap-3">
+            <li v-for="invoice in outstandingInvoices" :key="invoice.id" class="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
               <div class="min-w-0">
                 <p class="text-sm font-medium text-foreground truncate">
                   {{ invoice.label }}
                 </p>
-                <p class="text-xs text-muted-foreground truncate">
+                <p class="text-xs text-muted-foreground mt-0.5 truncate">
                   {{ getProjectById(invoice.projectId)?.name }}
                 </p>
               </div>
               <div class="text-right shrink-0">
-                <p class="text-sm font-medium text-foreground">
+                <p class="text-sm font-semibold text-foreground tabular-nums">
                   {{ formatCurrencyIdr(invoice.amountIdr) }}
                 </p>
                 <StatusBadge v-if="isInvoiceOverdue(invoice)" label="Overdue" tone="destructive" />
@@ -714,13 +817,13 @@ const showProductPlannerWelcome = visibleTo('product-planner')
             </li>
           </ul>
           <EmptyState v-if="outstandingInvoices.length === 0" title="Tidak ada invoice outstanding" />
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showRecentActivity" title="Recent Activity">
+        <DashboardPanel v-if="showRecentActivity" title="Recent Activity" :icon="Activity" color="blue" :size="tierOf('recent-activity')">
           <RecentActivity :items="recentActivityItems" />
-        </SectionCard>
+        </DashboardPanel>
 
-        <SectionCard v-if="showAdminSummary" title="Ringkasan Administrasi">
+        <DashboardPanel v-if="showAdminSummary" title="Ringkasan Administrasi" :icon="ShieldCheck" color="teal" :size="tierOf('admin-summary')">
           <DetailMetadataList
             :items="[
               { label: 'Total User Demo', value: String(USERS.length) },
@@ -728,7 +831,7 @@ const showProductPlannerWelcome = visibleTo('product-planner')
               { label: 'Total Project', value: String(PROJECTS.length) },
             ]"
           />
-        </SectionCard>
+        </DashboardPanel>
       </div>
     </template>
   </div>

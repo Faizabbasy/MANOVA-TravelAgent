@@ -13,10 +13,13 @@ interface Props {
   icon: Component
   iconColor?: 'primary' | 'success' | 'warning' | 'destructive'
   subtitle?: string
+  /** Bento sizing (Dashboard redesign) — purely additive, default reproduces markup identical to before this prop existed. */
+  size?: 'default' | 'lg'
 }
 
-withDefaults(defineProps<Props>(), {
-  iconColor: 'primary'
+const props = withDefaults(defineProps<Props>(), {
+  iconColor: 'primary',
+  size: 'default'
 })
 
 const iconColorClasses = {
@@ -25,17 +28,31 @@ const iconColorClasses = {
   warning: 'bg-warning/10 text-warning',
   destructive: 'bg-destructive/10 text-destructive'
 }
+const barColorClasses = {
+  primary: 'bg-primary',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  destructive: 'bg-destructive'
+}
 </script>
 
 <template>
-  <div class="bg-card rounded-xl p-6 card-shadow animate-fade-in">
-    <div class="flex items-start justify-between">
+  <div
+    :class="cn(
+      'group relative overflow-hidden bg-card rounded-2xl border border-border shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg animate-fade-in',
+      props.size === 'lg' ? 'p-7' : 'p-6'
+    )"
+  >
+    <div class="absolute inset-x-0 top-0 h-1" :class="barColorClasses[iconColor]" />
+    <div class="pointer-events-none absolute -top-8 -right-8 h-24 w-24 rounded-full opacity-[0.1] blur-2xl transition-opacity duration-200 group-hover:opacity-20" :class="barColorClasses[iconColor]" />
+
+    <div class="relative flex items-start justify-between">
       <div class="space-y-3 min-w-0">
         <p class="text-sm font-medium text-muted-foreground">
           {{ title }}
         </p>
         <div class="space-y-1">
-          <p class="text-2xl font-bold text-foreground break-words">
+          <p :class="cn('font-bold text-foreground break-words', props.size === 'lg' ? 'text-3xl' : 'text-2xl')">
             {{ value }}
           </p>
           <div v-if="change" class="flex items-center gap-1.5">
@@ -56,7 +73,7 @@ const iconColorClasses = {
           </p>
         </div>
       </div>
-      <div :class="cn('p-3 rounded-xl', iconColorClasses[iconColor])">
+      <div :class="cn('p-3 rounded-xl transition-transform duration-200 group-hover:scale-110 group-hover:rotate-3', iconColorClasses[iconColor])">
         <component :is="icon" class="h-5 w-5" />
       </div>
     </div>

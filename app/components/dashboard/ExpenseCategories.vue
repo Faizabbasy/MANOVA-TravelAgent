@@ -22,12 +22,15 @@ const colorVars = ['--primary', '--success', '--warning', '--chart-4', '--chart-
 const coloredData = ref<{ name: string; valueIdr: number; color: string }[]>([])
 const chartData = ref<any>(null)
 const chartOptions = ref<any>(null)
+const chartRef = ref<{ chart: any } | null>(null)
+/** Legend rows toggled off by the user (click-to-toggle, mirrors the built-in Chart.js legend behavior). */
+const hiddenIndices = ref<Set<number>>(new Set())
 
 onMounted(async () => {
   await nextTick()
+
   const rootStyles = getComputedStyle(document.documentElement)
   const formatHSL = (hsl: string) => hsl.replace(/\s+/g, ', ')
-
   coloredData.value = props.items.map((item, index) => {
     const cssValue = rootStyles.getPropertyValue(colorVars[index % colorVars.length]).trim()
     return { ...item, color: `hsl(${formatHSL(cssValue)})` }
@@ -38,8 +41,11 @@ onMounted(async () => {
     datasets: [{
       data: coloredData.value.map(d => d.valueIdr),
       backgroundColor: coloredData.value.map(d => d.color),
+      hoverBackgroundColor: coloredData.value.map(d => d.color),
       borderWidth: 0,
-      spacing: 2
+      spacing: 3,
+      hoverOffset: 10,
+      borderRadius: 4
     }]
   }
 
@@ -47,6 +53,7 @@ onMounted(async () => {
     responsive: true,
     maintainAspectRatio: false,
     cutout: '63.6%',
+    animation: { animateRotate: true, animateScale: true, duration: 900, easing: 'easeOutQuart' },
     plugins: {
       legend: { display: false },
       tooltip: {
@@ -57,31 +64,52 @@ onMounted(async () => {
     }
   }
 })
+
+/** Click-to-toggle legend row — same effect as clicking a native Chart.js legend item. */
+function toggleSegment (index: number) {
+  const chart = chartRef.value?.chart
+  if (!chart) { return }
+  chart.toggleDataVisibility(index)
+  chart.update()
+  if (hiddenIndices.value.has(index)) {
+    hiddenIndices.value.delete(index)
+  } else {
+    hiddenIndices.value.add(index)
+  }
+  hiddenIndices.value = new Set(hiddenIndices.value)
+}
 </script>
 
 <template>
-  <div class="flex items-center gap-6">
-    <div class="w-32 h-32 shrink-0">
-      <Doughnut v-if="chartData && chartOptions" :data="chartData" :options="chartOptions" />
+  <div class="flex items-center gap-8">
+    <div class="relative w-36 h-36 shrink-0">
+      <Doughnut v-if="chartData && chartOptions" ref="chartRef" :data="chartData" :options="chartOptions" />
+      <div class="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+        <span class="text-[9px] tracking-wide uppercase text-muted-foreground">Total</span>
+        <span class="text-[13px] font-bold text-foreground">{{ formatCurrencyIdr(total) }}</span>
+      </div>
     </div>
 
     <div v-if="coloredData.length" class="flex-1 space-y-3 min-w-0">
-      <div
-        v-for="item in coloredData"
+      <button
+        v-for="(item, index) in coloredData"
         :key="item.name"
-        class="flex items-center justify-between gap-2"
+        type="button"
+        class="flex w-full items-center justify-between gap-2 rounded-md -mx-1.5 px-1.5 py-0.5 text-left transition-colors hover:bg-muted/60"
+        :class="hiddenIndices.has(index) && 'opacity-40'"
+        @click="toggleSegment(index)"
       >
         <div class="flex items-center gap-2 min-w-0">
-          <div class="w-3 h-3 rounded-full shrink-0" :style="{ backgroundColor: item.color }" />
-          <span class="text-sm text-foreground truncate">{{ item.name }}</span>
+          <div class="w-2.5 h-2.5 rounded-full shrink-0" :style="{ backgroundColor: item.color }" />
+          <span class="text-sm truncate text-foreground">{{ item.name }}</span>
         </div>
         <div class="text-right shrink-0">
           <span class="text-sm font-medium text-foreground">{{ formatCurrencyIdr(item.valueIdr) }}</span>
-          <span class="text-xs text-muted-foreground ml-2">
+          <span class="text-xs ml-2 text-muted-foreground">
             {{ total > 0 ? ((item.valueIdr / total) * 100).toFixed(0) : 0 }}%
           </span>
         </div>
-      </div>
+      </button>
     </div>
   </div>
 </template>

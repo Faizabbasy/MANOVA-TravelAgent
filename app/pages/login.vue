@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
-import { Plane } from 'lucide-vue-next'
 import { Input } from '~/components/ui/input'
 import { Button } from '~/components/ui/button'
 import { Label } from '~/components/ui/label'
@@ -46,8 +45,8 @@ const handleLogin = () => {
     <div class="w-full max-w-md">
       <!-- Logo -->
       <div class="flex flex-col items-center gap-2 mb-8">
-        <div class="flex items-center justify-center h-12 w-12 rounded-2xl bg-primary text-primary-foreground">
-          <Plane class="h-6 w-6" />
+        <div class="flex items-center justify-center h-12 w-12 rounded-full overflow-hidden bg-white">
+          <img src="/logo-sweet-escape.jpg" alt="Sweet Escape" class="h-full w-full object-cover scale-150">
         </div>
         <span class="text-xl font-bold text-foreground tracking-tight">MANOVA</span>
       </div>

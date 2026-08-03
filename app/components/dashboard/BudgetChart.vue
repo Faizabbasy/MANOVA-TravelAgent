@@ -18,11 +18,13 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend)
  * BudgetChart.vue template lama (dulu data bulanan fiktif dalam USD). Sekarang menerima data project
  * nyata dari fixture terpusat, ditampilkan dalam Rupiah, satu bar-pair per project.
  */
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   labels: string[]
   budgetIdr: number[]
   actualIdr: number[]
-}>()
+  /** Chart container height (Dashboard card redesign) — purely additive, default reproduces the original fixed height. */
+  heightClass?: string
+}>(), { heightClass: 'h-[220px]' })
 
 const totalBudget = computed(() => props.budgetIdr.reduce((sum, value) => sum + value, 0))
 const totalActual = computed(() => props.actualIdr.reduce((sum, value) => sum + value, 0))
@@ -54,8 +56,24 @@ onMounted(async () => {
   borderColor.value = rootStyles.getPropertyValue('--border').trim()
   foregroundColor.value = rootStyles.getPropertyValue('--foreground').trim()
 
-  const formatHSL = (hsl: string) => hsl.replace(/\s+/g, ', ')
-  const actualColor = totalActual.value > totalBudget.value ? destructiveColor.value : successColor.value
+  const formatHSL = (hsl: string) => `hsl(${hsl.replace(/\s+/g, ', ')})`
+  const toCommaHsl = (hsl: string) => hsl.replace(/\s+/g, ', ')
+  const budgetHsl = toCommaHsl(primaryColor.value)
+  const actualHsl = toCommaHsl(totalActual.value > totalBudget.value ? destructiveColor.value : successColor.value)
+  const muted = formatHSL(mutedColor.value)
+  const surface = formatHSL(cardColor.value)
+  const border = formatHSL(borderColor.value)
+  const ink = formatHSL(foregroundColor.value)
+
+  /** Soft top-to-bottom gradient per bar (livelier than a flat fill) — built once canvas layout is known. */
+  function verticalGradient (chart: any, hsl: string) {
+    const { ctx, chartArea } = chart
+    if (!chartArea) { return `hsla(${hsl}, 0.75)` }
+    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
+    gradient.addColorStop(0, `hsla(${hsl}, 0.55)`)
+    gradient.addColorStop(1, `hsla(${hsl}, 0.95)`)
+    return gradient
+  }
 
   chartData.value = {
     labels: props.labels,
@@ -63,14 +81,22 @@ onMounted(async () => {
       {
         label: 'Budget',
         data: props.budgetIdr,
-        backgroundColor: `hsla(${formatHSL(primaryColor.value)}, 0.7)`,
-        borderRadius: 4
+        backgroundColor: (context: any) => verticalGradient(context.chart, budgetHsl),
+        hoverBackgroundColor: `hsla(${budgetHsl}, 1)`,
+        borderRadius: 8,
+        borderSkipped: false,
+        categoryPercentage: 0.6,
+        barPercentage: 0.9
       },
       {
         label: 'Actual',
         data: props.actualIdr,
-        backgroundColor: `hsla(${formatHSL(actualColor)}, 0.7)`,
-        borderRadius: 4
+        backgroundColor: (context: any) => verticalGradient(context.chart, actualHsl),
+        hoverBackgroundColor: `hsla(${actualHsl}, 1)`,
+        borderRadius: 8,
+        borderSkipped: false,
+        categoryPercentage: 0.6,
+        barPercentage: 0.9
       }
     ]
   }
@@ -78,24 +104,28 @@ onMounted(async () => {
   chartOptions.value = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: { duration: 900, easing: 'easeOutQuart' },
+    interaction: { mode: 'index', intersect: false },
     plugins: {
       legend: {
         display: true,
         position: 'bottom',
         labels: {
-          color: `hsl(${formatHSL(mutedColor.value)})`,
-          font: { family: 'Plus Jakarta Sans, system-ui, sans-serif', size: 12 },
-          usePointStyle: true
+          color: muted,
+          font: { size: 12 },
+          usePointStyle: true,
+          pointStyle: 'circle'
         }
       },
       tooltip: {
         enabled: true,
-        backgroundColor: `hsl(${formatHSL(cardColor.value)})`,
-        borderColor: `hsl(${formatHSL(borderColor.value)})`,
+        backgroundColor: surface,
+        borderColor: border,
         borderWidth: 1,
-        titleColor: `hsl(${formatHSL(foregroundColor.value)})`,
-        bodyColor: `hsl(${formatHSL(foregroundColor.value)})`,
+        titleColor: ink,
+        bodyColor: ink,
         padding: 12,
+        cornerRadius: 8,
         callbacks: {
           label: (context: any) => `${context.dataset.label}: ${formatCurrencyIdr(context.parsed.y)}`
         }
@@ -105,13 +135,13 @@ onMounted(async () => {
       x: {
         border: { display: false },
         grid: { display: false },
-        ticks: { color: `hsl(${formatHSL(mutedColor.value)})`, font: { size: 12 } }
+        ticks: { color: muted, font: { size: 12 } }
       },
       y: {
         border: { display: false },
-        grid: { display: false },
+        grid: { color: border, drawTicks: false, lineWidth: 1 },
         ticks: {
-          color: `hsl(${formatHSL(mutedColor.value)})`,
+          color: muted,
           font: { size: 12 },
           callback: (value: any) => `${(Number(value) / 1_000_000).toLocaleString('id-ID')} jt`
         }
@@ -139,7 +169,7 @@ onMounted(async () => {
         </div>
       </div>
     </div>
-    <div class="h-[220px]">
+    <div :class="props.heightClass">
       <Bar v-if="chartData && chartOptions" :data="chartData" :options="chartOptions" />
     </div>
   </div>

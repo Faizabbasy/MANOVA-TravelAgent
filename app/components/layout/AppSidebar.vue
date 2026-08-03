@@ -6,8 +6,7 @@ import {
   LogOut,
   User,
   PanelLeftClose,
-  PanelLeftOpen,
-  Plane
+  PanelLeftOpen
 } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import { NAV_ITEMS, type NavItem } from '~/constants/navigation'
@@ -65,13 +64,13 @@ function toggleExpanded (item: NavItem) {
         :class="isCollapsed ? 'justify-center px-0' : 'px-4 gap-2'"
       >
         <div v-if="!isCollapsed" class="flex items-center gap-2 flex-1 min-w-0">
-          <div class="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground shrink-0">
-            <Plane class="h-4 w-4" />
+          <div class="flex items-center justify-center h-8 w-8 rounded-full overflow-hidden bg-white shrink-0">
+            <img src="/logo-sweet-escape.jpg" alt="Sweet Escape" class="h-full w-full object-cover scale-150">
           </div>
           <span class="text-lg font-bold text-foreground tracking-tight truncate">MANOVA</span>
         </div>
-        <div v-else class="flex items-center justify-center h-8 w-8 rounded-lg bg-primary text-primary-foreground shrink-0">
-          <Plane class="h-4 w-4" />
+        <div v-else class="flex items-center justify-center h-8 w-8 rounded-full overflow-hidden bg-white shrink-0">
+          <img src="/logo-sweet-escape.jpg" alt="Sweet Escape" class="h-full w-full object-cover scale-150">
         </div>
         <button
           :class="cn(

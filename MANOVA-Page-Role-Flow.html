@@ -1,0 +1,1381 @@
+<title>MANOVA — Flow Halaman, Input/Output, dan Role</title>
+<meta name="description" content="Peta seluruh 82 halaman MANOVA — apa yang dikerjakan tiap halaman, siapa role-nya, apa input/outputnya, dan nyambung ke halaman mana, per 3 Agustus 2026">
+<style>
+  :root{
+    --paper:#F6F4EE;
+    --paper-raised:#FFFFFF;
+    --ink:#1B2A2E;
+    --ink-soft:#4B5B5D;
+    --line:#DAD5C8;
+    --line-strong:#C3BCA9;
+    --accent:#1E5F63;
+    --accent-soft:#DCEAE9;
+    --accent-ink:#0F3B3E;
+    --amber:#B5732A;
+    --amber-soft:#F3E4CF;
+    --amber-ink:#5C3813;
+    --done:#3C7A57;
+    --done-soft:#DCEBE0;
+    --done-ink:#1E4A30;
+    --pending:#8A6A4A;
+    --pending-soft:#EFE6DA;
+    --pending-ink:#4A3A28;
+    --shadow: 0 1px 2px rgba(27,42,46,0.06), 0 6px 20px -8px rgba(27,42,46,0.12);
+  }
+
+  :root[data-theme="dark"]{
+    --paper:#12191A;
+    --paper-raised:#182223;
+    --ink:#E9ECE9;
+    --ink-soft:#A9B6B4;
+    --line:#2A3739;
+    --line-strong:#3A4A4C;
+    --accent:#63B0AC;
+    --accent-soft:#1D3436;
+    --accent-ink:#B9E3DF;
+    --amber:#E0A257;
+    --amber-soft:#3A2E1C;
+    --amber-ink:#F0C48D;
+    --done:#7FC79A;
+    --done-soft:#1E3226;
+    --done-ink:#A9E0BC;
+    --pending:#C9A67E;
+    --pending-soft:#332720;
+    --pending-ink:#E0C7A6;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -10px rgba(0,0,0,0.5);
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#12191A;
+      --paper-raised:#182223;
+      --ink:#E9ECE9;
+      --ink-soft:#A9B6B4;
+      --line:#2A3739;
+      --line-strong:#3A4A4C;
+      --accent:#63B0AC;
+      --accent-soft:#1D3436;
+      --accent-ink:#B9E3DF;
+      --amber:#E0A257;
+      --amber-soft:#3A2E1C;
+      --amber-ink:#F0C48D;
+      --done:#7FC79A;
+      --done-soft:#1E3226;
+      --done-ink:#A9E0BC;
+      --pending:#C9A67E;
+      --pending-soft:#332720;
+      --pending-ink:#E0C7A6;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 24px -10px rgba(0,0,0,0.5);
+    }
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .heading, h1, h2, h3, h4{
+    font-family:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,serif;
+    font-weight:600;
+    color:var(--ink);
+    text-wrap:balance;
+    letter-spacing:0.01em;
+  }
+
+  .mono, .stat-num, .chip, td.num, th.num{
+    font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,Menlo,monospace;
+    font-variant-numeric:tabular-nums;
+  }
+
+  .page{
+    max-width:960px;
+    margin:0 auto;
+    padding:56px 28px 96px;
+  }
+
+  header.report-head{
+    border-bottom:2px solid var(--line-strong);
+    padding-bottom:28px;
+    margin-bottom:36px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .eyebrow{
+    font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--accent);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .eyebrow .dot{
+    width:6px; height:6px; border-radius:50%;
+    background:var(--accent);
+    display:inline-block;
+  }
+  h1.title{
+    font-size:2.1rem;
+    margin:0;
+    line-height:1.15;
+  }
+  .subtitle{
+    color:var(--ink-soft);
+    font-size:1.05rem;
+    margin:0;
+    max-width:70ch;
+  }
+  .meta-row{
+    display:flex;
+    flex-wrap:wrap;
+    gap:22px;
+    margin-top:6px;
+    font-size:0.85rem;
+    color:var(--ink-soft);
+  }
+  .meta-row strong{ color:var(--ink); font-weight:600; }
+
+  .summary{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-left:4px solid var(--accent);
+    border-radius:6px;
+    padding:24px 26px;
+    box-shadow:var(--shadow);
+    margin-bottom:40px;
+  }
+  .summary h2{
+    font-size:1.05rem;
+    margin:0 0 12px;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--accent-ink);
+  }
+  .summary p{ margin:0 0 12px; }
+  .summary p:last-child{ margin-bottom:0; }
+  .summary .legend{
+    display:grid;
+    grid-template-columns:repeat(2,1fr);
+    gap:8px 20px;
+    margin-top:14px;
+    padding-top:14px;
+    border-top:1px dashed var(--line-strong);
+  }
+  .summary .legend-item{ font-size:0.86rem; color:var(--ink-soft); display:flex; gap:8px; align-items:baseline; }
+  .summary .legend-item strong{ color:var(--ink); }
+  @media (max-width:640px){ .summary .legend{ grid-template-columns:1fr; } }
+
+  .stats{
+    display:grid;
+    grid-template-columns:repeat(4,1fr);
+    gap:14px;
+    margin-bottom:44px;
+  }
+  .stat{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:18px 16px;
+    box-shadow:var(--shadow);
+  }
+  .stat-num{
+    font-size:1.9rem;
+    font-weight:700;
+    color:var(--accent-ink);
+    line-height:1;
+  }
+  .stat-num small{
+    font-size:1rem;
+    font-weight:500;
+    color:var(--ink-soft);
+  }
+  .stat-bar{
+    height:5px;
+    border-radius:3px;
+    background:var(--line);
+    margin:10px 0 8px;
+    overflow:hidden;
+  }
+  .stat-bar > span{
+    display:block;
+    height:100%;
+    background:var(--accent);
+    border-radius:3px;
+  }
+  .stat-label{
+    font-size:0.82rem;
+    color:var(--ink-soft);
+  }
+
+  @media (max-width:640px){
+    .stats{ grid-template-columns:repeat(2,1fr); }
+  }
+
+  section{ margin-bottom:44px; }
+  .section-head{
+    display:flex;
+    align-items:baseline;
+    gap:12px;
+    border-left:3px solid var(--accent);
+    padding-left:14px;
+    margin-bottom:18px;
+  }
+  .section-head h2{
+    font-size:1.4rem;
+    margin:0;
+  }
+  .section-head .section-note{
+    font-size:0.85rem;
+    color:var(--ink-soft);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+  }
+
+  .chip{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.72rem;
+    font-weight:600;
+    letter-spacing:0.03em;
+    padding:3px 9px;
+    border-radius:100px;
+    white-space:nowrap;
+  }
+  .chip::before{
+    content:"";
+    width:6px; height:6px;
+    border-radius:50%;
+  }
+  .chip.done{ background:var(--done-soft); color:var(--done-ink); }
+  .chip.done::before{ background:var(--done); }
+  .chip.partial{ background:var(--amber-soft); color:var(--amber-ink); }
+  .chip.partial::before{ background:var(--amber); }
+  .chip.pending{ background:var(--pending-soft); color:var(--pending-ink); }
+  .chip.pending::before{ background:var(--pending); }
+  .chip.role{ background:var(--accent-soft); color:var(--accent-ink); }
+  .chip.role::before{ background:var(--accent); }
+  .chip.approve{ background:var(--amber-soft); color:var(--amber-ink); }
+  .chip.approve::before{ background:var(--amber); }
+  .chip.external{ background:var(--pending-soft); color:var(--pending-ink); }
+  .chip.external::before{ background:var(--pending); }
+  .chip.system{ background:var(--line); color:var(--ink-soft); }
+  .chip.system::before{ background:var(--ink-soft); }
+  .chip.readonly{ background:var(--paper); color:var(--ink-soft); border:1px solid var(--line-strong); }
+  .chip.readonly::before{ background:var(--ink-soft); }
+
+  .role-tags{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin:4px 0 12px;
+  }
+
+  .phase-block{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:var(--shadow);
+    overflow:hidden;
+    margin-bottom:18px;
+  }
+  .phase-block .phase-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 20px;
+    background:var(--accent-soft);
+    border-bottom:1px solid var(--line);
+  }
+  .phase-block .phase-head h3{
+    margin:0;
+    font-size:1.05rem;
+    color:var(--accent-ink);
+  }
+  .phase-block .phase-head .phase-count{
+    font-size:0.78rem;
+    color:var(--accent-ink);
+    opacity:0.8;
+    font-family:ui-monospace,monospace;
+    white-space:nowrap;
+  }
+  .phase-block .phase-body{ padding:14px 20px 16px; }
+  .phase-block .phase-body > p{ margin:10px 0; color:var(--ink-soft); font-size:0.94rem; }
+  .phase-block .phase-body > p:first-child{ margin-top:0; }
+
+  .step-card{
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:14px 16px;
+    margin-bottom:12px;
+    background:var(--paper);
+  }
+  .step-card:last-child{ margin-bottom:0; }
+  .step-card .step-title{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:6px;
+  }
+  .step-card .step-title strong{ font-size:0.98rem; color:var(--ink); }
+  .step-card .step-route{
+    font-family:ui-monospace,monospace;
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    margin-left:auto;
+  }
+  .step-card ul.step-detail{
+    margin:8px 0 6px;
+    padding-left:20px;
+  }
+  .step-card ul.step-detail li{
+    margin-bottom:6px;
+    font-size:0.9rem;
+    color:var(--ink-soft);
+  }
+  .step-card ul.step-detail li:last-child{ margin-bottom:0; }
+  .step-card ul.step-detail li strong{ color:var(--ink); }
+  .step-card .io-label{
+    display:inline-block;
+    font-size:0.68rem;
+    font-weight:700;
+    letter-spacing:0.05em;
+    text-transform:uppercase;
+    padding:1px 7px;
+    border-radius:4px;
+    margin-right:6px;
+    background:var(--accent-soft);
+    color:var(--accent-ink);
+    font-family:ui-monospace,monospace;
+  }
+  .step-card .io-label.out{ background:var(--done-soft); color:var(--done-ink); }
+  .step-card .io-label.link{ background:var(--pending-soft); color:var(--pending-ink); }
+
+  .table-wrap{
+    overflow-x:auto;
+    border:1px solid var(--line);
+    border-radius:6px;
+    background:var(--paper-raised);
+    box-shadow:var(--shadow);
+  }
+  table{
+    border-collapse:collapse;
+    width:100%;
+    font-size:0.86rem;
+  }
+  thead th{
+    text-align:left;
+    font-size:0.7rem;
+    text-transform:uppercase;
+    letter-spacing:0.06em;
+    color:var(--ink-soft);
+    padding:12px 14px;
+    border-bottom:1px solid var(--line-strong);
+    white-space:nowrap;
+  }
+  tbody td{
+    padding:10px 14px;
+    border-bottom:1px solid var(--line);
+    vertical-align:top;
+  }
+  tbody tr:last-child td{ border-bottom:none; }
+  tbody tr.highlight td{ background:var(--amber-soft); }
+  td.num{ color:var(--ink-soft); width:2.2em; }
+  td.name{ font-weight:500; }
+  td.note{ color:var(--ink-soft); font-size:0.85rem; }
+
+  .flow-diagram{
+    background:var(--paper-raised);
+    border:1px solid var(--line);
+    border-radius:6px;
+    box-shadow:var(--shadow);
+    padding:22px 24px;
+    margin-bottom:18px;
+  }
+  .flow-chain{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    gap:8px;
+  }
+  .flow-step{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+    font-size:0.8rem;
+    font-weight:600;
+    padding:7px 12px;
+    border-radius:8px;
+    border:1px solid var(--line-strong);
+    background:var(--accent-soft);
+    color:var(--accent-ink);
+    white-space:nowrap;
+  }
+  .flow-step.is-cross{ background:var(--pending-soft); color:var(--pending-ink); border-color:var(--pending); }
+  .flow-arrow{ color:var(--ink-soft); font-size:0.95rem; flex:none; }
+
+  @media (max-width:640px){
+    .flow-chain{ flex-direction:column; align-items:stretch; }
+    .flow-step{ justify-content:center; }
+    .step-card .step-route{ margin-left:0; }
+  }
+
+  .risk{
+    background:var(--amber-soft);
+    border:1px solid var(--line);
+    border-left:4px solid var(--amber);
+    border-radius:6px;
+    padding:18px 22px;
+  }
+  .risk h3{
+    margin:0 0 8px;
+    font-size:1rem;
+    color:var(--amber-ink);
+  }
+  .risk ul{ margin:0; padding-left:20px; }
+  .risk li{ margin-bottom:8px; color:var(--ink-soft); font-size:0.93rem; }
+  .risk li:last-child{ margin-bottom:0; }
+  .risk li strong{ color:var(--ink); }
+
+  footer{
+    margin-top:56px;
+    padding-top:20px;
+    border-top:1px solid var(--line);
+    font-size:0.8rem;
+    color:var(--ink-soft);
+    display:flex;
+    justify-content:space-between;
+    flex-wrap:wrap;
+    gap:8px;
+  }
+
+  a{ color:var(--accent-ink); }
+
+  .actions{
+    display:flex;
+    gap:10px;
+    margin:18px 0 4px;
+  }
+  .btn{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    font-size:0.86rem;
+    font-weight:600;
+    padding:9px 16px;
+    border-radius:6px;
+    border:1px solid transparent;
+    cursor:pointer;
+    transition:filter 0.15s ease, transform 0.1s ease;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+  .btn-primary{ background:var(--accent); color:#fff; }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  :root[data-theme="dark"] .btn-primary{ color:#0B1414; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .btn-primary{ color:#0B1414; }
+  }
+  .btn-ghost{ background:var(--paper-raised); color:var(--ink); border-color:var(--line-strong); }
+  .btn-ghost:hover{ background:var(--accent-soft); }
+  .btn svg{ width:15px; height:15px; flex:none; }
+
+  @media print{
+    body{ background:#fff; }
+    .stat, .phase-block, .table-wrap, .risk, .flow-diagram{ box-shadow:none; }
+    .actions{ display:none; }
+  }
+</style>
+
+<div class="page">
+
+  <header class="report-head">
+    <div class="eyebrow"><span class="dot"></span>Dokumentasi Teknis &middot; Flow Halaman, Input/Output, dan Role</div>
+    <h1 class="title">MANOVA — Flow Halaman, Input/Output, dan Role</h1>
+    <p class="subtitle">Peta seluruh 82 halaman MANOVA: apa yang dikerjakan tiap halaman, <strong>siapa role yang boleh mengakses/mengelola</strong>, <strong>apa yang harus diisi (input)</strong>, <strong>apa hasilnya (output)</strong>, dan <strong>halaman ini nyambung ke mana</strong>. Disusun per modul mengikuti urutan kerja sehari-hari, bukan urutan abjad menu.</p>
+    <div class="meta-row">
+      <span>Cakupan: <strong>17 modul, 82 file halaman, 89 route (termasuk versi ID dinamis)</strong></span>
+      <span>Sumber: <strong>app/pages/**, app/constants/roles.ts, app/composables/usePermissions.ts</strong></span>
+      <span>Dokumen pendamping: <strong>MANOVA-End-to-End-Flow.html</strong> (alur bisnis 23 langkah + approval gate)</span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-pdf" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        Unduh sebagai PDF
+      </button>
+      <button class="btn btn-ghost" id="btn-html" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        Unduh file HTML
+      </button>
+    </div>
+  </header>
+
+  <div class="summary">
+    <h2>Ringkasan</h2>
+    <p>Dokumen ini menjawab pertanyaan "kalau saya buka halaman ini, saya isi apa, hasilnya apa, dan lanjut ke mana" — untuk SETIAP halaman di MANOVA, dikelompokkan per modul kerja: Global, Customer Journey, CRM, Product Planning, Projects, 4 domain operasional (Ticketing/Accommodation/Transportation/MICE), Booking Center, Changes/Incident, Vendors/Procurement, Finance, Documents, Reports, Activity Center, Administration, Client Portal, dan Supplier Portal.</p>
+    <p>Berbeda dari <span class="mono">MANOVA-End-to-End-Flow.html</span> yang memetakan <em>23 langkah proses bisnis</em>, dokumen ini memetakan <em>82 halaman aplikasi</em> — satu langkah proses bisa melibatkan beberapa halaman, dan satu halaman bisa dipakai di beberapa langkah proses.</p>
+    <div class="legend">
+      <div class="legend-item"><span class="io-label" style="background:var(--accent-soft);color:var(--accent-ink);">INPUT</span><span>data/aksi yang diisi atau dipilih user di halaman ini</span></div>
+      <div class="legend-item"><span class="io-label out" style="background:var(--done-soft);color:var(--done-ink);">OUTPUT</span><span>apa yang berubah/tersimpan setelah aksi dilakukan</span></div>
+      <div class="legend-item"><span class="io-label link" style="background:var(--pending-soft);color:var(--pending-ink);">TERHUBUNG</span><span>halaman lain yang dituju atau menuju ke sini</span></div>
+      <div class="legend-item"><span class="chip role">Role</span><span>role yang boleh <em>mengelola</em> (buat/ubah data) di halaman ini</span></div>
+    </div>
+  </div>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="stat-num">82</div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">File halaman (89 route termasuk varian ID dinamis)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">17</div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Kelompok modul kerja</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">16</div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Role berbeda, masing-masing punya "wilayah" halaman sendiri</div>
+    </div>
+    <div class="stat">
+      <div class="stat-num">2</div>
+      <div class="stat-bar"><span style="width:100%"></span></div>
+      <div class="stat-label">Portal eksternal (Client, Supplier) — jendela terbatas ke data internal</div>
+    </div>
+  </div>
+
+  <section>
+    <div class="section-head">
+      <h2>Alur Garis Besar Antar-Modul</h2>
+      <span class="section-note">Urutan modul dari Lead sampai Project selesai — detail tiap halaman ada di bagian di bawahnya</span>
+    </div>
+    <div class="flow-diagram">
+      <div class="flow-chain">
+        <span class="flow-step">Lead Intake / Sales</span><span class="flow-arrow">→</span>
+        <span class="flow-step">Customer Journey</span><span class="flow-arrow">→</span>
+        <span class="flow-step">CRM Opportunity</span><span class="flow-arrow">→</span>
+        <span class="flow-step">Product Planning</span><span class="flow-arrow">→</span>
+        <span class="flow-step">Quotation Approval</span>
+      </div>
+      <div class="flow-chain" style="margin-top:10px;">
+        <span class="flow-step">Client Confirmation</span><span class="flow-arrow">→</span>
+        <span class="flow-step">Won → Project</span><span class="flow-arrow">→</span>
+        <span class="flow-step">Ticketing/Accommodation/Transportation/MICE</span><span class="flow-arrow">→</span>
+        <span class="flow-step">Vendors/Procurement</span>
+      </div>
+      <div class="flow-chain" style="margin-top:10px;">
+        <span class="flow-step">Bookings Center</span><span class="flow-arrow">→</span>
+        <span class="flow-step">Changes/Incident</span><span class="flow-arrow">→</span>
+        <span class="flow-step">Finance</span><span class="flow-arrow">→</span>
+        <span class="flow-step">Close Project</span>
+      </div>
+      <div class="flow-chain" style="margin-top:14px;">
+        <span class="flow-step is-cross">Documents</span>
+        <span class="flow-step is-cross">Reports</span>
+        <span class="flow-step is-cross">Activity Center</span>
+        <span class="flow-step is-cross">Administration</span>
+        <span class="flow-step is-cross">Client Portal</span>
+        <span class="flow-step is-cross">Supplier Portal</span>
+      </div>
+      <p style="margin:14px 0 0; font-size:0.85rem; color:var(--ink-soft);">Baris terakhir (ungu-cokelat) adalah modul <strong>lintas-tahap</strong> — tidak berada di satu titik alur, tapi dipakai/berelasi dengan hampir semua modul di atasnya sepanjang waktu.</p>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>1. Global &amp; Umum</h2>
+      <span class="section-note">4 halaman — pintu masuk aplikasi, tidak spesifik satu role</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Global</h3><span class="phase-count">4 halaman</span></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><strong>Login</strong><span class="step-route">/login</span></div>
+          <div class="role-tags"><span class="chip external">Publik (belum login)</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Email/password (mock).</li>
+            <li><span class="io-label out">OUTPUT</span> Masuk ke Dashboard sebagai user yang login.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/</strong> (setelah login), link ke <strong>/lead-intake</strong> ("daftar sebagai calon klien").</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Lead Intake (form publik)</strong><span class="step-route">/lead-intake</span></div>
+          <div class="role-tags"><span class="chip external">Publik, tanpa login</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Form 4 kategori kebutuhan trip, data kontak, persetujuan (consent).</li>
+            <li><span class="io-label out">OUTPUT</span> <span class="mono">Lead</span> baru masuk sistem — langsung terlihat oleh Sales.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/customer-journey/leads</strong> (tempat Sales memprosesnya). Halaman ini berdiri sendiri, di luar layout dashboard.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Dashboard</strong><span class="step-route">/</span></div>
+          <div class="role-tags"><span class="chip role">Semua role login</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Tidak ada — murni lihat ringkasan.</li>
+            <li><span class="io-label out">OUTPUT</span> Tidak ada aksi tulis; widget KPI berbeda isi per role.</li>
+            <li><span class="io-label link">TERHUBUNG</span> Kartu ringkasan mengarah ke hampir semua modul lain.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Settings</strong><span class="step-route">/settings</span></div>
+          <div class="role-tags"><span class="chip role">User login sendiri</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Edit profil pribadi, tombol "ganti role demo", tombol "Reset Demo Data".</li>
+            <li><span class="io-label out">OUTPUT</span> Profil terupdate, atau seluruh data mock kembali ke kondisi awal (khusus demo).</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>2. Customer Journey</h2>
+      <span class="section-note">7 route — hub kerja Sales/AE sebelum masuk detail CRM</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Customer Journey</h3><span class="phase-count">7 route</span></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><strong>Customer Journey Hub</strong><span class="step-route">/customer-journey</span></div>
+          <div class="role-tags"><span class="chip role">Semua akses modul crm</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Tidak ada — ringkasan pipeline Lead → Opportunity.</li>
+            <li><span class="io-label out">OUTPUT</span> Read-only.</li>
+            <li><span class="io-label link">TERHUBUNG</span> Ke seluruh sub-halaman Customer Journey di bawah.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Leads</strong><span class="step-route">/customer-journey/leads</span></div>
+          <div class="role-tags"><span class="chip role">Sales</span><span class="chip role">Account Executive</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Buat Lead baru, isi form Qualification (13 field), assign AE penerima, Edit Lead, Archive/Reopen, tandai duplikat.</li>
+            <li><span class="io-label out">OUTPUT</span> Lead siap di-"Qualify &amp; Create Opportunity" → otomatis lahir <span class="mono">Opportunity</span> baru, langsung muncul di worklist AE.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/crm/opportunities/[id]</strong> (hasil qualify).</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Customers (list + detail)</strong><span class="step-route">/customer-journey/customers[/id]</span></div>
+          <div class="role-tags"><span class="chip role">Semua akses crm, kecuali Sales</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Tidak ada — Sales sengaja dibatasi hanya boleh mengurus Lead, tidak boleh masuk sini.</li>
+            <li><span class="io-label out">OUTPUT</span> Read-only directory company klien.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/crm/parties/[id]</strong> — data sama, sudut pandang berbeda.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Project Orders (list + detail)</strong><span class="step-route">/customer-journey/project-orders[/id]</span></div>
+          <div class="role-tags"><span class="chip role">Semua akses crm, kecuali Sales</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Read-only ringkasan Project Order versi ringkas (Overview/Financial/Documents/Activity).</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/projects/[id]</strong> — halaman kerja penuhnya.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Lead Source Recap</strong><span class="step-route">/customer-journey/lead-sources</span></div>
+          <div class="role-tags"><span class="chip role">Semua akses crm, kecuali Sales</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Read-only rekap performa sumber Lead — sumber mana paling banyak menghasilkan deal.</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>3. CRM</h2>
+      <span class="section-note">7 route — tempat Account Executive bekerja penuh: Opportunity dan Quotation</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>CRM</h3><span class="phase-count">7 route</span></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><strong>Prospects &amp; Clients</strong><span class="step-route">/crm/prospects, /crm/clients</span></div>
+          <div class="role-tags"><span class="chip role">Sales</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Daftar company berdasarkan status (<span class="mono">Prospect</span> vs <span class="mono">Client</span>).</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/crm/parties/[id]</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Party Detail</strong><span class="step-route">/crm/parties/[id]</span></div>
+          <div class="role-tags"><span class="chip role">Sales</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Tambah Contact person, catat Activity.</li>
+            <li><span class="io-label out">OUTPUT</span> Data company terupdate.</li>
+            <li><span class="io-label link">TERHUBUNG</span> Tab Opportunities di sini → <strong>/crm/opportunities/[id]</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Opportunities</strong><span class="step-route">/crm/opportunities</span></div>
+          <div class="role-tags"><span class="chip role">Account Executive</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Daftar deal, dikelompokkan per stage.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/crm/opportunities/[id]</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Opportunity Detail — halaman paling sibuk di CRM</strong><span class="step-route">/crm/opportunities/[id]</span></div>
+          <div class="role-tags"><span class="chip role">Account Executive</span><span class="chip approve">Management (approve)</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Isi Requirement Detail (14 field), buat/edit/versi Quotation, submit approval, "Send to Client", catat Client Confirmation, Mark as Won/Lost.</li>
+            <li><span class="io-label out">OUTPUT</span> Approve/reject quotation hanya bisa dilakukan Management/Super Admin. Kalau Won → otomatis bikin <span class="mono">Project</span> baru + company jadi Active Client.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/crm/opportunities/[id]/quotation-preview</strong> (cetak PDF), <strong>/projects/[id]</strong> (hasil Won), <strong>/client/opportunities/[id]</strong> (versi yang dilihat client).</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Quotation Preview (cetak)</strong><span class="step-route">/crm/opportunities/[id]/quotation-preview</span></div>
+          <div class="role-tags"><span class="chip readonly">Siapa saja dengan akses crm</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Dokumen cetak/PDF quotation, read-only.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Quotations — Antrean Approval</strong><span class="step-route">/crm/quotations</span></div>
+          <div class="role-tags"><span class="chip approve">Management / Super Admin</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> 3 tab: Menunggu Approval, Menunggu Client Confirmation, Semua Quotation. Isi catatan approve/reject.</li>
+            <li><span class="io-label out">OUTPUT</span> Quotation jadi <span class="mono">approved</span>/<span class="mono">rejected</span>, hasilnya balik terlihat AE di Opportunity Detail.</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>4. Product Planning</h2>
+      <span class="section-note">4 route — basis harga sebelum jadi Quotation</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Product Planning</h3><span class="phase-count">4 route</span></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><strong>Product Template (list + detail)</strong><span class="step-route">/product-planning[/id]</span></div>
+          <div class="role-tags"><span class="chip role">Product Planner</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Buat Product Template: destinasi, service scope, konsep itinerary paket wisata.</li>
+            <li><span class="io-label out">OUTPUT</span> Template siap dipakai bikin Cost Sheet.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/product-planning/cost-sheets</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Cost Sheet (list + detail)</strong><span class="step-route">/product-planning/cost-sheets[/id]</span></div>
+          <div class="role-tags"><span class="chip role">Product Planner</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Biaya per traveler, markup %, pajak %, kontingensi % — bisa dipicu langsung dari sebuah Opportunity/Product Template.</li>
+            <li><span class="io-label out">OUTPUT</span> Tombol <strong>"Apply to Quotation"</strong> — nilai total langsung disalin (snapshot) ke Quotation milik AE.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/crm/opportunities/[id]</strong> (Quotation penerima angkanya).</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>5. Projects</h2>
+      <span class="section-note">5 route — pusat kerja operasional setelah Opportunity Won</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Projects</h3><span class="phase-count">5 route</span></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><strong>All Projects</strong><span class="step-route">/projects</span></div>
+          <div class="role-tags"><span class="chip role">Project Manager</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Daftar semua Project Order.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/projects/[id]</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Project Detail — 8 tab, halaman paling besar</strong><span class="step-route">/projects/[id]</span></div>
+          <div class="role-tags"><span class="chip role">Project Manager</span><span class="chip role">Finance (tab Finance)</span><span class="chip approve">Management (approve Changes)</span></div>
+          <p style="margin:6px 0 10px; color:var(--ink-soft); font-size:0.88rem;">8 tab, role dan aksinya berbeda per tab:</p>
+          <div class="table-wrap" style="margin-bottom:4px;">
+            <table>
+              <thead><tr><th>Tab</th><th>Role kelola</th><th>Input</th><th>Output</th></tr></thead>
+              <tbody>
+                <tr><td class="name">Overview</td><td class="note">Project Manager</td><td class="note">Accept/Return Handover dari AE, atur Team, catat Risk, checklist Closure, tombol "Close Project"</td><td class="note">Project mulai dikerjakan / balik ke AE / project resmi ditutup</td></tr>
+                <tr><td class="name">Itinerary &amp; Services</td><td class="note">PM/Operations + role domain masing-masing</td><td class="note">Update status tiap layanan</td><td class="note">Readiness Gate — indikator siap berangkat</td></tr>
+                <tr><td class="name">Travelers</td><td class="note">Project Manager</td><td class="note">Tambah/edit data traveler, paspor/visa, rooming list</td><td class="note">Data traveler lengkap (Client juga bisa isi sendiri lewat portalnya)</td></tr>
+                <tr><td class="name">Vendors</td><td class="note">Project Manager/Procurement</td><td class="note">Lihat vendor yang ditugaskan</td><td class="note">—</td></tr>
+                <tr class="highlight"><td class="name">Finance</td><td class="note"><strong>Finance</strong></td><td class="note">Kelola invoice/payment project ini, tombol "Close Finance"</td><td class="note">Financial Closure Gate lolos → syarat Close Project terpenuhi</td></tr>
+                <tr><td class="name">Tasks</td><td class="note">Project Manager</td><td class="note">Buat/assign/selesaikan task</td><td class="note">Checklist kerja tim</td></tr>
+                <tr><td class="name">Documents</td><td class="note">PM/Operations</td><td class="note">Upload dokumen project</td><td class="note">Dokumen tersimpan</td></tr>
+                <tr class="highlight"><td class="name">Activity &amp; Changes</td><td class="note">PM/Operations ajukan, <strong>Management approve</strong></td><td class="note">Buat Change Request/Incident</td><td class="note">Log perubahan + approval Management</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <ul class="step-detail">
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/projects/[id]/manifest-preview</strong>, <strong>/projects/[id]/run-sheet-preview</strong> (dokumen cetak), dan ke semua modul domain (Ticketing/Accommodation/dst) lewat tombol "Buat Booking".</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Edit Project</strong><span class="chip partial">Stub, sengaja belum dibangun</span><span class="step-route">/projects/[id]/edit</span></div>
+          <ul class="step-detail">
+            <li>Halaman placeholder kosong — bukan bug, memang belum dikerjakan sejak awal.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Manifest &amp; Run Sheet Preview</strong><span class="step-route">/projects/[id]/manifest-preview, /run-sheet-preview</span></div>
+          <div class="role-tags"><span class="chip readonly">Siapa saja akses project</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Dokumen cetak — daftar traveler (manifest) dan jadwal kerja harian (run sheet).</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>6. Domain Operasional — Ticketing, Accommodation, Transportation, MICE</h2>
+      <span class="section-note">14 route — pola identik di keempatnya, masing-masing dipegang penuh oleh role domainnya sendiri</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>4 Domain Booking</h3><span class="phase-count">14 route</span></div>
+      <div class="phase-body">
+        <p>Keempat modul berikut punya struktur sama persis: halaman list (buat booking baru dari sebuah Project), halaman detail (edit + transisi status), dan halaman cetak dokumen.</p>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Ticketing (Flight)</strong><span class="step-route">/ticketing[/id][/eticket-preview]</span></div>
+          <div class="role-tags"><span class="chip role">Ticketing</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Buat Flight Booking dari sebuah Project; isi PNR/fare/net cost; ubah status Hold → Confirm → Issue → Reissue → Cancel/Refund.</li>
+            <li><span class="io-label out">OUTPUT</span> Kalau Cancel/Refund → otomatis bikin Cancellation Record di modul Changes.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/ticketing/[id]/eticket-preview</strong> (cetak tiket), <strong>/changes/cancellations/[id]</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Accommodation (Hotel)</strong><span class="step-route">/accommodation[/id][/voucher-preview]</span></div>
+          <div class="role-tags"><span class="chip role">Accommodation</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Buat Hotel Booking; check-in/out, room block, ubah status Quote → Confirm → Amend → Cancel/No-Show.</li>
+            <li><span class="io-label out">OUTPUT</span> Cancel/No-Show → otomatis bikin Cancellation Record.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/accommodation/[id]/voucher-preview</strong>, <strong>/changes/cancellations/[id]</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Transportation</strong><span class="step-route">/transportation[/id][/service-order-preview][/driver-sheet-preview]</span></div>
+          <div class="role-tags"><span class="chip role">Transportation</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Buat Transport Booking; driver, plat nomor, rute multi-leg, ubah status Quote → Assign → Confirm → Cancel/No-Show.</li>
+            <li><span class="io-label out">OUTPUT</span> Cancel/No-Show → otomatis bikin Cancellation Record.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/transportation/[id]/service-order-preview</strong> (dokumen klien), <strong>/driver-sheet-preview</strong> (dokumen internal, tanpa harga), <strong>/changes/cancellations/[id]</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>MICE (Event)</strong><span class="step-route">/mice[/id][/rundown-preview][/boq-preview]</span></div>
+          <div class="role-tags"><span class="chip role">MICE</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Buat MICE Event; venue, sesi, BOQ, staffing, checklist, persetujuan client, ubah status Planning → ... → Cancelled.</li>
+            <li><span class="io-label out">OUTPUT</span> Cancel → otomatis bikin Cancellation Record.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/mice/[id]/rundown-preview</strong>, <strong>/boq-preview</strong>, <strong>/changes/cancellations/[id]</strong>.</li>
+          </ul>
+        </div>
+
+        <p style="margin-top:14px;">Semua booking di 4 modul ini biasanya dipicu dari tombol "Buat Booking" di tab <strong>Itinerary &amp; Services</strong> milik <span class="mono">/projects/[id]</span>.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>7. Booking &amp; Service Order Center</h2>
+      <span class="section-note">2 route — "layar radar" gabungan status dari 4 domain di atas</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Bookings</h3><span class="phase-count">2 route</span></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><strong>Booking Timeline</strong><span class="step-route">/bookings</span></div>
+          <div class="role-tags"><span class="chip role">Operations</span></div>
+          <ul class="step-detail">
+            <li>Bukan data baru — hanya menggabungkan status booking dari 4 modul domain jadi satu timeline.</li>
+            <li><span class="io-label">INPUT</span> Tandai "Payment Cleared", catat percobaan booking.</li>
+            <li><span class="io-label out">OUTPUT</span> Status gate berubah.</li>
+            <li><span class="io-label link">TERHUBUNG</span> Klik baris → lompat ke halaman detail domain aslinya (<span class="mono">/ticketing/[id]</span>, dst). Tombol "Exception Queue" → <strong>/bookings/exceptions</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Exception Queue</strong><span class="step-route">/bookings/exceptions</span></div>
+          <div class="role-tags"><span class="chip readonly">Read-only, sama akses seperti /bookings</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Daftar booking yang bermasalah — dependency belum terpenuhi, percobaan gagal, dsb.</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>8. Changes, Cancellation, Refund, Incident</h2>
+      <span class="section-note">5 route — semua bermuara pada approval Management</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Changes</h3><span class="phase-count">5 route</span></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><strong>Changes — 4 tab</strong><span class="step-route">/changes</span></div>
+          <div class="role-tags"><span class="chip role">Operations / Project Manager</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Ajukan Change Request, catat Incident, ajukan Refund. Cancellation TIDAK dibuat manual di sini — otomatis lahir dari halaman detail booking domain saat status jadi Cancelled.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/changes/[id]</strong>, <strong>/changes/cancellations/[id]</strong>, <strong>/changes/refunds/[id]</strong>, <strong>/changes/incidents/[id]</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Change Request Detail</strong><span class="step-route">/changes/[id]</span></div>
+          <div class="role-tags"><span class="chip approve">Management / Super Admin</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Approve/Reject (alasan wajib saat reject).</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/projects/[id]?tab=activity-changes</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Cancellation Detail</strong><span class="step-route">/changes/cancellations/[id]</span></div>
+          <div class="role-tags"><span class="chip readonly">Read-only</span><span class="chip role">Ajukan Refund: Operations/PM</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label link">TERHUBUNG</span> Tombol "Ajukan Refund" → <strong>/changes/refunds/[id]</strong>; tombol "Lihat Booking" → halaman detail domain asalnya.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Refund Request Detail</strong><span class="step-route">/changes/refunds/[id]</span></div>
+          <div class="role-tags"><span class="chip role">Proses: Operations/PM</span><span class="chip approve">Approve final: Management</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Transisi status (Diajukan → Under Review → Approved/Rejected → Processed).</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Incident Detail</strong><span class="step-route">/changes/incidents/[id]</span></div>
+          <div class="role-tags"><span class="chip role">Operations / Project Manager</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Investigasi, eskalasi, selesaikan, tutup, catat komunikasi.</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>9. Vendors &amp; Procurement</h2>
+      <span class="section-note">6 route — sourcing dan pengelolaan vendor</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Vendors &amp; Procurement</h3><span class="phase-count">6 route</span></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><strong>Vendors (list + detail)</strong><span class="step-route">/vendors[/id]</span></div>
+          <div class="role-tags"><span class="chip role">Procurement</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Tambah vendor, kontak, produk, submit quotation vendor.</li>
+            <li><span class="io-label out">OUTPUT</span> Direktori vendor terupdate — role lain (Ops/Ticketing/dst) cuma bisa lihat.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Procurement — RFQ &amp; Service Orders</strong><span class="step-route">/procurement, /procurement/rfq/[id], /procurement/service-orders/[id]</span></div>
+          <div class="role-tags"><span class="chip role">Procurement</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Bikin RFQ → kirim ke beberapa vendor → vendor merespons dari portalnya sendiri → Procurement pilih pemenang.</li>
+            <li><span class="io-label out">OUTPUT</span> Otomatis lahir Service Order dari RFQ yang dimenangkan.</li>
+            <li><span class="io-label link">TERHUBUNG</span> <strong>/supplier/rfq/[id]</strong> (sisi vendor merespons hal yang sama).</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Procurement Performance Review</strong><span class="step-route">/procurement/performance</span></div>
+          <div class="role-tags"><span class="chip readonly">Read-only</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Rekap win-rate dan kecepatan respons tiap vendor.</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>10. Finance</h2>
+      <span class="section-note">5 route — siklus invoice sampai Financial Closure Gate</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Finance</h3><span class="phase-count">5 route</span></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><strong>Finance Overview</strong><span class="step-route">/finance</span></div>
+          <div class="role-tags"><span class="chip role">Finance</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Ringkasan outstanding + daftar project yang belum siap "Close Finance".</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Invoices</strong><span class="step-route">/finance/invoices</span></div>
+          <div class="role-tags"><span class="chip role">Finance</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Buat invoice, catat pembayaran, terbitkan Credit Note, void invoice.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Payments</strong><span class="step-route">/finance/payments</span></div>
+          <div class="role-tags"><span class="chip readonly">Read-only</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Riwayat pembayaran — pembuatannya sendiri dari halaman Invoices.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Credit/Debit Notes</strong><span class="step-route">/finance/notes</span></div>
+          <div class="role-tags"><span class="chip role">Finance (Debit Note)</span><span class="chip readonly">Credit Note read-only</span></div>
+          <ul class="step-detail">
+            <li>Credit Note dibuat otomatis (dari Invoices/Refund); Debit Note dibuat manual oleh Finance.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Reconciliation</strong><span class="step-route">/finance/reconciliation</span></div>
+          <div class="role-tags"><span class="chip role">Finance</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Cocokkan tagihan vendor (Supplier Invoice) — "Mark Matched" atau "Flag Disputed".</li>
+            <li><span class="io-label out">OUTPUT</span> Ini jadi syarat sebelum tombol "Close Finance" di Project bisa aktif.</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>11. Documents &amp; Communication</h2>
+      <span class="section-note">1 route, 3 tab — cross-cutting, dipakai lintas semua modul</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Documents</h3><span class="phase-count">1 route</span></div>
+      <div class="phase-body">
+        <div class="step-card">
+          <div class="step-title"><strong>Documents &amp; Communication</strong><span class="step-route">/documents</span></div>
+          <div class="role-tags"><span class="chip role">Kebanyakan role internal</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Tab Documents: upload dokumen (mock). Tab Messages: kirim pesan ke internal/client/supplier. Tab Notifications: notifikasi pribadi user login.</li>
+            <li><span class="io-label link">TERHUBUNG</span> Sumber sama dengan lonceng notifikasi di header atas semua halaman.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>12. Reports</h2>
+      <span class="section-note">1 route — dashboard analitik read-only, section berbeda per role</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Reports</h3><span class="phase-count">1 route</span></div>
+      <div class="phase-body">
+        <div class="step-card">
+          <div class="step-title"><strong>Reports</strong><span class="step-route">/reports</span></div>
+          <div class="role-tags"><span class="chip role">Sales/AE (Pipeline)</span><span class="chip role">Finance (Budget vs Actual)</span><span class="chip role">PM (Project Performance)</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Filter tanggal/status, "Saved Views" (simpan kombinasi filter favorit).</li>
+            <li><span class="io-label out">OUTPUT</span> Tidak ada aksi tulis — murni dashboard analitik, tiap section terlihat oleh role berbeda.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>13. Activity Center</h2>
+      <span class="section-note">1 route — log audit lintas sistem, khusus Super Admin</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Activity Center</h3><span class="phase-count">1 route</span></div>
+      <div class="phase-body">
+        <div class="step-card">
+          <div class="step-title"><strong>Activity Center</strong><span class="step-route">/activity-center</span></div>
+          <div class="role-tags"><span class="chip role">Super Admin saja</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Log semua kejadian sistem lintas modul, read-only, untuk audit/investigasi.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>14. Administration</h2>
+      <span class="section-note">6 route — konfigurasi sistem, khusus Super Admin</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Administration</h3><span class="phase-count">6 route</span></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><strong>Admin Hub</strong><span class="step-route">/admin</span></div>
+          <div class="role-tags"><span class="chip role">Super Admin</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Fitur "ganti role demo" (khusus keperluan testing/demo).</li>
+            <li><span class="io-label link">TERHUBUNG</span> 5 kartu ke halaman di bawah ini.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Master Data</strong><span class="step-route">/admin/master-data</span></div>
+          <div class="role-tags"><span class="chip role">Super Admin</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Kelola data referensi (destinasi, bandara, mata uang, dst) yang dipakai modul lain.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Users</strong><span class="step-route">/admin/users</span></div>
+          <div class="role-tags"><span class="chip role">Super Admin</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Suspend/reactivate user.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Roles and Permissions</strong><span class="step-route">/admin/roles</span></div>
+          <div class="role-tags"><span class="chip readonly">Read-only</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Tabel matrix Role×Modul — dokumentasi visual, BUKAN tempat mengubah permission.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Audit Trail</strong><span class="step-route">/admin/audit-trail</span></div>
+          <div class="role-tags"><span class="chip readonly">Read-only</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Log perubahan lintas project + log sistem.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Organization Profile</strong><span class="step-route">/admin/organization</span></div>
+          <div class="role-tags"><span class="chip role">Super Admin</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Nama legal, alamat, kontak perusahaan.</li>
+            <li><span class="io-label out">OUTPUT</span> Tampil di kop dokumen (invoice, quotation, dsb).</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>15. Client Portal <span class="chip external">Eksternal</span></h2>
+      <span class="section-note">3 route — jendela terbatas ke data internal, milik company sendiri</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Client Portal</h3><span class="phase-count">3 route</span></div>
+      <div class="phase-body">
+        <p>Data yang tampil selalu dibatasi hanya milik company Client yang login (isolasi ketat).</p>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Client Dashboard</strong><span class="step-route">/client</span></div>
+          <div class="role-tags"><span class="chip external">Client</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Ringkasan project aktif, quotation menunggu konfirmasi, invoice outstanding, "Action Required" list.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Quotation View</strong><span class="step-route">/client/opportunities/[id]</span></div>
+          <div class="role-tags"><span class="chip external approve">Client (keputusan)</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> <strong>Setujui</strong> (mengunci Client Confirmation, AE bisa lanjut Mark as Won), <strong>Tolak</strong>, atau <strong>Minta Revisi</strong> (dua terakhir cuma kirim catatan ke AE, tidak mengubah status resmi).</li>
+            <li>Harga cost/margin internal disembunyikan — Client hanya lihat harga jual final.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Project Order Detail — 13 tab</strong><span class="step-route">/client/project-orders/[id]</span></div>
+          <div class="role-tags"><span class="chip external">Client</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Client bisa: isi data traveler sendiri, ajukan Change Request (kategori traveler/itinerary/service), isi Kebutuhan Komoditas (requirement hotel/flight/dst yang nanti dicocokkan ke katalog Vendor).</li>
+            <li><span class="io-label out">OUTPUT</span> Sisanya read-only: Overview, Timeline, Services, Itinerary, Reservations, Documents, Billing, Issues, Activities, Closing — semua versi sanitized dari data internal PM/Finance.</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>16. Supplier Portal <span class="chip external">Eksternal</span></h2>
+      <span class="section-note">7 route — jendela terbatas ke data internal, milik company vendor sendiri</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-head"><h3>Supplier Portal</h3><span class="phase-count">7 route</span></div>
+      <div class="phase-body">
+        <p>Data yang tampil selalu dibatasi hanya milik company vendor yang login (isolasi ketat).</p>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Supplier Dashboard</strong><span class="step-route">/supplier</span></div>
+          <div class="role-tags"><span class="chip external">Supplier</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> "Action Center" — RFQ belum direspons, Service Order belum di-acknowledge.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Produk/Layanan Saya</strong><span class="step-route">/supplier/products</span></div>
+          <div class="role-tags"><span class="chip external">Supplier</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Kelola katalog produk sendiri.</li>
+            <li><span class="io-label link">TERHUBUNG</span> Muncul juga di <strong>/vendors/[id]</strong> sisi internal (Procurement).</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Assignment &amp; Quotation Saya</strong><span class="step-route">/supplier/orders</span></div>
+          <div class="role-tags"><span class="chip readonly">Read-only</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label out">OUTPUT</span> Assignment &amp; quotation vendor, diproses dari sisi internal.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>RFQ Inbox &amp; Detail</strong><span class="step-route">/supplier/rfq[/id]</span></div>
+          <div class="role-tags"><span class="chip external">Supplier</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> Ajukan harga per line item RFQ, chat klarifikasi ke Procurement.</li>
+            <li><span class="io-label link">TERHUBUNG</span> Dilihat &amp; dipilih Procurement di <strong>/procurement/rfq/[id]</strong>.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><strong>Service Order Inbox &amp; Detail</strong><span class="step-route">/supplier/service-orders[/id]</span></div>
+          <div class="role-tags"><span class="chip external">Supplier</span></div>
+          <ul class="step-detail">
+            <li><span class="io-label">INPUT</span> <strong>Acknowledge</strong> order, tandai <strong>Fulfilled</strong>, <strong>submit invoice</strong>.</li>
+            <li><span class="io-label link">TERHUBUNG</span> Dilihat/diproses Operations/Procurement/Finance internal.</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>17. Legacy — Sengaja Tidak Dipakai</h2>
+      <span class="section-note">2 route — dipertahankan, tapi tidak ditautkan navigasi</span>
+    </div>
+    <div class="risk">
+      <h3>Route lama</h3>
+      <ul>
+        <li><strong><span class="mono">/expenses</span></strong> dan <strong><span class="mono">/tasks</span></strong> — halaman lama, tidak ada di menu, dipertahankan tapi tidak dipakai. Fungsinya sudah pindah ke tab "Finance"/"Tasks" di Project Detail.</li>
+      </ul>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Ringkasan Alur Antar-Modul</h2>
+      <span class="section-note">Rangkuman satu layar dari seluruh bagian di atas</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-body">
+        <p style="font-family:ui-monospace,monospace; font-size:0.86rem; line-height:2; white-space:pre-wrap; color:var(--ink);">Lead Intake / Sales ──► Customer Journey (Sales) ──► CRM Opportunity (AE)
+   ──► Product Planning (Cost Sheet) ──► Quotation (AE) ──► Approval (Management)
+   ──► Client Confirmation (Client Portal) ──► Won ──► Project (PM)
+   ──► Ticketing/Accommodation/Transportation/MICE (role domain) + Procurement/Vendors (RFQ)
+   ──► Bookings Center (Operations, radar gabungan)
+   ──► Changes/Incident (Operations/PM ajukan ──► Management approve)
+   ──► Finance (invoice/payment/Close Finance)
+   ──► Close Project (PM/Management)</p>
+        <p>Dua "jalur samping" yang menembus banyak modul: <strong>Documents/Reports/Activity Center/Admin</strong> (dipakai lintas semua tahap di atas, bukan satu titik), serta <strong>Client Portal &amp; Supplier Portal</strong> yang masing-masing adalah jendela terbatas ke data yang sama dengan yang dikerjakan tim internal (Opportunity, Project, RFQ, Service Order) — tapi disaring supaya tidak bocor cost/margin internal.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>Sumber: app/pages/**, app/constants/roles.ts, app/composables/usePermissions.ts, app/constants/navigation.ts. Dokumen pendamping: MANOVA-End-to-End-Flow.html.</span>
+    <span>Per 3 Agustus 2026</span>
+  </footer>
+
+</div>
+
+<script>
+  document.getElementById('btn-pdf').addEventListener('click', function () {
+    window.print();
+  });
+
+  document.getElementById('btn-html').addEventListener('click', function () {
+    var doc = '<!doctype html>\n' + document.documentElement.outerHTML;
+    var blob = new Blob([doc], { type: 'text/html' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'MANOVA-Page-Role-Flow.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  });
+</script>

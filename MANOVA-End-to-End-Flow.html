@@ -1,5 +1,5 @@
 <title>MANOVA — Flow End-to-End (Lead sampai Project Selesai)</title>
-<meta name="description" content="Peta flow end-to-end penuh MANOVA — 23 langkah Workflow Utama dari Lead sampai Project Closed, per 1 Agustus 2026">
+<meta name="description" content="Peta flow end-to-end penuh MANOVA — 23 langkah Workflow Utama dari Lead sampai Project Closed, lengkap peran per langkah dan gerbang approval, per 3 Agustus 2026">
 <style>
   :root{
     --paper:#F6F4EE;
@@ -80,7 +80,7 @@
     -webkit-font-smoothing:antialiased;
   }
 
-  .heading, h1, h2, h3{
+  .heading, h1, h2, h3, h4{
     font-family:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,serif;
     font-weight:600;
     color:var(--ink);
@@ -94,7 +94,7 @@
   }
 
   .page{
-    max-width:900px;
+    max-width:960px;
     margin:0 auto;
     padding:56px 28px 96px;
   }
@@ -131,7 +131,7 @@
     color:var(--ink-soft);
     font-size:1.05rem;
     margin:0;
-    max-width:66ch;
+    max-width:70ch;
   }
   .meta-row{
     display:flex;
@@ -249,6 +249,22 @@
   .chip.partial::before{ background:var(--amber); }
   .chip.pending{ background:var(--pending-soft); color:var(--pending-ink); }
   .chip.pending::before{ background:var(--pending); }
+  /* Role/approval tag variants (revisi) */
+  .chip.role{ background:var(--accent-soft); color:var(--accent-ink); }
+  .chip.role::before{ background:var(--accent); }
+  .chip.approve{ background:var(--amber-soft); color:var(--amber-ink); }
+  .chip.approve::before{ background:var(--amber); }
+  .chip.external{ background:var(--pending-soft); color:var(--pending-ink); }
+  .chip.external::before{ background:var(--pending); }
+  .chip.system{ background:var(--line); color:var(--ink-soft); }
+  .chip.system::before{ background:var(--ink-soft); }
+
+  .role-tags{
+    display:flex;
+    flex-wrap:wrap;
+    gap:6px;
+    margin:4px 0 12px;
+  }
 
   .phase-block{
     background:var(--paper-raised);
@@ -275,6 +291,64 @@
   .phase-block .phase-body{ padding:14px 20px 16px; }
   .phase-block .phase-body p{ margin:10px 0; color:var(--ink-soft); font-size:0.94rem; }
   .phase-block .phase-body p:first-child{ margin-top:0; }
+
+  /* Step cards (detail per langkah, dalam 1 phase-block) */
+  .step-card{
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:14px 16px;
+    margin-bottom:12px;
+    background:var(--paper);
+  }
+  .step-card:last-child{ margin-bottom:0; }
+  .step-card .step-title{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-wrap:wrap;
+    margin-bottom:6px;
+  }
+  .step-card .step-num{
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:24px; height:24px;
+    border-radius:50%;
+    background:var(--accent);
+    color:var(--paper-raised);
+    font-size:0.72rem;
+    font-family:ui-monospace,monospace;
+    flex:none;
+  }
+  .step-card.is-partial .step-num{ background:var(--amber); }
+  .step-card .step-title strong{ font-size:0.98rem; color:var(--ink); }
+  .step-card .step-route{
+    font-family:ui-monospace,monospace;
+    font-size:0.78rem;
+    color:var(--ink-soft);
+    margin-left:auto;
+  }
+  .step-card ul.step-detail{
+    margin:8px 0 6px;
+    padding-left:20px;
+  }
+  .step-card ul.step-detail li{
+    margin-bottom:5px;
+    font-size:0.9rem;
+    color:var(--ink-soft);
+  }
+  .step-card ul.step-detail li:last-child{ margin-bottom:0; }
+  .step-card ul.step-detail li strong{ color:var(--ink); }
+  .step-card .step-approval{
+    margin-top:8px;
+    padding:8px 12px;
+    border-radius:5px;
+    background:var(--amber-soft);
+    border:1px dashed var(--amber);
+    font-size:0.85rem;
+    color:var(--amber-ink);
+  }
+  .step-card .step-approval strong{ color:var(--amber-ink); }
 
   .table-wrap{
     overflow-x:auto;
@@ -392,7 +466,44 @@
     .flow-chain{ flex-direction:column; align-items:stretch; }
     .flow-step{ justify-content:center; }
     .flow-arrow{ text-align:center; transform:rotate(90deg); }
+    .step-card .step-route{ margin-left:0; }
   }
+
+  /* Quotation how-to list */
+  .howto{
+    counter-reset:howto;
+    margin:0;
+    padding:0;
+    list-style:none;
+  }
+  .howto li{
+    counter-increment:howto;
+    position:relative;
+    padding:0 0 18px 40px;
+    border-left:2px solid var(--line-strong);
+    margin-left:13px;
+  }
+  .howto li:last-child{ border-left-color:transparent; padding-bottom:0; }
+  .howto li::before{
+    content:counter(howto);
+    position:absolute;
+    left:-13px; top:0;
+    width:26px; height:26px;
+    border-radius:50%;
+    background:var(--accent);
+    color:var(--paper-raised);
+    font-family:ui-monospace,monospace;
+    font-size:0.78rem;
+    font-weight:700;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .howto li strong{ color:var(--ink); }
+  .howto li p{ margin:4px 0 0; color:var(--ink-soft); font-size:0.92rem; }
+  .howto li .role-tags{ margin:6px 0 0; }
+  .howto li.is-gate::before{ background:var(--amber); }
+  .howto li.is-gate{ }
 
   .risk{
     background:var(--amber-soft);
@@ -465,12 +576,12 @@
 <div class="page">
 
   <header class="report-head">
-    <div class="eyebrow"><span class="dot"></span>Dokumentasi Teknis &middot; Flow End-to-End</div>
+    <div class="eyebrow"><span class="dot"></span>Dokumentasi Teknis &middot; Flow End-to-End (Revisi Detail Role &amp; Approval)</div>
     <h1 class="title">MANOVA — Flow End-to-End</h1>
-    <p class="subtitle">Perjalanan bisnis penuh: dari Lead masuk (publik maupun manual) sampai Project ditutup — 23 langkah Workflow Utama lintas seluruh role (Sales, Account Executive, Management, Project Manager, Operations, Ticketing/Accommodation/Transportation/MICE, Procurement, Finance, Client, Supplier/Vendor), bukan hanya satu modul.</p>
+    <p class="subtitle">Perjalanan bisnis penuh: dari Lead masuk (publik maupun manual) sampai Project ditutup — 23 langkah Workflow Utama, dengan <strong>role penanggung jawab di setiap langkah</strong>, <strong>siapa yang approve di setiap gerbang persetujuan</strong>, dan panduan langkah-demi-langkah membuat Quotation.</p>
     <div class="meta-row">
       <span>Cakupan: <strong>Lead → Qualification → Opportunity → Quotation → Won → Project → Fulfillment → Finance → Closed</strong></span>
-      <span>Sumber: <strong>docs/frontend-workflow-map.md, docs/frontend-known-issues.md</strong></span>
+      <span>Sumber: <strong>app/constants/roles.ts, app/composables/usePermissions.ts, app/data/index.ts, docs/frontend-workflow-map.md</strong></span>
       <span>Status: <strong>22/23 langkah selesai, 1 langkah sebagian (#19)</strong></span>
     </div>
     <div class="actions">
@@ -487,8 +598,9 @@
 
   <div class="summary">
     <h2>Ringkasan</h2>
-    <p>Dokumen ini memetakan <strong>seluruh perjalanan MANOVA</strong> — bukan hanya Client dan Vendor — mengikuti "Workflow Utama" 23 langkah yang menjadi acuan resmi proyek (`docs/frontend-workflow-map.md`, hasil regresi penuh Section 24): Lead → Sales Qualification → Account Executive → Opportunity → Requirement → Product Planning → Quotation → Management Approval → Client Confirmation → Won → Active Client → Project Order → Handover ke Project Manager → Planning → Traveler → Supplier Sourcing → Service Booking → Readiness → On Trip/Event → Changes/Incident → Finance → Completed → Closed.</p>
-    <p><strong>Client–Vendor Commodity</strong> (Vendor publish komoditas, Client pilih/hold/konfirmasi) adalah satu <em>jalur tambahan</em> yang beririsan dengan langkah Traveler Collection–Service Booking, dijelaskan detail di bagian 4 dan tetap punya dokumen sendiri (`docs/MANOVA-Client-Vendor-Commodity-End-to-End-Flow.md` / `.html`) — tidak dihapus, hanya tidak lagi berdiri sendiri sebagai "flow end-to-end" karena ruang lingkupnya memang lebih sempit dari itu.</p>
+    <p>Dokumen ini memetakan <strong>seluruh perjalanan MANOVA</strong> — bukan hanya Client dan Vendor — mengikuti "Workflow Utama" 23 langkah yang menjadi acuan resmi proyek: Lead → Sales Qualification → Account Executive → Opportunity → Requirement → Product Planning → Quotation → Management Approval → Client Confirmation → Won → Active Client → Project Order → Handover ke Project Manager → Planning → Traveler → Supplier Sourcing → Service Booking → Readiness → On Trip/Event → Changes/Incident → Finance → Completed → Closed.</p>
+    <p><strong>Revisi ini menambahkan tiga hal baru</strong> dibanding versi sebelumnya: (1) bagian <em>Direktori Role</em> — 16 role dan kewenangannya lintas seluruh flow; (2) setiap langkah kini punya kartu detail berisi role penanggung jawab, sub-langkah konkret, dan kotak "gerbang approval" bila langkah tersebut butuh persetujuan; (3) bagian <em>Approval Gates</em> — tabel ringkas seluruh titik persetujuan di seluruh flow (bukan cuma Quotation) beserta siapa mengajukan dan siapa memutuskan; dan (4) panduan <em>langkah-demi-langkah membuat Quotation</em>.</p>
+    <p><strong>Client–Vendor Commodity</strong> (Vendor publish komoditas, Client pilih/hold/konfirmasi) tetap satu <em>jalur tambahan</em> yang beririsan dengan langkah Traveler Collection–Service Booking, dijelaskan di bagian 6 dan tetap punya dokumen sendiri (<span class="mono">docs/MANOVA-Client-Vendor-Commodity-End-to-End-Flow.md</span> / <span class="mono">.html</span>).</p>
   </div>
 
   <div class="stats">
@@ -508,16 +620,43 @@
       <div class="stat-label">Role berbeda terlibat sepanjang flow</div>
     </div>
     <div class="stat">
-      <div class="stat-num">4</div>
+      <div class="stat-num">9</div>
       <div class="stat-bar"><span style="width:100%"></span></div>
-      <div class="stat-label">Layer cross-cutting (Documents, Reports, Admin, Permission)</div>
+      <div class="stat-label">Gerbang approval eksplisit di seluruh flow</div>
     </div>
   </div>
 
   <section>
     <div class="section-head">
-      <h2>Diagram Alur Utama</h2>
-      <span class="section-note">Dikelompokkan per fase — lihat tabel 23 langkah untuk rincian tiap kotak</span>
+      <h2>1. Direktori Role</h2>
+      <span class="section-note">Siapa mengerjakan apa, lintas seluruh 23 langkah — sumber: app/constants/roles.ts</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Role</th><th>Fase Utama</th><th>Tugas &amp; Kewenangan</th><th>Approve Apa</th></tr></thead>
+        <tbody>
+          <tr><td class="name">Super Admin</td><td class="note">Semua fase</td><td class="note">Akses ADMIN ke seluruh modul; bisa menjalankan aksi role mana pun untuk testing/dukungan; override seluruh gerbang bila perlu.</td><td class="note">Fallback approver di <em>semua</em> gerbang approval di bawah.</td></tr>
+          <tr><td class="name">Management</td><td class="note">Deal Making, Closure</td><td class="note">Review Commercial Approval quotation (margin/diskon/pajak/markup/risk); approve/reject Change Request &amp; Refund; ikut memutuskan Project Closure; visibilitas laporan lintas seluruh modul (VIEW).</td><td class="note">Quotation (Commercial Approval), Change Request, Refund, Project Closure (bersama PM).</td></tr>
+          <tr><td class="name">Account Executive (AE)</td><td class="note">Assign AE s/d Won</td><td class="note">Kelola Requirement Detail Opportunity; susun Quotation penuh (create/edit/versi/duplicate/compare/send/withdraw); submit ke Management; catat/pantau Client Confirmation; eksekusi Mark as Won atau Mark as Lost.</td><td class="note">Bukan approver — pengaju/pengeksekusi di seluruh gerbang Quotation dan Won.</td></tr>
+          <tr><td class="name">Sales</td><td class="note">Lead &amp; Sales</td><td class="note">Kelola Lead masuk (publik/manual), lengkapi Qualification 13 field, tandai/assign AE penerima, handover ke Opportunity. <strong>Sejak Prompt 19, Sales TIDAK lagi bisa mengelola Opportunity/Quotation.</strong></td><td class="note">Tidak approve apa pun.</td></tr>
+          <tr><td class="name">Product Planner / Travel Consultant</td><td class="note">Deal Making (paralel)</td><td class="note">Kelola katalog Product Template dan Cost Sheet (markup/pajak/kontingensi per traveler) — hasil costing ini jadi basis harga yang di-snapshot AE ke line item Quotation.</td><td class="note">Tidak approve.</td></tr>
+          <tr><td class="name">Project Manager (PM)</td><td class="note">Project Setup s/d Closure</td><td class="note">Terima/Return Handover project dari AE; kelola Planning, Team, Risks, Readiness; submit Change Request; ikut memutuskan Project Closure bersama Management.</td><td class="note">Project Handover (accept/return), Project Closure (bersama Management).</td></tr>
+          <tr><td class="name">Operations</td><td class="note">Fulfillment, Closure</td><td class="note">Konsolidasi booking lintas domain (Booking &amp; Service Order Center); submit Change Request/Cancellation/Refund/Incident; proses status under-review/processed.</td><td class="note">Pengaju (bukan approver final) — keputusan approve/reject tetap Management.</td></tr>
+          <tr><td class="name">Ticketing / Accommodation / Transportation / MICE</td><td class="note">Service Booking</td><td class="note">Kelola lifecycle booking penuh domain masing-masing: options → PNR/room block/manifest/BOQ → confirm/issue/voucher → amend/cancel/incident.</td><td class="note">Tidak approve lintas domain lain.</td></tr>
+          <tr><td class="name">Procurement / Vendor Management</td><td class="note">Supplier Sourcing</td><td class="note">Buat RFQ formal (invite vendor, compare, klarifikasi), pilih vendor pemenang, kelola Service Order &amp; Supplier Invoice, Procurement Performance Review.</td><td class="note">Keputusan pemilihan vendor pemenang RFQ (bukan approval formal berjenjang).</td></tr>
+          <tr><td class="name">Finance</td><td class="note">Finance Finalization</td><td class="note">Kelola Invoice/Payment/Credit-Debit Note/AP reconciliation per project; eksekusi "Close Finance" (Financial Closure Gate).</td><td class="note">Financial Closure Gate per project.</td></tr>
+          <tr><td class="name">Viewer / Auditor</td><td class="note">Semua fase</td><td class="note">Akses VIEW read-only lintas hampir seluruh modul untuk kebutuhan audit.</td><td class="note">Tidak approve.</td></tr>
+          <tr><td class="name">Client <span class="chip external">Eksternal</span></td><td class="note">Client Confirmation, Traveler, Commodity</td><td class="note">Terima &amp; putuskan Quotation lewat portal sendiri; submit data traveler &amp; dokumen mandiri; approve versi itinerary; ikut jalur Client–Vendor Commodity.</td><td class="note">Client Confirmation (Quotation), Itinerary Version.</td></tr>
+          <tr><td class="name">Supplier / Vendor <span class="chip external">Eksternal</span></td><td class="note">Supplier Sourcing, Commodity</td><td class="note">Merespon RFQ, publish komoditas di katalog, konfirmasi Service Order/Commodity Order milik sendiri.</td><td class="note">Tidak approve — pihak yang direspon/dipilih.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>2. Diagram Alur Utama</h2>
+      <span class="section-note">Dikelompokkan per fase — lihat bagian 3 untuk rincian role/approval tiap langkah</span>
     </div>
     <div class="flow-diagram">
       <div class="flow-phase">
@@ -580,7 +719,7 @@
           <span class="flow-step"><span class="flow-step-num">18</span>Readiness</span>
         </div>
         <div class="flow-branch">
-          <strong>Jalur tambahan (additive):</strong> Client–Vendor Commodity beririsan di sini — Vendor Publish → Client Katalog/Requirement/Selection → Soft Hold → Confirmation → Sold, sebagai alternatif/pelengkap Supplier Sourcing (#16) dan Service Booking (#17). Detail: bagian 4.
+          <strong>Jalur tambahan (additive):</strong> Client–Vendor Commodity beririsan di sini — Vendor Publish → Client Katalog/Requirement/Selection → Soft Hold → Confirmation → Sold, sebagai alternatif/pelengkap Supplier Sourcing (#16) dan Service Booking (#17). Detail: bagian 6.
         </div>
       </div>
 
@@ -605,53 +744,404 @@
       </div>
 
       <div class="flow-legend">
-        <div class="flow-legend-item"><span class="chip pending">Cross-cutting</span><span>Documents/Communication, Dashboard/Reports, Administration, dan Permission Boundary berlaku di SEMUA fase 1–7, bukan satu titik saja (lihat bagian 3).</span></div>
+        <div class="flow-legend-item"><span class="chip pending">Cross-cutting</span><span>Documents/Communication, Dashboard/Reports, Administration, dan Permission Boundary berlaku di SEMUA fase 1–7, bukan satu titik saja (lihat bagian 7).</span></div>
       </div>
     </div>
   </section>
 
   <section>
     <div class="section-head">
-      <h2>23 Langkah Workflow Utama</h2>
-      <span class="section-note">Status, route, dan implementasi aktual per langkah</span>
+      <h2>3. Alur Detail per Langkah — Role &amp; Approval</h2>
+      <span class="section-note">Setiap langkah: siapa mengerjakan, apa saja sub-langkahnya, dan siapa yang approve (bila ada)</span>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th class="num">#</th><th>Langkah</th><th>Status</th><th>Route Utama</th><th>Ringkasan Implementasi</th></tr></thead>
-        <tbody>
-          <tr><td class="num">1</td><td class="name">Public Lead</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/lead-intake</td><td class="note">Form publik tanpa login, 4 kategori, consent, deteksi duplikat</td></tr>
-          <tr><td class="num">1b</td><td class="name">Manual Lead</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/customer-journey/leads</td><td class="note">Dialog "New Lead" dibuat langsung Sales</td></tr>
-          <tr><td class="num">2</td><td class="name">Sales Qualification</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/customer-journey/leads</td><td class="note">Tab Qualification 13 field, gate kelengkapan</td></tr>
-          <tr><td class="num">3</td><td class="name">Assign Account Executive</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">(form Qualification)</td><td class="note">Field "AE yang Menerima Lead"</td></tr>
-          <tr><td class="num">4</td><td class="name">Opportunity</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/opportunities</td><td class="note">Auto-create saat Lead di-qualify, no-duplicate Party</td></tr>
-          <tr><td class="num">5</td><td class="name">Requirement Detail</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/opportunities/[id]</td><td class="note">14 field kebutuhan, gate sebelum Quotation</td></tr>
-          <tr><td class="num">6</td><td class="name">Product Planning &amp; Costing</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/product-planning</td><td class="note">Template produk + cost sheet, snapshot ke Quotation</td></tr>
-          <tr><td class="num">7</td><td class="name">Quotation</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/opportunities/[id]</td><td class="note">Create/Edit/Versi/Compare/Send/Withdraw, preview PDF</td></tr>
-          <tr><td class="num">8</td><td class="name">Management Approval</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/quotations</td><td class="note">Antrean approval komersial</td></tr>
-          <tr><td class="num">9</td><td class="name">Client Confirmation</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/client/opportunities/[id]</td><td class="note">Self-service Client: Accept/Reject/Request Revision</td></tr>
-          <tr class="highlight"><td class="num">10</td><td class="name">Opportunity Won</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/opportunities/[id]</td><td class="note">Tombol "Mark as Won" satu langkah</td></tr>
-          <tr class="highlight"><td class="num">11</td><td class="name">Active Client</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">(otomatis)</td><td class="note">Party.lifecycleStatus prospect → client</td></tr>
-          <tr><td class="num">12</td><td class="name">Project Order</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Project dibuat otomatis saat Won</td></tr>
-          <tr><td class="num">13</td><td class="name">AE-to-PM Handover</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Accept/Return Handover eksplisit oleh PM</td></tr>
-          <tr><td class="num">14</td><td class="name">Planning</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Status draft/planning, seluruh tab aktif</td></tr>
-          <tr><td class="num">15</td><td class="name">Traveler Collection</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id], /client/project-orders/[id]</td><td class="note">Data traveler, dokumen, rooming list, submission mandiri Client</td></tr>
-          <tr><td class="num">16</td><td class="name">Supplier Sourcing</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/procurement, /supplier/rfq</td><td class="note">RFQ formal invite/compare/klarifikasi/select</td></tr>
-          <tr><td class="num">17</td><td class="name">Service Booking</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/ticketing, /accommodation, /transportation, /mice, /bookings</td><td class="note">Lifecycle penuh per domain + konsolidasi timeline</td></tr>
-          <tr><td class="num">18</td><td class="name">Readiness</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Departure Readiness Gate — advisory, tidak memblokir</td></tr>
-          <tr class="highlight"><td class="num">19</td><td class="name">On Trip / Event</td><td class="status"><span class="chip partial">Sebagian</span></td><td class="mono note">run sheet, detail booking per domain</td><td class="note">Status ongoing-trip, run sheet, shift notes ada; belum lifecycle on-trip terpadu lintas domain</td></tr>
-          <tr><td class="num">20</td><td class="name">Changes / Incident</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/changes</td><td class="note">Change Request/Cancellation/Refund/Incident terstruktur</td></tr>
-          <tr><td class="num">21</td><td class="name">Finance Finalization</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/finance/invoices, /finance/reconciliation</td><td class="note">Invoice/Payment/Credit-Debit Note/Financial Closure Gate</td></tr>
-          <tr><td class="num">22</td><td class="name">Completed</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">(status project)</td><td class="note">ProjectStatus.completed</td></tr>
-          <tr class="highlight"><td class="num">23</td><td class="name">Closed</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Project Closure Gate — finance settled, service terminal, tidak ada incident/change terbuka</td></tr>
-        </tbody>
-      </table>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>Fase 1 — Lead &amp; Sales</h3></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">1</span><strong>Public / Manual Lead</strong><span class="step-route">/lead-intake · /customer-journey/leads</span></div>
+          <div class="role-tags"><span class="chip role">Sales</span><span class="chip external">Prospek (publik)</span></div>
+          <ul class="step-detail">
+            <li>Lead publik masuk lewat form <span class="mono">/lead-intake</span> tanpa login — 4 kategori kebutuhan, consent, deteksi duplikat otomatis (cocokkan nomor telp/email).</li>
+            <li>Atau <strong>Sales</strong> membuat Lead manual langsung lewat dialog "New Lead" di <span class="mono">/customer-journey/leads</span> (mis. hasil kontak telepon/WA/event).</li>
+            <li>Sistem menampilkan badge "Possible Duplicate" bila ada Lead lama dengan telp/email sama — Sales bisa menandainya sebagai duplikat (arsip-dengan-referensi).</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">2</span><strong>Sales Qualification</strong><span class="step-route">/customer-journey/leads (drawer)</span></div>
+          <div class="role-tags"><span class="chip role">Sales</span></div>
+          <ul class="step-detail">
+            <li>Sales mengisi tab Qualification pada drawer Lead — 13 field: travel type, destination, period, traveler estimate, service scope, budget range, decision maker, urgency, expected close date, notes, dan AE penerima.</li>
+            <li>Bisa disimpan sebagai <strong>draft</strong> dulu bila belum lengkap (tombol "Simpan Draft").</li>
+            <li>Tombol "Qualify &amp; Create Opportunity" tetap <strong>disabled</strong> sampai seluruh field minimum terisi — ini gerbang kelengkapan data, bukan approval berjenjang.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">3</span><strong>Assign Account Executive</strong><span class="step-route">bagian dari form Qualification</span></div>
+          <div class="role-tags"><span class="chip role">Sales</span></div>
+          <ul class="step-detail">
+            <li>Sales menentukan field "AE yang Menerima Lead" (<span class="mono">Lead.handedOverTo</span>) — AE inilah yang akan memegang Opportunity begitu Lead di-qualify.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">4</span><strong>Opportunity</strong><span class="step-route">/crm/opportunities</span></div>
+          <div class="role-tags"><span class="chip role">Sales</span><span class="chip system">Otomatis oleh sistem</span></div>
+          <ul class="step-detail">
+            <li>Sales klik "Qualify &amp; Create Opportunity" → sistem otomatis membuat <strong>Opportunity</strong> dan (bila belum ada) <strong>Party</strong> perusahaan terkait — dicek dulu agar tidak duplikat company.</li>
+            <li>Lead terkunci (idempotent) — tidak bisa di-qualify dua kali jadi dua Opportunity berbeda.</li>
+            <li>Opportunity langsung muncul di worklist AE yang ditunjuk di langkah 3, siap dikerjakan.</li>
+          </ul>
+        </div>
+
+      </div>
     </div>
-    <p style="color:var(--ink-soft); font-size:0.85rem; margin-top:10px;">Catatan status: ringkasan penutup dokumen sumber (<span class="mono">docs/frontend-workflow-map.md</span>) menyebut seluruh 23 langkah "selesai", namun baris #19 pada tabel yang sama tetap ditandai eksplisit <strong>Sebagian</strong>. Dokumen ini mengikuti status per-baris yang lebih spesifik.</p>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>Fase 2 — Deal Making</h3></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">5</span><strong>Requirement Detail</strong><span class="step-route">/crm/opportunities/[id]</span></div>
+          <div class="role-tags"><span class="chip role">Account Executive</span></div>
+          <ul class="step-detail">
+            <li>AE melengkapi 14 field kebutuhan: product/service scope, komposisi traveler, preferences, payment terms, risks, catatan komersial/operasional.</li>
+            <li>Ada completion indicator — harus penuh dulu sebelum tombol "Create Quotation" aktif (gerbang kelengkapan data, sama pola dengan Lead Qualification).</li>
+            <li>AE bisa mengedit requirement kapan saja tanpa menghapus histori qualification yang diisi Sales sebelumnya.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">6</span><strong>Product Planning &amp; Costing</strong><span class="step-route">/product-planning, /product-planning/cost-sheets</span></div>
+          <div class="role-tags"><span class="chip role">Product Planner / Travel Consultant</span></div>
+          <ul class="step-detail">
+            <li>Product Planner menyiapkan Product Template (katalog paket/servis) dan Cost Sheet per traveler (base cost, markup, pajak, kontingensi).</li>
+            <li>Berjalan paralel dengan langkah 5 — hasil costing inilah yang nanti di-snapshot AE menjadi line item pada Quotation (langkah 7), bukan AE menghitung dari nol.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">7</span><strong>Quotation</strong><span class="step-route">/crm/opportunities/[id], preview PDF</span></div>
+          <div class="role-tags"><span class="chip role">Account Executive</span></div>
+          <ul class="step-detail">
+            <li>AE membuat Quotation (line items/service breakdown, tax/fee, markup, discount, currency, valid until, payment terms, inclusions/exclusions, terms &amp; conditions).</li>
+            <li>Lihat panduan lengkap langkah-demi-langkah di <strong>bagian 5</strong> dokumen ini.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">8</span><strong>Management Approval</strong><span class="step-route">/crm/quotations</span></div>
+          <div class="role-tags"><span class="chip role">Account Executive</span><span class="chip approve">Management / Super Admin</span></div>
+          <ul class="step-detail">
+            <li>AE submit quotation (status <span class="mono">draft → submitted</span>) → masuk antrean "Menunggu Approval" di <span class="mono">/crm/quotations</span>.</li>
+            <li>Management membuka detail review: nilai quotation, discount, tax/fee, markup, estimated margin, payment terms, valid until, service breakdown, tingkat kompleksitas, dan catatan risiko.</li>
+          </ul>
+          <div class="step-approval"><strong>Gerbang Approval:</strong> hanya role dengan akses <span class="mono">canApprove('crm')</span> — <strong>Management</strong> atau <strong>Super Admin</strong> — yang bisa Approve/Reject. AE, Sales, Finance, dan role lain hanya bisa membaca detailnya. Reject <strong>wajib diisi catatan</strong> dan otomatis berfungsi sebagai "Return for Revision" — AE harus membuat versi baru dan submit ulang (balik ke langkah 7).</div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">9</span><strong>Client Confirmation</strong><span class="step-route">/client/opportunities/[id]</span></div>
+          <div class="role-tags"><span class="chip role">Account Executive</span><span class="chip external approve">Client</span></div>
+          <ul class="step-detail">
+            <li>Setelah quotation <span class="mono">approved</span>, AE menekan "Send to Client" (mock, menandai <span class="mono">sentToClientAt</span>).</li>
+            <li>Client login ke portal sendiri, membuka detail quotation lengkap, lalu memilih <strong>Accept</strong>, <strong>Reject</strong>, atau <strong>Request Revision</strong> — self-service, bukan dikerjakan oleh AE.</li>
+          </ul>
+          <div class="step-approval"><strong>Gerbang Approval:</strong> <strong>Client</strong> sendiri yang memutuskan di portalnya. Accept → <span class="mono">clientConfirmedAt</span> tercatat, membuka gerbang Mark as Won untuk AE. Reject/Request Revision → balik ke AE untuk merevisi quotation (versi baru → submit ulang ke Management di langkah 8).</div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>Fase 3 — Won &amp; Activation</h3></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">10</span><strong>Opportunity Won</strong><span class="step-route">/crm/opportunities/[id]</span></div>
+          <div class="role-tags"><span class="chip role">Account Executive</span></div>
+          <ul class="step-detail">
+            <li>AE klik "Mark as Won" — satu tombol, satu langkah.</li>
+            <li>AE juga bisa "Mark as Lost" di titik mana pun sebelum Won bila deal tidak berlanjut.</li>
+          </ul>
+          <div class="step-approval"><strong>Gerbang ganda (data-level, bukan approval manual baru):</strong> tombol hanya aktif bila <span class="mono">quotation.approvalStatus === 'approved'</span> <em>DAN</em> <span class="mono">opportunity.clientConfirmedAt</span> sudah terisi. Kedua syarat divalidasi di UI maupun di level data (defense-in-depth) — bila belum lengkap, tombol disabled dengan pesan yang menyebut gerbang mana yang belum terpenuhi.</div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">11</span><strong>Active Client</strong><span class="step-route">otomatis</span></div>
+          <div class="role-tags"><span class="chip system">Otomatis oleh sistem</span></div>
+          <ul class="step-detail">
+            <li><span class="mono">Party.lifecycleStatus</span> berubah <span class="mono">prospect → client</span>, tanpa duplikasi company (dedup by name).</li>
+            <li>AE otomatis tercatat sebagai <span class="mono">accountOwnerId</span> di Party tersebut.</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>Fase 4 — Project Setup</h3></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">12</span><strong>Project Order</strong><span class="step-route">/projects/[id]</span></div>
+          <div class="role-tags"><span class="chip system">Otomatis oleh sistem</span></div>
+          <ul class="step-detail">
+            <li><strong>Project</strong> dibuat otomatis begitu Opportunity Won, Project Manager default di-assign.</li>
+            <li>Ada guard anti-duplikat: bila Opportunity ini sudah pernah punya Project (<span class="mono">projectId</span> terisi), sistem mengembalikan project yang sama, tidak membuat baru.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">13</span><strong>AE-to-PM Handover</strong><span class="step-route">/projects/[id] (tab Overview)</span></div>
+          <div class="role-tags"><span class="chip role">Account Executive</span><span class="chip approve">Project Manager / Super Admin</span></div>
+          <ul class="step-detail">
+            <li>Project baru berstatus menunggu handover — AE menyerahkan konteks deal ke PM yang ditunjuk.</li>
+          </ul>
+          <div class="step-approval"><strong>Gerbang Approval:</strong> hanya <strong>Project Manager</strong> (atau Super Admin) yang bisa "Accept Handover" (lanjut ke Planning) atau "Return Handover" (wajib isi alasan, balik ke AE untuk klarifikasi sebelum project mulai dikerjakan).</div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">14</span><strong>Planning</strong><span class="step-route">/projects/[id]</span></div>
+          <div class="role-tags"><span class="chip role">Project Manager</span></div>
+          <ul class="step-detail">
+            <li>PM mengelola seluruh tab Project Detail — Team, Risks, Tasks, Itinerary, dsb. Status project <span class="mono">draft</span>/<span class="mono">planning</span>.</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>Fase 5 — Fulfillment</h3></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">15</span><strong>Traveler Collection</strong><span class="step-route">/projects/[id], /client/project-orders/[id]</span></div>
+          <div class="role-tags"><span class="chip role">Project Manager</span><span class="chip external">Client</span></div>
+          <ul class="step-detail">
+            <li>Data traveler, dokumen (paspor/visa), rooming list dikelola dari sisi internal oleh PM, ATAU disubmit mandiri oleh <strong>Client</strong> lewat portalnya sendiri.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">16</span><strong>Supplier Sourcing</strong><span class="step-route">/procurement, /supplier/rfq</span></div>
+          <div class="role-tags"><span class="chip role">Procurement / Vendor Management</span><span class="chip external">Supplier / Vendor</span></div>
+          <ul class="step-detail">
+            <li>Procurement membuat RFQ formal (invite beberapa vendor, compare penawaran, klarifikasi).</li>
+            <li>Supplier merespon lewat portalnya sendiri (<span class="mono">/supplier/rfq</span>).</li>
+            <li>Procurement memilih vendor pemenang — ini <strong>keputusan sourcing</strong> oleh Procurement sendiri, bukan approval berjenjang ke Management.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">17</span><strong>Service Booking</strong><span class="step-route">/ticketing, /accommodation, /transportation, /mice, /bookings</span></div>
+          <div class="role-tags"><span class="chip role">Ticketing</span><span class="chip role">Accommodation</span><span class="chip role">Transportation</span><span class="chip role">MICE</span><span class="chip role">Operations</span></div>
+          <ul class="step-detail">
+            <li>Masing-masing role domain mengelola lifecycle bookingnya sendiri penuh: options → PNR/room block/manifest/BOQ → confirm/issue/voucher → amend/cancel/incident.</li>
+            <li>Operations mengonsolidasikan seluruh booking lintas domain lewat "Booking &amp; Service Order Center" (<span class="mono">/bookings</span>).</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">18</span><strong>Readiness</strong><span class="step-route">/projects/[id] (tab Itinerary &amp; Services)</span></div>
+          <div class="role-tags"><span class="chip role">Project Manager</span><span class="chip role">Operations</span></div>
+          <ul class="step-detail">
+            <li>Departure Readiness Gate dan Service Readiness Matrix menampilkan blocker yang belum beres — sifatnya <strong>advisory</strong> (tidak memblokir aksi lain), murni alat bantu keputusan PM/Operations.</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>Fase 6 — Delivery</h3></div>
+      <div class="phase-body">
+
+        <div class="step-card is-partial">
+          <div class="step-title"><span class="step-num">19</span><strong>On Trip / Event</strong><span class="chip partial">Sebagian</span><span class="step-route">run sheet, detail booking per domain</span></div>
+          <div class="role-tags"><span class="chip role">Operations</span><span class="chip role">Ticketing / Accommodation / Transportation / MICE</span></div>
+          <ul class="step-detail">
+            <li>Status <span class="mono">ongoing-trip</span>, run sheet, dan shift notes sudah ada per domain booking.</li>
+            <li><strong>Gap:</strong> belum ada satu lifecycle "on-trip" terpadu yang merangkum seluruh domain dalam satu tampilan (lihat bagian 8, Known Gaps).</li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="phase-block">
+      <div class="phase-head"><h3>Fase 7 — Closure</h3></div>
+      <div class="phase-body">
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">20</span><strong>Changes / Incident</strong><span class="step-route">/changes</span></div>
+          <div class="role-tags"><span class="chip role">Operations / Project Manager</span><span class="chip approve">Management / Super Admin</span></div>
+          <ul class="step-detail">
+            <li>Operations atau PM membuat draft Change Request/Cancellation/Refund/Incident, mengisi asesmen dampak operasional/komersial/finansial/timeline, lalu submit.</li>
+          </ul>
+          <div class="step-approval"><strong>Gerbang Approval:</strong> hanya <strong>Management</strong> atau <strong>Super Admin</strong> (<span class="mono">canApprove('project')</span>) yang bisa Approve/Reject Change Request maupun Refund. Reject wajib diisi alasan. Setelah approve, Operations/PM lanjut memproses status under-review → processed.</div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">21</span><strong>Finance Finalization</strong><span class="step-route">/finance/invoices, /finance/reconciliation</span></div>
+          <div class="role-tags"><span class="chip approve">Finance</span></div>
+          <ul class="step-detail">
+            <li>Finance mengelola Invoice, Payment, Credit/Debit Note, dan AP reconciliation per project.</li>
+          </ul>
+          <div class="step-approval"><strong>Gerbang Approval:</strong> hanya <strong>Finance</strong> (<span class="mono">canManage('finance')</span>) yang bisa mengeksekusi "Close Finance" (Financial Closure Gate) — tombol disabled dan menampilkan daftar blocker (mis. invoice belum settled/reconciliation belum beres) sampai seluruhnya lunas.</div>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">22</span><strong>Completed</strong><span class="step-route">status project</span></div>
+          <div class="role-tags"><span class="chip system">Otomatis oleh sistem</span></div>
+          <ul class="step-detail">
+            <li><span class="mono">ProjectStatus.completed</span> — penanda seluruh service delivery selesai.</li>
+          </ul>
+        </div>
+
+        <div class="step-card">
+          <div class="step-title"><span class="step-num">23</span><strong>Closed</strong><span class="step-route">/projects/[id] (tab Overview)</span></div>
+          <div class="role-tags"><span class="chip approve">Project Manager / Management / Super Admin</span></div>
+          <ul class="step-detail">
+            <li>Sistem mengevaluasi Project Closure Gate: finance sudah settled (langkah 21), seluruh service booking berstatus terminal, dan tidak ada Change Request/Incident yang masih terbuka.</li>
+          </ul>
+          <div class="step-approval"><strong>Gerbang Approval:</strong> "Close Project" hanya bisa dieksekusi oleh <strong>Project Manager</strong> atau <strong>Management</strong> (atau Super Admin) setelah gate lolos — final note wajib diisi, client feedback opsional.</div>
+        </div>
+
+      </div>
+    </div>
   </section>
 
   <section>
     <div class="section-head">
-      <h2>Cross-Cutting Layer</h2>
+      <h2>4. Referensi Cepat — 23 Langkah, Route, Role, dan Approval</h2>
+      <span class="section-note">Ringkasan tabel dari bagian 3, untuk pencarian cepat</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th class="num">#</th><th>Langkah</th><th>Status</th><th>Route Utama</th><th>Role Penanggung Jawab</th><th>Approval</th></tr></thead>
+        <tbody>
+          <tr><td class="num">1</td><td class="name">Public/Manual Lead</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/lead-intake</td><td class="note">Sales</td><td class="note">—</td></tr>
+          <tr><td class="num">2</td><td class="name">Sales Qualification</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/customer-journey/leads</td><td class="note">Sales</td><td class="note">—</td></tr>
+          <tr><td class="num">3</td><td class="name">Assign Account Executive</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">(form Qualification)</td><td class="note">Sales</td><td class="note">—</td></tr>
+          <tr><td class="num">4</td><td class="name">Opportunity</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/opportunities</td><td class="note">Sales → Otomatis</td><td class="note">—</td></tr>
+          <tr><td class="num">5</td><td class="name">Requirement Detail</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/opportunities/[id]</td><td class="note">Account Executive</td><td class="note">—</td></tr>
+          <tr><td class="num">6</td><td class="name">Product Planning &amp; Costing</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/product-planning</td><td class="note">Product Planner</td><td class="note">—</td></tr>
+          <tr><td class="num">7</td><td class="name">Quotation</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/opportunities/[id]</td><td class="note">Account Executive</td><td class="note">—</td></tr>
+          <tr class="highlight"><td class="num">8</td><td class="name">Management Approval</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/quotations</td><td class="note">AE ajukan</td><td class="note"><strong>Management / Super Admin</strong></td></tr>
+          <tr class="highlight"><td class="num">9</td><td class="name">Client Confirmation</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/client/opportunities/[id]</td><td class="note">AE kirim</td><td class="note"><strong>Client</strong></td></tr>
+          <tr><td class="num">10</td><td class="name">Opportunity Won</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/crm/opportunities/[id]</td><td class="note">Account Executive</td><td class="note">Gerbang data (approved+confirmed)</td></tr>
+          <tr><td class="num">11</td><td class="name">Active Client</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">(otomatis)</td><td class="note">Otomatis</td><td class="note">—</td></tr>
+          <tr><td class="num">12</td><td class="name">Project Order</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Otomatis</td><td class="note">—</td></tr>
+          <tr class="highlight"><td class="num">13</td><td class="name">AE-to-PM Handover</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">AE serahkan</td><td class="note"><strong>Project Manager</strong></td></tr>
+          <tr><td class="num">14</td><td class="name">Planning</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Project Manager</td><td class="note">—</td></tr>
+          <tr><td class="num">15</td><td class="name">Traveler Collection</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id], /client/project-orders/[id]</td><td class="note">Project Manager, Client</td><td class="note">—</td></tr>
+          <tr><td class="num">16</td><td class="name">Supplier Sourcing</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/procurement, /supplier/rfq</td><td class="note">Procurement</td><td class="note">Keputusan sourcing (Procurement)</td></tr>
+          <tr><td class="num">17</td><td class="name">Service Booking</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/ticketing, /accommodation, /transportation, /mice, /bookings</td><td class="note">Ticketing/Accommodation/Transportation/MICE, Operations</td><td class="note">—</td></tr>
+          <tr><td class="num">18</td><td class="name">Readiness</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Project Manager, Operations</td><td class="note">—</td></tr>
+          <tr class="highlight"><td class="num">19</td><td class="name">On Trip / Event</td><td class="status"><span class="chip partial">Sebagian</span></td><td class="mono note">run sheet, detail booking per domain</td><td class="note">Operations, domain roles</td><td class="note">—</td></tr>
+          <tr class="highlight"><td class="num">20</td><td class="name">Changes / Incident</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/changes</td><td class="note">Operations/PM ajukan</td><td class="note"><strong>Management / Super Admin</strong></td></tr>
+          <tr class="highlight"><td class="num">21</td><td class="name">Finance Finalization</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/finance/invoices, /finance/reconciliation</td><td class="note">Finance</td><td class="note"><strong>Finance</strong> (Close Finance)</td></tr>
+          <tr><td class="num">22</td><td class="name">Completed</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">(status project)</td><td class="note">Otomatis</td><td class="note">—</td></tr>
+          <tr class="highlight"><td class="num">23</td><td class="name">Closed</td><td class="status"><span class="chip done">Selesai</span></td><td class="mono note">/projects/[id]</td><td class="note">Project Manager/Management ajukan</td><td class="note"><strong>Project Manager / Management</strong> (Close Project)</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="color:var(--ink-soft); font-size:0.85rem; margin-top:10px;">Catatan status: baris #19 tetap ditandai eksplisit <strong>Sebagian</strong> — dokumen ini mengikuti status per-baris yang lebih spesifik, tidak menuliskan "100%" selama masih ada baris belum penuh.</p>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>5. Cara Membuat Quotation — Langkah Detail</h2>
+      <span class="section-note">Role: Account Executive (dan Management/Client di gerbang approval)</span>
+    </div>
+    <div class="phase-block">
+      <div class="phase-body">
+        <ol class="howto">
+          <li>
+            <strong>Pastikan prasyarat terpenuhi.</strong>
+            <p>Buka Opportunity Detail (<span class="mono">/crm/opportunities/[id]</span>) dan cek indikator kelengkapan Requirement Detail (14 field, langkah 5). Tombol "Create Quotation" tetap disabled sampai requirement ini penuh.</p>
+            <div class="role-tags"><span class="chip role">Account Executive</span></div>
+          </li>
+          <li>
+            <strong>Ambil basis harga dari Product Planning (opsional tapi disarankan).</strong>
+            <p>Bila Product Planner sudah menyiapkan Cost Sheet untuk deal ini (<span class="mono">/product-planning/cost-sheets</span>), AE bisa menyalin/snapshot nilai tersebut ke line item quotation alih-alih menghitung manual dari nol.</p>
+            <div class="role-tags"><span class="chip role">Account Executive</span><span class="chip role">Product Planner</span></div>
+          </li>
+          <li>
+            <strong>Isi form Quotation.</strong>
+            <p>Lengkapi service breakdown/line items, <strong>Tax/Fee</strong>, <strong>Markup</strong>, <strong>Discount</strong>, <strong>Currency</strong>, <strong>Valid Until</strong>, <strong>Payment Terms</strong>, <strong>Inclusions</strong>, <strong>Exclusions</strong>, dan <strong>Terms &amp; Conditions</strong>. Total otomatis terhitung dari komponen di atas.</p>
+            <div class="role-tags"><span class="chip role">Account Executive</span></div>
+          </li>
+          <li>
+            <strong>Simpan sebagai draft.</strong>
+            <p>Quotation berstatus <span class="mono">draft</span> — bisa diedit berkali-kali, di-Duplicate (untuk membuat varian tanpa mengganggu versi asal), atau dibandingkan dengan versi sebelumnya lewat panel "Compare Versions" bila ini bukan versi pertama.</p>
+            <div class="role-tags"><span class="chip role">Account Executive</span></div>
+          </li>
+          <li>
+            <strong>Cek tampilan final lewat PDF/Print Preview.</strong>
+            <p>Buka halaman <span class="mono">quotation-preview</span> (dokumen print-friendly: header, Bill To, Trip Detail, tabel service breakdown, subtotal/discount/tax/markup/total, inclusions/exclusions/terms) sebelum dikirim. Bisa dilihat siapa pun yang punya akses <span class="mono">canView('crm')</span>, tidak hanya AE.</p>
+            <div class="role-tags"><span class="chip role">Account Executive</span></div>
+          </li>
+          <li class="is-gate">
+            <strong>Submit for Approval.</strong>
+            <p>Status berubah <span class="mono">draft → submitted</span>, masuk antrean "Menunggu Approval" di <span class="mono">/crm/quotations</span>. AE masih bisa "Withdraw Submission" bila perlu menarik kembali sebelum diputuskan.</p>
+            <div class="role-tags"><span class="chip role">Account Executive</span><span class="chip approve">→ Management / Super Admin</span></div>
+          </li>
+          <li class="is-gate">
+            <strong>Management review dan putuskan.</strong>
+            <p><strong>Hanya Management atau Super Admin</strong> yang bisa Approve atau Reject di sini — mereka meninjau margin, discount, tax/fee, markup, estimated margin, tingkat kompleksitas, dan catatan risiko. <strong>Approve</strong> → status <span class="mono">approved</span>, lanjut ke langkah 7. <strong>Reject</strong> (wajib catatan) → berfungsi sebagai "Return for Revision", kembali ke AE di langkah 3–4 untuk membuat versi baru lalu submit ulang.</p>
+            <div class="role-tags"><span class="chip approve">Management / Super Admin</span></div>
+          </li>
+          <li>
+            <strong>Kirim ke Client.</strong>
+            <p>Setelah <span class="mono">approved</span>, AE menekan "Send to Client" (mock) — quotation ditandai terkirim (<span class="mono">sentToClientAt</span>).</p>
+            <div class="role-tags"><span class="chip role">Account Executive</span></div>
+          </li>
+          <li class="is-gate">
+            <strong>Client memutuskan.</strong>
+            <p>Client login ke portalnya (<span class="mono">/client/opportunities/[id]</span>) dan memilih <strong>Accept</strong>, <strong>Reject</strong>, atau <strong>Request Revision</strong> secara self-service. Accept → <span class="mono">clientConfirmedAt</span> tercatat. Reject/Request Revision → balik ke AE untuk revisi (versi baru, submit ulang ke langkah 6).</p>
+            <div class="role-tags"><span class="chip external approve">Client</span></div>
+          </li>
+          <li class="is-gate">
+            <strong>Mark as Won.</strong>
+            <p>Setelah quotation <span class="mono">approved</span> DAN <span class="mono">clientConfirmedAt</span> terisi, AE bisa menekan "Mark as Won" — memicu otomatis: Party jadi Active Client, Project Order dibuat, AE tetap Account Owner, PM default di-assign, dan seluruh aktivitas tercatat di histori.</p>
+            <div class="role-tags"><span class="chip role">Account Executive</span></div>
+          </li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>6. Approval Gates — Ringkasan Seluruh Flow</h2>
+      <span class="section-note">Bukan hanya Quotation — seluruh titik persetujuan dari Lead sampai Closed</span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Gerbang</th><th>Diajukan Oleh</th><th>Diputuskan Oleh</th><th>Rule</th><th>Bila Ditolak/Dikembalikan</th></tr></thead>
+        <tbody>
+          <tr><td class="name">Commercial Approval (Quotation)</td><td class="note">Account Executive</td><td class="note"><strong>Management / Super Admin</strong></td><td class="note">Review margin/diskon/pajak/markup/risk; catatan wajib saat reject</td><td class="note">AE wajib buat versi Quotation baru dan submit ulang</td></tr>
+          <tr><td class="name">Client Confirmation</td><td class="note">AE (kirim quotation)</td><td class="note"><strong>Client</strong></td><td class="note">Self-service Accept/Reject/Request Revision di portal Client</td><td class="note">Balik ke AE untuk revisi quotation (versi baru, approval ulang)</td></tr>
+          <tr><td class="name">Mark as Won</td><td class="note">Account Executive</td><td class="note">Sistem (gerbang data)</td><td class="note">Wajib <span class="mono">approved</span> DAN <span class="mono">clientConfirmedAt</span> terisi sekaligus</td><td class="note">Tombol disabled + pesan gerbang mana yang belum terpenuhi</td></tr>
+          <tr><td class="name">AE-to-PM Handover</td><td class="note">Sistem (otomatis saat Won)</td><td class="note"><strong>Project Manager / Super Admin</strong></td><td class="note">PM Accept atau Return (alasan wajib saat Return)</td><td class="note">Balik ke AE untuk klarifikasi sebelum Planning dimulai</td></tr>
+          <tr><td class="name">Change Request</td><td class="note">Operations / Project Manager</td><td class="note"><strong>Management / Super Admin</strong></td><td class="note">Asesmen dampak operasional/komersial/finansial/timeline dulu, baru diputuskan</td><td class="note">Reject wajib reason, request tidak dieksekusi</td></tr>
+          <tr><td class="name">Refund</td><td class="note">Operations / Project Manager</td><td class="note"><strong>Management / Super Admin</strong></td><td class="note">Pola sama Change Request</td><td class="note">Reject wajib reason</td></tr>
+          <tr><td class="name">Itinerary Version</td><td class="note">Project Manager / Operations</td><td class="note"><strong>Client</strong></td><td class="note">Client approve versi itinerary yang diajukan</td><td class="note">Versi tetap draft/pending, belum jadi acuan resmi</td></tr>
+          <tr><td class="name">Financial Closure Gate ("Close Finance")</td><td class="note">Sistem (evaluasi otomatis)</td><td class="note"><strong>Finance</strong></td><td class="note">Seluruh invoice project settled, reconciliation beres</td><td class="note">Tombol Close Finance disabled + daftar blocker</td></tr>
+          <tr><td class="name">Project Closure Gate ("Close Project")</td><td class="note">Sistem (evaluasi otomatis)</td><td class="note"><strong>Project Manager / Management / Super Admin</strong></td><td class="note">Finance settled + seluruh service booking terminal + tidak ada Change Request/Incident terbuka</td><td class="note">Tombol Close disabled + daftar blocker, final note wajib saat berhasil</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>7. Cross-Cutting Layer</h2>
       <span class="section-note">Tidak menambah langkah baru — melengkapi SELURUH langkah di atas</span>
     </div>
     <div class="table-wrap">
@@ -669,7 +1159,7 @@
 
   <section>
     <div class="section-head">
-      <h2>Jalur Tambahan — Client–Vendor Commodity</h2>
+      <h2>8. Jalur Tambahan — Client–Vendor Commodity</h2>
       <span class="section-note">Bukan bagian dari 23 langkah Workflow Utama — beririsan dengan #15–#17</span>
     </div>
     <div class="phase-block">
@@ -685,6 +1175,7 @@
           <span class="flow-step">Confirmation</span><span class="flow-arrow">→</span>
           <span class="flow-step" style="background:var(--done-soft); color:var(--done-ink); border-color:var(--done);">Sold</span>
         </div>
+        <div class="role-tags"><span class="chip external">Vendor / Supplier</span><span class="chip external">Client</span></div>
         <p>Route: <span class="mono">/supplier/commodities</span>, <span class="mono">/supplier/commodity-orders</span> (Vendor); <span class="mono">/client/project-orders/[id]?tab=commodity</span>, <span class="mono">/client/catalog/[requirementId]</span> (Client). Detail penuh 13 skenario happy/alternative path, matriks CRUD, dan known limitations tetap ada di <span class="mono">docs/MANOVA-Client-Vendor-Commodity-End-to-End-Flow.md</span> dan <span class="mono">MANOVA-Client-Vendor-Commodity-End-to-End-Flow.html</span> — tidak diubah oleh dokumen ini.</p>
       </div>
     </div>
@@ -692,7 +1183,7 @@
 
   <section>
     <div class="section-head">
-      <h2>Known Gaps</h2>
+      <h2>9. Known Gaps</h2>
       <span class="section-note">Dilaporkan jujur, bukan disembunyikan — status TIDAK ditulis 100%</span>
     </div>
     <div class="risk">
@@ -708,8 +1199,8 @@
   </section>
 
   <footer>
-    <span>Sumber: docs/frontend-workflow-map.md, docs/frontend-known-issues.md, docs/MANOVA-End-to-End-Flow.md.</span>
-    <span>Per 1 Agustus 2026</span>
+    <span>Sumber: app/constants/roles.ts, app/composables/usePermissions.ts, app/data/index.ts, docs/frontend-workflow-map.md, docs/frontend-known-issues.md, docs/MANOVA-End-to-End-Flow.md.</span>
+    <span>Revisi per 3 Agustus 2026</span>
   </footer>
 
 </div>
