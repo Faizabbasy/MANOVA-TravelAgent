@@ -6,7 +6,8 @@ import {
   LogOut,
   User,
   PanelLeftClose,
-  PanelLeftOpen
+  PanelLeftOpen,
+  X
 } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import { NAV_ITEMS, type NavItem } from '~/constants/navigation'
@@ -14,8 +15,8 @@ import { NAV_ITEMS, type NavItem } from '~/constants/navigation'
 const route = useRoute()
 const router = useRouter()
 const { isCollapsed, toggle } = useSidebar()
-const { currentUser, currentRole } = useCurrentUser()
-const { canView } = usePermissions()
+const { currentUser } = useCurrentUser()
+const { canViewMenu, isRole } = usePermissions()
 
 const handleLogout = () => {
   localStorage.removeItem('isAuthenticated')
@@ -23,30 +24,68 @@ const handleLogout = () => {
   router.push('/login')
 }
 
-/** `roles` (Prompt 19) — narrow override, dicek DULU (menggantikan `moduleKey`) bila diisi; selain itu perilaku identik sebelumnya. */
+/**
+ * Visibilitas menu (Revisi 9-Modul). Urutan: override `RoleMenuGrant` per `item.key` menang, kalau tidak
+ * ada mewarisi level modul — keduanya ditangani `canViewMenu()`. Item tanpa `moduleKey` selalu tampil.
+ *
+ * `item.roles` masih didukung untuk kompatibilitas tapi sudah deprecated; pemeriksaannya lewat `isRole()`
+ * supaya role id lama tetap teresolusi ke role hasil penggabungan.
+ */
 function isNavItemVisible (item: NavItem) {
-  if (item.roles) { return item.roles.includes(currentRole.value) }
-  return !item.moduleKey || canView(item.moduleKey)
+  if (item.roles) { return isRole(...item.roles) }
+  if (!item.moduleKey) { return true }
+  return canViewMenu(item.key, item.moduleKey)
 }
 
-const visibleItems = computed(() =>
-  NAV_ITEMS.filter(isNavItemVisible).map(item => ({
-    ...item,
-    children: item.children?.filter(isNavItemVisible)
-  }))
+const allowedItems = computed(() =>
+  NAV_ITEMS
+    .filter(isNavItemVisible)
+    .map(item => ({ ...item, children: item.children?.filter(isNavItemVisible) }))
+    /** Grup yang seluruh anaknya tercabut lewat menu grant tidak perlu tampil sebagai induk kosong. */
+    .filter(item => !item.children || item.children.length > 0)
 )
+
+/**
+ * Refinement UI: kolom "Search anything..." sebelumnya tidak terhubung ke apa pun — murni UI mati yang
+ * memancing pengguna mengetik lalu tidak terjadi apa-apa. Kini ia menyaring navigasi: dengan 9 modul dan
+ * puluhan sub-menu, mengetik "opex" jauh lebih cepat daripada membuka grup satu per satu.
+ */
+const searchQuery = ref('')
+const isSearching = computed(() => searchQuery.value.trim().length > 0)
+
+const visibleItems = computed(() => {
+  if (!isSearching.value) { return allowedItems.value }
+
+  const query = searchQuery.value.trim().toLowerCase()
+  const matches = (label: string) => label.toLowerCase().includes(query)
+
+  return allowedItems.value
+    .map((item) => {
+      const matchedChildren = item.children?.filter(child => matches(child.label))
+      /** Induk yang cocok tetap menampilkan seluruh anaknya; kalau tidak, hanya anak yang cocok. */
+      if (matches(item.label)) { return { ...item, children: item.children } }
+      if (matchedChildren?.length) { return { ...item, children: matchedChildren } }
+      return undefined
+    })
+    .filter((item): item is NonNullable<typeof item> => Boolean(item))
+})
+
+const hasResults = computed(() => visibleItems.value.length > 0)
 
 const isActive = (to: string) => route.path === to
 const isSectionActive = (item: NavItem) =>
   route.path === item.to || Boolean(item.children?.some(child => route.path === child.to))
 
+/** Di-key dengan `item.key` (bukan label) — label kini bisa berubah tanpa mereset state expand. */
 const expanded = reactive<Record<string, boolean>>({})
 function isExpanded (item: NavItem) {
-  if (item.label in expanded) { return expanded[item.label] }
+  /** Saat mencari, seluruh grup dibuka agar hasil pencarian langsung terlihat tanpa klik tambahan. */
+  if (isSearching.value) { return true }
+  if (item.key in expanded) { return expanded[item.key] }
   return isSectionActive(item)
 }
 function toggleExpanded (item: NavItem) {
-  expanded[item.label] = !isExpanded(item)
+  expanded[item.key] = !isExpanded(item)
 }
 </script>
 
@@ -86,13 +125,22 @@ function toggleExpanded (item: NavItem) {
       </div>
 
       <!-- Search -->
-      <div v-if="!isCollapsed" class="px-4 py-4 shrink-0">
+      <div v-if="!isCollapsed" class="px-3 py-3 shrink-0">
         <div class="relative">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search anything..."
-            class="pl-9 bg-muted/50 border-0 h-9 text-sm"
+            v-model="searchQuery"
+            placeholder="Cari menu..."
+            class="h-9 border-0 bg-muted/60 pl-9 pr-8 text-sm"
           />
+          <button
+            v-if="isSearching"
+            class="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Bersihkan pencarian"
+            @click="searchQuery = ''"
+          >
+            <X class="h-3.5 w-3.5" />
+          </button>
         </div>
       </div>
       <div v-else class="px-3 py-4 shrink-0">
@@ -111,7 +159,7 @@ function toggleExpanded (item: NavItem) {
       <!-- Navigation -->
       <nav class="flex-1 overflow-y-auto pb-4" :class="isCollapsed ? 'px-2' : 'px-3'">
         <ul class="space-y-1">
-          <li v-for="item in visibleItems" :key="item.label">
+          <li v-for="item in visibleItems" :key="item.key">
             <!-- Collapsed: icon only with tooltip -->
             <Tooltip v-if="isCollapsed">
               <TooltipTrigger as-child>
@@ -135,18 +183,27 @@ function toggleExpanded (item: NavItem) {
             <!-- Expanded: full link, with optional nested children -->
             <template v-else>
               <div class="flex items-center gap-1">
+                <!--
+                  Refinement UI: sebelumnya induk memakai `isSectionActive` sehingga ikut menyala penuh
+                  ketika anaknya aktif — dua baris tersorot sekaligus dan sulit tahu mana halaman yang
+                  sedang dibuka. Kini sorotan penuh hanya untuk rute induk itu sendiri; bila yang aktif
+                  adalah anaknya, induk cukup menebal.
+                -->
                 <NuxtLink
                   :to="item.to"
                   :class="cn(
-                    'flex-1 flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                    isSectionActive(item)
-                      ? 'bg-sidebar-accent text-sidebar-accent-foreground'
-                      : 'text-sidebar-foreground hover:bg-muted hover:text-foreground'
+                    'flex-1 flex items-center gap-3 px-3 py-2 rounded-lg text-sm transition-colors',
+                    isActive(item.to)
+                      ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold'
+                      : isSectionActive(item)
+                        ? 'text-foreground font-semibold hover:bg-muted'
+                        : 'text-sidebar-foreground font-medium hover:bg-muted hover:text-foreground'
                   )"
                 >
                   <component :is="item.icon" class="h-4 w-4" />
                   <span class="flex-1">{{ item.label }}</span>
                   <StatusBadge v-if="item.comingSoon" label="Segera" tone="warning" />
+                  <StatusBadge v-else-if="item.isNew" label="Baru" tone="success" />
                 </NuxtLink>
                 <button
                   v-if="item.children?.length"
@@ -158,7 +215,7 @@ function toggleExpanded (item: NavItem) {
               </div>
 
               <ul v-if="item.children?.length && isExpanded(item)" class="mt-1 ml-6 space-y-1 border-l border-border pl-3">
-                <li v-for="child in item.children" :key="child.label">
+                <li v-for="child in item.children" :key="child.key">
                   <NuxtLink
                     :to="child.to"
                     :class="cn(
@@ -170,12 +227,17 @@ function toggleExpanded (item: NavItem) {
                   >
                     <span class="flex-1">{{ child.label }}</span>
                     <StatusBadge v-if="child.comingSoon" label="Segera" tone="warning" />
+                    <StatusBadge v-else-if="child.isNew" label="Baru" tone="success" />
                   </NuxtLink>
                 </li>
               </ul>
             </template>
           </li>
         </ul>
+
+        <p v-if="!isCollapsed && isSearching && !hasResults" class="px-3 py-6 text-center text-sm text-muted-foreground">
+          Tidak ada menu yang cocok dengan "{{ searchQuery }}".
+        </p>
       </nav>
 
       <!-- User Profile -->

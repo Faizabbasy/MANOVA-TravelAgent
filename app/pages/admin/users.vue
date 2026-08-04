@@ -5,8 +5,10 @@ import { USERS, suspendUser, reactivateUser } from '~/data'
 import { findStatusOption } from '~/constants/status'
 import type { User, RoleId, ModuleKey } from '~/types/user'
 
-/** Modul yang dapat diakses role tertentu (ringkas) — dari ROLE_MODULE_ACCESS existing. */
+/** Modul yang dapat diakses role tertentu (ringkas) — diturunkan dari RBAC reaktif (`app/data/rbac.ts`). */
 import { ROLES, ROLE_MODULE_ACCESS } from '~/constants/roles'
+import { BUSINESS_MODULES } from '~/constants/modules'
+import { assignUserRole } from '~/data/rbac'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Users — Administration' })
@@ -57,22 +59,32 @@ function switchToUser (userId: string) {
   closeDetail()
 }
 
+/** Guard rail (mis. memindahkan Super Admin terakhir) ditegakkan di `assignUserRole`, bukan di UI ini. */
+function onReassignRole (roleId: string) {
+  if (!selectedUser.value) { return }
+  const result = assignUserRole(selectedUser.value.id, roleId, currentUser.value.id)
+  if (result.success) {
+    showToast('Berhasil', `Role ${selectedUser.value.name} diperbarui.`, 'success')
+  } else {
+    showToast('Ditolak', result.reason ?? 'Perubahan role tidak dapat diterapkan.', 'error')
+  }
+}
+
 function getRoleLabel (roleId: RoleId): string {
-  return findStatusOption(ROLES, roleId).label
+  return findStatusOption(ROLES.value, roleId).label
 }
 
 function getRoleTone (roleId: RoleId) {
-  return findStatusOption(ROLES, roleId).tone
+  return findStatusOption(ROLES.value, roleId).tone
 }
 
-const MODULE_LABELS: { key: ModuleKey; label: string }[] = [
-  { key: 'crm', label: 'CRM' },
-  { key: 'project', label: 'Project' },
-  { key: 'vendor', label: 'Vendor' },
-  { key: 'finance', label: 'Finance' },
-  { key: 'reports', label: 'Reports' },
-  { key: 'administration', label: 'Administration' }
-]
+/**
+ * Daftar modul untuk ringkasan akses di dialog detail user. Sebelumnya 6 entri hardcoded yang sudah lama
+ * tidak sinkron dengan jumlah modul sebenarnya — kini diturunkan dari `MODULES` (`app/constants/modules.ts`)
+ * sehingga selalu ikut ketika modul bertambah/berubah.
+ */
+const MODULE_LABELS = computed<{ key: ModuleKey; label: string }[]>(() =>
+  BUSINESS_MODULES.map(module => ({ key: module.key, label: module.label })))
 
 const PERMISSION_TONE: Record<string, string> = {
   NONE: 'neutral',
@@ -371,6 +383,26 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
                 label="Login Aktif"
                 tone="success"
               />
+            </div>
+
+            <!-- Reassign role -->
+            <div v-if="canManageUsers" class="space-y-1.5">
+              <Label>Pindahkan ke Role Lain</Label>
+              <select
+                :value="selectedUser.role"
+                class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                @change="onReassignRole(($event.target as HTMLSelectElement).value)"
+              >
+                <option v-for="role in ROLES" :key="role.value" :value="role.value">
+                  {{ role.label }}
+                </option>
+              </select>
+              <p class="text-xs text-muted-foreground">
+                Konfigurasi permission tiap role diatur di
+                <NuxtLink to="/admin/roles" class="text-primary hover:underline">
+                  Roles and Permissions
+                </NuxtLink>.
+              </p>
             </div>
 
             <!-- Access matrix for this role -->

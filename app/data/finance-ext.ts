@@ -1,0 +1,353 @@
+import { reactive } from 'vue'
+import { differenceInCalendarDays, parseISO } from 'date-fns'
+import type {
+  OpexEntry,
+  OpexCategoryKey,
+  LedgerAccount,
+  LedgerAccountBalance,
+  JournalEntry,
+  JournalLine,
+  AgingBucket,
+  AgingBucketKey,
+  ReceivableRow,
+  PayableRow
+} from '~/types/finance-ext'
+import type { StatusOption } from '~/types/common'
+import { INVOICES, PAYMENTS } from './finance'
+import { PROJECTS } from './projects'
+import { PARTIES } from './parties'
+import { VENDORS } from './vendors'
+import { SUPPLIER_INVOICES, SERVICE_ORDERS } from './procurement'
+import { DEMO_REFERENCE_DATE } from '~/utils/attention'
+
+/**
+ * Finance & ACC — Opex, AR/AP, dan General Ledger (Revisi 9-Modul).
+ *
+ * Aturan yang dipegang: apa pun yang BISA diturunkan, diturunkan. Piutang berasal dari `Invoice` +
+ * `Payment`, hutang dari `SupplierInvoice`, dan jurnal dari keduanya plus Opex. Satu-satunya data baru
+ * yang benar-benar tersimpan adalah `OPEX_ENTRIES` — karena biaya operasional perusahaan memang tidak
+ * punya representasi apa pun di model data sebelumnya (`revisi.md` #2).
+ */
+
+export const OPEX_CATEGORIES: StatusOption<OpexCategoryKey>[] = [
+  { value: 'payroll', label: 'Gaji & Tunjangan', tone: 'purple', order: 1 },
+  { value: 'office', label: 'Operasional Kantor', tone: 'neutral', order: 2 },
+  { value: 'marketing', label: 'Marketing & Promosi', tone: 'primary', order: 3 },
+  { value: 'technology', label: 'Teknologi & Langganan', tone: 'info', order: 4 },
+  { value: 'travel', label: 'Perjalanan Dinas', tone: 'warning', order: 5 },
+  { value: 'professional', label: 'Jasa Profesional', tone: 'info', order: 6 },
+  { value: 'other', label: 'Lain-lain', tone: 'neutral', order: 7 }
+]
+
+export const OPEX_STATUSES: StatusOption<OpexEntry['status']>[] = [
+  { value: 'draft', label: 'Draft', tone: 'neutral', order: 1 },
+  { value: 'submitted', label: 'Diajukan', tone: 'info', order: 2 },
+  { value: 'approved', label: 'Disetujui', tone: 'primary', order: 3 },
+  { value: 'paid', label: 'Dibayar', tone: 'success', order: 4 },
+  { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 5 }
+]
+
+export const OPEX_ENTRIES: OpexEntry[] = reactive([
+  { id: 'OPX-001', period: '2026-07', category: 'payroll', description: 'Gaji karyawan Juli 2026', amountIdr: 385_000_000, incurredAt: '2026-07-25', status: 'paid', submittedBy: 'USR-023', approvedBy: 'USR-003', approvedAt: '2026-07-24', paidAt: '2026-07-25' },
+  { id: 'OPX-002', period: '2026-07', category: 'office', description: 'Sewa kantor & utilitas Juli', amountIdr: 62_500_000, incurredAt: '2026-07-05', status: 'paid', vendorName: 'PT Graha Sentosa', submittedBy: 'USR-008', approvedBy: 'USR-003', approvedAt: '2026-07-04', paidAt: '2026-07-05' },
+  { id: 'OPX-003', period: '2026-07', category: 'marketing', description: 'Iklan digital Instagram & TikTok', amountIdr: 48_000_000, incurredAt: '2026-07-15', status: 'approved', vendorName: 'Meta Platforms', submittedBy: 'USR-025', approvedBy: 'USR-003', approvedAt: '2026-07-16' },
+  { id: 'OPX-004', period: '2026-07', category: 'technology', description: 'Langganan sistem reservasi & lisensi software', amountIdr: 27_300_000, incurredAt: '2026-07-10', status: 'paid', vendorName: 'Amadeus IT Group', submittedBy: 'USR-008', approvedBy: 'USR-003', approvedAt: '2026-07-09', paidAt: '2026-07-10' },
+  { id: 'OPX-005', period: '2026-07', category: 'travel', description: 'Site visit Abu Dhabi — survey venue', amountIdr: 34_800_000, incurredAt: '2026-07-14', status: 'approved', projectId: 'PRJ-102', submittedBy: 'USR-007', approvedBy: 'USR-003', approvedAt: '2026-07-15', note: 'Dialokasikan ke PRJ-102 karena survey khusus project tersebut.' },
+  { id: 'OPX-006', period: '2026-07', category: 'professional', description: 'Jasa konsultan pajak kuartal III', amountIdr: 18_000_000, incurredAt: '2026-07-20', status: 'submitted', vendorName: 'KAP Wijaya & Rekan', submittedBy: 'USR-008' },
+  { id: 'OPX-007', period: '2026-06', category: 'payroll', description: 'Gaji karyawan Juni 2026', amountIdr: 378_000_000, incurredAt: '2026-06-25', status: 'paid', submittedBy: 'USR-023', approvedBy: 'USR-003', approvedAt: '2026-06-24', paidAt: '2026-06-25' },
+  { id: 'OPX-008', period: '2026-06', category: 'office', description: 'Sewa kantor & utilitas Juni', amountIdr: 62_500_000, incurredAt: '2026-06-05', status: 'paid', vendorName: 'PT Graha Sentosa', submittedBy: 'USR-008', approvedBy: 'USR-003', approvedAt: '2026-06-04', paidAt: '2026-06-05' },
+  { id: 'OPX-009', period: '2026-06', category: 'marketing', description: 'Sponsorship pameran travel fair', amountIdr: 55_000_000, incurredAt: '2026-06-18', status: 'paid', vendorName: 'Panitia Travel Fair Nusantara', submittedBy: 'USR-025', approvedBy: 'USR-003', approvedAt: '2026-06-17', paidAt: '2026-06-20' },
+  { id: 'OPX-010', period: '2026-06', category: 'technology', description: 'Langganan sistem reservasi & lisensi software', amountIdr: 27_300_000, incurredAt: '2026-06-10', status: 'paid', vendorName: 'Amadeus IT Group', submittedBy: 'USR-008', approvedBy: 'USR-003', approvedAt: '2026-06-09', paidAt: '2026-06-10' },
+  { id: 'OPX-011', period: '2026-07', category: 'other', description: 'Biaya administrasi bank & materai', amountIdr: 3_200_000, incurredAt: '2026-07-28', status: 'draft', submittedBy: 'USR-008' }
+])
+
+export function getOpexEntries (period?: string): OpexEntry[] {
+  const list = period ? OPEX_ENTRIES.filter(entry => entry.period === period) : OPEX_ENTRIES
+  return [...list].sort((a, b) => b.incurredAt.localeCompare(a.incurredAt))
+}
+
+export function getOpexPeriods (): string[] {
+  return [...new Set(OPEX_ENTRIES.map(entry => entry.period))].sort().reverse()
+}
+
+export function getOpexTotalIdr (period?: string, statuses: OpexEntry['status'][] = ['approved', 'paid']): number {
+  return getOpexEntries(period).filter(entry => statuses.includes(entry.status)).reduce((sum, entry) => sum + entry.amountIdr, 0)
+}
+
+export function getOpexByCategory (period?: string): { category: StatusOption<OpexCategoryKey>; amountIdr: number }[] {
+  const entries = getOpexEntries(period).filter(entry => entry.status !== 'rejected' && entry.status !== 'draft')
+  return OPEX_CATEGORIES
+    .map(category => ({
+      category,
+      amountIdr: entries.filter(entry => entry.category === category.value).reduce((sum, entry) => sum + entry.amountIdr, 0)
+    }))
+    .filter(row => row.amountIdr > 0)
+    .sort((a, b) => b.amountIdr - a.amountIdr)
+}
+
+export function createOpexEntry (input: Omit<OpexEntry, 'id' | 'status'> & { status?: OpexEntry['status'] }): OpexEntry {
+  const entry: OpexEntry = {
+    ...input,
+    id: `OPX-${String(OPEX_ENTRIES.length + 1).padStart(3, '0')}`,
+    status: input.status ?? 'submitted'
+  }
+  OPEX_ENTRIES.push(entry)
+  return entry
+}
+
+export function updateOpexStatus (opexId: string, status: OpexEntry['status'], actorId: string): OpexEntry | undefined {
+  const entry = OPEX_ENTRIES.find(item => item.id === opexId)
+  if (!entry) { return undefined }
+  entry.status = status
+  if (status === 'approved') {
+    entry.approvedBy = actorId
+    entry.approvedAt = DEMO_REFERENCE_DATE
+  }
+  if (status === 'paid') { entry.paidAt = DEMO_REFERENCE_DATE }
+  return entry
+}
+
+/* ------------------------------------------------------------------ *
+ * Aging (dipakai bersama AR dan AP)
+ * ------------------------------------------------------------------ */
+
+const BUCKET_LABELS: Record<AgingBucketKey, string> = {
+  current: 'Belum Jatuh Tempo',
+  '1-30': '1–30 Hari',
+  '31-60': '31–60 Hari',
+  '61-90': '61–90 Hari',
+  '90plus': '> 90 Hari'
+}
+
+function bucketFor (agingDays: number): AgingBucketKey {
+  if (agingDays <= 0) { return 'current' }
+  if (agingDays <= 30) { return '1-30' }
+  if (agingDays <= 60) { return '31-60' }
+  if (agingDays <= 90) { return '61-90' }
+  return '90plus'
+}
+
+function summarize (rows: { bucket: AgingBucketKey; outstandingIdr: number }[]): AgingBucket[] {
+  return (Object.keys(BUCKET_LABELS) as AgingBucketKey[]).map(key => ({
+    key,
+    label: BUCKET_LABELS[key],
+    amountIdr: rows.filter(row => row.bucket === key).reduce((sum, row) => sum + row.outstandingIdr, 0),
+    count: rows.filter(row => row.bucket === key).length
+  }))
+}
+
+/* ------------------------------------------------------------------ *
+ * Receivable (AR) — diturunkan dari Invoice + Payment
+ * ------------------------------------------------------------------ */
+
+export function getReceivables (referenceIso = DEMO_REFERENCE_DATE): ReceivableRow[] {
+  return INVOICES
+    .filter(invoice => invoice.status !== 'paid' && invoice.status !== 'void')
+    .map((invoice) => {
+      const paidIdr = PAYMENTS.filter(payment => payment.invoiceId === invoice.id).reduce((sum, payment) => sum + payment.amountIdr, 0)
+      const project = PROJECTS.find(item => item.id === invoice.projectId)
+      const party = project ? PARTIES.find(item => item.id === project.partyId) : undefined
+      const agingDays = differenceInCalendarDays(parseISO(referenceIso), parseISO(invoice.dueAt))
+
+      return {
+        invoiceId: invoice.id,
+        projectId: invoice.projectId,
+        projectName: project?.name ?? invoice.projectId,
+        partyName: party?.name ?? '—',
+        label: invoice.label,
+        amountIdr: invoice.amountIdr,
+        paidIdr,
+        outstandingIdr: Math.max(0, invoice.amountIdr - paidIdr),
+        dueAt: invoice.dueAt,
+        agingDays,
+        bucket: bucketFor(agingDays)
+      }
+    })
+    .filter(row => row.outstandingIdr > 0)
+    .sort((a, b) => b.agingDays - a.agingDays)
+}
+
+export function getReceivableAging (referenceIso = DEMO_REFERENCE_DATE): AgingBucket[] {
+  return summarize(getReceivables(referenceIso))
+}
+
+/* ------------------------------------------------------------------ *
+ * Payable (AP) — diturunkan dari SupplierInvoice
+ * ------------------------------------------------------------------ */
+
+/**
+ * `SupplierInvoiceStatus` hanya punya empat nilai (`submitted` | `under-review` | `approved` | `rejected`)
+ * dan TIDAK punya status "paid" — pembayaran ke vendor belum dimodelkan di codebase ini. Karena itu hanya
+ * tagihan yang ditolak yang dianggap selesai; sisanya (termasuk yang sudah disetujui) tetap terhutang.
+ */
+const SETTLED_SUPPLIER_STATUSES = ['rejected']
+
+export function getPayables (referenceIso = DEMO_REFERENCE_DATE): PayableRow[] {
+  return SUPPLIER_INVOICES
+    .filter(invoice => !SETTLED_SUPPLIER_STATUSES.includes(invoice.status))
+    .map((invoice) => {
+      const vendor = VENDORS.find(item => item.id === invoice.vendorId)
+      const serviceOrder = SERVICE_ORDERS.find(item => item.id === invoice.serviceOrderId)
+      const project = serviceOrder?.projectId ? PROJECTS.find(item => item.id === serviceOrder.projectId) : undefined
+      /** Tanpa jadwal bayar, umur dihitung dari tanggal invoice masuk. */
+      const anchor = invoice.paymentScheduleDate ?? invoice.submittedAt
+      const agingDays = differenceInCalendarDays(parseISO(referenceIso), parseISO(anchor))
+
+      return {
+        supplierInvoiceId: invoice.id,
+        vendorId: invoice.vendorId,
+        vendorName: vendor?.name ?? invoice.vendorId,
+        projectId: project?.id,
+        projectName: project?.name,
+        amountIdr: invoice.amountIdr,
+        outstandingIdr: invoice.amountIdr,
+        submittedAt: invoice.submittedAt,
+        scheduleDate: invoice.paymentScheduleDate,
+        agingDays,
+        bucket: bucketFor(agingDays),
+        status: invoice.status,
+        matchStatus: invoice.matchStatus
+      }
+    })
+    .sort((a, b) => b.agingDays - a.agingDays)
+}
+
+export function getPayableAging (referenceIso = DEMO_REFERENCE_DATE): AgingBucket[] {
+  return summarize(getPayables(referenceIso))
+}
+
+/* ------------------------------------------------------------------ *
+ * General Ledger
+ * ------------------------------------------------------------------ */
+
+export const LEDGER_ACCOUNTS: LedgerAccount[] = [
+  { code: '1100', name: 'Kas & Bank', type: 'asset', normalBalance: 'debit' },
+  { code: '1200', name: 'Piutang Usaha', type: 'asset', normalBalance: 'debit' },
+  { code: '2100', name: 'Hutang Usaha', type: 'liability', normalBalance: 'credit' },
+  { code: '4100', name: 'Pendapatan Jasa Perjalanan', type: 'revenue', normalBalance: 'credit' },
+  { code: '5100', name: 'Beban Pokok Layanan', type: 'expense', normalBalance: 'debit' },
+  { code: '6100', name: 'Beban Operasional (Opex)', type: 'expense', normalBalance: 'debit' }
+]
+
+export function getLedgerAccount (code: string): LedgerAccount | undefined {
+  return LEDGER_ACCOUNTS.find(account => account.code === code)
+}
+
+function line (accountCode: string, debitIdr: number, creditIdr: number): JournalLine {
+  return { accountCode, debitIdr, creditIdr }
+}
+
+/**
+ * Jurnal DITURUNKAN dari transaksi existing, bukan diketik ulang. Konsekuensinya: buku besar tidak
+ * mungkin menyimpang dari invoice/pembayaran/opex yang mendasarinya, dan setiap entri selalu balance
+ * karena dibentuk berpasangan.
+ */
+export function getJournalEntries (): JournalEntry[] {
+  const entries: JournalEntry[] = []
+
+  for (const invoice of INVOICES.filter(item => item.status !== 'void')) {
+    entries.push({
+      id: `JRN-INV-${invoice.id}`,
+      date: invoice.issuedAt,
+      description: `Penerbitan invoice ${invoice.label}`,
+      sourceType: 'invoice',
+      sourceId: invoice.id,
+      lines: [line('1200', invoice.amountIdr, 0), line('4100', 0, invoice.amountIdr)]
+    })
+  }
+
+  for (const payment of PAYMENTS) {
+    entries.push({
+      id: `JRN-PAY-${payment.id}`,
+      date: payment.receivedAt,
+      description: `Penerimaan pembayaran invoice ${payment.invoiceId}`,
+      sourceType: 'payment',
+      sourceId: payment.id,
+      lines: [line('1100', payment.amountIdr, 0), line('1200', 0, payment.amountIdr)]
+    })
+  }
+
+  for (const supplierInvoice of SUPPLIER_INVOICES) {
+    entries.push({
+      id: `JRN-SUP-${supplierInvoice.id}`,
+      date: supplierInvoice.submittedAt,
+      description: `Tagihan vendor ${supplierInvoice.id}`,
+      sourceType: 'supplier-invoice',
+      sourceId: supplierInvoice.id,
+      lines: [line('5100', supplierInvoice.amountIdr, 0), line('2100', 0, supplierInvoice.amountIdr)]
+    })
+  }
+
+  for (const opex of OPEX_ENTRIES.filter(item => item.status === 'approved' || item.status === 'paid')) {
+    entries.push({
+      id: `JRN-OPX-${opex.id}`,
+      date: opex.incurredAt,
+      description: opex.description,
+      sourceType: 'opex',
+      sourceId: opex.id,
+      lines: [line('6100', opex.amountIdr, 0), line(opex.status === 'paid' ? '1100' : '2100', 0, opex.amountIdr)]
+    })
+  }
+
+  return entries.sort((a, b) => b.date.localeCompare(a.date))
+}
+
+export function getLedgerBalances (): LedgerAccountBalance[] {
+  const entries = getJournalEntries()
+  return LEDGER_ACCOUNTS.map((account) => {
+    let debitIdr = 0
+    let creditIdr = 0
+    for (const entry of entries) {
+      for (const item of entry.lines) {
+        if (item.accountCode !== account.code) { continue }
+        debitIdr += item.debitIdr
+        creditIdr += item.creditIdr
+      }
+    }
+    return {
+      account,
+      debitIdr,
+      creditIdr,
+      balanceIdr: account.normalBalance === 'debit' ? debitIdr - creditIdr : creditIdr - debitIdr
+    }
+  })
+}
+
+/* ------------------------------------------------------------------ *
+ * Revenue
+ * ------------------------------------------------------------------ */
+
+export interface RevenuePeriodRow {
+  period: string
+  revenueIdr: number
+  collectedIdr: number
+  directCostIdr: number
+  opexIdr: number
+  grossProfitIdr: number
+  netProfitIdr: number
+}
+
+export function getRevenueByPeriod (): RevenuePeriodRow[] {
+  const periods = new Set<string>()
+  for (const invoice of INVOICES) { periods.add(invoice.issuedAt.slice(0, 7)) }
+  for (const opex of OPEX_ENTRIES) { periods.add(opex.period) }
+
+  return [...periods].sort().map((period) => {
+    const periodInvoices = INVOICES.filter(invoice => invoice.status !== 'void' && invoice.issuedAt.startsWith(period))
+    const revenueIdr = periodInvoices.reduce((sum, invoice) => sum + invoice.amountIdr, 0)
+    const collectedIdr = PAYMENTS.filter(payment => payment.receivedAt.startsWith(period)).reduce((sum, payment) => sum + payment.amountIdr, 0)
+    const directCostIdr = SUPPLIER_INVOICES.filter(invoice => invoice.submittedAt.startsWith(period)).reduce((sum, invoice) => sum + invoice.amountIdr, 0)
+    const opexIdr = getOpexTotalIdr(period)
+    const grossProfitIdr = revenueIdr - directCostIdr
+
+    return {
+      period,
+      revenueIdr,
+      collectedIdr,
+      directCostIdr,
+      opexIdr,
+      grossProfitIdr,
+      netProfitIdr: grossProfitIdr - opexIdr
+    }
+  })
+}

@@ -28,7 +28,7 @@ const { canView, canApprove } = usePermissions()
 const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
-const canApproveCommercial = computed(() => canApprove('crm'))
+const canApproveCommercial = computed(() => canApprove('sales'))
 
 /** Tab state via query param (pola sama Project Detail, `projects/[id]/index.vue`) — deep-linkable dan dapat diverifikasi lewat curl/smoke test tanpa interaksi JS. */
 const activeTab = computed<string>({
@@ -116,7 +116,7 @@ function submitReject () {
       :breadcrumb="[{ label: 'CRM', to: '/crm' }, { label: 'Quotations' }]"
     />
 
-    <RoleAccessState v-if="!canView('crm')" module-label="modul CRM" />
+    <RoleAccessState v-if="!canView('sales')" module-label="modul CRM" />
 
     <template v-else>
       <Tabs v-model="activeTab">
@@ -309,7 +309,7 @@ function submitReject () {
           />
 
           <div v-if="selectedQuotation.serviceBreakdown && selectedQuotation.serviceBreakdown.length > 0" class="mt-2">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            <p class="text-xs font-medium text-muted-foreground mb-2">
               Service Breakdown
             </p>
             <ul class="divide-y divide-border">

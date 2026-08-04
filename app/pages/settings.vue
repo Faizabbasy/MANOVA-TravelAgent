@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { ROLES } from '~/constants/roles'
+import { resetRbacToDefaults } from '~/data/rbac'
 import { resetMockState, hasMockSnapshot } from '~/utils/mock-reset'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -8,6 +9,19 @@ useHead({ title: 'Settings' })
 
 const { users, currentUser, setCurrentUser } = useCurrentUser()
 const { showToast } = useToast()
+
+/**
+ * Pemulihan RBAC (Revisi 9-Modul) — SENGAJA ditempatkan di sini, bukan hanya di `/admin/roles`.
+ * Bila sebuah role terlanjur kehilangan akses Administration, halaman Roles itu sendiri jadi tidak
+ * terjangkau; Settings tidak digerbangi modul apa pun sehingga selalu bisa dibuka.
+ */
+const isRbacResetOpen = ref(false)
+
+function submitRbacReset () {
+  resetRbacToDefaults(currentUser.value.id)
+  isRbacResetOpen.value = false
+  showToast('RBAC Direset', 'Seluruh role custom dihapus dan permission 13 role bawaan kembali ke default.', 'success')
+}
 
 /** State reset / seed scenario (Section 01) — mengembalikan seluruh mock data ke kondisi seed awal. */
 const isResetDialogOpen = ref(false)
@@ -61,6 +75,36 @@ function submitReset () {
           </span>
         </button>
       </div>
+    </SectionCard>
+
+    <SectionCard
+      title="Pemulihan Role & Permission"
+      description="Kembalikan seluruh konfigurasi role ke default bila ada role yang salah dikonfigurasi hingga kehilangan akses. Penugasan user ke role tidak ikut direset."
+    >
+      <Dialog v-model:open="isRbacResetOpen">
+        <DialogTrigger as-child>
+          <Button variant="outline">
+            Reset Role & Permission
+          </Button>
+        </DialogTrigger>
+        <DialogContent class="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Role & Permission</DialogTitle>
+            <DialogDescription>
+              Seluruh role custom yang dibuat dari Admin &gt; Roles akan dihapus, dan grant modul, override
+              menu, serta action flag 13 role bawaan dikembalikan ke kondisi seed. Aksi ini tidak dapat dibatalkan.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" @click="isRbacResetOpen = false">
+              Batal
+            </Button>
+            <Button variant="destructive" @click="submitRbacReset">
+              Reset Sekarang
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </SectionCard>
 
     <SectionCard

@@ -384,7 +384,7 @@ function cancelSelection (selectionId: string) {
             ]"
           />
           <div v-if="viewingVariants.length" class="mt-3 pt-3 border-t border-border">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            <p class="text-xs font-medium text-muted-foreground mb-2">
               Variant Tersedia
             </p>
             <ul class="space-y-1">

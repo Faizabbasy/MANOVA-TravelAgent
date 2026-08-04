@@ -25,7 +25,7 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { currentRole, currentUser } = useCurrentUser()
-const { canView, canApprove } = usePermissions()
+const { canView, canApprove, can } = usePermissions()
 const { showToast } = useToast()
 
 /** Sama seperti `canManageParty` (Section 07) — pengecualian sempit, bukan mekanisme role-check baru.
@@ -34,10 +34,10 @@ const { showToast } = useToast()
  * Prompt 19 (Change Request) — role dipindah dari `sales` ke `account-executive`: di bawah model role
  * baru, Sales berhenti mengelola Opportunity/Quotation (scoped ke Lead, lihat `/customer-journey/leads`),
  * Account Executive yang menerima handover dan mengelola Opportunity sampai Won. */
-const canManageOpportunity = computed(() => ['account-executive', 'super-admin'].includes(currentRole.value))
+const canManageOpportunity = computed(() => can('sales.manage-opportunity'))
 
-/** Commercial Approval (Prompt 19/20) — Management/Super Admin approve/reject quotation. Prompt 20 menghapus approval Won terpisah (D-053) — setelah Commercial Approval disetujui, AE langsung "Mark as Won" (`submitMarkAsWon`), reuse `canApprove('crm')`, bukan constant baru. */
-const canApproveCommercial = computed(() => canApprove('crm'))
+/** Commercial Approval (Prompt 19/20) — Management/Super Admin approve/reject quotation. Prompt 20 menghapus approval Won terpisah (D-053) — setelah Commercial Approval disetujui, AE langsung "Mark as Won" (`submitMarkAsWon`), reuse `canApprove('sales')`, bukan constant baru. */
+const canApproveCommercial = computed(() => canApprove('sales'))
 
 const opportunity = computed(() => getOpportunityById(String(route.params.id)))
 useHead({ title: computed(() => opportunity.value ? opportunity.value.title : 'Opportunity Tidak Ditemukan') })
@@ -382,7 +382,7 @@ function submitActivity () {
       </SectionCard>
     </template>
 
-    <RoleAccessState v-else-if="!canView('crm')" module-label="modul CRM" />
+    <RoleAccessState v-else-if="!canView('sales')" module-label="modul CRM" />
 
     <template v-else>
       <PageHeader
@@ -401,7 +401,7 @@ function submitActivity () {
       <SectionCard>
         <DetailMetadataList :items="summaryMetadata" />
         <div class="mt-4 pt-4 border-t border-border">
-          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          <p class="text-xs font-medium text-muted-foreground mb-2">
             Service Scope
           </p>
           <div class="flex flex-wrap gap-2 mb-4">
@@ -412,7 +412,7 @@ function submitActivity () {
               :tone="type.tone"
             />
           </div>
-          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          <p class="text-xs font-medium text-muted-foreground mb-2">
             Qualification Summary
           </p>
           <p class="text-sm text-foreground">
@@ -520,7 +520,7 @@ function submitActivity () {
                 <Input id="req-estimated-value" v-model.number="reqEstimatedValueIdr" type="number" />
               </div>
               <div class="pt-2 border-t border-border space-y-4">
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <p class="text-xs font-medium text-muted-foreground">
                   Requirement Detail (AE)
                 </p>
                 <div class="space-y-1.5">
@@ -876,7 +876,7 @@ function submitActivity () {
             />
           </div>
           <div v-if="quotation.serviceBreakdown && quotation.serviceBreakdown.length > 0" class="mt-2">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            <p class="text-xs font-medium text-muted-foreground mb-2">
               Service Breakdown
             </p>
             <ul class="divide-y divide-border">
@@ -1139,7 +1139,7 @@ function submitActivity () {
           </p>
 
           <div class="pt-4 border-t border-border space-y-3">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            <p class="text-xs font-medium text-muted-foreground">
               Send to Client
             </p>
             <div v-if="quotation.sentToClientAt" class="flex items-center gap-2">
@@ -1152,7 +1152,7 @@ function submitActivity () {
           </div>
 
           <div class="pt-4 mt-4 border-t border-border space-y-3">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            <p class="text-xs font-medium text-muted-foreground">
               Client Confirmation
             </p>
             <template v-if="opportunity.clientConfirmedAt">

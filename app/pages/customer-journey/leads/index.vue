@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus, List, LayoutGrid, Inbox as InboxIcon, Archive as ArchiveIcon } from 'lucide-vue-next'
+import { matchesAnyRole } from '~/data/rbac'
 import {
   LEADS, USERS, getLeadActivities, getLeadFollowUps, createLead, createLeadActivity, archiveLead,
   qualifyLeadAndCreateOpportunity, updateLeadQualification, markLeadUnqualified,
@@ -18,11 +19,14 @@ import type { PartyActivityType } from '~/types/party'
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Leads' })
 
-const { currentUser, currentRole } = useCurrentUser()
-const { canView } = usePermissions()
+const { currentUser } = useCurrentUser()
+const { canView, can, isRole } = usePermissions()
+
+/** Toggle "Assigned to Me" — dulu khusus Account Executive, kini milik Sales yang menyerapnya. */
+const showAssignedToMeToggle = computed(() => isRole('sales'))
 
 /** Narrow role exception (pola Section 07/08) — Sales mengelola screening/qualification, AE menerima handover, Super Admin oversight. */
-const canManageLead = computed(() => ['sales', 'account-executive', 'super-admin'].includes(currentRole.value))
+const canManageLead = computed(() => can('sales.manage-lead'))
 
 const route = useRoute()
 
@@ -117,7 +121,8 @@ const selectedActivities = computed(() => (selectedLead.value ? getLeadActivitie
 const selectedFollowUps = computed(() => (selectedLead.value ? getLeadFollowUps(selectedLead.value.id) : []))
 const drawerTab = ref<'overview' | 'qualification' | 'activities' | 'followups'>('overview')
 
-const aeOptions = computed(() => USERS.filter(user => user.role === 'account-executive'))
+/** Tujuan handover Lead — dulu role `account-executive`, kini melebur ke `sales`. */
+const aeOptions = computed(() => USERS.filter(user => matchesAnyRole(user.role, ['account-executive'])))
 
 /**
  * Qualification form (Prompt 20 — Change Request) — refs lokal disinkronkan dari `selectedLead` saat
@@ -373,7 +378,7 @@ function submitActivity () {
       </template>
     </PageHeader>
 
-    <RoleAccessState v-if="!canView('crm')" module-label="modul Customer Journey" />
+    <RoleAccessState v-if="!canView('sales')" module-label="modul Customer Journey" />
 
     <template v-else>
       <div class="flex flex-col lg:flex-row lg:items-center gap-3">
@@ -407,7 +412,7 @@ function submitActivity () {
         </select>
 
         <Button
-          v-if="currentRole === 'account-executive'"
+          v-if="showAssignedToMeToggle"
           :variant="assignedToMeOnly ? 'default' : 'outline'"
           size="sm"
           @click="assignedToMeOnly = !assignedToMeOnly"
@@ -601,7 +606,7 @@ function submitActivity () {
                 ]"
               />
               <div>
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                <p class="text-xs font-medium text-muted-foreground mb-1">
                   Qualification Summary
                 </p>
                 <p class="text-sm text-foreground">
@@ -609,7 +614,7 @@ function submitActivity () {
                 </p>
               </div>
               <div>
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+                <p class="text-xs font-medium text-muted-foreground mb-1">
                   Catatan Hasil Komunikasi
                 </p>
                 <p class="text-sm text-foreground">
@@ -709,7 +714,7 @@ function submitActivity () {
                 </div>
 
                 <div class="pt-2 border-t border-border space-y-4">
-                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                  <p class="text-xs font-medium text-muted-foreground">
                     Field Opsional
                   </p>
                   <div class="space-y-1.5">

@@ -296,7 +296,7 @@ function submitExport () {
             </select>
           </div>
           <div v-if="importPreviewRows.length" class="space-y-2">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+            <p class="text-xs font-medium text-muted-foreground">
               Preview ({{ importPreviewRows.length }} baris)
             </p>
             <ul class="divide-y divide-border text-sm">

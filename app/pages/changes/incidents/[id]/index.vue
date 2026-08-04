@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Send } from 'lucide-vue-next'
+import { matchesAnyRole } from '~/data/rbac'
 import {
   getIncidentById, getIncidentStatusTransitions, updateIncidentStatus, escalateIncident, resolveIncident, appendIncidentCommunication,
   getProjectById, getUserById, USERS
@@ -60,7 +61,7 @@ function handleClose () {
 const isEscalateOpen = ref(false)
 const escalateTo = ref('')
 const escalateNote = ref('')
-const escalationCandidates = computed(() => USERS.filter(u => ['operations', 'project-manager', 'management', 'super-admin'].includes(u.role)))
+const escalationCandidates = computed(() => USERS.filter(u => matchesAnyRole(u.role, ['operations', 'project-manager', 'management', 'super-admin'])))
 
 function openEscalate () {
   escalateTo.value = ''

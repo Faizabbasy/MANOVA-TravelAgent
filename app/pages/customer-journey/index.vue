@@ -12,23 +12,23 @@ import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownLis
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Customer Journey' })
 
-const { currentUser, currentRole } = useCurrentUser()
-const { canView } = usePermissions()
-
-/** Sales dibatasi ke Lead saja (docs Prompt 19-10); AE/Management/Super Admin/Viewer melihat seluruh Customer Journey. */
-const isLeadOnlyView = computed(() => currentRole.value === 'sales')
-/** "AE data scope ke portfolio miliknya; Super Admin seluruh data" (Section 07, Wajib) — narrow scoping hanya untuk role account-executive, seluruh role lain (termasuk Management/Viewer) tetap melihat data penuh, konsisten pola existing `scopedOpportunities`. */
-const isAeScoped = computed(() => currentRole.value === 'account-executive')
+const { currentUser } = useCurrentUser()
+const { canView, isRole } = usePermissions()
 
 /**
- * Section 07 — sebelumnya `scopedLeads` untuk AE TIDAK ter-scope sama sekali (bug: AE melihat seluruh
- * LEADS, sama seperti Super Admin). Diperbaiki: AE melihat Lead yang di-handover ke dirinya
- * (`handedOverTo`, field yang sama dipakai toggle "Assigned to Me" di `/customer-journey/leads`).
+ * Dulu Sales dibatasi ke Lead saja sementara Account Executive memegang Opportunity ke atas. Sejak
+ * `account-executive` melebur ke `sales` (Revisi 9-Modul), satu role yang sama memiliki seluruh rantai
+ * Lead → Opportunity → Quotation, sehingga pembatasan "lead only" dihapus.
  */
+const isLeadOnlyView = computed(() => false)
+
+/** Portfolio scoping: Sales melihat datanya sendiri, role lain (Management/BI/Super Admin) melihat penuh. */
+const isAeScoped = computed(() => isRole('sales'))
+
+/** Sales melihat Lead miliknya sendiri — baik yang ia buat (`ownerId`) maupun yang di-handover kepadanya. */
 const scopedLeads = computed(() => {
-  if (currentRole.value === 'sales') { return LEADS.filter(lead => lead.ownerId === currentUser.value.id) }
-  if (isAeScoped.value) { return LEADS.filter(lead => lead.handedOverTo === currentUser.value.id) }
-  return LEADS
+  if (!isAeScoped.value) { return LEADS }
+  return LEADS.filter(lead => lead.ownerId === currentUser.value.id || lead.handedOverTo === currentUser.value.id)
 })
 const scopedOpportunities = computed(() => (isAeScoped.value ? getOpportunitiesByOwner(currentUser.value.id) : OPPORTUNITIES))
 /** Party/Company (Section 07, baru) — sebelumnya "Active Clients" selalu dihitung dari seluruh `PARTIES`, tidak ter-scope untuk AE. */
@@ -63,7 +63,7 @@ const funnelStages = computed(() => {
     { key: 'approved', label: 'Approved', count: approvedOpportunityCount, to: '/crm/quotations?tab=all&status=approved' },
     { key: 'won', label: 'Won', count: wonOpportunityCount, to: '/crm/opportunities?stage=won' },
     { key: 'client', label: 'Client', count: activeClientCount.value, to: '/customer-journey/customers?status=client' },
-    { key: 'project-order', label: 'Project Order', count: scopedProjectOrders.value ? scopedProjectOrders.value.length : PROJECTS.length, to: '/customer-journey/project-orders' }
+    { key: 'project-order', label: 'Project Order', count: scopedProjectOrders.value ? scopedProjectOrders.value.length : PROJECTS.length, to: '/project-orders' }
   ]
   const maxCount = Math.max(1, ...raw.map(stage => stage.count))
   return raw.map((stage, index) => ({
@@ -94,7 +94,7 @@ const opportunityStageBreakdown = computed<StatusBreakdownItem[]>(() => {
 const links = [
   { label: 'Leads', to: '/customer-journey/leads', icon: Users, description: 'Table/Kanban/Inbox, screening dan qualification.' },
   { label: 'Customers', to: '/customer-journey/customers', icon: Building2, description: 'Directory company, Account Owner, lifecycle.', leadOnly: false },
-  { label: 'Project Orders', to: '/customer-journey/project-orders', icon: FolderKanban, description: 'Seluruh Project Order lintas client.', leadOnly: false },
+  { label: 'Project Orders', to: '/project-orders', icon: FolderKanban, description: 'Seluruh Project Order lintas client.', leadOnly: false },
   { label: 'Lead Source Recap', to: '/customer-journey/lead-sources', icon: BarChart3, description: 'Rekap performa sumber lead dan conversion rate.', leadOnly: false }
 ]
 </script>
@@ -161,7 +161,7 @@ const links = [
         <SectionCard v-if="scopedProjectOrders" title="Project Orders Milik Saya">
           <ul v-if="scopedProjectOrders.length" class="divide-y divide-border">
             <li v-for="project in scopedProjectOrders" :key="project.id" class="py-3 flex items-center justify-between gap-3">
-              <NuxtLink :to="`/customer-journey/project-orders/${project.id}`" class="text-sm font-medium text-foreground hover:underline truncate">
+              <NuxtLink :to="`/project-orders/${project.id}`" class="text-sm font-medium text-foreground hover:underline truncate">
                 {{ project.name }}
               </NuxtLink>
               <span class="text-xs text-muted-foreground shrink-0">{{ project.id }}</span>

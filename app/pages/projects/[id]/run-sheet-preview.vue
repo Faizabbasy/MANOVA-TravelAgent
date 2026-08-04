@@ -18,10 +18,9 @@ import { formatDateRange, formatDayLabel, maskDocumentNumber } from '~/utils/for
 definePageMeta({ layout: false, middleware: 'auth' })
 
 const route = useRoute()
-const { canView } = usePermissions()
-const { currentRole } = useCurrentUser()
+const { canView, can } = usePermissions()
 /** "Sensitive values masked sesuai role" (Section 11, D-068) — berlaku juga di run sheet karena memuat kontak darurat traveler. */
-const canViewFullContacts = computed(() => ['project-manager', 'super-admin'].includes(currentRole.value))
+const canViewFullContacts = computed(() => can('project-order.manage-travelers'))
 
 const project = computed(() => getProjectById(String(route.params.id)))
 useHead({ title: computed(() => project.value ? `Run Sheet — ${project.value.name}` : 'Project Tidak Ditemukan') })

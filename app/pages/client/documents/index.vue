@@ -270,7 +270,7 @@ function handleDownload (document: Document) {
           </DialogHeader>
           <div v-if="activeDocument" class="space-y-4 py-2">
             <div>
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              <p class="text-xs font-medium text-muted-foreground mb-2">
                 Version History
               </p>
               <ul class="divide-y divide-border">
@@ -284,7 +284,7 @@ function handleDownload (document: Document) {
               </Button>
             </div>
             <div class="pt-3 border-t border-border">
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              <p class="text-xs font-medium text-muted-foreground mb-2">
                 Comments
               </p>
               <ul v-if="activeComments.length" class="space-y-2 mb-2">

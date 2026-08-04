@@ -27,9 +27,10 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Dashboard' })
 
 const { currentRole, currentUser } = useCurrentUser()
+const { isRole } = usePermissions()
 const { showToast } = useToast()
 
-const roleLabel = computed(() => ROLES.find(role => role.value === currentRole.value)?.label ?? currentRole.value)
+const roleLabel = computed(() => ROLES.value.find(role => role.value === currentRole.value)?.label ?? currentRole.value)
 const firstName = computed(() => currentUser.value.name.split(' ')[0])
 const dateLabel = computed(() => formatDayLabel(DEMO_REFERENCE_DATE))
 
@@ -44,8 +45,13 @@ const dateLabel = computed(() => formatDayLabel(DEMO_REFERENCE_DATE))
  */
 const isLoading = ref(false)
 
+/**
+ * Visibilitas widget per role. Memakai `isRole()` (bukan `Array.includes`) supaya role id lama yang masih
+ * tertulis di pemanggilan di bawah — `project-manager`, `ticketing`, `viewer`, `supplier`, dst. — otomatis
+ * teresolusi ke role hasil penggabungan (Revisi 9-Modul), tanpa perlu menyweep puluhan baris ini.
+ */
 function visibleTo (...roles: RoleId[]) {
-  return computed(() => roles.includes(currentRole.value))
+  return computed(() => isRole(...roles))
 }
 
 /* ==================================================
@@ -60,7 +66,13 @@ const ownerFilter = ref<'all' | string>('all')
 const periodFilter = ref<'all' | '30' | '60' | '90'>('all')
 
 const showFilters = visibleTo('management', 'project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'finance', 'super-admin', 'viewer')
-const showOwnerFilter = computed(() => currentRole.value !== 'project-manager')
+/**
+ * Dulu disembunyikan untuk Project Manager (yang hanya melihat project miliknya sendiri). Sejak
+ * `project-manager` melebur ke `operations` — yang juga menangani seluruh sub-domain operasional lintas
+ * project — filter owner kembali relevan untuk semua, dan menyembunyikannya tidak punya nilai keamanan
+ * apa pun (ia filter tampilan, bukan gerbang data).
+ */
+const showOwnerFilter = computed(() => true)
 
 const clientOptions = computed(() => {
   const ids = [...new Set(PROJECTS.map(p => p.partyId))]
@@ -255,10 +267,15 @@ const myRecentChanges = computed(() => getRecentChanges(myProjectIds.value, 5))
 const myAttentionIds = computed(() => new Set(myAttentionProjects.value.map(p => p.id)))
 const myOtherActiveProjects = computed(() => myActiveProjects.value.filter(p => !myAttentionIds.value.has(p.id)))
 
-/** Service Readiness — Operations/Ticketing/Accommodation/Transportation/MICE/Super Admin. */
-const serviceReadinessType = computed<ServiceTypeKey | undefined>(() => ({
-  ticketing: 'flight', accommodation: 'hotel', transportation: 'transportation', mice: 'mice'
-} as Record<string, ServiceTypeKey>)[currentRole.value])
+/**
+ * Service Readiness — Operations & Super Admin.
+ *
+ * Dulu dipersempit per role sub-domain (`ticketing` → hanya Flight, `accommodation` → hanya Hotel, dst.).
+ * Keempat role tersebut kini melebur ke satu role `operations` yang memang memiliki SELURUH sub-domain,
+ * sehingga penyempitan itu tidak lagi punya makna — widget menampilkan seluruh tipe layanan (`undefined`),
+ * dan judulnya otomatis menjadi "Seluruh Layanan" lewat `serviceReadinessLabel` di bawah.
+ */
+const serviceReadinessType = computed<ServiceTypeKey | undefined>(() => undefined)
 
 const serviceReadinessItems = computed<StatusBreakdownItem[]>(() => {
   const services = getServicesForProjects(filteredProjectIds.value, serviceReadinessType.value)

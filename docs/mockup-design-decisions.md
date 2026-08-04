@@ -658,3 +658,68 @@ Prompt 5 adalah tahap coding pertama. Keputusan berikut bersifat teknis-implemen
 **Decision:** Prompt 5 **tidak** menginstal `eslint` inti maupun `vue-tsc`, meski Q8 sebelumnya menyiratkan penyelesaian di fase ini.
 **Reason:** Prompt 5 sendiri tidak secara eksplisit memerintahkan instalasi package baru di teksnya (section N hanya bilang "jalankan lint/typecheck", mengasumsikan tool sudah ada); menginstal package baru tanpa instruksi eksplisit dinilai melampaui scope "cleanup aman dan foundation" dan berisiko dianggap keputusan sepihak yang seharusnya dikonfirmasi dulu.
 **Consequence:** Q8 tetap berstatus terbuka/blocking-sebelum-CRM (lihat update di `docs/mockup-open-questions.md`); build tetap divalidasi penuh (sukses) sebagai bentuk quality gate yang tersedia saat ini.
+
+## D-081 — Revisi 9-Modul: RBAC Dinamis, Alur 6 Step Project Order, dan Restrukturisasi Navigasi
+
+**Konteks.** Struktur 26 entri navigasi dan 16 role yang tumbuh organik per-section tidak lagi cocok dengan
+kebutuhan bisnis yang diminta klien (9 modul). Selain itu permission bersifat compile-time sehingga
+Administration tidak dapat menambah role atau mengatur menu, dan alur menjalankan satu project tersebar di
+banyak halaman.
+
+**Keputusan.**
+
+1. **RBAC menjadi data runtime.** `ROLE_MODULE_ACCESS` (konstanta 16×17) diganti empat array `reactive()` di
+   `app/data/rbac.ts`: `ROLE_DEFINITIONS`, `ROLE_MODULE_GRANTS`, `ROLE_MENU_GRANTS`, `ROLE_CAPABILITY_GRANTS`.
+   `RoleId`/`ModuleKey` menjadi `string` (union TS tidak mungkin untuk role yang dibuat saat runtime);
+   kompensasinya `KnownRoleId`/`KnownModuleKey` untuk autocomplete, `resolveModuleKey()` dengan dev-warning,
+   dan capability bernama menggantikan perbandingan role literal.
+
+2. **Modul lama tetap valid lewat alias.** `LEGACY_MODULE_ALIAS` (`app/constants/modules.ts`) memetakan
+   `project`/`bookings`/`ticketing`/`procurement`/dst. ke 9 modul baru, sehingga 92 dari 108 call-site
+   `canView`/`canManage`/`canApprove` tidak perlu disentuh. Hanya 20 site `'crm'` yang bermakna Sales
+   disweep manual — `'crm'` adalah key kanonik sekaligus key lama, jadi tidak bisa dialiaskan.
+
+3. **Role 16 → 13.** Digabung lewat `LEGACY_ROLE_ALIAS`: sub-domain operasional + `project-manager` →
+   `operations`; `account-executive` + `product-planner` → `sales`; `viewer` → `management`; `procurement`
+   → `vendor-partner`; `supplier` → `vendor`. Dijamin tidak ada akses yang hilang oleh test
+   `app/data/rbac.test.ts` yang membandingkan terhadap snapshot matriks 16-role lama.
+
+4. **Anti self-lockout adalah syarat, bukan pelengkap.** Tanpa backend, role yang salah dikonfigurasi tidak
+   bisa dipulihkan dari server. Karena itu: `super-admin` mem-bypass matriks (`isSuperAdmin`), perubahan yang
+   mencabut `administration` dari role pengguna sendiri ditolak, role sistem/berpenghuni tidak bisa dihapus,
+   Super Admin terakhir tidak bisa dipindah role, dan `resetRbacToDefaults()` tersedia di `/settings` —
+   halaman yang tidak digerbangi modul apa pun.
+
+5. **Alur 6 step Project Order diderivasi, bukan direstrukturisasi.** `ProjectStatus` (8 nilai, LOCKED sejak
+   D-028) TIDAK diubah. Step Drafting → Confirmed → Start → Departure → On Progress → Done diturunkan lewat
+   `getProjectOrderStep()`, mengikuti preseden `getProjectOrderStatus()` (D-066). Setiap step punya gerbang
+   yang seluruhnya memanggil selector yang sudah ada (`getDepartureReadiness`, `getTravelerReadiness`,
+   `evaluateProjectClosureGate`) sehingga workspace baru tidak mungkin menjawab berbeda dari halaman lama.
+
+6. **Satu-satunya perubahan pada peta transisi status.** `PROJECT_STATUS_TRANSITIONS['in-progress']`
+   ditambah `'ongoing-trip'`. Sebelumnya status `ongoing-trip` mustahil dicapai lewat `updateProjectStatus`
+   meski sudah lama ada di `ProjectStatus` dan sudah punya transisi keluar — membuat step Departure → On
+   Progress tidak bisa dijalankan. Perubahan bersifat aditif; tidak ada transisi lama yang dihapus.
+
+7. **Modul baru mengekspor selectornya sendiri.** `app/data/index.ts` sudah 6.600+ baris. HR, Inventory,
+   Marketing, Finance-ext, CRM-engagement, dan Geo masing-masing berdiri di file sendiri.
+   `project-order-workflow.ts` sengaja TIDAK di-re-export dari barrel karena ia mengimpor dari barrel
+   tersebut — halaman mengimpornya langsung.
+
+8. **Peta perencanaan tanpa library eksternal.** `RegionMapPicker.vue` memproyeksikan koordinat asli
+   (equirectangular) ke SVG inline alih-alih memakai Leaflet/tile server. Konsekuensi yang disadari: peta
+   bersifat skematik, bukan peta jalan. Dipilih agar demo berjalan penuh tanpa koneksi internet dan tanpa
+   API key; jarak dan posisi relatif tetap akurat karena koordinatnya nyata.
+
+9. **Kalender adalah view, bukan entitas.** `useScheduleEvents()` menggabungkan jadwal yang sudah tersebar
+   (project, itinerary, milestone, booking flight/hotel/transport/MICE, maintenance aset) menjadi satu
+   `ScheduleEvent[]` terderivasi — tidak ada entitas jadwal baru yang bisa menyimpang dari sumbernya.
+
+10. **`closureChecklist.assetsReturned` akhirnya punya sumber data.** Field ini sudah lama ada tapi tidak
+    pernah terisi. Sejak modul Inventory dibangun, `areProjectAssetsReturned()` menjadikannya gerbang nyata
+    pada step Done.
+
+**Dihapus.** `app/pages/tasks.vue`, `app/pages/expenses.vue`, `app/pages/projects/create.vue`,
+`app/pages/projects/[id]/edit.vue`, dan `app/pages/customer-journey/project-orders/**` — seluruhnya sisa
+template awal berbahasa Inggris/USD yang tidak tersambung ke domain MANOVA. Keempatnya di-redirect lewat
+`routeRules` di `nuxt.config.ts` agar bookmark lama tidak jatuh ke 404.

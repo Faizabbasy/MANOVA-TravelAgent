@@ -1,13 +1,16 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Plus } from 'lucide-vue-next'
+import { FileX, Plus, MessageCircle } from 'lucide-vue-next'
+import { buildWhatsAppLink } from '~/data/crm-engagement'
 import {
   getPartyById, getContactsByParty, getOpportunitiesByParty, getPartyActivities, getProjectsByParty,
-  getQuotationByOpportunity, createContact, createPartyActivity
+  getQuotationByOpportunity, createContact, createPartyActivity, getInvoicesByProject, getFeedbackByProject
 } from '~/data'
-import { OPPORTUNITY_STAGES, PROJECT_STATUSES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
-import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
+import { getLoyaltyAccount } from '~/data/crm-engagement'
+import { OPPORTUNITY_STAGES, PROJECT_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
+import { formatCurrencyIdr, formatDate, formatDateRange, formatNumber } from '~/utils/format'
+import { daysUntil } from '~/utils/format'
 import type { PartyDetailTab, PartyActivityType } from '~/types/party'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -15,12 +18,17 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { currentRole, currentUser } = useCurrentUser()
-const { canView } = usePermissions()
+const { canView, can } = usePermissions()
+
+/** Hyperlink WhatsApp (revisi.md #9) — nomor dinormalkan ke format internasional oleh `buildWhatsAppLink`. */
+function whatsAppLink (phone: string | undefined, name: string): string | undefined {
+  return buildWhatsAppLink(phone, `Halo ${name}, saya dari MANOVA Travel.`)
+}
 
 /** Lihat catatan yang sama di `crm/prospects.vue` — pengecualian sempit, bukan mekanisme role-check baru.
  * `account-executive` ditambahkan Prompt 19 — AE "mengelola relationship dengan prospect/client" (literal
  * responsibility split), Sales tetap dipertahankan (tidak ada larangan eksplisit Party-level di Prompt 19). */
-const canManageParty = computed(() => ['sales', 'account-executive', 'super-admin'].includes(currentRole.value))
+const canManageParty = computed(() => can('crm.manage-party'))
 
 const party = computed(() => getPartyById(String(route.params.id)))
 useHead({ title: computed(() => party.value ? party.value.name : 'Party Tidak Ditemukan') })
@@ -46,7 +54,49 @@ const TABS = computed(() => {
     { value: 'activities', label: 'Activities' }
   ]
   if (showProjectsTab.value) { base.push({ value: 'projects', label: 'Projects' }) }
+  base.push({ value: 'travel-history', label: 'Riwayat & Preferensi' })
   return base
+})
+
+/**
+ * Riwayat Perjalanan & Preferensi (`revisi.md` #5). SELURUHNYA diturunkan dari project, invoice, dan
+ * feedback yang sudah tercatat — bukan profil terpisah yang harus diisi ulang dan berpotensi basi.
+ * Satu-satunya field tersimpan adalah `Party.travelPreferences` (catatan bebas) yang memang sudah ada.
+ */
+const travelHistory = computed(() => [...projects.value]
+  .sort((a, b) => b.travelStartDate.localeCompare(a.travelStartDate))
+  .map(project => ({
+    project,
+    invoicedIdr: getInvoicesByProject(project.id).reduce((sum, invoice) => sum + invoice.amountIdr, 0),
+    feedback: getFeedbackByProject(project.id)
+  })))
+
+const travelInsight = computed(() => {
+  const list = projects.value
+  if (!list.length) { return undefined }
+
+  const byDestination = new Map<string, number>()
+  const byServiceType = new Map<string, number>()
+  for (const project of list) {
+    byDestination.set(project.destination, (byDestination.get(project.destination) ?? 0) + 1)
+    for (const service of project.serviceScope) { byServiceType.set(service, (byServiceType.get(service) ?? 0) + 1) }
+  }
+
+  const sortedDestinations = [...byDestination.entries()].sort((a, b) => b[1] - a[1])
+  const sortedServices = [...byServiceType.entries()].sort((a, b) => b[1] - a[1])
+  const totalTravelers = list.reduce((sum, project) => sum + project.travelerCount, 0)
+  const durations = list.map(project => Math.max(1, daysUntil(project.travelEndDate, project.travelStartDate) + 1))
+
+  return {
+    tripCount: list.length,
+    favouriteDestination: sortedDestinations[0]?.[0],
+    favouriteDestinationCount: sortedDestinations[0]?.[1] ?? 0,
+    destinations: sortedDestinations,
+    services: sortedServices,
+    averagePax: Math.round(totalTravelers / list.length),
+    averageDurationDays: Math.round(durations.reduce((sum, days) => sum + days, 0) / durations.length),
+    loyalty: getLoyaltyAccount(String(route.params.id))
+  }
 })
 
 const summaryMetadata = computed(() => {
@@ -158,7 +208,7 @@ function submitActivity () {
                 di bawah, tidak hilang setelah lifecycle berubah.
               </template>
             </p>
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            <p class="text-xs font-medium text-muted-foreground mb-2">
               Contact Utama
             </p>
             <p v-if="contacts[0]" class="text-sm text-foreground">
@@ -219,11 +269,22 @@ function submitActivity () {
                 </p>
                 <p class="text-xs text-muted-foreground">
                   {{ contact.title }}<template v-if="contact.email">
-                    · {{ contact.email }}
+                    · <a :href="`mailto:${contact.email}`" class="hover:text-primary">{{ contact.email }}</a>
                   </template><template v-if="contact.phone">
                     · {{ contact.phone }}
                   </template>
                 </p>
+                <!-- Hyperlink WhatsApp (revisi.md #9) — membuka chat langsung ke nomor kontak. -->
+                <a
+                  v-if="whatsAppLink(contact.phone, contact.name)"
+                  :href="whatsAppLink(contact.phone, contact.name)"
+                  target="_blank"
+                  rel="noopener"
+                  class="inline-flex items-center gap-1 mt-1.5 text-xs text-success hover:underline"
+                >
+                  <MessageCircle class="h-3.5 w-3.5" />
+                  Chat via WhatsApp
+                </a>
               </li>
             </ul>
             <EmptyState v-if="contacts.length === 0" title="Belum ada contact tercatat" />
@@ -362,6 +423,138 @@ function submitActivity () {
             </ul>
             <EmptyState v-if="projects.length === 0" title="Belum ada project" />
           </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="travel-history">
+          <div class="space-y-5">
+            <SectionCard
+              title="Preferensi Perjalanan"
+              description="Pola perjalanan diturunkan dari riwayat project yang benar-benar terjadi — bukan profil terpisah yang harus diisi ulang."
+            >
+              <template v-if="travelInsight">
+                <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                  <div class="rounded-lg bg-muted/40 px-3 py-2.5">
+                    <p class="text-xs text-muted-foreground">
+                      Total Perjalanan
+                    </p>
+                    <p class="text-sm font-semibold text-foreground mt-0.5">
+                      {{ travelInsight.tripCount }} project
+                    </p>
+                  </div>
+                  <div class="rounded-lg bg-muted/40 px-3 py-2.5">
+                    <p class="text-xs text-muted-foreground">
+                      Destinasi Favorit
+                    </p>
+                    <p class="text-sm font-semibold text-foreground mt-0.5">
+                      {{ travelInsight.favouriteDestination ?? '—' }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ travelInsight.favouriteDestinationCount }}× dikunjungi
+                    </p>
+                  </div>
+                  <div class="rounded-lg bg-muted/40 px-3 py-2.5">
+                    <p class="text-xs text-muted-foreground">
+                      Rata-rata Rombongan
+                    </p>
+                    <p class="text-sm font-semibold text-foreground mt-0.5">
+                      {{ travelInsight.averagePax }} pax
+                    </p>
+                  </div>
+                  <div class="rounded-lg bg-muted/40 px-3 py-2.5">
+                    <p class="text-xs text-muted-foreground">
+                      Rata-rata Durasi
+                    </p>
+                    <p class="text-sm font-semibold text-foreground mt-0.5">
+                      {{ travelInsight.averageDurationDays }} hari
+                    </p>
+                  </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5 mt-4">
+                  <div>
+                    <p class="text-xs font-medium text-muted-foreground mb-2">
+                      Destinasi yang Pernah Dikunjungi
+                    </p>
+                    <ul class="space-y-1.5">
+                      <li v-for="[destination, count] in travelInsight.destinations" :key="destination" class="flex items-center gap-2">
+                        <span class="flex-1 text-sm text-foreground truncate">{{ destination }}</span>
+                        <span class="text-xs text-muted-foreground">{{ count }}×</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div>
+                    <p class="text-xs font-medium text-muted-foreground mb-2">
+                      Layanan yang Biasa Dipakai
+                    </p>
+                    <div class="flex flex-wrap gap-2">
+                      <StatusBadge
+                        v-for="[service, count] in travelInsight.services"
+                        :key="service"
+                        :label="`${findStatusOption(SERVICE_TYPES, service).label} (${count})`"
+                        :tone="findStatusOption(SERVICE_TYPES, service).tone"
+                      />
+                    </div>
+
+                    <template v-if="travelInsight.loyalty">
+                      <p class="text-xs font-medium text-muted-foreground mt-4 mb-2">
+                        Status Loyalty
+                      </p>
+                      <div class="flex items-center gap-2">
+                        <StatusBadge :label="travelInsight.loyalty.tier.label" tone="warning" />
+                        <span class="text-sm text-foreground">{{ formatNumber(travelInsight.loyalty.totalPoints) }} poin</span>
+                        <NuxtLink to="/crm/loyalty" class="text-xs text-primary hover:underline ml-auto">
+                          Lihat program →
+                        </NuxtLink>
+                      </div>
+                    </template>
+                  </div>
+                </div>
+
+                <div v-if="party.travelPreferences" class="mt-4 pt-4 border-t border-border">
+                  <p class="text-xs font-medium text-muted-foreground mb-1.5">
+                    Catatan Preferensi
+                  </p>
+                  <p class="text-sm text-foreground leading-relaxed">
+                    {{ party.travelPreferences }}
+                  </p>
+                </div>
+              </template>
+
+              <EmptyState v-else title="Belum ada riwayat perjalanan" description="Preferensi akan terbentuk otomatis setelah project pertama berjalan." />
+            </SectionCard>
+
+            <SectionCard title="Riwayat Perjalanan">
+              <ul v-if="travelHistory.length" class="divide-y divide-border">
+                <li v-for="row in travelHistory" :key="row.project.id" class="py-3.5 first:pt-0 last:pb-0">
+                  <div class="flex flex-wrap items-start justify-between gap-3">
+                    <div class="min-w-0">
+                      <NuxtLink :to="`/project-orders/${row.project.id}`" class="text-sm font-medium text-foreground hover:text-primary">
+                        {{ row.project.name }}
+                      </NuxtLink>
+                      <p class="text-xs text-muted-foreground mt-0.5">
+                        {{ row.project.destination }} · {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
+                        · {{ row.project.travelerCount }} pax
+                      </p>
+                    </div>
+                    <div class="text-right shrink-0">
+                      <p class="text-sm font-medium text-foreground">
+                        {{ formatCurrencyIdr(row.invoicedIdr) }}
+                      </p>
+                      <StatusBadge
+                        :label="findStatusOption(PROJECT_STATUSES, row.project.status).label"
+                        :tone="findStatusOption(PROJECT_STATUSES, row.project.status).tone"
+                      />
+                    </div>
+                  </div>
+                  <p v-if="row.feedback?.comment" class="text-xs text-muted-foreground italic mt-1.5">
+                    "{{ row.feedback.comment }}"
+                  </p>
+                </li>
+              </ul>
+              <EmptyState v-else title="Belum ada perjalanan tercatat" />
+            </SectionCard>
+          </div>
         </TabsContent>
       </Tabs>
     </template>

@@ -1,17 +1,36 @@
-import { ROLE_MODULE_ACCESS, FULL_FINANCIAL_VISIBILITY_ROLES } from '~/constants/roles'
-import type { ModuleKey, PermissionLevel } from '~/types/user'
-
-const RANK: Record<PermissionLevel, number> = { NONE: 0, VIEW: 1, MANAGE: 2, APPROVE: 3, ADMIN: 4 }
+import { computed } from 'vue'
+import type { ModuleKey, PermissionLevel, RoleId } from '~/types/user'
+import {
+  RANK,
+  getMenuLevel,
+  getModuleLevel,
+  getRoleDefinition,
+  hasCapability,
+  resolveRoleId
+} from '~/data/rbac'
 
 /**
- * Helper `canView`/`canManage` terpusat (Prompt 5-I) — jangan sebar logic permission ke banyak komponen.
- * Mengikuti Role & Access Matrix docs/route-and-role-matrix.md bagian 5.
+ * Helper permission terpusat — jangan sebar logic permission ke banyak komponen.
+ *
+ * Sejak Revisi 9-Modul sumbernya adalah RBAC reaktif (`app/data/rbac.ts`), bukan lagi matriks
+ * compile-time. Signature `accessLevel`/`canView`/`canManage`/`canApprove`/`canViewFinancials`/
+ * `vendorScopeId`/`clientScopeId` SENGAJA dipertahankan persis seperti sebelumnya sehingga ~108
+ * call-site yang ada tidak perlu diubah — module key lama otomatis diterjemahkan lewat
+ * `LEGACY_MODULE_ALIAS` (`app/constants/modules.ts`).
+ *
+ * Tambahan baru:
+ *   - `menuLevel(menuKey, moduleKey?)` — grant per entri menu (Admin > Roles > Menus).
+ *   - `can(capabilityKey)` — action flag bernama, pengganti perbandingan role literal.
+ *   - `isRole(...)` — perbandingan role yang sadar alias role lama.
  */
 export function usePermissions () {
   const { currentRole, currentUser } = useCurrentUser()
 
+  const roleId = computed<RoleId>(() => resolveRoleId(currentRole.value))
+  const roleDefinition = computed(() => getRoleDefinition(roleId.value))
+
   function accessLevel (moduleKey: ModuleKey): PermissionLevel {
-    return ROLE_MODULE_ACCESS[currentRole.value][moduleKey]
+    return getModuleLevel(roleId.value, moduleKey)
   }
 
   function canView (moduleKey: ModuleKey): boolean {
@@ -26,13 +45,46 @@ export function usePermissions () {
     return RANK[accessLevel(moduleKey)] >= RANK.APPROVE
   }
 
-  const canViewFinancials = computed(() => FULL_FINANCIAL_VISIBILITY_ROLES.includes(currentRole.value))
+  /** Level efektif satu entri navigasi — override menu menang, kalau tidak ada mewarisi modulnya. */
+  function menuLevel (menuKey: string, moduleKey?: ModuleKey): PermissionLevel {
+    return getMenuLevel(roleId.value, menuKey, moduleKey)
+  }
 
-  /** Vendor isolation (Prompt 19) — `vendorId` milik user login bila role `supplier`, else `undefined`. Dipakai `/supplier/*` untuk membatasi seluruh query ke satu vendor company saja. */
-  const vendorScopeId = computed(() => (currentRole.value === 'supplier' ? currentUser.value.vendorId : undefined))
+  function canViewMenu (menuKey: string, moduleKey?: ModuleKey): boolean {
+    return RANK[menuLevel(menuKey, moduleKey)] >= RANK.VIEW
+  }
 
-  /** Client isolation (Section 02) — pola identik `vendorScopeId`. `clientPartyId` milik user login bila role `client`, else `undefined`. Dipakai `/client/*` untuk membatasi seluruh query ke satu company (`Party`) saja. */
-  const clientScopeId = computed(() => (currentRole.value === 'client' ? currentUser.value.clientPartyId : undefined))
+  /** Action flag granular (`app/constants/capabilities.ts`). Super Admin selalu `true`. */
+  function can (capabilityKey: string): boolean {
+    return hasCapability(roleId.value, capabilityKey)
+  }
 
-  return { accessLevel, canView, canManage, canApprove, canViewFinancials, vendorScopeId, clientScopeId }
+  /** Perbandingan role yang aman terhadap role id lama (mis. `'project-manager'` → `'operations'`). */
+  function isRole (...roleIds: RoleId[]): boolean {
+    return roleIds.some(candidate => resolveRoleId(candidate) === roleId.value)
+  }
+
+  const canViewFinancials = computed(() => roleDefinition.value?.canViewFullFinancials ?? false)
+
+  /** Isolasi vendor — `vendorId` milik user login bila role-nya ber-`scopeField: 'vendorId'`. */
+  const vendorScopeId = computed(() => (roleDefinition.value?.scopeField === 'vendorId' ? currentUser.value.vendorId : undefined))
+
+  /** Isolasi client — pola identik `vendorScopeId`, membatasi `/client/*` ke satu `Party`. */
+  const clientScopeId = computed(() => (roleDefinition.value?.scopeField === 'clientPartyId' ? currentUser.value.clientPartyId : undefined))
+
+  return {
+    roleId,
+    roleDefinition,
+    accessLevel,
+    canView,
+    canManage,
+    canApprove,
+    menuLevel,
+    canViewMenu,
+    can,
+    isRole,
+    canViewFinancials,
+    vendorScopeId,
+    clientScopeId
+  }
 }

@@ -8,14 +8,14 @@ import type { BadgeTone } from '~/types/common'
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Activity Center' })
 
-const { currentRole } = useCurrentUser()
+const { can } = usePermissions()
 
 /**
- * Activity Center (Prompt 19 — Change Request) — Super Admin saja, BUKAN `canView('administration')` generik
- * (yang juga memberi Management/Viewer akses ke `/admin/audit-trail`) — narrow role exception, pola sama
- * seperti `canManageOpportunity` dst., karena literal Prompt 19-6 hanya menyebut "Super Admin".
+ * Activity Center — BUKAN `canView('administration')` generik (yang juga memberi Management akses ke
+ * `/admin/audit-trail`). Digerbangi capability `admin.view-activity-center` yang secara default hanya
+ * dipegang Super Admin, tapi kini bisa diberikan ke role lain dari Admin > Roles > Action Flags.
  */
-const hasAccess = computed(() => currentRole.value === 'super-admin')
+const hasAccess = computed(() => can('admin.view-activity-center'))
 
 const MODULE_LABELS: Record<SystemEventModule, string> = {
   lead: 'Lead',

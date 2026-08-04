@@ -45,7 +45,7 @@ function printPage () {
         </div>
       </template>
 
-      <template v-else-if="!canView('crm')">
+      <template v-else-if="!canView('sales')">
         <div class="rounded-xl border border-border bg-card p-8 print:hidden">
           <RoleAccessState module-label="modul CRM" />
         </div>

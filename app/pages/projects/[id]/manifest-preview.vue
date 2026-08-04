@@ -16,10 +16,9 @@ import type { Traveler } from '~/types/project'
 definePageMeta({ layout: false, middleware: 'auth' })
 
 const route = useRoute()
-const { canView } = usePermissions()
-const { currentRole } = useCurrentUser()
+const { canView, can } = usePermissions()
 /** "Sensitive values masked sesuai role" (Wajib) — berlaku juga di preview/print, bukan hanya tabel dashboard; pola sama `canManageTravelers` (`app/pages/projects/[id]/index.vue`). */
-const canViewFullDocuments = computed(() => ['project-manager', 'super-admin'].includes(currentRole.value))
+const canViewFullDocuments = computed(() => can('project-order.manage-travelers'))
 
 const project = computed(() => getProjectById(String(route.params.id)))
 const party = computed(() => (project.value ? getPartyById(project.value.partyId) : undefined))

@@ -45,6 +45,18 @@ export default defineNuxtConfig({
     { path: '~/components/ui', pathPrefix: false }
   ],
 
+  /**
+   * Redirect rute yang dihapus pada Revisi 9-Modul. Keempatnya adalah sisa template awal (data Inggris/USD,
+   * tidak tersambung ke domain MANOVA) yang kini punya pengganti nyata. Tanpa redirect, bookmark dan tautan
+   * di dokumen lama akan jatuh ke halaman 404.
+   */
+  routeRules: {
+    '/tasks': { redirect: { to: '/project-orders', statusCode: 301 } },
+    '/expenses': { redirect: { to: '/finance/opex', statusCode: 301 } },
+    '/projects/create': { redirect: { to: '/project-orders', statusCode: 301 } },
+    '/customer-journey/project-orders': { redirect: { to: '/project-orders', statusCode: 301 } }
+  },
+
   app: {
     head: {
       title: 'MANOVA',

@@ -170,7 +170,7 @@ function submitRevisionRequest () {
         </div>
 
         <div v-if="serviceScopeOptions.length" class="mt-3 pt-3 border-t border-border">
-          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          <p class="text-xs font-medium text-muted-foreground mb-2">
             Layanan
           </p>
           <div class="flex flex-wrap gap-2">
@@ -179,7 +179,7 @@ function submitRevisionRequest () {
         </div>
 
         <div v-if="quotation.serviceBreakdown && quotation.serviceBreakdown.length > 0" class="mt-3 pt-3 border-t border-border">
-          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          <p class="text-xs font-medium text-muted-foreground mb-2">
             Service Breakdown
           </p>
           <ul class="divide-y divide-border">

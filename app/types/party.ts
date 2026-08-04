@@ -70,7 +70,8 @@ export interface ContactPerson {
 }
 
 /** Tab identifiers for Party Detail (docs/mockup-information-architecture.md bagian 3.2 — Overview/Contacts/Opportunities/Activities/Projects*). */
-export type PartyDetailTab = 'overview' | 'contacts' | 'opportunities' | 'activities' | 'projects'
+/** `travel-history` ditambahkan Revisi 9-Modul (`revisi.md` #5 "History Perjalanan & Preferensi"). */
+export type PartyDetailTab = 'overview' | 'contacts' | 'opportunities' | 'activities' | 'projects' | 'travel-history'
 
 export type PartyActivityType = 'call' | 'meeting' | 'email' | 'note' | 'follow-up'
 

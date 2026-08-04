@@ -125,7 +125,7 @@ function submitReject () {
           ]"
         />
         <div v-if="opportunity.serviceScope.length" class="mt-4 pt-4 border-t border-border">
-          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+          <p class="text-xs font-medium text-muted-foreground mb-2">
             Layanan
           </p>
           <div class="flex flex-wrap gap-2">
@@ -166,7 +166,7 @@ function submitReject () {
           </div>
 
           <div v-if="quotation.serviceBreakdown && quotation.serviceBreakdown.length > 0" class="mt-2">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            <p class="text-xs font-medium text-muted-foreground mb-2">
               Rincian Layanan
             </p>
             <ul class="divide-y divide-border">

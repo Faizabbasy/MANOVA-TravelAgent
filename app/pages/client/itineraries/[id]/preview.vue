@@ -86,7 +86,7 @@ function printPage () {
 
           <ul v-if="items.length" class="space-y-4">
             <li v-for="item in items" :key="item.id">
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <p class="text-xs font-medium text-muted-foreground">
                 {{ formatDayLabel(item.date) }}<template v-if="item.time">
                   · {{ item.time }}
                 </template>

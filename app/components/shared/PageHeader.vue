@@ -14,22 +14,26 @@ withDefaults(defineProps<{
 </script>
 
 <template>
+  <!--
+    Refinement UI: banner gradien tiga warna (primary → violet → cyan) dihapus. Ia muncul di SETIAP
+    halaman sehingga menjadi latar dekoratif yang bersaing dengan konten, bukan penanda hierarki.
+    Digantikan blok judul bersih dengan garis pemisah — judul halaman kini menonjol karena ukuran dan
+    bobotnya, bukan karena warna latarnya.
+  -->
   <div class="space-y-3">
     <Breadcrumb v-if="breadcrumb.length" :items="breadcrumb" />
-    <div class="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-primary/10 via-violet-500/10 to-cyan-500/10 px-5 py-5">
-      <div class="pointer-events-none absolute -top-10 -right-10 h-32 w-32 rounded-full bg-primary/20 blur-3xl" />
-      <div class="relative flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <div class="min-w-0">
-          <h1 class="text-2xl font-bold text-foreground">
-            {{ title }}
-          </h1>
-          <p v-if="description" class="text-sm text-muted-foreground mt-1">
-            {{ description }}
-          </p>
-        </div>
-        <div v-if="$slots.actions" class="flex items-center gap-2 shrink-0">
-          <slot name="actions" />
-        </div>
+
+    <div class="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-start sm:justify-between">
+      <div class="min-w-0">
+        <h1 class="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
+          {{ title }}
+        </h1>
+        <p v-if="description" class="mt-1.5 max-w-3xl text-sm leading-relaxed text-muted-foreground">
+          {{ description }}
+        </p>
+      </div>
+      <div v-if="$slots.actions" class="flex shrink-0 items-center gap-2">
+        <slot name="actions" />
       </div>
     </div>
   </div>

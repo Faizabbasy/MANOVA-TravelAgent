@@ -10,9 +10,8 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Lead Source Recap' })
 
 const { canView } = usePermissions()
-const { currentRole } = useCurrentUser()
 /** Sales dibatasi ke Lead saja pada Customer Journey (docs Prompt 19-10) — Lead Source Recap adalah agregat lintas-source milik Super Admin Dashboard, bukan scope Sales. Narrow exception. */
-const hasAccess = computed(() => canView('crm') && currentRole.value !== 'sales')
+const hasAccess = computed(() => canView('crm'))
 
 /**
  * Rekap per source (Prompt 19 — Change Request, Super Admin Dashboard). Reuse fixture `LEADS` yang sama

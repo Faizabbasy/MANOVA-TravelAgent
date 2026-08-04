@@ -559,7 +559,14 @@ const PROJECT_STATUS_TRANSITIONS: Record<Project['status'], Project['status'][]>
   draft: ['planning', 'on-hold', 'cancelled'],
   planning: ['confirmed', 'on-hold', 'cancelled'],
   confirmed: ['in-progress', 'on-hold', 'cancelled'],
-  'in-progress': ['completed', 'on-hold', 'cancelled'],
+  /**
+   * `ongoing-trip` ditambahkan (Revisi 9-Modul, alur 6 step Project Order). Sebelumnya `in-progress` hanya
+   * bisa langsung ke `completed`, sehingga status `ongoing-trip` — yang sudah lama ada di `ProjectStatus`
+   * dan sudah punya transisi keluar ke `completed` — TIDAK PERNAH bisa dicapai lewat `updateProjectStatus`.
+   * Ini membuat step "Departure → On Progress" mustahil dijalankan. Perubahan bersifat aditif: tidak ada
+   * transisi lama yang dihapus, dan `completed` tetap dapat dicapai langsung dari `in-progress`.
+   */
+  'in-progress': ['ongoing-trip', 'completed', 'on-hold', 'cancelled'],
   'ongoing-trip': ['completed', 'on-hold', 'cancelled'],
   completed: [],
   'on-hold': ['planning', 'confirmed', 'in-progress', 'cancelled'],

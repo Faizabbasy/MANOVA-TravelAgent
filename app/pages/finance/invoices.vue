@@ -342,7 +342,7 @@ function submitCreditNote () {
             </p>
           </template>
 
-          <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">
+          <p class="text-xs font-medium text-muted-foreground mt-4 mb-2">
             Riwayat Pembayaran
           </p>
           <ul v-if="selectedPayments.length" class="divide-y divide-border">
@@ -354,7 +354,7 @@ function submitCreditNote () {
           <EmptyState v-else :icon="FileX" title="Belum ada payment tercatat" />
 
           <template v-if="selectedCreditNotes.length">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mt-4 mb-2">
+            <p class="text-xs font-medium text-muted-foreground mt-4 mb-2">
               Credit Note
             </p>
             <ul class="divide-y divide-border">

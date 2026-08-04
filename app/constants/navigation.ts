@@ -1,25 +1,27 @@
 import type { Component } from 'vue'
 import {
   LayoutDashboard,
+  TrendingUp,
   Target,
-  FolderKanban,
-  Building2,
-  Wallet,
-  BarChart3,
-  ShieldCheck,
-  Route,
-  Activity,
-  Truck,
-  Users,
   Package,
+  Wallet,
+  Heart,
+  Users,
+  Building2,
+  ClipboardList,
+  Route,
+  FolderKanban,
   Plane,
   BedDouble,
   Bus,
   Presentation,
-  ClipboardList,
   CalendarClock,
   AlertTriangle,
+  BarChart3,
+  Activity,
   FileText,
+  ShieldCheck,
+  Truck,
   Bell,
   Send,
   ClipboardCheck,
@@ -28,266 +30,319 @@ import {
   GitPullRequest,
   MessageSquare,
   LifeBuoy,
-  Star
+  Star,
+  Briefcase,
+  ArrowDownToLine,
+  ArrowUpFromLine,
+  TrendingDown,
+  BookOpen,
+  Percent,
+  UserCog,
+  Megaphone
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
 
 export interface NavItem {
+  /**
+   * Slug stabil, unik lintas seluruh pohon. INI target `RoleMenuGrant` — admin dapat memberi/mencabut
+   * satu menu untuk sebuah role lewat Admin > Roles > Menus tanpa perlu membuat modul baru.
+   * Sengaja TIDAK diturunkan dari label atau route, supaya rename label / pindah route tidak diam-diam
+   * mencabut akses yang sudah diberikan.
+   */
+  key: string
   label: string
   to: string
   icon: Component
-  /** Module dipakai untuk role-visibility check (docs/route-and-role-matrix.md bagian 5). Kosong = selalu tampil. */
+  /** Gerbang default. Bila tidak ada `RoleMenuGrant`, level menu mewarisi level modul ini. Kosong = selalu tampil. */
   moduleKey?: ModuleKey
   /**
-   * Narrow role-visibility override (Prompt 19 — Change Request) — dipakai HANYA saat granularity modul
-   * (`moduleKey`) tidak cukup presisi (mis. Activity Center literal Super Admin saja, sedangkan modul
-   * `administration` juga memberi Management/Viewer `VIEW`). Bila diisi, item hanya tampil untuk role di
-   * daftar ini (menggantikan cek `moduleKey`, bukan menambahkannya) — pola yang sama seperti narrow role
-   * exception di halaman (`canManageOpportunity` dst.), diterapkan di level visibilitas nav.
+   * Narrow role override — DEPRECATED sejak RBAC dinamis. Role literal tidak akan pernah cocok dengan role
+   * custom yang dibuat admin. Pakai `moduleKey` + `RoleMenuGrant`, atau capability di dalam halaman.
    */
   roles?: RoleId[]
-  /** Halaman belum diimplementasikan penuh — tampil dengan label "Segera" (Prompt 5-D). */
+  /** Halaman belum diimplementasikan penuh — tampil dengan label "Segera". */
   comingSoon?: boolean
+  /** Halaman baru hasil Revisi 9-Modul — tampil dengan label "Baru". */
+  isNew?: boolean
+  /** Hanya SATU level nesting yang didukung `AppSidebar.vue`. */
   children?: NavItem[]
 }
 
 /**
- * Satu source of truth navigation (Prompt 5-D), mengikuti docs/mockup-information-architecture.md bagian 2-3
- * dan docs/route-and-role-matrix.md bagian 0. Settings sengaja tidak ada di sini — diakses lewat popover
- * profil (D-022), bukan sidebar utama.
+ * Navigasi 9 modul (Revisi 9-Modul) — menggantikan 26 entri top-level lama yang tumbuh organik per-section.
+ * Urutan modul mengikuti daftar yang diminta klien:
+ *   1 Sales · 2 Finance & ACC · 3 CRM · 4 Vendor & Partner · 5 Operations & Scheduling
+ *   6 HR · 7 Inventory · 8 Marketing & Analysis · 9 Reporting & BI
+ * disusul modul sistem: Documents, Administration, Vendor Portal, dan Client Portal.
+ *
+ * Modul 6-8 (HR, Inventory, Marketing) belum punya halaman — entri navigasinya ditambahkan pada fase
+ * pembangunan masing-masing, BUKAN sekarang, supaya tidak ada menu yang mengarah ke 404.
+ *
+ * Settings sengaja tidak ada di sini — diakses lewat popover profil (D-022).
  */
 export const NAV_ITEMS: NavItem[] = [
-  { label: 'Dashboard', to: '/', icon: LayoutDashboard },
-  /**
-   * Customer Journey (Prompt 19). Sales dibatasi ke Leads saja (docs Prompt 19-10 "Sales: terbatas pada
-   * Lead") — Customers/Project Orders/Lead Source Recap pakai `roles` override (daftar seluruh role dengan
-   * `crm` VIEW+ MINUS `sales`), Leads sendiri tetap `moduleKey: 'crm'` generik (Sales tetap perlu akses).
-   */
+  { key: 'dashboard', label: 'Dashboard', to: '/', icon: LayoutDashboard },
+
+  /* ---------- 1. Sales ---------- */
   {
-    label: 'Customer Journey',
-    to: '/customer-journey',
-    icon: Route,
-    moduleKey: 'crm',
+    key: 'sales',
+    label: 'Sales',
+    to: '/crm/opportunities',
+    icon: TrendingUp,
+    moduleKey: 'sales',
     children: [
-      { label: 'Leads', to: '/customer-journey/leads', icon: Route, moduleKey: 'crm' },
-      { label: 'Customers', to: '/customer-journey/customers', icon: Route, roles: ['super-admin', 'management', 'account-executive', 'project-manager', 'finance', 'viewer'] },
-      { label: 'Project Orders', to: '/customer-journey/project-orders', icon: Route, roles: ['super-admin', 'management', 'account-executive', 'project-manager', 'finance', 'viewer'] },
-      { label: 'Lead Source Recap', to: '/customer-journey/lead-sources', icon: Route, roles: ['super-admin', 'management', 'account-executive', 'project-manager', 'finance', 'viewer'] }
+      { key: 'sales.leads', label: 'Leads', to: '/customer-journey/leads', icon: Route, moduleKey: 'sales' },
+      { key: 'sales.opportunities', label: 'Opportunities', to: '/crm/opportunities', icon: Target, moduleKey: 'sales' },
+      { key: 'sales.quotations', label: 'Quotation & Invoice', to: '/crm/quotations', icon: FileText, moduleKey: 'sales' },
+      { key: 'sales.product-templates', label: 'Product Templates', to: '/product-planning', icon: Package, moduleKey: 'sales' },
+      { key: 'sales.cost-sheets', label: 'Cost Sheets', to: '/product-planning/cost-sheets', icon: Package, moduleKey: 'sales' },
+      { key: 'sales.lead-intake', label: 'Form Lead Intake', to: '/lead-intake', icon: Send, moduleKey: 'sales' }
     ]
   },
+
+  /* ---------- 2. Finance & ACC ---------- */
   {
+    key: 'finance',
+    label: 'Finance & ACC',
+    to: '/finance',
+    icon: Wallet,
+    moduleKey: 'finance-acc',
+    children: [
+      { key: 'finance.overview', label: 'Ringkasan', to: '/finance', icon: Wallet, moduleKey: 'finance-acc' },
+      { key: 'finance.invoices', label: 'Invoices', to: '/finance/invoices', icon: Wallet, moduleKey: 'finance-acc' },
+      { key: 'finance.receivables', label: 'Receivables (AR)', to: '/finance/receivables', icon: ArrowDownToLine, moduleKey: 'finance-acc', isNew: true },
+      { key: 'finance.payables', label: 'Payables (AP)', to: '/finance/payables', icon: ArrowUpFromLine, moduleKey: 'finance-acc', isNew: true },
+      { key: 'finance.payments', label: 'Payments', to: '/finance/payments', icon: Wallet, moduleKey: 'finance-acc' },
+      { key: 'finance.opex', label: 'Opex', to: '/finance/opex', icon: TrendingDown, moduleKey: 'finance-acc', isNew: true },
+      { key: 'finance.ledger', label: 'General Ledger & Revenue', to: '/finance/ledger', icon: BookOpen, moduleKey: 'finance-acc', isNew: true },
+      { key: 'finance.tax', label: 'Tax & Multi Currency', to: '/finance/tax', icon: Percent, moduleKey: 'finance-acc', isNew: true },
+      { key: 'finance.notes', label: 'Credit/Debit Notes', to: '/finance/notes', icon: Wallet, moduleKey: 'finance-acc' },
+      { key: 'finance.reconciliation', label: 'Reconciliation', to: '/finance/reconciliation', icon: Wallet, moduleKey: 'finance-acc' }
+    ]
+  },
+
+  /* ---------- 3. CRM ---------- */
+  {
+    key: 'crm',
     label: 'CRM',
-    to: '/crm',
-    icon: Target,
+    to: '/customer-journey',
+    icon: Heart,
     moduleKey: 'crm',
     children: [
-      { label: 'Prospects', to: '/crm/prospects', icon: Target, moduleKey: 'crm' },
-      { label: 'Clients', to: '/crm/clients', icon: Target, moduleKey: 'crm' },
-      { label: 'Opportunities', to: '/crm/opportunities', icon: Target, moduleKey: 'crm' },
-      { label: 'Quotations', to: '/crm/quotations', icon: Target, moduleKey: 'crm' }
+      { key: 'crm.journey', label: 'Customer Journey', to: '/customer-journey', icon: Route, moduleKey: 'crm' },
+      { key: 'crm.customers', label: 'Database Customer', to: '/customer-journey/customers', icon: Users, moduleKey: 'crm' },
+      { key: 'crm.prospects', label: 'Prospects', to: '/crm/prospects', icon: Users, moduleKey: 'crm' },
+      { key: 'crm.clients', label: 'Clients', to: '/crm/clients', icon: Users, moduleKey: 'crm' },
+      { key: 'crm.follow-ups', label: 'Follow-up Otomatis', to: '/crm/follow-ups', icon: Bell, moduleKey: 'crm', isNew: true },
+      { key: 'crm.loyalty', label: 'Loyalty Program', to: '/crm/loyalty', icon: Star, moduleKey: 'crm', isNew: true },
+      { key: 'crm.feedback', label: 'Review & Feedback', to: '/crm/feedback', icon: MessageSquare, moduleKey: 'crm', isNew: true },
+      { key: 'crm.lead-sources', label: 'Lead Source Recap', to: '/customer-journey/lead-sources', icon: BarChart3, moduleKey: 'crm' }
     ]
   },
-  /** Product Planning (Section 10) — katalog Product/Package Template dan Cost Sheet, kolaborasi AE/Operations/Finance. */
+
+  /* ---------- 4. Vendor & Partner Management ---------- */
   {
-    label: 'Product Planning',
-    to: '/product-planning',
-    icon: Package,
-    moduleKey: 'product-planning',
+    key: 'vendor-partner',
+    label: 'Vendor & Partner',
+    to: '/vendors',
+    icon: Building2,
+    moduleKey: 'vendor-partner',
     children: [
-      { label: 'Product Templates', to: '/product-planning', icon: Package, moduleKey: 'product-planning' },
-      { label: 'Cost Sheets', to: '/product-planning/cost-sheets', icon: Package, moduleKey: 'product-planning' }
+      { key: 'vendor-partner.directory', label: 'Data Vendor', to: '/vendors', icon: Building2, moduleKey: 'vendor-partner' },
+      { key: 'vendor-partner.rfq', label: 'RFQ', to: '/procurement', icon: ClipboardList, moduleKey: 'vendor-partner' },
+      { key: 'vendor-partner.service-orders', label: 'Service Orders', to: '/procurement?tab=service-orders', icon: ClipboardList, moduleKey: 'vendor-partner' },
+      { key: 'vendor-partner.performance', label: 'Rating & Performance', to: '/procurement/performance', icon: Star, moduleKey: 'vendor-partner' }
     ]
   },
-  { label: 'Projects', to: '/projects', icon: FolderKanban, moduleKey: 'project' },
-  /** Ticketing (Section 13) — FlightBooking lifecycle lintas project, pemilik utama role `ticketing`. */
-  { label: 'Ticketing', to: '/ticketing', icon: Plane, moduleKey: 'ticketing' },
-  /** Accommodation (Section 14) — HotelBooking lifecycle lintas project, pemilik utama role `accommodation`, pola arsitektur IDENTIK Ticketing (D-070). */
-  { label: 'Accommodation', to: '/accommodation', icon: BedDouble, moduleKey: 'accommodation' },
-  /** Transportation (Section 15) — TransportBooking lifecycle lintas project, pemilik utama role `transportation`, pola arsitektur IDENTIK Ticketing/Accommodation (D-070/D-071). */
-  { label: 'Transportation', to: '/transportation', icon: Bus, moduleKey: 'transportation' },
-  /** MICE (Section 16) — MiceEvent lifecycle lintas project, pemilik utama role `mice`, pola arsitektur IDENTIK Ticketing/Accommodation/Transportation (D-070/D-071/D-072). */
-  { label: 'MICE', to: '/mice', icon: Presentation, moduleKey: 'mice' },
-  { label: 'Vendors', to: '/vendors', icon: Building2, moduleKey: 'vendor' },
-  /**
-   * Booking & Service Order Center (Section 18, D-075) — timeline konsolidasi lintas Flight/Hotel/Transport/
-   * MICE (Section 13-16), pemilik utama role `operations`. Label sengaja "Booking & Service Order Center"
-   * (istilah UI-only) — BUKAN nama entitas baru, agar tidak bertabrakan dengan `ServiceOrder` Procurement
-   * (Section 17, `/procurement`), lihat `docs/frontend-known-issues.md` bagian 13.
-   */
+
+  /* ---------- 5. Operations & Scheduling ---------- */
   {
-    label: 'Booking & Service Order Center',
-    to: '/bookings',
-    icon: CalendarClock,
-    moduleKey: 'bookings',
+    key: 'operations',
+    label: 'Operations & Scheduling',
+    to: '/project-orders',
+    icon: Route,
+    moduleKey: 'operations',
     children: [
-      { label: 'Timeline', to: '/bookings', icon: CalendarClock, moduleKey: 'bookings' },
-      { label: 'Exceptions', to: '/bookings/exceptions', icon: CalendarClock, moduleKey: 'bookings' }
+      { key: 'operations.project-orders', label: 'Project Orders', to: '/project-orders', icon: FolderKanban, moduleKey: 'operations', isNew: true },
+      { key: 'operations.projects-legacy', label: 'Project Workspace (Detail)', to: '/projects', icon: FolderKanban, moduleKey: 'operations' },
+      { key: 'operations.calendar', label: 'Booking Calendar & Map', to: '/operations/calendar', icon: Calendar, moduleKey: 'operations', isNew: true },
+      { key: 'operations.bookings', label: 'Booking Center', to: '/bookings', icon: CalendarClock, moduleKey: 'operations' },
+      { key: 'operations.booking-exceptions', label: 'Booking Exceptions', to: '/bookings/exceptions', icon: AlertTriangle, moduleKey: 'operations' },
+      { key: 'operations.changes', label: 'Change Request & Incident', to: '/changes', icon: GitPullRequest, moduleKey: 'operations' },
+      { key: 'operations.ticketing', label: 'Ticketing', to: '/ticketing', icon: Plane, moduleKey: 'operations' },
+      { key: 'operations.accommodation', label: 'Accommodation', to: '/accommodation', icon: BedDouble, moduleKey: 'operations' },
+      { key: 'operations.transportation', label: 'Transportation', to: '/transportation', icon: Bus, moduleKey: 'operations' },
+      { key: 'operations.mice', label: 'MICE', to: '/mice', icon: Presentation, moduleKey: 'operations' }
     ]
   },
-  /**
-   * Changes & Incidents (Section 19, D-076) — `ChangeRequest`/`CancellationRecord`/`RefundRequest`/`Incident`
-   * lintas project, pemilik utama role `operations`/`project-manager`. Fully additive di atas Booking
-   * Orchestration (Section 18) dan `ActivityEntry` (Section 14 lama, `CHG-*` tetap satu-satunya audit trail).
-   */
+
+  /* ---------- 6. Human Resource Management ---------- */
+  { key: 'hr', label: 'Human Resource', to: '/hr', icon: UserCog, moduleKey: 'hr', isNew: true },
+
+  /* ---------- 7. Inventory ---------- */
+  { key: 'inventory', label: 'Inventory', to: '/inventory', icon: Package, moduleKey: 'inventory', isNew: true },
+
+  /* ---------- 8. Marketing & Analysis ---------- */
+  { key: 'marketing', label: 'Marketing & Analysis', to: '/marketing', icon: Megaphone, moduleKey: 'marketing', isNew: true },
+
+  /* ---------- 9. Reporting & Business Intelligence ---------- */
   {
-    label: 'Changes & Incidents',
-    to: '/changes',
-    icon: AlertTriangle,
-    moduleKey: 'changes',
+    key: 'bi',
+    label: 'Reporting & BI',
+    to: '/reports',
+    icon: BarChart3,
+    moduleKey: 'bi',
     children: [
-      { label: 'Change Requests', to: '/changes', icon: AlertTriangle, moduleKey: 'changes' },
-      { label: 'Cancellations', to: '/changes?tab=cancellations', icon: AlertTriangle, moduleKey: 'changes' },
-      { label: 'Refunds', to: '/changes?tab=refunds', icon: AlertTriangle, moduleKey: 'changes' },
-      { label: 'Incidents', to: '/changes?tab=incidents', icon: AlertTriangle, moduleKey: 'changes' }
+      { key: 'bi.reports', label: 'Reports', to: '/reports', icon: BarChart3, moduleKey: 'bi' },
+      { key: 'bi.analytics', label: 'Analytics & Marketing ROI', to: '/reports/analytics', icon: TrendingUp, moduleKey: 'bi', isNew: true },
+      { key: 'bi.activity-center', label: 'Activity Center', to: '/activity-center', icon: Activity, moduleKey: 'administration' }
     ]
   },
-  /**
-   * Documents & Communication (Section 21, D-078) — Document center konsolidasi (categories/version/expiry/
-   * access level), Messages (internal notes/client/supplier messages), dan Notification center in-app —
-   * fully additive di atas `ProjectDocument`/`getDocumentsByParty` (Section 14 lama/Prompt 19) dan
-   * `VendorDocument` (Section 17). Tab "Notifications" adalah tujuan kanonik "View all notifications" dari
-   * `NotificationPanel.vue` (bell popover, TopHeader).
-   */
+
+  /* ---------- Sistem: Documents ---------- */
   {
+    key: 'documents',
     label: 'Documents & Communication',
     to: '/documents',
     icon: FileText,
     moduleKey: 'documents',
     children: [
-      { label: 'Documents', to: '/documents', icon: FileText, moduleKey: 'documents' },
-      { label: 'Messages', to: '/documents?tab=messages', icon: FileText, moduleKey: 'documents' },
-      { label: 'Notifications', to: '/documents?tab=notifications', icon: FileText, moduleKey: 'documents' }
+      { key: 'documents.files', label: 'Documents', to: '/documents', icon: FileText, moduleKey: 'documents' },
+      { key: 'documents.messages', label: 'Messages', to: '/documents?tab=messages', icon: MessageSquare, moduleKey: 'documents' },
+      { key: 'documents.notifications', label: 'Notifications', to: '/documents?tab=notifications', icon: Bell, moduleKey: 'documents' }
     ]
   },
-  /** Procurement (Section 17) — RFQ/Service Order/Supplier Invoice lifecycle lintas project, pemilik utama role `procurement`, MENDAMPINGI (bukan menggantikan) Vendors (master data) dan Supplier Portal (self-service). */
+
+  /* ---------- Sistem: Administration ---------- */
   {
-    label: 'Procurement',
-    to: '/procurement',
-    icon: ClipboardList,
-    moduleKey: 'procurement',
-    children: [
-      { label: 'RFQ', to: '/procurement', icon: ClipboardList, moduleKey: 'procurement' },
-      { label: 'Service Orders', to: '/procurement?tab=service-orders', icon: ClipboardList, moduleKey: 'procurement' },
-      { label: 'Performance Review', to: '/procurement/performance', icon: ClipboardList, moduleKey: 'procurement' }
-    ]
-  },
-  {
-    label: 'Finance',
-    to: '/finance',
-    icon: Wallet,
-    moduleKey: 'finance',
-    children: [
-      { label: 'Invoices', to: '/finance/invoices', icon: Wallet, moduleKey: 'finance' },
-      { label: 'Payments', to: '/finance/payments', icon: Wallet, moduleKey: 'finance' },
-      { label: 'Credit/Debit Notes', to: '/finance/notes', icon: Wallet, moduleKey: 'finance' },
-      { label: 'Reconciliation', to: '/finance/reconciliation', icon: Wallet, moduleKey: 'finance' }
-    ]
-  },
-  { label: 'Reports', to: '/reports', icon: BarChart3, moduleKey: 'reports' },
-  /** Activity Center (Prompt 19) — literal "Super Admin Dashboard" saja, `roles` override karena modul `administration` juga memberi Management/Viewer `VIEW`. */
-  { label: 'Activity Center', to: '/activity-center', icon: Activity, roles: ['super-admin'] },
-  {
+    key: 'administration',
     label: 'Administration',
     to: '/admin',
     icon: ShieldCheck,
     moduleKey: 'administration',
     children: [
-      { label: 'Master Data', to: '/admin/master-data', icon: ShieldCheck, moduleKey: 'administration' },
-      { label: 'Users', to: '/admin/users', icon: ShieldCheck, moduleKey: 'administration' },
-      { label: 'Roles and Permissions', to: '/admin/roles', icon: ShieldCheck, moduleKey: 'administration' },
-      { label: 'Audit Trail', to: '/admin/audit-trail', icon: ShieldCheck, moduleKey: 'administration' },
-      /** Organization Profile (Section 23 — Administration, Master Data dan Audit, roadmap Section 00–24 baru, D-080). Ditambahkan sebagai anak ke-5, tidak merestrukturisasi 4 anak existing. */
-      { label: 'Organization Profile', to: '/admin/organization', icon: ShieldCheck, moduleKey: 'administration' }
+      { key: 'administration.overview', label: 'Ringkasan', to: '/admin', icon: ShieldCheck, moduleKey: 'administration' },
+      { key: 'administration.users', label: 'Users', to: '/admin/users', icon: Users, moduleKey: 'administration' },
+      { key: 'administration.roles', label: 'Roles & Permissions', to: '/admin/roles', icon: ShieldCheck, moduleKey: 'administration' },
+      { key: 'administration.master-data', label: 'Master Data', to: '/admin/master-data', icon: ClipboardList, moduleKey: 'administration' },
+      { key: 'administration.audit-trail', label: 'Audit Trail', to: '/admin/audit-trail', icon: Activity, moduleKey: 'administration' },
+      { key: 'administration.organization', label: 'Organization Profile', to: '/admin/organization', icon: Building2, moduleKey: 'administration' }
     ]
   },
-  /** Supplier Portal (Prompt 19) — External Partners, hanya `supplier` (dan Super Admin untuk oversight, lihat `ROLE_MODULE_ACCESS['supplier-portal']`). */
-  {
-    label: 'Supplier Portal',
-    to: '/supplier',
-    icon: Truck,
-    moduleKey: 'supplier-portal',
-    children: [
-      { label: 'Products', to: '/supplier/products', icon: Truck, moduleKey: 'supplier-portal' },
-      { label: 'Orders', to: '/supplier/orders', icon: Truck, moduleKey: 'supplier-portal' },
-      { label: 'RFQ Inbox', to: '/supplier/rfq', icon: Truck, moduleKey: 'supplier-portal' },
-      { label: 'Service Orders', to: '/supplier/service-orders', icon: Truck, moduleKey: 'supplier-portal' },
-      /** Commodity (Phase 2 — Client–Vendor Commodity) — katalog Commodity Product milik vendor sendiri, terpisah dari "Products" (VendorProduct, Prompt 19) yang tetap dipertahankan apa adanya. */
-      { label: 'Komoditas Saya', to: '/supplier/commodities', icon: Package, moduleKey: 'supplier-portal' },
-      /** Vendor Orders (Phase 5 — Client–Vendor Commodity) — Order dan Sold Commodities summary dari CommodityOrder, rute terpisah dari "Orders" (`/supplier/orders`, domain ServiceOrder/RFQ lama yang berbeda, D-070 dst) agar tidak bertabrakan. */
-      { label: 'Vendor Orders', to: '/supplier/commodity-orders', icon: Package, moduleKey: 'supplier-portal' }
-    ]
-  },
+
   /**
-   * Client Experience — 18 halaman (Repair Phase Section 1, "18-Page Client Experience" inisiatif,
-   * `prompts/repair_phases/MASTER-PROMPT.md` bagian E/F). Menggantikan satu entri "Client Portal" lama
-   * (Section 02/08) dengan 7 grup top-level — pola identik grup multi-anak lain (Customer Journey/CRM),
-   * karena `NavItem.children` hanya mendukung SATU level nesting (`app/components/layout/AppSidebar.vue`
-   * tidak punya header grup di dalam children). `/client`, `/client/opportunities/[id]`,
-   * `/client/project-orders/[id]`, `/client/catalog/[requirementId]` (halaman lama, sudah berfungsi penuh)
-   * TETAP ADA dan TIDAK dihapus — belum ditautkan ke nav baru ini sampai section implementasi masing-masing
-   * ("Home"/"Core Project"/dst.) mengonsolidasikannya ke IA baru (lihat `docs/client-page-inventory.md`).
-   * Seluruh item `moduleKey: 'client-portal'` (permission sama seperti sebelumnya, tidak ada modul baru).
-   * `comingSoon: true` pada 9 dari 18 route (shell `ModulePlaceholder`, belum ada bisnis logic) — "Dashboard"
-   * (existing), "Notifications" (Section 2), "Travel Requests"/"Quotations & Proposals"/"Approval Center"
-   * (Section 3), dan "Projects"/"Participants"/"Itineraries"/"Reservations" (Section 4 — Core Project) sudah
-   * berfungsi penuh, bukan shell.
+   * Sistem: Vendor Portal — dulu "Supplier Portal". Rute `/supplier/*` SENGAJA tidak diubah (rename
+   * alias-only): `moduleKey` lama `'supplier-portal'` teresolusi ke `'vendor-portal'` lewat
+   * `LEGACY_MODULE_ALIAS`, sehingga 12 call-site `canView('supplier-portal')` di halaman-halaman tsb
+   * tidak perlu disentuh sama sekali.
    */
   {
+    key: 'vendor-portal',
+    label: 'Vendor Portal',
+    to: '/supplier',
+    icon: Truck,
+    moduleKey: 'vendor-portal',
+    children: [
+      { key: 'vendor-portal.home', label: 'Dashboard', to: '/supplier', icon: Truck, moduleKey: 'vendor-portal' },
+      { key: 'vendor-portal.products', label: 'Products', to: '/supplier/products', icon: Package, moduleKey: 'vendor-portal' },
+      { key: 'vendor-portal.orders', label: 'Orders', to: '/supplier/orders', icon: ClipboardList, moduleKey: 'vendor-portal' },
+      { key: 'vendor-portal.rfq', label: 'RFQ Inbox', to: '/supplier/rfq', icon: ClipboardList, moduleKey: 'vendor-portal' },
+      { key: 'vendor-portal.service-orders', label: 'Service Orders', to: '/supplier/service-orders', icon: ClipboardList, moduleKey: 'vendor-portal' },
+      { key: 'vendor-portal.commodities', label: 'Komoditas Saya', to: '/supplier/commodities', icon: Package, moduleKey: 'vendor-portal' },
+      { key: 'vendor-portal.commodity-orders', label: 'Vendor Orders', to: '/supplier/commodity-orders', icon: Package, moduleKey: 'vendor-portal' }
+    ]
+  },
+
+  /* ---------- Sistem: Client Portal (7 grup, hanya untuk role `client`) ---------- */
+  {
+    key: 'client-portal.home',
     label: 'Home',
     to: '/client',
     icon: LayoutDashboard,
     moduleKey: 'client-portal',
     children: [
-      { label: 'Dashboard', to: '/client', icon: LayoutDashboard, moduleKey: 'client-portal' },
-      { label: 'Notifications', to: '/client/notifications', icon: Bell, moduleKey: 'client-portal' }
+      { key: 'client-portal.dashboard', label: 'Dashboard', to: '/client', icon: LayoutDashboard, moduleKey: 'client-portal' },
+      { key: 'client-portal.notifications', label: 'Notifications', to: '/client/notifications', icon: Bell, moduleKey: 'client-portal' }
     ]
   },
   {
+    key: 'client-portal.commercial',
     label: 'Request & Commercial',
     to: '/client/travel-requests',
     icon: Send,
     moduleKey: 'client-portal',
     children: [
-      { label: 'Travel Requests', to: '/client/travel-requests', icon: Send, moduleKey: 'client-portal' },
-      { label: 'Quotations & Proposals', to: '/client/quotations', icon: FileText, moduleKey: 'client-portal' },
-      { label: 'Approval Center', to: '/client/approvals', icon: ClipboardCheck, moduleKey: 'client-portal' }
+      { key: 'client-portal.travel-requests', label: 'Travel Requests', to: '/client/travel-requests', icon: Send, moduleKey: 'client-portal' },
+      { key: 'client-portal.quotations', label: 'Quotations & Proposals', to: '/client/quotations', icon: FileText, moduleKey: 'client-portal' },
+      { key: 'client-portal.approvals', label: 'Approval Center', to: '/client/approvals', icon: ClipboardCheck, moduleKey: 'client-portal' }
     ]
   },
   {
+    key: 'client-portal.travel',
     label: 'Travel Management',
     to: '/client/projects',
     icon: FolderKanban,
     moduleKey: 'client-portal',
     children: [
-      { label: 'Projects', to: '/client/projects', icon: FolderKanban, moduleKey: 'client-portal' },
-      { label: 'Participants', to: '/client/participants', icon: Users, moduleKey: 'client-portal' },
-      { label: 'Itineraries', to: '/client/itineraries', icon: Calendar, moduleKey: 'client-portal' },
-      { label: 'Reservations', to: '/client/reservations', icon: CalendarClock, moduleKey: 'client-portal' },
-      { label: 'Trip Center', to: '/client/trip-center', icon: Compass, moduleKey: 'client-portal' },
-      { label: 'Change Requests', to: '/client/change-requests', icon: GitPullRequest, moduleKey: 'client-portal' }
+      { key: 'client-portal.projects', label: 'Projects', to: '/client/projects', icon: FolderKanban, moduleKey: 'client-portal' },
+      { key: 'client-portal.participants', label: 'Participants', to: '/client/participants', icon: Users, moduleKey: 'client-portal' },
+      { key: 'client-portal.itineraries', label: 'Itineraries', to: '/client/itineraries', icon: Calendar, moduleKey: 'client-portal' },
+      { key: 'client-portal.reservations', label: 'Reservations', to: '/client/reservations', icon: CalendarClock, moduleKey: 'client-portal' },
+      { key: 'client-portal.trip-center', label: 'Trip Center', to: '/client/trip-center', icon: Compass, moduleKey: 'client-portal' },
+      { key: 'client-portal.change-requests', label: 'Change Requests', to: '/client/change-requests', icon: GitPullRequest, moduleKey: 'client-portal' }
     ]
   },
   {
+    key: 'client-portal.collaboration',
     label: 'Collaboration',
     to: '/client/documents',
     icon: FileText,
     moduleKey: 'client-portal',
     children: [
-      { label: 'Documents', to: '/client/documents', icon: FileText, moduleKey: 'client-portal' },
-      { label: 'Messages & Activities', to: '/client/messages', icon: MessageSquare, moduleKey: 'client-portal' },
-      { label: 'Issues & Support', to: '/client/support', icon: LifeBuoy, moduleKey: 'client-portal' }
+      { key: 'client-portal.documents', label: 'Documents', to: '/client/documents', icon: FileText, moduleKey: 'client-portal' },
+      { key: 'client-portal.messages', label: 'Messages & Activities', to: '/client/messages', icon: MessageSquare, moduleKey: 'client-portal' },
+      { key: 'client-portal.support', label: 'Issues & Support', to: '/client/support', icon: LifeBuoy, moduleKey: 'client-portal' }
     ]
   },
-  { label: 'Finance & Billing', to: '/client/billing', icon: Wallet, moduleKey: 'client-portal' },
+  { key: 'client-portal.billing', label: 'Finance & Billing', to: '/client/billing', icon: Wallet, moduleKey: 'client-portal' },
   {
+    key: 'client-portal.insights',
     label: 'Insights',
     to: '/client/reports',
     icon: BarChart3,
     moduleKey: 'client-portal',
     children: [
-      { label: 'Reports & Analytics', to: '/client/reports', icon: BarChart3, moduleKey: 'client-portal' },
-      { label: 'Feedback & Evaluation', to: '/client/feedback', icon: Star, moduleKey: 'client-portal' }
+      { key: 'client-portal.reports', label: 'Reports & Analytics', to: '/client/reports', icon: BarChart3, moduleKey: 'client-portal' },
+      { key: 'client-portal.feedback', label: 'Feedback & Evaluation', to: '/client/feedback', icon: Star, moduleKey: 'client-portal' }
     ]
   },
-  { label: 'Company Profile', to: '/client/company-profile', icon: Building2, moduleKey: 'client-portal' }
+  { key: 'client-portal.company-profile', label: 'Company Profile', to: '/client/company-profile', icon: Briefcase, moduleKey: 'client-portal' }
 ]
+
+/** Seluruh entri (induk + anak) diratakan — dipakai builder menu di Admin > Roles dan middleware RBAC. */
+export function flattenNavItems (items: NavItem[] = NAV_ITEMS): NavItem[] {
+  return items.flatMap(item => [item, ...flattenNavItems(item.children ?? [])])
+}
+
+/**
+ * Peta path → NavItem key terdekat (paling spesifik). Dipakai `middleware/rbac.global.ts` untuk
+ * menggerbangi akses URL langsung — tanpa ini, menyembunyikan menu hanya kosmetik.
+ */
+export function findNavItemForPath (path: string): NavItem | undefined {
+  const candidates = flattenNavItems()
+    .filter((item) => {
+      const base = item.to.split('?')[0]
+      if (base === '/') { return path === '/' }
+      return path === base || path.startsWith(`${base}/`)
+    })
+    .sort((a, b) => {
+      const byDepth = b.to.split('?')[0].length - a.to.split('?')[0].length
+      if (byDepth !== 0) { return byDepth }
+      /**
+       * Route induk grup sering sama persis dengan salah satu anaknya (mis. grup "Sales" menunjuk ke
+       * `/crm/opportunities`). Saat seri, pilih daun — itulah entri yang di-grant admin per-menu.
+       */
+      return Number(Boolean(a.children?.length)) - Number(Boolean(b.children?.length))
+    })
+  return candidates[0]
+}

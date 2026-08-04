@@ -414,7 +414,7 @@ function submitChangeRequest () {
               ]"
             />
             <div v-if="serviceScopeOptions.length" class="mt-4 pt-4 border-t border-border">
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              <p class="text-xs font-medium text-muted-foreground mb-2">
                 Layanan
               </p>
               <div class="flex flex-wrap gap-2">
@@ -656,7 +656,7 @@ function submitChangeRequest () {
             </ul>
             <EmptyState v-else title="Belum ada dokumen dibagikan" description="Dokumen seperti tiket, voucher hotel, atau itinerary PDF akan tampil di sini setelah dibagikan tim kami." />
             <div v-if="documents.length" class="mt-4 pt-4 border-t border-border">
-              <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+              <p class="text-xs font-medium text-muted-foreground mb-2">
                 Dokumen Lama
               </p>
               <ul class="divide-y divide-border">

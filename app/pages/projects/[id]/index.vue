@@ -27,6 +27,7 @@ import {
   USERS
 } from '~/data'
 import type { TravelerImportPreviewRow } from '~/data'
+import { serviceCapabilityKey } from '~/constants/capabilities'
 import {
   PROJECT_STATUSES, PROJECT_CHARACTERISTICS, PROJECT_ORDER_STATUSES, SERVICE_STATUSES, SERVICE_TYPES,
   INVOICE_STATUSES, INVOICE_TYPES, TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES,
@@ -47,36 +48,30 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
-const { canView, canApprove, canManage, canViewFinancials } = usePermissions()
+const { canView, canApprove, canManage, canViewFinancials, can } = usePermissions()
 const { currentRole, currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 /**
  * Pengecualian sempit (Section 11), pola yang sama dengan `canManageParty` di CRM (Section 07): akses
- * modul `project` generik (`canManage('project')`) juga akan meloloskan Management karena rank `APPROVE`
- * > `MANAGE`, padahal `docs/route-and-role-matrix.md` bagian 5 memberi Management `APPROVE` khusus untuk
- * "perubahan besar/cancel project", bukan CRUD rutin traveler. Hanya Project Manager dan Super Admin yang
- * mengelola data traveler sehari-hari.
+ * modul `project` generik juga akan meloloskan Management karena rank `APPROVE` > `MANAGE`, padahal
+ * Management hanya berwenang atas "perubahan besar/cancel project", bukan CRUD rutin traveler.
+ *
+ * Sejak Revisi 9-Modul gerbang ini memakai capability, bukan daftar role literal — supaya role custom yang
+ * dibuat admin dari Admin > Roles juga bisa diberi wewenang ini.
  */
-const canManageTravelers = computed(() => ['project-manager', 'super-admin'].includes(currentRole.value))
+const canManageTravelers = computed(() => can('project-order.manage-travelers'))
 
 /**
- * Role behavior tab Itinerary & Services (Section 12) — mengikuti granularity `docs/route-and-role-matrix.md`
- * bagian 5 secara presisi (bukan pengecualian sempit tunggal seperti Travelers): PM/Operations/Super Admin
- * mengelola SELURUH sub-section ("koordinasi umum"), sementara Ticketing/Accommodation/Transportation/MICE
- * hanya `MANAGE` pada sub-section sesuai domainnya masing-masing. `additional` tidak punya role sub-domain
- * khusus — hanya PM/Operations/Super Admin yang mengelolanya.
+ * Role behavior tab Itinerary & Services (Section 12). Pemegang `manage-operations` (dulu PM/Operations/
+ * Super Admin) mengelola SELURUH sub-section; selain itu dicek per tipe service lewat capability
+ * `project-order.manage-service.*` — pengganti `SERVICE_TYPE_ROLE_MAP` lama yang memetakan ServiceTypeKey
+ * ke role literal `ticketing`/`accommodation`/`transportation`/`mice` (role-role tsb kini lebur ke
+ * `operations`, jadi peta literalnya sudah tidak mungkin cocok).
  */
-const SERVICE_TYPE_ROLE_MAP: Partial<Record<ServiceTypeKey, string[]>> = {
-  flight: ['ticketing'],
-  hotel: ['accommodation'],
-  transportation: ['transportation'],
-  mice: ['mice']
-}
-
 function canManageServiceType (type: ServiceTypeKey) {
-  if (['project-manager', 'operations', 'super-admin'].includes(currentRole.value)) { return true }
-  return (SERVICE_TYPE_ROLE_MAP[type] ?? []).includes(currentRole.value)
+  if (can('project-order.manage-operations')) { return true }
+  return can(serviceCapabilityKey(type))
 }
 
 const project = computed(() => getProjectById(String(route.params.id)))
@@ -111,7 +106,7 @@ const team = computed(() => project.value
  * (bukan `canManage('project')` generik, agar Management yang punya `APPROVE` tidak ikut lolos untuk aksi
  * operasional harian yang bukan wewenangnya).
  */
-const canManageProjectOrder = computed(() => ['project-manager', 'super-admin'].includes(currentRole.value))
+const canManageProjectOrder = computed(() => can('project-order.accept-handover'))
 
 const sourceOpportunity = computed(() => project.value?.opportunityId ? getOpportunityById(project.value.opportunityId) : undefined)
 const accountExecutive = computed(() => sourceOpportunity.value ? getUserById(sourceOpportunity.value.ownerId) : undefined)
@@ -215,7 +210,7 @@ function toggleClosureItem (key: 'financeSettled' | 'documentsArchived' | 'feedb
  * "Management/PM" (Wajib literal) — pola narrow-role-exception sama `canManageProjectOrder` di atas,
  * ditambah `management` (bukan hanya PM/Super Admin, karena Wajib eksplisit menyebut Management).
  */
-const canCloseProject = computed(() => ['project-manager', 'management', 'super-admin'].includes(currentRole.value))
+const canCloseProject = computed(() => can('project-order.close'))
 const projectClosureGate = computed(() => project.value ? evaluateProjectClosureGate(project.value.id) : { ready: false, blockers: [] })
 const isProjectAlreadyClosed = computed(() => !!project.value?.closedAt)
 const projectClosureSummary = computed(() => project.value ? getProjectClosureSummary(project.value.id) : undefined)
@@ -380,7 +375,7 @@ function handleServiceStatusChange (serviceId: string, event: Event) {
  * operasional umum (readiness gate bersifat advisory/read-only untuk semua yang `canView('project')`,
  * hanya aksi tulis — toggle internal-only, shift notes — yang digerbangi).
  */
-const canManageOperations = computed(() => ['project-manager', 'operations', 'super-admin'].includes(currentRole.value))
+const canManageOperations = computed(() => can('project-order.manage-operations'))
 
 /** "Service readiness matrix" dan "Departure readiness gates" — derivasi murni, lihat `app/data/index.ts`. */
 const serviceReadinessMatrix = computed(() => project.value ? getServiceReadinessMatrix(project.value.id) : [])
@@ -459,7 +454,7 @@ const invoices = computed(() => project.value ? getInvoicesByProject(project.val
  * - Margin dikecualikan khusus untuk Project Manager (docs bagian 5.1: "PM terbatas budget vs actual",
  *   tidak termasuk Margin) — satu-satunya pengecualian sempit tambahan yang dibutuhkan.
  */
-const canViewMargin = computed(() => canViewFinancials.value && currentRole.value !== 'project-manager')
+const canViewMargin = computed(() => canViewFinancials.value && can('project-order.view-margin'))
 const projectOutstandingIdr = computed(() => project.value ? getProjectOutstandingIdr(project.value.id) : 0)
 const committedVendorCostIdr = computed(() => project.value ? getCommittedVendorCostIdr(project.value.id) : 0)
 const marginIdr = computed(() => project.value ? project.value.quotationAmountIdr - project.value.actualCostIdr : 0)
@@ -511,7 +506,7 @@ const visibleActivities = computed(() => {
  * Project Changes (Section 14) — log change (PM/Operations/role sub-domain yang bisa mengajukan perubahan
  * di sub-section masing-masing) vs approve/reject (Management/Super Admin, docs bagian 5.1 "Approve").
  */
-const canLogChange = computed(() => ['project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'super-admin'].includes(currentRole.value))
+const canLogChange = computed(() => can('project-order.log-change'))
 const canApproveChanges = computed(() => canApprove('project'))
 
 const isChangeDialogOpen = ref(false)
@@ -928,7 +923,7 @@ const summaryMetadata = computed(() => {
                 quotation approved <span class="text-foreground font-medium">{{ sourceQuotation ? formatCurrencyIdr(sourceQuotation.amountIdr) : '—' }}</span>.
               </p>
               <div class="flex items-center justify-between gap-2 mb-2">
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <p class="text-xs font-medium text-muted-foreground">
                   Tim Project
                 </p>
                 <Dialog v-if="canManageProjectOrder" v-model:open="isTeamDialogOpen">
@@ -1408,7 +1403,7 @@ const summaryMetadata = computed(() => {
               </template>
               <div v-if="itineraryByDate.length" class="space-y-4">
                 <div v-for="day in itineraryByDate" :key="day.date" :class="itineraryViewMode === 'timeline' ? 'relative pl-4 border-l-2 border-border' : ''">
-                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  <p class="text-xs font-medium text-muted-foreground mb-2">
                     {{ formatDayLabel(day.date) }}
                   </p>
                   <ul class="divide-y divide-border">
@@ -1572,7 +1567,7 @@ const summaryMetadata = computed(() => {
                 </NuxtLink>
               </template>
               <div v-if="projectRfqs.length" class="mb-4">
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                <p class="text-xs font-medium text-muted-foreground mb-2">
                   RFQ
                 </p>
                 <ul class="divide-y divide-border">
@@ -1585,7 +1580,7 @@ const summaryMetadata = computed(() => {
                 </ul>
               </div>
               <div v-if="projectServiceOrders.length">
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                <p class="text-xs font-medium text-muted-foreground mb-2">
                   Service Orders
                 </p>
                 <ul class="divide-y divide-border">
@@ -1847,7 +1842,7 @@ const summaryMetadata = computed(() => {
               </div>
 
               <div v-if="roomAssignments.length" class="mb-4">
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                <p class="text-xs font-medium text-muted-foreground mb-2">
                   Rooming List (Contoh Penugasan Kamar)
                 </p>
                 <ul class="space-y-1">
@@ -2082,7 +2077,7 @@ const summaryMetadata = computed(() => {
                 </div>
 
                 <template v-if="quotationsForService(service.id).length">
-                  <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                  <p class="text-xs font-medium text-muted-foreground mb-2">
                     Perbandingan Quotation
                   </p>
                   <Table>
@@ -2200,7 +2195,7 @@ const summaryMetadata = computed(() => {
                 <div v-if="invoices.some(invoice => paymentsForInvoice(invoice.id).length)" class="space-y-4">
                   <template v-for="invoice in invoices" :key="invoice.id">
                     <div v-if="paymentsForInvoice(invoice.id).length">
-                      <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                      <p class="text-xs font-medium text-muted-foreground mb-2">
                         {{ invoice.label }}
                       </p>
                       <ul class="divide-y divide-border">
@@ -2218,7 +2213,7 @@ const summaryMetadata = computed(() => {
               <SectionCard title="Credit / Debit Notes" description="Kelola dari Finance &gt; Credit/Debit Notes.">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    <p class="text-xs font-medium text-muted-foreground mb-2">
                       Credit Notes
                     </p>
                     <ul v-if="projectCreditNotes.length" class="divide-y divide-border">
@@ -2237,7 +2232,7 @@ const summaryMetadata = computed(() => {
                     </p>
                   </div>
                   <div>
-                    <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                    <p class="text-xs font-medium text-muted-foreground mb-2">
                       Debit Notes
                     </p>
                     <ul v-if="projectDebitNotes.length" class="divide-y divide-border">

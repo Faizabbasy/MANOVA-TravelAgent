@@ -148,7 +148,7 @@ function submitClarificationResponse () {
             ]"
           />
           <div v-if="travelRequest.purpose" class="mt-3 pt-3 border-t border-border">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+            <p class="text-xs font-medium text-muted-foreground mb-1">
               Tujuan Perjalanan
             </p>
             <p class="text-sm text-foreground whitespace-pre-line">
@@ -156,7 +156,7 @@ function submitClarificationResponse () {
             </p>
           </div>
           <div v-if="serviceScopeOptions.length" class="mt-3 pt-3 border-t border-border">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            <p class="text-xs font-medium text-muted-foreground mb-2">
               Layanan
             </p>
             <div class="flex flex-wrap gap-2">
@@ -164,7 +164,7 @@ function submitClarificationResponse () {
             </div>
           </div>
           <div v-if="travelRequest.additionalServicesNote" class="mt-3 pt-3 border-t border-border">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1">
+            <p class="text-xs font-medium text-muted-foreground mb-1">
               Additional Service
             </p>
             <p class="text-sm text-foreground whitespace-pre-line">

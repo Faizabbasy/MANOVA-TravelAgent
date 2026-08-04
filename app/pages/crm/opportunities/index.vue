@@ -68,7 +68,7 @@ const rows = computed(() => {
       :breadcrumb="[{ label: 'CRM', to: '/crm' }, { label: 'Opportunities' }]"
     />
 
-    <RoleAccessState v-if="!canView('crm')" module-label="modul CRM" />
+    <RoleAccessState v-if="!canView('sales')" module-label="modul CRM" />
 
     <template v-else>
       <SectionCard title="Opportunity Pipeline">

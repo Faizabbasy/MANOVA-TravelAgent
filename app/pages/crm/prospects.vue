@@ -8,7 +8,7 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Prospects' })
 
 const { currentRole } = useCurrentUser()
-const { canView } = usePermissions()
+const { canView, can } = usePermissions()
 
 /**
  * Aksi tulis (buat prospect) sengaja dibatasi Sales/Super Admin saja, lebih sempit dari `canManage('crm')`
@@ -20,7 +20,7 @@ const { canView } = usePermissions()
  * `account-executive` ditambahkan Prompt 19 (Change Request) — AE "mengelola relationship dengan
  * prospect/client" (literal responsibility split), Sales tetap dipertahankan.
  */
-const canManageParty = computed(() => ['sales', 'account-executive', 'super-admin'].includes(currentRole.value))
+const canManageParty = computed(() => can('crm.manage-party'))
 
 const searchQuery = ref('')
 const sortBy = ref<'name' | 'created'>('name')

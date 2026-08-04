@@ -308,7 +308,7 @@ function resetForm () {
 
             <!-- UTM/source/referrer preview -->
             <div class="rounded-lg border border-border bg-muted/40 p-3">
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1.5">
+              <p class="text-xs font-medium text-muted-foreground mb-1.5 flex items-center gap-1.5">
                 <ShieldCheck class="h-3.5 w-3.5" />Data Kunjungan (Preview)
               </p>
               <p v-if="!hasTrackingData" class="text-xs text-muted-foreground">

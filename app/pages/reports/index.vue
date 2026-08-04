@@ -20,7 +20,7 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Reports' })
 
 const { currentRole, currentUser } = useCurrentUser()
-const { canView } = usePermissions()
+const { canView, isRole } = usePermissions()
 const { showToast } = useToast()
 
 /**
@@ -33,8 +33,9 @@ const { showToast } = useToast()
  */
 const isLoading = ref(false)
 
+/** Lihat catatan yang sama di `app/pages/index.vue` — `isRole()` meresolusi role id lama secara otomatis. */
 function visibleTo (...roles: RoleId[]) {
-  return computed(() => roles.includes(currentRole.value))
+  return computed(() => isRole(...roles))
 }
 
 /* ==================================================
@@ -499,13 +500,13 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
           </div>
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              <p class="text-xs font-medium text-muted-foreground mb-3">
                 Berdasarkan Status
               </p>
               <StatusBreakdownList :items="projectsByStatusItems" empty-label="Tidak ada project sesuai filter" />
             </div>
             <div>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              <p class="text-xs font-medium text-muted-foreground mb-3">
                 Berdasarkan Tipe
               </p>
               <StatusBreakdownList :items="projectsByCharacteristicItems" empty-label="Tidak ada project sesuai filter" />
@@ -517,7 +518,7 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
         <SectionCard v-if="showDepartureReadiness" title="Upcoming Departure dan Service Readiness" description="Keberangkatan dalam 30 hari ke depan dan status kesiapan layanan sesuai filter aktif.">
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              <p class="text-xs font-medium text-muted-foreground mb-3">
                 Upcoming Departures
               </p>
               <ul v-if="upcomingDepartureProjects.length" class="divide-y divide-border">
@@ -536,7 +537,7 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
               <EmptyState v-else title="Tidak ada keberangkatan sesuai filter" />
             </div>
             <div>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              <p class="text-xs font-medium text-muted-foreground mb-3">
                 Service Readiness
               </p>
               <StatusBreakdownList :items="serviceReadinessItems" empty-label="Tidak ada service sesuai filter" />
@@ -560,13 +561,13 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
           </div>
           <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              <p class="text-xs font-medium text-muted-foreground mb-3">
                 Status Quotation
               </p>
               <StatusBreakdownList :items="vendorQuotationStatusItems" empty-label="Tidak ada quotation vendor sesuai filter" />
             </div>
             <div>
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">
+              <p class="text-xs font-medium text-muted-foreground mb-3">
                 Top Vendor (Committed Cost)
               </p>
               <Table v-if="topVendorRows.length">

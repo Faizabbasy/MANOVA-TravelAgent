@@ -74,7 +74,7 @@ function userLabel (userId?: string): string {
   if (!userId) { return '—' }
   const user = getUserById(userId)
   if (!user) { return userId }
-  const roleLabel = findStatusOption(ROLES, user.role).label
+  const roleLabel = findStatusOption(ROLES.value, user.role).label
   return `${user.name} (${roleLabel})`
 }
 

@@ -126,7 +126,7 @@ function submitRevisionRequest () {
         </template>
         <template v-else-if="viewMode === 'daily'">
           <div v-for="[date, items] in groupedByDate" :key="date" class="mb-4 last:mb-0">
-            <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+            <p class="text-xs font-medium text-muted-foreground mb-2">
               {{ formatDayLabel(date) }}
             </p>
             <ul class="divide-y divide-border">
@@ -216,7 +216,7 @@ function submitRevisionRequest () {
 
           <template v-if="versions.length > 1">
             <div class="mt-4 pt-4 border-t border-border">
-              <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+              <p class="text-xs font-medium text-muted-foreground mb-2">
                 Compare Versions
               </p>
               <div class="grid grid-cols-2 gap-2 mb-3">

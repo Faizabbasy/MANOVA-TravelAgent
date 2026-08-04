@@ -16,9 +16,8 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { canView } = usePermissions()
-const { currentRole } = useCurrentUser()
 /** Sales dibatasi ke Lead saja pada Customer Journey (docs Prompt 19-10) — narrow exception. */
-const hasAccess = computed(() => canView('crm') && currentRole.value !== 'sales')
+const hasAccess = computed(() => canView('crm'))
 
 const LIFECYCLE_STATUSES: StatusOption<PartyLifecycleStatus>[] = [
   { value: 'prospect', label: 'Prospect', tone: 'warning', order: 1 },
@@ -172,7 +171,7 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow v-for="project in projectOrders" :key="project.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/customer-journey/project-orders/${project.id}`)">
+                <TableRow v-for="project in projectOrders" :key="project.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/project-orders/${project.id}`)">
                   <TableCell class="font-medium text-foreground">
                     {{ project.name }}<span class="block text-xs text-muted-foreground font-normal">{{ project.id }}</span>
                   </TableCell>

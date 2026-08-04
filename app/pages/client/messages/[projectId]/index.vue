@@ -2,6 +2,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, MessageSquare } from 'lucide-vue-next'
+import { excludesAllRoles } from '~/data/rbac'
 import {
   getProjectById, getUserById, USERS,
   getClientProjectMessages, markProjectMessagesRead, sendMessage,
@@ -43,7 +44,8 @@ const messages = computed(() => (project.value ? getClientProjectMessages(projec
 const newMessage = ref('')
 const newAttachmentName = ref('')
 const newMentions = ref<string[]>([])
-const internalUsers = computed(() => USERS.filter(user => user.role !== 'client' && user.role !== 'supplier'))
+/** User internal saja — role portal (`client`, dan `vendor` yang dulu bernama `supplier`) dikecualikan. */
+const internalUsers = computed(() => USERS.filter(user => excludesAllRoles(user.role, ['client', 'supplier', 'vendor'])))
 function toggleMention (userId: string) {
   const index = newMentions.value.indexOf(userId)
   if (index === -1) { newMentions.value.push(userId) } else { newMentions.value.splice(index, 1) }

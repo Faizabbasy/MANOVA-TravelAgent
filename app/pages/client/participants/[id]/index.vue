@@ -214,7 +214,7 @@ function addRoommate (roommateId: string) {
             <div v-if="currentRoom" class="space-y-3">
               <DetailMetadataList :items="[{ label: 'Kamar', value: `${currentRoom.roomLabel} (${currentRoom.roomType})` }]" />
               <div v-if="roommatesNotYetAssigned.length">
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                <p class="text-xs font-medium text-muted-foreground mb-2">
                   Tambah Roommate
                 </p>
                 <div class="flex flex-wrap gap-2">
@@ -226,7 +226,7 @@ function addRoommate (roommateId: string) {
             </div>
             <template v-else>
               <div v-if="groupRooms.length" class="space-y-2 mb-3">
-                <p class="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                <p class="text-xs font-medium text-muted-foreground">
                   Kamar Tersedia dalam Group
                 </p>
                 <div class="flex flex-wrap gap-2">

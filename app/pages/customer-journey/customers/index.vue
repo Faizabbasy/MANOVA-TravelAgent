@@ -11,11 +11,12 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Customers' })
 
 const route = useRoute()
-const { canView } = usePermissions()
-const { currentUser, currentRole } = useCurrentUser()
+const { canView, isRole } = usePermissions()
+const { currentUser } = useCurrentUser()
 /** Sales dibatasi ke Lead saja pada Customer Journey (docs Prompt 19-10 "Sales: terbatas pada Lead") — narrow exception, halaman lain (`crm`) tetap generik. */
-const hasAccess = computed(() => canView('crm') && currentRole.value !== 'sales')
-const isAeScoped = computed(() => currentRole.value === 'account-executive')
+const hasAccess = computed(() => canView('crm'))
+/** Portfolio scoping — Sales (yang kini juga mencakup Account Executive lama) melihat portfolio miliknya. */
+const isAeScoped = computed(() => isRole('sales'))
 
 const LIFECYCLE_STATUSES: StatusOption<PartyLifecycleStatus>[] = [
   { value: 'prospect', label: 'Prospect', tone: 'warning', order: 1 },
