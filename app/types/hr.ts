@@ -74,6 +74,8 @@ export interface CommissionRecord {
   amountIdr: number
   status: 'accrued' | 'approved' | 'paid'
   note?: string
+  /** Kosong/'derived' = komisi otomatis dari Project.ownerId (default). 'manual' = insentif yang ditambahkan langsung oleh HR. */
+  source?: 'derived' | 'manual'
 }
 
 export interface PerformanceReview {

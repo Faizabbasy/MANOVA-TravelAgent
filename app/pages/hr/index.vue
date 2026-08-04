@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Users, CalendarCheck, Wallet, Award, Search, TrendingUp } from 'lucide-vue-next'
+import { Users, CalendarCheck, Wallet, Award, Search, TrendingUp, Plus, Pencil } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import {
   EMPLOYEES,
@@ -15,13 +15,21 @@ import {
   getAttendancePeriods,
   getPayrollBreakdown,
   getPayrollTotalIdr,
+  updatePayrollLine,
   updatePayrollRunStatus,
   getPerformanceReviews,
-  getProductivitySummary
+  getProductivitySummary,
+  addEmployee,
+  updateEmployee,
+  getEmployeeByUserId,
+  addIncentive
 } from '~/data/hr'
-import { getUserById, getProjectById } from '~/data'
+import type { PayrollLineComputed } from '~/data/hr'
+import { getUserById, getProjectById, PROJECTS } from '~/data'
 import { findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatPercentage } from '~/utils/format'
+import { DEMO_REFERENCE_DATE } from '~/utils/attention'
+import type { Employee } from '~/types/hr'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Human Resource Management' })
@@ -31,6 +39,7 @@ const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const hasAccess = computed(() => canView('hr'))
+const canManageEmployees = computed(() => can('hr.manage-employee'))
 const canManagePayroll = computed(() => can('hr.manage-payroll'))
 const canManagePerformance = computed(() => can('hr.manage-performance'))
 
@@ -54,6 +63,98 @@ const filteredEmployees = computed(() => {
   }
   return result
 })
+
+/* Dialog tambah / edit karyawan */
+const isEmployeeFormOpen = ref(false)
+const employeeFormMode = ref<'create' | 'edit'>('create')
+const editingEmployeeId = ref<string | undefined>()
+const employeeForm = ref({
+  name: '',
+  position: '',
+  department: '',
+  employmentType: 'full-time' as Employee['employmentType'],
+  status: 'active' as Employee['status'],
+  joinedAt: DEMO_REFERENCE_DATE,
+  isProjectBased: false,
+  baseSalaryIdr: null as number | null,
+  commissionRatePercent: null as number | null,
+  phone: '',
+  email: ''
+})
+
+function openCreateEmployee () {
+  employeeFormMode.value = 'create'
+  editingEmployeeId.value = undefined
+  employeeForm.value = {
+    name: '',
+    position: '',
+    department: '',
+    employmentType: 'full-time',
+    status: 'active',
+    joinedAt: DEMO_REFERENCE_DATE,
+    isProjectBased: false,
+    baseSalaryIdr: null,
+    commissionRatePercent: null,
+    phone: '',
+    email: ''
+  }
+  isEmployeeFormOpen.value = true
+}
+
+function openEditEmployee (employee: Employee) {
+  employeeFormMode.value = 'edit'
+  editingEmployeeId.value = employee.id
+  employeeForm.value = {
+    name: employee.name,
+    position: employee.position,
+    department: employee.department,
+    employmentType: employee.employmentType,
+    status: employee.status,
+    joinedAt: employee.joinedAt,
+    isProjectBased: employee.baseSalaryIdr === 0,
+    baseSalaryIdr: employee.baseSalaryIdr || null,
+    commissionRatePercent: employee.commissionRatePercent ?? null,
+    phone: employee.phone ?? '',
+    email: employee.email ?? ''
+  }
+  isEmployeeFormOpen.value = true
+}
+
+const isEmployeeFormValid = computed(() => Boolean(
+  employeeForm.value.name.trim() &&
+  employeeForm.value.position.trim() &&
+  employeeForm.value.department.trim() &&
+  (employeeForm.value.isProjectBased || (employeeForm.value.baseSalaryIdr && employeeForm.value.baseSalaryIdr > 0))
+))
+
+function submitEmployeeForm () {
+  if (!isEmployeeFormValid.value) { return }
+  const payload = {
+    name: employeeForm.value.name.trim(),
+    position: employeeForm.value.position.trim(),
+    department: employeeForm.value.department.trim(),
+    employmentType: employeeForm.value.employmentType,
+    status: employeeForm.value.status,
+    joinedAt: employeeForm.value.joinedAt,
+    baseSalaryIdr: employeeForm.value.isProjectBased ? 0 : Number(employeeForm.value.baseSalaryIdr),
+    commissionRatePercent: employeeForm.value.commissionRatePercent ?? undefined,
+    phone: employeeForm.value.phone.trim() || undefined,
+    email: employeeForm.value.email.trim() || undefined
+  }
+
+  if (employeeFormMode.value === 'edit' && editingEmployeeId.value) {
+    updateEmployee(editingEmployeeId.value, payload)
+    refreshKey.value += 1
+    isEmployeeFormOpen.value = false
+    showToast('Perubahan disimpan', `"${payload.name}" diperbarui.`, 'success')
+    return
+  }
+
+  addEmployee(payload)
+  refreshKey.value += 1
+  isEmployeeFormOpen.value = false
+  showToast('Karyawan ditambahkan', `"${payload.name}" masuk ke data karyawan.`, 'success')
+}
 
 const stats = computed(() => {
   void refreshKey.value
@@ -87,6 +188,80 @@ const commissions = computed(() => {
   return [...COMMISSION_RECORDS].sort((a, b) => b.amountIdr - a.amountIdr)
 })
 
+/* Dialog tambah insentif */
+const isIncentiveFormOpen = ref(false)
+const incentiveForm = ref({
+  projectId: '',
+  period: DEMO_REFERENCE_DATE.slice(0, 7),
+  amountIdr: null as number | null,
+  note: '',
+  selectedEmployeeIds: [] as string[]
+})
+
+const incentiveSelectedProject = computed(() => PROJECTS.find(item => item.id === incentiveForm.value.projectId))
+
+const incentiveCandidateEmployees = computed(() => {
+  const project = incentiveSelectedProject.value
+  if (!project) { return [] }
+  const userIds = [project.ownerId, ...project.teamUserIds]
+  const seen = new Set<string>()
+  const result: Employee[] = []
+  for (const userId of userIds) {
+    const employee = getEmployeeByUserId(userId)
+    if (employee && !seen.has(employee.id)) {
+      seen.add(employee.id)
+      result.push(employee)
+    }
+  }
+  return result
+})
+
+/** Tarif dihitung balik dari nominal insentif vs nilai kontrak project — preview live di form, sama seperti yang dipakai `addIncentive`. */
+const incentiveRatePreview = computed(() => {
+  const baseAmountIdr = incentiveSelectedProject.value?.quotationAmountIdr
+  if (!baseAmountIdr || !incentiveForm.value.amountIdr) { return undefined }
+  return Math.round((incentiveForm.value.amountIdr / baseAmountIdr) * 10000) / 100
+})
+
+function openAddIncentive () {
+  incentiveForm.value = {
+    projectId: '',
+    period: DEMO_REFERENCE_DATE.slice(0, 7),
+    amountIdr: null,
+    note: '',
+    selectedEmployeeIds: []
+  }
+  isIncentiveFormOpen.value = true
+}
+
+function toggleIncentiveEmployee (employeeId: string) {
+  const index = incentiveForm.value.selectedEmployeeIds.indexOf(employeeId)
+  if (index === -1) { incentiveForm.value.selectedEmployeeIds.push(employeeId) } else { incentiveForm.value.selectedEmployeeIds.splice(index, 1) }
+}
+
+const isIncentiveFormValid = computed(() => Boolean(
+  incentiveForm.value.projectId &&
+  incentiveForm.value.period.trim() &&
+  incentiveForm.value.selectedEmployeeIds.length &&
+  incentiveForm.value.amountIdr && incentiveForm.value.amountIdr > 0
+))
+
+function submitIncentiveForm () {
+  if (!isIncentiveFormValid.value) { return }
+  for (const employeeId of incentiveForm.value.selectedEmployeeIds) {
+    addIncentive({
+      projectId: incentiveForm.value.projectId,
+      employeeId,
+      period: incentiveForm.value.period.trim(),
+      amountIdr: Number(incentiveForm.value.amountIdr),
+      note: incentiveForm.value.note.trim() || undefined
+    })
+  }
+  refreshKey.value += 1
+  isIncentiveFormOpen.value = false
+  showToast('Insentif ditambahkan', `Insentif tercatat untuk ${incentiveForm.value.selectedEmployeeIds.length} orang.`, 'success')
+}
+
 const reviews = computed(() => getPerformanceReviews())
 const productivity = computed(() => {
   void refreshKey.value
@@ -101,6 +276,45 @@ function setPayrollStatus (status: 'approved' | 'paid') {
   refreshKey.value += 1
   showToast('Payroll diperbarui', `Periode ${activePayrollRun.value.period} kini ${findStatusOption(PAYROLL_RUN_STATUSES, status).label}.`, 'success')
 }
+
+/* Dialog edit baris payroll — hanya saat payroll run masih draft. */
+const isPayrollLineFormOpen = ref(false)
+const editingPayrollLineId = ref<string | undefined>()
+const editingPayrollLineEmployeeName = ref('')
+const payrollLineForm = ref({
+  baseSalaryIdr: null as number | null,
+  allowanceIdr: null as number | null,
+  deductionIdr: null as number | null
+})
+
+function openEditPayrollLine (line: PayrollLineComputed) {
+  editingPayrollLineId.value = line.id
+  editingPayrollLineEmployeeName.value = line.employee?.name ?? line.employeeId
+  payrollLineForm.value = {
+    baseSalaryIdr: line.baseSalaryIdr,
+    allowanceIdr: line.allowanceIdr,
+    deductionIdr: line.deductionIdr
+  }
+  isPayrollLineFormOpen.value = true
+}
+
+const isPayrollLineFormValid = computed(() => Boolean(
+  payrollLineForm.value.baseSalaryIdr !== null && payrollLineForm.value.baseSalaryIdr >= 0 &&
+  payrollLineForm.value.allowanceIdr !== null && payrollLineForm.value.allowanceIdr >= 0 &&
+  payrollLineForm.value.deductionIdr !== null && payrollLineForm.value.deductionIdr >= 0
+))
+
+function submitPayrollLineForm () {
+  if (!isPayrollLineFormValid.value || !editingPayrollLineId.value) { return }
+  updatePayrollLine(editingPayrollLineId.value, {
+    baseSalaryIdr: Number(payrollLineForm.value.baseSalaryIdr),
+    allowanceIdr: Number(payrollLineForm.value.allowanceIdr),
+    deductionIdr: Number(payrollLineForm.value.deductionIdr)
+  })
+  refreshKey.value += 1
+  isPayrollLineFormOpen.value = false
+  showToast('Payroll diperbarui', `Baris payroll "${editingPayrollLineEmployeeName.value}" diperbarui.`, 'success')
+}
 </script>
 
 <template>
@@ -109,7 +323,14 @@ function setPayrollStatus (status: 'approved' | 'paid') {
       title="Human Resource Management"
       description="Data karyawan, absensi & payroll, komisi & insentif, performance dan productivity tracking."
       :breadcrumb="[{ label: 'Human Resource' }]"
-    />
+    >
+      <template v-if="canManageEmployees" #actions>
+        <Button size="sm" @click="openCreateEmployee">
+          <Plus class="h-4 w-4 mr-1.5" />
+          Tambah Karyawan
+        </Button>
+      </template>
+    </PageHeader>
 
     <RoleAccessState v-if="!hasAccess" module-label="modul Human Resource" />
 
@@ -171,6 +392,9 @@ function setPayrollStatus (status: 'approved' | 'paid') {
                     Gaji Pokok
                   </TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead v-if="canManageEmployees" class="text-right">
+                    Aksi
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -204,6 +428,12 @@ function setPayrollStatus (status: 'approved' | 'paid') {
                       :label="findStatusOption(EMPLOYEE_STATUSES, employee.status).label"
                       :tone="findStatusOption(EMPLOYEE_STATUSES, employee.status).tone"
                     />
+                  </TableCell>
+                  <TableCell v-if="canManageEmployees" class="text-right">
+                    <Button variant="outline" size="sm" @click="openEditEmployee(employee)">
+                      <Pencil class="h-3.5 w-3.5 mr-1" />
+                      Edit
+                    </Button>
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -313,6 +543,9 @@ function setPayrollStatus (status: 'approved' | 'paid') {
                   <TableHead class="text-right">
                     Take Home Pay
                   </TableHead>
+                  <TableHead v-if="canManagePayroll && activePayrollRun.status !== 'paid'" class="text-right">
+                    Aksi
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -335,14 +568,27 @@ function setPayrollStatus (status: 'approved' | 'paid') {
                   <TableCell class="text-right text-sm font-semibold text-foreground">
                     {{ formatCurrencyIdr(line.netIdr) }}
                   </TableCell>
+                  <TableCell v-if="canManagePayroll && activePayrollRun.status !== 'paid'" class="text-right">
+                    <Button variant="outline" size="sm" @click="openEditPayrollLine(line)">
+                      <Pencil class="h-3.5 w-3.5 mr-1" />
+                      Edit
+                    </Button>
+                  </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
           </SectionCard>
         </TabsContent>
 
-        <TabsContent value="commissions" class="pt-4">
-          <SectionCard description="Komisi diturunkan dari nilai kontrak project yang dipegang karyawan dan tarif komisinya masing-masing.">
+        <TabsContent value="commissions" class="pt-4 space-y-4">
+          <div v-if="canManagePayroll" class="flex justify-end">
+            <Button size="sm" @click="openAddIncentive">
+              <Plus class="h-4 w-4 mr-1.5" />
+              Tambah Insentif
+            </Button>
+          </div>
+
+          <SectionCard description="Komisi diturunkan dari nilai kontrak project yang dipegang karyawan dan tarif komisinya masing-masing. Insentif dicatat manual per project dan orangnya.">
             <Table v-if="commissions.length">
               <TableHeader>
                 <TableRow>
@@ -358,6 +604,7 @@ function setPayrollStatus (status: 'approved' | 'paid') {
                   <TableHead class="text-right">
                     Komisi
                   </TableHead>
+                  <TableHead>Tipe</TableHead>
                   <TableHead>Status</TableHead>
                 </TableRow>
               </TableHeader>
@@ -375,13 +622,19 @@ function setPayrollStatus (status: 'approved' | 'paid') {
                     {{ record.period }}
                   </TableCell>
                   <TableCell class="text-right text-sm text-muted-foreground">
-                    {{ formatCurrencyIdr(record.baseAmountIdr) }}
+                    {{ record.baseAmountIdr ? formatCurrencyIdr(record.baseAmountIdr) : '—' }}
                   </TableCell>
                   <TableCell class="text-right text-sm text-muted-foreground">
-                    {{ record.ratePercent }}%
+                    {{ record.baseAmountIdr ? `${record.ratePercent}%` : '—' }}
                   </TableCell>
                   <TableCell class="text-right text-sm font-semibold text-foreground">
                     {{ formatCurrencyIdr(record.amountIdr) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="record.source === 'manual' ? 'Insentif' : 'Otomatis'"
+                      :tone="record.source === 'manual' ? 'purple' : 'neutral'"
+                    />
                   </TableCell>
                   <TableCell>
                     <StatusBadge
@@ -504,6 +757,192 @@ function setPayrollStatus (status: 'approved' | 'paid') {
           </SectionCard>
         </TabsContent>
       </Tabs>
+
+      <Dialog v-model:open="isEmployeeFormOpen">
+        <DialogContent class="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{{ employeeFormMode === 'edit' ? 'Edit Karyawan' : 'Tambah Karyawan Baru' }}</DialogTitle>
+            <DialogDescription>
+              {{ employeeFormMode === 'edit' ? 'Perbarui data karyawan.' : 'Karyawan baru langsung masuk ke data karyawan MANOVA.' }}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div class="space-y-3">
+            <div class="space-y-1.5">
+              <Label>Nama Karyawan</Label>
+              <Input v-model="employeeForm.name" placeholder="mis. Rani Kusuma" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <Label>Posisi</Label>
+                <Input v-model="employeeForm.position" placeholder="mis. Sales Executive" />
+              </div>
+              <div class="space-y-1.5">
+                <Label>Departemen</Label>
+                <Input v-model="employeeForm.department" placeholder="mis. Sales" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <Label>Tipe Kepegawaian</Label>
+                <select v-model="employeeForm.employmentType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="type in EMPLOYMENT_TYPES" :key="type.value" :value="type.value">
+                    {{ type.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
+                <Label>Status</Label>
+                <select v-model="employeeForm.status" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="status in EMPLOYEE_STATUSES" :key="status.value" :value="status.value">
+                    {{ status.label }}
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              <Label>Tanggal Bergabung</Label>
+              <Input v-model="employeeForm.joinedAt" type="date" />
+            </div>
+            <div class="space-y-1.5">
+              <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                <Checkbox v-model="employeeForm.isProjectBased" />Gaji per proyek (tanpa nominal tetap)
+              </label>
+              <template v-if="!employeeForm.isProjectBased">
+                <Label>Gaji Pokok (IDR)</Label>
+                <Input v-model.number="employeeForm.baseSalaryIdr" type="number" placeholder="0" />
+              </template>
+              <p v-else class="text-xs text-muted-foreground">
+                Karyawan ini dibayar per proyek — tidak ada gaji pokok tetap tiap bulan.
+              </p>
+            </div>
+            <div class="space-y-1.5">
+              <Label>Komisi % (opsional)</Label>
+              <Input v-model.number="employeeForm.commissionRatePercent" type="number" step="0.1" placeholder="mis. 2" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <Label>Telepon (opsional)</Label>
+                <Input v-model="employeeForm.phone" placeholder="0812-xxxx-xxxx" />
+              </div>
+              <div class="space-y-1.5">
+                <Label>Email (opsional)</Label>
+                <Input v-model="employeeForm.email" type="email" placeholder="nama@manova.id" />
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" @click="isEmployeeFormOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!isEmployeeFormValid" @click="submitEmployeeForm">
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog v-model:open="isPayrollLineFormOpen">
+        <DialogContent class="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Edit Payroll — {{ editingPayrollLineEmployeeName }}</DialogTitle>
+            <DialogDescription>Komisi diturunkan otomatis dari project dan tidak bisa diedit di sini.</DialogDescription>
+          </DialogHeader>
+
+          <div class="space-y-3">
+            <div class="space-y-1.5">
+              <Label>Gaji Pokok (IDR)</Label>
+              <Input v-model.number="payrollLineForm.baseSalaryIdr" type="number" placeholder="0" />
+            </div>
+            <div class="space-y-1.5">
+              <Label>Tunjangan (IDR)</Label>
+              <Input v-model.number="payrollLineForm.allowanceIdr" type="number" placeholder="0" />
+            </div>
+            <div class="space-y-1.5">
+              <Label>Potongan (IDR)</Label>
+              <Input v-model.number="payrollLineForm.deductionIdr" type="number" placeholder="0" />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" @click="isPayrollLineFormOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!isPayrollLineFormValid" @click="submitPayrollLineForm">
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog v-model:open="isIncentiveFormOpen">
+        <DialogContent class="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Tambah Insentif</DialogTitle>
+            <DialogDescription>Insentif manual untuk satu atau beberapa orang di sebuah project. Langsung berstatus disetujui.</DialogDescription>
+          </DialogHeader>
+
+          <div class="space-y-3">
+            <div class="space-y-1.5">
+              <Label>Project</Label>
+              <select v-model="incentiveForm.projectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option value="" disabled>
+                  Pilih project
+                </option>
+                <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                  {{ project.name }}
+                </option>
+              </select>
+            </div>
+
+            <div v-if="incentiveForm.projectId" class="space-y-1.5">
+              <Label>Orang</Label>
+              <div v-if="incentiveCandidateEmployees.length" class="space-y-1.5 rounded-lg border border-border p-2.5 max-h-40 overflow-y-auto">
+                <label v-for="employee in incentiveCandidateEmployees" :key="employee.id" class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <Checkbox
+                    :model-value="incentiveForm.selectedEmployeeIds.includes(employee.id)"
+                    @update:model-value="toggleIncentiveEmployee(employee.id)"
+                  />
+                  {{ employee.name }}
+                  <span class="text-xs text-muted-foreground">· {{ employee.position }}</span>
+                </label>
+              </div>
+              <p v-else class="text-xs text-muted-foreground">
+                Project ini belum punya owner/tim yang tertaut ke data karyawan.
+              </p>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <Label>Periode</Label>
+                <Input v-model="incentiveForm.period" placeholder="2026-07" />
+              </div>
+              <div class="space-y-1.5">
+                <Label>Nominal per Orang (IDR)</Label>
+                <Input v-model.number="incentiveForm.amountIdr" type="number" placeholder="0" />
+                <p v-if="incentiveRatePreview !== undefined" class="text-xs text-muted-foreground">
+                  Setara {{ incentiveRatePreview }}% dari nilai kontrak project ({{ formatCurrencyIdr(incentiveSelectedProject?.quotationAmountIdr ?? 0) }}).
+                </p>
+              </div>
+            </div>
+
+            <div class="space-y-1.5">
+              <Label>Catatan (opsional)</Label>
+              <Input v-model="incentiveForm.note" placeholder="mis. Bonus penutupan project tepat waktu" />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" @click="isIncentiveFormOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!isIncentiveFormValid" @click="submitIncentiveForm">
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </template>
   </div>
 </template>

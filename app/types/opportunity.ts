@@ -1,4 +1,4 @@
-import type { ID } from './common'
+import type { ID, GeoPoint } from './common'
 import type { ServiceTypeKey } from './project'
 
 export type OpportunityStage =
@@ -61,6 +61,8 @@ export interface Opportunity {
   /** Estimasi nilai deal awal (Section 08) — terpisah dari `Quotation.amountIdr` yang lebih presisi setelah quotation dibuat. */
   estimatedValueIdr: number
   destination: string
+  /** Lokasi terstruktur hasil resolusi `destination` (`resolveDestinationGeo`, `app/data/geo.ts`) — di-set otomatis saat destinasi dibuat/diubah, dipakai peta pin destinasi. Kosong bila teks destinasi tidak cocok referensi. */
+  destinationGeo?: GeoPoint
   /** Tanggal perkiraan — opsional karena belum tentu diketahui di stage awal (Draft/Qualification). */
   travelStartDate?: string
   travelEndDate?: string

@@ -18,6 +18,7 @@ import { CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS, CHAN
 import { DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS, DOCUMENT_COMMENTS } from './document-comms'
 import { TRIP_ANNOUNCEMENTS } from './trip-center'
 import { SAVED_VIEWS } from './reporting'
+import { resolveDestinationGeo } from './geo'
 import { COMMODITY_PRODUCTS, COMMODITY_VARIANTS } from './commodities'
 import { AVAILABILITY_SLOTS } from './availability'
 import { COMMODITY_REQUIREMENTS } from './requirements'
@@ -1192,6 +1193,8 @@ export function updateOpportunityRequirement (opportunityId: string, patch: Oppo
   const opportunity = getOpportunityById(opportunityId)
   if (!opportunity) { return undefined }
   Object.assign(opportunity, patch)
+  /** Lokasi terstruktur SELALU diturunkan ulang dari `destination` — bukan field yang bisa diisi manual lewat form ini. */
+  if (patch.destination !== undefined) { opportunity.destinationGeo = resolveDestinationGeo(patch.destination) }
   return opportunity
 }
 
@@ -1263,6 +1266,7 @@ export function approveOpportunityWon (opportunityId: string, approverId: string
     opportunityId: opportunity.id,
     sourceQuotationId: quotation.id,
     destination: opportunity.destination,
+    destinationGeo: opportunity.destinationGeo,
     travelStartDate: opportunity.travelStartDate!,
     travelEndDate: opportunity.travelEndDate!,
     characteristic: 'normal',
@@ -2858,6 +2862,7 @@ export function qualifyLeadAndCreateOpportunity (leadId: string): Opportunity | 
     ownerId: accountExecutiveId,
     estimatedValueIdr: 0,
     destination: lead.destination!,
+    destinationGeo: resolveDestinationGeo(lead.destination!),
     travelStartDate: lead.travelStartDate,
     travelEndDate: lead.travelEndDate,
     travelerEstimate: lead.travelerEstimate,

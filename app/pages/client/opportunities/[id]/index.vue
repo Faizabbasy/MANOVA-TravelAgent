@@ -124,6 +124,12 @@ function submitReject () {
             { label: 'Estimasi Traveler', value: opportunity.travelerEstimate ? `${opportunity.travelerEstimate} pax` : '—' },
           ]"
         />
+        <div class="mt-4">
+          <p class="text-xs font-medium text-muted-foreground mb-2">
+            Peta Lokasi
+          </p>
+          <DestinationMap :geo="opportunity.destinationGeo" :destination-text="opportunity.destination" />
+        </div>
         <div v-if="opportunity.serviceScope.length" class="mt-4 pt-4 border-t border-border">
           <p class="text-xs font-medium text-muted-foreground mb-2">
             Layanan

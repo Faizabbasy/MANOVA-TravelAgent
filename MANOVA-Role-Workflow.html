@@ -1,5 +1,5 @@
 <title>MANOVA — Alur Kerja per Role</title>
-<meta name="description" content="Panduan cara kerja tiap role di MANOVA, langkah demi langkah — Sales, AE, Management, Product Planner, Project Manager, Operations, Ticketing/Accommodation/Transportation/MICE, Procurement, Finance, Viewer, Client, Supplier, per 3 Agustus 2026">
+<meta name="description" content="Panduan cara kerja tiap role di MANOVA, langkah demi langkah — Sales, CRM, Management, Super Admin, Operations & Scheduling, Finance & ACC, Vendor & Partner, HR, Inventory, Marketing & Analysis, Reporting & BI, Client, Vendor. Diperbarui mengikuti Revisi 9-Modul & RBAC Dinamis.">
 <style>
   :root{
     --paper:#F6F4EE;
@@ -266,6 +266,8 @@
   .chip.external::before{ background:var(--pending); }
   .chip.readonly{ background:var(--paper); color:var(--ink-soft); border:1px solid var(--line-strong); }
   .chip.readonly::before{ background:var(--ink-soft); }
+  .chip.new{ background:var(--done-soft); color:var(--done-ink); }
+  .chip.new::before{ background:var(--done); }
 
   .role-block{
     background:var(--paper-raised);
@@ -410,13 +412,13 @@
 <div class="page">
 
   <header class="report-head">
-    <div class="eyebrow"><span class="dot"></span>Dokumentasi Teknis &middot; Alur Kerja per Role</div>
+    <div class="eyebrow"><span class="dot"></span>Dokumentasi Teknis &middot; Alur Kerja per Role (Revisi 9-Modul)</div>
     <h1 class="title">MANOVA — Alur Kerja per Role</h1>
-    <p class="subtitle">Panduan langkah-demi-langkah "sehari-hari role ini kerjanya gimana" — dari Sales sampai Supplier, termasuk detail cara Finance menginput tagihan, dan cara 4 domain operasional (Ticketing, Accommodation, Transportation, MICE) serta Operations bekerja.</p>
+    <p class="subtitle">Panduan langkah-demi-langkah "sehari-hari role ini kerjanya gimana" — 13 role hasil restrukturisasi 9 Modul Bisnis (Sales, Finance &amp; ACC, CRM, Vendor &amp; Partner, Operations &amp; Scheduling, HR, Inventory, Marketing &amp; Analysis, Reporting &amp; BI) plus role sistem (Super Admin, Client Portal, Vendor Portal). Role kini <strong>dinamis</strong> — bisa dibuat/diubah/dihapus langsung dari Admin &gt; Roles, tanpa deploy ulang.</p>
     <div class="meta-row">
-      <span>Cakupan: <strong>16 role, dikelompokkan jadi 8 kelompok kerja</strong></span>
-      <span>Sumber: <strong>app/pages/**, app/constants/roles.ts, app/composables/usePermissions.ts</strong></span>
-      <span>Dokumen pendamping: <strong>MANOVA-End-to-End-Flow.html</strong> (alur bisnis 23 langkah), <strong>MANOVA-Page-Role-Flow.html</strong> (detail per halaman)</span>
+      <span>Cakupan: <strong>13 role bawaan sistem, dikelompokkan jadi 8 kelompok kerja</strong></span>
+      <span>Sumber: <strong>app/pages/**, app/data/rbac.ts, app/constants/modules.ts, app/constants/capabilities.ts</strong></span>
+      <span>Dokumen pendamping: <strong>MANOVA-End-to-End-Flow.html</strong> (alur bisnis), <strong>MANOVA-Page-Role-Flow.html</strong> (detail per halaman)</span>
     </div>
     <div class="actions">
       <button class="btn btn-primary" id="btn-pdf" type="button">
@@ -432,29 +434,30 @@
 
   <div class="summary">
     <h2>Cara Baca</h2>
-    <p>Beda dengan dua dokumen sebelumnya (yang dipetakan per <em>langkah proses bisnis</em> atau per <em>halaman</em>), dokumen ini dipetakan per <strong>role</strong> — jawaban atas "kalau saya login sebagai role X, saya ngapain aja tiap hari, urutannya gimana". Tiap role punya: ringkasan tanggung jawab, daftar halaman utama yang dipakai, dan alur kerja bernomor (langkah kuning = ada gerbang persetujuan/approval dari role lain, langkah ungu-cokelat = ada cabang alternatif).</p>
+    <p>Dokumen ini dipetakan per <strong>role</strong> — jawaban atas "kalau saya login sebagai role X, saya ngapain aja tiap hari, urutannya gimana". Tiap role punya: ringkasan tanggung jawab, daftar halaman utama yang dipakai, dan alur kerja bernomor (langkah kuning = ada gerbang persetujuan/approval dari role lain, langkah ungu-cokelat = ada cabang alternatif). Badge <span class="chip new">Baru</span> menandai halaman/kemampuan hasil Revisi 9-Modul yang belum ada sebelumnya.</p>
+    <p><strong>Penting:</strong> role kini bisa dikustomisasi Super Admin lewat Admin &gt; Roles (buat role baru, clone, atur akses per modul/menu/action flag). 13 role di bawah adalah <em>role bawaan sistem</em> (seed default) — perusahaan bisa menambah role custom dengan kombinasi akses berbeda kapan saja.</p>
   </div>
 
   <div class="stats">
     <div class="stat">
-      <div class="stat-num">16</div>
+      <div class="stat-num">13</div>
       <div class="stat-bar"><span style="width:100%"></span></div>
-      <div class="stat-label">Role, masing-masing punya alur kerja sendiri</div>
+      <div class="stat-label">Role bawaan sistem (dulu 16, disederhanakan lewat merger)</div>
     </div>
     <div class="stat">
       <div class="stat-num">8</div>
       <div class="stat-bar"><span style="width:100%"></span></div>
-      <div class="stat-label">Kelompok kerja (Sales/AE, Approval, Perencanaan/Delivery, dst)</div>
+      <div class="stat-label">Kelompok kerja (Sales &amp; CRM/Approval/Delivery/Finance/dst)</div>
     </div>
     <div class="stat">
-      <div class="stat-num">4</div>
+      <div class="stat-num">3</div>
       <div class="stat-bar"><span style="width:100%"></span></div>
-      <div class="stat-label">Role domain operasional pola serupa (Ticketing/Accommodation/Transportation/MICE)</div>
+      <div class="stat-label">Role sama sekali baru (CRM, HR, Inventory) — dulu belum ada perannya</div>
     </div>
     <div class="stat">
       <div class="stat-num">2</div>
       <div class="stat-bar"><span style="width:100%"></span></div>
-      <div class="stat-label">Role eksternal (Client, Supplier) — portal terbatas</div>
+      <div class="stat-label">Role eksternal (Client, Vendor) — portal terbatas</div>
     </div>
   </div>
 
@@ -462,60 +465,58 @@
     <h2>Daftar Role</h2>
     <ol>
       <li><a href="#sales">1. Sales</a></li>
-      <li><a href="#ae">2. Account Executive</a></li>
+      <li><a href="#crm">2. CRM</a></li>
       <li><a href="#management">3. Management</a></li>
       <li><a href="#superadmin">4. Super Admin</a></li>
-      <li><a href="#planner">5. Product Planner / Travel Consultant</a></li>
-      <li><a href="#pm">6. Project Manager</a></li>
-      <li><a href="#ops">7. Operations</a></li>
-      <li><a href="#ticketing">8. Ticketing</a></li>
-      <li><a href="#accommodation">9. Accommodation</a></li>
-      <li><a href="#transportation">10. Transportation</a></li>
-      <li><a href="#mice">11. MICE</a></li>
-      <li><a href="#procurement">12. Procurement / Vendor Management</a></li>
-      <li><a href="#finance">13. Finance</a></li>
-      <li><a href="#viewer">14. Viewer / Auditor</a></li>
-      <li><a href="#client">15. Client (Portal Eksternal)</a></li>
-      <li><a href="#supplier">16. Supplier / Vendor (Portal Eksternal)</a></li>
+      <li><a href="#operations">5. Operations &amp; Scheduling</a></li>
+      <li><a href="#finance">6. Finance &amp; ACC</a></li>
+      <li><a href="#vendor-partner">7. Vendor &amp; Partner Management</a></li>
+      <li><a href="#hr">8. Human Resource</a></li>
+      <li><a href="#inventory">9. Inventory</a></li>
+      <li><a href="#marketing">10. Marketing &amp; Analysis</a></li>
+      <li><a href="#bi">11. Reporting &amp; BI</a></li>
+      <li><a href="#client">12. Client (Portal Eksternal)</a></li>
+      <li><a href="#vendor">13. Vendor (Portal Eksternal)</a></li>
     </ol>
   </div>
 
   <section>
     <div class="section-head">
-      <h2>Kelompok 1 — Sales &amp; Deal Making</h2>
-      <span class="section-note">Dari Lead masuk sampai Quotation siap</span>
+      <h2>Kelompok 1 — Sales &amp; CRM</h2>
+      <span class="section-note">Dari Lead masuk sampai Quotation siap, plus pengelolaan relasi pelanggan jangka panjang</span>
     </div>
 
     <div class="role-block" id="sales">
-      <div class="role-head"><h3>1. Sales</h3><span class="chip role">Internal</span></div>
+      <div class="role-head"><h3>1. Sales</h3><span class="chip role">Internal &middot; menggabungkan Sales + Account Executive + Product Planner lama</span></div>
       <div class="role-body">
-        <p class="role-intro">Sales adalah garda depan — tugasnya menyaring Lead yang masuk dan memastikan cuma Lead yang benar-benar layak yang diteruskan ke Account Executive. Sales <strong>tidak</strong> boleh mengelola Opportunity atau Quotation.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/customer-journey/leads</span>, <span class="mono">/lead-intake</span> (sumber Lead publik)</p>
+        <p class="role-intro">Sales sekarang memegang seluruh perjalanan deal dari ujung ke ujung — menyaring Lead, mengisi kebutuhan klien, menyiapkan basis harga (Product Template/Cost Sheet), menyusun Quotation, sampai mengurus approval dan Client Confirmation hingga Won. Tiga role lama (Sales, Account Executive, Product Planner/Travel Consultant) melebur jadi satu di sini.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/customer-journey/leads</span>, <span class="mono">/lead-intake</span>, <span class="mono">/crm/opportunities</span>, <span class="mono">/crm/opportunities/[id]</span>, <span class="mono">/product-planning</span>, <span class="mono">/product-planning/cost-sheets</span>, <span class="mono">/crm/quotations</span></p>
         <ol class="howto">
-          <li><strong>Terima Lead baru.</strong><p>Bisa masuk otomatis dari form publik <span class="mono">/lead-intake</span> (calon klien isi sendiri), atau Sales input manual lewat tombol "New Lead" di <span class="mono">/customer-journey/leads</span> (misal hasil telepon/WA).</p></li>
-          <li class="is-branch"><strong>Cek possible duplicate.</strong><p>Sistem otomatis mencocokkan nomor telepon/email dengan Lead lama. Kalau ada kemiripan, Sales bisa menandainya sebagai duplikat (arsip dengan referensi) supaya tidak double-kerja.</p></li>
-          <li><strong>Isi Qualification (13 field).</strong><p>Travel type, destination, period, traveler estimate, service scope, budget range, decision maker, urgency, expected close date, notes, dan AE yang akan menerima. Bisa disimpan sebagai draft dulu kalau belum lengkap.</p></li>
-          <li><strong>Assign Account Executive.</strong><p>Pilih AE yang akan memegang deal ini di field "AE yang Menerima Lead".</p></li>
-          <li><strong>Qualify &amp; Create Opportunity.</strong><p>Tombol ini aktif begitu 13 field lengkap. Sekali klik, lahir Opportunity baru dan langsung masuk worklist AE yang ditunjuk — pekerjaan Sales untuk Lead ini selesai di sini.</p></li>
-          <li><strong>Kelola Lead yang tidak lanjut.</strong><p>Archive Lead yang tidak berpotensi, atau Reopen kalau ternyata mau dilanjutkan lagi.</p></li>
+          <li><strong>Terima Lead baru.</strong><p>Otomatis dari form publik <span class="mono">/lead-intake</span> (calon klien isi sendiri, tanpa login), atau input manual di <span class="mono">/customer-journey/leads</span>. Sistem otomatis mengecek kemiripan kontak untuk menandai kemungkinan duplikat.</p></li>
+          <li><strong>Isi Qualification (7 field wajib).</strong><p>Jenis kebutuhan, destinasi, periode, estimasi traveler, service scope, ringkasan kebutuhan, AE tujuan — begitu lengkap, tombol "Qualify &amp; Create Opportunity" aktif.</p></li>
+          <li><strong>Qualify &amp; Create Opportunity.</strong><p>Satu klik — Opportunity baru lahir (Party/company baru dibuat otomatis bila belum ada yang cocok).</p></li>
+          <li><strong>Lengkapi Requirement Detail (14 field).</strong><p>Di Opportunity Detail — itinerary concept, komposisi traveler, preferensi flight/hotel/transport/MICE, payment terms, risiko, catatan komersial/operasional. Wajib lengkap sebelum Quotation bisa dibuat.</p></li>
+          <li class="is-branch"><strong>(Opsional) Siapkan basis harga sendiri.</strong><p>Buat Product Template di <span class="mono">/product-planning</span> (konsep paket + alternatif layanan), lalu Cost Sheet (traveler count, markup/tax/contingency %, line item biaya) di <span class="mono">/product-planning/cost-sheets</span> — bisa langsung ditautkan ke Opportunity yang sedang dikerjakan.</p></li>
+          <li><strong>Apply to Quotation (bila pakai Cost Sheet).</strong><p>Total sell tersalin otomatis ke Quotation; Cost Sheet terkunci (Final) begitu di-apply.</p></li>
+          <li><strong>Buat / Edit Quotation.</strong><p>Isi line items, tax/fee, markup, discount, currency, valid until, payment terms, inclusions/exclusions, terms &amp; conditions. Bisa Duplicate atau buat versi baru untuk revisi.</p></li>
+          <li class="is-gate"><strong>Submit for Approval.</strong><p>Quotation masuk antrean Management di <span class="mono">/crm/quotations</span>. Approve → lanjut; Reject (wajib catatan) → revisi &amp; submit ulang.</p></li>
+          <li><strong>Send to Client, lalu tunggu Client Confirmation.</strong><p>Setelah approved, kirim (mock) ke klien — klien memutuskan sendiri lewat Client Portal (Approve/Reject/Request Revision).</p></li>
+          <li><strong>Mark as Won.</strong><p>Aktif begitu quotation approved DAN client confirmed — sekali klik, Project Order baru otomatis dibuat dan diserahkan ke tim Operations.</p></li>
         </ol>
       </div>
     </div>
 
-    <div class="role-block" id="ae">
-      <div class="role-head"><h3>2. Account Executive (AE)</h3><span class="chip role">Internal</span></div>
+    <div class="role-block" id="crm">
+      <div class="role-head"><h3>2. CRM</h3><span class="chip role">Internal <span class="chip new">Role Baru</span></span></div>
       <div class="role-body">
-        <p class="role-intro">AE memegang deal dari Opportunity sampai Won — mengisi kebutuhan klien, menyusun Quotation, mengurus approval, dan mengonfirmasi kesepakatan dengan klien.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/crm/opportunities</span>, <span class="mono">/crm/opportunities/[id]</span>, <span class="mono">/crm/opportunities/[id]/quotation-preview</span></p>
+        <p class="role-intro">Role sama sekali baru — dipisah dari Sales supaya ada yang fokus penuh menjaga relasi customer setelah deal berjalan: riwayat &amp; preferensi perjalanan, follow-up terjadwal, loyalty program, dan review/feedback klien. Sales tetap bisa melihat halaman-halaman ini, tapi tombol aksinya (aktifkan rule, sesuaikan poin, tandai feedback) khusus milik role CRM.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/crm/parties/[id]</span>, <span class="mono">/crm/follow-ups</span>, <span class="mono">/crm/loyalty</span>, <span class="mono">/crm/feedback</span>, <span class="mono">/customer-journey/customers</span></p>
         <ol class="howto">
-          <li><strong>Terima Opportunity dari Sales.</strong><p>Muncul di <span class="mono">/crm/opportunities</span>, lengkap dengan histori Qualification yang sudah diisi Sales.</p></li>
-          <li><strong>Lengkapi Requirement Detail (14 field).</strong><p>Product/service scope, komposisi traveler, preferences, payment terms, risks, catatan komersial/operasional. Wajib lengkap dulu sebelum bisa bikin Quotation.</p></li>
-          <li class="is-branch"><strong>(Opsional) Minta Cost Sheet dari Product Planner.</strong><p>Kalau butuh basis harga yang sudah dihitung detail, minta Product Planner buat Cost Sheet — nanti tinggal "Apply to Quotation".</p></li>
-          <li><strong>Buat Quotation.</strong><p>Isi line items, tax/fee, markup, discount, currency, valid until, payment terms, inclusions/exclusions, terms &amp; conditions. Simpan sebagai draft, bisa diedit berkali-kali, cek dulu lewat halaman Preview PDF.</p></li>
-          <li class="is-gate"><strong>Submit for Approval.</strong><p>Quotation dikirim ke antrean Management di <span class="mono">/crm/quotations</span>. AE tunggu keputusan — approve atau reject (kalau reject, AE wajib bikin versi baru dan submit ulang).</p></li>
-          <li><strong>Send to Client.</strong><p>Setelah approved, AE kirim quotation ke klien (mock).</p></li>
-          <li class="is-gate"><strong>Tunggu Client Confirmation.</strong><p>Klien memutuskan sendiri lewat portalnya — Accept/Reject/Request Revision. Kalau ditolak/revisi, AE balik ke langkah 4.</p></li>
-          <li><strong>Mark as Won (atau Mark as Lost).</strong><p>Begitu quotation approved DAN client confirmed, tombol Mark as Won aktif — sekali klik, Project baru otomatis dibuat dan diserahkan ke Project Manager.</p></li>
+          <li><strong>Pantau Database Customer.</strong><p>Buka Party Detail (<span class="mono">/crm/parties/[id]</span>) tab "Riwayat &amp; Preferensi" — destinasi favorit, layanan yang biasa dipakai, rata-rata rombongan/durasi, seluruhnya dihitung otomatis dari histori project/invoice, bukan diisi manual.</p></li>
+          <li><strong>Kelola Follow-up Otomatis.</strong><p>Buka <span class="mono">/crm/follow-ups</span> — aktifkan/nonaktifkan rule (mis. "Sapa Lead Baru +1 hari", "Aktivasi Customer Pasif +90 hari"), lalu tindak-lanjuti antrean kontak yang jatuh tempo lewat tombol WhatsApp/Email/Telepon (pesan template sudah terisi otomatis).</p></li>
+          <li><strong>Kelola Loyalty Program.</strong><p>Buka <span class="mono">/crm/loyalty</span> — pantau tier &amp; poin tiap client (dihitung otomatis dari invoice lunas), sesuaikan poin manual (bonus/penukaran) dengan alasan wajib.</p></li>
+          <li><strong>Tinjau Review &amp; Feedback.</strong><p>Buka <span class="mono">/crm/feedback</span> — lihat rating &amp; komentar yang diisi klien pasca-trip, tandai "Perlu Tindak Lanjut" atau "Sudah Ditindaklanjuti", pantau Net Promoter Score dan aspek layanan yang perlu diperbaiki.</p></li>
+          <li><strong>Kelola Contact &amp; Activity.</strong><p>Tambah contact person, catat activity, chat langsung via tombol WhatsApp (link <span class="mono">wa.me</span> otomatis terisi pesan pembuka) di Party Detail.</p></li>
         </ol>
       </div>
     </div>
@@ -528,32 +529,34 @@
     </div>
 
     <div class="role-block" id="management">
-      <div class="role-head"><h3>3. Management</h3><span class="chip approve">Approver</span></div>
+      <div class="role-head"><h3>3. Management</h3><span class="chip approve">Approver &middot; menggantikan Viewer/Auditor lama</span></div>
       <div class="role-body">
-        <p class="role-intro">Management adalah pemegang persetujuan komersial dan operasional besar — quotation, perubahan project, refund, sampai penutupan project.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/crm/quotations</span>, <span class="mono">/changes/[id]</span>, <span class="mono">/changes/refunds/[id]</span>, <span class="mono">/projects/[id]</span>, <span class="mono">/reports</span></p>
+        <p class="role-intro">Management adalah pemegang persetujuan komersial dan operasional besar — quotation, perubahan project, refund, penutupan Project Order, sampai review performance HR dan penutupan periode finance.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/crm/quotations</span>, <span class="mono">/changes/[id]</span>, <span class="mono">/changes/refunds/[id]</span>, <span class="mono">/project-orders/[id]</span>, <span class="mono">/hr</span>, <span class="mono">/reports</span>, <span class="mono">/reports/analytics</span></p>
         <ol class="howto">
-          <li><strong>Cek antrean Commercial Approval.</strong><p>Buka <span class="mono">/crm/quotations</span> tab "Menunggu Approval" — review margin, discount, tax/fee, markup, tingkat kompleksitas, dan catatan risiko tiap quotation yang diajukan AE.</p></li>
-          <li class="is-gate"><strong>Approve atau Reject.</strong><p>Approve → quotation siap dikirim ke klien. Reject (catatan wajib) → otomatis jadi "return for revision", balik ke AE.</p></li>
-          <li><strong>Pantau tab "Menunggu Client Confirmation".</strong><p>Read-only — melihat quotation mana yang sudah disetujui tapi klien belum konfirmasi.</p></li>
-          <li class="is-gate"><strong>Approve/Reject Change Request &amp; Refund.</strong><p>Setiap Change Request (<span class="mono">/changes/[id]</span>) dan Refund Request (<span class="mono">/changes/refunds/[id]</span>) yang diajukan Operations/Project Manager wajib melewati persetujuan Management sebelum dieksekusi.</p></li>
-          <li><strong>Ikut memutuskan Project Closure.</strong><p>Bersama Project Manager, menyetujui penutupan project di <span class="mono">/projects/[id]</span> tab Overview — setelah Finance sudah settle dan tidak ada issue terbuka.</p></li>
-          <li><strong>Pantau performa lewat Reports &amp; Dashboard.</strong><p>Melihat Sales Pipeline, Project Performance, Budget vs Actual, SLA &amp; Quotation Performance untuk keputusan strategis.</p></li>
+          <li><strong>Cek antrean Commercial Approval.</strong><p>Buka <span class="mono">/crm/quotations</span> tab "Menunggu Approval" — review margin, discount, tax/fee, markup, kompleksitas, dan catatan risiko tiap quotation yang diajukan Sales.</p></li>
+          <li class="is-gate"><strong>Approve atau Reject.</strong><p>Approve → quotation siap dikirim ke klien. Reject (catatan wajib) → otomatis jadi "return for revision", balik ke Sales.</p></li>
+          <li class="is-gate"><strong>Approve/Reject Change Request &amp; Refund.</strong><p>Setiap Change Request (<span class="mono">/changes/[id]</span>) dan Refund Request (<span class="mono">/changes/refunds/[id]</span>) yang diajukan Operations wajib melewati persetujuan Management sebelum dieksekusi.</p></li>
+          <li><strong>Ikut menyetujui penutupan Project Order.</strong><p>Di step "Review &amp; Closing" (step 6 dari 6) workspace <span class="mono">/project-orders/[id]</span> — capability "Tutup Project Order" dipegang bersama Operations.</p></li>
+          <li><strong>Review Performance karyawan.</strong><p>Buka <span class="mono">/hr</span> tab Performance — ikut wewenang bersama role HR (capability <span class="mono">hr.manage-performance</span>).</p></li>
+          <li><strong>Setujui penutupan periode Finance.</strong><p>Capability <span class="mono">finance.close-period</span> dipegang bersama role Finance.</p></li>
+          <li><strong>Pantau performa lewat Reports &amp; Analytics.</strong><p><span class="mono">/reports</span> (Sales Pipeline, Project Performance, Budget vs Actual, SLA) dan <span class="mono">/reports/analytics</span> <span class="chip new">Baru</span> (Revenue &amp; Profitabilitas, Cost per Trip, Marketing ROI, LTV:CAC) untuk keputusan strategis.</p></li>
         </ol>
       </div>
     </div>
 
     <div class="role-block" id="superadmin">
-      <div class="role-head"><h3>4. Super Admin</h3><span class="chip role">Internal — akses penuh</span></div>
+      <div class="role-head"><h3>4. Super Admin</h3><span class="chip role">Internal — akses penuh, tidak bisa dikunci</span></div>
       <div class="role-body">
-        <p class="role-intro">Super Admin adalah fallback tertinggi — bisa mengakses dan mengeksekusi aksi apa pun di semua modul (dipakai untuk demo/testing, dukungan teknis, dan mengurus konfigurasi dasar sistem).</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/admin</span>, <span class="mono">/admin/master-data</span>, <span class="mono">/admin/users</span>, <span class="mono">/admin/roles</span>, <span class="mono">/admin/audit-trail</span>, <span class="mono">/admin/organization</span></p>
+        <p class="role-intro">Super Admin adalah fallback tertinggi — mem-bypass seluruh matriks permission dan otomatis berakses ADMIN penuh ke semua modul. Permission-nya sendiri sengaja tidak bisa diubah siapa pun (termasuk dirinya sendiri) karena ia satu-satunya jalur pemulihan bila konfigurasi role lain salah — aplikasi ini tidak punya backend untuk memulihkan akses dari luar.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/admin</span>, <span class="mono">/admin/roles</span>, <span class="mono">/admin/master-data</span>, <span class="mono">/admin/users</span>, <span class="mono">/admin/audit-trail</span>, <span class="mono">/admin/organization</span></p>
         <ol class="howto">
-          <li><strong>Kelola Master Data.</strong><p>Data referensi lintas modul: destinasi, bandara, maskapai, mata uang, aturan pajak, payment term, dsb — dipakai modul lain sebagai pilihan dropdown.</p></li>
-          <li><strong>Kelola Users.</strong><p>Suspend/reactivate akun user (alasan wajib saat suspend).</p></li>
-          <li><strong>Kelola Organization Profile.</strong><p>Nama legal, alamat, kontak perusahaan — tampil di kop dokumen (invoice, quotation).</p></li>
-          <li><strong>Pantau Roles Matrix &amp; Audit Trail.</strong><p><span class="mono">/admin/roles</span> (referensi visual siapa boleh apa), <span class="mono">/admin/audit-trail</span> (log perubahan lintas project).</p></li>
-          <li><strong>Ganti role demo bila perlu.</strong><p>Lewat <span class="mono">/admin</span>, untuk keperluan testing/tampilkan fitur dari sudut pandang role lain.</p></li>
+          <li><strong>Kelola Role &amp; Permission (kini dinamis).</strong><p>Buka <span class="mono">/admin/roles</span> <span class="chip new">Baru</span> — buat role baru dari nol atau clone role existing, atur akses per Modul (5 level: None/View/Manage/Approve/Admin), per Menu individual (override lebih presisi dari level modul), dan per Action Flag/capability (mis. siapa boleh tutup Project Order, lihat margin, kelola role). Ada tab Preview untuk simulasi sidebar role tsb sebelum benar-benar disimpan.</p></li>
+          <li><strong>Assign user ke role.</strong><p>Dari tab "Users" di Roles, atau dari <span class="mono">/admin/users</span> — pindahkan user ke role manapun (kecuali menghabiskan Super Admin terakhir yang tersisa).</p></li>
+          <li><strong>Kelola Master Data.</strong><p><span class="mono">/admin/master-data</span> — 15 kategori data referensi lintas modul (destinasi, bandara, maskapai, mata uang, aturan pajak, payment term, dsb), kini dengan CRUD penuh (dulu sebagian read-only).</p></li>
+          <li><strong>Kelola Users &amp; Organization Profile.</strong><p>Suspend/reaktivasi akun (alasan wajib), kelola nama legal/alamat/kontak perusahaan yang tampil di kop dokumen resmi.</p></li>
+          <li><strong>Pantau Audit Trail.</strong><p><span class="mono">/admin/audit-trail</span> — kini bisa cari bebas lintas log project dan log sistem (termasuk seluruh perubahan RBAC).</p></li>
+          <li><strong>Reset RBAC ke default bila konfigurasi kacau.</strong><p>Tombol darurat di <span class="mono">/admin/roles</span> — mengembalikan 13 role bawaan + seluruh grant ke kondisi seed (role custom ikut terhapus).</p></li>
         </ol>
       </div>
     </div>
@@ -561,55 +564,27 @@
 
   <section>
     <div class="section-head">
-      <h2>Kelompok 3 — Perencanaan &amp; Delivery Project</h2>
-      <span class="section-note">Dari basis harga sampai project berjalan tiap hari</span>
+      <h2>Kelompok 3 — Delivery Operasional</h2>
+      <span class="section-note">Satu role menjalankan seluruh operasional harian — dari Project Order sampai empat domain booking</span>
     </div>
 
-    <div class="role-block" id="planner">
-      <div class="role-head"><h3>5. Product Planner / Travel Consultant</h3><span class="chip role">Internal</span></div>
+    <div class="role-block" id="operations">
+      <div class="role-head"><h3>5. Operations &amp; Scheduling</h3><span class="chip role">Internal &middot; menggabungkan Project Manager + Ticketing + Accommodation + Transportation + MICE lama</span></div>
       <div class="role-body">
-        <p class="role-intro">Menyiapkan "resep" paket wisata dan menghitung basis harganya — supaya AE tidak menyusun quotation dari nol.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/product-planning</span>, <span class="mono">/product-planning/cost-sheets</span></p>
+        <p class="role-intro">Role paling luas cakupannya — menjalankan Project Order dari serah-terima sampai ditutup lewat alur 6-step baru, mengoordinasikan booking Flight/Hotel/Transport/MICE, memakai kalender &amp; peta perencanaan, memantau Booking Center, dan menangani Change Request/Incident. Lima role lama melebur ke sini.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/project-orders</span>, <span class="mono">/project-orders/[id]</span>, <span class="mono">/operations/calendar</span>, <span class="mono">/projects/[id]</span>, <span class="mono">/bookings</span>, <span class="mono">/changes</span>, <span class="mono">/ticketing</span>, <span class="mono">/accommodation</span>, <span class="mono">/transportation</span>, <span class="mono">/mice</span></p>
         <ol class="howto">
-          <li><strong>Buat Product Template.</strong><p>Nama paket, destinasi, service scope (flight/hotel/transport/MICE), basis pax, konsep itinerary.</p></li>
-          <li><strong>Ubah status Draft → Active.</strong><p>Template siap dipakai sebagai basis Cost Sheet begitu datanya lengkap.</p></li>
-          <li><strong>Buat Cost Sheet.</strong><p>Bisa dari Template atau langsung dari sebuah Opportunity — isi traveler count, markup %, pajak %, kontingensi %, dan line item biaya per layanan.</p></li>
-          <li class="is-branch"><strong>(Opsional) Bandingkan beberapa skenario.</strong><p>Duplicate Cost Sheet jadi versi lain untuk membandingkan total sell/margin sebelum memutuskan skenario final.</p></li>
-          <li><strong>Apply to Quotation.</strong><p>Total sell disalin (snapshot) langsung ke Quotation milik AE di Opportunity terkait — Cost Sheet ini otomatis terkunci (Final).</p></li>
-        </ol>
-      </div>
-    </div>
-
-    <div class="role-block" id="pm">
-      <div class="role-head"><h3>6. Project Manager</h3><span class="chip role">Internal</span></div>
-      <div class="role-body">
-        <p class="role-intro">PM adalah pemilik operasional satu Project Order dari awal sampai ditutup — mengoordinasikan Team, Traveler, Itinerary, Tasks, Dokumen, sampai Finance closure.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/projects</span>, <span class="mono">/projects/[id]</span> (8 tab)</p>
-        <ol class="howto">
-          <li class="is-gate"><strong>Accept atau Return Handover.</strong><p>Project baru (hasil Won) menunggu di tab Overview. PM Accept (lanjut ke Planning) atau Return dengan alasan (balik ke AE untuk klarifikasi).</p></li>
-          <li><strong>Susun Team &amp; catat Risk.</strong><p>Tab Overview — assign anggota tim, log risiko yang perlu dipantau.</p></li>
-          <li><strong>Kelola data Traveler.</strong><p>Tab Travelers — tambah/edit data traveler, paspor/visa, rooming list (Client juga bisa isi sendiri lewat portalnya).</p></li>
-          <li><strong>Koordinasi Itinerary &amp; Services.</strong><p>Tab Itinerary &amp; Services — pantau status tiap layanan (dikerjakan role domain masing-masing), cek Readiness Gate sebelum keberangkatan.</p></li>
-          <li><strong>Kelola Tasks &amp; Documents.</strong><p>Buat/assign/selesaikan task tim; upload dokumen project.</p></li>
-          <li class="is-branch"><strong>Ajukan Change Request bila ada perubahan.</strong><p>Tab Activity &amp; Changes — submit Change Request/Incident, tunggu approval Management.</p></li>
-          <li><strong>Pantau kesiapan Finance.</strong><p>Tab Finance — memantau (bukan mengeksekusi, itu tugas Finance) status invoice dan Financial Closure Readiness project ini.</p></li>
-          <li class="is-gate"><strong>Close Project.</strong><p>Setelah checklist closure terpenuhi (finance settled, semua layanan selesai, tidak ada issue terbuka), PM bersama Management menutup project secara resmi lewat tombol "Close Project".</p></li>
-        </ol>
-      </div>
-    </div>
-
-    <div class="role-block" id="ops">
-      <div class="role-head"><h3>7. Operations</h3><span class="chip role">Internal</span></div>
-      <div class="role-body">
-        <p class="role-intro">Operations adalah "menara pengawas" lintas 4 domain booking — memantau status gabungan, menangani exception, dan mengajukan perubahan/insiden operasional saat terjadi masalah.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/bookings</span>, <span class="mono">/bookings/exceptions</span>, <span class="mono">/changes</span></p>
-        <ol class="howto">
-          <li><strong>Pantau Booking Timeline.</strong><p>Buka <span class="mono">/bookings</span> — radar gabungan status booking Flight/Hotel/Transport/MICE dari seluruh project aktif, termasuk dependency antar booking (mis. transport baru bisa dikerjakan setelah hotel confirmed).</p></li>
-          <li><strong>Tandai Payment Cleared.</strong><p>Untuk booking yang gate pembayarannya sudah beres.</p></li>
-          <li><strong>Catat percobaan booking.</strong><p>"Catat Percobaan" — pilih outcome (berhasil/gagal/dll) beserta catatan, terutama untuk booking yang butuh beberapa kali percobaan sourcing.</p></li>
-          <li><strong>Tangani Exception Queue.</strong><p>Buka <span class="mono">/bookings/exceptions</span> — daftar booking bermasalah (dependency belum terpenuhi, percobaan terakhir gagal, duplicate, ada perubahan/insiden) dan selesaikan satu per satu.</p></li>
-          <li class="is-gate"><strong>Ajukan Change Request / Incident / Refund.</strong><p>Kalau ada perubahan permintaan klien atau masalah di lapangan, ajukan lewat <span class="mono">/changes</span> — keputusan approve/reject final tetap di tangan Management.</p></li>
-          <li><strong>Proses status yang sudah di-approve.</strong><p>Lanjutkan status Incident (investigasi → eskalasi → selesai) dan Refund (under-review → processed) yang sudah disetujui.</p></li>
+          <li><strong>Terima Project Order baru (hasil Won).</strong><p>Muncul di <span class="mono">/project-orders</span> pada step "Drafting". Buka workspace-nya, susun itinerary awal &amp; manifest traveler.</p></li>
+          <li class="is-gate"><strong>Step 1 → 2: Konfirmasi Project Order.</strong><p>Syarat: handover diterima, quotation tertaut, minimal 1 service &amp; 1 hari itinerary, manifest lengkap sesuai jumlah traveler.</p></li>
+          <li class="is-gate"><strong>Step 2 → 3: Mulai Persiapan (Start).</strong><p>Syarat: invoice DP terbit &amp; sudah diterima Finance, seluruh service berstatus Confirmed/Completed.</p></li>
+          <li><strong>Kelola 4 domain booking sesuai kebutuhan trip.</strong><p>Buat/kelola booking di <span class="mono">/ticketing</span> (Flight: Hold→Confirmed→Issued), <span class="mono">/accommodation</span> (Hotel: Quoted→Confirmed, rooming list), <span class="mono">/transportation</span> (assign unit/driver, multi-leg), <span class="mono">/mice</span> (venue/sesi/BOQ/staffing/checklist + Client Approval terpisah) — tiap domain punya dokumen cetak sendiri (e-ticket/voucher/service order/rundown).</p></li>
+          <li><strong>Pantau radar gabungan di Bookings Center.</strong><p><span class="mono">/bookings</span> — status lintas 4 domain dalam satu timeline, tandai payment cleared, catat percobaan booking; <span class="mono">/bookings/exceptions</span> untuk triase booking bermasalah.</p></li>
+          <li><strong>Pakai Booking Calendar &amp; Map untuk perencanaan.</strong><p><span class="mono">/operations/calendar</span> <span class="chip new">Baru</span> — kalender bulanan gabungan seluruh jadwal (keberangkatan, itinerary, milestone, booking, maintenance aset), plus tab Peta untuk merencanakan lokasi/rute dengan pin destinasi.</p></li>
+          <li class="is-gate"><strong>Step 3 → 4: Tandai Siap Berangkat.</strong><p>Syarat: departure readiness bersih, dokumen traveler terverifikasi, tour leader &amp; kontak darurat terisi.</p></li>
+          <li class="is-gate"><strong>Step 4 → 5 → 6: Trip Berjalan → Selesai → Closing.</strong><p>Tanggal keberangkatan/kepulangan lewat otomatis menandai transisi; tidak boleh ada incident terbuka atau change request pending saat naik step.</p></li>
+          <li class="is-branch"><strong>Ajukan Change Request / Incident / Refund bila ada masalah.</strong><p>Lewat <span class="mono">/changes</span> — keputusan approve/reject final tetap di tangan Management.</p></li>
+          <li class="is-gate"><strong>Step 6: Tutup Project Order.</strong><p>Syarat: closure checklist lengkap, seluruh aset MANOVA yang dipinjam sudah dikembalikan (modul Inventory), final note wajib diisi.</p></li>
+          <li><strong>Butuh detail operasional lebih dalam?</strong><p>Tombol "Detail Lengkap" di workspace membuka <span class="mono">/projects/[id]</span> — shell 8-tab lama (Overview/Itinerary &amp; Services/Travelers/Vendors/Finance/Tasks/Documents/Activity &amp; Changes) untuk CRUD harian yang lebih rinci; keduanya membaca data project yang sama persis.</p></li>
         </ol>
       </div>
     </div>
@@ -617,127 +592,25 @@
 
   <section>
     <div class="section-head">
-      <h2>Kelompok 4 — Domain Operasional (Ticketing, Accommodation, Transportation, MICE)</h2>
-      <span class="section-note">Pola kerja keempatnya identik, cuma beda jenis layanan yang diurus</span>
-    </div>
-
-    <div class="role-block" id="ticketing">
-      <div class="role-head"><h3>8. Ticketing (Flight)</h3><span class="chip role">Internal</span></div>
-      <div class="role-body">
-        <p class="role-intro">Memegang penuh lifecycle booking tiket pesawat untuk seluruh project.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/ticketing</span>, <span class="mono">/ticketing/[id]</span>, <span class="mono">/ticketing/[id]/eticket-preview</span></p>
-        <ol class="howto">
-          <li><strong>Terima kebutuhan booking flight.</strong><p>Biasanya dipicu dari tombol "Buat Booking" di tab Itinerary &amp; Services milik sebuah Project, atau dibuat langsung dari <span class="mono">/ticketing</span> dengan memilih Project tujuan.</p></li>
-          <li><strong>Sourcing &amp; catat detail.</strong><p>Isi PNR, fare rules, net cost (harga beli) dan sell price (harga jual ke klien), ticketing deadline.</p></li>
-          <li><strong>Update status: Hold → Confirm → Issue.</strong><p>Hold dulu untuk kunci kursi, Confirm setelah pasti, Issue setelah tiket benar-benar diterbitkan.</p></li>
-          <li><strong>Assign traveler ke booking.</strong><p>Pasangkan penumpang dari data traveler project ke segmen penerbangan.</p></li>
-          <li class="is-branch"><strong>Reissue bila ada perubahan jadwal.</strong><p>Catat schedule change note, reissue tiket sesuai kebutuhan baru.</p></li>
-          <li class="is-branch"><strong>Cancel / Refund bila dibatalkan.</strong><p>Wajib isi alasan — otomatis membuat Cancellation Record di modul Changes, yang nantinya bisa lanjut ke pengajuan Refund oleh Operations/PM.</p></li>
-          <li><strong>Cetak E-Ticket.</strong><p>Lewat <span class="mono">/ticketing/[id]/eticket-preview</span> untuk dokumen final ke traveler (harga disanitasi, tidak menampilkan net cost).</p></li>
-        </ol>
-      </div>
-    </div>
-
-    <div class="role-block" id="accommodation">
-      <div class="role-head"><h3>9. Accommodation (Hotel)</h3><span class="chip role">Internal</span></div>
-      <div class="role-body">
-        <p class="role-intro">Memegang penuh lifecycle booking hotel untuk seluruh project — pola kerja sama seperti Ticketing, disesuaikan untuk akomodasi.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/accommodation</span>, <span class="mono">/accommodation/[id]</span>, <span class="mono">/accommodation/[id]/voucher-preview</span></p>
-        <ol class="howto">
-          <li><strong>Terima kebutuhan booking hotel.</strong><p>Dari tab Itinerary &amp; Services Project, atau dibuat langsung dengan memilih Project + tanggal check-in/out.</p></li>
-          <li><strong>Sourcing &amp; catat detail.</strong><p>Nomor konfirmasi, jumlah kamar yang di-block, early check-in/late check-out, net cost dan sell price.</p></li>
-          <li><strong>Update status: Quote → Confirm.</strong><p>Quote saat masih penawaran, Confirm setelah room block pasti.</p></li>
-          <li><strong>Susun Rooming List.</strong><p>Assign traveler ke kamar, catat special request (dietary/accessibility).</p></li>
-          <li class="is-branch"><strong>Amend bila ada perubahan.</strong><p>Catat amendment note untuk perubahan tanggal/jumlah kamar.</p></li>
-          <li class="is-branch"><strong>Cancel / No-Show bila diperlukan.</strong><p>Wajib isi alasan (penalty otomatis terisi dari data booking) — otomatis membuat Cancellation Record.</p></li>
-          <li><strong>Cetak Voucher.</strong><p>Lewat <span class="mono">/accommodation/[id]/voucher-preview</span>.</p></li>
-        </ol>
-      </div>
-    </div>
-
-    <div class="role-block" id="transportation">
-      <div class="role-head"><h3>10. Transportation</h3><span class="chip role">Internal</span></div>
-      <div class="role-body">
-        <p class="role-intro">Memegang penuh lifecycle booking kendaraan/transport darat untuk seluruh project.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/transportation</span>, <span class="mono">/transportation/[id]</span>, <span class="mono">/service-order-preview</span>, <span class="mono">/driver-sheet-preview</span></p>
-        <ol class="howto">
-          <li><strong>Terima kebutuhan booking transport.</strong><p>Dari tab Itinerary &amp; Services Project, atau dibuat langsung dengan memilih Project.</p></li>
-          <li><strong>Sourcing &amp; catat detail.</strong><p>Nama driver, nomor telepon, plat kendaraan, rute multi-leg, standby/overtime hours, toll fee, net cost dan sell price.</p></li>
-          <li><strong>Update status: Quote → Assign → Confirm.</strong><p>Quote saat masih penawaran, Assign setelah kendaraan/driver ditentukan, Confirm setelah pasti.</p></li>
-          <li><strong>Assign traveler ke booking.</strong></li>
-          <li class="is-branch"><strong>Catat perubahan atau insiden di lapangan.</strong><p>Ditandai lewat flag khusus (perubahan/insiden) yang tampil sebagai banner di halaman detail.</p></li>
-          <li class="is-branch"><strong>Cancel / No-Show bila diperlukan.</strong><p>Wajib isi alasan — otomatis membuat Cancellation Record.</p></li>
-          <li><strong>Cetak dokumen.</strong><p>Service Order Preview (dokumen untuk klien) dan Driver Sheet (dokumen internal untuk driver, tanpa harga sama sekali).</p></li>
-        </ol>
-      </div>
-    </div>
-
-    <div class="role-block" id="mice">
-      <div class="role-head"><h3>11. MICE (Meeting, Incentive, Convention, Exhibition)</h3><span class="chip role">Internal</span></div>
-      <div class="role-body">
-        <p class="role-intro">Memegang penuh lifecycle penyelenggaraan event/MICE untuk seluruh project — paling banyak sub-bagian dibanding 3 domain lain karena kompleksitas event.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/mice</span>, <span class="mono">/mice/[id]</span>, <span class="mono">/rundown-preview</span>, <span class="mono">/boq-preview</span></p>
-        <ol class="howto">
-          <li><strong>Terima kebutuhan MICE event.</strong><p>Dari tab Itinerary &amp; Services Project, atau dibuat langsung — isi venue awal.</p></li>
-          <li><strong>Susun Sessions.</strong><p>Ruangan, judul sesi, waktu, kapasitas (sistem otomatis mengecek konflik jadwal).</p></li>
-          <li><strong>Susun Participant Categories.</strong><p>Kategori peserta dan expected count masing-masing.</p></li>
-          <li><strong>Susun BOQ (Bill of Quantity).</strong><p>Kategori, deskripsi, qty, unit — dasar perhitungan biaya event.</p></li>
-          <li><strong>Susun Staffing &amp; Checklist.</strong><p>Assign user ke peran tertentu di event; centang task &amp; deliverable yang sudah selesai.</p></li>
-          <li class="is-gate"><strong>Tunggu Client Approval.</strong><p>Ubah status Client Approval — approve/reject (reject wajib catatan) sebagai tanda klien setuju dengan rencana event.</p></li>
-          <li><strong>Update status event.</strong><p>Planning → ... → Completed, mengikuti progres persiapan sampai hari-H.</p></li>
-          <li class="is-branch"><strong>Cancel bila diperlukan.</strong><p>Wajib isi alasan — otomatis membuat Cancellation Record.</p></li>
-          <li><strong>Cetak dokumen.</strong><p>Rundown Preview (jadwal acara untuk klien) dan BOQ Preview (rincian biaya, disanitasi).</p></li>
-        </ol>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="section-head">
-      <h2>Kelompok 5 — Sourcing Vendor</h2>
-      <span class="section-note">Mencari dan mengelola pihak ketiga (vendor/supplier)</span>
-    </div>
-
-    <div class="role-block" id="procurement">
-      <div class="role-head"><h3>12. Procurement / Vendor Management</h3><span class="chip role">Internal</span></div>
-      <div class="role-body">
-        <p class="role-intro">Mengelola direktori vendor dan proses sourcing formal (RFQ) — mencari penawaran terbaik dari beberapa vendor sebelum menugaskan satu pemenang.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/vendors</span>, <span class="mono">/procurement</span>, <span class="mono">/procurement/rfq/[id]</span>, <span class="mono">/procurement/service-orders/[id]</span>, <span class="mono">/procurement/performance</span></p>
-        <ol class="howto">
-          <li><strong>Kelola direktori Vendor.</strong><p>Tambah vendor baru, kontak, katalog produk mereka di <span class="mono">/vendors</span>.</p></li>
-          <li><strong>Buat RFQ (Request for Quotation).</strong><p>Judul, project terkait, jenis layanan, line items (deskripsi + qty), due date, catatan.</p></li>
-          <li><strong>Kirim RFQ ke beberapa vendor kandidat.</strong><p>Pilih minimal 1 vendor dengan jenis layanan yang cocok.</p></li>
-          <li><strong>Terima &amp; bandingkan respons.</strong><p>Vendor mengisi harga lewat portalnya sendiri; Procurement membandingkan (comparison), bisa kirim clarification kalau perlu klarifikasi harga/detail.</p></li>
-          <li><strong>Pilih vendor pemenang.</strong><p>Keputusan sourcing murni oleh Procurement sendiri (bukan approval berjenjang ke Management).</p></li>
-          <li><strong>Buat Service Order.</strong><p>Otomatis dibuat dari line items RFQ + harga vendor pemenang.</p></li>
-          <li><strong>Kelola Service Order.</strong><p>Pantau status (vendor Acknowledge → Fulfilled), proses amendment bila ada perubahan, review Supplier Invoice yang diajukan vendor (approve/reject dengan catatan).</p></li>
-          <li><strong>Evaluasi performa vendor.</strong><p>Pantau <span class="mono">/procurement/performance</span> — win rate, kecepatan respons, rasio fulfillment tiap vendor untuk keputusan sourcing berikutnya.</p></li>
-        </ol>
-      </div>
-    </div>
-  </section>
-
-  <section>
-    <div class="section-head">
-      <h2>Kelompok 6 — Finance</h2>
-      <span class="section-note">Siklus penagihan lengkap: buat invoice, terima pembayaran, sampai tutup buku project</span>
+      <h2>Kelompok 4 — Finance &amp; Accounting</h2>
+      <span class="section-note">Siklus uang masuk-keluar lengkap: invoice, AR/AP, opex, buku besar, sampai tutup buku project</span>
     </div>
 
     <div class="role-block" id="finance">
-      <div class="role-head"><h3>13. Finance</h3><span class="chip role">Internal</span></div>
+      <div class="role-head"><h3>6. Finance &amp; ACC</h3><span class="chip role">Internal &middot; diperluas dengan 5 halaman baru</span></div>
       <div class="role-body">
-        <p class="role-intro">Finance memegang seluruh siklus uang masuk (invoice ke klien) dan uang keluar (tagihan vendor) per project, sampai memastikan project boleh ditutup secara finansial.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/finance</span>, <span class="mono">/finance/invoices</span>, <span class="mono">/finance/payments</span>, <span class="mono">/finance/notes</span>, <span class="mono">/finance/reconciliation</span></p>
+        <p class="role-intro">Finance memegang seluruh siklus uang masuk (invoice klien) dan uang keluar (tagihan vendor, opex), plus kini punya General Ledger, laporan Revenue, dan referensi Tax/Multi Currency — semuanya diturunkan otomatis dari Invoice/Payment/Supplier Invoice/Opex yang sudah tercatat, sehingga buku besar dijamin selalu balance.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/finance/invoices</span>, <span class="mono">/finance/receivables</span>, <span class="mono">/finance/payables</span>, <span class="mono">/finance/opex</span>, <span class="mono">/finance/ledger</span>, <span class="mono">/finance/reconciliation</span></p>
         <ol class="howto">
-          <li><strong>Buat Invoice ke klien.</strong><p>Buka <span class="mono">/finance/invoices</span> → "Buat Invoice": pilih Project, label (DP/termin/final), jumlah (Rp), tanggal jatuh tempo, currency, tipe invoice — kalau mata uangnya bukan IDR, isi juga FX rate snapshot. Invoice baru langsung berstatus <strong>"Belum Dibayar"</strong>.</p></li>
-          <li><strong>Klien membayar (di luar sistem), Finance mencatatnya.</strong><p>Buka invoice yang dimaksud → "Record Payment": isi jumlah yang diterima dan metode pembayaran (bank transfer/kartu kredit/tunai). Outstanding invoice otomatis berkurang; kalau lunas penuh, status berubah jadi <strong>"Lunas"</strong>.</p></li>
-          <li><strong>Lihat riwayat pembayaran.</strong><p><span class="mono">/finance/payments</span> — daftar seluruh payment yang sudah dicatat lintas project (read-only, pencatatannya sendiri dari langkah 2).</p></li>
-          <li class="is-branch"><strong>Terbitkan Credit Note bila perlu.</strong><p>Kalau ada kelebihan bayar atau penyesuaian harga — isi jumlah dan alasan dari dialog di halaman Invoices. Ini otomatis mengurangi outstanding invoice terkait.</p></li>
-          <li class="is-branch"><strong>Terbitkan Debit Note bila perlu.</strong><p>Kalau ada tagihan tambahan ke klien di luar invoice utama — buat lewat <span class="mono">/finance/notes</span> tab Debit Note (pilih project, invoice terkait opsional, jumlah, alasan). Sifatnya murni informasional, tidak otomatis mengubah nilai invoice manapun.</p></li>
-          <li class="is-branch"><strong>Void Invoice bila salah/batal.</strong><p>Hanya bisa untuk invoice yang belum lunas — alasan wajib diisi.</p></li>
-          <li><strong>Rekonsiliasi tagihan vendor (AP).</strong><p>Buka <span class="mono">/finance/reconciliation</span> — untuk tiap Supplier Invoice yang masuk dari Procurement: "Mark Matched" (1 klik, kalau cocok) atau "Flag Disputed" (isi catatan, kalau ada selisih).</p></li>
-          <li><strong>Pantau Financial Closure Readiness.</strong><p>Buka <span class="mono">/finance</span> (overview) — lihat daftar project yang belum siap ditutup secara finansial beserta blocker-nya (invoice belum lunas, reconciliation belum beres, dsb).</p></li>
-          <li class="is-gate"><strong>Close Finance per project.</strong><p>Begitu seluruh invoice project sudah lunas dan reconciliation beres, buka <span class="mono">/projects/[id]</span> tab Finance → tombol "Close Finance" aktif. Ini menjadi salah satu syarat wajib sebelum Project Manager/Management bisa menutup project secara keseluruhan ("Close Project").</p></li>
+          <li><strong>Buat Invoice ke klien.</strong><p><span class="mono">/finance/invoices</span> → "Buat Invoice": pilih Project, label (DP/Progress/Final), jumlah, jatuh tempo, currency (isi FX rate manual bila bukan IDR).</p></li>
+          <li><strong>Catat Payment saat klien membayar.</strong><p>Dari dialog detail invoice — jumlah &amp; metode (Bank Transfer/Kartu/Tunai); outstanding otomatis berkurang.</p></li>
+          <li class="is-branch"><strong>Terbitkan Credit Note / Debit Note / Void bila perlu.</strong><p>Credit Note mengurangi outstanding; Debit Note murni informasional (tidak mengubah nilai invoice); Void hanya untuk invoice belum lunas, alasan wajib.</p></li>
+          <li><strong>Pantau Receivables (AR).</strong><p><span class="mono">/finance/receivables</span> <span class="chip new">Baru</span> — piutang klien per bucket aging (jatuh tempo/1-30/31-60/61-90/&gt;90 hari), plus ringkasan Payables sebagai perbandingan posisi kas bersih.</p></li>
+          <li><strong>Pantau Payables (AP) &amp; rekonsiliasi tagihan vendor.</strong><p><span class="mono">/finance/payables</span> <span class="chip new">Baru</span> — hutang ke vendor per bucket aging; di <span class="mono">/finance/reconciliation</span> "Mark Matched" atau "Flag Disputed" (catatan wajib) per Supplier Invoice.</p></li>
+          <li><strong>Catat Opex bulanan.</strong><p><span class="mono">/finance/opex</span> <span class="chip new">Baru</span> — biaya operasional per kategori (Gaji, Kantor, Marketing, Teknologi, dst), terpisah total dari invoice klien. Alur status: Diajukan → Disetujui → Dibayar.</p></li>
+          <li><strong>Pantau General Ledger &amp; Revenue Report.</strong><p><span class="mono">/finance/ledger</span> <span class="chip new">Baru</span> — saldo akun, jurnal otomatis (dari invoice/payment/opex), dan laporan laba-rugi per periode (Pendapatan − Biaya Vendor − Opex).</p></li>
+          <li><strong>Cek aturan Tax &amp; Multi Currency.</strong><p><span class="mono">/finance/tax</span> <span class="chip new">Baru</span> — referensi tarif pajak aktif + kalkulator cepat; pengelolaan datanya sendiri tetap di Admin &gt; Master Data.</p></li>
+          <li class="is-gate"><strong>Close Finance per project.</strong><p>Begitu seluruh invoice lunas &amp; reconciliation beres, buka <span class="mono">/project-orders/[id]</span> atau <span class="mono">/projects/[id]</span> tab Finance → tombol "Close Finance" aktif — salah satu syarat wajib sebelum Project Order bisa ditutup total (step 6).</p></li>
         </ol>
       </div>
     </div>
@@ -745,18 +618,93 @@
 
   <section>
     <div class="section-head">
-      <h2>Kelompok 7 — Read-Only</h2>
-      <span class="section-note">Tidak mengubah data, hanya memantau</span>
+      <h2>Kelompok 5 — Vendor &amp; Partner Management</h2>
+      <span class="section-note">Mencari dan mengelola pihak ketiga (vendor/supplier)</span>
     </div>
 
-    <div class="role-block" id="viewer">
-      <div class="role-head"><h3>14. Viewer / Auditor</h3><span class="chip readonly">Read-only</span></div>
+    <div class="role-block" id="vendor-partner">
+      <div class="role-head"><h3>7. Vendor &amp; Partner Management</h3><span class="chip role">Internal &middot; menggantikan Procurement lama</span></div>
       <div class="role-body">
-        <p class="role-intro">Role tanpa hak ubah apa pun — dipakai untuk kebutuhan audit atau observasi lintas modul.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> hampir semua modul (VIEW), termasuk <span class="mono">/reports</span>, <span class="mono">/admin/audit-trail</span></p>
+        <p class="role-intro">Mengelola direktori vendor dan proses sourcing formal (RFQ) — mencari penawaran terbaik dari beberapa vendor sebelum menugaskan satu pemenang, lalu memantau fulfillment Service Order dan performa vendor dari waktu ke waktu.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/vendors</span>, <span class="mono">/vendors/[id]</span>, <span class="mono">/procurement</span>, <span class="mono">/procurement/rfq/[id]</span>, <span class="mono">/procurement/service-orders/[id]</span>, <span class="mono">/procurement/performance</span></p>
         <ol class="howto">
-          <li><strong>Login dan telusuri modul apa pun.</strong><p>Akses VIEW ke hampir seluruh modul (CRM, Project, Vendor, Finance, Reports, Administration) — cukup untuk membaca, tidak bisa membuat/mengubah/menghapus data apa pun.</p></li>
-          <li><strong>Pakai Dashboard, Reports, dan Audit Trail untuk audit.</strong><p>Melihat ringkasan KPI, laporan analitik, dan log perubahan sistem sebagai bahan pemeriksaan.</p></li>
+          <li><strong>Kelola direktori Vendor.</strong><p>Tambah vendor baru, kategori, kontak, katalog produk di <span class="mono">/vendors</span>.</p></li>
+          <li><strong>Buat RFQ (Request for Quotation).</strong><p>Judul, project terkait, jenis layanan, line items, due date, catatan — dibuka di <span class="mono">/procurement</span>.</p></li>
+          <li><strong>Kirim RFQ ke beberapa vendor kandidat, terima &amp; bandingkan respons.</strong><p>Vendor mengisi harga lewat Vendor Portal-nya sendiri; bandingkan side-by-side, kirim klarifikasi bila perlu.</p></li>
+          <li><strong>Pilih vendor pemenang.</strong><p>Keputusan sourcing murni oleh role ini (bukan approval berjenjang ke Management).</p></li>
+          <li><strong>Buat &amp; kelola Service Order.</strong><p>Otomatis dibuat dari line item RFQ + harga pemenang; pantau status (Acknowledge→Fulfilled), proses amendment, review Supplier Invoice (Approve/Reject dengan catatan).</p></li>
+          <li><strong>Evaluasi performa vendor.</strong><p><span class="mono">/procurement/performance</span> — win rate RFQ, kecepatan respons, rasio fulfillment tiap vendor untuk keputusan sourcing berikutnya.</p></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Kelompok 6 — People &amp; Aset</h2>
+      <span class="section-note">Dua role sama sekali baru — sumber daya manusia dan aset milik perusahaan sendiri</span>
+    </div>
+
+    <div class="role-block" id="hr">
+      <div class="role-head"><h3>8. Human Resource</h3><span class="chip role">Internal <span class="chip new">Role Baru</span></span></div>
+      <div class="role-body">
+        <p class="role-intro">Mengelola data karyawan, absensi, payroll, komisi/insentif tim sales, dan performance/produktivitas — dengan prinsip penting: komisi dan produktivitas <strong>dihitung otomatis</strong> dari Project/Task yang sudah ada (via keterkaitan karyawan ke user sistem), bukan angka yang diketik manual.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/hr</span> (6 tab: Data Karyawan, Absensi, Payroll, Komisi &amp; Insentif, Performance, Produktivitas)</p>
+        <ol class="howto">
+          <li><strong>Pantau Data Karyawan &amp; Absensi.</strong><p>Directory karyawan per departemen/tipe kerja; rekap tingkat kehadiran bulanan (dari data presensi yang sudah tercatat).</p></li>
+          <li class="is-gate"><strong>Jalankan Payroll.</strong><p>Pilih periode → "Setujui Payroll" (draft→approved) → "Tandai Dibayar" (approved→paid). Take Home Pay = gaji pokok + tunjangan + komisi periode berjalan − potongan.</p></li>
+          <li><strong>Pantau Komisi &amp; Insentif.</strong><p>Dihitung otomatis: nilai kontrak project × tarif komisi karyawan pemilik project, status mengikuti progres project (Terakru→Disetujui saat completed→Dibayar saat closed).</p></li>
+          <li><strong>Kelola review Performance.</strong><p>Skor keseluruhan + 4 dimensi (Delivery/Kualitas/Kolaborasi/Inisiatif) per karyawan per periode — dilakukan bersama Management.</p></li>
+          <li><strong>Pantau Produktivitas.</strong><p>Penyelesaian task, nilai project dikelola, dan kehadiran per karyawan — seluruhnya derivasi, bahan evaluasi tanpa perlu laporan manual terpisah.</p></li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="role-block" id="inventory">
+      <div class="role-head"><h3>9. Inventory</h3><span class="chip role">Internal <span class="chip new">Role Baru</span></span></div>
+      <div class="role-body">
+        <p class="role-intro">Mengelola aset milik MANOVA sendiri (kamera &amp; alat produksi, properti pendukung, kendaraan, IT) — sengaja terpisah dari data Vendor/Commodity pihak ketiga. Peminjaman aset ditautkan ke Project Order sehingga checklist penutupan project ("aset sudah dikembalikan") punya sumber data nyata.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/inventory</span> (4 tab: Daftar Aset, Maintenance Schedule, Peminjaman, Utilisasi)</p>
+        <ol class="howto">
+          <li><strong>Pantau Daftar Aset.</strong><p>Per kategori (Kamera &amp; Optik/Alat Produksi/Properti/Kendaraan/IT), lengkap kondisi &amp; status (Tersedia/Dipakai/Maintenance/Tidak Dipakai).</p></li>
+          <li><strong>Kelola Maintenance Schedule.</strong><p>Jadwal servis rutin/perbaikan/kalibrasi/inspeksi per aset — status "Terlewat" muncul otomatis begitu tanggal terjadwal lewat tanpa ditandai selesai. Klik "Tandai Selesai" untuk menutup jadwal (aset yang sedang maintenance otomatis kembali "Tersedia" dengan kondisi baik).</p></li>
+          <li><strong>Kelola Peminjaman (Checkout).</strong><p>Pantau aset yang sedang dipinjam (siapa, ke project mana, jatuh tempo); klik "Kembalikan" → pilih kondisi saat kembali — aset kondisi rusak otomatis masuk status Maintenance.</p></li>
+          <li><strong>Pantau Utilisasi.</strong><p>Persentase pemakaian tiap aset dalam 90 hari terakhir — dasar keputusan menambah atau melepas aset.</p></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="section-head">
+      <h2>Kelompok 7 — Marketing &amp; Intelligence</h2>
+      <span class="section-note">Efektivitas pemasaran dan visibilitas lintas-modul — sebagian besar bersifat mengamati, bukan mengubah data</span>
+    </div>
+
+    <div class="role-block" id="marketing">
+      <div class="role-head"><h3>10. Marketing &amp; Analysis</h3><span class="chip role">Internal <span class="chip new">Role Baru</span></span></div>
+      <div class="role-body">
+        <p class="role-intro">Memantau efektivitas campaign, promo, funnel konversi, biaya akuisisi (CAC), dan nilai jangka panjang customer (LTV). Hanya Campaign, Channel Spend, dan Promo Code yang benar-benar data baru — funnel/CAC/LTV seluruhnya diturunkan dari Lead→Opportunity→Quotation→Project→Invoice yang sudah ada di modul lain, supaya angka Marketing tidak pernah berbeda dari angka Sales/Finance.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/marketing</span> (5 tab: Campaign Tracking, Promo &amp; Voucher, Conversion Funnel, CAC per Channel, Customer LTV)</p>
+        <ol class="howto">
+          <li><strong>Pantau Campaign Tracking.</strong><p>Budget terpakai, lead teratribusi, cost/lead, ROAS per campaign — atribusi otomatis berdasarkan channel dan tanggal lead masuk.</p></li>
+          <li><strong>Evaluasi Promo &amp; Voucher (A/B Testing).</strong><p>Bandingkan varian A vs B per kode promo — pemenang ditentukan dari revenue per pengiriman, bukan sekadar jumlah penebusan terbanyak.</p></li>
+          <li><strong>Baca Conversion Funnel.</strong><p>6 tahap Lead→Qualified→Opportunity→Quotation→Won→Project, dengan persentase konversi &amp; drop-off tiap tahap, bisa difilter per channel.</p></li>
+          <li><strong>Hitung CAC per Channel.</strong><p>Belanja campaign per channel ÷ jumlah klien baru dari channel tsb — untuk menilai channel mana paling efisien.</p></li>
+          <li><strong>Pantau Customer LTV.</strong><p>Total revenue (dari invoice lunas) per customer, rasio LTV:CAC keseluruhan, dan repeat rate — makin sehat bila rasio LTV:CAC ≥3.</p></li>
+        </ol>
+      </div>
+    </div>
+
+    <div class="role-block" id="bi">
+      <div class="role-head"><h3>11. Reporting &amp; BI</h3><span class="chip readonly">Read-mostly &middot; menggantikan Viewer/Auditor lama</span></div>
+      <div class="role-body">
+        <p class="role-intro">Visibilitas lintas-modul untuk kebutuhan pelaporan dan audit — akses VIEW ke hampir seluruh modul bisnis, plus kepemilikan penuh atas laporan Reporting &amp; BI sendiri. Tidak mengubah data operasional apa pun.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/reports</span>, <span class="mono">/reports/analytics</span>, <span class="mono">/activity-center</span></p>
+        <ol class="howto">
+          <li><strong>Pakai Reports untuk pantau operasional.</strong><p><span class="mono">/reports</span> — Sales Pipeline, Project Performance, Departure/Service Readiness, Vendor Summary, Budget vs Actual &amp; Margin, Invoice Aging, SLA &amp; Quotation Performance. Bisa simpan Saved View kombinasi filter, export mock (CSV/PDF).</p></li>
+          <li><strong>Pakai Analytics untuk pantau lintas-modul.</strong><p><span class="mono">/reports/analytics</span> <span class="chip new">Baru</span> — Revenue &amp; Profitabilitas per periode, Cost per Trip, Vendor Performance, Marketing ROI, Akuisisi per Channel, dan ringkasan aset/kontributor revenue karyawan — satu layar gabungan lintas Finance/Marketing/HR/Inventory.</p></li>
+          <li><strong>Telusuri Activity Center bila diberi wewenang.</strong><p><span class="mono">/activity-center</span> — akses kini diatur lewat action flag <span class="mono">admin.view-activity-center</span> (default Super Admin, tapi bisa diberikan ke role manapun dari Admin &gt; Roles), bukan otomatis mengikuti akses Administration.</p></li>
         </ol>
       </div>
     </div>
@@ -765,38 +713,38 @@
   <section>
     <div class="section-head">
       <h2>Kelompok 8 — Portal Eksternal</h2>
-      <span class="section-note">Client dan Supplier — jendela terbatas ke data yang sama dengan tim internal</span>
+      <span class="section-note">Client dan Vendor — jendela terbatas ke data yang sama dengan tim internal, disaring dan diisolasi per company</span>
     </div>
 
     <div class="role-block" id="client">
-      <div class="role-head"><h3>15. Client (Portal Eksternal)</h3><span class="chip external">Eksternal</span></div>
+      <div class="role-head"><h3>12. Client (Portal Eksternal)</h3><span class="chip external">Eksternal &middot; 18 halaman, 7 grup navigasi</span></div>
       <div class="role-body">
-        <p class="role-intro">Perwakilan company klien, login sendiri lewat portal terpisah — datanya selalu dibatasi hanya milik company sendiri.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/client</span>, <span class="mono">/client/opportunities/[id]</span>, <span class="mono">/client/project-orders/[id]</span></p>
+        <p class="role-intro">Perwakilan company klien, login sendiri lewat portal terpisah — datanya selalu dibatasi hanya milik company sendiri (<span class="mono">clientPartyId</span>). Cost/margin internal MANOVA tidak pernah ditampilkan di sisi ini.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/client</span>, <span class="mono">/client/quotations</span>, <span class="mono">/client/projects</span>, <span class="mono">/client/participants</span>, <span class="mono">/client/reports</span></p>
         <ol class="howto">
-          <li><strong>Login ke Client Portal.</strong><p>Melihat dashboard ringkas: project aktif, quotation menunggu konfirmasi, invoice outstanding, dan daftar "Action Required".</p></li>
-          <li class="is-gate"><strong>Konfirmasi Quotation.</strong><p>Buka <span class="mono">/client/opportunities/[id]</span> — pilih <strong>Setujui</strong> (mengunci Client Confirmation, membuka gerbang Mark as Won untuk AE), <strong>Tolak</strong>, atau <strong>Minta Revisi</strong> (dua terakhir cuma kirim catatan ke AE).</p></li>
-          <li><strong>Isi data Traveler sendiri.</strong><p>Di <span class="mono">/client/project-orders/[id]</span> tab Participants — nama, paspor, visa, kontak darurat, dietary/accessibility, tanpa perlu menunggu tim internal.</p></li>
-          <li class="is-branch"><strong>Ajukan Change Request.</strong><p>Tab Change Requests — kategori traveler/itinerary/service/lainnya, masuk ke antrean review internal (Operations/PM).</p></li>
-          <li class="is-branch"><strong>Isi Kebutuhan Komoditas.</strong><p>Tab Kebutuhan Komoditas — requirement hotel/flight/transport/MICE/lainnya, nantinya dicocokkan ke katalog Vendor lewat jalur Client–Vendor Commodity.</p></li>
-          <li><strong>Pantau progres (read-only).</strong><p>Tab Overview, Timeline, Services, Itinerary, Reservations, Documents, Billing, Issues, Activities, Closing — semua versi sanitized dari data internal (tanpa cost/margin internal).</p></li>
+          <li><strong>Login ke Client Portal.</strong><p>Dashboard ringkas: project aktif, quotation menunggu konfirmasi, invoice outstanding, dan daftar "Action Required".</p></li>
+          <li><strong>Ajukan Travel Request.</strong><p>Cara resmi mengajukan kebutuhan baru tanpa telepon/email manual — bisa disimpan draft dulu.</p></li>
+          <li class="is-gate"><strong>Approve/Reject/Request Revision Quotation.</strong><p>Approve otomatis memicu Won &amp; membuat Project Order (mock cascade).</p></li>
+          <li><strong>Kelola Travel Management sendiri.</strong><p>Isi data Participant (paspor/visa/dietary), review Itinerary (approve/request revision), pantau Reservations, buka Trip Center H-hari keberangkatan, ajukan Change Request.</p></li>
+          <li><strong>Berkolaborasi dengan tim MANOVA.</strong><p>Upload/lihat Documents, kirim Messages per project, buat Support Ticket (termasuk kategori "emergency").</p></li>
+          <li><strong>Kelola Finance &amp; Billing sendiri.</strong><p>Upload bukti bayar, ajukan dispute invoice, download tax invoice/statement of account.</p></li>
+          <li><strong>Pantau Insights &amp; beri Feedback.</strong><p>Reports &amp; Analytics company sendiri, isi rating/feedback pasca-trip, kelola Company Profile (perubahan data sensitif seperti NPWP butuh verifikasi tim MANOVA dulu).</p></li>
         </ol>
       </div>
     </div>
 
-    <div class="role-block" id="supplier">
-      <div class="role-head"><h3>16. Supplier / Vendor (Portal Eksternal)</h3><span class="chip external">Eksternal</span></div>
+    <div class="role-block" id="vendor">
+      <div class="role-head"><h3>13. Vendor (Portal Eksternal)</h3><span class="chip external">Eksternal &middot; dulu bernama Supplier</span></div>
       <div class="role-body">
-        <p class="role-intro">Perwakilan company vendor, login sendiri lewat portal terpisah — datanya selalu dibatasi hanya milik company vendor sendiri.</p>
-        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/supplier</span>, <span class="mono">/supplier/products</span>, <span class="mono">/supplier/rfq[/id]</span>, <span class="mono">/supplier/service-orders[/id]</span></p>
+        <p class="role-intro">Perwakilan company vendor, login sendiri lewat portal terpisah (rute tetap <span class="mono">/supplier/*</span>, hanya nama role yang berganti) — datanya selalu dibatasi hanya milik company vendor sendiri (<span class="mono">vendorId</span>). Harga pokok internal MANOVA (net cost/margin) tidak pernah tampil di sisi ini.</p>
+        <p class="role-pages"><strong>Halaman utama:</strong> <span class="mono">/supplier</span>, <span class="mono">/supplier/rfq[/id]</span>, <span class="mono">/supplier/service-orders[/id]</span>, <span class="mono">/supplier/commodities</span></p>
         <ol class="howto">
-          <li><strong>Login ke Supplier Portal.</strong><p>Lihat "Action Center": RFQ yang belum direspons, Service Order yang belum di-acknowledge.</p></li>
-          <li><strong>Respons RFQ.</strong><p>Buka <span class="mono">/supplier/rfq/[id]</span> — ajukan harga per line item, kirim pesan klarifikasi ke tim Procurement bila perlu.</p></li>
-          <li class="is-gate"><strong>Tunggu keputusan Procurement.</strong><p>Kalau terpilih sebagai pemenang, respons vendor terkunci dan otomatis lahir Service Order untuk vendor ini.</p></li>
-          <li><strong>Acknowledge Service Order.</strong><p>Buka <span class="mono">/supplier/service-orders/[id]</span> — klik "Acknowledge" tanda menerima order.</p></li>
-          <li><strong>Kerjakan layanan, lalu tandai Fulfilled.</strong><p>Setelah layanan selesai dijalankan di lapangan.</p></li>
-          <li><strong>Submit Invoice.</strong><p>Isi jumlah tagihan dan catatan — masuk ke antrean review internal Procurement/Finance.</p></li>
-          <li><strong>Kelola katalog produk sendiri.</strong><p><span class="mono">/supplier/products</span> — data ini juga tampil di halaman Vendor Detail internal (dilihat tim Procurement).</p></li>
+          <li><strong>Login ke Vendor Portal.</strong><p>Action Center: RFQ belum direspons, Service Order belum di-acknowledge/belum diinvoice.</p></li>
+          <li><strong>Respons RFQ.</strong><p>Ajukan harga per line item, kirim klarifikasi ke tim Vendor &amp; Partner bila perlu.</p></li>
+          <li class="is-gate"><strong>Tunggu keputusan pemenang.</strong><p>Bila terpilih, Service Order otomatis lahir untuk vendor ini.</p></li>
+          <li><strong>Acknowledge → Fulfilled → Submit Invoice.</strong><p>Kelola siklus Service Order sampai tagihan diajukan (masuk antrean review internal).</p></li>
+          <li><strong>Kelola Produk &amp; Komoditas sendiri.</strong><p><span class="mono">/supplier/products</span> (katalog sederhana) dan <span class="mono">/supplier/commodities</span> (produk siap-jual dengan variant &amp; availability slot yang bisa dipesan langsung klien).</p></li>
+          <li><strong>Konfirmasi Order Komoditas.</strong><p><span class="mono">/supplier/commodity-orders</span> — ubah Soft Hold client jadi Order resmi, kelola status sampai selesai.</p></li>
         </ol>
       </div>
     </div>
@@ -810,22 +758,23 @@
     <div class="risk">
       <h3>Rantai serah-terima yang paling sering terjadi</h3>
       <ul>
-        <li><strong>Sales → Account Executive</strong> — lewat handover Lead jadi Opportunity.</li>
-        <li><strong>Product Planner → Account Executive</strong> — lewat "Apply to Quotation" (Cost Sheet ke Quotation).</li>
-        <li><strong>Account Executive → Management → Client → Account Executive</strong> — siklus approval Quotation, bisa berulang kalau ada revisi.</li>
-        <li><strong>Account Executive → Project Manager</strong> — lewat Handover otomatis begitu Won.</li>
-        <li><strong>Project Manager/Operations → role domain (Ticketing/Accommodation/Transportation/MICE)</strong> — lewat permintaan booking dari tab Itinerary &amp; Services.</li>
-        <li><strong>Role domain → Operations</strong> — status booking otomatis terlihat di Booking &amp; Service Order Center.</li>
-        <li><strong>Operations/Project Manager → Management</strong> — approval Change Request/Refund.</li>
-        <li><strong>Procurement ↔ Supplier (eksternal)</strong> — RFQ dikirim Procurement, direspons Supplier, dipilih lagi oleh Procurement.</li>
-        <li><strong>Project Manager → Finance → Project Manager/Management</strong> — Finance menutup buku (Close Finance) sebagai syarat sebelum Close Project.</li>
+        <li><strong>Sales (Lead → Opportunity → Quotation) → Management (approve) → Client (confirm) → Sales (Mark as Won)</strong> — siklus utama deal, bisa berulang kalau ada revisi.</li>
+        <li><strong>Sales → Operations</strong> — lewat handover otomatis begitu Won, lahir Project Order baru di step "Drafting".</li>
+        <li><strong>Operations (6-step Project Order) → Vendor &amp; Partner (RFQ/Service Order) ↔ Vendor eksternal</strong> — sourcing pihak ketiga saat dibutuhkan.</li>
+        <li><strong>Operations → Management</strong> — approval Change Request/Refund/penutupan Project Order.</li>
+        <li><strong>Operations → Finance → Operations/Management</strong> — Finance menutup buku (Close Finance) sebagai syarat sebelum Close Project Order.</li>
+        <li><strong>Operations → Inventory</strong> — checkout/return aset MANOVA, menahan penutupan Project Order sampai aset dikembalikan.</li>
+        <li><strong>CRM ↔ Sales</strong> — sama-sama mengelola Party, tapi CRM pemilik follow-up/loyalty/feedback pasca-deal.</li>
+        <li><strong>HR ↔ Operations/Finance</strong> — komisi Sales dihitung dari nilai kontrak Project Order, masuk payroll periode berjalan.</li>
+        <li><strong>Marketing ↔ Sales/CRM</strong> — funnel/CAC/LTV murni membaca data Lead/Opportunity/Invoice, tidak mengubahnya.</li>
+        <li><strong>Super Admin ⇄ semua role</strong> — satu-satunya yang bisa mengatur ulang wilayah akses role manapun lewat Admin &gt; Roles.</li>
       </ul>
     </div>
   </section>
 
   <footer>
-    <span>Sumber: app/pages/**, app/constants/roles.ts, app/composables/usePermissions.ts. Dokumen pendamping: MANOVA-End-to-End-Flow.html, MANOVA-Page-Role-Flow.html.</span>
-    <span>Per 3 Agustus 2026</span>
+    <span>Sumber: app/pages/**, app/data/rbac.ts, app/constants/modules.ts, app/constants/capabilities.ts, app/constants/navigation.ts. Dokumen pendamping: MANOVA-End-to-End-Flow.html, MANOVA-Page-Role-Flow.html.</span>
+    <span>Per 4 Agustus 2026 — diperbarui mengikuti Revisi 9-Modul &amp; RBAC Dinamis</span>
   </footer>
 
 </div>

@@ -23,3 +23,14 @@ export interface AttentionItem {
   projectId?: ID
   relatedRoute?: string
 }
+
+/** Titik koordinat referensi — dipakai untuk peta destinasi (`app/data/geo.ts`) dan field lokasi terstruktur seperti `Opportunity.destinationGeo`/`Project.destinationGeo`. */
+export interface GeoPoint {
+  destinationId?: ID
+  name: string
+  country: string
+  lat: number
+  lng: number
+  /** Bandara utama terdekat — membantu tim operasional menaksir rute. */
+  airportCode?: string
+}

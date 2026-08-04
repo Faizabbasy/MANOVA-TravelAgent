@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Package, Wrench, AlertTriangle, PackageCheck, Search, Undo2 } from 'lucide-vue-next'
+import { Package, Wrench, AlertTriangle, PackageCheck, Search, Undo2, Plus, Pencil } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import {
   ASSETS,
@@ -18,11 +18,14 @@ import {
   getActiveCheckouts,
   getAssetUtilization,
   returnAsset,
-  completeMaintenance
+  completeMaintenance,
+  addAsset,
+  updateAsset
 } from '~/data/inventory'
 import { getUserById, getProjectById } from '~/data'
 import { findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
+import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 import type { Asset, AssetCategoryKey } from '~/types/inventory'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -85,6 +88,94 @@ const categoryCounts = computed(() => ASSET_CATEGORIES.map(category => ({
   valueIdr: ASSETS.filter(asset => asset.category === category.value).reduce((sum, asset) => sum + asset.purchasePriceIdr, 0)
 })))
 
+/* Dialog tambah / edit aset */
+const isAssetFormOpen = ref(false)
+const assetFormMode = ref<'create' | 'edit'>('create')
+const editingAssetId = ref<string | undefined>()
+const assetForm = ref({
+  name: '',
+  category: 'camera' as AssetCategoryKey,
+  brand: '',
+  serialNumber: '',
+  location: '',
+  purchasedAt: DEMO_REFERENCE_DATE,
+  purchasePriceIdr: null as number | null,
+  condition: 'good' as Asset['condition'],
+  status: 'available' as Asset['status'],
+  note: ''
+})
+
+function openCreate () {
+  assetFormMode.value = 'create'
+  editingAssetId.value = undefined
+  assetForm.value = {
+    name: '',
+    category: 'camera',
+    brand: '',
+    serialNumber: '',
+    location: '',
+    purchasedAt: DEMO_REFERENCE_DATE,
+    purchasePriceIdr: null,
+    condition: 'good',
+    status: 'available',
+    note: ''
+  }
+  isAssetFormOpen.value = true
+}
+
+function openEdit (asset: Asset) {
+  assetFormMode.value = 'edit'
+  editingAssetId.value = asset.id
+  assetForm.value = {
+    name: asset.name,
+    category: asset.category,
+    brand: asset.brand ?? '',
+    serialNumber: asset.serialNumber ?? '',
+    location: asset.location,
+    purchasedAt: asset.purchasedAt,
+    purchasePriceIdr: asset.purchasePriceIdr,
+    condition: asset.condition,
+    status: asset.status,
+    note: asset.note ?? ''
+  }
+  isAssetFormOpen.value = true
+}
+
+const isAssetFormValid = computed(() => Boolean(
+  assetForm.value.name.trim() &&
+  assetForm.value.location.trim() &&
+  assetForm.value.purchasePriceIdr && assetForm.value.purchasePriceIdr > 0
+))
+
+function submitAssetForm () {
+  if (!isAssetFormValid.value) { return }
+  const payload = {
+    name: assetForm.value.name.trim(),
+    category: assetForm.value.category,
+    brand: assetForm.value.brand.trim() || undefined,
+    serialNumber: assetForm.value.serialNumber.trim() || undefined,
+    location: assetForm.value.location.trim(),
+    purchasedAt: assetForm.value.purchasedAt,
+    purchasePriceIdr: Number(assetForm.value.purchasePriceIdr),
+    condition: assetForm.value.condition,
+    status: assetForm.value.status,
+    note: assetForm.value.note.trim() || undefined
+  }
+
+  if (assetFormMode.value === 'edit' && editingAssetId.value) {
+    updateAsset(editingAssetId.value, payload)
+    refreshKey.value += 1
+    isAssetFormOpen.value = false
+    showToast('Perubahan disimpan', `"${payload.name}" diperbarui.`, 'success')
+    return
+  }
+
+  addAsset(payload)
+  refreshKey.value += 1
+  isAssetFormOpen.value = false
+  showToast('Aset ditambahkan', `"${payload.name}" masuk ke daftar aset.`, 'success')
+}
+
 /* Dialog pengembalian aset */
 const returnTargetId = ref<string | undefined>()
 const returnCondition = ref<Asset['condition']>('good')
@@ -110,7 +201,14 @@ function onCompleteMaintenance (maintenanceId: string) {
       title="Inventory"
       description="Kamera & alat produksi, properti pendukung, dan jadwal maintenance aset milik MANOVA."
       :breadcrumb="[{ label: 'Inventory' }]"
-    />
+    >
+      <template v-if="canManage" #actions>
+        <Button size="sm" @click="openCreate">
+          <Plus class="h-4 w-4 mr-1.5" />
+          Tambah Aset
+        </Button>
+      </template>
+    </PageHeader>
 
     <RoleAccessState v-if="!hasAccess" module-label="modul Inventory" />
 
@@ -195,6 +293,9 @@ function onCompleteMaintenance (maintenanceId: string) {
                   </TableHead>
                   <TableHead>Kondisi</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead v-if="canManage" class="text-right">
+                    Aksi
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -233,6 +334,12 @@ function onCompleteMaintenance (maintenanceId: string) {
                       :label="findStatusOption(ASSET_STATUSES, asset.status).label"
                       :tone="findStatusOption(ASSET_STATUSES, asset.status).tone"
                     />
+                  </TableCell>
+                  <TableCell v-if="canManage" class="text-right">
+                    <Button variant="outline" size="sm" @click="openEdit(asset)">
+                      <Pencil class="h-3.5 w-3.5 mr-1" />
+                      Edit
+                    </Button>
                   </TableCell>
                 </TableRow>
               </TableBody>
@@ -388,6 +495,89 @@ function onCompleteMaintenance (maintenanceId: string) {
           </SectionCard>
         </TabsContent>
       </Tabs>
+
+      <Dialog v-model:open="isAssetFormOpen">
+        <DialogContent class="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{{ assetFormMode === 'edit' ? 'Edit Aset' : 'Tambah Aset Baru' }}</DialogTitle>
+            <DialogDescription>
+              {{ assetFormMode === 'edit' ? 'Perbarui detail aset. Kode aset tidak berubah.' : 'Aset baru langsung masuk ke daftar aset milik MANOVA.' }}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div class="space-y-3">
+            <div class="space-y-1.5">
+              <Label>Nama Aset</Label>
+              <Input v-model="assetForm.name" placeholder="mis. Sony A7 IV Body" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <Label>Kategori</Label>
+                <select v-model="assetForm.category" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="category in ASSET_CATEGORIES" :key="category.value" :value="category.value">
+                    {{ category.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
+                <Label>Lokasi</Label>
+                <Input v-model="assetForm.location" placeholder="mis. Gudang Jakarta" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <Label>Brand (opsional)</Label>
+                <Input v-model="assetForm.brand" placeholder="mis. Sony" />
+              </div>
+              <div class="space-y-1.5">
+                <Label>Serial Number (opsional)</Label>
+                <Input v-model="assetForm.serialNumber" placeholder="mis. SN-A7IV-88213" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <Label>Tanggal Pembelian</Label>
+                <Input v-model="assetForm.purchasedAt" type="date" />
+              </div>
+              <div class="space-y-1.5">
+                <Label>Nilai Perolehan (IDR)</Label>
+                <Input v-model.number="assetForm.purchasePriceIdr" type="number" placeholder="0" />
+              </div>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <Label>Kondisi</Label>
+                <select v-model="assetForm.condition" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="condition in ASSET_CONDITIONS" :key="condition.value" :value="condition.value">
+                    {{ condition.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
+                <Label>Status</Label>
+                <select v-model="assetForm.status" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="status in ASSET_STATUSES" :key="status.value" :value="status.value">
+                    {{ status.label }}
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              <Label>Catatan (opsional)</Label>
+              <Input v-model="assetForm.note" placeholder="Catatan tambahan" />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" @click="isAssetFormOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!isAssetFormValid" @click="submitAssetForm">
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog :open="Boolean(returnTargetId)" @update:open="value => { if (!value) returnTargetId = undefined }">
         <DialogContent class="max-w-sm">

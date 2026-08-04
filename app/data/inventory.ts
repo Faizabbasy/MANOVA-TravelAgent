@@ -152,6 +152,33 @@ export function areProjectAssetsReturned (projectId: string): { returned: boolea
   return { returned: outstanding.length === 0, outstanding }
 }
 
+const ASSET_CODE_PREFIX: Record<AssetCategoryKey, string> = {
+  camera: 'CAM',
+  production: 'PRD',
+  property: 'PRP',
+  vehicle: 'VHC',
+  it: 'IT'
+}
+
+export function addAsset (input: Omit<Asset, 'id' | 'code'>): Asset {
+  const prefix = ASSET_CODE_PREFIX[input.category]
+  const sameCategoryCount = ASSETS.filter(asset => asset.category === input.category).length
+  const asset: Asset = {
+    ...input,
+    id: `AST-${String(ASSETS.length + 1).padStart(3, '0')}`,
+    code: `${prefix}-${String(sameCategoryCount + 1).padStart(3, '0')}`
+  }
+  ASSETS.push(asset)
+  return asset
+}
+
+export function updateAsset (assetId: string, updates: Partial<Omit<Asset, 'id' | 'code'>>): Asset | undefined {
+  const asset = getAssetById(assetId)
+  if (!asset) { return undefined }
+  Object.assign(asset, updates)
+  return asset
+}
+
 export function returnAsset (checkoutId: string, condition: Asset['condition'], referenceIso = DEMO_REFERENCE_DATE): AssetCheckout | undefined {
   const checkout = ASSET_CHECKOUTS.find(item => item.id === checkoutId)
   if (!checkout || checkout.status === 'returned') { return undefined }

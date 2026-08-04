@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { resolveDestinationGeo } from './geo'
 import type { Project, ProjectService, TravelerGroup, Traveler, RoomAssignment, ItineraryItem } from '~/types/project'
 
 /**
@@ -200,6 +201,9 @@ export const PROJECTS: Project[] = reactive([
     meetingPoint: 'Terminal 3 Bandara Soekarno-Hatta, konter check-in grup'
   }
 ])
+
+/** Backfill `destinationGeo` seed — data historis di atas dibuat langsung sebagai literal (bukan lewat `approveOpportunityWon`), jadi diresolusi sekali di sini agar peta destinasi langsung terisi. */
+for (const project of PROJECTS) { project.destinationGeo = resolveDestinationGeo(project.destination) }
 
 /**
  * `reactive()` (Section 12) — melanjutkan pola Section 07/08/09/10/11. Update status service (mis. saat

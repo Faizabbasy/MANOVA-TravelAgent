@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
-import { FileX } from 'lucide-vue-next'
+import { FileX, ClipboardList, Compass, HeartHandshake } from 'lucide-vue-next'
 import { getProjectById, getFeedbackByProject, saveFeedbackDraft, submitFeedback } from '~/data'
 import { FEEDBACK_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate, formatDateRange } from '~/utils/format'
@@ -47,20 +47,46 @@ const form = ref({
 })
 const isDirty = ref(false)
 
-const RATING_FIELDS: { key: keyof typeof form.value; label: string }[] = [
-  { key: 'overallExperience', label: 'Overall Experience' },
-  { key: 'salesResponsiveness', label: 'Sales Responsiveness' },
-  { key: 'proposalQuality', label: 'Proposal Quality' },
-  { key: 'itineraryQuality', label: 'Itinerary Quality' },
-  { key: 'hotelRating', label: 'Hotel' },
-  { key: 'transportationRating', label: 'Transportation' },
-  { key: 'tourLeaderRating', label: 'Tour Leader' },
-  { key: 'operationSupportRating', label: 'Operation Support' },
-  { key: 'reservationHandlingRating', label: 'Reservation Handling' },
-  { key: 'communicationRating', label: 'Communication' },
-  { key: 'issueResolutionRating', label: 'Issue Resolution' },
-  { key: 'valueForMoneyRating', label: 'Value for Money' }
+type RatingFieldKey = Exclude<keyof typeof form.value, 'recommendationScore' | 'comment' | 'improvementSuggestion' | 'testimonialConsent'>
+
+const RATING_GROUPS: { title: string; icon: typeof ClipboardList; fields: { key: RatingFieldKey; label: string }[] }[] = [
+  {
+    title: 'Pra-Trip & Perencanaan',
+    icon: ClipboardList,
+    fields: [
+      { key: 'salesResponsiveness', label: 'Sales Responsiveness' },
+      { key: 'proposalQuality', label: 'Proposal Quality' },
+      { key: 'itineraryQuality', label: 'Itinerary Quality' }
+    ]
+  },
+  {
+    title: 'Eksekusi di Lapangan',
+    icon: Compass,
+    fields: [
+      { key: 'hotelRating', label: 'Hotel' },
+      { key: 'transportationRating', label: 'Transportation' },
+      { key: 'tourLeaderRating', label: 'Tour Leader' },
+      { key: 'operationSupportRating', label: 'Operation Support' }
+    ]
+  },
+  {
+    title: 'Layanan & Nilai',
+    icon: HeartHandshake,
+    fields: [
+      { key: 'reservationHandlingRating', label: 'Reservation Handling' },
+      { key: 'communicationRating', label: 'Communication' },
+      { key: 'issueResolutionRating', label: 'Issue Resolution' },
+      { key: 'valueForMoneyRating', label: 'Value for Money' }
+    ]
+  }
 ]
+
+/** 12 dimensi rating (Overall + 11 kategori) + Recommendation Score — dasar progress indicator di Ringkasan. */
+const TOTAL_RATABLE_FIELDS = 13
+const ratedFieldCount = computed(() => {
+  const dimensionCount = RATING_GROUPS.flatMap(group => group.fields).filter(field => form.value[field.key] !== undefined).length
+  return dimensionCount + (form.value.overallExperience !== undefined ? 1 : 0) + (form.value.recommendationScore !== undefined ? 1 : 0)
+})
 
 watch(feedback, (value) => {
   if (!value) { return }
@@ -137,29 +163,54 @@ onBeforeRouteLeave(() => {
         </template>
       </PageHeader>
 
-      <SectionCard :description="`${project.destination} · ${formatDateRange(project.travelStartDate, project.travelEndDate)}`">
-        <template v-if="isReadonly">
-          <p class="text-sm text-muted-foreground">
-            Feedback telah dikirim{{ feedback?.submittedAt ? ` pada ${formatDate(feedback.submittedAt)}` : '' }} dan tidak dapat diubah lagi.
-          </p>
-          <p v-if="feedback?.status === 'follow-up-required'" class="text-sm text-warning mt-2">
-            Tim kami menandai feedback ini memerlukan tindak lanjut — kami akan menghubungi Anda.
-          </p>
+      <div v-if="isReadonly" class="rounded-lg border border-border bg-muted/30 px-4 py-3">
+        <p class="text-sm text-foreground">
+          Feedback telah dikirim{{ feedback?.submittedAt ? ` pada ${formatDate(feedback.submittedAt)}` : '' }} dan tidak dapat diubah lagi.
+        </p>
+        <p v-if="feedback?.status === 'follow-up-required'" class="text-sm text-warning mt-1.5">
+          Tim kami menandai feedback ini memerlukan tindak lanjut — kami akan menghubungi Anda.
+        </p>
+      </div>
+
+      <SectionCard
+        title="Ringkasan"
+        :description="`${project.destination} · ${formatDateRange(project.travelStartDate, project.travelEndDate)}`"
+      >
+        <template #actions>
+          <span class="text-xs text-muted-foreground whitespace-nowrap">{{ ratedFieldCount }} dari {{ TOTAL_RATABLE_FIELDS }} dinilai</span>
         </template>
 
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-2">
-          <div v-for="field in RATING_FIELDS" :key="field.key" class="flex items-center justify-between gap-3 py-1.5">
-            <Label>{{ field.label }}</Label>
-            <RatingInput v-model="(form[field.key] as number)" :readonly="isReadonly" @update:model-value="isDirty = true" />
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          <div class="space-y-2">
+            <Label class="text-sm">Overall Experience</Label>
+            <RatingInput v-model="form.overallExperience" :readonly="isReadonly" size="lg" @update:model-value="isDirty = true" />
+          </div>
+          <div class="space-y-2">
+            <Label class="text-sm">Kemungkinan merekomendasikan MANOVA</Label>
+            <NpsScaleInput v-model="form.recommendationScore" :readonly="isReadonly" @update:model-value="isDirty = true" />
           </div>
         </div>
+      </SectionCard>
 
-        <div class="flex items-center justify-between gap-3 py-1.5 mt-2 pt-4 border-t border-border">
-          <Label>Recommendation Score</Label>
-          <RatingInput v-model="form.recommendationScore" :readonly="isReadonly" @update:model-value="isDirty = true" />
-        </div>
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <SectionCard v-for="group in RATING_GROUPS" :key="group.title">
+          <div class="flex items-center gap-2 mb-1">
+            <component :is="group.icon" class="h-4 w-4 text-muted-foreground" />
+            <h3 class="text-sm font-semibold text-foreground">
+              {{ group.title }}
+            </h3>
+          </div>
+          <div class="divide-y divide-border">
+            <div v-for="field in group.fields" :key="field.key" class="flex items-center justify-between gap-3 py-2.5">
+              <Label>{{ field.label }}</Label>
+              <RatingInput v-model="form[field.key]" :readonly="isReadonly" @update:model-value="isDirty = true" />
+            </div>
+          </div>
+        </SectionCard>
+      </div>
 
-        <div class="space-y-1.5 mt-4">
+      <SectionCard title="Catatan Tertulis">
+        <div class="space-y-1.5">
           <Label for="fb-comment">Comment</Label>
           <textarea
             id="fb-comment"
@@ -181,8 +232,9 @@ onBeforeRouteLeave(() => {
             @input="isDirty = true"
           />
         </div>
-        <label class="flex items-center gap-2 text-sm text-foreground mt-4 cursor-pointer">
-          <Checkbox v-model="form.testimonialConsent" :disabled="isReadonly" @update:model-value="isDirty = true" />Saya bersedia komentar ini dijadikan testimonial (opsional)
+        <label class="flex items-start gap-2.5 text-sm text-foreground mt-4 p-3 rounded-lg border border-border bg-muted/30 cursor-pointer">
+          <Checkbox v-model="form.testimonialConsent" :disabled="isReadonly" class="mt-0.5" @update:model-value="isDirty = true" />
+          <span>Saya bersedia komentar ini dijadikan testimonial <span class="text-muted-foreground">(opsional)</span></span>
         </label>
 
         <div v-if="!isReadonly" class="flex flex-wrap gap-2 mt-6 pt-4 border-t border-border">

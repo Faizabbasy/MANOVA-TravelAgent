@@ -1,5 +1,5 @@
 import { reactive } from 'vue'
-import type { ID } from '~/types/common'
+import type { ID, GeoPoint } from '~/types/common'
 
 /**
  * Koordinat destinasi untuk perencanaan berbasis peta (Revisi 9-Modul, `revisi.md` #22–23:
@@ -16,16 +16,6 @@ import type { ID } from '~/types/common'
  * `destinationId` menaut ke `MASTER_DESTINATIONS` (`app/data/master-data.ts`) supaya daftar destinasi
  * tetap satu sumber; file ini hanya menambahkan koordinatnya.
  */
-
-export interface GeoPoint {
-  destinationId?: ID
-  name: string
-  country: string
-  lat: number
-  lng: number
-  /** Bandara utama terdekat — membantu tim operasional menaksir rute. */
-  airportCode?: string
-}
 
 export const DESTINATION_COORDINATES: GeoPoint[] = reactive([
   { destinationId: 'DST-001', name: 'Manila', country: 'Filipina', lat: 14.5995, lng: 120.9842, airportCode: 'MNL' },
@@ -78,6 +68,35 @@ export function searchDestinations (query: string): GeoPoint[] {
     point.name.toLowerCase().includes(term) ||
     point.country.toLowerCase().includes(term) ||
     (point.airportCode ?? '').toLowerCase().includes(term))
+}
+
+/**
+ * Resolusi "teks destinasi" (mis. `Opportunity.destination`/`Project.destination`, format bebas seperti
+ * "Bali, Indonesia" atau "Denpasar") ke satu `GeoPoint` — dasar "menyimpan data lokasi terstruktur" saat
+ * destinasi dibuat/diubah (`updateOpportunityRequirement`, `approveOpportunityWon`, dll, `app/data/index.ts`).
+ * Format "Kota, Negara" dipecah per-bagian karena teks gabungan itu sendiri jarang cocok sebagai substring
+ * dari `name`/`country` yang tersimpan.
+ */
+export function resolveDestinationGeo (destinationText: string): GeoPoint | undefined {
+  const term = destinationText.trim().toLowerCase()
+  if (!term) { return undefined }
+
+  const direct = DESTINATION_COORDINATES.find(point =>
+    point.name.toLowerCase().includes(term) ||
+    term.includes(point.name.toLowerCase()) ||
+    (point.airportCode ?? '').toLowerCase() === term)
+  if (direct) { return direct }
+
+  const parts = term.split(',').map(part => part.trim()).filter(Boolean)
+  for (const part of parts) {
+    const match = DESTINATION_COORDINATES.find(point =>
+      point.name.toLowerCase().includes(part) ||
+      part.includes(point.name.toLowerCase()) ||
+      point.country.toLowerCase().includes(part) ||
+      part.includes(point.country.toLowerCase()))
+    if (match) { return match }
+  }
+  return undefined
 }
 
 export function getPinsByProject (projectId: string): PlanningPin[] {

@@ -895,6 +895,12 @@ const summaryMetadata = computed(() => {
 
       <SectionCard>
         <DetailMetadataList :items="summaryMetadata" />
+        <div class="mt-4 pt-4 border-t border-border">
+          <p class="text-xs font-medium text-muted-foreground mb-2">
+            Peta Lokasi
+          </p>
+          <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" />
+        </div>
       </SectionCard>
 
       <Tabs v-model="activeTab">
@@ -1388,6 +1394,10 @@ const summaryMetadata = computed(() => {
                   </TableRow>
                 </TableBody>
               </Table>
+            </SectionCard>
+
+            <SectionCard title="Lokasi Tujuan" :description="project.destination">
+              <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" />
             </SectionCard>
 
             <SectionCard title="Daily Itinerary" description="Jadwal harian perjalanan (timezone lokal ditampilkan berdampingan jam).">

@@ -413,6 +413,12 @@ function submitChangeRequest () {
                 { label: 'Total Paket', value: formatCurrencyIdr(project.quotationAmountIdr) },
               ]"
             />
+            <div class="mt-4 pt-4 border-t border-border">
+              <p class="text-xs font-medium text-muted-foreground mb-2">
+                Peta Lokasi
+              </p>
+              <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" />
+            </div>
             <div v-if="serviceScopeOptions.length" class="mt-4 pt-4 border-t border-border">
               <p class="text-xs font-medium text-muted-foreground mb-2">
                 Layanan

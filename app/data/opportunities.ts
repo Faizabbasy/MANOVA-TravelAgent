@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { resolveDestinationGeo } from './geo'
 import type { Opportunity, Quotation } from '~/types/opportunity'
 
 /**
@@ -245,6 +246,9 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     // breakdown hasil "Edit Quotation".
   }
 ])
+
+/** Backfill `destinationGeo` seed — data historis di atas dibuat langsung sebagai literal (bukan lewat `qualifyLeadAndCreateOpportunity`), jadi diresolusi sekali di sini agar peta destinasi langsung terisi. */
+for (const opportunity of OPPORTUNITIES) { opportunity.destinationGeo = resolveDestinationGeo(opportunity.destination) }
 
 /**
  * `approvalStatus` (Prompt 19) — commercial approval quotation, aditif. QUO-001/002/003 di-backfill

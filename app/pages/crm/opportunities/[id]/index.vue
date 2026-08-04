@@ -400,6 +400,12 @@ function submitActivity () {
 
       <SectionCard>
         <DetailMetadataList :items="summaryMetadata" />
+        <div class="mt-4">
+          <p class="text-xs font-medium text-muted-foreground mb-2">
+            Peta Lokasi
+          </p>
+          <DestinationMap :geo="opportunity.destinationGeo" :destination-text="opportunity.destination" />
+        </div>
         <div class="mt-4 pt-4 border-t border-border">
           <p class="text-xs font-medium text-muted-foreground mb-2">
             Service Scope

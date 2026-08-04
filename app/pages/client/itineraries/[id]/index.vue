@@ -109,6 +109,10 @@ function submitRevisionRequest () {
         </template>
       </PageHeader>
 
+      <SectionCard title="Lokasi Tujuan" :description="project.destination">
+        <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" />
+      </SectionCard>
+
       <SectionCard>
         <template #actions>
           <div class="flex items-center gap-1 rounded-lg border border-border p-0.5">

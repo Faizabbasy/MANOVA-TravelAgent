@@ -1,4 +1,4 @@
-import type { ID } from './common'
+import type { ID, GeoPoint } from './common'
 
 /** `additional` (Section 12) — layanan ad-hoc di luar 4 kombinasi tipe project resmi (Prompt 0-B); tidak
  * pernah dimasukkan ke `Project.serviceScope`, visibilitasnya murni data-driven (ada/tidaknya baris service
@@ -93,6 +93,8 @@ export interface Project {
   /** Quotation yang di-Won-kan, referensi (Section 09 — docs/route-and-role-matrix.md bagian 2.2 item 6). */
   sourceQuotationId?: ID
   destination: string
+  /** Lokasi terstruktur hasil resolusi `destination` (`resolveDestinationGeo`, `app/data/geo.ts`) — di-set otomatis saat Project dibuat dari Opportunity Won. Kosong bila teks destinasi tidak cocok referensi. */
+  destinationGeo?: GeoPoint
   travelStartDate: string
   travelEndDate: string
   characteristic: ProjectCharacteristic

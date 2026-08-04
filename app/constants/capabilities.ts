@@ -56,6 +56,7 @@ export const CAPABILITIES: CapabilityDefinition[] = [
   { key: 'finance.close-period', label: 'Tutup periode / finance closure', group: CAPABILITY_GROUPS.finance },
 
   // HR & Inventory (dipakai penuh mulai P7, didefinisikan sejak awal agar builder role tidak perlu diubah lagi)
+  { key: 'hr.manage-employee', label: 'Tambah & kelola data karyawan', group: CAPABILITY_GROUPS.people },
   { key: 'hr.manage-payroll', label: 'Jalankan payroll & komisi', group: CAPABILITY_GROUPS.people },
   { key: 'hr.manage-performance', label: 'Kelola performance review', group: CAPABILITY_GROUPS.people },
   { key: 'inventory.manage-asset', label: 'Kelola aset & maintenance', group: CAPABILITY_GROUPS.people },

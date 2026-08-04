@@ -155,6 +155,7 @@ const SEED_CAPABILITIES: Record<string, RoleId[]> = {
   'finance.record-payment': ['finance'],
   'finance.manage-opex': ['finance'],
   'finance.close-period': ['finance', 'management'],
+  'hr.manage-employee': ['hr'],
   'hr.manage-payroll': ['hr'],
   'hr.manage-performance': ['hr', 'management'],
   'inventory.manage-asset': ['inventory', 'operations'],

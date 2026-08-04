@@ -182,6 +182,22 @@ export function getEmployeeByUserId (userId: string): Employee | undefined {
   return EMPLOYEES.find(employee => employee.userId === userId)
 }
 
+export function addEmployee (input: Omit<Employee, 'id'>): Employee {
+  const employee: Employee = {
+    ...input,
+    id: `EMP-${String(EMPLOYEES.length + 1).padStart(3, '0')}`
+  }
+  EMPLOYEES.push(employee)
+  return employee
+}
+
+export function updateEmployee (employeeId: string, updates: Partial<Omit<Employee, 'id'>>): Employee | undefined {
+  const employee = getEmployeeById(employeeId)
+  if (!employee) { return undefined }
+  Object.assign(employee, updates)
+  return employee
+}
+
 export function getAttendanceByEmployee (employeeId: string, period?: string): AttendanceRecord[] {
   return ATTENDANCE_RECORDS
     .filter(record => record.employeeId === employeeId && (!period || record.date.startsWith(period)))
@@ -231,6 +247,31 @@ export function getCommissionsByEmployee (employeeId: string): CommissionRecord[
   return COMMISSION_RECORDS.filter(record => record.employeeId === employeeId)
 }
 
+/**
+ * Insentif manual — pelengkap Komisi (yang derived dari `Project.ownerId`, lihat `buildCommissions`).
+ * Nilai Kontrak diambil dari `Project.quotationAmountIdr` project yang dipilih (sama seperti Komisi
+ * otomatis) dan Tarif dihitung balik dari nominal insentif yang diinput, bukan diketik manual.
+ * Langsung berstatus 'approved' karena tidak ada UI progres status accrued->approved untuk CommissionRecord
+ * di codebase ini; supaya konsisten masuk hitungan Take Home Pay di `getPayrollBreakdown`.
+ */
+export function addIncentive (input: { projectId: string; employeeId: string; period: string; amountIdr: number; note?: string }): CommissionRecord {
+  const baseAmountIdr = PROJECTS.find(project => project.id === input.projectId)?.quotationAmountIdr ?? 0
+  const record: CommissionRecord = {
+    id: `COM-INC-${String(COMMISSION_RECORDS.length + 1).padStart(3, '0')}`,
+    employeeId: input.employeeId,
+    projectId: input.projectId,
+    period: input.period,
+    baseAmountIdr,
+    ratePercent: baseAmountIdr > 0 ? Math.round((input.amountIdr / baseAmountIdr) * 10000) / 100 : 0,
+    amountIdr: input.amountIdr,
+    status: 'approved',
+    note: input.note,
+    source: 'manual'
+  }
+  COMMISSION_RECORDS.push(record)
+  return record
+}
+
 export interface PayrollLineComputed extends PayrollLine {
   employee?: Employee
   netIdr: number
@@ -256,6 +297,13 @@ export function getPayrollBreakdown (payrollRunId: string): PayrollLineComputed[
 
 export function getPayrollTotalIdr (payrollRunId: string): number {
   return getPayrollBreakdown(payrollRunId).reduce((sum, line) => sum + line.netIdr, 0)
+}
+
+export function updatePayrollLine (lineId: string, updates: Partial<Pick<PayrollLine, 'baseSalaryIdr' | 'allowanceIdr' | 'deductionIdr'>>): PayrollLine | undefined {
+  const line = PAYROLL_LINES.find(item => item.id === lineId)
+  if (!line) { return undefined }
+  Object.assign(line, updates)
+  return line
 }
 
 export function updatePayrollRunStatus (payrollRunId: string, status: PayrollRun['status'], actorId: string): PayrollRun | undefined {
