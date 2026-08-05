@@ -218,6 +218,15 @@ const opportunityPipeline = computed<StatusBreakdownItem[]>(() => {
     })
 })
 
+/**
+ * Tampilan funnel corong cuma masuk akal untuk stage yang benar-benar "maju" (Qualification → ... → Won) —
+ * `Lost`/`On Hold`/`Draft` bukan kelanjutan stage sebelumnya, jadi disaring khusus untuk widget funnel ini.
+ * `opportunityPipeline` di atas TIDAK diubah — masih data mentah yang sama, ini cuma lapisan tampilan.
+ */
+const FUNNEL_STAGE_ORDER = ['qualification', 'requirement-gathering', 'proposal', 'negotiation', 'won-requested', 'won']
+const opportunityFunnelStages = computed(() =>
+  opportunityPipeline.value.filter(item => FUNNEL_STAGE_ORDER.includes(item.key)))
+
 /** Active Projects by Status — Management/Super Admin/Viewer. */
 const projectsByStatus = computed<StatusBreakdownItem[]>(() => {
   const byStatus = new Map<string, number>()
@@ -619,7 +628,7 @@ function kpiSubtitle (key: string): string | undefined {
           color="violet"
           :size="tierOf('pipeline')"
         >
-          <StatusBreakdownList :items="opportunityPipeline" empty-label="Tidak ada opportunity dalam pipeline" />
+          <PipelineFunnel :items="opportunityFunnelStages" />
         </DashboardPanel>
 
         <DashboardPanel v-if="showProjectsByStatus" title="Active Projects by Status" :icon="FolderKanban" color="blue" :size="tierOf('projects-by-status')">

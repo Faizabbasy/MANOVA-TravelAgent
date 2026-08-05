@@ -1,22 +1,27 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { Bar } from 'vue-chartjs'
+import { Line } from 'vue-chartjs'
 import {
   Chart as ChartJS,
   CategoryScale,
   LinearScale,
-  BarElement,
+  PointElement,
+  LineElement,
+  Filler,
   Tooltip,
   Legend
 } from 'chart.js'
 import { formatCurrencyIdr } from '~/utils/format'
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend)
 
 /**
  * Budget vs Actual (Section 06/Dashboard — Management/Finance/Super Admin/Viewer), diadaptasi dari
  * BudgetChart.vue template lama (dulu data bulanan fiktif dalam USD). Sekarang menerima data project
- * nyata dari fixture terpusat, ditampilkan dalam Rupiah, satu bar-pair per project.
+ * nyata dari fixture terpusat, ditampilkan dalam Rupiah, satu kurva area per project.
+ *
+ * Line/area (bukan bar) — permintaan visual eksplisit ("kurva ombak"). Data & angka sumbernya sama persis
+ * (`budgetIdr`/`actualIdr` per project), cuma cara gambarnya yang berubah.
  */
 const props = withDefaults(defineProps<{
   labels: string[]
@@ -65,8 +70,15 @@ onMounted(async () => {
   const border = formatHSL(borderColor.value)
   const ink = formatHSL(foregroundColor.value)
 
-  /** Bar "berpijak" di baseline — hanya sudut atas membulat, flat color (bukan gradien) biar bersih. */
-  const TOP_RADIUS = { topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0 }
+  /** Area gradien halus di bawah tiap kurva — pola sama seperti `TrendAreaChart.vue` (fade dari ~32% ke ~2% opacity). */
+  function areaGradient (chart: any, hsl: string) {
+    const { ctx, chartArea } = chart
+    if (!chartArea) { return `hsla(${hsl}, 0.18)` }
+    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
+    gradient.addColorStop(0, `hsla(${hsl}, 0.38)`)
+    gradient.addColorStop(1, `hsla(${hsl}, 0.03)`)
+    return gradient
+  }
 
   chartData.value = {
     labels: props.labels,
@@ -74,22 +86,32 @@ onMounted(async () => {
       {
         label: 'Budget',
         data: props.budgetIdr,
-        backgroundColor: `hsla(${budgetHsl}, 0.9)`,
-        hoverBackgroundColor: `hsl(${budgetHsl})`,
-        borderRadius: TOP_RADIUS,
-        borderSkipped: 'bottom',
-        categoryPercentage: 0.6,
-        barPercentage: 0.78
+        borderColor: `hsl(${budgetHsl})`,
+        borderWidth: 2.5,
+        backgroundColor: (context: any) => areaGradient(context.chart, budgetHsl),
+        fill: 'origin',
+        tension: 0.45,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointBackgroundColor: `hsl(${budgetHsl})`,
+        pointBorderColor: surface,
+        pointBorderWidth: 2,
+        pointHoverBorderWidth: 2
       },
       {
         label: 'Actual',
         data: props.actualIdr,
-        backgroundColor: `hsla(${actualHsl}, 0.9)`,
-        hoverBackgroundColor: `hsl(${actualHsl})`,
-        borderRadius: TOP_RADIUS,
-        borderSkipped: 'bottom',
-        categoryPercentage: 0.6,
-        barPercentage: 0.78
+        borderColor: `hsl(${actualHsl})`,
+        borderWidth: 2.5,
+        backgroundColor: (context: any) => areaGradient(context.chart, actualHsl),
+        fill: 'origin',
+        tension: 0.45,
+        pointRadius: 0,
+        pointHoverRadius: 5,
+        pointBackgroundColor: `hsl(${actualHsl})`,
+        pointBorderColor: surface,
+        pointBorderWidth: 2,
+        pointHoverBorderWidth: 2
       }
     ]
   }
@@ -120,10 +142,18 @@ onMounted(async () => {
         borderWidth: 1,
         titleColor: ink,
         bodyColor: ink,
+        footerColor: muted,
+        footerFont: { weight: 'normal' as const },
         padding: 12,
         cornerRadius: 8,
         callbacks: {
-          label: (context: any) => `${context.dataset.label}: ${formatCurrencyIdr(context.parsed.y)}`
+          label: (context: any) => `${context.dataset.label}: ${formatCurrencyIdr(context.parsed.y)}`,
+          footer: (items: any[]) => {
+            const index = items[0]?.dataIndex
+            if (index === undefined) { return '' }
+            const variance = (props.actualIdr[index] ?? 0) - (props.budgetIdr[index] ?? 0)
+            return `Variance: ${variance > 0 ? '+' : ''}${formatCurrencyIdr(variance)}`
+          }
         }
       }
     },
@@ -166,7 +196,7 @@ onMounted(async () => {
       </div>
     </div>
     <div :class="props.heightClass">
-      <Bar v-if="chartData && chartOptions" :data="chartData" :options="chartOptions" />
+      <Line v-if="chartData && chartOptions" :data="chartData" :options="chartOptions" />
     </div>
   </div>
 </template>
