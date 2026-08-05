@@ -5,7 +5,8 @@ import { FileX, Plus, MessageCircle } from 'lucide-vue-next'
 import { buildWhatsAppLink } from '~/data/crm-engagement'
 import {
   getPartyById, getContactsByParty, getOpportunitiesByParty, getPartyActivities, getProjectsByParty,
-  getQuotationByOpportunity, createContact, createPartyActivity, getInvoicesByProject, getFeedbackByProject
+  getQuotationByOpportunity, createContact, createPartyActivity, getInvoicesByProject, getFeedbackByProject,
+  getUserByClientPartyId, isManovaClient
 } from '~/data'
 import { getLoyaltyAccount } from '~/data/crm-engagement'
 import { OPPORTUNITY_STAGES, PROJECT_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
@@ -37,6 +38,8 @@ const contacts = computed(() => (party.value ? getContactsByParty(party.value.id
 const opportunities = computed(() => (party.value ? getOpportunitiesByParty(party.value.id) : []))
 const activities = computed(() => (party.value ? getPartyActivities(party.value.id) : []))
 const projects = computed(() => (party.value ? getProjectsByParty(party.value.id) : []))
+const linkedClientUser = computed(() => (party.value ? getUserByClientPartyId(party.value.id) : undefined))
+const isPartyManovaClient = computed(() => (party.value ? isManovaClient(party.value.id) : false))
 
 /** Tab "Projects" kondisional — hanya tampil bila Client dan minimal 1 project (docs IA bagian 3.2/5). */
 const showProjectsTab = computed(() => party.value?.lifecycleStatus === 'client' && projects.value.length > 0)
@@ -182,6 +185,7 @@ function submitActivity () {
       >
         <template #actions>
           <StatusBadge :label="party.lifecycleStatus === 'client' ? 'Client' : 'Prospect'" :tone="party.lifecycleStatus === 'client' ? 'success' : 'info'" />
+          <StatusBadge v-if="isPartyManovaClient" label="Manova Client" tone="purple" />
         </template>
       </PageHeader>
 
@@ -215,6 +219,23 @@ function submitActivity () {
               {{ contacts[0].name }} — <span class="text-muted-foreground">{{ contacts[0].title }}</span>
             </p>
             <EmptyState v-else title="Belum ada contact tercatat" />
+          </SectionCard>
+
+          <SectionCard v-if="party.lifecycleStatus === 'client' || linkedClientUser" title="Portal Access" class="mt-6">
+            <template v-if="linkedClientUser">
+              <p class="text-xs font-medium text-muted-foreground mb-2">
+                Client Login Account
+              </p>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-sm font-medium text-foreground">{{ linkedClientUser.name }}</span>
+                <span class="text-sm text-muted-foreground">{{ linkedClientUser.email }}</span>
+                <StatusBadge :label="linkedClientUser.status === 'active' ? 'Active' : 'Suspended'" :tone="linkedClientUser.status === 'active' ? 'success' : 'destructive'" />
+              </div>
+              <p class="text-xs text-muted-foreground mt-2">
+                Akses portal client bisa didemokan lewat Settings → Role Switcher, pilih akun ini.
+              </p>
+            </template>
+            <EmptyState v-else title="Belum ada akun portal client" description="Akun login client dibuat otomatis saat quotation pertama kali dikirim ke client (Send to Client)." />
           </SectionCard>
         </TabsContent>
 

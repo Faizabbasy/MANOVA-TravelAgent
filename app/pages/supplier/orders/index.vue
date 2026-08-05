@@ -41,7 +41,7 @@ function projectLabel (projectId: string) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow v-for="service in assignments" :key="service.id">
+            <TableRow v-for="service in assignments" :key="service.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/supplier/orders/${service.id}`)">
               <TableCell class="text-muted-foreground">
                 {{ projectLabel(service.projectId) }}
               </TableCell>
@@ -72,7 +72,12 @@ function projectLabel (projectId: string) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow v-for="quotation in quotations" :key="quotation.id">
+            <TableRow
+              v-for="quotation in quotations"
+              :key="quotation.id"
+              :class="quotation.serviceId ? 'cursor-pointer hover:bg-muted/50' : ''"
+              @click="quotation.serviceId && navigateTo(`/supplier/orders/${quotation.serviceId}`)"
+            >
               <TableCell class="text-muted-foreground">
                 {{ projectLabel(quotation.projectId) }}
               </TableCell>

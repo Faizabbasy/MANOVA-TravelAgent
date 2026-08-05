@@ -4,8 +4,8 @@ import type { Component } from 'vue'
 /**
  * KPI tile — page-local, hanya dipakai `index.vue`.
  *
- * Refinement UI: bar gradien, blur blob, translate, dan rotasi ikon saat hover dihapus agar konsisten
- * dengan `StatsCard.vue` yang sudah ditenangkan. Warna kini hanya pada chip ikon.
+ * Ikon lingkaran solid + angka besar di bawahnya (bukan label/value sejajar dengan ikon di kanan) —
+ * komposisi lebih tegas dan tidak generik dibanding pola "label kiri, ikon kanan" sebelumnya.
  */
 withDefaults(defineProps<{
   label: string
@@ -16,31 +16,27 @@ withDefaults(defineProps<{
 }>(), { color: 'blue' })
 
 const BADGE_CLASSES: Record<string, string> = {
-  blue: 'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400',
-  rose: 'bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400',
-  violet: 'bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400',
-  teal: 'bg-teal-50 text-teal-600 dark:bg-teal-500/15 dark:text-teal-400',
-  amber: 'bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400',
-  cyan: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-500/15 dark:text-cyan-400'
+  blue: 'bg-blue-500 text-white',
+  rose: 'bg-rose-500 text-white',
+  violet: 'bg-violet-500 text-white',
+  teal: 'bg-teal-500 text-white',
+  amber: 'bg-amber-500 text-white',
+  cyan: 'bg-cyan-500 text-white'
 }
 </script>
 
 <template>
   <div class="group relative min-w-0 rounded-xl border border-border bg-card p-4 shadow-[0_1px_2px_0_hsl(224_71%_4%/0.04)] transition-colors duration-150 hover:bg-muted/20">
-    <div class="flex items-start justify-between gap-3">
-      <div class="min-w-0">
-        <p class="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          {{ label }}
-        </p>
-        <p class="mt-2 text-2xl font-semibold leading-8 tracking-tight text-foreground tabular-nums break-words">
-          {{ value }}
-        </p>
-      </div>
-      <div class="shrink-0 rounded-lg p-2.5" :class="BADGE_CLASSES[color]">
-        <component :is="icon" class="h-4 w-4" />
-      </div>
+    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" :class="BADGE_CLASSES[color]">
+      <component :is="icon" class="h-5 w-5" />
     </div>
-    <p v-if="subtitle" class="mt-2 truncate text-xs text-muted-foreground">
+    <p class="mt-3 truncate text-xs font-medium text-muted-foreground">
+      {{ label }}
+    </p>
+    <p class="mt-1 text-2xl font-bold leading-8 tracking-tight text-foreground tabular-nums break-words">
+      {{ value }}
+    </p>
+    <p v-if="subtitle" class="mt-1.5 truncate text-xs text-muted-foreground">
       {{ subtitle }}
     </p>
   </div>

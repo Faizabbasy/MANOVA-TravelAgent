@@ -43,7 +43,7 @@ onMounted(async () => {
       backgroundColor: coloredData.value.map(d => d.color),
       hoverBackgroundColor: coloredData.value.map(d => d.color),
       borderWidth: 0,
-      spacing: 3,
+      spacing: 4,
       hoverOffset: 10,
       borderRadius: 4
     }]
@@ -52,7 +52,7 @@ onMounted(async () => {
   chartOptions.value = {
     responsive: true,
     maintainAspectRatio: false,
-    cutout: '63.6%',
+    cutout: '70%',
     animation: { animateRotate: true, animateScale: true, duration: 900, easing: 'easeOutQuart' },
     plugins: {
       legend: { display: false },

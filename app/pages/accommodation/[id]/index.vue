@@ -5,10 +5,11 @@ import { FileX, Plus, Trash2, Printer } from 'lucide-vue-next'
 import {
   getHotelBookingById, getHotelBookingMarginIdr, getHotelBookingStatusTransitions,
   updateHotelBooking, updateHotelBookingStatus, selectHotelOption,
-  getProjectById, getTravelers, getHotelRoomingList, getTravelerGroups,
+  getProjectById, getTravelers, getHotelRoomingList, getTravelerGroups, getProjectServiceById, setServiceVendor,
+  VENDORS,
   createCancellationRecord
 } from '~/data'
-import { HOTEL_BOOKING_STATUSES, MEAL_PLANS, findStatusOption } from '~/constants/status'
+import { HOTEL_BOOKING_STATUSES, MEAL_PLANS, ROOM_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import type { HotelBookingStatus, HotelOption } from '~/types/accommodation'
 
@@ -113,6 +114,8 @@ function submitSelectOption (index: number) {
 /* Edit dialog — whole-form, pola sama Flight Booking (Section 13). */
 const isEditOpen = ref(false)
 const editConfirmationNumber = ref('')
+const editVendorId = ref('')
+const vendorOptions = computed(() => VENDORS.filter(v => v.serviceType === 'hotel' && (v.status ?? 'active') === 'active'))
 const editCheckInDate = ref('')
 const editCheckOutDate = ref('')
 const editCancellationDeadline = ref('')
@@ -129,6 +132,7 @@ const editOptions = ref<HotelOption[]>([])
 
 function openEditDialog () {
   if (!booking.value) { return }
+  editVendorId.value = (booking.value.serviceId ? getProjectServiceById(booking.value.serviceId)?.vendorId : undefined) ?? ''
   editConfirmationNumber.value = booking.value.confirmationNumber ?? ''
   editCheckInDate.value = booking.value.checkInDate ?? ''
   editCheckOutDate.value = booking.value.checkOutDate ?? ''
@@ -161,6 +165,7 @@ function removeOptionRow (index: number) {
 
 function submitEdit () {
   if (!booking.value) { return }
+  if (booking.value.serviceId) { setServiceVendor(booking.value.serviceId, editVendorId.value || undefined) }
   updateHotelBooking(booking.value.id, {
     confirmationNumber: editConfirmationNumber.value.trim() || undefined,
     checkInDate: editCheckInDate.value || undefined,
@@ -424,6 +429,17 @@ function submitEdit () {
                 <Input id="edit-confirmation" v-model="editConfirmationNumber" placeholder="mis. AUH-A104" />
               </div>
               <div class="space-y-1.5">
+                <Label for="edit-vendor">Vendor</Label>
+                <select id="edit-vendor" v-model="editVendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="">
+                    Belum ditentukan
+                  </option>
+                  <option v-for="vendor in vendorOptions" :key="vendor.id" :value="vendor.id">
+                    {{ vendor.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
                 <Label for="edit-rooms-blocked">Rooms Blocked</Label>
                 <Input id="edit-rooms-blocked" v-model.number="editRoomsBlocked" type="number" />
               </div>
@@ -477,7 +493,14 @@ function submitEdit () {
               </div>
               <div v-for="(option, index) in editOptions" :key="index" class="grid grid-cols-12 gap-2 items-center">
                 <Input v-model="option.propertyName" placeholder="Property" class="col-span-3 h-8 text-xs" />
-                <Input v-model="option.roomType" placeholder="Room Type" class="col-span-2 h-8 text-xs" />
+                <select v-model="option.roomType" class="col-span-2 appearance-none px-2 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="" disabled>
+                    Room Type
+                  </option>
+                  <option v-for="roomType in ROOM_TYPES" :key="roomType.value" :value="roomType.value">
+                    {{ roomType.label }}
+                  </option>
+                </select>
                 <Input v-model="option.ratePlan" placeholder="Rate Plan" class="col-span-2 h-8 text-xs" />
                 <select v-model="option.mealPlan" class="col-span-2 appearance-none px-2 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
                   <option v-for="meal in MEAL_PLANS" :key="meal.value" :value="meal.value">

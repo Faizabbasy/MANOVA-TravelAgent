@@ -72,7 +72,7 @@ onBeforeUnmount(() => { destroyMap() })
 
 <template>
   <div class="rounded-lg border border-border overflow-hidden">
-    <div v-if="geo" ref="mapEl" class="h-[280px] w-full" />
+    <div v-if="geo" ref="mapEl" class="relative z-0 h-[280px] w-full" />
 
     <div v-else class="flex items-center gap-2 px-3 py-3 text-muted-foreground bg-muted/20">
       <MapPinOff class="h-3.5 w-3.5 shrink-0" />

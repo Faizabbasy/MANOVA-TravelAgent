@@ -1,5 +1,5 @@
 <title>MANOVA — Alur Kerja Lead sampai Project Closed</title>
-<meta name="description" content="Panduan estafet peran: siapa mengerjakan apa, tahap demi tahap, dari lead masuk sampai project ditutup.">
+<meta name="description" content="Panduan estafet peran: siapa mengerjakan apa, tahap demi tahap, dari lead masuk sampai project ditutup — sesuai model 13-role/9-modul saat ini.">
 <style>
   :root{
     --paper:#F6F3EA;
@@ -124,7 +124,7 @@
   @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) a{ color:var(--internal); } }
 
   .page{
-    max-width:900px;
+    max-width:920px;
     margin:0 auto;
     padding:56px 28px 100px;
   }
@@ -152,12 +152,19 @@
   @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .eyebrow{ color:var(--system); } }
   .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; display:inline-block; }
   h1.title{ font-size:2.05rem; margin:0; line-height:1.18; }
-  .subtitle{ color:var(--ink-soft); font-size:1.05rem; margin:0; max-width:62ch; }
+  .subtitle{ color:var(--ink-soft); font-size:1.05rem; margin:0; max-width:66ch; }
   .meta-row{
     display:flex; flex-wrap:wrap; gap:20px; margin-top:4px;
     font-size:0.85rem; color:var(--ink-soft);
   }
   .meta-row strong{ color:var(--ink); font-weight:600; }
+
+  .revision-note{
+    display:flex; align-items:flex-start; gap:9px;
+    background:var(--system-soft); color:var(--system-ink);
+    border-radius:6px; padding:11px 14px; font-size:0.85rem; margin-top:6px;
+  }
+  .revision-note svg{ flex:none; width:15px; height:15px; margin-top:2px; }
 
   /* ---------- Legend / role map ---------- */
   .legend{
@@ -185,6 +192,7 @@
   .role-chip.internal{ background:var(--internal-soft); color:var(--internal-ink); }
   .role-chip.external{ background:var(--external-soft); color:var(--external-ink); }
   .role-chip::before{ content:""; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:0.7; }
+  .role-chip .old{ font-size:0.72em; opacity:0.68; font-style:italic; }
 
   @media (max-width:640px){ .legend-groups{ grid-template-columns:1fr; } }
 
@@ -249,7 +257,7 @@
   .role-badge.external{ background:var(--external-soft); color:var(--external-ink); }
   .role-badge.system{ background:var(--system-soft); color:var(--system-ink); }
 
-  .stage-desc{ margin:6px 0 12px; color:var(--ink-soft); font-size:0.94rem; max-width:66ch; }
+  .stage-desc{ margin:6px 0 12px; color:var(--ink-soft); font-size:0.94rem; max-width:68ch; }
 
   .stage-actions{ margin:0 0 12px; padding-left:20px; }
   .stage-actions li{ margin-bottom:5px; font-size:0.92rem; }
@@ -278,19 +286,24 @@
   }
   .caution-note svg{ flex:none; width:15px; height:15px; margin-top:2px; }
 
-  /* ---------- Branch (parallel actors) ---------- */
+  /* ---------- Branch (parallel actors / per-type detail) ---------- */
   .branch-row{
     display:flex; flex-wrap:wrap; gap:10px; margin:10px 0 4px;
   }
   .branch-item{
-    flex:1 1 220px;
+    flex:1 1 250px;
     background:var(--paper);
     border:1px solid var(--line);
     border-radius:6px;
-    padding:10px 13px;
+    padding:11px 14px;
   }
-  .branch-item .who{ font-size:0.78rem; font-weight:700; margin-bottom:4px; }
-  .branch-item p{ margin:0; font-size:0.85rem; color:var(--ink-soft); }
+  .branch-item .who{ font-size:0.82rem; font-weight:700; margin-bottom:5px; display:flex; align-items:center; gap:6px; }
+  .branch-item .who .route{ font-weight:400; color:var(--ink-soft); font-size:0.82em; }
+  .branch-item p{ margin:0 0 6px; font-size:0.85rem; color:var(--ink-soft); }
+  .branch-item p:last-child{ margin-bottom:0; }
+  .branch-item .flow{ font-size:0.8rem; color:var(--ink-soft); }
+  .branch-item .flow strong{ color:var(--ink); font-weight:600; }
+  .branch-item .doc-link{ font-size:0.8rem; }
 
   /* ---------- Section headers (non-timeline sections) ---------- */
   section.block{ margin-bottom:44px; }
@@ -365,11 +378,15 @@
   <header>
     <div class="eyebrow"><span class="dot"></span>Panduan Internal &middot; Alur Kerja Operasional</div>
     <h1 class="title">Dari Lead sampai Project Closed — Siapa Kerja, Kapan, dan Bisa Apa</h1>
-    <p class="subtitle">Estafet peran MANOVA: 15 tahap berurutan, tiap tahap menunjukkan role yang memegang kendali, apa saja yang bisa dia lakukan di layar, dan ke role mana pekerjaan berpindah selanjutnya.</p>
+    <p class="subtitle">Estafet peran MANOVA: 16 tahap berurutan, tiap tahap menunjukkan role yang memegang kendali, apa saja yang bisa dia lakukan di layar (termasuk cara input Quotation, Flight, Hotel, Transportation, dan MICE secara rinci), dan ke role mana pekerjaan berpindah selanjutnya.</p>
     <div class="meta-row">
-      <span>Cakupan: <strong>16 role, ujung ke ujung</strong></span>
-      <span>Sumber: <strong>Alur bisnis inti MANOVA (Section 00–24, selesai)</strong></span>
-      <span>Per: <strong>1 Agustus 2026</strong></span>
+      <span>Cakupan: <strong>13 role &middot; 9 modul bisnis, ujung ke ujung</strong></span>
+      <span>Sumber: <strong>Kode aplikasi aktual (Revisi 9-Modul, RBAC dinamis)</strong></span>
+      <span>Per: <strong>4 Agustus 2026</strong></span>
+    </div>
+    <div class="revision-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v4"/><path d="M12 16h.01"/><circle cx="12" cy="12" r="10"/></svg>
+      <span><strong>Revisi dari versi sebelumnya:</strong> versi lama dokumen ini menyebut 16 role terpisah (Account Executive, Product Planner, Project Manager, Ticketing, Accommodation, Transportation, MICE, Procurement, Viewer/Auditor, dst. berdiri sendiri-sendiri). Sejak restrukturisasi 9-Modul, role-role itu <strong>digabung</strong> ke 13 role baru — halaman-halaman lama (<code>/ticketing</code>, <code>/accommodation</code>, dst.) tetap ada, tapi sekarang jadi sub-menu di bawah role yang lebih luas. Dokumen ini ditulis ulang mengikuti model yang berlaku sekarang.</span>
     </div>
     <div class="actions">
       <button class="btn btn-primary" id="btn-pdf" type="button">
@@ -384,33 +401,30 @@
   </header>
 
   <div class="legend">
-    <h2>Peta Role</h2>
-    <p class="hint">Warna dipakai konsisten di seluruh halaman ini — <strong style="color:var(--internal-ink)">biru tua</strong> untuk role internal perusahaan, <strong style="color:var(--external-ink)">oker/cokelat</strong> untuk role eksternal (di luar perusahaan), <strong style="color:var(--system-ink)">hijau kalem</strong> untuk hal yang terjadi otomatis oleh sistem.</p>
+    <h2>Peta Role (Model Saat Ini — 13 Role)</h2>
+    <p class="hint">Warna dipakai konsisten di seluruh halaman ini — <strong style="color:var(--internal-ink)">biru tua</strong> untuk role internal perusahaan, <strong style="color:var(--external-ink)">oker/cokelat</strong> untuk role eksternal/portal (di luar perusahaan), <strong style="color:var(--system-ink)">hijau kalem</strong> untuk hal yang terjadi otomatis oleh sistem. Nama role lama (bila pernah dipakai di versi dokumen sebelumnya) ditulis kecil-miring di bawah nama barunya.</p>
     <div class="legend-groups">
       <div class="legend-group">
-        <h3>Internal (14 role)</h3>
+        <h3>Internal (11 role)</h3>
         <div class="role-chips">
           <span class="role-chip internal">Super Admin</span>
-          <span class="role-chip internal">Management</span>
-          <span class="role-chip internal">Sales</span>
-          <span class="role-chip internal">Account Executive</span>
-          <span class="role-chip internal">Product Planner</span>
-          <span class="role-chip internal">Project Manager</span>
-          <span class="role-chip internal">Operations</span>
-          <span class="role-chip internal">Ticketing</span>
-          <span class="role-chip internal">Accommodation</span>
-          <span class="role-chip internal">Transportation</span>
-          <span class="role-chip internal">MICE</span>
-          <span class="role-chip internal">Procurement</span>
-          <span class="role-chip internal">Finance</span>
-          <span class="role-chip internal">Viewer / Auditor</span>
+          <span class="role-chip internal">Management <span class="old">dulu: Viewer/Auditor</span></span>
+          <span class="role-chip internal">Sales <span class="old">dulu: Account Executive + Product Planner</span></span>
+          <span class="role-chip internal">Finance &amp; ACC</span>
+          <span class="role-chip internal">CRM</span>
+          <span class="role-chip internal">Vendor &amp; Partner <span class="old">dulu: Procurement</span></span>
+          <span class="role-chip internal">Operations &amp; Scheduling <span class="old">dulu: PM + Ticketing + Accommodation + Transportation + MICE</span></span>
+          <span class="role-chip internal">Human Resource</span>
+          <span class="role-chip internal">Inventory</span>
+          <span class="role-chip internal">Marketing &amp; Analysis</span>
+          <span class="role-chip internal">Reporting &amp; BI</span>
         </div>
       </div>
       <div class="legend-group">
-        <h3>Eksternal (2 role)</h3>
+        <h3>Eksternal / Portal (2 role)</h3>
         <div class="role-chips">
           <span class="role-chip external">Client</span>
-          <span class="role-chip external">Supplier</span>
+          <span class="role-chip external">Vendor <span class="old">dulu: Supplier</span></span>
         </div>
       </div>
     </div>
@@ -418,8 +432,8 @@
 
   <section class="block">
     <div class="block-head">
-      <h2>Estafet 15 Tahap</h2>
-      <span class="note">Tiap kartu = satu pemegang kendali. Ikuti anak panah "lanjut ke" untuk lihat siapa berikutnya.</span>
+      <h2>Estafet 16 Tahap</h2>
+      <span class="note">Tiap kartu = satu pemegang kendali. Ikuti anak panah "lanjut ke" untuk lihat siapa berikutnya. Rute halaman ditulis dalam <code>font mono</code>.</span>
     </div>
 
     <div class="timeline">
@@ -430,11 +444,13 @@
           <div class="stage-head">
             <h3 class="stage-title">Lead Masuk</h3>
             <span class="role-badge external">Publik</span>
+            <span class="role-badge internal">+ Sales (manual)</span>
           </div>
           <p class="stage-desc">Calon klien mengisi form minat perjalanan sendiri, tanpa login — atau staf Sales mencatatnya manual dari telepon/WhatsApp/referral.</p>
           <ul class="stage-actions">
-            <li>Isi form kategori kebutuhan (Ticketing/Accommodation/Transportation/MICE) + persetujuan data <span class="route mono">/lead-intake</span></li>
-            <li>Sistem otomatis mendeteksi kemiripan dengan lead lama (saran non-blocking, bukan penolakan)</li>
+            <li>Form publik: Jenis Kebutuhan, Nama Kontak, Company (opsional), Telepon/Email (salah satu wajib), Destinasi, Estimasi Traveler, ceritakan kebutuhan, sumber tahu MANOVA, consent data — <span class="route mono">/lead-intake</span></li>
+            <li>Sistem otomatis cek kemiripan dengan lead lama (saran non-blocking, bukan penolakan)</li>
+            <li>Sales juga bisa input manual lewat tombol <strong>"New Lead"</strong> (field lebih ringkas: kontak, company, sumber, telepon, email) — <span class="route mono">/customer-journey/leads</span></li>
           </ul>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
@@ -447,18 +463,19 @@
         <div class="node internal">2</div>
         <div class="stage-card">
           <div class="stage-head">
-            <h3 class="stage-title">Kualifikasi &amp; Penunjukan Account Executive</h3>
+            <h3 class="stage-title">Kualifikasi Lead &amp; Penunjukan Penanggung Jawab</h3>
             <span class="role-badge internal">Sales</span>
           </div>
-          <p class="stage-desc">Sales menyaring lead mana yang layak dikejar, melengkapi profil kebutuhan, lalu menyerahkan ke Account Executive yang akan memegang deal ini.</p>
+          <p class="stage-desc">Sales sekarang mencakup peran AE + Product Planner lama sekaligus — satu role ini menyaring lead, melengkapi profil kebutuhan, dan memegang deal sampai dimenangkan. <span class="route mono">/customer-journey/leads</span></p>
           <ul class="stage-actions">
-            <li>Buka lead, isi form kualifikasi lengkap (budget, tanggal, jumlah traveler, urgensi, dst.) <span class="route mono">/customer-journey/leads</span></li>
-            <li>Tandai lead "tidak layak" dan buka-kembali (reopen) bila berubah pikiran</li>
-            <li>Pilih Account Executive penerima — <strong>ini satu-satunya cara Opportunity bisa tercipta</strong></li>
+            <li>Isi tab Qualification: Jenis Kebutuhan, Destinasi, tanggal perjalanan, Estimasi Traveler, Service Scope, Ringkasan Kebutuhan, penerima lead, + opsional Budget Range/Urgency/Decision Maker/Expected Close</li>
+            <li><strong>Tandai sebagai Duplikat</strong> — mengarsipkan lead ganda dan mencatat log di kedua lead, tanpa menggabung data field</li>
+            <li><strong>Mark as Unqualified</strong> (catatan opsional) — tahap akhir, tidak membuat Opportunity; atau <strong>Archive/Reopen</strong> untuk simpan sementara</li>
+            <li><strong>Qualify &amp; Create Opportunity</strong> — aktif hanya bila 7 field wajib lengkap; company baru <em>hanya</em> dibuat bila belum ada nama company yang cocok (mencegah duplikat client)</li>
           </ul>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            Lanjut ke: <strong>Account Executive</strong> — sistem otomatis membuat Opportunity begitu lead dikualifikasi.
+            Lanjut ke: <strong>Sales (pemegang deal)</strong> — Opportunity baru otomatis tercipta di stage Qualification.
           </div>
         </div>
       </div>
@@ -467,25 +484,24 @@
         <div class="node internal">3</div>
         <div class="stage-card">
           <div class="stage-head">
-            <h3 class="stage-title">Opportunity, Detail Kebutuhan &amp; Penawaran</h3>
-            <span class="role-badge internal">Account Executive</span>
+            <h3 class="stage-title">Opportunity: Requirement Gathering &amp; Cost Sheet</h3>
+            <span class="role-badge internal">Sales</span>
           </div>
-          <p class="stage-desc">AE memegang deal ini dari sini sampai dimenangkan atau kalah. Ia yang menyusun detail kebutuhan dan yang menerbitkan penawaran resmi ke klien.</p>
+          <p class="stage-desc">Opportunity berjalan lewat 9 stage (Draft &rarr; Qualification &rarr; Requirement Gathering &rarr; Proposal &rarr; Negotiation &rarr; Won Requested &rarr; Won/Lost/On Hold) lewat tombol stepper di halaman detail. <span class="route mono">/crm/opportunities/[id]</span></p>
           <ul class="stage-actions">
-            <li>Lengkapi Requirement Detail (destinasi, durasi, preferensi) <span class="route mono">/crm/opportunities/[id]</span></li>
-            <li>Minta Product Planner menyusun Cost Sheet, lalu terapkan hasilnya ke Quotation</li>
-            <li>Buat/Edit Quotation, buat versi revisi bila perlu, kirim untuk approval</li>
-            <li>Lihat pratinjau cetak Quotation sebelum dikirim ke klien</li>
+            <li><strong>Edit Requirement</strong> — Destinasi, tanggal, Estimasi Traveler, Service Scope, Ringkasan, Contact Person, Estimasi Nilai; plus detail lanjutan: Itinerary Concept, Departure City, Traveler Composition, Room/Flight/Transport/MICE Requirement, Special Request, Decision Maker, Payment Terms, Catatan Komersial/Operasional/Risiko</li>
+            <li>Tombol <strong>"Buat Quotation"</strong> baru aktif setelah 7 field requirement gate lengkap (destinasi, periode, traveler, service scope, ringkasan, contact person, estimasi nilai)</li>
           </ul>
           <div class="branch-row">
             <div class="branch-item">
-              <div class="who" style="color:var(--internal-ink)">Product Planner (mendukung)</div>
-              <p>Menyusun Cost Sheet: biaya dasar, contingency, markup, pajak → total jual. Dikunci begitu diterapkan ke Quotation, revisi lewat versi baru.</p>
+              <div class="who">Cost Sheet (mendukung, bagian dari Sales) <span class="route">/product-planning/cost-sheets</span></div>
+              <p>Menyusun biaya dasar, contingency, markup, pajak &rarr; total jual. Tombol <strong>"Buat Cost Sheet"</strong> di halaman Opportunity langsung membawa <code>opportunityId</code>-nya.</p>
+              <p><strong>Terapkan ke Quotation</strong> menyalin estimated cost/margin/service breakdown Cost Sheet ke Quotation (bikin baru bila belum ada) dan mengunci Cost Sheet jadi <code>final</code> — diblokir bila Quotation sudah <code>submitted</code>/<code>approved</code>.</p>
             </div>
           </div>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            Lanjut ke: <strong>Management</strong> — begitu Quotation disubmit untuk approval.
+            Lanjut ke: <strong>Sales</strong> — susun dan kirim Quotation.
           </div>
         </div>
       </div>
@@ -494,17 +510,39 @@
         <div class="node internal">4</div>
         <div class="stage-card">
           <div class="stage-head">
+            <h3 class="stage-title">Cara Input Quotation, Revisi &amp; Submit</h3>
+            <span class="role-badge internal">Sales</span>
+          </div>
+          <p class="stage-desc">Ini bagian yang paling sering ditanyakan — jadi dirinci per langkah. Semua terjadi di halaman Opportunity yang sama. <span class="route mono">/crm/opportunities/[id]</span></p>
+          <ul class="stage-actions">
+            <li><strong>1. Buat Quotation</strong> — dialog "Siapkan Quotation Awal", isi Nilai Quotation &rarr; Opportunity pindah ke stage Proposal, Quotation v1 tercipta berstatus draft</li>
+            <li><strong>2. Edit Quotation</strong> (selama masih draft) — amount, discount, estimated cost, estimated margin, payment terms, baris service breakdown, tax/fee, markup, currency, valid until, inclusions, exclusions, terms &amp; conditions</li>
+            <li><strong>3. Revisi bila perlu</strong> — <strong>"Create New Version"</strong> menaikkan nomor versi dan menyimpan nilai lama di <code>supersededAmountIdr</code>; <strong>"Duplicate Quotation"</strong> menyalin sebagai draft baru tanpa mengubah versi asal</li>
+            <li><strong>4. Pratinjau cetak</strong> sebelum dikirim — <span class="route mono">/crm/opportunities/[id]/quotation-preview</span> (mock, tombol "Print / Save PDF")</li>
+            <li><strong>5. Submit for Approval</strong> — status berpindah ke <code>submitted</code>; masih bisa <strong>"Withdraw Submission"</strong> untuk tarik kembali ke draft sebelum direview</li>
+          </ul>
+          <div class="handoff">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            Lanjut ke: <strong>Management</strong> — Quotation menunggu approval komersial.
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="node internal">5</div>
+        <div class="stage-card">
+          <div class="stage-head">
             <h3 class="stage-title">Approval Komersial</h3>
             <span class="role-badge internal">Management</span>
           </div>
-          <p class="stage-desc">Satu-satunya role yang berwenang menyetujui penawaran secara komersial — bukan Super Admin, bukan AE sendiri.</p>
+          <p class="stage-desc">Satu-satunya role berwenang menyetujui penawaran secara komersial — bukan Super Admin, bukan Sales sendiri. Bisa lewat antrean khusus atau langsung di halaman Opportunity.</p>
           <ul class="stage-actions">
-            <li>Review antrean approval: margin, diskon, pajak, markup, syarat, tingkat risiko <span class="route mono">/crm/quotations</span></li>
-            <li>Approve, atau Reject dengan catatan alasan wajib diisi</li>
+            <li>Antrean approval (tab "Menunggu Approval" / "Menunggu Client Confirmation" / "Semua Quotation") <span class="route mono">/crm/quotations</span></li>
+            <li><strong>Approve</strong> (catatan opsional), atau <strong>Reject (Return for Revision)</strong> — <strong>catatan wajib diisi</strong>, tombol nonaktif sampai catatan terisi</li>
           </ul>
           <div class="caution-note">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
-            Jalur reject: kembali ke <strong>Account Executive</strong> untuk revisi Quotation, lalu disubmit ulang dari Tahap 3.
+            Jalur reject: status jadi <code>rejected</code>, <strong>tidak otomatis kembali ke draft</strong>. Sales harus pakai "Create New Version" dulu untuk bisa edit dan submit ulang dari Tahap 4.
           </div>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
@@ -514,61 +552,44 @@
       </div>
 
       <div class="stage">
-        <div class="node external">5</div>
+        <div class="node external">6</div>
         <div class="stage-card">
           <div class="stage-head">
             <h3 class="stage-title">Konfirmasi Klien</h3>
             <span class="role-badge external">Client</span>
+            <span class="role-badge internal">+ Sales (manual)</span>
           </div>
-          <p class="stage-desc">Klien meninjau penawaran yang sudah disetujui Management — bisa lewat portal sendiri, atau dicatatkan manual oleh AE dari komunikasi telepon/email.</p>
+          <p class="stage-desc">Klien meninjau penawaran yang sudah disetujui Management — bisa lewat portal sendiri, atau dicatatkan manual oleh Sales dari komunikasi telepon/email.</p>
           <ul class="stage-actions">
-            <li>Login sendiri ke portal, lihat penawaran milik company-nya <span class="route mono">/client/opportunities/[id]</span></li>
-            <li>Accept, Reject, atau Request Revision</li>
+            <li>Portal klien, isolasi per company (tidak bisa lihat Opportunity company lain) <span class="route mono">/client/opportunities/[id]</span></li>
+            <li><strong>Setujui Quotation</strong> — mencatat konfirmasi resmi (dipakai juga oleh jalur manual Sales)</li>
+            <li><strong>Tolak Quotation</strong> (alasan wajib) / <strong>Minta Revisi</strong> — keduanya hanya mencatat log aktivitas untuk ditindaklanjuti Sales, <em>tidak</em> mengubah status Quotation secara otomatis</li>
             <li>Tidak pernah melihat margin/biaya internal — hanya harga jual dan syarat</li>
           </ul>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            Lanjut ke: <strong>Account Executive</strong> — konfirmasi diterima, deal siap dimenangkan.
+            Lanjut ke: <strong>Sales</strong> — konfirmasi diterima, deal siap dimenangkan.
           </div>
         </div>
       </div>
 
       <div class="stage">
-        <div class="node system">6</div>
+        <div class="node system">7</div>
         <div class="stage-card">
           <div class="stage-head">
-            <h3 class="stage-title">Won → Client Aktif → Project Order Tercipta</h3>
-            <span class="role-badge internal">Account Executive</span>
+            <h3 class="stage-title">Mark as Won &rarr; Client Aktif &rarr; Project Order Tercipta</h3>
+            <span class="role-badge internal">Sales</span>
             <span class="role-badge system">+ Otomatis Sistem</span>
           </div>
-          <p class="stage-desc">Satu klik dari AE memicu tiga hal otomatis sekaligus — ini titik serah terima dari "penjualan" ke "operasional".</p>
+          <p class="stage-desc">Satu klik dari Sales memicu beberapa hal otomatis sekaligus — titik serah terima dari "penjualan" ke "operasional". Seluruh syarat dicek di data layer, bukan cuma di tampilan.</p>
           <ul class="stage-actions">
-            <li>AE klik "Mark as Won" (hanya aktif bila sudah disetujui Management <em>dan</em> dikonfirmasi klien)</li>
-            <li>Sistem: company klien berubah status dari Prospek menjadi Klien Aktif</li>
-            <li>Sistem: Project Order baru langsung dibuat, tanpa duplikasi company</li>
+            <li>Tombol <strong>"Mark as Won"</strong> (stage Negotiation) — aktif hanya bila Quotation berstatus <code>approved</code> <em>dan</em> klien sudah konfirmasi <em>dan</em> tidak ada requirement yang hilang</li>
+            <li>Sistem: Party klien berubah <code>lifecycleStatus</code> dari Prospek menjadi Klien Aktif</li>
+            <li>Sistem: Project Order baru langsung dibuat (menyalin destinasi, tanggal, service scope, nilai Quotation sebagai budget) — bila <code>projectId</code> sudah pernah terisi, tidak dibuat dobel</li>
           </ul>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            Lanjut ke: <strong>Project Manager</strong> — Project baru menunggu diterima lewat serah-terima (handover).
-          </div>
-        </div>
-      </div>
-
-      <div class="stage">
-        <div class="node internal">7</div>
-        <div class="stage-card">
-          <div class="stage-head">
-            <h3 class="stage-title">Serah Terima &amp; Perencanaan Project</h3>
-            <span class="role-badge internal">Project Manager</span>
-          </div>
-          <p class="stage-desc">PM adalah pemegang kendali operasional project dari titik ini sampai selesai. Ia bisa menerima atau mengembalikan serah terima dari AE.</p>
-          <ul class="stage-actions">
-            <li>Accept Handover, atau Return Handover dengan alasan wajib bila belum siap <span class="route mono">/projects/[id]</span></li>
-            <li>Kelola status project (planning → confirmed → in-progress → ...), alasan wajib untuk status berisiko (on-hold/cancelled)</li>
-          </ul>
-          <div class="handoff">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            Lanjut ke: <strong>Project Manager / Operations</strong> — mulai kumpulkan data traveler.
+            Lanjut ke: <strong>Operations &amp; Scheduling</strong> — Project baru menunggu diterima lewat serah-terima (handover).
           </div>
         </div>
       </div>
@@ -577,18 +598,17 @@
         <div class="node internal">8</div>
         <div class="stage-card">
           <div class="stage-head">
-            <h3 class="stage-title">Pengumpulan Data Traveler</h3>
-            <span class="role-badge internal">Project Manager / Operations</span>
+            <h3 class="stage-title">Serah Terima ke Operations (Handover)</h3>
+            <span class="role-badge internal">Operations &amp; Scheduling</span>
           </div>
-          <p class="stage-desc">Sebelum sourcing supplier bisa jalan penuh, data siapa saja yang berangkat perlu lengkap — termasuk dokumen perjalanan dan pengelompokan rombongan.</p>
+          <p class="stage-desc">Operations sekarang mencakup peran Project Manager + Ticketing + Accommodation + Transportation + MICE lama — satu role ini memegang kendali operasional project dari titik ini sampai selesai. <span class="route mono">/projects/[id]</span> &middot; tab <strong>Overview</strong></p>
           <ul class="stage-actions">
-            <li>Input traveler satu per satu atau impor massal, kelola kelompok (group) dan alokasi kamar</li>
-            <li>Lengkapi dokumen (paspor/visa) — nomor dokumen penuh hanya terlihat oleh PM/Super Admin</li>
-            <li>Cetak pratinjau manifest/rooming list</li>
+            <li><strong>Accept Handover</strong>, atau <strong>Return Handover</strong> — <strong>alasan wajib diisi</strong>, status project tetap "Handover Pending" (belum berubah ke Planning) sampai benar-benar diterima</li>
+            <li>Setelah diterima: kelola status project (planning &rarr; confirmed &rarr; ready &rarr; in-progress &rarr; ...), lihat Tim Project, Risks</li>
           </ul>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            Lanjut ke: <strong>Procurement</strong> — sourcing vendor/supplier untuk tiap kebutuhan layanan.
+            Lanjut ke: <strong>Vendor &amp; Partner</strong> — sourcing vendor untuk tiap kebutuhan layanan (bila belum ada vendor terpilih).
           </div>
         </div>
       </div>
@@ -597,24 +617,25 @@
         <div class="node internal">9</div>
         <div class="stage-card">
           <div class="stage-head">
-            <h3 class="stage-title">Sourcing Supplier (RFQ)</h3>
-            <span class="role-badge internal">Procurement</span>
+            <h3 class="stage-title">Sourcing Vendor (RFQ &amp; Service Order)</h3>
+            <span class="role-badge internal">Vendor &amp; Partner</span>
           </div>
-          <p class="stage-desc">Procurement mengundang beberapa supplier untuk bersaing menawar sebelum satu dipilih secara formal — bukan sekadar terima tawaran pertama.</p>
+          <p class="stage-desc">Menggantikan role Procurement lama. Mengundang beberapa vendor untuk bersaing menawar sebelum satu dipilih secara formal — bukan sekadar terima tawaran pertama. <span class="route mono">/procurement</span></p>
           <ul class="stage-actions">
-            <li>Buat RFQ, undang beberapa vendor sekaligus <span class="route mono">/procurement</span></li>
-            <li>Bandingkan penawaran masuk berdampingan, ajukan klarifikasi ke vendor tertentu</li>
-            <li>Pilih pemenang (Select) — penawaran lain otomatis ditandai kalah</li>
+            <li><strong>Buat RFQ</strong> — Title, Project, Service Type, item/qty/unit, due date &rarr; status <code>draft</code></li>
+            <li><strong>Kirim ke Vendor</strong> — undang beberapa vendor sekaligus &rarr; status <code>sent</code></li>
+            <li>Bandingkan respons berdampingan (Side-by-Side Comparison), ajukan klarifikasi ke vendor tertentu (thread per vendor)</li>
+            <li><strong>Select</strong> vendor pemenang — respons vendor lain otomatis ditolak; lalu <strong>"Buat Service Order"</strong> membawa line item + harga jual ke Service Order (Draft &rarr; Terkirim &rarr; Diakui Supplier &rarr; ... &rarr; Fulfilled)</li>
           </ul>
           <div class="branch-row">
             <div class="branch-item">
-              <div class="who" style="color:var(--external-ink)">Supplier (eksternal)</div>
-              <p>Login ke portal sendiri, hanya melihat RFQ yang mengundang perusahaannya. Merespons harga, mengajukan klarifikasi, mengakui Service Order, mengunggah pratinjau invoice.</p>
+              <div class="who">Vendor (eksternal) <span class="route">/supplier/rfq/[id]</span></div>
+              <p>Login ke portal sendiri, hanya melihat RFQ yang mengundang perusahaannya. Merespons harga, mengajukan klarifikasi, mengakui Service Order.</p>
             </div>
           </div>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            Lanjut ke: <strong>Role spesialis layanan</strong> — booking dieksekusi per lini layanan.
+            Lanjut ke: <strong>Operations &amp; Scheduling</strong> — booking dieksekusi per jenis layanan dengan vendor yang sudah dipilih.
           </div>
         </div>
       </div>
@@ -623,20 +644,44 @@
         <div class="node internal">10</div>
         <div class="stage-card">
           <div class="stage-head">
-            <h3 class="stage-title">Booking per Lini Layanan</h3>
-            <span class="role-badge internal">Ticketing / Accommodation / Transportation / MICE</span>
+            <h3 class="stage-title">Cara Input Booking: Flight, Hotel, Transportation, MICE</h3>
+            <span class="role-badge internal">Operations &amp; Scheduling</span>
           </div>
-          <p class="stage-desc">Empat role spesialis, masing-masing memegang satu jenis layanan penuh — dari permintaan sampai terbit dokumen resmi ke klien.</p>
-          <ul class="stage-actions">
-            <li><strong>Ticketing</strong> — hold, konfirmasi, terbitkan tiket, reissue/refund bila perlu <span class="route mono">/ticketing</span></li>
-            <li><strong>Accommodation</strong> — bandingkan hotel/kamar, konfirmasi, terbitkan voucher <span class="route mono">/accommodation</span></li>
-            <li><strong>Transportation</strong> — assign kendaraan/driver, konfirmasi, dokumen sopir terpisah tanpa harga <span class="route mono">/transportation</span></li>
-            <li><strong>MICE</strong> — kelola venue/agenda/BOQ/staffing satu acara <span class="route mono">/mice</span></li>
-            <li>Setiap dokumen yang dicetak ke klien otomatis menyembunyikan biaya internal (net cost)</li>
+          <p class="stage-desc">Ini juga bagian yang paling sering ditanyakan. Dari tab <strong>Itinerary &amp; Services</strong> di halaman Project, tiap jenis layanan yang ada di <code>serviceScope</code> project menampilkan tabel + tombol <strong>"Buat {Jenis} Booking"</strong> yang membawa <code>projectId</code> ke halaman modul terkait. Halaman tetap terpisah per jenis — tabel di tab Itinerary &amp; Services murni ringkasan. <span class="route mono">/projects/[id]</span> &middot; tab <strong>Itinerary &amp; Services</strong></p>
+          <div class="branch-row">
+            <div class="branch-item">
+              <div class="who">✈️ Flight <span class="route">/ticketing</span></div>
+              <p>Buat: pilih Project + Ticketing Deadline (opsional) &rarr; berstatus <strong>Requested</strong>. Jika ada booking flight aktif lain untuk project ini, sistem meminta konfirmasi "Lanjutkan sebagai Duplicate" dulu.</p>
+              <p>Detail: isi PNR, segmen (asal/tujuan/jam berangkat), pilihan fare (maskapai/kelas/tarif), net cost vs harga jual, tandai traveler yang ikut booking ini.</p>
+              <p class="flow"><strong>Alur status:</strong> Requested &rarr; Hold &rarr; Confirmed &rarr; Issued &rarr; (bisa Reissued). Cancel/Refund wajib isi alasan, otomatis membuat catatan pembatalan.</p>
+              <p class="doc-link">Dokumen ke klien: <strong>E-Ticket Preview</strong> <span class="route">/ticketing/[id]/eticket-preview</span></p>
+            </div>
+            <div class="branch-item">
+              <div class="who">🏨 Hotel <span class="route">/accommodation</span></div>
+              <p>Buat: pilih Project + Check-in/Check-out (opsional) &rarr; berstatus <strong>Requested</strong>. Guard duplikat aktif yang sama seperti Flight.</p>
+              <p>Detail: nama hotel, kamar, malam menginap, net cost vs harga jual.</p>
+              <p class="flow"><strong>Alur status:</strong> Requested &rarr; Quoted &rarr; Confirmed &rarr; Amended (bila ada perubahan) &rarr; Completed. Bisa juga berakhir Cancelled/No-Show.</p>
+              <p class="doc-link">Dokumen ke klien: <strong>Voucher Preview</strong> <span class="route">/accommodation/[id]/voucher-preview</span></p>
+            </div>
+            <div class="branch-item">
+              <div class="who">🚐 Transportation <span class="route">/transportation</span></div>
+              <p>Buat mengikuti pola yang sama (pilih Project). Detail: assign kendaraan/driver, rute, jadwal.</p>
+              <p class="flow"><strong>Alur status:</strong> Requested &rarr; Quoted &rarr; Assigned &rarr; Confirmed &rarr; Completed. Bisa juga Cancelled/No-Show.</p>
+              <p class="doc-link">Dokumen: <strong>Service Order Preview</strong> <span class="route">/transportation/[id]/service-order-preview</span> (ke klien) dan <strong>Driver Sheet Preview</strong> <span class="route">.../driver-sheet-preview</span> (ke driver, tanpa harga)</p>
+            </div>
+            <div class="branch-item">
+              <div class="who">🎪 MICE <span class="route">/mice</span></div>
+              <p>Kelola satu acara penuh: venue, agenda, BOQ (Bill of Quantities: catering/AV/staging/equipment/booth), staffing.</p>
+              <p class="flow"><strong>Alur status acara:</strong> Planning &rarr; Confirmed &rarr; In Progress &rarr; Completed (atau Cancelled). <strong>Terpisah</strong>, ada alur approval-ke-klien sendiri: Draft &rarr; "Ajukan ke Client" &rarr; Approved/Rejected (reject wajib alasan).</p>
+              <p class="doc-link">Dokumen: <strong>Rundown Preview</strong> dan <strong>BOQ Preview</strong> <span class="route">/mice/[id]/rundown-preview</span> &middot; <span class="route">.../boq-preview</span></p>
+            </div>
+          </div>
+          <ul class="stage-actions" style="margin-top:12px;">
+            <li>"Booking Timeline" di tab Itinerary &amp; Services merangkum keempat jenis dalam satu daftar (referensi, status, deadline, link voucher) dan punya tombol <strong>"Buka Booking Center"</strong> ke Tahap 12</li>
           </ul>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            Lanjut ke: <strong>Operations</strong> — memantau seluruh booking sebagai satu kesatuan.
+            Lanjut ke: <strong>Operations &amp; Scheduling</strong> — susun itinerary harian dan lengkapi data traveler.
           </div>
         </div>
       </div>
@@ -645,18 +690,23 @@
         <div class="node internal">11</div>
         <div class="stage-card">
           <div class="stage-head">
-            <h3 class="stage-title">Konsolidasi Booking &amp; Kesiapan Berangkat</h3>
-            <span class="role-badge internal">Operations</span>
+            <h3 class="stage-title">Itinerary Harian &amp; Data Traveler</h3>
+            <span class="role-badge internal">Operations &amp; Scheduling</span>
           </div>
-          <p class="stage-desc">Operations adalah satu-satunya role yang melihat keempat lini layanan sekaligus dalam satu linimasa — bukan berpindah-pindah antar 4 modul terpisah.</p>
+          <p class="stage-desc">Sebelum kesiapan berangkat bisa dicek, jadwal harian dan siapa saja yang berangkat perlu lengkap. <span class="route mono">/projects/[id]</span> &middot; tab Itinerary &amp; Services + tab <strong>Travelers</strong></p>
           <ul class="stage-actions">
-            <li>Pantau seluruh booking lintas layanan dalam satu linimasa <span class="route mono">/bookings</span></li>
-            <li>Tinjau antrean pengecualian: jadwal berubah, gagal-lalu-manual, kemungkinan duplikat <span class="route mono">/bookings/exceptions</span></li>
-            <li>Cek indikator kesiapan berangkat (dokumen lengkap, layanan terkonfirmasi, tidak ada tugas terblokir)</li>
+            <li><strong>Daily Itinerary</strong> (List/Timeline toggle) — tiap item punya saklar <strong>"Tampilkan ke Client" / "Jadikan Internal"</strong>; item internal ditandai "Internal Only" dan disembunyikan dari Client Portal</li>
+            <li><strong>Tambah Traveler</strong> satu-per-satu (nama, group, paspor/visa/KTP, kontak darurat, dietary, kebutuhan aksesibilitas) atau <strong>Import (Mock)</strong> massal dengan pratinjau baris valid/error</li>
+            <li>Kelola Group (rombongan) dan lihat Rooming List (penugasan kamar)</li>
+            <li>Cetak pratinjau <strong>Manifest / Rooming List</strong> <span class="route mono">/projects/[id]/manifest-preview</span></li>
           </ul>
+          <div class="caution-note">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            Nomor dokumen (paspor/ID/visa) tampil tersamar di layar — hanya role dengan izin kelola traveler (setara Project Manager) dan Super Admin yang melihat nomor penuh.
+          </div>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            Lanjut ke: <strong>Operations / tim lapangan</strong> — perjalanan atau acara berlangsung.
+            Lanjut ke: <strong>Operations &amp; Scheduling</strong> — konsolidasi lintas booking dan cek kesiapan berangkat.
           </div>
         </div>
       </div>
@@ -665,17 +715,18 @@
         <div class="node internal">12</div>
         <div class="stage-card">
           <div class="stage-head">
-            <h3 class="stage-title">Berlangsung — On Trip / Event</h3>
-            <span class="role-badge internal">Operations / Project Manager</span>
+            <h3 class="stage-title">Konsolidasi Booking &amp; Kesiapan Berangkat</h3>
+            <span class="role-badge internal">Operations &amp; Scheduling</span>
           </div>
-          <p class="stage-desc">Status project berpindah ke "berjalan" begitu keberangkatan/acara dimulai; tim lapangan mencatat serah-terima antar shift.</p>
+          <p class="stage-desc">Booking Center adalah satu-satunya layar yang melihat keempat lini layanan (Flight/Hotel/Transportation/MICE) sekaligus lintas seluruh project, bukan berpindah-pindah antar 4 modul terpisah. Ini terpisah dari Service Order Procurement (Tahap 9) — Booking Center soal orkestrasi/status, Service Order soal kontrak-vendor.</p>
           <ul class="stage-actions">
-            <li>Cetak run sheet harian untuk tim lapangan <span class="route mono">/projects/[id]/run-sheet-preview</span></li>
-            <li>Catat shift note antar petugas lapangan</li>
+            <li>Pantau seluruh booking lintas layanan dan lintas project dalam satu daftar, filter per domain/kategori <span class="route mono">/bookings</span></li>
+            <li>Tandai <strong>"Mark Payment Cleared"</strong> per booking, tinjau antrean pengecualian (jadwal berubah, gagal-lalu-manual, kemungkinan duplikat) <span class="route mono">/bookings/exceptions</span></li>
+            <li>Vendors tab di halaman project juga menampilkan perbandingan quotation vendor per layanan dengan tombol <strong>Terima/Tolak</strong></li>
           </ul>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            Lanjut ke: <strong>Bila ada kendala</strong> → Tahap 13. <strong>Bila lancar</strong> → langsung Tahap 14 (Finance).
+            Lanjut ke: <strong>Operations &amp; Scheduling</strong> — perjalanan atau acara berlangsung.
           </div>
         </div>
       </div>
@@ -684,16 +735,34 @@
         <div class="node internal">13</div>
         <div class="stage-card">
           <div class="stage-head">
-            <h3 class="stage-title">Perubahan, Pembatalan, Refund &amp; Insiden <span style="font-weight:400;color:var(--ink-soft);font-size:0.7em;">(bila terjadi)</span></h3>
-            <span class="role-badge internal">Operations / PM</span>
+            <h3 class="stage-title">Berlangsung — On Trip / Event</h3>
+            <span class="role-badge internal">Operations &amp; Scheduling</span>
+          </div>
+          <p class="stage-desc">Status project berpindah ke "berjalan" begitu keberangkatan/acara dimulai.</p>
+          <ul class="stage-actions">
+            <li>Task operasional dan shift note tercatat di tab Tasks / Itinerary &amp; Services untuk serah-terima antar petugas lapangan</li>
+          </ul>
+          <div class="handoff">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            Lanjut ke: <strong>Bila ada kendala</strong> &rarr; Tahap 14. <strong>Bila lancar</strong> &rarr; langsung Tahap 15 (Finance).
+          </div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="node internal">14</div>
+        <div class="stage-card">
+          <div class="stage-head">
+            <h3 class="stage-title">Perubahan, Pembatalan, Refund &amp; Insiden <span style="font-weight:400;color:var(--ink-soft);font-size:0.7em;">(kondisional — hanya bila terjadi)</span></h3>
+            <span class="role-badge internal">Operations &amp; Scheduling</span>
             <span class="role-badge external">+ Client bisa mengajukan</span>
           </div>
-          <p class="stage-desc">Tahap ini tidak selalu terjadi — hanya berjalan saat ada permintaan perubahan, pembatalan, atau masalah di lapangan. Tetap tercatat sebagai riwayat, tidak pernah dihapus.</p>
+          <p class="stage-desc">Satu hub untuk keempat kasus ini, dengan 4 tab. Tetap tercatat sebagai riwayat, tidak pernah dihapus. <span class="route mono">/changes</span></p>
           <ul class="stage-actions">
-            <li>Client atau tim internal mengajukan Change Request — disetujui/ditolak dengan catatan <span class="route mono">/changes</span></li>
-            <li>Pembatalan booking dengan penalti (bila ada), alasan wajib diisi</li>
-            <li>Ajukan Refund (sebagian/penuh) — begitu diproses, credit note terbit otomatis ke invoice terkait</li>
-            <li>Catat Insiden: tingkat urutan (severity), penanggung jawab, eskalasi, log komunikasi, sampai penyelesaian</li>
+            <li><strong>Change Request</strong> — Diajukan &rarr; Direview &rarr; Disetujui/Ditolak (tolak wajib alasan) &rarr; Diimplementasikan. Permintaan dari Client lewat jalur lebih panjang: Cek Ketersediaan &rarr; Costing &rarr; Menunggu Approval Client &rarr; Dieksekusi</li>
+            <li><strong>Pembatalan</strong> — tercipta otomatis begitu booking Flight/Hotel/Transport dipindah ke status batal/refund terminal, bukan form manual terpisah</li>
+            <li><strong>Refund</strong> — Diajukan &rarr; Direview &rarr; Disetujui &rarr; Diproses (atau Ditolak, wajib alasan). <strong>Begitu "Diproses", Credit Note terbit otomatis</strong> dan tertaut ke invoice terkait — bukan sekadar catatan</li>
+            <li><strong>Insiden</strong> — Open &rarr; Investigating &rarr; Eskalasi (pilih penanggung jawab) &rarr; Resolved (wajib catatan penyelesaian) &rarr; Closed. Detail insiden tidak pernah tampil di Client Portal</li>
           </ul>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
@@ -703,42 +772,42 @@
       </div>
 
       <div class="stage">
-        <div class="node internal">14</div>
+        <div class="node internal">15</div>
         <div class="stage-card">
           <div class="stage-head">
             <h3 class="stage-title">Finalisasi Keuangan</h3>
-            <span class="role-badge internal">Finance</span>
+            <span class="role-badge internal">Finance &amp; ACC</span>
           </div>
-          <p class="stage-desc">Finance menutup sisi uang project — memastikan semua tagihan terbayar dan tidak ada pengeluaran ke supplier yang belum cocok.</p>
+          <p class="stage-desc">Finance menutup sisi uang project — memastikan semua tagihan terbayar dan tidak ada pengeluaran ke vendor yang belum cocok.</p>
           <ul class="stage-actions">
             <li>Terbitkan invoice ke klien, catat pembayaran masuk <span class="route mono">/finance/invoices</span></li>
-            <li>Terbitkan Credit Note (dari refund) / Debit Note (biaya tambahan) <span class="route mono">/finance/notes</span></li>
+            <li>Terbitkan Credit Note / Debit Note <span class="route mono">/finance/notes</span></li>
             <li>Cocokkan tagihan supplier lewat ruang rekonsiliasi <span class="route mono">/finance/reconciliation</span></li>
-            <li>"Close Finance" — hanya bisa bila tidak ada tagihan tertunggak dan tidak ada refund yang masih berjalan</li>
+            <li><strong>"Close Finance"</strong> aktif hanya bila ketiganya benar: tidak ada invoice bersaldo tertunggak, tidak ada Refund Request yang masih berjalan, dan tidak ada Supplier Invoice yang belum <code>matched</code></li>
           </ul>
           <div class="handoff">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-            Lanjut ke: <strong>Management / Project Manager</strong> — penutupan project.
+            Lanjut ke: <strong>Management / Operations / Super Admin</strong> — penutupan project.
           </div>
         </div>
       </div>
 
       <div class="stage">
-        <div class="node internal">15</div>
+        <div class="node internal">16</div>
         <div class="stage-card">
           <div class="stage-head">
             <h3 class="stage-title">Penutupan Project — Closed</h3>
-            <span class="role-badge internal">Management / Project Manager / Super Admin</span>
+            <span class="role-badge internal">Management / Operations / Super Admin</span>
           </div>
-          <p class="stage-desc">Titik akhir estafet. Project hanya bisa ditutup bila lima syarat sekaligus terpenuhi — sistem menampilkan daftar penghalang secara terbuka bila belum siap.</p>
+          <p class="stage-desc">Titik akhir estafet. Project hanya bisa ditutup bila tujuh syarat sekaligus terpenuhi — sistem menampilkan daftar penghalang secara terbuka bila belum siap.</p>
           <ul class="stage-actions">
-            <li>Sistem cek otomatis: seluruh layanan selesai, keuangan sudah settled, tidak ada insiden terbuka, tidak ada change request tertunda, dokumen lengkap</li>
-            <li>Isi Catatan Akhir (wajib) dan Umpan Balik Klien (opsional)</li>
-            <li>Klik "Close Project" — ringkasan penutupan otomatis tersusun (total layanan, total tertagih/terbayar, insiden selesai, perubahan diterapkan)</li>
+            <li>Sistem cek otomatis: status project sudah Completed, seluruh service/booking (Flight/Hotel/Transport/MICE) di status akhir masing-masing, Finance sudah settled (Tahap 15), tidak ada insiden terbuka, tidak ada change request tertunda, tidak ada dokumen kedaluwarsa</li>
+            <li>Isi <strong>Catatan Akhir (wajib)</strong> dan <strong>Umpan Balik Klien (opsional)</strong></li>
+            <li>Klik <strong>"Close Project"</strong> — ringkasan penutupan otomatis tersusun (total layanan, total booking, total tertagih/terbayar, insiden selesai, perubahan diterapkan)</li>
           </ul>
           <div class="handoff" style="background:var(--internal-soft);color:var(--internal-ink);">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
-            Estafet selesai. Project berstatus Closed, riwayat lengkap tetap tersimpan.
+            Estafet selesai. Project berstatus Closed, riwayat lengkap tetap tersimpan dan bisa dibuka kembali kapan saja untuk audit.
           </div>
         </div>
       </div>
@@ -749,16 +818,32 @@
   <section class="block">
     <div class="block-head">
       <h2>Role Lintas-Tahap</h2>
-      <span class="note">Dua role ini tidak punya "giliran" sendiri — mereka aktif di sepanjang alur, kapan saja dibutuhkan.</span>
+      <span class="note">Role-role ini tidak punya "giliran" sendiri di estafet utama — mereka aktif kapan saja dibutuhkan, atau mengelola domain yang berjalan paralel dengan pipeline project.</span>
     </div>
     <div class="cross-grid">
       <div class="cross-card">
         <h3 style="color:var(--internal-ink)">Super Admin</h3>
-        <p>Mengelola konfigurasi sistem — user, matrix akses per role, data master (destinasi, mata uang, pajak, aturan pembatalan, dst.), dan jejak audit. <strong>Bukan approver komersial</strong> — persetujuan penawaran tetap wewenang Management.</p>
+        <p>Mengelola user, role &amp; permission (termasuk membuat role custom baru saat runtime), master data (destinasi, mata uang, pajak, aturan pembatalan, dst.), dan jejak audit — <span class="route mono">/admin</span>. Akses penuh ke seluruh modul, tapi <strong>bukan approver komersial</strong> — persetujuan Quotation tetap wewenang Management.</p>
       </div>
       <div class="cross-card">
-        <h3 style="color:var(--internal-ink)">Viewer / Auditor</h3>
-        <p>Melihat hampir seluruh modul untuk keperluan audit/pengawasan, tanpa satu pun tombol aksi yang bisa mengubah data — murni baca.</p>
+        <h3 style="color:var(--internal-ink)">CRM</h3>
+        <p>Database customer, riwayat &amp; preferensi perjalanan, follow-up otomatis, loyalty program, dan review/feedback — <span class="route mono">/customer-journey/customers</span>. Berbeda dari Sales: CRM merawat hubungan jangka panjang, Sales menjalankan satu deal.</p>
+      </div>
+      <div class="cross-card">
+        <h3 style="color:var(--internal-ink)">Human Resource</h3>
+        <p>Data karyawan, absensi &amp; payroll, komisi &amp; insentif, performance dan productivity tracking — <span class="route mono">/hr</span>.</p>
+      </div>
+      <div class="cross-card">
+        <h3 style="color:var(--internal-ink)">Inventory</h3>
+        <p>Kamera &amp; alat produksi, properti pendukung, dan jadwal maintenance aset milik MANOVA sendiri (bukan milik vendor) — <span class="route mono">/inventory</span>.</p>
+      </div>
+      <div class="cross-card">
+        <h3 style="color:var(--internal-ink)">Marketing &amp; Analysis</h3>
+        <p>Campaign tracking, promo &amp; voucher, conversion funnel, CAC, dan customer LTV — <span class="route mono">/marketing</span>.</p>
+      </div>
+      <div class="cross-card">
+        <h3 style="color:var(--internal-ink)">Reporting &amp; BI</h3>
+        <p>Dashboard real-time, revenue, cost per trip, vendor performance, dan marketing ROI lintas seluruh modul — read-mostly, akses VIEW ke hampir semua modul lain — <span class="route mono">/reports</span>.</p>
       </div>
     </div>
   </section>
@@ -767,16 +852,18 @@
     <div class="limits">
       <h3>Perlu Diingat Saat Membaca Alur Ini</h3>
       <ul>
-        <li><strong>ini masih mockup frontend</strong> — seluruh data yang tampil adalah data simulasi untuk validasi alur kerja, belum tersambung ke backend/database produksi atau sistem maskapai/hotel/pembayaran sungguhan.</li>
-        <li><strong>Tahap 13 (Perubahan/Insiden) bersifat kondisional</strong> — hanya berjalan bila memang ada kejadian; project yang lancar bisa langsung dari Tahap 12 ke Tahap 14.</li>
-        <li>Beberapa tahap melibatkan lebih dari satu role bekerja hampir bersamaan (mis. Product Planner mendukung AE di Tahap 3, Supplier merespons Procurement di Tahap 9) — digambarkan sebagai kotak pendukung di dalam kartu tahap terkait.</li>
+        <li><strong>Ini masih mockup frontend</strong> — seluruh data yang tampil adalah data simulasi untuk validasi alur kerja, belum tersambung ke backend/database produksi atau sistem maskapai/hotel/pembayaran sungguhan.</li>
+        <li><strong>Role sekarang dinamis</strong> — daftar 13 role di atas adalah role bawaan sistem (<code>isSystem</code>), tapi Super Admin bisa membuat role custom baru kapan saja lewat Admin &gt; Roles, dengan kombinasi modul dan action-flag sendiri. Dokumen ini menjelaskan model default, bukan satu-satunya konfigurasi yang mungkin.</li>
+        <li><strong>Halaman per-jenis layanan (<code>/ticketing</code>, <code>/accommodation</code>, <code>/transportation</code>, <code>/mice</code>, <code>/procurement</code>) tetap berdiri sendiri secara teknis</strong> — yang berubah adalah siapa yang berwenang membukanya (sekarang di bawah payung role Operations &amp; Scheduling atau Vendor &amp; Partner), bukan halamannya digabung jadi satu.</li>
+        <li><strong>Tahap 14 (Perubahan/Insiden) bersifat kondisional</strong> — hanya berjalan bila memang ada kejadian; project yang lancar bisa langsung dari Tahap 13 ke Tahap 15.</li>
+        <li>Beberapa tahap melibatkan lebih dari satu role bekerja hampir bersamaan (mis. Vendor merespons RFQ di Tahap 9, Client bisa mengajukan Change Request langsung di Tahap 14) — digambarkan sebagai kotak pendukung di dalam kartu tahap terkait.</li>
       </ul>
     </div>
   </section>
 
   <footer>
-    <span>Disusun dari alur bisnis inti dan dokumentasi implementasi MANOVA (protokol kerja, roadmap 25-tahap Section 00&ndash;24).</span>
-    <span>Per 1 Agustus 2026</span>
+    <span>Disusun langsung dari kode aplikasi aktual (RBAC dinamis, Revisi 9-Modul) — bukan dari dokumen perencanaan lama.</span>
+    <span>Per 4 Agustus 2026</span>
   </footer>
 
 </div>

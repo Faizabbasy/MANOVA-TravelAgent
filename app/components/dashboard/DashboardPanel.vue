@@ -18,12 +18,12 @@ withDefaults(defineProps<{
 }>(), { color: 'blue', size: 'default' })
 
 const BADGE_CLASSES: Record<string, string> = {
-  blue: 'bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-400 ring-blue-100 dark:ring-blue-500/10',
-  rose: 'bg-rose-50 text-rose-600 dark:bg-rose-500/15 dark:text-rose-400 ring-rose-100 dark:ring-rose-500/10',
-  violet: 'bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-400 ring-violet-100 dark:ring-violet-500/10',
-  teal: 'bg-teal-50 text-teal-600 dark:bg-teal-500/15 dark:text-teal-400 ring-teal-100 dark:ring-teal-500/10',
-  amber: 'bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-400 ring-amber-100 dark:ring-amber-500/10',
-  cyan: 'bg-cyan-50 text-cyan-600 dark:bg-cyan-500/15 dark:text-cyan-400 ring-cyan-100 dark:ring-cyan-500/10'
+  blue: 'bg-blue-500 text-white',
+  rose: 'bg-rose-500 text-white',
+  violet: 'bg-violet-500 text-white',
+  teal: 'bg-teal-500 text-white',
+  amber: 'bg-amber-500 text-white',
+  cyan: 'bg-cyan-500 text-white'
 }
 </script>
 
@@ -37,7 +37,7 @@ const BADGE_CLASSES: Record<string, string> = {
   >
     <header v-if="title" class="flex items-start justify-between gap-3 p-5 pb-3">
       <div class="flex items-start gap-3 min-w-0">
-        <div v-if="icon" class="shrink-0 rounded-lg p-2" :class="BADGE_CLASSES[color]">
+        <div v-if="icon" class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" :class="BADGE_CLASSES[color]">
           <component :is="icon" class="h-4 w-4" />
         </div>
         <div class="min-w-0">

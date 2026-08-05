@@ -2,10 +2,11 @@
 import { ref, computed } from 'vue'
 import { FolderKanban, PlaneTakeoff, Users, Wallet, TrendingUp, AlertTriangle, Download, Printer, Star } from 'lucide-vue-next'
 import { getProjectsByParty, getClientReportSummary } from '~/data'
-import { PROJECT_STATUSES, SERVICE_TYPES } from '~/constants/status'
+import { PROJECT_STATUSES, SERVICE_TYPES, INVOICE_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatPercentage } from '~/utils/format'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 import type { ProjectStatus, ServiceTypeKey } from '~/types/project'
+import type { InvoiceStatus } from '~/types/finance'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 import type { BadgeTone } from '~/types/common'
 
@@ -13,8 +14,10 @@ import type { BadgeTone } from '~/types/common'
  * Reports & Analytics (Repair Phase Section 7 — Insights & Company, Master Prompt bagian 16). Seluruh angka
  * murni derivasi `getClientReportSummary` (agregasi di atas Project/Invoice/Traveler/ChangeRequest/
  * SupportTicket/Feedback existing) — TIDAK ADA dataset laporan paralel. Chart mengikuti pattern existing:
- * `StatusBreakdownList` (breakdown kategorikal, pola sama `/reports` internal) + `SimpleBarChart`
- * (Chart.js/vue-chartjs, diekstrak dari `BudgetChart.vue` Dashboard) untuk tren bulanan.
+ * `StatusBreakdownList` (breakdown kategorikal, pola sama `/reports` internal) + `TrendAreaChart`
+ * (Chart.js/vue-chartjs line+area, redesign dari `SimpleBarChart` — satu-batang bar chart terlihat sebagai
+ * satu blok rata begitu datanya cuma 1 titik, jadi diganti stat tile untuk N=1 dan kurva melengkung untuk
+ * N>=2, mengikuti prinsip data-viz "trend over time = line/area, bukan bar") untuk tren bulanan.
  */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Reports & Analytics' })
@@ -43,16 +46,23 @@ const summary = computed(() => (clientScopeId.value
   })
   : undefined))
 
-const TONE_CYCLE: BadgeTone[] = ['primary', 'info', 'success', 'warning', 'purple', 'destructive', 'neutral']
+/**
+ * Urutan 4 hue tervalidasi CVD (adjacent + normal-vision floor, light mode — lihat catatan desain di
+ * PR ini) untuk breakdown NOMINAL (destinasi/layanan/kategori — bukan status). `chart-3` (amber) sengaja
+ * tidak dipakai di sini (di luar lightness band); tetap tersedia lewat token `warning` untuk makna status.
+ */
+const CATEGORICAL_TONE_ORDER: BadgeTone[] = ['primary', 'info', 'success', 'purple']
 function toBreakdownItems (rows: { key: string; label: string; value: number }[], formatSecondary: (value: number) => string = String): StatusBreakdownItem[] {
-  return rows.map((row, index) => ({ key: row.key, label: row.label, tone: TONE_CYCLE[index % TONE_CYCLE.length], count: row.value, secondaryLabel: formatSecondary(row.value) }))
+  return rows.map((row, index) => ({ key: row.key, label: row.label, tone: CATEGORICAL_TONE_ORDER[index % CATEGORICAL_TONE_ORDER.length], count: row.value, secondaryLabel: formatSecondary(row.value) }))
 }
 
+/** Breakdown STATUS (state sebenarnya, bukan sekadar "series ke-n") pakai tone status yang sudah ada — warna status tidak boleh dipakai bergantian dengan warna identitas kategorikal. */
 const tripsByStatusItems = computed(() => summary.value ? summary.value.tripsByStatus.map(row => ({ key: row.key, label: row.label, tone: PROJECT_STATUSES.find(o => o.value === row.key)?.tone ?? 'neutral', count: row.value })) : [])
+const paymentStatusItems = computed(() => summary.value ? summary.value.paymentStatus.map(row => ({ key: row.key, label: row.label, tone: findStatusOption(INVOICE_STATUSES, row.key as InvoiceStatus).tone, count: row.value })) : [])
+
 const spendingByDestinationItems = computed(() => summary.value ? toBreakdownItems(summary.value.spendingByDestination, v => formatCurrencyIdr(v)) : [])
 const spendingByServiceItems = computed(() => summary.value ? toBreakdownItems(summary.value.spendingByService, v => formatCurrencyIdr(v)) : [])
 const issueCategoryItems = computed(() => summary.value ? toBreakdownItems(summary.value.issueCategory) : [])
-const paymentStatusItems = computed(() => summary.value ? toBreakdownItems(summary.value.paymentStatus) : [])
 
 /* --- Export mock --- */
 const EXPORT_SECTIONS = [
@@ -194,12 +204,15 @@ function printPage () {
       </SectionCard>
 
       <template v-if="summary && projects.length">
-        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          <StatsCard title="Total Trips" :value="String(summary.totalTrips)" :icon="PlaneTakeoff" />
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <StatsCard title="Total Spending" :value="formatCurrencyIdr(summary.totalSpendingIdr)" :icon="Wallet" size="lg" />
+          <StatsCard title="Total Trips" :value="String(summary.totalTrips)" :icon="PlaneTakeoff" size="lg" />
+          <StatsCard title="Average Project Value" :value="formatCurrencyIdr(summary.averageProjectValueIdr)" :icon="TrendingUp" size="lg" />
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
           <StatsCard title="Total Projects" :value="String(summary.totalProjects)" :icon="FolderKanban" />
           <StatsCard title="Total Participants" :value="String(summary.totalParticipants)" :icon="Users" />
-          <StatsCard title="Total Spending" :value="formatCurrencyIdr(summary.totalSpendingIdr)" :icon="Wallet" />
-          <StatsCard title="Average Project Value" :value="formatCurrencyIdr(summary.averageProjectValueIdr)" :icon="TrendingUp" />
           <StatsCard title="Upcoming Trips" :value="String(summary.upcomingTrips)" :icon="PlaneTakeoff" icon-color="warning" />
           <StatsCard title="Completed Trips" :value="String(summary.completedTrips)" :icon="PlaneTakeoff" icon-color="success" />
           <StatsCard title="Outstanding Invoices" :value="String(summary.outstandingInvoiceCount)" :subtitle="formatCurrencyIdr(summary.outstandingInvoiceIdr)" :icon="AlertTriangle" icon-color="warning" />
@@ -209,10 +222,10 @@ function printPage () {
 
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
           <SectionCard title="Spending by Month">
-            <SimpleBarChart :labels="summary.spendingByMonth.map(p => p.label)" :values="summary.spendingByMonth.map(p => p.value)" :value-formatter="formatCurrencyIdr" />
+            <TrendAreaChart :labels="summary.spendingByMonth.map(p => p.label)" :values="summary.spendingByMonth.map(p => p.value)" :value-formatter="formatCurrencyIdr" hue="blue" />
           </SectionCard>
           <SectionCard title="Change Request Frequency" description="Jumlah Change Request diajukan per bulan.">
-            <SimpleBarChart :labels="summary.changeRequestFrequencyByMonth.map(p => p.label)" :values="summary.changeRequestFrequencyByMonth.map(p => p.value)" />
+            <TrendAreaChart :labels="summary.changeRequestFrequencyByMonth.map(p => p.label)" :values="summary.changeRequestFrequencyByMonth.map(p => p.value)" hue="purple" />
           </SectionCard>
         </div>
 
@@ -230,7 +243,7 @@ function printPage () {
             <StatusBreakdownList :items="tripsByStatusItems" empty-label="Belum ada data" />
           </SectionCard>
           <SectionCard title="Participant Trend" description="Jumlah peserta per Project Order, diurutkan tanggal keberangkatan (pendekatan tren — Traveler tidak memiliki timestamp pendaftaran individual).">
-            <SimpleBarChart :labels="summary.participantTrend.map(p => p.label)" :values="summary.participantTrend.map(p => p.value)" />
+            <TrendAreaChart :labels="summary.participantTrend.map(p => p.label)" :values="summary.participantTrend.map(p => p.value)" hue="cyan" />
           </SectionCard>
         </div>
 

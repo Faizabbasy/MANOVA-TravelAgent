@@ -95,8 +95,7 @@ export const NAV_ITEMS: NavItem[] = [
       { key: 'sales.opportunities', label: 'Opportunities', to: '/crm/opportunities', icon: Target, moduleKey: 'sales' },
       { key: 'sales.quotations', label: 'Quotation & Invoice', to: '/crm/quotations', icon: FileText, moduleKey: 'sales' },
       { key: 'sales.product-templates', label: 'Product Templates', to: '/product-planning', icon: Package, moduleKey: 'sales' },
-      { key: 'sales.cost-sheets', label: 'Cost Sheets', to: '/product-planning/cost-sheets', icon: Package, moduleKey: 'sales' },
-      { key: 'sales.lead-intake', label: 'Form Lead Intake', to: '/lead-intake', icon: Send, moduleKey: 'sales' }
+      { key: 'sales.cost-sheets', label: 'Cost Sheets', to: '/product-planning/cost-sheets', icon: Package, moduleKey: 'sales' }
     ]
   },
 

@@ -39,7 +39,7 @@ import {
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
 import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES, PROJECT_STATUSES, SUPPORT_TICKET_CATEGORIES, INVOICE_STATUSES } from '~/constants/status'
-import type { Project, ProjectStatus, ServiceTypeKey, ServiceStatus, Traveler, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
+import type { Project, ProjectStatus, ServiceTypeKey, ServiceStatus, ProjectService, Traveler, TravelerGroup, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType, CompanyType, SensitiveCompanyProfileFields } from '~/types/party'
 import type { Opportunity, OpportunityStage, Quotation, OpportunityWorkflowStatus, QuotationAttachment, QuotationComment } from '~/types/opportunity'
 import type { Vendor, VendorContact, VendorQuotation, VendorProduct, VendorDocument } from '~/types/vendor'
@@ -106,11 +106,17 @@ export {
 /** Helper selector sederhana (Prompt 5-H) — hindari query ad-hoc berulang di tiap halaman. */
 
 export const getUserById = (id: string) => USERS.find(user => user.id === id)
+export const getUserByClientPartyId = (partyId: string) => USERS.find(user => user.role === 'client' && user.clientPartyId === partyId)
 export const getPartyById = (id: string) => PARTIES.find(party => party.id === id)
 export const getContactsByParty = (partyId: string) => CONTACTS.filter(contact => contact.partyId === partyId)
 export const getOpportunitiesByParty = (partyId: string) => OPPORTUNITIES.filter(opp => opp.partyId === partyId)
 export const getOpportunityById = (id: string) => OPPORTUNITIES.find(opp => opp.id === id)
 export const getProjectsByParty = (partyId: string) => PROJECTS.filter(project => project.partyId === partyId)
+/** "Manova Client" milestone — derivasi murni (bukan field tersimpan), konsisten pola getProjectOrderStatus (~line 629):
+ * true bila party punya minimal satu Project berstatus completed. */
+export function isManovaClient (partyId: string): boolean {
+  return getProjectsByParty(partyId).some(project => project.status === 'completed')
+}
 export const getQuotationByOpportunity = (opportunityId: string) => QUOTATIONS.find(quotation => quotation.opportunityId === opportunityId)
 /** Section 19 — "Additional quotation/change order" (`ChangeRequest.linkedQuotationId`), dipakai `/changes/[id]`. */
 export const getQuotationById = (id: string) => QUOTATIONS.find(quotation => quotation.id === id)
@@ -148,14 +154,40 @@ export const getItineraryItems = (projectId: string) => ITINERARY_ITEMS
 /** "Internal vs client-shared itinerary" (Section 12 baru, Wajib) — `visibleToClient` default `true` bila kosong. */
 export const getClientVisibleItineraryItems = (projectId: string) => getItineraryItems(projectId).filter(item => item.visibleToClient !== false)
 
-/** Timezone-aware schedule (Section 12 baru) — hanya field label yang bisa diedit lewat UI, bukan CRUD penuh (Day-by-day itinerary sudah COMPLETED sejak Section 12 lama tanpa create/delete, di luar scope literal section ini). */
-export function updateItineraryItem (id: string, patch: Partial<Pick<ItineraryItem, 'visibleToClient' | 'timezone'>>): ItineraryItem | undefined {
+/** Daily itinerary — full CRUD (docs/superpowers/specs/2026-08-05-daily-itinerary-crud-design.md). */
+export function updateItineraryItem (id: string, patch: Partial<Omit<ItineraryItem, 'id' | 'projectId'>>): ItineraryItem | undefined {
   const item = ITINERARY_ITEMS.find(i => i.id === id)
   if (!item) { return undefined }
   Object.assign(item, patch)
   return item
 }
+
+export function createItineraryItem (input: Omit<ItineraryItem, 'id'>): ItineraryItem {
+  const item: ItineraryItem = { id: nextSequentialId('ITIN-', ITINERARY_ITEMS), ...input }
+  ITINERARY_ITEMS.push(item)
+  return item
+}
+
+export function removeItineraryItem (id: string): boolean {
+  const index = ITINERARY_ITEMS.findIndex(item => item.id === id)
+  if (index === -1) { return false }
+  ITINERARY_ITEMS.splice(index, 1)
+  return true
+}
 export const getTravelerGroups = (projectId: string) => TRAVELER_GROUPS.filter(group => group.projectId === projectId)
+
+/** Group traveler baru — sebelumnya cuma bisa dari seed data, gak ada cara bikin lewat UI. */
+export function createTravelerGroup (input: { projectId: string; name: string; paxCount?: number; roomingNote?: string }): TravelerGroup {
+  const group: TravelerGroup = {
+    id: nextSequentialId('GRP-', TRAVELER_GROUPS),
+    projectId: input.projectId,
+    name: input.name,
+    paxCount: input.paxCount ?? 0,
+    roomingNote: input.roomingNote
+  }
+  TRAVELER_GROUPS.push(group)
+  return group
+}
 export const getTravelers = (projectId: string) => TRAVELERS.filter(traveler => traveler.projectId === projectId)
 export const getTravelersByGroup = (groupId: string) => TRAVELERS.filter(traveler => traveler.groupId === groupId)
 /** Repair Phase Section 4 — Core Project (Participants lintas-project, `/client/participants/[id]`) — belum ada getter tunggal sebelumnya (konsumen lama selalu melalui `getTravelers(projectId)` per-project). */
@@ -913,6 +945,12 @@ function nextSequentialId (prefix: string, list: { id: string }[]): string {
   return `${prefix}${String(next).padStart(3, '0')}`
 }
 
+/** Slug email-safe dari nama — dipakai hanya untuk placeholder email auto-provision client User saat Won
+ * ketika Lead sumbernya tidak punya email. */
+function slugifyForEmail (value: string): string {
+  return value.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'user'
+}
+
 /**
  * Create-mock (Section 07) — mutasi langsung ke array `reactive` di `app/data/parties.ts`, terlihat
  * seketika di seluruh halaman yang membaca `PARTIES`/`CONTACTS`/`PARTY_ACTIVITIES` tanpa reload.
@@ -1037,11 +1075,57 @@ export function duplicateQuotationVersion (quotationId: string): Quotation | und
   return quotation
 }
 
-/** "Send mock ke client" (Section 05) — simulasi timestamp pengiriman, TIDAK mengirim email/WA nyata (D-006). */
-export function sendQuotationToClient (quotationId: string): Quotation | undefined {
+/** Auto-provision akun login Client Portal — dipanggil saat quotation pertama kali dikirim ke client
+ * (sendQuotationToClient) dan sebagai safety-net di approveOpportunityWon. Idempotent: no-op kalau party
+ * sudah punya User client (repeat client, atau sudah dibuat di step sebelumnya pada deal yang sama). */
+function ensureClientLoginAccount (opportunity: Opportunity, actorId: string): User | undefined {
+  const party = getPartyById(opportunity.partyId)
+  if (!party) { return undefined }
+
+  const existingClientUser = getUserByClientPartyId(party.id)
+  if (existingClientUser) {
+    createPartyActivity({
+      partyId: party.id,
+      opportunityId: opportunity.id,
+      type: 'note',
+      message: `Client login account sudah tersedia: ${existingClientUser.email}`,
+      ownerId: actorId
+    })
+    return existingClientUser
+  }
+
+  const sourceLead = opportunity.leadId ? getLeadById(opportunity.leadId) : undefined
+  const contactName = opportunity.contactName ?? sourceLead?.name ?? party.name
+  const email = sourceLead?.email ?? `${slugifyForEmail(contactName)}@${slugifyForEmail(party.name)}.demo`
+  const clientUser: User = {
+    id: nextSequentialId('USR-', USERS),
+    name: contactName,
+    email,
+    role: 'client',
+    status: 'active',
+    clientPartyId: party.id
+  }
+  USERS.push(clientUser)
+  createPartyActivity({
+    partyId: party.id,
+    opportunityId: opportunity.id,
+    type: 'note',
+    message: `Client login account dibuat otomatis: ${clientUser.email}`,
+    ownerId: actorId
+  })
+  return clientUser
+}
+
+/** "Send mock ke client" (Section 05) — simulasi timestamp pengiriman, TIDAK mengirim email/WA nyata (D-006).
+ * Titik pemicu auto-provision akun login Client Portal (docs/superpowers/specs/2026-08-05-lead-to-manova-client-auto-account-design.md,
+ * disempurnakan iterasi 2 — dipindah dari "Won" ke sini karena Client Confirmation self-service butuh akun
+ * client SUDAH ada sebelum client bisa approve). */
+export function sendQuotationToClient (quotationId: string, actorId: string): Quotation | undefined {
   const quotation = QUOTATIONS.find(q => q.id === quotationId)
   if (!quotation) { return undefined }
   quotation.sentToClientAt = DEMO_REFERENCE_DATE
+  const opportunity = getOpportunityById(quotation.opportunityId)
+  if (opportunity) { ensureClientLoginAccount(opportunity, actorId) }
   return quotation
 }
 
@@ -1291,6 +1375,9 @@ export function approveOpportunityWon (opportunityId: string, approverId: string
     // "Account Owner AE" (Section 06 — checklist transaksi Won): tegaskan ulang AE deal ini sebagai
     // account owner company, konsisten dengan pengisian awal di `qualifyLeadAndCreateOpportunity`.
     party.accountOwnerId = opportunity.ownerId
+    // Safety-net: akun login Client Portal biasanya sudah dibuat lebih awal di `sendQuotationToClient`.
+    // Idempotent — no-op kalau sudah ada.
+    ensureClientLoginAccount(opportunity, opportunity.ownerId)
   }
 
   const approver = getUserById(approverId)
@@ -1570,6 +1657,17 @@ export function updateServiceStatus (serviceId: string, newStatus: ServiceStatus
   return service
 }
 
+export const getProjectServiceById = (id: string) => PROJECT_SERVICES.find(service => service.id === id)
+
+/** Assign vendor ke ProjectService langsung dari form booking (docs — vendor sync), tanpa lewat alur RFQ/Quotation. */
+export function setServiceVendor (serviceId: string, vendorId: string | undefined): ProjectService | undefined {
+  const service = PROJECT_SERVICES.find(item => item.id === serviceId)
+  if (!service) { return undefined }
+  service.vendorId = vendorId
+  if (vendorId) { ensureServiceOrderForVendorAssignment(service, vendorId) }
+  return service
+}
+
 /**
  * "Tasks, checklist, owner, deadline, blocker, dependency" (Section 12 baru, roadmap Section 00–24, Wajib)
  * — toggle tunggal (blokir jika belum, buka blokir jika sudah), pola sama `toggleTravelerVerification`
@@ -1712,6 +1810,27 @@ export const getFlightBookingById = (id: string) => FLIGHT_BOOKINGS.find(booking
 export const getFlightBookingsByProject = (projectId: string) => FLIGHT_BOOKINGS
   .filter(booking => booking.projectId === projectId)
   .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+/** Auto-link booking ↔ ProjectService (docs/superpowers/specs/2026-08-05-project-service-booking-sync-design.md).
+ * Reuse baris existing kalau `existingServiceId` valid, else bikin baris baru dan kembalikan id-nya. */
+function ensureProjectServiceForBooking (params: { projectId: string; existingServiceId?: string; type: ServiceTypeKey; label: string; status: ServiceStatus }): string {
+  if (params.existingServiceId) {
+    const existing = PROJECT_SERVICES.find(s => s.id === params.existingServiceId)
+    if (existing) {
+      existing.status = params.status
+      return existing.id
+    }
+  }
+  const service: ProjectService = {
+    id: nextSequentialId('SVC-', PROJECT_SERVICES),
+    projectId: params.projectId,
+    type: params.type,
+    label: params.label,
+    status: params.status
+  }
+  PROJECT_SERVICES.push(service)
+  return service.id
+}
+
 export const getFlightBookingsByService = (serviceId: string) => FLIGHT_BOOKINGS.filter(booking => booking.serviceId === serviceId)
 
 /** "Fare rules and financial impact" / "Internal net cost vs client sell price" (Wajib) — derivasi murni, `undefined` bila salah satu harga belum terisi (status `requested`/`hold`). */
@@ -1730,6 +1849,13 @@ export interface CreateFlightBookingInput {
 }
 
 export function createFlightBooking (input: CreateFlightBookingInput): FlightBooking {
+  const serviceId = ensureProjectServiceForBooking({
+    projectId: input.projectId,
+    existingServiceId: input.serviceId,
+    type: 'flight',
+    label: `Flight ${getProjectById(input.projectId)?.destination ?? ''}`.trim() || 'Flight Booking',
+    status: 'pending-confirmation'
+  })
   const booking: FlightBooking = {
     id: nextSequentialId('FLT-', FLIGHT_BOOKINGS),
     status: 'requested',
@@ -1737,7 +1863,8 @@ export function createFlightBooking (input: CreateFlightBookingInput): FlightBoo
     segments: input.segments ?? [],
     travelerIds: input.travelerIds ?? [],
     createdAt: DEMO_REFERENCE_DATE,
-    ...input
+    ...input,
+    serviceId
   }
   FLIGHT_BOOKINGS.push(booking)
   return booking
@@ -1751,6 +1878,10 @@ export function updateFlightBooking (id: string, patch: FlightBookingInput): Fli
   if (!booking || booking.status === 'refunded') { return undefined }
   Object.assign(booking, patch)
   booking.updatedAt = DEMO_REFERENCE_DATE
+  if (booking.serviceId) {
+    const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
+    if (service) { service.bookingReference = booking.pnr }
+  }
   return booking
 }
 
@@ -1769,6 +1900,14 @@ export function getFlightBookingStatusTransitions (current: FlightBookingStatus)
   return FLIGHT_BOOKING_TRANSITIONS[current] ?? []
 }
 
+/** Peta status booking Flight → status ProjectService (docs/superpowers/specs/2026-08-05-project-service-booking-sync-design.md). */
+function mapFlightStatusToServiceStatus (status: FlightBookingStatus): ServiceStatus {
+  if (status === 'confirmed' || status === 'issued') { return 'confirmed' }
+  if (status === 'reissued') { return 'changed' }
+  if (status === 'cancelled' || status === 'refunded') { return 'cancelled' }
+  return 'pending-confirmation'
+}
+
 /** Reason wajib untuk `cancelled`/`refunded` (dampak besar — pola sama `updateProjectStatus`, D-066), dicatat sebagai `ActivityEntry` pada project terkait untuk jejak historis. */
 export function updateFlightBookingStatus (bookingId: string, newStatus: FlightBookingStatus, actorId: string, reason?: string): FlightBooking | undefined {
   const booking = getFlightBookingById(bookingId)
@@ -1782,6 +1921,10 @@ export function updateFlightBookingStatus (bookingId: string, newStatus: FlightB
   booking.updatedAt = DEMO_REFERENCE_DATE
   if (reason) { booking.statusReason = reason.trim() }
   syncBookingPaymentGateOnStatusChange('flight', booking.id, booking.projectId, newStatus)
+  if (booking.serviceId) {
+    const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
+    if (service) { service.status = mapFlightStatusToServiceStatus(newStatus) }
+  }
 
   const actor = getUserById(actorId)
   ACTIVITIES.push({
@@ -1833,13 +1976,21 @@ export interface CreateHotelBookingInput {
 }
 
 export function createHotelBooking (input: CreateHotelBookingInput): HotelBooking {
+  const serviceId = ensureProjectServiceForBooking({
+    projectId: input.projectId,
+    existingServiceId: input.serviceId,
+    type: 'hotel',
+    label: `Hotel ${getProjectById(input.projectId)?.destination ?? ''}`.trim() || 'Hotel Booking',
+    status: 'pending-confirmation'
+  })
   const booking: HotelBooking = {
     id: nextSequentialId('HTL-', HOTEL_BOOKINGS),
     status: 'requested',
     options: [],
     travelerIds: input.travelerIds ?? [],
     createdAt: DEMO_REFERENCE_DATE,
-    ...input
+    ...input,
+    serviceId
   }
   HOTEL_BOOKINGS.push(booking)
   return booking
@@ -1854,6 +2005,10 @@ export function updateHotelBooking (id: string, patch: HotelBookingInput): Hotel
   if (!booking || HOTEL_BOOKING_TERMINAL_STATUSES.includes(booking.status)) { return undefined }
   Object.assign(booking, patch)
   booking.updatedAt = DEMO_REFERENCE_DATE
+  if (booking.serviceId) {
+    const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
+    if (service) { service.bookingReference = booking.confirmationNumber }
+  }
   return booking
 }
 
@@ -1872,6 +2027,16 @@ export function getHotelBookingStatusTransitions (current: HotelBookingStatus): 
   return HOTEL_BOOKING_TRANSITIONS[current] ?? []
 }
 
+/** Peta status booking Hotel → status ProjectService (docs/superpowers/specs/2026-08-05-project-service-booking-sync-design.md). */
+function mapHotelStatusToServiceStatus (status: HotelBookingStatus): ServiceStatus {
+  if (status === 'confirmed') { return 'confirmed' }
+  if (status === 'completed') { return 'completed' }
+  if (status === 'amended') { return 'changed' }
+  if (status === 'cancelled' || status === 'no-show') { return 'cancelled' }
+  if (status === 'quoted') { return 'quoted' }
+  return 'pending-confirmation'
+}
+
 /** Reason wajib untuk `cancelled`/`no-show` (dampak besar — pola sama `updateFlightBookingStatus`, D-070), dicatat sebagai `ActivityEntry` pada project terkait untuk jejak historis. */
 export function updateHotelBookingStatus (bookingId: string, newStatus: HotelBookingStatus, actorId: string, reason?: string): HotelBooking | undefined {
   const booking = getHotelBookingById(bookingId)
@@ -1885,6 +2050,10 @@ export function updateHotelBookingStatus (bookingId: string, newStatus: HotelBoo
   booking.updatedAt = DEMO_REFERENCE_DATE
   if (reason) { booking.statusReason = reason.trim() }
   syncBookingPaymentGateOnStatusChange('hotel', booking.id, booking.projectId, newStatus)
+  if (booking.serviceId) {
+    const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
+    if (service) { service.status = mapHotelStatusToServiceStatus(newStatus) }
+  }
 
   const actor = getUserById(actorId)
   ACTIVITIES.push({
@@ -1935,6 +2104,13 @@ export interface CreateTransportBookingInput {
 }
 
 export function createTransportBooking (input: CreateTransportBookingInput): TransportBooking {
+  const serviceId = ensureProjectServiceForBooking({
+    projectId: input.projectId,
+    existingServiceId: input.serviceId,
+    type: 'transportation',
+    label: `Transport ${getProjectById(input.projectId)?.destination ?? ''}`.trim() || 'Transport Booking',
+    status: 'pending-confirmation'
+  })
   const booking: TransportBooking = {
     id: nextSequentialId('TRN-', TRANSPORT_BOOKINGS),
     status: 'requested',
@@ -1942,7 +2118,8 @@ export function createTransportBooking (input: CreateTransportBookingInput): Tra
     legs: input.legs ?? [],
     travelerIds: input.travelerIds ?? [],
     createdAt: DEMO_REFERENCE_DATE,
-    ...input
+    ...input,
+    serviceId
   }
   TRANSPORT_BOOKINGS.push(booking)
   return booking
@@ -1975,6 +2152,15 @@ export function getTransportBookingStatusTransitions (current: TransportBookingS
   return TRANSPORT_BOOKING_TRANSITIONS[current] ?? []
 }
 
+/** Peta status booking Transport → status ProjectService (docs/superpowers/specs/2026-08-05-project-service-booking-sync-design.md). */
+function mapTransportStatusToServiceStatus (status: TransportBookingStatus): ServiceStatus {
+  if (status === 'confirmed') { return 'confirmed' }
+  if (status === 'completed') { return 'completed' }
+  if (status === 'cancelled' || status === 'no-show') { return 'cancelled' }
+  if (status === 'quoted') { return 'quoted' }
+  return 'pending-confirmation'
+}
+
 /** Reason wajib untuk `cancelled`/`no-show` (dampak besar — pola sama `updateHotelBookingStatus`, D-071), dicatat sebagai `ActivityEntry` pada project terkait untuk jejak historis. */
 export function updateTransportBookingStatus (bookingId: string, newStatus: TransportBookingStatus, actorId: string, reason?: string): TransportBooking | undefined {
   const booking = getTransportBookingById(bookingId)
@@ -1988,6 +2174,10 @@ export function updateTransportBookingStatus (bookingId: string, newStatus: Tran
   booking.updatedAt = DEMO_REFERENCE_DATE
   if (reason) { booking.statusReason = reason.trim() }
   syncBookingPaymentGateOnStatusChange('transport', booking.id, booking.projectId, newStatus)
+  if (booking.serviceId) {
+    const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
+    if (service) { service.status = mapTransportStatusToServiceStatus(newStatus) }
+  }
 
   const actor = getUserById(actorId)
   ACTIVITIES.push({
@@ -2060,6 +2250,13 @@ export interface CreateMiceEventInput {
 }
 
 export function createMiceEvent (input: CreateMiceEventInput): MiceEvent {
+  const serviceId = ensureProjectServiceForBooking({
+    projectId: input.projectId,
+    existingServiceId: input.serviceId,
+    type: 'mice',
+    label: `MICE ${getProjectById(input.projectId)?.destination ?? ''}`.trim() || 'MICE Event',
+    status: 'pending-confirmation'
+  })
   const event: MiceEvent = {
     id: nextSequentialId('MICE-', MICE_EVENTS),
     status: 'planning',
@@ -2071,7 +2268,8 @@ export function createMiceEvent (input: CreateMiceEventInput): MiceEvent {
     checklist: [],
     deliverables: [],
     createdAt: DEMO_REFERENCE_DATE,
-    ...input
+    ...input,
+    serviceId
   }
   MICE_EVENTS.push(event)
   return event
@@ -2102,6 +2300,14 @@ export function getMiceEventStatusTransitions (current: MiceEventStatus): MiceEv
   return MICE_EVENT_TRANSITIONS[current] ?? []
 }
 
+/** Peta status MICE Event → status ProjectService (docs/superpowers/specs/2026-08-05-project-service-booking-sync-design.md). */
+function mapMiceStatusToServiceStatus (status: MiceEventStatus): ServiceStatus {
+  if (status === 'confirmed' || status === 'in-progress') { return 'confirmed' }
+  if (status === 'completed') { return 'completed' }
+  if (status === 'cancelled') { return 'cancelled' }
+  return 'pending-confirmation'
+}
+
 /** Reason wajib untuk `cancelled` (dampak besar — pola sama section lain), dicatat sebagai `ActivityEntry` pada project terkait untuk jejak historis. */
 export function updateMiceEventStatus (eventId: string, newStatus: MiceEventStatus, actorId: string, reason?: string): MiceEvent | undefined {
   const event = getMiceEventById(eventId)
@@ -2115,6 +2321,10 @@ export function updateMiceEventStatus (eventId: string, newStatus: MiceEventStat
   event.updatedAt = DEMO_REFERENCE_DATE
   if (reason) { event.statusReason = reason.trim() }
   syncBookingPaymentGateOnStatusChange('mice', event.id, event.projectId, newStatus)
+  if (event.serviceId) {
+    const service = PROJECT_SERVICES.find(s => s.id === event.serviceId)
+    if (service) { service.status = mapMiceStatusToServiceStatus(newStatus) }
+  }
 
   const actor = getUserById(actorId)
   ACTIVITIES.push({
@@ -2579,6 +2789,7 @@ export function acceptVendorQuotation (quotationId: string): VendorQuotation | u
     if (service) {
       service.vendorId = quotation.vendorId
       updateServiceStatus(service.id, 'confirmed')
+      ensureServiceOrderForVendorAssignment(service, quotation.vendorId)
     }
   }
 
@@ -3326,9 +3537,23 @@ export const getServiceOrdersByVendor = (vendorId: string) => SERVICE_ORDERS
   .filter(so => so.vendorId === vendorId)
   .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 export const getServiceOrdersByRfq = (rfqId: string) => SERVICE_ORDERS.filter(so => so.rfqId === rfqId)
+export const getServiceOrderByService = (serviceId: string) => SERVICE_ORDERS.find(so => so.serviceId === serviceId)
 export const getServiceOrderAmendments = (serviceOrderId: string) => SERVICE_ORDER_AMENDMENTS
   .filter(item => item.serviceOrderId === serviceOrderId)
   .sort((a, b) => b.changedAt.localeCompare(a.changedAt))
+
+/** Bridge assignment cepat (dropdown Vendor di form booking, atau Quotation diterima) ke pipeline Service
+ * Order/Invoice — idempotent, no-op kalau Service Order utk pasangan service+vendor ini sudah ada. */
+function ensureServiceOrderForVendorAssignment (service: ProjectService, vendorId: string): void {
+  const existing = SERVICE_ORDERS.find(so => so.serviceId === service.id && so.vendorId === vendorId)
+  if (existing) { return }
+  createServiceOrder({
+    vendorId,
+    projectId: service.projectId,
+    serviceId: service.id,
+    lineItems: [{ description: service.label, quantity: 1, unit: 'layanan' }]
+  })
+}
 
 export interface CreateServiceOrderInput {
   rfqId?: string

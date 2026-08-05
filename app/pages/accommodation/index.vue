@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus } from 'lucide-vue-next'
-import { HOTEL_BOOKINGS, PROJECTS, getProjectById, createHotelBooking, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
+import { HOTEL_BOOKINGS, PROJECTS, VENDORS, getProjectById, createHotelBooking, setServiceVendor, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
 import { HOTEL_BOOKING_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 
@@ -46,12 +46,15 @@ const newProjectId = ref('')
 const newServiceId = ref('')
 const newCheckInDate = ref('')
 const newCheckOutDate = ref('')
+const newVendorId = ref('')
+const vendorOptions = computed(() => VENDORS.filter(v => v.serviceType === 'hotel' && (v.status ?? 'active') === 'active'))
 
 function resetCreateForm () {
   newProjectId.value = ''
   newServiceId.value = ''
   newCheckInDate.value = ''
   newCheckOutDate.value = ''
+  newVendorId.value = ''
 }
 
 function openCreateDialog () {
@@ -87,6 +90,7 @@ function performCreate () {
     checkInDate: newCheckInDate.value || undefined,
     checkOutDate: newCheckOutDate.value || undefined
   })
+  if (booking.serviceId && newVendorId.value) { setServiceVendor(booking.serviceId, newVendorId.value) }
   if (duplicateConflictIds.value.length > 0) {
     flagBookingOrchestrationDuplicate('hotel', booking.id, booking.projectId, currentUser.value.id, duplicateConflictIds.value)
     showToast('Hotel Booking Dibuat (Duplicate)', 'Ditandai sebagai duplicate booking yang disengaja — tercatat di Activity & Changes project terkait.', 'success')
@@ -131,6 +135,17 @@ function cancelDuplicateCreate () {
                   </option>
                   <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
                     {{ project.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
+                <Label for="htl-vendor">Vendor (opsional)</Label>
+                <select id="htl-vendor" v-model="newVendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="">
+                    Belum ditentukan
+                  </option>
+                  <option v-for="vendor in vendorOptions" :key="vendor.id" :value="vendor.id">
+                    {{ vendor.name }}
                   </option>
                 </select>
               </div>

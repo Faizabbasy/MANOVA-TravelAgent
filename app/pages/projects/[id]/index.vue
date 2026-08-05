@@ -4,10 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2 } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getUserById, getVendorById, getOpportunityById, getQuotationByOpportunity,
-  getProjectServices, getItineraryItems, updateServiceStatus, updateItineraryItem,
+  getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
+  getProjectServices, getItineraryItems, updateServiceStatus, updateItineraryItem, createItineraryItem, removeItineraryItem,
   getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation,
   getTravelerGroups, getTravelers, getRoomAssignments,
-  createTraveler, updateTraveler, removeTraveler,
+  createTraveler, updateTraveler, removeTraveler, createTravelerGroup,
   toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
   getInvoicesByProject, getPaymentsByInvoice, getProjectOutstandingIdr, getCommittedVendorCostIdr,
   getCreditNotesByProject, getDebitNotesByProject, getSupplierInvoicesByProject, evaluateFinanceClosureGate, closeProjectFinance,
@@ -38,7 +39,7 @@ import {
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatTravelerCount, maskDocumentNumber } from '~/utils/format'
 import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, invoiceAgingDays, isDocumentExpired, isDocumentExpiringSoon } from '~/utils/attention'
-import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ProjectStatus, ProjectClosureChecklist } from '~/types/project'
+import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ProjectStatus, ProjectClosureChecklist, ItineraryItem } from '~/types/project'
 import type { ChangeCategory, ProjectRiskSeverity, ProjectTask, ShiftPeriod } from '~/types/activity'
 import type { Invoice } from '~/types/finance'
 import type { MessageChannel } from '~/types/document-comms'
@@ -336,6 +337,18 @@ function servicesByType (type: ServiceTypeKey) {
   return services.value.filter(service => service.type === type)
 }
 
+/** Booking asli yang ter-link ke ProjectService ini, kalau ada (docs/superpowers/specs/2026-08-05-project-service-booking-sync-design.md). */
+function linkedBookingRef (service: { id: string; type: ServiceTypeKey }): { path: string } | undefined {
+  const lookups: Partial<Record<ServiceTypeKey, () => { id: string } | undefined>> = {
+    flight: () => getFlightBookingsByService(service.id)[0],
+    hotel: () => getHotelBookingsByService(service.id)[0],
+    transportation: () => getTransportBookingsByService(service.id)[0],
+    mice: () => getMiceEventsByService(service.id)[0]
+  }
+  const booking = lookups[service.type]?.()
+  return booking ? { path: `${BOOKING_MODULE_PATH[service.type]}/${booking.id}` } : undefined
+}
+
 /**
  * Booking Timeline (Section 18, D-075) — MENGGANTIKAN 4 blok ringkasan terpisah Flight/Hotel/Transport/MICE
  * (Section 13-16 lama) dengan SATU list terunifikasi, terskop project ini, pola sama `getBookingTimeline()`
@@ -399,6 +412,69 @@ function toggleItineraryVisibility (item: { id: string; visibleToClient?: boolea
     makeInternal ? 'Item ini kini disembunyikan dari Client Portal.' : 'Item ini kini terlihat oleh Client.',
     'info'
   )
+}
+
+/** Daily itinerary — create/edit form (docs/superpowers/specs/2026-08-05-daily-itinerary-crud-design.md). */
+const isItineraryFormOpen = ref(false)
+const editingItineraryItemId = ref<string | undefined>()
+const itineraryForm = ref({
+  date: '', time: '', title: '', description: '', location: '',
+  serviceType: '' as ServiceTypeKey | '', groupId: '', timezone: '', visibleToClient: true
+})
+
+function openCreateItineraryItem () {
+  editingItineraryItemId.value = undefined
+  itineraryForm.value = { date: '', time: '', title: '', description: '', location: '', serviceType: '', groupId: '', timezone: '', visibleToClient: true }
+  isItineraryFormOpen.value = true
+}
+
+function openEditItineraryItem (item: ItineraryItem) {
+  editingItineraryItemId.value = item.id
+  itineraryForm.value = {
+    date: item.date,
+    time: item.time ?? '',
+    title: item.title,
+    description: item.description ?? '',
+    location: item.location ?? '',
+    serviceType: item.serviceType ?? '',
+    groupId: item.groupId ?? '',
+    timezone: item.timezone ?? '',
+    visibleToClient: item.visibleToClient !== false
+  }
+  isItineraryFormOpen.value = true
+}
+
+function submitItineraryForm () {
+  if (!project.value || !itineraryForm.value.date.trim() || !itineraryForm.value.title.trim()) {
+    showToast('Data Belum Lengkap', 'Tanggal dan Judul wajib diisi.', 'error')
+    return
+  }
+  const payload = {
+    date: itineraryForm.value.date,
+    time: itineraryForm.value.time.trim() || undefined,
+    title: itineraryForm.value.title.trim(),
+    description: itineraryForm.value.description.trim() || undefined,
+    location: itineraryForm.value.location.trim() || undefined,
+    serviceType: itineraryForm.value.serviceType || undefined,
+    groupId: itineraryForm.value.groupId || undefined,
+    timezone: itineraryForm.value.timezone.trim() || undefined,
+    visibleToClient: itineraryForm.value.visibleToClient
+  }
+  if (editingItineraryItemId.value) {
+    updateItineraryItem(editingItineraryItemId.value, payload)
+  } else {
+    createItineraryItem({ projectId: project.value.id, ...payload })
+  }
+  isItineraryFormOpen.value = false
+  showToast('Itinerary Disimpan', 'Perubahan berhasil disimpan.', 'success')
+}
+
+const pendingDeleteItineraryItem = ref<ItineraryItem | undefined>()
+function confirmDeleteItineraryItem () {
+  if (!pendingDeleteItineraryItem.value) { return }
+  removeItineraryItem(pendingDeleteItineraryItem.value.id)
+  pendingDeleteItineraryItem.value = undefined
+  showToast('Item Dihapus', 'Item itinerary berhasil dihapus.', 'success')
 }
 
 /** "On-trip updates dan shift notes mock" */
@@ -720,6 +796,19 @@ const formCompanionOfTravelerId = ref('')
 
 /** Opsi dropdown "Companion of" — kecualikan traveler yang sedang diedit sendiri (tidak boleh mendampingi diri sendiri). */
 const companionOptions = computed(() => travelers.value.filter(t => t.id !== editingTravelerId.value))
+
+/** Bikin Traveler Group baru langsung dari dialog Tambah/Edit Traveler — sebelumnya cuma bisa dari seed data. */
+const isCreateGroupOpen = ref(false)
+const newGroupName = ref('')
+
+function submitCreateGroup () {
+  if (!project.value || !newGroupName.value.trim()) { return }
+  const group = createTravelerGroup({ projectId: project.value.id, name: newGroupName.value.trim() })
+  formGroupId.value = group.id
+  newGroupName.value = ''
+  isCreateGroupOpen.value = false
+  showToast('Group Dibuat', `Group "${group.name}" berhasil dibuat dan dipilih.`, 'success')
+}
 
 function resetTravelerForm () {
   formName.value = ''
@@ -1402,13 +1491,23 @@ const summaryMetadata = computed(() => {
 
             <SectionCard title="Daily Itinerary" description="Jadwal harian perjalanan (timezone lokal ditampilkan berdampingan jam).">
               <template #actions>
-                <div class="flex items-center gap-1">
-                  <button type="button" class="px-3 py-1.5 text-xs rounded-lg border" :class="itineraryViewMode === 'list' ? 'border-primary/40 bg-primary/5 text-primary' : 'border-border text-muted-foreground'" @click="itineraryViewMode = 'list'">
-                    List
-                  </button>
-                  <button type="button" class="px-3 py-1.5 text-xs rounded-lg border" :class="itineraryViewMode === 'timeline' ? 'border-primary/40 bg-primary/5 text-primary' : 'border-border text-muted-foreground'" @click="itineraryViewMode = 'timeline'">
-                    Timeline
-                  </button>
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-1">
+                    <button type="button" class="px-3 py-1.5 text-xs rounded-lg border" :class="itineraryViewMode === 'list' ? 'border-primary/40 bg-primary/5 text-primary' : 'border-border text-muted-foreground'" @click="itineraryViewMode = 'list'">
+                      List
+                    </button>
+                    <button type="button" class="px-3 py-1.5 text-xs rounded-lg border" :class="itineraryViewMode === 'timeline' ? 'border-primary/40 bg-primary/5 text-primary' : 'border-border text-muted-foreground'" @click="itineraryViewMode = 'timeline'">
+                      Timeline
+                    </button>
+                  </div>
+                  <Button v-if="canManageOperations" size="sm" variant="outline" @click="openCreateItineraryItem">
+                    <Plus class="h-3.5 w-3.5 mr-1" />Tambah Item
+                  </Button>
+                  <NuxtLink :to="`/projects/${project.id}/run-sheet-preview`" target="_blank">
+                    <Button size="sm" variant="outline">
+                      <Printer class="h-4 w-4 mr-1.5" />Print / Export Preview
+                    </Button>
+                  </NuxtLink>
                 </div>
               </template>
               <div v-if="itineraryByDate.length" class="space-y-4">
@@ -1439,12 +1538,105 @@ const summaryMetadata = computed(() => {
                       <button v-if="canManageOperations" type="button" class="text-xs text-primary hover:underline shrink-0" @click="toggleItineraryVisibility(item)">
                         {{ item.visibleToClient === false ? 'Tampilkan ke Client' : 'Jadikan Internal' }}
                       </button>
+                      <button v-if="canManageOperations" type="button" class="text-xs text-primary hover:underline shrink-0" @click="openEditItineraryItem(item)">
+                        Edit
+                      </button>
+                      <button v-if="canManageOperations" type="button" class="text-xs text-destructive hover:underline shrink-0" @click="pendingDeleteItineraryItem = item">
+                        Hapus
+                      </button>
                     </li>
                   </ul>
                 </div>
               </div>
               <EmptyState v-else title="Belum ada itinerary tercatat" />
             </SectionCard>
+
+            <!-- Daily itinerary — create/edit form (docs/superpowers/specs/2026-08-05-daily-itinerary-crud-design.md) -->
+            <Dialog v-model:open="isItineraryFormOpen">
+              <DialogContent class="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{{ editingItineraryItemId ? 'Edit Item Itinerary' : 'Tambah Item Itinerary' }}</DialogTitle>
+                </DialogHeader>
+                <div class="space-y-4 py-2">
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                      <Label for="itin-date">Tanggal</Label><Input id="itin-date" v-model="itineraryForm.date" type="date" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="itin-time">Jam</Label><Input id="itin-time" v-model="itineraryForm.time" type="time" />
+                    </div>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="itin-title">Judul</Label><Input id="itin-title" v-model="itineraryForm.title" placeholder="mis. Keberangkatan Jakarta → Manila" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="itin-description">Deskripsi</Label>
+                    <textarea id="itin-description" v-model="itineraryForm.description" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="itin-location">Lokasi</Label><Input id="itin-location" v-model="itineraryForm.location" placeholder="mis. Lobi Hotel, pukul 08:00" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                      <Label for="itin-service-type">Jenis Layanan</Label>
+                      <select id="itin-service-type" v-model="itineraryForm.serviceType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="">
+                          Tidak ada
+                        </option>
+                        <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+                          {{ type.label }}
+                        </option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="itin-group">Group Traveler</Label>
+                      <select id="itin-group" v-model="itineraryForm.groupId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="">
+                          Tidak ada
+                        </option>
+                        <option v-for="grp in groups" :key="grp.id" :value="grp.id">
+                          {{ grp.name }}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="itin-timezone">Timezone</Label><Input id="itin-timezone" v-model="itineraryForm.timezone" placeholder="mis. Asia/Jakarta" />
+                  </div>
+                  <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                    <Checkbox v-model="itineraryForm.visibleToClient" />
+                    Tampilkan ke Client
+                  </label>
+                </div>
+                <DialogFooter>
+                  <Button variant="outline" @click="isItineraryFormOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!itineraryForm.date.trim() || !itineraryForm.title.trim()" @click="submitItineraryForm">
+                    Simpan
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+
+            <Dialog :open="!!pendingDeleteItineraryItem" @update:open="value => { if (!value) pendingDeleteItineraryItem = undefined }">
+              <DialogContent class="max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Hapus Item Itinerary</DialogTitle>
+                  <DialogDescription>
+                    Item "{{ pendingDeleteItineraryItem?.title }}" akan dihapus dari itinerary project ini. Tindakan ini tidak dapat dibatalkan.
+                  </DialogDescription>
+                </DialogHeader>
+                <DialogFooter>
+                  <Button variant="outline" @click="pendingDeleteItineraryItem = undefined">
+                    Batal
+                  </Button>
+                  <Button variant="destructive" @click="confirmDeleteItineraryItem">
+                    Hapus
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
 
             <SectionCard
               v-for="type in visibleServiceTypes"
@@ -1485,7 +1677,11 @@ const summaryMetadata = computed(() => {
                       </div>
                     </TableCell>
                     <TableCell v-if="canManageServiceType(type.value)">
+                      <NuxtLink v-if="linkedBookingRef(service)" :to="linkedBookingRef(service)?.path ?? ''" class="text-xs text-primary hover:underline">
+                        Lihat Booking →
+                      </NuxtLink>
                       <select
+                        v-else
                         :value="service.status"
                         class="appearance-none px-2 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
                         @change="handleServiceStatusChange(service.id, $event)"
@@ -1717,7 +1913,12 @@ const summaryMetadata = computed(() => {
                             <Input id="traveler-name" v-model="formName" placeholder="Nama lengkap traveler" />
                           </div>
                           <div class="space-y-1.5">
-                            <Label for="traveler-group">Group (opsional)</Label>
+                            <div class="flex items-center justify-between">
+                              <Label for="traveler-group">Group (opsional)</Label>
+                              <button type="button" class="text-xs text-primary hover:underline" @click="isCreateGroupOpen = true">
+                                + Group Baru
+                              </button>
+                            </div>
                             <select
                               id="traveler-group"
                               v-model="formGroupId"
@@ -2001,6 +2202,27 @@ const summaryMetadata = computed(() => {
                 </Button>
                 <Button variant="destructive" @click="executeDeleteTraveler">
                   Hapus
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <!-- Traveler Group baru — dipicu tombol "+ Group Baru" di dialog Tambah/Edit Traveler. -->
+          <Dialog v-model:open="isCreateGroupOpen">
+            <DialogContent class="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>Group Baru</DialogTitle>
+              </DialogHeader>
+              <div class="space-y-1.5 py-2">
+                <Label for="new-group-name">Nama Group</Label>
+                <Input id="new-group-name" v-model="newGroupName" placeholder="mis. Group Management" />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" @click="isCreateGroupOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!newGroupName.trim()" @click="submitCreateGroup">
+                  Simpan
                 </Button>
               </DialogFooter>
             </DialogContent>

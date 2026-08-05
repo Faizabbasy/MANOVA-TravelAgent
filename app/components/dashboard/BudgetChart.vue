@@ -65,15 +65,8 @@ onMounted(async () => {
   const border = formatHSL(borderColor.value)
   const ink = formatHSL(foregroundColor.value)
 
-  /** Soft top-to-bottom gradient per bar (livelier than a flat fill) — built once canvas layout is known. */
-  function verticalGradient (chart: any, hsl: string) {
-    const { ctx, chartArea } = chart
-    if (!chartArea) { return `hsla(${hsl}, 0.75)` }
-    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
-    gradient.addColorStop(0, `hsla(${hsl}, 0.55)`)
-    gradient.addColorStop(1, `hsla(${hsl}, 0.95)`)
-    return gradient
-  }
+  /** Bar "berpijak" di baseline — hanya sudut atas membulat, flat color (bukan gradien) biar bersih. */
+  const TOP_RADIUS = { topLeft: 6, topRight: 6, bottomLeft: 0, bottomRight: 0 }
 
   chartData.value = {
     labels: props.labels,
@@ -81,22 +74,22 @@ onMounted(async () => {
       {
         label: 'Budget',
         data: props.budgetIdr,
-        backgroundColor: (context: any) => verticalGradient(context.chart, budgetHsl),
-        hoverBackgroundColor: `hsla(${budgetHsl}, 1)`,
-        borderRadius: 8,
-        borderSkipped: false,
+        backgroundColor: `hsla(${budgetHsl}, 0.9)`,
+        hoverBackgroundColor: `hsl(${budgetHsl})`,
+        borderRadius: TOP_RADIUS,
+        borderSkipped: 'bottom',
         categoryPercentage: 0.6,
-        barPercentage: 0.9
+        barPercentage: 0.78
       },
       {
         label: 'Actual',
         data: props.actualIdr,
-        backgroundColor: (context: any) => verticalGradient(context.chart, actualHsl),
-        hoverBackgroundColor: `hsla(${actualHsl}, 1)`,
-        borderRadius: 8,
-        borderSkipped: false,
+        backgroundColor: `hsla(${actualHsl}, 0.9)`,
+        hoverBackgroundColor: `hsl(${actualHsl})`,
+        borderRadius: TOP_RADIUS,
+        borderSkipped: 'bottom',
         categoryPercentage: 0.6,
-        barPercentage: 0.9
+        barPercentage: 0.78
       }
     ]
   }
@@ -114,7 +107,10 @@ onMounted(async () => {
           color: muted,
           font: { size: 12 },
           usePointStyle: true,
-          pointStyle: 'circle'
+          pointStyle: 'circle',
+          boxWidth: 8,
+          boxHeight: 8,
+          padding: 16
         }
       },
       tooltip: {
@@ -139,7 +135,7 @@ onMounted(async () => {
       },
       y: {
         border: { display: false },
-        grid: { color: border, drawTicks: false, lineWidth: 1 },
+        grid: { color: `hsla(${toCommaHsl(borderColor.value)}, 0.6)`, drawTicks: false, lineWidth: 1 },
         ticks: {
           color: muted,
           font: { size: 12 },
@@ -161,10 +157,10 @@ onMounted(async () => {
         <div class="flex items-center gap-2 mt-1">
           <span class="text-xl font-bold text-foreground">{{ formatCurrencyIdr(totalActual) }}</span>
           <span
-            class="text-xs font-medium"
-            :class="variancePct > 0 ? 'text-destructive' : 'text-success'"
+            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
+            :class="variancePct > 0 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'"
           >
-            {{ variancePct > 0 ? '+' : '' }}{{ variancePct.toFixed(1) }}% vs budget
+            {{ variancePct > 0 ? '↑' : '↓' }} {{ Math.abs(variancePct).toFixed(1) }}% vs budget
           </span>
         </div>
       </div>

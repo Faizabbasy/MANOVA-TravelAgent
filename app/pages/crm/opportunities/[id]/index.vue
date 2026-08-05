@@ -9,7 +9,7 @@ import {
   updateOpportunityRequirement, updateQuotationDetails, approveOpportunityWon,
   submitQuotationForApproval, approveQuotation, rejectQuotation,
   duplicateQuotationVersion, sendQuotationToClient, withdrawQuotationSubmission, recordClientConfirmation,
-  getCostSheetsByOpportunity, getCostSheetBreakdown
+  getCostSheetsByOpportunity, getCostSheetBreakdown, getUserByClientPartyId
 } from '~/data'
 import {
   OPPORTUNITY_STAGES, OPPORTUNITY_WORKFLOW_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES,
@@ -183,9 +183,18 @@ function submitRevise () {
 /* Edit Quotation (Prompt 20-9/11) — melengkapi detail komersial SELAGI masih draft (belum submitted/approved), tanpa menaikkan versi (beda dari "Revisi Quotation"/Create New Version di atas). */
 const isEditQuotationDialogOpen = ref(false)
 const editQuotationAmount = ref<number | null>(null)
-const editQuotationDiscount = ref<number | null>(null)
+/** Discount diinput sebagai persen (bukan Rp) — nilai Rp yang tersimpan di `discountIdr` tetap dihitung otomatis dari persen × Nilai Quotation, supaya seluruh halaman lain (preview, client portal) yang membaca `discountIdr` tidak perlu berubah. */
+const editQuotationDiscountPercent = ref<number | null>(null)
+const editQuotationDiscount = computed(() => {
+  if (!editQuotationAmount.value || !editQuotationDiscountPercent.value) { return null }
+  return Math.round(editQuotationAmount.value * (editQuotationDiscountPercent.value / 100))
+})
 const editQuotationCost = ref<number | null>(null)
-const editQuotationMargin = ref<number | null>(null)
+/** Estimated Margin tidak lagi diinput manual — dihitung otomatis: (Nilai Quotation − Discount) − Estimated Cost. */
+const editQuotationMargin = computed(() => {
+  if (editQuotationAmount.value == null) { return null }
+  return editQuotationAmount.value - (editQuotationDiscount.value ?? 0) - (editQuotationCost.value ?? 0)
+})
 const editQuotationPaymentTerms = ref('')
 const editServiceBreakdown = ref<QuotationServiceItem[]>([])
 /** Section 05 — field komersial tambahan: tax/fee, markup, currency, validity, terms, inclusions/exclusions. */
@@ -200,9 +209,10 @@ const editQuotationExclusions = ref('')
 function openEditQuotationDialog () {
   if (!quotation.value) { return }
   editQuotationAmount.value = quotation.value.amountIdr
-  editQuotationDiscount.value = quotation.value.discountIdr ?? null
+  editQuotationDiscountPercent.value = (quotation.value.discountIdr && quotation.value.amountIdr)
+    ? Math.round((quotation.value.discountIdr / quotation.value.amountIdr) * 1000) / 10
+    : null
   editQuotationCost.value = quotation.value.estimatedCostIdr ?? null
-  editQuotationMargin.value = quotation.value.estimatedMarginIdr ?? null
   editQuotationPaymentTerms.value = quotation.value.paymentTerms ?? ''
   editServiceBreakdown.value = (quotation.value.serviceBreakdown ?? []).map(item => ({ ...item }))
   editQuotationTax.value = quotation.value.taxIdr ?? null
@@ -255,8 +265,12 @@ const isCompareVersionsOpen = ref(false)
 /* Send to Client / Withdraw / Client Confirmation (Section 05) */
 function submitSendToClient () {
   if (!quotation.value) { return }
-  sendQuotationToClient(quotation.value.id)
-  showToast('Quotation Terkirim', 'Simulasi pengiriman ke client tercatat (mock, bukan email/WA nyata).', 'success')
+  sendQuotationToClient(quotation.value.id, currentUser.value.id)
+  const clientUser = opportunity.value ? getUserByClientPartyId(opportunity.value.partyId) : undefined
+  const accountMessage = clientUser
+    ? ` Client login account (${clientUser.email}) dapat diakses lewat Settings > Role Switcher.`
+    : ''
+  showToast('Quotation Terkirim', `Simulasi pengiriman ke client tercatat (mock, bukan email/WA nyata).${accountMessage}`, 'success')
 }
 
 function submitWithdraw () {
@@ -301,7 +315,11 @@ function submitMarkAsWon () {
     showToast('Mark as Won Gagal', 'Requirement belum lengkap atau opportunity sudah diproses sebelumnya.', 'error')
     return
   }
-  showToast('Opportunity Won', `${project.name} (${project.id}) dibuat, client aktif, dan Project Order otomatis dibuat.`, 'success')
+  const clientUser = getUserByClientPartyId(project.partyId)
+  const accountMessage = clientUser
+    ? ` Client login account (${clientUser.email}) dapat diakses lewat Settings > Role Switcher.`
+    : ''
+  showToast('Opportunity Won', `${project.name} (${project.id}) dibuat, client aktif, dan Project Order otomatis dibuat.${accountMessage}`, 'success')
   router.push(`/projects/${project.id}`)
 }
 
@@ -942,16 +960,24 @@ function submitActivity () {
                 <Input id="edit-quo-amount" v-model.number="editQuotationAmount" type="number" />
               </div>
               <div class="space-y-1.5">
-                <Label for="edit-quo-discount">Discount (Rp)</Label>
-                <Input id="edit-quo-discount" v-model.number="editQuotationDiscount" type="number" />
+                <Label for="edit-quo-discount">Discount (%)</Label>
+                <Input id="edit-quo-discount" v-model.number="editQuotationDiscountPercent" type="number" min="0" max="100" step="0.1" />
+                <p v-if="editQuotationDiscount" class="text-xs text-muted-foreground">
+                  &asymp; {{ formatCurrencyIdr(editQuotationDiscount) }}
+                </p>
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-quo-cost">Estimated Cost (Rp)</Label>
                 <Input id="edit-quo-cost" v-model.number="editQuotationCost" type="number" />
               </div>
               <div class="space-y-1.5">
-                <Label for="edit-quo-margin">Estimated Margin (Rp)</Label>
-                <Input id="edit-quo-margin" v-model.number="editQuotationMargin" type="number" />
+                <Label>Estimated Margin (Rp)</Label>
+                <div class="px-3 py-2 text-sm rounded-lg border border-input bg-muted/40 text-foreground">
+                  {{ editQuotationMargin != null ? formatCurrencyIdr(editQuotationMargin) : '—' }}
+                </div>
+                <p class="text-xs text-muted-foreground">
+                  Dihitung otomatis: Nilai Quotation &minus; Discount &minus; Estimated Cost.
+                </p>
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-quo-payment-terms">Payment Terms</Label>

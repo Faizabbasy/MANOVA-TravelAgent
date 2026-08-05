@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus } from 'lucide-vue-next'
-import { FLIGHT_BOOKINGS, PROJECTS, getProjectById, createFlightBooking, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
+import { FLIGHT_BOOKINGS, PROJECTS, VENDORS, getProjectById, createFlightBooking, setServiceVendor, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
 import { FLIGHT_BOOKING_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 
@@ -46,11 +46,14 @@ const isCreateOpen = ref(false)
 const newProjectId = ref('')
 const newServiceId = ref('')
 const newTicketingDeadline = ref('')
+const newVendorId = ref('')
+const vendorOptions = computed(() => VENDORS.filter(v => v.serviceType === 'flight' && (v.status ?? 'active') === 'active'))
 
 function resetCreateForm () {
   newProjectId.value = ''
   newServiceId.value = ''
   newTicketingDeadline.value = ''
+  newVendorId.value = ''
 }
 
 function openCreateDialog () {
@@ -85,6 +88,7 @@ function performCreate () {
     serviceId: newServiceId.value || undefined,
     ticketingDeadline: newTicketingDeadline.value || undefined
   })
+  if (booking.serviceId && newVendorId.value) { setServiceVendor(booking.serviceId, newVendorId.value) }
   if (duplicateConflictIds.value.length > 0) {
     flagBookingOrchestrationDuplicate('flight', booking.id, booking.projectId, currentUser.value.id, duplicateConflictIds.value)
     showToast('Flight Booking Dibuat (Duplicate)', 'Ditandai sebagai duplicate booking yang disengaja — tercatat di Activity & Changes project terkait.', 'success')
@@ -129,6 +133,17 @@ function cancelDuplicateCreate () {
                   </option>
                   <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
                     {{ project.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
+                <Label for="flt-vendor">Vendor (opsional)</Label>
+                <select id="flt-vendor" v-model="newVendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="">
+                    Belum ditentukan
+                  </option>
+                  <option v-for="vendor in vendorOptions" :key="vendor.id" :value="vendor.id">
+                    {{ vendor.name }}
                   </option>
                 </select>
               </div>

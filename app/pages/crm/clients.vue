@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search } from 'lucide-vue-next'
-import { PARTIES, getContactsByParty, getOpportunitiesByParty, getProjectsByParty } from '~/data'
+import { PARTIES, getContactsByParty, getOpportunitiesByParty, getProjectsByParty, isManovaClient } from '~/data'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Clients' })
@@ -66,7 +66,12 @@ const rows = computed(() => {
               <TableCell class="text-muted-foreground">
                 {{ row.primaryContact?.name ?? '—' }}
               </TableCell>
-              <TableCell><StatusBadge label="Client" tone="success" /></TableCell>
+              <TableCell>
+                <div class="flex items-center gap-1.5">
+                  <StatusBadge label="Client" tone="success" />
+                  <StatusBadge v-if="isManovaClient(row.party.id)" label="Manova Client" tone="purple" />
+                </div>
+              </TableCell>
             </TableRow>
             <TableEmpty v-if="rows.length === 0" :colspan="5">
               {{ searchQuery ? 'Tidak ada client yang cocok dengan pencarian.' : 'Belum ada client.' }}

@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus } from 'lucide-vue-next'
-import { MICE_EVENTS, PROJECTS, getProjectById, createMiceEvent } from '~/data'
+import { MICE_EVENTS, PROJECTS, VENDORS, getProjectById, createMiceEvent, setServiceVendor } from '~/data'
 import { MICE_EVENT_STATUSES, MICE_APPROVAL_STATUSES, findStatusOption } from '~/constants/status'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -36,11 +36,14 @@ const isCreateOpen = ref(false)
 const newProjectId = ref('')
 const newServiceId = ref('')
 const newVenueName = ref('')
+const newVendorId = ref('')
+const vendorOptions = computed(() => VENDORS.filter(v => v.serviceType === 'mice' && (v.status ?? 'active') === 'active'))
 
 function resetCreateForm () {
   newProjectId.value = ''
   newServiceId.value = ''
   newVenueName.value = ''
+  newVendorId.value = ''
 }
 
 function openCreateDialog () {
@@ -59,6 +62,7 @@ function submitCreate () {
     serviceId: newServiceId.value || undefined,
     venueName: newVenueName.value || undefined
   })
+  if (event.serviceId && newVendorId.value) { setServiceVendor(event.serviceId, newVendorId.value) }
   isCreateOpen.value = false
   navigateTo(`/mice/${event.id}`)
 }
@@ -98,6 +102,17 @@ function submitCreate () {
               <div class="space-y-1.5">
                 <Label for="mice-venue">Venue (opsional)</Label>
                 <Input id="mice-venue" v-model="newVenueName" placeholder="mis. Hotel Prima Mitra — Convention Center Wing" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="mice-vendor">Vendor (opsional)</Label>
+                <select id="mice-vendor" v-model="newVendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="">
+                    Belum ditentukan
+                  </option>
+                  <option v-for="vendor in vendorOptions" :key="vendor.id" :value="vendor.id">
+                    {{ vendor.name }}
+                  </option>
+                </select>
               </div>
             </div>
             <DialogFooter>

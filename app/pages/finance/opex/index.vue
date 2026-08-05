@@ -6,12 +6,10 @@ import {
   OPEX_STATUSES,
   getOpexEntries,
   getOpexPeriods,
-  getOpexTotalIdr,
-  getOpexByCategory,
   createOpexEntry,
   updateOpexStatus
 } from '~/data/finance-ext'
-import { getProjectById, getUserById } from '~/data'
+import { getProjectById, getUserById, PROJECTS } from '~/data'
 import { findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
@@ -37,24 +35,39 @@ const periods = computed(() => {
   void refreshKey.value
   return getOpexPeriods()
 })
-const selectedPeriod = ref<string>('')
+/** Default ke periode terbaru supaya dropdown tidak tampil kosong saat halaman pertama dibuka. */
+const selectedPeriod = ref<string>(getOpexPeriods()[0] ?? '')
 const activePeriod = computed(() => selectedPeriod.value || periods.value[0])
+
+/** Filter "per project" (revisi.md) — 'all' = seluruh entri, 'none' = biaya perusahaan tanpa project, atau ID project tertentu. */
+const projectFilter = ref<'all' | 'none' | string>('all')
 
 const entries = computed(() => {
   void refreshKey.value
-  return getOpexEntries(activePeriod.value)
+  let result = getOpexEntries(activePeriod.value)
+  if (projectFilter.value === 'none') {
+    result = result.filter(entry => !entry.projectId)
+  } else if (projectFilter.value !== 'all') {
+    result = result.filter(entry => entry.projectId === projectFilter.value)
+  }
+  return result
 })
 
 const byCategory = computed(() => {
-  void refreshKey.value
-  return getOpexByCategory(activePeriod.value)
+  const relevant = entries.value.filter(entry => entry.status !== 'rejected' && entry.status !== 'draft')
+  return OPEX_CATEGORIES
+    .map(category => ({
+      category,
+      amountIdr: relevant.filter(entry => entry.category === category.value).reduce((sum, entry) => sum + entry.amountIdr, 0)
+    }))
+    .filter(row => row.amountIdr > 0)
+    .sort((a, b) => b.amountIdr - a.amountIdr)
 })
 
 const stats = computed(() => {
-  void refreshKey.value
-  const all = getOpexEntries(activePeriod.value)
+  const all = entries.value
   return {
-    total: getOpexTotalIdr(activePeriod.value),
+    total: all.filter(entry => entry.status === 'approved' || entry.status === 'paid').reduce((sum, entry) => sum + entry.amountIdr, 0),
     paid: all.filter(entry => entry.status === 'paid').reduce((sum, entry) => sum + entry.amountIdr, 0),
     pending: all.filter(entry => entry.status === 'submitted' || entry.status === 'draft').reduce((sum, entry) => sum + entry.amountIdr, 0),
     count: all.length
@@ -71,7 +84,8 @@ const form = ref({
   description: '',
   amountIdr: null as number | null,
   incurredAt: DEMO_REFERENCE_DATE,
-  vendorName: ''
+  vendorName: '',
+  projectId: ''
 })
 
 function openCreate () {
@@ -81,7 +95,8 @@ function openCreate () {
     description: '',
     amountIdr: null,
     incurredAt: DEMO_REFERENCE_DATE,
-    vendorName: ''
+    vendorName: '',
+    projectId: projectFilter.value !== 'all' && projectFilter.value !== 'none' ? projectFilter.value : ''
   }
   isCreateOpen.value = true
 }
@@ -97,6 +112,7 @@ function submitCreate () {
     amountIdr: Number(form.value.amountIdr),
     incurredAt: form.value.incurredAt,
     vendorName: form.value.vendorName.trim() || undefined,
+    projectId: form.value.projectId || undefined,
     submittedBy: currentUser.value.id
   })
   refreshKey.value += 1
@@ -133,6 +149,17 @@ function setStatus (entry: OpexEntry, status: OpexEntry['status']) {
         <select v-model="selectedPeriod" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
           <option v-for="period in periods" :key="period" :value="period">
             Periode {{ period }}
+          </option>
+        </select>
+        <select v-model="projectFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+          <option value="all">
+            Semua Project
+          </option>
+          <option value="none">
+            Biaya Perusahaan (Tanpa Project)
+          </option>
+          <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+            {{ project.name }}
           </option>
         </select>
       </div>
@@ -263,6 +290,20 @@ function setStatus (entry: OpexEntry, status: OpexEntry['status']) {
             <div class="space-y-1.5">
               <Label>Vendor / Penerima (opsional)</Label>
               <Input v-model="form.vendorName" placeholder="Nama vendor" />
+            </div>
+            <div class="space-y-1.5">
+              <Label>Project (opsional)</Label>
+              <select v-model="form.projectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option value="">
+                  Biaya perusahaan — tidak dialokasikan ke project
+                </option>
+                <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                  {{ project.name }}
+                </option>
+              </select>
+              <p class="text-xs text-muted-foreground">
+                Isi hanya bila biaya ini memang khusus untuk satu project tertentu, bukan biaya operasional umum.
+              </p>
             </div>
           </div>
 

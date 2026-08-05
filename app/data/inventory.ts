@@ -59,22 +59,22 @@ export const CHECKOUT_STATUSES: StatusOption<AssetCheckout['status']>[] = [
 ]
 
 export const ASSETS: Asset[] = reactive([
-  { id: 'AST-001', code: 'CAM-001', name: 'Sony A7 IV Body', category: 'camera', brand: 'Sony', serialNumber: 'SN-A7IV-88213', purchasedAt: '2024-03-12', purchasePriceIdr: 38_500_000, condition: 'excellent', status: 'in-use', location: 'Gudang Jakarta' },
-  { id: 'AST-002', code: 'CAM-002', name: 'Sony A7 III Body', category: 'camera', brand: 'Sony', serialNumber: 'SN-A7III-55190', purchasedAt: '2022-09-04', purchasePriceIdr: 27_000_000, condition: 'good', status: 'available', location: 'Gudang Jakarta' },
-  { id: 'AST-003', code: 'CAM-003', name: 'Lensa Sony 24-70mm f/2.8 GM II', category: 'camera', brand: 'Sony', serialNumber: 'SN-2470-11902', purchasedAt: '2024-03-12', purchasePriceIdr: 34_000_000, condition: 'excellent', status: 'in-use', location: 'Gudang Jakarta' },
-  { id: 'AST-004', code: 'CAM-004', name: 'DJI Mini 4 Pro Drone', category: 'camera', brand: 'DJI', serialNumber: 'SN-DJI-44021', purchasedAt: '2024-06-20', purchasePriceIdr: 16_500_000, condition: 'good', status: 'available', location: 'Gudang Jakarta' },
-  { id: 'AST-005', code: 'CAM-005', name: 'DJI RS 3 Gimbal', category: 'camera', brand: 'DJI', purchasedAt: '2023-11-08', purchasePriceIdr: 9_800_000, condition: 'needs-service', status: 'maintenance', location: 'Service Center', note: 'Motor pan terasa tersendat saat beban penuh.' },
-  { id: 'AST-006', code: 'PRD-001', name: 'Portable LED Panel Set (4 unit)', category: 'production', brand: 'Godox', purchasedAt: '2023-05-15', purchasePriceIdr: 14_200_000, condition: 'good', status: 'in-use', location: 'Gudang Jakarta' },
-  { id: 'AST-007', code: 'PRD-002', name: 'Wireless Mic Rode Wireless Pro', category: 'production', brand: 'Rode', purchasedAt: '2024-01-22', purchasePriceIdr: 7_900_000, condition: 'excellent', status: 'available', location: 'Gudang Jakarta' },
-  { id: 'AST-008', code: 'PRD-003', name: 'Sound System Portable 500W', category: 'production', brand: 'Yamaha', purchasedAt: '2022-04-11', purchasePriceIdr: 22_000_000, condition: 'good', status: 'available', location: 'Gudang Surabaya' },
-  { id: 'AST-009', code: 'PRD-004', name: 'Proyektor 5000 Lumens', category: 'production', brand: 'Epson', purchasedAt: '2023-02-28', purchasePriceIdr: 18_600_000, condition: 'good', status: 'in-use', location: 'Gudang Jakarta' },
-  { id: 'AST-010', code: 'PRP-001', name: 'Backdrop Frame 6x3m (3 set)', category: 'property', purchasedAt: '2022-08-30', purchasePriceIdr: 9_000_000, condition: 'good', status: 'available', location: 'Gudang Jakarta' },
-  { id: 'AST-011', code: 'PRP-002', name: 'Standing Banner & Signage Kit', category: 'property', purchasedAt: '2023-07-19', purchasePriceIdr: 4_500_000, condition: 'good', status: 'in-use', location: 'Gudang Jakarta' },
-  { id: 'AST-012', code: 'PRP-003', name: 'Meja Registrasi Lipat (10 unit)', category: 'property', purchasedAt: '2021-12-02', purchasePriceIdr: 12_500_000, condition: 'needs-service', status: 'available', location: 'Gudang Surabaya', note: 'Dua unit engselnya longgar.' },
-  { id: 'AST-013', code: 'PRP-004', name: 'Tenda Kerucut 3x3m (8 unit)', category: 'property', purchasedAt: '2023-03-06', purchasePriceIdr: 16_000_000, condition: 'good', status: 'available', location: 'Gudang Surabaya' },
-  { id: 'AST-014', code: 'VHC-001', name: 'Toyota Hiace Commuter', category: 'vehicle', brand: 'Toyota', serialNumber: 'B 1234 MNV', purchasedAt: '2021-10-14', purchasePriceIdr: 545_000_000, condition: 'good', status: 'available', location: 'Pool Jakarta' },
-  { id: 'AST-015', code: 'IT-001', name: 'MacBook Pro 14 M3 (Editing)', category: 'it', brand: 'Apple', serialNumber: 'SN-MBP-77341', purchasedAt: '2024-02-05', purchasePriceIdr: 34_900_000, condition: 'excellent', status: 'in-use', location: 'Kantor Jakarta' },
-  { id: 'AST-016', code: 'IT-002', name: 'Printer Label & Badge Event', category: 'it', brand: 'Brother', purchasedAt: '2023-09-27', purchasePriceIdr: 6_400_000, condition: 'damaged', status: 'retired', location: 'Gudang Jakarta', note: 'Head printer rusak, biaya perbaikan melebihi nilai sisa.' }
+  { id: 'AST-001', code: 'CAM-001', name: 'Sony A7 IV Body', category: 'camera', brand: 'Sony', serialNumber: 'SN-A7IV-88213', purchasedAt: '2024-03-12', purchasePriceIdr: 38_500_000, condition: 'excellent', status: 'in-use', location: 'Gudang Jakarta', quantity: 1 },
+  { id: 'AST-002', code: 'CAM-002', name: 'Sony A7 III Body', category: 'camera', brand: 'Sony', serialNumber: 'SN-A7III-55190', purchasedAt: '2022-09-04', purchasePriceIdr: 27_000_000, condition: 'good', status: 'available', location: 'Gudang Jakarta', quantity: 1 },
+  { id: 'AST-003', code: 'CAM-003', name: 'Lensa Sony 24-70mm f/2.8 GM II', category: 'camera', brand: 'Sony', serialNumber: 'SN-2470-11902', purchasedAt: '2024-03-12', purchasePriceIdr: 34_000_000, condition: 'excellent', status: 'in-use', location: 'Gudang Jakarta', quantity: 1 },
+  { id: 'AST-004', code: 'CAM-004', name: 'DJI Mini 4 Pro Drone', category: 'camera', brand: 'DJI', serialNumber: 'SN-DJI-44021', purchasedAt: '2024-06-20', purchasePriceIdr: 16_500_000, condition: 'good', status: 'available', location: 'Gudang Jakarta', quantity: 1 },
+  { id: 'AST-005', code: 'CAM-005', name: 'DJI RS 3 Gimbal', category: 'camera', brand: 'DJI', purchasedAt: '2023-11-08', purchasePriceIdr: 9_800_000, condition: 'needs-service', status: 'maintenance', location: 'Service Center', quantity: 1, note: 'Motor pan terasa tersendat saat beban penuh.' },
+  { id: 'AST-006', code: 'PRD-001', name: 'Portable LED Panel Set (4 unit)', category: 'production', brand: 'Godox', purchasedAt: '2023-05-15', purchasePriceIdr: 14_200_000, condition: 'good', status: 'in-use', location: 'Gudang Jakarta', quantity: 4 },
+  { id: 'AST-007', code: 'PRD-002', name: 'Wireless Mic Rode Wireless Pro', category: 'production', brand: 'Rode', purchasedAt: '2024-01-22', purchasePriceIdr: 7_900_000, condition: 'excellent', status: 'available', location: 'Gudang Jakarta', quantity: 1 },
+  { id: 'AST-008', code: 'PRD-003', name: 'Sound System Portable 500W', category: 'production', brand: 'Yamaha', purchasedAt: '2022-04-11', purchasePriceIdr: 22_000_000, condition: 'good', status: 'available', location: 'Gudang Surabaya', quantity: 1 },
+  { id: 'AST-009', code: 'PRD-004', name: 'Proyektor 5000 Lumens', category: 'production', brand: 'Epson', purchasedAt: '2023-02-28', purchasePriceIdr: 18_600_000, condition: 'good', status: 'in-use', location: 'Gudang Jakarta', quantity: 1 },
+  { id: 'AST-010', code: 'PRP-001', name: 'Backdrop Frame 6x3m (3 set)', category: 'property', purchasedAt: '2022-08-30', purchasePriceIdr: 9_000_000, condition: 'good', status: 'available', location: 'Gudang Jakarta', quantity: 3 },
+  { id: 'AST-011', code: 'PRP-002', name: 'Standing Banner & Signage Kit', category: 'property', purchasedAt: '2023-07-19', purchasePriceIdr: 4_500_000, condition: 'good', status: 'in-use', location: 'Gudang Jakarta', quantity: 1 },
+  { id: 'AST-012', code: 'PRP-003', name: 'Meja Registrasi Lipat (10 unit)', category: 'property', purchasedAt: '2021-12-02', purchasePriceIdr: 12_500_000, condition: 'needs-service', status: 'available', location: 'Gudang Surabaya', quantity: 10, note: 'Dua unit engselnya longgar.' },
+  { id: 'AST-013', code: 'PRP-004', name: 'Tenda Kerucut 3x3m (8 unit)', category: 'property', purchasedAt: '2023-03-06', purchasePriceIdr: 16_000_000, condition: 'good', status: 'available', location: 'Gudang Surabaya', quantity: 8 },
+  { id: 'AST-014', code: 'VHC-001', name: 'Toyota Hiace Commuter', category: 'vehicle', brand: 'Toyota', serialNumber: 'B 1234 MNV', purchasedAt: '2021-10-14', purchasePriceIdr: 545_000_000, condition: 'good', status: 'available', location: 'Pool Jakarta', quantity: 1 },
+  { id: 'AST-015', code: 'IT-001', name: 'MacBook Pro 14 M3 (Editing)', category: 'it', brand: 'Apple', serialNumber: 'SN-MBP-77341', purchasedAt: '2024-02-05', purchasePriceIdr: 34_900_000, condition: 'excellent', status: 'in-use', location: 'Kantor Jakarta', quantity: 1 },
+  { id: 'AST-016', code: 'IT-002', name: 'Printer Label & Badge Event', category: 'it', brand: 'Brother', purchasedAt: '2023-09-27', purchasePriceIdr: 6_400_000, condition: 'damaged', status: 'retired', location: 'Gudang Jakarta', quantity: 1, note: 'Head printer rusak, biaya perbaikan melebihi nilai sisa.' }
 ])
 
 export const MAINTENANCE_SCHEDULES: MaintenanceSchedule[] = reactive([
@@ -104,6 +104,11 @@ export const ASSET_CHECKOUTS: AssetCheckout[] = reactive([
 
 export function getAssetById (assetId: string): Asset | undefined {
   return ASSETS.find(asset => asset.id === assetId)
+}
+
+/** Berapa unit dari stok aset ini yang sedang tidak tersedia (dipakai/maintenance/tidak dipakai). */
+export function getAssetQuantityInUse (asset: Asset): number {
+  return asset.status === 'available' ? 0 : asset.quantity
 }
 
 export function getAssetsByCategory (category?: AssetCategoryKey): Asset[] {
@@ -226,7 +231,7 @@ export function getInventorySummary (referenceIso = DEMO_REFERENCE_DATE): Invent
     maintenance: ASSETS.filter(asset => asset.status === 'maintenance').length,
     overdueMaintenance: getOverdueMaintenance(referenceIso).length,
     overdueCheckouts: ASSET_CHECKOUTS.filter(item => item.status === 'overdue').length,
-    totalValueIdr: ASSETS.filter(asset => asset.status !== 'retired').reduce((sum, asset) => sum + asset.purchasePriceIdr, 0)
+    totalValueIdr: ASSETS.filter(asset => asset.status !== 'retired').reduce((sum, asset) => sum + (asset.purchasePriceIdr ?? 0), 0)
   }
 }
 

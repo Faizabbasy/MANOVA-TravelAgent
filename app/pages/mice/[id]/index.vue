@@ -7,7 +7,7 @@ import {
   getMiceEventStatusTransitions, updateMiceEventStatus,
   getMiceApprovalTransitions, updateMiceClientApproval,
   toggleMiceChecklistItem, toggleMiceDeliverable, updateMiceEvent,
-  getProjectById, getUserById, USERS, VENDORS,
+  getProjectById, getUserById, USERS, VENDORS, getProjectServiceById, setServiceVendor,
   createCancellationRecord
 } from '~/data'
 import { MICE_EVENT_STATUSES, MICE_APPROVAL_STATUSES, MICE_BOQ_CATEGORIES, MICE_CHECKLIST_TASKS, findStatusOption } from '~/constants/status'
@@ -130,6 +130,8 @@ function submitToggleDeliverable (index: number) {
 /* Edit dialog — info dasar + change order + incident. */
 const isEditOpen = ref(false)
 const editBrief = ref('')
+const editVendorId = ref('')
+const vendorOptions = computed(() => VENDORS.filter(v => v.serviceType === 'mice' && (v.status ?? 'active') === 'active'))
 const editVenueName = ref('')
 const editVenueAddress = ref('')
 const editHasChangeOrder = ref(false)
@@ -139,6 +141,7 @@ const editIncidentNote = ref('')
 
 function openEditDialog () {
   if (!event.value) { return }
+  editVendorId.value = (event.value.serviceId ? getProjectServiceById(event.value.serviceId)?.vendorId : undefined) ?? ''
   editBrief.value = event.value.brief ?? ''
   editVenueName.value = event.value.venueName ?? ''
   editVenueAddress.value = event.value.venueAddress ?? ''
@@ -151,6 +154,7 @@ function openEditDialog () {
 
 function submitEdit () {
   if (!event.value) { return }
+  if (event.value.serviceId) { setServiceVendor(event.value.serviceId, editVendorId.value || undefined) }
   updateMiceEvent(event.value.id, {
     brief: editBrief.value.trim() || undefined,
     venueName: editVenueName.value.trim() || undefined,
@@ -698,6 +702,17 @@ function submitAddDeliverable () {
             <div class="space-y-1.5">
               <Label for="edit-venue-name">Venue</Label>
               <Input id="edit-venue-name" v-model="editVenueName" />
+            </div>
+            <div class="space-y-1.5">
+              <Label for="edit-vendor">Vendor</Label>
+              <select id="edit-vendor" v-model="editVendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option value="">
+                  Belum ditentukan
+                </option>
+                <option v-for="vendor in vendorOptions" :key="vendor.id" :value="vendor.id">
+                  {{ vendor.name }}
+                </option>
+              </select>
             </div>
             <div class="space-y-1.5">
               <Label for="edit-venue-address">Alamat Venue</Label>

@@ -5,7 +5,8 @@ import { FileX, Plus, Trash2, Printer } from 'lucide-vue-next'
 import {
   getFlightBookingById, getFlightBookingMarginIdr, getFlightBookingStatusTransitions,
   updateFlightBooking, updateFlightBookingStatus, selectFlightOption,
-  getProjectById, getTravelers,
+  getProjectById, getTravelers, getProjectServiceById, setServiceVendor,
+  VENDORS,
   createCancellationRecord
 } from '~/data'
 import { FLIGHT_BOOKING_STATUSES, CABIN_CLASSES, findStatusOption } from '~/constants/status'
@@ -113,9 +114,12 @@ const editScheduleChangeNote = ref('')
 const editTravelerIds = ref<string[]>([])
 const editOptions = ref<FlightOption[]>([])
 const editSegments = ref<FlightSegment[]>([])
+const editVendorId = ref('')
+const vendorOptions = computed(() => VENDORS.filter(v => v.serviceType === 'flight' && (v.status ?? 'active') === 'active'))
 
 function openEditDialog () {
   if (!booking.value) { return }
+  editVendorId.value = (booking.value.serviceId ? getProjectServiceById(booking.value.serviceId)?.vendorId : undefined) ?? ''
   editPnr.value = booking.value.pnr ?? ''
   editTicketingDeadline.value = booking.value.ticketingDeadline ?? ''
   editFareRules.value = booking.value.fareRules ?? ''
@@ -151,6 +155,16 @@ function removeSegmentRow (index: number) {
 
 function submitEdit () {
   if (!booking.value) { return }
+  const incompleteSegment = editSegments.value.some(segment => {
+    const hasAny = segment.origin.trim() || segment.destination.trim() || segment.departureAt.trim()
+    const hasAll = segment.origin.trim() && segment.destination.trim() && segment.departureAt.trim()
+    return hasAny && !hasAll
+  })
+  if (incompleteSegment) {
+    showToast('Segment Belum Lengkap', 'Asal, Tujuan, dan Tanggal/Waktu Keberangkatan wajib diisi untuk setiap segment yang ditambahkan.', 'error')
+    return
+  }
+  if (booking.value.serviceId) { setServiceVendor(booking.value.serviceId, editVendorId.value || undefined) }
   updateFlightBooking(booking.value.id, {
     pnr: editPnr.value.trim() || undefined,
     ticketingDeadline: editTicketingDeadline.value || undefined,
@@ -403,6 +417,17 @@ function submitEdit () {
               <div class="space-y-1.5">
                 <Label for="edit-deadline">Ticketing Deadline</Label>
                 <Input id="edit-deadline" v-model="editTicketingDeadline" type="date" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="edit-vendor">Vendor</Label>
+                <select id="edit-vendor" v-model="editVendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="">
+                    Belum ditentukan
+                  </option>
+                  <option v-for="vendor in vendorOptions" :key="vendor.id" :value="vendor.id">
+                    {{ vendor.name }}
+                  </option>
+                </select>
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-net-cost">Net Cost (Rp, internal)</Label>

@@ -23,10 +23,13 @@ export interface Asset {
   brand?: string
   serialNumber?: string
   purchasedAt: string
-  purchasePriceIdr: number
+  /** Nilai perolehan — opsional, tidak wajib diisi saat input aset baru. */
+  purchasePriceIdr?: number
   condition: AssetCondition
   status: AssetStatus
   location: string
+  /** Jumlah unit dalam satu baris aset ini (stok). Aset satuan bernilai 1. */
+  quantity: number
   note?: string
 }
 

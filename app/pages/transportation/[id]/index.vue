@@ -5,7 +5,8 @@ import { FileX, Plus, Trash2, Printer, ClipboardList } from 'lucide-vue-next'
 import {
   getTransportBookingById, getTransportBookingMarginIdr, getTransportBookingStatusTransitions,
   updateTransportBooking, updateTransportBookingStatus, selectTransportOption,
-  getProjectById, getTravelers, getTravelerGroups,
+  getProjectById, getTravelers, getTravelerGroups, getProjectServiceById, setServiceVendor,
+  VENDORS,
   createCancellationRecord
 } from '~/data'
 import { TRANSPORT_BOOKING_STATUSES, VEHICLE_TYPES, findStatusOption } from '~/constants/status'
@@ -110,6 +111,8 @@ function submitSelectOption (index: number) {
 /* Edit dialog — whole-form, pola sama Flight/Hotel Booking (Section 13/14). */
 const isEditOpen = ref(false)
 const editVehiclePlate = ref('')
+const editVendorId = ref('')
+const vendorOptions = computed(() => VENDORS.filter(v => v.serviceType === 'transportation' && (v.status ?? 'active') === 'active'))
 const editDriverName = ref('')
 const editDriverPhone = ref('')
 const editStandbyHours = ref<number | null>(null)
@@ -127,6 +130,7 @@ const editLegs = ref<TransportLeg[]>([])
 
 function openEditDialog () {
   if (!booking.value) { return }
+  editVendorId.value = (booking.value.serviceId ? getProjectServiceById(booking.value.serviceId)?.vendorId : undefined) ?? ''
   editVehiclePlate.value = booking.value.assignedVehiclePlateNumber ?? ''
   editDriverName.value = booking.value.driverName ?? ''
   editDriverPhone.value = booking.value.driverPhone ?? ''
@@ -167,6 +171,7 @@ function removeLegRow (index: number) {
 
 function submitEdit () {
   if (!booking.value) { return }
+  if (booking.value.serviceId) { setServiceVendor(booking.value.serviceId, editVendorId.value || undefined) }
   updateTransportBooking(booking.value.id, {
     assignedVehiclePlateNumber: editVehiclePlate.value.trim() || undefined,
     driverName: editDriverName.value.trim() || undefined,
@@ -440,6 +445,17 @@ function submitEdit () {
               <div class="space-y-1.5">
                 <Label for="edit-plate">Nomor Polisi</Label>
                 <Input id="edit-plate" v-model="editVehiclePlate" placeholder="mis. DN 1234 AB" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="edit-vendor">Vendor</Label>
+                <select id="edit-vendor" v-model="editVendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="">
+                    Belum ditentukan
+                  </option>
+                  <option v-for="vendor in vendorOptions" :key="vendor.id" :value="vendor.id">
+                    {{ vendor.name }}
+                  </option>
+                </select>
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-driver-name">Nama Driver</Label>

@@ -1,0 +1,1075 @@
+<title>MANOVA — Dokumentasi Peran Super Admin</title>
+<meta name="description" content="Referensi menyeluruh peran Super Admin: apa yang bisa dilihat, dikelola, dan dikunci di setiap modul, halaman, dan tab — disusun langsung dari kode aplikasi aktual.">
+<style>
+  :root{
+    --paper:#F6F3EA;
+    --paper-raised:#FFFFFF;
+    --ink:#23241D;
+    --ink-soft:#5B5A4E;
+    --line:#DEDACB;
+    --line-strong:#C7C2AC;
+    --rail:#C7C2AC;
+
+    --internal:#2F3F6B;
+    --internal-soft:#E4E7F0;
+    --internal-ink:#202B4D;
+
+    --external:#A6672A;
+    --external-soft:#F3E4CF;
+    --external-ink:#5C3813;
+
+    --system:#1E5F63;
+    --system-soft:#DCEAE9;
+    --system-ink:#0F3B3E;
+
+    --caution:#9C3B2E;
+    --caution-soft:#F5DEDA;
+    --caution-ink:#5C2018;
+
+    --shadow: 0 1px 2px rgba(35,36,29,0.06), 0 8px 22px -10px rgba(35,36,29,0.14);
+  }
+
+  :root[data-theme="dark"]{
+    --paper:#181A16;
+    --paper-raised:#212319;
+    --ink:#EDEBE1;
+    --ink-soft:#AEAB9B;
+    --line:#34362A;
+    --line-strong:#454735;
+    --rail:#454735;
+
+    --internal:#8B9BD6;
+    --internal-soft:#242A42;
+    --internal-ink:#C4CDEE;
+
+    --external:#E0A257;
+    --external-soft:#3A2E1C;
+    --external-ink:#F0C48D;
+
+    --system:#63B0AC;
+    --system-soft:#1D3436;
+    --system-ink:#B9E3DF;
+
+    --caution:#E08573;
+    --caution-soft:#3A211C;
+    --caution-ink:#F0C0B4;
+
+    --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 10px 26px -12px rgba(0,0,0,0.55);
+  }
+
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#181A16;
+      --paper-raised:#212319;
+      --ink:#EDEBE1;
+      --ink-soft:#AEAB9B;
+      --line:#34362A;
+      --line-strong:#454735;
+      --rail:#454735;
+
+      --internal:#8B9BD6;
+      --internal-soft:#242A42;
+      --internal-ink:#C4CDEE;
+
+      --external:#E0A257;
+      --external-soft:#3A2E1C;
+      --external-ink:#F0C48D;
+
+      --system:#63B0AC;
+      --system-soft:#1D3436;
+      --system-ink:#B9E3DF;
+
+      --caution:#E08573;
+      --caution-soft:#3A211C;
+      --caution-ink:#F0C0B4;
+
+      --shadow: 0 1px 2px rgba(0,0,0,0.35), 0 10px 26px -12px rgba(0,0,0,0.55);
+    }
+  }
+
+  *{ box-sizing:border-box; }
+  html{ scroll-behavior:smooth; }
+  html,body{ margin:0; padding:0; }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Helvetica Neue",Arial,sans-serif;
+    font-size:16px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  h1,h2,h3,h4,.heading{
+    font-family:"Iowan Old Style","Palatino Linotype","Book Antiqua",Georgia,serif;
+    font-weight:600;
+    color:var(--ink);
+    text-wrap:balance;
+    letter-spacing:0.01em;
+  }
+
+  code,.mono{
+    font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,Menlo,monospace;
+    font-size:0.86em;
+  }
+  code{
+    background:var(--line);
+    padding:1px 6px;
+    border-radius:4px;
+    color:var(--ink);
+  }
+  :root[data-theme="dark"] code{ background:var(--line-strong); }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) code{ background:var(--line-strong); } }
+
+  a{ color:var(--internal-ink); }
+  :root[data-theme="dark"] a{ color:var(--internal); }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) a{ color:var(--internal); } }
+
+  .page{
+    max-width:960px;
+    margin:0 auto;
+    padding:56px 28px 100px;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    border-bottom:2px solid var(--line-strong);
+    padding-bottom:28px;
+    margin-bottom:32px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .eyebrow{
+    font-family:ui-monospace,"SF Mono","Cascadia Code",Consolas,monospace;
+    font-size:12px;
+    letter-spacing:0.14em;
+    text-transform:uppercase;
+    color:var(--caution-ink);
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  :root[data-theme="dark"] .eyebrow{ color:var(--caution); }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .eyebrow{ color:var(--caution); } }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:currentColor; display:inline-block; }
+  h1.title{ font-size:2.05rem; margin:0; line-height:1.18; }
+  .subtitle{ color:var(--ink-soft); font-size:1.05rem; margin:0; max-width:70ch; }
+  .meta-row{
+    display:flex; flex-wrap:wrap; gap:20px; margin-top:4px;
+    font-size:0.85rem; color:var(--ink-soft);
+  }
+  .meta-row strong{ color:var(--ink); font-weight:600; }
+
+  .actions{ display:flex; gap:10px; margin:18px 0 4px; }
+  .btn{
+    display:inline-flex; align-items:center; gap:8px;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;
+    font-size:0.86rem; font-weight:600; padding:9px 16px; border-radius:6px;
+    border:1px solid transparent; cursor:pointer;
+    transition:filter 0.15s ease, transform 0.1s ease;
+  }
+  .btn:active{ transform:translateY(1px); }
+  .btn:focus-visible{ outline:2px solid var(--system); outline-offset:2px; }
+  .btn-primary{ background:var(--caution); color:#fff; }
+  .btn-primary:hover{ filter:brightness(1.08); }
+  .btn-ghost{ background:var(--paper-raised); color:var(--ink); border-color:var(--line-strong); }
+  .btn-ghost:hover{ background:var(--internal-soft); }
+
+  /* ---------- Stat row ---------- */
+  .stat-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:44px; }
+  .stat-card{ background:var(--paper-raised); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow); padding:18px 18px; }
+  .stat-card .num{ font-family:"Iowan Old Style","Palatino Linotype",Georgia,serif; font-size:1.6rem; font-weight:700; color:var(--internal-ink); line-height:1.1; }
+  .stat-card .label{ font-size:0.78rem; color:var(--ink-soft); margin-top:5px; }
+  @media (max-width:760px){ .stat-row{ grid-template-columns:1fr 1fr; } }
+  @media (max-width:420px){ .stat-row{ grid-template-columns:1fr; } }
+
+  /* ---------- Section blocks (reused pattern) ---------- */
+  section.block{ margin-bottom:44px; }
+  .block-head{
+    display:flex; align-items:baseline; gap:12px;
+    border-left:3px solid var(--system);
+    padding-left:14px; margin-bottom:16px;
+  }
+  .block-head h2{ font-size:1.32rem; margin:0; }
+  .block-head .note{ font-size:0.85rem; color:var(--ink-soft); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; }
+
+  .cross-grid{ display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+  .cross-card{
+    background:var(--paper-raised); border:1px solid var(--line); border-radius:8px;
+    box-shadow:var(--shadow); padding:16px 19px;
+  }
+  .cross-card h3{ font-size:1rem; margin:0 0 6px; }
+  .cross-card p{ margin:0; font-size:0.89rem; color:var(--ink-soft); }
+  @media (max-width:640px){ .cross-grid{ grid-template-columns:1fr; } }
+
+  /* ---------- Permission levels + grant layers ---------- */
+  .perm-table{ width:100%; border-collapse:collapse; font-size:0.88rem; margin:14px 0 0; }
+  .perm-table th,.perm-table td{ text-align:left; padding:9px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  .perm-table th{ font-size:0.7rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--ink-soft); font-weight:700; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; }
+  .perm-table td.level{ font-family:ui-monospace,monospace; font-weight:700; white-space:nowrap; }
+  .perm-table tr:last-child td{ border-bottom:none; }
+  .perm-table td.level.lv4{ color:var(--caution-ink); }
+
+  .grant-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:14px; }
+  @media (max-width:760px){ .grant-grid{ grid-template-columns:1fr; } }
+  .grant-card{ background:var(--paper); border:1px solid var(--line); border-radius:6px; padding:14px 16px; }
+  .grant-card .num{ font-family:ui-monospace,monospace; font-size:0.74rem; color:var(--internal-ink); font-weight:700; }
+  .grant-card h4{ margin:6px 0 6px; font-size:0.95rem; }
+  .grant-card p{ margin:0; font-size:0.84rem; color:var(--ink-soft); }
+
+  .caution-note{
+    display:flex; align-items:flex-start; gap:9px;
+    background:var(--caution-soft);
+    color:var(--caution-ink);
+    border-radius:6px;
+    padding:11px 14px;
+    font-size:0.87rem;
+    margin-top:14px;
+  }
+  .caution-note svg{ flex:none; width:16px; height:16px; margin-top:2px; }
+
+  /* ---------- Module directory (jump nav) ---------- */
+  .module-nav{ background:var(--paper-raised); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow); padding:22px 24px; margin-bottom:44px; }
+  .module-nav h2{ font-size:1rem; margin:0 0 4px; text-transform:uppercase; letter-spacing:0.06em; }
+  .module-nav p.hint{ margin:0 0 16px; color:var(--ink-soft); font-size:0.88rem; }
+  .nav-group{ margin-bottom:16px; }
+  .nav-group:last-child{ margin-bottom:0; }
+  .nav-group h3{ font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; font-size:0.76rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--ink-soft); margin:0 0 10px; font-weight:700; }
+  .nav-chips{ display:flex; flex-wrap:wrap; gap:7px; }
+  .nav-chip{ display:inline-flex; align-items:center; gap:6px; font-size:0.8rem; padding:5px 12px; border-radius:100px; text-decoration:none; border:1px solid transparent; }
+  .nav-chip::before{ content:""; width:6px; height:6px; border-radius:50%; background:currentColor; opacity:0.7; }
+  .nav-chip.internal{ background:var(--internal-soft); color:var(--internal-ink); }
+  .nav-chip.caution{ background:var(--caution-soft); color:var(--caution-ink); }
+  .nav-chip.external{ background:var(--external-soft); color:var(--external-ink); }
+  .nav-chip.system{ background:var(--system-soft); color:var(--system-ink); }
+  .nav-chip:hover{ filter:brightness(0.96); }
+
+  /* ---------- Module sections ---------- */
+  .module-section{ margin-bottom:52px; scroll-margin-top:20px; }
+  .module-head{ display:flex; align-items:center; gap:14px; margin-bottom:10px; }
+  .module-icon{ flex:none; width:46px; height:46px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-family:ui-monospace,monospace; font-weight:700; font-size:0.82rem; border:2px solid var(--paper); }
+  .module-icon.internal{ background:var(--internal-soft); color:var(--internal-ink); box-shadow:0 0 0 2px var(--internal); }
+  .module-icon.caution{ background:var(--caution-soft); color:var(--caution-ink); box-shadow:0 0 0 2px var(--caution); }
+  .module-icon.external{ background:var(--external-soft); color:var(--external-ink); box-shadow:0 0 0 2px var(--external); }
+  .module-icon.system{ background:var(--system-soft); color:var(--system-ink); box-shadow:0 0 0 2px var(--system); }
+  .module-titles{ flex:1; min-width:0; }
+  .module-titles h2{ font-size:1.38rem; margin:0 0 3px; display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .module-route{ font-size:0.85rem; color:var(--ink-soft); }
+  .exclusive-badge{ display:inline-flex; align-items:center; gap:5px; font-size:0.66rem; font-weight:700; letter-spacing:0.03em; text-transform:uppercase; padding:3px 10px; border-radius:100px; background:var(--caution-soft); color:var(--caution-ink); font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; }
+  .module-purpose{ color:var(--ink-soft); font-size:0.95rem; margin:0 0 20px; max-width:76ch; }
+
+  .page-card{ background:var(--paper-raised); border:1px solid var(--line); border-radius:8px; box-shadow:var(--shadow); padding:16px 20px 18px; margin-bottom:14px; }
+  .page-card:last-child{ margin-bottom:0; }
+  .page-head{ display:flex; align-items:baseline; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+  .page-head h4{ margin:0; font-size:1.03rem; }
+  .page-desc{ margin:0 0 4px; font-size:0.89rem; color:var(--ink-soft); }
+  .page-desc:last-child{ margin-bottom:0; }
+  .tab-list{ margin:10px 0 0; padding-left:0; list-style:none; border-top:1px dashed var(--line); padding-top:10px; }
+  .tab-list li{ margin-bottom:7px; font-size:0.87rem; padding-left:17px; position:relative; }
+  .tab-list li:last-child{ margin-bottom:0; }
+  .tab-list li::before{ content:"\25b8"; position:absolute; left:0; color:var(--internal-ink); font-size:0.85em; }
+  .tab-list li strong{ color:var(--ink); }
+  :root[data-theme="dark"] .tab-list li::before{ color:var(--internal); }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .tab-list li::before{ color:var(--internal); } }
+
+  .portal-note{ display:flex; gap:9px; background:var(--external-soft); color:var(--external-ink); border-radius:6px; padding:11px 14px; font-size:0.86rem; margin-bottom:18px; }
+  .portal-note svg{ flex:none; width:16px; height:16px; margin-top:2px; }
+
+  .page-grid-compact{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  @media (max-width:640px){ .page-grid-compact{ grid-template-columns:1fr; } }
+  .compact-item{ background:var(--paper-raised); border:1px solid var(--line); border-radius:6px; padding:10px 13px; font-size:0.85rem; }
+  .compact-item strong{ display:block; margin-bottom:2px; }
+  .compact-item span.route{ color:var(--ink-soft); font-size:0.82em; }
+
+  .limits{
+    background:var(--caution-soft);
+    border:1px solid var(--line);
+    border-left:4px solid var(--caution);
+    border-radius:6px;
+    padding:18px 22px;
+  }
+  .limits h3{ margin:0 0 8px; font-size:1rem; color:var(--caution-ink); }
+  .limits ul{ margin:0; padding-left:20px; }
+  .limits li{ margin-bottom:7px; color:var(--ink-soft); font-size:0.9rem; }
+  .limits li:last-child{ margin-bottom:0; }
+  .limits li strong{ color:var(--ink); }
+
+  footer{
+    margin-top:52px; padding-top:20px; border-top:1px solid var(--line);
+    font-size:0.8rem; color:var(--ink-soft);
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+
+  .back-to-top{ position:fixed; right:22px; bottom:22px; }
+  .back-to-top a{
+    display:flex; align-items:center; justify-content:center;
+    width:42px; height:42px; border-radius:50%;
+    background:var(--paper-raised); border:1px solid var(--line-strong);
+    box-shadow:var(--shadow); text-decoration:none; color:var(--ink);
+  }
+
+  @media print{
+    body{ background:#fff; }
+    .page-card,.module-nav,.stat-card,.cross-card{ box-shadow:none; }
+    .actions,.back-to-top{ display:none; }
+  }
+
+  @media (max-width:600px){
+    .module-head{ gap:10px; }
+    .module-icon{ width:38px; height:38px; font-size:0.72rem; }
+  }
+</style>
+
+<div class="page">
+
+  <header>
+    <div class="eyebrow"><span class="dot"></span>Dokumentasi Produk &middot; Peran Pengguna</div>
+    <h1 class="title">Panduan Lengkap Peran Super Admin</h1>
+    <p class="subtitle">Referensi menyeluruh untuk peran dengan akses tertinggi di sistem MANOVA: apa yang bisa dilihat, dikelola, dan dikunci oleh Super Admin di setiap modul — dijelaskan halaman demi halaman, tab demi tab.</p>
+    <div class="meta-row">
+      <span>Cakupan: <strong>13 modul (ADMIN penuh) &middot; 14 bagian navigasi</strong></span>
+      <span>Sumber: <strong>Kode aplikasi aktual (RBAC dinamis)</strong></span>
+      <span>Per: <strong>5 Agustus 2026</strong></span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-primary" id="btn-pdf" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>
+        Unduh sebagai PDF
+      </button>
+      <button class="btn btn-ghost" id="btn-html" type="button">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>
+        Unduh file HTML
+      </button>
+    </div>
+  </header>
+
+  <div class="stat-row">
+    <div class="stat-card"><div class="num">13 / 13</div><div class="label">Modul dengan akses ADMIN penuh</div></div>
+    <div class="stat-card"><div class="num">1 dari 13</div><div class="label">Role yang punya cakupan seluas ini</div></div>
+    <div class="stat-card"><div class="num">100+</div><div class="label">Halaman &amp; sub-halaman yang bisa dibuka</div></div>
+    <div class="stat-card"><div class="num">0</div><div class="label">Modul yang tersembunyi dari Super Admin</div></div>
+  </div>
+
+  <section class="block">
+    <div class="block-head">
+      <h2>Apa yang Membuat Super Admin Berbeda</h2>
+      <span class="note">Ringkasan sebelum masuk ke rincian per halaman.</span>
+    </div>
+    <div class="cross-grid">
+      <div class="cross-card">
+        <h3>Akses Penuh ke Semua Modul</h3>
+        <p>Level <strong>ADMIN</strong> di 9 modul bisnis <em>dan</em> 4 modul sistem sekaligus — satu-satunya role yang melihat seluruhnya bersamaan, tanpa perlu berpindah akun.</p>
+      </div>
+      <div class="cross-card">
+        <h3>Kelola User &amp; Role</h3>
+        <p>Satu-satunya role yang bisa membuat role kustom baru, mengubah hak akses role lain, dan memindahkan user antar role — lewat <span class="mono">/admin/roles</span> &amp; <span class="mono">/admin/users</span>.</p>
+      </div>
+      <div class="cross-card">
+        <h3>Kelola Data Induk (Master Data)</h3>
+        <p>15 kategori data referensi yang dipakai seluruh sistem — dari daftar destinasi sampai skema penomoran dokumen — lewat <span class="mono">/admin/master-data</span>.</p>
+      </div>
+      <div class="cross-card">
+        <h3>Visibilitas Finansial Penuh</h3>
+        <p>Melihat biaya bersih ke vendor <em>vs</em> harga jual ke klien di semua transaksi (Ticketing, Accommodation, Transportation, MICE, Project Order) — margin yang disembunyikan dari role operasional biasa.</p>
+      </div>
+      <div class="cross-card">
+        <h3>Kunci Pemulihan Sistem</h3>
+        <p>Hak akses Super Admin sendiri <strong>tidak bisa diedit atau diturunkan</strong> lewat UI, dan sistem menolak menghapus Super Admin terakhir — supaya selalu ada jalur pemulihan bila konfigurasi role lain salah.</p>
+      </div>
+      <div class="cross-card">
+        <h3>Widget &amp; Log Eksklusif</h3>
+        <p>Melihat panel &ldquo;Ringkasan Administrasi&rdquo; dan KPI &ldquo;Total User Demo&rdquo; di Dashboard, serta (secara bawaan) satu-satunya pemegang akses ke <strong>Activity Center</strong>.</p>
+      </div>
+    </div>
+    <div class="caution-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+      <span><strong>Catatan penting:</strong> meski secara teknis Super Admin punya akses admin di modul Sales, dalam praktik kerja sehari-hari persetujuan komersial (approve/reject Quotation) tetap dijalankan oleh role <strong>Management</strong>. Super Admin berperan sebagai pengelola sistem dan jalur darurat — bukan pengambil keputusan komersial rutin.</span>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="block-head">
+      <h2>Bagaimana Sistem Hak Akses Bekerja</h2>
+      <span class="note">Supaya jelas kenapa Super Admin bisa &ldquo;melihat semua&rdquo; sementara role lain dibatasi.</span>
+    </div>
+    <p style="color:var(--ink-soft); font-size:0.94rem; max-width:76ch; margin:0 0 6px;">Setiap role di MANOVA — termasuk Super Admin — diberi hak akses lewat kombinasi lima <strong>tingkat izin</strong> per modul:</p>
+    <table class="perm-table">
+      <thead><tr><th>Tingkat</th><th>Artinya</th></tr></thead>
+      <tbody>
+        <tr><td class="level">NONE</td><td>Tidak ada akses ke modul ini sama sekali — menu tersembunyi, URL diblokir.</td></tr>
+        <tr><td class="level">VIEW</td><td>Bisa melihat data, tidak bisa mengubah apa pun.</td></tr>
+        <tr><td class="level">MANAGE</td><td>Bisa membuat, mengubah, dan menjalankan operasional harian di modul ini.</td></tr>
+        <tr><td class="level">APPROVE</td><td>Ditambah wewenang menyetujui/menolak — mis. approval Quotation, Refund, atau perubahan besar.</td></tr>
+        <tr><td class="level lv4">ADMIN</td><td><strong>Kontrol penuh</strong>, termasuk mengatur konfigurasi modul itu sendiri. Ini level yang dipegang Super Admin di <em>seluruh</em> modul, sekaligus.</td></tr>
+      </tbody>
+    </table>
+    <p style="color:var(--ink-soft); font-size:0.94rem; max-width:76ch; margin:16px 0 0;">Tingkat izin ini diatur lewat tiga lapis pengaturan, semuanya bisa diubah langsung dari <span class="mono">/admin/roles</span> tanpa perlu sentuh kode:</p>
+    <div class="grant-grid">
+      <div class="grant-card"><div class="num">LAPIS 1</div><h4>Module Grants</h4><p>Tingkat akses per modul (13 modul: 9 modul bisnis + 4 modul sistem). Ini pengaturan paling umum &mdash; berlaku ke seluruh halaman di dalam modul tersebut.</p></div>
+      <div class="grant-card"><div class="num">LAPIS 2</div><h4>Menu Grants</h4><p>Pengecualian per item menu tertentu, di luar aturan umum modul &mdash; dipakai kalau admin ingin satu sub-menu punya aturan berbeda dari modul induknya.</p></div>
+      <div class="grant-card"><div class="num">LAPIS 3</div><h4>Action Flags (Capability)</h4><p>Hak atas satu tindakan spesifik, lebih halus dari sekadar level modul &mdash; misalnya <span class="mono">sales.approve-quotation</span>, <span class="mono">finance.close-period</span>, <span class="mono">hr.manage-payroll</span>.</p></div>
+    </div>
+    <div class="caution-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span>Empat Action Flag administratif &mdash; <span class="mono">admin.manage-users</span>, <span class="mono">admin.manage-roles</span>, <span class="mono">admin.manage-master-data</span>, dan <span class="mono">admin.view-activity-center</span> &mdash; secara bawaan <strong>kosong untuk semua role lain</strong>. Hanya Super Admin yang memilikinya, kecuali sengaja dibagikan lewat Roles &amp; Permissions.</span>
+    </div>
+  </section>
+
+  <div class="module-nav">
+    <h2>Daftar Isi &middot; Lompat ke Modul</h2>
+    <p class="hint">Urutan sama seperti yang tampil di sidebar aplikasi ketika login sebagai Super Admin.</p>
+    <div class="nav-group">
+      <h3>Modul Bisnis Inti</h3>
+      <div class="nav-chips">
+        <a class="nav-chip system" href="#dashboard">Dashboard</a>
+        <a class="nav-chip internal" href="#sales">Sales</a>
+        <a class="nav-chip internal" href="#finance">Finance &amp; ACC</a>
+        <a class="nav-chip internal" href="#crm">CRM</a>
+        <a class="nav-chip internal" href="#vendor-partner">Vendor &amp; Partner</a>
+        <a class="nav-chip internal" href="#operations">Operations &amp; Scheduling</a>
+        <a class="nav-chip internal" href="#hr">Human Resource</a>
+        <a class="nav-chip internal" href="#inventory">Inventory</a>
+        <a class="nav-chip internal" href="#marketing">Marketing &amp; Analysis</a>
+        <a class="nav-chip internal" href="#reporting">Reporting &amp; BI</a>
+        <a class="nav-chip internal" href="#documents">Documents &amp; Communication</a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <h3>Administrasi &mdash; Khusus Super Admin</h3>
+      <div class="nav-chips">
+        <a class="nav-chip caution" href="#admin">Administration</a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <h3>Portal Eksternal (dapat dibuka, bukan untuk kerja sehari-hari)</h3>
+      <div class="nav-chips">
+        <a class="nav-chip external" href="#vendor-portal">Vendor Portal</a>
+        <a class="nav-chip external" href="#client-portal">Client Portal</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ DASHBOARD ============ -->
+  <section class="module-section" id="dashboard">
+    <div class="module-head">
+      <div class="module-icon system">DB</div>
+      <div class="module-titles">
+        <h2>Dashboard <span class="module-route mono">/</span></h2>
+      </div>
+    </div>
+    <p class="module-purpose">Halaman pertama yang muncul setelah login. Isinya menyesuaikan role yang sedang aktif &mdash; makin luas akses seseorang, makin banyak panel yang tampil. Sebagai Super Admin, <strong>seluruh panel muncul sekaligus</strong> karena tidak ada modul yang dibatasi.</p>
+    <div class="page-card">
+      <div class="page-head"><h4>Ringkasan Beranda</h4><span class="route mono">/</span></div>
+      <p class="page-desc">Satu layar berisi kartu KPI, bilah filter, dan panel-panel widget berikut:</p>
+      <ul class="tab-list">
+        <li><strong>Kartu KPI</strong> &mdash; Active Projects, Open Opportunities, Upcoming Departures, Project Perlu Perhatian, Outstanding Invoices, dan <strong>Total User Demo</strong> (khusus Super Admin).</li>
+        <li><strong>Bilah Filter &amp; Saved Views</strong> &mdash; filter status/jenis/klien/pemilik/periode keberangkatan, dengan kemampuan menyimpan kombinasi filter favorit per user.</li>
+        <li><strong>Opportunity Pipeline</strong> &mdash; nilai deal per tahap pipeline penjualan.</li>
+        <li><strong>Active Projects by Status</strong> &mdash; sebaran project aktif per status.</li>
+        <li><strong>Budget vs Actual</strong> &amp; <strong>Cost Breakdown</strong> &mdash; grafik anggaran vs realisasi dan komposisi biaya.</li>
+        <li><strong>Perlu Ditindak</strong> &mdash; gabungan quotation menunggu approval dan follow-up yang jatuh tempo.</li>
+        <li><strong>Upcoming Departures</strong> &mdash; daftar keberangkatan terdekat.</li>
+        <li><strong>Service Readiness</strong> &mdash; kesiapan layanan lintas Ticketing/Accommodation/Transportation/MICE.</li>
+        <li><strong>Recent Activity</strong> &mdash; umpan aktivitas terbaru lintas sistem.</li>
+        <li><strong>Ringkasan Administrasi</strong> (khusus Super Admin) &mdash; total User, Party, dan Project di seluruh sistem.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ SALES ============ -->
+  <section class="module-section" id="sales">
+    <div class="module-head">
+      <div class="module-icon internal">SL</div>
+      <div class="module-titles">
+        <h2>Sales <span class="module-route mono">/crm/opportunities</span></h2>
+      </div>
+    </div>
+    <p class="module-purpose">Mengelola seluruh siklus penjualan &mdash; dari lead masuk, penyusunan penawaran (quotation), sampai deal dimenangkan. Mencakup juga katalog paket wisata (Product Template) dan perhitungan biaya (Cost Sheet) yang mendukung penyusunan harga jual.</p>
+
+    <div class="page-card">
+      <div class="page-head"><h4>Daftar Opportunity</h4><span class="route mono">/crm/opportunities</span></div>
+      <p class="page-desc">Papan pipeline penjualan plus tabel yang bisa dicari dan difilter per tahap &amp; per perusahaan (party), dengan ringkasan total nilai per tahap.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Detail Opportunity</h4><span class="route mono">/crm/opportunities/[id]</span></div>
+      <p class="page-desc">Ruang kerja penuh satu deal: stepper 7 tahap (Draft &rarr; Qualification &rarr; Requirement Gathering &rarr; Proposal &rarr; Negotiation &rarr; Won Requested &rarr; Won/Lost), form persyaratan (requirement gate) yang harus lengkap sebelum quotation bisa dibuat, pembuatan/revisi/duplikasi quotation, pengajuan approval komersial, ringkasan cost sheet terkait, dan log aktivitas. Halaman ini bersifat satu alur berurutan, bukan tab terpisah.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Pratinjau Quotation</h4><span class="route mono">/crm/opportunities/[id]/quotation-preview</span></div>
+      <p class="page-desc">Tampilan cetak dokumen penawaran, siap dikirim atau disimpan sebagai PDF untuk klien.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Quotation &amp; Antrean Approval</h4><span class="route mono">/crm/quotations</span></div>
+      <p class="page-desc">Pusat pemantauan seluruh penawaran, dengan 3 tab:</p>
+      <ul class="tab-list">
+        <li><strong>Menunggu Approval</strong> &mdash; quotation yang menunggu keputusan komersial dari Management.</li>
+        <li><strong>Menunggu Client Confirmation</strong> &mdash; sudah disetujui internal, menunggu jawaban klien.</li>
+        <li><strong>Semua Quotation</strong> &mdash; daftar lengkap semua status, bisa ditautkan langsung ke status tertentu.</li>
+      </ul>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Product Templates</h4><span class="route mono">/product-planning</span></div>
+      <p class="page-desc">Katalog paket wisata standar (destinasi, cakupan layanan, jumlah peserta dasar, konsep itinerary) yang bisa dipakai ulang saat menyusun penawaran baru.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Detail Product Template</h4><span class="route mono">/product-planning/[id]</span></div>
+      <p class="page-desc">Detail satu template: status (draft/aktif/arsip) dan daftar cost sheet yang terhubung ke template ini.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Cost Sheets</h4><span class="route mono">/product-planning/cost-sheets</span></div>
+      <p class="page-desc">Daftar perhitungan biaya per rombongan/traveler, bisa difilter per status dan per opportunity terkait.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Detail Cost Sheet</h4><span class="route mono">/product-planning/cost-sheets/[id]</span></div>
+      <p class="page-desc">Rincian biaya per jenis layanan, markup, pajak, dan contingency; perbandingan antar versi/skenario; serta tombol &ldquo;Terapkan ke Quotation&rdquo; yang menyalin angka final ke penawaran.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Form Lead Intake (Publik)</h4><span class="route mono">/lead-intake</span></div>
+      <p class="page-desc">Formulir yang bisa diakses siapa saja tanpa login, untuk calon klien mengisi minat perjalanan (Corporate Travel, Group Travel, Individual Travel, atau MICE-Event). Hasilnya masuk ke antrean lead yang sama dengan input manual dari staf Sales.</p>
+    </div>
+  </section>
+
+  <!-- ============ FINANCE & ACC ============ -->
+  <section class="module-section" id="finance">
+    <div class="module-head">
+      <div class="module-icon internal">FA</div>
+      <div class="module-titles">
+        <h2>Finance &amp; ACC <span class="module-route mono">/finance</span></h2>
+      </div>
+    </div>
+    <p class="module-purpose">Seluruh pengelolaan keuangan perusahaan: tagihan ke klien, tagihan dari vendor, pembayaran, biaya operasional, buku besar, pajak, dan rekonsiliasi. Super Admin selalu melihat versi lengkap tanpa penyamaran angka.</p>
+
+    <div class="page-card">
+      <div class="page-head"><h4>Ringkasan Finance</h4><span class="route mono">/finance</span></div>
+      <p class="page-desc">Ikhtisar tagihan tertunggak, jumlah invoice yang telat bayar, ukuran antrean rekonsiliasi, dan kesiapan penutupan keuangan per project.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Invoices</h4><span class="route mono">/finance/invoices</span></div>
+      <p class="page-desc">Daftar &amp; aging invoice klien. Bisa membuat invoice baru, mencatat pembayaran masuk, menerbitkan credit note, atau membatalkan invoice.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Receivables (Piutang)</h4><span class="route mono">/finance/receivables</span></div>
+      <p class="page-desc">Kelompok umur piutang (aging buckets) klien, disandingkan dengan total hutang untuk melihat posisi kas bersih perusahaan.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Payables (Hutang)</h4><span class="route mono">/finance/payables</span></div>
+      <p class="page-desc">Kelompok umur hutang ke vendor, bisa difilter per vendor.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Payments</h4><span class="route mono">/finance/payments</span></div>
+      <p class="page-desc">Buku catatan pembayaran, bisa dicari berdasarkan invoice atau project.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Opex</h4><span class="route mono">/finance/opex</span></div>
+      <p class="page-desc">Biaya operasional perusahaan per periode dan kategori &mdash; membuat entri baru dan mengatur status persetujuannya.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>General Ledger &amp; Revenue</h4><span class="route mono">/finance/ledger</span></div>
+      <p class="page-desc">Buku besar perusahaan, dengan 3 tab:</p>
+      <ul class="tab-list">
+        <li><strong>Balances</strong> &mdash; neraca saldo.</li>
+        <li><strong>Journal</strong> &mdash; daftar entri jurnal.</li>
+        <li><strong>Revenue</strong> &mdash; pendapatan per periode.</li>
+      </ul>
+      <p class="page-desc" style="margin-top:8px;">Semua angka diturunkan otomatis dari invoice, pembayaran, tagihan vendor, dan opex &mdash; tidak ada entri jurnal manual.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Tax &amp; Multi Currency</h4><span class="route mono">/finance/tax</span></div>
+      <p class="page-desc">Referensi aturan pajak dan mata uang (diambil dari Master Data), dilengkapi kalkulator pajak interaktif.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Credit/Debit Notes</h4><span class="route mono">/finance/notes</span></div>
+      <p class="page-desc">Nota penyesuaian lintas project, dengan 2 tab: <strong>Credit</strong> dan <strong>Debit</strong>.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Reconciliation</h4><span class="route mono">/finance/reconciliation</span></div>
+      <p class="page-desc">Ruang kerja pencocokan tagihan vendor yang belum cocok atau sedang disengketakan &mdash; tandai cocok atau tandai sengketa.</p>
+    </div>
+  </section>
+
+  <!-- ============ CRM ============ -->
+  <section class="module-section" id="crm">
+    <div class="module-head">
+      <div class="module-icon internal">CR</div>
+      <div class="module-titles">
+        <h2>CRM <span class="module-route mono">/customer-journey</span></h2>
+      </div>
+    </div>
+    <p class="module-purpose">Merawat hubungan jangka panjang dengan calon dan pelanggan &mdash; berbeda dari Sales yang fokus memenangkan satu deal. Mencakup database customer, corong konversi, follow-up otomatis, program loyalitas, dan pengelolaan feedback.</p>
+
+    <div class="page-card">
+      <div class="page-head"><h4>Ringkasan CRM</h4><span class="route mono">/crm</span></div>
+      <p class="page-desc">Hub ringkas: jumlah Prospect, Client, Opportunity aktif, dan Quotation, dengan tautan ke masing-masing daftar.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Prospects</h4><span class="route mono">/crm/prospects</span></div>
+      <p class="page-desc">Daftar perusahaan/perorangan berstatus &ldquo;Prospect&rdquo;, dengan dialog untuk mencatat prospek baru secara manual.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Clients</h4><span class="route mono">/crm/clients</span></div>
+      <p class="page-desc">Daftar yang sudah berstatus &ldquo;Client&rdquo; &mdash; status ini berubah otomatis hanya ketika sebuah Opportunity dimenangkan, tidak ada tombol &ldquo;convert&rdquo; manual.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Detail Perusahaan/Klien</h4><span class="route mono">/crm/parties/[id]</span></div>
+      <p class="page-desc">Profil lengkap satu perusahaan atau kontak, dengan tab:</p>
+      <ul class="tab-list">
+        <li><strong>Overview</strong> &mdash; ringkasan profil.</li>
+        <li><strong>Contacts</strong> &mdash; daftar kontak person.</li>
+        <li><strong>Opportunities</strong> &mdash; riwayat deal dengan perusahaan ini.</li>
+        <li><strong>Activities</strong> &mdash; log interaksi.</li>
+        <li><strong>Projects</strong> &mdash; muncul hanya bila klien sudah punya minimal satu project.</li>
+        <li><strong>Riwayat &amp; Preferensi</strong> &mdash; riwayat perjalanan dan preferensi, dirangkum otomatis dari project, invoice, dan feedback sebelumnya.</li>
+      </ul>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Customer Journey (Corong)</h4><span class="route mono">/customer-journey</span></div>
+      <p class="page-desc">Ikhtisar corong konversi: Lead &rarr; Qualified &rarr; Opportunity &rarr; Approved &rarr; Won &rarr; Client &rarr; Project Order, dengan tautan untuk melihat detail tiap tahap.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Database Customer</h4><span class="route mono">/customer-journey/customers</span></div>
+      <p class="page-desc">Direktori perusahaan/klien yang sama dengan Prospects/Clients di atas, namun ditampilkan dari sudut pandang Sales, lengkap dengan saklar cakupan portofolio (semua data vs milik sendiri).</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Detail Customer</h4><span class="route mono">/customer-journey/customers/[id]</span></div>
+      <p class="page-desc">Versi lebih lengkap dari detail perusahaan, dengan 6 tab:</p>
+      <ul class="tab-list">
+        <li><strong>Overview</strong>, <strong>Contacts</strong>, <strong>Opportunities</strong>, <strong>Activities</strong> &mdash; sama seperti di atas.</li>
+        <li><strong>Project Orders</strong> &mdash; daftar order project milik customer ini.</li>
+        <li><strong>Documents</strong> &mdash; dokumen terkait customer ini.</li>
+      </ul>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Leads</h4><span class="route mono">/customer-journey/leads</span></div>
+      <p class="page-desc">Daftar lead dalam tampilan list/kanban/inbox. Tiap lead dibuka lewat panel samping dengan 4 tab:</p>
+      <ul class="tab-list">
+        <li><strong>Overview</strong> &mdash; ringkasan data lead.</li>
+        <li><strong>Qualification</strong> &mdash; form kualifikasi (destinasi, tanggal, estimasi traveler, cakupan layanan, dsb).</li>
+        <li><strong>Activities</strong> &mdash; log interaksi dengan lead.</li>
+        <li><strong>Follow-ups</strong> &mdash; jadwal tindak lanjut untuk lead ini.</li>
+      </ul>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Lead Source Recap</h4><span class="route mono">/customer-journey/lead-sources</span></div>
+      <p class="page-desc">Rekap performa per sumber lead (Website, Instagram, TikTok, WhatsApp, Referral, Event, Email, Sales Outreach, Lainnya): total masuk, yang lolos kualifikasi, opportunity tercipta, dimenangkan, dan tingkat konversi.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Follow-up Otomatis</h4><span class="route mono">/crm/follow-ups</span></div>
+      <p class="page-desc">Mesin aturan follow-up otomatis (memicu tugas N hari setelah kejadian tertentu), dengan statistik jatuh tempo hari ini, terlambat &gt;7 hari, akan datang, dan jumlah aturan aktif; plus tautan kontak cepat lewat WhatsApp/email/telepon.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Loyalty Program</h4><span class="route mono">/crm/loyalty</span></div>
+      <p class="page-desc">Tingkatan loyalitas (Bronze/Silver/Gold/Platinum) yang dihitung otomatis dari invoice yang sudah terbayar, papan peringkat, serta penyesuaian poin manual lengkap dengan riwayat alasannya.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Review &amp; Feedback</h4><span class="route mono">/crm/feedback</span></div>
+      <p class="page-desc">Ruang triase feedback yang dikirim klien lewat portal mereka: skor NPS, rata-rata kepuasan di 10 aspek (respons Sales, kualitas proposal, itinerary, hotel, transportasi, tour leader, dukungan operasional, komunikasi, penyelesaian masalah, dan value for money), serta aksi untuk mengakui atau menandai perlu ditindaklanjuti.</p>
+    </div>
+  </section>
+
+  <!-- ============ VENDOR & PARTNER ============ -->
+  <section class="module-section" id="vendor-partner">
+    <div class="module-head">
+      <div class="module-icon internal">VN</div>
+      <div class="module-titles">
+        <h2>Vendor &amp; Partner <span class="module-route mono">/vendors</span></h2>
+      </div>
+    </div>
+    <p class="module-purpose">Mengelola direktori vendor/mitra, proses permintaan penawaran (RFQ) yang kompetitif, pemenuhan Service Order, dan penilaian performa vendor dari waktu ke waktu.</p>
+
+    <div class="page-card">
+      <div class="page-head"><h4>Data Vendor</h4><span class="route mono">/vendors</span></div>
+      <p class="page-desc">Direktori vendor, bisa difilter per jenis layanan, dengan dialog untuk mendaftarkan vendor baru.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Detail Vendor</h4><span class="route mono">/vendors/[id]</span></div>
+      <p class="page-desc">Profil lengkap satu vendor, dengan 6 tab: <strong>Overview</strong>, <strong>Services</strong>, <strong>Quotations</strong>, <strong>Products</strong>, <strong>Documents</strong>, <strong>Contacts</strong>.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>RFQ &amp; Service Orders</h4><span class="route mono">/procurement</span></div>
+      <p class="page-desc">Dua tab utama proses pengadaan:</p>
+      <ul class="tab-list">
+        <li><strong>RFQ</strong> &mdash; jumlah permintaan penawaran yang masih terbuka/sudah ditutup, daftar lengkap, dan dialog buat RFQ baru.</li>
+        <li><strong>Service Orders</strong> &mdash; jumlah order yang aktif/terpenuhi beserta daftarnya.</li>
+      </ul>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Detail RFQ</h4><span class="route mono">/procurement/rfq/[id]</span></div>
+      <p class="page-desc">Mengundang beberapa vendor sekaligus, membandingkan respons mereka berdampingan, mengajukan klarifikasi per vendor, memilih pemenang (respons vendor lain otomatis ditolak), menutup RFQ, dan mengonversinya menjadi Service Order.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Detail Service Order</h4><span class="route mono">/procurement/service-orders/[id]</span></div>
+      <p class="page-desc">Linimasa pemenuhan (Draft &rarr; Terkirim &rarr; Diakui Vendor &rarr; ... &rarr; Terpenuhi, atau Diamandemen/Dibatalkan), riwayat amandemen, dan tautan ke invoice vendor terkait.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Rating &amp; Performance</h4><span class="route mono">/procurement/performance</span></div>
+      <p class="page-desc">Metrik performa vendor: tingkat kemenangan RFQ, rata-rata waktu respons, dan ketepatan waktu pemenuhan.</p>
+    </div>
+  </section>
+
+  <!-- ============ OPERATIONS & SCHEDULING ============ -->
+  <section class="module-section" id="operations">
+    <div class="module-head">
+      <div class="module-icon internal">OS</div>
+      <div class="module-titles">
+        <h2>Operations &amp; Scheduling <span class="module-route mono">/project-orders</span></h2>
+      </div>
+    </div>
+    <p class="module-purpose">Modul operasional inti dan paling kompleks di sistem &mdash; mengelola project dari serah-terima (handover) sampai penutupan, booking empat lini layanan (Flight/Hotel/Transportation/MICE), penyusunan itinerary, serta penanganan perubahan dan insiden.</p>
+
+    <div class="page-card">
+      <div class="page-head"><h4>Project Orders</h4><span class="route mono">/project-orders</span></div>
+      <p class="page-desc">Daftar utama Project Order, menampilkan langkah aktif dari 6 tahap alur order per project, indikator gate/penghalang yang belum terpenuhi, dan jumlah milestone yang terlambat.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Detail Project Order</h4><span class="route mono">/project-orders/[id]</span></div>
+      <p class="page-desc">Alur order 6 tahap: Drafting &rarr; Handover &rarr; Planning &rarr; Confirmed &rarr; Ready &rarr; Ongoing/Closing. 2 tab:</p>
+      <ul class="tab-list">
+        <li><strong>Overview</strong> &mdash; stepper tahap, ringkasan, linimasa/milestone, catatan.</li>
+        <li><strong>Financial</strong> &mdash; margin project (tampil bila punya akses finansial penuh, termasuk Super Admin).</li>
+      </ul>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Project Workspace</h4><span class="route mono">/projects</span></div>
+      <p class="page-desc">Daftar workspace project versi lebih detail, bisa difilter per status/jenis/klien/pemilik, dengan progress bar linear per project.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Detail Project</h4><span class="route mono">/projects/[id]</span></div>
+      <p class="page-desc"><strong>Halaman paling lengkap di seluruh aplikasi</strong> &mdash; 8 tab yang mencakup seluruh siklus hidup operasional satu project:</p>
+      <ul class="tab-list">
+        <li><strong>Overview</strong> &mdash; terima/tolak handover, ringkasan status, risiko project.</li>
+        <li><strong>Itinerary &amp; Layanan</strong> &mdash; jadwal harian, ringkasan booking Flight/Hotel/Transportation/MICE per project, tombol buat booking baru per jenis.</li>
+        <li><strong>Travelers</strong> &mdash; roster peserta perjalanan dan rooming list.</li>
+        <li><strong>Vendors</strong> &mdash; perbandingan quotation vendor per layanan, terima/tolak penawaran.</li>
+        <li><strong>Finance</strong> &mdash; invoice, pembayaran, dan nota kredit/debit terkait project ini.</li>
+        <li><strong>Tasks</strong> &mdash; daftar tugas operasional dan catatan serah-terima antar shift.</li>
+        <li><strong>Documents</strong> &mdash; dokumen terkait project.</li>
+        <li><strong>Activity &amp; Changes</strong> &mdash; log aktivitas dan gate penutupan project.</li>
+      </ul>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Dokumen Cetak Project</h4><span class="route mono">/projects/[id]/manifest-preview &middot; /run-sheet-preview</span></div>
+      <p class="page-desc">Pratinjau cetak manifest/rooming list peserta dan run sheet acara.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Kalender &amp; Peta Operasional</h4><span class="route mono">/operations/calendar</span></div>
+      <p class="page-desc">2 tab:</p>
+      <ul class="tab-list">
+        <li><strong>Kalender Jadwal</strong> &mdash; jadwal operasional gabungan: booking, milestone, dan maintenance dalam satu kalender.</li>
+        <li><strong>Perencanaan Peta</strong> &mdash; perencanaan lokasi berbasis peta dengan penanda (pin) per titik layanan.</li>
+      </ul>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Booking &amp; Service Order Center</h4><span class="route mono">/bookings</span></div>
+      <p class="page-desc">Satu-satunya layar yang menampilkan keempat lini layanan (Flight/Hotel/Transport/MICE) sekaligus, lintas seluruh project &mdash; bukan berpindah antar 4 modul terpisah. Mencakup penandaan &ldquo;Payment Cleared&rdquo; dan deteksi duplikat booking.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Booking Exceptions</h4><span class="route mono">/bookings/exceptions</span></div>
+      <p class="page-desc">Antrean khusus untuk booking yang perlu perhatian: dependensi belum terpenuhi, percobaan booking yang gagal, kemungkinan duplikat, atau tanda perubahan/insiden di level domain.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Changes &amp; Incidents</h4><span class="route mono">/changes</span></div>
+      <p class="page-desc">Satu pusat untuk empat jenis kasus, dengan 4 tab: <strong>Change Requests</strong>, <strong>Cancellations</strong>, <strong>Refunds</strong>, <strong>Incidents</strong> &mdash; lintas seluruh project. Setiap kasus (dibuka lewat halaman detail masing-masing) berjalan lewat alur status: diajukan &rarr; direview &rarr; disetujui/ditolak &rarr; diimplementasikan.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Ticketing (Penerbangan)</h4><span class="route mono">/ticketing</span></div>
+      <p class="page-desc">Daftar &amp; detail booking penerbangan &mdash; PNR, segmen perjalanan, pilihan fare, biaya bersih vs harga jual &mdash; plus pratinjau E-Ticket untuk klien.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Accommodation (Hotel)</h4><span class="route mono">/accommodation</span></div>
+      <p class="page-desc">Daftar &amp; detail booking hotel &mdash; rooming list, paket makan &mdash; plus pratinjau Voucher untuk klien.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Transportation</h4><span class="route mono">/transportation</span></div>
+      <p class="page-desc">Daftar &amp; detail booking transportasi &mdash; penugasan kendaraan/driver, rute, jadwal &mdash; plus pratinjau Service Order (untuk klien) dan Driver Sheet (untuk driver, tanpa informasi harga).</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>MICE</h4><span class="route mono">/mice</span></div>
+      <p class="page-desc">Daftar &amp; detail acara MICE &mdash; Bill of Quantities (BOQ), sesi acara, kategori peserta, checklist, deliverable, dan deteksi bentrok jadwal &mdash; plus pratinjau Rundown dan BOQ.</p>
+    </div>
+    <div class="caution-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 12a9.5 9.5 0 1 1 19 0 9.5 9.5 0 0 1-19 0"/><path d="M9 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0"/></svg>
+      <span>Keempat halaman booking layanan di atas menyembunyikan biaya bersih ke vendor (net cost) dan margin dari role yang tidak berwenang. <strong>Super Admin selalu melihat versi lengkap</strong>, sama seperti role yang mengelola langsung modul tersebut.</span>
+    </div>
+  </section>
+
+  <!-- ============ HUMAN RESOURCE ============ -->
+  <section class="module-section" id="hr">
+    <div class="module-head">
+      <div class="module-icon internal">HR</div>
+      <div class="module-titles">
+        <h2>Human Resource <span class="module-route mono">/hr</span></h2>
+      </div>
+    </div>
+    <p class="module-purpose">Mengelola data karyawan internal, kehadiran, payroll, komisi tim Sales/Operations, dan penilaian performa.</p>
+    <div class="page-card">
+      <div class="page-head"><h4>Human Resource</h4><span class="route mono">/hr</span></div>
+      <p class="page-desc">Satu halaman dengan 6 tab:</p>
+      <ul class="tab-list">
+        <li><strong>Employees</strong> &mdash; direktori karyawan, tambah/edit data.</li>
+        <li><strong>Attendance</strong> &mdash; ringkasan kehadiran per periode.</li>
+        <li><strong>Payroll</strong> &mdash; proses payroll, rincian per baris, transisi status pembayaran.</li>
+        <li><strong>Commissions</strong> &mdash; catatan komisi dan penambahan insentif.</li>
+        <li><strong>Performance</strong> &mdash; hasil review kinerja.</li>
+        <li><strong>Productivity</strong> &mdash; ringkasan produktivitas tim.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ INVENTORY ============ -->
+  <section class="module-section" id="inventory">
+    <div class="module-head">
+      <div class="module-icon internal">IV</div>
+      <div class="module-titles">
+        <h2>Inventory <span class="module-route mono">/inventory</span></h2>
+      </div>
+    </div>
+    <p class="module-purpose">Mengelola aset milik perusahaan sendiri (bukan milik vendor) &mdash; kamera &amp; alat produksi, properti pendukung &mdash; beserta jadwal perawatannya.</p>
+    <div class="page-card">
+      <div class="page-head"><h4>Inventory</h4><span class="route mono">/inventory</span></div>
+      <p class="page-desc">Satu halaman dengan 4 tab:</p>
+      <ul class="tab-list">
+        <li><strong>Assets</strong> &mdash; daftar aset, tambah/edit, filter per kategori.</li>
+        <li><strong>Maintenance</strong> &mdash; jadwal perawatan, status terlambat/akan datang, tandai selesai.</li>
+        <li><strong>Checkouts</strong> &mdash; peminjaman aset yang sedang aktif, tandai sudah dikembalikan.</li>
+        <li><strong>Utilization</strong> &mdash; statistik pemakaian aset.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ MARKETING & ANALYSIS ============ -->
+  <section class="module-section" id="marketing">
+    <div class="module-head">
+      <div class="module-icon internal">MA</div>
+      <div class="module-titles">
+        <h2>Marketing &amp; Analysis <span class="module-route mono">/marketing</span></h2>
+      </div>
+    </div>
+    <p class="module-purpose">Memantau efektivitas pemasaran &mdash; performa kampanye, promo, corong konversi, biaya akuisisi pelanggan, dan nilai jangka panjang pelanggan.</p>
+    <div class="page-card">
+      <div class="page-head"><h4>Marketing &amp; Analysis</h4><span class="route mono">/marketing</span></div>
+      <p class="page-desc">Satu halaman dengan 5 tab:</p>
+      <ul class="tab-list">
+        <li><strong>Campaigns</strong> &mdash; performa dan pengeluaran tiap kampanye.</li>
+        <li><strong>Promos</strong> &mdash; hasil pemakaian kode promo/voucher.</li>
+        <li><strong>Funnel</strong> &mdash; corong konversi per kanal pemasaran.</li>
+        <li><strong>CAC</strong> &mdash; biaya akuisisi pelanggan per kanal.</li>
+        <li><strong>LTV</strong> &mdash; nilai umur pelanggan (customer lifetime value) dan tingkat pelanggan yang kembali (repeat rate).</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ REPORTING & BI ============ -->
+  <section class="module-section" id="reporting">
+    <div class="module-head">
+      <div class="module-icon internal">BI</div>
+      <div class="module-titles">
+        <h2>Reporting &amp; BI <span class="module-route mono">/reports</span></h2>
+      </div>
+    </div>
+    <p class="module-purpose">Pusat laporan lintas modul untuk pengambilan keputusan &mdash; sebagian besar bersifat &ldquo;hanya lihat&rdquo; dengan data yang diambil langsung dari modul sumbernya, bukan dihitung ulang.</p>
+    <div class="page-card">
+      <div class="page-head"><h4>Reports</h4><span class="route mono">/reports</span></div>
+      <p class="page-desc">Hub laporan lintas domain, dengan filter status/jenis/periode, Saved Views, dan widget ringkasan pipeline penjualan, project, serta finance.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Analytics &amp; Marketing ROI</h4><span class="route mono">/reports/analytics</span></div>
+      <p class="page-desc">Pendapatan per periode, ROI/ROAS pemasaran, performa campaign, tabel biaya-per-trip &amp; margin, performa belanja ke vendor, ringkasan inventory, dan produktivitas HR &mdash; seluruhnya diambil dari modul pemiliknya masing-masing.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Activity Center</h4><span class="route mono">/activity-center</span></div>
+      <p class="page-desc">Feed pencarian seluruh peristiwa sistem (lead, opportunity, quotation, client, project order, vendor, finance, user) lintas modul &mdash; berbeda dari Audit Trail yang berbasis per-project.</p>
+      <div class="caution-note" style="margin-top:10px;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <span>Halaman ini <strong>khusus Super Admin secara bawaan</strong> &mdash; dikunci lewat Action Flag <span class="mono">admin.view-activity-center</span>, bukan sekadar level akses modul biasa.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ DOCUMENTS & COMMUNICATION ============ -->
+  <section class="module-section" id="documents">
+    <div class="module-head">
+      <div class="module-icon internal">DC</div>
+      <div class="module-titles">
+        <h2>Documents &amp; Communication <span class="module-route mono">/documents</span></h2>
+      </div>
+    </div>
+    <p class="module-purpose">Pusat dokumen lintas entitas, pesan internal, dan notifikasi sistem.</p>
+    <div class="page-card">
+      <div class="page-head"><h4>Documents</h4><span class="route mono">/documents</span></div>
+      <p class="page-desc">Satu halaman dengan 3 tab:</p>
+      <ul class="tab-list">
+        <li><strong>Documents</strong> &mdash; pusat dokumen lintas entitas, filter kategori/level akses/entitas/masa berlaku, unggah dokumen baru.</li>
+        <li><strong>Messages</strong> &mdash; pesan internal (<span class="mono">?tab=messages</span>).</li>
+        <li><strong>Notifications</strong> &mdash; notifikasi sistem, juga jadi tujuan tombol &ldquo;Lihat Semua&rdquo; pada ikon lonceng di header (<span class="mono">?tab=notifications</span>).</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============ ADMINISTRATION ============ -->
+  <section class="module-section" id="admin">
+    <div class="module-head">
+      <div class="module-icon caution">AD</div>
+      <div class="module-titles">
+        <h2>Administration <span class="exclusive-badge">Khusus Super Admin</span></h2>
+        <div class="module-route mono">/admin</div>
+      </div>
+    </div>
+    <p class="module-purpose">Wilayah inti kekuasaan Super Admin: mengatur siapa boleh melakukan apa di seluruh sistem, mengelola data induk yang dipakai semua modul, dan menelusuri jejak audit. Role lain (mis. Management) hanya melihat sebagian kecil, dengan level akses yang jauh lebih rendah.</p>
+
+    <div class="page-card">
+      <div class="page-head"><h4>Hub Administrasi</h4><span class="route mono">/admin</span></div>
+      <p class="page-desc">Halaman pintu masuk dengan 5 kartu pintasan (Master Data, Users, Roles and Permissions, Audit Trail, Organization Profile), ditambah panel <strong>Demo Role Switcher</strong> untuk mencoba tampilan aplikasi seolah-olah login sebagai salah satu dari 13 role yang ada.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Users</h4><span class="route mono">/admin/users</span></div>
+      <p class="page-desc">2 tab:</p>
+      <ul class="tab-list">
+        <li><strong>Directory</strong> &mdash; cari/filter user per role; dialog detail user menampilkan matriks akses penuh per modul; bisa mengalihkan role user, menangguhkan (suspend), atau mengaktifkan kembali &mdash; alasan wajib diisi untuk suspend.</li>
+        <li><strong>Access Review</strong> &mdash; daftar tinjauan berkala untuk user aktif, plus daftar user yang sedang ditangguhkan beserta alasannya.</li>
+      </ul>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Roles and Permissions</h4><span class="route mono">/admin/roles</span></div>
+      <p class="page-desc">Panel kiri berisi daftar role (buat baru, klon dari role lain, edit label/deskripsi, hapus role kustom yang belum dipakai user). Untuk role yang dipilih, tersedia 5 tab:</p>
+      <ul class="tab-list">
+        <li><strong>Modules</strong> &mdash; matriks tingkat izin (NONE/VIEW/MANAGE/APPROVE/ADMIN) per modul bisnis, bisa diatur massal.</li>
+        <li><strong>Menus</strong> &mdash; pengecualian akses per item menu navigasi tertentu.</li>
+        <li><strong>Action Flags</strong> &mdash; saklar hak khusus (capability) per tindakan spesifik.</li>
+        <li><strong>Users</strong> &mdash; daftar user yang sedang memegang role ini, dengan opsi assign user baru.</li>
+        <li><strong>Preview</strong> &mdash; ringkasan akses role ini, tampilan hanya-lihat untuk verifikasi cepat.</li>
+      </ul>
+      <p class="page-desc" style="margin-top:8px;">Tersedia juga tombol darurat <strong>&ldquo;Reset ke Default&rdquo;</strong> yang menghapus seluruh role kustom dan mengembalikan 13 role bawaan beserta hak aksesnya (penugasan user ke role tetap disimpan).</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Master Data</h4><span class="route mono">/admin/master-data</span></div>
+      <p class="page-desc">15 kategori data referensi yang dipakai seluruh sistem, dikelompokkan dalam 3 grup, masing-masing dengan CRUD penuh (Tambah/Edit/Nonaktifkan/Aktifkan) dan peringatan &ldquo;sedang digunakan&rdquo; sebelum data diedit:</p>
+      <ul class="tab-list">
+        <li><strong>Referensi Operasional</strong> &mdash; Jenis Project, Jenis Layanan, Destinasi, Kategori Vendor, Bandara, Maskapai, Hotel.</li>
+        <li><strong>Komersial &amp; Keuangan</strong> &mdash; Mata Uang, Aturan Pajak, Termin Pembayaran, Aturan Pembatalan.</li>
+        <li><strong>Konfigurasi Sistem</strong> &mdash; Skema Penomoran, Template Dokumen, Readiness Gate, Aturan Penugasan.</li>
+      </ul>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Audit Trail</h4><span class="route mono">/admin/audit-trail</span></div>
+      <p class="page-desc">Log yang bisa dicari, menggabungkan dua sumber: catatan aktivitas per-project (perubahan data, kategori, status sudah/belum ditinjau, nilai sebelum &amp; sesudah) dan bagian terpisah &ldquo;Log Sistem (Non-Project)&rdquo; untuk peristiwa lintas modul seperti perubahan hak akses, edit master data, edit profil organisasi, dan suspend/aktifkan user.</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Organization Profile</h4><span class="route mono">/admin/organization</span></div>
+      <p class="page-desc">Form profil tunggal perusahaan &mdash; nama legal, nama tampilan, alamat, mata uang default, jam operasional, email &amp; telepon kontak. Berfungsi sebagai referensi untuk kop dokumen, bukan pengaturan multi-perusahaan (single-tenant).</p>
+    </div>
+    <div class="page-card">
+      <div class="page-head"><h4>Settings (lewat menu profil)</h4><span class="route mono">/settings</span></div>
+      <p class="page-desc">Diakses lewat avatar di pojok sidebar, bukan item menu utama &mdash; sengaja dibuat selalu terjangkau agar tidak ada skenario &ldquo;terkunci keluar&rdquo; dari sistem. Berisi:</p>
+      <ul class="tab-list">
+        <li><strong>Profil Akun</strong> &mdash; data akun yang sedang login.</li>
+        <li><strong>Demo Role Switcher</strong> &mdash; sama seperti di Hub Administrasi.</li>
+        <li><strong>Reset Role &amp; Permission</strong> (darurat) &mdash; mengembalikan 13 role bawaan beserta hak aksesnya, menghapus seluruh role kustom.</li>
+        <li><strong>Reset Demo Data</strong> &mdash; mengembalikan seluruh data contoh (lead, opportunity, quotation, project, vendor, finance, aktivitas) ke kondisi awal.</li>
+      </ul>
+    </div>
+
+    <div class="caution-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      <span><strong>Kenapa Super Admin disebut &ldquo;kunci pemulihan sistem&rdquo;:</strong> hak akses role Super Admin sendiri sengaja <strong>tidak bisa diturunkan atau diedit</strong> lewat halaman Roles and Permissions, dan sistem menolak permintaan menghapus atau mengalihkan Super Admin terakhir yang tersisa. Ini mencegah skenario di mana kesalahan konfigurasi role membuat seluruh tim terkunci keluar dari sistem tanpa jalan keluar.</span>
+    </div>
+  </section>
+
+  <!-- ============ VENDOR PORTAL ============ -->
+  <section class="module-section" id="vendor-portal">
+    <div class="module-head">
+      <div class="module-icon external">SP</div>
+      <div class="module-titles">
+        <h2>Vendor Portal <span class="module-route mono">/supplier</span></h2>
+      </div>
+    </div>
+    <div class="portal-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span>Portal ini dirancang untuk role eksternal <strong>Vendor</strong> yang login sendiri, dengan data yang dibatasi (di-scope) hanya untuk perusahaan vendor tersebut. Super Admin secara teknis punya akses ADMIN ke modul ini juga &mdash; berguna untuk supervisi atau debugging pengalaman vendor &mdash; namun karena scope-nya kosong untuk akun Super Admin, membukanya langsung tidak menampilkan data operasional harian.</span>
+    </div>
+    <div class="page-grid-compact">
+      <div class="compact-item"><strong>Dashboard Vendor</strong><span class="route">/supplier</span></div>
+      <div class="compact-item"><strong>Products</strong><span class="route">/supplier/products</span></div>
+      <div class="compact-item"><strong>Orders</strong><span class="route">/supplier/orders (+ detail)</span></div>
+      <div class="compact-item"><strong>RFQ Inbox</strong><span class="route">/supplier/rfq (+ detail)</span></div>
+      <div class="compact-item"><strong>Service Orders</strong><span class="route">/supplier/service-orders (+ detail)</span></div>
+      <div class="compact-item"><strong>Komoditas Saya</strong><span class="route">/supplier/commodities (+ detail, edit)</span></div>
+      <div class="compact-item"><strong>Vendor Orders</strong><span class="route">/supplier/commodity-orders (+ detail)</span></div>
+    </div>
+  </section>
+
+  <!-- ============ CLIENT PORTAL ============ -->
+  <section class="module-section" id="client-portal">
+    <div class="module-head">
+      <div class="module-icon external">CL</div>
+      <div class="module-titles">
+        <h2>Client Portal <span class="module-route mono">/client</span></h2>
+      </div>
+    </div>
+    <div class="portal-note">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+      <span>Sama halnya dengan Vendor Portal, bagian ini adalah cermin pengalaman untuk role eksternal <strong>Client</strong>, di-scope per perusahaan klien. Ini pada dasarnya versi self-service dari data yang sama dengan modul Sales/Operations/Finance internal &mdash; klien mengonfirmasi quotation, memantau project, dan mengajukan permintaan sendiri tanpa perlu menghubungi staf untuk setiap hal kecil.</span>
+    </div>
+    <div class="page-grid-compact">
+      <div class="compact-item"><strong>Dashboard &amp; Notifications</strong><span class="route">/client &middot; /client/notifications</span></div>
+      <div class="compact-item"><strong>Travel Requests</strong><span class="route">/client/travel-requests (+ baru/edit/detail)</span></div>
+      <div class="compact-item"><strong>Quotations</strong><span class="route">/client/quotations (+ pratinjau)</span></div>
+      <div class="compact-item"><strong>Approvals</strong><span class="route">/client/approvals (+ detail)</span></div>
+      <div class="compact-item"><strong>Projects &amp; Project Orders</strong><span class="route">/client/projects &middot; /client/project-orders/[id]</span></div>
+      <div class="compact-item"><strong>Participants</strong><span class="route">/client/participants (+ detail)</span></div>
+      <div class="compact-item"><strong>Itineraries</strong><span class="route">/client/itineraries (+ pratinjau)</span></div>
+      <div class="compact-item"><strong>Reservations</strong><span class="route">/client/reservations (+ jenis/detail/pratinjau)</span></div>
+      <div class="compact-item"><strong>Trip Center</strong><span class="route">/client/trip-center/[projectId]</span></div>
+      <div class="compact-item"><strong>Change Requests</strong><span class="route">/client/change-requests (+ detail)</span></div>
+      <div class="compact-item"><strong>Documents &amp; Messages</strong><span class="route">/client/documents &middot; /client/messages/[projectId]</span></div>
+      <div class="compact-item"><strong>Support</strong><span class="route">/client/support (+ detail)</span></div>
+      <div class="compact-item"><strong>Billing</strong><span class="route">/client/billing (+ invoices/detail/pratinjau, statement)</span></div>
+      <div class="compact-item"><strong>Reports &amp; Feedback</strong><span class="route">/client/reports &middot; /client/feedback/[projectId]</span></div>
+      <div class="compact-item"><strong>Company Profile</strong><span class="route">/client/company-profile</span></div>
+      <div class="compact-item"><strong>Opportunity &amp; Catalog</strong><span class="route">/client/opportunities/[id] &middot; /client/catalog/[requirementId]</span></div>
+    </div>
+  </section>
+
+  <section class="block">
+    <div class="limits">
+      <h3>Perlu Diingat Saat Membaca Dokumen Ini</h3>
+      <ul>
+        <li><strong>Ini masih mockup frontend</strong> &mdash; seluruh data yang tampil adalah data simulasi untuk validasi alur kerja, belum tersambung ke backend/database produksi atau sistem maskapai/hotel/pembayaran sungguhan.</li>
+        <li><strong>Role &amp; hak akses bersifat dinamis</strong> &mdash; 13 role yang dijelaskan di sini adalah role bawaan sistem, tapi Super Admin bisa membuat role kustom baru kapan saja lewat Admin &gt; Roles, dengan kombinasi modul dan Action Flag sendiri. Dokumen ini menjelaskan cakupan bawaan Super Admin, bukan satu-satunya konfigurasi yang mungkin.</li>
+        <li><strong>Super Admin bukan approver komersial rutin</strong> &mdash; meski secara teknis punya akses ADMIN ke modul Sales, persetujuan Quotation dalam praktik tetap dijalankan oleh Management, agar ada pemisahan tugas yang jelas antara &ldquo;yang mengelola sistem&rdquo; dan &ldquo;yang menyetujui komersial&rdquo;.</li>
+        <li><strong>Reset darurat tersedia tapi berdampak luas</strong> &mdash; &ldquo;Reset ke Default&rdquo; di Roles and Permissions dan &ldquo;Reset Role &amp; Permission&rdquo; di Settings sama-sama menghapus seluruh role kustom yang pernah dibuat. Gunakan hanya saat benar-benar diperlukan.</li>
+        <li>Halaman Vendor Portal dan Client Portal tetap berdiri sendiri secara teknis untuk role eksternal masing-masing &mdash; Super Admin bisa membukanya untuk supervisi, tapi bukan alur kerja hariannya.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    <span>Disusun langsung dari kode aplikasi aktual (RBAC dinamis, Revisi 9-Modul) &mdash; bukan dari dokumen perencanaan lama.</span>
+    <span>Per 5 Agustus 2026</span>
+  </footer>
+
+</div>
+
+<div class="back-to-top">
+  <a href="#top" aria-label="Kembali ke atas" title="Kembali ke atas">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
+  </a>
+</div>
+
+<script>
+  document.getElementById('btn-pdf').addEventListener('click', function () {
+    window.print();
+  });
+
+  document.getElementById('btn-html').addEventListener('click', function () {
+    var doc = '<!doctype html>\n' + document.documentElement.outerHTML;
+    var blob = new Blob([doc], { type: 'text/html' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url;
+    a.download = 'MANOVA-Dokumentasi-Peran-Super-Admin.html';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 2000);
+  });
+</script>

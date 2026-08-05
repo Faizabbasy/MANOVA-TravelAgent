@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Package, Wrench, AlertTriangle, PackageCheck, Search, Undo2, Plus, Pencil } from 'lucide-vue-next'
+import { Package, Wrench, AlertTriangle, PackageCheck, Search, Undo2, Plus, Pencil, Eye } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import {
   ASSETS,
@@ -17,6 +17,7 @@ import {
   getUpcomingMaintenance,
   getActiveCheckouts,
   getAssetUtilization,
+  getAssetQuantityInUse,
   returnAsset,
   completeMaintenance,
   addAsset,
@@ -85,7 +86,7 @@ const utilization = computed(() => {
 const categoryCounts = computed(() => ASSET_CATEGORIES.map(category => ({
   category,
   count: ASSETS.filter(asset => asset.category === category.value).length,
-  valueIdr: ASSETS.filter(asset => asset.category === category.value).reduce((sum, asset) => sum + asset.purchasePriceIdr, 0)
+  valueIdr: ASSETS.filter(asset => asset.category === category.value).reduce((sum, asset) => sum + (asset.purchasePriceIdr ?? 0), 0)
 })))
 
 /* Dialog tambah / edit aset */
@@ -100,6 +101,7 @@ const assetForm = ref({
   location: '',
   purchasedAt: DEMO_REFERENCE_DATE,
   purchasePriceIdr: null as number | null,
+  quantity: 1,
   condition: 'good' as Asset['condition'],
   status: 'available' as Asset['status'],
   note: ''
@@ -116,6 +118,7 @@ function openCreate () {
     location: '',
     purchasedAt: DEMO_REFERENCE_DATE,
     purchasePriceIdr: null,
+    quantity: 1,
     condition: 'good',
     status: 'available',
     note: ''
@@ -133,7 +136,8 @@ function openEdit (asset: Asset) {
     serialNumber: asset.serialNumber ?? '',
     location: asset.location,
     purchasedAt: asset.purchasedAt,
-    purchasePriceIdr: asset.purchasePriceIdr,
+    purchasePriceIdr: asset.purchasePriceIdr ?? null,
+    quantity: asset.quantity,
     condition: asset.condition,
     status: asset.status,
     note: asset.note ?? ''
@@ -144,7 +148,7 @@ function openEdit (asset: Asset) {
 const isAssetFormValid = computed(() => Boolean(
   assetForm.value.name.trim() &&
   assetForm.value.location.trim() &&
-  assetForm.value.purchasePriceIdr && assetForm.value.purchasePriceIdr > 0
+  assetForm.value.quantity && assetForm.value.quantity > 0
 ))
 
 function submitAssetForm () {
@@ -156,7 +160,8 @@ function submitAssetForm () {
     serialNumber: assetForm.value.serialNumber.trim() || undefined,
     location: assetForm.value.location.trim(),
     purchasedAt: assetForm.value.purchasedAt,
-    purchasePriceIdr: Number(assetForm.value.purchasePriceIdr),
+    purchasePriceIdr: assetForm.value.purchasePriceIdr ? Number(assetForm.value.purchasePriceIdr) : undefined,
+    quantity: Number(assetForm.value.quantity) || 1,
     condition: assetForm.value.condition,
     status: assetForm.value.status,
     note: assetForm.value.note.trim() || undefined
@@ -175,6 +180,10 @@ function submitAssetForm () {
   isAssetFormOpen.value = false
   showToast('Aset ditambahkan', `"${payload.name}" masuk ke daftar aset.`, 'success')
 }
+
+/* Dialog detail aset */
+const detailAssetId = ref<string | undefined>()
+const detailAsset = computed(() => detailAssetId.value ? getAssetById(detailAssetId.value) : undefined)
 
 /* Dialog pengembalian aset */
 const returnTargetId = ref<string | undefined>()
@@ -288,12 +297,9 @@ function onCompleteMaintenance (maintenanceId: string) {
                   <TableHead>Aset</TableHead>
                   <TableHead>Kategori</TableHead>
                   <TableHead>Lokasi</TableHead>
-                  <TableHead class="text-right">
-                    Nilai Perolehan
-                  </TableHead>
                   <TableHead>Kondisi</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead v-if="canManage" class="text-right">
+                  <TableHead>Stok</TableHead>
+                  <TableHead class="text-right">
                     Aksi
                   </TableHead>
                 </TableRow>
@@ -320,9 +326,6 @@ function onCompleteMaintenance (maintenanceId: string) {
                   <TableCell class="text-sm text-muted-foreground">
                     {{ asset.location }}
                   </TableCell>
-                  <TableCell class="text-right text-sm text-foreground">
-                    {{ formatCurrencyIdr(asset.purchasePriceIdr) }}
-                  </TableCell>
                   <TableCell>
                     <StatusBadge
                       :label="findStatusOption(ASSET_CONDITIONS, asset.condition).label"
@@ -330,13 +333,26 @@ function onCompleteMaintenance (maintenanceId: string) {
                     />
                   </TableCell>
                   <TableCell>
-                    <StatusBadge
-                      :label="findStatusOption(ASSET_STATUSES, asset.status).label"
-                      :tone="findStatusOption(ASSET_STATUSES, asset.status).tone"
-                    />
+                    <span
+                      :class="cn(
+                        'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold font-mono',
+                        getAssetQuantityInUse(asset) === 0
+                          ? 'bg-success/10 text-success'
+                          : getAssetQuantityInUse(asset) >= asset.quantity
+                            ? 'bg-destructive/10 text-destructive'
+                            : 'bg-warning/10 text-warning'
+                      )"
+                      :title="`Dipakai ${getAssetQuantityInUse(asset)} dari stok ${asset.quantity}`"
+                    >
+                      {{ getAssetQuantityInUse(asset) }}/{{ asset.quantity }}
+                    </span>
                   </TableCell>
-                  <TableCell v-if="canManage" class="text-right">
-                    <Button variant="outline" size="sm" @click="openEdit(asset)">
+                  <TableCell class="text-right space-x-1.5 whitespace-nowrap">
+                    <Button variant="outline" size="sm" @click="detailAssetId = asset.id">
+                      <Eye class="h-3.5 w-3.5 mr-1" />
+                      Detail
+                    </Button>
+                    <Button v-if="canManage" variant="outline" size="sm" @click="openEdit(asset)">
                       <Pencil class="h-3.5 w-3.5 mr-1" />
                       Edit
                     </Button>
@@ -540,9 +556,13 @@ function onCompleteMaintenance (maintenanceId: string) {
                 <Input v-model="assetForm.purchasedAt" type="date" />
               </div>
               <div class="space-y-1.5">
-                <Label>Nilai Perolehan (IDR)</Label>
-                <Input v-model.number="assetForm.purchasePriceIdr" type="number" placeholder="0" />
+                <Label>Stok (Jumlah Unit)</Label>
+                <Input v-model.number="assetForm.quantity" type="number" min="1" placeholder="1" />
               </div>
+            </div>
+            <div class="space-y-1.5">
+              <Label>Nilai Perolehan (IDR) — Opsional</Label>
+              <Input v-model.number="assetForm.purchasePriceIdr" type="number" placeholder="Belum diisi" />
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div class="space-y-1.5">
@@ -574,6 +594,110 @@ function onCompleteMaintenance (maintenanceId: string) {
             </Button>
             <Button :disabled="!isAssetFormValid" @click="submitAssetForm">
               Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog :open="Boolean(detailAsset)" @update:open="value => { if (!value) detailAssetId = undefined }">
+        <DialogContent v-if="detailAsset" class="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{{ detailAsset.name }}</DialogTitle>
+            <DialogDescription>
+              {{ detailAsset.code }}<template v-if="detailAsset.serialNumber"> · {{ detailAsset.serialNumber }}</template>
+            </DialogDescription>
+          </DialogHeader>
+
+          <div class="space-y-3 text-sm">
+            <div class="grid grid-cols-2 gap-3">
+              <div>
+                <p class="text-xs text-muted-foreground">
+                  Kategori
+                </p>
+                <StatusBadge
+                  class="mt-1"
+                  :label="findStatusOption(ASSET_CATEGORIES, detailAsset.category).label"
+                  :tone="findStatusOption(ASSET_CATEGORIES, detailAsset.category).tone"
+                />
+              </div>
+              <div>
+                <p class="text-xs text-muted-foreground">
+                  Status
+                </p>
+                <StatusBadge
+                  class="mt-1"
+                  :label="findStatusOption(ASSET_STATUSES, detailAsset.status).label"
+                  :tone="findStatusOption(ASSET_STATUSES, detailAsset.status).tone"
+                />
+              </div>
+              <div>
+                <p class="text-xs text-muted-foreground">
+                  Brand
+                </p>
+                <p class="text-foreground mt-0.5">
+                  {{ detailAsset.brand ?? '—' }}
+                </p>
+              </div>
+              <div>
+                <p class="text-xs text-muted-foreground">
+                  Lokasi
+                </p>
+                <p class="text-foreground mt-0.5">
+                  {{ detailAsset.location }}
+                </p>
+              </div>
+              <div>
+                <p class="text-xs text-muted-foreground">
+                  Tanggal Pembelian
+                </p>
+                <p class="text-foreground mt-0.5">
+                  {{ formatDate(detailAsset.purchasedAt) }}
+                </p>
+              </div>
+              <div>
+                <p class="text-xs text-muted-foreground">
+                  Nilai Perolehan
+                </p>
+                <p class="text-foreground mt-0.5">
+                  {{ detailAsset.purchasePriceIdr ? formatCurrencyIdr(detailAsset.purchasePriceIdr) : 'Belum diisi' }}
+                </p>
+              </div>
+              <div>
+                <p class="text-xs text-muted-foreground">
+                  Kondisi
+                </p>
+                <StatusBadge
+                  class="mt-1"
+                  :label="findStatusOption(ASSET_CONDITIONS, detailAsset.condition).label"
+                  :tone="findStatusOption(ASSET_CONDITIONS, detailAsset.condition).tone"
+                />
+              </div>
+              <div>
+                <p class="text-xs text-muted-foreground">
+                  Stok
+                </p>
+                <p class="text-foreground mt-0.5 font-mono">
+                  {{ getAssetQuantityInUse(detailAsset) }} dipakai dari {{ detailAsset.quantity }} unit
+                </p>
+              </div>
+            </div>
+            <div v-if="detailAsset.note">
+              <p class="text-xs text-muted-foreground">
+                Catatan
+              </p>
+              <p class="text-foreground mt-0.5">
+                {{ detailAsset.note }}
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" @click="detailAssetId = undefined">
+              Tutup
+            </Button>
+            <Button v-if="canManage" @click="openEdit(detailAsset); detailAssetId = undefined">
+              <Pencil class="h-3.5 w-3.5 mr-1" />
+              Edit Aset
             </Button>
           </DialogFooter>
         </DialogContent>
