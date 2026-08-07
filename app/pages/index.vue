@@ -10,6 +10,7 @@ import {
   getServicesForProjects, getUpcomingTasks, getRecentChanges, getUpcomingFollowUps,
   getSavedViewsForUser, createSavedView, deleteSavedView, applySavedView
 } from '~/data'
+import { getProjectActualCostIdr } from '~/data/finance-ext'
 import {
   PROJECT_STATUSES, OPPORTUNITY_STAGES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, findStatusOption
 } from '~/constants/status'
@@ -243,14 +244,16 @@ const projectsByStatus = computed<StatusBreakdownItem[]>(() => {
 const budgetChartProjects = computed(() => filteredProjects.value.filter(p => p.status !== 'cancelled'))
 
 /**
- * Cost Breakdown — Finance/Super Admin. `actualCostIdr` hanya tersedia sebagai agregat per Project
- * (belum ada field cost per jenis layanan di fixture), sehingga breakdown di sini per-project — bukan
- * per kategori layanan. Lihat docs/mockup-section-reports/section-06-dashboard.md bagian Known Issues.
+ * Cost Breakdown — Finance/Super Admin. Actual cost hanya tersedia sebagai agregat per Project (belum ada
+ * field cost per jenis layanan di fixture), sehingga breakdown di sini per-project — bukan per kategori
+ * layanan. Lihat docs/mockup-section-reports/section-06-dashboard.md bagian Known Issues. Nilainya
+ * `getProjectActualCostIdr()` (Fase 3.2, Penyederhanaan 7-Role/Menu) — bukan field statis
+ * `Project.actualCostIdr` yang tidak pernah diperbarui mutator apa pun.
  */
 const costBreakdownItems = computed(() =>
   [...budgetChartProjects.value]
-    .sort((a, b) => b.actualCostIdr - a.actualCostIdr)
-    .map(p => ({ name: p.name, valueIdr: p.actualCostIdr }))
+    .map(p => ({ name: p.name, valueIdr: getProjectActualCostIdr(p.id) }))
+    .sort((a, b) => b.valueIdr - a.valueIdr)
 )
 
 /** Quotations Menunggu Keputusan — Sales/Super Admin. */
@@ -614,7 +617,7 @@ function kpiSubtitle (key: string): string | undefined {
             <NuxtLink to="/product-planning" class="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
               Buka Product Planning →
             </NuxtLink>
-            <NuxtLink to="/product-planning/cost-sheets" class="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+            <NuxtLink to="/product-planning#cost-sheets" class="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
               Buka Cost Sheets →
             </NuxtLink>
           </div>
@@ -640,7 +643,7 @@ function kpiSubtitle (key: string): string | undefined {
             <BudgetChart
               :labels="budgetChartProjects.map(p => p.name)"
               :budget-idr="budgetChartProjects.map(p => p.budgetIdr)"
-              :actual-idr="budgetChartProjects.map(p => p.actualCostIdr)"
+              :actual-idr="budgetChartProjects.map(p => getProjectActualCostIdr(p.id))"
               :height-class="tierOf('budget-vs-actual') === 'default' ? 'h-[220px]' : 'h-[260px]'"
             />
           </template>
@@ -703,7 +706,7 @@ function kpiSubtitle (key: string): string | undefined {
         <DashboardPanel v-if="showUpcomingDepartures" title="Upcoming Departures" :icon="PlaneTakeoff" color="blue" :size="tierOf('upcoming-departures')">
           <ul class="divide-y divide-border">
             <li v-for="project in upcomingDepartures" :key="project.id" class="py-3 first:pt-0 last:pb-0">
-              <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
+              <NuxtLink :to="`/project-orders/${project.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
                 {{ project.name }}
               </NuxtLink>
               <p class="text-xs text-muted-foreground mt-0.5">
@@ -728,7 +731,7 @@ function kpiSubtitle (key: string): string | undefined {
           <ul class="divide-y divide-border">
             <li v-for="project in attentionProjects" :key="project.id" class="py-3 first:pt-0 last:pb-0">
               <div class="flex items-center justify-between gap-2">
-                <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
+                <NuxtLink :to="`/project-orders/${project.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
                   {{ project.name }}
                 </NuxtLink>
                 <AttentionIndicator severity="high" label="Perlu Perhatian" />
@@ -751,7 +754,7 @@ function kpiSubtitle (key: string): string | undefined {
             <ul class="divide-y divide-border mb-5">
               <li v-for="project in myAttentionProjects" :key="project.id" class="py-3 first:pt-0 last:pb-0">
                 <div class="flex items-center justify-between gap-2">
-                  <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
+                  <NuxtLink :to="`/project-orders/${project.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
                     {{ project.name }}
                   </NuxtLink>
                   <AttentionIndicator severity="high" label="Perlu Perhatian" />
@@ -772,7 +775,7 @@ function kpiSubtitle (key: string): string | undefined {
             <ul class="divide-y divide-border">
               <li v-for="project in myOtherActiveProjects" :key="project.id" class="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
                 <div class="min-w-0">
-                  <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline truncate block">
+                  <NuxtLink :to="`/project-orders/${project.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline truncate block">
                     {{ project.name }}
                   </NuxtLink>
                   <p class="text-xs text-muted-foreground mt-0.5 truncate">

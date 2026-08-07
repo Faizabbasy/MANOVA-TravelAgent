@@ -1,103 +1,52 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { getVendorById, getServicesByVendor, getVendorQuotations, getProjectById } from '~/data'
-import { SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES, findStatusOption } from '~/constants/status'
-import { formatCurrencyIdr, formatDate } from '~/utils/format'
+import MyAssignmentsPanel from '~/components/supplier/MyAssignmentsPanel.vue'
+import ServiceOrderInboxPanel from '~/components/supplier/ServiceOrderInboxPanel.vue'
+import VendorOrdersPanel from '~/components/supplier/VendorOrdersPanel.vue'
 
+/**
+ * Vendor Portal > Orders (Penyederhanaan 7-Role/Menu, revisi "satu menu tanpa tab tapi saling ngalir") —
+ * satu menu menampung Assignment & Quotation Saya (dulu halaman ini sendiri), Service Order Inbox (dulu
+ * `/supplier/service-orders`), dan Vendor Orders/Sold Commodities (dulu `/supplier/commodity-orders`).
+ * Konten tiap section dipindah apa adanya ke `app/components/supplier/*Panel.vue`. Disusun sebagai section
+ * bertumpuk dalam satu halaman scroll (BUKAN `<Tabs>`) — tiap section punya `id` untuk deep-link `#section`.
+ * Route detail (`/supplier/orders/[id]`, `/supplier/service-orders/[id]`, `/supplier/commodity-orders/[id]`)
+ * TIDAK berubah.
+ */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
-useHead({ title: 'Assignment & Quotation Saya' })
-
-const { canView, vendorScopeId } = usePermissions()
-
-/** Vendor isolation (Prompt 19) — reuse `getServicesByVendor`/`getVendorQuotations` (Section 13) di-scope ke `vendorScopeId`, tidak pernah membaca `PROJECT_SERVICES`/`VENDOR_QUOTATIONS` penuh. */
-const vendor = computed(() => (vendorScopeId.value ? getVendorById(vendorScopeId.value) : undefined))
-const assignments = computed(() => (vendorScopeId.value ? getServicesByVendor(vendorScopeId.value) : []))
-const quotations = computed(() => (vendorScopeId.value ? getVendorQuotations(vendorScopeId.value) : []))
-
-function projectLabel (projectId: string) {
-  return getProjectById(projectId)?.name ?? projectId
-}
+useHead({ title: 'Orders' })
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-8">
     <PageHeader
-      title="Assignment & Quotation Saya"
-      :description="vendor ? `Order/assignment dan quotation milik ${vendor.name} saja.` : 'Assignment dan quotation.'"
+      title="Orders"
+      description="Assignment, Service Order, dan Vendor Orders milik company Anda — dalam satu menu."
       :breadcrumb="[{ label: 'Supplier Portal', to: '/supplier' }, { label: 'Orders' }]"
     />
 
-    <RoleAccessState v-if="!canView('supplier-portal') || !vendor" module-label="Supplier Portal" />
+    <section id="assignments" class="space-y-4 scroll-mt-20">
+      <h2 class="text-lg font-semibold text-foreground">
+        Assignments
+      </h2>
+      <MyAssignmentsPanel />
+    </section>
 
-    <template v-else>
-      <SectionCard title="Active Assignments" description="Service yang ditugaskan ke company Anda pada Project Order terkait.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project Order</TableHead>
-              <TableHead>Layanan</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Booking Reference</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="service in assignments" :key="service.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/supplier/orders/${service.id}`)">
-              <TableCell class="text-muted-foreground">
-                {{ projectLabel(service.projectId) }}
-              </TableCell>
-              <TableCell class="font-medium text-foreground">
-                {{ service.label }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(SERVICE_STATUSES, service.status).label" :tone="findStatusOption(SERVICE_STATUSES, service.status).tone" /></TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ service.bookingReference ?? '—' }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="assignments.length === 0" :colspan="4">
-              Belum ada assignment.
-            </TableEmpty>
-          </TableBody>
-        </Table>
-      </SectionCard>
+    <Separator />
 
-      <SectionCard title="Quotation" description="Quotation yang pernah diajukan untuk company Anda.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project Order</TableHead>
-              <TableHead>Jumlah</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Diajukan</TableHead>
-              <TableHead>Catatan</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow
-              v-for="quotation in quotations"
-              :key="quotation.id"
-              :class="quotation.serviceId ? 'cursor-pointer hover:bg-muted/50' : ''"
-              @click="quotation.serviceId && navigateTo(`/supplier/orders/${quotation.serviceId}`)"
-            >
-              <TableCell class="text-muted-foreground">
-                {{ projectLabel(quotation.projectId) }}
-              </TableCell>
-              <TableCell class="font-medium text-foreground">
-                {{ formatCurrencyIdr(quotation.amountIdr) }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).label" :tone="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).tone" /></TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDate(quotation.submittedAt) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ quotation.notes ?? '—' }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="quotations.length === 0" :colspan="5">
-              Belum ada quotation.
-            </TableEmpty>
-          </TableBody>
-        </Table>
-      </SectionCard>
-    </template>
+    <section id="service-orders" class="space-y-4 scroll-mt-20">
+      <h2 class="text-lg font-semibold text-foreground">
+        Service Orders
+      </h2>
+      <ServiceOrderInboxPanel />
+    </section>
+
+    <Separator />
+
+    <section id="vendor-orders" class="space-y-4 scroll-mt-20">
+      <h2 class="text-lg font-semibold text-foreground">
+        Vendor Orders
+      </h2>
+      <VendorOrdersPanel />
+    </section>
   </div>
 </template>

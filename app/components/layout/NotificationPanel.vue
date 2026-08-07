@@ -79,9 +79,9 @@ const getTypeBg = (type: NotificationType) => {
   }
 }
 
-/** Section 2 (Home) — tujuan "View all notifications" kini bercabang per role: Client punya halaman sendiri (`/client/notifications`, isolasi per `userId`), role internal tetap ke tab Notifications `/documents` (Section 21, tidak berubah). */
+/** Section 2 (Home) — tujuan "View all notifications" kini bercabang per role: Client punya section Notifications sendiri (`/client#notifications`, isolasi per `userId`), role internal tetap ke tab Notifications `/documents` (Section 21, tidak berubah — `/documents` bukan hasil konsolidasi Fase 2, tab internalnya tetap `?tab=`). */
 function goToAllNotifications () {
-  navigateTo(currentRole.value === 'client' ? '/client/notifications' : '/documents?tab=notifications')
+  navigateTo(currentRole.value === 'client' ? '/client#notifications' : '/documents?tab=notifications')
 }
 
 defineExpose({

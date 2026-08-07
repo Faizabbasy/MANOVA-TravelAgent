@@ -89,7 +89,7 @@ const changeRequests = computed(() => (project.value ? getChangeRequestsByProjec
       <PageHeader title="Tidak Ditemukan" :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Tidak Ditemukan' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Project Order tidak ditemukan" description="Project Order ini tidak ada atau bukan milik company Anda.">
-          <Button @click="router.push('/client/messages')">
+          <Button @click="router.push('/client/documents#messages')">
             Kembali ke Messages & Activities
           </Button>
         </EmptyState>
@@ -101,7 +101,7 @@ const changeRequests = computed(() => (project.value ? getChangeRequestsByProjec
     <template v-else>
       <PageHeader
         :title="project.name"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Collaboration' }, { label: 'Messages & Activities', to: '/client/messages' }, { label: project.name }]"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Documents & Support' }, { label: 'Messages & Activities', to: '/client/documents#messages' }, { label: project.name }]"
       />
 
       <SectionCard title="Percakapan Terkait" description="Comment thread khusus per entitas — bukan duplikasi channel pesan project ini.">

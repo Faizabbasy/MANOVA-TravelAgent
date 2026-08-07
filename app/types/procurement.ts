@@ -126,7 +126,13 @@ export interface ServiceOrderAmendment {
 }
 
 /** Preview/mock murni — TIDAK ADA payment gateway/processing nyata (larangan protokol eksplisit). */
-export type SupplierInvoiceStatus = 'submitted' | 'under-review' | 'approved' | 'rejected'
+/**
+ * `'paid'` (Fase 3 — Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu) — sebelumnya hutang
+ * vendor (akun 2100) hanya bisa bertambah, tidak pernah lunas. Transisi hanya dari `'approved'` lewat
+ * `paySupplierInvoice()` (`app/data/index.ts`), TERPISAH dari `reviewSupplierInvoice()` yang sudah
+ * menjadikan `'approved'`/`'rejected'` terminal.
+ */
+export type SupplierInvoiceStatus = 'submitted' | 'under-review' | 'approved' | 'rejected' | 'paid'
 
 /** AP reconciliation match status (Section 20 — Project Finance, roadmap Section 00–24 baru). Field OPSIONAL — tidak diisi berarti belum ditriase lewat workspace reconciliation (`/finance/reconciliation`, `updateSupplierInvoiceMatchStatus`). */
 export type SupplierInvoiceMatchStatus = 'matched' | 'unmatched' | 'disputed'
@@ -146,4 +152,6 @@ export interface SupplierInvoice {
   /** AP scheduling/match-status (Section 20, aditif) — kapan pembayaran ke vendor dijadwalkan (mock murni, D-006, bukan payment gateway nyata). */
   paymentScheduleDate?: string
   matchStatus?: SupplierInvoiceMatchStatus
+  /** Diisi `paySupplierInvoice()` (Fase 3) saat status menjadi `'paid'` — dasar tanggal jurnal Dr 2100/Cr 1100. */
+  paidAt?: string
 }

@@ -73,8 +73,8 @@ export const LOYALTY_TIERS: LoyaltyTier[] = [
 ]
 
 export const LOYALTY_ADJUSTMENTS: LoyaltyAdjustment[] = reactive([
-  { id: 'LYA-001', partyId: 'PTY-001', points: 250, reason: 'Bonus referral — merekomendasikan dua klien korporat baru.', createdAt: '2026-06-15', createdBy: 'USR-014' },
-  { id: 'LYA-002', partyId: 'PTY-002', points: -100, reason: 'Penukaran poin untuk upgrade kelas penerbangan.', createdAt: '2026-07-02', createdBy: 'USR-014' }
+  { id: 'LYA-001', partyId: 'PTY-001', points: 250, reason: 'Bonus referral — merekomendasikan dua klien korporat baru.', createdAt: '2026-06-15', createdBy: 'USR-001' },
+  { id: 'LYA-002', partyId: 'PTY-002', points: -100, reason: 'Penukaran poin untuk upgrade kelas penerbangan.', createdAt: '2026-07-02', createdBy: 'USR-001' }
 ])
 
 /* ------------------------------------------------------------------ *

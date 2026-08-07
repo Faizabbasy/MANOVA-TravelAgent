@@ -95,7 +95,7 @@ const activityHistory = computed(() => (request.value ? getChangeRequestActivity
       <PageHeader title="Tidak Ditemukan" :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Tidak Ditemukan' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Change Request tidak ditemukan" description="Permintaan perubahan ini tidak ada atau bukan milik company Anda.">
-          <Button @click="router.push('/client/change-requests')">
+          <Button @click="router.push('/client/project-orders#change-requests')">
             Kembali ke Change Requests
           </Button>
         </EmptyState>
@@ -107,7 +107,7 @@ const activityHistory = computed(() => (request.value ? getChangeRequestActivity
     <template v-else>
       <PageHeader
         :title="`Change Request — ${project?.name ?? request.projectId}`"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Travel Management' }, { label: 'Change Requests', to: '/client/change-requests' }, { label: request.id }]"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'My Trips' }, { label: 'Change Requests', to: '/client/project-orders#change-requests' }, { label: request.id }]"
       >
         <template #actions>
           <StatusBadge :label="findStatusOption(CHANGE_REQUEST_STATUSES, request.status).label" :tone="findStatusOption(CHANGE_REQUEST_STATUSES, request.status).tone" />

@@ -1,22 +1,31 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search } from 'lucide-vue-next'
-import { PARTIES, getUserById, getOpportunitiesByParty, getProjectsByParty, getPartiesByAccountOwner } from '~/data'
+import { Search, Plus } from 'lucide-vue-next'
+import { PARTIES, getUserById, getOpportunitiesByParty, getProjectsByParty, getPartiesByAccountOwner, createParty, isManovaClient } from '~/data'
 import { findStatusOption } from '~/constants/status'
 import type { StatusOption } from '~/types/common'
 import type { PartyLifecycleStatus } from '~/types/party'
 
+/**
+ * Database Customer (Penyederhanaan 7-Role/Menu) — menggantikan 3 halaman terpisah yang sebelumnya
+ * membaca `PARTIES` yang sama beda filter: halaman ini sendiri (dulu "Customers", sudah punya filter
+ * status/industri/kota/owner + portfolio toggle), `/crm/prospects` (aksi "Tambah Prospect", diserap ke
+ * sini), `/crm/clients` (badge "Manova Client", diserap ke sini). Kedua route lama kini redirect ke sini
+ * dengan `?status=prospect`/`?status=client`.
+ */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
-useHead({ title: 'Customers' })
+useHead({ title: 'Database Customer' })
 
 const route = useRoute()
-const { canView, isRole } = usePermissions()
+const { canView, isRole, can } = usePermissions()
 const { currentUser } = useCurrentUser()
 /** Sales dibatasi ke Lead saja pada Customer Journey (docs Prompt 19-10 "Sales: terbatas pada Lead") — narrow exception, halaman lain (`crm`) tetap generik. */
 const hasAccess = computed(() => canView('crm'))
 /** Portfolio scoping — Sales (yang kini juga mencakup Account Executive lama) melihat portfolio miliknya. */
 const isAeScoped = computed(() => isRole('sales'))
+/** Aksi tulis (buat prospect) — narrow exception yang sama dengan `/crm/prospects` lama, lihat komentar di sana (sebelum diserap ke sini). */
+const canManageParty = computed(() => can('crm.manage-party'))
 
 const LIFECYCLE_STATUSES: StatusOption<PartyLifecycleStatus>[] = [
   { value: 'prospect', label: 'Prospect', tone: 'warning', order: 1 },
@@ -24,7 +33,7 @@ const LIFECYCLE_STATUSES: StatusOption<PartyLifecycleStatus>[] = [
 ]
 
 const searchQuery = ref('')
-/** Drill-down (Section 07, Customer Journey Funnel) — `?status=client` dari `/customer-journey` deep-link ke Active Client saja. */
+/** Drill-down (Sales Pipeline > Funnel) — `?status=client`/`?status=prospect` deep-link ke satu status saja (dulu 2 route terpisah, `/crm/clients`/`/crm/prospects`). */
 const statusFilter = ref<'all' | PartyLifecycleStatus>((route.query.status as PartyLifecycleStatus) || 'all')
 const industryFilter = ref('all')
 const cityFilter = ref('all')
@@ -57,17 +66,62 @@ const rows = computed(() => {
   }
   return result
 })
+
+const isCreateOpen = ref(false)
+const newName = ref('')
+const newIndustry = ref('')
+
+function submitCreate () {
+  if (!newName.value.trim()) { return }
+  const party = createParty({ name: newName.value.trim(), industry: newIndustry.value.trim() || undefined })
+  newName.value = ''
+  newIndustry.value = ''
+  isCreateOpen.value = false
+  navigateTo(`/crm/parties/${party.id}`)
+}
 </script>
 
 <template>
   <div class="space-y-6">
     <PageHeader
-      title="Customers"
-      description="Directory company (Party) yang sama dengan CRM Prospects/Clients — tampilan Account Executive-centric untuk Customer Journey."
-      :breadcrumb="[{ label: 'Customer Journey', to: '/customer-journey' }, { label: 'Customers' }]"
-    />
+      title="Database Customer"
+      description="Directory company (Party) — Prospect dan Active Client dalam satu tabel, filter status untuk mempersempit."
+      :breadcrumb="[{ label: 'Database Customer' }]"
+    >
+      <template v-if="canManageParty" #actions>
+        <Dialog v-model:open="isCreateOpen">
+          <DialogTrigger as-child>
+            <Button><Plus class="h-4 w-4 mr-1.5" />Tambah Prospect</Button>
+          </DialogTrigger>
+          <DialogContent class="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Tambah Prospect Baru</DialogTitle>
+              <DialogDescription>Party baru akan dibuat dengan lifecycle status Prospect.</DialogDescription>
+            </DialogHeader>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="prospect-name">Nama Party</Label>
+                <Input id="prospect-name" v-model="newName" placeholder="mis. PT Nama Perusahaan" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="prospect-industry">Industri (opsional)</Label>
+                <Input id="prospect-industry" v-model="newIndustry" placeholder="mis. Manufaktur, Retail, dll." />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newName.trim()" @click="submitCreate">
+                Simpan
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </template>
+    </PageHeader>
 
-    <RoleAccessState v-if="!hasAccess" module-label="modul Customer Journey" />
+    <RoleAccessState v-if="!hasAccess" module-label="modul CRM" />
 
     <template v-else>
       <div class="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3">
@@ -132,7 +186,10 @@ const rows = computed(() => {
                 {{ row.party.name }}
               </TableCell>
               <TableCell>
-                <StatusBadge :label="findStatusOption(LIFECYCLE_STATUSES, row.party.lifecycleStatus).label" :tone="findStatusOption(LIFECYCLE_STATUSES, row.party.lifecycleStatus).tone" />
+                <div class="flex items-center gap-1.5">
+                  <StatusBadge :label="findStatusOption(LIFECYCLE_STATUSES, row.party.lifecycleStatus).label" :tone="findStatusOption(LIFECYCLE_STATUSES, row.party.lifecycleStatus).tone" />
+                  <StatusBadge v-if="row.party.lifecycleStatus === 'client' && isManovaClient(row.party.id)" label="Manova Client" tone="purple" />
+                </div>
               </TableCell>
               <TableCell class="text-muted-foreground">
                 {{ row.party.city ?? '—' }}

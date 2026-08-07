@@ -80,7 +80,7 @@ function submitRevisionRequest () {
       <PageHeader title="Tidak Ditemukan" :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Tidak Ditemukan' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Approval tidak ditemukan" description="Approval ini tidak ada atau bukan milik company Anda.">
-          <Button @click="router.push('/client/approvals')">
+          <Button @click="router.push('/client/travel-requests#approvals')">
             Kembali ke Approval Center
           </Button>
         </EmptyState>
@@ -92,7 +92,7 @@ function submitRevisionRequest () {
     <template v-else>
       <PageHeader
         :title="`${findStatusOption(APPROVAL_ENTITY_TYPES, approval.entityType).label} — ${approval.entityId}`"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Commercial' }, { label: 'Approval Center', to: '/client/approvals' }, { label: approval.entityId }]"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Approval' }, { label: 'Approval Center', to: '/client/travel-requests#approvals' }, { label: approval.entityId }]"
       >
         <template #actions>
           <StatusBadge

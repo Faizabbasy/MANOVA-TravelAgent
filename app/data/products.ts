@@ -38,7 +38,7 @@ export const PRODUCT_TEMPLATES: ProductTemplate[] = reactive([
     validityStart: '2026-07-01',
     validityEnd: '2026-12-31',
     basePaxCount: 6,
-    createdBy: 'USR-017',
+    createdBy: 'USR-001',
     createdAt: '2026-06-05'
   },
   {
@@ -59,7 +59,7 @@ export const PRODUCT_TEMPLATES: ProductTemplate[] = reactive([
     validityStart: '2026-06-01',
     validityEnd: '2027-03-31',
     basePaxCount: 15,
-    createdBy: 'USR-017',
+    createdBy: 'USR-001',
     createdAt: '2026-05-20'
   },
   {
@@ -81,7 +81,7 @@ export const PRODUCT_TEMPLATES: ProductTemplate[] = reactive([
     validityStart: '2026-08-01',
     validityEnd: '2027-06-30',
     basePaxCount: 25,
-    createdBy: 'USR-017',
+    createdBy: 'USR-001',
     createdAt: '2026-07-25'
   }
 ])
@@ -104,7 +104,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     version: 1,
     inclusions: 'Tiket pesawat PP kelas ekonomi, bagasi 20kg.',
     exclusions: 'Akomodasi, transportasi darat, konsumsi.',
-    createdBy: 'USR-017',
+    createdBy: 'USR-001',
     createdAt: '2026-06-12',
     appliedToQuotationId: 'QUO-001',
     appliedAt: '2026-06-24'
@@ -127,7 +127,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     version: 1,
     inclusions: 'Tiket pesawat PP, hotel 4 malam (sarapan), transportasi bandara-hotel PP.',
     exclusions: 'Makan siang/malam di luar itinerary, visa.',
-    createdBy: 'USR-017',
+    createdBy: 'USR-001',
     createdAt: '2026-06-08',
     appliedToQuotationId: 'QUO-002',
     appliedAt: '2026-06-19'
@@ -147,7 +147,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     contingencyPercent: 3,
     status: 'draft',
     version: 1,
-    createdBy: 'USR-017',
+    createdBy: 'USR-001',
     createdAt: '2026-05-22',
     notes: 'Baseline referensi — belum terikat Opportunity spesifik, dipakai sebagai starting point saat AE membawa deal baru ke destinasi ini.'
   },
@@ -169,7 +169,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     contingencyPercent: 5,
     status: 'draft',
     version: 1,
-    createdBy: 'USR-017',
+    createdBy: 'USR-001',
     createdAt: '2026-07-28',
     notes: 'Skenario ekonomis — margin lebih tipis, cocok bila budget client terbatas.'
   },
@@ -191,7 +191,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     contingencyPercent: 5,
     status: 'draft',
     version: 1,
-    createdBy: 'USR-017',
+    createdBy: 'USR-001',
     createdAt: '2026-07-29',
     notes: 'Skenario premium — pengalaman lebih baik untuk delegasi VIP, margin lebih tebal.'
   }

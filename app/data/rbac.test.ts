@@ -23,13 +23,15 @@ import {
   resetRbacToDefaults
 } from './rbac'
 import { CAPABILITY_KEYS, isKnownCapabilityKey } from '~/constants/capabilities'
-import { MODULE_KEYS, resolveModuleKey } from '~/constants/modules'
+import { MODULE_KEYS, BUSINESS_MODULES, resolveModuleKey } from '~/constants/modules'
 import type { PermissionLevel } from '~/types/user'
 
 /**
- * Snapshot matriks 16-role × 17-modul SEBELUM restrukturisasi (verbatim dari `app/constants/roles.ts` lama).
- * Dipakai sebagai jaring pengaman migrasi: setiap role lama, setelah dipetakan ke role barunya, tidak boleh
- * KEHILANGAN akses pada modul mana pun. Kenaikan level diperbolehkan (penggabungan role memang memperluas).
+ * Snapshot matriks 16-role × 17-modul SEBELUM restrukturisasi apa pun (verbatim dari `app/constants/roles.ts`
+ * lama, sebelum 16 → 13 → 7 / Penyederhanaan 7-Role). Dipakai sebagai jaring pengaman migrasi lintas DUA
+ * penggabungan sekaligus: setiap role lama, setelah dipetakan lewat `LEGACY_ROLE_ALIAS` (satu hop, langsung
+ * ke salah satu dari 7 role final), tidak boleh KEHILANGAN akses pada modul mana pun. Kenaikan level
+ * diperbolehkan (penggabungan role memang memperluas).
  */
 const LEGACY_ROLE_MODULE_ACCESS: Record<string, Record<string, PermissionLevel>> = {
   'super-admin': { crm: 'ADMIN', project: 'ADMIN', vendor: 'ADMIN', finance: 'ADMIN', reports: 'ADMIN', administration: 'ADMIN', 'supplier-portal': 'ADMIN', 'client-portal': 'ADMIN', 'product-planning': 'ADMIN', ticketing: 'ADMIN', accommodation: 'ADMIN', transportation: 'ADMIN', mice: 'ADMIN', procurement: 'ADMIN', bookings: 'ADMIN', changes: 'ADMIN', documents: 'ADMIN' },
@@ -55,7 +57,7 @@ describe('RBAC dinamis', () => {
     resetRbacToDefaults()
   })
 
-  describe('Migrasi 16 → 13 role tidak menghilangkan akses', () => {
+  describe('Migrasi 16 → 7 role (via alias satu-hop) tidak menghilangkan akses', () => {
     it('setiap role lama, setelah dipetakan, punya level >= level lamanya di setiap modul', () => {
       const regressions: string[] = []
 
@@ -194,19 +196,19 @@ describe('RBAC dinamis', () => {
 
   describe('Guard rail anti self-lockout', () => {
     it('menolak mencabut Administration dari role user yang sedang login', () => {
-      setRoleModuleLevel('bi', 'administration', 'ADMIN')
-      expect(wouldLockOutActor('bi', 'administration', 'VIEW', 'bi')).toBe(true)
+      setRoleModuleLevel('sales', 'administration', 'ADMIN')
+      expect(wouldLockOutActor('sales', 'administration', 'VIEW', 'sales')).toBe(true)
 
-      const result = setRoleModuleLevel('bi', 'administration', 'VIEW', 'bi')
+      const result = setRoleModuleLevel('sales', 'administration', 'VIEW', 'sales')
       expect(result.success).toBe(false)
-      expect(getModuleLevel('bi', 'administration')).toBe('ADMIN')
+      expect(getModuleLevel('sales', 'administration')).toBe('ADMIN')
     })
 
     it('mengizinkan bila yang mengubah adalah role lain', () => {
-      setRoleModuleLevel('bi', 'administration', 'ADMIN')
-      const result = setRoleModuleLevel('bi', 'administration', 'VIEW', 'super-admin')
+      setRoleModuleLevel('sales', 'administration', 'ADMIN')
+      const result = setRoleModuleLevel('sales', 'administration', 'VIEW', 'super-admin')
       expect(result.success).toBe(true)
-      expect(getModuleLevel('bi', 'administration')).toBe('VIEW')
+      expect(getModuleLevel('sales', 'administration')).toBe('VIEW')
     })
 
     it('Super Admin tidak pernah dianggap terkunci', () => {
@@ -228,7 +230,7 @@ describe('RBAC dinamis', () => {
     })
 
     it('menolak nama role duplikat dan nama kosong', () => {
-      expect(createRole({ label: 'Sales' }).success).toBe(false)
+      expect(createRole({ label: 'Sales & CRM' }).success).toBe(false)
       expect(createRole({ label: '   ' }).success).toBe(false)
     })
 
@@ -240,10 +242,10 @@ describe('RBAC dinamis', () => {
 
     it('menolak menghapus role yang masih punya user', () => {
       createRole({ label: 'Role Sementara' })
-      assignUserRole('USR-024', 'role-sementara')
+      assignUserRole('USR-002', 'role-sementara')
       expect(deleteRole('role-sementara').success).toBe(false)
 
-      assignUserRole('USR-024', 'inventory')
+      assignUserRole('USR-002', 'operations')
       expect(deleteRole('role-sementara').success).toBe(true)
       expect(getRoleDefinition('role-sementara')).toBeUndefined()
     })
@@ -268,9 +270,9 @@ describe('RBAC dinamis', () => {
   describe('Penugasan user ke role', () => {
     it('memindahkan user dan tercermin di hitungan role', () => {
       const before = countUsersByRole('marketing')
-      expect(assignUserRole('USR-024', 'marketing').success).toBe(true)
+      expect(assignUserRole('USR-008', 'marketing').success).toBe(true)
       expect(countUsersByRole('marketing')).toBe(before + 1)
-      assignUserRole('USR-024', 'inventory')
+      assignUserRole('USR-008', 'finance')
     })
 
     it('user dengan role lama tetap terhitung pada role penggantinya', () => {
@@ -302,7 +304,30 @@ describe('RBAC dinamis', () => {
       expect(getRoleDefinition('role-buangan')).toBeUndefined()
       expect(getModuleLevel('sales', 'hr')).toBe('NONE')
       expect(ROLE_MENU_GRANTS).toHaveLength(0)
-      expect(ROLE_DEFINITIONS).toHaveLength(13)
+      expect(ROLE_DEFINITIONS).toHaveLength(7)
+    })
+  })
+
+  describe('Penyederhanaan 7-Role — setiap modul bisnis tetap punya pemilik', () => {
+    it('setiap modul bisnis punya minimal satu role non-super-admin ber-level MANAGE ke atas', () => {
+      // Modul sistem (administration/documents/client-portal/vendor-portal) sengaja dikecualikan —
+      // administration secara desain hanya ADMIN (Super Admin) + VIEW (Management), tidak ada role bisnis
+      // yang "memiliki" Administration; portal module sudah tercakup lewat role client/vendor sendiri.
+      const orphaned: string[] = []
+      for (const module of BUSINESS_MODULES) {
+        const hasOwner = ROLE_DEFINITIONS
+          .filter(role => !role.isSuperAdmin)
+          .some(role => RANK[getModuleLevel(role.id, module.key)] >= RANK.MANAGE)
+        if (!hasOwner) { orphaned.push(module.key) }
+      }
+      expect(orphaned).toEqual([])
+    })
+
+    it('role yang melebur (crm/marketing/bi/hr/vendor-partner/inventory) tidak lagi jadi role sendiri', () => {
+      for (const legacyId of ['crm', 'marketing', 'bi', 'hr', 'vendor-partner', 'inventory']) {
+        expect(ROLE_DEFINITIONS.some(role => role.id === legacyId)).toBe(false)
+        expect(getRoleDefinition(resolveRoleId(legacyId))).toBeDefined()
+      }
     })
   })
 })

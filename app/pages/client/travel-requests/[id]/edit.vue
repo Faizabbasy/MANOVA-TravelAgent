@@ -43,7 +43,7 @@ function onSubmitted (result: TravelRequest) {
     <template v-else>
       <PageHeader
         :title="`Edit — ${travelRequest.requestName}`"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Commercial' }, { label: 'Travel Requests', to: '/client/travel-requests' }, { label: travelRequest.requestName, to: `/client/travel-requests/${travelRequest.id}` }, { label: 'Edit' }]"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Approval' }, { label: 'Travel Requests', to: '/client/travel-requests' }, { label: travelRequest.requestName, to: `/client/travel-requests/${travelRequest.id}` }, { label: 'Edit' }]"
       />
       <TravelRequestForm :initial="travelRequest" @saved="onSaved" @submitted="onSubmitted" />
     </template>

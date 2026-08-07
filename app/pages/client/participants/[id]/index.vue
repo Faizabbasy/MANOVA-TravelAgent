@@ -149,7 +149,7 @@ function addRoommate (roommateId: string) {
       <PageHeader title="Tidak Ditemukan" :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Tidak Ditemukan' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Peserta tidak ditemukan" description="Peserta ini tidak ada atau bukan milik company Anda.">
-          <Button @click="router.push('/client/participants')">
+          <Button @click="router.push('/client/project-orders#participants')">
             Kembali ke Participants
           </Button>
         </EmptyState>
@@ -161,7 +161,7 @@ function addRoommate (roommateId: string) {
     <template v-else>
       <PageHeader
         :title="traveler.name"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Travel Management' }, { label: 'Participants', to: '/client/participants' }, { label: traveler.name }]"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'My Trips' }, { label: 'Participants', to: '/client/project-orders#participants' }, { label: traveler.name }]"
       >
         <template #actions>
           <StatusBadge v-if="traveler.cancelled" label="Cancelled" tone="neutral" />

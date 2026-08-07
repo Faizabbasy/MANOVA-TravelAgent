@@ -3684,6 +3684,34 @@ export function reviewSupplierInvoice (id: string, newStatus: SupplierInvoiceSta
 }
 
 /**
+ * Pelunasan Supplier Invoice (Fase 3.3 — Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu).
+ * TERPISAH dari `reviewSupplierInvoice` karena fungsi itu sudah menjadikan `'approved'` terminal (tidak ada
+ * jalur mengubahnya lagi). Hanya bisa dari `'approved'` — tagihan yang belum disetujui tidak boleh dianggap
+ * lunas. Memicu generator jurnal ke-5 (`getJournalEntries()`, Dr 2100/Cr 1100) lewat `paidAt` yang diisi di sini.
+ */
+export function paySupplierInvoice (id: string, actorId: string): SupplierInvoice | undefined {
+  const invoice = SUPPLIER_INVOICES.find(inv => inv.id === id)
+  if (!invoice || invoice.status !== 'approved') { return undefined }
+  invoice.status = 'paid'
+  invoice.paidAt = DEMO_REFERENCE_DATE
+  const serviceOrder = getServiceOrderById(invoice.serviceOrderId)
+  const vendor = getVendorById(invoice.vendorId)
+  const actor = getUserById(actorId)
+  /** `ActivityEntry.projectId` wajib diisi (Section 12, LOCKED) — Service Order engagement langsung (tanpa project) tidak menghasilkan entry Activity, konsisten pola `getSupplierInvoicesByProject`. */
+  if (serviceOrder?.projectId) {
+    ACTIVITIES.push({
+      id: nextSequentialId('ACT-', ACTIVITIES),
+      projectId: serviceOrder.projectId,
+      message: `Supplier Invoice ${invoice.id} (${vendor?.name ?? invoice.vendorId}) sebesar ${formatCurrencyIdr(invoice.amountIdr)} dibayar lunas oleh ${actor?.name ?? actorId}.`,
+      isChange: false,
+      reviewed: true,
+      createdAt: DEMO_REFERENCE_DATE
+    })
+  }
+  return invoice
+}
+
+/**
  * "Procurement performance review" (Wajib) — DERIVASI murni dari `RFQ`/`RFQInvitation`/`RFQResponse`/
  * `ServiceOrder` existing, BUKAN field tersimpan yang bisa stale (pola sama `getCostSheetBreakdown`/
  * `getMiceBoqTotals`). "On-time %" DISEDERHANAKAN sebagai rasio Service Order yang mencapai status
@@ -6488,11 +6516,11 @@ export function getUnreadProjectMessageCount (projectId: string, userId: string)
 
 /** "Assigned Manova PIC" (Wajib) — auto-assign deterministik per kategori (mock triase, bukan random). */
 const SUPPORT_CATEGORY_PIC: Record<SupportTicketCategory, string> = {
-  reservation: 'USR-009',
+  reservation: 'USR-002',
   participant: 'USR-002',
   document: 'USR-002',
   billing: 'USR-008',
-  operational: 'USR-009',
+  operational: 'USR-002',
   complaint: 'USR-003',
   emergency: 'USR-003',
   technical: 'USR-010',

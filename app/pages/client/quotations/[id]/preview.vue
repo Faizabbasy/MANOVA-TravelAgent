@@ -39,7 +39,7 @@ function printPage () {
       <template v-if="!quotation || !opportunity || !isOwnCompany">
         <div class="rounded-xl border border-border bg-card p-8 print:hidden">
           <EmptyState :icon="FileX" title="Quotation tidak ditemukan" description="Quotation ini tidak ada atau bukan milik company Anda.">
-            <NuxtLink to="/client/quotations">
+            <NuxtLink to="/client/travel-requests#quotations">
               <Button>Kembali</Button>
             </NuxtLink>
           </EmptyState>

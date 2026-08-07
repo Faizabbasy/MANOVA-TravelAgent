@@ -103,7 +103,7 @@ const actionItems = computed(() => {
       </SectionCard>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <NuxtLink to="/supplier/commodities">
+        <NuxtLink to="/supplier/products#commodities">
           <SectionCard title="Kelola Komoditas" :description="`${commodities.length} komoditas — publish, variant, dan availability.`">
             <Layers class="h-5 w-5 text-muted-foreground" />
           </SectionCard>
@@ -123,7 +123,7 @@ const actionItems = computed(() => {
             <ClipboardList class="h-5 w-5 text-muted-foreground" />
           </SectionCard>
         </NuxtLink>
-        <NuxtLink to="/supplier/service-orders">
+        <NuxtLink to="/supplier/orders#service-orders">
           <SectionCard title="Service Orders" :description="`${activeServiceOrderCount} Service Order aktif — acknowledge, fulfillment, dan invoice submission.`">
             <Send class="h-5 w-5 text-muted-foreground" />
           </SectionCard>

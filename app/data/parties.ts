@@ -12,14 +12,14 @@ import type { Party, ContactPerson, PartyActivity } from '~/types/party'
 /**
  * docs/mockup-data-scenarios.md bagian 1-4. `accountOwnerId`/`size`/`city`/`phone` (Prompt 19 — Change
  * Request) ditambahkan aditif — dipakai tampilan "Company" pada modul Customer Journey. Seluruh 4 party
- * existing di-backfill `accountOwnerId: 'USR-014'` (satu-satunya Account Executive demo) — bukan
+ * existing di-backfill `accountOwnerId: 'USR-001'` (satu-satunya Account Executive demo) — bukan
  * perubahan kepemilikan Opportunity (`Opportunity.ownerId` tetap terpisah, historis tidak diubah).
  */
 export const PARTIES: Party[] = reactive([
-  { id: 'PTY-001', name: 'PT Cipta Distribusi Nusantara', lifecycleStatus: 'client', createdAt: '2026-05-20', accountOwnerId: 'USR-014', size: '201-500', city: 'Jakarta', phone: '021-5550-1001' },
-  { id: 'PTY-002', name: 'PT Alam Raya Group', lifecycleStatus: 'client', createdAt: '2026-05-10', accountOwnerId: 'USR-014', size: '501-1000', city: 'Surabaya', phone: '031-5550-1002' },
-  { id: 'PTY-003', name: 'PT Sinergi Korporindo', lifecycleStatus: 'client', createdAt: '2026-04-25', accountOwnerId: 'USR-014', size: '1000+', city: 'Jakarta', phone: '021-5550-1003' },
-  { id: 'PTY-004', name: 'PT Melati Wisata Kreasi', lifecycleStatus: 'prospect', createdAt: '2026-06-10', accountOwnerId: 'USR-014', size: '51-200', city: 'Bandung', phone: '022-5550-1004' },
+  { id: 'PTY-001', name: 'PT Cipta Distribusi Nusantara', lifecycleStatus: 'client', createdAt: '2026-05-20', accountOwnerId: 'USR-001', size: '201-500', city: 'Jakarta', phone: '021-5550-1001' },
+  { id: 'PTY-002', name: 'PT Alam Raya Group', lifecycleStatus: 'client', createdAt: '2026-05-10', accountOwnerId: 'USR-001', size: '501-1000', city: 'Surabaya', phone: '031-5550-1002' },
+  { id: 'PTY-003', name: 'PT Sinergi Korporindo', lifecycleStatus: 'client', createdAt: '2026-04-25', accountOwnerId: 'USR-001', size: '1000+', city: 'Jakarta', phone: '021-5550-1003' },
+  { id: 'PTY-004', name: 'PT Melati Wisata Kreasi', lifecycleStatus: 'prospect', createdAt: '2026-06-10', accountOwnerId: 'USR-001', size: '51-200', city: 'Bandung', phone: '022-5550-1004' },
   /**
    * PTY-005 (Client Experience — Repair Phase Section 1) — company demo khusus untuk 5 skenario
    * `docs/client-mock-data-scenarios.md` (Korea/Abu Dhabi/Manila/Bali/Singapore), terpisah dari PTY-001-004
@@ -32,7 +32,7 @@ export const PARTIES: Party[] = reactive([
     name: 'PT Java Bhakti Persada',
     lifecycleStatus: 'client',
     createdAt: '2026-06-01',
-    accountOwnerId: 'USR-014',
+    accountOwnerId: 'USR-001',
     size: '501-1000',
     city: 'Jakarta',
     phone: '021-5550-1005',

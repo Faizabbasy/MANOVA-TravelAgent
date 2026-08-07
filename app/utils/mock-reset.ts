@@ -13,6 +13,13 @@
  * `reactivateUser`, `app/data/index.ts`) dan `SYSTEM_EVENTS` kini menerima entri baru (`pushSystemEvent`,
  * dipanggil dari mutator Section 23) — keduanya SENGAJA tidak didaftarkan di sini, mengikuti preseden yang
  * sama dengan array-array Section 10-22 di atas, bukan regresi/kelalaian yang tidak disadari.
+ *
+ * PENGECUALIAN (Fase 3 — Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu, Agustus 2026):
+ * `SUPPLIER_INVOICES`, `CREDIT_NOTES`, dan `OPEX_ENTRIES` DIDAFTARKAN, menyimpang dari preseden "tidak
+ * diperluas" di atas — ketiganya kini sumber langsung `getJournalEntries()` (Buku Besar Finance & ACC),
+ * jadi tanpa didaftarkan "Reset Demo Data" akan memulihkan Invoice/Payment tapi meninggalkan status
+ * pelunasan vendor dan Credit Note dalam state yang sudah termutasi — jurnal jadi tidak konsisten dengan
+ * seed. Array `reactive()` lain di luar tiga ini TETAP sengaja tidak diperluas, ikuti preseden di atas.
  */
 
 type ResettableArrays = Record<string, unknown[]>

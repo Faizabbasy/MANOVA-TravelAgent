@@ -64,14 +64,14 @@ const closureReadiness = computed(() => PROJECTS
             </p>
           </SectionCard>
         </NuxtLink>
-        <NuxtLink to="/finance/notes" class="block">
+        <NuxtLink to="/finance/invoices#notes" class="block">
           <SectionCard title="Credit/Debit Notes" description="Lihat seluruh Credit/Debit Note lintas-project">
             <p class="text-sm text-muted-foreground">
               <FileStack class="inline h-3.5 w-3.5 mr-1" />Buka daftar notes →
             </p>
           </SectionCard>
         </NuxtLink>
-        <NuxtLink to="/finance/reconciliation" class="block">
+        <NuxtLink to="/finance/payments#reconciliation" class="block">
           <SectionCard title="Reconciliation" :description="`${reconciliationQueueCount} Supplier Invoice perlu ditriase`">
             <p class="text-sm text-muted-foreground">
               <GitCompareArrows class="inline h-3.5 w-3.5 mr-1" />Buka workspace →
@@ -84,7 +84,7 @@ const closureReadiness = computed(() => PROJECTS
         <ul v-if="closureReadiness.length" class="divide-y divide-border">
           <li v-for="row in closureReadiness" :key="row.project.id" class="py-3">
             <div class="flex items-center justify-between gap-3">
-              <NuxtLink :to="`/projects/${row.project.id}?tab=finance`" class="text-sm font-medium text-foreground hover:underline">
+              <NuxtLink :to="`/project-orders/${row.project.id}?tab=finance`" class="text-sm font-medium text-foreground hover:underline">
                 {{ row.project.name }}
               </NuxtLink>
               <StatusBadge

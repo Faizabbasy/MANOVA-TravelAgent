@@ -26,7 +26,7 @@ export const RFQS: RFQ[] = reactive([
     status: 'draft',
     lineItems: [{ description: 'Kamar Twin tambahan (rooming ulang Group B)', quantity: 3, unit: 'kamar/4 malam' }],
     notes: 'Menyusul konsolidasi Room Block B ke Block A (SVC-1023) — dibutuhkan opsi cadangan bila ada penambahan peserta.',
-    createdBy: 'USR-018',
+    createdBy: 'USR-002',
     createdAt: '2026-07-25'
   },
   {
@@ -41,7 +41,7 @@ export const RFQS: RFQ[] = reactive([
     ],
     dueAt: '2026-07-30',
     notes: 'Melengkapi BOQ MICE-1035 — dibandingkan sebelum memutuskan vendor dokumentasi final.',
-    createdBy: 'USR-018',
+    createdBy: 'USR-002',
     createdAt: '2026-07-18',
     updatedAt: '2026-07-24'
   },
@@ -54,7 +54,7 @@ export const RFQS: RFQ[] = reactive([
     lineItems: [{ description: 'VIP Suite kapasitas 2 pax, aksesibilitas', quantity: 2, unit: 'kamar/4 malam' }],
     dueAt: '2026-08-02',
     notes: 'Untuk 2 tamu VIP tambahan di luar Room Block existing (SVC-1033).',
-    createdBy: 'USR-018',
+    createdBy: 'USR-002',
     createdAt: '2026-07-20',
     updatedAt: '2026-07-27'
   },
@@ -68,7 +68,7 @@ export const RFQS: RFQ[] = reactive([
     dueAt: '2026-07-10',
     selectedVendorId: 'VND-003',
     notes: 'Kebutuhan transfer VIP terpisah dari Ground Transportation rombongan utama (SVC-1034).',
-    createdBy: 'USR-018',
+    createdBy: 'USR-002',
     createdAt: '2026-06-28',
     updatedAt: '2026-07-12',
     closedAt: '2026-07-12'
@@ -193,7 +193,7 @@ export const SERVICE_ORDERS: ServiceOrder[] = reactive([
 ])
 
 export const SERVICE_ORDER_AMENDMENTS: ServiceOrderAmendment[] = reactive([
-  { id: 'SOA-001', serviceOrderId: 'SO-002', reason: 'Upgrade tipe kamar dari Deluxe ke Suite atas permintaan klien — penyesuaian harga net cost dan sell price.', changedAt: '2026-07-19', changedBy: 'USR-018' }
+  { id: 'SOA-001', serviceOrderId: 'SO-002', reason: 'Upgrade tipe kamar dari Deluxe ke Suite atas permintaan klien — penyesuaian harga net cost dan sell price.', changedAt: '2026-07-19', changedBy: 'USR-002' }
 ])
 
 /**
@@ -210,8 +210,8 @@ export const SERVICE_ORDER_AMENDMENTS: ServiceOrderAmendment[] = reactive([
  * terpisah dari vendor).
  */
 export const SUPPLIER_INVOICES: SupplierInvoice[] = reactive([
-  { id: 'SINV-001', serviceOrderId: 'SO-001', vendorId: 'VND-003', amountIdr: 4_200_000, submittedAt: '2026-08-11', status: 'approved', note: 'Invoice final airport transfer VIP.', reviewedAt: '2026-08-12', reviewedBy: 'USR-018', matchStatus: 'matched', paymentScheduleDate: '2026-08-20' },
+  { id: 'SINV-001', serviceOrderId: 'SO-001', vendorId: 'VND-003', amountIdr: 4_200_000, submittedAt: '2026-08-11', status: 'approved', note: 'Invoice final airport transfer VIP.', reviewedAt: '2026-08-12', reviewedBy: 'USR-002', matchStatus: 'matched', paymentScheduleDate: '2026-08-20' },
   { id: 'SINV-002', serviceOrderId: 'SO-001', vendorId: 'VND-003', amountIdr: 450_000, submittedAt: '2026-08-12', status: 'under-review', note: 'Biaya tol tambahan rute bandara alternatif.', matchStatus: 'unmatched' },
-  { id: 'SINV-003', serviceOrderId: 'SO-002', vendorId: 'VND-006', amountIdr: 11_000_000, submittedAt: '2026-07-08', status: 'rejected', note: 'Invoice awal sebelum amendment.', reviewedAt: '2026-07-19', reviewedBy: 'USR-018', reviewNote: 'Jumlah belum sesuai amendment upgrade Suite (SOA-001) — mohon submit ulang dengan nominal terbaru.' },
+  { id: 'SINV-003', serviceOrderId: 'SO-002', vendorId: 'VND-006', amountIdr: 11_000_000, submittedAt: '2026-07-08', status: 'rejected', note: 'Invoice awal sebelum amendment.', reviewedAt: '2026-07-19', reviewedBy: 'USR-002', reviewNote: 'Jumlah belum sesuai amendment upgrade Suite (SOA-001) — mohon submit ulang dengan nominal terbaru.' },
   { id: 'SINV-004', serviceOrderId: 'SO-002', vendorId: 'VND-006', amountIdr: 12_000_000, submittedAt: '2026-07-20', status: 'submitted', note: 'Submission ulang mengikuti amendment SOA-001.', matchStatus: 'disputed' }
 ])

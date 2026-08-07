@@ -320,7 +320,7 @@ function submitMarkAsWon () {
     ? ` Client login account (${clientUser.email}) dapat diakses lewat Settings > Role Switcher.`
     : ''
   showToast('Opportunity Won', `${project.name} (${project.id}) dibuat, client aktif, dan Project Order otomatis dibuat.${accountMessage}`, 'success')
-  router.push(`/projects/${project.id}`)
+  router.push(`/project-orders/${project.id}`)
 }
 
 /* Commercial Approval (Prompt 19) — AE submit quotation untuk approval, Management approve/reject. */
@@ -386,26 +386,26 @@ function submitActivity () {
 <template>
   <div class="space-y-6">
     <template v-if="!opportunity">
-      <PageHeader title="Opportunity Tidak Ditemukan" :breadcrumb="[{ label: 'CRM', to: '/crm' }, { label: 'Opportunities', to: '/crm/opportunities' }, { label: 'Not Found' }]" />
+      <PageHeader title="Opportunity Tidak Ditemukan" :breadcrumb="[{ label: 'Sales Pipeline', to: '/sales/pipeline#opportunities' }, { label: 'Not Found' }]" />
       <SectionCard>
         <EmptyState
           :icon="FileX"
           title="Opportunity tidak ditemukan"
           :description="`Opportunity dengan ID '${route.params.id}' tidak ada di data demo saat ini.`"
         >
-          <Button @click="router.push('/crm/opportunities')">
+          <Button @click="router.push('/sales/pipeline#opportunities')">
             Kembali ke Daftar Opportunity
           </Button>
         </EmptyState>
       </SectionCard>
     </template>
 
-    <RoleAccessState v-else-if="!canView('sales')" module-label="modul CRM" />
+    <RoleAccessState v-else-if="!canView('sales')" module-label="modul Sales" />
 
     <template v-else>
       <PageHeader
         :title="opportunity.title"
-        :breadcrumb="[{ label: 'CRM', to: '/crm' }, { label: 'Opportunities', to: '/crm/opportunities' }, { label: opportunity.title }]"
+        :breadcrumb="[{ label: 'Sales Pipeline', to: '/sales/pipeline#opportunities' }, { label: opportunity.title }]"
       >
         <template #actions>
           <StatusBadge
@@ -443,7 +443,7 @@ function submitActivity () {
             {{ opportunity.requirementNotes || 'Requirement belum digali.' }}
           </p>
           <div v-if="relatedLead" class="mt-3">
-            <NuxtLink :to="`/customer-journey/leads`" class="text-sm text-primary hover:underline">
+            <NuxtLink to="/sales/pipeline#leads" class="text-sm text-primary hover:underline">
               Related Lead: {{ relatedLead.id }} — {{ relatedLead.name }} →
             </NuxtLink>
           </div>
@@ -623,7 +623,7 @@ function submitActivity () {
         </p>
 
         <div v-if="opportunity.stage === 'won' && opportunity.projectId" class="mb-4">
-          <NuxtLink :to="`/projects/${opportunity.projectId}`" class="text-sm text-primary hover:underline">
+          <NuxtLink :to="`/project-orders/${opportunity.projectId}`" class="text-sm text-primary hover:underline">
             Lihat Project hasil konversi ({{ opportunity.projectId }}) →
           </NuxtLink>
         </div>
@@ -761,7 +761,7 @@ function submitActivity () {
       <!-- Product Planning & Costing (Section 10) -->
       <SectionCard title="Product Planning & Costing" description="Cost Sheet yang disiapkan Product Planner untuk Opportunity ini — kolaborasi sebelum Quotation dibentuk.">
         <template #actions>
-          <NuxtLink :to="`/product-planning/cost-sheets?opportunityId=${opportunity.id}&create=1`">
+          <NuxtLink :to="`/product-planning?opportunityId=${opportunity.id}&create=1#cost-sheets`">
             <Button size="sm" variant="outline">
               <Plus class="h-4 w-4 mr-1.5" />Buat Cost Sheet
             </Button>

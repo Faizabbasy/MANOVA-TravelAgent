@@ -128,7 +128,7 @@ function printPage () {
       <template v-if="!exists || !project || !isOwnCompany">
         <div class="rounded-xl border border-border bg-card p-8 print:hidden">
           <EmptyState :icon="FileX" title="Reservasi tidak ditemukan" description="Reservasi ini tidak ada atau bukan milik company Anda.">
-            <NuxtLink to="/client/reservations">
+            <NuxtLink to="/client/project-orders#reservations">
               <Button>Kembali</Button>
             </NuxtLink>
           </EmptyState>
@@ -143,7 +143,7 @@ function printPage () {
 
       <template v-else-if="confirmation">
         <div class="mb-4 flex items-center justify-between print:hidden">
-          <NuxtLink to="/client/reservations" class="text-sm text-primary hover:underline">
+          <NuxtLink to="/client/project-orders#reservations" class="text-sm text-primary hover:underline">
             ← Kembali ke Reservations
           </NuxtLink>
           <Button size="sm" @click="printPage">

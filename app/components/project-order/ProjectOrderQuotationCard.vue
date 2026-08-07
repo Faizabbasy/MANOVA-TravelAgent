@@ -75,7 +75,7 @@ const approvalOption = computed(() => (quotation.value?.approvalStatus
       title="Belum ada quotation tertaut"
       description="Quotation dibuat dari Opportunity di modul Sales, lalu otomatis tertaut saat Opportunity dimenangkan."
     >
-      <NuxtLink to="/crm/opportunities">
+      <NuxtLink to="/sales/pipeline#opportunities">
         <Button size="sm">
           Buka Opportunities
         </Button>

@@ -9,7 +9,7 @@ import {
   getQuotationComments, addQuotationComment, pushNotification
 } from '~/data'
 import { QUOTATION_APPROVAL_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
-import { formatCurrencyIdr, formatDate, formatDateTime } from '~/utils/format'
+import { formatCurrencyIdr, formatDate, formatDateRange, formatDateTime } from '~/utils/format'
 
 /**
  * Quotations & Proposals — Detail (Repair Phase Section 3 — Request & Commercial). `:id` = Quotation id
@@ -17,8 +17,9 @@ import { formatCurrencyIdr, formatDate, formatDateTime } from '~/utils/format'
  * `approveOpportunityWon`/`requestQuotationRevision` (LOCKED pipeline internal, TIDAK diduplikasi) — pola
  * "Mark as Won" (D-053, `app/pages/crm/opportunities/[id]/index.vue`) diterapkan dari sisi Client sehingga
  * Won→Project dapat dicapai murni lewat aksi Client (Master Prompt Flow 1, "Mock Opportunity Won").
- * `/client/opportunities/[id]` (Section 08) TETAP TIDAK diubah — halaman ini melengkapi (Version history/
- * Compare/Comments/Attachments/Cancellation policy/Download PDF), bukan menggantikan jalur yang sudah bekerja.
+ * `/client/opportunities/[id]` (Penyederhanaan 7-Role/Menu) kini jadi redirect ke sini — kartu "Opportunity"
+ * (company/destinasi/tanggal/peta lokasi) dipindahkan ke sini supaya tidak ada fitur yang hilang, halaman
+ * ini melengkapi (Version history/Compare/Comments/Attachments/Cancellation policy/Download PDF).
  */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
@@ -125,7 +126,7 @@ function submitRevisionRequest () {
       <PageHeader title="Tidak Ditemukan" :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Tidak Ditemukan' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Quotation tidak ditemukan" description="Quotation ini tidak ada atau bukan milik company Anda.">
-          <Button @click="router.push('/client/quotations')">
+          <Button @click="router.push('/client/travel-requests#quotations')">
             Kembali ke Quotations
           </Button>
         </EmptyState>
@@ -137,7 +138,7 @@ function submitRevisionRequest () {
     <template v-else>
       <PageHeader
         :title="opportunity.title"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Commercial' }, { label: 'Quotations & Proposals', to: '/client/quotations' }, { label: opportunity.title }]"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Approval' }, { label: 'Quotations & Proposals', to: '/client/travel-requests#quotations' }, { label: opportunity.title }]"
       >
         <template #actions>
           <StatusBadge :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').label" :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').tone" />
@@ -148,6 +149,33 @@ function submitRevisionRequest () {
           </NuxtLink>
         </template>
       </PageHeader>
+
+      <SectionCard>
+        <DetailMetadataList
+          :items="[
+            { label: 'Company', value: party?.name ?? '—' },
+            { label: 'Destinasi', value: opportunity.destination },
+            {
+              label: 'Tanggal Perkiraan',
+              value: opportunity.travelStartDate && opportunity.travelEndDate
+                ? formatDateRange(opportunity.travelStartDate, opportunity.travelEndDate)
+                : 'Belum ditentukan',
+            },
+            { label: 'Estimasi Traveler', value: opportunity.travelerEstimate ? `${opportunity.travelerEstimate} pax` : '—' },
+          ]"
+        />
+        <div class="mt-4">
+          <p class="text-xs font-medium text-muted-foreground mb-2">
+            Peta Lokasi
+          </p>
+          <DestinationMap :geo="opportunity.destinationGeo" :destination-text="opportunity.destination" />
+        </div>
+        <div v-if="opportunity.stage === 'won' && opportunity.projectId" class="mt-4 pt-4 border-t border-border">
+          <NuxtLink :to="`/client/project-orders/${opportunity.projectId}`" class="text-sm text-primary hover:underline">
+            Lihat Project Order Anda →
+          </NuxtLink>
+        </div>
+      </SectionCard>
 
       <SectionCard>
         <p class="text-2xl font-bold text-foreground">

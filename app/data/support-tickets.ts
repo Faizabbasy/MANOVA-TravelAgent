@@ -20,7 +20,7 @@ export const SUPPORT_TICKETS: SupportTicket[] = reactive([
     description: 'Delegasi kami perlu menggeser jadwal city tour hari ke-3 karena ada meeting tambahan yang mendadak. Mohon bantuan tim operasional untuk koordinasi ulang jadwal dengan guide/transportasi.',
     createdAt: '2026-07-27',
     createdBy: 'USR-021',
-    assignedTo: 'USR-009'
+    assignedTo: 'USR-002'
   },
   {
     id: 'TCK-002',
@@ -53,7 +53,7 @@ export const SUPPORT_TICKETS: SupportTicket[] = reactive([
 ])
 
 export const SUPPORT_TICKET_REPLIES: SupportTicketReply[] = reactive([
-  { id: 'TCKR-001', ticketId: 'TCK-001', authorId: 'USR-009', message: 'Sudah kami koordinasikan dengan guide dan transportasi — jadwal city tour digeser ke sore hari. Konfirmasi tertulis menyusul dalam 1x24 jam.', createdAt: '2026-07-27' },
+  { id: 'TCKR-001', ticketId: 'TCK-001', authorId: 'USR-002', message: 'Sudah kami koordinasikan dengan guide dan transportasi — jadwal city tour digeser ke sore hari. Konfirmasi tertulis menyusul dalam 1x24 jam.', createdAt: '2026-07-27' },
   { id: 'TCKR-002', ticketId: 'TCK-001', authorId: 'USR-021', message: 'Baik, ditunggu konfirmasinya. Terima kasih.', createdAt: '2026-07-28' },
   { id: 'TCKR-003', ticketId: 'TCK-002', authorId: 'USR-002', message: 'Sudah kami cek satu per satu, seluruh dokumen visa lengkap dan sesuai format.', createdAt: '2026-07-21' }
 ])

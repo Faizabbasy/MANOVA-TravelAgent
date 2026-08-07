@@ -67,7 +67,7 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
 <template>
   <div class="space-y-6">
     <template v-if="!party">
-      <PageHeader title="Company Tidak Ditemukan" :breadcrumb="[{ label: 'Customer Journey', to: '/customer-journey' }, { label: 'Customers', to: '/customer-journey/customers' }, { label: 'Not Found' }]" />
+      <PageHeader title="Company Tidak Ditemukan" :breadcrumb="[{ label: 'Database Customer', to: '/customer-journey/customers' }, { label: 'Not Found' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Company tidak ditemukan" :description="`Company dengan ID '${route.params.id}' tidak ada di data demo saat ini.`">
           <Button @click="router.push('/customer-journey/customers')">
@@ -77,12 +77,12 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
       </SectionCard>
     </template>
 
-    <RoleAccessState v-else-if="!hasAccess" module-label="modul Customer Journey" />
+    <RoleAccessState v-else-if="!hasAccess" module-label="modul CRM" />
 
     <template v-else>
       <PageHeader
         :title="party.name"
-        :breadcrumb="[{ label: 'Customer Journey', to: '/customer-journey' }, { label: 'Customers', to: '/customer-journey/customers' }, { label: party.name }]"
+        :breadcrumb="[{ label: 'Database Customer', to: '/customer-journey/customers' }, { label: party.name }]"
       >
         <template #actions>
           <StatusBadge :label="findStatusOption(LIFECYCLE_STATUSES, party.lifecycleStatus).label" :tone="findStatusOption(LIFECYCLE_STATUSES, party.lifecycleStatus).tone" />

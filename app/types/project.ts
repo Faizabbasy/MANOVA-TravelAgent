@@ -105,6 +105,13 @@ export interface Project {
   status: ProjectStatus
   quotationAmountIdr: number
   budgetIdr: number
+  /**
+   * Fase 3.2 (Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu) — field seed/override mock
+   * lama, TIDAK PERNAH diperbarui mutator apa pun setelah project dibuat (selalu `0` untuk project baru,
+   * lihat `createProject`). Seluruh tampilan WAJIB memanggil `getProjectActualCostIdr(projectId)`
+   * (`app/data/finance-ext.ts`) — turunan Σ SupplierInvoice (di luar rejected) + Σ Opex ber-project, sumber
+   * yang sama dengan `getJournalEntries()` — BUKAN field mentah ini.
+   */
   actualCostIdr: number
 
   /**

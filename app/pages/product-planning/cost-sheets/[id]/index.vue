@@ -134,14 +134,14 @@ function submitApplyToQuotation () {
 <template>
   <div class="space-y-6">
     <template v-if="!costSheet">
-      <PageHeader title="Cost Sheet Tidak Ditemukan" :breadcrumb="[{ label: 'Product Planning', to: '/product-planning' }, { label: 'Cost Sheets', to: '/product-planning/cost-sheets' }, { label: 'Not Found' }]" />
+      <PageHeader title="Cost Sheet Tidak Ditemukan" :breadcrumb="[{ label: 'Product Planning', to: '/product-planning' }, { label: 'Cost Sheets', to: '/product-planning#cost-sheets' }, { label: 'Not Found' }]" />
       <SectionCard>
         <EmptyState
           :icon="FileX"
           title="Cost Sheet tidak ditemukan"
           :description="`Cost Sheet dengan ID '${route.params.id}' tidak ada di data demo saat ini.`"
         >
-          <Button @click="router.push('/product-planning/cost-sheets')">
+          <Button @click="router.push('/product-planning#cost-sheets')">
             Kembali ke Daftar Cost Sheet
           </Button>
         </EmptyState>
@@ -151,7 +151,7 @@ function submitApplyToQuotation () {
     <RoleAccessState v-else-if="!canView('product-planning')" module-label="modul Product Planning" />
 
     <template v-else>
-      <PageHeader :title="costSheet.name" :breadcrumb="[{ label: 'Product Planning', to: '/product-planning' }, { label: 'Cost Sheets', to: '/product-planning/cost-sheets' }, { label: costSheet.name }]">
+      <PageHeader :title="costSheet.name" :breadcrumb="[{ label: 'Product Planning', to: '/product-planning' }, { label: 'Cost Sheets', to: '/product-planning#cost-sheets' }, { label: costSheet.name }]">
         <template #actions>
           <div class="flex flex-wrap items-center gap-2">
             <StatusBadge :label="costSheet.status === 'final' ? 'Final (Locked)' : 'Draft'" :tone="costSheet.status === 'final' ? 'success' : 'neutral'" />

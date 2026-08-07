@@ -255,7 +255,7 @@ function submitQuotation () {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow v-for="service in assignedServices" :key="service.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/projects/${service.projectId}?tab=itinerary-services`)">
+                <TableRow v-for="service in assignedServices" :key="service.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/project-orders/${service.projectId}?tab=itinerary-services`)">
                   <TableCell class="font-medium text-foreground">
                     {{ projectName(service.projectId) }}
                   </TableCell>

@@ -122,7 +122,7 @@ function submitEdit () {
           title="Product Template tidak ditemukan"
           :description="`Product Template dengan ID '${route.params.id}' tidak ada di data demo saat ini.`"
         >
-          <Button @click="router.push('/product-planning')">
+          <Button @click="router.push('/product-planning#templates')">
             Kembali ke Daftar Product Template
           </Button>
         </EmptyState>
@@ -233,7 +233,7 @@ function submitEdit () {
 
       <SectionCard title="Cost Sheet Terkait">
         <template v-if="canManageProduct" #actions>
-          <NuxtLink :to="`/product-planning/cost-sheets?productId=${product.id}&create=1`">
+          <NuxtLink :to="`/product-planning?productId=${product.id}&create=1#cost-sheets`">
             <Button size="sm" variant="outline">
               <Plus class="h-4 w-4 mr-1.5" />Buat Cost Sheet dari Template Ini
             </Button>

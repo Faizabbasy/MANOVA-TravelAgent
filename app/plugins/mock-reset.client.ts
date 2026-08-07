@@ -4,11 +4,13 @@ import {
   OPPORTUNITIES, QUOTATIONS,
   PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS,
   VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES, VENDOR_PRODUCTS,
-  INVOICES, PAYMENTS,
+  INVOICES, PAYMENTS, CREDIT_NOTES,
   ACTIVITIES, DOCUMENTS, TASKS
 } from '~/data'
 import { USERS } from '~/data/users'
 import { ROLE_DEFINITIONS, ROLE_MODULE_GRANTS, ROLE_MENU_GRANTS, ROLE_CAPABILITY_GRANTS } from '~/data/rbac'
+import { OPEX_ENTRIES } from '~/data/finance-ext'
+import { SUPPLIER_INVOICES } from '~/data/procurement'
 import { captureMockSnapshot } from '~/utils/mock-reset'
 
 /**
@@ -38,6 +40,7 @@ export default defineNuxtPlugin(() => {
     VENDOR_PRODUCTS,
     INVOICES,
     PAYMENTS,
+    CREDIT_NOTES,
     ACTIVITIES,
     DOCUMENTS,
     TASKS,
@@ -50,6 +53,14 @@ export default defineNuxtPlugin(() => {
     ROLE_DEFINITIONS,
     ROLE_MODULE_GRANTS,
     ROLE_MENU_GRANTS,
-    ROLE_CAPABILITY_GRANTS
+    ROLE_CAPABILITY_GRANTS,
+    /**
+     * Fase 3 (Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu) — `SUPPLIER_INVOICES` kini
+     * mutable lewat `paySupplierInvoice()` (status `paid`/`paidAt`), dan `CREDIT_NOTES`/`OPEX_ENTRIES`
+     * sama-sama menjadi sumber `getJournalEntries()`. Tanpa didaftarkan, "Reset Demo Data" akan
+     * mengembalikan invoice/quotation dkk tapi meninggalkan Buku Besar dalam state yang sudah termutasi.
+     */
+    SUPPLIER_INVOICES,
+    OPEX_ENTRIES
   })
 })

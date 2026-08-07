@@ -162,15 +162,15 @@ function submitActivity () {
 <template>
   <div class="space-y-6">
     <template v-if="!party">
-      <PageHeader title="Party Tidak Ditemukan" :breadcrumb="[{ label: 'CRM', to: '/crm' }, { label: 'Not Found' }]" />
+      <PageHeader title="Party Tidak Ditemukan" :breadcrumb="[{ label: 'Database Customer', to: '/customer-journey/customers' }, { label: 'Not Found' }]" />
       <SectionCard>
         <EmptyState
           :icon="FileX"
           title="Party tidak ditemukan"
           :description="`Party dengan ID '${route.params.id}' tidak ada di data demo saat ini.`"
         >
-          <Button @click="router.push('/crm')">
-            Kembali ke CRM
+          <Button @click="router.push('/customer-journey/customers')">
+            Kembali ke Database Customer
           </Button>
         </EmptyState>
       </SectionCard>
@@ -181,7 +181,7 @@ function submitActivity () {
     <template v-else>
       <PageHeader
         :title="party.name"
-        :breadcrumb="[{ label: 'CRM', to: '/crm' }, { label: party.lifecycleStatus === 'client' ? 'Clients' : 'Prospects', to: party.lifecycleStatus === 'client' ? '/crm/clients' : '/crm/prospects' }, { label: party.name }]"
+        :breadcrumb="[{ label: 'Database Customer', to: '/customer-journey/customers' }, { label: party.lifecycleStatus === 'client' ? 'Clients' : 'Prospects', to: party.lifecycleStatus === 'client' ? '/customer-journey/customers?status=client' : '/customer-journey/customers?status=prospect' }, { label: party.name }]"
       >
         <template #actions>
           <StatusBadge :label="party.lifecycleStatus === 'client' ? 'Client' : 'Prospect'" :tone="party.lifecycleStatus === 'client' ? 'success' : 'info'" />
@@ -429,7 +429,7 @@ function submitActivity () {
             <ul class="divide-y divide-border">
               <li v-for="project in projects" :key="project.id" class="py-3 flex items-center justify-between gap-3">
                 <div class="min-w-0">
-                  <NuxtLink :to="`/projects/${project.id}`" class="text-sm font-medium text-foreground hover:underline truncate block">
+                  <NuxtLink :to="`/project-orders/${project.id}`" class="text-sm font-medium text-foreground hover:underline truncate block">
                     {{ project.name }}
                   </NuxtLink>
                   <p class="text-xs text-muted-foreground truncate">
@@ -524,7 +524,7 @@ function submitActivity () {
                       <div class="flex items-center gap-2">
                         <StatusBadge :label="travelInsight.loyalty.tier.label" tone="warning" />
                         <span class="text-sm text-foreground">{{ formatNumber(travelInsight.loyalty.totalPoints) }} poin</span>
-                        <NuxtLink to="/crm/loyalty" class="text-xs text-primary hover:underline ml-auto">
+                        <NuxtLink to="/crm/engagement#loyalty" class="text-xs text-primary hover:underline ml-auto">
                           Lihat program →
                         </NuxtLink>
                       </div>

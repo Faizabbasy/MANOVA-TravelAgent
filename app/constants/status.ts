@@ -452,7 +452,8 @@ export const SUPPLIER_INVOICE_STATUSES: StatusOption<SupplierInvoiceStatus>[] = 
   { value: 'submitted', label: 'Diajukan', tone: 'info', order: 1 },
   { value: 'under-review', label: 'Sedang Direview', tone: 'warning', order: 2 },
   { value: 'approved', label: 'Disetujui', tone: 'success', order: 3 },
-  { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 4 }
+  { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 4 },
+  { value: 'paid', label: 'Lunas', tone: 'primary', order: 5 }
 ]
 
 /** "Confirmation and payment gates" (Section 18, Wajib) — mock gate finansial murni (D-006), dipakai `/bookings` dan tab Itinerary & Services. */

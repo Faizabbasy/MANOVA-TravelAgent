@@ -38,7 +38,7 @@ function printPage () {
             title="Quotation tidak ditemukan"
             :description="!opportunity ? `Opportunity dengan ID '${route.params.id}' tidak ada di data demo saat ini.` : 'Opportunity ini belum memiliki quotation.'"
           >
-            <NuxtLink :to="opportunity ? `/crm/opportunities/${opportunity.id}` : '/crm/opportunities'">
+            <NuxtLink :to="opportunity ? `/crm/opportunities/${opportunity.id}` : '/sales/pipeline#opportunities'">
               <Button>Kembali</Button>
             </NuxtLink>
           </EmptyState>

@@ -144,7 +144,7 @@ onBeforeRouteLeave(() => {
       <PageHeader title="Tidak Ditemukan" :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Tidak Ditemukan' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Project Order tidak ditemukan" description="Project Order ini tidak ada atau bukan milik company Anda.">
-          <Button @click="router.push('/client/feedback')">
+          <Button @click="router.push('/client/reports#feedback')">
             Kembali ke Feedback & Evaluation
           </Button>
         </EmptyState>
@@ -156,7 +156,7 @@ onBeforeRouteLeave(() => {
     <template v-else>
       <PageHeader
         :title="project.name"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Insights' }, { label: 'Feedback & Evaluation', to: '/client/feedback' }, { label: project.name }]"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Reports & Feedback' }, { label: 'Feedback & Evaluation', to: '/client/reports#feedback' }, { label: project.name }]"
       >
         <template #actions>
           <StatusBadge :label="findStatusOption(FEEDBACK_STATUSES, feedback?.status ?? 'not-started').label" :tone="findStatusOption(FEEDBACK_STATUSES, feedback?.status ?? 'not-started').tone" />

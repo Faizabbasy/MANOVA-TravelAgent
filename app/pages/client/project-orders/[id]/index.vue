@@ -574,7 +574,7 @@ function submitChangeRequest () {
               </Table>
             </div>
             <div class="mt-4 pt-4 border-t border-border">
-              <NuxtLink to="/client/participants" class="text-sm text-primary hover:underline">
+              <NuxtLink to="/client/project-orders#participants" class="text-sm text-primary hover:underline">
                 Kelola VIP, rooming, replace, dan bulk action lintas project →
               </NuxtLink>
             </div>
@@ -734,7 +734,7 @@ function submitChangeRequest () {
           <SectionCard title="Change Request">
             <template #actions>
               <div class="flex items-center gap-3">
-                <NuxtLink to="/client/change-requests" class="text-xs text-primary hover:underline">
+                <NuxtLink to="/client/project-orders#change-requests" class="text-xs text-primary hover:underline">
                   Kelola lengkap →
                 </NuxtLink>
                 <Dialog v-model:open="isChangeDialogOpen">

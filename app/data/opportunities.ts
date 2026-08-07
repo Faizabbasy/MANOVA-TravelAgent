@@ -10,7 +10,7 @@ import type { Opportunity, Quotation } from '~/types/opportunity'
 
 /**
  * docs/mockup-data-scenarios.md bagian 1-4. `ownerId` seluruh Opportunity di bawah di-reassign dari
- * `USR-001` (Sales) ke `USR-014` (Account Executive) di Prompt 19 (Change Request) — di bawah model role
+ * `USR-001` (Sales) ke `USR-001` (Account Executive) di Prompt 19 (Change Request) — di bawah model role
  * baru, Sales berhenti menangani Opportunity/Quotation (kini scoped ke Lead, lihat `app/data/leads.ts`),
  * AE yang menjadi Account Owner. Perubahan field murni (bukan struktur/hapus), didokumentasikan di
  * `docs/mockup-change-impact-log.md`.
@@ -21,7 +21,7 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     partyId: 'PTY-001',
     title: 'Manila Business Trip Q3 2026',
     stage: 'won',
-    ownerId: 'USR-014',
+    ownerId: 'USR-001',
     estimatedValueIdr: 95_000_000,
     destination: 'Manila, Filipina',
     travelStartDate: '2026-08-20',
@@ -43,7 +43,7 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     partyId: 'PTY-002',
     title: 'Abu Dhabi Corporate Gathering',
     stage: 'won',
-    ownerId: 'USR-014',
+    ownerId: 'USR-001',
     estimatedValueIdr: 320_000_000,
     destination: 'Abu Dhabi, Uni Emirat Arab',
     travelStartDate: '2026-09-22',
@@ -62,7 +62,7 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     partyId: 'PTY-003',
     title: 'Palu MICE Conference 2026',
     stage: 'won',
-    ownerId: 'USR-014',
+    ownerId: 'USR-001',
     estimatedValueIdr: 1_400_000_000,
     destination: 'Palu, Indonesia',
     travelStartDate: '2026-08-10',
@@ -81,7 +81,7 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     partyId: 'PTY-004',
     title: 'Jakarta Incentive Trip',
     stage: 'lost',
-    ownerId: 'USR-014',
+    ownerId: 'USR-001',
     estimatedValueIdr: 45_000_000,
     destination: 'Jakarta, Indonesia',
     travelStartDate: '2026-08-15',
@@ -111,7 +111,7 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     partyId: 'PTY-004',
     title: 'Bali Team Building 2026',
     stage: 'negotiation',
-    ownerId: 'USR-014',
+    ownerId: 'USR-001',
     estimatedValueIdr: 150_000_000,
     destination: 'Bali, Indonesia',
     travelStartDate: '2026-10-05',
@@ -141,7 +141,7 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     partyId: 'PTY-001',
     title: 'Manila Repeat Business Q4 2026',
     stage: 'negotiation',
-    ownerId: 'USR-014',
+    ownerId: 'USR-001',
     estimatedValueIdr: 55_000_000,
     destination: 'Manila, Filipina',
     travelStartDate: '2026-11-10',
@@ -167,7 +167,7 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     partyId: 'PTY-002',
     title: 'Abu Dhabi Follow-up Training',
     stage: 'qualification',
-    ownerId: 'USR-014',
+    ownerId: 'USR-001',
     estimatedValueIdr: 200_000_000,
     destination: 'Abu Dhabi, Uni Emirat Arab',
     // Tanggal, traveler estimate, dan requirement belum diisi — stage Qualification, belum digali (contoh empty state).
@@ -185,7 +185,7 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     partyId: 'PTY-001',
     title: 'Manila Follow-up Training Q1 2027',
     stage: 'won',
-    ownerId: 'USR-014',
+    ownerId: 'USR-001',
     estimatedValueIdr: 60_000_000,
     destination: 'Manila, Filipina',
     travelStartDate: '2027-02-16',
@@ -212,7 +212,7 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     partyId: 'PTY-003',
     title: 'Palu MICE Conference 2027',
     stage: 'requirement-gathering',
-    ownerId: 'USR-014',
+    ownerId: 'USR-001',
     estimatedValueIdr: 180_000_000,
     destination: 'Palu, Indonesia',
     travelStartDate: '2027-03-10',
@@ -230,7 +230,7 @@ export const OPPORTUNITIES: Opportunity[] = reactive([
     partyId: 'PTY-002',
     title: 'Surabaya Regional Sales Meeting 2027',
     stage: 'proposal',
-    ownerId: 'USR-014',
+    ownerId: 'USR-001',
     estimatedValueIdr: 75_000_000,
     destination: 'Surabaya, Indonesia',
     travelStartDate: '2027-01-20',

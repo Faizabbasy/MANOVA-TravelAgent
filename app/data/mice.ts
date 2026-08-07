@@ -12,7 +12,7 @@ import type { MiceEvent } from '~/types/mice'
  * kapasitas lebih kecil) menautkan langsung ke `TSK-1032` ("Konfirmasi venue MICE hari ke-2"),
  * `TSK-1033` ("Kirim rundown acara ke client"), dan `RSK-1031` ("Ketersediaan venue MICE hari ke-2 belum
  * terkonfirmasi final") di `app/data/activity.ts` — BUKAN detail baru yang tidak berhubungan. Staffing
- * menautkan ke `USR-007` (Lina Marlina, role `mice`, sudah ada di `PROJECTS[2].teamUserIds`) sebagai PIC
+ * menautkan ke `USR-002` (Lina Marlina, role `mice`, sudah ada di `PROJECTS[2].teamUserIds`) sebagai PIC
  * utama, konsisten `SFT-1032` (shift note existing) yang mencatat Lina menangani venue Hari 1.
  */
 export const MICE_EVENTS: MiceEvent[] = reactive([
@@ -26,8 +26,8 @@ export const MICE_EVENTS: MiceEvent[] = reactive([
     status: 'in-progress',
     clientApprovalStatus: 'approved',
     sessions: [
-      { roomName: 'Ballroom Utama', sessionTitle: 'MICE Conference — Hari 1: Opening & Keynote', startAt: '2026-08-11T08:00', endAt: '2026-08-11T17:00', capacity: 150, picUserId: 'USR-007', isConfirmed: true },
-      { roomName: 'Ballroom Utama (opsi alternatif — venue belum final)', sessionTitle: 'MICE Conference — Hari 2: Panel & Closing', startAt: '2026-08-12T08:00', endAt: '2026-08-12T17:00', capacity: 100, picUserId: 'USR-007', isConfirmed: false }
+      { roomName: 'Ballroom Utama', sessionTitle: 'MICE Conference — Hari 1: Opening & Keynote', startAt: '2026-08-11T08:00', endAt: '2026-08-11T17:00', capacity: 150, picUserId: 'USR-002', isConfirmed: true },
+      { roomName: 'Ballroom Utama (opsi alternatif — venue belum final)', sessionTitle: 'MICE Conference — Hari 2: Panel & Closing', startAt: '2026-08-12T08:00', endAt: '2026-08-12T17:00', capacity: 100, picUserId: 'USR-002', isConfirmed: false }
     ],
     participantCategories: [
       { category: 'Delegate (Rombongan Traveling)', expectedCount: 60, actualCount: 60 },
@@ -44,9 +44,9 @@ export const MICE_EVENTS: MiceEvent[] = reactive([
       { category: 'other', description: 'Dokumentasi foto dan video profesional', quantity: 1, unit: 'paket', vendorId: 'VND-007', netCostIdr: 8_000_000, sellPriceIdr: 12_000_000 }
     ],
     staffAssignments: [
-      { userId: 'USR-007', roleLabel: 'Event Coordinator / PIC Utama' },
+      { userId: 'USR-002', roleLabel: 'Event Coordinator / PIC Utama' },
       { userId: 'USR-002', roleLabel: 'Project Manager — Pengawasan Umum' },
-      { userId: 'USR-009', roleLabel: 'Liaison Vendor dan Logistik' }
+      { userId: 'USR-002', roleLabel: 'Liaison Vendor dan Logistik' }
     ],
     checklist: [
       { task: 'permit', label: 'Izin keramaian dan venue dari pihak berwenang setempat', isDone: true },

@@ -57,7 +57,7 @@ export interface JournalLine {
   creditIdr: number
 }
 
-export type JournalSourceType = 'invoice' | 'payment' | 'supplier-invoice' | 'opex' | 'manual'
+export type JournalSourceType = 'invoice' | 'payment' | 'supplier-invoice' | 'supplier-payment' | 'credit-note' | 'opex' | 'manual'
 
 /** Jurnal DITURUNKAN dari transaksi yang sudah ada — bukan entri yang diketik ulang secara terpisah. */
 export interface JournalEntry {
@@ -67,6 +67,14 @@ export interface JournalEntry {
   sourceType: JournalSourceType
   sourceId: ID
   lines: JournalLine[]
+  /**
+   * Dimensi project (Fase 3 — Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu). Diisi di
+   * `getJournalEntries()` dari sumbernya masing-masing: `invoice.projectId`, `payment → invoice.projectId`,
+   * `supplierInvoice → ServiceOrder.projectId`, `creditNote → invoice.projectId`, `opex.projectId`.
+   * `undefined` untuk transaksi yang memang tidak ber-project (mis. Opex operasional kantor umum) — BUKAN
+   * berarti data hilang.
+   */
+  projectId?: ID
 }
 
 export interface LedgerAccountBalance {

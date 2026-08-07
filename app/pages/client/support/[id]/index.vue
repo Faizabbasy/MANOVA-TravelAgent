@@ -66,7 +66,7 @@ function handleRate (rating: number) {
       <PageHeader title="Tidak Ditemukan" :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Tidak Ditemukan' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Support Ticket tidak ditemukan" description="Ticket ini tidak ada atau bukan milik company Anda.">
-          <Button @click="router.push('/client/support')">
+          <Button @click="router.push('/client/documents#support')">
             Kembali ke Issues & Support
           </Button>
         </EmptyState>
@@ -83,7 +83,7 @@ function handleRate (rating: number) {
 
       <PageHeader
         :title="ticket.subject"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Collaboration' }, { label: 'Issues & Support', to: '/client/support' }, { label: ticket.id }]"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Documents & Support' }, { label: 'Issues & Support', to: '/client/documents#support' }, { label: ticket.id }]"
       >
         <template #actions>
           <StatusBadge :label="findStatusOption(SUPPORT_TICKET_PRIORITIES, ticket.priority).label" :tone="findStatusOption(SUPPORT_TICKET_PRIORITIES, ticket.priority).tone" />

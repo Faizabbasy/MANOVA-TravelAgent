@@ -13,7 +13,7 @@ import type {
   PayableRow
 } from '~/types/finance-ext'
 import type { StatusOption } from '~/types/common'
-import { INVOICES, PAYMENTS } from './finance'
+import { INVOICES, PAYMENTS, CREDIT_NOTES } from './finance'
 import { PROJECTS } from './projects'
 import { PARTIES } from './parties'
 import { VENDORS } from './vendors'
@@ -48,15 +48,15 @@ export const OPEX_STATUSES: StatusOption<OpexEntry['status']>[] = [
 ]
 
 export const OPEX_ENTRIES: OpexEntry[] = reactive([
-  { id: 'OPX-001', period: '2026-07', category: 'payroll', description: 'Gaji karyawan Juli 2026', amountIdr: 385_000_000, incurredAt: '2026-07-25', status: 'paid', submittedBy: 'USR-023', approvedBy: 'USR-003', approvedAt: '2026-07-24', paidAt: '2026-07-25' },
+  { id: 'OPX-001', period: '2026-07', category: 'payroll', description: 'Gaji karyawan Juli 2026', amountIdr: 385_000_000, incurredAt: '2026-07-25', status: 'paid', submittedBy: 'USR-003', approvedBy: 'USR-003', approvedAt: '2026-07-24', paidAt: '2026-07-25' },
   { id: 'OPX-002', period: '2026-07', category: 'office', description: 'Sewa kantor & utilitas Juli', amountIdr: 62_500_000, incurredAt: '2026-07-05', status: 'paid', vendorName: 'PT Graha Sentosa', submittedBy: 'USR-008', approvedBy: 'USR-003', approvedAt: '2026-07-04', paidAt: '2026-07-05' },
-  { id: 'OPX-003', period: '2026-07', category: 'marketing', description: 'Iklan digital Instagram & TikTok', amountIdr: 48_000_000, incurredAt: '2026-07-15', status: 'approved', vendorName: 'Meta Platforms', submittedBy: 'USR-025', approvedBy: 'USR-003', approvedAt: '2026-07-16' },
+  { id: 'OPX-003', period: '2026-07', category: 'marketing', description: 'Iklan digital Instagram & TikTok', amountIdr: 48_000_000, incurredAt: '2026-07-15', status: 'approved', vendorName: 'Meta Platforms', submittedBy: 'USR-001', approvedBy: 'USR-003', approvedAt: '2026-07-16' },
   { id: 'OPX-004', period: '2026-07', category: 'technology', description: 'Langganan sistem reservasi & lisensi software', amountIdr: 27_300_000, incurredAt: '2026-07-10', status: 'paid', vendorName: 'Amadeus IT Group', submittedBy: 'USR-008', approvedBy: 'USR-003', approvedAt: '2026-07-09', paidAt: '2026-07-10' },
-  { id: 'OPX-005', period: '2026-07', category: 'travel', description: 'Site visit Abu Dhabi — survey venue', amountIdr: 34_800_000, incurredAt: '2026-07-14', status: 'approved', projectId: 'PRJ-102', submittedBy: 'USR-007', approvedBy: 'USR-003', approvedAt: '2026-07-15', note: 'Dialokasikan ke PRJ-102 karena survey khusus project tersebut.' },
+  { id: 'OPX-005', period: '2026-07', category: 'travel', description: 'Site visit Abu Dhabi — survey venue', amountIdr: 34_800_000, incurredAt: '2026-07-14', status: 'approved', projectId: 'PRJ-102', submittedBy: 'USR-002', approvedBy: 'USR-003', approvedAt: '2026-07-15', note: 'Dialokasikan ke PRJ-102 karena survey khusus project tersebut.' },
   { id: 'OPX-006', period: '2026-07', category: 'professional', description: 'Jasa konsultan pajak kuartal III', amountIdr: 18_000_000, incurredAt: '2026-07-20', status: 'submitted', vendorName: 'KAP Wijaya & Rekan', submittedBy: 'USR-008' },
-  { id: 'OPX-007', period: '2026-06', category: 'payroll', description: 'Gaji karyawan Juni 2026', amountIdr: 378_000_000, incurredAt: '2026-06-25', status: 'paid', submittedBy: 'USR-023', approvedBy: 'USR-003', approvedAt: '2026-06-24', paidAt: '2026-06-25' },
+  { id: 'OPX-007', period: '2026-06', category: 'payroll', description: 'Gaji karyawan Juni 2026', amountIdr: 378_000_000, incurredAt: '2026-06-25', status: 'paid', submittedBy: 'USR-003', approvedBy: 'USR-003', approvedAt: '2026-06-24', paidAt: '2026-06-25' },
   { id: 'OPX-008', period: '2026-06', category: 'office', description: 'Sewa kantor & utilitas Juni', amountIdr: 62_500_000, incurredAt: '2026-06-05', status: 'paid', vendorName: 'PT Graha Sentosa', submittedBy: 'USR-008', approvedBy: 'USR-003', approvedAt: '2026-06-04', paidAt: '2026-06-05' },
-  { id: 'OPX-009', period: '2026-06', category: 'marketing', description: 'Sponsorship pameran travel fair', amountIdr: 55_000_000, incurredAt: '2026-06-18', status: 'paid', vendorName: 'Panitia Travel Fair Nusantara', submittedBy: 'USR-025', approvedBy: 'USR-003', approvedAt: '2026-06-17', paidAt: '2026-06-20' },
+  { id: 'OPX-009', period: '2026-06', category: 'marketing', description: 'Sponsorship pameran travel fair', amountIdr: 55_000_000, incurredAt: '2026-06-18', status: 'paid', vendorName: 'Panitia Travel Fair Nusantara', submittedBy: 'USR-001', approvedBy: 'USR-003', approvedAt: '2026-06-17', paidAt: '2026-06-20' },
   { id: 'OPX-010', period: '2026-06', category: 'technology', description: 'Langganan sistem reservasi & lisensi software', amountIdr: 27_300_000, incurredAt: '2026-06-10', status: 'paid', vendorName: 'Amadeus IT Group', submittedBy: 'USR-008', approvedBy: 'USR-003', approvedAt: '2026-06-09', paidAt: '2026-06-10' },
   { id: 'OPX-011', period: '2026-07', category: 'other', description: 'Biaya administrasi bank & materai', amountIdr: 3_200_000, incurredAt: '2026-07-28', status: 'draft', submittedBy: 'USR-008' }
 ])
@@ -176,11 +176,11 @@ export function getReceivableAging (referenceIso = DEMO_REFERENCE_DATE): AgingBu
  * ------------------------------------------------------------------ */
 
 /**
- * `SupplierInvoiceStatus` hanya punya empat nilai (`submitted` | `under-review` | `approved` | `rejected`)
- * dan TIDAK punya status "paid" — pembayaran ke vendor belum dimodelkan di codebase ini. Karena itu hanya
- * tagihan yang ditolak yang dianggap selesai; sisanya (termasuk yang sudah disetujui) tetap terhutang.
+ * Fase 3.3 (Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu) — `SupplierInvoiceStatus`
+ * kini punya `'paid'` (lewat `paySupplierInvoice()`, `app/data/index.ts`). Ditolak DAN sudah lunas
+ * sama-sama dianggap selesai — sisanya (termasuk yang sudah disetujui tapi belum dibayar) tetap terhutang.
  */
-const SETTLED_SUPPLIER_STATUSES = ['rejected']
+const SETTLED_SUPPLIER_STATUSES = ['rejected', 'paid']
 
 export function getPayables (referenceIso = DEMO_REFERENCE_DATE): PayableRow[] {
   return SUPPLIER_INVOICES
@@ -237,10 +237,21 @@ function line (accountCode: string, debitIdr: number, creditIdr: number): Journa
   return { accountCode, debitIdr, creditIdr }
 }
 
+/** `ServiceOrder.projectId` untuk satu `SupplierInvoice` — dipakai bareng oleh jurnal maupun `getProjectActualCostIdr`. */
+function projectIdForSupplierInvoice (serviceOrderId: string): string | undefined {
+  return SERVICE_ORDERS.find(so => so.id === serviceOrderId)?.projectId
+}
+
 /**
  * Jurnal DITURUNKAN dari transaksi existing, bukan diketik ulang. Konsekuensinya: buku besar tidak
  * mungkin menyimpang dari invoice/pembayaran/opex yang mendasarinya, dan setiap entri selalu balance
  * karena dibentuk berpasangan.
+ *
+ * Fase 3 (Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu) — setiap entri kini membawa
+ * `projectId` (dari sumbernya masing-masing) supaya buku besar bisa difilter per project dan P&L per
+ * project bisa dibaca langsung dari jurnal, bukan angka statis terpisah. Ditambah 2 generator baru:
+ * pelunasan Supplier Invoice (Dr 2100/Cr 1100) dan Credit Note (Dr 4100/Cr 1200) — sebelumnya hutang
+ * vendor tidak pernah "lunas" di buku besar dan Credit Note tidak pernah tercatat sama sekali.
  */
 export function getJournalEntries (): JournalEntry[] {
   const entries: JournalEntry[] = []
@@ -252,29 +263,66 @@ export function getJournalEntries (): JournalEntry[] {
       description: `Penerbitan invoice ${invoice.label}`,
       sourceType: 'invoice',
       sourceId: invoice.id,
-      lines: [line('1200', invoice.amountIdr, 0), line('4100', 0, invoice.amountIdr)]
+      lines: [line('1200', invoice.amountIdr, 0), line('4100', 0, invoice.amountIdr)],
+      projectId: invoice.projectId
     })
   }
 
   for (const payment of PAYMENTS) {
+    const invoice = INVOICES.find(item => item.id === payment.invoiceId)
     entries.push({
       id: `JRN-PAY-${payment.id}`,
       date: payment.receivedAt,
       description: `Penerimaan pembayaran invoice ${payment.invoiceId}`,
       sourceType: 'payment',
       sourceId: payment.id,
-      lines: [line('1100', payment.amountIdr, 0), line('1200', 0, payment.amountIdr)]
+      lines: [line('1100', payment.amountIdr, 0), line('1200', 0, payment.amountIdr)],
+      projectId: invoice?.projectId
     })
   }
 
-  for (const supplierInvoice of SUPPLIER_INVOICES) {
+  /**
+   * `rejected` dikecualikan — tagihan yang ditolak tidak pernah menjadi liabilitas/beban riil, konsisten
+   * dengan `getProjectActualCostIdr()` di bawah ("sumber yang sama dengan jurnal" — keduanya HARUS memakai
+   * filter status yang identik, kalau tidak Actual Cost di Project Order dan total akun 5100 di Buku Besar
+   * bisa berbeda untuk project yang punya Supplier Invoice ditolak).
+   */
+  for (const supplierInvoice of SUPPLIER_INVOICES.filter(item => item.status !== 'rejected')) {
     entries.push({
       id: `JRN-SUP-${supplierInvoice.id}`,
       date: supplierInvoice.submittedAt,
       description: `Tagihan vendor ${supplierInvoice.id}`,
       sourceType: 'supplier-invoice',
       sourceId: supplierInvoice.id,
-      lines: [line('5100', supplierInvoice.amountIdr, 0), line('2100', 0, supplierInvoice.amountIdr)]
+      lines: [line('5100', supplierInvoice.amountIdr, 0), line('2100', 0, supplierInvoice.amountIdr)],
+      projectId: projectIdForSupplierInvoice(supplierInvoice.serviceOrderId)
+    })
+  }
+
+  /** Generator ke-5 (Fase 3.3) — pelunasan Supplier Invoice lewat `paySupplierInvoice()`. Tanpa ini akun 2100 (Hutang Usaha) hanya bisa bertambah, tidak pernah berkurang. */
+  for (const supplierInvoice of SUPPLIER_INVOICES.filter(item => item.status === 'paid' && item.paidAt)) {
+    entries.push({
+      id: `JRN-SUP-PAY-${supplierInvoice.id}`,
+      date: supplierInvoice.paidAt!,
+      description: `Pelunasan tagihan vendor ${supplierInvoice.id}`,
+      sourceType: 'supplier-payment',
+      sourceId: supplierInvoice.id,
+      lines: [line('2100', supplierInvoice.amountIdr, 0), line('1100', 0, supplierInvoice.amountIdr)],
+      projectId: projectIdForSupplierInvoice(supplierInvoice.serviceOrderId)
+    })
+  }
+
+  /** Generator ke-6 (Fase 3.4) — Credit Note (`issueCreditNote`, `app/data/index.ts`) sebelumnya memengaruhi outstanding invoice tapi tidak pernah menghasilkan entri jurnal. `DebitNote` memang sengaja informatif dan TIDAK ikut dijurnal — lihat komentar `app/types/finance.ts`. */
+  for (const creditNote of CREDIT_NOTES) {
+    const invoice = INVOICES.find(item => item.id === creditNote.invoiceId)
+    entries.push({
+      id: `JRN-CN-${creditNote.id}`,
+      date: creditNote.issuedAt,
+      description: `Credit Note ${creditNote.id} untuk invoice ${creditNote.invoiceId}`,
+      sourceType: 'credit-note',
+      sourceId: creditNote.id,
+      lines: [line('4100', creditNote.amountIdr, 0), line('1200', 0, creditNote.amountIdr)],
+      projectId: invoice?.projectId
     })
   }
 
@@ -285,11 +333,36 @@ export function getJournalEntries (): JournalEntry[] {
       description: opex.description,
       sourceType: 'opex',
       sourceId: opex.id,
-      lines: [line('6100', opex.amountIdr, 0), line(opex.status === 'paid' ? '1100' : '2100', 0, opex.amountIdr)]
+      lines: [line('6100', opex.amountIdr, 0), line(opex.status === 'paid' ? '1100' : '2100', 0, opex.amountIdr)],
+      projectId: opex.projectId
     })
   }
 
   return entries.sort((a, b) => b.date.localeCompare(a.date))
+}
+
+/**
+ * Actual cost turunan per project (Fase 3.2) — Σ SupplierInvoice project itu (di luar `rejected`) + Σ Opex
+ * ber-`projectId` yang sama (hanya status yang benar-benar dijurnal — `approved`/`paid`, pola sama
+ * `getJournalEntries()`). Sumber DAN filter status-nya identik dengan generator jurnal di atas, sehingga
+ * Actual Cost yang tampil di Project Order dan total akun 5100+6100 di Buku Besar TIDAK PERNAH bisa
+ * berbeda. Field `Project.actualCostIdr` (`app/types/project.ts`) DIPERTAHANKAN sebagai seed/override
+ * mock lama, tapi TIDAK pernah diperbarui mutator apa pun (selalu `0` untuk project baru) — seluruh
+ * tampilan WAJIB memanggil selector ini, bukan field mentahnya.
+ */
+export function getProjectActualCostIdr (projectId: string): number {
+  const supplierCostIdr = SUPPLIER_INVOICES
+    .filter(invoice => invoice.status !== 'rejected' && projectIdForSupplierInvoice(invoice.serviceOrderId) === projectId)
+    .reduce((sum, invoice) => sum + invoice.amountIdr, 0)
+  const opexCostIdr = OPEX_ENTRIES
+    .filter(entry => entry.projectId === projectId && (entry.status === 'approved' || entry.status === 'paid'))
+    .reduce((sum, entry) => sum + entry.amountIdr, 0)
+  return supplierCostIdr + opexCostIdr
+}
+
+/** Jurnal milik satu project (Fase 3.1) — dipakai filter Buku Besar dan section "Jurnal" tab Finance Project Order. */
+export function getJournalEntriesByProject (projectId: string): JournalEntry[] {
+  return getJournalEntries().filter(entry => entry.projectId === projectId)
 }
 
 export function getLedgerBalances (): LedgerAccountBalance[] {

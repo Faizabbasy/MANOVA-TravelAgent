@@ -9,19 +9,17 @@ import type { ID } from './common'
  *   - capability bernama (`app/constants/capabilities.ts`) menggantikan perbandingan role literal,
  *   - `resolveRoleId()` yang menerjemahkan role id lama, dan
  *   - test `app/data/rbac.test.ts` yang memverifikasi tidak ada akses yang hilang.
+ *
+ * Penyederhanaan 7-Role: `crm`/`marketing` melebur ke `sales`, `bi`/`hr` ke `management`,
+ * `vendor-partner`/`inventory` ke `operations` (`LEGACY_ROLE_ALIAS`, `app/data/rbac.ts`) — id lama tetap
+ * diterjemahkan otomatis, hanya tidak lagi jadi `ROLE_DEFINITIONS` tersendiri.
  */
 export type KnownRoleId =
   | 'super-admin'
   | 'management'
   | 'sales'
   | 'finance'
-  | 'crm'
-  | 'vendor-partner'
   | 'operations'
-  | 'hr'
-  | 'inventory'
-  | 'marketing'
-  | 'bi'
   | 'client'
   | 'vendor'
 

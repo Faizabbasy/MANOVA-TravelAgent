@@ -22,7 +22,7 @@ function onSubmitted (result: TravelRequest) {
     <PageHeader
       title="Ajukan Travel Request"
       description="Lengkapi kebutuhan perjalanan Anda — dapat disimpan sebagai draft untuk dilanjutkan nanti."
-      :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Commercial' }, { label: 'Travel Requests', to: '/client/travel-requests' }, { label: 'Baru' }]"
+      :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Approval' }, { label: 'Travel Requests', to: '/client/travel-requests' }, { label: 'Baru' }]"
     />
 
     <RoleAccessState v-if="!canView('client-portal') || !clientScopeId" module-label="Client Portal" />

@@ -60,10 +60,10 @@ function submitInvoice () {
 <template>
   <div class="space-y-6">
     <template v-if="!serviceOrder || !isOwn">
-      <PageHeader title="Service Order Tidak Ditemukan" :breadcrumb="[{ label: 'Supplier Portal', to: '/supplier' }, { label: 'Service Orders', to: '/supplier/service-orders' }, { label: 'Not Found' }]" />
+      <PageHeader title="Service Order Tidak Ditemukan" :breadcrumb="[{ label: 'Supplier Portal', to: '/supplier' }, { label: 'Service Orders', to: '/supplier/orders#service-orders' }, { label: 'Not Found' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Service Order tidak ditemukan" :description="`Service Order dengan ID '${route.params.id}' tidak ada atau bukan milik company Anda.`">
-          <Button @click="router.push('/supplier/service-orders')">
+          <Button @click="router.push('/supplier/orders#service-orders')">
             Kembali ke Service Order Inbox
           </Button>
         </EmptyState>
@@ -73,7 +73,7 @@ function submitInvoice () {
     <RoleAccessState v-else-if="!canView('supplier-portal') || !vendorScopeId" module-label="Supplier Portal" />
 
     <template v-else>
-      <PageHeader :title="`Service Order ${serviceOrder.id}`" :breadcrumb="[{ label: 'Supplier Portal', to: '/supplier' }, { label: 'Service Orders', to: '/supplier/service-orders' }, { label: serviceOrder.id }]">
+      <PageHeader :title="`Service Order ${serviceOrder.id}`" :breadcrumb="[{ label: 'Supplier Portal', to: '/supplier' }, { label: 'Service Orders', to: '/supplier/orders#service-orders' }, { label: serviceOrder.id }]">
         <template #actions>
           <div class="flex flex-wrap items-center gap-2">
             <StatusBadge :label="findStatusOption(SERVICE_ORDER_STATUSES, serviceOrder.status).label" :tone="findStatusOption(SERVICE_ORDER_STATUSES, serviceOrder.status).tone" />

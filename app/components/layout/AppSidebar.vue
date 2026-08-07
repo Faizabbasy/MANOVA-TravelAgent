@@ -72,9 +72,23 @@ const visibleItems = computed(() => {
 
 const hasResults = computed(() => visibleItems.value.length > 0)
 
-const isActive = (to: string) => route.path === to
+/**
+ * Bug sidebar (Penyederhanaan 7-Role/Menu) — perbandingan lama `route.path === to` gagal untuk item
+ * ber-query (`to` mengandung `?tab=...`, dipakai pola tab-container `/finance/invoices?tab=...`):
+ * `route.path` tidak pernah sama persis dengan string yang mengandung query, jadi item semacam itu TIDAK
+ * PERNAH ter-highlight. Sekarang bandingkan base path (`to` sebelum `?`) lebih dulu, lalu — kalau `to`
+ * membawa `tab` — cocokkan juga `route.query.tab` supaya highlight tab tetap akurat.
+ */
+function isActive (to: string) {
+  const [base, queryString] = to.split('?')
+  if (route.path !== base) { return false }
+  if (!queryString) { return true }
+  const tab = new URLSearchParams(queryString).get('tab')
+  if (tab === null) { return true }
+  return route.query.tab === tab
+}
 const isSectionActive = (item: NavItem) =>
-  route.path === item.to || Boolean(item.children?.some(child => route.path === child.to))
+  isActive(item.to) || Boolean(item.children?.some(child => isActive(child.to)))
 
 /** Di-key dengan `item.key` (bukan label) — label kini bisa berubah tanpa mereset state expand. */
 const expanded = reactive<Record<string, boolean>>({})

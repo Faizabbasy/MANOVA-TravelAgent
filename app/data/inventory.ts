@@ -88,14 +88,14 @@ export const MAINTENANCE_SCHEDULES: MaintenanceSchedule[] = reactive([
 ])
 
 export const ASSET_CHECKOUTS: AssetCheckout[] = reactive([
-  { id: 'ACO-001', assetId: 'AST-001', projectId: 'PRJ-103', borrowedBy: 'USR-007', checkedOutAt: '2026-07-20', dueAt: '2026-08-20', status: 'checked-out' },
-  { id: 'ACO-002', assetId: 'AST-003', projectId: 'PRJ-103', borrowedBy: 'USR-007', checkedOutAt: '2026-07-20', dueAt: '2026-08-20', status: 'checked-out' },
-  { id: 'ACO-003', assetId: 'AST-006', projectId: 'PRJ-103', borrowedBy: 'USR-007', checkedOutAt: '2026-07-22', dueAt: '2026-08-20', status: 'checked-out' },
-  { id: 'ACO-004', assetId: 'AST-009', projectId: 'PRJ-103', borrowedBy: 'USR-009', checkedOutAt: '2026-07-24', dueAt: '2026-08-20', status: 'checked-out' },
-  { id: 'ACO-005', assetId: 'AST-011', projectId: 'PRJ-102', borrowedBy: 'USR-013', checkedOutAt: '2026-07-14', dueAt: '2026-07-24', status: 'overdue', note: 'Dipakai untuk site visit, belum dikembalikan.' },
-  { id: 'ACO-006', assetId: 'AST-015', borrowedBy: 'USR-025', checkedOutAt: '2026-06-01', dueAt: '2026-12-31', status: 'checked-out', note: 'Penugasan jangka panjang tim Marketing.' },
-  { id: 'ACO-007', assetId: 'AST-007', projectId: 'PRJ-101', borrowedBy: 'USR-009', checkedOutAt: '2026-06-10', dueAt: '2026-06-20', returnedAt: '2026-06-19', status: 'returned', conditionOnReturn: 'excellent' },
-  { id: 'ACO-008', assetId: 'AST-013', projectId: 'PRJ-101', borrowedBy: 'USR-009', checkedOutAt: '2026-06-08', dueAt: '2026-06-20', returnedAt: '2026-06-22', status: 'returned', conditionOnReturn: 'good', note: 'Terlambat 2 hari karena cuaca.' }
+  { id: 'ACO-001', assetId: 'AST-001', projectId: 'PRJ-103', borrowedBy: 'USR-002', checkedOutAt: '2026-07-20', dueAt: '2026-08-20', status: 'checked-out' },
+  { id: 'ACO-002', assetId: 'AST-003', projectId: 'PRJ-103', borrowedBy: 'USR-002', checkedOutAt: '2026-07-20', dueAt: '2026-08-20', status: 'checked-out' },
+  { id: 'ACO-003', assetId: 'AST-006', projectId: 'PRJ-103', borrowedBy: 'USR-002', checkedOutAt: '2026-07-22', dueAt: '2026-08-20', status: 'checked-out' },
+  { id: 'ACO-004', assetId: 'AST-009', projectId: 'PRJ-103', borrowedBy: 'USR-002', checkedOutAt: '2026-07-24', dueAt: '2026-08-20', status: 'checked-out' },
+  { id: 'ACO-005', assetId: 'AST-011', projectId: 'PRJ-102', borrowedBy: 'USR-002', checkedOutAt: '2026-07-14', dueAt: '2026-07-24', status: 'overdue', note: 'Dipakai untuk site visit, belum dikembalikan.' },
+  { id: 'ACO-006', assetId: 'AST-015', borrowedBy: 'USR-001', checkedOutAt: '2026-06-01', dueAt: '2026-12-31', status: 'checked-out', note: 'Penugasan jangka panjang tim Marketing.' },
+  { id: 'ACO-007', assetId: 'AST-007', projectId: 'PRJ-101', borrowedBy: 'USR-002', checkedOutAt: '2026-06-10', dueAt: '2026-06-20', returnedAt: '2026-06-19', status: 'returned', conditionOnReturn: 'excellent' },
+  { id: 'ACO-008', assetId: 'AST-013', projectId: 'PRJ-101', borrowedBy: 'USR-002', checkedOutAt: '2026-06-08', dueAt: '2026-06-20', returnedAt: '2026-06-22', status: 'returned', conditionOnReturn: 'good', note: 'Terlambat 2 hari karena cuaca.' }
 ])
 
 /* ------------------------------------------------------------------ *

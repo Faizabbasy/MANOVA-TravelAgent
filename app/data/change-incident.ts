@@ -15,7 +15,7 @@ import type { ChangeRequest, CancellationRecord, RefundRequest, Incident, Change
  *   `TRN-1037`) — lapisan penalty-tracking seragam TAMBAHAN, TIDAK memutasi booking itu sendiri.
  * - `RefundRequest` menautkan `CancellationRecord` di atas + `Invoice` existing (`app/data/finance.ts`,
  *   read-only reference, TIDAK PERNAH memutasi `Invoice.status`) — `REF-001` mendemokan `creditStatus: 'issued'`.
- * - `Incident` mendemokan seluruh 4 severity, satu `escalated` (ke Operations `USR-009`) dengan
+ * - `Incident` mendemokan seluruh 4 severity, satu `escalated` (ke Operations `USR-002`) dengan
  *   `communicationLog` multi-entri (`INC-001`, tertaut `TRN-1034`), satu project-level tanpa `bookingId`
  *   (`INC-003`, severity `critical` — peringatan cuaca ekstrem Palu).
  */
@@ -25,7 +25,7 @@ export const CHANGE_REQUESTS: ChangeRequest[] = reactive([
     id: 'CR-001',
     projectId: 'PRJ-102',
     source: 'internal',
-    requestedBy: 'USR-013',
+    requestedBy: 'USR-002',
     submittedAt: '2026-07-08',
     affectedEntities: [{ entityType: 'itinerary', entityId: 'ITIN-1021' }, { entityType: 'flight', entityId: 'FLT-1021' }],
     beforeSummary: 'Tanggal perjalanan 15–19 Sep 2026',
@@ -41,7 +41,7 @@ export const CHANGE_REQUESTS: ChangeRequest[] = reactive([
     id: 'CR-002',
     projectId: 'PRJ-102',
     source: 'client',
-    requestedBy: 'USR-020',
+    requestedBy: 'USR-021',
     submittedAt: '2026-07-12',
     affectedEntities: [{ entityType: 'hotel', entityId: 'HTL-1022' }],
     beforeSummary: 'Tipe kamar Deluxe untuk 18 pax (Room Block A)',
@@ -85,7 +85,7 @@ export const CHANGE_REQUESTS: ChangeRequest[] = reactive([
     id: 'CR-005',
     projectId: 'PRJ-101',
     source: 'client',
-    requestedBy: 'USR-019',
+    requestedBy: 'USR-021',
     submittedAt: '2026-07-19',
     affectedEntities: [{ entityType: 'flight', entityId: 'FLT-1011' }],
     beforeSummary: 'Keberangkatan 20 Agu 2026 pagi (e-ticket sudah terbit)',
@@ -101,7 +101,7 @@ export const CHANGE_REQUESTS: ChangeRequest[] = reactive([
     id: 'CR-006',
     projectId: 'PRJ-103',
     source: 'internal',
-    requestedBy: 'USR-007',
+    requestedBy: 'USR-002',
     submittedAt: '2026-07-21',
     affectedEntities: [{ entityType: 'mice', entityId: 'MICE-1035' }],
     beforeSummary: 'Rundown venue: Ballroom A, sesi tunggal',
@@ -147,7 +147,7 @@ export const CANCELLATION_RECORDS: CancellationRecord[] = reactive([
     reason: 'Traveler membatalkan perjalanan karena kondisi mendesak keluarga.',
     penaltyIdr: 5_000_000,
     cancelledAt: '2026-07-15',
-    cancelledBy: 'USR-004',
+    cancelledBy: 'USR-002',
     refundEligible: true
   },
   {
@@ -158,7 +158,7 @@ export const CANCELLATION_RECORDS: CancellationRecord[] = reactive([
     reason: 'Room Block B digabung ke Room Block A — kelebihan booking dibatalkan.',
     penaltyIdr: 3_750_000,
     cancelledAt: '2026-07-09',
-    cancelledBy: 'USR-005',
+    cancelledBy: 'USR-002',
     refundEligible: true
   },
   {
@@ -168,7 +168,7 @@ export const CANCELLATION_RECORDS: CancellationRecord[] = reactive([
     bookingId: 'TRN-1037',
     reason: 'Airport pickup dibatalkan — traveler menggunakan kendaraan pribadi.',
     cancelledAt: '2026-07-19',
-    cancelledBy: 'USR-006',
+    cancelledBy: 'USR-002',
     refundEligible: false
   }
 ])
@@ -183,7 +183,7 @@ export const REFUND_REQUESTS: RefundRequest[] = reactive([
     amountIdr: 45_000_000,
     status: 'processed',
     requestedAt: '2026-07-15',
-    requestedBy: 'USR-004',
+    requestedBy: 'USR-002',
     approvedBy: 'USR-003',
     approvedAt: '2026-07-17',
     creditStatus: 'issued'
@@ -197,7 +197,7 @@ export const REFUND_REQUESTS: RefundRequest[] = reactive([
     amountIdr: 21_250_000,
     status: 'approved',
     requestedAt: '2026-07-09',
-    requestedBy: 'USR-005',
+    requestedBy: 'USR-002',
     approvedBy: 'USR-003',
     approvedAt: '2026-07-11',
     creditStatus: 'pending'
@@ -210,7 +210,7 @@ export const REFUND_REQUESTS: RefundRequest[] = reactive([
     amountIdr: 2_000_000,
     status: 'under-review',
     requestedAt: '2026-07-19',
-    requestedBy: 'USR-006',
+    requestedBy: 'USR-002',
     creditStatus: 'pending'
   },
   {
@@ -256,12 +256,12 @@ export const INCIDENTS: Incident[] = reactive([
     title: 'Kendaraan mogok saat penjemputan Group Sales Team',
     description: 'Salah satu unit armada mogok di tengah rute penjemputan dari bandara menuju hotel.',
     severity: 'high',
-    ownerId: 'USR-006',
+    ownerId: 'USR-002',
     status: 'escalated',
-    escalatedTo: 'USR-009',
+    escalatedTo: 'USR-002',
     communicationLog: [
-      { id: 'INC-001-COM-1', at: '2026-07-19T08:15', from: 'USR-006', message: 'Unit armada B mogok di km 12, traveler dipindahkan ke unit cadangan.' },
-      { id: 'INC-001-COM-2', at: '2026-07-19T08:40', from: 'USR-009', message: 'Dieskalasi ke Operations untuk koordinasi unit pengganti dan evaluasi vendor.' }
+      { id: 'INC-001-COM-1', at: '2026-07-19T08:15', from: 'USR-002', message: 'Unit armada B mogok di km 12, traveler dipindahkan ke unit cadangan.' },
+      { id: 'INC-001-COM-2', at: '2026-07-19T08:40', from: 'USR-002', message: 'Dieskalasi ke Operations untuk koordinasi unit pengganti dan evaluasi vendor.' }
     ]
   },
   {
@@ -272,10 +272,10 @@ export const INCIDENTS: Incident[] = reactive([
     title: 'Perubahan jadwal penerbangan berdampak pada koneksi',
     description: 'Jadwal penerbangan berubah dari maskapai, berpotensi mengganggu rencana kedatangan.',
     severity: 'medium',
-    ownerId: 'USR-004',
+    ownerId: 'USR-002',
     status: 'resolved',
     communicationLog: [
-      { id: 'INC-002-COM-1', at: '2026-07-05T11:00', from: 'USR-004', message: 'Tiket berhasil di-reissue manual ke jadwal baru 22–26 Sep 2026.' }
+      { id: 'INC-002-COM-1', at: '2026-07-05T11:00', from: 'USR-002', message: 'Tiket berhasil di-reissue manual ke jadwal baru 22–26 Sep 2026.' }
     ],
     resolutionNote: 'Reissue selesai, traveler sudah dikonfirmasi ulang jadwal barunya.',
     resolvedAt: '2026-07-05'

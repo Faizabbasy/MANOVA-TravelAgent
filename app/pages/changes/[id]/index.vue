@@ -199,7 +199,7 @@ function handleImplemented () {
           Alasan Penolakan: {{ request.rejectionReason }}
         </p>
         <p v-if="request.activityEntryId" class="text-xs text-muted-foreground mt-3">
-          Tertaut ke Activity & Changes: <NuxtLink :to="`/projects/${request.projectId}?tab=activity-changes`" class="text-primary hover:underline">
+          Tertaut ke Activity & Changes: <NuxtLink :to="`/project-orders/${request.projectId}?tab=activity-changes`" class="text-primary hover:underline">
             {{ request.activityEntryId }}
           </NuxtLink>
         </p>

@@ -23,7 +23,7 @@ export const ACTIVITIES: ActivityEntry[] = reactive([
     createdAt: '2026-07-08',
     category: 'itinerary',
     reason: 'Perubahan jadwal keberangkatan dari sisi klien',
-    requestedBy: 'USR-013',
+    requestedBy: 'USR-002',
     beforeValue: '15–19 Sep 2026',
     afterValue: '22–26 Sep 2026',
     approvalStatus: 'approved',
@@ -39,7 +39,7 @@ export const ACTIVITIES: ActivityEntry[] = reactive([
     createdAt: '2026-07-08',
     category: 'traveler',
     reason: 'Penambahan peserta dari sisi klien',
-    requestedBy: 'USR-013',
+    requestedBy: 'USR-002',
     beforeValue: '15 pax',
     afterValue: '18 pax',
     approvalStatus: 'approved',
@@ -55,7 +55,7 @@ export const ACTIVITIES: ActivityEntry[] = reactive([
     createdAt: '2026-07-12',
     category: 'service',
     reason: 'Permintaan upgrade kamar dari klien',
-    requestedBy: 'USR-005',
+    requestedBy: 'USR-002',
     beforeValue: 'Deluxe',
     afterValue: 'Suite',
     approvalStatus: 'pending',
@@ -113,7 +113,7 @@ export const ACTIVITIES: ActivityEntry[] = reactive([
     createdAt: '2026-07-19',
     category: 'itinerary',
     reason: 'Permintaan reschedule mendadak dari klien',
-    requestedBy: 'USR-019',
+    requestedBy: 'USR-021',
     beforeValue: 'Keberangkatan 20 Agu 2026 pagi',
     afterValue: 'Permintaan reschedule ke 21 Agu 2026',
     approvalStatus: 'rejected',
@@ -129,7 +129,7 @@ export const ACTIVITIES: ActivityEntry[] = reactive([
     createdAt: '2026-07-21',
     category: 'service',
     reason: 'Permintaan sesi paralel tambahan dari tim internal',
-    requestedBy: 'USR-007',
+    requestedBy: 'USR-002',
     beforeValue: 'Ballroom A, sesi tunggal',
     afterValue: 'Ballroom A + Breakout Room B, dua sesi paralel',
     approvalStatus: 'approved',
@@ -157,19 +157,19 @@ export const DOCUMENTS: ProjectDocument[] = [
  * untuk mendemokan fitur tanpa mengubah task lama yang sudah berjalan.
  */
 export const TASKS: ProjectTask[] = reactive([
-  { id: 'TSK-1011', projectId: 'PRJ-101', title: 'Konfirmasi manifest penumpang', status: 'done', assignedTo: 'USR-004' },
+  { id: 'TSK-1011', projectId: 'PRJ-101', title: 'Konfirmasi manifest penumpang', status: 'done', assignedTo: 'USR-002' },
 
   // isBlocked/blockedReason (Section 12 baru, Wajib "blocker") — dibackfill pada 1 task per skenario yang paling wajar diblokir oleh faktor eksternal (bukan seluruh task, agar tetap merepresentasikan kondisi realistis campuran blocked/tidak).
-  { id: 'TSK-1021', projectId: 'PRJ-102', title: 'Reschedule hotel booking', status: 'in-progress', assignedTo: 'USR-005', isBlocked: true, blockedReason: 'Menunggu konfirmasi ketersediaan kamar Suite dari hotel' },
-  { id: 'TSK-1022', projectId: 'PRJ-102', title: 'Update traveler manifest', status: 'overdue', dueAt: '2026-07-22', assignedTo: 'USR-004', dependsOnTaskId: 'TSK-1021' },
+  { id: 'TSK-1021', projectId: 'PRJ-102', title: 'Reschedule hotel booking', status: 'in-progress', assignedTo: 'USR-002', isBlocked: true, blockedReason: 'Menunggu konfirmasi ketersediaan kamar Suite dari hotel' },
+  { id: 'TSK-1022', projectId: 'PRJ-102', title: 'Update traveler manifest', status: 'overdue', dueAt: '2026-07-22', assignedTo: 'USR-002', dependsOnTaskId: 'TSK-1021' },
   // TSK-1023 (Section 06/Dashboard): melengkapi task dengan dueAt di masa depan agar widget
   // "Milestone/task mendatang" (Project Manager) punya data selain yang overdue.
   { id: 'TSK-1023', projectId: 'PRJ-102', title: 'Follow-up pembayaran termin tambahan ke client', status: 'not-started', dueAt: '2026-08-01' },
 
-  { id: 'TSK-1031', projectId: 'PRJ-103', title: 'Finalisasi rooming list Group C', status: 'in-progress', isMilestone: true, assignedTo: 'USR-005' },
-  { id: 'TSK-1032', projectId: 'PRJ-103', title: 'Konfirmasi venue MICE hari ke-2', status: 'pending-confirmation', isMilestone: true, assignedTo: 'USR-007' },
+  { id: 'TSK-1031', projectId: 'PRJ-103', title: 'Finalisasi rooming list Group C', status: 'in-progress', isMilestone: true, assignedTo: 'USR-002' },
+  { id: 'TSK-1032', projectId: 'PRJ-103', title: 'Konfirmasi venue MICE hari ke-2', status: 'pending-confirmation', isMilestone: true, assignedTo: 'USR-002' },
   { id: 'TSK-1033', projectId: 'PRJ-103', title: 'Kirim rundown acara ke client', status: 'not-started', dependsOnTaskId: 'TSK-1032' },
-  { id: 'TSK-1034', projectId: 'PRJ-103', title: 'Rekonsiliasi actual cost transportation', status: 'overdue', dueAt: '2026-07-25', assignedTo: 'USR-006' },
+  { id: 'TSK-1034', projectId: 'PRJ-103', title: 'Rekonsiliasi actual cost transportation', status: 'overdue', dueAt: '2026-07-25', assignedTo: 'USR-002' },
   { id: 'TSK-1035', projectId: 'PRJ-103', title: 'Verifikasi ulang manifest VIP sebelum keberangkatan', status: 'in-progress', dueAt: '2026-08-05', isMilestone: true }
 ])
 
@@ -180,7 +180,7 @@ export const TASKS: ProjectTask[] = reactive([
  */
 export const PROJECT_RISKS: ProjectRisk[] = reactive([
   { id: 'RSK-1031', projectId: 'PRJ-103', title: 'Ketersediaan venue MICE hari ke-2 belum terkonfirmasi final', description: 'Venue alternatif perlu disiapkan bila konfirmasi tidak turun H-7.', severity: 'high', status: 'open', raisedBy: 'USR-002', createdAt: '2026-07-20' },
-  { id: 'RSK-1032', projectId: 'PRJ-103', title: 'Cuaca ekstrem berpotensi mengganggu sesi outdoor', description: 'Rencana cadangan indoor perlu disiapkan tim Operations.', severity: 'medium', status: 'mitigated', raisedBy: 'USR-006', createdAt: '2026-07-18' }
+  { id: 'RSK-1032', projectId: 'PRJ-103', title: 'Cuaca ekstrem berpotensi mengganggu sesi outdoor', description: 'Rencana cadangan indoor perlu disiapkan tim Operations.', severity: 'medium', status: 'mitigated', raisedBy: 'USR-002', createdAt: '2026-07-18' }
 ])
 
 /**
@@ -189,8 +189,8 @@ export const PROJECT_RISKS: ProjectRisk[] = reactive([
  * paling wajar untuk shift handover nyata), tidak dipaksakan ke project lain yang belum berjalan.
  */
 export const SHIFT_NOTES: ShiftNote[] = reactive([
-  { id: 'SFT-1031', projectId: 'PRJ-103', authorId: 'USR-006', shift: 'pagi', note: 'Seluruh group tiba tepat waktu, transportasi bandara-hotel lancar tanpa kendala.', createdAt: '2026-08-10' },
-  { id: 'SFT-1032', projectId: 'PRJ-103', authorId: 'USR-007', shift: 'siang', note: 'Venue MICE hari ke-1 sudah siap, AV testing selesai. Serah terima ke shift malam untuk persiapan hari ke-2.', createdAt: '2026-08-11' }
+  { id: 'SFT-1031', projectId: 'PRJ-103', authorId: 'USR-002', shift: 'pagi', note: 'Seluruh group tiba tepat waktu, transportasi bandara-hotel lancar tanpa kendala.', createdAt: '2026-08-10' },
+  { id: 'SFT-1032', projectId: 'PRJ-103', authorId: 'USR-002', shift: 'siang', note: 'Venue MICE hari ke-1 sudah siap, AV testing selesai. Serah terima ke shift malam untuk persiapan hari ke-2.', createdAt: '2026-08-11' }
 ])
 
 /**
@@ -200,8 +200,8 @@ export const SHIFT_NOTES: ShiftNote[] = reactive([
  * Diurutkan kronologis (lama → baru) mengikuti tanggal transaksi entitas aslinya.
  */
 export const SYSTEM_EVENTS: SystemEvent[] = reactive([
-  { id: 'EVT-001', module: 'user', type: 'user-created', message: 'User Galih Ramadhan (Account Executive) ditambahkan ke sistem', entityId: 'USR-014', userId: 'USR-010', createdAt: '2026-06-01' },
-  { id: 'EVT-002', module: 'opportunity', type: 'opportunity-created', message: 'Opportunity OPP-001 "Manila Business Trip Q3 2026" dibuat', entityId: 'OPP-001', userId: 'USR-014', createdAt: '2026-06-10' },
+  { id: 'EVT-001', module: 'user', type: 'user-created', message: 'User Galih Ramadhan (Account Executive) ditambahkan ke sistem', entityId: 'USR-001', userId: 'USR-010', createdAt: '2026-06-01' },
+  { id: 'EVT-002', module: 'opportunity', type: 'opportunity-created', message: 'Opportunity OPP-001 "Manila Business Trip Q3 2026" dibuat', entityId: 'OPP-001', userId: 'USR-001', createdAt: '2026-06-10' },
   { id: 'EVT-003', module: 'quotation', type: 'quotation-approved', message: 'Quotation QUO-001 (Rp 95.000.000) disetujui Management', entityId: 'QUO-001', userId: 'USR-003', createdAt: '2026-06-24' },
   { id: 'EVT-004', module: 'opportunity', type: 'opportunity-won', message: 'Opportunity OPP-001 ditandai Won', entityId: 'OPP-001', userId: 'USR-003', createdAt: '2026-06-25' },
   { id: 'EVT-005', module: 'client', type: 'client-activated', message: 'PT Cipta Distribusi Nusantara (PTY-001) berubah status menjadi Active Client', entityId: 'PTY-001', createdAt: '2026-06-25' },
@@ -214,12 +214,12 @@ export const SYSTEM_EVENTS: SystemEvent[] = reactive([
   { id: 'EVT-012', module: 'lead', type: 'lead-assigned', message: 'Lead LED-006 "Wahyu Setiadi" ditugaskan ke Rani Kusuma (Sales)', entityId: 'LED-006', userId: 'USR-001', createdAt: '2026-07-12' },
   { id: 'EVT-013', module: 'lead', type: 'lead-created', message: 'Lead LED-004 "Doni Ferdian" masuk dari sumber WhatsApp', entityId: 'LED-004', createdAt: '2026-07-18' },
   { id: 'EVT-014', module: 'lead', type: 'lead-follow-up-added', message: 'Follow-up dijadwalkan untuk Lead LED-004', entityId: 'LED-004', userId: 'USR-001', createdAt: '2026-07-26' },
-  { id: 'EVT-015', module: 'lead', type: 'lead-qualified', message: 'Lead LED-005 "Nadia Ramadhani" di-qualify dan diserahkan ke Account Executive', entityId: 'LED-005', userId: 'USR-014', createdAt: '2026-07-18' },
-  { id: 'EVT-016', module: 'opportunity', type: 'opportunity-created', message: 'Opportunity OPP-005 "Bali Team Building 2026" dibuat dari Lead LED-005', entityId: 'OPP-005', userId: 'USR-014', createdAt: '2026-07-05' },
-  { id: 'EVT-017', module: 'quotation', type: 'quotation-submitted', message: 'Quotation QUO-005 (Rp 180.000.000) diajukan untuk commercial approval', entityId: 'QUO-005', userId: 'USR-014', createdAt: '2026-07-22' },
+  { id: 'EVT-015', module: 'lead', type: 'lead-qualified', message: 'Lead LED-005 "Nadia Ramadhani" di-qualify dan diserahkan ke Account Executive', entityId: 'LED-005', userId: 'USR-001', createdAt: '2026-07-18' },
+  { id: 'EVT-016', module: 'opportunity', type: 'opportunity-created', message: 'Opportunity OPP-005 "Bali Team Building 2026" dibuat dari Lead LED-005', entityId: 'OPP-005', userId: 'USR-001', createdAt: '2026-07-05' },
+  { id: 'EVT-017', module: 'quotation', type: 'quotation-submitted', message: 'Quotation QUO-005 (Rp 180.000.000) diajukan untuk commercial approval', entityId: 'QUO-005', userId: 'USR-001', createdAt: '2026-07-22' },
   { id: 'EVT-018', module: 'quotation', type: 'quotation-approved', message: 'Quotation QUO-006 (Rp 60.000.000) disetujui Management', entityId: 'QUO-006', userId: 'USR-003', createdAt: '2026-07-23' },
   { id: 'EVT-019', module: 'opportunity', type: 'opportunity-won', message: 'Opportunity OPP-008 (repeat client PT Cipta Distribusi Nusantara) ditandai Won', entityId: 'OPP-008', userId: 'USR-003', createdAt: '2026-07-24' },
   { id: 'EVT-020', module: 'project-order', type: 'project-order-created', message: 'Project Order PRJ-104 dibuat dari Opportunity OPP-008 — Project Order kedua PT Cipta Distribusi Nusantara', entityId: 'PRJ-104', createdAt: '2026-07-24' },
   { id: 'EVT-021', module: 'user', type: 'user-created', message: 'Supplier user Hasan Alfarizi (PT ABC) ditambahkan, terisolasi ke VND-006', entityId: 'USR-015', userId: 'USR-010', createdAt: '2026-07-27' },
-  { id: 'EVT-022', module: 'user', type: 'user-created', message: 'Supplier user Ika Puspitasari (PT EFG) ditambahkan, terisolasi ke VND-007', entityId: 'USR-016', userId: 'USR-010', createdAt: '2026-07-27' }
+  { id: 'EVT-022', module: 'user', type: 'user-created', message: 'Supplier user Ika Puspitasari (PT EFG) ditambahkan, terisolasi ke VND-007', entityId: 'USR-015', userId: 'USR-010', createdAt: '2026-07-27' }
 ])

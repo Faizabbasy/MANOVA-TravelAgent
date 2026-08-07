@@ -75,7 +75,7 @@ function submitClarificationResponse () {
     <template v-else>
       <PageHeader
         :title="travelRequest.requestName"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Commercial' }, { label: 'Travel Requests', to: '/client/travel-requests' }, { label: travelRequest.requestName }]"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Approval' }, { label: 'Travel Requests', to: '/client/travel-requests' }, { label: travelRequest.requestName }]"
       >
         <template #actions>
           <StatusBadge :label="findStatusOption(TRAVEL_REQUEST_STATUSES, travelRequest.status).label" :tone="findStatusOption(TRAVEL_REQUEST_STATUSES, travelRequest.status).tone" />

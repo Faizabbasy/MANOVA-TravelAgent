@@ -53,10 +53,10 @@ function changeStatus (newStatus: CommodityOrderStatus) {
 <template>
   <div class="space-y-6">
     <template v-if="!order || !isOwn">
-      <PageHeader title="Order Tidak Ditemukan" :breadcrumb="[{ label: 'Supplier Portal', to: '/supplier' }, { label: 'Vendor Orders', to: '/supplier/commodity-orders' }, { label: 'Not Found' }]" />
+      <PageHeader title="Order Tidak Ditemukan" :breadcrumb="[{ label: 'Supplier Portal', to: '/supplier' }, { label: 'Vendor Orders', to: '/supplier/orders#vendor-orders' }, { label: 'Not Found' }]" />
       <SectionCard>
         <EmptyState :icon="PackageX" title="Order tidak ditemukan" description="Order ini tidak ada atau bukan milik company Anda.">
-          <Button @click="router.push('/supplier/commodity-orders')">
+          <Button @click="router.push('/supplier/orders#vendor-orders')">
             Kembali ke Vendor Orders
           </Button>
         </EmptyState>
@@ -68,7 +68,7 @@ function changeStatus (newStatus: CommodityOrderStatus) {
     <template v-else>
       <PageHeader
         :title="`Order ${order.id} — ${order.commodityNameSnapshot}`"
-        :breadcrumb="[{ label: 'Supplier Portal', to: '/supplier' }, { label: 'Vendor Orders', to: '/supplier/commodity-orders' }, { label: order.id }]"
+        :breadcrumb="[{ label: 'Supplier Portal', to: '/supplier' }, { label: 'Vendor Orders', to: '/supplier/orders#vendor-orders' }, { label: order.id }]"
       >
         <template #actions>
           <div class="flex flex-wrap items-center gap-2">

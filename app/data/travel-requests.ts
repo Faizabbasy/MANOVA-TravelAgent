@@ -28,9 +28,9 @@ export const TRAVEL_REQUESTS: TravelRequest[] = reactive([
 
 export const TRAVEL_REQUEST_ATTACHMENTS: TravelRequestAttachment[] = reactive([])
 
-/** Activity timeline `TR-001` — pola sama `LEAD_ACTIVITIES`, `USR-021` (client) untuk aksi Client, `USR-014` (Account Owner PTY-005, `app/data/parties.ts`) untuk hasil mock review. */
+/** Activity timeline `TR-001` — pola sama `LEAD_ACTIVITIES`, `USR-021` (client) untuk aksi Client, `USR-001` (Account Owner PTY-005, `app/data/parties.ts`) untuk hasil mock review. */
 export const TRAVEL_REQUEST_ACTIVITIES: TravelRequestActivity[] = reactive([
   { id: 'TRACT-001', travelRequestId: 'TR-001', type: 'note', message: 'Travel Request diajukan oleh Client.', ownerId: 'USR-021', createdAt: '2026-07-27' },
-  { id: 'TRACT-002', travelRequestId: 'TR-001', type: 'note', message: 'Status berubah menjadi Under Review — tim kami mulai meninjau permintaan Anda.', ownerId: 'USR-014', createdAt: '2026-07-27' },
-  { id: 'TRACT-003', travelRequestId: 'TR-001', type: 'note', message: 'Butuh klarifikasi: Estimasi jumlah peserta, Estimasi budget, Detail kebutuhan MICE belum lengkap.', ownerId: 'USR-014', createdAt: '2026-07-28' }
+  { id: 'TRACT-002', travelRequestId: 'TR-001', type: 'note', message: 'Status berubah menjadi Under Review — tim kami mulai meninjau permintaan Anda.', ownerId: 'USR-001', createdAt: '2026-07-27' },
+  { id: 'TRACT-003', travelRequestId: 'TR-001', type: 'note', message: 'Butuh klarifikasi: Estimasi jumlah peserta, Estimasi budget, Detail kebutuhan MICE belum lengkap.', ownerId: 'USR-001', createdAt: '2026-07-28' }
 ])

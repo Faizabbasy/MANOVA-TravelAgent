@@ -85,7 +85,7 @@ function submitRevisionRequest () {
       <PageHeader title="Tidak Ditemukan" :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Tidak Ditemukan' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Itinerary tidak ditemukan" description="Project ini tidak ada atau bukan milik company Anda.">
-          <Button @click="router.push('/client/itineraries')">
+          <Button @click="router.push('/client/project-orders#itineraries')">
             Kembali ke Itineraries
           </Button>
         </EmptyState>
@@ -97,7 +97,7 @@ function submitRevisionRequest () {
     <template v-else>
       <PageHeader
         :title="`Itinerary — ${project.name}`"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Travel Management' }, { label: 'Itineraries', to: '/client/itineraries' }, { label: project.name }]"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'My Trips' }, { label: 'Itineraries', to: '/client/project-orders#itineraries' }, { label: project.name }]"
       >
         <template #actions>
           <StatusBadge v-if="latestVersion" :label="findStatusOption(ITINERARY_VERSION_STATUSES, latestVersion.status).label" :tone="findStatusOption(ITINERARY_VERSION_STATUSES, latestVersion.status).tone" />

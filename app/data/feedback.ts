@@ -14,7 +14,7 @@ export const FEEDBACK_RECORDS: Feedback[] = reactive([
     id: 'FBK-001',
     projectId: 'PRJ-101',
     clientPartyId: 'PTY-001',
-    submittedBy: 'USR-019',
+    submittedBy: 'USR-021',
     status: 'acknowledged',
     overallExperience: 5,
     salesResponsiveness: 5,
@@ -35,13 +35,13 @@ export const FEEDBACK_RECORDS: Feedback[] = reactive([
     createdAt: '2026-07-10',
     submittedAt: '2026-07-12',
     acknowledgedAt: '2026-07-14',
-    acknowledgedBy: 'USR-014'
+    acknowledgedBy: 'USR-001'
   },
   {
     id: 'FBK-002',
     projectId: 'PRJ-102',
     clientPartyId: 'PTY-002',
-    submittedBy: 'USR-020',
+    submittedBy: 'USR-021',
     status: 'follow-up-required',
     overallExperience: 2,
     salesResponsiveness: 3,

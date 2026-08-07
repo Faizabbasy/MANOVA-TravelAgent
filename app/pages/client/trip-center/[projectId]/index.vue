@@ -77,7 +77,7 @@ function contactPic () {
       <PageHeader title="Tidak Ditemukan" :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Tidak Ditemukan' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Project Order tidak ditemukan" description="Project Order ini tidak ada atau bukan milik company Anda.">
-          <Button @click="router.push('/client/trip-center')">
+          <Button @click="router.push('/client/project-orders#trip-center')">
             Kembali ke Trip Center
           </Button>
         </EmptyState>
@@ -89,7 +89,7 @@ function contactPic () {
     <template v-else>
       <PageHeader
         :title="project.name"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Travel Management' }, { label: 'Trip Center', to: '/client/trip-center' }, { label: project.name }]"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'My Trips' }, { label: 'Trip Center', to: '/client/project-orders#trip-center' }, { label: project.name }]"
       >
         <template #actions>
           <StatusBadge :label="MODE_LABEL[mode]" :tone="MODE_TONE[mode]" />
@@ -252,7 +252,7 @@ function contactPic () {
 
       <SectionCard title="Open Issues">
         <template #actions>
-          <Button size="sm" variant="outline" @click="router.push({ path: '/client/support', query: { project: project?.id } })">
+          <Button size="sm" variant="outline" @click="router.push({ path: '/client/documents', query: { project: project?.id }, hash: '#support' })">
             Create Issue
           </Button>
         </template>

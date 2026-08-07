@@ -36,7 +36,7 @@ function printPage () {
       <template v-if="!project || !isOwnCompany">
         <div class="rounded-xl border border-border bg-card p-8 print:hidden">
           <EmptyState :icon="FileX" title="Itinerary tidak ditemukan" description="Project ini tidak ada atau bukan milik company Anda.">
-            <NuxtLink to="/client/itineraries">
+            <NuxtLink to="/client/project-orders#itineraries">
               <Button>Kembali</Button>
             </NuxtLink>
           </EmptyState>
