@@ -55,7 +55,10 @@ export const PARTIES: Party[] = reactive([
     pendingProfileChange: { billingAddress: 'Jl. Jenderal Sudirman Kav. 52-53, Menara Bhakti Baru Lt. 21, Jakarta 12190' },
     pendingProfileChangeSubmittedAt: '2026-07-27',
     pendingProfileChangeSubmittedBy: 'USR-021'
-  }
+  },
+  { id: 'PTY-006', name: 'Andi Prasetyo', lifecycleStatus: 'client', createdAt: '2026-07-01', partyType: 'individual', phone: '0812-3456-7890', city: 'Jakarta' },
+  { id: 'PTY-007', name: 'Sinta Wulandari', lifecycleStatus: 'client', createdAt: '2026-07-10', partyType: 'individual', phone: '0813-2345-6789', city: 'Bandung' },
+  { id: 'PTY-008', name: 'Reza Hartono', lifecycleStatus: 'client', createdAt: '2026-07-15', partyType: 'individual', phone: '0857-1234-5678', city: 'Surabaya' }
 ])
 
 export const CONTACTS: ContactPerson[] = reactive([
