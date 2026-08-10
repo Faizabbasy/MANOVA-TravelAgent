@@ -5,6 +5,9 @@ export type PartyLifecycleStatus = 'prospect' | 'client'
 
 export type CompanyType = 'private-company' | 'bumn' | 'government-agency' | 'university' | 'foundation' | 'event-organizer' | 'travel-agent' | 'other'
 
+/** Sales Order (B2C) — default tersirat `'company'` saat absen; seluruh Party lama tidak berubah perilaku. */
+export type PartyType = 'company' | 'individual'
+
 /**
  * "Verification state for sensitive changes" (Repair Phase Section 7 — Insights & Company, Master Prompt
  * bagian 18) — field legal/finansial sensitif (registrasi/pajak/billing/payment term) TIDAK PERNAH ditulis
@@ -24,6 +27,8 @@ export interface Party {
   name: string
   lifecycleStatus: PartyLifecycleStatus
   industry?: string
+  /** Sales Order (B2C individual) — Party dengan `partyType: 'individual'` dibuat lewat `createSalesOrder`. */
+  partyType?: PartyType
   createdAt: string
   /** Field Prompt 19 (Change Request) di bawah ini opsional — dipakai tampilan "Company" pada modul Customer Journey, entitas yang sama dengan `Party` (bukan duplikasi, lihat D-046). */
   size?: string

@@ -3,6 +3,7 @@ import type { OpportunityStage, QuotationApprovalStatus, OpportunityWorkflowStat
 import type { ProjectStatus, ProjectCharacteristic, ServiceStatus, ServiceTypeKey, RoomType, ProjectOrderStatus } from '~/types/project'
 import type { InvoiceStatus, InvoiceCurrency, InvoiceType, CreditNoteStatus, DebitNoteStatus } from '~/types/finance'
 import type { PartyActivityType, CompanyType } from '~/types/party'
+import type { SalesOrderStatus } from '~/types/sales-order'
 import type { VendorQuotationStatus, VendorStatus } from '~/types/vendor'
 import type { ChangeCategory, ChangeApprovalStatus, ProjectRiskSeverity, ProjectRiskStatus } from '~/types/activity'
 import type { LeadSource, LeadStage, LeadServiceCategory, LeadUrgency } from '~/types/lead'
@@ -65,6 +66,15 @@ export const PROJECT_ORDER_STATUSES: StatusOption<ProjectOrderStatus>[] = [
   { value: 'closed', label: 'Closed', tone: 'success', order: 8 },
   { value: 'on-hold', label: 'On Hold', tone: 'warning', order: 9 },
   { value: 'cancelled', label: 'Cancelled', tone: 'destructive', order: 10 }
+]
+
+/** Sales Order (B2C individual, `docs/superpowers/specs/2026-08-11-sales-order-b2c-design.md`) — flow linear + cancel, terpisah total dari `PROJECT_ORDER_STATUSES`. */
+export const SALES_ORDER_STATUSES: StatusOption<SalesOrderStatus>[] = [
+  { value: 'draft', label: 'Draft', tone: 'neutral', order: 1 },
+  { value: 'paid', label: 'Dibayar', tone: 'info', order: 2 },
+  { value: 'ongoing', label: 'Berjalan', tone: 'primary', order: 3 },
+  { value: 'done', label: 'Selesai', tone: 'success', order: 4 },
+  { value: 'cancelled', label: 'Dibatalkan', tone: 'destructive', order: 5 }
 ]
 
 /** Risk severity/status (Section 09) — dipakai tab Overview Project Detail, section "Risks". */
