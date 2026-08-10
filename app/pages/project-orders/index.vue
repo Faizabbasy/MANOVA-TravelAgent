@@ -1,15 +1,18 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock } from 'lucide-vue-next'
+import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock, Plus, Users } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
-import { PROJECTS, getPartyById, getUserById, getProjectOrderStatus } from '~/data'
+import {
+  PROJECTS, getPartyById, getUserById, getProjectOrderStatus,
+  SALES_ORDERS, getSalesOrdersSummary, createSalesOrder
+} from '~/data'
 import {
   PROJECT_ORDER_STEPS,
   getProjectOrderStep,
   evaluateProjectOrderStepGate,
   getProjectMilestoneSummary
 } from '~/data/project-order-workflow'
-import { PROJECT_ORDER_STATUSES, PROJECT_CHARACTERISTICS, findStatusOption } from '~/constants/status'
+import { PROJECT_ORDER_STATUSES, PROJECT_CHARACTERISTICS, SALES_ORDER_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange } from '~/utils/format'
 import type { ProjectOrderStepKey } from '~/types/project-order'
 
@@ -25,6 +28,61 @@ const { currentUser } = useCurrentUser()
  * aktif pada alur 6 step beserta indikator apakah step tersebut sedang tertahan gerbangnya.
  */
 const hasAccess = computed(() => canView('operations'))
+
+/** Pill-tab: Project Orders (B2B, tabel yang sudah ada, tidak berubah) vs Sales Orders (B2C individual, baru). */
+const activeOrderTab = ref<'project-orders' | 'sales-orders'>('project-orders')
+
+const salesOrderRows = computed(() => SALES_ORDERS.map(order => ({
+  order,
+  customer: getPartyById(order.customerId)
+})))
+
+const salesOrderSearch = ref('')
+const filteredSalesOrderRows = computed(() => {
+  if (!salesOrderSearch.value.trim()) { return salesOrderRows.value }
+  const query = salesOrderSearch.value.toLowerCase()
+  return salesOrderRows.value.filter(row =>
+    row.order.destination.toLowerCase().includes(query) ||
+    (row.customer?.name ?? '').toLowerCase().includes(query))
+})
+
+const salesOrdersSummary = computed(() => getSalesOrdersSummary())
+
+/* Buat Sales Order */
+const isCreateSalesOrderOpen = ref(false)
+const newCustomerName = ref('')
+const newDestination = ref('')
+const newTravelStartDate = ref('')
+const newTravelEndDate = ref('')
+const newTravelerCount = ref<number | null>(null)
+const newPriceIdr = ref<number | null>(null)
+const newNote = ref('')
+
+function resetSalesOrderForm () {
+  newCustomerName.value = ''
+  newDestination.value = ''
+  newTravelStartDate.value = ''
+  newTravelEndDate.value = ''
+  newTravelerCount.value = null
+  newPriceIdr.value = null
+  newNote.value = ''
+}
+
+function submitSalesOrder () {
+  if (!newCustomerName.value.trim() || !newDestination.value.trim() || !newTravelStartDate.value || !newTravelEndDate.value || !newTravelerCount.value || !newPriceIdr.value) { return }
+  const order = createSalesOrder({
+    customerName: newCustomerName.value.trim(),
+    destination: newDestination.value.trim(),
+    travelStartDate: newTravelStartDate.value,
+    travelEndDate: newTravelEndDate.value,
+    travelerCount: newTravelerCount.value,
+    priceIdr: newPriceIdr.value,
+    note: newNote.value.trim() || undefined
+  })
+  if (!order) { return }
+  resetSalesOrderForm()
+  isCreateSalesOrderOpen.value = false
+}
 
 const searchQuery = ref('')
 const stepFilter = ref<'all' | ProjectOrderStepKey>('all')
@@ -87,9 +145,32 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
       :breadcrumb="[{ label: 'Operations & Scheduling' }, { label: 'Project' }]"
     />
 
+    <div class="flex flex-wrap gap-2">
+      <button
+        type="button"
+        :class="cn(
+          'px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors',
+          activeOrderTab === 'project-orders' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
+        )"
+        @click="activeOrderTab = 'project-orders'"
+      >
+        Project Orders
+      </button>
+      <button
+        type="button"
+        :class="cn(
+          'px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors',
+          activeOrderTab === 'sales-orders' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
+        )"
+        @click="activeOrderTab = 'sales-orders'"
+      >
+        Sales Orders
+      </button>
+    </div>
+
     <RoleAccessState v-if="!hasAccess" module-label="modul Operations & Scheduling" />
 
-    <template v-else>
+    <template v-else-if="activeOrderTab === 'project-orders'">
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total Project" :value="String(stats.total)" :icon="FolderKanban" />
         <StatsCard title="Step Tertahan" :value="String(stats.blocked)" :icon="AlertTriangle" :icon-color="stats.blocked ? 'destructive' : 'success'" />
@@ -213,6 +294,128 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
           :icon="FolderKanban"
           title="Tidak ada Project yang cocok"
           description="Ubah kata kunci atau lepas filter yang aktif."
+        />
+      </SectionCard>
+    </template>
+
+    <template v-else-if="activeOrderTab === 'sales-orders'">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard title="Total Sales Order" :value="String(salesOrdersSummary.total)" :icon="Users" />
+        <StatsCard title="Draft" :value="String(salesOrdersSummary.draft)" :icon="Clock" />
+        <StatsCard title="Dibayar" :value="String(salesOrdersSummary.paid)" :icon="CheckCircle2" icon-color="primary" />
+        <StatsCard title="Selesai" :value="String(salesOrdersSummary.done)" :icon="CheckCircle2" icon-color="success" />
+      </div>
+
+      <div class="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 mt-4">
+        <div class="relative flex-1 max-w-sm w-full">
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input v-model="salesOrderSearch" placeholder="Cari customer atau destinasi..." class="pl-9" />
+        </div>
+        <Dialog v-model:open="isCreateSalesOrderOpen">
+          <DialogTrigger as-child>
+            <Button size="sm" class="ml-auto">
+              <Plus class="h-4 w-4 mr-1.5" />Buat Sales Order
+            </Button>
+          </DialogTrigger>
+          <DialogContent class="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Buat Sales Order Baru</DialogTitle>
+              <DialogDescription>Booking individual (B2C) — customer baru otomatis dibuat, status awal "Draft".</DialogDescription>
+            </DialogHeader>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="so-customer">Nama Customer</Label>
+                <Input id="so-customer" v-model="newCustomerName" placeholder="mis. Budi Santoso" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="so-destination">Destinasi</Label>
+                <Input id="so-destination" v-model="newDestination" placeholder="mis. Bali" />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="so-start">Tanggal Berangkat</Label>
+                  <Input id="so-start" v-model="newTravelStartDate" type="date" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="so-end">Tanggal Pulang</Label>
+                  <Input id="so-end" v-model="newTravelEndDate" type="date" />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="so-travelers">Jumlah Traveler</Label>
+                  <Input id="so-travelers" v-model.number="newTravelerCount" type="number" min="1" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="so-price">Harga (Rp)</Label>
+                  <CurrencyInput id="so-price" v-model="newPriceIdr" />
+                </div>
+              </div>
+              <div class="space-y-1.5">
+                <Label for="so-note">Catatan (opsional)</Label>
+                <Input id="so-note" v-model="newNote" placeholder="Catatan tambahan" />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" @click="isCreateSalesOrderOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newCustomerName.trim() || !newDestination.trim() || !newTravelStartDate || !newTravelEndDate || !newTravelerCount || !newPriceIdr" @click="submitSalesOrder">
+                Simpan
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <SectionCard class="mt-4">
+        <Table v-if="filteredSalesOrderRows.length">
+          <TableHeader>
+            <TableRow>
+              <TableHead>Customer</TableHead>
+              <TableHead>Destinasi</TableHead>
+              <TableHead>Tanggal</TableHead>
+              <TableHead>Traveler</TableHead>
+              <TableHead class="text-right">
+                Harga
+              </TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow
+              v-for="row in filteredSalesOrderRows"
+              :key="row.order.id"
+              class="cursor-pointer"
+              @click="$router.push(`/sales-orders/${row.order.id}`)"
+            >
+              <TableCell class="text-sm font-medium text-foreground">
+                {{ row.customer?.name ?? '—' }}
+              </TableCell>
+              <TableCell class="text-sm text-foreground">
+                {{ row.order.destination }}
+              </TableCell>
+              <TableCell class="text-sm text-muted-foreground">
+                {{ formatDateRange(row.order.travelStartDate, row.order.travelEndDate) }}
+              </TableCell>
+              <TableCell class="text-sm text-muted-foreground">
+                {{ row.order.travelerCount }}
+              </TableCell>
+              <TableCell class="text-right text-sm font-medium text-foreground">
+                {{ formatCurrencyIdr(row.order.priceIdr) }}
+              </TableCell>
+              <TableCell>
+                <StatusBadge :label="findStatusOption(SALES_ORDER_STATUSES, row.order.status).label" :tone="findStatusOption(SALES_ORDER_STATUSES, row.order.status).tone" />
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+
+        <EmptyState
+          v-else
+          :icon="Users"
+          title="Belum ada Sales Order"
+          description="Ubah kata kunci atau buat Sales Order baru."
         />
       </SectionCard>
     </template>
