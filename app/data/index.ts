@@ -3,6 +3,7 @@ import { PARTIES, CONTACTS, PARTY_ACTIVITIES } from './parties'
 import { USERS } from './users'
 import { OPPORTUNITIES, QUOTATIONS } from './opportunities'
 import { VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES, VENDOR_PRODUCTS, VENDOR_DOCUMENTS } from './vendors'
+import { SALES_ORDERS } from './sales-orders'
 import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS } from './projects'
 import { INVOICES, PAYMENTS, CREDIT_NOTES, DEBIT_NOTES } from './finance'
 import { ACTIVITIES, DOCUMENTS, TASKS, PROJECT_RISKS, SHIFT_NOTES, SYSTEM_EVENTS } from './activity'
@@ -43,6 +44,7 @@ import type { Project, ProjectStatus, ServiceTypeKey, ServiceStatus, ProjectServ
 import type { Party, ContactPerson, PartyActivity, PartyActivityType, CompanyType, SensitiveCompanyProfileFields } from '~/types/party'
 import type { Opportunity, OpportunityStage, Quotation, OpportunityWorkflowStatus, QuotationAttachment, QuotationComment } from '~/types/opportunity'
 import type { Vendor, VendorContact, VendorQuotation, VendorProduct, VendorDocument } from '~/types/vendor'
+import type { SalesOrder, SalesOrderStatus } from '~/types/sales-order'
 import type { ActivityEntry, ChangeCategory, ProjectTask, ProjectRisk, ProjectRiskSeverity, ShiftNote, ShiftPeriod, SystemEvent } from '~/types/activity'
 import type { Lead, LeadActivity } from '~/types/lead'
 import type { ProductTemplate, ProductTemplateStatus, ProductServiceAlternative, CostSheet, CostSheetLineItem } from '~/types/product'
@@ -76,6 +78,7 @@ export {
   PARTIES, CONTACTS, PARTY_ACTIVITIES,
   OPPORTUNITIES, QUOTATIONS,
   VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES, VENDOR_PRODUCTS, VENDOR_DOCUMENTS,
+  SALES_ORDERS,
   PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS,
   INVOICES, PAYMENTS, CREDIT_NOTES, DEBIT_NOTES,
   ACTIVITIES, DOCUMENTS, TASKS, PROJECT_RISKS, SHIFT_NOTES, SYSTEM_EVENTS,
@@ -967,6 +970,83 @@ export function createParty (input: { name: string; industry?: string }): Party 
   }
   PARTIES.push(party)
   return party
+}
+
+export function getSalesOrderById (id: string): SalesOrder | undefined {
+  return SALES_ORDERS.find(order => order.id === id)
+}
+
+export interface SalesOrdersSummary {
+  total: number
+  draft: number
+  paid: number
+  done: number
+}
+
+export function getSalesOrdersSummary (): SalesOrdersSummary {
+  return {
+    total: SALES_ORDERS.length,
+    draft: SALES_ORDERS.filter(order => order.status === 'draft').length,
+    paid: SALES_ORDERS.filter(order => order.status === 'paid').length,
+    done: SALES_ORDERS.filter(order => order.status === 'done').length
+  }
+}
+
+/** Flow linear + cancel (`docs/superpowers/specs/2026-08-11-sales-order-b2c-design.md`) — jauh lebih ringan dari gerbang milestone Project Order, sengaja tanpa syarat tambahan apa pun selain urutan status. */
+const SALES_ORDER_FLOW: Record<SalesOrderStatus, SalesOrderStatus[]> = {
+  draft: ['paid', 'cancelled'],
+  paid: ['ongoing', 'cancelled'],
+  ongoing: ['done', 'cancelled'],
+  done: [],
+  cancelled: []
+}
+
+export function getSalesOrderStatusTransitions (status: SalesOrderStatus): SalesOrderStatus[] {
+  return SALES_ORDER_FLOW[status]
+}
+
+export interface CreateSalesOrderInput {
+  customerName: string
+  destination: string
+  travelStartDate: string
+  travelEndDate: string
+  travelerCount: number
+  priceIdr: number
+  note?: string
+}
+
+/** Membuat Party individual baru (reuse `createParty`, lalu ditandai `partyType: 'individual'`) sekaligus SalesOrder berstatus `draft` — satu langkah, konsisten dengan pola `issueDebitNote` (validasi di data layer, bukan cuma di UI). */
+export function createSalesOrder (input: CreateSalesOrderInput): SalesOrder | undefined {
+  if (!input.customerName.trim() || !input.destination.trim()) { return undefined }
+  if (!input.travelStartDate || !input.travelEndDate || input.travelStartDate > input.travelEndDate) { return undefined }
+  if (!(input.travelerCount > 0) || !(input.priceIdr > 0)) { return undefined }
+
+  const customer = createParty({ name: input.customerName.trim() })
+  customer.partyType = 'individual'
+  customer.lifecycleStatus = 'client'
+
+  const order: SalesOrder = {
+    id: nextSequentialId('SLO-', SALES_ORDERS),
+    customerId: customer.id,
+    destination: input.destination.trim(),
+    travelStartDate: input.travelStartDate,
+    travelEndDate: input.travelEndDate,
+    travelerCount: input.travelerCount,
+    priceIdr: input.priceIdr,
+    status: 'draft',
+    note: input.note?.trim() || undefined,
+    createdAt: DEMO_REFERENCE_DATE
+  }
+  SALES_ORDERS.push(order)
+  return getSalesOrderById(order.id)
+}
+
+export function updateSalesOrderStatus (id: string, status: SalesOrderStatus): SalesOrder | undefined {
+  const order = SALES_ORDERS.find(item => item.id === id)
+  if (!order) { return undefined }
+  if (!getSalesOrderStatusTransitions(order.status).includes(status)) { return undefined }
+  order.status = status
+  return order
 }
 
 export function createContact (input: { partyId: string; name: string; title: string; email?: string; phone?: string }): ContactPerson {
