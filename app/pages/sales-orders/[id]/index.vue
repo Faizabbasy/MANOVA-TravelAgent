@@ -12,6 +12,7 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { canView, canManage } = usePermissions()
+const { showToast } = useToast()
 const hasAccess = computed(() => canView('operations'))
 const canManageOrder = computed(() => canManage('operations'))
 
@@ -37,7 +38,9 @@ const nextStatuses = computed(() => (order.value ? getSalesOrderStatusTransition
 
 function advanceTo (status: SalesOrderStatus) {
   if (!order.value) { return }
-  updateSalesOrderStatus(order.value.id, status)
+  const updated = updateSalesOrderStatus(order.value.id, status)
+  if (!updated) { showToast('Gagal Mengubah Status', 'Transisi status tidak valid.', 'error'); return }
+  showToast('Status Diperbarui', `${updated.id} kini berstatus "${findStatusOption(SALES_ORDER_STATUSES, updated.status).label}".`, 'success')
 }
 </script>
 

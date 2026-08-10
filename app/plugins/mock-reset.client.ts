@@ -5,7 +5,8 @@ import {
   PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS,
   VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES, VENDOR_PRODUCTS,
   INVOICES, PAYMENTS, CREDIT_NOTES,
-  ACTIVITIES, DOCUMENTS, TASKS
+  ACTIVITIES, DOCUMENTS, TASKS,
+  SALES_ORDERS
 } from '~/data'
 import { USERS } from '~/data/users'
 import { ROLE_DEFINITIONS, ROLE_MODULE_GRANTS, ROLE_MENU_GRANTS, ROLE_CAPABILITY_GRANTS } from '~/data/rbac'
@@ -61,6 +62,13 @@ export default defineNuxtPlugin(() => {
      * mengembalikan invoice/quotation dkk tapi meninggalkan Buku Besar dalam state yang sudah termutasi.
      */
     SUPPLIER_INVOICES,
-    OPEX_ENTRIES
+    OPEX_ENTRIES,
+    /**
+     * Sales Order (B2C individual) — `SALES_ORDERS` dimutasi oleh `createSalesOrder()`/`updateSalesOrderStatus()`.
+     * Wajib didaftarkan bersama `PARTIES`: tanpa ini, "Reset Demo Data" mengembalikan `PARTIES` (menghapus
+     * customer individual yang baru dibuat) tapi meninggalkan `SALES_ORDERS` menunjuk ke customer yang sudah
+     * tidak ada.
+     */
+    SALES_ORDERS
   })
 })

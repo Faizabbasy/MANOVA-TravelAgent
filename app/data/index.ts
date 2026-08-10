@@ -1038,6 +1038,9 @@ export function createSalesOrder (input: CreateSalesOrderInput): SalesOrder | un
     createdAt: DEMO_REFERENCE_DATE
   }
   SALES_ORDERS.push(order)
+  // `SALES_ORDERS` adalah `reactive()`, jadi `order` (objek lokal mentah) dan Proxy yang didapat lewat array
+  // reactive adalah referensi berbeda — re-fetch lewat `getSalesOrderById` supaya identitas hasil return sama
+  // dengan yang didapat caller lain via `getSalesOrderById` (perlu untuk reference-equality check, mis. di test).
   return getSalesOrderById(order.id)
 }
 

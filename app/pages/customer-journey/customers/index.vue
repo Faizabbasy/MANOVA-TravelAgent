@@ -50,7 +50,8 @@ const cityOptions = computed(() => [...new Set(PARTIES.map(p => p.city).filter(B
 
 const rows = computed(() => {
   const base = isAeScoped.value && portfolioOnly.value ? getPartiesByAccountOwner(currentUser.value.id) : PARTIES
-  let result = base.map(party => ({
+  /** Directory ini khusus company (B2B) — customer individual (B2C, `partyType: 'individual'` dari Sales Order) tidak ditampilkan di sini. */
+  let result = base.filter(party => party.partyType !== 'individual').map(party => ({
     party,
     opportunityCount: getOpportunitiesByParty(party.id).length,
     projectOrderCount: getProjectsByParty(party.id).length

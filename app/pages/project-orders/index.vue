@@ -19,8 +19,9 @@ import type { ProjectOrderStepKey } from '~/types/project-order'
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Project' })
 
-const { canView, canViewFinancials } = usePermissions()
+const { canView, canViewFinancials, canManage } = usePermissions()
 const { currentUser } = useCurrentUser()
+const { showToast } = useToast()
 
 /**
  * Daftar kanonik Project Order (Revisi 9-Modul) — menggantikan dua daftar paralel yang sebelumnya membaca
@@ -28,6 +29,7 @@ const { currentUser } = useCurrentUser()
  * aktif pada alur 6 step beserta indikator apakah step tersebut sedang tertahan gerbangnya.
  */
 const hasAccess = computed(() => canView('operations'))
+const canManageOrders = computed(() => canManage('operations'))
 
 /** Pill-tab: Project Orders (B2B, tabel yang sudah ada, tidak berubah) vs Sales Orders (B2C individual, baru). */
 const activeOrderTab = ref<'project-orders' | 'sales-orders'>('project-orders')
@@ -79,9 +81,10 @@ function submitSalesOrder () {
     priceIdr: newPriceIdr.value,
     note: newNote.value.trim() || undefined
   })
-  if (!order) { return }
+  if (!order) { showToast('Gagal Membuat Sales Order', 'Periksa kembali tanggal, jumlah traveler, dan harga.', 'error'); return }
   resetSalesOrderForm()
   isCreateSalesOrderOpen.value = false
+  showToast('Sales Order Dibuat', `${order.id} tercatat berstatus "Draft".`, 'success')
 }
 
 const searchQuery = ref('')
@@ -145,7 +148,7 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
       :breadcrumb="[{ label: 'Operations & Scheduling' }, { label: 'Project' }]"
     />
 
-    <div class="flex flex-wrap gap-2">
+    <div v-if="hasAccess" class="flex flex-wrap gap-2">
       <button
         type="button"
         :class="cn(
@@ -311,7 +314,7 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input v-model="salesOrderSearch" placeholder="Cari customer atau destinasi..." class="pl-9" />
         </div>
-        <Dialog v-model:open="isCreateSalesOrderOpen">
+        <Dialog v-if="canManageOrders" v-model:open="isCreateSalesOrderOpen">
           <DialogTrigger as-child>
             <Button size="sm" class="ml-auto">
               <Plus class="h-4 w-4 mr-1.5" />Buat Sales Order
@@ -357,7 +360,7 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" @click="isCreateSalesOrderOpen = false">
+              <Button variant="outline" @click="resetSalesOrderForm(); isCreateSalesOrderOpen = false">
                 Batal
               </Button>
               <Button :disabled="!newCustomerName.trim() || !newDestination.trim() || !newTravelStartDate || !newTravelEndDate || !newTravelerCount || !newPriceIdr" @click="submitSalesOrder">

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   SALES_ORDERS, getSalesOrderById, getSalesOrdersSummary,
-  getSalesOrderStatusTransitions, createSalesOrder, updateSalesOrderStatus
+  getSalesOrderStatusTransitions, createSalesOrder, updateSalesOrderStatus, getPartyById
 } from './index'
 
 describe('Sales Order (B2C)', () => {
@@ -45,5 +45,25 @@ describe('Sales Order (B2C)', () => {
     expect(summary.draft).toBe(SALES_ORDERS.filter(o => o.status === 'draft').length)
     expect(summary.paid).toBe(SALES_ORDERS.filter(o => o.status === 'paid').length)
     expect(summary.done).toBe(SALES_ORDERS.filter(o => o.status === 'done').length)
+  })
+
+  it('updateSalesOrderStatus dengan id tidak dikenal mengembalikan undefined tanpa throw', () => {
+    expect(() => updateSalesOrderStatus('SLO-NOT-EXIST', 'paid')).not.toThrow()
+    expect(updateSalesOrderStatus('SLO-NOT-EXIST', 'paid')).toBeUndefined()
+  })
+
+  it('transisi cancelled benar-benar diterapkan dari status draft', () => {
+    const order = createSalesOrder({ customerName: 'Cancel Test', destination: 'Bali', travelStartDate: '2026-09-01', travelEndDate: '2026-09-03', travelerCount: 1, priceIdr: 1_000_000 })
+    expect(order!.status).toBe('draft')
+    const updated = updateSalesOrderStatus(order!.id, 'cancelled')
+    expect(updated).toBeDefined()
+    expect(order!.status).toBe('cancelled')
+  })
+
+  it('createSalesOrder menyetel partyType individual dan lifecycleStatus client pada Party baru', () => {
+    const order = createSalesOrder({ customerName: 'Party Field Test', destination: 'Lombok', travelStartDate: '2026-09-01', travelEndDate: '2026-09-03', travelerCount: 1, priceIdr: 5_000_000 })
+    const customer = getPartyById(order!.customerId)
+    expect(customer?.partyType).toBe('individual')
+    expect(customer?.lifecycleStatus).toBe('client')
   })
 })

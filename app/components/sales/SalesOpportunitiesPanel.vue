@@ -13,6 +13,9 @@ import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownLis
 const route = useRoute()
 const { canView } = usePermissions()
 
+/** Opportunity adalah konsep B2B — customer individual (B2C, `partyType: 'individual'` dari Sales Order) dikecualikan dari picker party. */
+const companyParties = computed(() => PARTIES.filter(party => party.partyType !== 'individual'))
+
 const searchQuery = ref('')
 /** Drill-down (Customer Journey Funnel) — `?stage=won` deep-link langsung ke Opportunity Won. */
 const stageFilter = ref((route.query.stage as string) || 'all')
@@ -92,7 +95,7 @@ const rows = computed(() => {
           <option value="all">
             Semua Party
           </option>
-          <option v-for="party in PARTIES" :key="party.id" :value="party.id">
+          <option v-for="party in companyParties" :key="party.id" :value="party.id">
             {{ party.name }}
           </option>
         </select>
