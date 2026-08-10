@@ -14,7 +14,7 @@ import { formatCurrencyIdr, formatDateRange } from '~/utils/format'
 import type { ProjectOrderStepKey } from '~/types/project-order'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
-useHead({ title: 'Project Orders' })
+useHead({ title: 'Project' })
 
 const { canView, canViewFinancials } = usePermissions()
 const { currentUser } = useCurrentUser()
@@ -82,16 +82,16 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
 <template>
   <div class="space-y-6">
     <PageHeader
-      title="Project Orders"
+      title="Project"
       description="Seluruh project order MANOVA dalam alur 6 step: Drafting → Confirmed → Start → Departure → On Progress → Done."
-      :breadcrumb="[{ label: 'Operations & Scheduling' }, { label: 'Project Orders' }]"
+      :breadcrumb="[{ label: 'Operations & Scheduling' }, { label: 'Project' }]"
     />
 
     <RoleAccessState v-if="!hasAccess" module-label="modul Operations & Scheduling" />
 
     <template v-else>
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Total Project Order" :value="String(stats.total)" :icon="FolderKanban" />
+        <StatsCard title="Total Project" :value="String(stats.total)" :icon="FolderKanban" />
         <StatsCard title="Step Tertahan" :value="String(stats.blocked)" :icon="AlertTriangle" :icon-color="stats.blocked ? 'destructive' : 'success'" />
         <StatsCard title="Ada Milestone Telat" :value="String(stats.delayed)" :icon="Clock" :icon-color="stats.delayed ? 'warning' : 'success'" />
         <StatsCard title="Selesai & Ditutup" :value="String(stats.closed)" :icon="CheckCircle2" icon-color="success" />
@@ -141,7 +141,7 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
         <Table v-if="filteredRows.length">
           <TableHeader>
             <TableRow>
-              <TableHead>Project Order</TableHead>
+              <TableHead>Project</TableHead>
               <TableHead>Customer</TableHead>
               <TableHead>Step Aktif</TableHead>
               <TableHead>Jadwal</TableHead>
@@ -211,7 +211,7 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
         <EmptyState
           v-else
           :icon="FolderKanban"
-          title="Tidak ada Project Order yang cocok"
+          title="Tidak ada Project yang cocok"
           description="Ubah kata kunci atau lepas filter yang aktif."
         />
       </SectionCard>
