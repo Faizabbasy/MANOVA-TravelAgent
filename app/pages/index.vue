@@ -2,19 +2,21 @@
 import { ref, computed, type ComputedRef } from 'vue'
 import {
   FolderKanban, Handshake, PlaneTakeoff, AlertTriangle, Receipt, Users, Save, X,
-  Wallet, PieChart, ListChecks, CheckCircle2, CalendarClock, History, Activity, ShieldCheck, Package, Building2
+  Wallet, PieChart, ListChecks, CheckCircle2, CalendarClock, History, Activity, ShieldCheck, Package, Building2,
+  TrendingUp, ArrowUpRight, ArrowDownRight
 } from 'lucide-vue-next'
+import { cn } from '~/lib/utils'
 import {
   PROJECTS, OPPORTUNITIES, QUOTATIONS, PARTIES, USERS,
   getPartyById, getProjectById, getInvoicesByProject, getTasksByProject, getActivitiesByProject,
   getServicesForProjects, getUpcomingTasks, getRecentChanges, getUpcomingFollowUps,
   getSavedViewsForUser, createSavedView, deleteSavedView, applySavedView
 } from '~/data'
-import { getProjectActualCostIdr } from '~/data/finance-ext'
+import { getProjectActualCostIdr, getRevenueByPeriod } from '~/data/finance-ext'
 import {
   PROJECT_STATUSES, OPPORTUNITY_STAGES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, findStatusOption
 } from '~/constants/status'
-import { formatCurrencyIdr, formatDateRange, formatDateTime, formatDayLabel, daysUntil } from '~/utils/format'
+import { formatCurrencyIdr, formatPercentage, formatDateRange, formatDateTime, formatDayLabel, daysUntil } from '~/utils/format'
 import {
   isUpcomingDeparture, isBudgetOverrun, isInvoiceOverdue, hasUnreviewedChange,
   isProjectNeedingAttention, DEMO_REFERENCE_DATE
@@ -361,6 +363,67 @@ const kpiCards = computed(() => [
 ])
 
 /* ==================================================
+ * Financial hero row — Keuntungan Bersih & Pemasukan Bersih (sumber sama dengan `ReportsAnalyticsPanel`).
+ * Baris tersendiri di atas KPI row biasa (bukan dipaksa masuk grid 6-kolom yang sama) supaya bisa benar-benar
+ * lebih besar tanpa bikin sel grid lain jadi timpang/bolong. Warna solid (hijau = untung, biru = pemasukan)
+ * memakai token semantik yang sudah ada (`success`/`destructive`/`primary`) — bukan warna baru di luar
+ * palet — supaya kartu ini terbaca sebagai satu keluarga desain dengan komponen lain, bukan tempelan asing.
+ * ================================================== */
+const revenuePeriods = computed(() => getRevenueByPeriod())
+const latestRevenuePeriod = computed(() => revenuePeriods.value.at(-1))
+const previousRevenuePeriod = computed(() => revenuePeriods.value.at(-2))
+const showFinancialSummary = visibleTo('finance', 'management', 'super-admin', 'viewer')
+
+function periodTrend (currentIdr: number, previousIdr: number | undefined): { direction: 'up' | 'down'; label: string } | undefined {
+  if (previousIdr === undefined || previousIdr === 0) { return undefined }
+  const deltaPercent = ((currentIdr - previousIdr) / Math.abs(previousIdr)) * 100
+  return {
+    direction: deltaPercent >= 0 ? 'up' : 'down',
+    label: `${deltaPercent >= 0 ? 'Naik' : 'Turun'} ${formatPercentage(Math.abs(deltaPercent), 1)} dari bulan lalu`
+  }
+}
+
+/** Sama seperti `DashboardStat` — cegah nominal panjang membelah di tengah digit (spasi "Rp"+angka adalah non-breaking space, jadi wrap satu-satunya tidak akan pernah lurus). */
+function heroValueTextClass (value: string): string {
+  const length = value.length
+  if (length > 15) { return 'text-lg' }
+  if (length > 12) { return 'text-xl' }
+  return 'text-2xl'
+}
+
+const financialHeroCards = computed(() => {
+  if (!showFinancialSummary.value || !latestRevenuePeriod.value) { return [] }
+  const period = latestRevenuePeriod.value
+  const previous = previousRevenuePeriod.value
+  /** Merah hanya saat benar-benar rugi — supaya warna kartu tetap jujur, bukan selalu hijau apa pun angkanya. */
+  const profitPositive = period.netProfitIdr >= 0
+  return [
+    {
+      key: 'net-revenue',
+      label: 'Pemasukan Bersih',
+      value: formatCurrencyIdr(period.revenueIdr),
+      icon: TrendingUp,
+      trend: periodTrend(period.revenueIdr, previous?.revenueIdr),
+      bgClass: 'bg-primary',
+      fgClass: 'text-primary-foreground',
+      /** Watermark ikon di kanan bawah (bukan kanan atas). */
+      watermarkClass: '-right-4 -bottom-4'
+    },
+    {
+      key: 'net-profit',
+      label: 'Profit',
+      value: formatCurrencyIdr(period.netProfitIdr),
+      icon: Wallet,
+      trend: periodTrend(period.netProfitIdr, previous?.netProfitIdr),
+      bgClass: profitPositive ? 'bg-success' : 'bg-destructive',
+      fgClass: profitPositive ? 'text-success-foreground' : 'text-destructive-foreground',
+      /** Watermark ikon di kanan bawah (bukan kanan atas). */
+      watermarkClass: '-right-4 -bottom-4'
+    }
+  ]
+})
+
+/* ==================================================
  * Widget visibility per role (docs/route-and-role-matrix.md bagian 6, LOCKED D-031)
  * `account-executive`/`supplier` (Prompt 19 — Change Request) ditambahkan ke widget yang relevan agar
  * kedua role baru tidak mendapat Dashboard kosong (mockup-scope.md bagian 12, Definition of Done:
@@ -446,7 +509,35 @@ function kpiSubtitle (key: string): string | undefined {
     <LoadingState v-if="isLoading" message="Memuat ringkasan dashboard..." :rows="4" />
 
     <template v-else>
-      <div v-if="visibleKpiCards.length" class="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-4 mb-6">
+      <div v-if="financialHeroCards.length" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <div
+          v-for="card in financialHeroCards"
+          :key="card.key"
+          :class="cn('group relative min-w-0 overflow-hidden rounded-2xl p-4 shadow-[0_1px_2px_0_hsl(224_71%_4%/0.04)]', card.bgClass, card.fgClass)"
+        >
+          <component
+            :is="card.icon"
+            :class="cn('pointer-events-none absolute h-28 w-28 opacity-[0.12]', card.watermarkClass)"
+            aria-hidden="true"
+          />
+          <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15">
+            <component :is="card.icon" class="h-5 w-5" />
+          </div>
+          <p class="relative mt-3 truncate text-xs font-medium uppercase tracking-wide opacity-75">
+            {{ card.label }}
+          </p>
+          <p :class="cn('relative mt-1 whitespace-nowrap font-bold leading-8 tracking-tight tabular-nums', heroValueTextClass(card.value))">
+            {{ card.value }}
+          </p>
+          <p v-if="card.trend" class="relative mt-1.5 flex items-center gap-1 text-xs opacity-75">
+            <ArrowUpRight v-if="card.trend.direction === 'up'" class="h-3.5 w-3.5 shrink-0" />
+            <ArrowDownRight v-else class="h-3.5 w-3.5 shrink-0" />
+            <span class="truncate">{{ card.trend.label }}</span>
+          </p>
+        </div>
+      </div>
+
+      <div v-if="visibleKpiCards.length" class="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4 mb-6">
         <DashboardStat
           v-for="card in visibleKpiCards"
           :key="card.key"

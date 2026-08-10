@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import ProductTemplatesPanel from '~/components/sales/ProductTemplatesPanel.vue'
-import CostSheetsPanel from '~/components/sales/CostSheetsPanel.vue'
 
 /**
  * Sales > Produk & Costing (Penyederhanaan 7-Role/Menu, revisi "satu menu tanpa tab tapi saling ngalir") —
@@ -28,15 +27,6 @@ useHead({ title: 'Produk & Costing' })
         Product Templates
       </h2>
       <ProductTemplatesPanel />
-    </section>
-
-    <Separator />
-
-    <section id="cost-sheets" class="space-y-4 scroll-mt-20">
-      <h2 class="text-lg font-semibold text-foreground">
-        Cost Sheets
-      </h2>
-      <CostSheetsPanel />
     </section>
   </div>
 </template>

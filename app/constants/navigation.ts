@@ -86,7 +86,7 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Route,
     moduleKey: 'operations',
     children: [
-      { key: 'operations.project-orders', label: 'Project Orders', to: '/project-orders', icon: FolderKanban, moduleKey: 'operations' },
+      { key: 'operations.project-orders', label: 'Project', to: '/project-orders', icon: FolderKanban, moduleKey: 'operations' },
       { key: 'operations.bookings', label: 'Booking & Schedule', to: '/bookings', icon: CalendarClock, moduleKey: 'operations' },
       { key: 'operations.services', label: 'Service Operations', to: '/services', icon: Plane, moduleKey: 'operations' },
       { key: 'operations.changes', label: 'Change & Incident', to: '/changes', icon: GitPullRequest, moduleKey: 'operations' }

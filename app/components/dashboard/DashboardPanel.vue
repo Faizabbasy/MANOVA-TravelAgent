@@ -29,7 +29,7 @@ const BADGE_CLASSES: Record<string, string> = {
 
 <template>
   <section
-    class="group relative flex h-full min-w-0 flex-col rounded-xl border border-border bg-card shadow-[0_1px_2px_0_hsl(224_71%_4%/0.04)]"
+    class="group relative flex h-full min-w-0 flex-col rounded-2xl border border-border bg-card shadow-[0_1px_2px_0_hsl(224_71%_4%/0.04)] transition-shadow duration-150 hover:shadow-md"
     :class="[
       size === 'wide' && 'md:col-span-2',
       size === 'full' && 'md:col-span-2 xl:col-span-3'

@@ -1032,7 +1032,7 @@ const summaryMetadata = computed(() => {
 <template>
   <div class="space-y-6">
     <template v-if="!project">
-      <PageHeader title="Project Tidak Ditemukan" :breadcrumb="[{ label: 'Project Orders', to: '/project-orders' }, { label: 'Not Found' }]" />
+      <PageHeader title="Project Tidak Ditemukan" :breadcrumb="[{ label: 'Project', to: '/project-orders' }, { label: 'Not Found' }]" />
       <SectionCard>
         <EmptyState
           :icon="FileX"
@@ -1051,7 +1051,7 @@ const summaryMetadata = computed(() => {
     <template v-else>
       <PageHeader
         :title="project.name"
-        :breadcrumb="[{ label: 'Project Orders', to: '/project-orders' }, { label: project.name }]"
+        :breadcrumb="[{ label: 'Project', to: '/project-orders' }, { label: project.name }]"
       >
         <template #actions>
           <StatusBadge

@@ -58,7 +58,7 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
   { value: 'contacts', label: 'Contacts' },
   { value: 'opportunities', label: 'Opportunities' },
-  { value: 'project-orders', label: 'Project Orders' },
+  { value: 'project-orders', label: 'Project' },
   { value: 'activities', label: 'Activities' },
   { value: 'documents', label: 'Documents' }
 ]

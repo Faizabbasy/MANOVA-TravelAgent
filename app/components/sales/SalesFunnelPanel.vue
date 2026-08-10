@@ -7,7 +7,7 @@ import {
   getOpportunityById
 } from '~/data'
 import { LEAD_STAGES, OPPORTUNITY_STAGES, LEAD_SOURCES, findStatusOption } from '~/constants/status'
-import { formatCurrencyIdr, formatPercentage } from '~/utils/format'
+import { formatPercentage } from '~/utils/format'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
 /**
@@ -43,11 +43,7 @@ const scopedProjectOrders = computed(() => (isAeScoped.value ? getProjectsByAcco
 
 const activeLeadCount = computed(() => scopedLeads.value.filter(lead => !lead.archived).length)
 const qualifiedLeadCount = computed(() => scopedLeads.value.filter(lead => lead.stage === 'qualified').length)
-const openOpportunityCount = computed(() => scopedOpportunities.value.filter(opp => !['won', 'lost'].includes(opp.stage)).length)
 const activeClientCount = computed(() => scopedParties.value.filter(party => party.lifecycleStatus === 'client').length)
-const pipelineValueIdr = computed(() => scopedOpportunities.value
-  .filter(opp => !['won', 'lost'].includes(opp.stage))
-  .reduce((sum, opp) => sum + opp.estimatedValueIdr, 0))
 
 /**
  * Customer Journey Funnel (Section 07, Wajib "Overview funnel Lead→Qualified→Opportunity→Approved→Won→
@@ -97,7 +93,7 @@ const opportunityStageBreakdown = computed<StatusBreakdownItem[]>(() => {
 
 const links = [
   { label: 'Customers', to: '/customer-journey/customers', icon: Building2, description: 'Directory company, Account Owner, lifecycle.' },
-  { label: 'Project Orders', to: '/project-orders', icon: FolderKanban, description: 'Seluruh Project Order lintas client.' }
+  { label: 'Project', to: '/project-orders', icon: FolderKanban, description: 'Seluruh Project lintas client.' }
 ]
 
 /**
@@ -140,16 +136,6 @@ const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
       <p v-if="isAeScoped" class="text-xs text-muted-foreground">
         Menampilkan portfolio Anda saja (Lead di-handover ke Anda, Opportunity/Company/Project Order milik Anda). Management/Super Admin melihat seluruh data.
       </p>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-        <StatsCard title="Lead Aktif" :value="String(activeLeadCount)" :icon="Users" />
-        <StatsCard title="Lead Qualified" :value="String(qualifiedLeadCount)" :icon="Users" icon-color="success" />
-        <template v-if="!isLeadOnlyView">
-          <StatsCard title="Open Opportunities" :value="String(openOpportunityCount)" :icon="Target" />
-          <StatsCard title="Nilai Pipeline" :value="formatCurrencyIdr(pipelineValueIdr)" :icon="Target" icon-color="primary" />
-          <StatsCard title="Active Clients" :value="String(activeClientCount)" :icon="Building2" icon-color="success" />
-        </template>
-      </div>
 
       <SectionCard
         v-if="!isLeadOnlyView"
