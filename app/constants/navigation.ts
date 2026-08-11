@@ -13,6 +13,7 @@ import {
   FolderKanban,
   Plane,
   CalendarClock,
+  CalendarDays,
   BarChart3,
   Activity,
   FileText,
@@ -87,11 +88,13 @@ export const NAV_ITEMS: NavItem[] = [
     moduleKey: 'operations',
     children: [
       { key: 'operations.project-orders', label: 'Project', to: '/project-orders', icon: FolderKanban, moduleKey: 'operations' },
-      { key: 'operations.bookings', label: 'Booking & Schedule', to: '/bookings', icon: CalendarClock, moduleKey: 'operations' },
-      { key: 'operations.services', label: 'Service Operations', to: '/services', icon: Plane, moduleKey: 'operations' },
+      { key: 'operations.bookings', label: 'Daftar Booking', to: '/bookings', icon: CalendarClock, moduleKey: 'operations' },
       { key: 'operations.changes', label: 'Change & Incident', to: '/changes', icon: GitPullRequest, moduleKey: 'operations' }
     ]
   },
+
+  /* ---------- Kalender — sejajar dengan grup lain, bukan anak Operations & Scheduling ---------- */
+  { key: 'calendar', label: 'Kalender', to: '/calendar', icon: CalendarDays, moduleKey: 'operations' },
 
   /* ---------- Finance & ACC (poros: pencatatan jurnal) ---------- */
   {
@@ -227,6 +230,7 @@ export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   // Operations
   { key: 'hidden.projects-legacy', label: 'Project Workspace (lama)', to: '/projects', moduleKey: 'operations' },
   { key: 'hidden.operations-calendar', label: 'Booking Calendar & Map', to: '/operations/calendar', moduleKey: 'operations' },
+  { key: 'hidden.services', label: 'Service Operations', to: '/services', moduleKey: 'operations' },
   { key: 'hidden.booking-exceptions', label: 'Booking Exceptions', to: '/bookings/exceptions', moduleKey: 'operations' },
   { key: 'hidden.ticketing', label: 'Ticketing', to: '/ticketing', moduleKey: 'operations' },
   { key: 'hidden.accommodation', label: 'Accommodation', to: '/accommodation', moduleKey: 'operations' },

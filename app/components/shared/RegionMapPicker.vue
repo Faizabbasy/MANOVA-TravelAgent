@@ -1,17 +1,15 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { Search, MapPin, Trash2, Plus } from 'lucide-vue-next'
-import { cn } from '~/lib/utils'
+import type { Map as LeafletMap, Marker as LeafletMarker, Polyline as LeafletPolyline } from 'leaflet'
+import 'leaflet/dist/leaflet.css'
 import { searchDestinations, haversineKm, type GeoPoint, type PlanningPin } from '~/data/geo'
 
 const props = withDefaults(defineProps<{
   pins: PlanningPin[]
   canManage?: boolean
-  /** Batas bidang peta (equirectangular). Default mencakup Asia Tenggara s/d Timur Tengah & Australia. */
-  bounds?: { minLat: number; maxLat: number; minLng: number; maxLng: number }
 }>(), {
-  canManage: true,
-  bounds: () => ({ minLat: -40, maxLat: 45, minLng: 45, maxLng: 155 })
+  canManage: true
 })
 
 const emit = defineEmits<{
@@ -20,53 +18,89 @@ const emit = defineEmits<{
 }>()
 
 /**
- * Peta perencanaan tanpa library eksternal (`revisi.md` #22–23). Titik diproyeksikan equirectangular ke
- * bidang SVG, dengan grid lintang/bujur sebagai orientasi. Konsekuensi yang disadari: ini peta skematik,
- * bukan peta jalan bertile — dipilih agar demo tetap berjalan penuh tanpa koneksi internet dan tanpa
- * API key. Semua koordinat nyata, jadi jarak dan posisi relatif antar destinasi tetap akurat.
+ * Peta jalan asli (Leaflet + tile CARTO Voyager, gratis tanpa API key) — bisa zoom/pan/scroll seperti Google
+ * Maps, sama seperti `DestinationMap.vue`. Beda dengan komponen itu: di sini banyak pin sekaligus, dengan
+ * search/add/remove dan garis rute antar pin berurutan.
  */
 const query = ref('')
 const suggestions = computed(() => searchDestinations(query.value).slice(0, 6))
 const hoveredPinId = ref<string | undefined>()
 
-function toX (lng: number): number {
-  const { minLng, maxLng } = props.bounds
-  return ((lng - minLng) / (maxLng - minLng)) * 100
-}
-
-function toY (lat: number): number {
-  const { minLat, maxLat } = props.bounds
-  /** Lintang naik ke atas, sumbu Y SVG naik ke bawah — karena itu dibalik. */
-  return ((maxLat - lat) / (maxLat - minLat)) * 100
-}
-
-const plotted = computed(() => [...props.pins]
-  .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  .map(pin => ({ pin, x: toX(pin.lng), y: toY(pin.lat) })))
-
-/** Garis rute antar pin berurutan + total jarak — memberi arti pada urutan kunjungan. */
-const routeLine = computed(() => plotted.value.map(item => `${item.x},${item.y}`).join(' '))
+const plotted = computed(() => [...props.pins].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)))
 
 const totalDistanceKm = computed(() => {
-  const sorted = [...props.pins].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   let total = 0
-  for (let index = 1; index < sorted.length; index += 1) {
-    total += haversineKm(sorted[index - 1], sorted[index])
+  for (let index = 1; index < plotted.value.length; index += 1) {
+    total += haversineKm(plotted.value[index - 1], plotted.value[index])
   }
   return total
 })
 
-const latitudeTicks = computed(() => {
-  const { minLat, maxLat } = props.bounds
-  const step = (maxLat - minLat) / 4
-  return [0, 1, 2, 3, 4].map(index => Math.round(minLat + step * index))
-})
+function pinIconHtml (label: string): string {
+  return `
+    <div style="position:relative; width:28px; height:28px;">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="hsl(241 98% 55%)" stroke="white" stroke-width="1.5" stroke-linejoin="round">
+        <path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+      </svg>
+      <span style="position:absolute; top:4px; left:0; width:24px; text-align:center; font-size:11px; font-weight:700; color:white;">${label}</span>
+    </div>
+  `
+}
 
-const longitudeTicks = computed(() => {
-  const { minLng, maxLng } = props.bounds
-  const step = (maxLng - minLng) / 4
-  return [0, 1, 2, 3, 4].map(index => Math.round(minLng + step * index))
-})
+const mapEl = ref<HTMLDivElement>()
+let map: LeafletMap | undefined
+let markers: LeafletMarker[] = []
+let route: LeafletPolyline | undefined
+
+async function renderMap () {
+  if (!mapEl.value) { return }
+  const L = await import('leaflet')
+
+  if (!map) {
+    map = L.map(mapEl.value, {
+      scrollWheelZoom: true,
+      worldCopyJump: false,
+      maxBounds: [[-90, -180], [90, 180]],
+      maxBoundsViscosity: 1
+    }).setView([10, 105], 4)
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions" target="_blank" rel="noopener">CARTO</a>',
+      maxZoom: 19,
+      noWrap: true
+    }).addTo(map)
+  }
+
+  markers.forEach(marker => marker.remove())
+  markers = plotted.value.map((pin, index) => {
+    const icon = L.divIcon({ html: pinIconHtml(String(index + 1)), className: '', iconSize: [28, 28], iconAnchor: [14, 28] })
+    const marker = L.marker([pin.lat, pin.lng], { icon }).addTo(map as LeafletMap)
+    marker.bindTooltip(pin.label, { direction: 'top', offset: [0, -26] })
+    marker.on('mouseover', () => { hoveredPinId.value = pin.id })
+    marker.on('mouseout', () => { hoveredPinId.value = undefined })
+    return marker
+  })
+
+  route?.remove()
+  route = plotted.value.length > 1
+    ? L.polyline(plotted.value.map(pin => [pin.lat, pin.lng]), { color: 'hsl(241 98% 55%)', weight: 3, dashArray: '6 6' }).addTo(map)
+    : undefined
+
+  if (plotted.value.length) {
+    map.fitBounds(plotted.value.map(pin => [pin.lat, pin.lng]), { padding: [40, 40], maxZoom: 10 })
+  }
+}
+
+function destroyMap () {
+  map?.remove()
+  map = undefined
+  markers = []
+  route = undefined
+}
+
+watch(plotted, () => { void nextTick(() => renderMap()) }, { deep: true })
+
+onMounted(() => { renderMap() })
+onBeforeUnmount(() => { destroyMap() })
 
 function addFromSuggestion (point: GeoPoint) {
   emit('add', { label: `${point.name}, ${point.country}`, lat: point.lat, lng: point.lng })
@@ -106,65 +140,8 @@ function addFromSuggestion (point: GeoPoint) {
       </ul>
     </div>
 
-    <div class="relative rounded-lg border border-border bg-muted/20 overflow-hidden">
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none" class="w-full h-[340px]">
-        <!-- Grid orientasi lintang/bujur -->
-        <g stroke="currentColor" class="text-border" stroke-width="0.15">
-          <line v-for="index in 5" :key="`h-${index}`" x1="0" :y1="(index - 1) * 25" x2="100" :y2="(index - 1) * 25" />
-          <line v-for="index in 5" :key="`v-${index}`" :x1="(index - 1) * 25" y1="0" :x2="(index - 1) * 25" y2="100" />
-        </g>
-
-        <!-- Garis khatulistiwa ditebalkan sebagai patokan utama -->
-        <line
-          x1="0"
-          :y1="toY(0)"
-          x2="100"
-          :y2="toY(0)"
-          stroke="currentColor"
-          class="text-warning"
-          stroke-width="0.3"
-          stroke-dasharray="1.5 1"
-        />
-
-        <!-- Rute antar pin -->
-        <polyline
-          v-if="plotted.length > 1"
-          :points="routeLine"
-          fill="none"
-          stroke="currentColor"
-          class="text-primary"
-          stroke-width="0.4"
-          stroke-dasharray="1.5 1"
-        />
-
-        <!-- Pin -->
-        <g v-for="(item, index) in plotted" :key="item.pin.id">
-          <circle
-            :cx="item.x"
-            :cy="item.y"
-            :r="hoveredPinId === item.pin.id ? 2.2 : 1.6"
-            fill="currentColor"
-            class="text-primary transition-all"
-            @mouseenter="hoveredPinId = item.pin.id"
-            @mouseleave="hoveredPinId = undefined"
-          />
-          <text
-            :x="item.x"
-            :y="item.y + 0.6"
-            text-anchor="middle"
-            class="fill-primary-foreground"
-            style="font-size: 2px; font-weight: 600"
-          >{{ index + 1 }}</text>
-        </g>
-      </svg>
-
-      <!-- Label sumbu -->
-      <div class="absolute inset-x-0 bottom-0 flex justify-between px-1 pb-0.5 pointer-events-none">
-        <span v-for="tick in longitudeTicks" :key="tick" class="text-[10px] text-muted-foreground">{{ tick }}°</span>
-      </div>
-      <div class="absolute inset-y-0 left-0 flex flex-col justify-between py-1 pl-1 pointer-events-none">
-        <span v-for="tick in latitudeTicks" :key="tick" class="text-[10px] text-muted-foreground">{{ tick }}°</span>
-      </div>
+    <div class="rounded-lg border border-border overflow-hidden">
+      <div ref="mapEl" class="relative z-0 h-[340px] w-full" />
     </div>
 
     <div class="flex flex-wrap items-center justify-between gap-2">
@@ -173,34 +150,34 @@ function addFromSuggestion (point: GeoPoint) {
         <template v-if="totalDistanceKm"> · total rute ±{{ totalDistanceKm.toLocaleString('id-ID') }} km</template>
       </p>
       <p class="text-[11px] text-muted-foreground">
-        Peta skematik berbasis koordinat asli — berjalan penuh tanpa koneksi internet.
+        Peta jalan asli (OpenStreetMap/CARTO) — butuh koneksi internet untuk memuat tile.
       </p>
     </div>
 
     <ul v-if="plotted.length" class="space-y-1">
       <li
-        v-for="(item, index) in plotted"
-        :key="item.pin.id"
+        v-for="(pin, index) in plotted"
+        :key="pin.id"
         class="flex items-center gap-2 px-2.5 py-2 rounded-lg transition-colors"
-        :class="hoveredPinId === item.pin.id ? 'bg-primary/5' : 'hover:bg-muted/40'"
-        @mouseenter="hoveredPinId = item.pin.id"
+        :class="hoveredPinId === pin.id ? 'bg-primary/5' : 'hover:bg-muted/40'"
+        @mouseenter="hoveredPinId = pin.id"
         @mouseleave="hoveredPinId = undefined"
       >
         <span class="h-5 w-5 shrink-0 rounded-full bg-primary text-primary-foreground text-[11px] font-semibold flex items-center justify-center">
           {{ index + 1 }}
         </span>
         <span class="min-w-0 flex-1">
-          <span class="block text-sm text-foreground truncate">{{ item.pin.label }}</span>
+          <span class="block text-sm text-foreground truncate">{{ pin.label }}</span>
           <span class="block text-xs text-muted-foreground">
-            {{ item.pin.lat.toFixed(4) }}, {{ item.pin.lng.toFixed(4) }}
-            <template v-if="item.pin.note"> · {{ item.pin.note }}</template>
+            {{ pin.lat.toFixed(4) }}, {{ pin.lng.toFixed(4) }}
+            <template v-if="pin.note"> · {{ pin.note }}</template>
           </span>
         </span>
         <button
           v-if="canManage"
           class="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0"
           title="Hapus pin"
-          @click="emit('remove', item.pin.id)"
+          @click="emit('remove', pin.id)"
         >
           <Trash2 class="h-3.5 w-3.5" />
         </button>

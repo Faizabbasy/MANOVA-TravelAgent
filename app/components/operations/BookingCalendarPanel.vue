@@ -9,8 +9,8 @@ import { PROJECTS, getProjectById } from '~/data'
 import { formatDate } from '~/utils/format'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 
-/** Tab "Calendar" — Menu Operations > Booking & Schedule (Penyederhanaan 7-Role/Menu). Dulu
- * `/operations/calendar`, kini tab dalam satu menu bersama Bookings/Exceptions — logika tidak diubah. */
+/** Menu Operations > Kalender (Penyederhanaan 7-Role/Menu). Dulu `/operations/calendar`, sempat jadi
+ * section di `/bookings` bersama Bookings/Exceptions, sekarang halaman tersendiri lagi — logika tidak diubah. */
 
 const { canView, can } = usePermissions()
 const { showToast } = useToast()

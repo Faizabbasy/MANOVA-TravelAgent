@@ -25,15 +25,6 @@ useHead({ title: 'Sales Pipeline' })
       :breadcrumb="[{ label: 'Sales Pipeline' }]"
     />
 
-    <section id="funnel" class="space-y-4 scroll-mt-20">
-      <h2 class="text-lg font-semibold text-foreground">
-        Funnel
-      </h2>
-      <SalesFunnelPanel />
-    </section>
-
-    <Separator />
-
     <section id="leads" class="space-y-4 scroll-mt-20">
       <h2 class="text-lg font-semibold text-foreground">
         Leads
@@ -48,6 +39,15 @@ useHead({ title: 'Sales Pipeline' })
         Opportunities
       </h2>
       <SalesOpportunitiesPanel />
+    </section>
+
+    <Separator />
+
+    <section id="funnel" class="space-y-4 scroll-mt-20">
+      <h2 class="text-lg font-semibold text-foreground">
+        Funnel
+      </h2>
+      <SalesFunnelPanel />
     </section>
 
     <Separator />

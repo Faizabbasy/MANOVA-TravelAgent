@@ -5,8 +5,9 @@ import { getBookingExceptionQueue } from '~/data'
 import { formatDate } from '~/utils/format'
 import type { BookingDomain } from '~/types/booking-orchestration'
 
-/** Tab "Exceptions" — Menu Operations > Booking & Schedule (Penyederhanaan 7-Role/Menu). Dulu
- * `/bookings/exceptions`, kini tab dalam satu menu bersama Calendar/Bookings — logika tidak diubah. */
+/** Tab "Exceptions" — Menu Operations > Daftar Booking (Penyederhanaan 7-Role/Menu). Dulu
+ * `/bookings/exceptions`, kini tab dalam satu menu bersama Bookings (Calendar dipisah ke menu "Kalender"
+ * tersendiri) — logika tidak diubah. */
 
 const { canView } = usePermissions()
 
@@ -18,7 +19,7 @@ const rows = computed(() => getBookingExceptionQueue())
 
 <template>
   <div class="space-y-6">
-    <RoleAccessState v-if="!canView('bookings')" module-label="modul Booking & Schedule" />
+    <RoleAccessState v-if="!canView('bookings')" module-label="modul Daftar Booking" />
 
     <template v-else>
       <SectionCard title="Daftar Exception" :description="`${rows.length} booking membutuhkan perhatian`">

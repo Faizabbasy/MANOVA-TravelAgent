@@ -7,8 +7,9 @@ import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import type { BookingDomain, BookingAttemptOutcome, BookingTimelineEntry } from '~/types/booking-orchestration'
 
 /**
- * Tab "Bookings" — Menu Operations > Booking & Schedule (Penyederhanaan 7-Role/Menu). Dulu `/bookings`
- * (halaman utama), kini tab dalam satu menu bersama Calendar/Exceptions — logika tidak diubah.
+ * Tab "Bookings" — Menu Operations > Daftar Booking (Penyederhanaan 7-Role/Menu). Dulu `/bookings`
+ * (halaman utama), kini tab dalam satu menu bersama Exceptions (Calendar dipisah ke menu "Kalender"
+ * tersendiri) — logika tidak diubah.
  *
  * Consolidation/orchestration LAYER di atas Flight/Hotel/Transport/MICE booking (Section 13-16) — SATU
  * sumber kebenaran seluruh service (acceptance literal), BUKAN entitas komersial baru. Lihat
@@ -82,7 +83,7 @@ function submitAttempt () {
 
 <template>
   <div class="space-y-6">
-    <RoleAccessState v-if="!canView('bookings')" module-label="modul Booking & Schedule" />
+    <RoleAccessState v-if="!canView('bookings')" module-label="modul Daftar Booking" />
 
     <template v-else>
       <div class="flex flex-col lg:flex-row items-start lg:items-center gap-3">
