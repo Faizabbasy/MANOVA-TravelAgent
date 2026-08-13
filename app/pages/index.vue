@@ -1,20 +1,23 @@
 <script setup lang="ts">
-import { ref, computed, type ComputedRef } from 'vue'
+import { ref, computed, onMounted, nextTick, type ComputedRef } from 'vue'
+import { format, parseISO } from 'date-fns'
+import { id as localeId } from 'date-fns/locale'
 import {
   FolderKanban, Handshake, PlaneTakeoff, AlertTriangle, Receipt, Users, Save, X,
   Wallet, PieChart, ListChecks, CheckCircle2, CalendarClock, History, Activity, ShieldCheck, Package, Building2,
-  TrendingUp, ArrowUpRight, ArrowDownRight
+  TrendingUp, TrendingDown, Clock
 } from 'lucide-vue-next'
-import { cn } from '~/lib/utils'
+import type { HeroMetric } from '~/components/dashboard/DashboardHeroPanel.vue'
+import type { CashFlowSideMetric } from '~/components/dashboard/DashboardCashFlowSection.vue'
 import {
-  PROJECTS, OPPORTUNITIES, QUOTATIONS, PARTIES, USERS,
-  getPartyById, getProjectById, getInvoicesByProject, getTasksByProject, getActivitiesByProject,
+  PROJECTS, LEADS, QUOTATIONS, PARTIES, USERS,
+  getPartyById, getLeadById, getProjectById, getInvoicesByProject, getTasksByProject, getActivitiesByProject,
   getServicesForProjects, getUpcomingTasks, getRecentChanges, getUpcomingFollowUps,
   getSavedViewsForUser, createSavedView, deleteSavedView, applySavedView
 } from '~/data'
-import { getProjectActualCostIdr, getRevenueByPeriod } from '~/data/finance-ext'
+import { getProjectActualCostIdr, getRevenueByPeriod, getOpexTotalIdr, getOpexPeriods, OPEX_ENTRIES } from '~/data/finance-ext'
 import {
-  PROJECT_STATUSES, OPPORTUNITY_STAGES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, findStatusOption
+  PROJECT_STATUSES, QUOTATION_APPROVAL_STATUSES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, findStatusOption
 } from '~/constants/status'
 import { formatCurrencyIdr, formatPercentage, formatDateRange, formatDateTime, formatDayLabel, daysUntil } from '~/utils/format'
 import {
@@ -175,13 +178,22 @@ function attentionReasons (projectId: string): string[] {
  * ================================================== */
 
 const activeProjects = computed(() => filteredProjects.value.filter(p => !['completed', 'cancelled'].includes(p.status)))
-const openOpportunities = computed(() => OPPORTUNITIES.filter(o => !['won', 'lost'].includes(o.stage)))
+/** Lead dengan deal berjalan (Quotation dibuat) yang belum jadi Project Order — pengganti "open opportunities" lama. */
+const openLeads = computed(() => LEADS.filter(lead => lead.quotationId && !lead.projectId))
 const upcomingDepartures = computed(() => filteredProjects.value.filter(project => isUpcomingDeparture(project)))
 const attentionProjects = computed(() => attentionOf(filteredProjects.value))
 const outstandingInvoices = computed(() =>
   filteredProjectIds.value.flatMap(id => getInvoicesByProject(id)).filter(invoice => invoice.status !== 'paid')
 )
 const outstandingTotal = computed(() => outstandingInvoices.value.reduce((sum, invoice) => sum + invoice.amountIdr, 0))
+const outstandingOverdueCount = computed(() => outstandingInvoices.value.filter(invoice => isInvoiceOverdue(invoice)).length)
+/** Keliling ring mini di header Outstanding Invoices — motif "bulet" yang sama dengan Cost Breakdown, dalam skala kecil. */
+const OUTSTANDING_RING_CIRCUMFERENCE = 2 * Math.PI * 15
+const outstandingOverdueRingOffset = computed(() => {
+  if (!outstandingInvoices.value.length) { return OUTSTANDING_RING_CIRCUMFERENCE }
+  const share = outstandingOverdueCount.value / outstandingInvoices.value.length
+  return OUTSTANDING_RING_CIRCUMFERENCE * (1 - share)
+})
 const recentActivityItems = computed(() =>
   filteredProjectIds.value
     .flatMap(id => getActivitiesByProject(id))
@@ -196,25 +208,25 @@ const recentActivityItems = computed(() =>
     }))
 )
 
-/** Opportunity Pipeline — Sales/Management/Super Admin/Viewer (D-031, bagian 6). */
+/** Quotation Pipeline (dulu "Opportunity Pipeline") — Sales/Management/Super Admin/Viewer (D-031, bagian 6). */
 const opportunityPipeline = computed<StatusBreakdownItem[]>(() => {
-  const bystage = new Map<string, { count: number; value: number }>()
-  for (const opp of OPPORTUNITIES) {
-    const quotation = QUOTATIONS.find(q => q.opportunityId === opp.id)
-    const entry = bystage.get(opp.stage) ?? { count: 0, value: 0 }
+  const bystatus = new Map<string, { count: number; value: number }>()
+  for (const quotation of QUOTATIONS) {
+    const status = quotation.approvalStatus ?? 'draft'
+    const entry = bystatus.get(status) ?? { count: 0, value: 0 }
     entry.count += 1
-    entry.value += quotation?.amountIdr ?? 0
-    bystage.set(opp.stage, entry)
+    entry.value += quotation.amountIdr ?? 0
+    bystatus.set(status, entry)
   }
-  return OPPORTUNITY_STAGES
-    .filter(stage => bystage.has(stage.value))
+  return QUOTATION_APPROVAL_STATUSES
+    .filter(status => bystatus.has(status.value))
     .sort((a, b) => a.order - b.order)
-    .map((stage) => {
-      const entry = bystage.get(stage.value)!
+    .map((status) => {
+      const entry = bystatus.get(status.value)!
       return {
-        key: stage.value,
-        label: stage.label,
-        tone: stage.tone,
+        key: status.value,
+        label: status.label,
+        tone: status.tone,
         count: entry.count,
         secondaryLabel: entry.value > 0 ? formatCurrencyIdr(entry.value) : undefined
       }
@@ -222,13 +234,11 @@ const opportunityPipeline = computed<StatusBreakdownItem[]>(() => {
 })
 
 /**
- * Tampilan funnel corong cuma masuk akal untuk stage yang benar-benar "maju" (Qualification → ... → Won) —
- * `Lost`/`On Hold`/`Draft` bukan kelanjutan stage sebelumnya, jadi disaring khusus untuk widget funnel ini.
- * `opportunityPipeline` di atas TIDAK diubah — masih data mentah yang sama, ini cuma lapisan tampilan.
+ * `opportunityPipeline` di atas sudah hanya berisi status Quotation yang "maju" (draft → submitted →
+ * approved) — tidak ada lagi stage machine terpisah yang perlu difilter untuk tampilan funnel, jadi funnel
+ * dan breakdown memakai data yang sama persis.
  */
-const FUNNEL_STAGE_ORDER = ['qualification', 'requirement-gathering', 'proposal', 'negotiation', 'won-requested', 'won']
-const opportunityFunnelStages = computed(() =>
-  opportunityPipeline.value.filter(item => FUNNEL_STAGE_ORDER.includes(item.key)))
+const opportunityFunnelStages = computed(() => opportunityPipeline.value)
 
 /** Active Projects by Status — Management/Super Admin/Viewer. */
 const projectsByStatus = computed<StatusBreakdownItem[]>(() => {
@@ -261,8 +271,8 @@ const costBreakdownItems = computed(() =>
 /** Quotations Menunggu Keputusan — Sales/Super Admin. */
 const quotationsPendingDecision = computed(() => QUOTATIONS.filter((quotation) => {
   if (quotation.accepted) { return false }
-  const opportunity = OPPORTUNITIES.find(o => o.id === quotation.opportunityId)
-  return Boolean(opportunity) && !['won', 'lost'].includes(opportunity!.stage)
+  const lead = getLeadById(quotation.leadId)
+  return Boolean(lead) && !lead!.projectId
 }))
 
 /**
@@ -318,12 +328,13 @@ const kpiCards = computed(() => [
     value: String(activeProjects.value.length),
     icon: FolderKanban,
     color: 'blue' as const,
-    visible: visibleTo('management', 'project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'finance', 'super-admin', 'viewer').value
+    /** Finance sengaja dikecualikan — card ini dihapus dari Dashboard Finance (permintaan eksplisit). */
+    visible: visibleTo('management', 'project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'super-admin', 'viewer').value
   },
   {
     key: 'open-opportunities',
-    title: 'Open Opportunities',
-    value: String(openOpportunities.value.length),
+    title: 'Leads in Quotation',
+    value: String(openLeads.value.length),
     icon: Handshake,
     color: 'violet' as const,
     visible: visibleTo('sales', 'account-executive', 'management', 'super-admin', 'viewer').value
@@ -350,7 +361,9 @@ const kpiCards = computed(() => [
     value: formatCurrencyIdr(outstandingTotal.value),
     icon: Receipt,
     color: 'amber' as const,
-    visible: visibleTo('finance', 'management', 'super-admin', 'viewer').value
+    /** Finance sengaja dikecualikan — card ini dihapus dari Dashboard Finance (sudah ada versinya di
+     * Monthly Cash Flow section), permintaan eksplisit. */
+    visible: visibleTo('management', 'super-admin', 'viewer').value
   },
   {
     key: 'total-users',
@@ -363,64 +376,124 @@ const kpiCards = computed(() => [
 ])
 
 /* ==================================================
- * Financial hero row — Keuntungan Bersih & Pemasukan Bersih (sumber sama dengan `ReportsAnalyticsPanel`).
- * Baris tersendiri di atas KPI row biasa (bukan dipaksa masuk grid 6-kolom yang sama) supaya bisa benar-benar
- * lebih besar tanpa bikin sel grid lain jadi timpang/bolong. Warna solid (hijau = untung, biru = pemasukan)
- * memakai token semantik yang sudah ada (`success`/`destructive`/`primary`) — bukan warna baru di luar
- * palet — supaya kartu ini terbaca sebagai satu keluarga desain dengan komponen lain, bukan tempelan asing.
+ * Financial hero panel — Pemasukan Bersih & Profit (sumber sama dengan `ReportsAnalyticsPanel`).
+ * Satu papan "ledger terminal" (`DashboardHeroPanel`) tersendiri di atas KPI row biasa, dengan sparkline
+ * dari histori 6 periode terakhir asli (bukan dekorasi) — lihat komentar desain di komponen itu sendiri.
  * ================================================== */
 const revenuePeriods = computed(() => getRevenueByPeriod())
 const latestRevenuePeriod = computed(() => revenuePeriods.value.at(-1))
 const previousRevenuePeriod = computed(() => revenuePeriods.value.at(-2))
 const showFinancialSummary = visibleTo('finance', 'management', 'super-admin', 'viewer')
 
-function periodTrend (currentIdr: number, previousIdr: number | undefined): { direction: 'up' | 'down'; label: string } | undefined {
+function periodTrend (currentIdr: number, previousIdr: number | undefined): { direction: 'up' | 'down'; percentLabel: string } | undefined {
   if (previousIdr === undefined || previousIdr === 0) { return undefined }
   const deltaPercent = ((currentIdr - previousIdr) / Math.abs(previousIdr)) * 100
   return {
     direction: deltaPercent >= 0 ? 'up' : 'down',
-    label: `${deltaPercent >= 0 ? 'Naik' : 'Turun'} ${formatPercentage(Math.abs(deltaPercent), 1)} dari bulan lalu`
+    percentLabel: formatPercentage(Math.abs(deltaPercent), 1)
   }
 }
 
-/** Sama seperti `DashboardStat` — cegah nominal panjang membelah di tengah digit (spasi "Rp"+angka adalah non-breaking space, jadi wrap satu-satunya tidak akan pernah lurus). */
-function heroValueTextClass (value: string): string {
-  const length = value.length
-  if (length > 15) { return 'text-lg' }
-  if (length > 12) { return 'text-xl' }
-  return 'text-2xl'
-}
+const financialPeriodLabel = computed(() => {
+  const period = latestRevenuePeriod.value?.period
+  if (!period) { return undefined }
+  return format(parseISO(`${period}-01`), 'MMMM yyyy', { locale: localeId })
+})
 
-const financialHeroCards = computed(() => {
+const heroMetrics = computed<HeroMetric[]>(() => {
   if (!showFinancialSummary.value || !latestRevenuePeriod.value) { return [] }
   const period = latestRevenuePeriod.value
   const previous = previousRevenuePeriod.value
-  /** Merah hanya saat benar-benar rugi — supaya warna kartu tetap jujur, bukan selalu hijau apa pun angkanya. */
+  const history = revenuePeriods.value.slice(-6)
+  /** Merah hanya saat benar-benar rugi — supaya warna panel tetap jujur, bukan selalu hijau apa pun angkanya. */
   const profitPositive = period.netProfitIdr >= 0
   return [
     {
       key: 'net-revenue',
       label: 'Pemasukan Bersih',
-      value: formatCurrencyIdr(period.revenueIdr),
+      valueIdr: period.revenueIdr,
       icon: TrendingUp,
+      series: history.map(row => row.revenueIdr),
       trend: periodTrend(period.revenueIdr, previous?.revenueIdr),
-      bgClass: 'bg-primary',
-      fgClass: 'text-primary-foreground',
-      /** Watermark ikon di kanan bawah (bukan kanan atas). */
-      watermarkClass: '-right-4 -bottom-4'
+      accent: 'blue'
     },
     {
       key: 'net-profit',
       label: 'Profit',
-      value: formatCurrencyIdr(period.netProfitIdr),
+      valueIdr: period.netProfitIdr,
       icon: Wallet,
+      series: history.map(row => row.netProfitIdr),
       trend: periodTrend(period.netProfitIdr, previous?.netProfitIdr),
-      bgClass: profitPositive ? 'bg-success' : 'bg-destructive',
-      fgClass: profitPositive ? 'text-success-foreground' : 'text-destructive-foreground',
-      /** Watermark ikon di kanan bawah (bukan kanan atas). */
-      watermarkClass: '-right-4 -bottom-4'
+      accent: profitPositive ? 'emerald' : 'rose'
     }
   ]
+})
+
+/* ==================================================
+ * Monthly Cash Flow — section baru (permintaan eksplisit, referensi eksternal). Chart dari periode ASLI
+ * yang sama dengan `heroMetrics` (bukan data fiktif Jan-Des) — Income = revenueIdr, Expense = directCostIdr
+ * + opexIdr per periode. 4 kartu di sampingnya menampilkan ringkasan Opex periode berjalan (sumber sama
+ * dengan `OpexPanel` — "Total Opex Periode"/"Sudah Dibayar"/"Menunggu Persetujuan") + Outstanding Invoices
+ * yang sudah ada — bukan metrik baru di luar yang sudah tercatat.
+ * ================================================== */
+const cashFlowLabels = computed(() => revenuePeriods.value.map(row => format(parseISO(`${row.period}-01`), 'MMM', { locale: localeId })))
+const cashFlowIncome = computed(() => revenuePeriods.value.map(row => row.revenueIdr))
+const cashFlowExpense = computed(() => revenuePeriods.value.map(row => row.directCostIdr + row.opexIdr))
+
+const cashFlowSideMetrics = computed<CashFlowSideMetric[]>(() => {
+  if (!showFinancialSummary.value || !latestRevenuePeriod.value) { return [] }
+  /** Periode Opex terbaru YANG BENAR-BENAR ADA datanya (`OPEX_ENTRIES`), bukan `latestRevenuePeriod` —
+   * periode invoice bisa lebih baru (mis. 2026-08) padahal fixture Opex cuma sampai 2026-07, jadi kalau
+   * ikut periode invoice, 3 card ini selalu Rp0. */
+  const period = getOpexPeriods()[0]
+  const periodOpexEntries = OPEX_ENTRIES.filter(entry => entry.period === period)
+  const paidIdr = periodOpexEntries.filter(entry => entry.status === 'paid').reduce((sum, entry) => sum + entry.amountIdr, 0)
+  const pendingIdr = periodOpexEntries.filter(entry => entry.status === 'submitted' || entry.status === 'draft').reduce((sum, entry) => sum + entry.amountIdr, 0)
+  return [
+    { key: 'cf-opex-total', label: 'Total Opex Periode', value: getOpexTotalIdr(period), icon: TrendingDown, accent: 'rose', isCurrency: true },
+    { key: 'cf-opex-paid', label: 'Sudah Dibayar', value: paidIdr, icon: CheckCircle2, accent: 'emerald', isCurrency: true },
+    { key: 'cf-opex-pending', label: 'Menunggu Persetujuan', value: pendingIdr, icon: Clock, accent: 'violet', isCurrency: true },
+    { key: 'cf-outstanding', label: 'Outstanding Invoices', value: outstandingTotal.value, icon: Receipt, accent: 'amber', isCurrency: true }
+  ]
+})
+
+/* ==================================================
+ * Ringkasan Administrasi — dulu cuma 3 angka sejajar dengan sisa ruang kosong besar di bawahnya (widget ini
+ * "wide" tier). Ditambah tabel User per Role (data ASLI dari `USERS`, bukan angka baru) supaya ruang itu
+ * terisi informasi yang genuinely berguna buat Super Admin, bukan sekadar dilebarkan/dipadatkan kosong.
+ * ================================================== */
+const adminUserRoleBreakdown = computed(() => {
+  const counts = new Map<string, { total: number; active: number; suspended: number }>()
+  for (const user of USERS) {
+    const entry = counts.get(user.role) ?? { total: 0, active: 0, suspended: 0 }
+    entry.total += 1
+    if (user.status === 'active') { entry.active += 1 } else { entry.suspended += 1 }
+    counts.set(user.role, entry)
+  }
+  return ROLES.value
+    .filter(role => counts.has(role.value))
+    .map(role => ({ role: role.label, ...counts.get(role.value)! }))
+    .sort((a, b) => b.total - a.total)
+})
+
+const adminPartyBreakdown = computed(() => ({
+  prospect: PARTIES.filter(party => party.lifecycleStatus === 'prospect').length,
+  client: PARTIES.filter(party => party.lifecycleStatus === 'client').length
+}))
+
+/** Palet kategorikal tetap (urutan tidak berubah antar-render) — dipakai ribbon komposisi & tiap baris role. */
+const ROLE_PALETTE = ['bg-primary', 'bg-success', 'bg-warning', 'bg-chart-4', 'bg-chart-5', 'bg-violet-500', 'bg-rose-500', 'bg-cyan-500']
+
+function adminRoleShare (total: number): number {
+  const grand = adminUserRoleBreakdown.value.reduce((sum, row) => sum + row.total, 0)
+  return grand > 0 ? (total / grand) * 100 : 0
+}
+
+/** Ribbon & bar per-role tumbuh dari 0 saat mount — sama bahasa motion dengan `BudgetChart`/`ExpenseCategories`. */
+const adminSummaryMounted = ref(false)
+onMounted(async () => {
+  await nextTick()
+  requestAnimationFrame(() => { adminSummaryMounted.value = true })
 })
 
 /* ==================================================
@@ -509,33 +582,21 @@ function kpiSubtitle (key: string): string | undefined {
     <LoadingState v-if="isLoading" message="Memuat ringkasan dashboard..." :rows="4" />
 
     <template v-else>
-      <div v-if="financialHeroCards.length" class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-        <div
-          v-for="card in financialHeroCards"
-          :key="card.key"
-          :class="cn('group relative min-w-0 overflow-hidden rounded-2xl p-4 shadow-[0_1px_2px_0_hsl(224_71%_4%/0.04)]', card.bgClass, card.fgClass)"
-        >
-          <component
-            :is="card.icon"
-            :class="cn('pointer-events-none absolute h-28 w-28 opacity-[0.12]', card.watermarkClass)"
-            aria-hidden="true"
-          />
-          <div class="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15">
-            <component :is="card.icon" class="h-5 w-5" />
-          </div>
-          <p class="relative mt-3 truncate text-xs font-medium uppercase tracking-wide opacity-75">
-            {{ card.label }}
-          </p>
-          <p :class="cn('relative mt-1 whitespace-nowrap font-bold leading-8 tracking-tight tabular-nums', heroValueTextClass(card.value))">
-            {{ card.value }}
-          </p>
-          <p v-if="card.trend" class="relative mt-1.5 flex items-center gap-1 text-xs opacity-75">
-            <ArrowUpRight v-if="card.trend.direction === 'up'" class="h-3.5 w-3.5 shrink-0" />
-            <ArrowDownRight v-else class="h-3.5 w-3.5 shrink-0" />
-            <span class="truncate">{{ card.trend.label }}</span>
-          </p>
-        </div>
-      </div>
+      <DashboardHeroPanel
+        v-if="heroMetrics.length"
+        :metrics="heroMetrics"
+        :period-label="financialPeriodLabel"
+        class="mb-4"
+      />
+
+      <DashboardCashFlowSection
+        v-if="cashFlowSideMetrics.length"
+        :labels="cashFlowLabels"
+        :income="cashFlowIncome"
+        :expense="cashFlowExpense"
+        :side-metrics="cashFlowSideMetrics"
+        class="mb-6"
+      />
 
       <div v-if="visibleKpiCards.length" class="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4 mb-6">
         <DashboardStat
@@ -683,7 +744,7 @@ function kpiSubtitle (key: string): string | undefined {
         <DashboardPanel v-if="showClientWelcome" title="Client Portal" :icon="Users" color="blue" :size="tierOf('welcome')">
           <p class="text-sm text-muted-foreground leading-relaxed mb-4 max-w-prose">
             Dashboard lintas-domain ini menampilkan data internal MANOVA (project/CRM) yang tidak relevan untuk role Client.
-            Gunakan Client Portal untuk melihat profil company, Opportunity, dan Project Order milik Anda sendiri.
+            Gunakan Client Portal untuk melihat profil company, Quotation, dan Project Order milik Anda sendiri.
           </p>
           <NuxtLink to="/client" class="inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
             Buka Client Portal →
@@ -716,8 +777,8 @@ function kpiSubtitle (key: string): string | undefined {
 
         <DashboardPanel
           v-if="showPipeline"
-          title="Opportunity Pipeline"
-          description="Dikelompokkan per stage, seluruh party."
+          title="Quotation Pipeline"
+          description="Dikelompokkan per status approval, seluruh party."
           :icon="Handshake"
           color="violet"
           :size="tierOf('pipeline')"
@@ -762,10 +823,10 @@ function kpiSubtitle (key: string): string | undefined {
               <li v-for="quotation in quotationsPendingDecision" :key="quotation.id" class="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
                 <div class="min-w-0">
                   <p class="text-sm font-medium text-foreground truncate">
-                    {{ OPPORTUNITIES.find(o => o.id === quotation.opportunityId)?.title }}
+                    {{ getLeadById(quotation.leadId)?.title ?? getLeadById(quotation.leadId)?.companyName ?? getLeadById(quotation.leadId)?.name }}
                   </p>
                   <p class="text-xs text-muted-foreground mt-0.5 truncate">
-                    {{ getPartyById(OPPORTUNITIES.find(o => o.id === quotation.opportunityId)?.partyId ?? '')?.name }}
+                    {{ getPartyById(getLeadById(quotation.leadId)?.partyId ?? '')?.name }}
                   </p>
                 </div>
                 <p class="text-sm font-semibold text-foreground tabular-nums shrink-0">
@@ -918,9 +979,43 @@ function kpiSubtitle (key: string): string | undefined {
         </DashboardPanel>
 
         <DashboardPanel v-if="showOutstanding" title="Outstanding Invoices" :icon="Receipt" color="amber" :size="tierOf('outstanding')">
-          <ul class="divide-y divide-border">
-            <li v-for="invoice in outstandingInvoices" :key="invoice.id" class="py-3 first:pt-0 last:pb-0 flex items-center justify-between gap-3">
-              <div class="min-w-0">
+          <div v-if="outstandingInvoices.length" class="mb-4 flex items-center gap-3 pb-4 border-b border-border">
+            <div class="relative h-10 w-10 shrink-0">
+              <svg viewBox="0 0 36 36" class="h-full w-full -rotate-90">
+                <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" stroke-width="4" />
+                <circle
+                  cx="18"
+                  cy="18"
+                  r="15"
+                  fill="none"
+                  stroke="hsl(var(--destructive))"
+                  stroke-width="4"
+                  stroke-linecap="round"
+                  :stroke-dasharray="OUTSTANDING_RING_CIRCUMFERENCE"
+                  :stroke-dashoffset="outstandingOverdueRingOffset"
+                  class="transition-[stroke-dashoffset] duration-700 ease-out"
+                />
+              </svg>
+            </div>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-foreground tabular-nums">
+                {{ formatCurrencyIdr(outstandingTotal) }}
+              </p>
+              <p class="text-xs text-muted-foreground">
+                {{ outstandingInvoices.length }} invoice
+                <template v-if="outstandingOverdueCount"> · <span class="text-destructive font-medium">{{ outstandingOverdueCount }} overdue</span></template>
+              </p>
+            </div>
+          </div>
+
+          <ul class="-mx-1 divide-y divide-border">
+            <li
+              v-for="invoice in outstandingInvoices"
+              :key="invoice.id"
+              class="flex items-center gap-3 border-l-2 py-3 pl-3 pr-1 first:pt-0 last:pb-0"
+              :class="isInvoiceOverdue(invoice) ? 'border-destructive' : 'border-transparent'"
+            >
+              <div class="min-w-0 flex-1">
                 <p class="text-sm font-medium text-foreground truncate">
                   {{ invoice.label }}
                 </p>
@@ -932,7 +1027,9 @@ function kpiSubtitle (key: string): string | undefined {
                 <p class="text-sm font-semibold text-foreground tabular-nums">
                   {{ formatCurrencyIdr(invoice.amountIdr) }}
                 </p>
-                <StatusBadge v-if="isInvoiceOverdue(invoice)" label="Overdue" tone="destructive" />
+                <p v-if="isInvoiceOverdue(invoice)" class="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-destructive">
+                  Overdue
+                </p>
               </div>
             </li>
           </ul>
@@ -944,13 +1041,85 @@ function kpiSubtitle (key: string): string | undefined {
         </DashboardPanel>
 
         <DashboardPanel v-if="showAdminSummary" title="Ringkasan Administrasi" :icon="ShieldCheck" color="teal" :size="tierOf('admin-summary')">
-          <DetailMetadataList
-            :items="[
-              { label: 'Total User Demo', value: String(USERS.length) },
-              { label: 'Total Party (Prospect/Client)', value: String(PARTIES.length) },
-              { label: 'Total Project', value: String(PROJECTS.length) },
-            ]"
-          />
+          <div class="grid grid-cols-1 gap-3 mb-5 sm:grid-cols-3">
+            <div class="flex items-center gap-3 rounded-xl border border-primary/[0.14] bg-gradient-to-br from-primary/[0.14] via-primary/[0.04] to-transparent p-3">
+              <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                <Users class="h-4 w-4" />
+              </div>
+              <div class="min-w-0">
+                <p class="text-lg font-bold leading-none text-foreground tabular-nums">
+                  {{ USERS.length }}
+                </p>
+                <p class="mt-1 truncate text-xs text-muted-foreground">
+                  Total User Demo
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-xl border border-violet-500/[0.14] bg-gradient-to-br from-violet-500/[0.14] via-violet-500/[0.04] to-transparent p-3">
+              <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-500 text-white">
+                <Building2 class="h-4 w-4" />
+              </div>
+              <div class="min-w-0">
+                <p class="text-lg font-bold leading-none text-foreground tabular-nums">
+                  {{ PARTIES.length }}
+                </p>
+                <p class="mt-1 truncate text-xs text-muted-foreground">
+                  {{ adminPartyBreakdown.prospect }} prospect · {{ adminPartyBreakdown.client }} client
+                </p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 rounded-xl border border-success/[0.14] bg-gradient-to-br from-success/[0.14] via-success/[0.04] to-transparent p-3">
+              <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success text-success-foreground">
+                <FolderKanban class="h-4 w-4" />
+              </div>
+              <div class="min-w-0">
+                <p class="text-lg font-bold leading-none text-foreground tabular-nums">
+                  {{ PROJECTS.length }}
+                </p>
+                <p class="mt-1 truncate text-xs text-muted-foreground">
+                  Total Project
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <p class="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Komposisi User per Role
+          </p>
+
+          <div class="mb-4 flex h-2 w-full overflow-hidden rounded-full bg-muted">
+            <div
+              v-for="(row, index) in adminUserRoleBreakdown"
+              :key="`ribbon-${row.role}`"
+              class="h-full transition-[width] ease-out first:rounded-l-full last:rounded-r-full"
+              :class="ROLE_PALETTE[index % ROLE_PALETTE.length]"
+              :style="{
+                width: `${adminSummaryMounted ? adminRoleShare(row.total) : 0}%`,
+                transitionDuration: '700ms',
+                transitionDelay: `${index * 60}ms`,
+                marginRight: index < adminUserRoleBreakdown.length - 1 ? '2px' : '0'
+              }"
+              :title="`${row.role}: ${row.total}`"
+            />
+          </div>
+
+          <ul class="divide-y divide-border">
+            <li v-for="(row, index) in adminUserRoleBreakdown" :key="row.role" class="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0">
+              <span class="h-2.5 w-2.5 shrink-0 rounded-full" :class="ROLE_PALETTE[index % ROLE_PALETTE.length]" />
+              <span class="min-w-0 flex-1 truncate text-sm text-foreground">{{ row.role }}</span>
+              <span v-if="row.suspended" class="shrink-0 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-destructive">
+                {{ row.suspended }} suspended
+              </span>
+              <div class="hidden h-1.5 w-16 shrink-0 overflow-hidden rounded-full bg-muted sm:block">
+                <div
+                  class="h-full rounded-full transition-[width] ease-out"
+                  :class="ROLE_PALETTE[index % ROLE_PALETTE.length]"
+                  :style="{ width: `${adminSummaryMounted ? adminRoleShare(row.total) : 0}%`, transitionDuration: '700ms', transitionDelay: `${index * 60}ms` }"
+                />
+              </div>
+              <span class="w-6 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">{{ row.total }}</span>
+            </li>
+          </ul>
         </DashboardPanel>
       </div>
     </template>

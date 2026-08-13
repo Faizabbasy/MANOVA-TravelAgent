@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2 } from 'lucide-vue-next'
 import {
-  getProjectById, getPartyById, getUserById, getVendorById, getOpportunityById, getQuotationByOpportunity,
+  getProjectById, getPartyById, getUserById, getVendorById, getLeadById, getQuotationByLead,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
   getProjectServices, getItineraryItems, updateServiceStatus, updateItineraryItem, createItineraryItem, removeItineraryItem,
   getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation,
@@ -175,9 +175,9 @@ const team = computed(() => project.value
  */
 const canManageProjectOrder = computed(() => can('project-order.accept-handover'))
 
-const sourceOpportunity = computed(() => project.value?.opportunityId ? getOpportunityById(project.value.opportunityId) : undefined)
-const accountExecutive = computed(() => sourceOpportunity.value ? getUserById(sourceOpportunity.value.ownerId) : undefined)
-const sourceQuotation = computed(() => sourceOpportunity.value ? getQuotationByOpportunity(sourceOpportunity.value.id) : undefined)
+const sourceLead = computed(() => project.value?.leadId ? getLeadById(project.value.leadId) : undefined)
+const accountExecutive = computed(() => sourceLead.value ? getUserById(sourceLead.value.handedOverTo ?? sourceLead.value.ownerId) : undefined)
+const sourceQuotation = computed(() => sourceLead.value ? getQuotationByLead(sourceLead.value.id) : undefined)
 const orderStatus = computed(() => project.value ? getProjectOrderStatus(project.value) : undefined)
 
 const isReturnHandoverDialogOpen = ref(false)
@@ -1137,9 +1137,9 @@ const summaryMetadata = computed(() => {
                 />
               </div>
               <p class="text-sm text-muted-foreground mb-4">
-                Project ini berasal dari opportunity
-                <NuxtLink v-if="project.opportunityId" :to="`/crm/opportunities/${project.opportunityId}`" class="text-primary hover:underline">
-                  {{ project.opportunityId }}
+                Project ini berasal dari lead
+                <NuxtLink v-if="project.leadId" :to="`/crm/leads/${project.leadId}`" class="text-primary hover:underline">
+                  {{ project.leadId }}
                 </NuxtLink><span v-else>—</span>,
                 quotation approved <span class="text-foreground font-medium">{{ sourceQuotation ? formatCurrencyIdr(sourceQuotation.amountIdr) : '—' }}</span>.
               </p>

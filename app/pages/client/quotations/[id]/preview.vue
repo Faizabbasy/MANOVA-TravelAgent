@@ -2,18 +2,18 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
-import { getQuotationById, getOpportunityById, getPartyById, getUserById } from '~/data'
+import { getQuotationById, getLeadById, getPartyById, getUserById } from '~/data'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
 
 /**
  * Quotations & Proposals — Print/PDF Preview client-safe (Repair Phase Section 3, Wajib "Download mock
- * PDF"). Halaman TERPISAH dari `/crm/opportunities/[id]/quotation-preview` (internal, gated `canView('crm')`
- * — role `client` selalu `NONE` untuk modul `crm`, sehingga rute internal tsb TIDAK reachable dari Client
- * meski pernah dirujuk sebagai `Document.previewRoute` contoh Section 21). Mockup frontend-only —
+ * PDF"). Halaman TERPISAH dari `/crm/leads/[id]/quotation-preview` (internal, gated `canView('crm')` — role
+ * `client` selalu `NONE` untuk modul `crm`, sehingga rute internal tsb TIDAK reachable dari Client meski
+ * pernah dirujuk sebagai `Document.previewRoute` contoh Section 21). Mockup frontend-only —
  * `window.print()`, bukan generator PDF nyata (D-006), pola identik halaman internal TAPI sengaja TIDAK
  * PERNAH merender `markupIdr`/`estimatedCostIdr`/`estimatedMarginIdr` (internal cost/margin, Master Prompt
- * bagian D) — hanya `discountIdr`/`taxIdr` yang sudah presenden aman di `/client/opportunities/[id]`.
+ * bagian D) — hanya `discountIdr`/`taxIdr` yang sudah presenden aman di `/client/quotations/[id]`.
  */
 definePageMeta({ layout: false, middleware: 'auth' })
 
@@ -21,10 +21,10 @@ const route = useRoute()
 const { canView, clientScopeId } = usePermissions()
 
 const quotation = computed(() => getQuotationById(String(route.params.id)))
-const opportunity = computed(() => (quotation.value ? getOpportunityById(quotation.value.opportunityId) : undefined))
-const isOwnCompany = computed(() => Boolean(opportunity.value && clientScopeId.value && opportunity.value.partyId === clientScopeId.value))
-const party = computed(() => (opportunity.value ? getPartyById(opportunity.value.partyId) : undefined))
-const preparedBy = computed(() => (opportunity.value ? getUserById(opportunity.value.ownerId) : undefined))
+const lead = computed(() => (quotation.value ? getLeadById(quotation.value.leadId) : undefined))
+const isOwnCompany = computed(() => Boolean(lead.value && clientScopeId.value && lead.value.partyId === clientScopeId.value))
+const party = computed(() => (lead.value ? getPartyById(lead.value.partyId) : undefined))
+const preparedBy = computed(() => (lead.value?.handedOverTo ? getUserById(lead.value.handedOverTo) : undefined))
 
 useHead({ title: computed(() => quotation.value ? `Quotation ${quotation.value.id} — Preview` : 'Quotation Tidak Ditemukan') })
 
@@ -36,7 +36,7 @@ function printPage () {
 <template>
   <div class="min-h-screen bg-muted/30 py-8 print:bg-white print:py-0">
     <div class="mx-auto max-w-3xl px-4 print:px-0 print:max-w-none">
-      <template v-if="!quotation || !opportunity || !isOwnCompany">
+      <template v-if="!quotation || !lead || !isOwnCompany">
         <div class="rounded-xl border border-border bg-card p-8 print:hidden">
           <EmptyState :icon="FileX" title="Quotation tidak ditemukan" description="Quotation ini tidak ada atau bukan milik company Anda.">
             <NuxtLink to="/client/travel-requests#quotations">
@@ -96,8 +96,8 @@ function printPage () {
               <p class="text-sm font-medium text-foreground">
                 {{ party?.name ?? '—' }}
               </p>
-              <p v-if="opportunity.contactName" class="text-sm text-foreground">
-                Attn: {{ opportunity.contactName }}
+              <p v-if="lead.name" class="text-sm text-foreground">
+                Attn: {{ lead.name }}
               </p>
               <p v-if="party?.city" class="text-sm text-muted-foreground">
                 {{ party.city }}
@@ -108,16 +108,16 @@ function printPage () {
                 Trip Detail
               </p>
               <p class="text-sm text-foreground">
-                {{ opportunity.title }}
+                {{ lead.title ?? lead.companyName ?? lead.name }}
               </p>
               <p class="text-sm text-muted-foreground">
-                {{ opportunity.destination }}
+                {{ lead.destination }}
               </p>
-              <p v-if="opportunity.travelStartDate && opportunity.travelEndDate" class="text-sm text-muted-foreground">
-                {{ formatDateRange(opportunity.travelStartDate, opportunity.travelEndDate) }}
+              <p v-if="lead.travelStartDate && lead.travelEndDate" class="text-sm text-muted-foreground">
+                {{ formatDateRange(lead.travelStartDate, lead.travelEndDate) }}
               </p>
-              <p v-if="opportunity.travelerEstimate" class="text-sm text-muted-foreground">
-                {{ opportunity.travelerEstimate }} pax
+              <p v-if="lead.travelerEstimate" class="text-sm text-muted-foreground">
+                {{ lead.travelerEstimate }} pax
               </p>
               <p v-if="preparedBy" class="text-sm text-muted-foreground">
                 Disiapkan oleh {{ preparedBy.name }}

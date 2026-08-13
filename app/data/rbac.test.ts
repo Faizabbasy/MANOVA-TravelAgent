@@ -180,8 +180,8 @@ describe('RBAC dinamis', () => {
     })
 
     it('menggantikan narrow role exception lama', () => {
-      expect(hasCapability('sales', 'sales.manage-opportunity')).toBe(true)
-      expect(hasCapability('operations', 'sales.manage-opportunity')).toBe(false)
+      expect(hasCapability('sales', 'sales.manage-lead-pipeline')).toBe(true)
+      expect(hasCapability('operations', 'sales.manage-lead-pipeline')).toBe(false)
       expect(hasCapability('operations', 'project-order.manage-travelers')).toBe(true)
       expect(hasCapability('management', 'sales.approve-quotation')).toBe(true)
     })

@@ -1,7 +1,7 @@
 import { addDays, formatISO, parseISO } from 'date-fns'
 import { PARTIES, CONTACTS, PARTY_ACTIVITIES } from './parties'
 import { USERS } from './users'
-import { OPPORTUNITIES, QUOTATIONS } from './opportunities'
+import { QUOTATIONS } from './quotations'
 import { VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES, VENDOR_PRODUCTS, VENDOR_DOCUMENTS } from './vendors'
 import { SALES_ORDERS } from './sales-orders'
 import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS } from './projects'
@@ -42,11 +42,11 @@ import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
 import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES, PROJECT_STATUSES, SUPPORT_TICKET_CATEGORIES, INVOICE_STATUSES } from '~/constants/status'
 import type { Project, ProjectStatus, ServiceTypeKey, ServiceStatus, ProjectService, Traveler, TravelerGroup, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType, CompanyType, SensitiveCompanyProfileFields } from '~/types/party'
-import type { Opportunity, OpportunityStage, Quotation, OpportunityWorkflowStatus, QuotationAttachment, QuotationComment } from '~/types/opportunity'
+import type { Quotation, QuotationAttachment, QuotationComment } from '~/types/quotation'
 import type { Vendor, VendorContact, VendorQuotation, VendorProduct, VendorDocument } from '~/types/vendor'
 import type { SalesOrder, SalesOrderStatus } from '~/types/sales-order'
 import type { ActivityEntry, ChangeCategory, ProjectTask, ProjectRisk, ProjectRiskSeverity, ShiftNote, ShiftPeriod, SystemEvent } from '~/types/activity'
-import type { Lead, LeadActivity } from '~/types/lead'
+import type { Lead, LeadActivity, LeadWorkflowStatus } from '~/types/lead'
 import type { ProductTemplate, ProductTemplateStatus, ProductServiceAlternative, CostSheet, CostSheetLineItem } from '~/types/product'
 import type { FlightBooking, FlightBookingStatus, FlightSegment } from '~/types/ticketing'
 import type { HotelBooking, HotelBookingStatus } from '~/types/accommodation'
@@ -76,7 +76,7 @@ import type { TripAnnouncement } from '~/types/trip-center'
 export {
   USERS,
   PARTIES, CONTACTS, PARTY_ACTIVITIES,
-  OPPORTUNITIES, QUOTATIONS,
+  QUOTATIONS,
   VENDORS, VENDOR_CONTACTS, VENDOR_QUOTATIONS, VENDOR_ACTIVITIES, VENDOR_PRODUCTS, VENDOR_DOCUMENTS,
   SALES_ORDERS,
   PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS,
@@ -112,25 +112,19 @@ export const getUserById = (id: string) => USERS.find(user => user.id === id)
 export const getUserByClientPartyId = (partyId: string) => USERS.find(user => user.role === 'client' && user.clientPartyId === partyId)
 export const getPartyById = (id: string) => PARTIES.find(party => party.id === id)
 export const getContactsByParty = (partyId: string) => CONTACTS.filter(contact => contact.partyId === partyId)
-export const getOpportunitiesByParty = (partyId: string) => OPPORTUNITIES.filter(opp => opp.partyId === partyId)
-export const getOpportunityById = (id: string) => OPPORTUNITIES.find(opp => opp.id === id)
+/** Lead ber-deal (qualified, `partyId` terisi) milik satu Party — pengganti `getOpportunitiesByParty` lama. */
+export const getLeadsByParty = (partyId: string) => LEADS.filter(lead => lead.partyId === partyId)
 export const getProjectsByParty = (partyId: string) => PROJECTS.filter(project => project.partyId === partyId)
 /** "Manova Client" milestone — derivasi murni (bukan field tersimpan), konsisten pola getProjectOrderStatus (~line 629):
  * true bila party punya minimal satu Project berstatus completed. */
 export function isManovaClient (partyId: string): boolean {
   return getProjectsByParty(partyId).some(project => project.status === 'completed')
 }
-export const getQuotationByOpportunity = (opportunityId: string) => QUOTATIONS.find(quotation => quotation.opportunityId === opportunityId)
+export const getQuotationByLead = (leadId: string) => QUOTATIONS.find(quotation => quotation.leadId === leadId)
 /** Section 19 — "Additional quotation/change order" (`ChangeRequest.linkedQuotationId`), dipakai `/changes/[id]`. */
 export const getQuotationById = (id: string) => QUOTATIONS.find(quotation => quotation.id === id)
-/** Management Approval Queue (Section 06) — quotation menunggu Commercial Approval, lintas seluruh Opportunity. */
+/** Management Approval Queue (Section 06) — quotation menunggu Commercial Approval, lintas seluruh Lead. */
 export const getQuotationsPendingApproval = () => QUOTATIONS.filter(quotation => quotation.approvalStatus === 'submitted')
-/** Management Approval Queue (Section 06) — Opportunity yang quotation-nya sudah approved tapi Client Confirmation (Section 05, AE-facing) belum dicatat; visibilitas Management, bukan aksi (client confirmation tetap tanggung jawab AE). */
-export const getOpportunitiesPendingClientConfirmation = () => OPPORTUNITIES.filter((opp) => {
-  if (opp.clientConfirmedAt || !['negotiation', 'on-hold'].includes(opp.stage)) { return false }
-  const quotation = getQuotationByOpportunity(opp.id)
-  return quotation?.approvalStatus === 'approved'
-})
 export const getVendorById = (id: string) => VENDORS.find(vendor => vendor.id === id)
 export const getVendorContacts = (vendorId: string) => VENDOR_CONTACTS.filter(contact => contact.vendorId === vendorId)
 /** Dokumen vendor (Section 17) — tab "Documents" Vendor Detail, preview mock (D-006). */
@@ -540,7 +534,7 @@ export function getProjectOrderStatus (project: Project): ProjectOrderStatus {
  * (`project-manager`)/Super Admin. Guard: hanya dari `status === 'draft'` dan belum pernah di-accept.
  * Acceptance section ("PM dapat menerima handover dan memulai planning TANPA KEHILANGAN DATA KOMERSIAL")
  * terpenuhi otomatis — `quotationAmountIdr`/`budgetIdr`/`sourceQuotationId` sudah terisi penuh sejak
- * `approveOpportunityWon` (Section 05/06), mutator ini TIDAK menyentuhnya sama sekali.
+ * `markLeadWon`, mutator ini TIDAK menyentuhnya sama sekali.
  */
 export function acceptProjectHandover (projectId: string, pmId: string): Project | undefined {
   const project = getProjectById(projectId)
@@ -869,13 +863,13 @@ export function getDocumentsByParty (partyId: string) {
   return getProjectsByParty(partyId).flatMap(project => getDocumentsByProject(project.id))
 }
 
-/** Opportunity/Project Order milik satu Account Executive (Prompt 19) — dipakai filter "milik saya" dan Customer Journey Dashboard. */
-export const getOpportunitiesByOwner = (ownerId: string) => OPPORTUNITIES.filter(opp => opp.ownerId === ownerId)
+/** Lead ber-deal (Quotation/Project/Sales Order sudah ada) yang di-handover ke satu Account Executive — dipakai filter "milik saya" dan Customer Journey Dashboard. */
+export const getLeadsByOwner = (accountExecutiveId: string) => LEADS.filter(lead => lead.handedOverTo === accountExecutiveId && (lead.quotationId || lead.projectId || lead.salesOrderId))
 export function getProjectsByAccountExecutive (accountExecutiveId: string) {
-  const ownedOpportunityIds = new Set(getOpportunitiesByOwner(accountExecutiveId).map(opp => opp.id))
-  return PROJECTS.filter(project => project.opportunityId && ownedOpportunityIds.has(project.opportunityId))
+  const ownedLeadIds = new Set(getLeadsByOwner(accountExecutiveId).map(lead => lead.id))
+  return PROJECTS.filter(project => project.leadId && ownedLeadIds.has(project.leadId))
 }
-/** Company (Party) yang di-owning oleh satu Account Executive (Section 07) — dipakai scoping "portfolio saya" di Customer Journey Dashboard/Customers list, pelengkap `getOpportunitiesByOwner`/`getProjectsByAccountExecutive` yang sudah ada. */
+/** Company (Party) yang di-owning oleh satu Account Executive (Section 07) — dipakai scoping "portfolio saya" di Customer Journey Dashboard/Customers list, pelengkap `getLeadsByOwner`/`getProjectsByAccountExecutive` yang sudah ada. */
 export const getPartiesByAccountOwner = (accountExecutiveId: string) => PARTIES.filter(party => party.accountOwnerId === accountExecutiveId)
 
 /** Project yang butuh perhatian, dengan konteks invoice/task/activity masing-masing sudah dihitung. */
@@ -925,10 +919,10 @@ export function getPartyActivities (partyId: string) {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
 
-/** Activity/follow-up milik satu Opportunity spesifik (Section 08) — subset dari `getPartyActivities`. */
-export function getPartyActivitiesByOpportunity (opportunityId: string) {
+/** Activity/follow-up milik satu Lead spesifik (deal) — subset dari `getPartyActivities`. */
+export function getPartyActivitiesByLead (leadId: string) {
   return PARTY_ACTIVITIES
-    .filter(activity => activity.opportunityId === opportunityId)
+    .filter(activity => activity.leadId === leadId)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 }
 
@@ -1058,40 +1052,29 @@ export function createContact (input: { partyId: string; name: string; title: st
   return contact
 }
 
-export function createPartyActivity (input: { partyId: string; opportunityId?: string; type: PartyActivityType; message: string; ownerId: string; dueAt?: string }): PartyActivity {
+export function createPartyActivity (input: { partyId: string; leadId?: string; type: PartyActivityType; message: string; ownerId: string; dueAt?: string }): PartyActivity {
   const activity: PartyActivity = { id: nextSequentialId('PACT-', PARTY_ACTIVITIES), createdAt: DEMO_REFERENCE_DATE, ...input }
   PARTY_ACTIVITIES.push(activity)
   return activity
 }
 
 /**
- * Mutasi dan create-mock Section 08 (Opportunity dan Quotation) — melanjutkan pola Section 07.
- * Transisi stage TIDAK memvalidasi ulang state diagram di sini (validasi ada di UI — tombol yang
- * ditampilkan sudah dibatasi sesuai stage aktif); helper ini murni mutasi + bookkeeping timestamp.
+ * Mutasi dan create-mock Quotation — melanjutkan pola Section 07. Lead ber-deal (`quotationId` terisi)
+ * tidak punya stage machine sendiri lagi (Opportunity dihapus) — status yang terlihat AE seluruhnya
+ * derivasi lewat `getLeadWorkflowStatus`.
  */
-export function advanceOpportunityStage (opportunityId: string, nextStage: OpportunityStage, extra?: { lostReason?: string }): Opportunity | undefined {
-  const opportunity = getOpportunityById(opportunityId)
-  if (!opportunity) { return undefined }
-  opportunity.stage = nextStage
-  if (nextStage === 'lost') {
-    opportunity.decidedAt = DEMO_REFERENCE_DATE
-    opportunity.lostReason = extra?.lostReason
-  }
-  return opportunity
-}
-
-export function createQuotation (opportunityId: string, amountIdr: number): Quotation {
+export function createQuotation (leadId: string, amountIdr: number): Quotation {
   const quotation: Quotation = {
     id: nextSequentialId('QUO-', QUOTATIONS),
-    opportunityId,
+    leadId,
     amountIdr,
     createdAt: DEMO_REFERENCE_DATE,
     accepted: false,
     version: 1
   }
   QUOTATIONS.push(quotation)
-  const opportunity = getOpportunityById(opportunityId)
-  if (opportunity) { opportunity.quotationId = quotation.id }
+  const lead = getLeadById(leadId)
+  if (lead) { lead.quotationId = quotation.id }
   return quotation
 }
 
@@ -1126,7 +1109,7 @@ export interface QuotationDetailInput {
   termsAndConditions?: string
   inclusions?: string
   exclusions?: string
-  /** Repair Phase Section 3 — lihat komentar `Quotation` (`app/types/opportunity.ts`). */
+  /** Repair Phase Section 3 — lihat komentar `Quotation` (`app/types/quotation.ts`). */
   cancellationPolicy?: string
   proposedItineraryNote?: string
 }
@@ -1159,17 +1142,17 @@ export function duplicateQuotationVersion (quotationId: string): Quotation | und
 }
 
 /** Auto-provision akun login Client Portal — dipanggil saat quotation pertama kali dikirim ke client
- * (sendQuotationToClient) dan sebagai safety-net di approveOpportunityWon. Idempotent: no-op kalau party
- * sudah punya User client (repeat client, atau sudah dibuat di step sebelumnya pada deal yang sama). */
-function ensureClientLoginAccount (opportunity: Opportunity, actorId: string): User | undefined {
-  const party = getPartyById(opportunity.partyId)
+ * (sendQuotationToClient) dan sebagai safety-net di markLeadWon. Idempotent: no-op kalau party sudah punya
+ * User client (repeat client, atau sudah dibuat di step sebelumnya pada deal yang sama). */
+function ensureClientLoginAccount (lead: Lead, actorId: string): User | undefined {
+  const party = lead.partyId ? getPartyById(lead.partyId) : undefined
   if (!party) { return undefined }
 
   const existingClientUser = getUserByClientPartyId(party.id)
   if (existingClientUser) {
     createPartyActivity({
       partyId: party.id,
-      opportunityId: opportunity.id,
+      leadId: lead.id,
       type: 'note',
       message: `Client login account sudah tersedia: ${existingClientUser.email}`,
       ownerId: actorId
@@ -1177,9 +1160,8 @@ function ensureClientLoginAccount (opportunity: Opportunity, actorId: string): U
     return existingClientUser
   }
 
-  const sourceLead = opportunity.leadId ? getLeadById(opportunity.leadId) : undefined
-  const contactName = opportunity.contactName ?? sourceLead?.name ?? party.name
-  const email = sourceLead?.email ?? `${slugifyForEmail(contactName)}@${slugifyForEmail(party.name)}.demo`
+  const contactName = lead.name ?? party.name
+  const email = lead.email ?? `${slugifyForEmail(contactName)}@${slugifyForEmail(party.name)}.demo`
   const clientUser: User = {
     id: nextSequentialId('USR-', USERS),
     name: contactName,
@@ -1191,7 +1173,7 @@ function ensureClientLoginAccount (opportunity: Opportunity, actorId: string): U
   USERS.push(clientUser)
   createPartyActivity({
     partyId: party.id,
-    opportunityId: opportunity.id,
+    leadId: lead.id,
     type: 'note',
     message: `Client login account dibuat otomatis: ${clientUser.email}`,
     ownerId: actorId
@@ -1200,15 +1182,13 @@ function ensureClientLoginAccount (opportunity: Opportunity, actorId: string): U
 }
 
 /** "Send mock ke client" (Section 05) — simulasi timestamp pengiriman, TIDAK mengirim email/WA nyata (D-006).
- * Titik pemicu auto-provision akun login Client Portal (docs/superpowers/specs/2026-08-05-lead-to-manova-client-auto-account-design.md,
- * disempurnakan iterasi 2 — dipindah dari "Won" ke sini karena Client Confirmation self-service butuh akun
- * client SUDAH ada sebelum client bisa approve). */
+ * Titik pemicu auto-provision akun login Client Portal. */
 export function sendQuotationToClient (quotationId: string, actorId: string): Quotation | undefined {
   const quotation = QUOTATIONS.find(q => q.id === quotationId)
   if (!quotation) { return undefined }
   quotation.sentToClientAt = DEMO_REFERENCE_DATE
-  const opportunity = getOpportunityById(quotation.opportunityId)
-  if (opportunity) { ensureClientLoginAccount(opportunity, actorId) }
+  const lead = getLeadById(quotation.leadId)
+  if (lead) { ensureClientLoginAccount(lead, actorId) }
   return quotation
 }
 
@@ -1224,28 +1204,25 @@ export function withdrawQuotationSubmission (quotationId: string): Quotation | u
 }
 
 /**
- * Commercial Approval (Prompt 19 — Change Request). Terpisah dari `approveOpportunityWon`/
- * `rejectOpportunityWon` (Section 09, gerbang final "Mark as Won") — quotation harus `approved` di sini
- * dulu sebelum Opportunity boleh diajukan ke stage `won-requested` (digerbangi di UI Opportunity Detail).
+ * Commercial Approval. Quotation harus `approved` di sini dulu sebelum "Mark as Won" (`markLeadWon`) bisa
+ * ditekan — satu-satunya gerbang tersisa sebelum Won (tidak ada lagi gerbang requirement-gathering/client-
+ * confirmation/won-request terpisah, disederhanakan sejak Opportunity dihapus).
  *
- * Section 06 — ketiga mutator di bawah mencatat `PartyActivity` per keputusan (submit/approve/reject),
- * memberi jejak "notes/history" yang literal diminta Wajib Section 06 ("Approve, reject, return for
- * revision dengan notes/history") — sebelumnya hanya `approvalNote`/`approvedBy` (nilai tunggal, tertimpa
- * tiap keputusan baru) yang tersimpan, tidak ada histori. Reuse penuh tab "Activity / Follow-up" existing
- * di Opportunity Detail (Section 07/08) — tidak ada UI/komponen histori baru yang dibangun.
+ * Ketiga mutator di bawah mencatat `PartyActivity` per keputusan (submit/approve/reject), memberi jejak
+ * "notes/history" — reuse penuh tab "Activity / Follow-up" existing di halaman detail Lead.
  */
 export function submitQuotationForApproval (quotationId: string): Quotation | undefined {
   const quotation = QUOTATIONS.find(q => q.id === quotationId)
   if (!quotation) { return undefined }
   quotation.approvalStatus = 'submitted'
-  const opportunity = getOpportunityById(quotation.opportunityId)
-  if (opportunity) {
+  const lead = getLeadById(quotation.leadId)
+  if (lead && lead.partyId) {
     createPartyActivity({
-      partyId: opportunity.partyId,
-      opportunityId: opportunity.id,
+      partyId: lead.partyId,
+      leadId: lead.id,
       type: 'note',
       message: `Quotation ${quotation.id} (${formatCurrencyIdr(quotation.amountIdr)}) diajukan untuk commercial approval.`,
-      ownerId: opportunity.ownerId
+      ownerId: lead.handedOverTo ?? lead.ownerId
     })
   }
   return quotation
@@ -1257,11 +1234,11 @@ export function approveQuotation (quotationId: string, approverId: string, note?
   quotation.approvalStatus = 'approved'
   quotation.approvedBy = approverId
   quotation.approvalNote = note
-  const opportunity = getOpportunityById(quotation.opportunityId)
-  if (opportunity) {
+  const lead = getLeadById(quotation.leadId)
+  if (lead && lead.partyId) {
     createPartyActivity({
-      partyId: opportunity.partyId,
-      opportunityId: opportunity.id,
+      partyId: lead.partyId,
+      leadId: lead.id,
       type: 'note',
       message: `Quotation ${quotation.id} disetujui (Commercial Approval).${note ? ` Catatan: ${note}` : ''}`,
       ownerId: approverId
@@ -1271,8 +1248,8 @@ export function approveQuotation (quotationId: string, approverId: string, note?
 }
 
 /**
- * "Reject" bertindak sekaligus sebagai "Return for Revision" (Section 06, D-063) — bukan status paralel
- * baru. Quotation kembali dapat direvisi AE lewat "Create New Version" (`reviseQuotation`, mereset
+ * "Reject" bertindak sekaligus sebagai "Return for Revision" (D-063) — bukan status paralel baru.
+ * Quotation kembali dapat direvisi AE lewat "Create New Version" (`reviseQuotation`, mereset
  * `approvalStatus` ke draft), jadi setiap reject SECARA FUNGSIONAL selalu berarti "kembalikan untuk
  * direvisi", sesuai teks bantuan UI existing ("Ditolak — revisi quotation lalu submit ulang").
  */
@@ -1282,11 +1259,11 @@ export function rejectQuotation (quotationId: string, approverId: string, note: 
   quotation.approvalStatus = 'rejected'
   quotation.approvedBy = approverId
   quotation.approvalNote = note
-  const opportunity = getOpportunityById(quotation.opportunityId)
-  if (opportunity) {
+  const lead = getLeadById(quotation.leadId)
+  if (lead && lead.partyId) {
     createPartyActivity({
-      partyId: opportunity.partyId,
-      opportunityId: opportunity.id,
+      partyId: lead.partyId,
+      leadId: lead.id,
       type: 'note',
       message: `Quotation ${quotation.id} ditolak (dikembalikan untuk revisi). Catatan: ${note}`,
       ownerId: approverId
@@ -1295,152 +1272,60 @@ export function rejectQuotation (quotationId: string, approverId: string, note: 
   return quotation
 }
 
-/**
- * Opportunity Won to Project (Section 09) — docs/route-and-role-matrix.md bagian 2.2 (checklist efek Won, LOCKED).
- */
-
 /** PM default untuk project hasil konversi Won — belum ada alur assignment PM manual, lihat section report. */
 const DEFAULT_PROJECT_OWNER_ID = 'USR-002'
 
-/** "Requirement validation" (Section 09) — field yang wajib terisi sebelum Opportunity boleh di-Won-kan. */
-export function getOpportunityMissingRequirements (opportunityId: string): string[] {
-  const opportunity = getOpportunityById(opportunityId)
-  if (!opportunity) { return ['Opportunity tidak ditemukan'] }
-  const missing: string[] = []
-  if (!opportunity.destination) { missing.push('Destinasi') }
-  if (!opportunity.travelStartDate || !opportunity.travelEndDate) { missing.push('Tanggal perjalanan perkiraan') }
-  if (!opportunity.travelerEstimate) { missing.push('Estimasi jumlah traveler') }
-  if (!getQuotationByOpportunity(opportunityId)) { missing.push('Quotation') }
-  return missing
-}
-
 /**
- * Requirement Gate SEBELUM Quotation (Prompt 20-10) — TERPISAH dari `getOpportunityMissingRequirements`
- * (gerbang final sebelum Won, yang justru mensyaratkan Quotation SUDAH ada). Dicek sebelum AE diizinkan
- * membuat Quotation pertama (`openProposalDialog`, Opportunity Detail) — daftar field literal Prompt 20-10:
- * destination, travel period, estimated traveler, service scope, requirement summary, contact person,
- * Account Executive (selalu terisi sejak Opportunity dibuat, tidak dicek ulang), estimated value.
- * Payment terms/margin-cost summary sengaja TIDAK digerbangi di sini (Prompt 20-10 menandainya "bila
- * diwajibkan"/"bila dipakai pada approval" — kondisional tanpa mekanisme konfigurasi eksplisit lain di
- * codebase, jadi diperlakukan sebagai field opsional pada Quotation, bukan blocking gate).
+ * Status workflow AE-facing — lihat `LeadWorkflowStatus` (`app/types/lead.ts`) untuk rasional lengkap.
+ * DIRIVASI, bukan field tersimpan (pola sama `getProjectOrderStatus`). Menggantikan
+ * `getOpportunityWorkflowStatus` lama — tidak lagi ada requirement-gathering/client-confirmation gate.
  */
-export function getOpportunityRequirementGate (opportunityId: string): string[] {
-  const opportunity = getOpportunityById(opportunityId)
-  if (!opportunity) { return ['Opportunity tidak ditemukan'] }
-  const missing: string[] = []
-  if (!opportunity.destination) { missing.push('Destinasi belum diisi') }
-  if (!opportunity.travelStartDate || !opportunity.travelEndDate) { missing.push('Periode perjalanan belum diisi') }
-  if (!opportunity.travelerEstimate) { missing.push('Estimasi traveler belum diisi') }
-  if (!opportunity.serviceScope || opportunity.serviceScope.length === 0) { missing.push('Service scope belum dipilih') }
-  if (!opportunity.requirementNotes) { missing.push('Ringkasan kebutuhan (requirement summary) belum diisi') }
-  if (!opportunity.contactName) { missing.push('Contact person belum diisi') }
-  if (!opportunity.estimatedValueIdr) { missing.push('Estimasi nilai (quotation value) belum diisi') }
-  return missing
-}
+export function getLeadWorkflowStatus (leadId: string): LeadWorkflowStatus | undefined {
+  const lead = getLeadById(leadId)
+  if (!lead) { return undefined }
+  if (lead.stage === 'unqualified') { return 'unqualified' }
+  if (lead.salesOrderId) { return 'sales-order-created' }
+  if (lead.projectId) { return 'won' }
 
-/**
- * AE Requirement Detail (Prompt 20-8B/9) — "Edit Requirement": AE dapat mengubah/menyempurnakan field dasar
- * requirement (dibawa dari Lead qualification) DAN melengkapi `requirementDetail` (itinerary concept,
- * departure city, dst.) tanpa menghapus histori qualification (field lama tetap ada, hanya di-overwrite bila
- * diisi ulang lewat form ini).
- */
-export interface OpportunityRequirementInput {
-  destination?: string
-  travelStartDate?: string
-  travelEndDate?: string
-  travelerEstimate?: number
-  serviceScope?: Opportunity['serviceScope']
-  requirementNotes?: string
-  contactName?: string
-  estimatedValueIdr?: number
-  requirementDetail?: Opportunity['requirementDetail']
-}
-
-export function updateOpportunityRequirement (opportunityId: string, patch: OpportunityRequirementInput): Opportunity | undefined {
-  const opportunity = getOpportunityById(opportunityId)
-  if (!opportunity) { return undefined }
-  Object.assign(opportunity, patch)
-  /** Lokasi terstruktur SELALU diturunkan ulang dari `destination` — bukan field yang bisa diisi manual lewat form ini. */
-  if (patch.destination !== undefined) { opportunity.destinationGeo = resolveDestinationGeo(patch.destination) }
-  return opportunity
-}
-
-/**
- * Client Confirmation (Section 05) — dicatat AE setelah quotation `approved`, gerbang TAMBAHAN sebelum
- * "Mark as Won" (lihat `Opportunity.clientConfirmedAt`, `app/types/opportunity.ts`). Mock — bukan integrasi
- * email/WA nyata (D-006); hanya mencatat bahwa AE sudah menerima konfirmasi lewat kanal apa pun.
- */
-export function recordClientConfirmation (opportunityId: string, actorId: string, note?: string): Opportunity | undefined {
-  const opportunity = getOpportunityById(opportunityId)
-  if (!opportunity) { return undefined }
-  opportunity.clientConfirmedAt = DEMO_REFERENCE_DATE
-  opportunity.clientConfirmationNote = note
-  createPartyActivity({
-    partyId: opportunity.partyId,
-    opportunityId: opportunity.id,
-    type: 'note',
-    message: `Client confirmation dicatat.${note ? ` Catatan: ${note}` : ''}`,
-    ownerId: actorId
-  })
-  return opportunity
-}
-
-/**
- * Status workflow AE-facing (Prompt 20-10/14) — lihat `OpportunityWorkflowStatus` (`app/types/opportunity.ts`)
- * untuk rasional lengkap. DIRIVASI, bukan field tersimpan — tidak merestrukturisasi `OpportunityStage` (D-049).
- */
-export function getOpportunityWorkflowStatus (opportunityId: string): OpportunityWorkflowStatus | undefined {
-  const opportunity = getOpportunityById(opportunityId)
-  if (!opportunity) { return undefined }
-  if (opportunity.stage === 'won') { return 'won' }
-  if (opportunity.stage === 'lost') { return 'lost' }
-
-  const quotation = getQuotationByOpportunity(opportunityId)
-  if (!quotation) {
-    return getOpportunityRequirementGate(opportunityId).length > 0 ? 'pending-requirement' : 'ready-for-quotation'
-  }
+  const quotation = lead.quotationId ? getQuotationById(lead.quotationId) : undefined
+  if (!quotation) { return 'qualified-pending-quotation' }
   const approvalStatus = quotation.approvalStatus ?? 'draft'
   if (approvalStatus === 'submitted') { return 'pending-management-approval' }
-  if (approvalStatus === 'approved') { return 'approved' }
+  if (approvalStatus === 'approved') { return 'quotation-approved' }
   return 'quotation-draft'
 }
 
 /**
- * Approve Won — sejak D-053 (Prompt 20) dipanggil dari "Mark as Won" oleh AE (`canManageOpportunity`),
- * BUKAN langsung oleh Management (approver dikreditkan lewat parameter `approverId`, umumnya
- * `quotation.approvedBy`). Guard "duplicate prevention": jika opportunity sudah punya `projectId`,
- * kembalikan project yang sudah ada tanpa membuat duplikat. Guard stage: hanya bisa dari `won-requested`.
- *
- * Section 06 — guard tambahan `quotation.approvalStatus === 'approved'` dan `opportunity.clientConfirmedAt`
- * DIPINDAHKAN ke level data (sebelumnya hanya dicek di UI Opportunity Detail, Section 05) — literal Wajib
- * Section 06 "Seluruh permitted dan forbidden flow dapat diuji melalui role switcher" berarti forbidden
- * flow harus benar-benar diblokir di mutator, bukan hanya disembunyikan lewat tombol disabled.
+ * "Mark as Won" — satu langkah (bukan lagi AE-ajukan→Management-approve terpisah, disederhanakan sejak
+ * Opportunity dihapus), digerbangi HANYA `Quotation.approvalStatus === 'approved'`. Guard "duplicate
+ * prevention": jika Lead sudah punya `projectId`, kembalikan project yang sudah ada tanpa membuat duplikat.
  */
-export function approveOpportunityWon (opportunityId: string, approverId: string): Project | undefined {
-  const opportunity = getOpportunityById(opportunityId)
-  if (!opportunity || opportunity.stage !== 'won-requested') { return undefined }
-  if (opportunity.projectId) { return getProjectById(opportunity.projectId) }
-  if (getOpportunityMissingRequirements(opportunityId).length > 0) { return undefined }
+export function markLeadWon (leadId: string, approverId: string): Project | undefined {
+  const lead = getLeadById(leadId)
+  if (!lead || !lead.partyId) { return undefined }
+  if (lead.projectId) { return getProjectById(lead.projectId) }
+  if (!lead.quotationId || !lead.destination || !lead.travelStartDate || !lead.travelEndDate || !lead.travelerEstimate) { return undefined }
 
-  const quotation = getQuotationByOpportunity(opportunityId)!
-  if (quotation.approvalStatus !== 'approved' || !opportunity.clientConfirmedAt) { return undefined }
-  const party = getPartyById(opportunity.partyId)
+  const quotation = getQuotationById(lead.quotationId)
+  if (!quotation || quotation.approvalStatus !== 'approved') { return undefined }
+  const party = getPartyById(lead.partyId)
+  const accountExecutiveId = lead.handedOverTo ?? lead.ownerId
 
   const project: Project = {
     id: nextSequentialId('PRJ-', PROJECTS),
-    name: opportunity.title,
-    partyId: opportunity.partyId,
-    opportunityId: opportunity.id,
+    name: lead.title ?? lead.companyName ?? lead.name,
+    partyId: lead.partyId,
+    leadId: lead.id,
     sourceQuotationId: quotation.id,
-    destination: opportunity.destination,
-    destinationGeo: opportunity.destinationGeo,
-    travelStartDate: opportunity.travelStartDate!,
-    travelEndDate: opportunity.travelEndDate!,
+    destination: lead.destination,
+    destinationGeo: resolveDestinationGeo(lead.destination),
+    travelStartDate: lead.travelStartDate,
+    travelEndDate: lead.travelEndDate,
     characteristic: 'normal',
-    serviceScope: opportunity.serviceScope,
-    travelerCount: opportunity.travelerEstimate!,
+    serviceScope: lead.serviceScope ?? [],
+    travelerCount: lead.travelerEstimate,
     ownerId: DEFAULT_PROJECT_OWNER_ID,
-    teamUserIds: [opportunity.ownerId],
+    teamUserIds: [accountExecutiveId],
     status: 'draft',
     quotationAmountIdr: quotation.amountIdr,
     budgetIdr: quotation.amountIdr,
@@ -1448,47 +1333,29 @@ export function approveOpportunityWon (opportunityId: string, approverId: string
   }
   PROJECTS.push(project)
 
-  opportunity.stage = 'won'
-  opportunity.decidedAt = DEMO_REFERENCE_DATE
-  opportunity.wonApprovedBy = approverId
-  opportunity.projectId = project.id
+  lead.projectId = project.id
 
   if (party) {
     if (party.lifecycleStatus === 'prospect') { party.lifecycleStatus = 'client' }
-    // "Account Owner AE" (Section 06 — checklist transaksi Won): tegaskan ulang AE deal ini sebagai
-    // account owner company, konsisten dengan pengisian awal di `qualifyLeadAndCreateOpportunity`.
-    party.accountOwnerId = opportunity.ownerId
+    // "Account Owner AE": tegaskan ulang AE deal ini sebagai account owner company, konsisten dengan
+    // pengisian awal di `qualifyLeadForQuotation`.
+    party.accountOwnerId = accountExecutiveId
     // Safety-net: akun login Client Portal biasanya sudah dibuat lebih awal di `sendQuotationToClient`.
     // Idempotent — no-op kalau sudah ada.
-    ensureClientLoginAccount(opportunity, opportunity.ownerId)
+    ensureClientLoginAccount(lead, accountExecutiveId)
   }
 
   const approver = getUserById(approverId)
   ACTIVITIES.push({
     id: `ACT-${project.id.replace('PRJ-', '')}1`,
     projectId: project.id,
-    message: `Project ${project.id} dibuat dari Opportunity ${opportunity.id} (Won oleh ${approver?.name ?? approverId})`,
+    message: `Project ${project.id} dibuat dari Lead ${lead.id} (Won oleh ${approver?.name ?? approverId})`,
     isChange: false,
     reviewed: true,
     createdAt: DEMO_REFERENCE_DATE
   })
 
   return project
-}
-
-/** Reject — kembali ke Negotiation dengan catatan (docs bagian 2.1: "WonRequested → Negotiation: ditolak, kembali dengan catatan"). */
-export function rejectOpportunityWon (opportunityId: string, note: string): Opportunity | undefined {
-  const opportunity = getOpportunityById(opportunityId)
-  if (!opportunity || opportunity.stage !== 'won-requested') { return undefined }
-  opportunity.stage = 'negotiation'
-  createPartyActivity({
-    partyId: opportunity.partyId,
-    opportunityId: opportunity.id,
-    type: 'note',
-    message: `Approval Won ditolak, kembali ke Negotiation. Catatan: ${note}`,
-    ownerId: opportunity.ownerId
-  })
-  return opportunity
 }
 
 /**
@@ -2904,7 +2771,7 @@ export function rejectVendorQuotation (quotationId: string): VendorQuotation | u
  * sesuai `docs/mockup-information-architecture.md` bagian 4 (LOCKED: satu sumber log yang sama dengan flag
  * `isChange`). `approvalStatus` terpisah dari `reviewed` (Section 06, dipakai `hasUnreviewedChange`/
  * `isProjectNeedingAttention` — tidak disentuh) — mensimulasikan alur approval dua-langkah yang sama polanya
- * dengan Opportunity Won (Section 09) dan Vendor Quotation (Section 13): ajukan → setujui/tolak.
+ * dengan Lead "Mark as Won" dan Vendor Quotation (Section 13): ajukan → setujui/tolak.
  */
 
 export interface CreateChangeEntryInput {
@@ -2957,10 +2824,9 @@ export function rejectChangeEntry (entryId: string, approverId: string): Activit
 }
 
 /**
- * Lead (Prompt 19 — Change Request) — mengikuti pola `reactive()` mutasi Section 07 dst. "Qualify & Create
- * Opportunity" TIDAK memakai istilah "Convert to Customer" (instruksi literal Prompt 19-5A) — hasil akhirnya
- * adalah `Party` (Prospect) + `Opportunity` (stage `qualification`), bukan langsung "Client"; Party baru
- * hanya `Client` setelah Opportunity-nya benar-benar Won (D-024, tidak diubah).
+ * Lead — mengikuti pola `reactive()` mutasi Section 07 dst. "Qualify" TIDAK memakai istilah "Convert to
+ * Customer" (instruksi literal Prompt 19-5A) — hasil akhirnya adalah `Party` (Prospect), bukan langsung
+ * "Client"; Party baru hanya `Client` setelah deal-nya benar-benar Won (D-024, tidak diubah).
  */
 export const getLeadById = (id: string) => LEADS.find(lead => lead.id === id)
 export function getLeadActivities (leadId: string) {
@@ -3064,7 +2930,7 @@ export function mergeLeadAsDuplicate (duplicateLeadId: string, canonicalLeadId: 
 /**
  * Qualification form field yang boleh disimpan sebagai draft (Prompt 20 — Change Request, tombol
  * "Simpan Draft") — TIDAK ada gate di sini, boleh sebagian/kosong. Gate kelengkapan ada di
- * `getLeadMissingQualification`, dicek terpisah sebelum "Qualify & Create Opportunity" diizinkan.
+ * `getLeadMissingQualification`, dicek terpisah sebelum tombol "Qualify" diizinkan.
  */
 export interface LeadQualificationInput {
   serviceCategory?: Lead['serviceCategory']
@@ -3093,8 +2959,9 @@ export function updateLeadQualification (leadId: string, patch: LeadQualificatio
 }
 
 /**
- * Field wajib (Prompt 20-4/5) sebelum Lead dapat di-qualify — dicek tombol "Qualify & Create Opportunity"
- * (disabled + warning list bila belum lengkap), mengikuti pola `getOpportunityMissingRequirements` (Section 09).
+ * Field wajib sebelum Lead dapat di-qualify — dicek tombol "Qualify" (disabled + warning list bila belum
+ * lengkap). Gate yang SAMA dipakai kedua jalur (B2B `qualifyLeadForQuotation` dan B2C
+ * `qualifyLeadAndCreateSalesOrder`) — tidak ada gate terpisah per jalur.
  */
 export function getLeadMissingQualification (leadId: string): string[] {
   const lead = getLeadById(leadId)
@@ -3110,7 +2977,7 @@ export function getLeadMissingQualification (leadId: string): string[] {
   return missing
 }
 
-/** "Mark as Unqualified" (Prompt 20-4) — terminal untuk mockup ini, tidak membuat Party/Opportunity. */
+/** "Mark as Unqualified" — terminal untuk mockup ini, tidak membuat Party/deal apa pun. */
 export function markLeadUnqualified (leadId: string, note?: string): Lead | undefined {
   const lead = getLeadById(leadId)
   if (!lead) { return undefined }
@@ -3123,17 +2990,18 @@ export function markLeadUnqualified (leadId: string, note?: string): Lead | unde
 }
 
 /**
- * "Qualify & Create Opportunity" — satu-satunya jalur Lead menjadi Opportunity (bukan tombol terpisah
- * "Convert to Customer"). Mencari `Party` existing dengan nama company yang sama dulu (hindari duplicate
- * company, konsisten Prompt 19-4 "repeat client: jangan membuat client baru"); bila tidak ada, buat Party
- * baru berstatus `prospect`. Opportunity baru dibuat di stage `qualification`, membawa seluruh data
- * qualification (Prompt 20-6) dari Lead. `accountExecutiveId` diambil dari `lead.handedOverTo` (diisi Sales
- * lewat form Qualification, bukan lagi ditentukan otomatis saat tombol diklik). Gate: `getLeadMissingQualification`
- * harus kosong (dicek juga di sini, bukan hanya di UI, agar mutator ini aman dipanggil dari mana pun).
+ * "Qualify" (B2B — `serviceCategory` selain `individual-travel`) — satu-satunya jalur Lead menjadi deal
+ * record (bukan tombol terpisah "Convert to Customer"). Mencari `Party` existing dengan nama company yang
+ * sama dulu (hindari duplicate company, konsisten Prompt 19-4 "repeat client: jangan membuat client baru");
+ * bila tidak ada, buat Party baru berstatus `prospect`. `accountExecutiveId` diambil dari `lead.handedOverTo`.
+ * Gate: `getLeadMissingQualification` harus kosong (dicek juga di sini, bukan hanya di UI).
+ *
+ * TIDAK langsung membuat Quotation — itu aksi eksplisit AE berikutnya (`createQuotation`) di halaman detail
+ * Lead. Lead individual-travel memakai `qualifyLeadAndCreateSalesOrder` sebagai gantinya.
  */
-export function qualifyLeadAndCreateOpportunity (leadId: string): Opportunity | undefined {
+export function qualifyLeadForQuotation (leadId: string): Lead | undefined {
   const lead = getLeadById(leadId)
-  if (!lead || lead.opportunityId || getLeadMissingQualification(leadId).length > 0) { return undefined }
+  if (!lead || lead.quotationId || lead.projectId || lead.salesOrderId || getLeadMissingQualification(leadId).length > 0) { return undefined }
   const accountExecutiveId = lead.handedOverTo!
 
   let party = lead.companyName ? PARTIES.find(p => p.name.toLowerCase() === lead.companyName!.toLowerCase()) : undefined
@@ -3148,30 +3016,9 @@ export function qualifyLeadAndCreateOpportunity (leadId: string): Opportunity | 
     PARTIES.push(party)
   }
 
-  const opportunity: Opportunity = {
-    id: nextSequentialId('OPP-', OPPORTUNITIES),
-    partyId: party.id,
-    title: `${lead.companyName || lead.name} — Opportunity Baru`,
-    stage: 'qualification',
-    ownerId: accountExecutiveId,
-    estimatedValueIdr: 0,
-    destination: lead.destination!,
-    destinationGeo: resolveDestinationGeo(lead.destination!),
-    travelStartDate: lead.travelStartDate,
-    travelEndDate: lead.travelEndDate,
-    travelerEstimate: lead.travelerEstimate,
-    serviceScope: lead.serviceScope ?? [],
-    requirementNotes: lead.requirementSummary,
-    createdAt: DEMO_REFERENCE_DATE,
-    contactName: lead.name,
-    leadId: lead.id,
-    expectedCloseDate: lead.expectedCloseDate
-  }
-  OPPORTUNITIES.push(opportunity)
-
   lead.stage = 'qualified'
   lead.partyId = party.id
-  lead.opportunityId = opportunity.id
+  lead.qualifiedAt = DEMO_REFERENCE_DATE
   lead.lastUpdatedAt = DEMO_REFERENCE_DATE
 
   const accountExecutive = getUserById(accountExecutiveId)
@@ -3179,13 +3026,73 @@ export function qualifyLeadAndCreateOpportunity (leadId: string): Opportunity | 
   createLeadActivity({ leadId: lead.id, type: 'note', message: `Lead Assigned to Account Executive (${accountExecutive?.name ?? accountExecutiveId})`, ownerId: accountExecutiveId })
   createPartyActivity({
     partyId: party.id,
-    opportunityId: opportunity.id,
+    leadId: lead.id,
     type: 'note',
-    message: `Opportunity Created dari Lead ${lead.id}`,
+    message: `Lead ${lead.id} qualified — siap dibuatkan Quotation.`,
     ownerId: accountExecutiveId
   })
 
-  return opportunity
+  return lead
+}
+
+/**
+ * "Qualify" (B2C — `serviceCategory === 'individual-travel'`) — Lead langsung jadi `SalesOrder` (bukan
+ * Quotation/approval terpisah, konsisten desain Sales Order yang memang ringan). Reuse dedup Party by name
+ * yang sama dengan `qualifyLeadForQuotation` — BEDA dari `createSalesOrder` standalone (dialog manual tanpa
+ * Lead) yang selalu bikin Party baru, karena di sini Lead-nya sendiri mungkin sudah pernah tercatat.
+ */
+export function qualifyLeadAndCreateSalesOrder (leadId: string, input: { priceIdr: number; travelerCount?: number }): SalesOrder | undefined {
+  const lead = getLeadById(leadId)
+  if (!lead || lead.quotationId || lead.projectId || lead.salesOrderId || getLeadMissingQualification(leadId).length > 0) { return undefined }
+  if (!(input.priceIdr > 0)) { return undefined }
+  const travelerCount = input.travelerCount ?? lead.travelerEstimate
+  if (!lead.destination || !lead.travelStartDate || !lead.travelEndDate || !travelerCount) { return undefined }
+  const accountExecutiveId = lead.handedOverTo!
+
+  let party = PARTIES.find(p => p.partyType === 'individual' && p.name.toLowerCase() === lead.name.toLowerCase())
+  if (!party) {
+    party = {
+      id: nextSequentialId('PTY-', PARTIES),
+      name: lead.name,
+      partyType: 'individual',
+      lifecycleStatus: 'client',
+      createdAt: DEMO_REFERENCE_DATE,
+      accountOwnerId: accountExecutiveId
+    }
+    PARTIES.push(party)
+  }
+
+  const order: SalesOrder = {
+    id: nextSequentialId('SLO-', SALES_ORDERS),
+    customerId: party.id,
+    destination: lead.destination,
+    travelStartDate: lead.travelStartDate,
+    travelEndDate: lead.travelEndDate,
+    travelerCount,
+    priceIdr: input.priceIdr,
+    status: 'draft',
+    createdAt: DEMO_REFERENCE_DATE
+  }
+  SALES_ORDERS.push(order)
+
+  lead.stage = 'qualified'
+  lead.partyId = party.id
+  lead.salesOrderId = order.id
+  lead.qualifiedAt = DEMO_REFERENCE_DATE
+  lead.lastUpdatedAt = DEMO_REFERENCE_DATE
+
+  createLeadActivity({ leadId: lead.id, type: 'note', message: 'Lead Qualified', ownerId: accountExecutiveId })
+  createPartyActivity({
+    partyId: party.id,
+    leadId: lead.id,
+    type: 'note',
+    message: `Sales Order ${order.id} dibuat dari Lead ${lead.id}`,
+    ownerId: accountExecutiveId
+  })
+
+  // Re-fetch lewat `getSalesOrderById` — pola sama `createSalesOrder`, supaya identitas hasil return sama
+  // dengan Proxy `reactive()` yang didapat caller lain (perlu untuk reference-equality check, mis. di test).
+  return getSalesOrderById(order.id)
 }
 
 /** Vendor Product catalog (Prompt 19 — area Supplier/External Partners). */
@@ -3205,8 +3112,8 @@ export function createVendorProduct (input: { vendorId: string; name: string; ca
 
 export const getProductTemplateById = (id: string) => PRODUCT_TEMPLATES.find(product => product.id === id)
 export const getCostSheetById = (id: string) => COST_SHEETS.find(sheet => sheet.id === id)
-export const getCostSheetsByOpportunity = (opportunityId: string) => COST_SHEETS
-  .filter(sheet => sheet.opportunityId === opportunityId)
+export const getCostSheetsByLead = (leadId: string) => COST_SHEETS
+  .filter(sheet => sheet.leadId === leadId)
   .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 export const getCostSheetsByProduct = (productId: string) => COST_SHEETS
   .filter(sheet => sheet.productId === productId)
@@ -3226,7 +3133,7 @@ export interface CostSheetBreakdown {
 /**
  * Kalkulasi Cost Sheet (Wajib "Cost sheet, markup, tax/fee, contingency, currency", "Traveler-based
  * costing") — DIRIVASI dari `lineItems`/`travelerCount`/`markupPercent`/`taxPercent`/`contingencyPercent`,
- * bukan field tersimpan (pola sama `getProjectOrderStatus`/`getOpportunityWorkflowStatus`), agar mengubah
+ * bukan field tersimpan (pola sama `getProjectOrderStatus`/`getLeadWorkflowStatus`), agar mengubah
  * satu komponen (mis. traveler count) otomatis konsisten di seluruh angka turunan tanpa risiko field stale.
  * Urutan: base cost → + contingency → + markup → + tax = total sell.
  */
@@ -3300,7 +3207,7 @@ export function updateProductTemplateStatus (id: string, newStatus: ProductTempl
 export interface CreateCostSheetInput {
   name: string
   productId?: string
-  opportunityId?: string
+  leadId?: string
   travelerCount: number
   currency?: string
   lineItems?: CostSheetLineItem[]
@@ -3381,18 +3288,18 @@ export function duplicateCostSheetVersion (id: string): CostSheet | undefined {
 
 /**
  * "Snapshot konsep ketika dipakai pada quotation/project" + "Internal costing tidak terlihat Client"
- * (Wajib) — mengubah hasil kalkulasi Cost Sheet menjadi nilai Quotation (dibuat baru bila Opportunity
- * belum punya Quotation, atau memperbarui Quotation draft yang sudah ada — guard sama seperti
- * `updateQuotationDetails`: tidak bisa menimpa Quotation yang sudah `submitted`/`approved`). Hanya
+ * (Wajib) — mengubah hasil kalkulasi Cost Sheet menjadi nilai Quotation (dibuat baru bila Lead belum punya
+ * Quotation, atau memperbarui Quotation draft yang sudah ada — guard sama seperti `updateQuotationDetails`:
+ * tidak bisa menimpa Quotation yang sudah `submitted`/`approved`). Hanya
  * `estimatedCostIdr`/`estimatedMarginIdr`/`serviceBreakdown` yang tersalin ke Quotation (field internal
  * cost/margin TETAP hanya tampil di halaman internal — Client Portal Section 08 sudah menyaring field ini
  * sejak awal, tidak perlu perubahan tambahan). Setelah diterapkan, Cost Sheet dikunci (`final`).
  */
 export function applyCostSheetToQuotation (costSheetId: string, actorId: string): Quotation | undefined {
   const costSheet = getCostSheetById(costSheetId)
-  if (!costSheet || costSheet.appliedToQuotationId || !costSheet.opportunityId) { return undefined }
-  const opportunity = getOpportunityById(costSheet.opportunityId)
-  if (!opportunity) { return undefined }
+  if (!costSheet || costSheet.appliedToQuotationId || !costSheet.leadId) { return undefined }
+  const lead = getLeadById(costSheet.leadId)
+  if (!lead || !lead.partyId) { return undefined }
 
   const breakdown = getCostSheetBreakdown(costSheet)
   const serviceBreakdown = costSheet.lineItems.map(item => ({
@@ -3401,7 +3308,7 @@ export function applyCostSheetToQuotation (costSheetId: string, actorId: string)
     amountIdr: item.costPerPaxIdr * costSheet.travelerCount
   }))
 
-  let quotation = getQuotationByOpportunity(opportunity.id)
+  let quotation = getQuotationByLead(lead.id)
   if (quotation) {
     if (quotation.approvalStatus === 'submitted' || quotation.approvalStatus === 'approved') { return undefined }
     Object.assign(quotation, {
@@ -3412,7 +3319,7 @@ export function applyCostSheetToQuotation (costSheetId: string, actorId: string)
       serviceBreakdown
     })
   } else {
-    quotation = createQuotation(opportunity.id, breakdown.totalSellIdr)
+    quotation = createQuotation(lead.id, breakdown.totalSellIdr)
     Object.assign(quotation, {
       estimatedCostIdr: breakdown.costWithContingencyIdr,
       estimatedMarginIdr: breakdown.marginIdr,
@@ -3427,8 +3334,8 @@ export function applyCostSheetToQuotation (costSheetId: string, actorId: string)
   costSheet.status = 'final'
 
   createPartyActivity({
-    partyId: opportunity.partyId,
-    opportunityId: opportunity.id,
+    partyId: lead.partyId,
+    leadId: lead.id,
     type: 'note',
     message: `Cost Sheet ${costSheet.id} (${costSheet.name}) diterapkan ke Quotation ${quotation.id} — ${formatCurrencyIdr(breakdown.totalSellIdr)}.`,
     ownerId: actorId
@@ -5591,11 +5498,9 @@ export function getClientProjectReadiness (projectId: string): ClientProjectRead
 // ============================================================================
 // Travel Requests (CRUD + status flow + mock review), Quotations & Proposals (revision/version cascade,
 // attachment/comment mock), dan Approval Center generik. Prinsip utama: REUSE penuh pipeline
-// Lead→Opportunity→Quotation→Won yang sudah ada dan LOCKED (`createLead`/`updateLeadQualification`/
-// `qualifyLeadAndCreateOpportunity`/`createQuotation`/`submitQuotationForApproval`/`approveQuotation`/
-// `recordClientConfirmation`/`advanceOpportunityStage`/`approveOpportunityWon`) — TIDAK SATU PUN fungsi di
-// atas diubah bodinya; section ini murni mengorkestrasi pemanggilannya secara berurutan (pola sama
-// `submitMarkAsWon`, `app/pages/crm/opportunities/[id]/index.vue`, D-053) dari sisi Client.
+// Lead→Quotation→Won yang sudah ada (`createLead`/`updateLeadQualification`/`qualifyLeadForQuotation`/
+// `createQuotation`/`submitQuotationForApproval`/`approveQuotation`/`markLeadWon`) — TIDAK SATU PUN fungsi
+// di atas diubah bodinya; section ini murni mengorkestrasi pemanggilannya secara berurutan dari sisi Client.
 
 /* --- Travel Request activity timeline (pola sama LeadActivity, `app/types/lead.ts`) --- */
 export function getTravelRequestActivities (travelRequestId: string): TravelRequestActivity[] {
@@ -5620,8 +5525,8 @@ export function getTravelRequestSubmitGate (travelRequest: Pick<TravelRequest, '
 /**
  * Gate "mock review" (Wajib "Mock review") — lebih ketat dari submit gate, menentukan apakah tim (mock)
  * dapat langsung menyiapkan proposal atau harus meminta klarifikasi dulu. Deterministik berdasarkan
- * kelengkapan field — BUKAN random/palsu — pola sama `getOpportunityMissingRequirements`/
- * `getLeadMissingQualification`. Dipakai juga oleh `respondToTravelRequestClarification` untuk menilai
+ * kelengkapan field — BUKAN random/palsu — pola sama `getLeadMissingQualification`. Dipakai juga oleh
+ * `respondToTravelRequestClarification` untuk menilai
  * ulang setelah Client menjawab klarifikasi.
  */
 export function getTravelRequestReviewGate (travelRequest: TravelRequest): string[] {
@@ -5695,7 +5600,7 @@ export function updateTravelRequestDraft (id: string, patch: Partial<TravelReque
   return travelRequest
 }
 
-/** "Duplicate" (Wajib) — salinan baru berstatus draft, TIDAK membawa `leadId`/`opportunityId`/status lama. */
+/** "Duplicate" (Wajib) — salinan baru berstatus draft, TIDAK membawa `leadId`/status lama. */
 export function duplicateTravelRequest (id: string, actorId: string): TravelRequest | undefined {
   const source = getTravelRequestById(id)
   if (!source) { return undefined }
@@ -5706,18 +5611,17 @@ export function duplicateTravelRequest (id: string, actorId: string): TravelRequ
     status: 'draft',
     createdAt: DEMO_REFERENCE_DATE,
     updatedAt: undefined,
-    leadId: undefined,
-    opportunityId: undefined
+    leadId: undefined
   }
   TRAVEL_REQUESTS.push(duplicate)
   logTravelRequestActivity(duplicate.id, `Duplikat dari ${source.id}.`, actorId)
   return duplicate
 }
 
-/** "Cancel" (Wajib) — alasan wajib (pola mandatory-reason-on-destructive-transition), tidak dapat cancel yang sudah `cancelled`/`closed`/`converted-to-opportunity`. */
+/** "Cancel" (Wajib) — alasan wajib (pola mandatory-reason-on-destructive-transition), tidak dapat cancel yang sudah `cancelled`/`closed`/`converted-to-lead`. */
 export function cancelTravelRequest (id: string, actorId: string, reason: string): TravelRequest | undefined {
   const travelRequest = getTravelRequestById(id)
-  if (!travelRequest || !reason.trim() || ['cancelled', 'closed', 'converted-to-opportunity'].includes(travelRequest.status)) { return undefined }
+  if (!travelRequest || !reason.trim() || ['cancelled', 'closed', 'converted-to-lead'].includes(travelRequest.status)) { return undefined }
   travelRequest.status = 'cancelled'
   travelRequest.updatedAt = DEMO_REFERENCE_DATE
   logTravelRequestActivity(id, `Dibatalkan oleh Client. Alasan: ${reason.trim()}`, actorId)
@@ -5728,7 +5632,7 @@ export function cancelTravelRequest (id: string, actorId: string, reason: string
  * Mock review internal (Wajib Cross-module: "Travel Request submitted → Activity created → Notification
  * created → Mock review → Quotation appears", Master Prompt Flow 1). `getTravelRequestReviewGate`
  * menentukan apakah proposal bisa langsung disiapkan atau perlu klarifikasi — deterministik, bukan acak.
- * Begitu lolos gate, meng-cascade lewat pipeline Lead→Opportunity→Quotation existing yang SUDAH bekerja —
+ * Begitu lolos gate, meng-cascade lewat pipeline Lead→Quotation existing yang SUDAH bekerja —
  * "Mock Sales Review"/"Management Approval" disimulasikan instan (tidak ada aktor internal yang dapat
  * diakses dari role Client), sehingga Client tetap bisa melihat hasil end-to-end tanpa berganti role.
  */
@@ -5773,22 +5677,21 @@ function runTravelRequestMockReview (travelRequest: TravelRequest, actorId: stri
     handedOverTo: reviewerId
   })
 
-  const opportunity = qualifyLeadAndCreateOpportunity(lead.id)
-  if (!opportunity) {
+  const qualified = qualifyLeadForQuotation(lead.id)
+  if (!qualified) {
     // Pengaman jujur — reviewGate sudah menutupi seluruh field wajib `getLeadMissingQualification`, jalur ini
     // seharusnya tidak pernah tercapai, tapi dicatat sebagai fallback bukan crash bila suatu saat terjadi.
-    logTravelRequestActivity(travelRequest.id, 'Proposal Preparation tertunda — data belum cukup untuk membentuk Opportunity.', reviewerId)
+    logTravelRequestActivity(travelRequest.id, 'Proposal Preparation tertunda — data belum cukup untuk qualify Lead.', reviewerId)
     return
   }
 
   travelRequest.leadId = lead.id
-  travelRequest.opportunityId = opportunity.id
-  travelRequest.status = 'converted-to-opportunity'
+  travelRequest.status = 'converted-to-lead'
   travelRequest.updatedAt = DEMO_REFERENCE_DATE
-  logTravelRequestActivity(travelRequest.id, `Dikonversi menjadi Opportunity ${opportunity.id}.`, reviewerId)
+  logTravelRequestActivity(travelRequest.id, `Dikonversi menjadi Lead ${lead.id}.`, reviewerId)
 
   const quotationAmount = travelRequest.estimatedBudgetIdr ?? 0
-  const quotation = createQuotation(opportunity.id, quotationAmount)
+  const quotation = createQuotation(lead.id, quotationAmount)
   updateQuotationDetails(quotation.id, {
     paymentTerms: 'DP 50% saat konfirmasi, pelunasan H-14 sebelum keberangkatan.',
     serviceBreakdown: travelRequest.serviceScope.map(service => ({
@@ -5859,17 +5762,14 @@ export function addQuotationComment (quotationId: string, authorId: string, body
 /**
  * "Request revision" (Wajib Cross-module: "Quotation revision requested → New status → Activity →
  * Notification → New quotation version simulation"). Reuse `duplicateQuotationVersion`+
- * `submitQuotationForApproval`+`approveQuotation` existing (pola sama D-053 "berurutan sinkron"; approve
- * mock merepresentasikan Management menyetujui ulang versi revisi secara instan). `clientConfirmedAt`
- * DIRESET — versi lama yang sempat dikonfirmasi Client sudah superseded, wajib dikonfirmasi ulang.
+ * `submitQuotationForApproval`+`approveQuotation` existing (pola "berurutan sinkron"; approve mock
+ * merepresentasikan Management menyetujui ulang versi revisi secara instan).
  */
-export function requestQuotationRevision (opportunityId: string, actorId: string, note: string): Quotation | undefined {
-  const opportunity = getOpportunityById(opportunityId)
-  const quotation = getQuotationByOpportunity(opportunityId)
-  if (!opportunity || !quotation || !note.trim()) { return undefined }
-  createPartyActivity({ partyId: opportunity.partyId, opportunityId, type: 'note', message: `Client meminta revisi quotation. Catatan: ${note.trim()}`, ownerId: actorId })
-  opportunity.clientConfirmedAt = undefined
-  opportunity.clientConfirmationNote = undefined
+export function requestQuotationRevision (leadId: string, actorId: string, note: string): Quotation | undefined {
+  const lead = getLeadById(leadId)
+  const quotation = getQuotationByLead(leadId)
+  if (!lead || !lead.partyId || !quotation || !note.trim()) { return undefined }
+  createPartyActivity({ partyId: lead.partyId, leadId, type: 'note', message: `Client meminta revisi quotation. Catatan: ${note.trim()}`, ownerId: actorId })
   duplicateQuotationVersion(quotation.id)
   submitQuotationForApproval(quotation.id)
   approveQuotation(quotation.id, quotation.approvedBy ?? actorId, 'Revisi disetujui otomatis (mock Management approval).')

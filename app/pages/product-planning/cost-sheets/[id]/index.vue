@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus, Trash2 } from 'lucide-vue-next'
 import {
-  getCostSheetById, getCostSheetBreakdown, getCostSheetsByOpportunity, getProductTemplateById, getOpportunityById,
+  getCostSheetById, getCostSheetBreakdown, getCostSheetsByLead, getProductTemplateById, getLeadById,
   updateCostSheet, duplicateCostSheetVersion, applyCostSheetToQuotation
 } from '~/data'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
@@ -25,12 +25,13 @@ useHead({ title: computed(() => costSheet.value ? costSheet.value.name : 'Cost S
 
 const breakdown = computed(() => (costSheet.value ? getCostSheetBreakdown(costSheet.value) : undefined))
 const product = computed(() => (costSheet.value?.productId ? getProductTemplateById(costSheet.value.productId) : undefined))
-const opportunity = computed(() => (costSheet.value?.opportunityId ? getOpportunityById(costSheet.value.opportunityId) : undefined))
+const lead = computed(() => (costSheet.value?.leadId ? getLeadById(costSheet.value.leadId) : undefined))
+const leadTitle = computed(() => lead.value?.title ?? lead.value?.companyName ?? lead.value?.name ?? '—')
 
-/** Scenario/version comparison (Wajib) — Cost Sheet lain yang melekat pada Opportunity yang sama. */
+/** Scenario/version comparison (Wajib) — Cost Sheet lain yang melekat pada Lead yang sama. */
 const scenarioSiblings = computed(() => {
-  if (!costSheet.value?.opportunityId) { return [] }
-  return getCostSheetsByOpportunity(costSheet.value.opportunityId).filter(sheet => sheet.id !== costSheet.value!.id)
+  if (!costSheet.value?.leadId) { return [] }
+  return getCostSheetsByLead(costSheet.value.leadId).filter(sheet => sheet.id !== costSheet.value!.id)
 })
 const compareTargetId = ref('')
 const compareTarget = computed(() => scenarioSiblings.value.find(sheet => sheet.id === compareTargetId.value))
@@ -42,7 +43,7 @@ const summaryMetadata = computed(() => {
   if (!costSheet.value) { return [] }
   return [
     { label: 'Product Template', value: product.value?.name ?? '—' },
-    { label: 'Opportunity', value: opportunity.value?.title ?? '—' },
+    { label: 'Lead', value: leadTitle.value },
     { label: 'Traveler Count', value: `${costSheet.value.travelerCount} pax` },
     { label: 'Currency', value: costSheet.value.currency },
     { label: 'Versi', value: `v${costSheet.value.version}` },
@@ -126,7 +127,7 @@ function submitApplyToQuotation () {
   if (quotation) {
     showToast('Diterapkan ke Quotation', `Cost Sheet ini kini terkunci (snapshot) dan diterapkan ke Quotation ${quotation.id}.`, 'success')
   } else {
-    showToast('Gagal Menerapkan', 'Quotation pada Opportunity ini sudah diajukan/disetujui — tidak dapat ditimpa oleh Cost Sheet.', 'error')
+    showToast('Gagal Menerapkan', 'Quotation pada Lead ini sudah diajukan/disetujui — tidak dapat ditimpa oleh Cost Sheet.', 'error')
   }
 }
 </script>
@@ -162,7 +163,7 @@ function submitApplyToQuotation () {
               <Button size="sm" variant="outline" @click="submitDuplicate">
                 Duplicate as New Version
               </Button>
-              <Dialog v-if="costSheet.opportunityId && !costSheet.appliedToQuotationId" v-model:open="isApplyDialogOpen">
+              <Dialog v-if="costSheet.leadId && !costSheet.appliedToQuotationId" v-model:open="isApplyDialogOpen">
                 <DialogTrigger as-child>
                   <Button size="sm">
                     Apply to Quotation
@@ -172,7 +173,7 @@ function submitApplyToQuotation () {
                   <DialogHeader>
                     <DialogTitle>Terapkan Cost Sheet ke Quotation</DialogTitle>
                     <DialogDescription>
-                      Total sell ({{ formatCurrencyIdr(breakdown!.totalSellIdr) }}) akan disalin (snapshot) ke Quotation Opportunity "{{ opportunity?.title }}".
+                      Total sell ({{ formatCurrencyIdr(breakdown!.totalSellIdr) }}) akan disalin (snapshot) ke Quotation Lead "{{ leadTitle }}".
                       Cost Sheet ini akan terkunci setelahnya — revisi lanjutan wajib lewat "Duplicate as New Version".
                     </DialogDescription>
                   </DialogHeader>
@@ -193,7 +194,7 @@ function submitApplyToQuotation () {
 
       <div v-if="costSheet.appliedToQuotationId" class="rounded-lg border border-border bg-muted/30 px-4 py-3 text-sm">
         <p class="text-foreground">
-          Cost Sheet ini sudah diterapkan (snapshot) ke <NuxtLink :to="`/crm/opportunities/${costSheet.opportunityId}`" class="text-primary hover:underline font-medium">
+          Cost Sheet ini sudah diterapkan (snapshot) ke <NuxtLink :to="`/crm/leads/${costSheet.leadId}`" class="text-primary hover:underline font-medium">
             Quotation {{ costSheet.appliedToQuotationId }}
           </NuxtLink> pada {{ formatDate(costSheet.appliedAt!) }} — tidak dapat diedit lagi.
         </p>
@@ -285,7 +286,7 @@ function submitApplyToQuotation () {
         </div>
       </SectionCard>
 
-      <SectionCard v-if="scenarioSiblings.length > 0" title="Scenario Comparison" description="Cost Sheet lain yang melekat pada Opportunity yang sama.">
+      <SectionCard v-if="scenarioSiblings.length > 0" title="Scenario Comparison" description="Cost Sheet lain yang melekat pada Lead yang sama.">
         <div class="space-y-3">
           <select v-model="compareTargetId" class="w-full max-w-sm appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
             <option value="">
@@ -412,7 +413,7 @@ function submitApplyToQuotation () {
                   </option>
                 </select>
                 <Input v-model="item.description" placeholder="Deskripsi" class="col-span-6 h-8 text-xs" />
-                <Input v-model.number="item.costPerPaxIdr" type="number" placeholder="Biaya/pax" class="col-span-3 h-8 text-xs" />
+                <CurrencyInput v-model="item.costPerPaxIdr" placeholder="Biaya/pax" class="col-span-3 h-8 text-xs" />
                 <button type="button" class="col-span-1 text-muted-foreground hover:text-destructive" @click="removeLineItemRow(index)">
                   <Trash2 class="h-4 w-4" />
                 </button>

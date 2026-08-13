@@ -89,8 +89,9 @@ export interface Project {
   id: ID
   name: string
   partyId: ID
-  opportunityId?: ID
-  /** Quotation yang di-Won-kan, referensi (Section 09 — docs/route-and-role-matrix.md bagian 2.2 item 6). */
+  /** Lead asal (Won) — referensi, bukan duplikasi. */
+  leadId?: ID
+  /** Quotation yang di-Won-kan, referensi (docs/route-and-role-matrix.md bagian 2.2 item 6). */
   sourceQuotationId?: ID
   destination: string
   /** Lokasi terstruktur hasil resolusi `destination` (`resolveDestinationGeo`, `app/data/geo.ts`) — di-set otomatis saat Project dibuat dari Opportunity Won. Kosong bila teks destinasi tidak cocok referensi. */

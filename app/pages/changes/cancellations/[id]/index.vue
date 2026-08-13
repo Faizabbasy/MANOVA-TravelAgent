@@ -152,7 +152,7 @@ function submitRefund () {
               </div>
               <div class="space-y-1.5">
                 <Label for="refund-amount">Jumlah (Rp)</Label>
-                <Input id="refund-amount" v-model.number="refundAmount" type="number" />
+                <CurrencyInput id="refund-amount" v-model="refundAmount" />
               </div>
             </div>
           </div>

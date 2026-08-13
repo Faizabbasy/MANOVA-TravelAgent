@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus } from 'lucide-vue-next'
 import {
-  getProjectById, getPartyById, getOpportunityById, getUserById,
+  getProjectById, getPartyById, getLeadById, getUserById,
   getClientVisibleItineraryItems, getTravelers, createTraveler, updateTraveler,
   getDocumentsByProject, getInvoicesByProject, getPaymentsByInvoice,
   createChangeRequest, getChangeRequestsByProject, getIncidentsByProject,
@@ -45,8 +45,8 @@ useHead({ title: computed(() => project.value ? project.value.name : 'Tidak Dite
 
 const party = computed(() => (project.value ? getPartyById(project.value.partyId) : undefined))
 const accountExecutive = computed(() => {
-  const opportunity = project.value?.opportunityId ? getOpportunityById(project.value.opportunityId) : undefined
-  return opportunity ? getUserById(opportunity.ownerId) : undefined
+  const lead = project.value?.leadId ? getLeadById(project.value.leadId) : undefined
+  return lead ? getUserById(lead.handedOverTo ?? lead.ownerId) : undefined
 })
 const projectManager = computed(() => (project.value ? getUserById(project.value.ownerId) : undefined))
 

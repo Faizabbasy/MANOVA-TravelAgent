@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus } from 'lucide-vue-next'
-import { PARTIES, getUserById, getOpportunitiesByParty, getProjectsByParty, getPartiesByAccountOwner, createParty, isManovaClient } from '~/data'
+import { PARTIES, getUserById, getLeadsByParty, getProjectsByParty, getPartiesByAccountOwner, createParty, isManovaClient } from '~/data'
 import { findStatusOption } from '~/constants/status'
 import type { StatusOption } from '~/types/common'
 import type { PartyLifecycleStatus } from '~/types/party'
@@ -53,7 +53,7 @@ const rows = computed(() => {
   /** Directory ini khusus company (B2B) — customer individual (B2C, `partyType: 'individual'` dari Sales Order) tidak ditampilkan di sini. */
   let result = base.filter(party => party.partyType !== 'individual').map(party => ({
     party,
-    opportunityCount: getOpportunitiesByParty(party.id).length,
+    leadCount: getLeadsByParty(party.id).length,
     projectOrderCount: getProjectsByParty(party.id).length
   }))
 
@@ -177,7 +177,7 @@ function submitCreate () {
               <TableHead>Kota</TableHead>
               <TableHead>Telepon</TableHead>
               <TableHead>Account Owner</TableHead>
-              <TableHead>Opportunities</TableHead>
+              <TableHead>Leads</TableHead>
               <TableHead>Project Orders</TableHead>
             </TableRow>
           </TableHeader>
@@ -201,7 +201,7 @@ function submitCreate () {
               <TableCell class="text-muted-foreground">
                 {{ row.party.accountOwnerId ? getUserById(row.party.accountOwnerId)?.name ?? '—' : '—' }}
               </TableCell>
-              <TableCell>{{ row.opportunityCount }}</TableCell>
+              <TableCell>{{ row.leadCount }}</TableCell>
               <TableCell>{{ row.projectOrderCount }}</TableCell>
             </TableRow>
             <TableEmpty v-if="rows.length === 0" :colspan="7">

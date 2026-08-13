@@ -190,7 +190,7 @@ function submitCreditNote () {
             <div class="grid grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label for="inv-amount">Jumlah (Rp)</Label>
-                <Input id="inv-amount" v-model.number="newAmount" type="number" />
+                <CurrencyInput id="inv-amount" v-model="newAmount" />
               </div>
               <div class="space-y-1.5">
                 <Label for="inv-due">Jatuh Tempo</Label>
@@ -381,7 +381,7 @@ function submitCreditNote () {
         <div class="space-y-4 py-2">
           <div class="space-y-1.5">
             <Label for="pay-amount">Jumlah (Rp)</Label>
-            <Input id="pay-amount" v-model.number="paymentAmount" type="number" />
+            <CurrencyInput id="pay-amount" v-model="paymentAmount" />
             <p class="text-xs text-muted-foreground">
               Outstanding saat ini: {{ formatCurrencyIdr(selectedOutstanding) }}
             </p>
@@ -444,7 +444,7 @@ function submitCreditNote () {
         <div class="space-y-4 py-2">
           <div class="space-y-1.5">
             <Label for="cn-amount">Jumlah (Rp)</Label>
-            <Input id="cn-amount" v-model.number="creditNoteAmount" type="number" />
+            <CurrencyInput id="cn-amount" v-model="creditNoteAmount" />
           </div>
           <div class="space-y-1.5">
             <Label for="cn-reason">Alasan</Label>

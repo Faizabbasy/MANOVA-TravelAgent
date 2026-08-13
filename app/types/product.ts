@@ -2,19 +2,19 @@ import type { ID } from './common'
 import type { ServiceTypeKey } from './project'
 
 /**
- * Product Planning dan Costing (Section 10 — roadmap Section 00–24 baru). Dua entitas baru: `ProductTemplate`
- * (paket/product template — reusable, tidak terikat satu Opportunity) dan `CostSheet` (perhitungan biaya
- * konkret, traveler-based, boleh berdiri sendiri atau terhubung ke satu Opportunity/Product Template).
- * Keduanya TERPISAH dari `Quotation` (`app/types/opportunity.ts`) — `Quotation` tetap dokumen komersial
- * client-facing (setelah sanitasi), `CostSheet` adalah kerja internal Product Planner yang tidak pernah
- * ditampilkan ke Client (lihat `applyCostSheetToQuotation`, `app/data/index.ts`, untuk mekanisme snapshot).
+ * Product Planning dan Costing. Dua entitas baru: `ProductTemplate` (paket/product template — reusable,
+ * tidak terikat satu Lead) dan `CostSheet` (perhitungan biaya konkret, traveler-based, boleh berdiri
+ * sendiri atau terhubung ke satu Lead/Product Template). Keduanya TERPISAH dari `Quotation`
+ * (`app/types/quotation.ts`) — `Quotation` tetap dokumen komersial client-facing (setelah sanitasi),
+ * `CostSheet` adalah kerja internal Product Planner yang tidak pernah ditampilkan ke Client (lihat
+ * `applyCostSheetToQuotation`, `app/data/index.ts`, untuk mekanisme snapshot).
  */
 
 export type ProductTemplateStatus = 'draft' | 'active' | 'archived'
 
 /**
  * Service alternative (Wajib "Service alternatives") — embedded array pada `ProductTemplate`, pola sama
- * `QuotationServiceItem` (`app/types/opportunity.ts`): opsi layanan yang dibandingkan Planner sebelum
+ * `QuotationServiceItem` (`app/types/quotation.ts`): opsi layanan yang dibandingkan Planner sebelum
  * dituangkan ke Cost Sheet, mis. "Hotel bintang 3" vs "Hotel bintang 5" untuk service yang sama.
  */
 export interface ProductServiceAlternative {
@@ -57,12 +57,12 @@ export interface CostSheetLineItem {
 
 export interface CostSheet {
   id: ID
-  /** Nama/label skenario (Wajib "Scenario/version comparison") — mis. "Economy Scenario", "Premium Scenario". Beberapa Cost Sheet dengan `opportunityId` yang sama merepresentasikan skenario berbeda untuk dibandingkan. */
+  /** Nama/label skenario (Wajib "Scenario/version comparison") — mis. "Economy Scenario", "Premium Scenario". Beberapa Cost Sheet dengan `leadId` yang sama merepresentasikan skenario berbeda untuk dibandingkan. */
   name: string
   /** Opsional — Cost Sheet boleh dibuat lepas dari Product Template (custom, dari nol). */
   productId?: ID
-  /** Opsional — Cost Sheet boleh dibuat sebagai referensi katalog murni, belum terikat Opportunity manapun. */
-  opportunityId?: ID
+  /** Opsional — Cost Sheet boleh dibuat sebagai referensi katalog murni, belum terikat Lead manapun. */
+  leadId?: ID
   travelerCount: number
   /** Default `IDR`, mockup — bukan multi-currency nyata (konsisten `Quotation.currency`). */
   currency: string

@@ -164,7 +164,7 @@ function submitDispute () {
                 </div>
                 <div class="space-y-1.5">
                   <Label for="proof-amount">Jumlah Ditransfer (IDR)</Label>
-                  <Input id="proof-amount" v-model.number="proofAmount" type="number" min="1" :max="outstanding" />
+                  <CurrencyInput id="proof-amount" v-model="proofAmount" min="1" :max="outstanding" />
                 </div>
                 <div class="space-y-1.5">
                   <Label for="proof-note">Catatan (opsional)</Label>

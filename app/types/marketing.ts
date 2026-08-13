@@ -7,7 +7,7 @@ import type { LeadSource } from './lead'
  * Lima fitur pada daftar klien di-reframe agar benar-benar bisa dibangun di atas data yang ada:
  *   1. Campaign Tracking      → `Campaign` + `CampaignChannelSpend`
  *   2. A/B Testing Promo      → `PromoCode` + `PromoVariant` (perbandingan varian A/B pada promo nyata)
- *   3. Conversion Funnel      → diturunkan dari LEADS → OPPORTUNITIES → QUOTATIONS → PROJECTS
+ *   3. Conversion Funnel      → diturunkan dari LEADS → QUOTATIONS → PROJECTS
  *   4. Customer Acquisition   → diturunkan dari belanja campaign ÷ klien baru per channel
  *   5. LTV / Customer         → diturunkan dari invoice lunas per Party
  *

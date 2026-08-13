@@ -259,7 +259,7 @@ function submitCreateRefund () {
                 <div class="grid grid-cols-2 gap-3">
                   <div class="space-y-1.5">
                     <Label for="cr-commercial">Dampak Komersial (Rp, opsional)</Label>
-                    <Input id="cr-commercial" v-model.number="newChangeCommercialImpact" type="number" />
+                    <CurrencyInput id="cr-commercial" v-model="newChangeCommercialImpact" />
                   </div>
                   <div class="space-y-1.5">
                     <Label for="cr-timeline">Dampak Timeline (opsional)</Label>
@@ -326,7 +326,7 @@ function submitCreateRefund () {
                   </div>
                   <div class="space-y-1.5">
                     <Label for="ref-amount">Jumlah (Rp)</Label>
-                    <Input id="ref-amount" v-model.number="newRefundAmount" type="number" />
+                    <CurrencyInput id="ref-amount" v-model="newRefundAmount" />
                   </div>
                 </div>
               </div>

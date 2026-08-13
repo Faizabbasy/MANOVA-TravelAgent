@@ -137,7 +137,7 @@ function submitClarification () {
             <span class="col-span-2 text-sm text-muted-foreground">Qty: {{ line.quantity }}</span>
             <div class="col-span-5 space-y-1">
               <Label :for="`price-${index}`" class="text-xs">Harga Satuan (Rp)</Label>
-              <Input :id="`price-${index}`" v-model.number="line.unitPriceIdr" type="number" :disabled="!canRespond" />
+              <CurrencyInput :id="`price-${index}`" v-model="line.unitPriceIdr" :disabled="!canRespond" />
             </div>
           </div>
         </div>

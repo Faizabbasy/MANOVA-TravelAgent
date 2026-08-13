@@ -810,7 +810,7 @@ function submitPayrollLineForm () {
               </label>
               <template v-if="!employeeForm.isProjectBased">
                 <Label>Gaji Pokok (IDR)</Label>
-                <Input v-model.number="employeeForm.baseSalaryIdr" type="number" placeholder="0" />
+                <CurrencyInput v-model="employeeForm.baseSalaryIdr" placeholder="0" />
               </template>
               <p v-else class="text-xs text-muted-foreground">
                 Karyawan ini dibayar per proyek — tidak ada gaji pokok tetap tiap bulan.
@@ -853,15 +853,15 @@ function submitPayrollLineForm () {
           <div class="space-y-3">
             <div class="space-y-1.5">
               <Label>Gaji Pokok (IDR)</Label>
-              <Input v-model.number="payrollLineForm.baseSalaryIdr" type="number" placeholder="0" />
+              <CurrencyInput v-model="payrollLineForm.baseSalaryIdr" placeholder="0" />
             </div>
             <div class="space-y-1.5">
               <Label>Tunjangan (IDR)</Label>
-              <Input v-model.number="payrollLineForm.allowanceIdr" type="number" placeholder="0" />
+              <CurrencyInput v-model="payrollLineForm.allowanceIdr" placeholder="0" />
             </div>
             <div class="space-y-1.5">
               <Label>Potongan (IDR)</Label>
-              <Input v-model.number="payrollLineForm.deductionIdr" type="number" placeholder="0" />
+              <CurrencyInput v-model="payrollLineForm.deductionIdr" placeholder="0" />
             </div>
           </div>
 
@@ -920,7 +920,7 @@ function submitPayrollLineForm () {
               </div>
               <div class="space-y-1.5">
                 <Label>Nominal per Orang (IDR)</Label>
-                <Input v-model.number="incentiveForm.amountIdr" type="number" placeholder="0" />
+                <CurrencyInput v-model="incentiveForm.amountIdr" placeholder="0" />
                 <p v-if="incentiveRatePreview !== undefined" class="text-xs text-muted-foreground">
                   Setara {{ incentiveRatePreview }}% dari nilai kontrak project ({{ formatCurrencyIdr(incentiveSelectedProject?.quotationAmountIdr ?? 0) }}).
                 </p>

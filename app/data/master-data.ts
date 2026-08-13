@@ -121,7 +121,7 @@ export const CANCELLATION_RULES: CancellationRule[] = reactive([
 export const NUMBERING_SCHEMES: NumberingScheme[] = reactive([
   { id: 'NUM-001', entityType: 'Invoice', prefix: 'INV-', nextNumberPreview: 'INV-1042 (preview)', isActive: true },
   { id: 'NUM-002', entityType: 'Project', prefix: 'PRJ-', nextNumberPreview: 'PRJ-105 (preview)', isActive: true },
-  { id: 'NUM-003', entityType: 'Opportunity', prefix: 'OPP-', nextNumberPreview: 'OPP-011 (preview)', isActive: true }
+  { id: 'NUM-003', entityType: 'Quotation', prefix: 'QUO-', nextNumberPreview: 'QUO-011 (preview)', isActive: true }
 ])
 
 export const DOCUMENT_TEMPLATES: DocumentTemplate[] = reactive([
@@ -140,7 +140,7 @@ export const READINESS_GATE_CONFIGS: ReadinessGateConfig[] = reactive([
 export const ASSIGNMENT_RULES: AssignmentRule[] = reactive([
   { id: 'ASR-001', name: 'Lead Sumber Website → Sales Rotasi', description: 'Lead dari sumber Website ditugaskan bergilir ke tim Sales', triggerCondition: 'source = website', targetRole: 'sales', isActive: true },
   { id: 'ASR-002', name: 'Lead Urgency Tinggi → Sales Senior', description: 'Lead dengan urgency tinggi diprioritaskan ke Sales senior', triggerCondition: 'urgency = high', targetRole: 'sales', isActive: true },
-  { id: 'ASR-003', name: 'Opportunity Won → PM Rotasi', description: 'Project baru dari Opportunity Won ditugaskan bergilir ke Project Manager', triggerCondition: 'opportunity.stage = won', targetRole: 'project-manager', isActive: true }
+  { id: 'ASR-003', name: 'Lead Won → PM Rotasi', description: 'Project baru dari Lead Won ditugaskan bergilir ke Project Manager', triggerCondition: 'lead.projectId is set', targetRole: 'project-manager', isActive: true }
 ])
 
 /**

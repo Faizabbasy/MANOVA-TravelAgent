@@ -1,12 +1,12 @@
 import type { StatusOption } from '~/types/common'
-import type { OpportunityStage, QuotationApprovalStatus, OpportunityWorkflowStatus } from '~/types/opportunity'
+import type { QuotationApprovalStatus } from '~/types/quotation'
 import type { ProjectStatus, ProjectCharacteristic, ServiceStatus, ServiceTypeKey, RoomType, ProjectOrderStatus } from '~/types/project'
 import type { InvoiceStatus, InvoiceCurrency, InvoiceType, CreditNoteStatus, DebitNoteStatus } from '~/types/finance'
 import type { PartyActivityType, CompanyType } from '~/types/party'
 import type { SalesOrderStatus } from '~/types/sales-order'
 import type { VendorQuotationStatus, VendorStatus } from '~/types/vendor'
 import type { ChangeCategory, ChangeApprovalStatus, ProjectRiskSeverity, ProjectRiskStatus } from '~/types/activity'
-import type { LeadSource, LeadStage, LeadServiceCategory, LeadUrgency } from '~/types/lead'
+import type { LeadSource, LeadStage, LeadServiceCategory, LeadUrgency, LeadWorkflowStatus } from '~/types/lead'
 import type { FlightBookingStatus, CabinClass } from '~/types/ticketing'
 import type { HotelBookingStatus, MealPlan } from '~/types/accommodation'
 import type { TransportBookingStatus, VehicleType } from '~/types/transportation'
@@ -30,18 +30,6 @@ import type { FeedbackStatus } from '~/types/feedback'
  * Source of truth untuk seluruh status/enum MANOVA (Prompt 5-G, menggeneralisasi D-038).
  * Setiap status punya value/label/tone(badge)/order — jangan hardcode label status di halaman manapun.
  */
-
-export const OPPORTUNITY_STAGES: StatusOption<OpportunityStage>[] = [
-  { value: 'draft', label: 'Draft', tone: 'neutral', order: 1 },
-  { value: 'qualification', label: 'Qualification', tone: 'info', order: 2 },
-  { value: 'requirement-gathering', label: 'Requirement Gathering', tone: 'info', order: 3 },
-  { value: 'proposal', label: 'Proposal / Quotation', tone: 'primary', order: 4 },
-  { value: 'negotiation', label: 'Negotiation', tone: 'primary', order: 5 },
-  { value: 'won-requested', label: 'Pending Management Approval', tone: 'warning', order: 6 },
-  { value: 'won', label: 'Won', tone: 'success', order: 7 },
-  { value: 'lost', label: 'Lost', tone: 'destructive', order: 8 },
-  { value: 'on-hold', label: 'On Hold', tone: 'warning', order: 9 }
-]
 
 export const PROJECT_STATUSES: StatusOption<ProjectStatus>[] = [
   { value: 'draft', label: 'Draft', tone: 'neutral', order: 1 },
@@ -304,7 +292,7 @@ export const LEAD_STAGES: StatusOption<LeadStage>[] = [
   { value: 'unqualified', label: 'Unqualified', tone: 'destructive', order: 4 }
 ]
 
-/** Quotation Commercial Approval (Prompt 19) — dipakai Opportunity Detail (AE submit, Management approve/reject). */
+/** Quotation Commercial Approval — dipakai halaman detail Lead (AE submit, Management approve/reject). */
 export const QUOTATION_APPROVAL_STATUSES: StatusOption<QuotationApprovalStatus>[] = [
   { value: 'draft', label: 'Draft', tone: 'neutral', order: 1 },
   { value: 'submitted', label: 'Menunggu Approval', tone: 'warning', order: 2 },
@@ -328,19 +316,18 @@ export const LEAD_URGENCY_LEVELS: StatusOption<LeadUrgency>[] = [
 ]
 
 /**
- * Status workflow Opportunity AE-facing (Prompt 20-10/14) — DIRIVASI lewat `getOpportunityWorkflowStatus`
- * (`app/data/index.ts`), bukan `OpportunityStage` mentah. Label literal sesuai Prompt 20-14 (Bahasa Inggris,
- * berbeda dari konvensi label Indonesia pada status lain — instruksi eksplisit user), dipakai sebagai
- * "indikator stage yang jelas" utama di Opportunity Detail, menggantikan label lama yang membingungkan.
+ * Status workflow Lead AE-facing — DIRIVASI lewat `getLeadWorkflowStatus` (`app/data/index.ts`), bukan
+ * `Lead.stage` mentah. Label literal Bahasa Inggris (konsisten preseden `OpportunityWorkflowStatus` lama),
+ * dipakai sebagai "indikator stage yang jelas" utama di halaman detail Lead.
  */
-export const OPPORTUNITY_WORKFLOW_STATUSES: StatusOption<OpportunityWorkflowStatus>[] = [
-  { value: 'pending-requirement', label: 'Pending Requirement', tone: 'warning', order: 1 },
-  { value: 'ready-for-quotation', label: 'Ready for Quotation', tone: 'info', order: 2 },
+export const LEAD_WORKFLOW_STATUSES: StatusOption<LeadWorkflowStatus>[] = [
+  { value: 'unqualified', label: 'Unqualified', tone: 'destructive', order: 1 },
+  { value: 'qualified-pending-quotation', label: 'Ready for Quotation', tone: 'info', order: 2 },
   { value: 'quotation-draft', label: 'Quotation Draft', tone: 'neutral', order: 3 },
   { value: 'pending-management-approval', label: 'Pending Management Approval', tone: 'warning', order: 4 },
-  { value: 'approved', label: 'Approved', tone: 'primary', order: 5 },
+  { value: 'quotation-approved', label: 'Approved', tone: 'primary', order: 5 },
   { value: 'won', label: 'Won', tone: 'success', order: 6 },
-  { value: 'lost', label: 'Lost', tone: 'destructive', order: 7 }
+  { value: 'sales-order-created', label: 'Sales Order Created', tone: 'success', order: 7 }
 ]
 
 /** "Hold, Confirm, Issue, Reissue, Cancel, Refund state simulation" (Section 13, Wajib) — dipakai `/ticketing`. */
@@ -637,7 +624,7 @@ export const TRAVEL_REQUEST_STATUSES: StatusOption<TravelRequestStatus>[] = [
   { value: 'under-review', label: 'Under Review', tone: 'warning', order: 3 },
   { value: 'need-clarification', label: 'Need Clarification', tone: 'destructive', order: 4 },
   { value: 'proposal-preparation', label: 'Proposal Preparation', tone: 'purple', order: 5 },
-  { value: 'converted-to-opportunity', label: 'Converted to Opportunity', tone: 'success', order: 6 },
+  { value: 'converted-to-lead', label: 'Converted to Lead', tone: 'success', order: 6 },
   { value: 'cancelled', label: 'Cancelled', tone: 'neutral', order: 7 },
   { value: 'closed', label: 'Closed', tone: 'neutral', order: 8 }
 ]

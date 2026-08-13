@@ -644,7 +644,7 @@ function submitAddDeliverable () {
             </div>
             <div class="space-y-1.5 pt-2 border-t border-border">
               <Label for="status-penalty">Penalty (Rp, opsional)</Label>
-              <Input id="status-penalty" v-model.number="cancellationPenalty" type="number" placeholder="0" />
+              <CurrencyInput id="status-penalty" v-model="cancellationPenalty" placeholder="0" />
             </div>
             <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
               <Checkbox v-model="cancellationRefundEligible" />
@@ -865,8 +865,8 @@ function submitAddDeliverable () {
               <button type="button" class="col-span-1 text-muted-foreground hover:text-destructive" @click="removeBoqRow(index)">
                 <Trash2 class="h-4 w-4" />
               </button>
-              <Input v-model.number="item.netCostIdr" type="number" placeholder="Net Cost (Rp)" class="col-span-6 h-8 text-xs" />
-              <Input v-model.number="item.sellPriceIdr" type="number" placeholder="Sell Price (Rp)" class="col-span-6 h-8 text-xs" />
+              <CurrencyInput v-model="item.netCostIdr" placeholder="Net Cost (Rp)" class="col-span-6 h-8 text-xs" />
+              <CurrencyInput v-model="item.sellPriceIdr" placeholder="Sell Price (Rp)" class="col-span-6 h-8 text-xs" />
             </div>
             <p v-if="editBoq.length === 0" class="text-xs text-muted-foreground">
               Belum ada baris BOQ — klik "Tambah".

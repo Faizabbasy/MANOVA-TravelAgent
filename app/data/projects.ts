@@ -13,7 +13,7 @@ export const PROJECTS: Project[] = reactive([
     id: 'PRJ-101',
     name: 'Manila Business Trip',
     partyId: 'PTY-001',
-    opportunityId: 'OPP-001',
+    leadId: 'LED-009',
     destination: 'Manila, Filipina',
     travelStartDate: '2026-08-20',
     travelEndDate: '2026-08-23',
@@ -33,7 +33,7 @@ export const PROJECTS: Project[] = reactive([
     id: 'PRJ-102',
     name: 'Abu Dhabi Corporate Gathering',
     partyId: 'PTY-002',
-    opportunityId: 'OPP-002',
+    leadId: 'LED-013',
     destination: 'Abu Dhabi, Uni Emirat Arab',
     travelStartDate: '2026-09-22',
     travelEndDate: '2026-09-26',
@@ -53,7 +53,7 @@ export const PROJECTS: Project[] = reactive([
     id: 'PRJ-103',
     name: 'Palu MICE Conference 2026',
     partyId: 'PTY-003',
-    opportunityId: 'OPP-003',
+    leadId: 'LED-014',
     destination: 'Palu, Indonesia',
     travelStartDate: '2026-08-10',
     travelEndDate: '2026-08-14',
@@ -70,19 +70,19 @@ export const PROJECTS: Project[] = reactive([
     handoverAcceptedBy: 'USR-002'
   },
   /**
-   * PRJ-104 (Prompt 19 — Change Request) — Project Order kedua untuk repeat client PTY-001 (sumber:
-   * OPP-008/QUO-008, `app/data/opportunities.ts`), memenuhi skenario "Active Client dengan beberapa
-   * Project Orders". Sengaja `draft`/actualCost 0 — project baru saja terbentuk dari Won, belum ada
-   * service/vendor/invoice yang diisi Operations (kondisi realistis, bukan gap tersembunyi).
-   * Section 09 (roadmap Section 00–24 baru) — `handoverAcceptedAt` SENGAJA dibiarkan kosong (berbeda dari
-   * PRJ-101/102/103 yang di-backfill "sudah accepted") agar skenario "Handover Pending" + tombol Accept/
-   * Return Handover benar-benar demonstrable pada data yang realistis (project yang memang baru saja Won).
+   * PRJ-104 — Project Order kedua untuk repeat client PTY-001 (sumber: LED-018/QUO-008,
+   * `app/data/quotations.ts`), memenuhi skenario "Active Client dengan beberapa Project Orders". Sengaja
+   * `draft`/actualCost 0 — project baru saja terbentuk dari Won, belum ada service/vendor/invoice yang
+   * diisi Operations (kondisi realistis, bukan gap tersembunyi). `handoverAcceptedAt` SENGAJA dibiarkan
+   * kosong (berbeda dari PRJ-101/102/103 yang di-backfill "sudah accepted") agar skenario "Handover
+   * Pending" + tombol Accept/Return Handover benar-benar demonstrable pada data yang realistis (project
+   * yang memang baru saja Won).
    */
   {
     id: 'PRJ-104',
     name: 'Manila Follow-up Training Q1 2027',
     partyId: 'PTY-001',
-    opportunityId: 'OPP-008',
+    leadId: 'LED-018',
     sourceQuotationId: 'QUO-008',
     destination: 'Manila, Filipina',
     travelStartDate: '2027-02-16',
@@ -101,7 +101,7 @@ export const PROJECTS: Project[] = reactive([
    * PRJ-201–204 (Client Experience — Repair Phase Section 1) — 4 dari 5 skenario demo wajib
    * `docs/client-mock-data-scenarios.md` (skenario "Bali MICE Event" belum menjadi Project, masih tahap
    * Lead — lihat `app/data/leads.ts` LED-012). Seluruhnya milik PTY-005 ("engagement langsung", tanpa
-   * `opportunityId`, konsisten pola Service Order tanpa RFQ) — company baru, TIDAK memakai/mengubah
+   * `leadId`, konsisten pola Service Order tanpa RFQ) — company baru, TIDAK memakai/mengubah
    * PRJ-101-104 yang sudah dipakai fixture/test section lain.
    */
   {

@@ -3,14 +3,11 @@ import type { ServiceTypeKey } from './project'
 import type { PartyActivityType } from './party'
 
 /**
- * `TravelRequest` (Client Experience — Repair Phase Section 1, "18-Page Client Experience" inisiatif).
- * Entitas BARU, terpisah dari `Lead` (`app/types/lead.ts`) — sebelum inisiatif ini, aksi "Ajukan Travel
- * Request" Client (`app/pages/client/index.vue`) hanya membuat `Lead` mentah tanpa status/draft/edit/
- * duplicate/cancel miliknya sendiri (lihat `docs/client-page-inventory.md` #3). `TravelRequest` TIDAK
- * menggantikan `Lead` — begitu `TravelRequest` disetujui secara internal, ia akan menaut ke satu `Lead`/
- * `Opportunity` (lewat `leadId`/`opportunityId`, ID-linked, pola sama section lain), bukan memutasinya.
- * Foundation only (Section 1) — belum ada mutator create/update/submit, array seed masih kosong,
- * dibangun oleh section implementasi "Request & Commercial".
+ * `TravelRequest` (Client Experience). Entitas BARU, terpisah dari `Lead` (`app/types/lead.ts`) — aksi
+ * "Ajukan Travel Request" Client (`app/pages/client/index.vue`) membuat `TravelRequest` dengan
+ * status/draft/edit/duplicate/cancel miliknya sendiri. `TravelRequest` TIDAK menggantikan `Lead` — begitu
+ * `TravelRequest` disetujui secara internal, ia akan menaut ke satu `Lead` (lewat `leadId`, ID-linked, pola
+ * sama section lain), bukan memutasinya.
  */
 export type TravelRequestStatus =
   | 'draft'
@@ -18,7 +15,7 @@ export type TravelRequestStatus =
   | 'under-review'
   | 'need-clarification'
   | 'proposal-preparation'
-  | 'converted-to-opportunity'
+  | 'converted-to-lead'
   | 'cancelled'
   | 'closed'
 
@@ -69,9 +66,8 @@ export interface TravelRequest {
   status: TravelRequestStatus
   createdAt: string
   updatedAt?: string
-  /** Terisi begitu status mencapai `converted-to-opportunity` — referensi, bukan duplikasi. */
+  /** Terisi begitu status mencapai `converted-to-lead` — referensi, bukan duplikasi. */
   leadId?: ID
-  opportunityId?: ID
 }
 
 /** Attachment mock (bukan file upload sungguhan, D-006) — nama file + metadata saja. */
@@ -84,10 +80,10 @@ export interface TravelRequestAttachment {
 }
 
 /**
- * Activity timeline (Repair Phase Section 3 — Request & Commercial). Pola IDENTIK `LeadActivity`
- * (`app/types/lead.ts`) — reuse `PartyActivityType` yang sama alih-alih membuat enum baru. `TravelRequest`
- * belum punya project (pre-Opportunity), sehingga tidak bisa memakai `ActivityEntry` (projectId-scoped) —
- * entitas timeline sendiri diperlukan, mengikuti preseden yang sama persis dengan Lead.
+ * Activity timeline. Pola IDENTIK `LeadActivity` (`app/types/lead.ts`) — reuse `PartyActivityType` yang
+ * sama alih-alih membuat enum baru. `TravelRequest` belum punya project (pre-Lead-qualification), sehingga
+ * tidak bisa memakai `ActivityEntry` (projectId-scoped) — entitas timeline sendiri diperlukan, mengikuti
+ * preseden yang sama persis dengan Lead.
  */
 export interface TravelRequestActivity {
   id: ID

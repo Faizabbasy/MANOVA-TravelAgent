@@ -5,13 +5,13 @@ import {
   LifeBuoy, AlertTriangle, Send, UserPlus, Upload, Compass
 } from 'lucide-vue-next'
 import {
-  getPartyById, getOpportunitiesByParty, getProjectsByParty, getContactsByParty,
-  getQuotationByOpportunity, getOpportunityWorkflowStatus, getTravelers, getInvoicesByProject,
+  getPartyById, getLeadsByParty, getProjectsByParty, getContactsByParty,
+  getQuotationByLead, getLeadWorkflowStatus, getTravelers, getInvoicesByProject,
   createContact, getUserById,
   getInvoiceOutstandingIdr, getPaymentsByInvoice, getActivitiesByProject, getChangeRequestsByProject,
   getPendingClientApprovals, getSupportTicketsByParty, getClientProjectReadiness
 } from '~/data'
-import { OPPORTUNITY_WORKFLOW_STATUSES, PROJECT_STATUSES, findStatusOption } from '~/constants/status'
+import { LEAD_WORKFLOW_STATUSES, PROJECT_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDateRange, formatCurrencyIdr, formatDate, daysUntil } from '~/utils/format'
 import { isTravelerDocumentMissing, isInvoiceOverdue, isInvoiceDueSoon, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import type { AttentionItem } from '~/types/common'
@@ -21,9 +21,9 @@ import type { AttentionItem } from '~/types/common'
  * kini tab dalam satu menu bersama Notifications (dulu `/client/notifications`) — logika tidak diubah.
  *
  * Client isolation (Section 02/08) — seluruh data di halaman ini di-scope ke `clientScopeId` (company/`Party`
- * milik user login), tidak pernah membaca `PARTIES`/`OPPORTUNITIES`/`PROJECTS` penuh. Section 08 melengkapi
+ * milik user login), tidak pernah membaca `PARTIES`/`LEADS`/`PROJECTS` penuh. Section 08 melengkapi
  * shell minimal Section 02 dengan fitur bisnis penuh: profile+contacts, travel request, quotation view+aksi
- * (di `/client/opportunities/[id]`), project order+itinerary+traveler+dokumen+finance+change request (di
+ * (di `/client/quotations/[id]`), project order+itinerary+traveler+dokumen+finance+change request (di
  * `/client/project-orders/[id]`), action center. Repair Phase Section 2 (Home — Dashboard) memperluas
  * halaman ini (bukan membangun ulang, mengikuti rekomendasi `docs/client-page-inventory.md` #1) dengan
  * summary card/Upcoming Trip/Recent Activity/Financial Summary/Quick Actions yang seluruhnya dihitung dari
@@ -36,15 +36,15 @@ const { canView, clientScopeId } = usePermissions()
 const { showToast } = useToast()
 
 const party = computed(() => (clientScopeId.value ? getPartyById(clientScopeId.value) : undefined))
-const opportunities = computed(() => (clientScopeId.value ? getOpportunitiesByParty(clientScopeId.value) : []))
-const opportunitiesWithStatus = computed(() => opportunities.value.map(opportunity => ({
-  opportunity,
-  workflowStatus: getOpportunityWorkflowStatus(opportunity.id)
+const leadDeals = computed(() => (clientScopeId.value ? getLeadsByParty(clientScopeId.value) : []))
+const leadDealsWithStatus = computed(() => leadDeals.value.map(lead => ({
+  lead,
+  workflowStatus: getLeadWorkflowStatus(lead.id)
 })))
 
 /** Opportunity detail sudah melebur ke Quotation detail (`/client/quotations/[id]`, Penyederhanaan 7-Role/Menu) — arahkan langsung ke situ bila quotation sudah ada, fallback ke Client Portal bila belum. */
-function opportunityRoute (opportunityId: string): string {
-  const quotation = getQuotationByOpportunity(opportunityId)
+function leadRoute (leadId: string): string {
+  const quotation = getQuotationByLead(leadId)
   return quotation ? `/client/quotations/${quotation.id}` : '/client'
 }
 const projects = computed(() => (clientScopeId.value ? getProjectsByParty(clientScopeId.value) : []))
@@ -61,9 +61,9 @@ const upcomingTripProjects = computed(() => activeProjects.value
   .filter(project => project.status === 'ongoing-trip' || daysUntil(project.travelStartDate, DEMO_REFERENCE_DATE) >= 0)
   .sort((a, b) => daysUntil(a.travelStartDate, DEMO_REFERENCE_DATE) - daysUntil(b.travelStartDate, DEMO_REFERENCE_DATE)))
 
-const quotationsAwaitingConfirm = computed(() => opportunities.value
-  .map(opportunity => ({ opportunity, quotation: getQuotationByOpportunity(opportunity.id) }))
-  .filter(row => row.quotation?.approvalStatus === 'approved' && !row.opportunity.clientConfirmedAt))
+const quotationsAwaitingConfirm = computed(() => leadDeals.value
+  .map(lead => ({ lead, quotation: getQuotationByLead(lead.id) }))
+  .filter(row => row.quotation?.approvalStatus === 'approved' && !row.lead.projectId))
 const pendingApprovalsCount = computed(() =>
   quotationsAwaitingConfirm.value.length + (clientScopeId.value ? getPendingClientApprovals(clientScopeId.value).length : 0))
 
@@ -86,7 +86,8 @@ const openSupportTickets = computed(() =>
 const actionQueue = computed<AttentionItem[]>(() => {
   const items: AttentionItem[] = []
   for (const row of quotationsAwaitingConfirm.value) {
-    items.push({ id: `approval-quotation-${row.opportunity.id}`, severity: 'medium', message: `Quotation "${row.opportunity.title}" menunggu konfirmasi Anda`, relatedRoute: `/client/quotations/${row.quotation.id}` })
+    const rowTitle = row.lead.title ?? row.lead.companyName ?? row.lead.name
+    items.push({ id: `approval-quotation-${row.lead.id}`, severity: 'medium', message: `Quotation "${rowTitle}" menunggu konfirmasi Anda`, relatedRoute: `/client/quotations/${row.quotation!.id}` })
   }
   if (clientScopeId.value) {
     for (const approval of getPendingClientApprovals(clientScopeId.value)) {
@@ -412,27 +413,27 @@ function submitContact () {
         <EmptyState v-else title="Belum ada kontak tercatat" />
       </SectionCard>
 
-      <SectionCard title="Opportunity">
-        <ul v-if="opportunitiesWithStatus.length" class="divide-y divide-border">
-          <li v-for="row in opportunitiesWithStatus" :key="row.opportunity.id" class="py-3">
-            <NuxtLink :to="opportunityRoute(row.opportunity.id)" class="flex items-center justify-between gap-3 group">
+      <SectionCard title="Lead">
+        <ul v-if="leadDealsWithStatus.length" class="divide-y divide-border">
+          <li v-for="row in leadDealsWithStatus" :key="row.lead.id" class="py-3">
+            <NuxtLink :to="leadRoute(row.lead.id)" class="flex items-center justify-between gap-3 group">
               <div class="min-w-0">
                 <p class="text-sm font-medium text-foreground truncate group-hover:underline">
-                  {{ row.opportunity.title }}
+                  {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
                 </p>
                 <p class="text-xs text-muted-foreground truncate">
-                  {{ row.opportunity.destination }}
+                  {{ row.lead.destination }}
                 </p>
               </div>
               <StatusBadge
                 v-if="row.workflowStatus"
-                :label="findStatusOption(OPPORTUNITY_WORKFLOW_STATUSES, row.workflowStatus).label"
-                :tone="findStatusOption(OPPORTUNITY_WORKFLOW_STATUSES, row.workflowStatus).tone"
+                :label="findStatusOption(LEAD_WORKFLOW_STATUSES, row.workflowStatus).label"
+                :tone="findStatusOption(LEAD_WORKFLOW_STATUSES, row.workflowStatus).tone"
               />
             </NuxtLink>
           </li>
         </ul>
-        <EmptyState v-else title="Belum ada Opportunity" description="Opportunity company Anda akan tampil di sini." />
+        <EmptyState v-else title="Belum ada Lead" description="Lead company Anda akan tampil di sini." />
       </SectionCard>
 
       <SectionCard title="Project Order">
@@ -454,7 +455,7 @@ function submitContact () {
             </NuxtLink>
           </li>
         </ul>
-        <EmptyState v-else title="Belum ada Project Order" description="Project Order company Anda akan tampil di sini setelah Opportunity Won." />
+        <EmptyState v-else title="Belum ada Project Order" description="Project Order company Anda akan tampil di sini setelah Lead Won." />
       </SectionCard>
     </template>
   </div>

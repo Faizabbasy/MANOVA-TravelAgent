@@ -73,14 +73,14 @@ export const CONTACTS: ContactPerson[] = reactive([
  * Activity level-Party (Section 07, bagian 4a-lanjutan) — mengisi tab "Activities" Party Detail dan
  * widget Dashboard Sales "Follow-up Mendatang" (deferred di Section 06 karena model ini belum ada).
  * `ownerId` seluruhnya USR-001 (satu-satunya user role Sales di fixture demo).
- * `opportunityId` (Section 08) ditambahkan pada baris yang memang terkait satu opportunity spesifik —
- * backfill, bukan record baru — agar tampil juga di tab "Activity/Follow-up" Opportunity Detail.
+ * `leadId` (Section 08, dulu `opportunityId`) ditambahkan pada baris yang memang terkait satu deal Lead
+ * spesifik — backfill, bukan record baru — agar tampil juga di tab "Activity/Follow-up" Lead Detail.
  */
 export const PARTY_ACTIVITIES: PartyActivity[] = reactive([
   { id: 'PACT-001', partyId: 'PTY-001', type: 'call', message: 'Follow-up kepuasan trip Manila Business Trip', ownerId: 'USR-001', createdAt: '2026-07-01' },
-  { id: 'PACT-002', partyId: 'PTY-004', opportunityId: 'OPP-005', type: 'meeting', message: 'Diskusi kebutuhan awal Bali Team Building 2026', ownerId: 'USR-001', createdAt: '2026-07-04' },
-  { id: 'PACT-003', partyId: 'PTY-004', opportunityId: 'OPP-005', type: 'email', message: 'Mengirimkan draft quotation Bali Team Building 2026', ownerId: 'USR-001', createdAt: '2026-07-18' },
-  { id: 'PACT-004', partyId: 'PTY-004', opportunityId: 'OPP-005', type: 'follow-up', message: 'Follow-up keputusan quotation Bali Team Building 2026', ownerId: 'USR-001', createdAt: '2026-07-20', dueAt: '2026-08-03' },
-  { id: 'PACT-005', partyId: 'PTY-001', opportunityId: 'OPP-006', type: 'follow-up', message: 'Follow-up peluang repeat business Manila Q4 2026', ownerId: 'USR-001', createdAt: '2026-07-16', dueAt: '2026-08-02' },
+  { id: 'PACT-002', partyId: 'PTY-004', leadId: 'LED-005', type: 'meeting', message: 'Diskusi kebutuhan awal Bali Team Building 2026', ownerId: 'USR-001', createdAt: '2026-07-04' },
+  { id: 'PACT-003', partyId: 'PTY-004', leadId: 'LED-005', type: 'email', message: 'Mengirimkan draft quotation Bali Team Building 2026', ownerId: 'USR-001', createdAt: '2026-07-18' },
+  { id: 'PACT-004', partyId: 'PTY-004', leadId: 'LED-005', type: 'follow-up', message: 'Follow-up keputusan quotation Bali Team Building 2026', ownerId: 'USR-001', createdAt: '2026-07-20', dueAt: '2026-08-03' },
+  { id: 'PACT-005', partyId: 'PTY-001', leadId: 'LED-016', type: 'follow-up', message: 'Follow-up peluang repeat business Manila Q4 2026', ownerId: 'USR-001', createdAt: '2026-07-16', dueAt: '2026-08-02' },
   { id: 'PACT-006', partyId: 'PTY-002', type: 'note', message: 'Catatan internal: client sensitif terhadap perubahan tanggal setelah reschedule hotel', ownerId: 'USR-001', createdAt: '2026-07-12' }
 ])

@@ -74,9 +74,10 @@ export interface ContactPerson {
   phone?: string
 }
 
-/** Tab identifiers for Party Detail (docs/mockup-information-architecture.md bagian 3.2 — Overview/Contacts/Opportunities/Activities/Projects*). */
+/** Tab identifiers for Party Detail (docs/mockup-information-architecture.md bagian 3.2 — Overview/Contacts/Leads/Activities/Projects*). */
 /** `travel-history` ditambahkan Revisi 9-Modul (`revisi.md` #5 "History Perjalanan & Preferensi"). */
-export type PartyDetailTab = 'overview' | 'contacts' | 'opportunities' | 'activities' | 'projects' | 'travel-history'
+/** `leads` (dulu `opportunities`) — entitas Opportunity dihapus, lihat komentar desain di `app/types/lead.ts`. */
+export type PartyDetailTab = 'overview' | 'contacts' | 'leads' | 'activities' | 'projects' | 'travel-history'
 
 export type PartyActivityType = 'call' | 'meeting' | 'email' | 'note' | 'follow-up'
 
@@ -87,8 +88,8 @@ export type PartyActivityType = 'call' | 'meeting' | 'email' | 'note' | 'follow-
 export interface PartyActivity {
   id: ID
   partyId: ID
-  /** Opsional (Section 08) — bila diisi, activity ini juga tampil di tab "Activity/Follow-up" Opportunity Detail. */
-  opportunityId?: ID
+  /** Opsional — bila diisi, activity ini juga tampil di tab "Activity/Follow-up" halaman detail Lead. */
+  leadId?: ID
   type: PartyActivityType
   message: string
   ownerId: ID

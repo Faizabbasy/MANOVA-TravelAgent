@@ -137,7 +137,7 @@ const SEED_CAPABILITIES: Record<string, RoleId[]> = {
   [serviceCapabilityKey('mice')]: ['operations'],
   [serviceCapabilityKey('additional')]: ['operations'],
   'sales.manage-lead': ['sales'],
-  'sales.manage-opportunity': ['sales'],
+  'sales.manage-lead-pipeline': ['sales'],
   'sales.mark-won': ['sales'],
   'sales.approve-quotation': ['management'],
   'crm.manage-party': ['sales'],

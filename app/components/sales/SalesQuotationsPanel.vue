@@ -2,21 +2,24 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
-  QUOTATIONS, getOpportunityById, getPartyById, getUserById, getQuotationByOpportunity,
-  getQuotationsPendingApproval, getOpportunitiesPendingClientConfirmation,
+  QUOTATIONS, getLeadById, getPartyById, getUserById,
+  getQuotationsPendingApproval,
   approveQuotation, rejectQuotation
 } from '~/data'
 import { QUOTATION_APPROVAL_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
-import type { Quotation } from '~/types/opportunity'
+import type { Quotation } from '~/types/quotation'
 
 /**
  * Tab "Quotation" — Menu Sales > Pipeline (Penyederhanaan 7-Role/Menu). Dulu `/crm/quotations`, kini tab
- * dalam satu menu Pipeline bersama Funnel/Leads/Opportunities — logika tidak diubah, hanya dipindah.
+ * dalam satu menu Pipeline bersama Funnel/Leads/Quotation — logika tidak diubah, hanya dipindah. Sub-tab
+ * "Menunggu Client Confirmation" DIHAPUS — Mark as Won sekarang satu langkah, gate hanya
+ * `Quotation.approvalStatus === 'approved'` (entitas Opportunity dan gate client-confirmation dihapus,
+ * lihat komentar desain di `app/types/lead.ts`).
  *
- * Sub-tab internal (Menunggu Approval/Menunggu Confirmation/Semua) memakai query param `qtab` — BUKAN
- * `tab` seperti sebelumnya — karena `tab` kini sudah dipakai container `/sales/pipeline` untuk memilih
- * tab-level-atas (Funnel/Leads/Opportunities/Quotation). Dua sistem tab bersarang tidak boleh berbagi key.
+ * Sub-tab internal (Menunggu Approval/Semua) memakai query param `qtab` — BUKAN `tab` seperti sebelumnya —
+ * karena `tab` kini sudah dipakai container `/sales/pipeline` untuk memilih tab-level-atas
+ * (Funnel/Leads/Quotation). Dua sistem tab bersarang tidak boleh berbagi key.
  */
 
 const route = useRoute()
@@ -32,22 +35,22 @@ const activeTab = computed<string>({
   set: value => router.replace({ query: { ...route.query, qtab: value } })
 })
 
-function opportunityTitle (opportunityId: string) {
-  return getOpportunityById(opportunityId)?.title ?? opportunityId
+function leadTitle (leadId: string) {
+  const lead = getLeadById(leadId)
+  return lead?.title ?? lead?.companyName ?? lead?.name ?? leadId
 }
 
-function partyName (opportunityId: string) {
-  const opportunity = getOpportunityById(opportunityId)
-  return opportunity ? (getPartyById(opportunity.partyId)?.name ?? '—') : '—'
+function partyName (leadId: string) {
+  const lead = getLeadById(leadId)
+  return lead?.partyId ? (getPartyById(lead.partyId)?.name ?? '—') : '—'
 }
 
-function ownerName (opportunityId: string) {
-  const opportunity = getOpportunityById(opportunityId)
-  return opportunity ? (getUserById(opportunity.ownerId)?.name ?? opportunity.ownerId) : '—'
+function ownerName (leadId: string) {
+  const lead = getLeadById(leadId)
+  return lead ? (getUserById(lead.handedOverTo ?? lead.ownerId)?.name ?? lead.handedOverTo ?? lead.ownerId) : '—'
 }
 
 const pendingApproval = computed(() => getQuotationsPendingApproval())
-const pendingConfirmation = computed(() => getOpportunitiesPendingClientConfirmation())
 /** Drill-down (Customer Journey Funnel) — `?qtab=all&status=approved` deep-link ke quotation approved saja; kosong/`all` menampilkan seluruh quotation seperti semula. */
 const statusQueryFilter = computed(() => (route.query.status as string) || 'all')
 const allQuotations = computed(() => [...QUOTATIONS]
@@ -56,13 +59,13 @@ const allQuotations = computed(() => [...QUOTATIONS]
 
 /**
  * "Complexity" (Wajib "Detail review ... complexity") — DIRIVASI dari jumlah service scope dan estimasi
- * traveler, bukan field tersimpan baru (konsisten pola `getOpportunityWorkflowStatus`, D-049/D-062).
+ * traveler, bukan field tersimpan baru (konsisten pola derived-status lainnya, mis. `getLeadWorkflowStatus`).
  */
-function complexityLabel (opportunityId: string): string {
-  const opportunity = getOpportunityById(opportunityId)
-  if (!opportunity) { return '—' }
-  const serviceCount = opportunity.serviceScope.length
-  const pax = opportunity.travelerEstimate ?? 0
+function complexityLabel (leadId: string): string {
+  const lead = getLeadById(leadId)
+  if (!lead) { return '—' }
+  const serviceCount = lead.serviceScope?.length ?? 0
+  const pax = lead.travelerEstimate ?? 0
   if (serviceCount >= 3 || pax >= 40) { return 'Kompleks' }
   if (serviceCount === 2 || pax >= 15) { return 'Sedang' }
   return 'Sederhana'
@@ -73,7 +76,7 @@ const isReviewOpen = ref(false)
 const selectedQuotation = ref<Quotation | null>(null)
 const decisionNote = ref('')
 
-const selectedOpportunity = computed(() => (selectedQuotation.value ? getOpportunityById(selectedQuotation.value.opportunityId) : undefined))
+const selectedLead = computed(() => (selectedQuotation.value ? getLeadById(selectedQuotation.value.leadId) : undefined))
 
 function openReview (quotation: Quotation) {
   selectedQuotation.value = quotation
@@ -88,7 +91,7 @@ function submitApprove () {
     showToast('Approve Gagal', 'Quotation tidak lagi berstatus menunggu approval.', 'error')
     return
   }
-  showToast('Quotation Disetujui', `${result.id} disetujui — AE dapat melanjutkan ke client confirmation.`, 'success')
+  showToast('Quotation Disetujui', `${result.id} disetujui — AE dapat melanjutkan ke Mark as Won.`, 'success')
   isReviewOpen.value = false
 }
 
@@ -114,9 +117,6 @@ function submitReject () {
           <TabsTrigger value="pending-approval">
             Menunggu Approval ({{ pendingApproval.length }})
           </TabsTrigger>
-          <TabsTrigger value="pending-confirmation">
-            Menunggu Client Confirmation ({{ pendingConfirmation.length }})
-          </TabsTrigger>
           <TabsTrigger value="all">
             Semua Quotation ({{ allQuotations.length }})
           </TabsTrigger>
@@ -128,7 +128,7 @@ function submitReject () {
               <TableHeader>
                 <TableRow>
                   <TableHead>Quotation</TableHead>
-                  <TableHead>Opportunity</TableHead>
+                  <TableHead>Lead</TableHead>
                   <TableHead>Party</TableHead>
                   <TableHead>Account Executive</TableHead>
                   <TableHead>Nilai</TableHead>
@@ -142,13 +142,13 @@ function submitReject () {
                     {{ quotation.id }}
                   </TableCell>
                   <TableCell class="text-muted-foreground">
-                    {{ opportunityTitle(quotation.opportunityId) }}
+                    {{ leadTitle(quotation.leadId) }}
                   </TableCell>
                   <TableCell class="text-muted-foreground">
-                    {{ partyName(quotation.opportunityId) }}
+                    {{ partyName(quotation.leadId) }}
                   </TableCell>
                   <TableCell class="text-muted-foreground">
-                    {{ ownerName(quotation.opportunityId) }}
+                    {{ ownerName(quotation.leadId) }}
                   </TableCell>
                   <TableCell>{{ formatCurrencyIdr(quotation.amountIdr) }}</TableCell>
                   <TableCell class="text-muted-foreground">
@@ -168,55 +168,13 @@ function submitReject () {
           </SectionCard>
         </TabsContent>
 
-        <TabsContent value="pending-confirmation">
-          <SectionCard description="Quotation sudah disetujui Management, menunggu AE mencatat Client Confirmation sebelum Mark as Won (visibilitas Management — aksi tetap dilakukan AE di Opportunity Detail).">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Opportunity</TableHead>
-                  <TableHead>Party</TableHead>
-                  <TableHead>Account Executive</TableHead>
-                  <TableHead>Nilai Quotation</TableHead>
-                  <TableHead>Disetujui Oleh</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="opportunity in pendingConfirmation" :key="opportunity.id" class="hover:bg-muted/50">
-                  <TableCell class="font-medium text-foreground">
-                    {{ opportunity.title }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ getPartyById(opportunity.partyId)?.name ?? '—' }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ getUserById(opportunity.ownerId)?.name ?? opportunity.ownerId }}
-                  </TableCell>
-                  <TableCell>{{ formatCurrencyIdr(getQuotationByOpportunity(opportunity.id)?.amountIdr ?? 0) }}</TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ getUserById(getQuotationByOpportunity(opportunity.id)?.approvedBy ?? '')?.name ?? '—' }}
-                  </TableCell>
-                  <TableCell>
-                    <NuxtLink :to="`/crm/opportunities/${opportunity.id}`" class="text-sm text-primary hover:underline">
-                      Lihat Opportunity →
-                    </NuxtLink>
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="pendingConfirmation.length === 0" :colspan="6">
-                  Tidak ada opportunity yang menunggu client confirmation saat ini.
-                </TableEmpty>
-              </TableBody>
-            </Table>
-          </SectionCard>
-        </TabsContent>
-
         <TabsContent value="all">
-          <SectionCard description="Seluruh quotation lintas Opportunity, apa pun status approval-nya.">
+          <SectionCard description="Seluruh quotation lintas Lead, apa pun status approval-nya.">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Quotation</TableHead>
-                  <TableHead>Opportunity</TableHead>
+                  <TableHead>Lead</TableHead>
                   <TableHead>Party</TableHead>
                   <TableHead>Nilai</TableHead>
                   <TableHead>Versi</TableHead>
@@ -231,10 +189,10 @@ function submitReject () {
                     {{ quotation.id }}
                   </TableCell>
                   <TableCell class="text-muted-foreground">
-                    {{ opportunityTitle(quotation.opportunityId) }}
+                    {{ leadTitle(quotation.leadId) }}
                   </TableCell>
                   <TableCell class="text-muted-foreground">
-                    {{ partyName(quotation.opportunityId) }}
+                    {{ partyName(quotation.leadId) }}
                   </TableCell>
                   <TableCell>{{ formatCurrencyIdr(quotation.amountIdr) }}</TableCell>
                   <TableCell class="text-muted-foreground">
@@ -268,11 +226,11 @@ function submitReject () {
     <!-- Review Dialog -->
     <Dialog v-model:open="isReviewOpen">
       <DialogScrollContent class="max-w-lg">
-        <template v-if="selectedQuotation && selectedOpportunity">
+        <template v-if="selectedQuotation && selectedLead">
           <DialogHeader>
-            <DialogTitle>{{ selectedQuotation.id }} — {{ selectedOpportunity.title }}</DialogTitle>
+            <DialogTitle>{{ selectedQuotation.id }} — {{ selectedLead.title ?? selectedLead.companyName ?? selectedLead.name }}</DialogTitle>
             <DialogDescription>
-              {{ getPartyById(selectedOpportunity.partyId)?.name ?? '—' }} · AE {{ getUserById(selectedOpportunity.ownerId)?.name ?? selectedOpportunity.ownerId }}
+              {{ selectedLead.partyId ? (getPartyById(selectedLead.partyId)?.name ?? '—') : '—' }} · AE {{ getUserById(selectedLead.handedOverTo ?? selectedLead.ownerId)?.name ?? selectedLead.handedOverTo ?? selectedLead.ownerId }}
             </DialogDescription>
           </DialogHeader>
 
@@ -293,8 +251,7 @@ function submitReject () {
               { label: 'Estimated Margin', value: selectedQuotation.estimatedMarginIdr ? formatCurrencyIdr(selectedQuotation.estimatedMarginIdr) : '—' },
               { label: 'Payment Terms', value: selectedQuotation.paymentTerms || '—' },
               { label: 'Valid Until', value: selectedQuotation.validUntil ? formatDate(selectedQuotation.validUntil) : '—' },
-              { label: 'Complexity', value: complexityLabel(selectedOpportunity.id) },
-              { label: 'Risk Notes', value: selectedOpportunity.requirementDetail?.riskNotes || '—' },
+              { label: 'Complexity', value: complexityLabel(selectedLead.id) },
             ]"
           />
 
@@ -314,8 +271,8 @@ function submitReject () {
             Catatan keputusan terakhir: {{ selectedQuotation.approvalNote }}
           </p>
 
-          <NuxtLink :to="`/crm/opportunities/${selectedOpportunity.id}`" class="text-sm text-primary hover:underline block mt-2">
-            Lihat Opportunity lengkap →
+          <NuxtLink :to="`/crm/leads/${selectedLead.id}`" class="text-sm text-primary hover:underline block mt-2">
+            Lihat Lead lengkap →
           </NuxtLink>
 
           <DialogFooter class="mt-4">

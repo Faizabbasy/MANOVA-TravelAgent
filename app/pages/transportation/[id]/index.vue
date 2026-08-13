@@ -411,7 +411,7 @@ function submitEdit () {
             <template v-if="pendingStatus && CANCELLATION_TRIGGER_STATUSES.includes(pendingStatus)">
               <div class="space-y-1.5 pt-2 border-t border-border">
                 <Label for="status-penalty">Penalty (Rp, opsional)</Label>
-                <Input id="status-penalty" v-model.number="cancellationPenalty" type="number" placeholder="0" />
+                <CurrencyInput id="status-penalty" v-model="cancellationPenalty" placeholder="0" />
               </div>
               <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                 <Checkbox v-model="cancellationRefundEligible" />
@@ -467,7 +467,7 @@ function submitEdit () {
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-toll">Toll Fee (Rp)</Label>
-                <Input id="edit-toll" v-model.number="editTollFee" type="number" />
+                <CurrencyInput id="edit-toll" v-model="editTollFee" />
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-standby">Standby (jam)</Label>
@@ -479,11 +479,11 @@ function submitEdit () {
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-net-cost">Net Cost (Rp, internal)</Label>
-                <Input id="edit-net-cost" v-model.number="editNetCost" type="number" />
+                <CurrencyInput id="edit-net-cost" v-model="editNetCost" />
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-sell-price">Sell Price (Rp, client)</Label>
-                <Input id="edit-sell-price" v-model.number="editSellPrice" type="number" />
+                <CurrencyInput id="edit-sell-price" v-model="editSellPrice" />
               </div>
             </div>
 
@@ -503,7 +503,7 @@ function submitEdit () {
                 <Input v-model.number="option.capacity" type="number" placeholder="Kapasitas" class="col-span-2 h-8 text-xs" />
                 <Input v-model="option.luggageCapacity" placeholder="Bagasi" class="col-span-2 h-8 text-xs" />
                 <Input v-model="option.accessibilityFeatures" placeholder="Aksesibilitas" class="col-span-3 h-8 text-xs" />
-                <Input v-model.number="option.ratePerUnitIdr" type="number" placeholder="Rate" class="col-span-2 h-8 text-xs" />
+                <CurrencyInput v-model="option.ratePerUnitIdr" placeholder="Rate" class="col-span-2 h-8 text-xs" />
                 <button type="button" class="col-span-1 text-muted-foreground hover:text-destructive" @click="removeOptionRow(index)">
                   <Trash2 class="h-4 w-4" />
                 </button>

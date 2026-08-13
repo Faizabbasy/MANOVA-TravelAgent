@@ -5,19 +5,20 @@ import { Search, Plus, List, LayoutGrid, Inbox as InboxIcon, Archive as ArchiveI
 import { matchesAnyRole } from '~/data/rbac'
 import {
   LEADS, USERS, getLeadActivities, getLeadFollowUps, createLead, createLeadActivity, archiveLead,
-  qualifyLeadAndCreateOpportunity, updateLeadQualification, markLeadUnqualified,
+  qualifyLeadForQuotation, qualifyLeadAndCreateSalesOrder, updateLeadQualification, markLeadUnqualified,
   reopenLead, updateLeadContact, getLeadDuplicateCandidates, mergeLeadAsDuplicate,
-  getUserById
+  getUserById, getLeadWorkflowStatus
 } from '~/data'
-import { LEAD_SOURCES, LEAD_STAGES, LEAD_SERVICE_CATEGORIES, LEAD_URGENCY_LEVELS, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
+import { LEAD_SOURCES, LEAD_STAGES, LEAD_SERVICE_CATEGORIES, LEAD_URGENCY_LEVELS, LEAD_WORKFLOW_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import { isFollowUpUpcoming } from '~/utils/attention'
 import type { Lead, LeadSource, LeadStage, LeadServiceCategory, LeadUrgency } from '~/types/lead'
 import type { ServiceTypeKey } from '~/types/project'
 import type { PartyActivityType } from '~/types/party'
 
-/** Tab "Leads" — Menu Sales > Pipeline (Penyederhanaan 7-Role/Menu). Dulu `/customer-journey/leads`, kini
- * tab dalam satu menu Pipeline bersama Funnel/Opportunities/Quotation — logika tidak diubah, hanya dipindah. */
+/** Tab "Leads" — Menu Sales > Pipeline. Dulu `/customer-journey/leads`, kini tab dalam satu menu Pipeline
+ * bersama Funnel/Quotation. Sekaligus satu-satunya entry point untuk Qualify (B2B → halaman detail Lead
+ * untuk Quotation, B2C → langsung Sales Order) sejak Opportunity dihapus. */
 
 const { currentUser } = useCurrentUser()
 const { canView, can, isRole } = usePermissions()
@@ -75,6 +76,12 @@ function hasUpcomingFollowUp (leadId: string) {
   return getLeadFollowUps(leadId).some(activity => isFollowUpUpcoming(activity))
 }
 
+/** Status deal (Quotation/Sales Order) — kolom pengganti visibilitas panel "Opportunities" lama yang sudah dihapus. */
+function dealStatus (leadId: string) {
+  const status = getLeadWorkflowStatus(leadId)
+  return status ? findStatusOption(LEAD_WORKFLOW_STATUSES, status) : undefined
+}
+
 /** Sinyal cepat duplikat di Table view (Section 04) — aksi lengkap "Tandai sebagai Duplikat" ada di drawer Overview. */
 function hasDuplicateCandidates (lead: Lead) {
   return getLeadDuplicateCandidates({ phone: lead.phone, email: lead.email, excludeLeadId: lead.id }).length > 0
@@ -127,7 +134,7 @@ const aeOptions = computed(() => USERS.filter(user => matchesAnyRole(user.role, 
 /**
  * Qualification form (Prompt 20 — Change Request) — refs lokal disinkronkan dari `selectedLead` saat
  * drawer dibuka, ditulis balik lewat `updateLeadQualification` ("Simpan Draft") atau sebagai bagian dari
- * "Qualify & Create Opportunity" (draft disimpan dulu, baru gate dicek).
+ * "Qualify" (draft disimpan dulu, baru gate dicek).
  */
 const qualServiceCategory = ref<LeadServiceCategory | ''>('')
 const qualDestination = ref('')
@@ -274,13 +281,37 @@ function saveQualificationDraft () {
   })
 }
 
+/**
+ * Qualify — dispatch berdasarkan `serviceCategory`: individual-travel (B2C) langsung jadi Sales Order
+ * (mengumpulkan harga dulu), kategori lain (B2B) di-qualify saja lalu diarahkan ke halaman detail Lead
+ * untuk membuat Quotation di sana. Lihat komentar desain di `app/types/lead.ts`.
+ */
+const isIndividualTravel = computed(() => selectedLead.value?.serviceCategory === 'individual-travel')
+/** Sudah lanjut ke deal (Quotation/Project/Sales Order) — pengganti cek `Boolean(selectedLead.opportunityId)` lama. */
+const isLeadConverted = computed(() => Boolean(selectedLead.value?.quotationId || selectedLead.value?.projectId || selectedLead.value?.salesOrderId))
 const isQualifyDialogOpen = ref(false)
-function doQualifyAndCreateOpportunity () {
+const qualifySalesOrderPriceIdr = ref<number | null>(null)
+
+function openQualifyDialog () {
+  qualifySalesOrderPriceIdr.value = null
+  isQualifyDialogOpen.value = true
+}
+
+function doQualify () {
   if (!selectedLead.value || qualificationMissing.value.length > 0) { return }
   saveQualificationDraft()
-  const opportunity = qualifyLeadAndCreateOpportunity(selectedLead.value.id)
+
+  if (isIndividualTravel.value) {
+    if (!qualifySalesOrderPriceIdr.value || qualifySalesOrderPriceIdr.value <= 0) { return }
+    const order = qualifyLeadAndCreateSalesOrder(selectedLead.value.id, { priceIdr: qualifySalesOrderPriceIdr.value })
+    isQualifyDialogOpen.value = false
+    if (order) { navigateTo(`/sales-orders/${order.id}`) }
+    return
+  }
+
+  const qualified = qualifyLeadForQuotation(selectedLead.value.id)
   isQualifyDialogOpen.value = false
-  if (opportunity) { navigateTo(`/crm/opportunities/${opportunity.id}`) }
+  if (qualified) { navigateTo(`/crm/leads/${qualified.id}`) }
 }
 
 const isUnqualifyDialogOpen = ref(false)
@@ -443,6 +474,7 @@ function submitActivity () {
               <TableHead>Lead</TableHead>
               <TableHead>Sumber</TableHead>
               <TableHead>Stage</TableHead>
+              <TableHead>Status Deal</TableHead>
               <TableHead>Owner</TableHead>
               <TableHead>Update Terakhir</TableHead>
               <TableHead>Follow-up</TableHead>
@@ -463,6 +495,10 @@ function submitActivity () {
               <TableCell>
                 <StatusBadge :label="findStatusOption(LEAD_STAGES, lead.stage).label" :tone="findStatusOption(LEAD_STAGES, lead.stage).tone" />
               </TableCell>
+              <TableCell>
+                <StatusBadge v-if="dealStatus(lead.id)" :label="dealStatus(lead.id)?.label ?? ''" :tone="dealStatus(lead.id)?.tone ?? 'neutral'" />
+                <span v-else class="text-muted-foreground text-xs">—</span>
+              </TableCell>
               <TableCell class="text-muted-foreground">
                 {{ ownerName(lead.ownerId) }}
               </TableCell>
@@ -474,7 +510,7 @@ function submitActivity () {
                 <span v-else class="text-muted-foreground text-xs">—</span>
               </TableCell>
             </TableRow>
-            <TableEmpty v-if="filteredLeads.length === 0" :colspan="6">
+            <TableEmpty v-if="filteredLeads.length === 0" :colspan="7">
               {{ searchQuery || stageFilter !== 'all' || ownerFilter !== 'all' || sourceFilter !== 'all' ? 'Tidak ada lead yang cocok dengan filter.' : (showArchived ? 'Belum ada lead diarsipkan.' : 'Belum ada lead.') }}
             </TableEmpty>
           </TableBody>
@@ -559,7 +595,7 @@ function submitActivity () {
             <StatusBadge v-if="selectedLead.archived" label="Archived" tone="neutral" />
             <!-- Completion indicator + status handover (Prompt 20-14) -->
             <StatusBadge
-              v-if="!selectedLead.opportunityId && selectedLead.stage !== 'unqualified'"
+              v-if="!isLeadConverted && selectedLead.stage !== 'unqualified'"
               :label="`Qualification ${qualificationCompletedCount}/7`"
               :tone="qualificationMissing.length === 0 ? 'success' : 'warning'"
             />
@@ -615,11 +651,19 @@ function submitActivity () {
                   {{ selectedLead.qualificationNotes || 'Belum ada catatan.' }}
                 </p>
               </div>
-              <div v-if="selectedLead.opportunityId" class="rounded-lg border border-success/30 bg-success/5 p-3">
+              <div v-if="selectedLead.quotationId" class="rounded-lg border border-success/30 bg-success/5 p-3">
+                <p class="text-sm text-success">
+                  Sudah di-qualify —
+                  <NuxtLink :to="`/crm/leads/${selectedLead.id}`" class="underline">
+                    lihat Quotation & Commercial Approval
+                  </NuxtLink>
+                </p>
+              </div>
+              <div v-else-if="selectedLead.salesOrderId" class="rounded-lg border border-success/30 bg-success/5 p-3">
                 <p class="text-sm text-success">
                   Sudah dikonversi —
-                  <NuxtLink :to="`/crm/opportunities/${selectedLead.opportunityId}`" class="underline">
-                    lihat Opportunity {{ selectedLead.opportunityId }}
+                  <NuxtLink :to="`/sales-orders/${selectedLead.salesOrderId}`" class="underline">
+                    lihat Sales Order {{ selectedLead.salesOrderId }}
                   </NuxtLink>
                 </p>
               </div>
@@ -641,12 +685,12 @@ function submitActivity () {
             </TabsContent>
 
             <TabsContent value="qualification" class="space-y-4">
-              <div v-if="selectedLead.opportunityId" class="rounded-lg border border-success/30 bg-success/5 p-3">
+              <div v-if="isLeadConverted" class="rounded-lg border border-success/30 bg-success/5 p-3">
                 <p class="text-sm text-success">
-                  Lead ini sudah di-qualify dan dikonversi menjadi Opportunity — data qualification di bawah bersifat riwayat (read-only).
+                  Lead ini sudah di-qualify — data qualification di bawah bersifat riwayat (read-only).
                 </p>
               </div>
-              <fieldset :disabled="!canManageLead || selectedLead.archived || Boolean(selectedLead.opportunityId)" class="space-y-4">
+              <fieldset :disabled="!canManageLead || selectedLead.archived || isLeadConverted" class="space-y-4">
                 <div class="space-y-1.5">
                   <Label for="qual-service-category">Jenis Kebutuhan</Label>
                   <select id="qual-service-category" v-model="qualServiceCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -760,30 +804,39 @@ function submitActivity () {
                 </ul>
               </div>
 
-              <div v-if="canManageLead && !selectedLead.archived && !selectedLead.opportunityId" class="flex flex-wrap gap-2 pt-2">
+              <div v-if="canManageLead && !selectedLead.archived && !isLeadConverted" class="flex flex-wrap gap-2 pt-2">
                 <Button size="sm" variant="outline" @click="saveQualificationDraft">
                   Simpan Draft
                 </Button>
                 <Dialog v-model:open="isQualifyDialogOpen">
                   <DialogTrigger as-child>
-                    <Button size="sm" :disabled="qualificationMissing.length > 0">
-                      Qualify &amp; Create Opportunity
+                    <Button size="sm" :disabled="qualificationMissing.length > 0" @click="openQualifyDialog">
+                      {{ isIndividualTravel ? 'Qualify & Create Sales Order' : 'Qualify' }}
                     </Button>
                   </DialogTrigger>
                   <DialogContent class="max-w-md">
                     <DialogHeader>
-                      <DialogTitle>Qualify &amp; Create Opportunity</DialogTitle>
-                      <DialogDescription>
-                        Lead akan ditandai Qualified dan sebuah Opportunity baru dibuat (Company baru dibuat bila belum ada
-                        yang cocok dengan nama "{{ selectedLead.companyName || selectedLead.name }}"), lengkap dengan seluruh data qualification di atas.
+                      <DialogTitle>{{ isIndividualTravel ? 'Qualify & Create Sales Order' : 'Qualify Lead' }}</DialogTitle>
+                      <DialogDescription v-if="isIndividualTravel">
+                        Lead akan ditandai Qualified dan sebuah Sales Order langsung dibuat (Customer individual baru dibuat
+                        bila belum ada yang cocok dengan nama "{{ selectedLead.name }}"). Masukkan harga paket untuk customer ini.
+                      </DialogDescription>
+                      <DialogDescription v-else>
+                        Lead akan ditandai Qualified (Company baru dibuat bila belum ada yang cocok dengan nama
+                        "{{ selectedLead.companyName || selectedLead.name }}"). Quotation dibuat sebagai langkah berikutnya
+                        di halaman detail Lead.
                       </DialogDescription>
                     </DialogHeader>
+                    <div v-if="isIndividualTravel" class="space-y-1.5 py-2">
+                      <Label for="qualify-so-price">Harga Paket (Rp)</Label>
+                      <CurrencyInput id="qualify-so-price" v-model="qualifySalesOrderPriceIdr" placeholder="mis. 15000000" />
+                    </div>
                     <DialogFooter>
                       <Button variant="outline" @click="isQualifyDialogOpen = false">
                         Batal
                       </Button>
-                      <Button @click="doQualifyAndCreateOpportunity">
-                        Qualify &amp; Create Opportunity
+                      <Button :disabled="isIndividualTravel && (!qualifySalesOrderPriceIdr || qualifySalesOrderPriceIdr <= 0)" @click="doQualify">
+                        {{ isIndividualTravel ? 'Qualify & Create Sales Order' : 'Qualify' }}
                       </Button>
                     </DialogFooter>
                   </DialogContent>

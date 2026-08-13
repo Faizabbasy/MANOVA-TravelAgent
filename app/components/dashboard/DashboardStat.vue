@@ -3,14 +3,13 @@ import { computed, type Component } from 'vue'
 import { cn } from '~/lib/utils'
 
 /**
- * KPI tile — page-local, hanya dipakai `index.vue`.
+ * KPI tile sekunder — page-local, hanya dipakai `index.vue`.
  *
- * Ikon lingkaran solid + angka besar di bawahnya (bukan label/value sejajar dengan ikon di kanan) —
- * komposisi lebih tegas dan tidak generik dibanding pola "label kiri, ikon kanan" sebelumnya.
- *
- * Tint lembut per warna (bukan lagi kartu putih polos) — supaya baris KPI ini kebaca satu keluarga
- * dengan kartu hero Keuntungan/Pemasukan Bersih di atasnya (sama-sama color-coded), tapi levelnya lebih
- * tenang: tint tipis, bukan warna solid penuh, karena ini 6 tile sekaligus bukan 1-2 angka utama.
+ * Sengaja diam-diam dibanding `DashboardHeroPanel` di atasnya (hairline + putih, bukan tint-block +
+ * ikon-dalam-lingkaran) — supaya Pemasukan Bersih/Profit tetap yang paling menonjol di halaman ini, bukan
+ * ke-6 tile ini ikut berebut perhatian dengan warna solid yang sama kuatnya. Ikon jadi chip kotak kecil
+ * pojok kiri (bukan lingkaran besar), garis aksen tipis 2px di atas kartu menggantikan bg bertint penuh,
+ * dan angka pakai `tabular-nums` (font aplikasi biasa, bukan font berbeda) supaya rapi berbaris.
  */
 const props = withDefaults(defineProps<{
   label: string
@@ -34,42 +33,42 @@ const valueTextClass = computed(() => {
   return 'text-2xl'
 })
 
-const BADGE_CLASSES: Record<string, string> = {
-  blue: 'bg-blue-500 text-white',
-  rose: 'bg-rose-500 text-white',
-  violet: 'bg-violet-500 text-white',
-  teal: 'bg-teal-500 text-white',
-  amber: 'bg-amber-500 text-white',
-  cyan: 'bg-cyan-500 text-white'
+const ACCENT_BAR: Record<string, string> = {
+  blue: 'bg-primary',
+  rose: 'bg-rose-500',
+  violet: 'bg-violet-500',
+  teal: 'bg-teal-500',
+  amber: 'bg-amber-500',
+  cyan: 'bg-cyan-500'
 }
 
-const TINT_CLASSES: Record<string, string> = {
-  blue: 'border-blue-500/15 bg-blue-500/[0.05]',
-  rose: 'border-rose-500/15 bg-rose-500/[0.05]',
-  violet: 'border-violet-500/15 bg-violet-500/[0.05]',
-  teal: 'border-teal-500/15 bg-teal-500/[0.05]',
-  amber: 'border-amber-500/15 bg-amber-500/[0.05]',
-  cyan: 'border-cyan-500/15 bg-cyan-500/[0.05]'
+const ICON_CLASSES: Record<string, string> = {
+  blue: 'bg-primary/10 text-primary',
+  rose: 'bg-rose-500/10 text-rose-600',
+  violet: 'bg-violet-500/10 text-violet-600',
+  teal: 'bg-teal-500/10 text-teal-600',
+  amber: 'bg-amber-500/10 text-amber-600',
+  cyan: 'bg-cyan-500/10 text-cyan-600'
 }
 </script>
 
 <template>
-  <div
-    :class="cn(
-      'group relative min-w-0 rounded-2xl border p-4 shadow-[0_1px_2px_0_hsl(224_71%_4%/0.04)] transition-shadow duration-150 hover:shadow-md',
-      TINT_CLASSES[color]
-    )"
-  >
-    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" :class="BADGE_CLASSES[color]">
-      <component :is="icon" class="h-5 w-5" />
+  <div class="group relative min-w-0 overflow-hidden rounded-xl border border-border bg-card p-4 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:shadow-black/5">
+    <span class="absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 transition-transform duration-200 group-hover:scale-x-100" :class="ACCENT_BAR[color]" />
+
+    <div class="flex items-center gap-2">
+      <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg" :class="ICON_CLASSES[color]">
+        <component :is="icon" class="h-3.5 w-3.5" />
+      </div>
+      <p class="truncate text-xs font-medium text-muted-foreground">
+        {{ label }}
+      </p>
     </div>
-    <p class="mt-3 truncate text-xs font-medium text-muted-foreground">
-      {{ label }}
-    </p>
-    <p :class="cn('mt-1 whitespace-nowrap font-bold leading-8 tracking-tight text-foreground tabular-nums', valueTextClass)">
+
+    <p :class="cn('mt-2.5 whitespace-nowrap font-semibold leading-8 tracking-tight text-foreground tabular-nums', valueTextClass)">
       {{ value }}
     </p>
-    <p v-if="subtitle" class="mt-1.5 truncate text-xs text-muted-foreground">
+    <p v-if="subtitle" class="mt-1 truncate text-xs text-muted-foreground">
       {{ subtitle }}
     </p>
   </div>

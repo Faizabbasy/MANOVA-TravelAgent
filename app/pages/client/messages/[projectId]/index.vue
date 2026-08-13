@@ -6,7 +6,7 @@ import { excludesAllRoles } from '~/data/rbac'
 import {
   getProjectById, getUserById, USERS,
   getClientProjectMessages, markProjectMessagesRead, sendMessage,
-  getUnifiedActivityTimeline, getQuotationByOpportunity, getChangeRequestsByProject, getLatestItineraryVersion
+  getUnifiedActivityTimeline, getQuotationByLead, getChangeRequestsByProject, getLatestItineraryVersion
 } from '~/data'
 import { formatDateTime } from '~/utils/format'
 
@@ -78,7 +78,7 @@ const activityTimeline = computed(() => {
 })
 
 /* --- Related conversations --- */
-const quotation = computed(() => (project.value?.opportunityId ? getQuotationByOpportunity(project.value.opportunityId) : undefined))
+const quotation = computed(() => (project.value?.leadId ? getQuotationByLead(project.value.leadId) : undefined))
 const latestItineraryVersion = computed(() => (project.value ? getLatestItineraryVersion(project.value.id) : undefined))
 const changeRequests = computed(() => (project.value ? getChangeRequestsByProject(project.value.id) : []))
 </script>

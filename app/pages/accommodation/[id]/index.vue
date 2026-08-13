@@ -393,7 +393,7 @@ function submitEdit () {
             <template v-if="pendingStatus && CANCELLATION_TRIGGER_STATUSES.includes(pendingStatus)">
               <div class="space-y-1.5 pt-2 border-t border-border">
                 <Label for="status-penalty">Penalty (Rp, opsional)</Label>
-                <Input id="status-penalty" v-model.number="cancellationPenalty" type="number" placeholder="0" />
+                <CurrencyInput id="status-penalty" v-model="cancellationPenalty" placeholder="0" />
               </div>
               <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                 <Checkbox v-model="cancellationRefundEligible" />
@@ -457,19 +457,19 @@ function submitEdit () {
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-net-cost">Net Cost (Rp, internal)</Label>
-                <Input id="edit-net-cost" v-model.number="editNetCost" type="number" />
+                <CurrencyInput id="edit-net-cost" v-model="editNetCost" />
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-sell-price">Sell Price (Rp, client)</Label>
-                <Input id="edit-sell-price" v-model.number="editSellPrice" type="number" />
+                <CurrencyInput id="edit-sell-price" v-model="editSellPrice" />
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-cancel-penalty">Cancellation Penalty (Rp)</Label>
-                <Input id="edit-cancel-penalty" v-model.number="editCancellationPenalty" type="number" />
+                <CurrencyInput id="edit-cancel-penalty" v-model="editCancellationPenalty" />
               </div>
               <div class="space-y-1.5">
                 <Label for="edit-noshow-penalty">No-Show Penalty (Rp)</Label>
-                <Input id="edit-noshow-penalty" v-model.number="editNoShowPenalty" type="number" />
+                <CurrencyInput id="edit-noshow-penalty" v-model="editNoShowPenalty" />
               </div>
             </div>
 
@@ -507,7 +507,7 @@ function submitEdit () {
                     {{ meal.label }}
                   </option>
                 </select>
-                <Input v-model.number="option.ratePerNightIdr" type="number" placeholder="Rate/Malam" class="col-span-2 h-8 text-xs" />
+                <CurrencyInput v-model="option.ratePerNightIdr" placeholder="Rate/Malam" class="col-span-2 h-8 text-xs" />
                 <button type="button" class="col-span-1 text-muted-foreground hover:text-destructive" @click="removeOptionRow(index)">
                   <Trash2 class="h-4 w-4" />
                 </button>

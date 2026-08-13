@@ -562,7 +562,7 @@ function onCompleteMaintenance (maintenanceId: string) {
             </div>
             <div class="space-y-1.5">
               <Label>Nilai Perolehan (IDR) — Opsional</Label>
-              <Input v-model.number="assetForm.purchasePriceIdr" type="number" placeholder="Belum diisi" />
+              <CurrencyInput v-model="assetForm.purchasePriceIdr" placeholder="Belum diisi" />
             </div>
             <div class="grid grid-cols-2 gap-3">
               <div class="space-y-1.5">

@@ -27,7 +27,7 @@ export interface ItineraryVersion {
 
 /**
  * Comment thread Itinerary (Repair Phase Section 4 — Core Project, Wajib "Comment"). Entitas kecil berdiri
- * sendiri, pola sama `QuotationComment` (Section 3, `app/types/opportunity.ts`) — BUKAN `Message`/`Document`
+ * sendiri, pola sama `QuotationComment` (Section 3, `app/types/quotation.ts`) — BUKAN `Message`/`Document`
  * (Section 21) karena modul `documents` tetap `NONE` untuk client (di luar scope section ini). Diskop per
  * `projectId` (bukan per-version) — komentar berlaku untuk seluruh percakapan itinerary project tsb.
  */

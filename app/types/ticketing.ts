@@ -8,7 +8,7 @@ import type { ID } from './common'
  * KHUSUS flight (options/segments/PNR/deadline/fare rules/net cost) yang tidak bisa dipaksakan ke model
  * generik itu tanpa mencampur konsep lintas-domain. `serviceId` (opsional) menautkan balik ke
  * `ProjectService` bila baris generiknya sudah ada — TIDAK wajib (booking bisa berdiri sendiri, mis. saat
- * masih tahap "requested" sebelum ada baris service formal, pola sama `CostSheet.opportunityId` opsional).
+ * masih tahap "requested" sebelum ada baris service formal, pola sama `CostSheet.leadId` opsional).
  */
 
 export type CabinClass = 'economy' | 'premium-economy' | 'business' | 'first'

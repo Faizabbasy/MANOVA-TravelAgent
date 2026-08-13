@@ -2,20 +2,21 @@
 import { computed } from 'vue'
 import { Users, Target, Building2, FolderKanban } from 'lucide-vue-next'
 import {
-  LEADS, OPPORTUNITIES, PARTIES, PROJECTS,
-  getOpportunitiesByOwner, getProjectsByAccountExecutive, getPartiesByAccountOwner, getQuotationByOpportunity,
-  getOpportunityById
+  LEADS, QUOTATIONS, PARTIES, PROJECTS,
+  getLeadsByOwner, getProjectsByAccountExecutive, getPartiesByAccountOwner, getQuotationByLead
 } from '~/data'
-import { LEAD_STAGES, OPPORTUNITY_STAGES, LEAD_SOURCES, findStatusOption } from '~/constants/status'
+import { LEAD_STAGES, QUOTATION_APPROVAL_STATUSES, LEAD_SOURCES, findStatusOption } from '~/constants/status'
 import { formatPercentage } from '~/utils/format'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
 /**
- * Tab "Funnel" — Menu Sales > Pipeline (Penyederhanaan 7-Role/Menu). Gabungan `/customer-journey`
- * (funnel Lead→Qualified→Opportunity→Approved→Won→Client→Project Order) DAN `/customer-journey/lead-sources`
- * (rekap performa per sumber lead) — dua halaman terpisah yang dulu keduanya di bawah modul "CRM" tapi
- * secara isi sama-sama membaca `LEADS`/`OPPORTUNITIES`, sekarang jadi satu tab. Route lama tetap ada
- * sebagai redirect (`app/pages/customer-journey/index.vue`, `app/pages/customer-journey/lead-sources/index.vue`).
+ * Tab "Funnel" — Menu Sales > Pipeline. Gabungan `/customer-journey` (funnel Lead→Qualified→Quotation→
+ * Approved→Won→Client→Project Order) DAN `/customer-journey/lead-sources` (rekap performa per sumber lead)
+ * — dua halaman terpisah yang dulu keduanya di bawah modul "CRM" tapi secara isi sama-sama membaca `LEADS`,
+ * sekarang jadi satu tab. Route lama tetap ada sebagai redirect (`app/pages/customer-journey/index.vue`,
+ * `app/pages/customer-journey/lead-sources/index.vue`). Tahap "Opportunity" DIHAPUS (entitas Opportunity
+ * dihapus — lihat komentar desain di `app/types/lead.ts`), digantikan tahap "Quotation" (Lead dengan
+ * `quotationId` terisi).
  */
 
 const { currentUser } = useCurrentUser()
@@ -24,7 +25,7 @@ const { canView, isRole } = usePermissions()
 /**
  * Dulu Sales dibatasi ke Lead saja sementara Account Executive memegang Opportunity ke atas. Sejak
  * `account-executive` melebur ke `sales` (Revisi 9-Modul), satu role yang sama memiliki seluruh rantai
- * Lead → Opportunity → Quotation, sehingga pembatasan "lead only" dihapus.
+ * Lead → Quotation, sehingga pembatasan "lead only" dihapus.
  */
 const isLeadOnlyView = computed(() => false)
 
@@ -36,7 +37,12 @@ const scopedLeads = computed(() => {
   if (!isAeScoped.value) { return LEADS }
   return LEADS.filter(lead => lead.ownerId === currentUser.value.id || lead.handedOverTo === currentUser.value.id)
 })
-const scopedOpportunities = computed(() => (isAeScoped.value ? getOpportunitiesByOwner(currentUser.value.id) : OPPORTUNITIES))
+/** Lead ber-deal (Quotation sudah dibuat) — pengganti `scopedOpportunities` lama. */
+const scopedDealLeads = computed(() => (isAeScoped.value ? getLeadsByOwner(currentUser.value.id).filter(lead => lead.quotationId) : LEADS.filter(lead => lead.quotationId)))
+const scopedQuotations = computed(() => {
+  const dealLeadIds = new Set(scopedDealLeads.value.map(lead => lead.id))
+  return QUOTATIONS.filter(quotation => dealLeadIds.has(quotation.leadId))
+})
 /** Party/Company (Section 07) — sebelumnya "Active Clients" selalu dihitung dari seluruh `PARTIES`, tidak ter-scope untuk AE. */
 const scopedParties = computed(() => (isAeScoped.value ? getPartiesByAccountOwner(currentUser.value.id) : PARTIES))
 const scopedProjectOrders = computed(() => (isAeScoped.value ? getProjectsByAccountExecutive(currentUser.value.id) : undefined))
@@ -46,22 +52,20 @@ const qualifiedLeadCount = computed(() => scopedLeads.value.filter(lead => lead.
 const activeClientCount = computed(() => scopedParties.value.filter(party => party.lifecycleStatus === 'client').length)
 
 /**
- * Customer Journey Funnel (Section 07, Wajib "Overview funnel Lead→Qualified→Opportunity→Approved→Won→
- * Client→Project Order") — setiap tahap DIHITUNG independen dari kondisi TERKINI data (snapshot, bukan
- * cohort historis per-lead — codebase tidak menyimpan event-log per transisi). Karena sebagian Opportunity
- * fixture historis dibuat sebelum entitas `Lead` ada, angka "Opportunity" bisa melebihi "Qualified" —
- * karakteristik data demo, bukan bug perhitungan. Setiap tahap dapat diklik untuk drill-down.
+ * Customer Journey Funnel (Wajib "Overview funnel Lead→Qualified→Quotation→Approved→Won→Client→Project
+ * Order") — setiap tahap DIHITUNG independen dari kondisi TERKINI data (snapshot, bukan cohort historis
+ * per-lead — codebase tidak menyimpan event-log per transisi). Setiap tahap dapat diklik untuk drill-down.
  */
 const funnelStages = computed(() => {
-  const approvedOpportunityCount = scopedOpportunities.value.filter(opp => getQuotationByOpportunity(opp.id)?.approvalStatus === 'approved').length
-  const wonOpportunityCount = scopedOpportunities.value.filter(opp => opp.stage === 'won').length
+  const approvedQuotationCount = scopedQuotations.value.filter(quotation => quotation.approvalStatus === 'approved').length
+  const wonLeadCount = scopedDealLeads.value.filter(lead => Boolean(lead.projectId)).length
 
   const raw = [
     { key: 'lead', label: 'Lead', count: activeLeadCount.value, to: '/sales/pipeline#leads' },
     { key: 'qualified', label: 'Qualified', count: qualifiedLeadCount.value, to: '/sales/pipeline?stage=qualified#leads' },
-    { key: 'opportunity', label: 'Opportunity', count: scopedOpportunities.value.length, to: '/sales/pipeline#opportunities' },
-    { key: 'approved', label: 'Approved', count: approvedOpportunityCount, to: '/sales/pipeline?qtab=all&status=approved#quotations' },
-    { key: 'won', label: 'Won', count: wonOpportunityCount, to: '/sales/pipeline?stage=won#opportunities' },
+    { key: 'quotation', label: 'Quotation', count: scopedDealLeads.value.length, to: '/sales/pipeline#quotations' },
+    { key: 'approved', label: 'Approved', count: approvedQuotationCount, to: '/sales/pipeline?qtab=all&status=approved#quotations' },
+    { key: 'won', label: 'Won', count: wonLeadCount, to: '/sales/pipeline?stage=qualified#leads' },
     { key: 'client', label: 'Client', count: activeClientCount.value, to: '/customer-journey/customers?status=client' },
     { key: 'project-order', label: 'Project Order', count: scopedProjectOrders.value ? scopedProjectOrders.value.length : PROJECTS.length, to: '/project-orders' }
   ]
@@ -82,13 +86,14 @@ const leadStageBreakdown = computed<StatusBreakdownItem[]>(() => {
     .map(stage => ({ key: stage.value, label: stage.label, tone: stage.tone, count: byStage.get(stage.value)! }))
 })
 
-const opportunityStageBreakdown = computed<StatusBreakdownItem[]>(() => {
-  const byStage = new Map<string, number>()
-  for (const opp of scopedOpportunities.value) { byStage.set(opp.stage, (byStage.get(opp.stage) ?? 0) + 1) }
-  return OPPORTUNITY_STAGES
-    .filter(stage => byStage.has(stage.value))
+/** Breakdown status approval Quotation — pengganti "Opportunity Pipeline" (stage machine Opportunity) lama. */
+const quotationApprovalBreakdown = computed<StatusBreakdownItem[]>(() => {
+  const byStatus = new Map<string, number>()
+  for (const quotation of scopedQuotations.value) { byStatus.set(quotation.approvalStatus ?? 'draft', (byStatus.get(quotation.approvalStatus ?? 'draft') ?? 0) + 1) }
+  return QUOTATION_APPROVAL_STATUSES
+    .filter(status => byStatus.has(status.value))
     .sort((a, b) => a.order - b.order)
-    .map(stage => ({ key: stage.value, label: stage.label, tone: stage.tone, count: byStage.get(stage.value)! }))
+    .map(status => ({ key: status.value, label: status.label, tone: status.tone, count: byStatus.get(status.value)! }))
 })
 
 const links = [
@@ -103,22 +108,22 @@ const links = [
 const sourceRecapRows = computed(() => LEAD_SOURCES.map((source) => {
   const leads = LEADS.filter(lead => lead.source === source.value)
   const qualified = leads.filter(lead => lead.stage === 'qualified')
-  const opportunitiesCreated = leads.filter(lead => lead.opportunityId)
-  const won = opportunitiesCreated.filter(lead => lead.opportunityId && getOpportunityById(lead.opportunityId)?.stage === 'won')
+  const dealsCreated = leads.filter(lead => lead.quotationId || lead.salesOrderId)
+  const won = leads.filter(lead => lead.projectId || lead.salesOrderId)
   return {
     source,
     totalLeads: leads.length,
     qualifiedLeads: qualified.length,
-    opportunitiesCreated: opportunitiesCreated.length,
-    wonOpportunities: won.length,
+    dealsCreated: dealsCreated.length,
+    won: won.length,
     conversionRatePct: leads.length === 0 ? 0 : (won.length / leads.length) * 100
   }
 }).filter(row => row.totalLeads > 0))
 
 const sourceTotalLeads = computed(() => LEADS.length)
 const sourceTotalQualified = computed(() => LEADS.filter(lead => lead.stage === 'qualified').length)
-const sourceTotalOpportunities = computed(() => LEADS.filter(lead => lead.opportunityId).length)
-const sourceTotalWon = computed(() => LEADS.filter(lead => lead.opportunityId && getOpportunityById(lead.opportunityId)?.stage === 'won').length)
+const sourceTotalDeals = computed(() => LEADS.filter(lead => lead.quotationId || lead.salesOrderId).length)
+const sourceTotalWon = computed(() => LEADS.filter(lead => lead.projectId || lead.salesOrderId).length)
 
 /** Copy sebelum sort — `recapRows`/`sourceRecapRows` dipakai juga oleh tabel "Detail per Sumber" tanpa urutan berubah (sort in-place pernah jadi bug, Section 24). */
 const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
@@ -134,13 +139,13 @@ const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
 
     <template v-else>
       <p v-if="isAeScoped" class="text-xs text-muted-foreground">
-        Menampilkan portfolio Anda saja (Lead di-handover ke Anda, Opportunity/Company/Project Order milik Anda). Management/Super Admin melihat seluruh data.
+        Menampilkan portfolio Anda saja (Lead di-handover ke Anda, Quotation/Company/Project Order milik Anda). Management/Super Admin melihat seluruh data.
       </p>
 
       <SectionCard
         v-if="!isLeadOnlyView"
         title="Customer Journey Funnel"
-        description="Lead → Qualified → Opportunity → Approved → Won → Client → Project Order. Klik tahap mana pun untuk melihat daftar record terkait (drill-down)."
+        description="Lead → Qualified → Quotation → Approved → Won → Client → Project Order. Klik tahap mana pun untuk melihat daftar record terkait (drill-down)."
       >
         <ol class="divide-y divide-border">
           <li v-for="(stage, index) in funnelStages" :key="stage.key">
@@ -160,7 +165,7 @@ const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
           </li>
         </ol>
         <p class="text-[11px] text-muted-foreground mt-1">
-          Setiap tahap dihitung dari kondisi data saat ini (bukan histori kohort per-lead). "Opportunity" dapat melebihi "Qualified" karena sebagian data demo dibuat sebelum entitas Lead ada.
+          Setiap tahap dihitung dari kondisi data saat ini (bukan histori kohort per-lead).
         </p>
       </SectionCard>
 
@@ -168,8 +173,8 @@ const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
         <SectionCard title="Lead Pipeline">
           <StatusBreakdownList :items="leadStageBreakdown" empty-label="Tidak ada lead aktif" />
         </SectionCard>
-        <SectionCard v-if="!isLeadOnlyView" title="Opportunity Pipeline">
-          <StatusBreakdownList :items="opportunityStageBreakdown" empty-label="Tidak ada opportunity" />
+        <SectionCard v-if="!isLeadOnlyView" title="Quotation Pipeline">
+          <StatusBreakdownList :items="quotationApprovalBreakdown" empty-label="Tidak ada quotation" />
         </SectionCard>
         <SectionCard v-if="scopedProjectOrders" title="Project Orders Milik Saya">
           <ul v-if="scopedProjectOrders.length" class="divide-y divide-border">
@@ -204,8 +209,8 @@ const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <StatsCard title="Total Leads" :value="String(sourceTotalLeads)" :icon="Users" />
           <StatsCard title="Qualified Leads" :value="String(sourceTotalQualified)" :icon="Users" icon-color="success" />
-          <StatsCard title="Opportunities Created" :value="String(sourceTotalOpportunities)" :icon="Target" />
-          <StatsCard title="Won Opportunities" :value="String(sourceTotalWon)" :icon="Target" icon-color="success" />
+          <StatsCard title="Deals Created" :value="String(sourceTotalDeals)" :icon="Target" />
+          <StatsCard title="Won" :value="String(sourceTotalWon)" :icon="Target" icon-color="success" />
         </div>
 
         <SectionCard title="Distribusi Lead per Sumber">
@@ -219,7 +224,7 @@ const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
                 <TableHead>Sumber</TableHead>
                 <TableHead>Total Leads</TableHead>
                 <TableHead>Qualified</TableHead>
-                <TableHead>Opportunities Created</TableHead>
+                <TableHead>Deals Created</TableHead>
                 <TableHead>Won</TableHead>
                 <TableHead>Conversion Rate</TableHead>
               </TableRow>
@@ -231,8 +236,8 @@ const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
                 </TableCell>
                 <TableCell>{{ row.totalLeads }}</TableCell>
                 <TableCell>{{ row.qualifiedLeads }}</TableCell>
-                <TableCell>{{ row.opportunitiesCreated }}</TableCell>
-                <TableCell>{{ row.wonOpportunities }}</TableCell>
+                <TableCell>{{ row.dealsCreated }}</TableCell>
+                <TableCell>{{ row.won }}</TableCell>
                 <TableCell>{{ formatPercentage(row.conversionRatePct) }}</TableCell>
               </TableRow>
               <TableEmpty v-if="sourceRecapRows.length === 0" :colspan="6">

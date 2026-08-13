@@ -5,7 +5,7 @@ import { FileX, Copy } from 'lucide-vue-next'
 import {
   getTravelRequestById, getTravelRequestActivities, getTravelRequestAttachments,
   duplicateTravelRequest, cancelTravelRequest, respondToTravelRequestClarification,
-  getUserById
+  getUserById, getQuotationByLead
 } from '~/data'
 import { TRAVEL_REQUEST_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatDateRange, formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -28,7 +28,8 @@ const attachments = computed(() => (travelRequest.value ? getTravelRequestAttach
 const serviceScopeOptions = computed(() => SERVICE_TYPES.filter(type => travelRequest.value?.serviceScope.includes(type.value)))
 
 const canEdit = computed(() => travelRequest.value && ['draft', 'need-clarification'].includes(travelRequest.value.status))
-const canCancel = computed(() => travelRequest.value && !['cancelled', 'closed', 'converted-to-opportunity'].includes(travelRequest.value.status))
+const canCancel = computed(() => travelRequest.value && !['cancelled', 'closed', 'converted-to-lead'].includes(travelRequest.value.status))
+const relatedQuotation = computed(() => (travelRequest.value?.leadId ? getQuotationByLead(travelRequest.value.leadId) : undefined))
 
 function submitDuplicate () {
   if (!travelRequest.value) { return }
@@ -115,12 +116,12 @@ function submitClarificationResponse () {
         </template>
       </PageHeader>
 
-      <SectionCard v-if="travelRequest.opportunityId" title="Opportunity Terkait">
+      <SectionCard v-if="relatedQuotation" title="Lead Terkait">
         <p class="text-sm text-foreground mb-2">
-          Permintaan Anda telah dikonversi menjadi Opportunity dan quotation sedang/sudah tersedia.
+          Permintaan Anda telah dikonversi menjadi Lead dan quotation sedang/sudah tersedia.
         </p>
-        <NuxtLink :to="`/client/opportunities/${travelRequest.opportunityId}`" class="text-sm text-primary hover:underline">
-          Lihat Opportunity &amp; Quotation →
+        <NuxtLink :to="`/client/quotations/${relatedQuotation.id}`" class="text-sm text-primary hover:underline">
+          Lihat Lead &amp; Quotation →
         </NuxtLink>
       </SectionCard>
 

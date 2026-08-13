@@ -4,12 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus, MessageCircle } from 'lucide-vue-next'
 import { buildWhatsAppLink } from '~/data/crm-engagement'
 import {
-  getPartyById, getContactsByParty, getOpportunitiesByParty, getPartyActivities, getProjectsByParty,
-  getQuotationByOpportunity, createContact, createPartyActivity, getInvoicesByProject, getFeedbackByProject,
+  getPartyById, getContactsByParty, getLeadsByParty, getPartyActivities, getProjectsByParty,
+  getQuotationByLead, createContact, createPartyActivity, getInvoicesByProject, getFeedbackByProject,
   getUserByClientPartyId, isManovaClient
 } from '~/data'
 import { getLoyaltyAccount } from '~/data/crm-engagement'
-import { OPPORTUNITY_STAGES, PROJECT_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
+import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatNumber } from '~/utils/format'
 import { daysUntil } from '~/utils/format'
 import type { PartyDetailTab, PartyActivityType } from '~/types/party'
@@ -35,7 +35,8 @@ const party = computed(() => getPartyById(String(route.params.id)))
 useHead({ title: computed(() => party.value ? party.value.name : 'Party Tidak Ditemukan') })
 
 const contacts = computed(() => (party.value ? getContactsByParty(party.value.id) : []))
-const opportunities = computed(() => (party.value ? getOpportunitiesByParty(party.value.id) : []))
+const leadDeals = computed(() => (party.value ? getLeadsByParty(party.value.id) : []))
+const leadDealRows = computed(() => leadDeals.value.map(lead => ({ lead, quotation: getQuotationByLead(lead.id) })))
 const activities = computed(() => (party.value ? getPartyActivities(party.value.id) : []))
 const projects = computed(() => (party.value ? getProjectsByParty(party.value.id) : []))
 const linkedClientUser = computed(() => (party.value ? getUserByClientPartyId(party.value.id) : undefined))
@@ -53,7 +54,7 @@ const TABS = computed(() => {
   const base: { value: PartyDetailTab; label: string }[] = [
     { value: 'overview', label: 'Overview' },
     { value: 'contacts', label: 'Contacts' },
-    { value: 'opportunities', label: 'Opportunities' },
+    { value: 'leads', label: 'Leads' },
     { value: 'activities', label: 'Activities' }
   ]
   if (showProjectsTab.value) { base.push({ value: 'projects', label: 'Projects' }) }
@@ -109,7 +110,7 @@ const summaryMetadata = computed(() => {
     { label: 'Industri', value: party.value.industry ?? '—' },
     { label: 'Dibuat', value: formatDate(party.value.createdAt) },
     { label: 'Jumlah Contact', value: String(contacts.value.length) },
-    { label: 'Jumlah Opportunity', value: String(opportunities.value.length) },
+    { label: 'Jumlah Lead', value: String(leadDeals.value.length) },
     { label: 'Jumlah Project', value: String(projects.value.length) }
   ]
 })
@@ -204,11 +205,11 @@ function submitActivity () {
           <SectionCard title="Ringkasan">
             <p class="text-sm text-muted-foreground mb-4">
               <template v-if="party.lifecycleStatus === 'prospect'">
-                Party ini masih berstatus Prospect. Status akan otomatis berubah menjadi Client saat salah satu Opportunity
-                milik party ini disetujui menjadi Won — tidak ada aksi ubah status manual.
+                Party ini masih berstatus Prospect. Status akan otomatis berubah menjadi Client saat salah satu Lead
+                milik party ini di-Mark as Won — tidak ada aksi ubah status manual.
               </template>
               <template v-else>
-                Party ini adalah Client. Riwayat Contacts, Opportunities, dan Activities dari masa Prospect tetap tersimpan
+                Party ini adalah Client. Riwayat Contacts, Leads, dan Activities dari masa Prospect tetap tersimpan
                 di bawah, tidak hilang setelah lifecycle berubah.
               </template>
             </p>
@@ -312,42 +313,44 @@ function submitActivity () {
           </SectionCard>
         </TabsContent>
 
-        <TabsContent value="opportunities">
-          <SectionCard title="Opportunities">
+        <TabsContent value="leads">
+          <SectionCard title="Leads">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Opportunity</TableHead>
-                  <TableHead>Stage</TableHead>
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Status Quotation</TableHead>
                   <TableHead>Nilai Quotation</TableHead>
                   <TableHead>Dibuat</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow
-                  v-for="opportunity in opportunities"
-                  :key="opportunity.id"
+                  v-for="row in leadDealRows"
+                  :key="row.lead.id"
                   class="cursor-pointer hover:bg-muted/50"
-                  @click="navigateTo(`/crm/opportunities/${opportunity.id}`)"
+                  @click="navigateTo(`/crm/leads/${row.lead.id}`)"
                 >
                   <TableCell class="font-medium text-foreground">
-                    {{ opportunity.title }}
+                    {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
                   </TableCell>
                   <TableCell>
                     <StatusBadge
-                      :label="findStatusOption(OPPORTUNITY_STAGES, opportunity.stage).label"
-                      :tone="findStatusOption(OPPORTUNITY_STAGES, opportunity.stage).tone"
+                      v-if="row.quotation"
+                      :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').label"
+                      :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').tone"
                     />
+                    <span v-else class="text-muted-foreground">—</span>
                   </TableCell>
                   <TableCell>
-                    {{ getQuotationByOpportunity(opportunity.id) ? formatCurrencyIdr(getQuotationByOpportunity(opportunity.id)!.amountIdr) : '—' }}
+                    {{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}
                   </TableCell>
                   <TableCell class="text-muted-foreground">
-                    {{ formatDate(opportunity.createdAt) }}
+                    {{ formatDate(row.lead.createdAt) }}
                   </TableCell>
                 </TableRow>
-                <TableEmpty v-if="opportunities.length === 0" :colspan="4">
-                  Belum ada opportunity untuk party ini.
+                <TableEmpty v-if="leadDealRows.length === 0" :colspan="4">
+                  Belum ada lead untuk party ini.
                 </TableEmpty>
               </TableBody>
             </Table>

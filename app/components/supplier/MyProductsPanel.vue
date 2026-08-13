@@ -73,7 +73,7 @@ function submitCreate () {
             </div>
             <div class="space-y-1.5">
               <Label for="product-price">Harga per Unit (Rp, opsional)</Label>
-              <Input id="product-price" v-model.number="newPrice" type="number" placeholder="mis. 1200000" />
+              <CurrencyInput id="product-price" v-model="newPrice" placeholder="mis. 1200000" />
             </div>
           </div>
           <DialogFooter>

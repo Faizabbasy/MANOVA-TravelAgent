@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
-import { getOpportunityById, getPartyById, getQuotationByOpportunity, getUserById } from '~/data'
+import { getLeadById, getPartyById, getQuotationByLead, getUserById } from '~/data'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
 
@@ -16,10 +16,10 @@ definePageMeta({ layout: false, middleware: 'auth' })
 const route = useRoute()
 const { canView } = usePermissions()
 
-const opportunity = computed(() => getOpportunityById(String(route.params.id)))
-const party = computed(() => (opportunity.value ? getPartyById(opportunity.value.partyId) : undefined))
-const quotation = computed(() => (opportunity.value ? getQuotationByOpportunity(opportunity.value.id) : undefined))
-const preparedBy = computed(() => (opportunity.value ? getUserById(opportunity.value.ownerId) : undefined))
+const lead = computed(() => getLeadById(String(route.params.id)))
+const party = computed(() => (lead.value?.partyId ? getPartyById(lead.value.partyId) : undefined))
+const quotation = computed(() => (lead.value ? getQuotationByLead(lead.value.id) : undefined))
+const preparedBy = computed(() => (lead.value?.handedOverTo ? getUserById(lead.value.handedOverTo) : undefined))
 
 useHead({ title: computed(() => quotation.value ? `Quotation ${quotation.value.id} — Preview` : 'Quotation Tidak Ditemukan') })
 
@@ -31,14 +31,14 @@ function printPage () {
 <template>
   <div class="min-h-screen bg-muted/30 py-8 print:bg-white print:py-0">
     <div class="mx-auto max-w-3xl px-4 print:px-0 print:max-w-none">
-      <template v-if="!opportunity || !quotation">
+      <template v-if="!lead || !quotation">
         <div class="rounded-xl border border-border bg-card p-8 print:hidden">
           <EmptyState
             :icon="FileX"
             title="Quotation tidak ditemukan"
-            :description="!opportunity ? `Opportunity dengan ID '${route.params.id}' tidak ada di data demo saat ini.` : 'Opportunity ini belum memiliki quotation.'"
+            :description="!lead ? `Lead dengan ID '${route.params.id}' tidak ada di data demo saat ini.` : 'Lead ini belum memiliki quotation.'"
           >
-            <NuxtLink :to="opportunity ? `/crm/opportunities/${opportunity.id}` : '/sales/pipeline#opportunities'">
+            <NuxtLink :to="lead ? `/crm/leads/${lead.id}` : '/sales/pipeline#leads'">
               <Button>Kembali</Button>
             </NuxtLink>
           </EmptyState>
@@ -53,8 +53,8 @@ function printPage () {
 
       <template v-else>
         <div class="mb-4 flex items-center justify-between print:hidden">
-          <NuxtLink :to="`/crm/opportunities/${opportunity.id}`" class="text-sm text-primary hover:underline">
-            ← Kembali ke Opportunity
+          <NuxtLink :to="`/crm/leads/${lead.id}`" class="text-sm text-primary hover:underline">
+            ← Kembali ke Lead
           </NuxtLink>
           <Button size="sm" @click="printPage">
             Print / Save as PDF
@@ -95,8 +95,8 @@ function printPage () {
               <p class="text-sm font-medium text-foreground">
                 {{ party?.name ?? '—' }}
               </p>
-              <p v-if="opportunity.contactName" class="text-sm text-foreground">
-                Attn: {{ opportunity.contactName }}
+              <p v-if="lead.name" class="text-sm text-foreground">
+                Attn: {{ lead.name }}
               </p>
               <p v-if="party?.city" class="text-sm text-muted-foreground">
                 {{ party.city }}
@@ -110,16 +110,16 @@ function printPage () {
                 Trip Detail
               </p>
               <p class="text-sm text-foreground">
-                {{ opportunity.title }}
+                {{ lead.title ?? lead.companyName ?? lead.name }}
               </p>
               <p class="text-sm text-muted-foreground">
-                {{ opportunity.destination }}
+                {{ lead.destination }}
               </p>
-              <p v-if="opportunity.travelStartDate && opportunity.travelEndDate" class="text-sm text-muted-foreground">
-                {{ formatDateRange(opportunity.travelStartDate, opportunity.travelEndDate) }}
+              <p v-if="lead.travelStartDate && lead.travelEndDate" class="text-sm text-muted-foreground">
+                {{ formatDateRange(lead.travelStartDate, lead.travelEndDate) }}
               </p>
-              <p v-if="opportunity.travelerEstimate" class="text-sm text-muted-foreground">
-                {{ opportunity.travelerEstimate }} pax
+              <p v-if="lead.travelerEstimate" class="text-sm text-muted-foreground">
+                {{ lead.travelerEstimate }} pax
               </p>
               <p v-if="preparedBy" class="text-sm text-muted-foreground">
                 Disiapkan oleh {{ preparedBy.name }}

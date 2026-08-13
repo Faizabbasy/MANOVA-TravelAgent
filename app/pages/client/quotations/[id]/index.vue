@@ -3,20 +3,22 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Printer, History, GitCompare } from 'lucide-vue-next'
 import {
-  getQuotationById, getOpportunityById, getPartyById, getOpportunitiesByParty, getQuotationByOpportunity,
-  getUserById, recordClientConfirmation, advanceOpportunityStage, approveOpportunityWon,
+  getQuotationById, getLeadById, getPartyById, getLeadsByParty, getQuotationByLead,
+  getUserById, markLeadWon,
   createPartyActivity, requestQuotationRevision, getQuotationAttachments, addQuotationAttachment,
   getQuotationComments, addQuotationComment, pushNotification
 } from '~/data'
+import { resolveDestinationGeo } from '~/data/geo'
 import { QUOTATION_APPROVAL_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatDateTime } from '~/utils/format'
 
 /**
  * Quotations & Proposals — Detail (Repair Phase Section 3 — Request & Commercial). `:id` = Quotation id
- * (`QUO-xxx`). Approve/Reject/Request Revision REUSE penuh `recordClientConfirmation`/`advanceOpportunityStage`/
- * `approveOpportunityWon`/`requestQuotationRevision` (LOCKED pipeline internal, TIDAK diduplikasi) — pola
- * "Mark as Won" (D-053, `app/pages/crm/opportunities/[id]/index.vue`) diterapkan dari sisi Client sehingga
- * Won→Project dapat dicapai murni lewat aksi Client (Master Prompt Flow 1, "Mock Opportunity Won").
+ * (`QUO-xxx`). Approve/Reject/Request Revision REUSE penuh `markLeadWon`/`requestQuotationRevision` (LOCKED
+ * pipeline internal, TIDAK diduplikasi) — Mark as Won kini satu langkah, digerbangi HANYA
+ * `Quotation.approvalStatus === 'approved'` (entitas Opportunity dan gate client-confirmation terpisah
+ * dihapus, lihat komentar desain di `app/types/lead.ts`), diterapkan dari sisi Client sehingga Won→Project
+ * dapat dicapai murni lewat aksi Client (Master Prompt Flow 1, "Mock Opportunity Won").
  * `/client/opportunities/[id]` (Penyederhanaan 7-Role/Menu) kini jadi redirect ke sini — kartu "Opportunity"
  * (company/destinasi/tanggal/peta lokasi) dipindahkan ke sini supaya tidak ada fitur yang hilang, halaman
  * ini melengkapi (Version history/Compare/Comments/Attachments/Cancellation policy/Download PDF).
@@ -30,27 +32,29 @@ const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const quotation = computed(() => getQuotationById(String(route.params.id)))
-const opportunity = computed(() => (quotation.value ? getOpportunityById(quotation.value.opportunityId) : undefined))
-const isOwnCompany = computed(() => Boolean(opportunity.value && clientScopeId.value && opportunity.value.partyId === clientScopeId.value))
-useHead({ title: computed(() => opportunity.value ? `Quotation — ${opportunity.value.title}` : 'Tidak Ditemukan') })
+const lead = computed(() => (quotation.value ? getLeadById(quotation.value.leadId) : undefined))
+const isOwnCompany = computed(() => Boolean(lead.value && clientScopeId.value && lead.value.partyId === clientScopeId.value))
+const leadTitle = computed(() => lead.value?.title ?? lead.value?.companyName ?? lead.value?.name ?? '')
+useHead({ title: computed(() => lead.value ? `Quotation — ${leadTitle.value}` : 'Tidak Ditemukan') })
 
-const party = computed(() => (opportunity.value ? getPartyById(opportunity.value.partyId) : undefined))
-const serviceScopeOptions = computed(() => SERVICE_TYPES.filter(type => opportunity.value?.serviceScope.includes(type.value)))
-const canDecide = computed(() => Boolean(quotation.value?.approvalStatus === 'approved' && !opportunity.value?.clientConfirmedAt))
+const party = computed(() => (lead.value ? getPartyById(lead.value.partyId) : undefined))
+const leadGeo = computed(() => (lead.value?.destination ? resolveDestinationGeo(lead.value.destination) : undefined))
+const serviceScopeOptions = computed(() => SERVICE_TYPES.filter(type => lead.value?.serviceScope?.includes(type.value)))
+const canDecide = computed(() => Boolean(quotation.value?.approvalStatus === 'approved' && !lead.value?.projectId))
 
 /* --- Version compare (single-diff toggle, pola sama Cost Sheet) --- */
 const isVersionCompareOpen = ref(false)
 
-/* --- Compare package option (sibling quotation, opportunity lain milik company yang sama) --- */
+/* --- Compare package option (sibling quotation, lead lain milik company yang sama) --- */
 const siblingOptions = computed(() => {
-  if (!clientScopeId.value || !opportunity.value) { return [] }
-  return getOpportunitiesByParty(clientScopeId.value)
-    .filter(item => item.id !== opportunity.value!.id)
-    .map(item => ({ opportunity: item, quotation: getQuotationByOpportunity(item.id) }))
-    .filter((row): row is { opportunity: typeof row.opportunity; quotation: NonNullable<typeof row.quotation> } => Boolean(row.quotation))
+  if (!clientScopeId.value || !lead.value) { return [] }
+  return getLeadsByParty(clientScopeId.value)
+    .filter(item => item.id !== lead.value!.id)
+    .map(item => ({ lead: item, quotation: getQuotationByLead(item.id) }))
+    .filter((row): row is { lead: typeof row.lead; quotation: NonNullable<typeof row.quotation> } => Boolean(row.quotation))
 })
 const compareTargetId = ref('')
-const compareTarget = computed(() => siblingOptions.value.find(row => row.opportunity.id === compareTargetId.value))
+const compareTarget = computed(() => siblingOptions.value.find(row => row.lead.id === compareTargetId.value))
 
 /* --- Comments --- */
 const commentBody = ref('')
@@ -72,14 +76,19 @@ function uploadAttachment () {
   showToast('Attachment Ditambahkan', 'Metadata attachment tercatat (mock, bukan file upload nyata).', 'success')
 }
 
-/* --- Approve (reuse recordClientConfirmation lalu mock-cascade Won, pola sama D-053) --- */
+/* --- Approve (reuse markLeadWon, satu langkah — lihat komentar desain di atas) --- */
 const isApproveDialogOpen = ref(false)
 const approveNote = ref('')
 function submitApprove () {
-  if (!opportunity.value || !quotation.value) { return }
-  recordClientConfirmation(opportunity.value.id, currentUser.value.id, approveNote.value.trim() || undefined)
-  advanceOpportunityStage(opportunity.value.id, 'won-requested')
-  const project = approveOpportunityWon(opportunity.value.id, quotation.value.approvedBy ?? currentUser.value.id)
+  if (!lead.value || !quotation.value) { return }
+  createPartyActivity({
+    partyId: lead.value.partyId,
+    leadId: lead.value.id,
+    type: 'note',
+    message: `Client menyetujui quotation ini.${approveNote.value.trim() ? ` Catatan: ${approveNote.value.trim()}` : ''}`,
+    ownerId: currentUser.value.id
+  })
+  const project = markLeadWon(lead.value.id, quotation.value.approvedBy ?? currentUser.value.id)
   approveNote.value = ''
   isApproveDialogOpen.value = false
   if (!project) {
@@ -94,10 +103,10 @@ function submitApprove () {
 const isRejectDialogOpen = ref(false)
 const rejectNote = ref('')
 function submitReject () {
-  if (!opportunity.value || !rejectNote.value.trim()) { return }
+  if (!lead.value || !rejectNote.value.trim()) { return }
   createPartyActivity({
-    partyId: opportunity.value.partyId,
-    opportunityId: opportunity.value.id,
+    partyId: lead.value.partyId,
+    leadId: lead.value.id,
     type: 'note',
     message: `Client TIDAK menyetujui quotation ini. Alasan: ${rejectNote.value.trim()}`,
     ownerId: currentUser.value.id
@@ -112,8 +121,8 @@ function submitReject () {
 const isRevisionDialogOpen = ref(false)
 const revisionNote = ref('')
 function submitRevisionRequest () {
-  if (!opportunity.value || !revisionNote.value.trim()) { return }
-  requestQuotationRevision(opportunity.value.id, currentUser.value.id, revisionNote.value.trim())
+  if (!lead.value || !revisionNote.value.trim()) { return }
+  requestQuotationRevision(lead.value.id, currentUser.value.id, revisionNote.value.trim())
   revisionNote.value = ''
   isRevisionDialogOpen.value = false
   showToast('Permintaan Revisi Terkirim', 'Versi baru quotation telah disiapkan — silakan tinjau kembali.', 'success')
@@ -122,7 +131,7 @@ function submitRevisionRequest () {
 
 <template>
   <div class="space-y-6">
-    <template v-if="!quotation || !opportunity || !isOwnCompany">
+    <template v-if="!quotation || !lead || !isOwnCompany">
       <PageHeader title="Tidak Ditemukan" :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Tidak Ditemukan' }]" />
       <SectionCard>
         <EmptyState :icon="FileX" title="Quotation tidak ditemukan" description="Quotation ini tidak ada atau bukan milik company Anda.">
@@ -137,8 +146,8 @@ function submitRevisionRequest () {
 
     <template v-else>
       <PageHeader
-        :title="opportunity.title"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Approval' }, { label: 'Quotations & Proposals', to: '/client/travel-requests#quotations' }, { label: opportunity.title }]"
+        :title="leadTitle"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Approval' }, { label: 'Quotations & Proposals', to: '/client/travel-requests#quotations' }, { label: leadTitle }]"
       >
         <template #actions>
           <StatusBadge :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').label" :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').tone" />
@@ -154,24 +163,24 @@ function submitRevisionRequest () {
         <DetailMetadataList
           :items="[
             { label: 'Company', value: party?.name ?? '—' },
-            { label: 'Destinasi', value: opportunity.destination },
+            { label: 'Destinasi', value: lead.destination },
             {
               label: 'Tanggal Perkiraan',
-              value: opportunity.travelStartDate && opportunity.travelEndDate
-                ? formatDateRange(opportunity.travelStartDate, opportunity.travelEndDate)
+              value: lead.travelStartDate && lead.travelEndDate
+                ? formatDateRange(lead.travelStartDate, lead.travelEndDate)
                 : 'Belum ditentukan',
             },
-            { label: 'Estimasi Traveler', value: opportunity.travelerEstimate ? `${opportunity.travelerEstimate} pax` : '—' },
+            { label: 'Estimasi Traveler', value: lead.travelerEstimate ? `${lead.travelerEstimate} pax` : '—' },
           ]"
         />
         <div class="mt-4">
           <p class="text-xs font-medium text-muted-foreground mb-2">
             Peta Lokasi
           </p>
-          <DestinationMap :geo="opportunity.destinationGeo" :destination-text="opportunity.destination" />
+          <DestinationMap :geo="leadGeo" :destination-text="lead.destination" />
         </div>
-        <div v-if="opportunity.stage === 'won' && opportunity.projectId" class="mt-4 pt-4 border-t border-border">
-          <NuxtLink :to="`/client/project-orders/${opportunity.projectId}`" class="text-sm text-primary hover:underline">
+        <div v-if="lead.projectId" class="mt-4 pt-4 border-t border-border">
+          <NuxtLink :to="`/client/project-orders/${lead.projectId}`" class="text-sm text-primary hover:underline">
             Lihat Project Order Anda →
           </NuxtLink>
         </div>
@@ -271,14 +280,8 @@ function submitRevisionRequest () {
         </div>
 
         <div class="mt-4 pt-4 border-t border-border">
-          <template v-if="opportunity.clientConfirmedAt">
-            <div class="flex items-center gap-2">
-              <StatusBadge label="Anda Sudah Mengonfirmasi" tone="success" />
-              <span class="text-xs text-muted-foreground">pada {{ formatDate(opportunity.clientConfirmedAt) }}</span>
-            </div>
-            <p v-if="opportunity.clientConfirmationNote" class="text-sm text-muted-foreground mt-1">
-              Catatan Anda: {{ opportunity.clientConfirmationNote }}
-            </p>
+          <template v-if="lead.projectId">
+            <StatusBadge label="Anda Sudah Menyetujui — Project Order Dibuat" tone="success" />
           </template>
           <template v-else-if="canDecide">
             <p class="text-sm text-foreground mb-3">
@@ -292,7 +295,7 @@ function submitRevisionRequest () {
                 <DialogContent class="max-w-md">
                   <DialogHeader>
                     <DialogTitle>Approve Quotation</DialogTitle>
-                    <DialogDescription>Konfirmasi Anda akan langsung memproses Opportunity menjadi Won dan membuat Project Order (mock).</DialogDescription>
+                    <DialogDescription>Konfirmasi Anda akan langsung memproses Lead ini menjadi Won dan membuat Project Order (mock).</DialogDescription>
                   </DialogHeader>
                   <div class="space-y-1.5 py-2">
                     <Label for="approve-note">Catatan (opsional)</Label>
@@ -400,14 +403,14 @@ function submitRevisionRequest () {
               <option value="">
                 Pilih quotation pembanding...
               </option>
-              <option v-for="row in siblingOptions" :key="row.opportunity.id" :value="row.opportunity.id">
-                {{ row.opportunity.title }}
+              <option v-for="row in siblingOptions" :key="row.lead.id" :value="row.lead.id">
+                {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
               </option>
             </select>
             <div v-if="compareTarget" class="grid grid-cols-2 gap-3 text-sm">
               <div class="rounded-lg border border-primary/40 bg-primary/5 p-3">
                 <p class="text-xs text-muted-foreground mb-1">
-                  {{ opportunity.title }}
+                  {{ leadTitle }}
                 </p>
                 <p class="font-medium text-foreground">
                   {{ formatCurrencyIdr(quotation.amountIdr) }}
@@ -415,7 +418,7 @@ function submitRevisionRequest () {
               </div>
               <div class="rounded-lg border border-border p-3">
                 <p class="text-xs text-muted-foreground mb-1">
-                  {{ compareTarget.opportunity.title }}
+                  {{ compareTarget.lead.title ?? compareTarget.lead.companyName ?? compareTarget.lead.name }}
                 </p>
                 <p class="font-medium text-foreground">
                   {{ formatCurrencyIdr(compareTarget.quotation.amountIdr) }}

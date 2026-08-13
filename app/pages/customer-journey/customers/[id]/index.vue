@@ -3,10 +3,10 @@ import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import {
-  getPartyById, getContactsByParty, getOpportunitiesByParty, getProjectsByParty, getPartyActivities,
-  getDocumentsByParty, getUserById
+  getPartyById, getContactsByParty, getLeadsByParty, getProjectsByParty, getPartyActivities,
+  getDocumentsByParty, getUserById, getQuotationByLead
 } from '~/data'
-import { OPPORTUNITY_STAGES, PROJECT_STATUSES, findStatusOption } from '~/constants/status'
+import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
 import type { StatusOption } from '~/types/common'
 import type { PartyLifecycleStatus } from '~/types/party'
@@ -24,13 +24,14 @@ const LIFECYCLE_STATUSES: StatusOption<PartyLifecycleStatus>[] = [
   { value: 'client', label: 'Active Client', tone: 'success', order: 2 }
 ]
 
-type CustomerDetailTab = 'overview' | 'contacts' | 'opportunities' | 'project-orders' | 'activities' | 'documents'
+type CustomerDetailTab = 'overview' | 'contacts' | 'leads' | 'project-orders' | 'activities' | 'documents'
 
 const party = computed(() => getPartyById(String(route.params.id)))
 useHead({ title: computed(() => party.value ? party.value.name : 'Company Tidak Ditemukan') })
 
 const contacts = computed(() => (party.value ? getContactsByParty(party.value.id) : []))
-const opportunities = computed(() => (party.value ? getOpportunitiesByParty(party.value.id) : []))
+const leadDeals = computed(() => (party.value ? getLeadsByParty(party.value.id) : []))
+const leadDealRows = computed(() => leadDeals.value.map(lead => ({ lead, quotation: getQuotationByLead(lead.id) })))
 const projectOrders = computed(() => (party.value ? getProjectsByParty(party.value.id) : []))
 const activities = computed(() => (party.value ? getPartyActivities(party.value.id) : []))
 const documents = computed(() => (party.value ? getDocumentsByParty(party.value.id) : []))
@@ -44,7 +45,7 @@ const summaryMetadata = computed(() => {
     { label: 'Ukuran Perusahaan', value: party.value.size ?? '—' },
     { label: 'Kota', value: party.value.city ?? '—' },
     { label: 'Telepon', value: party.value.phone ?? '—' },
-    { label: 'Total Opportunities', value: String(opportunities.value.length) },
+    { label: 'Total Leads', value: String(leadDeals.value.length) },
     { label: 'Total Project Orders', value: String(projectOrders.value.length) }
   ]
 })
@@ -57,7 +58,7 @@ const activeTab = computed<CustomerDetailTab>({
 const TABS: { value: CustomerDetailTab; label: string }[] = [
   { value: 'overview', label: 'Overview' },
   { value: 'contacts', label: 'Contacts' },
-  { value: 'opportunities', label: 'Opportunities' },
+  { value: 'leads', label: 'Leads' },
   { value: 'project-orders', label: 'Project' },
   { value: 'activities', label: 'Activities' },
   { value: 'documents', label: 'Documents' }
@@ -106,7 +107,7 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
               Company ini merepresentasikan entitas Party/CRM yang sama dengan `/crm/prospects`/`/crm/clients` —
               lihat juga <NuxtLink :to="`/crm/parties/${party.id}`" class="text-primary hover:underline">
                 Party Detail (CRM)
-              </NuxtLink> untuk tab Overview/Contacts/Opportunities/Activities standar.
+              </NuxtLink> untuk tab Overview/Contacts/Leads/Activities standar.
             </p>
           </SectionCard>
         </TabsContent>
@@ -131,31 +132,38 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
           </SectionCard>
         </TabsContent>
 
-        <TabsContent value="opportunities">
-          <SectionCard title="Opportunities">
-            <Table v-if="opportunities.length">
+        <TabsContent value="leads">
+          <SectionCard title="Leads">
+            <Table v-if="leadDealRows.length">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Opportunity</TableHead>
-                  <TableHead>Stage</TableHead>
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Status Quotation</TableHead>
                   <TableHead>Account Executive</TableHead>
-                  <TableHead>Estimasi Nilai</TableHead>
+                  <TableHead>Nilai Quotation</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                <TableRow v-for="opp in opportunities" :key="opp.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/crm/opportunities/${opp.id}`)">
+                <TableRow v-for="row in leadDealRows" :key="row.lead.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/crm/leads/${row.lead.id}`)">
                   <TableCell class="font-medium text-foreground">
-                    {{ opp.title }}
+                    {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
                   </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(OPPORTUNITY_STAGES, opp.stage).label" :tone="findStatusOption(OPPORTUNITY_STAGES, opp.stage).tone" /></TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      v-if="row.quotation"
+                      :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').label"
+                      :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').tone"
+                    />
+                    <span v-else class="text-muted-foreground">—</span>
+                  </TableCell>
                   <TableCell class="text-muted-foreground">
-                    {{ getUserById(opp.ownerId)?.name ?? '—' }}
+                    {{ getUserById(row.lead.handedOverTo ?? row.lead.ownerId)?.name ?? '—' }}
                   </TableCell>
-                  <TableCell>{{ formatCurrencyIdr(opp.estimatedValueIdr) }}</TableCell>
+                  <TableCell>{{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}</TableCell>
                 </TableRow>
               </TableBody>
             </Table>
-            <EmptyState v-else title="Belum ada opportunity" />
+            <EmptyState v-else title="Belum ada lead" />
           </SectionCard>
         </TabsContent>
 
@@ -185,7 +193,7 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
                 </TableRow>
               </TableBody>
             </Table>
-            <EmptyState v-else title="Belum ada Project Order" description="Company ini belum memiliki Project Order (belum ada Opportunity yang Won)." />
+            <EmptyState v-else title="Belum ada Project Order" description="Company ini belum memiliki Project Order (belum ada Lead yang Won)." />
           </SectionCard>
         </TabsContent>
 

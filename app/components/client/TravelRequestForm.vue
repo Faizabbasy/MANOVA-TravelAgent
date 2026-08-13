@@ -182,7 +182,7 @@ function uploadAttachment () {
         </div>
         <div class="space-y-1.5">
           <Label for="tr-budget">Estimasi Budget (IDR)</Label>
-          <Input id="tr-budget" v-model.number="form.estimatedBudgetIdr" type="number" min="0" />
+          <CurrencyInput id="tr-budget" v-model="form.estimatedBudgetIdr" min="0" />
         </div>
         <div class="space-y-1.5 sm:col-span-2">
           <Label>Layanan yang Dibutuhkan</Label>

@@ -129,7 +129,7 @@ function submitDebitNote () {
             </div>
             <div class="space-y-1.5">
               <Label for="dn-amount">Jumlah (Rp)</Label>
-              <Input id="dn-amount" v-model.number="newAmount" type="number" />
+              <CurrencyInput id="dn-amount" v-model="newAmount" />
             </div>
             <div class="space-y-1.5">
               <Label for="dn-reason">Alasan</Label>

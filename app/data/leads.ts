@@ -2,11 +2,13 @@ import { reactive } from 'vue'
 import type { Lead, LeadActivity } from '~/types/lead'
 
 /**
- * Lead fixture (Prompt 19 — Change Request), `reactive()` mengikuti pola Section 07 dst. — "Qualify &
- * Create Opportunity" dan "Archive" adalah mutasi runtime yang harus terlihat seketika di Table/Kanban/
- * Inbox tanpa reload. LED-005/LED-009 sengaja ditautkan retroaktif ke OPP-005/OPP-001 (data existing sejak
- * Section 08/06) untuk mendemonstrasikan traceability penuh Lead→Opportunity tanpa memfabrikasi Opportunity
- * baru yang tidak perlu — sesuai hard rule "gunakan fixture yang sama, bukan dataset terpisah".
+ * Lead fixture, `reactive()` mengikuti pola Section 07 dst. — Qualify dan Archive adalah mutasi runtime
+ * yang harus terlihat seketika di Table/Kanban/Inbox tanpa reload.
+ *
+ * LED-005/009/013–020 sudah berstatus `qualified` dengan Quotation/Project terpasang (`Lead` adalah satu-
+ * satunya deal record sejak Opportunity dihapus — lihat komentar desain di `app/types/lead.ts`). Repeat
+ * business dari company yang sama (PTY-001/Hendra Wijaya: LED-009/016/018) sengaja jadi Lead TERPISAH per
+ * deal, bukan Lead yang sama dipakai ulang untuk beberapa Quotation.
  */
 export const LEADS: Lead[] = reactive([
   {
@@ -25,7 +27,7 @@ export const LEADS: Lead[] = reactive([
     lastUpdatedAt: '2026-07-22',
     archived: false,
     // Qualification (Prompt 20) — sengaja LENGKAP (seluruh field wajib terisi): mendemokan Lead yang siap
-    // "Qualify & Create Opportunity" dengan form Qualification penuh, gate terpenuhi, tombol aktif.
+    // "Qualify" dengan form Qualification penuh, gate terpenuhi, tombol aktif.
     serviceCategory: 'mice-event',
     destination: 'Yogyakarta, Indonesia',
     travelStartDate: '2026-09-20',
@@ -100,7 +102,19 @@ export const LEADS: Lead[] = reactive([
     lastUpdatedAt: '2026-07-18',
     archived: false,
     partyId: 'PTY-004',
-    opportunityId: 'OPP-005'
+    title: 'Bali Team Building 2026',
+    qualifiedAt: '2026-07-05',
+    quotationId: 'QUO-005',
+    serviceCategory: 'corporate-travel',
+    destination: 'Bali, Indonesia',
+    travelStartDate: '2026-10-05',
+    travelEndDate: '2026-10-08',
+    travelerEstimate: 30,
+    serviceScope: ['flight', 'hotel'],
+    requirementSummary: 'Flight + hotel untuk 30 peserta, aktivitas team building 1 hari.',
+    budgetRange: 'Rp 150 juta - Rp 200 juta',
+    decisionMaker: 'Nadia Ramadhani (Procurement Officer)',
+    urgency: 'medium'
   },
   {
     id: 'LED-006',
@@ -151,7 +165,18 @@ export const LEADS: Lead[] = reactive([
     lastUpdatedAt: '2026-06-10',
     archived: false,
     partyId: 'PTY-001',
-    opportunityId: 'OPP-001'
+    title: 'Manila Business Trip Q3 2026',
+    qualifiedAt: '2026-06-10',
+    quotationId: 'QUO-001',
+    projectId: 'PRJ-101',
+    serviceCategory: 'corporate-travel',
+    destination: 'Manila, Filipina',
+    travelStartDate: '2026-08-20',
+    travelEndDate: '2026-08-23',
+    travelerEstimate: 6,
+    serviceScope: ['flight'],
+    requirementSummary: 'Flight only, keberangkatan pagi, budget standard.',
+    decisionMaker: 'Hendra Wijaya (Operations Manager)'
   },
   {
     id: 'LED-010',
@@ -204,6 +229,204 @@ export const LEADS: Lead[] = reactive([
     createdAt: '2026-07-27',
     lastUpdatedAt: '2026-07-29',
     archived: false
+  },
+  /**
+   * LED-013–020 — deal record untuk company/repeat-business yang sebelumnya dimodelkan sebagai Opportunity
+   * berdiri sendiri (kini dihapus, lihat komentar desain di `app/types/lead.ts`). Setiap Lead di bawah
+   * merepresentasikan SATU deal (satu Quotation/Project paling banyak), reuse `partyId` company yang sama
+   * bila memang repeat business — bukan dataset paralel baru.
+   */
+  {
+    id: 'LED-013',
+    name: 'Farah Anindya',
+    companyName: 'PT Alam Raya Group',
+    source: 'referral',
+    stage: 'qualified',
+    ownerId: 'USR-001',
+    handedOverTo: 'USR-001',
+    createdAt: '2026-05-25',
+    lastUpdatedAt: '2026-06-01',
+    archived: false,
+    partyId: 'PTY-002',
+    title: 'Abu Dhabi Corporate Gathering',
+    qualifiedAt: '2026-06-01',
+    quotationId: 'QUO-002',
+    projectId: 'PRJ-102',
+    serviceCategory: 'corporate-travel',
+    destination: 'Abu Dhabi, Uni Emirat Arab',
+    travelStartDate: '2026-09-22',
+    travelEndDate: '2026-09-26',
+    travelerEstimate: 15,
+    serviceScope: ['flight', 'hotel'],
+    requirementSummary: 'Flight + hotel, room block untuk seluruh peserta, fleksibel tanggal.'
+  },
+  {
+    id: 'LED-014',
+    name: 'Michael Tanuwijaya',
+    companyName: 'PT Sinergi Korporindo',
+    source: 'website',
+    stage: 'qualified',
+    ownerId: 'USR-001',
+    handedOverTo: 'USR-001',
+    createdAt: '2026-05-08',
+    lastUpdatedAt: '2026-05-15',
+    archived: false,
+    partyId: 'PTY-003',
+    title: 'Palu MICE Conference 2026',
+    qualifiedAt: '2026-05-15',
+    quotationId: 'QUO-003',
+    projectId: 'PRJ-103',
+    serviceCategory: 'mice-event',
+    destination: 'Palu, Indonesia',
+    travelStartDate: '2026-08-10',
+    travelEndDate: '2026-08-14',
+    travelerEstimate: 60,
+    serviceScope: ['flight', 'hotel', 'transportation', 'mice'],
+    requirementSummary: 'Full MICE: flight, hotel, transportation, dan venue acara untuk 60 peserta.'
+  },
+  /** LED-015 — deal stalled/batal (budget internal client dipotong); dibiarkan `qualified` tanpa `projectId` (tidak ada fitur "Lost" tersendiri, cukup nyangkut sebagai deal yang tidak lanjut). */
+  {
+    id: 'LED-015',
+    name: 'Rian Kusuma',
+    companyName: 'PT Melati Wisata Kreasi',
+    source: 'referral',
+    stage: 'qualified',
+    ownerId: 'USR-001',
+    handedOverTo: 'USR-001',
+    createdAt: '2026-06-10',
+    lastUpdatedAt: '2026-06-15',
+    archived: false,
+    partyId: 'PTY-004',
+    title: 'Jakarta Incentive Trip',
+    qualifiedAt: '2026-06-15',
+    quotationId: 'QUO-004',
+    serviceCategory: 'corporate-travel',
+    destination: 'Jakarta, Indonesia',
+    travelStartDate: '2026-08-15',
+    travelEndDate: '2026-08-18',
+    travelerEstimate: 20,
+    serviceScope: ['flight', 'hotel'],
+    requirementSummary: 'Flight + hotel untuk 20 peserta incentive trip.'
+  },
+  /** LED-016 — repeat business PTY-001/Hendra Wijaya (deal terpisah dari LED-009); Quotation sudah `approved`, siap didemokan "Mark as Won" langsung. */
+  {
+    id: 'LED-016',
+    name: 'Hendra Wijaya',
+    companyName: 'PT Cipta Distribusi Nusantara',
+    source: 'website',
+    stage: 'qualified',
+    ownerId: 'USR-001',
+    handedOverTo: 'USR-001',
+    createdAt: '2026-07-10',
+    lastUpdatedAt: '2026-07-15',
+    archived: false,
+    partyId: 'PTY-001',
+    title: 'Manila Repeat Business Q4 2026',
+    qualifiedAt: '2026-07-15',
+    quotationId: 'QUO-006',
+    serviceCategory: 'corporate-travel',
+    destination: 'Manila, Filipina',
+    travelStartDate: '2026-11-10',
+    travelEndDate: '2026-11-13',
+    travelerEstimate: 8,
+    serviceScope: ['flight'],
+    requirementSummary: 'Flight only, repeat business dari client existing.',
+    decisionMaker: 'Hendra Wijaya (Operations Manager)'
+  },
+  /** LED-017 — qualified, belum ada Quotation ("Ready for Quotation"). */
+  {
+    id: 'LED-017',
+    name: 'Farah Anindya',
+    companyName: 'PT Alam Raya Group',
+    source: 'referral',
+    stage: 'qualified',
+    ownerId: 'USR-001',
+    handedOverTo: 'USR-001',
+    createdAt: '2026-07-15',
+    lastUpdatedAt: '2026-07-20',
+    archived: false,
+    partyId: 'PTY-002',
+    title: 'Abu Dhabi Follow-up Training',
+    qualifiedAt: '2026-07-20',
+    serviceCategory: 'corporate-travel',
+    destination: 'Abu Dhabi, Uni Emirat Arab',
+    travelStartDate: '2026-10-15',
+    travelEndDate: '2026-10-18',
+    travelerEstimate: 12,
+    serviceScope: ['flight', 'hotel'],
+    requirementSummary: 'Flight + hotel untuk 12 peserta training lanjutan.'
+  },
+  /** LED-018 — repeat business PTY-001/Hendra Wijaya kedua, sudah Won (Project Order kedua, PRJ-104). */
+  {
+    id: 'LED-018',
+    name: 'Hendra Wijaya',
+    companyName: 'PT Cipta Distribusi Nusantara',
+    source: 'website',
+    stage: 'qualified',
+    ownerId: 'USR-001',
+    handedOverTo: 'USR-001',
+    createdAt: '2026-07-10',
+    lastUpdatedAt: '2026-07-15',
+    archived: false,
+    partyId: 'PTY-001',
+    title: 'Manila Follow-up Training Q1 2027',
+    qualifiedAt: '2026-07-15',
+    quotationId: 'QUO-008',
+    projectId: 'PRJ-104',
+    serviceCategory: 'corporate-travel',
+    destination: 'Manila, Filipina',
+    travelStartDate: '2027-02-16',
+    travelEndDate: '2027-02-18',
+    travelerEstimate: 8,
+    serviceScope: ['flight'],
+    requirementSummary: 'Flight only, lanjutan repeat business dari PT Cipta Distribusi Nusantara.'
+  },
+  /** LED-019 — repeat business PTY-003/Michael Tanuwijaya, qualified, belum ada Quotation. */
+  {
+    id: 'LED-019',
+    name: 'Michael Tanuwijaya',
+    companyName: 'PT Sinergi Korporindo',
+    source: 'website',
+    stage: 'qualified',
+    ownerId: 'USR-001',
+    handedOverTo: 'USR-001',
+    createdAt: '2026-07-20',
+    lastUpdatedAt: '2026-07-26',
+    archived: false,
+    partyId: 'PTY-003',
+    title: 'Palu MICE Conference 2027',
+    qualifiedAt: '2026-07-26',
+    serviceCategory: 'mice-event',
+    destination: 'Palu, Indonesia',
+    travelStartDate: '2027-03-10',
+    travelEndDate: '2027-03-13',
+    travelerEstimate: 25,
+    serviceScope: ['flight', 'hotel', 'mice'],
+    requirementSummary: 'Full MICE lanjutan: flight, hotel, dan venue acara untuk 25 peserta.'
+  },
+  /** LED-020 — Quotation sudah dibuat (QUO-010) tapi masih draft (`approvalStatus` belum diisi) — "Quotation Draft". */
+  {
+    id: 'LED-020',
+    name: 'Sarah Amelia',
+    companyName: 'PT Alam Raya Group',
+    source: 'referral',
+    stage: 'qualified',
+    ownerId: 'USR-001',
+    handedOverTo: 'USR-001',
+    createdAt: '2026-07-20',
+    lastUpdatedAt: '2026-07-27',
+    archived: false,
+    partyId: 'PTY-002',
+    title: 'Surabaya Regional Sales Meeting 2027',
+    qualifiedAt: '2026-07-27',
+    quotationId: 'QUO-010',
+    serviceCategory: 'corporate-travel',
+    destination: 'Surabaya, Indonesia',
+    travelStartDate: '2027-01-20',
+    travelEndDate: '2027-01-22',
+    travelerEstimate: 18,
+    serviceScope: ['flight', 'hotel'],
+    requirementSummary: 'Flight + hotel untuk 18 peserta regional sales meeting.'
   }
 ])
 
@@ -215,5 +438,5 @@ export const LEAD_ACTIVITIES: LeadActivity[] = reactive([
   { id: 'LACT-004', leadId: 'LED-004', type: 'call', message: 'Follow-up awal atas inbound WhatsApp', ownerId: 'USR-001', createdAt: '2026-07-18' },
   { id: 'LACT-005', leadId: 'LED-004', type: 'follow-up', message: 'Follow-up detail kebutuhan business trip Singapura', ownerId: 'USR-001', createdAt: '2026-07-26', dueAt: '2026-08-08' },
   { id: 'LACT-006', leadId: 'LED-008', type: 'call', message: 'Cold call awal hasil sales outreach', ownerId: 'USR-001', createdAt: '2026-07-20' },
-  { id: 'LACT-007', leadId: 'LED-005', type: 'note', message: 'Lead diserahkan ke Account Executive untuk pembuatan Opportunity Bali Team Building', ownerId: 'USR-001', createdAt: '2026-07-18' }
+  { id: 'LACT-007', leadId: 'LED-005', type: 'note', message: 'Lead diserahkan ke Account Executive untuk deal Bali Team Building', ownerId: 'USR-001', createdAt: '2026-07-18' }
 ])

@@ -3,12 +3,19 @@ import type { PartyActivityType } from './party'
 import type { ServiceTypeKey } from './project'
 
 /**
- * Lead (Prompt 19 — Change Request). Pre-Party record hasil capture awal (sebelum jadi Prospect/Company),
- * dikelola Sales sampai `qualified`, lalu diserahkan ke Account Executive untuk "Qualify & Create Opportunity".
- * Bukan pengganti `Party` — begitu di-qualify, sebuah `Party` baru dibuat (atau di-link ke `Party` existing bila
- * `companyName` cocok) dan `Lead.partyId`/`Lead.opportunityId` diisi sebagai referensi, konsisten dengan alur
- * "Lead→Qualified→Create Opportunity→Quotation→Management Approval→Won→Active Client→Project Order" (bukan
- * "Convert to Customer" — istilah tsb sengaja tidak dipakai sesuai instruksi literal Prompt 19-5A).
+ * Lead. Pre-Party record hasil capture awal (sebelum jadi Prospect/Company/Client), dikelola Sales sampai
+ * `qualified`. Bukan pengganti `Party` — begitu di-qualify, sebuah `Party` baru dibuat (atau di-link ke
+ * `Party` existing bila `companyName` cocok) dan `Lead.partyId` diisi sebagai referensi.
+ *
+ * Sengaja TIDAK ada entitas "Opportunity" terpisah di antara Lead dan hasil akhirnya (dihapus — flat by
+ * design, mockup tidak butuh deal-record tambahan). Lead sendiri jadi satu-satunya pre-sale record untuk
+ * kedua jalur:
+ * - B2B (`serviceCategory` selain `individual-travel`): Lead → qualify (`qualifyLeadForQuotation`) →
+ *   `Quotation` dibuat langsung di Lead ini (`Lead.quotationId`) → approval Management → "Mark as Won"
+ *   (`markLeadWon`, satu langkah, digerbangi `Quotation.approvalStatus === 'approved'`) → `Project` dibuat
+ *   (`Lead.projectId`).
+ * - B2C (`serviceCategory === 'individual-travel'`): Lead → qualify sekaligus buat `SalesOrder`
+ *   (`qualifyLeadAndCreateSalesOrder`, `Lead.salesOrderId`) — tanpa Quotation/approval, langsung order.
  */
 export type LeadSource = 'website' | 'instagram' | 'tiktok' | 'whatsapp' | 'referral' | 'event' | 'email' | 'sales-outreach' | 'client-portal' | 'other'
 
@@ -20,6 +27,21 @@ export type LeadServiceCategory = 'corporate-travel' | 'group-travel' | 'individ
 /** Tingkat urgensi (Prompt 20) — field opsional form Qualification. */
 export type LeadUrgency = 'low' | 'medium' | 'high'
 
+/**
+ * Status workflow AE-facing — DIRIVASI (bukan field tersimpan) lewat `getLeadWorkflowStatus`
+ * (`app/data/index.ts`) dari kombinasi `Lead.stage` + `Quotation.approvalStatus` + `Lead.projectId`/
+ * `salesOrderId`, pola sama derived-status lain di codebase (`getProjectOrderStatus`). Menggantikan
+ * `OpportunityWorkflowStatus` lama — tidak lagi ada gerbang requirement/client-confirmation terpisah.
+ */
+export type LeadWorkflowStatus =
+  | 'unqualified'
+  | 'qualified-pending-quotation'
+  | 'quotation-draft'
+  | 'pending-management-approval'
+  | 'quotation-approved'
+  | 'won'
+  | 'sales-order-created'
+
 export interface Lead {
   id: ID
   name: string
@@ -29,29 +51,36 @@ export interface Lead {
   /** Sales yang menangani screening/qualification; berpindah ke AE (`handedOverTo`) setelah handover. */
   ownerId: ID
   /**
-   * Account Executive tujuan handover — Prompt 20: kini diisi Sales secara eksplisit sebagai field wajib
-   * form Qualification ("Account Executive yang menerima lead"), BUKAN lagi diputuskan otomatis saat tombol
-   * "Qualify & Create Opportunity" diklik (lihat `qualifyLeadAndCreateOpportunity`, `app/data/index.ts`).
+   * Account Executive tujuan handover — diisi Sales secara eksplisit sebagai field wajib form Qualification
+   * ("Account Executive yang menerima lead"), bukan diputuskan otomatis saat tombol Qualify diklik.
    */
   handedOverTo?: ID
   phone?: string
   email?: string
-  /** "Catatan hasil komunikasi" (Prompt 20-4, field opsional Qualification) — nama field dipertahankan dari Prompt 19. */
+  /** "Catatan hasil komunikasi" — field opsional Qualification. */
   qualificationNotes?: string
   expectedCloseDate?: string
   createdAt: string
   lastUpdatedAt: string
   archived: boolean
-  /** Terisi begitu Lead di-qualify dan Opportunity dibuat — referensi, bukan duplikasi (Party/Opportunity tetap satu sumber). */
+  /** Terisi begitu Lead di-qualify — referensi, bukan duplikasi (Party tetap satu sumber). */
   partyId?: ID
-  opportunityId?: ID
+  /** Timestamp saat `stage` berpindah ke `qualified` — dipakai laporan SLA "Lead → Quotation cycle-time" sebagai titik awal yang presisi (`Lead.createdAt` sendiri mendahului qualification, jadi bukan proxy yang akurat). */
+  qualifiedAt?: string
+  /** Judul deal opsional (tampil di header halaman detail Lead B2B) — kosong untuk Lead B2C. */
+  title?: string
+  /** B2B — terisi begitu Quotation dibuat untuk Lead ini (`createQuotation`). */
+  quotationId?: ID
+  /** B2B — terisi begitu "Mark as Won" berhasil (`markLeadWon`), menandakan Project sudah dibuat. */
+  projectId?: ID
+  /** B2C — terisi begitu Lead individual-travel di-qualify sekaligus jadi Sales Order (`qualifyLeadAndCreateSalesOrder`). */
+  salesOrderId?: ID
 
   /**
-   * Qualification (Prompt 20 — Change Request). Diisi progresif oleh Sales lewat tombol "Simpan Draft"
-   * (`updateLeadQualification`) — seluruh field di bawah opsional untuk disimpan sebagai draft, tapi WAJIB
-   * lengkap (lihat `getLeadMissingQualification`) sebelum tombol "Qualify & Create Opportunity" aktif.
-   * "Hasil qualification" (Prompt 20-4) sengaja TIDAK disimpan sebagai field terpisah — direpresentasikan oleh
-   * `stage` itu sendiri (`qualified`/`unqualified`), hasil dari aksi yang ditekan (mencegah field redundan).
+   * Qualification. Diisi progresif oleh Sales lewat tombol "Simpan Draft" (`updateLeadQualification`) —
+   * seluruh field di bawah opsional untuk disimpan sebagai draft, tapi WAJIB lengkap (lihat
+   * `getLeadMissingQualification`) sebelum tombol Qualify aktif. "Hasil qualification" sengaja TIDAK
+   * disimpan sebagai field terpisah — direpresentasikan oleh `stage` itu sendiri (`qualified`/`unqualified`).
    */
   serviceCategory?: LeadServiceCategory
   destination?: string
@@ -59,9 +88,9 @@ export interface Lead {
   travelEndDate?: string
   travelerEstimate?: number
   serviceScope?: ServiceTypeKey[]
-  /** "Ringkasan kebutuhan awal" — wajib sebelum Qualified, dibawa ke `Opportunity.requirementNotes` saat Qualify. */
+  /** "Ringkasan kebutuhan awal" — wajib sebelum Qualified. */
   requirementSummary?: string
-  /** Field opsional Qualification (Prompt 20-4). */
+  /** Field opsional Qualification. */
   budgetRange?: string
   dateFlexible?: boolean
   decisionMaker?: string

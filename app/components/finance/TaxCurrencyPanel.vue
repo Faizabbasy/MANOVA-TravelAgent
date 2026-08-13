@@ -81,7 +81,7 @@ const calculation = computed(() => {
           <div class="space-y-3">
             <div class="space-y-1.5">
               <Label>Dasar Pengenaan (IDR)</Label>
-              <Input v-model.number="baseAmount" type="number" placeholder="0" />
+              <CurrencyInput v-model="baseAmount" placeholder="0" />
             </div>
             <div class="space-y-1.5">
               <Label>Aturan Pajak</Label>

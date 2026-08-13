@@ -4,17 +4,17 @@ import type { ProductTemplate, CostSheet } from '~/types/product'
 /**
  * `reactive()` (Section 10 — roadmap Section 00–24 baru) — melanjutkan pola Section 07 dst. Product
  * Planner butuh create/edit template dan cost sheet, plus "Apply to Quotation" yang harus ter-propagate
- * ke Opportunity Detail (Section 05/08) tanpa reload.
+ * ke Lead Detail (Section 05/08) tanpa reload.
  *
  * Fixture di bawah sengaja mencakup 3 kondisi berbeda (Wajib "Planner dapat menyiapkan product/costing
  * yang digunakan AE dan Project"):
  * 1. PRD-001/CS-001 dan PRD-002/CS-002 — Cost Sheet historis yang SUDAH `applied` ke Quotation Won
- *    (OPP-001/OPP-002, docs/mockup-data-scenarios.md bagian 1/2), mendemokan snapshot konsep secara nyata.
- * 2. CS-005 — Cost Sheet baseline berdiri sendiri (`opportunityId` kosong), referensi Planner sebelum ada
- *    Opportunity spesifik.
- * 3. PRD-003/CS-003/CS-004 — dua skenario (Economy vs Premium) melekat pada OPP-009 (stage
- *    `requirement-gathering`, "Ready for Quotation", BELUM ada Quotation) — demo hidup "Scenario/version
- *    comparison" dan tombol "Apply to Quotation" yang benar-benar berfungsi (bukan hanya seeded-done).
+ *    (LED-009/LED-013, docs/mockup-data-scenarios.md bagian 1/2), mendemokan snapshot konsep secara nyata.
+ * 2. CS-005 — Cost Sheet baseline berdiri sendiri (`leadId` kosong), referensi Planner sebelum ada
+ *    Lead spesifik.
+ * 3. PRD-003/CS-003/CS-004 — dua skenario (Economy vs Premium) melekat pada LED-019 (qualified, "Ready for
+ *    Quotation", BELUM ada Quotation) — demo hidup "Scenario/version comparison" dan tombol "Apply to
+ *    Quotation" yang benar-benar berfungsi (bukan hanya seeded-done).
  *
  * Total sell hasil kalkulasi (`getCostSheetBreakdown`, app/data/index.ts) SENGAJA tidak dipaksa sama persis
  * dengan `Quotation.amountIdr` historis — nilai quotation final adalah hasil negosiasi AE, sementara Cost
@@ -91,7 +91,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     id: 'CS-001',
     name: 'Manila Business Trip Q3 2026 — Cost Sheet',
     productId: 'PRD-001',
-    opportunityId: 'OPP-001',
+    leadId: 'LED-009',
     travelerCount: 6,
     currency: 'IDR',
     lineItems: [
@@ -113,7 +113,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     id: 'CS-002',
     name: 'Abu Dhabi Corporate Gathering — Cost Sheet',
     productId: 'PRD-002',
-    opportunityId: 'OPP-002',
+    leadId: 'LED-013',
     travelerCount: 15,
     currency: 'IDR',
     lineItems: [
@@ -149,13 +149,13 @@ export const COST_SHEETS: CostSheet[] = reactive([
     version: 1,
     createdBy: 'USR-001',
     createdAt: '2026-05-22',
-    notes: 'Baseline referensi — belum terikat Opportunity spesifik, dipakai sebagai starting point saat AE membawa deal baru ke destinasi ini.'
+    notes: 'Baseline referensi — belum terikat Lead spesifik, dipakai sebagai starting point saat AE membawa deal baru ke destinasi ini.'
   },
   {
     id: 'CS-003',
     name: 'Palu MICE Conference 2027 — Economy Scenario',
     productId: 'PRD-003',
-    opportunityId: 'OPP-009',
+    leadId: 'LED-019',
     travelerCount: 25,
     currency: 'IDR',
     lineItems: [
@@ -177,7 +177,7 @@ export const COST_SHEETS: CostSheet[] = reactive([
     id: 'CS-004',
     name: 'Palu MICE Conference 2027 — Premium Scenario',
     productId: 'PRD-003',
-    opportunityId: 'OPP-009',
+    leadId: 'LED-019',
     travelerCount: 25,
     currency: 'IDR',
     lineItems: [

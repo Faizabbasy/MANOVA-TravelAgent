@@ -1,9 +1,9 @@
 import { reactive } from 'vue'
-import type { QuotationAttachment, QuotationComment } from '~/types/opportunity'
+import type { QuotationAttachment, QuotationComment } from '~/types/quotation'
 
 /**
  * Quotation attachment/comment mock (Repair Phase Section 3 — Request & Commercial). Array kosong dengan
- * sengaja — belum ada Quotation demo (PTY-005 belum punya Opportunity, lihat `docs/client-mock-data-scenarios.md`)
+ * sengaja — belum ada Quotation demo (PTY-005 belum punya Lead ber-deal, lihat `docs/client-mock-data-scenarios.md`)
  * yang butuh contoh attachment/comment sejak awal; keduanya terisi natural begitu Client berinteraksi
  * lewat `/client/quotations/[id]` (upload mock/komentar) atau lewat mock review Travel Request.
  */

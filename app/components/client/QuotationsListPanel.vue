@@ -1,16 +1,17 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search, FileText } from 'lucide-vue-next'
-import { getOpportunitiesByParty, getQuotationByOpportunity } from '~/data'
+import { getLeadsByParty, getQuotationByLead } from '~/data'
 import { QUOTATION_APPROVAL_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
-import type { QuotationApprovalStatus } from '~/types/opportunity'
+import type { QuotationApprovalStatus } from '~/types/quotation'
 
 /**
  * Tab "Quotations" — Menu Client Portal > Request & Approval (Penyederhanaan 7-Role/Menu). Dulu
  * `/client/quotations`, kini tab dalam satu menu bersama Travel Requests/Approvals — logika tidak diubah.
- * Mengagregasi seluruh Quotation company lintas Opportunity — REUSE `getOpportunitiesByParty`+
- * `getQuotationByOpportunity` existing.
+ * Mengagregasi seluruh Quotation company lintas Lead — REUSE `getLeadsByParty`+ `getQuotationByLead`
+ * existing (pengganti `getOpportunitiesByParty`/`getQuotationByOpportunity` lama, entitas Opportunity
+ * dihapus, lihat komentar desain di `app/types/lead.ts`).
  */
 
 const { canView, clientScopeId } = usePermissions()
@@ -19,10 +20,10 @@ const search = ref('')
 const statusFilter = ref<'all' | QuotationApprovalStatus>('all')
 
 const rows = computed(() => {
-  const opportunities = clientScopeId.value ? getOpportunitiesByParty(clientScopeId.value) : []
-  return opportunities
-    .map(opportunity => ({ opportunity, quotation: getQuotationByOpportunity(opportunity.id) }))
-    .filter((row): row is { opportunity: typeof row.opportunity; quotation: NonNullable<typeof row.quotation> } => Boolean(row.quotation))
+  const leads = clientScopeId.value ? getLeadsByParty(clientScopeId.value) : []
+  return leads
+    .map(lead => ({ lead, quotation: getQuotationByLead(lead.id) }))
+    .filter((row): row is { lead: typeof row.lead; quotation: NonNullable<typeof row.quotation> } => Boolean(row.quotation))
 })
 
 const filteredRows = computed(() => {
@@ -30,7 +31,7 @@ const filteredRows = computed(() => {
   if (statusFilter.value !== 'all') { result = result.filter(row => (row.quotation.approvalStatus ?? 'draft') === statusFilter.value) }
   if (search.value.trim()) {
     const q = search.value.toLowerCase()
-    result = result.filter(row => row.opportunity.title.toLowerCase().includes(q) || row.opportunity.destination.toLowerCase().includes(q))
+    result = result.filter(row => (row.lead.title ?? row.lead.companyName ?? row.lead.name ?? '').toLowerCase().includes(q) || (row.lead.destination ?? '').toLowerCase().includes(q))
   }
   return result.sort((a, b) => b.quotation.createdAt.localeCompare(a.quotation.createdAt))
 })
@@ -45,7 +46,7 @@ const filteredRows = computed(() => {
         <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
           <div class="relative flex-1 max-w-sm w-full">
             <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input v-model="search" placeholder="Cari nama opportunity atau destinasi..." class="pl-9" />
+            <Input v-model="search" placeholder="Cari nama lead atau destinasi..." class="pl-9" />
           </div>
           <select v-model="statusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
             <option value="all">
@@ -62,10 +63,10 @@ const filteredRows = computed(() => {
             <NuxtLink :to="`/client/quotations/${row.quotation.id}`" class="flex items-center justify-between gap-3 group">
               <div class="min-w-0">
                 <p class="text-sm font-medium text-foreground truncate group-hover:underline">
-                  {{ row.opportunity.title }}
+                  {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
                 </p>
                 <p class="text-xs text-muted-foreground truncate">
-                  {{ row.opportunity.destination }} · v{{ row.quotation.version }}
+                  {{ row.lead.destination }} · v{{ row.quotation.version }}
                   <template v-if="row.quotation.sentToClientAt">
                     · Dikirim {{ formatDate(row.quotation.sentToClientAt) }}
                   </template>

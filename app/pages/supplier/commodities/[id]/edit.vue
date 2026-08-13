@@ -97,14 +97,14 @@ function submit () {
           </div>
           <div class="space-y-1.5">
             <Label for="edit-sell-price">Harga Jual ke Client (Rp)</Label>
-            <Input id="edit-sell-price" v-model.number="sellPriceIdr" type="number" />
+            <CurrencyInput id="edit-sell-price" v-model="sellPriceIdr" />
             <p class="text-xs text-muted-foreground">
               Order yang sudah confirmed TIDAK terpengaruh — harga di order tersimpan sebagai snapshot.
             </p>
           </div>
           <div class="space-y-1.5">
             <Label for="edit-cost-price">Harga Pokok Internal (Rp, opsional)</Label>
-            <Input id="edit-cost-price" v-model.number="costPriceIdr" type="number" />
+            <CurrencyInput id="edit-cost-price" v-model="costPriceIdr" />
           </div>
           <div class="flex items-center justify-end gap-2.5 pt-2">
             <Button variant="outline" @click="router.push(`/supplier/commodities/${commodity.id}`)">

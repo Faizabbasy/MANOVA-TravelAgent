@@ -310,7 +310,7 @@ function variantName (variantId?: string): string {
                 </div>
                 <div class="space-y-1.5">
                   <Label for="variant-price">Harga Override (Rp, opsional)</Label>
-                  <Input id="variant-price" v-model.number="newVariantPrice" type="number" placeholder="Kosongkan untuk pakai harga induk" />
+                  <CurrencyInput id="variant-price" v-model="newVariantPrice" placeholder="Kosongkan untuk pakai harga induk" />
                 </div>
               </div>
               <DialogFooter>
@@ -486,7 +486,7 @@ function variantName (variantId?: string): string {
           </div>
           <div class="space-y-1.5">
             <Label for="edit-variant-price">Harga Override (Rp, opsional)</Label>
-            <Input id="edit-variant-price" v-model.number="editVariantPrice" type="number" />
+            <CurrencyInput id="edit-variant-price" v-model="editVariantPrice" />
           </div>
         </div>
         <DialogFooter>

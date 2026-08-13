@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { FileText, ExternalLink } from 'lucide-vue-next'
-import { getOpportunityById, getQuotationByOpportunity } from '~/data'
+import { getLeadById, getQuotationByLead } from '~/data'
 import { QUOTATION_APPROVAL_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import type { Project } from '~/types/project'
@@ -11,8 +11,8 @@ const props = defineProps<{
   canViewFinancials: boolean
 }>()
 
-const opportunity = computed(() => (props.project.opportunityId ? getOpportunityById(props.project.opportunityId) : undefined))
-const quotation = computed(() => (opportunity.value ? getQuotationByOpportunity(opportunity.value.id) : undefined))
+const lead = computed(() => (props.project.leadId ? getLeadById(props.project.leadId) : undefined))
+const quotation = computed(() => (lead.value ? getQuotationByLead(lead.value.id) : undefined))
 
 /** `approvalStatus` opsional — quotation draft belum pernah diajukan ke Management. */
 const approvalOption = computed(() => (quotation.value?.approvalStatus
@@ -55,12 +55,12 @@ const approvalOption = computed(() => (quotation.value?.approvalStatus
       </div>
 
       <div class="flex flex-wrap gap-2 mt-4">
-        <NuxtLink :to="`/crm/opportunities/${opportunity!.id}`">
+        <NuxtLink :to="`/crm/leads/${lead?.id}`">
           <Button variant="outline" size="sm">
-            Buka Opportunity
+            Buka Lead
           </Button>
         </NuxtLink>
-        <NuxtLink :to="`/crm/opportunities/${opportunity!.id}/quotation-preview`" target="_blank">
+        <NuxtLink :to="`/crm/leads/${lead?.id}/quotation-preview`" target="_blank">
           <Button size="sm">
             <ExternalLink class="h-3.5 w-3.5 mr-1.5" />
             Lihat Quotation
@@ -73,11 +73,11 @@ const approvalOption = computed(() => (quotation.value?.approvalStatus
       v-else
       :icon="FileText"
       title="Belum ada quotation tertaut"
-      description="Quotation dibuat dari Opportunity di modul Sales, lalu otomatis tertaut saat Opportunity dimenangkan."
+      description="Quotation dibuat dari Lead di modul Sales, lalu otomatis tertaut saat Lead dimenangkan."
     >
-      <NuxtLink to="/sales/pipeline#opportunities">
+      <NuxtLink to="/sales/pipeline#leads">
         <Button size="sm">
-          Buka Opportunities
+          Buka Leads
         </Button>
       </NuxtLink>
     </EmptyState>

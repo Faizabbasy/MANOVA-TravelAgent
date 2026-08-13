@@ -71,9 +71,9 @@ export function searchDestinations (query: string): GeoPoint[] {
 }
 
 /**
- * Resolusi "teks destinasi" (mis. `Opportunity.destination`/`Project.destination`, format bebas seperti
+ * Resolusi "teks destinasi" (mis. `Lead.destination`/`Project.destination`, format bebas seperti
  * "Bali, Indonesia" atau "Denpasar") ke satu `GeoPoint` — dasar "menyimpan data lokasi terstruktur" saat
- * destinasi dibuat/diubah (`updateOpportunityRequirement`, `approveOpportunityWon`, dll, `app/data/index.ts`).
+ * destinasi dibuat/diubah (`markLeadWon`, dll, `app/data/index.ts`).
  * Format "Kota, Negara" dipecah per-bagian karena teks gabungan itu sendiri jarang cocok sebagai substring
  * dari `name`/`country` yang tersimpan.
  */

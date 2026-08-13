@@ -328,7 +328,7 @@ function submitQuotation () {
                     </div>
                     <div class="space-y-1.5">
                       <Label for="quotation-amount">Nilai Quotation (Rp)</Label>
-                      <Input id="quotation-amount" v-model="quotationAmount" type="number" placeholder="mis. 45000000" />
+                      <CurrencyInput id="quotation-amount" v-model="quotationAmount" placeholder="mis. 45000000" />
                     </div>
                     <div class="space-y-1.5">
                       <Label for="quotation-notes">Catatan (opsional)</Label>
@@ -422,7 +422,7 @@ function submitQuotation () {
                     </div>
                     <div class="space-y-1.5">
                       <Label for="vp-price">Harga per Unit (Rp, opsional)</Label>
-                      <Input id="vp-price" v-model.number="productPrice" type="number" placeholder="mis. 1200000" />
+                      <CurrencyInput id="vp-price" v-model="productPrice" placeholder="mis. 1200000" />
                     </div>
                   </div>
                   <DialogFooter>

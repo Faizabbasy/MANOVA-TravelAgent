@@ -279,7 +279,7 @@ function setStatus (entry: OpexEntry, status: OpexEntry['status']) {
             </div>
             <div class="space-y-1.5">
               <Label>Jumlah (IDR)</Label>
-              <Input v-model.number="form.amountIdr" type="number" placeholder="0" />
+              <CurrencyInput v-model="form.amountIdr" placeholder="0" />
             </div>
             <div class="space-y-1.5">
               <Label>Vendor / Penerima (opsional)</Label>

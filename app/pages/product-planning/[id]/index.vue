@@ -243,7 +243,7 @@ function submitEdit () {
           <TableHeader>
             <TableRow>
               <TableHead>Nama Cost Sheet</TableHead>
-              <TableHead>Opportunity</TableHead>
+              <TableHead>Lead</TableHead>
               <TableHead>Total Sell</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
@@ -254,7 +254,7 @@ function submitEdit () {
                 {{ sheet.name }}
               </TableCell>
               <TableCell class="text-muted-foreground">
-                {{ sheet.opportunityId ?? '—' }}
+                {{ sheet.leadId ?? '—' }}
               </TableCell>
               <TableCell class="text-foreground">
                 {{ formatCurrencyIdr(getCostSheetBreakdown(sheet).totalSellIdr) }}
@@ -333,7 +333,7 @@ function submitEdit () {
                   </option>
                 </select>
                 <Input v-model="alt.label" placeholder="Nama opsi" class="col-span-4 h-8 text-xs" />
-                <Input v-model.number="alt.costPerPaxIdr" type="number" placeholder="Biaya/pax" class="col-span-2 h-8 text-xs" />
+                <CurrencyInput v-model="alt.costPerPaxIdr" placeholder="Biaya/pax" class="col-span-2 h-8 text-xs" />
                 <Input v-model="alt.notes" placeholder="Catatan (opsional)" class="col-span-3 h-8 text-xs" />
                 <button type="button" class="col-span-1 text-muted-foreground hover:text-destructive" @click="removeAlternativeRow(index)">
                   <Trash2 class="h-4 w-4" />

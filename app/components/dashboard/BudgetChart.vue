@@ -1,33 +1,24 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
-import { Line } from 'vue-chartjs'
-import {
-  Chart as ChartJS,
-  CategoryScale,
-  LinearScale,
-  PointElement,
-  LineElement,
-  Filler,
-  Tooltip,
-  Legend
-} from 'chart.js'
+import { AlertTriangle } from 'lucide-vue-next'
 import { formatCurrencyIdr } from '~/utils/format'
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip, Legend)
-
 /**
- * Budget vs Actual (Section 06/Dashboard — Management/Finance/Super Admin/Viewer), diadaptasi dari
- * BudgetChart.vue template lama (dulu data bulanan fiktif dalam USD). Sekarang menerima data project
- * nyata dari fixture terpusat, ditampilkan dalam Rupiah, satu kurva area per project.
+ * Budget vs Actual (Section 06/Dashboard — Management/Finance/Super Admin/Viewer).
  *
- * Line/area (bukan bar) — permintaan visual eksplisit ("kurva ombak"). Data & angka sumbernya sama persis
- * (`budgetIdr`/`actualIdr` per project), cuma cara gambarnya yang berubah.
+ * REDESIGN ketiga — metrik yang sebenarnya ingin dijawab widget ini adalah "berapa persen budget project
+ * ini sudah terpakai", bukan sekadar dua magnitude sejajar. Satu bar `% pemakaian` per project (target =
+ * 100% dari sisi kanan track, bukan tanda terpisah), dengan tekstur garis putus-putus pada bagian track
+ * yang belum terpakai (nuansa "blueprint/ledger", bukan bar polos), dan ikon peringatan begitu mendekati
+ * atau melewati budget. 4 tingkat warna (bukan cuma over/under 2 warna) supaya variasinya lebih kaya dan
+ * lebih informatif: jauh di bawah budget → biru, wajar → hijau, mendekati limit → kuning, lewat budget →
+ * merah.
  */
 const props = withDefaults(defineProps<{
   labels: string[]
   budgetIdr: number[]
   actualIdr: number[]
-  /** Chart container height (Dashboard card redesign) — purely additive, default reproduces the original fixed height. */
+  /** Tinggi area daftar bar (scrollable jika project lebih banyak dari yang muat). */
   heightClass?: string
 }>(), { heightClass: 'h-[220px]' })
 
@@ -38,154 +29,67 @@ const variancePct = computed(() => {
   return ((totalActual.value - totalBudget.value) / totalBudget.value) * 100
 })
 
-const primaryColor = ref('')
-const successColor = ref('')
-const destructiveColor = ref('')
-const mutedColor = ref('')
-const cardColor = ref('')
-const borderColor = ref('')
-const foregroundColor = ref('')
+type Tier = 'low' | 'ontrack' | 'warning' | 'over'
 
-const chartData = ref<any>(null)
-const chartOptions = ref<any>(null)
+const TIER_BAR: Record<Tier, string> = {
+  low: 'bg-gradient-to-r from-primary/70 to-primary',
+  ontrack: 'bg-gradient-to-r from-success/70 to-success',
+  warning: 'bg-gradient-to-r from-warning/70 to-warning',
+  over: 'bg-gradient-to-r from-destructive/70 to-destructive'
+}
 
+const TIER_TEXT: Record<Tier, string> = {
+  low: 'text-primary',
+  ontrack: 'text-success',
+  warning: 'text-warning',
+  over: 'text-destructive'
+}
+
+function tierOf (pct: number): Tier {
+  if (pct > 100) { return 'over' }
+  if (pct >= 90) { return 'warning' }
+  if (pct >= 60) { return 'ontrack' }
+  return 'low'
+}
+
+const rows = computed(() => props.labels.map((label, index) => {
+  const budget = props.budgetIdr[index] ?? 0
+  const actual = props.actualIdr[index] ?? 0
+  const utilizationPct = budget > 0 ? (actual / budget) * 100 : (actual > 0 ? 100 : 0)
+  const tier = tierOf(utilizationPct)
+  return {
+    label,
+    budget,
+    actual,
+    tier,
+    clampedPct: Math.min(100, utilizationPct),
+    utilizationLabel: `${Math.round(utilizationPct)}%`
+  }
+}))
+
+/** Bar tumbuh dari 0 saat mount (bukan langsung tampil final) — animasi berarti, bukan dekorasi. */
+const mounted = ref(false)
 onMounted(async () => {
   await nextTick()
-
-  const rootStyles = getComputedStyle(document.documentElement)
-  primaryColor.value = rootStyles.getPropertyValue('--primary').trim()
-  successColor.value = rootStyles.getPropertyValue('--success').trim()
-  destructiveColor.value = rootStyles.getPropertyValue('--destructive').trim()
-  mutedColor.value = rootStyles.getPropertyValue('--muted-foreground').trim()
-  cardColor.value = rootStyles.getPropertyValue('--card').trim()
-  borderColor.value = rootStyles.getPropertyValue('--border').trim()
-  foregroundColor.value = rootStyles.getPropertyValue('--foreground').trim()
-
-  const formatHSL = (hsl: string) => `hsl(${hsl.replace(/\s+/g, ', ')})`
-  const toCommaHsl = (hsl: string) => hsl.replace(/\s+/g, ', ')
-  const budgetHsl = toCommaHsl(primaryColor.value)
-  const actualHsl = toCommaHsl(totalActual.value > totalBudget.value ? destructiveColor.value : successColor.value)
-  const muted = formatHSL(mutedColor.value)
-  const surface = formatHSL(cardColor.value)
-  const border = formatHSL(borderColor.value)
-  const ink = formatHSL(foregroundColor.value)
-
-  /** Area gradien halus di bawah tiap kurva — pola sama seperti `TrendAreaChart.vue` (fade dari ~32% ke ~2% opacity). */
-  function areaGradient (chart: any, hsl: string) {
-    const { ctx, chartArea } = chart
-    if (!chartArea) { return `hsla(${hsl}, 0.18)` }
-    const gradient = ctx.createLinearGradient(0, chartArea.top, 0, chartArea.bottom)
-    gradient.addColorStop(0, `hsla(${hsl}, 0.38)`)
-    gradient.addColorStop(1, `hsla(${hsl}, 0.03)`)
-    return gradient
-  }
-
-  chartData.value = {
-    labels: props.labels,
-    datasets: [
-      {
-        label: 'Budget',
-        data: props.budgetIdr,
-        borderColor: `hsl(${budgetHsl})`,
-        borderWidth: 2.5,
-        backgroundColor: (context: any) => areaGradient(context.chart, budgetHsl),
-        fill: 'origin',
-        tension: 0.45,
-        pointRadius: 0,
-        pointHoverRadius: 5,
-        pointBackgroundColor: `hsl(${budgetHsl})`,
-        pointBorderColor: surface,
-        pointBorderWidth: 2,
-        pointHoverBorderWidth: 2
-      },
-      {
-        label: 'Actual',
-        data: props.actualIdr,
-        borderColor: `hsl(${actualHsl})`,
-        borderWidth: 2.5,
-        backgroundColor: (context: any) => areaGradient(context.chart, actualHsl),
-        fill: 'origin',
-        tension: 0.45,
-        pointRadius: 0,
-        pointHoverRadius: 5,
-        pointBackgroundColor: `hsl(${actualHsl})`,
-        pointBorderColor: surface,
-        pointBorderWidth: 2,
-        pointHoverBorderWidth: 2
-      }
-    ]
-  }
-
-  chartOptions.value = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: { duration: 900, easing: 'easeOutQuart' },
-    interaction: { mode: 'index', intersect: false },
-    plugins: {
-      legend: {
-        display: true,
-        position: 'bottom',
-        labels: {
-          color: muted,
-          font: { size: 12 },
-          usePointStyle: true,
-          pointStyle: 'circle',
-          boxWidth: 8,
-          boxHeight: 8,
-          padding: 16
-        }
-      },
-      tooltip: {
-        enabled: true,
-        backgroundColor: surface,
-        borderColor: border,
-        borderWidth: 1,
-        titleColor: ink,
-        bodyColor: ink,
-        footerColor: muted,
-        footerFont: { weight: 'normal' as const },
-        padding: 12,
-        cornerRadius: 8,
-        callbacks: {
-          label: (context: any) => `${context.dataset.label}: ${formatCurrencyIdr(context.parsed.y)}`,
-          footer: (items: any[]) => {
-            const index = items[0]?.dataIndex
-            if (index === undefined) { return '' }
-            const variance = (props.actualIdr[index] ?? 0) - (props.budgetIdr[index] ?? 0)
-            return `Variance: ${variance > 0 ? '+' : ''}${formatCurrencyIdr(variance)}`
-          }
-        }
-      }
-    },
-    scales: {
-      x: {
-        border: { display: false },
-        grid: { display: false },
-        ticks: { color: muted, font: { size: 12 } }
-      },
-      y: {
-        border: { display: false },
-        grid: { color: `hsla(${toCommaHsl(borderColor.value)}, 0.6)`, drawTicks: false, lineWidth: 1 },
-        ticks: {
-          color: muted,
-          font: { size: 12 },
-          callback: (value: any) => `${(Number(value) / 1_000_000).toLocaleString('id-ID')} jt`
-        }
-      }
-    }
-  }
+  requestAnimationFrame(() => { mounted.value = true })
 })
+
+function compactIdr (value: number): string {
+  if (value >= 1_000_000_000) { return `Rp${(value / 1_000_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} M` }
+  if (value >= 1_000_000) { return `Rp${(value / 1_000_000).toLocaleString('id-ID', { maximumFractionDigits: 1 })} jt` }
+  return formatCurrencyIdr(value)
+}
 </script>
 
 <template>
   <div>
-    <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+    <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
       <div>
         <p class="text-xs text-muted-foreground">
           Total Budget vs Actual
         </p>
         <div class="flex items-center gap-2 mt-1">
-          <span class="text-xl font-bold text-foreground">{{ formatCurrencyIdr(totalActual) }}</span>
+          <span class="text-xl font-bold text-foreground tabular-nums">{{ formatCurrencyIdr(totalActual) }}</span>
           <span
             class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold"
             :class="variancePct > 0 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'"
@@ -195,8 +99,40 @@ onMounted(async () => {
         </div>
       </div>
     </div>
-    <div :class="props.heightClass">
-      <Line v-if="chartData && chartOptions" :data="chartData" :options="chartOptions" />
+
+    <div :class="props.heightClass" class="mt-4 space-y-4 overflow-y-auto pr-1">
+      <div v-for="(row, index) in rows" :key="row.label" :title="`Actual ${formatCurrencyIdr(row.actual)} · Budget ${formatCurrencyIdr(row.budget)}`">
+        <div class="flex items-center justify-between gap-2 mb-1.5">
+          <p class="truncate text-xs font-medium text-foreground">
+            {{ row.label }}
+          </p>
+          <span class="flex shrink-0 items-center gap-1">
+            <AlertTriangle v-if="row.tier === 'warning' || row.tier === 'over'" class="h-3 w-3" :class="TIER_TEXT[row.tier]" />
+            <span class="text-xs font-semibold tabular-nums" :class="TIER_TEXT[row.tier]">{{ row.utilizationLabel }}</span>
+          </span>
+        </div>
+
+        <div class="track-texture relative h-2.5 rounded-full overflow-hidden">
+          <div
+            class="absolute inset-y-0 left-0 rounded-full transition-[width] ease-out"
+            :class="TIER_BAR[row.tier]"
+            :style="{ width: `${mounted ? row.clampedPct : 0}%`, transitionDuration: '800ms', transitionDelay: `${index * 70}ms` }"
+          />
+        </div>
+
+        <div class="mt-1 flex items-center justify-between text-[11px] tabular-nums text-muted-foreground">
+          <span>Actual {{ compactIdr(row.actual) }}</span>
+          <span>Budget {{ compactIdr(row.budget) }}</span>
+        </div>
+      </div>
     </div>
   </div>
 </template>
+
+<style scoped>
+/* Tekstur garis putus-putus di track kosong — nuansa "blueprint/ledger", terlihat di bagian yang belum terpakai karena bar solid di atasnya menutupinya. */
+.track-texture {
+  background-image: repeating-linear-gradient(90deg, hsl(var(--border)) 0, hsl(var(--border)) 2px, transparent 2px, transparent 6px);
+  background-color: hsl(var(--muted) / 0.4);
+}
+</style>

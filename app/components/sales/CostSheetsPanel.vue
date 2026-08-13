@@ -2,13 +2,13 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus } from 'lucide-vue-next'
-import { COST_SHEETS, PRODUCT_TEMPLATES, OPPORTUNITIES, getCostSheetBreakdown, getOpportunityById, createCostSheet } from '~/data'
+import { COST_SHEETS, PRODUCT_TEMPLATES, LEADS, getCostSheetBreakdown, getLeadById, createCostSheet } from '~/data'
 import { formatCurrencyIdr } from '~/utils/format'
 
 /** Tab "Cost Sheets" — Menu Sales > Produk & Costing (Penyederhanaan 7-Role/Menu). Dulu
  * `/product-planning/cost-sheets`, kini tab dalam satu menu bersama Product Templates — logika tidak
- * diubah. Deep-link `?productId=`/`?opportunityId=`/`?create=1` (dari Product Template Detail/Opportunity
- * Detail) tetap bekerja karena dibaca langsung dari `route.query`, tidak berbenturan dengan `tab`. */
+ * diubah. Deep-link `?productId=`/`?leadId=`/`?create=1` (dari Product Template Detail/Lead Detail) tetap
+ * bekerja karena dibaca langsung dari `route.query`, tidak berbenturan dengan `tab`. */
 
 const route = useRoute()
 const { currentUser } = useCurrentUser()
@@ -17,13 +17,13 @@ const canManageCostSheet = computed(() => canManage('product-planning'))
 
 const searchQuery = ref('')
 const statusFilter = ref('all')
-const opportunityFilter = ref('all')
+const leadFilter = ref('all')
 
 const rows = computed(() => {
   let result = COST_SHEETS.map(sheet => ({ sheet, breakdown: getCostSheetBreakdown(sheet) }))
 
   if (statusFilter.value !== 'all') { result = result.filter(row => row.sheet.status === statusFilter.value) }
-  if (opportunityFilter.value !== 'all') { result = result.filter(row => row.sheet.opportunityId === opportunityFilter.value) }
+  if (leadFilter.value !== 'all') { result = result.filter(row => row.sheet.leadId === leadFilter.value) }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
     result = result.filter(row => row.sheet.name.toLowerCase().includes(q))
@@ -31,18 +31,20 @@ const rows = computed(() => {
   return result.sort((a, b) => b.sheet.createdAt.localeCompare(a.sheet.createdAt))
 })
 
-function opportunityLabel (opportunityId?: string) {
-  if (!opportunityId) { return '—' }
-  return getOpportunityById(opportunityId)?.title ?? opportunityId
+function leadLabel (leadId?: string) {
+  if (!leadId) { return '—' }
+  const lead = getLeadById(leadId)
+  return lead?.title ?? lead?.companyName ?? lead?.name ?? leadId
 }
 
-const opportunitiesWithCostSheetInterest = computed(() => OPPORTUNITIES.filter(opp => !['won', 'lost'].includes(opp.stage)))
+/** Lead ber-cost-sheet-interest — qualified, B2B (bukan individual-travel), belum jadi Project Order. */
+const leadsWithCostSheetInterest = computed(() => LEADS.filter(lead => lead.stage === 'qualified' && lead.serviceCategory !== 'individual-travel' && !lead.projectId))
 
-/* Buat Cost Sheet baru — bisa dipicu langsung dari Product Template Detail (query productId) atau Opportunity Detail (query opportunityId) */
+/* Buat Cost Sheet baru — bisa dipicu langsung dari Product Template Detail (query productId) atau Lead Detail (query leadId) */
 const isCreateOpen = ref(false)
 const newName = ref('')
 const newProductId = ref('')
-const newOpportunityId = ref('')
+const newLeadId = ref('')
 const newTravelerCount = ref<number | null>(null)
 const newMarkupPercent = ref<number | null>(null)
 const newTaxPercent = ref<number | null>(null)
@@ -51,7 +53,7 @@ const newContingencyPercent = ref<number | null>(null)
 function resetCreateForm () {
   newName.value = ''
   newProductId.value = ''
-  newOpportunityId.value = ''
+  newLeadId.value = ''
   newTravelerCount.value = null
   newMarkupPercent.value = null
   newTaxPercent.value = null
@@ -68,12 +70,12 @@ function openCreateDialog () {
       newName.value = `${product.name} — Cost Sheet`
     }
   }
-  if (typeof route.query.opportunityId === 'string') {
-    newOpportunityId.value = route.query.opportunityId
-    const opportunity = OPPORTUNITIES.find(o => o.id === route.query.opportunityId)
-    if (opportunity) {
-      newTravelerCount.value ??= opportunity.travelerEstimate ?? null
-      if (!newName.value) { newName.value = `${opportunity.title} — Cost Sheet` }
+  if (typeof route.query.leadId === 'string') {
+    newLeadId.value = route.query.leadId
+    const lead = getLeadById(route.query.leadId)
+    if (lead) {
+      newTravelerCount.value ??= lead.travelerEstimate ?? null
+      if (!newName.value) { newName.value = `${lead.title ?? lead.companyName ?? lead.name} — Cost Sheet` }
     }
   }
   isCreateOpen.value = true
@@ -86,7 +88,7 @@ function submitCreate () {
   const sheet = createCostSheet({
     name: newName.value.trim(),
     productId: newProductId.value || undefined,
-    opportunityId: newOpportunityId.value || undefined,
+    leadId: newLeadId.value || undefined,
     travelerCount: newTravelerCount.value,
     markupPercent: newMarkupPercent.value ?? 0,
     taxPercent: newTaxPercent.value ?? 0,
@@ -110,7 +112,7 @@ function submitCreate () {
         <DialogScrollContent class="max-w-md">
           <DialogHeader>
             <DialogTitle>Cost Sheet Baru</DialogTitle>
-            <DialogDescription>Dapat dibuat lepas (referensi katalog) atau langsung terhubung ke satu Opportunity untuk kolaborasi dengan Account Executive.</DialogDescription>
+            <DialogDescription>Dapat dibuat lepas (referensi katalog) atau langsung terhubung ke satu Lead untuk kolaborasi dengan Account Executive.</DialogDescription>
           </DialogHeader>
           <div class="space-y-4 py-2">
             <div class="space-y-1.5">
@@ -129,13 +131,13 @@ function submitCreate () {
               </select>
             </div>
             <div class="space-y-1.5">
-              <Label for="cs-opportunity">Opportunity (opsional)</Label>
-              <select id="cs-opportunity" v-model="newOpportunityId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <Label for="cs-lead">Lead (opsional)</Label>
+              <select id="cs-lead" v-model="newLeadId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
                 <option value="">
-                  Belum terhubung ke Opportunity
+                  Belum terhubung ke Lead
                 </option>
-                <option v-for="opp in opportunitiesWithCostSheetInterest" :key="opp.id" :value="opp.id">
-                  {{ opp.title }}
+                <option v-for="lead in leadsWithCostSheetInterest" :key="lead.id" :value="lead.id">
+                  {{ lead.title ?? lead.companyName ?? lead.name }}
                 </option>
               </select>
             </div>
@@ -189,12 +191,12 @@ function submitCreate () {
             Final
           </option>
         </select>
-        <select v-model="opportunityFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+        <select v-model="leadFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
           <option value="all">
-            Semua Opportunity
+            Semua Lead
           </option>
-          <option v-for="opp in OPPORTUNITIES" :key="opp.id" :value="opp.id">
-            {{ opp.title }}
+          <option v-for="lead in LEADS" :key="lead.id" :value="lead.id">
+            {{ lead.title ?? lead.companyName ?? lead.name }}
           </option>
         </select>
       </div>
@@ -204,7 +206,7 @@ function submitCreate () {
           <TableHeader>
             <TableRow>
               <TableHead>Nama Cost Sheet</TableHead>
-              <TableHead>Opportunity</TableHead>
+              <TableHead>Lead</TableHead>
               <TableHead>Traveler</TableHead>
               <TableHead>Total Sell</TableHead>
               <TableHead>Versi</TableHead>
@@ -217,7 +219,7 @@ function submitCreate () {
                 {{ row.sheet.name }}
               </TableCell>
               <TableCell class="text-muted-foreground">
-                {{ opportunityLabel(row.sheet.opportunityId) }}
+                {{ leadLabel(row.sheet.leadId) }}
               </TableCell>
               <TableCell class="text-muted-foreground">
                 {{ row.sheet.travelerCount }} pax
@@ -236,7 +238,7 @@ function submitCreate () {
               </TableCell>
             </TableRow>
             <TableEmpty v-if="rows.length === 0" :colspan="6">
-              {{ searchQuery || statusFilter !== 'all' || opportunityFilter !== 'all' ? 'Tidak ada Cost Sheet yang cocok dengan filter.' : 'Belum ada Cost Sheet.' }}
+              {{ searchQuery || statusFilter !== 'all' || leadFilter !== 'all' ? 'Tidak ada Cost Sheet yang cocok dengan filter.' : 'Belum ada Cost Sheet.' }}
             </TableEmpty>
           </TableBody>
         </Table>

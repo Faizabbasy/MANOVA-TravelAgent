@@ -44,8 +44,8 @@ export const CAPABILITIES: CapabilityDefinition[] = [
 
   // Sales & CRM — menggantikan role literal di /crm/* dan /customer-journey/*
   { key: 'sales.manage-lead', label: 'Kelola & kualifikasi Lead', group: CAPABILITY_GROUPS.sales },
-  { key: 'sales.manage-opportunity', label: 'Kelola Opportunity & Quotation', group: CAPABILITY_GROUPS.sales },
-  { key: 'sales.mark-won', label: 'Ajukan Opportunity sebagai Won', group: CAPABILITY_GROUPS.sales },
+  { key: 'sales.manage-lead-pipeline', label: 'Kelola Quotation Lead', group: CAPABILITY_GROUPS.sales },
+  { key: 'sales.mark-won', label: 'Tandai Lead sebagai Won', group: CAPABILITY_GROUPS.sales },
   { key: 'sales.approve-quotation', label: 'Setujui Quotation (Management)', group: CAPABILITY_GROUPS.sales },
   { key: 'crm.manage-party', label: 'Kelola data customer / prospect', group: CAPABILITY_GROUPS.sales },
   { key: 'crm.manage-follow-up', label: 'Kelola rule follow-up otomatis & loyalty', group: CAPABILITY_GROUPS.sales },

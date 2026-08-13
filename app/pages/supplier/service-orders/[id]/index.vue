@@ -151,7 +151,7 @@ function submitInvoice () {
         <div v-if="serviceOrder.status === 'fulfilled'" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 items-end">
           <div class="space-y-1.5 sm:col-span-1">
             <Label for="invoice-amount">Jumlah (Rp)</Label>
-            <Input id="invoice-amount" v-model.number="invoiceAmount" type="number" placeholder="mis. 4200000" />
+            <CurrencyInput id="invoice-amount" v-model="invoiceAmount" placeholder="mis. 4200000" />
           </div>
           <div class="space-y-1.5 sm:col-span-1">
             <Label for="invoice-note">Catatan (opsional)</Label>

@@ -4,7 +4,7 @@ import type { ID } from './common'
  * `Approval` (Client Experience — Repair Phase Section 1). Generalisasi approval Client lintas berbagai
  * entitas — SATU tipe generik menaut ke `entityType`+`entityId` (pola sama `Document`/`Message`,
  * `app/types/document-comms.ts`), BUKAN membuat approval flow terpisah per entitas. Quotation Accept/
- * Reject/Request Revision (`app/pages/client/opportunities/[id]/index.vue`, `recordClientConfirmation`)
+ * Reject/Request Revision (`app/pages/client/quotations/[id]/index.vue`, `markLeadWon`)
  * TETAP jalur tersendiri yang sudah bekerja — TIDAK diganti/dimigrasikan oleh entitas ini, `Approval` di
  * sini melengkapi jenis approval LAIN yang belum ada mekanismenya (final itinerary, participant list,
  * rooming list, change request, additional charge, cancellation charge, project completion, final

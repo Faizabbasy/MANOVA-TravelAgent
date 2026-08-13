@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { SYSTEM_EVENTS, VENDOR_QUOTATIONS, getUserById, getOpportunityById, getQuotationById, getPartyById, getProjectById } from '~/data'
+import { SYSTEM_EVENTS, VENDOR_QUOTATIONS, getUserById, getQuotationById, getPartyById, getProjectById } from '~/data'
 import { formatDateTime } from '~/utils/format'
 import type { SystemEvent, SystemEventModule } from '~/types/activity'
 import type { BadgeTone } from '~/types/common'
@@ -19,23 +19,23 @@ const hasAccess = computed(() => can('admin.view-activity-center'))
 
 const MODULE_LABELS: Record<SystemEventModule, string> = {
   lead: 'Lead',
-  opportunity: 'Opportunity',
   quotation: 'Quotation',
   client: 'Client',
   'project-order': 'Project Order',
   vendor: 'Vendor',
   finance: 'Finance',
-  user: 'User'
+  user: 'User',
+  administration: 'Administration'
 }
 const MODULE_TONES: Record<SystemEventModule, BadgeTone> = {
   lead: 'neutral',
-  opportunity: 'primary',
   quotation: 'warning',
   client: 'success',
   'project-order': 'info',
   vendor: 'purple',
   finance: 'destructive',
-  user: 'neutral'
+  user: 'neutral',
+  administration: 'neutral'
 }
 
 const searchQuery = ref('')
@@ -74,11 +74,9 @@ const moduleCounts = computed(() => {
 function eventLink (event: SystemEvent): string | undefined {
   if (!event.entityId) { return undefined }
   switch (event.module) {
-    case 'opportunity':
-      return getOpportunityById(event.entityId) ? `/crm/opportunities/${event.entityId}` : undefined
     case 'quotation': {
       const quotation = getQuotationById(event.entityId)
-      return quotation ? `/crm/opportunities/${quotation.opportunityId}` : undefined
+      return quotation ? `/crm/leads/${quotation.leadId}` : undefined
     }
     case 'client':
       return getPartyById(event.entityId) ? `/crm/parties/${event.entityId}` : undefined

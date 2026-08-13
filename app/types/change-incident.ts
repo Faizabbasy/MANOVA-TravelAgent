@@ -73,7 +73,7 @@ export interface ChangeRequest {
   rejectionReason?: string
   /** Alasan wajib untuk `cancelled` oleh pengaju sendiri (Repair Phase Section 5) — field terpisah dari `rejectionReason` (keputusan pihak lain) agar audit trail jelas siapa yang membatalkan. */
   cancelReason?: string
-  /** "Additional quotation/change order" (Wajib) — link opsional ke `Quotation` existing (`app/types/opportunity.ts`) bila perubahan ini memicu quotation tambahan. */
+  /** "Additional quotation/change order" (Wajib) — link opsional ke `Quotation` existing (`app/types/quotation.ts`) bila perubahan ini memicu quotation tambahan. */
   linkedQuotationId?: ID
   /** Menautkan ke `ActivityEntry` (Section 14 lama, `CHG-*`) yang dibuat otomatis oleh `createChangeRequest` — audit trail tetap satu sumber kebenaran (`app/types/activity.ts`). */
   activityEntryId?: ID

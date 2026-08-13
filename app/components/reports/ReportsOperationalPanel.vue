@@ -2,14 +2,14 @@
 import { ref, computed } from 'vue'
 import { Handshake, FolderKanban, Building2, Wallet, Receipt, Download, Save, X, Clock } from 'lucide-vue-next'
 import {
-  PROJECTS, OPPORTUNITIES, QUOTATIONS, VENDOR_QUOTATIONS, INVOICES,
-  getProjectById, getProjectServices, getServicesForProjects, getVendorById,
+  PROJECTS, LEADS, QUOTATIONS, VENDOR_QUOTATIONS, INVOICES,
+  getProjectById, getLeadById, getProjectServices, getServicesForProjects, getVendorById,
   getCommittedVendorCostIdr, getInvoiceOutstandingIdr,
   getSavedViewsForUser, createSavedView, deleteSavedView, applySavedView
 } from '~/data'
 import { getProjectActualCostIdr } from '~/data/finance-ext'
 import {
-  PROJECT_STATUSES, PROJECT_CHARACTERISTICS, OPPORTUNITY_STAGES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES
+  PROJECT_STATUSES, PROJECT_CHARACTERISTICS, QUOTATION_APPROVAL_STATUSES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatPercentage, daysUntil } from '~/utils/format'
 import { isUpcomingDeparture, invoiceAgingDays, DEMO_REFERENCE_DATE } from '~/utils/attention'
@@ -119,32 +119,30 @@ function submitExport () {
 /* ==================================================
  * Section 1 — Sales Pipeline (Sales/Management/Super Admin/Viewer)
  * ================================================== */
-const openOpportunities = computed(() => OPPORTUNITIES.filter(o => !['won', 'lost'].includes(o.stage)))
-const wonCount = computed(() => OPPORTUNITIES.filter(o => o.stage === 'won').length)
-const lostCount = computed(() => OPPORTUNITIES.filter(o => o.stage === 'lost').length)
-const winRatePct = computed(() => {
-  const decided = wonCount.value + lostCount.value
-  return decided === 0 ? 0 : (wonCount.value / decided) * 100
-})
-const openPipelineValueIdr = computed(() => openOpportunities.value.reduce((sum, opp) => {
-  const quotation = QUOTATIONS.find(q => q.opportunityId === opp.id)
+/** Lead ber-deal (Quotation dibuat) — pengganti Opportunity lama; "Lost" tidak dilacak (tidak ada fitur Lost, lihat komentar desain di `app/types/lead.ts`). */
+const dealLeads = computed(() => LEADS.filter(lead => lead.quotationId))
+const openOpportunities = computed(() => dealLeads.value.filter(lead => !lead.projectId))
+const wonCount = computed(() => dealLeads.value.filter(lead => lead.projectId).length)
+const winRatePct = computed(() => (dealLeads.value.length === 0 ? 0 : (wonCount.value / dealLeads.value.length) * 100))
+const openPipelineValueIdr = computed(() => openOpportunities.value.reduce((sum, lead) => {
+  const quotation = QUOTATIONS.find(q => q.leadId === lead.id)
   return sum + (quotation?.amountIdr ?? 0)
 }, 0))
 const salesPipelineItems = computed<StatusBreakdownItem[]>(() => {
-  const byStage = new Map<string, { count: number; value: number }>()
-  for (const opp of OPPORTUNITIES) {
-    const quotation = QUOTATIONS.find(q => q.opportunityId === opp.id)
-    const entry = byStage.get(opp.stage) ?? { count: 0, value: 0 }
+  const byStatus = new Map<string, { count: number; value: number }>()
+  for (const quotation of QUOTATIONS) {
+    const status = quotation.approvalStatus ?? 'draft'
+    const entry = byStatus.get(status) ?? { count: 0, value: 0 }
     entry.count += 1
-    entry.value += quotation?.amountIdr ?? 0
-    byStage.set(opp.stage, entry)
+    entry.value += quotation.amountIdr ?? 0
+    byStatus.set(status, entry)
   }
-  return OPPORTUNITY_STAGES
-    .filter(stage => byStage.has(stage.value))
+  return QUOTATION_APPROVAL_STATUSES
+    .filter(status => byStatus.has(status.value))
     .sort((a, b) => a.order - b.order)
-    .map((stage) => {
-      const entry = byStage.get(stage.value)!
-      return { key: stage.value, label: stage.label, tone: stage.tone, count: entry.count, secondaryLabel: entry.value > 0 ? formatCurrencyIdr(entry.value) : undefined }
+    .map((status) => {
+      const entry = byStatus.get(status.value)!
+      return { key: status.value, label: status.label, tone: status.tone, count: entry.count, secondaryLabel: entry.value > 0 ? formatCurrencyIdr(entry.value) : undefined }
     })
 })
 
@@ -276,22 +274,25 @@ function agingLabel (days: number): string {
 
 /* ==================================================
  * Section 7 — SLA dan Quotation Performance (Section 22, BARU — bukan reuse section 1-6).
- * Domain Opportunity/Quotation (sama seperti Sales Pipeline) — TIDAK terpengaruh filter Project di atas.
- * Metrik dihitung dari `Opportunity.createdAt` → `Quotation.createdAt` (bukan `Quotation.sentToClientAt`,
+ * Domain Lead/Quotation (sama seperti Sales Pipeline) — TIDAK terpengaruh filter Project di atas.
+ * Metrik dihitung dari `Lead.qualifiedAt` → `Quotation.createdAt` (bukan `Quotation.sentToClientAt`,
  * yang HANYA terisi untuk 1 dari seluruh quotation saat ini — field opsional, belum konsisten dipakai
- * cukup untuk jadi metrik utama, lihat kartu terpisah di bawah). Threshold SLA (3 hari) adalah ASUMSI MOCK
- * eksplisit untuk demo — BUKAN SLA kontraktual nyata dengan client (D-079). "Approval cycle time" (dari
- * literal Section 22 Wajib) TIDAK dihitung — `Quotation` tidak memiliki field timestamp `approvedAt`
- * tersimpan (hanya `approvedBy`/`approvalNote`), lihat `docs/frontend-known-issues.md` bagian 17.
+ * cukup untuk jadi metrik utama, lihat kartu terpisah di bawah). `qualifiedAt` menggantikan
+ * `Opportunity.createdAt` lama sebagai timestamp awal cycle (entitas Opportunity dihapus, lihat komentar
+ * desain di `app/types/lead.ts`). Threshold SLA (3 hari) adalah ASUMSI MOCK eksplisit untuk demo — BUKAN SLA
+ * kontraktual nyata dengan client (D-079). "Approval cycle time" (dari literal Section 22 Wajib) TIDAK
+ * dihitung — `Quotation` tidak memiliki field timestamp `approvedAt` tersimpan (hanya
+ * `approvedBy`/`approvalNote`), lihat `docs/frontend-known-issues.md` bagian 17.
  * ================================================== */
 const QUOTATION_SLA_THRESHOLD_DAYS = 3
 
-const opportunityQuotationCycle = computed(() => OPPORTUNITIES
-  .map((opportunity) => {
-    const quotation = QUOTATIONS.find(q => q.opportunityId === opportunity.id)
+const opportunityQuotationCycle = computed(() => LEADS
+  .filter(lead => lead.qualifiedAt)
+  .map((lead) => {
+    const quotation = QUOTATIONS.find(q => q.leadId === lead.id)
     if (!quotation) { return null }
-    const cycleDays = daysUntil(quotation.createdAt, opportunity.createdAt)
-    return { opportunity, quotation, cycleDays, withinSla: cycleDays <= QUOTATION_SLA_THRESHOLD_DAYS }
+    const cycleDays = daysUntil(quotation.createdAt, lead.qualifiedAt!)
+    return { lead, quotation, cycleDays, withinSla: cycleDays <= QUOTATION_SLA_THRESHOLD_DAYS }
   })
   .filter((row): row is NonNullable<typeof row> => row !== null)
   .sort((a, b) => b.cycleDays - a.cycleDays))
@@ -464,19 +465,19 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
         </SectionCard>
 
         <!-- Section 1: Sales Pipeline -->
-        <SectionCard v-if="showSalesPipeline" title="Sales Pipeline" description="Seluruh opportunity dikelompokkan per stage, lintas party (tidak terpengaruh filter project).">
+        <SectionCard v-if="showSalesPipeline" title="Sales Pipeline" description="Seluruh Lead ber-deal dikelompokkan per status approval Quotation, lintas party (tidak terpengaruh filter project).">
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-            <StatsCard title="Open Opportunities" :value="String(openOpportunities.length)" :icon="Handshake" />
+            <StatsCard title="Open Leads (Quotation)" :value="String(openOpportunities.length)" :icon="Handshake" />
             <StatsCard title="Nilai Pipeline Terbuka" :value="formatCurrencyIdr(openPipelineValueIdr)" :icon="Handshake" icon-color="primary" />
-            <StatsCard title="Win Rate" :value="formatPercentage(winRatePct)" :subtitle="`${wonCount} Won / ${lostCount} Lost`" :icon="Handshake" icon-color="success" />
+            <StatsCard title="Win Rate" :value="formatPercentage(winRatePct)" :subtitle="`${wonCount} Won / ${dealLeads.length} Deal`" :icon="Handshake" icon-color="success" />
           </div>
-          <StatusBreakdownList :items="salesPipelineItems" empty-label="Tidak ada opportunity dalam pipeline" />
+          <StatusBreakdownList :items="salesPipelineItems" empty-label="Tidak ada quotation dalam pipeline" />
           <div v-if="salesPipelineItems.length" class="mt-4 pt-4 border-t border-border flex flex-wrap items-center gap-2">
-            <span class="text-xs text-muted-foreground shrink-0">Lihat detail per stage:</span>
+            <span class="text-xs text-muted-foreground shrink-0">Lihat detail per status:</span>
             <NuxtLink
               v-for="item in salesPipelineItems"
               :key="item.key"
-              :to="`/sales/pipeline?stage=${item.key}#opportunities`"
+              :to="`/sales/pipeline?qtab=all&status=${item.key}#quotations`"
               class="text-xs text-primary hover:underline"
             >
               {{ item.label }} ({{ item.count }})
@@ -654,7 +655,7 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
         <SectionCard
           v-if="showSlaPerformance"
           title="SLA dan Quotation Performance"
-          description="Cycle time Opportunity Created → Quotation Dibuat, lintas party (domain Opportunity/Quotation, tidak terpengaruh filter project di atas)."
+          description="Cycle time Lead Qualified → Quotation Dibuat, lintas party (domain Lead/Quotation, tidak terpengaruh filter project di atas)."
         >
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <StatsCard title="Rata-rata Cycle Time" :value="`${avgQuotationCycleDays} hari`" :icon="Clock" />
@@ -675,9 +676,9 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
           <Table v-if="opportunityQuotationCycle.length">
             <TableHeader>
               <TableRow>
-                <TableHead>Opportunity</TableHead>
+                <TableHead>Lead</TableHead>
                 <TableHead>Quotation</TableHead>
-                <TableHead>Opportunity Dibuat</TableHead>
+                <TableHead>Lead Qualified</TableHead>
                 <TableHead>Quotation Dibuat</TableHead>
                 <TableHead>Cycle Time</TableHead>
                 <TableHead>SLA</TableHead>
@@ -688,16 +689,16 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
                 v-for="row in opportunityQuotationCycle"
                 :key="row.quotation.id"
                 class="cursor-pointer hover:bg-muted/50"
-                @click="navigateTo(`/crm/opportunities/${row.opportunity.id}`)"
+                @click="navigateTo(`/crm/leads/${row.lead.id}`)"
               >
                 <TableCell class="font-medium text-foreground">
-                  {{ row.opportunity.title }}
+                  {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
                 </TableCell>
                 <TableCell class="text-muted-foreground">
                   {{ row.quotation.id }}
                 </TableCell>
                 <TableCell class="text-muted-foreground">
-                  {{ formatDate(row.opportunity.createdAt) }}
+                  {{ formatDate(row.lead.qualifiedAt) }}
                 </TableCell>
                 <TableCell class="text-muted-foreground">
                   {{ formatDate(row.quotation.createdAt) }}
@@ -709,7 +710,7 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
               </TableRow>
             </TableBody>
           </Table>
-          <EmptyState v-else title="Belum ada Opportunity dengan Quotation untuk dihitung cycle time-nya" />
+          <EmptyState v-else title="Belum ada Lead dengan Quotation untuk dihitung cycle time-nya" />
         </SectionCard>
       </template>
     </template>

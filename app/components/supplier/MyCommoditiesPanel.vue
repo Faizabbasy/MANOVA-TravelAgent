@@ -108,11 +108,11 @@ function submitCreate () {
             </div>
             <div class="space-y-1.5">
               <Label for="commodity-sell-price">Harga Jual ke Client (Rp)</Label>
-              <Input id="commodity-sell-price" v-model.number="newSellPrice" type="number" placeholder="mis. 1200000" />
+              <CurrencyInput id="commodity-sell-price" v-model="newSellPrice" placeholder="mis. 1200000" />
             </div>
             <div class="space-y-1.5">
               <Label for="commodity-cost-price">Harga Pokok Internal (Rp, opsional)</Label>
-              <Input id="commodity-cost-price" v-model.number="newCostPrice" type="number" placeholder="mis. 900000" />
+              <CurrencyInput id="commodity-cost-price" v-model="newCostPrice" placeholder="mis. 900000" />
               <p class="text-xs text-muted-foreground">
                 Tidak pernah ditampilkan ke Client — hanya untuk referensi Anda sendiri.
               </p>

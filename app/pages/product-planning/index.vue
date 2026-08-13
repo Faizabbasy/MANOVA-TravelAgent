@@ -7,8 +7,8 @@ import ProductTemplatesPanel from '~/components/sales/ProductTemplatesPanel.vue'
  * `/product-planning/cost-sheets`). Konten tiap section dipindah apa adanya ke
  * `app/components/sales/*Panel.vue`. Disusun sebagai section bertumpuk dalam satu halaman scroll (BUKAN
  * `<Tabs>`) — tiap section punya `id` untuk deep-link `#section`. Route detail (`/product-planning/[id]`,
- * `/product-planning/cost-sheets/[id]`) TIDAK berubah. Deep-link `?productId=`/`?opportunityId=`/`?create=1`
- * dari Product Template Detail dan Opportunity Detail tetap bekerja lewat section Cost Sheets.
+ * `/product-planning/cost-sheets/[id]`) TIDAK berubah. Deep-link `?productId=`/`?leadId=`/`?create=1`
+ * dari Product Template Detail dan Lead Detail tetap bekerja lewat section Cost Sheets.
  */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Produk & Costing' })

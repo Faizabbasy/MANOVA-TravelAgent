@@ -12,7 +12,7 @@ import type {
 import type { StatusOption } from '~/types/common'
 import type { LeadSource } from '~/types/lead'
 import { LEADS } from './leads'
-import { OPPORTUNITIES, QUOTATIONS } from './opportunities'
+import { QUOTATIONS } from './quotations'
 import { PROJECTS } from './projects'
 import { PARTIES } from './parties'
 import { INVOICES } from './finance'
@@ -23,7 +23,7 @@ import { DEMO_REFERENCE_DATE } from '~/utils/attention'
  * Marketing & Analysis (Revisi 9-Modul, modul 8).
  *
  * Hanya `CAMPAIGNS`, `CAMPAIGN_CHANNEL_SPEND`, dan `PROMO_CODES` yang benar-benar data baru — funnel, CAC,
- * dan LTV SELURUHNYA diturunkan dari lead/opportunity/project/invoice yang sudah ada. Konsekuensinya:
+ * dan LTV SELURUHNYA diturunkan dari lead/quotation/project/invoice yang sudah ada. Konsekuensinya:
  * angka marketing tidak mungkin bercerita berbeda dari angka Sales dan Finance.
  */
 
@@ -152,17 +152,17 @@ export function getCampaignPerformance (): CampaignPerformance[] {
       lead.createdAt <= campaign.endDate)
 
     const qualified = attributedLeads.filter(lead => lead.stage === 'qualified')
-    const opportunityIds = new Set(attributedLeads.map(lead => lead.opportunityId).filter(Boolean))
-    const wonOpportunities = OPPORTUNITIES.filter(opportunity => opportunityIds.has(opportunity.id) && opportunity.stage === 'won')
+    const attributedLeadIds = new Set(attributedLeads.map(lead => lead.id))
+    const wonLeads = attributedLeads.filter(lead => Boolean(lead.projectId))
     const revenueIdr = PROJECTS
-      .filter(project => project.opportunityId && opportunityIds.has(project.opportunityId))
+      .filter(project => project.leadId && attributedLeadIds.has(project.leadId))
       .reduce((sum, project) => sum + project.quotationAmountIdr, 0)
 
     return {
       campaign,
       leads: attributedLeads.length,
       qualifiedLeads: qualified.length,
-      wonOpportunities: wonOpportunities.length,
+      wonOpportunities: wonLeads.length,
       revenueIdr,
       costPerLeadIdr: attributedLeads.length ? Math.round(campaign.spendIdr / attributedLeads.length) : 0,
       roas: campaign.spendIdr ? revenueIdr / campaign.spendIdr : null,
@@ -199,18 +199,16 @@ export function getPromoResults (promoId: string): PromoVariantResult[] {
 export function getConversionFunnel (channel?: LeadSource): FunnelStage[] {
   const leads = channel ? LEADS.filter(lead => lead.source === channel) : LEADS
   const leadIds = new Set(leads.map(lead => lead.id))
-  const opportunityIds = new Set(leads.map(lead => lead.opportunityId).filter(Boolean) as string[])
+  const dealLeadIds = new Set(leads.filter(lead => lead.quotationId).map(lead => lead.id))
 
   const qualified = leads.filter(lead => lead.stage === 'qualified')
-  const opportunities = OPPORTUNITIES.filter(opportunity => opportunityIds.has(opportunity.id))
-  const quotations = QUOTATIONS.filter(quotation => opportunityIds.has(quotation.opportunityId))
-  const won = opportunities.filter(opportunity => opportunity.stage === 'won')
-  const projects = PROJECTS.filter(project => project.opportunityId && opportunityIds.has(project.opportunityId))
+  const quotations = QUOTATIONS.filter(quotation => dealLeadIds.has(quotation.leadId))
+  const won = leads.filter(lead => Boolean(lead.projectId))
+  const projects = PROJECTS.filter(project => project.leadId && leadIds.has(project.leadId))
 
   const raw = [
     { key: 'lead', label: 'Lead Masuk', count: leadIds.size },
     { key: 'qualified', label: 'Terkualifikasi', count: qualified.length },
-    { key: 'opportunity', label: 'Opportunity', count: opportunities.length },
     { key: 'quotation', label: 'Quotation Terkirim', count: quotations.length },
     { key: 'won', label: 'Won', count: won.length },
     { key: 'project', label: 'Project Berjalan', count: projects.length }
@@ -235,8 +233,7 @@ export function getChannelAcquisition (): ChannelAcquisition[] {
   return LEAD_SOURCES.map((source) => {
     const channel = source.value as LeadSource
     const leads = LEADS.filter(lead => lead.source === channel)
-    const opportunityIds = new Set(leads.map(lead => lead.opportunityId).filter(Boolean) as string[])
-    const won = OPPORTUNITIES.filter(opportunity => opportunityIds.has(opportunity.id) && opportunity.stage === 'won')
+    const won = leads.filter(lead => Boolean(lead.projectId))
     const newClients = new Set(leads.map(lead => lead.partyId).filter(Boolean)).size
     const spendIdr = CAMPAIGN_CHANNEL_SPEND.filter(spend => spend.channel === channel).reduce((sum, spend) => sum + spend.spendIdr, 0)
 
