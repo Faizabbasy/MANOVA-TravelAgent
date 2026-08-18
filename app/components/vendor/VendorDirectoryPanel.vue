@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search, Plus } from 'lucide-vue-next'
-import { VENDORS, getServicesByVendor, createVendor } from '~/data'
+import { VENDORS, getServicesByVendor, createVendor, getUserByVendorId } from '~/data'
 import { SERVICE_TYPES, VENDOR_STATUSES, findStatusOption } from '~/constants/status'
 import type { ServiceTypeKey } from '~/types/project'
 
@@ -10,6 +10,7 @@ import type { ServiceTypeKey } from '~/types/project'
 
 const { canView, canManage } = usePermissions()
 const canManageVendor = computed(() => canManage('vendor'))
+const { showToast } = useToast()
 
 const searchQuery = ref('')
 const serviceTypeFilter = ref('all')
@@ -54,8 +55,12 @@ function submitCreate () {
     contactPhone: newContactPhone.value.trim() || undefined,
     category: newCategory.value.trim() || undefined
   })
+  const vendorUser = getUserByVendorId(vendor.id)
   resetCreateForm()
   isCreateOpen.value = false
+  if (vendorUser) {
+    showToast('Vendor ditambahkan', `Akun Vendor Portal otomatis dibuat (${vendorUser.email}) — switch ke akun ini di Settings > Demo Role Switcher.`, 'success')
+  }
   navigateTo(`/vendors/${vendor.id}`)
 }
 </script>

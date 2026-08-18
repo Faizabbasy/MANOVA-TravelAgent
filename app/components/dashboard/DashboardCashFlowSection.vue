@@ -31,11 +31,11 @@ const props = defineProps<{
 }>()
 
 const ACCENT_BG: Record<CashFlowSideMetric['accent'], string> = {
-  blue: 'bg-gradient-to-br from-primary/[0.16] via-primary/[0.05] to-transparent',
-  emerald: 'bg-gradient-to-br from-success/[0.16] via-success/[0.05] to-transparent',
-  rose: 'bg-gradient-to-br from-destructive/[0.16] via-destructive/[0.05] to-transparent',
-  amber: 'bg-gradient-to-br from-amber-500/[0.16] via-amber-500/[0.05] to-transparent',
-  violet: 'bg-gradient-to-br from-violet-500/[0.16] via-violet-500/[0.05] to-transparent'
+  blue: 'bg-card',
+  emerald: 'bg-card',
+  rose: 'bg-card',
+  amber: 'bg-card',
+  violet: 'bg-card'
 }
 
 const ACCENT_BORDER: Record<CashFlowSideMetric['accent'], string> = {
@@ -76,6 +76,7 @@ const sparklines = computed(() => props.sideMetrics.map(metric => (metric.series
         <div class="flex items-center gap-3 text-xs text-muted-foreground">
           <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-primary" />Income</span>
           <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full bg-destructive" />Expense</span>
+          <span class="flex items-center gap-1.5"><span class="h-2 w-2 rounded-full border-2 border-success" />Net</span>
         </div>
       </div>
       <MonthlyCashFlowChart :labels="labels" :income="income" :expense="expense" />

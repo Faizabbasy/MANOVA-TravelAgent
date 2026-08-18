@@ -3,12 +3,28 @@ import { ref } from 'vue'
 import { ROLES } from '~/constants/roles'
 import { resetRbacToDefaults } from '~/data/rbac'
 import { resetMockState, hasMockSnapshot } from '~/utils/mock-reset'
+import { getVendorById } from '~/data'
+import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
+import type { User } from '~/types/user'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Settings' })
 
 const { users, currentUser, setCurrentUser } = useCurrentUser()
 const { showToast } = useToast()
+
+/** Untuk akun Vendor Portal, tampilkan kategori layanan vendor-nya (Flight/Hotel/Transportation/MICE) di
+ * samping label role "Vendor" — supaya beberapa akun demo vendor bisa dibedakan sekilas saat mau demo per
+ * kategori (bukan cuma "Vendor" polos yang ambigu kalau vendornya lebih dari satu). */
+function userRoleLabel (user: User): string {
+  const roleLabel = ROLES.value.find(role => role.value === user.role)?.label ?? user.role
+  if (user.role === 'vendor' && user.vendorId) {
+    const vendor = getVendorById(user.vendorId)
+    const categoryLabel = vendor ? findStatusOption(SERVICE_TYPES, vendor.serviceType)?.label : undefined
+    if (categoryLabel) { return `${roleLabel} — ${categoryLabel}` }
+  }
+  return roleLabel
+}
 
 /**
  * Pemulihan RBAC (Revisi 9-Modul) — SENGAJA ditempatkan di sini, bukan hanya di `/admin/roles`.
@@ -71,7 +87,7 @@ function submitReset () {
         >
           <span>
             <span class="font-medium">{{ user.name }}</span>
-            <span class="block text-xs text-muted-foreground">{{ ROLES.find(role => role.value === user.role)?.label }}</span>
+            <span class="block text-xs text-muted-foreground">{{ userRoleLabel(user) }}</span>
           </span>
         </button>
       </div>

@@ -566,7 +566,12 @@ const visibleKpiCards = computed(() => kpiCards.value.filter(card => card.visibl
 function kpiSubtitle (key: string): string | undefined {
   if (key === 'outstanding') { return `${outstandingInvoices.value.length} invoice belum lunas` }
   if (key === 'attention') { return 'Perlu tindak lanjut segera' }
+  if (key === 'open-opportunities') { return 'Quotation berjalan, belum jadi Project Order' }
   return undefined
+}
+
+const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
+  'open-opportunities': { label: 'Lihat pipeline', to: '/sales/pipeline#quotations' }
 }
 </script>
 
@@ -598,7 +603,18 @@ function kpiSubtitle (key: string): string | undefined {
         class="mb-6"
       />
 
-      <div v-if="visibleKpiCards.length" class="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4 mb-6">
+      <DashboardKpiHero
+        v-if="visibleKpiCards.length === 1 && !heroMetrics.length"
+        class="mb-6"
+        :label="visibleKpiCards[0].title"
+        :value="Number(visibleKpiCards[0].value)"
+        :icon="visibleKpiCards[0].icon"
+        :color="visibleKpiCards[0].color"
+        :subtitle="kpiSubtitle(visibleKpiCards[0].key)"
+        :cta-label="KPI_HERO_CTA[visibleKpiCards[0].key]?.label"
+        :cta-to="KPI_HERO_CTA[visibleKpiCards[0].key]?.to"
+      />
+      <div v-else-if="visibleKpiCards.length" class="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4 mb-6">
         <DashboardStat
           v-for="card in visibleKpiCards"
           :key="card.key"

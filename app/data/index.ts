@@ -110,6 +110,7 @@ export {
 
 export const getUserById = (id: string) => USERS.find(user => user.id === id)
 export const getUserByClientPartyId = (partyId: string) => USERS.find(user => user.role === 'client' && user.clientPartyId === partyId)
+export const getUserByVendorId = (vendorId: string) => USERS.find(user => user.role === 'vendor' && user.vendorId === vendorId)
 export const getPartyById = (id: string) => PARTIES.find(party => party.id === id)
 export const getContactsByParty = (partyId: string) => CONTACTS.filter(contact => contact.partyId === partyId)
 /** Lead ber-deal (qualified, `partyId` terisi) milik satu Party — pengganti `getOpportunitiesByParty` lama. */
@@ -2686,7 +2687,27 @@ export function flagBookingOrchestrationDuplicate (bookingType: BookingDomain, b
 export function createVendor (input: { name: string; serviceType: ServiceTypeKey; contactName: string; contactPhone?: string; category?: string }): Vendor {
   const vendor: Vendor = { id: nextSequentialId('VND-', VENDORS), status: 'active', ...input }
   VENDORS.push(vendor)
+  ensureVendorLoginAccount(vendor)
   return vendor
+}
+
+/** Auto-provision akun login Vendor Portal (role `vendor`) begitu vendor baru dibuat — mirror
+ * `ensureClientLoginAccount`, idempotent by `vendorId` supaya aman dipanggil ulang. Beda dari Client (yang
+ * baru login setelah Lead Won), Vendor tidak punya "titik aktivasi" terpisah dari pembuatannya sendiri,
+ * jadi dipicu langsung di `createVendor`. */
+function ensureVendorLoginAccount (vendor: Vendor): User {
+  const existing = getUserByVendorId(vendor.id)
+  if (existing) { return existing }
+  const vendorUser: User = {
+    id: nextSequentialId('USR-', USERS),
+    name: vendor.contactName,
+    email: `${slugifyForEmail(vendor.contactName)}@${slugifyForEmail(vendor.name)}.demo`,
+    role: 'vendor',
+    status: 'active',
+    vendorId: vendor.id
+  }
+  USERS.push(vendorUser)
+  return vendorUser
 }
 
 /** `category`/`status`/`documents` (Section 17, aditif) — edit master data vendor, dipakai Vendor Detail. */
