@@ -90,7 +90,7 @@ describe('Navigasi', () => {
     it('mencocokkan rute detail ke entri induknya', () => {
       expect(findNavItemForPath('/project-orders/PRJ-101')?.key).toBe('operations.project-orders')
       expect(findNavItemForPath('/supplier/rfq/RFQ-001')?.key).toBe('vendor-portal.rfq')
-      expect(findNavItemForPath('/product-planning/PT-001')?.key).toBe('sales.product-planning')
+      expect(findNavItemForPath('/product-planning/PT-001')?.key).toBe('hidden.product-planning')
     })
 
     it('memilih kecocokan paling spesifik, bukan yang pertama ditemukan', () => {

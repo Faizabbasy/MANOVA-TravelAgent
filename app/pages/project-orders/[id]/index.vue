@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2 } from 'lucide-vue-next'
+import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2, MapPin, CalendarRange } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getUserById, getVendorById, getLeadById, getQuotationByLead,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
@@ -25,9 +25,11 @@ import {
   getServiceOrdersByProject, getRfqsByProject,
   getChangeRequestsByProject, getCancellationRecordsByProject, getRefundRequestsByProject, getIncidentsByProject,
   getDocumentsForProject, MESSAGE_RECORDS, sendMessage, getUnifiedActivityTimeline,
-  USERS
+  USERS,
+  getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject, updateSalesOrderStatus
 } from '~/data'
 import type { TravelerImportPreviewRow } from '~/data'
+import type { SalesOrder } from '~/types/sales-order'
 import {
   getProjectOrderStepViews, advanceProjectOrder, getProjectMilestones,
   setMilestoneActualDate, updateMilestonePlannedDate, getProjectOrderStep
@@ -40,7 +42,7 @@ import {
   CHANGE_CATEGORIES, CHANGE_APPROVAL_STATUSES, RISK_SEVERITIES, RISK_STATUSES, BOOKING_PAYMENT_GATE_STATUSES, SERVICE_ORDER_STATUSES, RFQ_STATUSES, findStatusOption,
   CHANGE_REQUEST_SOURCES, CHANGE_REQUEST_STATUSES, REFUND_REQUEST_STATUSES, REFUND_CREDIT_STATUSES, INCIDENT_SEVERITIES, INCIDENT_STATUSES,
   CREDIT_NOTE_STATUSES, DEBIT_NOTE_STATUSES, SUPPLIER_INVOICE_MATCH_STATUSES, SUPPLIER_INVOICE_STATUSES,
-  DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES
+  DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES, SALES_ORDER_STATUSES
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatTravelerCount, maskDocumentNumber } from '~/utils/format'
 import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, invoiceAgingDays, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE } from '~/utils/attention'
@@ -102,16 +104,58 @@ const activeTab = computed<ProjectDetailTab>({
   set: value => router.replace({ query: { ...route.query, tab: value } })
 })
 
-const TABS: { value: ProjectDetailTab; label: string }[] = [
-  { value: 'overview', label: 'Overview' },
-  { value: 'itinerary-services', label: 'Itinerary & Services' },
-  { value: 'travelers', label: 'Travelers' },
-  { value: 'vendors', label: 'Vendors' },
-  { value: 'finance', label: 'Finance' },
-  { value: 'tasks', label: 'Tasks' },
-  { value: 'documents', label: 'Documents' },
-  { value: 'activity-changes', label: 'Activity & Changes' }
-]
+/** Group Trip B2C (`project.isGroupTrip`) pakai 8 tab yang berbeda dari Project B2B biasa — sebagian besar
+ * reuse tab value yang sama (cuma label beda: travelers→Participants, tasks→Operations, finance→Financial),
+ * 3 tab benar-benar baru (bookings/reservations/payments). Vendors/Documents/Activity & Changes sengaja
+ * tidak tampil untuk Group Trip (di luar 8 tab yang diminta). */
+const TABS = computed<{ value: ProjectDetailTab; label: string }[]>(() => (project.value?.isGroupTrip
+  ? [
+      { value: 'overview', label: 'Overview' },
+      { value: 'bookings', label: 'Bookings' },
+      { value: 'travelers', label: 'Participants' },
+      { value: 'itinerary-services', label: 'Itinerary & Services' },
+      { value: 'reservations', label: 'Reservations' },
+      { value: 'payments', label: 'Payments' },
+      { value: 'tasks', label: 'Operations' },
+      { value: 'finance', label: 'Financial' }
+    ]
+  : [
+      { value: 'overview', label: 'Overview' },
+      { value: 'itinerary-services', label: 'Itinerary & Services' },
+      { value: 'travelers', label: 'Travelers' },
+      { value: 'vendors', label: 'Vendors' },
+      { value: 'finance', label: 'Finance' },
+      { value: 'tasks', label: 'Tasks' },
+      { value: 'documents', label: 'Documents' },
+      { value: 'activity-changes', label: 'Activity & Changes' }
+    ]))
+
+/**
+ * Tab "Bookings" (Group Trip) — 5 bucket sesuai flow DP-gated (`qualifyGroupTripLead`/`updateSalesOrderStatus`,
+ * `app/data/index.ts`): Linked/Qualified Leads (superset — termasuk Waitlist/Follow-up), Awaiting DP
+ * (SalesOrder `draft`), Confirmed Bookings (SalesOrder bukan `draft`/`cancelled`), Confirmed Participants
+ * (Traveler — BARU ada setelah DP), Available Seats.
+ */
+function orderRow (order: SalesOrder) {
+  return {
+    order,
+    party: getPartyById(order.customerId),
+    statusOption: findStatusOption(SALES_ORDER_STATUSES, order.status)
+  }
+}
+const linkedLeads = computed(() => (project.value ? getLeadsLinkedToGroupProject(project.value.id) : []))
+const projectOrders = computed(() => (project.value ? getSalesOrdersByProject(project.value.id) : []))
+const awaitingDpRows = computed(() => projectOrders.value.filter(order => order.status === 'draft').map(orderRow))
+const confirmedBookingRows = computed(() => projectOrders.value.filter(order => order.status !== 'draft' && order.status !== 'cancelled').map(orderRow))
+const waitlistLeads = computed(() => linkedLeads.value.filter(lead => lead.b2cQualificationResult === 'waitlist'))
+const confirmedParticipants = computed(() => (project.value ? getTravelers(project.value.id) : []))
+
+function confirmDp (orderId: string) {
+  const order = updateSalesOrderStatus(orderId, 'paid')
+  if (order) { showToast('DP Dikonfirmasi', `${order.id} sekarang Confirmed, participant otomatis dibuat.`, 'success') }
+}
+
+const groupTripReservations = computed(() => (project.value ? getClientReservations(project.value.id) : []))
 
 /**
  * Order Status Stepper (Penyederhanaan 7-Role/Menu, dulu halaman terpisah `/project-orders/[id]`) —
@@ -1087,6 +1131,14 @@ const summaryMetadata = computed(() => {
 
         <TabsContent value="overview">
           <div class="space-y-6">
+            <SectionCard v-if="project.isGroupTrip" title="Kapasitas Group Trip">
+              <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                <StatsCard title="Seat Terisi" :value="`${getProjectSeatsFilled(project.id)} / ${project.travelerCount}`" :icon="Users" />
+                <StatsCard title="Destinasi" :value="project.destination" :icon="MapPin" />
+                <StatsCard title="Jadwal" :value="formatDateRange(project.travelStartDate, project.travelEndDate)" :icon="CalendarRange" />
+              </div>
+            </SectionCard>
+
             <!-- Order Status Stepper (Penyederhanaan 7-Role/Menu, dulu halaman terpisah /project-orders/[id]) -->
             <SectionCard title="Order Status — 6 Step">
               <ProjectOrderStepper
@@ -2003,6 +2055,140 @@ const summaryMetadata = computed(() => {
               <EmptyState v-else title="Belum ada shift note tercatat" />
             </SectionCard>
           </div>
+        </TabsContent>
+
+        <TabsContent v-if="project.isGroupTrip" value="bookings">
+          <div class="space-y-6">
+            <div class="grid grid-cols-2 lg:grid-cols-5 gap-4">
+              <StatsCard title="Linked Leads" :value="String(linkedLeads.length)" :icon="Users" />
+              <StatsCard title="Awaiting DP" :value="String(awaitingDpRows.length)" :icon="Users" icon-color="warning" />
+              <StatsCard title="Confirmed Bookings" :value="String(confirmedBookingRows.length)" :icon="CheckCircle2" icon-color="primary" />
+              <StatsCard title="Confirmed Participants" :value="String(confirmedParticipants.length)" :icon="CheckCircle2" icon-color="success" />
+              <StatsCard title="Available Seats" :value="String(getProjectSeatsAvailable(project.id))" :icon="Users" />
+            </div>
+
+            <SectionCard title="Awaiting DP" description="Lead sudah Qualified, quota sudah ditahan — belum ada Participant sampai DP dikonfirmasi.">
+              <Table v-if="awaitingDpRows.length">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Pax</TableHead>
+                    <TableHead>Harga</TableHead>
+                    <TableHead>Tanggal Booking</TableHead>
+                    <TableHead class="text-right">
+                      Aksi
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in awaitingDpRows" :key="row.order.id">
+                    <TableCell class="text-sm font-medium text-foreground">
+                      {{ row.party?.name ?? '—' }}
+                    </TableCell>
+                    <TableCell class="text-sm text-muted-foreground">
+                      {{ row.order.travelerCount }}
+                    </TableCell>
+                    <TableCell class="text-sm text-foreground">
+                      {{ formatCurrencyIdr(row.order.priceIdr) }}
+                    </TableCell>
+                    <TableCell class="text-sm text-muted-foreground">
+                      {{ formatDate(row.order.createdAt) }}
+                    </TableCell>
+                    <TableCell class="text-right">
+                      <Button size="sm" @click="confirmDp(row.order.id)">
+                        Konfirmasi DP
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+              <EmptyState v-else title="Belum ada booking Awaiting DP" />
+            </SectionCard>
+
+            <SectionCard title="Confirmed Bookings">
+              <Table v-if="confirmedBookingRows.length">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Customer</TableHead>
+                    <TableHead>Pax</TableHead>
+                    <TableHead>Harga</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in confirmedBookingRows" :key="row.order.id">
+                    <TableCell class="text-sm font-medium text-foreground">
+                      {{ row.party?.name ?? '—' }}
+                    </TableCell>
+                    <TableCell class="text-sm text-muted-foreground">
+                      {{ row.order.travelerCount }}
+                    </TableCell>
+                    <TableCell class="text-sm text-foreground">
+                      {{ formatCurrencyIdr(row.order.priceIdr) }}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge :label="row.statusOption.label" :tone="row.statusOption.tone" />
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+              <EmptyState v-else title="Belum ada Confirmed Booking" />
+            </SectionCard>
+
+            <SectionCard title="Waitlist" description="Lead yang minta pax lebih banyak dari seat tersisa saat qualification.">
+              <ul v-if="waitlistLeads.length" class="divide-y divide-border">
+                <li v-for="lead in waitlistLeads" :key="lead.id" class="py-2.5 flex items-center justify-between gap-3">
+                  <NuxtLink :to="`/crm/leads/${lead.id}`" class="text-sm font-medium text-foreground hover:underline">
+                    {{ lead.name }}
+                  </NuxtLink>
+                  <span class="text-xs text-muted-foreground">
+                    {{ (lead.b2cAdultCount ?? 0) + (lead.b2cChildCount ?? 0) + (lead.b2cInfantCount ?? 0) }} pax diminta
+                  </span>
+                </li>
+              </ul>
+              <EmptyState v-else title="Tidak ada Lead di Waitlist" />
+            </SectionCard>
+          </div>
+        </TabsContent>
+
+        <TabsContent v-if="project.isGroupTrip" value="reservations">
+          <SectionCard title="Reservations" description="Booking flight/hotel/transport/dll untuk trip ini.">
+            <ul v-if="groupTripReservations.length" class="divide-y divide-border">
+              <li v-for="reservation in groupTripReservations" :key="`${reservation.bookingType}-${reservation.bookingId}`" class="py-3 flex items-center justify-between gap-3">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ reservation.label }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ reservation.category }}<template v-if="reservation.reference"> · {{ reservation.reference }}</template>
+                  </p>
+                </div>
+                <span class="text-xs text-muted-foreground shrink-0">{{ reservation.clientVisibleStatus }}</span>
+              </li>
+            </ul>
+            <EmptyState v-else title="Belum ada reservation tercatat" />
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent v-if="project.isGroupTrip" value="payments">
+          <SectionCard title="Payments" description="Riwayat pembayaran dari seluruh invoice project ini.">
+            <div v-if="invoices.some(invoice => paymentsForInvoice(invoice.id).length)" class="space-y-4">
+              <template v-for="invoice in invoices" :key="invoice.id">
+                <div v-if="paymentsForInvoice(invoice.id).length">
+                  <p class="text-xs font-medium text-muted-foreground mb-2">
+                    {{ invoice.label }}
+                  </p>
+                  <ul class="divide-y divide-border">
+                    <li v-for="payment in paymentsForInvoice(invoice.id)" :key="payment.id" class="py-2 flex items-center justify-between gap-3">
+                      <span class="text-sm text-foreground">{{ formatCurrencyIdr(payment.amountIdr) }}<span v-if="payment.method" class="text-xs text-muted-foreground"> ({{ payment.method }})</span></span>
+                      <span class="text-xs text-muted-foreground">{{ formatDate(payment.receivedAt) }}</span>
+                    </li>
+                  </ul>
+                </div>
+              </template>
+            </div>
+            <EmptyState v-else title="Belum ada payment tercatat" />
+          </SectionCard>
         </TabsContent>
 
         <TabsContent value="travelers">

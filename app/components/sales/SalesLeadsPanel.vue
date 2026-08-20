@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus, List, LayoutGrid, Inbox as InboxIcon, Archive as ArchiveIcon } from 'lucide-vue-next'
 import { matchesAnyRole } from '~/data/rbac'
@@ -7,12 +7,17 @@ import {
   LEADS, USERS, getLeadActivities, getLeadFollowUps, createLead, createLeadActivity, archiveLead,
   qualifyLeadForQuotation, qualifyLeadAndCreateSalesOrder, updateLeadQualification, markLeadUnqualified,
   reopenLead, updateLeadContact, getLeadDuplicateCandidates, mergeLeadAsDuplicate,
-  getUserById, getLeadWorkflowStatus
+  getUserById, getLeadWorkflowStatus, getOpenGroupProjects, getProjectById, getProjectSeatsFilled,
+  getProjectSeatsAvailable, qualifyGroupTripLead
 } from '~/data'
-import { LEAD_SOURCES, LEAD_STAGES, LEAD_SERVICE_CATEGORIES, LEAD_URGENCY_LEVELS, LEAD_WORKFLOW_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
-import { formatDate } from '~/utils/format'
+import {
+  LEAD_SOURCES, LEAD_STAGES, LEAD_SERVICE_CATEGORIES, LEAD_URGENCY_LEVELS, LEAD_WORKFLOW_STATUSES, SERVICE_TYPES,
+  PARTY_ACTIVITY_TYPES, B2C_PRICE_ACCEPTANCE_OPTIONS, B2C_BOOKING_READINESS_OPTIONS, B2C_QUALIFICATION_RESULT_OPTIONS,
+  findStatusOption
+} from '~/constants/status'
+import { formatDate, formatDateRange, formatCurrencyIdr } from '~/utils/format'
 import { isFollowUpUpcoming } from '~/utils/attention'
-import type { Lead, LeadSource, LeadStage, LeadServiceCategory, LeadUrgency } from '~/types/lead'
+import type { Lead, LeadSource, LeadStage, LeadServiceCategory, LeadUrgency, B2cPriceAcceptance, B2cBookingReadiness, B2cQualificationResult } from '~/types/lead'
 import type { ServiceTypeKey } from '~/types/project'
 import type { PartyActivityType } from '~/types/party'
 
@@ -22,6 +27,7 @@ import type { PartyActivityType } from '~/types/party'
 
 const { currentUser } = useCurrentUser()
 const { canView, can, isRole } = usePermissions()
+const { showToast } = useToast()
 
 /** Toggle "Assigned to Me" — dulu khusus Account Executive, kini milik Sales yang menyerapnya. */
 const showAssignedToMeToggle = computed(() => isRole('sales'))
@@ -48,8 +54,15 @@ const ownerOptions = computed(() => {
   return ids.map(id => getUserById(id)).filter((user): user is NonNullable<typeof user> => Boolean(user))
 })
 
+/** Lead yang sudah Won (B2B: `projectId` terisi lewat `markLeadWon`, B2C: `salesOrderId` terisi lewat
+ * `qualifyLeadAndCreateSalesOrder`) sudah jadi Customer (`Party.lifecycleStatus` ikut berubah ke 'client'
+ * di `markLeadWon`) — tidak lagi relevan di list Leads, dilihat lewat Customers. */
+function isLeadWon (lead: Lead) {
+  return Boolean(lead.projectId) || Boolean(lead.salesOrderId)
+}
+
 const filteredLeads = computed(() => {
-  let result = LEADS.filter(lead => lead.archived === showArchived.value)
+  let result = LEADS.filter(lead => lead.archived === showArchived.value && !isLeadWon(lead))
   if (stageFilter.value !== 'all') { result = result.filter(lead => lead.stage === stageFilter.value) }
   if (ownerFilter.value !== 'all') { result = result.filter(lead => lead.ownerId === ownerFilter.value) }
   if (sourceFilter.value !== 'all') { result = result.filter(lead => lead.source === sourceFilter.value) }
@@ -152,6 +165,18 @@ const qualSpecialRequestNote = ref('')
 const qualCommunicationNotes = ref('')
 const qualExpectedCloseDate = ref('')
 
+/** Group Trip B2C Qualification — hanya relevan saat `qualServiceCategory === 'individual-travel'` DAN
+ * `qualGroupTripProjectId` terisi (Lead B2C tanpa pilih Project tetap pakai flow lama, tidak berubah). */
+const qualGroupTripProjectId = ref('')
+const qualAdultCount = ref<number | null>(null)
+const qualChildCount = ref<number | null>(null)
+const qualInfantCount = ref<number | null>(null)
+const qualPriceAcceptance = ref<B2cPriceAcceptance | ''>('')
+const qualBookingReadiness = ref<B2cBookingReadiness | ''>('')
+const qualB2cResult = ref<B2cQualificationResult | ''>('')
+const qualNextFollowUpDate = ref('')
+const qualPackagePriceIdr = ref<number | null>(null)
+
 function syncQualificationForm (lead: Lead) {
   qualServiceCategory.value = lead.serviceCategory ?? ''
   qualDestination.value = lead.destination ?? ''
@@ -168,7 +193,42 @@ function syncQualificationForm (lead: Lead) {
   qualSpecialRequestNote.value = lead.specialRequestNote ?? ''
   qualCommunicationNotes.value = lead.qualificationNotes ?? ''
   qualExpectedCloseDate.value = lead.expectedCloseDate ?? ''
+  qualGroupTripProjectId.value = lead.groupTripProjectId ?? ''
+  qualAdultCount.value = lead.b2cAdultCount ?? null
+  qualChildCount.value = lead.b2cChildCount ?? null
+  qualInfantCount.value = lead.b2cInfantCount ?? null
+  qualPriceAcceptance.value = lead.b2cPriceAcceptance ?? ''
+  qualBookingReadiness.value = lead.b2cBookingReadiness ?? ''
+  qualB2cResult.value = lead.b2cQualificationResult ?? ''
+  qualNextFollowUpDate.value = lead.b2cNextFollowUpDate ?? ''
+  qualPackagePriceIdr.value = null
 }
+
+/** Project B2C terpilih (untuk ringkasan read-only) dan turunan seat/harga — dipakai template & watcher di bawah. */
+const qualSelectedGroupTripProject = computed(() => (qualGroupTripProjectId.value ? getProjectById(qualGroupTripProjectId.value) : undefined))
+const qualRequestedPax = computed(() => (qualAdultCount.value ?? 0) + (qualChildCount.value ?? 0) + (qualInfantCount.value ?? 0))
+const qualSeatsAvailable = computed(() => (qualSelectedGroupTripProject.value ? getProjectSeatsAvailable(qualSelectedGroupTripProject.value.id) : 0))
+const qualPricePerPax = computed(() => {
+  const project = qualSelectedGroupTripProject.value
+  return project && project.travelerCount > 0 ? Math.round(project.quotationAmountIdr / project.travelerCount) : 0
+})
+
+/** Destinasi/tanggal/estimasi-traveler/service-scope di-auto-isi dari Project B2C dipilih — supaya gate
+ * `getLeadMissingQualification`/`qualificationMissing` (field yang sama, tidak diubah) tetap lolos tanpa
+ * user isi manual field yang sudah ditampilkan read-only dari Project. */
+watch(qualSelectedGroupTripProject, (project) => {
+  if (!project) { return }
+  qualDestination.value = project.destination
+  qualTravelStart.value = project.travelStartDate
+  qualTravelEnd.value = project.travelEndDate
+  qualServiceScope.value = [...project.serviceScope]
+})
+watch(qualRequestedPax, (pax) => {
+  if (qualGroupTripProjectId.value) { qualTravelerEstimate.value = pax || null }
+})
+watch([qualSelectedGroupTripProject, qualRequestedPax], ([project, pax]) => {
+  if (project && pax > 0) { qualPackagePriceIdr.value = qualPricePerPax.value * pax }
+})
 
 function toggleQualServiceScope (type: ServiceTypeKey) {
   const index = qualServiceScope.value.indexOf(type)
@@ -183,7 +243,7 @@ const qualificationMissing = computed(() => {
   if (!qualTravelStart.value || !qualTravelEnd.value) { missing.push('Periode perjalanan belum diisi') }
   if (!qualTravelerEstimate.value) { missing.push('Estimasi traveler belum diisi') }
   if (qualServiceScope.value.length === 0) { missing.push('Service scope belum dipilih') }
-  if (!qualHandedOverTo.value) { missing.push('Account Executive belum dipilih') }
+  if (qualServiceCategory.value !== 'individual-travel' && !qualHandedOverTo.value) { missing.push('Account Executive belum dipilih') }
   if (!qualRequirementSummary.value.trim()) { missing.push('Ringkasan kebutuhan belum diisi') }
   return missing
 })
@@ -277,7 +337,8 @@ function saveQualificationDraft () {
     urgency: qualUrgency.value || undefined,
     specialRequestNote: qualSpecialRequestNote.value.trim() || undefined,
     qualificationNotes: qualCommunicationNotes.value.trim() || undefined,
-    expectedCloseDate: qualExpectedCloseDate.value || undefined
+    expectedCloseDate: qualExpectedCloseDate.value || undefined,
+    groupTripProjectId: qualGroupTripProjectId.value || undefined
   })
 }
 
@@ -297,6 +358,11 @@ function openQualifyDialog () {
   isQualifyDialogOpen.value = true
 }
 
+/**
+ * Qualify — Lead B2C tanpa Project B2C dipilih (`qualGroupTripProjectId` kosong) TETAP pakai jalur lama
+ * persis (Dialog kecil isi harga → `qualifyLeadAndCreateSalesOrder` langsung, booking standalone). Lead B2C
+ * DENGAN Project dipilih dipisah ke `doQualifyGroupTrip` (tombol beda, tidak lewat Dialog ini).
+ */
 function doQualify () {
   if (!selectedLead.value || qualificationMissing.value.length > 0) { return }
   saveQualificationDraft()
@@ -312,6 +378,48 @@ function doQualify () {
   const qualified = qualifyLeadForQuotation(selectedLead.value.id)
   isQualifyDialogOpen.value = false
   if (qualified) { navigateTo(`/crm/leads/${qualified.id}`) }
+}
+
+/** Group Trip B2C — Lead dengan `qualGroupTripProjectId` terisi. Dispatch berdasarkan Qualification Result
+ * yang dipilih user, bukan lewat Dialog "Qualify" biasa (hasilnya sudah eksplisit di dropdown). */
+function doQualifyGroupTrip () {
+  if (!selectedLead.value || !qualGroupTripProjectId.value) { return }
+  saveQualificationDraft()
+
+  if (qualB2cResult.value === 'not-qualified') {
+    markLeadUnqualified(selectedLead.value.id, qualSpecialRequestNote.value.trim() || undefined)
+    isDrawerOpen.value = false
+    return
+  }
+
+  if (qualB2cResult.value === 'follow-up') {
+    updateLeadQualification(selectedLead.value.id, {
+      b2cQualificationResult: 'follow-up',
+      b2cNextFollowUpDate: qualNextFollowUpDate.value || undefined
+    })
+    if (qualNextFollowUpDate.value) {
+      createLeadActivity({ leadId: selectedLead.value.id, type: 'note', message: 'Follow-up dijadwalkan', ownerId: currentUser.value.id, dueAt: qualNextFollowUpDate.value })
+    }
+    showToast('Follow-up Disimpan', 'Lead tetap aktif, ditandai untuk follow-up berikutnya.', 'success')
+    return
+  }
+
+  // 'qualified' atau 'waitlist' (pilihan manual) — qualifyGroupTripLead yang final-kan; bisa di-downgrade
+  // paksa jadi waitlist kalau ternyata seat sudah tidak cukup saat submit.
+  const result = qualifyGroupTripLead(selectedLead.value.id, {
+    adultCount: qualAdultCount.value ?? 0,
+    childCount: qualChildCount.value ?? 0,
+    infantCount: qualInfantCount.value ?? 0,
+    priceAcceptance: qualPriceAcceptance.value || 'need-discussion',
+    bookingReadiness: qualBookingReadiness.value || 'still-considering',
+    priceIdr: qualPackagePriceIdr.value ?? 0
+  })
+  if (result?.outcome === 'waitlist') {
+    showToast('Masuk Waitlist', 'Seat tidak cukup — Lead ditandai Waitlist untuk Project ini.', 'warning')
+  } else if (result?.outcome === 'qualified') {
+    showToast('Qualified — Awaiting DP', `${result.order.id} dibuat, menunggu DP.`, 'success')
+    isDrawerOpen.value = false
+  }
 }
 
 const isUnqualifyDialogOpen = ref(false)
@@ -702,25 +810,120 @@ function submitActivity () {
                     </option>
                   </select>
                 </div>
-                <div class="space-y-1.5">
-                  <Label for="qual-destination">Destinasi / Area Tujuan</Label>
-                  <Input id="qual-destination" v-model="qualDestination" placeholder="mis. Bali, Indonesia" />
+                <div v-if="qualServiceCategory === 'individual-travel'" class="space-y-1.5">
+                  <Label for="qual-group-trip-project">Project B2C (Group Trip)</Label>
+                  <select id="qual-group-trip-project" v-model="qualGroupTripProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="">
+                      — Booking standalone (tanpa Group Project) —
+                    </option>
+                    <option v-for="project in getOpenGroupProjects()" :key="project.id" :value="project.id">
+                      {{ project.destination }} · {{ formatDateRange(project.travelStartDate, project.travelEndDate) }} · {{ getProjectSeatsAvailable(project.id) }} seat tersisa
+                    </option>
+                  </select>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+
+                <div v-if="qualServiceCategory === 'individual-travel' && qualGroupTripProjectId && qualSelectedGroupTripProject" class="rounded-lg border border-border bg-muted/30 p-3 space-y-2">
+                  <p class="text-xs font-semibold text-muted-foreground">
+                    Data Project (read-only)
+                  </p>
+                  <DetailMetadataList :items="[
+                    { label: 'Destination', value: qualSelectedGroupTripProject.destination },
+                    { label: 'Departure & Return', value: formatDateRange(qualSelectedGroupTripProject.travelStartDate, qualSelectedGroupTripProject.travelEndDate) },
+                    { label: 'Duration', value: `${Math.round((new Date(qualSelectedGroupTripProject.travelEndDate).getTime() - new Date(qualSelectedGroupTripProject.travelStartDate).getTime()) / 86400000)} hari` },
+                    { label: 'Price / Pax', value: formatCurrencyIdr(qualPricePerPax) },
+                    { label: 'Capacity', value: String(qualSelectedGroupTripProject.travelerCount) },
+                    { label: 'Booked/Confirmed Pax', value: String(getProjectSeatsFilled(qualSelectedGroupTripProject.id)) },
+                    { label: 'Available Seat', value: String(qualSeatsAvailable) },
+                    ...(qualSelectedGroupTripProject.meetingPoint ? [{ label: 'Meeting Point', value: qualSelectedGroupTripProject.meetingPoint }] : [])
+                  ]" />
+                </div>
+
+                <template v-if="!(qualServiceCategory === 'individual-travel' && qualGroupTripProjectId)">
                   <div class="space-y-1.5">
-                    <Label for="qual-start">Mulai Perjalanan</Label>
-                    <Input id="qual-start" v-model="qualTravelStart" type="date" />
+                    <Label for="qual-destination">Destinasi / Area Tujuan</Label>
+                    <Input id="qual-destination" v-model="qualDestination" placeholder="mis. Bali, Indonesia" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                      <Label for="qual-start">Mulai Perjalanan</Label>
+                      <Input id="qual-start" v-model="qualTravelStart" type="date" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="qual-end">Selesai Perjalanan</Label>
+                      <Input id="qual-end" v-model="qualTravelEnd" type="date" />
+                    </div>
                   </div>
                   <div class="space-y-1.5">
-                    <Label for="qual-end">Selesai Perjalanan</Label>
-                    <Input id="qual-end" v-model="qualTravelEnd" type="date" />
+                    <Label for="qual-traveler">Estimasi Jumlah Traveler</Label>
+                    <Input id="qual-traveler" v-model.number="qualTravelerEstimate" type="number" placeholder="mis. 30" />
+                  </div>
+                </template>
+
+                <div v-if="qualServiceCategory === 'individual-travel' && qualGroupTripProjectId" class="space-y-4">
+                  <div class="grid grid-cols-3 gap-3">
+                    <div class="space-y-1.5">
+                      <Label for="qual-adult">Adult</Label>
+                      <Input id="qual-adult" v-model.number="qualAdultCount" type="number" min="0" placeholder="0" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="qual-child">Child</Label>
+                      <Input id="qual-child" v-model.number="qualChildCount" type="number" min="0" placeholder="0" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="qual-infant">Infant</Label>
+                      <Input id="qual-infant" v-model.number="qualInfantCount" type="number" min="0" placeholder="0" />
+                    </div>
+                  </div>
+                  <p class="text-xs" :class="qualRequestedPax > qualSeatsAvailable ? 'text-destructive' : 'text-muted-foreground'">
+                    Total Requested Pax: {{ qualRequestedPax }} · Seat Availability: {{ qualSeatsAvailable }}
+                    <span v-if="qualRequestedPax > qualSeatsAvailable"> — melebihi seat tersisa, akan otomatis masuk Waitlist</span>
+                  </p>
+                  <div class="space-y-1.5">
+                    <Label for="qual-package-price">Total Harga Paket (Rp)</Label>
+                    <CurrencyInput id="qual-package-price" v-model="qualPackagePriceIdr" placeholder="mis. 15000000" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                      <Label for="qual-price-acceptance">Price Acceptance</Label>
+                      <select id="qual-price-acceptance" v-model="qualPriceAcceptance" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="">
+                          Pilih
+                        </option>
+                        <option v-for="opt in B2C_PRICE_ACCEPTANCE_OPTIONS" :key="opt.value" :value="opt.value">
+                          {{ opt.label }}
+                        </option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="qual-booking-readiness">Booking Readiness</Label>
+                      <select id="qual-booking-readiness" v-model="qualBookingReadiness" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="">
+                          Pilih
+                        </option>
+                        <option v-for="opt in B2C_BOOKING_READINESS_OPTIONS" :key="opt.value" :value="opt.value">
+                          {{ opt.label }}
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="qual-b2c-result">Qualification Result</Label>
+                    <select id="qual-b2c-result" v-model="qualB2cResult" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                      <option value="">
+                        Pilih hasil
+                      </option>
+                      <option v-for="opt in B2C_QUALIFICATION_RESULT_OPTIONS" :key="opt.value" :value="opt.value">
+                        {{ opt.label }}
+                      </option>
+                    </select>
+                  </div>
+                  <div v-if="qualB2cResult === 'follow-up'" class="space-y-1.5">
+                    <Label for="qual-next-follow-up">Next Follow-up Date</Label>
+                    <Input id="qual-next-follow-up" v-model="qualNextFollowUpDate" type="date" />
                   </div>
                 </div>
-                <div class="space-y-1.5">
-                  <Label for="qual-traveler">Estimasi Jumlah Traveler</Label>
-                  <Input id="qual-traveler" v-model.number="qualTravelerEstimate" type="number" placeholder="mis. 30" />
-                </div>
-                <div class="space-y-1.5">
+
+                <div v-if="!(qualServiceCategory === 'individual-travel' && qualGroupTripProjectId)" class="space-y-1.5">
                   <Label>Service Scope</Label>
                   <div class="flex flex-wrap gap-2">
                     <button
@@ -735,11 +938,17 @@ function submitActivity () {
                     </button>
                   </div>
                 </div>
+                <div v-else class="space-y-1.5">
+                  <Label>Service Scope</Label>
+                  <p class="text-sm text-muted-foreground">
+                    Mengikuti layanan Project B2C: {{ qualServiceScope.map(type => SERVICE_TYPES.find(t => t.value === type)?.label ?? type).join(', ') || '—' }}
+                  </p>
+                </div>
                 <div class="space-y-1.5">
                   <Label for="qual-summary">Ringkasan Kebutuhan Awal</Label>
                   <textarea id="qual-summary" v-model="qualRequirementSummary" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Ringkasan singkat kebutuhan perjalanan client" />
                 </div>
-                <div class="space-y-1.5">
+                <div v-if="qualServiceCategory !== 'individual-travel'" class="space-y-1.5">
                   <Label for="qual-ae">Account Executive yang Menerima Lead</Label>
                   <select id="qual-ae" v-model="qualHandedOverTo" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
                     <option value="">
@@ -751,7 +960,7 @@ function submitActivity () {
                   </select>
                 </div>
 
-                <div class="pt-2 border-t border-border space-y-4">
+                <div v-if="qualServiceCategory !== 'individual-travel'" class="pt-2 border-t border-border space-y-4">
                   <p class="text-xs font-medium text-muted-foreground">
                     Field Opsional
                   </p>
@@ -808,7 +1017,17 @@ function submitActivity () {
                 <Button size="sm" variant="outline" @click="saveQualificationDraft">
                   Simpan Draft
                 </Button>
-                <Dialog v-model:open="isQualifyDialogOpen">
+
+                <Button
+                  v-if="qualServiceCategory === 'individual-travel' && qualGroupTripProjectId"
+                  size="sm"
+                  :disabled="qualificationMissing.length > 0 || !qualB2cResult"
+                  @click="doQualifyGroupTrip"
+                >
+                  Submit Qualification
+                </Button>
+
+                <Dialog v-else v-model:open="isQualifyDialogOpen">
                   <DialogTrigger as-child>
                     <Button size="sm" :disabled="qualificationMissing.length > 0" @click="openQualifyDialog">
                       {{ isIndividualTravel ? 'Qualify & Create Sales Order' : 'Qualify' }}
@@ -827,6 +1046,7 @@ function submitActivity () {
                         di halaman detail Lead.
                       </DialogDescription>
                     </DialogHeader>
+
                     <div v-if="isIndividualTravel" class="space-y-1.5 py-2">
                       <Label for="qualify-so-price">Harga Paket (Rp)</Label>
                       <CurrencyInput id="qualify-so-price" v-model="qualifySalesOrderPriceIdr" placeholder="mis. 15000000" />
@@ -835,7 +1055,10 @@ function submitActivity () {
                       <Button variant="outline" @click="isQualifyDialogOpen = false">
                         Batal
                       </Button>
-                      <Button :disabled="isIndividualTravel && (!qualifySalesOrderPriceIdr || qualifySalesOrderPriceIdr <= 0)" @click="doQualify">
+                      <Button
+                        :disabled="isIndividualTravel && (!qualifySalesOrderPriceIdr || qualifySalesOrderPriceIdr <= 0)"
+                        @click="doQualify"
+                      >
                         {{ isIndividualTravel ? 'Qualify & Create Sales Order' : 'Qualify' }}
                       </Button>
                     </DialogFooter>

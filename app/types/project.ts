@@ -37,6 +37,10 @@ export type ProjectDetailTab =
   | 'tasks'
   | 'documents'
   | 'activity-changes'
+  /** Group Trip B2C (`Project.isGroupTrip`) — tab tambahan, tab value lama di atas tetap dipakai (direlabel) untuk sisanya. */
+  | 'bookings'
+  | 'reservations'
+  | 'payments'
 
 /**
  * "Project Order Status" (Section 09 — roadmap Section 00–24 baru, D-066) — 10 nilai literal Wajib
@@ -89,6 +93,11 @@ export interface Project {
   id: ID
   name: string
   partyId: ID
+  /** Group Trip B2C (`createProject`/`joinLeadToGroupProject`, `app/data/index.ts`) — Project dibuat lebih
+   * dulu tanpa customer nyata (`partyId` menunjuk Party placeholder sistem), banyak Lead individual berbeda
+   * bisa "gabung" belakangan sebagai `Traveler` masing-masing, tiap gabung otomatis jadi Customer sendiri.
+   * `false`/kosong = Project B2B biasa, `partyId` adalah customer sungguhan. */
+  isGroupTrip?: boolean
   /** Lead asal (Won) — referensi, bukan duplikasi. */
   leadId?: ID
   /** Quotation yang di-Won-kan, referensi (docs/route-and-role-matrix.md bagian 2.2 item 6). */
@@ -191,6 +200,12 @@ export interface Traveler {
   id: ID
   projectId: ID
   groupId?: ID
+  /** Link balik ke customer/billing asal roster row ini — diisi hanya untuk traveler yang bergabung lewat
+   * "Group Trip" B2C (`joinLeadToGroupProject`, `app/data/index.ts`); traveler yang ditambah manual (roster
+   * B2B biasa) tidak punya ini. */
+  partyId?: ID
+  leadId?: ID
+  salesOrderId?: ID
   name: string
   passportNumber?: string
   passportExpiryDate?: string

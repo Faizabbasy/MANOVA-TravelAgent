@@ -40,13 +40,13 @@ import {
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
 import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES, PROJECT_STATUSES, SUPPORT_TICKET_CATEGORIES, INVOICE_STATUSES } from '~/constants/status'
-import type { Project, ProjectStatus, ServiceTypeKey, ServiceStatus, ProjectService, Traveler, TravelerGroup, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
+import type { Project, ProjectStatus, ProjectCharacteristic, ServiceTypeKey, ServiceStatus, ProjectService, Traveler, TravelerGroup, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType, CompanyType, SensitiveCompanyProfileFields } from '~/types/party'
 import type { Quotation, QuotationAttachment, QuotationComment } from '~/types/quotation'
 import type { Vendor, VendorContact, VendorQuotation, VendorProduct, VendorDocument } from '~/types/vendor'
 import type { SalesOrder, SalesOrderStatus } from '~/types/sales-order'
 import type { ActivityEntry, ChangeCategory, ProjectTask, ProjectRisk, ProjectRiskSeverity, ShiftNote, ShiftPeriod, SystemEvent } from '~/types/activity'
-import type { Lead, LeadActivity, LeadWorkflowStatus } from '~/types/lead'
+import type { Lead, LeadActivity, LeadWorkflowStatus, B2cPriceAcceptance, B2cBookingReadiness } from '~/types/lead'
 import type { ProductTemplate, ProductTemplateStatus, ProductServiceAlternative, CostSheet, CostSheetLineItem } from '~/types/product'
 import type { FlightBooking, FlightBookingStatus, FlightSegment } from '~/types/ticketing'
 import type { HotelBooking, HotelBookingStatus } from '~/types/accommodation'
@@ -188,6 +188,25 @@ export function createTravelerGroup (input: { projectId: string; name: string; p
 }
 export const getTravelers = (projectId: string) => TRAVELERS.filter(traveler => traveler.projectId === projectId)
 export const getTravelersByGroup = (groupId: string) => TRAVELERS.filter(traveler => traveler.groupId === groupId)
+/** Kapasitas Group Trip B2C — "seat terisi" (Confirmed Participants) dihitung dari baris `Traveler` aktif,
+ * yang di bawah desain baru (`qualifyGroupTripLead` + DP confirm di `updateSalesOrderStatus`) HANYA dibuat
+ * setelah DP dikonfirmasi. `travelerCount` di `Project` sendiri murni kapasitas deklaratif. */
+export const getProjectSeatsFilled = (projectId: string) => getTravelers(projectId).filter(traveler => !traveler.cancelled).length
+export const getSalesOrdersByProject = (projectId: string) => SALES_ORDERS.filter(order => order.projectId === projectId)
+/** Booking Awaiting DP (`SalesOrder.status === 'draft'`, sudah terhubung ke Project ini) — pax-nya IKUT
+ * menahan seat supaya tidak overbooking sebelum DP masuk (keputusan eksplisit, beda dari "cuma Confirmed
+ * yang mengurangi kuota" yang berlaku di `getProjectSeatsFilled`). */
+export const getProjectSeatsPending = (projectId: string) =>
+  getSalesOrdersByProject(projectId).filter(order => order.status === 'draft').reduce((sum, order) => sum + order.travelerCount, 0)
+export const getProjectSeatsAvailable = (projectId: string) => {
+  const project = getProjectById(projectId)
+  return project ? Math.max(0, project.travelerCount - getProjectSeatsFilled(projectId) - getProjectSeatsPending(projectId)) : 0
+}
+/** Group Trip yang masih bisa menerima Lead baru — dipakai dropdown "Project B2C" di `SalesLeadsPanel.vue`. */
+export const getOpenGroupProjects = () => PROJECTS.filter(project => project.isGroupTrip && getProjectSeatsAvailable(project.id) > 0)
+/** Lead yang pernah memilih Project B2C ini di form (superset — termasuk Waitlist/Follow-up, bukan cuma
+ * yang sudah Qualified) — dipakai bucket "Linked/Qualified Leads" di tab Bookings Project detail. */
+export const getLeadsLinkedToGroupProject = (projectId: string) => LEADS.filter(lead => lead.groupTripProjectId === projectId)
 /** Repair Phase Section 4 — Core Project (Participants lintas-project, `/client/participants/[id]`) — belum ada getter tunggal sebelumnya (konsumen lama selalu melalui `getTravelers(projectId)` per-project). */
 export const getTravelerById = (id: string) => TRAVELERS.find(traveler => traveler.id === id)
 export const getRoomAssignments = (projectId: string) => ROOM_ASSIGNMENTS.filter(room => room.projectId === projectId)
@@ -1039,12 +1058,105 @@ export function createSalesOrder (input: CreateSalesOrderInput): SalesOrder | un
   return getSalesOrderById(order.id)
 }
 
+/**
+ * Generic status transition — dipakai order standalone lama MAUPUN booking Group Trip B2C (`order.projectId`
+ * terisi). Blok DP-confirm di bawah HANYA berjalan kalau `projectId` terisi, jadi order standalone tidak
+ * terpengaruh sama sekali (behavior sama persis seperti sebelum Group Trip ada).
+ */
 export function updateSalesOrderStatus (id: string, status: SalesOrderStatus): SalesOrder | undefined {
   const order = SALES_ORDERS.find(item => item.id === id)
   if (!order) { return undefined }
   if (!getSalesOrderStatusTransitions(order.status).includes(status)) { return undefined }
   order.status = status
+
+  /** "DP tercatat/terkonfirmasi" → Booking Confirmed → BARU buat Participant (bukan di titik Qualify) —
+   * idempotent (guard `alreadyCreated`) supaya aman dipanggil ulang. */
+  if (status === 'paid' && order.projectId) {
+    const alreadyCreated = getTravelers(order.projectId).some(traveler => traveler.salesOrderId === order.id)
+    if (!alreadyCreated) {
+      const lead = LEADS.find(item => item.salesOrderId === order.id)
+      for (let i = 0; i < order.travelerCount; i++) {
+        createTraveler({
+          projectId: order.projectId,
+          partyId: order.customerId,
+          leadId: lead?.id,
+          salesOrderId: order.id,
+          name: order.travelerCount > 1 ? `${lead?.name ?? 'Traveler'} (Pax ${i + 1})` : (lead?.name ?? 'Traveler')
+        })
+      }
+    }
+  }
+
   return order
+}
+
+export interface CreateProjectInput {
+  /** Wajib kecuali `isGroupTrip: true` (partyId dipakai Party placeholder sistem, lihat `getOrCreateGroupTripPlaceholderParty`). */
+  partyId?: string
+  isGroupTrip?: boolean
+  name: string
+  destination: string
+  travelStartDate: string
+  travelEndDate: string
+  travelerCount: number
+  serviceScope: ServiceTypeKey[]
+  quotationAmountIdr: number
+  characteristic?: ProjectCharacteristic
+}
+
+const GROUP_TRIP_PLACEHOLDER_PARTY_NAME = 'MANOVA Group Trip (Internal)'
+
+/** Party nominal untuk Project Group Trip B2C — Project jenis ini dibuat SEBELUM ada customer nyata, tapi
+ * `Project.partyId` tetap wajib (dipakai invoicing/report lama). Satu Party dibuat sekali lalu dipakai ulang
+ * untuk seluruh Group Trip; `partyType: 'individual'` supaya konsisten dikecualikan dari Database Customer
+ * (`customer-journey/customers`, filter `partyType !== 'individual'`) — bukan customer sungguhan. */
+function getOrCreateGroupTripPlaceholderParty (): Party {
+  let party = PARTIES.find(p => p.name === GROUP_TRIP_PLACEHOLDER_PARTY_NAME)
+  if (!party) {
+    party = {
+      id: nextSequentialId('PTY-', PARTIES),
+      name: GROUP_TRIP_PLACEHOLDER_PARTY_NAME,
+      partyType: 'individual',
+      lifecycleStatus: 'client',
+      createdAt: DEMO_REFERENCE_DATE
+    }
+    PARTIES.push(party)
+  }
+  return party
+}
+
+/** "Buat Project" manual — untuk customer (Party) yang sudah ada, TANPA lewat Lead/Quotation (beda dari
+ * `markLeadWon`, dipakai mis. repeat business langsung). `leadId`/`sourceQuotationId` sengaja dikosongkan —
+ * keduanya opsional di `Project`. `isGroupTrip: true` = Group Trip B2C (lihat `joinLeadToGroupProject`),
+ * `partyId` diabaikan dan diganti Party placeholder sistem. */
+export function createProject (input: CreateProjectInput): Project | undefined {
+  const party = input.isGroupTrip ? getOrCreateGroupTripPlaceholderParty() : getPartyById(input.partyId ?? '')
+  if (!party) { return undefined }
+  if (!input.name.trim() || !input.destination.trim()) { return undefined }
+  if (!input.travelStartDate || !input.travelEndDate || input.travelStartDate > input.travelEndDate) { return undefined }
+  if (!(input.travelerCount > 0) || !input.serviceScope.length) { return undefined }
+
+  const project: Project = {
+    id: nextSequentialId('PRJ-', PROJECTS),
+    name: input.name.trim(),
+    partyId: party.id,
+    isGroupTrip: input.isGroupTrip || undefined,
+    destination: input.destination.trim(),
+    destinationGeo: resolveDestinationGeo(input.destination.trim()),
+    travelStartDate: input.travelStartDate,
+    travelEndDate: input.travelEndDate,
+    characteristic: input.characteristic ?? 'normal',
+    serviceScope: input.serviceScope,
+    travelerCount: input.travelerCount,
+    ownerId: DEFAULT_PROJECT_OWNER_ID,
+    teamUserIds: [party.accountOwnerId ?? DEFAULT_PROJECT_OWNER_ID],
+    status: 'draft',
+    quotationAmountIdr: input.quotationAmountIdr,
+    budgetIdr: input.quotationAmountIdr,
+    actualCostIdr: 0
+  }
+  PROJECTS.push(project)
+  return project
 }
 
 export function createContact (input: { partyId: string; name: string; title: string; email?: string; phone?: string }): ContactPerson {
@@ -1370,6 +1482,9 @@ export function markLeadWon (leadId: string, approverId: string): Project | unde
 export interface CreateTravelerInput {
   projectId: string
   groupId?: string
+  partyId?: string
+  leadId?: string
+  salesOrderId?: string
   name: string
   passportNumber?: string
   passportExpiryDate?: string
@@ -2969,6 +3084,14 @@ export interface LeadQualificationInput {
   specialRequestNote?: string
   qualificationNotes?: string
   expectedCloseDate?: string
+  groupTripProjectId?: Lead['groupTripProjectId']
+  b2cAdultCount?: number
+  b2cChildCount?: number
+  b2cInfantCount?: number
+  b2cPriceAcceptance?: Lead['b2cPriceAcceptance']
+  b2cBookingReadiness?: Lead['b2cBookingReadiness']
+  b2cQualificationResult?: Lead['b2cQualificationResult']
+  b2cNextFollowUpDate?: string
 }
 
 export function updateLeadQualification (leadId: string, patch: LeadQualificationInput): Lead | undefined {
@@ -2993,7 +3116,8 @@ export function getLeadMissingQualification (leadId: string): string[] {
   if (!lead.travelStartDate || !lead.travelEndDate) { missing.push('Periode perjalanan belum diisi') }
   if (!lead.travelerEstimate) { missing.push('Estimasi traveler belum diisi') }
   if (!lead.serviceScope || lead.serviceScope.length === 0) { missing.push('Service scope belum dipilih') }
-  if (!lead.handedOverTo) { missing.push('Account Executive belum dipilih') }
+  /** Individual Travel (B2C) tidak menentukan AE saat qualify — assignment dilakukan role lain di detail Project (`Project.teamUserIds`/`ownerId`), bukan di tahap Lead. */
+  if (lead.serviceCategory !== 'individual-travel' && !lead.handedOverTo) { missing.push('Account Executive belum dipilih') }
   if (!lead.requirementSummary) { missing.push('Ringkasan kebutuhan belum diisi') }
   return missing
 }
@@ -3068,7 +3192,10 @@ export function qualifyLeadAndCreateSalesOrder (leadId: string, input: { priceId
   if (!(input.priceIdr > 0)) { return undefined }
   const travelerCount = input.travelerCount ?? lead.travelerEstimate
   if (!lead.destination || !lead.travelStartDate || !lead.travelEndDate || !travelerCount) { return undefined }
-  const accountExecutiveId = lead.handedOverTo!
+  /** Individual Travel (B2C) boleh tidak punya `handedOverTo` (AE ditentukan belakangan di detail Project,
+   * bukan di tahap Lead — lihat `getLeadMissingQualification`) — fallback ke `lead.ownerId`, pola sama
+   * `qualifyGroupTripLead`/baris 1338/1425/3297 di file ini. */
+  const accountExecutiveId = lead.handedOverTo ?? lead.ownerId
 
   let party = PARTIES.find(p => p.partyType === 'individual' && p.name.toLowerCase() === lead.name.toLowerCase())
   if (!party) {
@@ -3114,6 +3241,65 @@ export function qualifyLeadAndCreateSalesOrder (leadId: string, input: { priceId
   // Re-fetch lewat `getSalesOrderById` — pola sama `createSalesOrder`, supaya identitas hasil return sama
   // dengan Proxy `reactive()` yang didapat caller lain (perlu untuk reference-equality check, mis. di test).
   return getSalesOrderById(order.id)
+}
+
+export interface QualifyGroupTripInput {
+  adultCount: number
+  childCount: number
+  infantCount: number
+  priceAcceptance: B2cPriceAcceptance
+  bookingReadiness: B2cBookingReadiness
+  priceIdr: number
+}
+
+export type QualifyGroupTripOutcome =
+  | { outcome: 'qualified'; order: SalesOrder }
+  | { outcome: 'waitlist' }
+
+/**
+ * Qualify Lead individual-travel (B2C) ke Project Group Trip yang SUDAH ADA (`lead.groupTripProjectId`,
+ * dipilih di form sebelum submit) — bukan bikin Project baru per Lead, dan bukan langsung bikin Participant.
+ * Sengaja TIDAK reimplementasi bagian "Lead → Customer + billing" — itu 100% lewat
+ * `qualifyLeadAndCreateSalesOrder` yang tidak berubah (dedup Party by name, `lifecycleStatus: 'client'`,
+ * SalesOrder berstatus `draft` = Awaiting DP). Fungsi ini menambah: (1) guard kapasitas — kalau pax diminta
+ * melebihi seat tersisa (Confirmed + Awaiting DP lain), hasilnya di-downgrade paksa jadi Waitlist, TIDAK ada
+ * SalesOrder/Party yang dibuat; (2) link `order.projectId`/`lead.projectId` begitu benar-benar Qualified.
+ * Participant (Traveler) BARU dibuat nanti saat DP dikonfirmasi (`updateSalesOrderStatus` → `'paid'`).
+ */
+export function qualifyGroupTripLead (leadId: string, input: QualifyGroupTripInput): QualifyGroupTripOutcome | undefined {
+  const lead = getLeadById(leadId)
+  if (!lead || !lead.groupTripProjectId) { return undefined }
+  const project = getProjectById(lead.groupTripProjectId)
+  if (!project || !project.isGroupTrip) { return undefined }
+
+  const requestedPax = input.adultCount + input.childCount + input.infantCount
+  if (requestedPax <= 0) { return undefined }
+
+  updateLeadQualification(leadId, {
+    b2cAdultCount: input.adultCount,
+    b2cChildCount: input.childCount,
+    b2cInfantCount: input.infantCount,
+    b2cPriceAcceptance: input.priceAcceptance,
+    b2cBookingReadiness: input.bookingReadiness
+  })
+
+  if (requestedPax > getProjectSeatsAvailable(project.id)) {
+    updateLeadQualification(leadId, { b2cQualificationResult: 'waitlist' })
+    return { outcome: 'waitlist' }
+  }
+
+  const order = qualifyLeadAndCreateSalesOrder(leadId, { priceIdr: input.priceIdr, travelerCount: requestedPax })
+  if (!order) { return undefined }
+  order.projectId = project.id
+  lead.projectId = project.id
+  updateLeadQualification(leadId, { b2cQualificationResult: 'qualified' })
+  createLeadActivity({
+    leadId,
+    type: 'note',
+    message: `Booking dibuat untuk Group Project ${project.id} (${project.name}), status Awaiting DP`,
+    ownerId: lead.handedOverTo ?? lead.ownerId
+  })
+  return { outcome: 'qualified', order }
 }
 
 /** Vendor Product catalog (Prompt 19 — area Supplier/External Partners). */

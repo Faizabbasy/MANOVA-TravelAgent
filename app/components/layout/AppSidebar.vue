@@ -217,7 +217,6 @@ function toggleExpanded (item: NavItem) {
                   <component :is="item.icon" class="h-4 w-4" />
                   <span class="flex-1">{{ item.label }}</span>
                   <StatusBadge v-if="item.comingSoon" label="Segera" tone="warning" />
-                  <StatusBadge v-else-if="item.isNew" label="Baru" tone="success" />
                 </NuxtLink>
                 <button
                   v-if="item.children?.length"
@@ -241,7 +240,6 @@ function toggleExpanded (item: NavItem) {
                   >
                     <span class="flex-1">{{ child.label }}</span>
                     <StatusBadge v-if="child.comingSoon" label="Segera" tone="warning" />
-                    <StatusBadge v-else-if="child.isNew" label="Baru" tone="success" />
                   </NuxtLink>
                 </li>
               </ul>

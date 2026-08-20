@@ -199,6 +199,35 @@ export const PROJECTS: Project[] = reactive([
     emergencyContactName: 'Manova 24/7 Operations',
     emergencyContactPhone: '+62 21 5000 1188',
     meetingPoint: 'Terminal 3 Bandara Soekarno-Hatta, konter check-in grup'
+  },
+  /**
+   * PRJ-205 — contoh dummy Project B2C ("Group Trip"), pola sama `createProject({ isGroupTrip: true })`
+   * (`app/data/index.ts`). `partyId` menunjuk Party placeholder sistem (PTY-009, `app/data/parties.ts`),
+   * BUKAN customer sungguhan — peserta asli tercatat lewat `SALES_ORDERS`/`TRAVELERS` di bawah (`projectId:
+   * 'PRJ-205'`). `travelerCount: 20` adalah kapasitas (seat), bukan jumlah peserta yang sudah gabung.
+   */
+  {
+    id: 'PRJ-205',
+    name: 'Open Trip Bromo Ijen 4D3N',
+    partyId: 'PTY-009',
+    isGroupTrip: true,
+    destination: 'Bromo & Ijen, Indonesia',
+    travelStartDate: '2026-09-18',
+    travelEndDate: '2026-09-21',
+    characteristic: 'normal',
+    serviceScope: ['transportation', 'hotel'],
+    travelerCount: 20,
+    ownerId: 'USR-002',
+    teamUserIds: ['USR-002'],
+    status: 'planning',
+    quotationAmountIdr: 3_500_000 * 20,
+    budgetIdr: 3_000_000 * 20,
+    actualCostIdr: 0,
+    tourLeaderName: 'Arif Setiawan',
+    tourLeaderPhone: '0812-7005-1005',
+    emergencyContactName: 'Manova 24/7 Operations',
+    emergencyContactPhone: '+62 21 5000 1188',
+    meetingPoint: 'Stasiun Probolinggo, titik kumpul peserta'
   }
 ])
 
@@ -356,7 +385,12 @@ export const TRAVELERS: Traveler[] = reactive([
   { id: 'TRV-2031', projectId: 'PRJ-203', name: 'Reno Adiputra', passportNumber: 'E5553001', passportExpiryDate: '2028-05-20', documentsVerifiedAt: '2026-06-01', documentsVerifiedBy: 'USR-002' },
 
   { id: 'TRV-2041', projectId: 'PRJ-204', name: 'Kirana Salsabila', passportNumber: 'E5554001', passportExpiryDate: '2029-03-15', documentsVerifiedAt: '2026-07-19', documentsVerifiedBy: 'USR-002' },
-  { id: 'TRV-2042', projectId: 'PRJ-204', name: 'Yoga Pranata', emergencyContactName: 'Sinta Pranata', emergencyContactPhone: '0815-5004-0002' }
+  { id: 'TRV-2042', projectId: 'PRJ-204', name: 'Yoga Pranata', emergencyContactName: 'Sinta Pranata', emergencyContactPhone: '0815-5004-0002' },
+
+  // PRJ-205 — Open Trip Bromo Ijen (dummy Project B2C), peserta lahir dari SalesOrder `paid` SLO-006
+  // (`app/data/sales-orders.ts`) — pola sama `qualifyGroupTripLead`/DP confirm, `partyId`/`salesOrderId` diisi.
+  { id: 'TRV-2051', projectId: 'PRJ-205', partyId: 'PTY-010', salesOrderId: 'SLO-006', name: 'Yulia Kartika', emergencyContactName: 'Rendra Kartika', emergencyContactPhone: '0815-6001-1001' },
+  { id: 'TRV-2052', projectId: 'PRJ-205', partyId: 'PTY-010', salesOrderId: 'SLO-006', name: 'Rendra Kartika', emergencyContactName: 'Yulia Kartika', emergencyContactPhone: '0815-6001-1001' }
 ])
 
 /** Rooming list eksplisit (Section 11) — hanya untuk traveler bernama yang datanya sudah tercatat di atas. */

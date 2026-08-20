@@ -65,7 +65,7 @@ const funnelStages = computed(() => {
     { key: 'qualified', label: 'Qualified', count: qualifiedLeadCount.value, to: '/sales/pipeline?stage=qualified#leads' },
     { key: 'quotation', label: 'Quotation', count: scopedDealLeads.value.length, to: '/sales/pipeline#quotations' },
     { key: 'approved', label: 'Approved', count: approvedQuotationCount, to: '/sales/pipeline?qtab=all&status=approved#quotations' },
-    { key: 'won', label: 'Won', count: wonLeadCount, to: '/sales/pipeline?stage=qualified#leads' },
+    { key: 'won', label: 'Won', count: wonLeadCount, to: '/customer-journey/customers?status=client' },
     { key: 'client', label: 'Client', count: activeClientCount.value, to: '/customer-journey/customers?status=client' },
     { key: 'project-order', label: 'Project Order', count: scopedProjectOrders.value ? scopedProjectOrders.value.length : PROJECTS.length, to: '/project-orders' }
   ]

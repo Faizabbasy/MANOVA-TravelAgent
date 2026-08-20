@@ -58,7 +58,11 @@ export const PARTIES: Party[] = reactive([
   },
   { id: 'PTY-006', name: 'Andi Prasetyo', lifecycleStatus: 'client', createdAt: '2026-07-01', partyType: 'individual', phone: '0812-3456-7890', city: 'Jakarta' },
   { id: 'PTY-007', name: 'Sinta Wulandari', lifecycleStatus: 'client', createdAt: '2026-07-10', partyType: 'individual', phone: '0813-2345-6789', city: 'Bandung' },
-  { id: 'PTY-008', name: 'Reza Hartono', lifecycleStatus: 'client', createdAt: '2026-07-15', partyType: 'individual', phone: '0857-1234-5678', city: 'Surabaya' }
+  { id: 'PTY-008', name: 'Reza Hartono', lifecycleStatus: 'client', createdAt: '2026-07-15', partyType: 'individual', phone: '0857-1234-5678', city: 'Surabaya' },
+  /** Party placeholder Group Trip B2C (pola sama `getOrCreateGroupTripPlaceholderParty`, `app/data/index.ts`) — dipakai sebagai `partyId` Project B2C dummy PRJ-205 sebelum ada customer nyata. */
+  { id: 'PTY-009', name: 'MANOVA Group Trip (Internal)', lifecycleStatus: 'client', createdAt: '2026-07-20', partyType: 'individual' },
+  { id: 'PTY-010', name: 'Yulia Kartika', lifecycleStatus: 'client', createdAt: '2026-08-01', partyType: 'individual', phone: '0815-6001-1001', city: 'Jakarta' },
+  { id: 'PTY-011', name: 'Bima Nugraha', lifecycleStatus: 'client', createdAt: '2026-08-05', partyType: 'individual', phone: '0815-6001-1002', city: 'Malang' }
 ])
 
 export const CONTACTS: ContactPerson[] = reactive([

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Plus, FileText, Bell, AlertTriangle, CheckCheck, X, ExternalLink } from 'lucide-vue-next'
+import { Search, Plus, FileText, Bell, AlertTriangle, CheckCheck, X, ExternalLink, List, LayoutGrid, Image, FileSpreadsheet, File as FileIcon } from 'lucide-vue-next'
 import {
   PROJECTS, USERS,
   getProjectById, getUserById,
@@ -51,6 +51,16 @@ function entityLabel (entityType: DocumentEntityType, entityId: string): string 
 }
 
 /* --- Documents tab --- */
+const docViewMode = ref<'list' | 'grid'>('list')
+/** Ikon kartu Grid — dokumen di sini murni metadata mock (tidak ada file/thumbnail sungguhan), jadi ikon
+ * ditentukan dari ekstensi nama file, pola sama Google Drive saat tidak ada preview. */
+function documentFileIcon (name: string) {
+  const extension = name.split('.').pop()?.toLowerCase() ?? ''
+  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) { return Image }
+  if (['xls', 'xlsx', 'csv'].includes(extension)) { return FileSpreadsheet }
+  if (['pdf', 'doc', 'docx'].includes(extension)) { return FileText }
+  return FileIcon
+}
 const docSearch = ref('')
 const docCategoryFilter = ref('all')
 const docAccessFilter = ref<'all' | DocumentAccessLevel>('all')
@@ -415,8 +425,30 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                 Akan Kedaluwarsa
               </option>
             </select>
+            <div class="relative flex items-center gap-1 rounded-lg border border-border p-0.5 ml-auto">
+              <div
+                class="absolute inset-y-0.5 left-0.5 h-8 w-8 rounded-md bg-success transition-transform duration-300 ease-in-out"
+                :class="docViewMode === 'grid' ? 'translate-x-[calc(100%+0.25rem)]' : 'translate-x-0'"
+              />
+              <button
+                type="button"
+                class="relative z-10 flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-300"
+                :class="docViewMode === 'list' ? 'text-success-foreground' : 'text-muted-foreground hover:text-foreground'"
+                @click="docViewMode = 'list'"
+              >
+                <List class="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                class="relative z-10 flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-300"
+                :class="docViewMode === 'grid' ? 'text-success-foreground' : 'text-muted-foreground hover:text-foreground'"
+                @click="docViewMode = 'grid'"
+              >
+                <LayoutGrid class="h-4 w-4" />
+              </button>
+            </div>
           </div>
-          <SectionCard description="Dokumen 'uploaded' murni metadata mock; dokumen 'generated' menautkan ke halaman preview existing (tidak menduplikasi generator dokumen).">
+          <SectionCard v-if="docViewMode === 'list'" description="Dokumen 'uploaded' murni metadata mock; dokumen 'generated' menautkan ke halaman preview existing (tidak menduplikasi generator dokumen).">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -469,6 +501,27 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                 </TableEmpty>
               </TableBody>
             </Table>
+          </SectionCard>
+
+          <SectionCard v-else description="Dokumen 'uploaded' murni metadata mock; dokumen 'generated' menautkan ke halaman preview existing (tidak menduplikasi generator dokumen).">
+            <div v-if="documentRows.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
+              <a
+                v-for="row in documentRows"
+                :key="row.item.id"
+                :href="row.item.sourceType === 'generated' && row.item.previewRoute ? row.item.previewRoute : undefined"
+                :target="row.item.sourceType === 'generated' && row.item.previewRoute ? '_blank' : undefined"
+                class="flex flex-col items-center gap-2 rounded-lg border border-border p-4 text-center hover:bg-accent/50 transition-colors"
+                :class="row.item.sourceType === 'generated' && row.item.previewRoute ? 'cursor-pointer' : 'cursor-default'"
+              >
+                <component :is="documentFileIcon(row.item.name)" class="h-10 w-10 text-muted-foreground" />
+                <p class="text-xs font-medium text-foreground w-full truncate" :title="row.item.name">
+                  {{ row.item.name }}
+                </p>
+              </a>
+            </div>
+            <p v-else class="text-sm text-muted-foreground text-center py-6">
+              {{ docSearch || docCategoryFilter !== 'all' || docAccessFilter !== 'all' || docEntityFilter !== 'all' || docExpiryFilter !== 'all' ? 'Tidak ada dokumen yang cocok dengan filter.' : 'Belum ada dokumen tercatat.' }}
+            </p>
           </SectionCard>
         </TabsContent>
 

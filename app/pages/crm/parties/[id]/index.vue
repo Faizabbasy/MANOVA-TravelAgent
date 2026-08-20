@@ -5,7 +5,7 @@ import { FileX, Plus, MessageCircle } from 'lucide-vue-next'
 import { buildWhatsAppLink } from '~/data/crm-engagement'
 import {
   getPartyById, getContactsByParty, getLeadsByParty, getPartyActivities, getProjectsByParty,
-  getQuotationByLead, createContact, createPartyActivity, getInvoicesByProject, getFeedbackByProject,
+  getQuotationByLead, createContact, createPartyActivity, createProject, getInvoicesByProject, getFeedbackByProject,
   getUserByClientPartyId, isManovaClient
 } from '~/data'
 import { getLoyaltyAccount } from '~/data/crm-engagement'
@@ -13,13 +13,15 @@ import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, PARTY_ACT
 import { formatCurrencyIdr, formatDate, formatDateRange, formatNumber } from '~/utils/format'
 import { daysUntil } from '~/utils/format'
 import type { PartyDetailTab, PartyActivityType } from '~/types/party'
+import type { ServiceTypeKey } from '~/types/project'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
 const { currentRole, currentUser } = useCurrentUser()
-const { canView, can } = usePermissions()
+const { canView, can, canManage } = usePermissions()
+const { showToast } = useToast()
 
 /** Hyperlink WhatsApp (revisi.md #9) — nomor dinormalkan ke format internasional oleh `buildWhatsAppLink`. */
 function whatsAppLink (phone: string | undefined, name: string): string | undefined {
@@ -42,8 +44,66 @@ const projects = computed(() => (party.value ? getProjectsByParty(party.value.id
 const linkedClientUser = computed(() => (party.value ? getUserByClientPartyId(party.value.id) : undefined))
 const isPartyManovaClient = computed(() => (party.value ? isManovaClient(party.value.id) : false))
 
-/** Tab "Projects" kondisional — hanya tampil bila Client dan minimal 1 project (docs IA bagian 3.2/5). */
-const showProjectsTab = computed(() => party.value?.lifecycleStatus === 'client' && projects.value.length > 0)
+/** Tab "Projects" kondisional — tampil untuk seluruh Client (dulu mensyaratkan minimal 1 project; kini juga
+ * tampil saat kosong supaya tombol "Buat Project" di tab ini terjangkau untuk Client baru/belum punya project). */
+const showProjectsTab = computed(() => party.value?.lifecycleStatus === 'client')
+
+/** Buat Project untuk party ini — mirror flow "Buat Project" di `/project-orders`, customer terkunci ke
+ * party halaman ini (bukan dropdown). Digerbangi `canManage('operations')` (modul yang sama, bukan
+ * `canManageParty`/CRM) karena membuat Project adalah aksi modul Operations. */
+const canManageProject = computed(() => canManage('operations'))
+
+const isCreateProjectOpen = ref(false)
+const newProjectName = ref('')
+const newProjectDestination = ref('')
+const newProjectStartDate = ref('')
+const newProjectEndDate = ref('')
+const newProjectTravelerCount = ref<number | null>(null)
+const newProjectServiceScope = ref<ServiceTypeKey[]>([])
+const newProjectAmountIdr = ref<number | null>(null)
+
+function toggleNewProjectServiceScope (type: ServiceTypeKey) {
+  const index = newProjectServiceScope.value.indexOf(type)
+  if (index === -1) { newProjectServiceScope.value.push(type) } else { newProjectServiceScope.value.splice(index, 1) }
+}
+
+function resetCreateProjectForm () {
+  newProjectName.value = ''
+  newProjectDestination.value = ''
+  newProjectStartDate.value = ''
+  newProjectEndDate.value = ''
+  newProjectTravelerCount.value = null
+  newProjectServiceScope.value = []
+  newProjectAmountIdr.value = null
+}
+
+const isNewProjectFormValid = computed(() => Boolean(
+  newProjectName.value.trim() &&
+  newProjectDestination.value.trim() &&
+  newProjectStartDate.value &&
+  newProjectEndDate.value &&
+  newProjectTravelerCount.value &&
+  newProjectServiceScope.value.length &&
+  newProjectAmountIdr.value
+))
+
+function submitCreateProject () {
+  if (!party.value || !isNewProjectFormValid.value) { return }
+  const project = createProject({
+    partyId: party.value.id,
+    name: newProjectName.value.trim(),
+    destination: newProjectDestination.value.trim(),
+    travelStartDate: newProjectStartDate.value,
+    travelEndDate: newProjectEndDate.value,
+    travelerCount: newProjectTravelerCount.value!,
+    serviceScope: newProjectServiceScope.value,
+    quotationAmountIdr: newProjectAmountIdr.value!
+  })
+  if (!project) { showToast('Gagal Membuat Project', 'Periksa kembali tanggal dan data yang diisi.', 'error'); return }
+  resetCreateProjectForm()
+  isCreateProjectOpen.value = false
+  showToast('Project Dibuat', `${project.id} tercatat berstatus "Draft".`, 'success')
+}
 
 const activeTab = computed<PartyDetailTab>({
   get: () => (route.query.tab as PartyDetailTab) || 'overview',
@@ -429,6 +489,75 @@ function submitActivity () {
 
         <TabsContent v-if="showProjectsTab" value="projects">
           <SectionCard title="Projects">
+            <template #actions>
+              <Dialog v-if="canManageProject" v-model:open="isCreateProjectOpen">
+                <DialogTrigger as-child>
+                  <Button size="sm" variant="outline">
+                    <Plus class="h-4 w-4 mr-1.5" />Buat Project
+                  </Button>
+                </DialogTrigger>
+                <DialogContent class="max-w-md">
+                  <DialogHeader>
+                    <DialogTitle>Buat Project Baru</DialogTitle>
+                    <DialogDescription>Untuk: {{ party.name }} — tanpa lewat Lead, status awal "Draft".</DialogDescription>
+                  </DialogHeader>
+                  <div class="space-y-4 py-2">
+                    <div class="space-y-1.5">
+                      <Label for="party-prj-name">Nama Project</Label>
+                      <Input id="party-prj-name" v-model="newProjectName" placeholder="mis. Jakarta Business Trip Q1 2027" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="party-prj-destination">Destinasi</Label>
+                      <Input id="party-prj-destination" v-model="newProjectDestination" placeholder="mis. Bali" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label for="party-prj-start">Tanggal Berangkat</Label>
+                        <Input id="party-prj-start" v-model="newProjectStartDate" type="date" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="party-prj-end">Tanggal Pulang</Label>
+                        <Input id="party-prj-end" v-model="newProjectEndDate" type="date" />
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label for="party-prj-travelers">Jumlah Traveler</Label>
+                        <Input id="party-prj-travelers" v-model.number="newProjectTravelerCount" type="number" min="1" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="party-prj-amount">Nilai Kontrak (Rp)</Label>
+                        <CurrencyInput id="party-prj-amount" v-model="newProjectAmountIdr" />
+                      </div>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label>Service Scope</Label>
+                      <div class="flex flex-wrap gap-2">
+                        <button
+                          v-for="type in SERVICE_TYPES"
+                          :key="type.value"
+                          type="button"
+                          class="rounded-full border px-3 py-1 text-xs transition-colors"
+                          :class="newProjectServiceScope.includes(type.value) ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground'"
+                          @click="toggleNewProjectServiceScope(type.value)"
+                        >
+                          {{ type.value === 'additional' ? 'Other' : type.label }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" @click="resetCreateProjectForm(); isCreateProjectOpen = false">
+                      Batal
+                    </Button>
+                    <Button :disabled="!isNewProjectFormValid" @click="submitCreateProject">
+                      Simpan
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </template>
+
             <ul class="divide-y divide-border">
               <li v-for="project in projects" :key="project.id" class="py-3 flex items-center justify-between gap-3">
                 <div class="min-w-0">

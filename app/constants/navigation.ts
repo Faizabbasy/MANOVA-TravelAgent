@@ -21,13 +21,11 @@ import {
   Truck,
   Send,
   GitPullRequest,
-  MessageSquare,
   Briefcase,
   ArrowDownToLine,
   ArrowUpFromLine,
   BookOpen,
-  UserCog,
-  Megaphone
+  UserCog
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
 
@@ -82,7 +80,7 @@ export const NAV_ITEMS: NavItem[] = [
   /* ---------- Operations & Scheduling (poros: Project Order) ---------- */
   {
     key: 'operations',
-    label: 'Operations & Scheduling',
+    label: 'Project',
     to: '/project-orders',
     icon: Route,
     moduleKey: 'operations',
@@ -115,26 +113,24 @@ export const NAV_ITEMS: NavItem[] = [
   /* ---------- Sales — "Sales mengurus deal" (seluruh corong Lead→Opportunity→Quotation) ---------- */
   {
     key: 'sales',
-    label: 'Sales',
+    label: 'Leads',
     to: '/sales/pipeline',
     icon: TrendingUp,
     moduleKey: 'sales',
     children: [
-      { key: 'sales.pipeline', label: 'Pipeline', to: '/sales/pipeline', icon: Target, moduleKey: 'sales' },
-      { key: 'sales.product-planning', label: 'Produk & Costing', to: '/product-planning', icon: Package, moduleKey: 'sales' }
+      { key: 'sales.pipeline', label: 'Pipeline', to: '/sales/pipeline', icon: Target, moduleKey: 'sales' }
     ]
   },
 
   /* ---------- CRM — "CRM mengurus customer" (data pelanggan, bukan corong deal) ---------- */
   {
     key: 'crm',
-    label: 'CRM',
+    label: 'Customer',
     to: '/customer-journey/customers',
     icon: Heart,
     moduleKey: 'crm',
     children: [
-      { key: 'crm.customers', label: 'Database Customer', to: '/customer-journey/customers', icon: Users, moduleKey: 'crm' },
-      { key: 'crm.engagement', label: 'Engagement', to: '/crm/engagement', icon: MessageSquare, moduleKey: 'crm' }
+      { key: 'crm.customers', label: 'Database Customer', to: '/customer-journey/customers', icon: Users, moduleKey: 'crm' }
     ]
   },
 
@@ -151,13 +147,12 @@ export const NAV_ITEMS: NavItem[] = [
     ]
   },
 
-  /* ---------- Human Resource / Inventory / Marketing (tetap top-level, belum bertab) ---------- */
+  /* ---------- Human Resource / Inventory (tetap top-level, belum bertab) ---------- */
   { key: 'hr', label: 'Human Resource', to: '/hr', icon: UserCog, moduleKey: 'hr', isNew: true },
   { key: 'inventory', label: 'Inventory', to: '/inventory', icon: Package, moduleKey: 'inventory', isNew: true },
-  { key: 'marketing', label: 'Marketing & Analysis', to: '/marketing', icon: Megaphone, moduleKey: 'marketing', isNew: true },
 
-  /* ---------- Reporting & BI — entri tunggal, tab Operasional/Analytics ada di dalam halaman ---------- */
-  { key: 'bi', label: 'Reporting & BI', to: '/reports', icon: BarChart3, moduleKey: 'bi' },
+  /* Reporting & BI, Marketing & Analysis — di-hold sementara (diminta hilang dulu dari sidebar).
+   * Route tetap hidup, tetap tergerbang RBAC lewat HIDDEN_NAV_ROUTES di bawah. */
 
   /* ---------- Documents & Communication — entri tunggal, tab Documents/Messages/Notifications di dalam halaman ---------- */
   { key: 'documents', label: 'Documents & Communication', to: '/documents', icon: FileText, moduleKey: 'documents' },
@@ -189,6 +184,9 @@ export const NAV_ITEMS: NavItem[] = [
     to: '/supplier',
     icon: Truck,
     moduleKey: 'vendor-portal',
+    /** Portal eksternal — hanya berguna untuk login vendor itu sendiri, bukan menu yang perlu dilihat
+     * Super Admin/staf lain walau modul-nya ter-grant penuh ke mereka. */
+    roles: ['vendor'],
     children: [
       { key: 'vendor-portal.home', label: 'Dashboard', to: '/supplier', icon: Truck, moduleKey: 'vendor-portal' },
       { key: 'vendor-portal.products', label: 'Katalog', to: '/supplier/products', icon: Package, moduleKey: 'vendor-portal' },
@@ -201,13 +199,15 @@ export const NAV_ITEMS: NavItem[] = [
    * Sistem: Client Portal — dulu 7 grup beranak 18 entri; tiap grup kini SATU halaman bertab (detail
    * konsolidasi di `docs`/plan), jadi flat tanpa anak lagi.
    */
-  { key: 'client-portal.dashboard', label: 'Dashboard', to: '/client', icon: LayoutDashboard, moduleKey: 'client-portal' },
-  { key: 'client-portal.requests', label: 'Request & Approval', to: '/client/travel-requests', icon: Send, moduleKey: 'client-portal' },
-  { key: 'client-portal.trips', label: 'My Trips', to: '/client/project-orders', icon: FolderKanban, moduleKey: 'client-portal' },
-  { key: 'client-portal.documents', label: 'Documents & Support', to: '/client/documents', icon: FileText, moduleKey: 'client-portal' },
-  { key: 'client-portal.billing', label: 'Billing', to: '/client/billing', icon: Wallet, moduleKey: 'client-portal' },
-  { key: 'client-portal.reports', label: 'Reports & Feedback', to: '/client/reports', icon: BarChart3, moduleKey: 'client-portal' },
-  { key: 'client-portal.company-profile', label: 'Company Profile', to: '/client/company-profile', icon: Briefcase, moduleKey: 'client-portal' }
+  /** Portal eksternal — hanya berguna untuk login client itu sendiri, bukan menu yang perlu dilihat Super
+   * Admin/staf lain walau modul-nya ter-grant penuh ke mereka (sama seperti Vendor Portal di atas). */
+  { key: 'client-portal.dashboard', label: 'Dashboard', to: '/client', icon: LayoutDashboard, moduleKey: 'client-portal', roles: ['client'] },
+  { key: 'client-portal.requests', label: 'Request & Approval', to: '/client/travel-requests', icon: Send, moduleKey: 'client-portal', roles: ['client'] },
+  { key: 'client-portal.trips', label: 'My Trips', to: '/client/project-orders', icon: FolderKanban, moduleKey: 'client-portal', roles: ['client'] },
+  { key: 'client-portal.documents', label: 'Documents & Support', to: '/client/documents', icon: FileText, moduleKey: 'client-portal', roles: ['client'] },
+  { key: 'client-portal.billing', label: 'Billing', to: '/client/billing', icon: Wallet, moduleKey: 'client-portal', roles: ['client'] },
+  { key: 'client-portal.reports', label: 'Reports & Feedback', to: '/client/reports', icon: BarChart3, moduleKey: 'client-portal', roles: ['client'] },
+  { key: 'client-portal.company-profile', label: 'Company Profile', to: '/client/company-profile', icon: Briefcase, moduleKey: 'client-portal', roles: ['client'] }
 ]
 
 /** Bentuk minimal yang dibutuhkan gerbang RBAC — dipakai bareng oleh `NavItem` dan `HIDDEN_NAV_ROUTES`. */
@@ -250,9 +250,11 @@ export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   { key: 'hidden.lead-sources', label: 'Lead Source Recap', to: '/customer-journey/lead-sources', moduleKey: 'sales' },
   { key: 'hidden.opportunities', label: 'Opportunities', to: '/crm/opportunities', moduleKey: 'sales' },
   { key: 'hidden.quotations-internal', label: 'Quotations (internal)', to: '/crm/quotations', moduleKey: 'sales' },
+  { key: 'hidden.product-planning', label: 'Produk & Costing', to: '/product-planning', moduleKey: 'sales' },
   { key: 'hidden.cost-sheets', label: 'Cost Sheets', to: '/product-planning/cost-sheets', moduleKey: 'sales' },
 
   // CRM
+  { key: 'hidden.engagement', label: 'Engagement', to: '/crm/engagement', moduleKey: 'crm' },
   { key: 'hidden.prospects', label: 'Prospects', to: '/crm/prospects', moduleKey: 'crm' },
   { key: 'hidden.clients', label: 'Clients', to: '/crm/clients', moduleKey: 'crm' },
   { key: 'hidden.follow-ups', label: 'Follow-up Otomatis', to: '/crm/follow-ups', moduleKey: 'crm' },
@@ -264,7 +266,11 @@ export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   { key: 'hidden.procurement-performance', label: 'Rating & Performance', to: '/procurement/performance', moduleKey: 'vendor-partner' },
 
   // Reporting & BI / Administration
+  { key: 'hidden.bi', label: 'Reporting & BI', to: '/reports', moduleKey: 'bi' },
   { key: 'hidden.reports-analytics', label: 'Analytics & Marketing ROI', to: '/reports/analytics', moduleKey: 'bi' },
+
+  // Marketing & Analysis
+  { key: 'hidden.marketing', label: 'Marketing & Analysis', to: '/marketing', moduleKey: 'marketing' },
   { key: 'hidden.activity-center', label: 'Activity Center', to: '/activity-center', moduleKey: 'administration' },
   { key: 'hidden.admin-roles', label: 'Roles & Permissions', to: '/admin/roles', moduleKey: 'administration' },
   { key: 'hidden.admin-organization', label: 'Organization Profile', to: '/admin/organization', moduleKey: 'administration' },
