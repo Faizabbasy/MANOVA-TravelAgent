@@ -3908,6 +3908,72 @@ export function paySupplierInvoice (id: string, actorId: string): SupplierInvoic
   return invoice
 }
 
+export interface RecordVendorPaymentInput {
+  serviceId: string
+  vendorId: string
+  amountIdr: number
+  note?: string
+}
+
+/**
+ * Jalur cepat internal (PM/Ops, tab "Vendors" detail Project) — mencatat vendor untuk satu `ProjectService`
+ * SUDAH DIBAYAR LANGSUNG oleh staf Manova (mis. beli tiket flight dan bayar cash/transfer di tempat),
+ * BUKAN lewat pengajuan mandiri vendor di Supplier Portal (`submitSupplierInvoice` → `reviewSupplierInvoice`
+ * → `paySupplierInvoice`, tiga langkah terpisah yang mengasumsikan vendor sendiri yang mengajukan invoice).
+ * Service Order dibuat kalau belum ada (idempotent, reuse `ensureServiceOrderForVendorAssignment`) lalu
+ * langsung ditandai `fulfilled`, Supplier Invoice langsung dibuat berstatus `paid` — melewati gerbang
+ * transisi berlapis yang didesain untuk workflow vendor self-service, karena staf internal di sini sudah
+ * mengonfirmasi sendiri bahwa pembayaran ini nyata terjadi. Efeknya: `getProjectActualCostIdr()` dan
+ * `getJournalEntries()` (Dr 5100/Cr 1100) langsung mencerminkan pembayaran ini tanpa langkah tambahan.
+ */
+export function recordVendorPaymentDirect (input: RecordVendorPaymentInput, actorId: string): SupplierInvoice | undefined {
+  const service = PROJECT_SERVICES.find(item => item.id === input.serviceId)
+  if (!service || !(input.amountIdr > 0)) { return undefined }
+
+  service.vendorId = input.vendorId
+  if (service.status !== 'confirmed' && service.status !== 'changed') { updateServiceStatus(service.id, 'confirmed') }
+
+  ensureServiceOrderForVendorAssignment(service, input.vendorId)
+  const serviceOrder = getServiceOrderByService(service.id)
+  if (!serviceOrder) { return undefined }
+  /** Guard dobel-bayar — sejalan dengan tombol UI yang disembunyikan begitu sudah ada invoice `paid` untuk layanan ini. */
+  if (getSupplierInvoicesByServiceOrder(serviceOrder.id).some(inv => inv.status === 'paid')) { return undefined }
+  if (serviceOrder.status !== 'fulfilled') {
+    serviceOrder.status = 'fulfilled'
+    serviceOrder.fulfilledAt = DEMO_REFERENCE_DATE
+    serviceOrder.updatedAt = DEMO_REFERENCE_DATE
+  }
+
+  const actor = getUserById(actorId)
+  const invoice: SupplierInvoice = {
+    id: nextSequentialId('SINV-', SUPPLIER_INVOICES),
+    serviceOrderId: serviceOrder.id,
+    vendorId: input.vendorId,
+    amountIdr: input.amountIdr,
+    submittedAt: DEMO_REFERENCE_DATE,
+    status: 'paid',
+    note: input.note?.trim() || 'Dicatat langsung oleh staf internal (bukan pengajuan mandiri vendor).',
+    reviewedAt: DEMO_REFERENCE_DATE,
+    reviewedBy: actorId,
+    paidAt: DEMO_REFERENCE_DATE
+  }
+  SUPPLIER_INVOICES.push(invoice)
+
+  if (service.projectId) {
+    const vendor = getVendorById(input.vendorId)
+    ACTIVITIES.push({
+      id: nextSequentialId('ACT-', ACTIVITIES),
+      projectId: service.projectId,
+      message: `Pembayaran vendor ${vendor?.name ?? input.vendorId} untuk layanan "${service.label}" sebesar ${formatCurrencyIdr(input.amountIdr)} dicatat lunas oleh ${actor?.name ?? actorId}.`,
+      isChange: false,
+      reviewed: true,
+      createdAt: DEMO_REFERENCE_DATE
+    })
+  }
+
+  return invoice
+}
+
 /**
  * "Procurement performance review" (Wajib) — DERIVASI murni dari `RFQ`/`RFQInvitation`/`RFQResponse`/
  * `ServiceOrder` existing, BUKAN field tersimpan yang bisa stale (pola sama `getCostSheetBreakdown`/

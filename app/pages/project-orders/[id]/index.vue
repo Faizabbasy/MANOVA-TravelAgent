@@ -6,7 +6,8 @@ import {
   getProjectById, getPartyById, getUserById, getVendorById, getLeadById, getQuotationByLead,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
   getProjectServices, getItineraryItems, updateServiceStatus, updateItineraryItem, createItineraryItem, removeItineraryItem,
-  getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation,
+  getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation, recordVendorPaymentDirect,
+  getServiceOrderByService, getSupplierInvoicesByServiceOrder,
   getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, createTravelerGroup,
   toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
@@ -34,10 +35,10 @@ import {
   getProjectOrderStepViews, advanceProjectOrder, getProjectMilestones,
   setMilestoneActualDate, updateMilestonePlannedDate, getProjectOrderStep
 } from '~/data/project-order-workflow'
-import { getProjectActualCostIdr, getJournalEntriesByProject, getLedgerAccount } from '~/data/finance-ext'
+import { getProjectActualCostIdr, getJournalEntriesByProject, getLedgerAccount, getProjectExpenses, createProjectExpense, PROJECT_EXPENSE_CATEGORIES } from '~/data/finance-ext'
 import { serviceCapabilityKey } from '~/constants/capabilities'
 import {
-  PROJECT_STATUSES, PROJECT_CHARACTERISTICS, PROJECT_ORDER_STATUSES, SERVICE_STATUSES, SERVICE_TYPES,
+  PROJECT_STATUSES, PROJECT_ORDER_STATUSES, SERVICE_STATUSES, SERVICE_TYPES,
   INVOICE_STATUSES, INVOICE_TYPES, TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES,
   CHANGE_CATEGORIES, CHANGE_APPROVAL_STATUSES, RISK_SEVERITIES, RISK_STATUSES, BOOKING_PAYMENT_GATE_STATUSES, SERVICE_ORDER_STATUSES, RFQ_STATUSES, findStatusOption,
   CHANGE_REQUEST_SOURCES, CHANGE_REQUEST_STATUSES, REFUND_REQUEST_STATUSES, REFUND_CREDIT_STATUSES, INCIDENT_SEVERITIES, INCIDENT_STATUSES,
@@ -46,9 +47,10 @@ import {
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatTravelerCount, maskDocumentNumber } from '~/utils/format'
 import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, invoiceAgingDays, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE } from '~/utils/attention'
-import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ProjectStatus, ProjectClosureChecklist, ItineraryItem } from '~/types/project'
+import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ProjectStatus, ProjectClosureChecklist, ItineraryItem, ProjectService } from '~/types/project'
 import type { ChangeCategory, ProjectRiskSeverity, ProjectTask, ShiftPeriod } from '~/types/activity'
 import type { Invoice } from '~/types/finance'
+import type { ProjectExpenseCategoryKey } from '~/types/finance-ext'
 import type { MessageChannel } from '~/types/document-comms'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
@@ -680,6 +682,37 @@ function submitCloseFinance () {
   if (result.success) { showToast('Finance Ditutup', `Finance project ${project.value.name} berhasil ditutup.`, 'success') } else { showToast('Belum Bisa Ditutup', `${result.blockers.length} blocker masih terbuka — lihat daftar di atas.`, 'error') }
 }
 
+/** Pengeluaran Project (ad-hoc, langsung tercatat) — lihat `ProjectExpense`, `app/types/finance-ext.ts`. */
+const projectExpenses = computed(() => (project.value ? getProjectExpenses(project.value.id) : []))
+const isExpenseDialogOpen = ref(false)
+const expenseCategory = ref<ProjectExpenseCategoryKey | ''>('')
+const expenseDescription = ref('')
+const expenseAmountIdr = ref<number | null>(null)
+const expenseIncurredAt = ref('')
+
+function openCreateExpense () {
+  expenseCategory.value = ''
+  expenseDescription.value = ''
+  expenseAmountIdr.value = null
+  expenseIncurredAt.value = DEMO_REFERENCE_DATE
+  isExpenseDialogOpen.value = true
+}
+
+function submitExpense () {
+  if (!project.value || !expenseCategory.value || !expenseDescription.value.trim() || !expenseAmountIdr.value || !expenseIncurredAt.value) { return }
+  const expense = createProjectExpense({
+    projectId: project.value.id,
+    category: expenseCategory.value,
+    description: expenseDescription.value.trim(),
+    amountIdr: expenseAmountIdr.value,
+    incurredAt: expenseIncurredAt.value,
+    recordedBy: currentUser.value.id
+  })
+  if (!expense) { return }
+  isExpenseDialogOpen.value = false
+  showToast('Pengeluaran Dicatat', `${expense.description} — ${formatCurrencyIdr(expense.amountIdr)} berhasil ditambahkan ke Actual Cost.`, 'success')
+}
+
 function invoiceAgingLabel (invoice: Invoice) {
   if (invoice.status === 'paid') { return 'Lunas' }
   if (invoice.status === 'void') { return 'Void' }
@@ -814,6 +847,42 @@ function handleRejectQuotation (quotationId: string) {
   const quotation = rejectVendorQuotation(quotationId)
   if (!quotation) { return }
   showToast('Quotation Ditolak', 'Quotation vendor ditandai ditolak.', 'info')
+}
+
+/** "Catat Sudah Dibayar ke Vendor" — jalur cepat internal, lihat `recordVendorPaymentDirect` (`app/data/index.ts`).
+ * Tombol disembunyikan begitu sudah ada Supplier Invoice `paid` untuk layanan ini, supaya tidak dobel bayar. */
+function isVendorAlreadyPaid (service: ProjectService) {
+  if (!service.vendorId) { return false }
+  const serviceOrder = getServiceOrderByService(service.id)
+  if (!serviceOrder) { return false }
+  return getSupplierInvoicesByServiceOrder(serviceOrder.id).some(invoice => invoice.status === 'paid')
+}
+
+const isVendorPaymentDialogOpen = ref(false)
+const vendorPaymentService = ref<ProjectService | null>(null)
+const vendorPaymentAmountIdr = ref<number | null>(null)
+const vendorPaymentNote = ref('')
+
+function openRecordVendorPayment (service: ProjectService) {
+  vendorPaymentService.value = service
+  const acceptedQuotation = quotationsForService(service.id).find(quotation => quotation.status === 'accepted')
+  vendorPaymentAmountIdr.value = acceptedQuotation?.amountIdr ?? null
+  vendorPaymentNote.value = ''
+  isVendorPaymentDialogOpen.value = true
+}
+
+function submitVendorPayment () {
+  const service = vendorPaymentService.value
+  if (!service || !service.vendorId || !vendorPaymentAmountIdr.value) { return }
+  const invoice = recordVendorPaymentDirect({
+    serviceId: service.id,
+    vendorId: service.vendorId,
+    amountIdr: vendorPaymentAmountIdr.value,
+    note: vendorPaymentNote.value.trim() || undefined
+  }, currentUser.value.id)
+  if (!invoice) { return }
+  isVendorPaymentDialogOpen.value = false
+  showToast('Pembayaran Vendor Dicatat', `${formatCurrencyIdr(invoice.amountIdr)} untuk "${service.label}" langsung ditambahkan ke Actual Cost.`, 'success')
 }
 
 const needsAttention = computed(() => project.value
@@ -1093,32 +1162,25 @@ const summaryMetadata = computed(() => {
     <RoleAccessState v-else-if="!canView('project')" module-label="modul Operations & Scheduling" />
 
     <template v-else>
-      <PageHeader
-        :title="project.name"
-        :breadcrumb="[{ label: 'Project', to: '/project-orders' }, { label: project.name }]"
-      >
-        <template #actions>
-          <StatusBadge
-            v-if="orderStatus"
-            :label="findStatusOption(PROJECT_ORDER_STATUSES, orderStatus).label"
-            :tone="findStatusOption(PROJECT_ORDER_STATUSES, orderStatus).tone"
-          />
-          <StatusBadge
-            :label="findStatusOption(PROJECT_CHARACTERISTICS, project.characteristic).label"
-            :tone="findStatusOption(PROJECT_CHARACTERISTICS, project.characteristic).tone"
-          />
-          <AttentionIndicator v-if="needsAttention" severity="high" />
-          <StatusBadge v-if="isUpcomingDeparture(project)" label="Upcoming Departure" tone="info" />
-        </template>
-      </PageHeader>
+      <Breadcrumb :items="[{ label: 'Project', to: '/project-orders' }, { label: project.name }]" />
 
-      <SectionCard>
+      <ProjectBoardingPassHero
+        :project="project"
+        :client-name="party?.name ?? '—'"
+        :pm-name="owner?.name ?? '—'"
+        :ae-name="accountExecutive?.name ?? '—'"
+        :order-status="orderStatus"
+        :needs-attention="needsAttention"
+        :upcoming-departure="isUpcomingDeparture(project)"
+      />
+
+      <SectionCard title="Detail Perjalanan">
         <DetailMetadataList :items="summaryMetadata" />
         <div class="mt-4 pt-4 border-t border-border">
           <p class="text-xs font-medium text-muted-foreground mb-2">
             Peta Lokasi
           </p>
-          <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" />
+          <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" show-route />
         </div>
       </SectionCard>
 
@@ -1545,7 +1607,7 @@ const summaryMetadata = computed(() => {
         <TabsContent value="itinerary-services">
           <div class="space-y-6">
             <!-- Departure Readiness Gate (Section 12 baru) -->
-            <SectionCard v-if="departureReadiness" title="Departure Readiness Gate" description="Ringkasan kesiapan lintas-domain sebelum keberangkatan — advisory, tidak memblokir transisi status.">
+            <SectionCard v-if="departureReadiness" title="Departure Readiness Gate" description="Ringkasan kesiapan lintas-domain sebelum keberangkatan — advisory, tidak memblokir transisi status." accent :tone="departureReadiness.isReady ? 'success' : 'warning'">
               <template #actions>
                 <NuxtLink :to="`/project-orders/${project.id}/run-sheet-preview`" target="_blank">
                   <Button size="sm" variant="outline">
@@ -1611,7 +1673,7 @@ const summaryMetadata = computed(() => {
             </SectionCard>
 
             <!-- Attention / Exception Queue (Section 12 baru) -->
-            <SectionCard v-if="attentionQueue.length > 0" title="Attention / Exception Queue" description="Item lintas-domain yang butuh perhatian — klik untuk lompat ke tab terkait.">
+            <SectionCard v-if="attentionQueue.length > 0" title="Attention / Exception Queue" description="Item lintas-domain yang butuh perhatian — klik untuk lompat ke tab terkait." accent tone="destructive">
               <ul class="divide-y divide-border">
                 <li v-for="(item, index) in attentionQueue" :key="index" class="py-2">
                   <button type="button" class="flex items-center gap-2 text-left w-full hover:text-primary" @click="goToAttentionTab(item.tab)">
@@ -1626,6 +1688,8 @@ const summaryMetadata = computed(() => {
               v-if="project.characteristic === 'high-change' && changedServicesCount > 0"
               title="Penanda Perubahan"
               description="Project ini adalah High-Change Project."
+              accent
+              tone="warning"
             >
               <p class="text-sm text-foreground mb-3">
                 {{ changedServicesCount }} layanan mengalami perubahan setelah dikonfirmasi. Tinjau riwayat lengkap di tab Activity & Changes.
@@ -1664,7 +1728,7 @@ const summaryMetadata = computed(() => {
             </SectionCard>
 
             <SectionCard title="Lokasi Tujuan" :description="project.destination">
-              <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" />
+              <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" show-route />
             </SectionCard>
 
             <SectionCard title="Daily Itinerary" description="Jadwal harian perjalanan (timezone lokal ditampilkan berdampingan jam).">
@@ -1842,7 +1906,7 @@ const summaryMetadata = computed(() => {
                     <TableCell class="text-muted-foreground">
                       {{ service.vendorId ? getVendorById(service.vendorId)?.name : '—' }}
                     </TableCell>
-                    <TableCell class="text-muted-foreground">
+                    <TableCell class="font-ticket-mono text-muted-foreground">
                       {{ service.bookingReference ?? '—' }}
                     </TableCell>
                     <TableCell>
@@ -1910,12 +1974,12 @@ const summaryMetadata = computed(() => {
                     <div class="min-w-0">
                       <div class="flex items-center gap-1.5">
                         <StatusBadge :label="BOOKING_DOMAIN_LABEL_MAP[entry.bookingType]" :tone="BOOKING_DOMAIN_TONE_MAP[entry.bookingType]" />
-                        <NuxtLink :to="entry.detailHref" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
+                        <NuxtLink :to="entry.detailHref" class="font-ticket-mono text-sm font-medium text-foreground hover:text-primary hover:underline">
                           {{ entry.bookingId }}
                         </NuxtLink>
                         <span class="text-xs text-muted-foreground">{{ entry.label }}</span>
                       </div>
-                      <p class="text-xs text-muted-foreground mt-0.5">
+                      <p class="font-ticket-mono text-xs text-muted-foreground mt-0.5">
                         Ref: {{ entry.reference ?? 'Belum terbit' }} · {{ entry.travelerCount }} pax
                         <template v-if="entry.deadlineDate">
                           · Deadline: {{ formatDate(entry.deadlineDate) }}
@@ -2067,7 +2131,7 @@ const summaryMetadata = computed(() => {
               <StatsCard title="Available Seats" :value="String(getProjectSeatsAvailable(project.id))" :icon="Users" />
             </div>
 
-            <SectionCard title="Awaiting DP" description="Lead sudah Qualified, quota sudah ditahan — belum ada Participant sampai DP dikonfirmasi.">
+            <SectionCard title="Awaiting DP" description="Lead sudah Qualified, quota sudah ditahan — belum ada Participant sampai DP dikonfirmasi." :accent="awaitingDpRows.length > 0" tone="warning">
               <Table v-if="awaitingDpRows.length">
                 <TableHeader>
                   <TableRow>
@@ -2160,7 +2224,7 @@ const summaryMetadata = computed(() => {
                     {{ reservation.label }}
                   </p>
                   <p class="text-xs text-muted-foreground">
-                    {{ reservation.category }}<template v-if="reservation.reference"> · {{ reservation.reference }}</template>
+                    {{ reservation.category }}<template v-if="reservation.reference"> · <span class="font-ticket-mono">{{ reservation.reference }}</span></template>
                   </p>
                 </div>
                 <span class="text-xs text-muted-foreground shrink-0">{{ reservation.clientVisibleStatus }}</span>
@@ -2428,7 +2492,7 @@ const summaryMetadata = computed(() => {
                     <TableCell class="text-muted-foreground">
                       {{ groupNameById(traveler.groupId) }}
                     </TableCell>
-                    <TableCell class="text-muted-foreground text-xs">
+                    <TableCell class="font-ticket-mono text-muted-foreground text-xs">
                       <p>Paspor: {{ passportSummary(traveler) }}</p>
                       <p>ID: {{ idNumberSummary(traveler) }}</p>
                       <p>Visa: {{ visaSummary(traveler) }}</p>
@@ -2614,10 +2678,16 @@ const summaryMetadata = computed(() => {
                       <span v-else>Belum ditugaskan</span>
                     </div>
                   </div>
-                  <StatusBadge
-                    :label="findStatusOption(SERVICE_STATUSES, service.status).label"
-                    :tone="findStatusOption(SERVICE_STATUSES, service.status).tone"
-                  />
+                  <div class="flex items-center gap-2 shrink-0">
+                    <StatusBadge v-if="isVendorAlreadyPaid(service)" label="Vendor Sudah Dibayar" tone="success" />
+                    <Button v-else-if="service.vendorId && canManageServiceType(service.type)" size="sm" variant="outline" @click="openRecordVendorPayment(service)">
+                      Catat Sudah Dibayar
+                    </Button>
+                    <StatusBadge
+                      :label="findStatusOption(SERVICE_STATUSES, service.status).label"
+                      :tone="findStatusOption(SERVICE_STATUSES, service.status).tone"
+                    />
+                  </div>
                 </div>
 
                 <template v-if="quotationsForService(service.id).length">
@@ -2668,6 +2738,35 @@ const summaryMetadata = computed(() => {
             </div>
             <EmptyState v-else :icon="Truck" title="Belum ada layanan tercatat untuk project ini" />
           </SectionCard>
+
+          <Dialog v-model:open="isVendorPaymentDialogOpen">
+            <DialogContent class="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Catat Sudah Dibayar ke Vendor</DialogTitle>
+                <DialogDescription>
+                  Untuk layanan "{{ vendorPaymentService?.label }}" — {{ vendorPaymentService?.vendorId ? getVendorById(vendorPaymentService.vendorId)?.name : '' }}. Langsung tercatat lunas dan masuk Actual Cost, tanpa lewat pengajuan invoice mandiri vendor.
+                </DialogDescription>
+              </DialogHeader>
+              <div class="space-y-4 py-2">
+                <div class="space-y-1.5">
+                  <Label for="vendor-payment-amount">Nominal Dibayar (Rp)</Label>
+                  <CurrencyInput id="vendor-payment-amount" v-model="vendorPaymentAmountIdr" placeholder="mis. 8500000" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="vendor-payment-note">Catatan (opsional)</Label>
+                  <Input id="vendor-payment-note" v-model="vendorPaymentNote" placeholder="mis. Dibayar transfer langsung oleh Ops" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" @click="isVendorPaymentDialogOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!vendorPaymentAmountIdr" @click="submitVendorPayment">
+                  Simpan
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="finance">
@@ -2686,7 +2785,44 @@ const summaryMetadata = computed(() => {
                 </div>
               </SectionCard>
 
-              <SectionCard title="Invoice" :description="`Outstanding: ${formatCurrencyIdr(projectOutstandingIdr)}`">
+              <SectionCard title="Pengeluaran Project" description="Pengeluaran ad-hoc (transport, konsumsi, perlengkapan, dll) yang langsung tercatat dan ikut Actual Cost — tanpa approval berlapis.">
+                <template v-if="canManageFinance" #actions>
+                  <Button size="sm" variant="outline" @click="openCreateExpense">
+                    + Catat Pengeluaran
+                  </Button>
+                </template>
+                <Table v-if="projectExpenses.length">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tanggal</TableHead>
+                      <TableHead>Kategori</TableHead>
+                      <TableHead>Keterangan</TableHead>
+                      <TableHead>Nominal</TableHead>
+                      <TableHead>Dicatat Oleh</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="expense in projectExpenses" :key="expense.id">
+                      <TableCell class="text-muted-foreground">
+                        {{ formatDate(expense.incurredAt) }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(PROJECT_EXPENSE_CATEGORIES, expense.category).label" :tone="findStatusOption(PROJECT_EXPENSE_CATEGORIES, expense.category).tone" /></TableCell>
+                      <TableCell class="text-foreground">
+                        <span class="font-ticket-mono text-xs text-muted-foreground mr-1.5">{{ expense.id }}</span>{{ expense.description }}
+                      </TableCell>
+                      <TableCell class="text-foreground font-medium">
+                        {{ formatCurrencyIdr(expense.amountIdr) }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ getUserById(expense.recordedBy)?.name ?? expense.recordedBy }}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+                <EmptyState v-else :icon="Wallet" title="Belum ada pengeluaran project tercatat" />
+              </SectionCard>
+
+              <SectionCard title="Invoice" :description="`Outstanding: ${formatCurrencyIdr(projectOutstandingIdr)}`" :accent="projectOutstandingIdr > 0" tone="warning">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -2763,7 +2899,7 @@ const summaryMetadata = computed(() => {
                     <ul v-if="projectCreditNotes.length" class="divide-y divide-border">
                       <li v-for="note in projectCreditNotes" :key="note.id" class="py-2">
                         <div class="flex items-center justify-between gap-2">
-                          <span class="text-sm text-foreground">{{ note.id }} — {{ formatCurrencyIdr(note.amountIdr) }}</span>
+                          <span class="text-sm text-foreground"><span class="font-ticket-mono font-medium">{{ note.id }}</span> — {{ formatCurrencyIdr(note.amountIdr) }}</span>
                           <StatusBadge :label="findStatusOption(CREDIT_NOTE_STATUSES, note.status).label" :tone="findStatusOption(CREDIT_NOTE_STATUSES, note.status).tone" />
                         </div>
                         <p class="text-xs text-muted-foreground mt-0.5">
@@ -2782,7 +2918,7 @@ const summaryMetadata = computed(() => {
                     <ul v-if="projectDebitNotes.length" class="divide-y divide-border">
                       <li v-for="note in projectDebitNotes" :key="note.id" class="py-2">
                         <div class="flex items-center justify-between gap-2">
-                          <span class="text-sm text-foreground">{{ note.id }} — {{ formatCurrencyIdr(note.amountIdr) }}</span>
+                          <span class="text-sm text-foreground"><span class="font-ticket-mono font-medium">{{ note.id }}</span> — {{ formatCurrencyIdr(note.amountIdr) }}</span>
                           <StatusBadge :label="findStatusOption(DEBIT_NOTE_STATUSES, note.status).label" :tone="findStatusOption(DEBIT_NOTE_STATUSES, note.status).tone" />
                         </div>
                         <p class="text-xs text-muted-foreground mt-0.5">
@@ -2810,7 +2946,7 @@ const summaryMetadata = computed(() => {
                   </TableHeader>
                   <TableBody>
                     <TableRow v-for="supplierInvoice in projectSupplierInvoices" :key="supplierInvoice.id">
-                      <TableCell class="text-foreground">
+                      <TableCell class="font-ticket-mono text-foreground">
                         {{ supplierInvoice.id }}
                       </TableCell>
                       <TableCell class="text-muted-foreground">
@@ -2855,7 +2991,7 @@ const summaryMetadata = computed(() => {
                           {{ index === 0 ? entry.description : '' }}
                         </TableCell>
                         <TableCell class="text-sm">
-                          <span class="font-mono text-muted-foreground">{{ line.accountCode }}</span>
+                          <span class="font-ticket-mono text-muted-foreground">{{ line.accountCode }}</span>
                           <span class="text-foreground ml-1.5">{{ getLedgerAccount(line.accountCode)?.name }}</span>
                         </TableCell>
                         <TableCell class="text-right text-sm" :class="line.debitIdr ? 'text-foreground' : 'text-muted-foreground'">
@@ -2919,6 +3055,50 @@ const summaryMetadata = computed(() => {
               </SectionCard>
             </template>
           </div>
+
+          <Dialog v-model:open="isExpenseDialogOpen">
+            <DialogContent class="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Catat Pengeluaran</DialogTitle>
+                <DialogDescription>Langsung tercatat dan ikut Actual Cost project — tanpa alur approval.</DialogDescription>
+              </DialogHeader>
+              <div class="space-y-4 py-2">
+                <div class="space-y-1.5">
+                  <Label for="expense-category">Kategori</Label>
+                  <select id="expense-category" v-model="expenseCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="" disabled>
+                      Pilih kategori
+                    </option>
+                    <option v-for="option in PROJECT_EXPENSE_CATEGORIES" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="expense-description">Keterangan</Label>
+                  <Input id="expense-description" v-model="expenseDescription" placeholder="mis. Taksi bandara ke hotel untuk rombongan" />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="space-y-1.5">
+                    <Label for="expense-amount">Nominal (Rp)</Label>
+                    <CurrencyInput id="expense-amount" v-model="expenseAmountIdr" placeholder="mis. 500000" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="expense-date">Tanggal</Label>
+                    <Input id="expense-date" v-model="expenseIncurredAt" type="date" />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" @click="isExpenseDialogOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!expenseCategory || !expenseDescription.trim() || !expenseAmountIdr || !expenseIncurredAt" @click="submitExpense">
+                  Simpan
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </TabsContent>
 
         <TabsContent value="tasks">
@@ -3083,7 +3263,7 @@ const summaryMetadata = computed(() => {
                   <TableCell class="text-muted-foreground">
                     {{ document.category }}
                   </TableCell>
-                  <TableCell class="text-muted-foreground">
+                  <TableCell class="font-ticket-mono text-muted-foreground">
                     v{{ document.version }}
                   </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).tone" /></TableCell>
@@ -3318,7 +3498,7 @@ const summaryMetadata = computed(() => {
                   <div class="min-w-0">
                     <div class="flex items-center gap-1.5 mb-1">
                       <StatusBadge :label="findStatusOption(CHANGE_REQUEST_SOURCES, item.source).label" :tone="findStatusOption(CHANGE_REQUEST_SOURCES, item.source).tone" />
-                      <span class="text-sm font-medium text-foreground group-hover:underline">{{ item.id }}</span>
+                      <span class="font-ticket-mono text-sm font-medium text-foreground group-hover:underline">{{ item.id }}</span>
                     </div>
                     <p class="text-xs text-muted-foreground truncate">
                       {{ item.beforeSummary }} → {{ item.afterSummary }}
@@ -3336,7 +3516,7 @@ const summaryMetadata = computed(() => {
               <li v-for="item in projectCancellations" :key="item.id" class="py-3">
                 <NuxtLink :to="`/changes/cancellations/${item.id}`" class="flex items-center justify-between gap-3 group">
                   <div class="min-w-0">
-                    <p class="text-sm font-medium text-foreground group-hover:underline">
+                    <p class="font-ticket-mono text-sm font-medium text-foreground group-hover:underline">
                       {{ item.id }} — {{ item.bookingType }} {{ item.bookingId }}
                     </p>
                     <p class="text-xs text-muted-foreground truncate">
@@ -3360,7 +3540,7 @@ const summaryMetadata = computed(() => {
               <li v-for="item in projectRefunds" :key="item.id" class="py-3">
                 <NuxtLink :to="`/changes/refunds/${item.id}`" class="flex items-center justify-between gap-3 group">
                   <div class="min-w-0">
-                    <p class="text-sm font-medium text-foreground group-hover:underline">
+                    <p class="font-ticket-mono text-sm font-medium text-foreground group-hover:underline">
                       {{ item.id }} ({{ item.type === 'full' ? 'Full' : 'Partial' }})
                     </p>
                     <p class="text-xs text-muted-foreground">

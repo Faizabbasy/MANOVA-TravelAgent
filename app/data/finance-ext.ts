@@ -1,8 +1,15 @@
 import { reactive } from 'vue'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
+import { INVOICES, PAYMENTS, CREDIT_NOTES } from './finance'
+import { PROJECTS } from './projects'
+import { PARTIES } from './parties'
+import { VENDORS } from './vendors'
+import { SUPPLIER_INVOICES, SERVICE_ORDERS } from './procurement'
 import type {
   OpexEntry,
   OpexCategoryKey,
+  ProjectExpense,
+  ProjectExpenseCategoryKey,
   LedgerAccount,
   LedgerAccountBalance,
   JournalEntry,
@@ -13,11 +20,6 @@ import type {
   PayableRow
 } from '~/types/finance-ext'
 import type { StatusOption } from '~/types/common'
-import { INVOICES, PAYMENTS, CREDIT_NOTES } from './finance'
-import { PROJECTS } from './projects'
-import { PARTIES } from './parties'
-import { VENDORS } from './vendors'
-import { SUPPLIER_INVOICES, SERVICE_ORDERS } from './procurement'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 
 /**
@@ -105,6 +107,39 @@ export function updateOpexStatus (opexId: string, status: OpexEntry['status'], a
   }
   if (status === 'paid') { entry.paidAt = DEMO_REFERENCE_DATE }
   return entry
+}
+
+/* ------------------------------------------------------------------ *
+ * Project Expense — pengeluaran ad-hoc yang dicatat langsung di dalam satu Project (beda dari Opex/
+ * SupplierInvoice, lihat komentar `ProjectExpense`, `app/types/finance-ext.ts`). Langsung tercatat, tanpa
+ * status/approval berlapis — begitu dibuat, langsung ikut Actual Cost project dan jurnal (lihat bawah).
+ * ------------------------------------------------------------------ */
+
+export const PROJECT_EXPENSE_CATEGORIES: StatusOption<ProjectExpenseCategoryKey>[] = [
+  { value: 'transportation', label: 'Transportasi', tone: 'info', order: 1 },
+  { value: 'meals', label: 'Konsumsi', tone: 'success', order: 2 },
+  { value: 'supplies', label: 'Perlengkapan', tone: 'warning', order: 3 },
+  { value: 'accommodation', label: 'Akomodasi Tambahan', tone: 'purple', order: 4 },
+  { value: 'emergency', label: 'Darurat', tone: 'destructive', order: 5 },
+  { value: 'other', label: 'Lain-lain', tone: 'neutral', order: 6 }
+]
+
+export const PROJECT_EXPENSES: ProjectExpense[] = reactive([
+  { id: 'PEX-001', projectId: 'PRJ-101', category: 'transportation', description: 'Taksi bandara ke hotel untuk rombongan', amountIdr: 850_000, incurredAt: '2026-08-20', recordedBy: 'USR-002' },
+  { id: 'PEX-002', projectId: 'PRJ-101', category: 'meals', description: 'Makan siang tim selama meeting client', amountIdr: 1_450_000, incurredAt: '2026-08-21', recordedBy: 'USR-002' },
+  { id: 'PEX-003', projectId: 'PRJ-103', category: 'supplies', description: 'Perlengkapan tambahan booth MICE (banner, ATK)', amountIdr: 3_200_000, incurredAt: '2026-08-10', recordedBy: 'USR-002' },
+  { id: 'PEX-004', projectId: 'PRJ-103', category: 'emergency', description: 'Penggantian tiket transportasi darurat 1 peserta sakit', amountIdr: 1_100_000, incurredAt: '2026-08-11', recordedBy: 'USR-002', note: 'Sudah dikonfirmasi ke PM, tidak menunggu approval karena situasi darurat.' }
+])
+
+export function getProjectExpenses (projectId: string): ProjectExpense[] {
+  return PROJECT_EXPENSES.filter(expense => expense.projectId === projectId).sort((a, b) => b.incurredAt.localeCompare(a.incurredAt))
+}
+
+export function createProjectExpense (input: Omit<ProjectExpense, 'id'>): ProjectExpense | undefined {
+  if (!(input.amountIdr > 0) || !input.description.trim()) { return undefined }
+  const expense: ProjectExpense = { ...input, id: `PEX-${String(PROJECT_EXPENSES.length + 1).padStart(3, '0')}` }
+  PROJECT_EXPENSES.push(expense)
+  return expense
 }
 
 /* ------------------------------------------------------------------ *
@@ -338,17 +373,33 @@ export function getJournalEntries (): JournalEntry[] {
     })
   }
 
+  /** Generator ke-7 — Project Expense (`createProjectExpense`, di atas). Dianggap dibayar tunai langsung
+   * (tidak ada tahap hutang terpisah seperti Supplier Invoice) — konsisten dengan sifatnya "langsung
+   * tercatat" tanpa approval berlapis. */
+  for (const expense of PROJECT_EXPENSES) {
+    entries.push({
+      id: `JRN-PEX-${expense.id}`,
+      date: expense.incurredAt,
+      description: expense.description,
+      sourceType: 'project-expense',
+      sourceId: expense.id,
+      lines: [line('5100', expense.amountIdr, 0), line('1100', 0, expense.amountIdr)],
+      projectId: expense.projectId
+    })
+  }
+
   return entries.sort((a, b) => b.date.localeCompare(a.date))
 }
 
 /**
  * Actual cost turunan per project (Fase 3.2) — Σ SupplierInvoice project itu (di luar `rejected`) + Σ Opex
  * ber-`projectId` yang sama (hanya status yang benar-benar dijurnal — `approved`/`paid`, pola sama
- * `getJournalEntries()`). Sumber DAN filter status-nya identik dengan generator jurnal di atas, sehingga
- * Actual Cost yang tampil di Project Order dan total akun 5100+6100 di Buku Besar TIDAK PERNAH bisa
- * berbeda. Field `Project.actualCostIdr` (`app/types/project.ts`) DIPERTAHANKAN sebagai seed/override
- * mock lama, tapi TIDAK pernah diperbarui mutator apa pun (selalu `0` untuk project baru) — seluruh
- * tampilan WAJIB memanggil selector ini, bukan field mentahnya.
+ * `getJournalEntries()`) + Σ ProjectExpense project itu (selalu ikut, tidak ada status untuk difilter —
+ * lihat `ProjectExpense`, `app/types/finance-ext.ts`). Sumber DAN filter status-nya identik dengan generator
+ * jurnal di atas, sehingga Actual Cost yang tampil di Project Order dan total akun 5100+6100 di Buku Besar
+ * TIDAK PERNAH bisa berbeda. Field `Project.actualCostIdr` (`app/types/project.ts`) DIPERTAHANKAN sebagai
+ * seed/override mock lama, tapi TIDAK pernah diperbarui mutator apa pun (selalu `0` untuk project baru) —
+ * seluruh tampilan WAJIB memanggil selector ini, bukan field mentahnya.
  */
 export function getProjectActualCostIdr (projectId: string): number {
   const supplierCostIdr = SUPPLIER_INVOICES
@@ -357,7 +408,8 @@ export function getProjectActualCostIdr (projectId: string): number {
   const opexCostIdr = OPEX_ENTRIES
     .filter(entry => entry.projectId === projectId && (entry.status === 'approved' || entry.status === 'paid'))
     .reduce((sum, entry) => sum + entry.amountIdr, 0)
-  return supplierCostIdr + opexCostIdr
+  const projectExpenseCostIdr = getProjectExpenses(projectId).reduce((sum, expense) => sum + expense.amountIdr, 0)
+  return supplierCostIdr + opexCostIdr + projectExpenseCostIdr
 }
 
 /** Jurnal milik satu project (Fase 3.1) — dipakai filter Buku Besar dan section "Jurnal" tab Finance Project Order. */

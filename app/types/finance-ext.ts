@@ -42,6 +42,32 @@ export interface OpexEntry {
   note?: string
 }
 
+export type ProjectExpenseCategoryKey =
+  | 'transportation'
+  | 'meals'
+  | 'supplies'
+  | 'accommodation'
+  | 'emergency'
+  | 'other'
+
+/**
+ * Pengeluaran ad-hoc yang dicatat langsung di dalam satu Project — beda dari `OpexEntry` (biaya overhead
+ * kantor, `projectId` opsional untuk kasus langka) dan `SupplierInvoice` (tagihan vendor formal, wajib
+ * lewat `ServiceOrder`). Ini untuk pengeluaran kecil operasional trip (transport lokal, konsumsi tim, dll)
+ * yang PM/Ops catat langsung tanpa alur approval berlapis — begitu disimpan, langsung ikut Actual Cost
+ * project (`getProjectActualCostIdr`, `app/data/finance-ext.ts`).
+ */
+export interface ProjectExpense {
+  id: ID
+  projectId: ID
+  category: ProjectExpenseCategoryKey
+  description: string
+  amountIdr: number
+  incurredAt: string
+  recordedBy: ID
+  note?: string
+}
+
 export type LedgerAccountType = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense'
 
 export interface LedgerAccount {
@@ -57,7 +83,7 @@ export interface JournalLine {
   creditIdr: number
 }
 
-export type JournalSourceType = 'invoice' | 'payment' | 'supplier-invoice' | 'supplier-payment' | 'credit-note' | 'opex' | 'manual'
+export type JournalSourceType = 'invoice' | 'payment' | 'supplier-invoice' | 'supplier-payment' | 'credit-note' | 'opex' | 'project-expense' | 'manual'
 
 /** Jurnal DITURUNKAN dari transaksi yang sudah ada — bukan entri yang diketik ulang secara terpisah. */
 export interface JournalEntry {
@@ -70,7 +96,8 @@ export interface JournalEntry {
   /**
    * Dimensi project (Fase 3 — Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu). Diisi di
    * `getJournalEntries()` dari sumbernya masing-masing: `invoice.projectId`, `payment → invoice.projectId`,
-   * `supplierInvoice → ServiceOrder.projectId`, `creditNote → invoice.projectId`, `opex.projectId`.
+   * `supplierInvoice → ServiceOrder.projectId`, `creditNote → invoice.projectId`, `opex.projectId`,
+   * `projectExpense.projectId` (selalu terisi — beda dari `opex.projectId` yang opsional).
    * `undefined` untuk transaksi yang memang tidak ber-project (mis. Opex operasional kantor umum) — BUKAN
    * berarti data hilang.
    */

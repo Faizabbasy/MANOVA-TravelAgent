@@ -1,9 +1,15 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
 import { MapPinOff } from 'lucide-vue-next'
-import type { Map as LeafletMap, Marker as LeafletMarker } from 'leaflet'
+import type { Map as LeafletMap, Marker as LeafletMarker, Polyline as LeafletPolyline, CircleMarker as LeafletCircleMarker } from 'leaflet'
 import 'leaflet/dist/leaflet.css'
+import { DESTINATION_COORDINATES } from '~/data/geo'
 import type { GeoPoint } from '~/types/common'
+
+/** Titik keberangkatan tetap untuk `showRoute` — Jakarta/Soekarno-Hatta (CGK), entri yang sama dengan
+ * `DESTINATION_COORDINATES` (`app/data/geo.ts`), konsisten dengan origin "CGK · Jakarta" di boarding-pass
+ * hero Project Order (`ProjectBoardingPassHero.vue`). Bukan klaim rute penerbangan sungguhan — dekoratif. */
+const ORIGIN = DESTINATION_COORDINATES.find(point => point.airportCode === 'CGK')!
 
 /**
  * Peta pin destinasi tunggal — dipakai di detail Opportunity/Quotation/Project/Itinerary dan Client Portal
@@ -21,14 +27,21 @@ const props = withDefaults(defineProps<{
   geo?: GeoPoint
   /** Ditampilkan pada pesan fallback ketika `geo` kosong — teks destinasi asli yang tidak cocok referensi. */
   destinationText?: string
+  /** Opt-in — gambar rute garis putus-putus dari Jakarta (CGK) ke `geo`, dipakai halaman detail Project
+   * ("boarding pass" theme). Default false supaya pemakaian existing (Opportunity/Quotation/Client Portal,
+   * dll) tetap peta pin tunggal seperti sebelumnya. */
+  showRoute?: boolean
 }>(), {
   geo: undefined,
-  destinationText: undefined
+  destinationText: undefined,
+  showRoute: false
 })
 
 const mapEl = ref<HTMLDivElement>()
 let map: LeafletMap | undefined
 let marker: LeafletMarker | undefined
+let originMarker: LeafletCircleMarker | undefined
+let route: LeafletPolyline | undefined
 
 /** Pin kustom warna primary aplikasi (bukan marker biru default Leaflet) — HSL sama persis dengan `--primary` (`assets/css/tailwind.css`). */
 const PIN_HTML = `
@@ -37,6 +50,25 @@ const PIN_HTML = `
     <circle cx="12" cy="10" r="3" fill="white" stroke="none" />
   </svg>
 `
+
+function renderRoute (L: typeof import('leaflet')) {
+  originMarker?.remove()
+  originMarker = undefined
+  route?.remove()
+  route = undefined
+  if (!map || !props.geo || !props.showRoute) { return }
+  if (props.geo.lat === ORIGIN.lat && props.geo.lng === ORIGIN.lng) { return }
+
+  originMarker = L.circleMarker([ORIGIN.lat, ORIGIN.lng], {
+    radius: 6, color: 'hsl(241 98% 55%)', weight: 2, fillColor: 'white', fillOpacity: 1
+  }).bindTooltip(`${ORIGIN.name} (${ORIGIN.airportCode})`, { permanent: false }).addTo(map)
+
+  route = L.polyline([[ORIGIN.lat, ORIGIN.lng], [props.geo.lat, props.geo.lng]], {
+    color: 'hsl(241 98% 55%)', weight: 2, dashArray: '6 6'
+  }).addTo(map)
+
+  map.fitBounds([[ORIGIN.lat, ORIGIN.lng], [props.geo.lat, props.geo.lng]], { padding: [32, 32], maxZoom: 10 })
+}
 
 async function initMap () {
   if (!props.geo || !mapEl.value || map) { return }
@@ -51,19 +83,24 @@ async function initMap () {
 
   const icon = L.divIcon({ html: PIN_HTML, className: '', iconSize: [28, 28], iconAnchor: [14, 28] })
   marker = L.marker([props.geo.lat, props.geo.lng], { icon }).addTo(map)
+
+  renderRoute(L)
 }
 
 function destroyMap () {
   map?.remove()
   map = undefined
   marker = undefined
+  originMarker = undefined
+  route = undefined
 }
 
-watch(() => props.geo, (geo) => {
+watch(() => props.geo, async (geo) => {
   if (!geo) { destroyMap(); return }
   if (!map) { initMap(); return }
   map.setView([geo.lat, geo.lng], map.getZoom())
   marker?.setLatLng([geo.lat, geo.lng])
+  renderRoute(await import('leaflet'))
 }, { flush: 'post' })
 
 onMounted(() => { initMap() })

@@ -25,7 +25,8 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   BookOpen,
-  UserCog
+  UserCog,
+  Settings
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
 
@@ -148,7 +149,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
 
   /* ---------- Human Resource / Inventory (tetap top-level, belum bertab) ---------- */
-  { key: 'hr', label: 'Human Resource', to: '/hr', icon: UserCog, moduleKey: 'hr', isNew: true },
+  { key: 'hr', label: 'Karyawan', to: '/hr', icon: UserCog, moduleKey: 'hr', isNew: true },
   { key: 'inventory', label: 'Inventory', to: '/inventory', icon: Package, moduleKey: 'inventory', isNew: true },
 
   /* Reporting & BI, Marketing & Analysis — di-hold sementara (diminta hilang dulu dari sidebar).
@@ -160,9 +161,9 @@ export const NAV_ITEMS: NavItem[] = [
   /* ---------- Administration ---------- */
   {
     key: 'administration',
-    label: 'Administration',
+    label: 'Setting',
     to: '/admin',
-    icon: ShieldCheck,
+    icon: Settings,
     moduleKey: 'administration',
     children: [
       { key: 'administration.overview', label: 'Ringkasan & Organisasi', to: '/admin', icon: ShieldCheck, moduleKey: 'administration' },
