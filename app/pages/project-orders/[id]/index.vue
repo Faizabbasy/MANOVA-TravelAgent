@@ -1164,16 +1164,6 @@ const summaryMetadata = computed(() => {
     <template v-else>
       <Breadcrumb :items="[{ label: 'Project', to: '/project-orders' }, { label: project.name }]" />
 
-      <ProjectBoardingPassHero
-        :project="project"
-        :client-name="party?.name ?? '—'"
-        :pm-name="owner?.name ?? '—'"
-        :ae-name="accountExecutive?.name ?? '—'"
-        :order-status="orderStatus"
-        :needs-attention="needsAttention"
-        :upcoming-departure="isUpcomingDeparture(project)"
-      />
-
       <SectionCard title="Detail Perjalanan">
         <DetailMetadataList :items="summaryMetadata" />
         <div class="mt-4 pt-4 border-t border-border">
@@ -1725,10 +1715,6 @@ const summaryMetadata = computed(() => {
                   </TableRow>
                 </TableBody>
               </Table>
-            </SectionCard>
-
-            <SectionCard title="Lokasi Tujuan" :description="project.destination">
-              <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" show-route />
             </SectionCard>
 
             <SectionCard title="Daily Itinerary" description="Jadwal harian perjalanan (timezone lokal ditampilkan berdampingan jam).">

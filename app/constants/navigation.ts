@@ -79,18 +79,7 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', to: '/', icon: LayoutDashboard },
 
   /* ---------- Operations & Scheduling (poros: Project Order) ---------- */
-  {
-    key: 'operations',
-    label: 'Project',
-    to: '/project-orders',
-    icon: Route,
-    moduleKey: 'operations',
-    children: [
-      { key: 'operations.project-orders', label: 'Project', to: '/project-orders', icon: FolderKanban, moduleKey: 'operations' },
-      { key: 'operations.bookings', label: 'Daftar Booking', to: '/bookings', icon: CalendarClock, moduleKey: 'operations' },
-      { key: 'operations.changes', label: 'Change & Incident', to: '/changes', icon: GitPullRequest, moduleKey: 'operations' }
-    ]
-  },
+  { key: 'operations', label: 'Project', to: '/project-orders', icon: Route, moduleKey: 'operations' },
 
   /* ---------- Kalender — sejajar dengan grup lain, bukan anak Operations & Scheduling ---------- */
   { key: 'calendar', label: 'Kalender', to: '/calendar', icon: CalendarDays, moduleKey: 'operations' },
@@ -112,16 +101,7 @@ export const NAV_ITEMS: NavItem[] = [
   },
 
   /* ---------- Sales — "Sales mengurus deal" (seluruh corong Lead→Opportunity→Quotation) ---------- */
-  {
-    key: 'sales',
-    label: 'Leads',
-    to: '/sales/pipeline',
-    icon: TrendingUp,
-    moduleKey: 'sales',
-    children: [
-      { key: 'sales.pipeline', label: 'Pipeline', to: '/sales/pipeline', icon: Target, moduleKey: 'sales' }
-    ]
-  },
+  { key: 'sales', label: 'Leads', to: '/sales/pipeline', icon: TrendingUp, moduleKey: 'sales' },
 
   /* ---------- CRM — "CRM mengurus customer" (data pelanggan, bukan corong deal) ---------- */
   {
@@ -230,6 +210,8 @@ interface RouteGate {
 export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   // Operations
   { key: 'hidden.projects-legacy', label: 'Project Workspace (lama)', to: '/projects', moduleKey: 'operations' },
+  { key: 'hidden.operations-bookings', label: 'Daftar Booking', to: '/bookings', moduleKey: 'operations' },
+  { key: 'hidden.operations-changes', label: 'Change & Incident', to: '/changes', moduleKey: 'operations' },
   { key: 'hidden.operations-calendar', label: 'Booking Calendar & Map', to: '/operations/calendar', moduleKey: 'operations' },
   { key: 'hidden.services', label: 'Service Operations', to: '/services', moduleKey: 'operations' },
   { key: 'hidden.booking-exceptions', label: 'Booking Exceptions', to: '/bookings/exceptions', moduleKey: 'operations' },

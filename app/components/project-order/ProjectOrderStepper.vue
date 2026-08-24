@@ -34,7 +34,7 @@ const LABEL_CLASS: Record<ProjectOrderStepView['state'], string> = {
 </script>
 
 <template>
-  <div class="overflow-x-auto pb-1">
+  <div class="overflow-x-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pb-1">
     <ol class="flex min-w-[720px] items-start">
       <li
         v-for="(step, index) in props.steps"
