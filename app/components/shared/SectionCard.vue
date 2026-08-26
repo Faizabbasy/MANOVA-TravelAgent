@@ -16,7 +16,11 @@ const props = withDefaults(defineProps<{
   accent?: boolean
   /** Menghilangkan padding konten — untuk card yang isinya tabel penuh-lebar. */
   flush?: boolean
-}>(), { size: 'default', tone: 'primary', accent: false, flush: false })
+  /** Varian padat opt-in (halaman detail Project) — padding lebih tipis, title jadi label kecil kapital
+   * (pola sama `StatsCard`), aksen tone (kalau `accent` aktif) jadi lebih tipis. Default lama TIDAK berubah
+   * untuk pemakaian existing di halaman lain. */
+  compact?: boolean
+}>(), { size: 'default', tone: 'primary', accent: false, flush: false, compact: false })
 
 const ACCENT_BORDER: Record<string, string> = {
   primary: 'border-l-primary',
@@ -35,16 +39,16 @@ const showAccent = props.accent || props.size === 'hero'
       props.size !== 'default' && 'animate-fade-in',
       (props.size === 'wide' || props.size === 'hero') && 'md:col-span-2 xl:col-span-2',
       props.size === 'full' && 'md:col-span-2 xl:col-span-3',
-      showAccent && `border-l-4 ${ACCENT_BORDER[props.tone]}`
+      showAccent && `${props.compact ? 'border-l-2' : 'border-l-4'} ${ACCENT_BORDER[props.tone]}`
     )"
   >
-    <CardHeader v-if="title || $slots.header" class="flex flex-row items-start justify-between gap-4 space-y-0 pb-4">
+    <CardHeader v-if="title || $slots.header" :class="cn('flex flex-row items-start justify-between gap-3 space-y-0', props.compact ? 'pb-2.5' : 'gap-4 pb-4')">
       <div class="min-w-0">
         <slot name="header">
-          <CardTitle :class="cn('text-[0.9375rem] leading-6', props.size === 'hero' && 'text-lg')">
+          <CardTitle :class="cn(props.compact ? 'text-xs font-semibold uppercase tracking-wide text-muted-foreground' : 'text-[0.9375rem] leading-6', props.size === 'hero' && 'text-lg')">
             {{ title }}
           </CardTitle>
-          <CardDescription v-if="description" class="mt-1 leading-relaxed">
+          <CardDescription v-if="description" :class="cn('leading-relaxed', props.compact ? 'mt-0.5 text-xs' : 'mt-1')">
             {{ description }}
           </CardDescription>
         </slot>
@@ -54,7 +58,7 @@ const showAccent = props.accent || props.size === 'hero'
       </div>
     </CardHeader>
 
-    <CardContent :class="cn(props.flush ? 'p-0' : 'p-5', (title || $slots.header) && (props.flush ? 'pt-0' : 'pt-0'))">
+    <CardContent :class="cn(props.flush ? 'p-0' : (props.compact ? 'p-4' : 'p-5'), (title || $slots.header) && 'pt-0')">
       <slot />
     </CardContent>
   </Card>

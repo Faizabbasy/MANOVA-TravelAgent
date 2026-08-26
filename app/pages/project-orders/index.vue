@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock, Plus, Users } from 'lucide-vue-next'
+import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock, Plus, Users, MapPin } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import {
   PROJECTS, PARTIES, getPartyById, getUserById, getProjectOrderStatus,
@@ -12,7 +12,7 @@ import {
   evaluateProjectOrderStepGate,
   getProjectMilestoneSummary
 } from '~/data/project-order-workflow'
-import { PROJECT_ORDER_STATUSES, PROJECT_CHARACTERISTICS, PROJECT_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
+import { PROJECT_ORDER_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange } from '~/utils/format'
 import type { ProjectOrderStepKey } from '~/types/project-order'
 import type { ServiceTypeKey } from '~/types/project'
@@ -21,7 +21,6 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Project' })
 
 const { canView, canViewFinancials, canManage } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 /**
@@ -48,6 +47,7 @@ const groupTripRows = computed(() => PROJECTS.filter(project => project.isGroupT
   return {
     project,
     seatsFilled: getProjectSeatsFilled(project.id),
+    pricePerPaxIdr: project.travelerCount > 0 ? Math.round(project.quotationAmountIdr / project.travelerCount) : 0,
     revenueIdr: bookings.reduce((sum, order) => sum + order.priceIdr, 0)
   }
 }))
@@ -132,8 +132,6 @@ function submitCreateProject () {
 
 const searchQuery = ref('')
 const stepFilter = ref<'all' | ProjectOrderStepKey>('all')
-const attentionOnly = ref(false)
-const mineOnly = ref(false)
 
 const rows = computed(() => PROJECTS.map((project) => {
   const stepKey = getProjectOrderStep(project)
@@ -146,7 +144,6 @@ const rows = computed(() => PROJECTS.map((project) => {
     party: getPartyById(project.partyId),
     owner: getUserById(project.ownerId),
     orderStatus: findStatusOption(PROJECT_ORDER_STATUSES, getProjectOrderStatus(project)),
-    characteristic: findStatusOption(PROJECT_CHARACTERISTICS, project.characteristic),
     step,
     gate,
     milestones,
@@ -157,8 +154,6 @@ const rows = computed(() => PROJECTS.map((project) => {
 const filteredRows = computed(() => {
   let result = rows.value
   if (stepFilter.value !== 'all') { result = result.filter(row => row.step.key === stepFilter.value) }
-  if (attentionOnly.value) { result = result.filter(row => row.needsAttention) }
-  if (mineOnly.value) { result = result.filter(row => row.project.ownerId === currentUser.value.id) }
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase()
     result = result.filter(row =>
@@ -229,15 +224,6 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input v-model="searchQuery" placeholder="Cari nomor, nama, atau customer..." class="pl-9" />
         </div>
-        <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-          <Checkbox v-model="attentionOnly" />
-          Hanya yang butuh perhatian
-        </label>
-        <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-          <Checkbox v-model="mineOnly" />
-          Hanya milik saya
-        </label>
-
         <Dialog v-if="canManageOrders" v-model:open="isCreateProjectOpen">
           <DialogTrigger as-child>
             <Button size="sm" class="ml-auto">
@@ -265,7 +251,9 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
                   v-model="newProjectPartyId"
                   class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
                 >
-                  <option value="" disabled>Pilih customer</option>
+                  <option value="" disabled>
+                    Pilih customer
+                  </option>
                   <option v-for="party in clientParties" :key="party.id" :value="party.id">
                     {{ party.name }}
                   </option>
@@ -365,7 +353,7 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
             <TableRow>
               <TableHead>Project</TableHead>
               <TableHead>Customer</TableHead>
-              <TableHead>Step Aktif</TableHead>
+              <TableHead>Kondisi</TableHead>
               <TableHead>Jadwal</TableHead>
               <TableHead>Milestone</TableHead>
               <TableHead v-if="canViewFinancials" class="text-right">
@@ -393,23 +381,12 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
                 <p class="text-sm text-foreground">
                   {{ row.party?.name ?? '—' }}
                 </p>
-                <StatusBadge :label="row.characteristic.label" :tone="row.characteristic.tone" />
               </TableCell>
               <TableCell>
-                <div class="flex items-center gap-1.5">
-                  <span
-                    :class="cn(
-                      'h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0',
-                      row.gate.ready ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'
-                    )"
-                  >
-                    {{ row.step.index }}
-                  </span>
-                  <span class="text-sm text-foreground">{{ row.step.label }}</span>
-                </div>
-                <p v-if="!row.gate.ready" class="text-xs text-destructive mt-0.5 line-clamp-1" :title="row.gate.blockers.join(' ')">
+                <p v-if="!row.gate.ready" class="text-xs text-destructive line-clamp-1" :title="row.gate.blockers.join(' ')">
                   {{ row.gate.blockers.length }} syarat belum terpenuhi
                 </p>
+                <span v-else class="text-xs text-muted-foreground">—</span>
               </TableCell>
               <TableCell class="text-sm text-muted-foreground">
                 {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
@@ -465,6 +442,9 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
               <TableHead>Tanggal</TableHead>
               <TableHead>Seats</TableHead>
               <TableHead class="text-right">
+                Price/pax
+              </TableHead>
+              <TableHead class="text-right">
                 Revenue
               </TableHead>
               <TableHead>Status</TableHead>
@@ -478,18 +458,29 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
               @click="$router.push(`/project-orders/${row.project.id}`)"
             >
               <TableCell>
-                <p class="text-sm font-medium text-foreground">
-                  {{ row.project.name }}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  {{ row.project.destination }}
-                </p>
+                <div class="flex items-center gap-3">
+                  <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary">
+                    <img v-if="row.project.photoUrl" :src="row.project.photoUrl" alt="" class="h-full w-full object-cover">
+                    <MapPin v-else class="h-4 w-4" />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-foreground">
+                      {{ row.project.name }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ row.project.destination }}
+                    </p>
+                  </div>
+                </div>
               </TableCell>
               <TableCell class="text-sm text-muted-foreground">
                 {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
               </TableCell>
               <TableCell class="text-sm text-muted-foreground">
                 {{ row.seatsFilled }} / {{ row.project.travelerCount }}
+              </TableCell>
+              <TableCell class="text-right text-sm text-muted-foreground">
+                {{ formatCurrencyIdr(row.pricePerPaxIdr) }}
               </TableCell>
               <TableCell class="text-right text-sm font-medium text-foreground">
                 {{ formatCurrencyIdr(row.revenueIdr) }}

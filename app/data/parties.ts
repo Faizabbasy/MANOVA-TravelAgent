@@ -66,7 +66,7 @@ export const PARTIES: Party[] = reactive([
 ])
 
 export const CONTACTS: ContactPerson[] = reactive([
-  { id: 'CP-001', partyId: 'PTY-001', name: 'Hendra Wijaya', title: 'Operations Manager' },
+  { id: 'CP-001', partyId: 'PTY-001', name: 'Hendra Wijaya', title: 'Operations Manager', phone: '0812-3000-1001' },
   { id: 'CP-002', partyId: 'PTY-002', name: 'Sarah Amelia', title: 'HR Manager' },
   { id: 'CP-005', partyId: 'PTY-005', name: 'Dimas Pratama', title: 'Corporate Travel Coordinator', email: 'dimas.pratama@java-bhakti.example', phone: '0815-5000-5001' },
   { id: 'CP-003', partyId: 'PTY-003', name: 'Michael Tanuwijaya', title: 'Event Coordinator' },

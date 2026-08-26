@@ -36,6 +36,12 @@ export function formatDayLabel (isoDate: string): string {
   return format(parseISO(isoDate), 'EEEE, d MMM yyyy', { locale: localeId })
 }
 
+/** Badge tanggal compact (dipakai Daily Itinerary, detail Project) — tanggal+bulan singkat sebagai dua baris terpisah, bukan string tunggal, supaya bisa ditumpuk vertikal di kotak kecil. */
+export function formatDayBadge (isoDate: string): { day: string, month: string } {
+  const date = parseISO(isoDate)
+  return { day: format(date, 'd'), month: format(date, 'MMM', { locale: localeId }) }
+}
+
 export function formatDateRange (startIso: string, endIso: string): string {
   const start = parseISO(startIso)
   const end = parseISO(endIso)

@@ -155,6 +155,8 @@ export interface Project {
   emergencyContactPhone?: string
   /** Default meeting point pra-keberangkatan (mis. titik kumpul bandara) — dipakai Trip Center bila hari berjalan belum punya `ItineraryItem.location` sendiri. */
   meetingPoint?: string
+  /** Foto cover trip — hanya dipakai Group Trip B2C (`isGroupTrip`), tampil di header Project Detail dan list "Sales Order". Project B2B tetap pakai icon polos. Mock upload (data URL lokal), bukan file storage nyata (D-006). */
+  photoUrl?: string
 }
 
 export interface ProjectService {

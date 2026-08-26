@@ -1219,6 +1219,14 @@ export function createProject (input: CreateProjectInput): Project | undefined {
   return project
 }
 
+/** Foto cover Group Trip B2C (`Project.photoUrl`) — mock upload, tersimpan sebagai data URL lokal (D-006). */
+export function updateProjectPhoto (projectId: string, photoUrl: string): Project | undefined {
+  const project = getProjectById(projectId)
+  if (!project) { return undefined }
+  project.photoUrl = photoUrl
+  return project
+}
+
 export function createContact (input: { partyId: string; name: string; title: string; email?: string; phone?: string }): ContactPerson {
   const contact: ContactPerson = { id: nextSequentialId('CP-', CONTACTS), ...input }
   CONTACTS.push(contact)

@@ -2,7 +2,7 @@
 import { ref, reactive, computed, watch } from 'vue'
 import { Plus, Pencil, Ban, RotateCcw, Layers, MapPin, Building2, FolderKanban, Plane, BedDouble, Coins, Percent, CalendarClock, ShieldAlert, Hash, FileText, Gauge, Route } from 'lucide-vue-next'
 import {
-  MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
+  MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
   AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
   NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES,
   createMasterDataRecord, updateMasterDataRecord, deactivateMasterDataRecord, reactivateMasterDataRecord, getMasterDataUsageCount
@@ -56,7 +56,6 @@ const GROUPS: GroupDef[] = [
     label: 'Operational Reference',
     icon: Route,
     categories: [
-      { key: 'project-type', label: 'Tipe / Karakteristik Project', description: 'Kategori karakteristik project (Normal, High-Change, Complex).', list: MASTER_PROJECT_TYPES, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'text' }] },
       { key: 'service-type', label: 'Tipe Layanan Operasional', description: 'Jenis layanan yang dikelola per project.', list: MASTER_SERVICE_TYPES, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'text' }] },
       { key: 'destination', label: 'Destinasi', description: 'Daftar destinasi yang tersedia untuk project.', list: MASTER_DESTINATIONS, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'text' }] },
       { key: 'vendor-category', label: 'Kategori Vendor', description: 'Jenis layanan yang disediakan vendor.', list: MASTER_VENDOR_CATEGORIES, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'text' }] },

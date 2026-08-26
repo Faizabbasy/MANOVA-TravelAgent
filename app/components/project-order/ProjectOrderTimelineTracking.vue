@@ -107,7 +107,7 @@ function delayLabel (delay: number | undefined): string {
           </TableRow>
         </TableHeader>
         <TableBody>
-          <TableRow v-for="row in rows" :key="row.milestone.id" class="group/row">
+          <TableRow v-for="row in rows" :key="row.milestone.id">
             <TableCell>
               <p class="text-sm font-medium text-foreground">
                 {{ row.milestone.name }}
@@ -151,16 +151,17 @@ function delayLabel (delay: number | undefined): string {
               />
             </TableCell>
             <!--
-              Refinement UI: tombol "Tandai Selesai" sebelumnya tampil sebagai `outline` penuh di setiap
-              baris yang belum selesai — delapan tombol sejajar menarik perhatian lebih besar daripada
-              data yang seharusnya dibaca. Kini ia `ghost` dan baru terlihat penuh saat baris di-hover.
+              Refinement UI: tombol "Tandai Selesai" sebelumnya tampil sebagai `outline` penuh (warna
+              primary) di setiap baris yang belum selesai — delapan tombol sejajar menarik perhatian lebih
+              besar daripada data yang seharusnya dibaca. Kini diam netral abu-abu, baru berubah ke warna
+              primary (border/teks biru + tint bg) saat di-hover sebagai affordance interaktif.
             -->
             <TableCell v-if="canManage" class="text-right">
               <Button
                 v-if="!row.milestone.actualDate && row.milestone.status !== 'cancelled'"
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                class="whitespace-nowrap text-muted-foreground opacity-70 transition-opacity hover:text-foreground group-hover/row:opacity-100"
+                class="whitespace-nowrap border-border bg-transparent text-muted-foreground shadow-none hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
                 @click="emit('mark-actual', row.milestone.id)"
               >
                 <Check class="mr-1 h-3.5 w-3.5" />
