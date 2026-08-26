@@ -210,7 +210,7 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
         )"
         @click="activeOrderTab = 'sales-orders'"
       >
-        Project B2C
+        Sales Order
       </button>
     </div>
 

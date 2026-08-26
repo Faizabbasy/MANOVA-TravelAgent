@@ -268,7 +268,11 @@ export const PROJECT_SERVICES: ProjectService[] = reactive([
   { id: 'SVC-2031', projectId: 'PRJ-203', type: 'flight', label: 'Flight Jakarta–Manila', status: 'completed', vendorId: 'VND-001', bookingReference: 'PNR-MNL7701' },
 
   { id: 'SVC-2041', projectId: 'PRJ-204', type: 'flight', label: 'Flight Jakarta–Singapura', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR-SIN9901' },
-  { id: 'SVC-2042', projectId: 'PRJ-204', type: 'hotel', label: 'Hotel Singapura (15 pax)', status: 'changed', vendorId: 'VND-002' }
+  { id: 'SVC-2042', projectId: 'PRJ-204', type: 'hotel', label: 'Hotel Singapura (15 pax)', status: 'changed', vendorId: 'VND-002' },
+
+  /** PRJ-205 (dummy Project B2C) — 1 layanan transportasi lokal, vendor sudah ditugaskan (VQ-011,
+   * `app/data/vendors.ts`), dipakai contoh Committed Vendor Cost + sparkline Finance tab. */
+  { id: 'SVC-2051', projectId: 'PRJ-205', type: 'transportation', label: 'Bus Pariwisata Bromo Ijen', status: 'confirmed', vendorId: 'VND-003' }
 ])
 
 /** Daily itinerary (Section 12) — jadwal harian per project, `groupId` merujuk `TravelerGroup` (Section 11) yang sudah ada. */

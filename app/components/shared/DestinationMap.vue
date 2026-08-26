@@ -84,7 +84,14 @@ async function initMap () {
   const icon = L.divIcon({ html: PIN_HTML, className: '', iconSize: [28, 28], iconAnchor: [14, 28] })
   marker = L.marker([props.geo.lat, props.geo.lng], { icon }).addTo(map)
 
-  renderRoute(L)
+  /** `fitBounds` (di `renderRoute`) menghitung zoom dari ukuran pixel container — kalau dipanggil di frame
+   * yang sama dengan `L.map()` (sebelum browser sempat layout container-nya, mis. saat section ini baru
+   * mount), Leaflet baca ukuran sebagai 0 dan jatuh ke zoom dunia penuh. `invalidateSize` + tunda satu frame
+   * memaksa Leaflet baca ulang ukuran container yang sudah settled sebelum fitBounds jalan. */
+  requestAnimationFrame(() => {
+    map?.invalidateSize()
+    renderRoute(L)
+  })
 }
 
 function destroyMap () {
@@ -109,7 +116,7 @@ onBeforeUnmount(() => { destroyMap() })
 
 <template>
   <div class="rounded-lg border border-border overflow-hidden">
-    <div v-if="geo" ref="mapEl" class="relative z-0 h-[280px] w-full" />
+    <div v-if="geo" ref="mapEl" class="relative z-0 h-[200px] w-full" />
 
     <div v-else class="flex items-center gap-2 px-3 py-3 text-muted-foreground bg-muted/20">
       <MapPinOff class="h-3.5 w-3.5 shrink-0" />

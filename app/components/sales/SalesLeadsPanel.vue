@@ -16,7 +16,7 @@ import {
   findStatusOption
 } from '~/constants/status'
 import { formatDate, formatDateRange, formatCurrencyIdr } from '~/utils/format'
-import { isFollowUpUpcoming } from '~/utils/attention'
+import { isFollowUpUpcoming, MINIMUM_DP_PERCENT } from '~/utils/attention'
 import type { Lead, LeadSource, LeadStage, LeadServiceCategory, LeadUrgency, B2cPriceAcceptance, B2cBookingReadiness, B2cQualificationResult } from '~/types/lead'
 import type { ServiceTypeKey } from '~/types/project'
 import type { PartyActivityType } from '~/types/party'
@@ -826,16 +826,19 @@ function submitActivity () {
                   <p class="text-xs font-semibold text-muted-foreground">
                     Data Project (read-only)
                   </p>
-                  <DetailMetadataList :items="[
-                    { label: 'Destination', value: qualSelectedGroupTripProject.destination },
-                    { label: 'Departure & Return', value: formatDateRange(qualSelectedGroupTripProject.travelStartDate, qualSelectedGroupTripProject.travelEndDate) },
-                    { label: 'Duration', value: `${Math.round((new Date(qualSelectedGroupTripProject.travelEndDate).getTime() - new Date(qualSelectedGroupTripProject.travelStartDate).getTime()) / 86400000)} hari` },
-                    { label: 'Price / Pax', value: formatCurrencyIdr(qualPricePerPax) },
-                    { label: 'Capacity', value: String(qualSelectedGroupTripProject.travelerCount) },
-                    { label: 'Booked/Confirmed Pax', value: String(getProjectSeatsFilled(qualSelectedGroupTripProject.id)) },
-                    { label: 'Available Seat', value: String(qualSeatsAvailable) },
-                    ...(qualSelectedGroupTripProject.meetingPoint ? [{ label: 'Meeting Point', value: qualSelectedGroupTripProject.meetingPoint }] : [])
-                  ]" />
+                  <DetailMetadataList
+                    :items="[
+                      { label: 'Destination', value: qualSelectedGroupTripProject.destination },
+                      { label: 'Departure & Return', value: formatDateRange(qualSelectedGroupTripProject.travelStartDate, qualSelectedGroupTripProject.travelEndDate) },
+                      { label: 'Duration', value: `${Math.round((new Date(qualSelectedGroupTripProject.travelEndDate).getTime() - new Date(qualSelectedGroupTripProject.travelStartDate).getTime()) / 86400000)} hari` },
+                      { label: 'Price / Pax', value: formatCurrencyIdr(qualPricePerPax) },
+                      { label: 'Capacity', value: String(qualSelectedGroupTripProject.travelerCount) },
+                      { label: 'Booked/Confirmed Pax', value: String(getProjectSeatsFilled(qualSelectedGroupTripProject.id)) },
+                      { label: 'Available Seat', value: String(qualSeatsAvailable) },
+                      { label: 'Minimal DP', value: `${formatCurrencyIdr(Math.ceil((qualPackagePriceIdr ?? 0) * MINIMUM_DP_PERCENT / 100))} (${MINIMUM_DP_PERCENT}% dari total harga)` },
+                      ...(qualSelectedGroupTripProject.meetingPoint ? [{ label: 'Meeting Point', value: qualSelectedGroupTripProject.meetingPoint }] : [])
+                    ]"
+                  />
                 </div>
 
                 <template v-if="!(qualServiceCategory === 'individual-travel' && qualGroupTripProjectId)">

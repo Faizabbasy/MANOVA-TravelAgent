@@ -128,7 +128,9 @@ export const PROJECT_EXPENSES: ProjectExpense[] = reactive([
   { id: 'PEX-001', projectId: 'PRJ-101', category: 'transportation', description: 'Taksi bandara ke hotel untuk rombongan', amountIdr: 850_000, incurredAt: '2026-08-20', recordedBy: 'USR-002' },
   { id: 'PEX-002', projectId: 'PRJ-101', category: 'meals', description: 'Makan siang tim selama meeting client', amountIdr: 1_450_000, incurredAt: '2026-08-21', recordedBy: 'USR-002' },
   { id: 'PEX-003', projectId: 'PRJ-103', category: 'supplies', description: 'Perlengkapan tambahan booth MICE (banner, ATK)', amountIdr: 3_200_000, incurredAt: '2026-08-10', recordedBy: 'USR-002' },
-  { id: 'PEX-004', projectId: 'PRJ-103', category: 'emergency', description: 'Penggantian tiket transportasi darurat 1 peserta sakit', amountIdr: 1_100_000, incurredAt: '2026-08-11', recordedBy: 'USR-002', note: 'Sudah dikonfirmasi ke PM, tidak menunggu approval karena situasi darurat.' }
+  { id: 'PEX-004', projectId: 'PRJ-103', category: 'emergency', description: 'Penggantian tiket transportasi darurat 1 peserta sakit', amountIdr: 1_100_000, incurredAt: '2026-08-11', recordedBy: 'USR-002', note: 'Sudah dikonfirmasi ke PM, tidak menunggu approval karena situasi darurat.' },
+  { id: 'PEX-005', projectId: 'PRJ-205', category: 'supplies', description: 'Perlengkapan trekking & P3K rombongan', amountIdr: 750_000, incurredAt: '2026-08-05', recordedBy: 'USR-002' },
+  { id: 'PEX-006', projectId: 'PRJ-205', category: 'meals', description: 'Konsumsi briefing peserta sebelum keberangkatan', amountIdr: 600_000, incurredAt: '2026-08-16', recordedBy: 'USR-002' }
 ])
 
 export function getProjectExpenses (projectId: string): ProjectExpense[] {

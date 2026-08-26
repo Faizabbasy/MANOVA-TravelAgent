@@ -10,7 +10,7 @@ defineProps<{
 </script>
 
 <template>
-  <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+  <dl class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-x-6 gap-y-2.5">
     <div v-for="(item, index) in items" :key="index">
       <dt class="text-xs text-muted-foreground">
         {{ item.label }}

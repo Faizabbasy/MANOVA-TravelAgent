@@ -54,6 +54,10 @@ export interface Invoice {
   /** Diisi oleh `voidInvoice` (Section 20) — alasan wajib, transisi terminal (pola sama section lain). */
   voidedAt?: string
   voidReason?: string
+  /** Diisi otomatis saat DP Group Trip B2C dikonfirmasi (`confirmGroupTripDp`, `app/data/index.ts`) —
+   * jejak balik ke `SalesOrder` asal, dipakai `getSalesOrderOutstandingIdr` (outstanding per-booking, beda
+   * dari `getProjectOutstandingIdr` yang per-project). Kosong untuk Invoice B2B biasa. */
+  salesOrderId?: ID
 
   /**
    * Repair Phase Section 6 — Finance & Collaboration (Master Prompt bagian A). Seluruhnya opsional/aditif.
