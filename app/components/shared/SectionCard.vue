@@ -1,9 +1,12 @@
 <script setup lang="ts">
+import type { HTMLAttributes } from 'vue'
 import { cn } from '~/lib/utils'
 
 const props = withDefaults(defineProps<{
   title?: string
   description?: string
+  /** Kelas tambahan untuk `CardContent` (bukan root `Card`, itu sudah otomatis lewat attribute fallthrough) — dipakai kartu yang perlu isinya jadi flex column penuh tinggi (mis. menempelkan tombol ke dasar kartu dengan `mt-auto` saat card lain di grid yang sama membuatnya di-stretch lebih tinggi dari kontennya sendiri). */
+  contentClass?: HTMLAttributes['class']
   /** Bento sizing (Dashboard redesign) — mengatur span kolom pada grid dashboard. */
   size?: 'default' | 'wide' | 'hero' | 'full'
   /**
@@ -58,7 +61,7 @@ const showAccent = props.accent || props.size === 'hero'
       </div>
     </CardHeader>
 
-    <CardContent :class="cn(props.flush ? 'p-0' : (props.compact ? 'p-4' : 'p-5'), (title || $slots.header) && 'pt-0')">
+    <CardContent :class="cn(props.flush ? 'p-0' : (props.compact ? 'p-4' : 'p-5'), (title || $slots.header) && 'pt-0', props.contentClass)">
       <slot />
     </CardContent>
   </Card>
