@@ -76,7 +76,7 @@ export const VENDOR_QUOTATIONS: VendorQuotation[] = reactive([
   { id: 'VQ-009', vendorId: 'VND-003', projectId: 'PRJ-103', serviceId: 'SVC-1034', serviceType: 'transportation', amountIdr: 45_000_000, status: 'submitted', submittedAt: '2026-07-15', notes: '10 unit bus pariwisata, sudah termasuk sopir' },
   { id: 'VQ-010', vendorId: 'VND-005', projectId: 'PRJ-103', serviceId: 'SVC-1034', serviceType: 'transportation', amountIdr: 52_000_000, status: 'submitted', submittedAt: '2026-07-16', notes: 'Termasuk asuransi perjalanan tambahan untuk seluruh peserta' },
   { id: 'VQ-011', vendorId: 'VND-003', projectId: 'PRJ-205', serviceId: 'SVC-2051', serviceType: 'transportation', amountIdr: 8_000_000, status: 'accepted', submittedAt: '2026-08-14' },
-  { id: 'VQ-012', vendorId: 'VND-002', projectId: 'PRJ-205', serviceType: 'hotel', amountIdr: 12_000_000, status: 'accepted', submittedAt: '2026-08-18', notes: 'Homestay Bromo — engagement langsung, belum ada ProjectService terpisah' }
+  { id: 'VQ-012', vendorId: 'VND-002', projectId: 'PRJ-205', serviceId: 'SVC-2052', serviceType: 'hotel', amountIdr: 12_000_000, status: 'accepted', submittedAt: '2026-08-18', notes: 'Homestay Bromo — sudah terhubung ke ProjectService SVC-2052 dan HotelBooking HTL-2052.' }
 ])
 
 /** Activity/history vendor (Section 13) — seed awal mengikuti riwayat quotation `accepted`/`rejected`; entri baru ditambahkan otomatis saat Accept/Reject dijalankan dari tab Vendors Project Detail. */

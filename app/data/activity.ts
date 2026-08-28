@@ -170,7 +170,16 @@ export const TASKS: ProjectTask[] = reactive([
   { id: 'TSK-1032', projectId: 'PRJ-103', title: 'Konfirmasi venue MICE hari ke-2', status: 'pending-confirmation', isMilestone: true, assignedTo: 'USR-002' },
   { id: 'TSK-1033', projectId: 'PRJ-103', title: 'Kirim rundown acara ke client', status: 'not-started', dependsOnTaskId: 'TSK-1032' },
   { id: 'TSK-1034', projectId: 'PRJ-103', title: 'Rekonsiliasi actual cost transportation', status: 'overdue', dueAt: '2026-07-25', assignedTo: 'USR-002' },
-  { id: 'TSK-1035', projectId: 'PRJ-103', title: 'Verifikasi ulang manifest VIP sebelum keberangkatan', status: 'in-progress', dueAt: '2026-08-05', isMilestone: true }
+  { id: 'TSK-1035', projectId: 'PRJ-103', title: 'Verifikasi ulang manifest VIP sebelum keberangkatan', status: 'in-progress', dueAt: '2026-08-05', isMilestone: true },
+
+  // PRJ-205 — Open Trip Bromo Ijen (dummy Project B2C), masih tahap planning menuju keberangkatan 18 Sep 2026.
+  // dueAt disusun relatif terhadap DEMO_REFERENCE_DATE (2026-07-29, `app/utils/attention.ts`) supaya widget
+  // "Task Due Soon" (H+14) dan status `overdue` konsisten — bukan tanggal acak.
+  { id: 'TSK-2051', projectId: 'PRJ-205', title: 'Konfirmasi jeep & guide sunrise Bromo', status: 'in-progress', assignedTo: 'USR-002', dueAt: '2026-08-05', isMilestone: true },
+  { id: 'TSK-2052', projectId: 'PRJ-205', title: 'Booking hotel basecamp Paltuding, Ijen', status: 'not-started', dueAt: '2026-08-01', isBlocked: true, blockedReason: 'Menunggu konfirmasi ketersediaan kamar dari homestay basecamp Ijen' },
+  { id: 'TSK-2053', projectId: 'PRJ-205', title: 'Kirim briefing & checklist perlengkapan trekking ke peserta', status: 'pending-confirmation', dueAt: '2026-08-10', dependsOnTaskId: 'TSK-2051' },
+  { id: 'TSK-2054', projectId: 'PRJ-205', title: 'Follow-up pelunasan sisa pembayaran peserta Awaiting DP', status: 'overdue', dueAt: '2026-07-22', assignedTo: 'USR-002' },
+  { id: 'TSK-2055', projectId: 'PRJ-205', title: 'Verifikasi dokumen & kesehatan peserta sebelum trekking', status: 'done', assignedTo: 'USR-002' }
 ])
 
 /**

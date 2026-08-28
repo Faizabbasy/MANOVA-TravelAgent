@@ -1793,6 +1793,14 @@ export function updateServiceStatus (serviceId: string, newStatus: ServiceStatus
 
 export const getProjectServiceById = (id: string) => PROJECT_SERVICES.find(service => service.id === id)
 
+/** "Pengeluaran per Layanan" (tab Finance) — alokasi budget manual per baris `ProjectService`, dijumlahkan per tipe di `getServiceTypeSpendBreakdown` (`app/data/finance-ext.ts`). Pola mutasi sama persis `updateServiceStatus`. */
+export function updateProjectServiceBudget (serviceId: string, budgetIdr: number) {
+  const service = PROJECT_SERVICES.find(item => item.id === serviceId)
+  if (!service) { return undefined }
+  service.budgetIdr = budgetIdr
+  return service
+}
+
 /** Assign vendor ke ProjectService langsung dari form booking (docs — vendor sync), tanpa lewat alur RFQ/Quotation. */
 export function setServiceVendor (serviceId: string, vendorId: string | undefined): ProjectService | undefined {
   const service = PROJECT_SERVICES.find(item => item.id === serviceId)

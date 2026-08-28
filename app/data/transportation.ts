@@ -128,5 +128,33 @@ export const TRANSPORT_BOOKINGS: TransportBooking[] = reactive([
     ],
     travelerIds: [],
     createdAt: '2026-07-28'
+  },
+  // PRJ-205 — Open Trip Bromo Ijen (dummy Project B2C), 1 bus untuk seluruh rombongan sepanjang 4D3N,
+  // menautkan `serviceId: 'SVC-2051'` (`app/data/projects.ts`) — netCostIdr mengikuti VQ-011 (`app/data/vendors.ts`).
+  {
+    id: 'TRN-2051',
+    projectId: 'PRJ-205',
+    serviceId: 'SVC-2051',
+    transferType: 'multi-day-charter',
+    status: 'confirmed',
+    options: [
+      { vehicleType: 'bus', capacity: 20, luggageCapacity: '20 tas carrier', rateUnit: 'per-day', ratePerUnitIdr: 2_000_000, isSelected: true }
+    ],
+    legs: [
+      { pickupLocation: 'Stasiun Probolinggo', dropoffLocation: 'Homestay Bromo View', scheduledAt: '2026-09-18T07:00', label: 'Penjemputan Peserta' },
+      { pickupLocation: 'Homestay Bromo View', dropoffLocation: 'Kawah Bromo — Penanjakan 1', scheduledAt: '2026-09-19T03:00', label: 'Sunrise Tour Jeep' },
+      { pickupLocation: 'Homestay Bromo View', dropoffLocation: 'Basecamp Paltuding, Ijen', scheduledAt: '2026-09-19T13:00', label: 'Transfer Bromo → Ijen' },
+      { pickupLocation: 'Basecamp Paltuding, Ijen', dropoffLocation: 'Stasiun Probolinggo', scheduledAt: '2026-09-21T08:00', label: 'Kepulangan Peserta' }
+    ],
+    travelerIds: ['TRV-2051', 'TRV-2052', 'TRV-2053', 'TRV-2054', 'TRV-2055'],
+    assignedVehiclePlateNumber: 'N 7788 XZ',
+    driverName: 'Wahyu Setiadi',
+    driverPhone: '0852-3300-1010',
+    standbyHours: 3,
+    tollFeeIdr: 0,
+    netCostIdr: 8_000_000,
+    sellPriceIdr: 9_600_000,
+    createdAt: '2026-08-10',
+    updatedAt: '2026-08-14'
   }
 ])

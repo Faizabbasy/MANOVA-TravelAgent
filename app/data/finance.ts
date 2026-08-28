@@ -40,7 +40,12 @@ export const INVOICES: Invoice[] = reactive([
   { id: 'INV-2011', projectId: 'PRJ-201', label: 'Invoice Korea Incentive Trip (Termin Awal)', amountIdr: 490_000_000, issuedAt: '2026-08-01', dueAt: '2026-08-15', status: 'partially-paid', currency: 'IDR', invoiceType: 'dp' },
   { id: 'INV-2021', projectId: 'PRJ-202', label: 'Invoice Abu Dhabi Business Delegation', amountIdr: 460_000_000, issuedAt: '2026-07-05', dueAt: '2026-07-20', status: 'paid', currency: 'IDR', invoiceType: 'final' },
   { id: 'INV-2031', projectId: 'PRJ-203', label: 'Invoice Final Manila Corporate Meeting', amountIdr: 165_000_000, issuedAt: '2026-06-01', dueAt: '2026-06-08', status: 'paid', currency: 'IDR', invoiceType: 'final' },
-  { id: 'INV-2041', projectId: 'PRJ-204', label: 'Invoice Singapore Conference (Termin Awal)', amountIdr: 150_000_000, issuedAt: '2026-07-20', dueAt: '2026-08-05', status: 'partially-paid', currency: 'IDR', invoiceType: 'dp' }
+  { id: 'INV-2041', projectId: 'PRJ-204', label: 'Invoice Singapore Conference (Termin Awal)', amountIdr: 150_000_000, issuedAt: '2026-07-20', dueAt: '2026-08-05', status: 'partially-paid', currency: 'IDR', invoiceType: 'dp' },
+
+  /** PRJ-205 (dummy Project B2C) — konsolidasi DP dari peserta yang sudah Confirmed (SLO-006 + SLO-009,
+   * `app/data/sales-orders.ts`), pelunasan termin akhir jatuh tempo H-14 sebelum keberangkatan. */
+  { id: 'INV-2051', projectId: 'PRJ-205', label: 'Invoice DP Group Bromo Ijen (Batch 1)', amountIdr: 17_500_000, issuedAt: '2026-08-12', dueAt: '2026-08-19', status: 'paid', currency: 'IDR', invoiceType: 'dp' },
+  { id: 'INV-2052', projectId: 'PRJ-205', label: 'Invoice Pelunasan Group Bromo Ijen (Termin Akhir)', amountIdr: 20_000_000, issuedAt: '2026-08-20', dueAt: '2026-09-04', status: 'unpaid', currency: 'IDR', invoiceType: 'final' }
 ])
 
 /** `recordedBy` di-backfill ke `USR-008` (Budi Santoso, role `finance`) untuk seluruh payment existing — plausible, konsisten dengan `reviewedBy`/`recordedBy` internal user lain di codebase. `method` diisi `'bank-transfer'` (metode paling umum pada skenario B2B travel ini). */
@@ -53,7 +58,8 @@ export const PAYMENTS: Payment[] = reactive([
   { id: 'PAY-2011', invoiceId: 'INV-2011', amountIdr: 245_000_000, receivedAt: '2026-08-10', method: 'bank-transfer', recordedBy: 'USR-008' },
   { id: 'PAY-2021', invoiceId: 'INV-2021', amountIdr: 460_000_000, receivedAt: '2026-07-18', method: 'bank-transfer', recordedBy: 'USR-008' },
   { id: 'PAY-2031', invoiceId: 'INV-2031', amountIdr: 165_000_000, receivedAt: '2026-06-07', method: 'bank-transfer', recordedBy: 'USR-008' },
-  { id: 'PAY-2041', invoiceId: 'INV-2041', amountIdr: 75_000_000, receivedAt: '2026-08-01', method: 'bank-transfer', recordedBy: 'USR-008' }
+  { id: 'PAY-2041', invoiceId: 'INV-2041', amountIdr: 75_000_000, receivedAt: '2026-08-01', method: 'bank-transfer', recordedBy: 'USR-008' },
+  { id: 'PAY-2051', invoiceId: 'INV-2051', amountIdr: 17_500_000, receivedAt: '2026-08-14', method: 'bank-transfer', recordedBy: 'USR-008' }
 ])
 
 /**

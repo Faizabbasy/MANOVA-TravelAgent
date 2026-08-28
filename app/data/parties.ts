@@ -62,7 +62,11 @@ export const PARTIES: Party[] = reactive([
   /** Party placeholder Group Trip B2C (pola sama `getOrCreateGroupTripPlaceholderParty`, `app/data/index.ts`) — dipakai sebagai `partyId` Project B2C dummy PRJ-205 sebelum ada customer nyata. */
   { id: 'PTY-009', name: 'MANOVA Group Trip (Internal)', lifecycleStatus: 'client', createdAt: '2026-07-20', partyType: 'individual' },
   { id: 'PTY-010', name: 'Yulia Kartika', lifecycleStatus: 'client', createdAt: '2026-08-01', partyType: 'individual', phone: '0815-6001-1001', city: 'Jakarta' },
-  { id: 'PTY-011', name: 'Bima Nugraha', lifecycleStatus: 'client', createdAt: '2026-08-05', partyType: 'individual', phone: '0815-6001-1002', city: 'Malang' }
+  { id: 'PTY-011', name: 'Bima Nugraha', lifecycleStatus: 'client', createdAt: '2026-08-05', partyType: 'individual', phone: '0815-6001-1002', city: 'Malang' },
+  /** Peserta tambahan Open Trip Bromo Ijen PRJ-205 (`app/data/projects.ts`) — memperkaya funnel Bookings B2C (Awaiting DP/Confirmed lebih dari 1 baris) dan roster Travelers. */
+  { id: 'PTY-012', name: 'Dewi Anjani', lifecycleStatus: 'client', createdAt: '2026-08-18', partyType: 'individual', phone: '0815-6001-1003', city: 'Yogyakarta' },
+  { id: 'PTY-013', name: 'Fajar Nugroho', lifecycleStatus: 'client', createdAt: '2026-08-09', partyType: 'individual', phone: '0815-6001-1004', city: 'Surabaya' },
+  { id: 'PTY-014', name: 'Sari Wulandari', lifecycleStatus: 'client', createdAt: '2026-08-06', partyType: 'individual', phone: '0815-6001-1005', city: 'Malang' }
 ])
 
 export const CONTACTS: ContactPerson[] = reactive([

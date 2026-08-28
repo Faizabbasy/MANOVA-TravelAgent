@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { INVOICES, PAYMENTS, CREDIT_NOTES } from './finance'
-import { PROJECTS } from './projects'
+import { PROJECTS, PROJECT_SERVICES } from './projects'
 import { PARTIES } from './parties'
 import { VENDORS } from './vendors'
 import { SUPPLIER_INVOICES, SERVICE_ORDERS } from './procurement'
@@ -20,6 +20,7 @@ import type {
   PayableRow
 } from '~/types/finance-ext'
 import type { StatusOption } from '~/types/common'
+import type { ServiceTypeKey } from '~/types/project'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 
 /**
@@ -412,6 +413,34 @@ export function getProjectActualCostIdr (projectId: string): number {
     .reduce((sum, entry) => sum + entry.amountIdr, 0)
   const projectExpenseCostIdr = getProjectExpenses(projectId).reduce((sum, expense) => sum + expense.amountIdr, 0)
   return supplierCostIdr + opexCostIdr + projectExpenseCostIdr
+}
+
+/**
+ * "Pengeluaran per Layanan" (tab Finance Project Order) — breakdown Actual Cost per `ServiceTypeKey`,
+ * TERPISAH dari `getProjectActualCostIdr` di atas (yang juga mencakup Opex/ProjectExpense, dan tidak per
+ * tipe). Traceability SupplierInvoice → tipe layanan lewat `ServiceOrder.serviceId` (opsional) →
+ * `ProjectService.type` — hanya SupplierInvoice yang service order-nya benar-benar menaut ke satu
+ * `ProjectService` yang ikut terhitung di sini. Konsekuensinya: total `actualIdr` seluruh baris breakdown ini
+ * BISA lebih kecil dari `getProjectActualCostIdr(projectId)` (yang juga menghitung Opex/ProjectExpense/
+ * SupplierInvoice tanpa `serviceId`) — ini bukan bug, murni keterbatasan traceability yang didokumentasikan,
+ * bukan berpura-pura lengkap.
+ */
+export function getServiceTypeSpendBreakdown (projectId: string): { type: ServiceTypeKey; budgetIdr: number; actualIdr: number }[] {
+  const services = PROJECT_SERVICES.filter(service => service.projectId === projectId)
+  const types = [...new Set(services.map(service => service.type))]
+  return types.map((type) => {
+    const servicesOfType = services.filter(service => service.type === type)
+    const budgetIdr = servicesOfType.reduce((sum, service) => sum + (service.budgetIdr ?? 0), 0)
+    const serviceIds = new Set(servicesOfType.map(service => service.id))
+    const actualIdr = SUPPLIER_INVOICES
+      .filter((invoice) => {
+        if (invoice.status === 'rejected') { return false }
+        const serviceOrder = SERVICE_ORDERS.find(so => so.id === invoice.serviceOrderId)
+        return !!serviceOrder && serviceOrder.projectId === projectId && !!serviceOrder.serviceId && serviceIds.has(serviceOrder.serviceId)
+      })
+      .reduce((sum, invoice) => sum + invoice.amountIdr, 0)
+    return { type, budgetIdr, actualIdr }
+  })
 }
 
 /** Jurnal milik satu project (Fase 3.1) — dipakai filter Buku Besar dan section "Jurnal" tab Finance Project Order. */

@@ -245,7 +245,7 @@ for (const project of PROJECTS) { project.destinationGeo = resolveDestinationGeo
  * booking terkonfirmasi).
  */
 export const PROJECT_SERVICES: ProjectService[] = reactive([
-  { id: 'SVC-1011', projectId: 'PRJ-101', type: 'flight', label: 'Flight Manila', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR-MNL8201' },
+  { id: 'SVC-1011', projectId: 'PRJ-101', type: 'flight', label: 'Flight Manila', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR-MNL8201', budgetIdr: 85_000_000 },
 
   { id: 'SVC-1021', projectId: 'PRJ-102', type: 'flight', label: 'Flight Abu Dhabi', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR-AUH9221' },
   { id: 'SVC-1022', projectId: 'PRJ-102', type: 'hotel', label: 'Room Block A (18 pax)', status: 'changed', vendorId: 'VND-002', bookingReference: 'HTL-AUH-A104' },
@@ -270,9 +270,16 @@ export const PROJECT_SERVICES: ProjectService[] = reactive([
   { id: 'SVC-2041', projectId: 'PRJ-204', type: 'flight', label: 'Flight Jakarta–Singapura', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR-SIN9901' },
   { id: 'SVC-2042', projectId: 'PRJ-204', type: 'hotel', label: 'Hotel Singapura (15 pax)', status: 'changed', vendorId: 'VND-002' },
 
-  /** PRJ-205 (dummy Project B2C) — 1 layanan transportasi lokal, vendor sudah ditugaskan (VQ-011,
-   * `app/data/vendors.ts`), dipakai contoh Committed Vendor Cost + sparkline Finance tab. */
-  { id: 'SVC-2051', projectId: 'PRJ-205', type: 'transportation', label: 'Bus Pariwisata Bromo Ijen', status: 'confirmed', vendorId: 'VND-003' }
+  /**
+   * PRJ-205 (dummy Project B2C) — transportasi lokal (vendor sudah ditugaskan, VQ-011 `app/data/vendors.ts`,
+   * dipakai contoh Committed Vendor Cost + sparkline Finance tab) dan 2 layanan hotel: SVC-2052 (Homestay
+   * Bromo, sudah confirmed — sebelumnya hanya VendorQuotation VQ-012 tanpa ProjectService, kini ditautkan)
+   * dan SVC-2053 (basecamp Ijen, masih `pending-confirmation`, belum ada vendor) — sengaja campuran
+   * confirmed/pending agar section "Hotel" tab Itinerary & Services tidak seluruhnya siap.
+   */
+  { id: 'SVC-2051', projectId: 'PRJ-205', type: 'transportation', label: 'Bus Pariwisata Bromo Ijen', status: 'confirmed', vendorId: 'VND-003', budgetIdr: 10_000_000 },
+  { id: 'SVC-2052', projectId: 'PRJ-205', type: 'hotel', label: 'Homestay Bromo View', status: 'confirmed', vendorId: 'VND-002', bookingReference: 'HTL-BRM-2026', budgetIdr: 15_000_000 },
+  { id: 'SVC-2053', projectId: 'PRJ-205', type: 'hotel', label: 'Basecamp Paltuding, Ijen', status: 'pending-confirmation', budgetIdr: 10_000_000 }
 ])
 
 /** Daily itinerary (Section 12) — jadwal harian per project, `groupId` merujuk `TravelerGroup` (Section 11) yang sudah ada. */
@@ -319,7 +326,18 @@ export const ITINERARY_ITEMS: ItineraryItem[] = reactive([
   { id: 'ITIN-2031', projectId: 'PRJ-203', date: '2026-06-11', time: '09:00', title: 'Corporate Meeting', timezone: 'Asia/Manila' },
 
   // PRJ-204 — Singapore Conference, menunggu revised quotation dari Change Request (skenario E).
-  { id: 'ITIN-2041', projectId: 'PRJ-204', date: '2026-11-06', time: '09:00', title: 'Conference — Hari 1', timezone: 'Asia/Singapore' }
+  { id: 'ITIN-2041', projectId: 'PRJ-204', date: '2026-11-06', time: '09:00', title: 'Conference — Hari 1', timezone: 'Asia/Singapore' },
+
+  // PRJ-205 — Open Trip Bromo Ijen 4D3N (dummy Project B2C), 18-21 September 2026.
+  { id: 'ITIN-2051', projectId: 'PRJ-205', date: '2026-09-18', time: '06:00', title: 'Kumpul Peserta di Stasiun Probolinggo', description: 'Registrasi ulang & pembagian perlengkapan trekking', serviceType: 'transportation', timezone: 'Asia/Jakarta', location: 'Stasiun Probolinggo' },
+  { id: 'ITIN-2052', projectId: 'PRJ-205', date: '2026-09-18', time: '14:00', title: 'Check-in Homestay Bromo View', serviceType: 'hotel', timezone: 'Asia/Jakarta' },
+  { id: 'ITIN-2053', projectId: 'PRJ-205', date: '2026-09-18', time: '19:00', title: 'Briefing Sunrise Tour', description: 'Penjelasan rute jeep & titik kumpul dini hari — tidak ditampilkan ke client', timezone: 'Asia/Jakarta', visibleToClient: false },
+  { id: 'ITIN-2054', projectId: 'PRJ-205', date: '2026-09-19', time: '03:00', title: 'Sunrise Tour Gunung Bromo (Jeep)', description: 'Penanjakan 1, Kawah Bromo, Savana, Pasir Berbisik', serviceType: 'transportation', timezone: 'Asia/Jakarta' },
+  { id: 'ITIN-2055', projectId: 'PRJ-205', date: '2026-09-19', time: '13:00', title: 'Transfer Bromo → Ijen', description: 'Perjalanan darat menuju basecamp Paltuding', serviceType: 'transportation', timezone: 'Asia/Jakarta' },
+  { id: 'ITIN-2056', projectId: 'PRJ-205', date: '2026-09-19', time: '16:00', title: 'Check-in Basecamp Paltuding, Ijen', serviceType: 'hotel', timezone: 'Asia/Jakarta' },
+  { id: 'ITIN-2057', projectId: 'PRJ-205', date: '2026-09-20', time: '00:00', title: 'Trekking Kawah Ijen — Blue Fire', description: 'Pendakian dini hari, menyaksikan blue fire & sunrise di kawah', serviceType: 'transportation', timezone: 'Asia/Jakarta' },
+  { id: 'ITIN-2058', projectId: 'PRJ-205', date: '2026-09-20', time: '12:00', title: 'Istirahat & Waktu Bebas', timezone: 'Asia/Jakarta' },
+  { id: 'ITIN-2059', projectId: 'PRJ-205', date: '2026-09-21', time: '08:00', title: 'Kepulangan Ijen → Stasiun Probolinggo', description: 'Perjalanan pulang & penjemputan peserta', serviceType: 'transportation', timezone: 'Asia/Jakarta' }
 ])
 
 /**
@@ -335,7 +353,10 @@ export const ITINERARY_ITEMS: ItineraryItem[] = reactive([
 export const TRAVELER_GROUPS: TravelerGroup[] = reactive([
   { id: 'GRP-001', projectId: 'PRJ-103', name: 'Management', paxCount: 10, roomingNote: '5 kamar twin (10 pax)' },
   { id: 'GRP-002', projectId: 'PRJ-103', name: 'Sales Team', paxCount: 25, roomingNote: '12 kamar twin + 1 kamar single (25 pax)' },
-  { id: 'GRP-003', projectId: 'PRJ-103', name: 'Partner / VIP', paxCount: 25, roomingNote: '2 suite VIP (termasuk kebutuhan aksesibilitas)' }
+  { id: 'GRP-003', projectId: 'PRJ-103', name: 'Partner / VIP', paxCount: 25, roomingNote: '2 suite VIP (termasuk kebutuhan aksesibilitas)' },
+  // PRJ-205 — Open Trip Bromo Ijen, dikelompokkan per booking (bukan per role seperti PRJ-103).
+  { id: 'GRP-004', projectId: 'PRJ-205', name: 'Yulia Kartika & Pasangan', paxCount: 2, roomingNote: '1 kamar twin (2 pax)' },
+  { id: 'GRP-005', projectId: 'PRJ-205', name: 'Keluarga Fajar Nugroho', paxCount: 3, roomingNote: '1 kamar suite (3 pax)' }
 ])
 
 /**
@@ -391,15 +412,22 @@ export const TRAVELERS: Traveler[] = reactive([
   { id: 'TRV-2041', projectId: 'PRJ-204', name: 'Kirana Salsabila', passportNumber: 'E5554001', passportExpiryDate: '2029-03-15', documentsVerifiedAt: '2026-07-19', documentsVerifiedBy: 'USR-002' },
   { id: 'TRV-2042', projectId: 'PRJ-204', name: 'Yoga Pranata', emergencyContactName: 'Sinta Pranata', emergencyContactPhone: '0815-5004-0002' },
 
-  // PRJ-205 — Open Trip Bromo Ijen (dummy Project B2C), peserta lahir dari SalesOrder `paid` SLO-006
+  // PRJ-205 — Open Trip Bromo Ijen (dummy Project B2C), peserta lahir dari SalesOrder `paid` SLO-006/SLO-009
   // (`app/data/sales-orders.ts`) — pola sama `qualifyGroupTripLead`/DP confirm, `partyId`/`salesOrderId` diisi.
-  { id: 'TRV-2051', projectId: 'PRJ-205', partyId: 'PTY-010', salesOrderId: 'SLO-006', name: 'Yulia Kartika', emergencyContactName: 'Rendra Kartika', emergencyContactPhone: '0815-6001-1001' },
-  { id: 'TRV-2052', projectId: 'PRJ-205', partyId: 'PTY-010', salesOrderId: 'SLO-006', name: 'Rendra Kartika', emergencyContactName: 'Yulia Kartika', emergencyContactPhone: '0815-6001-1001' }
+  // Dokumen sengaja campuran (lengkap+verified / lengkap belum verified / belum lengkap sama sekali) supaya
+  // "Readiness indicator" (Section 11) tab Travelers punya kondisi nyata, bukan seluruhnya lengkap.
+  { id: 'TRV-2051', projectId: 'PRJ-205', groupId: 'GRP-004', partyId: 'PTY-010', salesOrderId: 'SLO-006', name: 'Yulia Kartika', passportNumber: 'F6601001', passportExpiryDate: '2029-05-10', idNumber: '3174016001900001', emergencyContactName: 'Rendra Kartika', emergencyContactPhone: '0815-6001-1001', documentsVerifiedAt: '2026-08-16', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-2052', projectId: 'PRJ-205', groupId: 'GRP-004', partyId: 'PTY-010', salesOrderId: 'SLO-006', name: 'Rendra Kartika', passportNumber: 'F6601002', passportExpiryDate: '2029-05-10', emergencyContactName: 'Yulia Kartika', emergencyContactPhone: '0815-6001-1001', companionOfTravelerId: 'TRV-2051' },
+  { id: 'TRV-2053', projectId: 'PRJ-205', groupId: 'GRP-005', partyId: 'PTY-013', salesOrderId: 'SLO-009', name: 'Fajar Nugroho', passportNumber: 'F6601003', passportExpiryDate: '2028-12-01', idNumber: '3578016009880002', emergencyContactName: 'Anisa Nugroho', emergencyContactPhone: '0815-6001-1004', documentsVerifiedAt: '2026-08-11', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-2054', projectId: 'PRJ-205', groupId: 'GRP-005', partyId: 'PTY-013', salesOrderId: 'SLO-009', name: 'Anisa Nugroho', passportNumber: 'F6601004', passportExpiryDate: '2028-12-01', emergencyContactName: 'Fajar Nugroho', emergencyContactPhone: '0815-6001-1004', companionOfTravelerId: 'TRV-2053' },
+  { id: 'TRV-2055', projectId: 'PRJ-205', groupId: 'GRP-005', partyId: 'PTY-013', salesOrderId: 'SLO-009', name: 'Kirana Nugroho', emergencyContactName: 'Fajar Nugroho', emergencyContactPhone: '0815-6001-1004', dietaryRestrictions: 'Anak-anak, tanpa pedas', companionOfTravelerId: 'TRV-2053' }
 ])
 
 /** Rooming list eksplisit (Section 11) — hanya untuk traveler bernama yang datanya sudah tercatat di atas. */
 export const ROOM_ASSIGNMENTS: RoomAssignment[] = reactive([
   { id: 'ROOM-001', projectId: 'PRJ-103', groupId: 'GRP-001', roomLabel: 'Twin 101', roomType: 'twin', travelerIds: ['TRV-1032', 'TRV-1033'] },
   { id: 'ROOM-002', projectId: 'PRJ-103', groupId: 'GRP-002', roomLabel: 'Twin 205', roomType: 'twin', travelerIds: ['TRV-1034', 'TRV-1035'] },
-  { id: 'ROOM-003', projectId: 'PRJ-103', groupId: 'GRP-003', roomLabel: 'Suite VIP 1', roomType: 'suite', travelerIds: ['TRV-1031', 'TRV-1036'] }
+  { id: 'ROOM-003', projectId: 'PRJ-103', groupId: 'GRP-003', roomLabel: 'Suite VIP 1', roomType: 'suite', travelerIds: ['TRV-1031', 'TRV-1036'] },
+  { id: 'ROOM-004', projectId: 'PRJ-205', groupId: 'GRP-004', roomLabel: 'Twin 1', roomType: 'twin', travelerIds: ['TRV-2051', 'TRV-2052'] },
+  { id: 'ROOM-005', projectId: 'PRJ-205', groupId: 'GRP-005', roomLabel: 'Suite 1', roomType: 'suite', travelerIds: ['TRV-2053', 'TRV-2054', 'TRV-2055'] }
 ])

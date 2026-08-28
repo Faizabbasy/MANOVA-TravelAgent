@@ -45,7 +45,18 @@ export const PROJECT_MILESTONES: ProjectMilestone[] = reactive([
   { id: 'PMS-103-5', projectId: 'PRJ-103', stepKey: 'start', name: 'Rundown & Staffing Final', plannedDate: '2026-07-22', actualDate: '2026-07-27', ownerId: 'USR-002', status: 'completed' },
   { id: 'PMS-103-6', projectId: 'PRJ-103', stepKey: 'departure', name: 'Mobilisasi Tim ke Lokasi', plannedDate: '2026-08-02', ownerId: 'USR-002', status: 'in-progress' },
   { id: 'PMS-103-7', projectId: 'PRJ-103', stepKey: 'on-progress', name: 'Event Berlangsung', plannedDate: '2026-08-05', ownerId: 'USR-002', status: 'not-started' },
-  { id: 'PMS-103-8', projectId: 'PRJ-103', stepKey: 'done', name: 'Laporan Akhir & Review Klien', plannedDate: '2026-08-20', ownerId: 'USR-002', status: 'not-started' }
+  { id: 'PMS-103-8', projectId: 'PRJ-103', stepKey: 'done', name: 'Laporan Akhir & Review Klien', plannedDate: '2026-08-20', ownerId: 'USR-002', status: 'not-started' },
+
+  // PRJ-205 — Open Trip Bromo Ijen (dummy Project B2C, planning), keberangkatan 18 Sep 2026. Milestone
+  // `completed` disusun SEBELUM DEMO_REFERENCE_DATE (2026-07-29) — konsisten dengan makna "sudah terjadi".
+  { id: 'PMS-205-1', projectId: 'PRJ-205', stepKey: 'drafting', name: 'SPK / Handover Diterima', plannedDate: '2026-07-05', actualDate: '2026-07-05', ownerId: 'USR-002', status: 'completed' },
+  { id: 'PMS-205-2', projectId: 'PRJ-205', stepKey: 'drafting', name: 'Finalisasi Itinerary', plannedDate: '2026-07-15', actualDate: '2026-07-14', ownerId: 'USR-002', status: 'completed', note: 'Selesai 1 hari lebih cepat.' },
+  { id: 'PMS-205-3', projectId: 'PRJ-205', stepKey: 'confirmed', name: 'Invoice DP Terbit', plannedDate: '2026-07-22', actualDate: '2026-07-22', ownerId: 'USR-008', status: 'completed' },
+  { id: 'PMS-205-4', projectId: 'PRJ-205', stepKey: 'confirmed', name: 'Konfirmasi Vendor & Booking', plannedDate: '2026-08-25', ownerId: 'USR-002', status: 'in-progress', note: 'Transportasi sudah confirmed, hotel basecamp Ijen masih menunggu vendor.' },
+  { id: 'PMS-205-5', projectId: 'PRJ-205', stepKey: 'start', name: 'Dokumen Traveler Lengkap', plannedDate: '2026-09-05', ownerId: 'USR-002', status: 'not-started' },
+  { id: 'PMS-205-6', projectId: 'PRJ-205', stepKey: 'departure', name: 'Keberangkatan', plannedDate: '2026-09-18', ownerId: 'USR-002', status: 'not-started' },
+  { id: 'PMS-205-7', projectId: 'PRJ-205', stepKey: 'on-progress', name: 'Trip Selesai', plannedDate: '2026-09-21', ownerId: 'USR-002', status: 'not-started' },
+  { id: 'PMS-205-8', projectId: 'PRJ-205', stepKey: 'done', name: 'Laporan Akhir & Review Peserta', plannedDate: '2026-09-28', ownerId: 'USR-002', status: 'not-started' }
 ])
 
 export const PROJECT_NOTES: ProjectNote[] = reactive([

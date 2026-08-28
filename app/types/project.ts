@@ -168,6 +168,8 @@ export interface ProjectService {
   vendorId?: ID
   /** Booking/reference mock (Section 12) — nomor referensi/PNR/konfirmasi, bukan hasil integrasi API nyata (D-006). */
   bookingReference?: string
+  /** Alokasi budget untuk baris layanan ini (tab Finance, "Pengeluaran per Layanan") — input manual per baris, dijumlahkan per `type` di `getServiceTypeSpendBreakdown` (`app/data/finance-ext.ts`). Opsional — belum tentu seluruh layanan sudah dialokasikan. */
+  budgetIdr?: number
 }
 
 /** Daily itinerary (Section 12 lama) — jadwal harian per project, tab "Itinerary & Services". */
