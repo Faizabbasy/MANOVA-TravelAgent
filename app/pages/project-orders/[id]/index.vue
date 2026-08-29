@@ -5,7 +5,7 @@ import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2, 
 import {
   getProjectById, getPartyById, getContactsByParty, getUserById, getVendorById, getLeadById, getQuotationByLead,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
-  getProjectServices, getItineraryItems, updateServiceStatus, updateProjectServiceBudget, updateItineraryItem, createItineraryItem, removeItineraryItem,
+  getProjectServices, getItineraryItems, updateServiceStatus, updateProjectServiceBudget, ensureProjectServiceForBudget, updateItineraryItem, createItineraryItem, removeItineraryItem,
   getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation, recordVendorPaymentDirect,
   getServiceOrderByService, getSupplierInvoicesByServiceOrder,
   getTravelerGroups, getTravelers, getRoomAssignments,
@@ -770,11 +770,23 @@ const serviceTypeSpendRows = computed(() => {
   })
 })
 
+/** Ringkasan alokasi budget project ke seluruh layanan — "Total budget project" vs "sudah dialokasikan" (sum
+ * budget seluruh baris `serviceTypeSpendRows`) vs sisa yang belum dipecah ke layanan mana pun. */
+const serviceBudgetAllocationSummary = computed(() => {
+  const totalIdr = project.value?.budgetIdr ?? 0
+  const allocatedIdr = serviceTypeSpendRows.value.reduce((sum, row) => sum + row.budgetIdr, 0)
+  return { totalIdr, allocatedIdr, unallocatedIdr: totalIdr - allocatedIdr }
+})
+
 /** Edit alokasi budget per layanan — Sheet berisi seluruh baris `ProjectService` dari satu tipe (bisa lebih dari 1, mis. 2 hotel), satu `CurrencyInput` per baris, pola sama Sheet "Catat Pengeluaran". */
 const isServiceBudgetDialogOpen = ref(false)
 const serviceBudgetTypeLabel = ref('')
 const serviceBudgetForm = ref<Record<string, number | null>>({})
 function openEditServiceBudget (type: ServiceTypeKey, label: string) {
+  if (!project.value) { return }
+  // Belum ada booking untuk tipe ini sama sekali (kondisi normal tepat setelah project dibuat) — bikin baris
+  // placeholder dulu supaya budget bisa dialokasikan di awal, sebelum booking pertama masuk.
+  if (!servicesByType(type).length) { ensureProjectServiceForBudget(project.value.id, type, label) }
   serviceBudgetTypeLabel.value = label
   const form: Record<string, number | null> = {}
   for (const service of servicesByType(type)) { form[service.id] = service.budgetIdr ?? null }
@@ -3419,6 +3431,13 @@ const tripDurationDays = computed(() => {
               </div>
 
               <SectionCard v-if="serviceTypeSpendRows.length" compact title="Pengeluaran per Layanan" description="Alokasi budget dan actual cost per tipe layanan — dipecah dari Project Value/Actual Cost di atas.">
+                <p class="mb-3 text-xs text-muted-foreground">
+                  Total budget project: <span class="font-medium text-foreground">{{ formatCurrencyIdr(serviceBudgetAllocationSummary.totalIdr) }}</span>
+                  · Sudah dialokasikan: <span class="font-medium text-foreground">{{ formatCurrencyIdr(serviceBudgetAllocationSummary.allocatedIdr) }}</span>
+                  · <span :class="serviceBudgetAllocationSummary.unallocatedIdr < 0 ? 'font-medium text-destructive' : 'font-medium text-foreground'">
+                    {{ serviceBudgetAllocationSummary.unallocatedIdr < 0 ? `Over-alokasi ${formatCurrencyIdr(Math.abs(serviceBudgetAllocationSummary.unallocatedIdr))}` : `Belum dialokasikan ${formatCurrencyIdr(serviceBudgetAllocationSummary.unallocatedIdr)}` }}
+                  </span>
+                </p>
                 <div class="space-y-2.5">
                   <div v-for="row in serviceTypeSpendRows" :key="row.type" class="flex flex-col gap-3 rounded-lg border border-border p-3 sm:flex-row sm:items-center sm:justify-between">
                     <div class="flex min-w-0 items-center gap-2.5">

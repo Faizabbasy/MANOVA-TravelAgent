@@ -65,7 +65,10 @@ function openCreateDialog () {
   isCreateOpen.value = true
 }
 
-watch(() => route.query.create, (value) => { if (value === '1') { openCreateDialog() } }, { immediate: true })
+// Quick-create dari Project Detail selalu menyertakan anchor tab (`#accommodation`) — cek juga hash-nya,
+// bukan cuma `create=1`, supaya panel lain (Flight/Transport/MICE) yang sama-sama mount di /services tidak
+// ikut membuka dialog-nya sendiri saat query ini muncul (dulu ke-4 panel share flag yang sama).
+watch(() => route.query.create, (value) => { if (value === '1' && route.hash === '#accommodation') { openCreateDialog() } }, { immediate: true })
 
 /** "Duplicate booking prevention" (Section 18, Wajib) — cek booking Hotel aktif lain untuk project+service yang sama sebelum membuat. */
 const isDuplicateConfirmOpen = ref(false)
@@ -111,18 +114,18 @@ function cancelDuplicateCreate () {
 <template>
   <div class="space-y-6">
     <div v-if="canManageAccommodation" class="flex justify-end">
-      <Dialog v-model:open="isCreateOpen">
-        <DialogTrigger as-child>
+      <Sheet v-model:open="isCreateOpen">
+        <SheetTrigger as-child>
           <Button @click="openCreateDialog">
             <Plus class="h-4 w-4 mr-1.5" />Buat Hotel Booking
           </Button>
-        </DialogTrigger>
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Hotel Booking Baru</DialogTitle>
-            <DialogDescription>Dibuat sebagai status "Requested" — lengkapi options/room block/traveler assignment di halaman detail.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </SheetTrigger>
+        <SheetContent side="right" class="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Hotel Booking Baru</SheetTitle>
+            <SheetDescription>Dibuat sebagai status "Requested" — lengkapi options/room block/traveler assignment di halaman detail.</SheetDescription>
+          </SheetHeader>
+          <div class="space-y-4 py-4">
             <div class="space-y-1.5">
               <Label for="htl-project">Project</Label>
               <select id="htl-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -156,16 +159,16 @@ function cancelDuplicateCreate () {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <SheetFooter class="flex-row justify-end gap-2">
             <Button variant="outline" @click="isCreateOpen = false">
               Batal
             </Button>
             <Button :disabled="!newProjectId" @click="submitCreate">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <!-- Duplicate booking prevention (Section 18, Wajib) — konfirmasi eksplisit wajib sebelum melanjutkan. -->
       <Dialog v-model:open="isDuplicateConfirmOpen">

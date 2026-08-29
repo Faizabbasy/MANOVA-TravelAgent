@@ -1793,6 +1793,24 @@ export function updateServiceStatus (serviceId: string, newStatus: ServiceStatus
 
 export const getProjectServiceById = (id: string) => PROJECT_SERVICES.find(service => service.id === id)
 
+/** Placeholder row untuk alokasi budget upfront (split budget project ke layanan sebelum ada booking apa pun)
+ * — reuse baris existing kalau tipe ini sudah punya minimal 1 ProjectService (termasuk placeholder lama),
+ * else bikin baris baru status 'not-started' (sama pola `ensureProjectServiceForBooking`, TIDAK ada struktur
+ * budget paralel di Project). */
+export function ensureProjectServiceForBudget (projectId: string, type: ServiceTypeKey, label: string): ProjectService {
+  const existing = PROJECT_SERVICES.find(service => service.projectId === projectId && service.type === type)
+  if (existing) { return existing }
+  const service: ProjectService = {
+    id: nextSequentialId('SVC-', PROJECT_SERVICES),
+    projectId,
+    type,
+    label,
+    status: 'not-started'
+  }
+  PROJECT_SERVICES.push(service)
+  return service
+}
+
 /** "Pengeluaran per Layanan" (tab Finance) — alokasi budget manual per baris `ProjectService`, dijumlahkan per tipe di `getServiceTypeSpendBreakdown` (`app/data/finance-ext.ts`). Pola mutasi sama persis `updateServiceStatus`. */
 export function updateProjectServiceBudget (serviceId: string, budgetIdr: number) {
   const service = PROJECT_SERVICES.find(item => item.id === serviceId)
@@ -1953,7 +1971,9 @@ export const getFlightBookingsByProject = (projectId: string) => FLIGHT_BOOKINGS
   .filter(booking => booking.projectId === projectId)
   .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 /** Auto-link booking ↔ ProjectService (docs/superpowers/specs/2026-08-05-project-service-booking-sync-design.md).
- * Reuse baris existing kalau `existingServiceId` valid, else bikin baris baru dan kembalikan id-nya. */
+ * Reuse baris existing kalau `existingServiceId` valid; kalau tidak, reuse placeholder tipe sama yang belum
+ * pernah dibooking (mis. dibuat lewat `ensureProjectServiceForBudget` untuk alokasi budget upfront) supaya
+ * budget yang sudah diisi tidak terpisah dari booking sungguhan; else baru bikin baris baru. */
 function ensureProjectServiceForBooking (params: { projectId: string; existingServiceId?: string; type: ServiceTypeKey; label: string; status: ServiceStatus }): string {
   if (params.existingServiceId) {
     const existing = PROJECT_SERVICES.find(s => s.id === params.existingServiceId)
@@ -1961,6 +1981,12 @@ function ensureProjectServiceForBooking (params: { projectId: string; existingSe
       existing.status = params.status
       return existing.id
     }
+  }
+  const reusable = PROJECT_SERVICES.find(s => s.projectId === params.projectId && s.type === params.type && !s.bookingReference && s.status === 'not-started')
+  if (reusable) {
+    reusable.status = params.status
+    reusable.label = params.label
+    return reusable.id
   }
   const service: ProjectService = {
     id: nextSequentialId('SVC-', PROJECT_SERVICES),

@@ -1,23 +1,82 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX } from 'lucide-vue-next'
+import { FileX, Plus } from 'lucide-vue-next'
 import {
   getPartyById, getContactsByParty, getLeadsByParty, getProjectsByParty, getPartyActivities,
-  getDocumentsByParty, getUserById, getQuotationByLead
+  getDocumentsByParty, getUserById, getQuotationByLead, createProject
 } from '~/data'
-import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, findStatusOption } from '~/constants/status'
+import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
 import type { StatusOption } from '~/types/common'
 import type { PartyLifecycleStatus } from '~/types/party'
+import type { ServiceTypeKey } from '~/types/project'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
-const { canView } = usePermissions()
+const { canView, canManage } = usePermissions()
+const { showToast } = useToast()
 /** Sales dibatasi ke Lead saja pada Customer Journey (docs Prompt 19-10) — narrow exception. */
 const hasAccess = computed(() => canView('crm'))
+
+/** "Buat Project" langsung di tab Project halaman ini (Database Customer) — sebelumnya user harus loncat
+ * dulu ke Party Detail (CRM) cuma untuk tombol ini, padahal entitasnya sama. Mirror persis flow "Buat
+ * Project" di `crm/parties/[id]` (`createProject`, sama gate `canManage('operations')`), disatukan di sini
+ * supaya tidak ada dua tempat berbeda untuk aksi yang sama pada customer yang sama. */
+const canManageProject = computed(() => canManage('operations'))
+const isCreateProjectOpen = ref(false)
+const newProjectName = ref('')
+const newProjectDestination = ref('')
+const newProjectStartDate = ref('')
+const newProjectEndDate = ref('')
+const newProjectTravelerCount = ref<number | null>(null)
+const newProjectServiceScope = ref<ServiceTypeKey[]>([])
+const newProjectAmountIdr = ref<number | null>(null)
+
+function toggleNewProjectServiceScope (type: ServiceTypeKey) {
+  const index = newProjectServiceScope.value.indexOf(type)
+  if (index === -1) { newProjectServiceScope.value.push(type) } else { newProjectServiceScope.value.splice(index, 1) }
+}
+
+function resetCreateProjectForm () {
+  newProjectName.value = ''
+  newProjectDestination.value = ''
+  newProjectStartDate.value = ''
+  newProjectEndDate.value = ''
+  newProjectTravelerCount.value = null
+  newProjectServiceScope.value = []
+  newProjectAmountIdr.value = null
+}
+
+const isNewProjectFormValid = computed(() => Boolean(
+  newProjectName.value.trim() &&
+  newProjectDestination.value.trim() &&
+  newProjectStartDate.value &&
+  newProjectEndDate.value &&
+  newProjectTravelerCount.value &&
+  newProjectServiceScope.value.length &&
+  newProjectAmountIdr.value
+))
+
+function submitCreateProject () {
+  if (!party.value || !isNewProjectFormValid.value) { return }
+  const project = createProject({
+    partyId: party.value.id,
+    name: newProjectName.value.trim(),
+    destination: newProjectDestination.value.trim(),
+    travelStartDate: newProjectStartDate.value,
+    travelEndDate: newProjectEndDate.value,
+    travelerCount: newProjectTravelerCount.value!,
+    serviceScope: newProjectServiceScope.value,
+    quotationAmountIdr: newProjectAmountIdr.value!
+  })
+  if (!project) { showToast('Gagal Membuat Project', 'Periksa kembali tanggal dan data yang diisi.', 'error'); return }
+  resetCreateProjectForm()
+  isCreateProjectOpen.value = false
+  showToast('Project Dibuat', `${project.id} tercatat berstatus "Draft".`, 'success')
+}
 
 const LIFECYCLE_STATUSES: StatusOption<PartyLifecycleStatus>[] = [
   { value: 'prospect', label: 'Prospect', tone: 'warning', order: 1 },
@@ -169,6 +228,75 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
 
         <TabsContent value="project-orders">
           <SectionCard title="Project Orders">
+            <template #actions>
+              <Sheet v-if="canManageProject" v-model:open="isCreateProjectOpen">
+                <SheetTrigger as-child>
+                  <Button size="sm" variant="outline">
+                    <Plus class="h-4 w-4 mr-1.5" />Buat Project
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" class="w-full sm:max-w-md overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>Buat Project Baru</SheetTitle>
+                    <SheetDescription>Untuk: {{ party?.name }} — tanpa lewat Lead, status awal "Draft".</SheetDescription>
+                  </SheetHeader>
+                  <div class="space-y-4 py-4">
+                    <div class="space-y-1.5">
+                      <Label for="cust-prj-name">Nama Project</Label>
+                      <Input id="cust-prj-name" v-model="newProjectName" placeholder="mis. Jakarta Business Trip Q1 2027" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="cust-prj-destination">Destinasi</Label>
+                      <Input id="cust-prj-destination" v-model="newProjectDestination" placeholder="mis. Bali" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label for="cust-prj-start">Tanggal Berangkat</Label>
+                        <Input id="cust-prj-start" v-model="newProjectStartDate" type="date" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="cust-prj-end">Tanggal Pulang</Label>
+                        <Input id="cust-prj-end" v-model="newProjectEndDate" type="date" />
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label for="cust-prj-travelers">Jumlah Traveler</Label>
+                        <Input id="cust-prj-travelers" v-model.number="newProjectTravelerCount" type="number" min="1" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="cust-prj-amount">Nilai Kontrak (Rp)</Label>
+                        <CurrencyInput id="cust-prj-amount" v-model="newProjectAmountIdr" />
+                      </div>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label>Service Scope</Label>
+                      <div class="flex flex-wrap gap-2">
+                        <button
+                          v-for="type in SERVICE_TYPES"
+                          :key="type.value"
+                          type="button"
+                          class="rounded-full border px-3 py-1 text-xs transition-colors"
+                          :class="newProjectServiceScope.includes(type.value) ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground'"
+                          @click="toggleNewProjectServiceScope(type.value)"
+                        >
+                          {{ type.value === 'additional' ? 'Other' : type.label }}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  <SheetFooter class="flex-row justify-end gap-2">
+                    <Button variant="outline" @click="resetCreateProjectForm(); isCreateProjectOpen = false">
+                      Batal
+                    </Button>
+                    <Button :disabled="!isNewProjectFormValid" @click="submitCreateProject">
+                      Simpan
+                    </Button>
+                  </SheetFooter>
+                </SheetContent>
+              </Sheet>
+            </template>
+
             <Table v-if="projectOrders.length">
               <TableHeader>
                 <TableRow>
