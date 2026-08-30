@@ -21,7 +21,7 @@ function projectLabel (projectId: string) {
 
 <template>
   <div class="space-y-6">
-    <RoleAccessState v-if="!canView('supplier-portal') || !vendor" module-label="Vendor Portal" />
+    <RoleAccessState v-if="!canView('supplier-portal') || !vendor" module-label="Katalog" />
 
     <template v-else>
       <SectionCard title="Active Assignments" description="Service yang ditugaskan ke company Anda pada Project Order terkait.">

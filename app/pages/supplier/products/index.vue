@@ -18,7 +18,7 @@ useHead({ title: 'Katalog' })
     <PageHeader
       title="Katalog"
       description="Produk/layanan dan komoditas milik Anda — dalam satu menu."
-      :breadcrumb="[{ label: 'Vendor Portal', to: '/supplier' }, { label: 'Katalog' }]"
+      :breadcrumb="[{ label: 'Katalog' }]"
     />
 
     <section id="products" class="space-y-4 scroll-mt-20">

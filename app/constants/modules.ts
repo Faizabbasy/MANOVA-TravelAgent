@@ -39,7 +39,7 @@ export const MODULES: ModuleDefinition[] = [
   { key: 'administration', label: 'Administration', description: 'User, role & permission, master data, audit trail, dan profil organisasi.', group: 'system', order: 10, icon: ShieldCheck },
   { key: 'documents', label: 'Documents & Communication', description: 'Document center, pesan, dan notifikasi lintas modul.', group: 'system', order: 11, icon: FileText },
   { key: 'client-portal', label: 'Client Portal', description: 'Portal self-service klien, diisolasi per company (`clientPartyId`).', group: 'system', order: 12, icon: Briefcase },
-  { key: 'vendor-portal', label: 'Vendor Portal', description: 'Portal self-service vendor, diisolasi per vendor company (`vendorId`).', group: 'system', order: 13, icon: Truck }
+  { key: 'vendor-portal', label: 'Katalog', description: 'Portal self-service vendor, diisolasi per vendor company (`vendorId`).', group: 'system', order: 13, icon: Truck }
 ]
 
 export const MODULE_KEYS = MODULES.map(module => module.key)

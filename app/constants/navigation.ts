@@ -161,7 +161,7 @@ export const NAV_ITEMS: NavItem[] = [
    */
   {
     key: 'vendor-portal',
-    label: 'Vendor Portal',
+    label: 'Katalog',
     to: '/supplier',
     icon: Truck,
     moduleKey: 'vendor-portal',

@@ -88,7 +88,7 @@ function submitCreate () {
       </Dialog>
     </div>
 
-    <RoleAccessState v-if="!canView('supplier-portal') || !vendor" module-label="Vendor Portal" />
+    <RoleAccessState v-if="!canView('supplier-portal') || !vendor" module-label="Katalog" />
 
     <template v-else>
       <SectionCard>

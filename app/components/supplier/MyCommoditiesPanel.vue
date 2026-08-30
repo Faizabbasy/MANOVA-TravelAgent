@@ -130,7 +130,7 @@ function submitCreate () {
       </Dialog>
     </div>
 
-    <RoleAccessState v-if="!canView('supplier-portal') || !vendor" module-label="Vendor Portal" />
+    <RoleAccessState v-if="!canView('supplier-portal') || !vendor" module-label="Katalog" />
 
     <template v-else>
       <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
