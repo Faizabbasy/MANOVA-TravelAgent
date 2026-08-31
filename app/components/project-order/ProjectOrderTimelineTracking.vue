@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Table as TableIcon, GanttChartSquare, Info, Check } from 'lucide-vue-next'
+import { Table as TableIcon, GanttChartSquare, Info, Check, X, StickyNote } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import { getMilestoneDelayDays, getProjectMilestoneSummary } from '~/data/project-order-workflow'
 import { getUserById } from '~/data'
@@ -20,9 +20,29 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update-planned': [payload: { milestoneId: string; plannedDate: string }]
   'mark-actual': [milestoneId: string]
+  'update-note': [payload: { milestoneId: string; note: string }]
 }>()
 
 const view = ref<'table' | 'gantt'>('table')
+
+/** Editor catatan per milestone — dibuka/ditutup lokal di komponen ini (tidak perlu state di parent, sama seperti `view`), cuma nilai final yang di-emit lewat "Save". */
+const editingNoteMilestoneId = ref<string | null>(null)
+const noteDraft = ref('')
+
+function openNoteEditor (milestone: ProjectMilestone) {
+  editingNoteMilestoneId.value = milestone.id
+  noteDraft.value = milestone.note ?? ''
+}
+
+function closeNoteEditor () {
+  editingNoteMilestoneId.value = null
+  noteDraft.value = ''
+}
+
+function saveNote (milestoneId: string) {
+  emit('update-note', { milestoneId, note: noteDraft.value })
+  closeNoteEditor()
+}
 
 const summary = computed(() => getProjectMilestoneSummary(props.projectId))
 
@@ -107,17 +127,31 @@ function delayLabel (delay: number | undefined): string {
           </TableRow>
         </TableHeader>
         <TableBody>
-          <TableRow v-for="row in rows" :key="row.milestone.id">
+          <template v-for="row in rows" :key="row.milestone.id">
+          <TableRow>
             <TableCell>
-              <p class="text-sm font-medium text-foreground">
-                {{ row.milestone.name }}
-              </p>
-              <p v-if="row.ownerName" class="text-xs text-muted-foreground">
-                {{ row.ownerName }}
-              </p>
-              <p v-if="row.milestone.note" class="text-xs text-muted-foreground italic mt-0.5">
-                {{ row.milestone.note }}
-              </p>
+              <div class="flex items-start gap-1.5">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground">
+                    {{ row.milestone.name }}
+                  </p>
+                  <p v-if="row.ownerName" class="text-xs text-muted-foreground">
+                    {{ row.ownerName }}
+                  </p>
+                  <p v-if="row.milestone.note" class="text-xs text-muted-foreground italic mt-0.5">
+                    {{ row.milestone.note }}
+                  </p>
+                </div>
+                <button
+                  v-if="canManage"
+                  type="button"
+                  class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-primary"
+                  :title="row.milestone.note ? 'Edit catatan' : 'Tambah catatan'"
+                  @click="editingNoteMilestoneId === row.milestone.id ? closeNoteEditor() : openNoteEditor(row.milestone)"
+                >
+                  <StickyNote class="h-3.5 w-3.5" />
+                </button>
+              </div>
             </TableCell>
             <TableCell class="whitespace-nowrap">
               <input
@@ -169,6 +203,26 @@ function delayLabel (delay: number | undefined): string {
               </Button>
             </TableCell>
           </TableRow>
+          <TableRow v-if="editingNoteMilestoneId === row.milestone.id" class="hover:bg-transparent">
+            <TableCell :colspan="canManage ? 6 : 5" class="border-l-2 border-l-primary bg-primary/[0.03] py-3">
+              <textarea
+                v-model="noteDraft"
+                rows="2"
+                autofocus
+                placeholder="Tambahkan catatan (mis. alasan delay, alasan selesai lebih cepat)"
+                class="w-full rounded-lg border border-primary/50 bg-card px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <div class="mt-2 flex items-center justify-end gap-3">
+                <button type="button" class="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground" @click="closeNoteEditor">
+                  <X class="h-3.5 w-3.5" />Cancel
+                </button>
+                <Button size="sm" @click="saveNote(row.milestone.id)">
+                  <Check class="mr-1 h-3.5 w-3.5" />Save
+                </Button>
+              </div>
+            </TableCell>
+          </TableRow>
+          </template>
         </TableBody>
       </Table>
 

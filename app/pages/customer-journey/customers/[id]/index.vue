@@ -4,7 +4,8 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus } from 'lucide-vue-next'
 import {
   getPartyById, getContactsByParty, getLeadsByParty, getProjectsByParty, getPartyActivities,
-  getDocumentsByParty, getUserById, getQuotationByLead, createProject
+  getDocumentsByParty, getUserById, getQuotationByLead, createProject,
+  ensureProjectServiceForBudget, updateProjectServiceBudget
 } from '~/data'
 import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
@@ -34,6 +35,10 @@ const newProjectEndDate = ref('')
 const newProjectTravelerCount = ref<number | null>(null)
 const newProjectServiceScope = ref<ServiceTypeKey[]>([])
 const newProjectAmountIdr = ref<number | null>(null)
+/** Budget per layanan langsung di form "Buat Project" — muncul begitu chip Service Scope dicentang, opsional,
+ * memakai mesin yang sama dengan "Edit Budget" tab Finance (`ensureProjectServiceForBudget`/
+ * `updateProjectServiceBudget`, `app/data/index.ts`) supaya tidak perlu bolak-balik ke halaman lain. */
+const newProjectServiceBudgets = ref<Partial<Record<ServiceTypeKey, number | null>>>({})
 
 function toggleNewProjectServiceScope (type: ServiceTypeKey) {
   const index = newProjectServiceScope.value.indexOf(type)
@@ -48,6 +53,7 @@ function resetCreateProjectForm () {
   newProjectTravelerCount.value = null
   newProjectServiceScope.value = []
   newProjectAmountIdr.value = null
+  newProjectServiceBudgets.value = {}
 }
 
 const isNewProjectFormValid = computed(() => Boolean(
@@ -59,6 +65,10 @@ const isNewProjectFormValid = computed(() => Boolean(
   newProjectServiceScope.value.length &&
   newProjectAmountIdr.value
 ))
+
+const newProjectServiceBudgetsTotal = computed(() =>
+  newProjectServiceScope.value.reduce((sum, type) => sum + (newProjectServiceBudgets.value[type] ?? 0), 0)
+)
 
 function submitCreateProject () {
   if (!party.value || !isNewProjectFormValid.value) { return }
@@ -73,6 +83,13 @@ function submitCreateProject () {
     quotationAmountIdr: newProjectAmountIdr.value!
   })
   if (!project) { showToast('Gagal Membuat Project', 'Periksa kembali tanggal dan data yang diisi.', 'error'); return }
+  for (const type of newProjectServiceScope.value) {
+    const amount = newProjectServiceBudgets.value[type]
+    if (!amount) { continue }
+    const label = findStatusOption(SERVICE_TYPES, type).label
+    const service = ensureProjectServiceForBudget(project.id, type, label)
+    updateProjectServiceBudget(service.id, amount)
+  }
   resetCreateProjectForm()
   isCreateProjectOpen.value = false
   showToast('Project Dibuat', `${project.id} tercatat berstatus "Draft".`, 'success')
@@ -283,6 +300,19 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
                           {{ type.value === 'additional' ? 'Other' : type.label }}
                         </button>
                       </div>
+                    </div>
+                    <div v-if="newProjectServiceScope.length" class="space-y-3">
+                      <Label>Budget per Layanan (opsional)</Label>
+                      <div v-for="type in SERVICE_TYPES.filter(t => newProjectServiceScope.includes(t.value))" :key="type.value" class="space-y-1.5">
+                        <Label :for="`cust-prj-budget-${type.value}`" class="text-xs text-muted-foreground">
+                          {{ type.value === 'additional' ? 'Other' : type.label }}
+                        </Label>
+                        <CurrencyInput :id="`cust-prj-budget-${type.value}`" v-model="newProjectServiceBudgets[type.value]" placeholder="mis. 100000000" />
+                      </div>
+                      <p v-if="newProjectAmountIdr" class="text-xs text-muted-foreground">
+                        Nilai Kontrak: <span class="font-medium text-foreground">{{ formatCurrencyIdr(newProjectAmountIdr) }}</span>
+                        · Sudah Dialokasikan: <span class="font-medium text-foreground">{{ formatCurrencyIdr(newProjectServiceBudgetsTotal) }}</span>
+                      </p>
                     </div>
                   </div>
                   <SheetFooter class="flex-row justify-end gap-2">

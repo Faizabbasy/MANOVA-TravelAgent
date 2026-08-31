@@ -40,6 +40,23 @@ export interface ExchangeRateSnapshot {
   capturedAt: string
 }
 
+/**
+ * Breakdown termin (Down Payment/Termin/Final) di dalam satu Invoice — dibuat langsung dari Project Detail
+ * (tab Finance, tombol "+ Buat Invoice") supaya client tidak perlu ke modul Finance terpisah hanya untuk
+ * menerbitkan invoice bertermin. Opsional/aditif — invoice lama (dibuat lewat `/finance/invoices`, tanpa
+ * milestone) tetap berupa satu `amountIdr` flat seperti biasa. Saat `milestones` terisi, `sum(amountIdr)`
+ * SELALU sama dengan `Invoice.amountIdr` induknya (dihitung sekali saat `createInvoice`, tidak pernah ditulis
+ * ulang — konsisten prinsip "amountIdr tidak berubah" yang sudah dipakai `CreditNote`/`DebitNote`). Milestone
+ * TIDAK bisa diedit/dihapus setelah invoice terbit — koreksi lewat Void/Credit Note seperti invoice lain.
+ */
+export interface InvoiceMilestone {
+  id: ID
+  label: string
+  /** 0-100, porsi dari `amountIdr` invoice induk. */
+  percent: number
+  amountIdr: number
+}
+
 export interface Invoice {
   id: ID
   projectId: ID
@@ -51,6 +68,10 @@ export interface Invoice {
   currency: InvoiceCurrency
   exchangeRateSnapshot?: ExchangeRateSnapshot
   invoiceType: InvoiceType
+  /** Breakdown termin, diisi `createInvoice` bila dibuat dari Project Detail dengan template milestone. */
+  milestones?: InvoiceMilestone[]
+  /** Catatan bebas invoice (mis. rujukan PO/kontrak) — diisi saat `createInvoice`, ditampilkan di footer card. */
+  notes?: string
   /** Diisi oleh `voidInvoice` (Section 20) — alasan wajib, transisi terminal (pola sama section lain). */
   voidedAt?: string
   voidReason?: string
@@ -83,6 +104,10 @@ export interface Payment {
   method?: string
   /** Reuse `User.id` — wajib diisi sejak Section 20 (backfill fixture existing dengan user Finance yang plausible). */
   recordedBy: ID
+  /** Menautkan payment ke satu `InvoiceMilestone` spesifik (bila invoice induknya punya milestone) — opsional, invoice flat lama tetap kosong. */
+  milestoneId?: ID
+  /** Free text dari form Record Payment (mis. ID transfer/no. kuitansi) — opsional. */
+  reference?: string
 }
 
 /** `CreditNote` — mengurangi outstanding invoice terkait tanpa menulis ulang `Invoice.amountIdr`. `refundRequestId` opsional menautkan ke `RefundRequest` (Section 19, `app/types/change-incident.ts`) — loose reference, tidak memutasi entitas itu. */

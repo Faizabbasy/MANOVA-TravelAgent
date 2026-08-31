@@ -4,7 +4,8 @@ import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock, Plus, Users, 
 import { cn } from '~/lib/utils'
 import {
   PROJECTS, PARTIES, getPartyById, getUserById, getProjectOrderStatus,
-  createProject, getTravelers, getSalesOrderById, getProjectSeatsFilled
+  createProject, getTravelers, getSalesOrderById, getProjectSeatsFilled,
+  ensureProjectServiceForBudget, updateProjectServiceBudget
 } from '~/data'
 import {
   PROJECT_ORDER_STEPS,
@@ -82,6 +83,10 @@ const newProjectEndDate = ref('')
 const newProjectTravelerCount = ref<number | null>(null)
 const newProjectServiceScope = ref<ServiceTypeKey[]>([])
 const newProjectAmountIdr = ref<number | null>(null)
+/** Budget per layanan langsung di form "Buat Project" — muncul begitu chip Service Scope dicentang, opsional,
+ * memakai mesin yang sama dengan "Edit Budget" tab Finance (`ensureProjectServiceForBudget`/
+ * `updateProjectServiceBudget`, `app/data/index.ts`) supaya tidak perlu bolak-balik ke halaman lain. */
+const newProjectServiceBudgets = ref<Partial<Record<ServiceTypeKey, number | null>>>({})
 
 function toggleNewProjectServiceScope (type: ServiceTypeKey) {
   const index = newProjectServiceScope.value.indexOf(type)
@@ -98,6 +103,7 @@ function resetCreateProjectForm () {
   newProjectTravelerCount.value = null
   newProjectServiceScope.value = []
   newProjectAmountIdr.value = null
+  newProjectServiceBudgets.value = {}
 }
 
 const isNewProjectFormValid = computed(() => Boolean(
@@ -110,6 +116,10 @@ const isNewProjectFormValid = computed(() => Boolean(
   newProjectServiceScope.value.length &&
   newProjectAmountIdr.value
 ))
+
+const newProjectServiceBudgetsTotal = computed(() =>
+  newProjectServiceScope.value.reduce((sum, type) => sum + (newProjectServiceBudgets.value[type] ?? 0), 0)
+)
 
 function submitCreateProject () {
   if (!isNewProjectFormValid.value) { return }
@@ -125,6 +135,13 @@ function submitCreateProject () {
     quotationAmountIdr: newProjectAmountIdr.value!
   })
   if (!project) { showToast('Gagal Membuat Project', 'Periksa kembali tanggal dan data yang diisi.', 'error'); return }
+  for (const type of newProjectServiceScope.value) {
+    const amount = newProjectServiceBudgets.value[type]
+    if (!amount) { continue }
+    const label = findStatusOption(SERVICE_TYPES, type).label
+    const service = ensureProjectServiceForBudget(project.id, type, label)
+    updateProjectServiceBudget(service.id, amount)
+  }
   resetCreateProjectForm()
   isCreateProjectOpen.value = false
   showToast('Project Dibuat', `${project.id} tercatat berstatus "Draft".`, 'success')
@@ -224,18 +241,18 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input v-model="searchQuery" placeholder="Cari nomor, nama, atau customer..." class="pl-9" />
         </div>
-        <Dialog v-if="canManageOrders" v-model:open="isCreateProjectOpen">
-          <DialogTrigger as-child>
+        <Sheet v-if="canManageOrders" v-model:open="isCreateProjectOpen">
+          <SheetTrigger as-child>
             <Button size="sm" class="ml-auto">
               <Plus class="h-4 w-4 mr-1.5" />Buat Project
             </Button>
-          </DialogTrigger>
-          <DialogContent class="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Buat Project Baru</DialogTitle>
-              <DialogDescription>Untuk customer yang sudah ada — tanpa lewat Lead, status awal "Draft".</DialogDescription>
-            </DialogHeader>
-            <div class="space-y-4 py-2">
+          </SheetTrigger>
+          <SheetContent side="right" class="w-full sm:max-w-md overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Buat Project Baru</SheetTitle>
+              <SheetDescription>Untuk customer yang sudah ada — tanpa lewat Lead, status awal "Draft".</SheetDescription>
+            </SheetHeader>
+            <div class="space-y-4 py-4">
               <label class="flex items-start gap-2 text-sm text-foreground cursor-pointer rounded-lg border border-input px-3 py-2.5">
                 <Checkbox v-model="newProjectIsGroupTrip" class="mt-0.5" />
                 <span>
@@ -309,17 +326,30 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
                   </button>
                 </div>
               </div>
+              <div v-if="newProjectServiceScope.length" class="space-y-3">
+                <Label>Budget per Layanan (opsional)</Label>
+                <div v-for="type in SERVICE_TYPES.filter(t => newProjectServiceScope.includes(t.value))" :key="type.value" class="space-y-1.5">
+                  <Label :for="`prj-budget-${type.value}`" class="text-xs text-muted-foreground">
+                    {{ type.value === 'additional' ? 'Other' : type.label }}
+                  </Label>
+                  <CurrencyInput :id="`prj-budget-${type.value}`" v-model="newProjectServiceBudgets[type.value]" placeholder="mis. 100000000" />
+                </div>
+                <p v-if="newProjectAmountIdr" class="text-xs text-muted-foreground">
+                  Nilai Kontrak: <span class="font-medium text-foreground">{{ formatCurrencyIdr(newProjectAmountIdr) }}</span>
+                  · Sudah Dialokasikan: <span class="font-medium text-foreground">{{ formatCurrencyIdr(newProjectServiceBudgetsTotal) }}</span>
+                </p>
+              </div>
             </div>
-            <DialogFooter>
+            <SheetFooter class="flex-row justify-end gap-2">
               <Button variant="outline" @click="resetCreateProjectForm(); isCreateProjectOpen = false">
                 Batal
               </Button>
               <Button :disabled="!isNewProjectFormValid" @click="submitCreateProject">
                 Simpan
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
       </div>
 
       <div class="flex flex-wrap gap-2">

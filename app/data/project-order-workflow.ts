@@ -477,6 +477,14 @@ export function updateMilestonePlannedDate (milestoneId: string, plannedDate: st
   return milestone
 }
 
+/** Catatan bebas per milestone (mis. alasan delay/early completion) — tab "Timeline Tracking". Kosongkan (string kosong) untuk menghapus catatan. */
+export function updateMilestoneNote (milestoneId: string, note: string): ProjectMilestone | undefined {
+  const milestone = PROJECT_MILESTONES.find(item => item.id === milestoneId)
+  if (!milestone) { return undefined }
+  milestone.note = note.trim() || undefined
+  return milestone
+}
+
 export function createProjectMilestone (input: Omit<ProjectMilestone, 'id' | 'status'> & { status?: ProjectMilestone['status'] }): ProjectMilestone {
   const milestone: ProjectMilestone = {
     ...input,

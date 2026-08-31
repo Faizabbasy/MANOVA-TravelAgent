@@ -26,6 +26,7 @@ import { COMMODITY_REQUIREMENTS } from './requirements'
 import { COMMODITY_SELECTIONS } from './selections'
 import { COMMODITY_ORDERS } from './commodity-orders'
 import { TRAVEL_REQUESTS, TRAVEL_REQUEST_ATTACHMENTS, TRAVEL_REQUEST_ACTIVITIES } from './travel-requests'
+import { createProjectMilestone } from './project-order-workflow'
 import { CLIENT_APPROVALS } from './client-approvals'
 import { ITINERARY_VERSIONS, ITINERARY_COMMENTS } from './itinerary-versions'
 import { RESERVATIONS } from './reservations'
@@ -55,8 +56,9 @@ import type { MiceEvent, MiceEventStatus, MiceApprovalStatus } from '~/types/mic
 import type { RFQ, RFQStatus, RFQLineItem, RFQResponse, RFQResponseLineItem, RFQClarificationMessage, ServiceOrder, ServiceOrderStatus, ServiceOrderLineItem, SupplierInvoice, SupplierInvoiceStatus, SupplierInvoiceMatchStatus } from '~/types/procurement'
 import type { BookingDomain, BookingOrchestrationRecord, BookingAttempt, BookingAttemptOutcome, BookingPaymentGateStatus, BookingTimelineEntry, BookingTimelineDependencyView } from '~/types/booking-orchestration'
 import type { ChangeRequest, ChangeRequestSource, ChangeRequestStatus, ChangeRequestType, AffectedEntityRef, CancellationRecord, RefundRequest, RefundRequestStatus, Incident, IncidentSeverity, IncidentStatus, IncidentCommunicationEntry, ChangeRequestDraft, ChangeRequestComment, ChangeRequestAttachment } from '~/types/change-incident'
-import type { Invoice, InvoiceCurrency, InvoiceType, ExchangeRateSnapshot, Payment, CreditNote, DebitNote } from '~/types/finance'
+import type { Invoice, InvoiceCurrency, InvoiceType, InvoiceMilestone, InvoiceStatus, ExchangeRateSnapshot, Payment, CreditNote, DebitNote } from '~/types/finance'
 import type { Document, DocumentEntityType, DocumentAccessLevel, Message, MessageChannel, Notification, NotificationType, NotificationCategory, UnifiedTimelineEntry, DocumentComment, ClientDocumentCategory } from '~/types/document-comms'
+import type { ProjectOrderStepKey } from '~/types/project-order'
 import type { SavedView, SavedViewPage } from '~/types/reporting'
 import type { OrganizationProfile, MasterDataCategoryKey } from '~/types/master-data'
 import type { User } from '~/types/user'
@@ -251,6 +253,29 @@ export function getInvoiceOutstandingIdr (invoiceId: string): number {
   return Math.max(invoice.amountIdr - paid - credited, 0)
 }
 
+/** Σ Payment yang ditujukan (via `Payment.milestoneId`) ke satu milestone spesifik dalam sebuah invoice bertermin. */
+export function getInvoiceMilestonePaidIdr (invoiceId: string, milestoneId: string): number {
+  return getPaymentsByInvoice(invoiceId)
+    .filter(payment => payment.milestoneId === milestoneId)
+    .reduce((sum, payment) => sum + payment.amountIdr, 0)
+}
+
+/** Sisa tagihan satu milestone (bukan seluruh invoice) — dipakai Record Payment saat invoice bertermin, supaya pembayaran milestone tertentu di-clamp ke sisa milestone itu sendiri, bukan sisa invoice keseluruhan. */
+export function getInvoiceMilestoneOutstandingIdr (invoiceId: string, milestoneId: string): number {
+  const invoice = INVOICES.find(item => item.id === invoiceId)
+  const milestone = invoice?.milestones?.find(item => item.id === milestoneId)
+  if (!invoice || !milestone || invoice.status === 'void') { return 0 }
+  return Math.max(milestone.amountIdr - getInvoiceMilestonePaidIdr(invoiceId, milestoneId), 0)
+}
+
+/** Status satu milestone (`paid`/`partially-paid`/`unpaid`), reuse `InvoiceStatus` supaya bisa langsung dipetakan ke `StatusBadge` via `findStatusOption(INVOICE_STATUSES, ...)` sama seperti status invoice-level. */
+export function getInvoiceMilestoneStatus (invoiceId: string, milestoneId: string): InvoiceStatus {
+  const outstanding = getInvoiceMilestoneOutstandingIdr(invoiceId, milestoneId)
+  if (outstanding <= 0) { return 'paid' }
+  const paid = getInvoiceMilestonePaidIdr(invoiceId, milestoneId)
+  return paid > 0 ? 'partially-paid' : 'unpaid'
+}
+
 /** Total outstanding satu project — dipakai tampilan "ringkas" (Sales/role tanpa akses modul Finance) dan Finance tab penuh. */
 export function getProjectOutstandingIdr (projectId: string): number {
   return getInvoicesByProject(projectId)
@@ -289,14 +314,41 @@ export interface CreateInvoiceInput {
   invoiceType: InvoiceType
   dueAt: string
   exchangeRateSnapshot?: ExchangeRateSnapshot
+  /** Breakdown termin (Project Detail, tombol "+ Buat Invoice") — total `percent` harus 100 (toleransi 0.01 untuk rounding). */
+  milestones?: { label: string, percent: number }[]
+  notes?: string
 }
 
-/** Membuat Invoice baru berstatus `unpaid`. `exchangeRateSnapshot` hanya disimpan bila `currency !== 'IDR'`. */
+/**
+ * Membuat Invoice baru berstatus `unpaid`. `exchangeRateSnapshot` hanya disimpan bila `currency !== 'IDR'`.
+ * `milestones` opsional (Project Detail) — tiap `amountIdr` = `Math.round(percent% * amountIdr)`, sisa
+ * pembulatan diserap milestone terakhir supaya `sum(milestones.amountIdr) === invoice.amountIdr` persis.
+ * Diblokir kalau total `percent` bukan 100 (±0.01) — mencegah invoice bertermin dengan porsi tidak lengkap.
+ */
 export function createInvoice (input: CreateInvoiceInput): Invoice | undefined {
   const project = getProjectById(input.projectId)
   if (!project || !input.label.trim() || input.amountIdr <= 0 || !input.dueAt) { return undefined }
+  if (input.milestones && input.milestones.length > 0) {
+    const totalPercent = input.milestones.reduce((sum, milestone) => sum + milestone.percent, 0)
+    if (Math.abs(totalPercent - 100) > 0.01 || input.milestones.some(milestone => !milestone.label.trim() || milestone.percent <= 0)) { return undefined }
+  }
+
+  const invoiceId = nextSequentialId('INV-', INVOICES)
+  const milestones: InvoiceMilestone[] | undefined = input.milestones && input.milestones.length > 0
+    ? input.milestones.map((milestone, index) => ({
+        id: `${invoiceId}-M${index + 1}`,
+        label: milestone.label.trim(),
+        percent: milestone.percent,
+        amountIdr: Math.round(input.amountIdr * milestone.percent / 100)
+      }))
+    : undefined
+  if (milestones && milestones.length > 0) {
+    const roundedTotal = milestones.reduce((sum, milestone) => sum + milestone.amountIdr, 0)
+    milestones[milestones.length - 1].amountIdr += input.amountIdr - roundedTotal
+  }
+
   const invoice: Invoice = {
-    id: nextSequentialId('INV-', INVOICES),
+    id: invoiceId,
     projectId: input.projectId,
     label: input.label.trim(),
     amountIdr: input.amountIdr,
@@ -305,7 +357,9 @@ export function createInvoice (input: CreateInvoiceInput): Invoice | undefined {
     status: 'unpaid',
     currency: input.currency,
     invoiceType: input.invoiceType,
-    exchangeRateSnapshot: input.currency !== 'IDR' ? input.exchangeRateSnapshot : undefined
+    exchangeRateSnapshot: input.currency !== 'IDR' ? input.exchangeRateSnapshot : undefined,
+    milestones,
+    notes: input.notes?.trim() || undefined
   }
   INVOICES.push(invoice)
   ACTIVITIES.push({
@@ -349,28 +403,38 @@ export interface RecordPaymentInput {
   amountIdr: number
   recordedBy: string
   method?: string
+  /** Menargetkan satu `InvoiceMilestone` (invoice bertermin) — bila diisi, jumlah di-clamp ke sisa milestone itu, bukan sisa invoice keseluruhan. */
+  milestoneId?: string
+  reference?: string
+  /** Tanggal pembayaran dari form (Project Detail) — default `DEMO_REFERENCE_DATE` bila tidak diisi, sama seperti field tanggal lain di app ini (mis. `ProjectExpense.incurredAt`). */
+  receivedAt?: string
 }
 
 /**
  * Record Payment — mock ledger update murni (D-006, bukan payment gateway nyata). Recompute `Invoice.status`
  * lewat `getInvoiceOutstandingIdr` existing (TIDAK menduplikasi math outstanding) — `unpaid`/`partially-paid`
  * → `paid` otomatis begitu outstanding mencapai 0. Diblokir untuk invoice `paid`/`void` (tidak ada yang perlu
- * dibayar lagi) atau jumlah invalid.
+ * dibayar lagi) atau jumlah invalid. `milestoneId` (invoice bertermin) meng-clamp ke sisa milestone tsb saja —
+ * status invoice keseluruhan tetap dihitung agregat seperti biasa lewat `getInvoiceOutstandingIdr`.
  */
 export function recordPayment (input: RecordPaymentInput): Payment | undefined {
   const invoice = INVOICES.find(item => item.id === input.invoiceId)
   if (!invoice || input.amountIdr <= 0) { return undefined }
   if (invoice.status === 'paid' || invoice.status === 'void') { return undefined }
-  const outstandingBefore = getInvoiceOutstandingIdr(input.invoiceId)
+  const outstandingBefore = input.milestoneId
+    ? getInvoiceMilestoneOutstandingIdr(input.invoiceId, input.milestoneId)
+    : getInvoiceOutstandingIdr(input.invoiceId)
   if (outstandingBefore <= 0) { return undefined }
 
   const payment: Payment = {
     id: nextSequentialId('PAY-', PAYMENTS),
     invoiceId: input.invoiceId,
     amountIdr: Math.min(input.amountIdr, outstandingBefore),
-    receivedAt: DEMO_REFERENCE_DATE,
+    receivedAt: input.receivedAt || DEMO_REFERENCE_DATE,
     method: input.method,
-    recordedBy: input.recordedBy
+    recordedBy: input.recordedBy,
+    milestoneId: input.milestoneId,
+    reference: input.reference?.trim() || undefined
   }
   PAYMENTS.push(payment)
   invoice.status = getInvoiceOutstandingIdr(input.invoiceId) <= 0 ? 'paid' : 'partially-paid'
@@ -1216,7 +1280,36 @@ export function createProject (input: CreateProjectInput): Project | undefined {
     actualCostIdr: 0
   }
   PROJECTS.push(project)
+  seedDefaultProjectMilestones(project)
   return project
+}
+
+/**
+ * 8 milestone standar Timeline Tracking (tab Overview, `ProjectOrderTimelineTracking.vue`) — sebelum ini,
+ * `createProjectMilestone` (`app/data/project-order-workflow.ts`) tidak pernah dipanggil dari alur pembuatan
+ * project mana pun, jadi project baru (di luar data seed demo PRJ-101/102/103/205) selalu tampil "Belum ada
+ * milestone" tanpa cara mengisinya. Tanggal rencana dihitung mundur dari `travelStartDate`/`travelEndDate`
+ * (bukan angka presisi bisnis nyata, sekadar jadwal default yang masuk akal — tetap bisa diedit manual
+ * selama project masih di step Drafting, lihat `plannedDatesLocked` di halaman Project Order). Diclamp ke
+ * `DEMO_REFERENCE_DATE` supaya project dengan keberangkatan dekat tidak menghasilkan milestone "direncanakan"
+ * di masa lalu.
+ */
+function seedDefaultProjectMilestones (project: Project): void {
+  const notBeforeToday = (iso: string) => (iso < DEMO_REFERENCE_DATE ? DEMO_REFERENCE_DATE : iso)
+  const beforeDeparture = (days: number) => notBeforeToday(formatISO(addDays(parseISO(project.travelStartDate), -days), { representation: 'date' }))
+  const afterReturn = (days: number) => formatISO(addDays(parseISO(project.travelEndDate), days), { representation: 'date' })
+
+  const defaults: { stepKey: ProjectOrderStepKey; name: string; plannedDate: string }[] = [
+    { stepKey: 'drafting', name: 'SPK / Handover Diterima', plannedDate: beforeDeparture(60) },
+    { stepKey: 'drafting', name: 'Finalisasi Itinerary', plannedDate: beforeDeparture(45) },
+    { stepKey: 'confirmed', name: 'Invoice DP Terbit', plannedDate: beforeDeparture(40) },
+    { stepKey: 'confirmed', name: 'Konfirmasi Vendor & Booking', plannedDate: beforeDeparture(30) },
+    { stepKey: 'start', name: 'Dokumen Traveler Lengkap', plannedDate: beforeDeparture(14) },
+    { stepKey: 'departure', name: 'Keberangkatan', plannedDate: notBeforeToday(project.travelStartDate) },
+    { stepKey: 'on-progress', name: 'Trip Selesai', plannedDate: notBeforeToday(project.travelEndDate) },
+    { stepKey: 'done', name: 'Laporan Akhir & Review Klien', plannedDate: afterReturn(5) }
+  ]
+  for (const item of defaults) { createProjectMilestone({ projectId: project.id, ...item }) }
 }
 
 /** Foto cover Group Trip B2C (`Project.photoUrl`) — mock upload, tersimpan sebagai data URL lokal (D-006). */
@@ -1513,6 +1606,7 @@ export function markLeadWon (leadId: string, approverId: string): Project | unde
     actualCostIdr: 0
   }
   PROJECTS.push(project)
+  seedDefaultProjectMilestones(project)
 
   lead.projectId = project.id
 
