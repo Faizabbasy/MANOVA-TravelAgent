@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Plus, Trash2, Printer } from 'lucide-vue-next'
+import { FileX, Plus, Trash2, Printer, ArrowLeft } from 'lucide-vue-next'
 import {
   getHotelBookingById, getHotelBookingMarginIdr, getHotelBookingStatusTransitions,
   updateHotelBooking, updateHotelBookingStatus, selectHotelOption,
-  getProjectById, getTravelers, getHotelRoomingList, getTravelerGroups, getProjectServiceById, setServiceVendor,
+  getProjectById, getTravelers, getHotelRoomingList, getTravelerGroups, getProjectServiceById, assignServiceVendor,
   VENDORS,
   createCancellationRecord
 } from '~/data'
@@ -165,7 +165,7 @@ function removeOptionRow (index: number) {
 
 function submitEdit () {
   if (!booking.value) { return }
-  if (booking.value.serviceId) { setServiceVendor(booking.value.serviceId, editVendorId.value || undefined) }
+  if (booking.value.serviceId) { assignServiceVendor(booking.value.serviceId, editVendorId.value || undefined, editNetCost.value ?? undefined) }
   updateHotelBooking(booking.value.id, {
     confirmationNumber: editConfirmationNumber.value.trim() || undefined,
     checkInDate: editCheckInDate.value || undefined,
@@ -207,6 +207,9 @@ function submitEdit () {
     <RoleAccessState v-else-if="!canView('accommodation')" module-label="modul Accommodation" />
 
     <template v-else>
+      <NuxtLink v-if="project" :to="`/project-orders/${project.id}?tab=itinerary-services`" class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
+        <ArrowLeft class="h-3.5 w-3.5" />Kembali ke {{ project.name }}
+      </NuxtLink>
       <PageHeader :title="`Hotel Booking ${booking.id}`" :breadcrumb="[{ label: 'Accommodation', to: '/accommodation' }, { label: booking.id }]">
         <template #actions>
           <div class="flex flex-wrap items-center gap-2">

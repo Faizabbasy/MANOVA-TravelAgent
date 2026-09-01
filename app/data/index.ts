@@ -1320,6 +1320,54 @@ export function updateProjectPhoto (projectId: string, photoUrl: string): Projec
   return project
 }
 
+/**
+ * Kontak lapangan (tour leader/emergency contact/meeting point) — field ini sudah lama ada di `Project`
+ * dan dipakai gate step "Start" (`project-order-workflow.ts`, gate "field-contacts") serta ditampilkan di
+ * Client Trip Center, tapi sebelumnya tidak ada mutator/form mana pun untuk mengisinya — cuma bisa lewat
+ * fixture data. Satu fungsi aditif, pola sama `updateProjectPhoto`.
+ */
+/**
+ * Destinasi/jadwal keberangkatan — sebelumnya tidak ada mutator untuk mengubah `destination`/
+ * `travelStartDate`/`travelEndDate` setelah Project dibuat sama sekali (hanya bisa lewat fixture data).
+ * Penting terutama karena gate step "Departure"/"On Progress" (`project-order-workflow.ts`) membandingkan
+ * `travelStartDate`/`travelEndDate` terhadap `DEMO_REFERENCE_DATE` (2026-07-29, BUKAN tanggal hari ini
+ * sungguhan) — Project baru yang dibuat dengan tanggal travel setelah 29 Juli 2026 tidak akan pernah lolos
+ * gate tsb sampai tanggalnya diubah ke sebelum 29 Juli 2026. `destinationGeo` di-resolve ulang bila
+ * `destination` berubah, pola sama `createProject`/`markLeadWon`.
+ */
+export function updateProjectSchedule (projectId: string, input: {
+  destination?: string
+  travelStartDate?: string
+  travelEndDate?: string
+}): Project | undefined {
+  const project = getProjectById(projectId)
+  if (!project) { return undefined }
+  if (input.destination?.trim()) {
+    project.destination = input.destination.trim()
+    project.destinationGeo = resolveDestinationGeo(project.destination)
+  }
+  if (input.travelStartDate) { project.travelStartDate = input.travelStartDate }
+  if (input.travelEndDate) { project.travelEndDate = input.travelEndDate }
+  return project
+}
+
+export function updateProjectFieldContacts (projectId: string, input: {
+  tourLeaderName?: string
+  tourLeaderPhone?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  meetingPoint?: string
+}): Project | undefined {
+  const project = getProjectById(projectId)
+  if (!project) { return undefined }
+  project.tourLeaderName = input.tourLeaderName?.trim() || undefined
+  project.tourLeaderPhone = input.tourLeaderPhone?.trim() || undefined
+  project.emergencyContactName = input.emergencyContactName?.trim() || undefined
+  project.emergencyContactPhone = input.emergencyContactPhone?.trim() || undefined
+  project.meetingPoint = input.meetingPoint?.trim() || undefined
+  return project
+}
+
 export function createContact (input: { partyId: string; name: string; title: string; email?: string; phone?: string }): ContactPerson {
   const contact: ContactPerson = { id: nextSequentialId('CP-', CONTACTS), ...input }
   CONTACTS.push(contact)
@@ -1872,6 +1920,7 @@ export function updateServiceStatus (serviceId: string, newStatus: ServiceStatus
   if (!service) { return undefined }
   const previousStatus = service.status
   service.status = newStatus
+  ensureSupplierInvoiceForConfirmedService(service)
   if (newStatus === 'changed' && previousStatus !== 'changed') {
     ACTIVITIES.push({
       id: nextSequentialId('ACT-', ACTIVITIES),
@@ -1918,8 +1967,39 @@ export function setServiceVendor (serviceId: string, vendorId: string | undefine
   const service = PROJECT_SERVICES.find(item => item.id === serviceId)
   if (!service) { return undefined }
   service.vendorId = vendorId
-  if (vendorId) { ensureServiceOrderForVendorAssignment(service, vendorId) }
+  if (vendorId) {
+    ensureServiceOrderForVendorAssignment(service, vendorId)
+    ensureSupplierInvoiceForConfirmedService(service)
+  }
   return service
+}
+
+/**
+ * Assign vendor + nominal (opsional) dalam satu langkah — reuse dari form Edit booking (Ticketing/
+ * Accommodation/Transportation, field "Net Cost") dan dialog "Tugaskan Vendor" (tab Vendors Project
+ * Detail). Kalau `amountIdr` diisi, jalur `submitVendorQuotation` → `acceptVendorQuotation` dipakai
+ * (quotation langsung diterima) — ini yang men-set service jadi Confirmed dan memberi
+ * `ensureSupplierInvoiceForConfirmedService` nominal yang benar sejak awal, bukan cuma `setServiceVendor`
+ * polos yang menghasilkan invoice Rp 0 karena tidak ada quotation untuk dijadikan sumber nominal.
+ */
+export function assignServiceVendor (serviceId: string, vendorId: string | undefined, amountIdr?: number): void {
+  const service = PROJECT_SERVICES.find(item => item.id === serviceId)
+  if (!service || !vendorId) {
+    setServiceVendor(serviceId, vendorId)
+    return
+  }
+  if (amountIdr && amountIdr > 0) {
+    const quotation = submitVendorQuotation({
+      vendorId,
+      projectId: service.projectId,
+      serviceId: service.id,
+      serviceType: service.type,
+      amountIdr
+    })
+    acceptVendorQuotation(quotation.id)
+  } else {
+    setServiceVendor(serviceId, vendorId)
+  }
 }
 
 /**
@@ -2185,7 +2265,10 @@ export function updateFlightBookingStatus (bookingId: string, newStatus: FlightB
   syncBookingPaymentGateOnStatusChange('flight', booking.id, booking.projectId, newStatus)
   if (booking.serviceId) {
     const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
-    if (service) { service.status = mapFlightStatusToServiceStatus(newStatus) }
+    if (service) {
+      service.status = mapFlightStatusToServiceStatus(newStatus)
+      ensureSupplierInvoiceForConfirmedService(service)
+    }
   }
 
   const actor = getUserById(actorId)
@@ -2314,7 +2397,10 @@ export function updateHotelBookingStatus (bookingId: string, newStatus: HotelBoo
   syncBookingPaymentGateOnStatusChange('hotel', booking.id, booking.projectId, newStatus)
   if (booking.serviceId) {
     const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
-    if (service) { service.status = mapHotelStatusToServiceStatus(newStatus) }
+    if (service) {
+      service.status = mapHotelStatusToServiceStatus(newStatus)
+      ensureSupplierInvoiceForConfirmedService(service)
+    }
   }
 
   const actor = getUserById(actorId)
@@ -2438,7 +2524,10 @@ export function updateTransportBookingStatus (bookingId: string, newStatus: Tran
   syncBookingPaymentGateOnStatusChange('transport', booking.id, booking.projectId, newStatus)
   if (booking.serviceId) {
     const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
-    if (service) { service.status = mapTransportStatusToServiceStatus(newStatus) }
+    if (service) {
+      service.status = mapTransportStatusToServiceStatus(newStatus)
+      ensureSupplierInvoiceForConfirmedService(service)
+    }
   }
 
   const actor = getUserById(actorId)
@@ -2585,7 +2674,10 @@ export function updateMiceEventStatus (eventId: string, newStatus: MiceEventStat
   syncBookingPaymentGateOnStatusChange('mice', event.id, event.projectId, newStatus)
   if (event.serviceId) {
     const service = PROJECT_SERVICES.find(s => s.id === event.serviceId)
-    if (service) { service.status = mapMiceStatusToServiceStatus(newStatus) }
+    if (service) {
+      service.status = mapMiceStatusToServiceStatus(newStatus)
+      ensureSupplierInvoiceForConfirmedService(service)
+    }
   }
 
   const actor = getUserById(actorId)
@@ -3946,6 +4038,52 @@ function ensureServiceOrderForVendorAssignment (service: ProjectService, vendorI
     serviceId: service.id,
     lineItems: [{ description: service.label, quantity: 1, unit: 'layanan' }]
   })
+}
+
+/**
+ * Auto-generate Supplier Invoice begitu sebuah ProjectService sudah Confirmed DAN sudah punya vendor —
+ * dipanggil dari titik mana pun yang bisa membuat kombinasi ini jadi benar (booking status → confirmed,
+ * ATAU assign vendor ke service yang sudah confirmed). Idempotent (tidak duplikat kalau sudah ada invoice
+ * non-rejected untuk Service Order ini). Invoice langsung 'approved' (bukan 'submitted') karena ini
+ * system-generated dari keputusan PM sendiri (confirm booking + pilih vendor), bukan pengajuan mandiri
+ * vendor lewat Supplier Portal yang butuh review — tombol "Bayar" di card AP Summary bisa langsung aktif.
+ */
+function ensureSupplierInvoiceForConfirmedService (service: ProjectService): void {
+  if (service.status !== 'confirmed' || !service.vendorId) { return }
+  ensureServiceOrderForVendorAssignment(service, service.vendorId)
+  const serviceOrder = getServiceOrderByService(service.id)
+  if (!serviceOrder) { return }
+  if (getSupplierInvoicesByServiceOrder(serviceOrder.id).some(inv => inv.status !== 'rejected')) { return }
+
+  if (serviceOrder.status !== 'fulfilled') {
+    serviceOrder.status = 'fulfilled'
+    serviceOrder.fulfilledAt = DEMO_REFERENCE_DATE
+    serviceOrder.updatedAt = DEMO_REFERENCE_DATE
+  }
+
+  const acceptedQuotation = getQuotationsForService(service.id).find(q => q.vendorId === service.vendorId && q.status === 'accepted')
+  const invoice: SupplierInvoice = {
+    id: nextSequentialId('SINV-', SUPPLIER_INVOICES),
+    serviceOrderId: serviceOrder.id,
+    vendorId: service.vendorId,
+    amountIdr: acceptedQuotation?.amountIdr ?? 0,
+    submittedAt: DEMO_REFERENCE_DATE,
+    status: 'approved',
+    note: 'Dibuat otomatis begitu booking dikonfirmasi dan vendor ditugaskan.'
+  }
+  SUPPLIER_INVOICES.push(invoice)
+
+  if (service.projectId) {
+    const vendor = getVendorById(service.vendorId)
+    ACTIVITIES.push({
+      id: nextSequentialId('ACT-', ACTIVITIES),
+      projectId: service.projectId,
+      message: `Supplier Invoice ${invoice.id} (${vendor?.name ?? service.vendorId}) otomatis dibuat untuk layanan "${service.label}" (booking Confirmed).`,
+      isChange: false,
+      reviewed: true,
+      createdAt: DEMO_REFERENCE_DATE
+    })
+  }
 }
 
 export interface CreateServiceOrderInput {

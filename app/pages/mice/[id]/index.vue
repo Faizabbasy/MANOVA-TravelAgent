@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Plus, Trash2, Printer, ClipboardList, AlertTriangle } from 'lucide-vue-next'
+import { FileX, Plus, Trash2, Printer, ClipboardList, AlertTriangle, ArrowLeft } from 'lucide-vue-next'
 import {
   getMiceEventById, getMiceBoqTotals, getMiceScheduleConflicts,
   getMiceEventStatusTransitions, updateMiceEventStatus,
@@ -306,6 +306,9 @@ function submitAddDeliverable () {
     <RoleAccessState v-else-if="!canView('mice')" module-label="modul MICE" />
 
     <template v-else>
+      <NuxtLink v-if="project" :to="`/project-orders/${project.id}?tab=itinerary-services`" class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
+        <ArrowLeft class="h-3.5 w-3.5" />Kembali ke {{ project.name }}
+      </NuxtLink>
       <PageHeader :title="event.venueName ?? `MICE Event ${event.id}`" :breadcrumb="[{ label: 'MICE', to: '/mice' }, { label: event.id }]">
         <template #actions>
           <div class="flex flex-wrap items-center gap-2">

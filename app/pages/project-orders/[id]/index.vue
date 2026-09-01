@@ -6,7 +6,7 @@ import {
   getProjectById, getPartyById, getContactsByParty, getUserById, getVendorById, getLeadById,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
   getProjectServices, getItineraryItems, updateServiceStatus, updateProjectServiceBudget, ensureProjectServiceForBudget, updateItineraryItem, createItineraryItem, removeItineraryItem,
-  getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation, recordVendorPaymentDirect,
+  getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation, recordVendorPaymentDirect, assignServiceVendor,
   getServiceOrderByService, getSupplierInvoicesByServiceOrder,
   getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, createTravelerGroup,
@@ -27,10 +27,13 @@ import {
   USERS,
   getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject,
   confirmGroupTripDp, getSalesOrderOutstandingIdr,
-  VENDORS, createFlightBooking, createHotelBooking, createTransportBooking, createMiceEvent, setServiceVendor
+  VENDORS, createFlightBooking, createHotelBooking, createTransportBooking, createMiceEvent, setServiceVendor,
+  acceptProjectHandover, returnProjectHandover, setBookingPaymentGateStatus, updateProjectFieldContacts, updateProjectSchedule,
+  paySupplierInvoice
 } from '~/data'
 import type { TravelerImportPreviewRow, AttentionQueueItem } from '~/data'
 import type { SalesOrder } from '~/types/sales-order'
+import type { BookingTimelineEntry } from '~/types/booking-orchestration'
 import {
   getProjectOrderStepViews, advanceProjectOrder, getProjectMilestones,
   setMilestoneActualDate, updateMilestonePlannedDate, updateMilestoneNote, getProjectOrderStep
@@ -277,6 +280,92 @@ function onAdvanceStep () {
   }
 }
 
+/**
+ * AE-to-PM Handover accept — sebelumnya `acceptProjectHandover` (`app/data/index.ts`) tidak punya tombol
+ * di halaman mana pun sejak Project Workspace lama digabung ke sini, sehingga project baru hasil "Mark as
+ * Won" (selalu `handoverAcceptedAt` kosong) tidak bisa maju dari step Drafting sama sekali. Reuse gate
+ * `canManageProjectOrder` yang sudah ada (PM/Super Admin, `project-order.accept-handover`).
+ */
+const canAcceptHandover = computed(() => Boolean(project.value && !project.value.handoverAcceptedAt && canManageProjectOrder.value))
+
+function onAcceptHandover () {
+  if (!project.value) { return }
+  const updated = acceptProjectHandover(project.value.id, currentUser.value.id)
+  refreshStep()
+  if (updated) {
+    showToast('Handover Diterima', 'Project Order sekarang bisa dilanjutkan ke tahap Drafting.', 'success')
+  } else {
+    showToast('Gagal', 'Handover tidak dapat diterima dari status project saat ini.', 'error')
+  }
+}
+
+/**
+ * Kontak Lapangan (tour leader/emergency contact/meeting point) — field ini sudah dipakai gate step
+ * "Start" (`field-contacts`) dan Client Trip Center, tapi sebelumnya tidak ada form isinya sama sekali.
+ * Reuse gate `canManageProjectOrder` (PM/Super Admin), sama seperti handover/team di atas.
+ */
+const isFieldContactsDialogOpen = ref(false)
+const editTourLeaderName = ref('')
+const editTourLeaderPhone = ref('')
+const editEmergencyContactName = ref('')
+const editEmergencyContactPhone = ref('')
+const editMeetingPoint = ref('')
+
+function openFieldContactsDialog () {
+  if (!project.value) { return }
+  editTourLeaderName.value = project.value.tourLeaderName ?? ''
+  editTourLeaderPhone.value = project.value.tourLeaderPhone ?? ''
+  editEmergencyContactName.value = project.value.emergencyContactName ?? ''
+  editEmergencyContactPhone.value = project.value.emergencyContactPhone ?? ''
+  editMeetingPoint.value = project.value.meetingPoint ?? ''
+  isFieldContactsDialogOpen.value = true
+}
+
+/**
+ * Edit Destinasi & Jadwal — sebelumnya tidak ada form buat ini sama sekali. Terutama dibutuhkan karena
+ * gate step "Departure"/"On Progress" membandingkan tanggal travel terhadap `DEMO_REFERENCE_DATE`
+ * (29 Juli 2026, bukan tanggal hari ini sungguhan) — Project baru dengan tanggal travel setelah itu akan
+ * selalu terlihat "keberangkatan masih N hari lagi" walau tanggalnya sudah lewat di dunia nyata.
+ */
+const isScheduleDialogOpen = ref(false)
+const editDestination = ref('')
+const editTravelStartDate = ref('')
+const editTravelEndDate = ref('')
+
+function openScheduleDialog () {
+  if (!project.value) { return }
+  editDestination.value = project.value.destination
+  editTravelStartDate.value = project.value.travelStartDate
+  editTravelEndDate.value = project.value.travelEndDate
+  isScheduleDialogOpen.value = true
+}
+
+function submitSchedule () {
+  if (!project.value || !editTravelStartDate.value || !editTravelEndDate.value) { return }
+  updateProjectSchedule(project.value.id, {
+    destination: editDestination.value,
+    travelStartDate: editTravelStartDate.value,
+    travelEndDate: editTravelEndDate.value
+  })
+  refreshStep()
+  isScheduleDialogOpen.value = false
+  showToast('Jadwal Diperbarui', 'Destinasi dan tanggal travel berhasil disimpan.', 'success')
+}
+
+function submitFieldContacts () {
+  if (!project.value) { return }
+  updateProjectFieldContacts(project.value.id, {
+    tourLeaderName: editTourLeaderName.value,
+    tourLeaderPhone: editTourLeaderPhone.value,
+    emergencyContactName: editEmergencyContactName.value,
+    emergencyContactPhone: editEmergencyContactPhone.value,
+    meetingPoint: editMeetingPoint.value
+  })
+  refreshStep()
+  isFieldContactsDialogOpen.value = false
+  showToast('Kontak Lapangan Disimpan', 'Tour leader dan kontak darurat berhasil diperbarui.', 'success')
+}
+
 /** Milestone Timeline Tracking (dulu halaman terpisah) — planned vs actual date per milestone, TIDAK tumpang tindih dengan "Milestone / Task Summary" (StatusBreakdownList status Task, sumber data berbeda). */
 const milestones = computed(() => {
   void refreshKey.value
@@ -442,6 +531,20 @@ function linkedBookingRef (service: { id: string; type: ServiceTypeKey }): { pat
  * (`/ticketing`, `/accommodation`, `/transportation`, `/mice`), aksi payment gate/percobaan TETAP di `/bookings`.
  */
 const projectBookingTimeline = computed(() => project.value ? getBookingTimeline(project.value.id) : [])
+/** "Mark Payment Cleared" langsung dari card ini (sebelumnya cuma bisa dari `/bookings`) — supaya PM/Ops tidak perlu pindah halaman buat aksi yang sering dipakai. Gate sama seperti di `/bookings` (`BookingTimelinePanel.vue`): `canManage('bookings')`. */
+const canManageBookings = computed(() => canManage('bookings'))
+function markBookingPaymentCleared (entry: BookingTimelineEntry) {
+  setBookingPaymentGateStatus(entry.orchestrationId, 'cleared', currentUser.value.id)
+  refreshStep()
+  showToast('Payment Gate Diperbarui', `${BOOKING_DOMAIN_LABEL_MAP[entry.bookingType]} Booking ${entry.bookingId} kini "Lunas".`, 'success')
+}
+
+/** "Bayar" langsung dari card Supplier Invoice (AP Summary) — sebelumnya harus pindah ke Finance > Payables. */
+function onPaySupplierInvoice (invoiceId: string) {
+  paySupplierInvoice(invoiceId, currentUser.value.id)
+  refreshStep()
+  showToast('Supplier Invoice Dibayar', 'Invoice ditandai lunas dan masuk ke Actual Cost.', 'success')
+}
 const BOOKING_DOMAIN_LABEL_MAP: Record<string, string> = { flight: 'Flight', hotel: 'Hotel', transport: 'Transport', mice: 'MICE' }
 const BOOKING_DOMAIN_TONE_MAP: Record<string, string> = { flight: 'info', hotel: 'purple', transport: 'warning', mice: 'primary' }
 /** Path modul create-booking (Section 13-16) per tipe layanan — dipakai tombol "Buat Booking" quick-create per sub-section. */
@@ -1393,6 +1496,48 @@ function isVendorAlreadyPaid (service: ProjectService) {
   return getSupplierInvoicesByServiceOrder(serviceOrder.id).some(invoice => invoice.status === 'paid')
 }
 
+/**
+ * Tugaskan Vendor langsung dari tab Vendors project ini — sebelumnya vendor cuma bisa ditugaskan lewat
+ * form Edit booking (tanpa nominal, invoice yang otomatis dibuat jadi Rp 0) atau lewat halaman Vendor
+ * Detail terpisah (submit quotation) + balik lagi ke sini buat Terima. Dialog ini gabungin dua-duanya jadi
+ * satu langkah: kalau nominal diisi, submit quotation lalu langsung diterima (`acceptVendorQuotation` yang
+ * juga men-set service Confirmed) — invoice otomatis kebuat dengan nominal yang benar sejak awal. Kalau
+ * nominal dikosongkan, cuma assign vendor (`setServiceVendor`) tanpa mengubah status service.
+ */
+const isAssignVendorDialogOpen = ref(false)
+const assignVendorService = ref<ProjectService | null>(null)
+const assignVendorId = ref('')
+const assignVendorAmountIdr = ref<number | null>(null)
+
+const assignVendorOptions = computed(() => (
+  assignVendorService.value
+    ? VENDORS.filter(vendor => vendor.serviceType === assignVendorService.value!.type && (vendor.status ?? 'active') === 'active')
+    : []
+))
+
+function openAssignVendorDialog (service: ProjectService) {
+  assignVendorService.value = service
+  assignVendorId.value = ''
+  assignVendorAmountIdr.value = null
+  isAssignVendorDialogOpen.value = true
+}
+
+function submitAssignVendor () {
+  const service = assignVendorService.value
+  if (!service || !assignVendorId.value) { return }
+  const vendorName = getVendorById(assignVendorId.value)?.name ?? assignVendorId.value
+
+  assignServiceVendor(service.id, assignVendorId.value, assignVendorAmountIdr.value ?? undefined)
+
+  if (assignVendorAmountIdr.value && assignVendorAmountIdr.value > 0) {
+    showToast('Vendor Ditugaskan', `${vendorName} ditugaskan untuk "${service.label}" — layanan langsung Confirmed dan Supplier Invoice terbentuk senilai ${formatCurrencyIdr(assignVendorAmountIdr.value)}.`, 'success')
+  } else {
+    showToast('Vendor Ditugaskan', `${vendorName} ditugaskan untuk "${service.label}".`, 'success')
+  }
+  refreshStep()
+  isAssignVendorDialogOpen.value = false
+}
+
 const isVendorPaymentDialogOpen = ref(false)
 const vendorPaymentService = ref<ProjectService | null>(null)
 const vendorPaymentAmountIdr = ref<number | null>(null)
@@ -1710,8 +1855,11 @@ const tripDurationDays = computed(() => {
                 <StatusBadge :label="findStatusOption(PROJECT_STATUSES, project.status).label" :tone="findStatusOption(PROJECT_STATUSES, project.status).tone" />
                 <StatusBadge v-if="needsAttention" label="Perlu Perhatian" tone="warning" />
               </div>
-              <p class="mt-1 text-xs text-muted-foreground">
+              <p class="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
                 {{ project.destination }} · {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
+                <button v-if="canManageProjectOrder" type="button" title="Edit destinasi & jadwal" class="text-muted-foreground hover:text-primary" @click="openScheduleDialog">
+                  <Pencil class="h-3 w-3" />
+                </button>
               </p>
               <p class="mt-0.5 text-xs text-muted-foreground">
                 PM: <span class="font-medium text-foreground">{{ owner?.name ?? '—' }}</span> · AE: <span class="font-medium text-foreground">{{ accountExecutive?.name ?? '—' }}</span>
@@ -1811,6 +1959,9 @@ const tripDurationDays = computed(() => {
             :selected-step-key="selectedStepKey"
             @select="value => selectedStepKey = selectedStepKey === value ? undefined : value"
           />
+          <Button v-if="canAcceptHandover" size="sm" variant="outline" class="shrink-0" @click="onAcceptHandover">
+            Terima Handover
+          </Button>
           <Button v-if="canAdvanceStep && currentStepView" size="sm" class="shrink-0" :disabled="!currentStepView.gate.ready" @click="onAdvanceStep">
             Advance: {{ currentStepView.def.label }} →
           </Button>
@@ -1832,6 +1983,41 @@ const tripDurationDays = computed(() => {
           </template>
         </div>
       </SectionCard>
+
+      <Dialog v-model:open="isScheduleDialogOpen">
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Destinasi & Jadwal</DialogTitle>
+            <DialogDescription>
+              Tanggal travel dipakai gate step "Departure"/"On Progress" — dibandingkan terhadap tanggal acuan demo ({{ formatDate(DEMO_REFERENCE_DATE) }}), bukan tanggal hari ini sungguhan.
+            </DialogDescription>
+          </DialogHeader>
+          <div class="space-y-4 py-2">
+            <div class="space-y-1.5">
+              <Label for="edit-destination">Destinasi</Label>
+              <Input id="edit-destination" v-model="editDestination" placeholder="mis. Kuala Lumpur, Malaysia" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <Label for="edit-travel-start">Tanggal Berangkat</Label>
+                <Input id="edit-travel-start" v-model="editTravelStartDate" type="date" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="edit-travel-end">Tanggal Pulang</Label>
+                <Input id="edit-travel-end" v-model="editTravelEndDate" type="date" />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="isScheduleDialogOpen = false">
+              Batal
+            </Button>
+            <Button @click="submitSchedule">
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Tabs v-model="activeTab">
         <TabsList>
@@ -1875,6 +2061,90 @@ const tripDurationDays = computed(() => {
                   :subtitle="(departureReadiness?.openRisksCount ?? 0) > 0 ? `${departureReadiness?.openRisksCount} risk masih terbuka` : 'Tidak ada risk terbuka'"
                 />
               </div>
+
+              <!-- Kontak Lapangan (tour leader/emergency contact/meeting point) — sebelumnya cuma bisa diisi lewat fixture data, dibutuhkan gate step "Start" (field-contacts) dan Client Trip Center. -->
+              <SectionCard compact title="Kontak Lapangan">
+                <template v-if="canManageProjectOrder" #actions>
+                  <Button size="sm" variant="outline" @click="openFieldContactsDialog">
+                    <Pencil class="h-3.5 w-3.5 mr-1.5" />Edit
+                  </Button>
+                </template>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Tour Leader
+                    </p>
+                    <p class="mt-0.5 font-medium text-foreground">
+                      {{ project.tourLeaderName ?? 'Belum ditugaskan' }}
+                    </p>
+                    <p v-if="project.tourLeaderPhone" class="text-xs text-muted-foreground">
+                      {{ project.tourLeaderPhone }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Kontak Darurat
+                    </p>
+                    <p class="mt-0.5 font-medium text-foreground">
+                      {{ project.emergencyContactName ?? 'Belum diisi' }}
+                    </p>
+                    <p v-if="project.emergencyContactPhone" class="text-xs text-muted-foreground">
+                      {{ project.emergencyContactPhone }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                      Meeting Point
+                    </p>
+                    <p class="mt-0.5 font-medium text-foreground">
+                      {{ project.meetingPoint ?? 'Belum diisi' }}
+                    </p>
+                  </div>
+                </div>
+              </SectionCard>
+
+              <Dialog v-model:open="isFieldContactsDialogOpen">
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Edit Kontak Lapangan</DialogTitle>
+                    <DialogDescription>Tour leader dan kontak darurat 24 jam untuk project ini — dibutuhkan sebelum status bisa maju ke step "Start".</DialogDescription>
+                  </DialogHeader>
+                  <div class="space-y-4 py-2">
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label for="edit-tour-leader-name">Nama Tour Leader</Label>
+                        <Input id="edit-tour-leader-name" v-model="editTourLeaderName" placeholder="mis. Arif Setiawan" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="edit-tour-leader-phone">No. HP Tour Leader</Label>
+                        <Input id="edit-tour-leader-phone" v-model="editTourLeaderPhone" placeholder="mis. 0812-7000-1001" />
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label for="edit-emergency-name">Nama Kontak Darurat</Label>
+                        <Input id="edit-emergency-name" v-model="editEmergencyContactName" placeholder="mis. Manova 24/7 Operations" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="edit-emergency-phone">No. HP Kontak Darurat</Label>
+                        <Input id="edit-emergency-phone" v-model="editEmergencyContactPhone" placeholder="mis. +62 21 5000 1188" />
+                      </div>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="edit-meeting-point">Meeting Point</Label>
+                      <Input id="edit-meeting-point" v-model="editMeetingPoint" placeholder="mis. Terminal 3 Bandara Soekarno-Hatta" />
+                    </div>
+                  </div>
+                  <DialogFooter>
+                    <Button variant="outline" @click="isFieldContactsDialogOpen = false">
+                      Batal
+                    </Button>
+                    <Button @click="submitFieldContacts">
+                      Simpan
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
 
               <!-- Ringkasan Komersial — separuh lebar (bukan edge-to-edge), ditaruh di bawah 4 stat card di atas. Kolom di-stretch (bukan items-start lagi) supaya "Action Required" saat kosong ikut setinggi Ringkasan Komersial, bukan terlihat terpotong pendek sendirian. -->
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -2516,9 +2786,10 @@ const tripDurationDays = computed(() => {
                 Booking Timeline (Section 18, D-075) — SATU list terunifikasi lintas Flight/Hotel/Transport/MICE
                 MENGGANTIKAN 4 blok ringkasan terpisah lama (Section 13-16, lihat CI-048). Informasi identik
                 dengan `/bookings` (booking reference/status internal-supplier-client/deadline/voucher/exception/
-                dependency/payment-gate), hanya pre-filtered ke project ini. Aksi Mark Payment Cleared/Catat
-                Percobaan TETAP di `/bookings` (bukan di sini) — tab ini murni ringkasan+link, konsisten pola
-                ringkasan Procurement di bawah.
+                dependency/payment-gate), hanya pre-filtered ke project ini. "Mark Payment Cleared" bisa
+                langsung dari sini (bukan cuma `/bookings`) supaya PM/Ops tidak perlu pindah halaman untuk
+                aksi yang sering dipakai — "Buka Booking Center" tetap ada untuk Catat Percobaan/exception
+                lain yang belum dipindah ke sini.
               -->
                 <SectionCard v-if="projectBookingTimeline.length" content-class="p-0">
                   <template #header>
@@ -2589,6 +2860,11 @@ const tripDurationDays = computed(() => {
                           </TableCell>
                           <TableCell class="px-4 py-4">
                             <StatusBadge size="md" :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
+                            <div v-if="canManageBookings && entry.paymentGateStatus === 'pending'" class="mt-1">
+                              <Button size="sm" variant="outline" @click="markBookingPaymentCleared(entry)">
+                                Mark Payment Cleared
+                              </Button>
+                            </div>
                           </TableCell>
                           <TableCell class="px-4 py-4 text-right">
                             <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank" class="inline-flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary">
@@ -3646,6 +3922,9 @@ const tripDurationDays = computed(() => {
                     <Button v-else-if="row.service.vendorId && canManageServiceType(row.service.type)" size="sm" variant="outline" @click="openRecordVendorPayment(row.service)">
                       Catat Sudah Dibayar
                     </Button>
+                    <Button v-else-if="!row.service.vendorId && canManageServiceType(row.service.type)" size="sm" variant="outline" @click="openAssignVendorDialog(row.service)">
+                      Tugaskan Vendor
+                    </Button>
                   </div>
                 </div>
 
@@ -3716,6 +3995,42 @@ const tripDurationDays = computed(() => {
             </div>
             <EmptyState v-else :icon="Truck" title="Belum ada layanan tercatat untuk project ini" />
           </SectionCard>
+
+          <Dialog v-model:open="isAssignVendorDialogOpen">
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Tugaskan Vendor</DialogTitle>
+                <DialogDescription>
+                  Layanan "{{ assignVendorService?.label }}". Isi nominal supaya layanan langsung Confirmed dan Supplier Invoice terbentuk dengan nilai yang benar — kosongkan kalau cuma mau menugaskan vendor dulu tanpa nominal.
+                </DialogDescription>
+              </DialogHeader>
+              <div class="space-y-4 py-2">
+                <div class="space-y-1.5">
+                  <Label for="assign-vendor-id">Vendor</Label>
+                  <select id="assign-vendor-id" v-model="assignVendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="">
+                      Pilih vendor
+                    </option>
+                    <option v-for="vendor in assignVendorOptions" :key="vendor.id" :value="vendor.id">
+                      {{ vendor.name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="assign-vendor-amount">Nominal Quotation (Rp, opsional)</Label>
+                  <CurrencyInput id="assign-vendor-amount" v-model="assignVendorAmountIdr" placeholder="mis. 8500000" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" @click="isAssignVendorDialogOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!assignVendorId" @click="submitAssignVendor">
+                  Simpan
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
 
           <Sheet v-model:open="isVendorPaymentDialogOpen">
             <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
@@ -4138,6 +4453,7 @@ const tripDurationDays = computed(() => {
                         <TableHead>Jumlah</TableHead>
                         <TableHead>Status</TableHead>
                         <TableHead>Match Status</TableHead>
+                        <TableHead class="text-right">Aksi</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -4154,8 +4470,13 @@ const tripDurationDays = computed(() => {
                           <StatusBadge v-if="supplierInvoice.matchStatus" :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).label" :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).tone" />
                           <span v-else class="text-xs text-muted-foreground">Belum ditriase</span>
                         </TableCell>
+                        <TableCell class="text-right">
+                          <Button v-if="canManageFinance && supplierInvoice.status === 'approved'" size="sm" variant="outline" @click="onPaySupplierInvoice(supplierInvoice.id)">
+                            Bayar
+                          </Button>
+                        </TableCell>
                       </TableRow>
-                      <TableEmpty v-if="projectSupplierInvoices.length === 0" :colspan="5">
+                      <TableEmpty v-if="projectSupplierInvoices.length === 0" :colspan="6">
                         <EmptyState
                           :icon="FileText"
                           title="Belum ada Supplier Invoice untuk project ini."
