@@ -95,6 +95,9 @@ function canManageServiceType (type: ServiceTypeKey) {
 const refreshKey = ref(0)
 function refreshStep () { refreshKey.value += 1 }
 
+/** Buka detail Lead asal Project sebagai overlay (Sheet), bukan navigasi ke halaman terpisah. */
+const isLeadDetailSheetOpen = ref(false)
+
 /** Inisial 2 huruf untuk avatar Tim Project (card "Ringkasan Layanan") — nama kosong/undefined dikembalikan "—" bukan string kosong (Avatar tetap terisi visual). */
 function initials (name?: string): string {
   if (!name?.trim()) { return '—' }
@@ -2018,13 +2021,14 @@ const tripDurationDays = computed(() => {
                   </p>
 
                   <div class="mt-3 flex flex-wrap items-center gap-2">
-                    <NuxtLink
+                    <button
                       v-if="project.leadId"
-                      :to="`/crm/leads/${project.leadId}`"
+                      type="button"
                       class="inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+                      @click="isLeadDetailSheetOpen = true"
                     >
                       {{ project.leadId }}
-                    </NuxtLink>
+                    </button>
                     <span v-else class="text-xs text-muted-foreground">Tanpa lead asal</span>
                     <ArrowRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                     <span class="text-sm font-semibold tabular-nums text-foreground">{{ sourceQuotation ? formatCurrencyIdr(sourceQuotation.amountIdr) : '—' }}</span>
@@ -5315,6 +5319,8 @@ const tripDurationDays = computed(() => {
         </TabsContent>
       </Tabs>
     </template>
+
+    <LeadDetailSheet v-if="project" v-model:open="isLeadDetailSheetOpen" :lead-id="project.leadId ?? null" />
   </div>
 </template>
 

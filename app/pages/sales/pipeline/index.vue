@@ -1,20 +1,39 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import SalesFunnelPanel from '~/components/sales/SalesFunnelPanel.vue'
 import SalesLeadsPanel from '~/components/sales/SalesLeadsPanel.vue'
+import SalesLeadSourceRecapPanel from '~/components/sales/SalesLeadSourceRecapPanel.vue'
 import SalesQuotationsPanel from '~/components/sales/SalesQuotationsPanel.vue'
 
 /**
- * Sales > Pipeline (revisi "satu menu tanpa tab tapi saling ngalir") — satu menu menampung seluruh corong
- * Lead → Quotation yang sebelumnya tersebar di 2 modul (Sales: Leads/Opportunities/Quotation & Invoice;
- * CRM: Customer Journey/Lead Source Recap). Section "Opportunities" DIHAPUS (entitas Opportunity dihapus —
- * lihat komentar desain di `app/types/lead.ts`) — status quotation per Lead sekarang tampil langsung
- * sebagai kolom di `SalesLeadsPanel`, bukan panel terpisah. Disusun sebagai section bertumpuk dalam satu
- * halaman scroll (BUKAN `<Tabs>`) — setiap section punya `id` untuk deep-link `#section`, dipakai redirect
- * route lama (lihat `app/pages/customer-journey/**`, `app/pages/crm/**`) supaya bookmark/link lama tidak
- * 404, browser otomatis scroll ke section yang dituju.
+ * Sales > Pipeline — satu menu menampung seluruh corong Lead → Quotation yang sebelumnya tersebar di 2
+ * modul (Sales: Leads/Opportunities/Quotation & Invoice; CRM: Customer Journey/Lead Source Recap). Section
+ * "Opportunities" DIHAPUS (entitas Opportunity dihapus — lihat komentar desain di `app/types/lead.ts`) —
+ * status quotation per Lead sekarang tampil langsung sebagai kolom di `SalesLeadsPanel`, bukan panel
+ * terpisah. Disusun sebagai `<Tabs>` (navbar Leads/Funnel/Rekap Sumber Lead/Quotation) — tab aktif
+ * disinkronkan ke `route.hash` (bukan disimpan di komponen saja) supaya redirect route lama (lihat
+ * `app/pages/customer-journey/**`, `app/pages/crm/**`) dan link internal antar-tahap funnel yang masih
+ * memakai anchor `#leads` / `#funnel` / `#lead-sources` / `#quotations` tetap membuka tab yang benar,
+ * bukan sekadar men-scroll.
  */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Sales Pipeline' })
+
+type TabKey = 'leads' | 'funnel' | 'lead-sources' | 'quotations'
+const TAB_KEYS: TabKey[] = ['leads', 'funnel', 'lead-sources', 'quotations']
+
+const route = useRoute()
+const router = useRouter()
+
+const activeTab = computed<TabKey>({
+  get: () => {
+    const hash = route.hash.replace('#', '')
+    return TAB_KEYS.includes(hash as TabKey) ? (hash as TabKey) : 'leads'
+  },
+  set: (value) => {
+    router.replace({ path: route.path, query: route.query, hash: `#${value}` })
+  }
+})
 </script>
 
 <template>
@@ -25,29 +44,37 @@ useHead({ title: 'Sales Pipeline' })
       :breadcrumb="[{ label: 'Sales Pipeline' }]"
     />
 
-    <section id="leads" class="space-y-4 scroll-mt-20">
-      <h2 class="text-lg font-semibold text-foreground">
-        Leads
-      </h2>
-      <SalesLeadsPanel />
-    </section>
+    <Tabs v-model="activeTab">
+      <TabsList>
+        <TabsTrigger value="leads">
+          Leads
+        </TabsTrigger>
+        <TabsTrigger value="funnel">
+          Funnel
+        </TabsTrigger>
+        <TabsTrigger value="lead-sources">
+          Rekap Sumber Lead
+        </TabsTrigger>
+        <TabsTrigger value="quotations">
+          Quotation
+        </TabsTrigger>
+      </TabsList>
 
-    <Separator />
+      <TabsContent value="leads" class="pt-4">
+        <SalesLeadsPanel />
+      </TabsContent>
 
-    <section id="funnel" class="space-y-4 scroll-mt-20">
-      <h2 class="text-lg font-semibold text-foreground">
-        Funnel
-      </h2>
-      <SalesFunnelPanel />
-    </section>
+      <TabsContent value="funnel" class="pt-4">
+        <SalesFunnelPanel />
+      </TabsContent>
 
-    <Separator />
+      <TabsContent value="lead-sources" class="pt-4">
+        <SalesLeadSourceRecapPanel />
+      </TabsContent>
 
-    <section id="quotations" class="space-y-4 scroll-mt-20">
-      <h2 class="text-lg font-semibold text-foreground">
-        Quotation
-      </h2>
-      <SalesQuotationsPanel />
-    </section>
+      <TabsContent value="quotations" class="pt-4">
+        <SalesQuotationsPanel />
+      </TabsContent>
+    </Tabs>
   </div>
 </template>
