@@ -26,7 +26,8 @@ import {
   getDocumentsForProject, createDocument, MESSAGE_RECORDS, sendMessage, getUnifiedActivityTimeline, updateProjectPhoto,
   USERS,
   getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject,
-  confirmGroupTripDp, getSalesOrderOutstandingIdr
+  confirmGroupTripDp, getSalesOrderOutstandingIdr,
+  VENDORS, createFlightBooking, createHotelBooking, createTransportBooking, createMiceEvent, setServiceVendor
 } from '~/data'
 import type { TravelerImportPreviewRow, AttentionQueueItem } from '~/data'
 import type { SalesOrder } from '~/types/sales-order'
@@ -451,6 +452,73 @@ const BOOKING_MODULE_PATH: Partial<Record<ServiceTypeKey, string>> = {
  */
 const SERVICE_TAB_KEY: Partial<Record<ServiceTypeKey, string>> = {
   flight: 'ticketing', hotel: 'accommodation', transportation: 'transportation', mice: 'mice'
+}
+
+/**
+ * "Buat Booking" quick-create — dulu navigate keluar ke `/services?...&create=1#anchor` (per komponen panel
+ * `TicketingListPanel.vue`/`AccommodationListPanel.vue`/dst), sekarang langsung jadi Sheet lokal di project
+ * detail supaya user tidak pindah halaman. Satu Sheet reusable untuk 4 tipe (bukan 4 Sheet terpisah) —
+ * field spesifik tipe (Ticketing Deadline/Check-in-out/Venue Name) dirender kondisional dari `bookingSheetType`.
+ * Tidak ada dropdown Project (selalu `project.value.id`, sama seperti Sheet "Catat Pengeluaran"/"Buat Invoice"
+ * di halaman ini) dan tidak ada dialog konfirmasi "duplicate booking" (tombol ini per tipe layanan, bukan per
+ * baris `ProjectService` spesifik — sama seperti perilaku tombol lama, bukan regresi).
+ */
+type BookableServiceType = 'flight' | 'hotel' | 'transportation' | 'mice'
+const BOOKING_SHEET_TITLE: Record<BookableServiceType, string> = {
+  flight: 'Flight Booking Baru', hotel: 'Hotel Booking Baru', transportation: 'Transport Booking Baru', mice: 'MICE Event Baru'
+}
+const BOOKING_SHEET_DESCRIPTION: Record<BookableServiceType, string> = {
+  flight: 'Dibuat sebagai status "Requested" — lengkapi options/segments/traveler assignment di halaman detail.',
+  hotel: 'Dibuat sebagai status "Requested" — lengkapi options/rooming list/traveler assignment di halaman detail.',
+  transportation: 'Dibuat sebagai status "Requested" — lengkapi options/legs/traveler assignment di halaman detail.',
+  mice: 'Dibuat sebagai status "Planning" — lengkapi sessions/BOQ/staffing/checklist di halaman detail.'
+}
+/** VENDORS pakai `serviceType` string mentah ('flight'/'hotel'/'transportation'/'mice'), sudah sama persis dengan `BookableServiceType` — tidak perlu mapping tambahan. */
+const isBookingSheetOpen = ref(false)
+const bookingSheetType = ref<BookableServiceType>('flight')
+const bookingVendorId = ref('')
+const bookingTicketingDeadline = ref('')
+const bookingCheckInDate = ref('')
+const bookingCheckOutDate = ref('')
+const bookingVenueName = ref('')
+
+const bookingVendorOptions = computed(() => VENDORS.filter(vendor => vendor.serviceType === bookingSheetType.value && (vendor.status ?? 'active') === 'active'))
+
+function openCreateBooking (type: ServiceTypeKey) {
+  bookingSheetType.value = type as BookableServiceType
+  bookingVendorId.value = ''
+  bookingTicketingDeadline.value = ''
+  bookingCheckInDate.value = ''
+  bookingCheckOutDate.value = ''
+  bookingVenueName.value = ''
+  isBookingSheetOpen.value = true
+}
+
+function submitCreateBooking () {
+  if (!project.value) { return }
+  const projectId = project.value.id
+  let bookingId: string
+  let serviceId: string | undefined
+  if (bookingSheetType.value === 'flight') {
+    const booking = createFlightBooking({ projectId, ticketingDeadline: bookingTicketingDeadline.value || undefined })
+    bookingId = booking.id
+    serviceId = booking.serviceId
+  } else if (bookingSheetType.value === 'hotel') {
+    const booking = createHotelBooking({ projectId, checkInDate: bookingCheckInDate.value || undefined, checkOutDate: bookingCheckOutDate.value || undefined })
+    bookingId = booking.id
+    serviceId = booking.serviceId
+  } else if (bookingSheetType.value === 'transportation') {
+    const booking = createTransportBooking({ projectId })
+    bookingId = booking.id
+    serviceId = booking.serviceId
+  } else {
+    const event = createMiceEvent({ projectId, venueName: bookingVenueName.value || undefined })
+    bookingId = event.id
+    serviceId = event.serviceId
+  }
+  if (serviceId && bookingVendorId.value) { setServiceVendor(serviceId, bookingVendorId.value) }
+  isBookingSheetOpen.value = false
+  showToast(`${BOOKING_SHEET_TITLE[bookingSheetType.value].replace(' Baru', '')} Dibuat`, `${bookingId} tercatat — lihat "Lihat Booking" di baris layanan untuk lengkapi detail.`, 'success')
 }
 /** Procurement summary (Section 17 baru) — Service Order dan RFQ terhubung ke project ini, ringkasan saja, pengelolaan lengkap di modul /procurement. */
 const projectServiceOrders = computed(() => project.value ? getServiceOrdersByProject(project.value.id) : [])
@@ -2137,45 +2205,45 @@ const tripDurationDays = computed(() => {
                 </div>
               </SectionCard>
 
-              <!-- Progress Readiness (donut) + Alasan Belum Siap & Countdown Keberangkatan (satu card, dipisah divider — bukan diduplikasi). -->
-              <div v-if="departureReadiness" class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <SectionCard compact title="Progress Readiness">
-                  <div class="flex items-center gap-5">
-                    <svg viewBox="0 0 80 80" class="h-24 w-24 shrink-0 -rotate-90">
+              <!-- Progress Readiness (donut, dibesarkan biar isi card padat tanpa duplikasi angka yang sudah ada di 4 StatsCard "Departure Readiness Gate" di atas) + Alasan Belum Siap & Countdown Keberangkatan (satu card, dipisah divider — bukan diduplikasi). items-start supaya card yang lebih pendek tidak di-stretch mengikuti tinggi sibling-nya. -->
+              <div v-if="departureReadiness" class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
+                <SectionCard compact content-class="flex flex-col items-center py-2 text-center">
+                  <template #header>
+                    <div class="flex items-center gap-3">
+                      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                        <Gauge class="h-5 w-5" />
+                      </span>
+                      <CardTitle class="text-sm font-bold uppercase tracking-wide text-foreground">
+                        Progress Readiness
+                      </CardTitle>
+                    </div>
+                  </template>
+
+                  <div class="relative flex h-40 w-40 shrink-0 items-center justify-center">
+                    <svg viewBox="0 0 80 80" class="h-40 w-40 -rotate-90">
+                      <circle cx="40" cy="40" r="34" fill="none" stroke="hsl(var(--muted))" stroke-width="7" />
                       <circle
-                        cx="40"
-                        cy="40"
-                        r="34"
-                        fill="none"
-                        stroke="hsl(var(--muted))"
-                        stroke-width="9"
-                      />
-                      <circle
-                        cx="40"
-                        cy="40"
-                        r="34"
-                        fill="none"
-                        stroke="hsl(var(--primary))"
-                        stroke-width="9"
-                        stroke-linecap="round"
+                        cx="40" cy="40" r="34" fill="none" stroke="hsl(var(--primary))" stroke-width="7" stroke-linecap="round"
+                        class="transition-[stroke-dashoffset] duration-700 ease-out"
                         :stroke-dasharray="2 * Math.PI * 34"
                         :stroke-dashoffset="2 * Math.PI * 34 * (1 - overallReadinessPercent / 100)"
                       />
                     </svg>
-                    <div class="min-w-0">
-                      <p class="text-2xl font-bold text-foreground leading-none">
-                        {{ overallReadinessPercent }}%
-                      </p>
-                      <p class="mt-1 text-xs text-muted-foreground">
-                        Siap Berangkat
-                      </p>
-                      <div class="mt-3 flex items-center gap-1.5 text-xs">
-                        <span class="h-2 w-2 rounded-full bg-primary" /><span class="text-foreground">{{ overallReadinessPercent }}% Siap</span>
-                      </div>
-                      <div class="mt-1 flex items-center gap-1.5 text-xs">
-                        <span class="h-2 w-2 rounded-full bg-muted" /><span class="text-muted-foreground">{{ 100 - overallReadinessPercent }}% Belum Lengkap</span>
-                      </div>
+                    <div class="absolute flex flex-col items-center">
+                      <span class="text-3xl font-bold leading-none tabular-nums text-foreground">{{ overallReadinessPercent }}%</span>
+                      <span class="mt-1 text-xs text-muted-foreground">Siap Berangkat</span>
                     </div>
+                  </div>
+
+                  <div class="mt-4 flex items-center gap-4 text-xs">
+                    <span class="flex items-center gap-1.5">
+                      <span class="h-2 w-2 shrink-0 rounded-full bg-primary" />
+                      <span class="text-foreground">{{ overallReadinessPercent }}% Siap</span>
+                    </span>
+                    <span class="flex items-center gap-1.5">
+                      <span class="h-2 w-2 shrink-0 rounded-full bg-muted" />
+                      <span class="text-muted-foreground">{{ 100 - overallReadinessPercent }}% Belum Lengkap</span>
+                    </span>
                   </div>
                 </SectionCard>
 
@@ -2378,13 +2446,11 @@ const tripDurationDays = computed(() => {
                   </ul>
                   <EmptyState v-else class="flex-1" title="Belum ada layanan tercatat." />
 
-                  <!-- "Buat Booking" quick-create (Section 13-16) — daftar booking sendiri kini terkonsolidasi di SectionCard "Booking Timeline" (Section 18) di bawah, bukan diulang per tipe layanan di sini. mt-auto (bukan mt-4) supaya menempel ke dasar card walau card ini di-stretch lebih tinggi dari kontennya sendiri (equal-height dengan sibling Flight/Hotel). -->
+                  <!-- "Buat Booking" quick-create (Section 13-16) — Sheet lokal (bukan navigate ke /services lagi), lihat `openCreateBooking`. mt-auto (bukan mt-4) supaya menempel ke dasar card walau card ini di-stretch lebih tinggi dari kontennya sendiri (equal-height dengan sibling Flight/Hotel). -->
                   <div v-if="SERVICE_TAB_KEY[type.value] && canManageServiceType(type.value)" class="mt-auto flex justify-end border-t border-border pt-4">
-                    <NuxtLink :to="`/services?projectId=${project.id}&create=1#${SERVICE_TAB_KEY[type.value]}`">
-                      <Button size="sm" variant="outline">
-                        <Plus class="h-4 w-4 mr-1.5" />Buat {{ type.label }} Booking
-                      </Button>
-                    </NuxtLink>
+                    <Button size="sm" variant="outline" @click="openCreateBooking(type.value)">
+                      <Plus class="h-4 w-4 mr-1.5" />Buat {{ type.label }} Booking
+                    </Button>
                   </div>
                 </SectionCard>
 
@@ -2459,6 +2525,58 @@ const tripDurationDays = computed(() => {
                 </SectionCard>
               </div>
 
+              <!-- "Buat Booking" quick-create — Sheet reusable satu instance untuk Flight/Hotel/Transport/MICE, dibuka via `openCreateBooking(type)` dari tombol di masing-masing card di atas. -->
+              <Sheet v-model:open="isBookingSheetOpen">
+                <SheetContent side="right" class="w-full sm:max-w-md overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>{{ BOOKING_SHEET_TITLE[bookingSheetType] }}</SheetTitle>
+                    <SheetDescription>{{ BOOKING_SHEET_DESCRIPTION[bookingSheetType] }}</SheetDescription>
+                  </SheetHeader>
+                  <div class="space-y-4 py-2">
+                    <div class="space-y-1.5">
+                      <Label for="booking-vendor">Vendor (opsional)</Label>
+                      <select id="booking-vendor" v-model="bookingVendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="">
+                          Belum ditentukan
+                        </option>
+                        <option v-for="vendor in bookingVendorOptions" :key="vendor.id" :value="vendor.id">
+                          {{ vendor.name }}
+                        </option>
+                      </select>
+                    </div>
+
+                    <div v-if="bookingSheetType === 'flight'" class="space-y-1.5">
+                      <Label for="booking-ticketing-deadline">Ticketing Deadline (opsional)</Label>
+                      <Input id="booking-ticketing-deadline" v-model="bookingTicketingDeadline" type="date" />
+                    </div>
+
+                    <div v-if="bookingSheetType === 'hotel'" class="grid grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label for="booking-checkin">Check-in (opsional)</Label>
+                        <Input id="booking-checkin" v-model="bookingCheckInDate" type="date" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="booking-checkout">Check-out (opsional)</Label>
+                        <Input id="booking-checkout" v-model="bookingCheckOutDate" type="date" />
+                      </div>
+                    </div>
+
+                    <div v-if="bookingSheetType === 'mice'" class="space-y-1.5">
+                      <Label for="booking-venue">Venue Name (opsional)</Label>
+                      <Input id="booking-venue" v-model="bookingVenueName" placeholder="mis. Ballroom Hotel XYZ" />
+                    </div>
+                  </div>
+                  <SheetFooter class="mt-6 flex-row justify-end gap-2">
+                    <Button variant="outline" @click="isBookingSheetOpen = false">
+                      Batal
+                    </Button>
+                    <Button @click="submitCreateBooking">
+                      Simpan
+                    </Button>
+                  </SheetFooter>
+                </SheetContent>
+              </Sheet>
+
               <EmptyState v-if="!visibleServiceTypes.length && !projectBookingTimeline.length" :icon="Truck" title="Belum ada layanan tercatat untuk project ini" />
 
               <!-- Procurement + Operational Tasks + Shift Notes dalam SATU grid responsif — pola sama grid layanan+Booking Timeline di atas: total genap → berdampingan setengah lebar, total ganjil → card terakhir (biasanya Shift Notes) otomatis full-width sendiri, tidak ada card sepi konten yang kepaksa full-width sendirian. -->
@@ -2504,7 +2622,9 @@ const tripDurationDays = computed(() => {
                   </div>
                 </SectionCard>
 
+                <!-- Operational Tasks — di-hide sementara atas permintaan (belum dihapus, tinggal balikin v-if kalau mau tampil lagi). -->
                 <SectionCard
+                  v-if="false"
                   compact
                   title="Operational Tasks"
                   :description="`${tasks.length} task tercatat untuk project ini`"
