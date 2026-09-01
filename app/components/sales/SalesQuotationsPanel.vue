@@ -1,39 +1,30 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { useRoute } from 'vue-router'
+import { Search } from 'lucide-vue-next'
 import {
   QUOTATIONS, getLeadById, getPartyById, getUserById,
-  getQuotationsPendingApproval,
   approveQuotation, rejectQuotation
 } from '~/data'
 import { QUOTATION_APPROVAL_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
-import type { Quotation } from '~/types/quotation'
+import type { Quotation, QuotationApprovalStatus } from '~/types/quotation'
 
 /**
  * Tab "Quotation" — Menu Sales > Pipeline (Penyederhanaan 7-Role/Menu). Dulu `/crm/quotations`, kini tab
  * dalam satu menu Pipeline bersama Funnel/Leads/Quotation — logika tidak diubah, hanya dipindah. Sub-tab
  * "Menunggu Client Confirmation" DIHAPUS — Mark as Won sekarang satu langkah, gate hanya
  * `Quotation.approvalStatus === 'approved'` (entitas Opportunity dan gate client-confirmation dihapus,
- * lihat komentar desain di `app/types/lead.ts`).
- *
- * Sub-tab internal (Menunggu Approval/Semua) memakai query param `qtab` — BUKAN `tab` seperti sebelumnya —
- * karena `tab` kini sudah dipakai container `/sales/pipeline` untuk memilih tab-level-atas
- * (Funnel/Leads/Quotation). Dua sistem tab bersarang tidak boleh berbagi key.
+ * lihat komentar desain di `app/types/lead.ts`). Sub-tab "Menunggu Approval" juga DIHAPUS — sudah
+ * tercakup lewat filter Status di toolbar (pilih "Menunggu Approval").
  */
 
 const route = useRoute()
-const router = useRouter()
 const { canView, canApprove } = usePermissions()
 const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const canApproveCommercial = computed(() => canApprove('sales'))
-
-const activeTab = computed<string>({
-  get: () => (route.query.qtab as string) || 'pending-approval',
-  set: value => router.replace({ query: { ...route.query, qtab: value } })
-})
 
 function leadTitle (leadId: string) {
   const lead = getLeadById(leadId)
@@ -45,16 +36,24 @@ function partyName (leadId: string) {
   return lead?.partyId ? (getPartyById(lead.partyId)?.name ?? '—') : '—'
 }
 
-function ownerName (leadId: string) {
-  const lead = getLeadById(leadId)
-  return lead ? (getUserById(lead.handedOverTo ?? lead.ownerId)?.name ?? lead.handedOverTo ?? lead.ownerId) : '—'
+/** Toolbar search + filter status (Section Quotation) — pola sama toolbar tab Leads. */
+const searchQuery = ref('')
+const statusFilter = ref<'all' | QuotationApprovalStatus>('all')
+
+function matchesSearch (quotation: Quotation) {
+  if (!searchQuery.value.trim()) { return true }
+  const q = searchQuery.value.toLowerCase()
+  return quotation.id.toLowerCase().includes(q)
+    || leadTitle(quotation.leadId).toLowerCase().includes(q)
+    || partyName(quotation.leadId).toLowerCase().includes(q)
 }
 
-const pendingApproval = computed(() => getQuotationsPendingApproval())
 /** Drill-down (Customer Journey Funnel) — `?qtab=all&status=approved` deep-link ke quotation approved saja; kosong/`all` menampilkan seluruh quotation seperti semula. */
 const statusQueryFilter = computed(() => (route.query.status as string) || 'all')
 const allQuotations = computed(() => [...QUOTATIONS]
   .filter(q => statusQueryFilter.value === 'all' || (q.approvalStatus ?? 'draft') === statusQueryFilter.value)
+  .filter(q => statusFilter.value === 'all' || (q.approvalStatus ?? 'draft') === statusFilter.value)
+  .filter(matchesSearch)
   .sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
 
 /**
@@ -112,115 +111,71 @@ function submitReject () {
     <RoleAccessState v-if="!canView('sales')" module-label="modul Sales" />
 
     <template v-else>
-      <Tabs v-model="activeTab">
-        <TabsList>
-          <TabsTrigger value="pending-approval">
-            Menunggu Approval ({{ pendingApproval.length }})
-          </TabsTrigger>
-          <TabsTrigger value="all">
-            Semua Quotation ({{ allQuotations.length }})
-          </TabsTrigger>
-        </TabsList>
+      <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+        <div class="relative flex-1 w-full">
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input v-model="searchQuery" placeholder="Cari quotation, lead, atau party..." class="pl-9" />
+        </div>
+        <select v-model="statusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+          <option value="all">
+            Semua Status
+          </option>
+          <option v-for="opt in QUOTATION_APPROVAL_STATUSES" :key="opt.value" :value="opt.value">
+            {{ opt.label }}
+          </option>
+        </select>
+      </div>
 
-        <TabsContent value="pending-approval">
-          <SectionCard description="Quotation yang sudah AE submit dan menunggu Commercial Approval Management.">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Quotation</TableHead>
-                  <TableHead>Lead</TableHead>
-                  <TableHead>Party</TableHead>
-                  <TableHead>Account Executive</TableHead>
-                  <TableHead>Nilai</TableHead>
-                  <TableHead>Diajukan</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="quotation in pendingApproval" :key="quotation.id" class="cursor-pointer hover:bg-muted/50" @click="openReview(quotation)">
-                  <TableCell class="font-medium text-foreground">
-                    {{ quotation.id }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ leadTitle(quotation.leadId) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ partyName(quotation.leadId) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ ownerName(quotation.leadId) }}
-                  </TableCell>
-                  <TableCell>{{ formatCurrencyIdr(quotation.amountIdr) }}</TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(quotation.createdAt) }}
-                  </TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="outline" @click.stop="openReview(quotation)">
-                      Review
-                    </Button>
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="pendingApproval.length === 0" :colspan="7">
-                  Tidak ada quotation yang menunggu approval saat ini.
-                </TableEmpty>
-              </TableBody>
-            </Table>
-          </SectionCard>
-        </TabsContent>
-
-        <TabsContent value="all">
-          <SectionCard description="Seluruh quotation lintas Lead, apa pun status approval-nya.">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Quotation</TableHead>
-                  <TableHead>Lead</TableHead>
-                  <TableHead>Party</TableHead>
-                  <TableHead>Nilai</TableHead>
-                  <TableHead>Versi</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Dibuat</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="quotation in allQuotations" :key="quotation.id" class="cursor-pointer hover:bg-muted/50" @click="openReview(quotation)">
-                  <TableCell class="font-medium text-foreground">
-                    {{ quotation.id }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ leadTitle(quotation.leadId) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ partyName(quotation.leadId) }}
-                  </TableCell>
-                  <TableCell>{{ formatCurrencyIdr(quotation.amountIdr) }}</TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ quotation.version }}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').label"
-                      :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').tone"
-                    />
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(quotation.createdAt) }}
-                  </TableCell>
-                  <TableCell>
-                    <Button size="sm" variant="outline" @click.stop="openReview(quotation)">
-                      Detail
-                    </Button>
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="allQuotations.length === 0" :colspan="8">
-                  Belum ada quotation.
-                </TableEmpty>
-              </TableBody>
-            </Table>
-          </SectionCard>
-        </TabsContent>
-      </Tabs>
+      <SectionCard description="Seluruh quotation lintas Lead, apa pun status approval-nya.">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Quotation</TableHead>
+              <TableHead>Lead</TableHead>
+              <TableHead>Party</TableHead>
+              <TableHead>Nilai</TableHead>
+              <TableHead>Versi</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Dibuat</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="quotation in allQuotations" :key="quotation.id" class="cursor-pointer hover:bg-muted/50" @click="openReview(quotation)">
+              <TableCell class="font-medium text-foreground">
+                {{ quotation.id }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ leadTitle(quotation.leadId) }}
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ partyName(quotation.leadId) }}
+              </TableCell>
+              <TableCell>{{ formatCurrencyIdr(quotation.amountIdr) }}</TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ quotation.version }}
+              </TableCell>
+              <TableCell>
+                <StatusBadge
+                  :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').label"
+                  :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').tone"
+                />
+              </TableCell>
+              <TableCell class="text-muted-foreground">
+                {{ formatDate(quotation.createdAt) }}
+              </TableCell>
+              <TableCell>
+                <Button size="sm" variant="outline" @click.stop="openReview(quotation)">
+                  Detail
+                </Button>
+              </TableCell>
+            </TableRow>
+            <TableEmpty v-if="allQuotations.length === 0" :colspan="8">
+              Belum ada quotation.
+            </TableEmpty>
+          </TableBody>
+        </Table>
+      </SectionCard>
     </template>
 
     <!-- Review Dialog -->
