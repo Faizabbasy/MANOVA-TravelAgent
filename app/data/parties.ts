@@ -66,13 +66,47 @@ export const PARTIES: Party[] = reactive([
   /** Peserta tambahan Open Trip Bromo Ijen PRJ-205 (`app/data/projects.ts`) — memperkaya funnel Bookings B2C (Awaiting DP/Confirmed lebih dari 1 baris) dan roster Travelers. */
   { id: 'PTY-012', name: 'Dewi Anjani', lifecycleStatus: 'client', createdAt: '2026-08-18', partyType: 'individual', phone: '0815-6001-1003', city: 'Yogyakarta' },
   { id: 'PTY-013', name: 'Fajar Nugroho', lifecycleStatus: 'client', createdAt: '2026-08-09', partyType: 'individual', phone: '0815-6001-1004', city: 'Surabaya' },
-  { id: 'PTY-014', name: 'Sari Wulandari', lifecycleStatus: 'client', createdAt: '2026-08-06', partyType: 'individual', phone: '0815-6001-1005', city: 'Malang' }
+  { id: 'PTY-014', name: 'Sari Wulandari', lifecycleStatus: 'client', createdAt: '2026-08-06', partyType: 'individual', phone: '0815-6001-1005', city: 'Malang' },
+  /**
+   * Demo Client Presentation — PTY-015 (customer hero B2B, `PRJ-501`) dan PTY-016/017/018 (customer B2C
+   * hero group trip `PRJ-502`, masing-masing booker utama satu `SalesOrder`, pola sama PTY-010/013).
+   */
+  {
+    id: 'PTY-015',
+    name: 'PT Cakra Baja Industri',
+    lifecycleStatus: 'client',
+    createdAt: '2026-06-15',
+    accountOwnerId: 'USR-001',
+    size: '201-500',
+    city: 'Cikarang',
+    phone: '021-8990-2015',
+    companyType: 'private-company',
+    industry: 'Manufaktur Baja & Logam',
+    address: 'Kawasan Industri Jababeka II, Jl. Industri Selatan 5 Blok GG-8',
+    province: 'Jawa Barat',
+    country: 'Indonesia',
+    postalCode: '17530',
+    website: 'https://cakrabaja.example',
+    email: 'corporate@cakra-baja.example',
+    registrationNumber: 'AHU-0025678.AH.01.01.2016',
+    npwp: '02.345.678.9-012.000',
+    billingName: 'PT Cakra Baja Industri',
+    billingAddress: 'Kawasan Industri Jababeka II, Jl. Industri Selatan 5 Blok GG-8, Cikarang 17530',
+    paymentTerm: 'Net 30',
+    preferredCurrency: 'IDR',
+    poRequired: true,
+    travelPreferences: 'Preferensi maskapai full-service, hotel bintang 4, kamar non-smoking dekat venue pabrik mitra.'
+  },
+  { id: 'PTY-016', name: 'Wahyu Pramesti', lifecycleStatus: 'client', createdAt: '2026-07-02', partyType: 'individual', phone: '0815-6002-1001', city: 'Jakarta' },
+  { id: 'PTY-017', name: 'Fajar Ramadhani', lifecycleStatus: 'client', createdAt: '2026-07-02', partyType: 'individual', phone: '0815-6002-1002', city: 'Bandung' },
+  { id: 'PTY-018', name: 'Nadia Kirana', lifecycleStatus: 'client', createdAt: '2026-07-03', partyType: 'individual', phone: '0815-6002-1003', city: 'Surabaya' }
 ])
 
 export const CONTACTS: ContactPerson[] = reactive([
   { id: 'CP-001', partyId: 'PTY-001', name: 'Hendra Wijaya', title: 'Operations Manager', phone: '0812-3000-1001' },
   { id: 'CP-002', partyId: 'PTY-002', name: 'Sarah Amelia', title: 'HR Manager' },
   { id: 'CP-005', partyId: 'PTY-005', name: 'Dimas Pratama', title: 'Corporate Travel Coordinator', email: 'dimas.pratama@java-bhakti.example', phone: '0815-5000-5001' },
+  { id: 'CP-006', partyId: 'PTY-015', name: 'Herman Kusnadi', title: 'VP Operations', email: 'herman.kusnadi@cakra-baja.example', phone: '021-8990-2015' },
   { id: 'CP-003', partyId: 'PTY-003', name: 'Michael Tanuwijaya', title: 'Event Coordinator' },
   { id: 'CP-004', partyId: 'PTY-004', name: 'Nadia Ramadhani', title: 'Procurement Officer' }
 ])

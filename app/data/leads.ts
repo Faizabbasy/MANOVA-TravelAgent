@@ -620,6 +620,106 @@ export const LEADS: Lead[] = reactive([
     b2cBookingReadiness: 'still-considering',
     b2cQualificationResult: 'follow-up',
     b2cNextFollowUpDate: '2026-08-29'
+  },
+  /**
+   * Demo Client Presentation (live walkthrough) — LED-028/029 (B2B) dan LED-030/031 (B2C) menambah DUA
+   * storyline lengkap Lead → Quotation → Won → Project Order 6-step, terpisah dari fixture existing di
+   * atas (tidak menyentuh satu pun record lama). LED-028/030 sengaja MASIH mentah (belum qualified) —
+   * dipakai mendemokan AWAL funnel secara live. LED-029/031 sudah Won lengkap dengan Quotation/Project
+   * (`PRJ-501`/`PRJ-502`, `app/data/projects.ts`) — dipakai mendemokan 6-step Project Order stepper.
+   */
+  {
+    id: 'LED-028',
+    name: 'Bagus Wirawan',
+    companyName: 'PT Meridian Plastik Nusantara',
+    source: 'referral',
+    stage: 'contacted',
+    ownerId: 'USR-001',
+    phone: '0815-7100-2801',
+    email: 'bagus.wirawan@meridian-plastik.example',
+    qualificationNotes: 'Awal ketertarikan company trip tahunan tim manajemen, masih tahap penjajakan kebutuhan.',
+    expectedCloseDate: '2026-09-20',
+    createdAt: '2026-08-25',
+    lastUpdatedAt: '2026-08-28',
+    archived: false,
+    serviceCategory: 'corporate-travel',
+    destination: 'Bangkok, Thailand',
+    travelerEstimate: 12,
+    budgetRange: 'Rp 150 juta - Rp 250 juta',
+    decisionMaker: 'Direktur HR PT Meridian Plastik Nusantara',
+    urgency: 'medium'
+  },
+  /** LED-029 — hero Lead B2B (Won), pasangan Quotation `QUO-011` dan Project `PRJ-501`. */
+  {
+    id: 'LED-029',
+    name: 'Herman Kusnadi',
+    companyName: 'PT Cakra Baja Industri',
+    source: 'website',
+    stage: 'qualified',
+    ownerId: 'USR-001',
+    handedOverTo: 'USR-001',
+    phone: '021-8990-2015',
+    email: 'herman.kusnadi@cakra-baja.example',
+    createdAt: '2026-06-20',
+    lastUpdatedAt: '2026-07-05',
+    archived: false,
+    partyId: 'PTY-015',
+    title: 'Kuala Lumpur Manufacturing Delegation 2026',
+    qualifiedAt: '2026-06-28',
+    quotationId: 'QUO-011',
+    projectId: 'PRJ-501',
+    serviceCategory: 'corporate-travel',
+    destination: 'Kuala Lumpur, Malaysia',
+    travelStartDate: '2026-07-08',
+    travelEndDate: '2026-07-11',
+    travelerEstimate: 8,
+    serviceScope: ['flight', 'hotel'],
+    requirementSummary: 'Delegasi manajemen untuk kunjungan pabrik mitra dan pameran industri manufaktur di Kuala Lumpur.',
+    budgetRange: 'Rp 200 juta - Rp 220 juta',
+    decisionMaker: 'Herman Kusnadi (VP Operations)',
+    urgency: 'high'
+  },
+  {
+    id: 'LED-030',
+    name: 'Dian Puspitasari',
+    source: 'instagram',
+    stage: 'new',
+    ownerId: 'USR-001',
+    phone: '0815-7200-3001',
+    email: 'dian.puspitasari@example.com',
+    createdAt: '2026-08-28',
+    lastUpdatedAt: '2026-08-28',
+    archived: false,
+    serviceCategory: 'individual-travel',
+    destination: 'Raja Ampat, Indonesia',
+    travelerEstimate: 2
+  },
+  /** LED-031 — hero Lead B2C (Won/Qualified), organizer grup, pasangan Quotation `QUO-012` dan Project `PRJ-502` (Group Trip). */
+  {
+    id: 'LED-031',
+    name: 'Rama Aditya',
+    source: 'referral',
+    stage: 'qualified',
+    ownerId: 'USR-001',
+    handedOverTo: 'USR-001',
+    phone: '0815-6002-3101',
+    email: 'rama.aditya@example.com',
+    createdAt: '2026-06-25',
+    lastUpdatedAt: '2026-07-05',
+    archived: false,
+    partyId: 'PTY-009',
+    title: 'Labuan Bajo Komodo Explorer 4D3N — Group Trip',
+    qualifiedAt: '2026-07-01',
+    quotationId: 'QUO-012',
+    projectId: 'PRJ-502',
+    serviceCategory: 'group-travel',
+    destination: 'Labuan Bajo & Pulau Komodo, Indonesia',
+    travelStartDate: '2026-07-09',
+    travelEndDate: '2026-07-12',
+    travelerEstimate: 6,
+    serviceScope: ['transportation', 'hotel'],
+    requirementSummary: 'Open trip Komodo untuk 6 peserta (kombinasi keluarga dan pasangan), island hopping Komodo/Padar/Pink Beach.',
+    decisionMaker: 'Rama Aditya (Koordinator Grup)'
   }
 ])
 
@@ -629,6 +729,8 @@ export const LEAD_ACTIVITIES: LeadActivity[] = reactive([
   { id: 'LACT-002', leadId: 'LED-001', type: 'meeting', message: 'Meeting discovery dengan CV Nirmala Eventama', ownerId: 'USR-001', createdAt: '2026-07-18' },
   { id: 'LACT-003', leadId: 'LED-001', type: 'follow-up', message: 'Follow-up keputusan qualifikasi dari Account Executive', ownerId: 'USR-001', createdAt: '2026-07-22', dueAt: '2026-08-05' },
   { id: 'LACT-004', leadId: 'LED-004', type: 'call', message: 'Follow-up awal atas inbound WhatsApp', ownerId: 'USR-001', createdAt: '2026-07-18' },
+  { id: 'LACT-008', leadId: 'LED-029', type: 'meeting', message: 'Kick-off meeting delegasi manufaktur, membahas jadwal kunjungan pabrik mitra', ownerId: 'USR-001', createdAt: '2026-06-22' },
+  { id: 'LACT-009', leadId: 'LED-031', type: 'call', message: 'Follow-up kesiapan grup Komodo, konfirmasi jumlah peserta final', ownerId: 'USR-001', createdAt: '2026-06-30' },
   { id: 'LACT-005', leadId: 'LED-004', type: 'follow-up', message: 'Follow-up detail kebutuhan business trip Singapura', ownerId: 'USR-001', createdAt: '2026-07-26', dueAt: '2026-08-08' },
   { id: 'LACT-006', leadId: 'LED-008', type: 'call', message: 'Cold call awal hasil sales outreach', ownerId: 'USR-001', createdAt: '2026-07-20' },
   { id: 'LACT-007', leadId: 'LED-005', type: 'note', message: 'Lead diserahkan ke Account Executive untuk deal Bali Team Building', ownerId: 'USR-001', createdAt: '2026-07-18' }

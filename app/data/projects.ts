@@ -228,6 +228,69 @@ export const PROJECTS: Project[] = reactive([
     emergencyContactName: 'Manova 24/7 Operations',
     emergencyContactPhone: '+62 21 5000 1188',
     meetingPoint: 'Stasiun Probolinggo, titik kumpul peserta'
+  },
+  /**
+   * PRJ-501/502 — Demo Client Presentation (live walkthrough Lead → Quotation → Won → 6-step Project
+   * Order). Sengaja `status: 'draft'` (mulai dari step Drafting) TAPI seluruh gate step berikutnya
+   * (Confirmed/Start/Departure/On Progress/Done) SUDAH dipenuhi lewat data pendukung di bawah (service,
+   * itinerary, traveler, invoice+payment) — data statis, tidak ada flip status live di antar klik
+   * "Advance" (lihat `app/data/project-order-workflow.ts`), jadi seluruh gate harus benar dari awal.
+   * `travelStartDate`/`travelEndDate` SENGAJA ≤ `DEMO_REFERENCE_DATE` (`app/utils/attention.ts`,
+   * 2026-07-29) supaya gate Departure/On Progress lolos saat didemokan live.
+   */
+  {
+    id: 'PRJ-501',
+    name: 'Kuala Lumpur Manufacturing Delegation 2026',
+    partyId: 'PTY-015',
+    leadId: 'LED-029',
+    sourceQuotationId: 'QUO-011',
+    destination: 'Kuala Lumpur, Malaysia',
+    travelStartDate: '2026-07-08',
+    travelEndDate: '2026-07-11',
+    characteristic: 'normal',
+    serviceScope: ['flight', 'hotel'],
+    travelerCount: 8,
+    ownerId: 'USR-002',
+    teamUserIds: ['USR-002'],
+    status: 'draft',
+    quotationAmountIdr: 210_000_000,
+    budgetIdr: 190_000_000,
+    actualCostIdr: 0,
+    handoverAcceptedAt: '2026-07-01',
+    handoverAcceptedBy: 'USR-002',
+    tourLeaderName: 'Adi Nugroho',
+    tourLeaderPhone: '0812-9001-5001',
+    emergencyContactName: 'Manova 24/7 Operations',
+    emergencyContactPhone: '+62 21 5000 1188',
+    meetingPoint: 'Terminal 3 Bandara Soekarno-Hatta, konter check-in grup'
+  },
+  /** PRJ-502 — hero Group Trip B2C, pola sama PRJ-205 (`partyId` placeholder PTY-009, peserta nyata lewat `SALES_ORDERS`/`TRAVELERS`). */
+  {
+    id: 'PRJ-502',
+    name: 'Labuan Bajo Komodo Explorer 4D3N',
+    partyId: 'PTY-009',
+    isGroupTrip: true,
+    leadId: 'LED-031',
+    sourceQuotationId: 'QUO-012',
+    destination: 'Labuan Bajo & Pulau Komodo, Indonesia',
+    travelStartDate: '2026-07-09',
+    travelEndDate: '2026-07-12',
+    characteristic: 'normal',
+    serviceScope: ['transportation', 'hotel'],
+    travelerCount: 6,
+    ownerId: 'USR-002',
+    teamUserIds: ['USR-002'],
+    status: 'draft',
+    quotationAmountIdr: 40_000_000,
+    budgetIdr: 34_000_000,
+    actualCostIdr: 0,
+    handoverAcceptedAt: '2026-07-03',
+    handoverAcceptedBy: 'USR-002',
+    tourLeaderName: 'Ilham Ramadhan',
+    tourLeaderPhone: '0812-9002-5002',
+    emergencyContactName: 'Manova 24/7 Operations',
+    emergencyContactPhone: '+62 21 5000 1188',
+    meetingPoint: 'Bandara Komodo, Labuan Bajo — titik kumpul peserta'
   }
 ])
 
@@ -279,7 +342,20 @@ export const PROJECT_SERVICES: ProjectService[] = reactive([
    */
   { id: 'SVC-2051', projectId: 'PRJ-205', type: 'transportation', label: 'Bus Pariwisata Bromo Ijen', status: 'confirmed', vendorId: 'VND-003', budgetIdr: 10_000_000 },
   { id: 'SVC-2052', projectId: 'PRJ-205', type: 'hotel', label: 'Homestay Bromo View', status: 'confirmed', vendorId: 'VND-002', bookingReference: 'HTL-BRM-2026', budgetIdr: 15_000_000 },
-  { id: 'SVC-2053', projectId: 'PRJ-205', type: 'hotel', label: 'Basecamp Paltuding, Ijen', status: 'pending-confirmation', budgetIdr: 10_000_000 }
+  { id: 'SVC-2053', projectId: 'PRJ-205', type: 'hotel', label: 'Basecamp Paltuding, Ijen', status: 'pending-confirmation', budgetIdr: 10_000_000 },
+
+  /**
+   * PRJ-501/502 (Demo Client Presentation) — seluruh service SENGAJA sudah `completed` sejak awal (bukan
+   * `confirmed`), karena data ini statis (tidak ada flip status live antar klik "Advance") dan harus lolos
+   * SEKALIGUS gate "Confirmed" (`confirmed`/`completed`), "Start"/`getDepartureReadiness` (`confirmed`/
+   * `completed` dihitung siap), maupun "On Progress" (`completed`/`cancelled`) — lihat
+   * `app/data/project-order-workflow.ts` dan `getServiceReadinessMatrix` (`app/data/index.ts`).
+   */
+  { id: 'SVC-5011', projectId: 'PRJ-501', type: 'flight', label: 'Flight Jakarta–Kuala Lumpur', status: 'completed', vendorId: 'VND-001', bookingReference: 'PNR-KUL5501', budgetIdr: 80_000_000 },
+  { id: 'SVC-5012', projectId: 'PRJ-501', type: 'hotel', label: 'Hotel Kuala Lumpur (8 pax)', status: 'completed', vendorId: 'VND-002', bookingReference: 'HTL-KUL-5501', budgetIdr: 90_000_000 },
+
+  { id: 'SVC-5021', projectId: 'PRJ-502', type: 'transportation', label: 'Speedboat & Guide Komodo-Padar-Pink Beach', status: 'completed', vendorId: 'VND-003', bookingReference: 'BOAT-LBJ-5021', budgetIdr: 16_000_000 },
+  { id: 'SVC-5022', projectId: 'PRJ-502', type: 'hotel', label: 'Hotel Labuan Bajo (6 pax)', status: 'completed', vendorId: 'VND-002', bookingReference: 'HTL-LBJ-5022', budgetIdr: 14_000_000 }
 ])
 
 /** Daily itinerary (Section 12) — jadwal harian per project, `groupId` merujuk `TravelerGroup` (Section 11) yang sudah ada. */
@@ -337,7 +413,20 @@ export const ITINERARY_ITEMS: ItineraryItem[] = reactive([
   { id: 'ITIN-2056', projectId: 'PRJ-205', date: '2026-09-19', time: '16:00', title: 'Check-in Basecamp Paltuding, Ijen', serviceType: 'hotel', timezone: 'Asia/Jakarta' },
   { id: 'ITIN-2057', projectId: 'PRJ-205', date: '2026-09-20', time: '00:00', title: 'Trekking Kawah Ijen — Blue Fire', description: 'Pendakian dini hari, menyaksikan blue fire & sunrise di kawah', serviceType: 'transportation', timezone: 'Asia/Jakarta' },
   { id: 'ITIN-2058', projectId: 'PRJ-205', date: '2026-09-20', time: '12:00', title: 'Istirahat & Waktu Bebas', timezone: 'Asia/Jakarta' },
-  { id: 'ITIN-2059', projectId: 'PRJ-205', date: '2026-09-21', time: '08:00', title: 'Kepulangan Ijen → Stasiun Probolinggo', description: 'Perjalanan pulang & penjemputan peserta', serviceType: 'transportation', timezone: 'Asia/Jakarta' }
+  { id: 'ITIN-2059', projectId: 'PRJ-205', date: '2026-09-21', time: '08:00', title: 'Kepulangan Ijen → Stasiun Probolinggo', description: 'Perjalanan pulang & penjemputan peserta', serviceType: 'transportation', timezone: 'Asia/Jakarta' },
+
+  // PRJ-501 — Kuala Lumpur Manufacturing Delegation, 8-11 Juli 2026.
+  { id: 'ITIN-5011', projectId: 'PRJ-501', date: '2026-07-08', time: '09:00', title: 'Keberangkatan Jakarta → Kuala Lumpur', serviceType: 'flight', timezone: 'Asia/Jakarta' },
+  { id: 'ITIN-5012', projectId: 'PRJ-501', date: '2026-07-09', time: '09:00', title: 'Kunjungan Pabrik Mitra & Diskusi Kerja Sama', timezone: 'Asia/Kuala_Lumpur' },
+  { id: 'ITIN-5013', projectId: 'PRJ-501', date: '2026-07-10', time: '09:00', title: 'Pameran Industri Manufaktur KLCC', timezone: 'Asia/Kuala_Lumpur' },
+  { id: 'ITIN-5014', projectId: 'PRJ-501', date: '2026-07-11', time: '15:00', title: 'Kepulangan Kuala Lumpur → Jakarta', serviceType: 'flight', timezone: 'Asia/Kuala_Lumpur' },
+
+  // PRJ-502 — Labuan Bajo Komodo Explorer 4D3N, 9-12 Juli 2026.
+  { id: 'ITIN-5021', projectId: 'PRJ-502', date: '2026-07-09', time: '07:00', title: 'Kedatangan & Kumpul Peserta di Bandara Komodo', serviceType: 'transportation', timezone: 'Asia/Makassar', location: 'Bandara Komodo, Labuan Bajo' },
+  { id: 'ITIN-5022', projectId: 'PRJ-502', date: '2026-07-09', time: '14:00', title: 'Check-in Hotel Labuan Bajo', serviceType: 'hotel', timezone: 'Asia/Makassar' },
+  { id: 'ITIN-5023', projectId: 'PRJ-502', date: '2026-07-10', time: '06:00', title: 'Island Hopping: Pulau Komodo, Padar, Pink Beach', serviceType: 'transportation', timezone: 'Asia/Makassar' },
+  { id: 'ITIN-5024', projectId: 'PRJ-502', date: '2026-07-11', time: '06:00', title: 'Snorkeling Manta Point & Kelor Island', serviceType: 'transportation', timezone: 'Asia/Makassar' },
+  { id: 'ITIN-5025', projectId: 'PRJ-502', date: '2026-07-12', time: '09:00', title: 'Kepulangan — Transfer ke Bandara Komodo', serviceType: 'transportation', timezone: 'Asia/Makassar' }
 ])
 
 /**
@@ -356,7 +445,11 @@ export const TRAVELER_GROUPS: TravelerGroup[] = reactive([
   { id: 'GRP-003', projectId: 'PRJ-103', name: 'Partner / VIP', paxCount: 25, roomingNote: '2 suite VIP (termasuk kebutuhan aksesibilitas)' },
   // PRJ-205 — Open Trip Bromo Ijen, dikelompokkan per booking (bukan per role seperti PRJ-103).
   { id: 'GRP-004', projectId: 'PRJ-205', name: 'Yulia Kartika & Pasangan', paxCount: 2, roomingNote: '1 kamar twin (2 pax)' },
-  { id: 'GRP-005', projectId: 'PRJ-205', name: 'Keluarga Fajar Nugroho', paxCount: 3, roomingNote: '1 kamar suite (3 pax)' }
+  { id: 'GRP-005', projectId: 'PRJ-205', name: 'Keluarga Fajar Nugroho', paxCount: 3, roomingNote: '1 kamar suite (3 pax)' },
+  // PRJ-502 — Labuan Bajo Komodo Explorer, dikelompokkan per booking SalesOrder (pola sama PRJ-205).
+  { id: 'GRP-501', projectId: 'PRJ-502', name: 'Wahyu Pramesti & Pasangan', paxCount: 2, roomingNote: '1 kamar twin (2 pax)' },
+  { id: 'GRP-502', projectId: 'PRJ-502', name: 'Keluarga Fajar Ramadhani', paxCount: 3, roomingNote: '1 kamar suite (3 pax)' },
+  { id: 'GRP-503', projectId: 'PRJ-502', name: 'Nadia Kirana (Solo)', paxCount: 1, roomingNote: '1 kamar single (1 pax)' }
 ])
 
 /**
@@ -420,7 +513,32 @@ export const TRAVELERS: Traveler[] = reactive([
   { id: 'TRV-2052', projectId: 'PRJ-205', groupId: 'GRP-004', partyId: 'PTY-010', salesOrderId: 'SLO-006', name: 'Rendra Kartika', passportNumber: 'F6601002', passportExpiryDate: '2029-05-10', emergencyContactName: 'Yulia Kartika', emergencyContactPhone: '0815-6001-1001', companionOfTravelerId: 'TRV-2051' },
   { id: 'TRV-2053', projectId: 'PRJ-205', groupId: 'GRP-005', partyId: 'PTY-013', salesOrderId: 'SLO-009', name: 'Fajar Nugroho', passportNumber: 'F6601003', passportExpiryDate: '2028-12-01', idNumber: '3578016009880002', emergencyContactName: 'Anisa Nugroho', emergencyContactPhone: '0815-6001-1004', documentsVerifiedAt: '2026-08-11', documentsVerifiedBy: 'USR-002' },
   { id: 'TRV-2054', projectId: 'PRJ-205', groupId: 'GRP-005', partyId: 'PTY-013', salesOrderId: 'SLO-009', name: 'Anisa Nugroho', passportNumber: 'F6601004', passportExpiryDate: '2028-12-01', emergencyContactName: 'Fajar Nugroho', emergencyContactPhone: '0815-6001-1004', companionOfTravelerId: 'TRV-2053' },
-  { id: 'TRV-2055', projectId: 'PRJ-205', groupId: 'GRP-005', partyId: 'PTY-013', salesOrderId: 'SLO-009', name: 'Kirana Nugroho', emergencyContactName: 'Fajar Nugroho', emergencyContactPhone: '0815-6001-1004', dietaryRestrictions: 'Anak-anak, tanpa pedas', companionOfTravelerId: 'TRV-2053' }
+  { id: 'TRV-2055', projectId: 'PRJ-205', groupId: 'GRP-005', partyId: 'PTY-013', salesOrderId: 'SLO-009', name: 'Kirana Nugroho', emergencyContactName: 'Fajar Nugroho', emergencyContactPhone: '0815-6001-1004', dietaryRestrictions: 'Anak-anak, tanpa pedas', companionOfTravelerId: 'TRV-2053' },
+
+  /**
+   * PRJ-501/502 (Demo Client Presentation) — SELURUH traveler SENGAJA sudah dokumen lengkap +
+   * `documentsVerifiedAt` terisi (beda dari fixture lain yang sengaja campuran) karena data statis ini
+   * harus lolos gate "Start" (`getTravelerReadiness`/`getDepartureReadiness`, `app/data/index.ts`) dari
+   * awal, tanpa aksi verifikasi tambahan saat demo. Expiry paspor jauh di atas
+   * `PASSPORT_EXPIRY_WARNING_DAYS` (180 hari) dari `travelStartDate` masing-masing project.
+   */
+  // PRJ-501 — Kuala Lumpur Manufacturing Delegation, travelerCount 8, seluruhnya delegasi manajemen.
+  { id: 'TRV-5011', projectId: 'PRJ-501', name: 'Herman Kusnadi', passportNumber: 'H8801001', passportExpiryDate: '2029-05-10', idNumber: '3216012001800001', emergencyContactName: 'Retno Kusnadi', emergencyContactPhone: '0812-9001-1001', documentsVerifiedAt: '2026-07-03', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-5012', projectId: 'PRJ-501', name: 'Rudi Hartanto', passportNumber: 'H8801002', passportExpiryDate: '2029-02-18', emergencyContactName: 'Wati Hartanto', emergencyContactPhone: '0812-9001-1002', documentsVerifiedAt: '2026-07-03', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-5013', projectId: 'PRJ-501', name: 'Siti Aminah', passportNumber: 'H8801003', passportExpiryDate: '2028-11-22', emergencyContactName: 'Bambang Aminah', emergencyContactPhone: '0812-9001-1003', documentsVerifiedAt: '2026-07-03', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-5014', projectId: 'PRJ-501', name: 'Bayu Wicaksono', passportNumber: 'H8801004', passportExpiryDate: '2029-08-30', emergencyContactName: 'Lestari Wicaksono', emergencyContactPhone: '0812-9001-1004', documentsVerifiedAt: '2026-07-03', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-5015', projectId: 'PRJ-501', name: 'Lina Marlina', passportNumber: 'H8801005', passportExpiryDate: '2029-01-15', emergencyContactName: 'Doni Marlina', emergencyContactPhone: '0812-9001-1005', documentsVerifiedAt: '2026-07-03', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-5016', projectId: 'PRJ-501', name: 'Denny Firmansyah', passportNumber: 'H8801006', passportExpiryDate: '2028-12-05', emergencyContactName: 'Sari Firmansyah', emergencyContactPhone: '0812-9001-1006', documentsVerifiedAt: '2026-07-03', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-5017', projectId: 'PRJ-501', name: 'Wulan Setiani', passportNumber: 'H8801007', passportExpiryDate: '2029-04-19', emergencyContactName: 'Yoga Setiani', emergencyContactPhone: '0812-9001-1007', documentsVerifiedAt: '2026-07-03', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-5018', projectId: 'PRJ-501', name: 'Teguh Prakoso', passportNumber: 'H8801008', passportExpiryDate: '2029-03-27', emergencyContactName: 'Nia Prakoso', emergencyContactPhone: '0812-9001-1008', documentsVerifiedAt: '2026-07-03', documentsVerifiedBy: 'USR-002' },
+
+  // PRJ-502 — Labuan Bajo Komodo Explorer, peserta lahir dari SalesOrder `paid` SLO-011/012/013 (`app/data/sales-orders.ts`).
+  { id: 'TRV-5021', projectId: 'PRJ-502', groupId: 'GRP-501', partyId: 'PTY-016', salesOrderId: 'SLO-011', name: 'Wahyu Pramesti', passportNumber: 'G7701001', passportExpiryDate: '2029-06-01', idNumber: '3174017001900001', emergencyContactName: 'Rina Pramesti', emergencyContactPhone: '0815-6002-1001', documentsVerifiedAt: '2026-07-05', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-5022', projectId: 'PRJ-502', groupId: 'GRP-501', partyId: 'PTY-016', salesOrderId: 'SLO-011', name: 'Rina Pramesti', passportNumber: 'G7701002', passportExpiryDate: '2029-06-01', emergencyContactName: 'Wahyu Pramesti', emergencyContactPhone: '0815-6002-1001', companionOfTravelerId: 'TRV-5021', documentsVerifiedAt: '2026-07-05', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-5023', projectId: 'PRJ-502', groupId: 'GRP-502', partyId: 'PTY-017', salesOrderId: 'SLO-012', name: 'Fajar Ramadhani', passportNumber: 'G7701003', passportExpiryDate: '2028-11-15', idNumber: '3273017001880002', emergencyContactName: 'Sari Ramadhani', emergencyContactPhone: '0815-6002-1002', documentsVerifiedAt: '2026-07-06', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-5024', projectId: 'PRJ-502', groupId: 'GRP-502', partyId: 'PTY-017', salesOrderId: 'SLO-012', name: 'Sari Ramadhani', passportNumber: 'G7701004', passportExpiryDate: '2028-11-15', emergencyContactName: 'Fajar Ramadhani', emergencyContactPhone: '0815-6002-1002', companionOfTravelerId: 'TRV-5023', documentsVerifiedAt: '2026-07-06', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-5025', projectId: 'PRJ-502', groupId: 'GRP-502', partyId: 'PTY-017', salesOrderId: 'SLO-012', name: 'Kirana Ramadhani', passportNumber: 'G7701005', passportExpiryDate: '2028-11-15', emergencyContactName: 'Fajar Ramadhani', emergencyContactPhone: '0815-6002-1002', dietaryRestrictions: 'Anak-anak, tanpa pedas', companionOfTravelerId: 'TRV-5023', documentsVerifiedAt: '2026-07-06', documentsVerifiedBy: 'USR-002' },
+  { id: 'TRV-5026', projectId: 'PRJ-502', groupId: 'GRP-503', partyId: 'PTY-018', salesOrderId: 'SLO-013', name: 'Nadia Kirana', passportNumber: 'G7701006', passportExpiryDate: '2029-02-20', idNumber: '3578017001920003', emergencyContactName: 'Bagas Kirana', emergencyContactPhone: '0815-6002-1003', documentsVerifiedAt: '2026-07-07', documentsVerifiedBy: 'USR-002' }
 ])
 
 /** Rooming list eksplisit (Section 11) — hanya untuk traveler bernama yang datanya sudah tercatat di atas. */
@@ -429,5 +547,8 @@ export const ROOM_ASSIGNMENTS: RoomAssignment[] = reactive([
   { id: 'ROOM-002', projectId: 'PRJ-103', groupId: 'GRP-002', roomLabel: 'Twin 205', roomType: 'twin', travelerIds: ['TRV-1034', 'TRV-1035'] },
   { id: 'ROOM-003', projectId: 'PRJ-103', groupId: 'GRP-003', roomLabel: 'Suite VIP 1', roomType: 'suite', travelerIds: ['TRV-1031', 'TRV-1036'] },
   { id: 'ROOM-004', projectId: 'PRJ-205', groupId: 'GRP-004', roomLabel: 'Twin 1', roomType: 'twin', travelerIds: ['TRV-2051', 'TRV-2052'] },
-  { id: 'ROOM-005', projectId: 'PRJ-205', groupId: 'GRP-005', roomLabel: 'Suite 1', roomType: 'suite', travelerIds: ['TRV-2053', 'TRV-2054', 'TRV-2055'] }
+  { id: 'ROOM-005', projectId: 'PRJ-205', groupId: 'GRP-005', roomLabel: 'Suite 1', roomType: 'suite', travelerIds: ['TRV-2053', 'TRV-2054', 'TRV-2055'] },
+  { id: 'ROOM-501', projectId: 'PRJ-502', groupId: 'GRP-501', roomLabel: 'Twin 1', roomType: 'twin', travelerIds: ['TRV-5021', 'TRV-5022'] },
+  { id: 'ROOM-502', projectId: 'PRJ-502', groupId: 'GRP-502', roomLabel: 'Suite 1', roomType: 'suite', travelerIds: ['TRV-5023', 'TRV-5024', 'TRV-5025'] },
+  { id: 'ROOM-503', projectId: 'PRJ-502', groupId: 'GRP-503', roomLabel: 'Single 1', roomType: 'single', travelerIds: ['TRV-5026'] }
 ])

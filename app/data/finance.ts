@@ -45,7 +45,21 @@ export const INVOICES: Invoice[] = reactive([
   /** PRJ-205 (dummy Project B2C) — konsolidasi DP dari peserta yang sudah Confirmed (SLO-006 + SLO-009,
    * `app/data/sales-orders.ts`), pelunasan termin akhir jatuh tempo H-14 sebelum keberangkatan. */
   { id: 'INV-2051', projectId: 'PRJ-205', label: 'Invoice DP Group Bromo Ijen (Batch 1)', amountIdr: 17_500_000, issuedAt: '2026-08-12', dueAt: '2026-08-19', status: 'paid', currency: 'IDR', invoiceType: 'dp' },
-  { id: 'INV-2052', projectId: 'PRJ-205', label: 'Invoice Pelunasan Group Bromo Ijen (Termin Akhir)', amountIdr: 20_000_000, issuedAt: '2026-08-20', dueAt: '2026-09-04', status: 'unpaid', currency: 'IDR', invoiceType: 'final' }
+  { id: 'INV-2052', projectId: 'PRJ-205', label: 'Invoice Pelunasan Group Bromo Ijen (Termin Akhir)', amountIdr: 20_000_000, issuedAt: '2026-08-20', dueAt: '2026-09-04', status: 'unpaid', currency: 'IDR', invoiceType: 'final' },
+
+  /**
+   * PRJ-501/502 (Demo Client Presentation) — DP + Final SENGAJA sudah `status: 'paid'` sejak awal (bukan
+   * `partially-paid`/`unpaid`) supaya gate "Start" (`getDepartureReadiness`, seluruh invoice harus
+   * `paid`/`void`) lolos statis tanpa aksi Finance tambahan saat demo — `closureChecklist.financeSettled`
+   * tetap dibiarkan kosong di `app/data/projects.ts` agar tombol "Close Finance" (Section 20) masih
+   * bisa didemokan live tepat sebelum step "Done" (`evaluateFinanceClosureGate` langsung lolos karena
+   * outstanding sudah 0).
+   */
+  { id: 'INV-5011', projectId: 'PRJ-501', label: 'Invoice DP Kuala Lumpur Manufacturing Delegation', amountIdr: 63_000_000, issuedAt: '2026-07-02', dueAt: '2026-07-09', status: 'paid', currency: 'IDR', invoiceType: 'dp' },
+  { id: 'INV-5012', projectId: 'PRJ-501', label: 'Invoice Pelunasan Kuala Lumpur Manufacturing Delegation', amountIdr: 147_000_000, issuedAt: '2026-07-03', dueAt: '2026-07-07', status: 'paid', currency: 'IDR', invoiceType: 'final' },
+
+  { id: 'INV-5021', projectId: 'PRJ-502', label: 'Invoice DP Group Labuan Bajo Komodo Explorer', amountIdr: 15_000_000, issuedAt: '2026-07-03', dueAt: '2026-07-08', status: 'paid', currency: 'IDR', invoiceType: 'dp' },
+  { id: 'INV-5022', projectId: 'PRJ-502', label: 'Invoice Pelunasan Group Labuan Bajo Komodo Explorer', amountIdr: 25_000_000, issuedAt: '2026-07-04', dueAt: '2026-07-07', status: 'paid', currency: 'IDR', invoiceType: 'final' }
 ])
 
 /** `recordedBy` di-backfill ke `USR-008` (Budi Santoso, role `finance`) untuk seluruh payment existing — plausible, konsisten dengan `reviewedBy`/`recordedBy` internal user lain di codebase. `method` diisi `'bank-transfer'` (metode paling umum pada skenario B2B travel ini). */
@@ -59,7 +73,13 @@ export const PAYMENTS: Payment[] = reactive([
   { id: 'PAY-2021', invoiceId: 'INV-2021', amountIdr: 460_000_000, receivedAt: '2026-07-18', method: 'bank-transfer', recordedBy: 'USR-008' },
   { id: 'PAY-2031', invoiceId: 'INV-2031', amountIdr: 165_000_000, receivedAt: '2026-06-07', method: 'bank-transfer', recordedBy: 'USR-008' },
   { id: 'PAY-2041', invoiceId: 'INV-2041', amountIdr: 75_000_000, receivedAt: '2026-08-01', method: 'bank-transfer', recordedBy: 'USR-008' },
-  { id: 'PAY-2051', invoiceId: 'INV-2051', amountIdr: 17_500_000, receivedAt: '2026-08-14', method: 'bank-transfer', recordedBy: 'USR-008' }
+  { id: 'PAY-2051', invoiceId: 'INV-2051', amountIdr: 17_500_000, receivedAt: '2026-08-14', method: 'bank-transfer', recordedBy: 'USR-008' },
+
+  /** PRJ-501/502 (Demo Client Presentation) — payment penuh, konsisten dengan `INV-5011/5012`/`INV-5021/5022` di atas yang sudah `status: 'paid'`. */
+  { id: 'PAY-5011', invoiceId: 'INV-5011', amountIdr: 63_000_000, receivedAt: '2026-07-04', method: 'bank-transfer', recordedBy: 'USR-008' },
+  { id: 'PAY-5012', invoiceId: 'INV-5012', amountIdr: 147_000_000, receivedAt: '2026-07-06', method: 'bank-transfer', recordedBy: 'USR-008' },
+  { id: 'PAY-5021', invoiceId: 'INV-5021', amountIdr: 15_000_000, receivedAt: '2026-07-05', method: 'bank-transfer', recordedBy: 'USR-008' },
+  { id: 'PAY-5022', invoiceId: 'INV-5022', amountIdr: 25_000_000, receivedAt: '2026-07-06', method: 'bank-transfer', recordedBy: 'USR-008' }
 ])
 
 /**
