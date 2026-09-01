@@ -16,9 +16,9 @@ import type { Party, ContactPerson, PartyActivity } from '~/types/party'
  * perubahan kepemilikan Opportunity (`Opportunity.ownerId` tetap terpisah, historis tidak diubah).
  */
 export const PARTIES: Party[] = reactive([
-  { id: 'PTY-001', name: 'PT Cipta Distribusi Nusantara', lifecycleStatus: 'client', createdAt: '2026-05-20', accountOwnerId: 'USR-001', size: '201-500', city: 'Jakarta', phone: '021-5550-1001' },
-  { id: 'PTY-002', name: 'PT Alam Raya Group', lifecycleStatus: 'client', createdAt: '2026-05-10', accountOwnerId: 'USR-001', size: '501-1000', city: 'Surabaya', phone: '031-5550-1002' },
-  { id: 'PTY-003', name: 'PT Sinergi Korporindo', lifecycleStatus: 'client', createdAt: '2026-04-25', accountOwnerId: 'USR-001', size: '1000+', city: 'Jakarta', phone: '021-5550-1003' },
+  { id: 'PTY-001', name: 'PT Cipta Distribusi Nusantara', lifecycleStatus: 'client', createdAt: '2026-05-20', accountOwnerId: 'USR-001', size: '201-500', city: 'Jakarta', phone: '021-5550-1001', creditLimitIdr: 500000000 },
+  { id: 'PTY-002', name: 'PT Alam Raya Group', lifecycleStatus: 'client', createdAt: '2026-05-10', accountOwnerId: 'USR-001', size: '501-1000', city: 'Surabaya', phone: '031-5550-1002', creditLimitIdr: 750000000 },
+  { id: 'PTY-003', name: 'PT Sinergi Korporindo', lifecycleStatus: 'client', createdAt: '2026-04-25', accountOwnerId: 'USR-001', size: '1000+', city: 'Jakarta', phone: '021-5550-1003', creditLimitIdr: 1000000000 },
   { id: 'PTY-004', name: 'PT Melati Wisata Kreasi', lifecycleStatus: 'prospect', createdAt: '2026-06-10', accountOwnerId: 'USR-001', size: '51-200', city: 'Bandung', phone: '022-5550-1004' },
   /**
    * PTY-005 (Client Experience — Repair Phase Section 1) — company demo khusus untuk 5 skenario
@@ -51,6 +51,7 @@ export const PARTIES: Party[] = reactive([
     paymentTerm: 'Net 30',
     preferredCurrency: 'IDR',
     poRequired: true,
+    creditLimitIdr: 1500000000,
     travelPreferences: 'Preferensi maskapai full-service, hotel bintang 4-5, kamar non-smoking.',
     pendingProfileChange: { billingAddress: 'Jl. Jenderal Sudirman Kav. 52-53, Menara Bhakti Baru Lt. 21, Jakarta 12190' },
     pendingProfileChangeSubmittedAt: '2026-07-27',
@@ -95,6 +96,7 @@ export const PARTIES: Party[] = reactive([
     paymentTerm: 'Net 30',
     preferredCurrency: 'IDR',
     poRequired: true,
+    creditLimitIdr: 800000000,
     travelPreferences: 'Preferensi maskapai full-service, hotel bintang 4, kamar non-smoking dekat venue pabrik mitra.'
   },
   { id: 'PTY-016', name: 'Wahyu Pramesti', lifecycleStatus: 'client', createdAt: '2026-07-02', partyType: 'individual', phone: '0815-6002-1001', city: 'Jakarta' },

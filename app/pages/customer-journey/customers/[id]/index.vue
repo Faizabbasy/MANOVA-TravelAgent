@@ -5,7 +5,8 @@ import { FileX, Plus, Eye } from 'lucide-vue-next'
 import {
   getPartyById, getContactsByParty, getLeadsByParty, getProjectsByParty, getPartyActivities,
   getDocumentsByParty, getUserById, getQuotationByLead, createProject,
-  ensureProjectServiceForBudget, updateProjectServiceBudget
+  ensureProjectServiceForBudget, updateProjectServiceBudget,
+  getPartyCreditFacility, updatePartyCreditLimit
 } from '~/data'
 import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
@@ -27,6 +28,23 @@ const hasAccess = computed(() => canView('crm'))
  * Project" di `crm/parties/[id]` (`createProject`, sama gate `canManage('operations')`), disatukan di sini
  * supaya tidak ada dua tempat berbeda untuk aksi yang sama pada customer yang sama. */
 const canManageProject = computed(() => canManage('operations'))
+/** Limit Credit Facility — keputusan Finance/Management, bukan self-service client (beda dari Company Profile lain yang diedit client di Client Portal). */
+const canManageCredit = computed(() => canManage('finance'))
+const creditFacility = computed(() => (party.value ? getPartyCreditFacility(party.value.id) : undefined))
+const isEditCreditOpen = ref(false)
+const editCreditLimitIdr = ref<number | null>(null)
+
+function openEditCreditLimit () {
+  editCreditLimitIdr.value = party.value?.creditLimitIdr ?? null
+  isEditCreditOpen.value = true
+}
+
+function submitEditCreditLimit () {
+  if (!party.value) { return }
+  updatePartyCreditLimit(party.value.id, editCreditLimitIdr.value ?? undefined)
+  isEditCreditOpen.value = false
+  showToast('Credit Limit Diperbarui', `Plafon piutang ${party.value.name} berhasil diubah.`, 'success')
+}
 const isCreateProjectOpen = ref(false)
 const newProjectName = ref('')
 const newProjectDestination = ref('')
@@ -184,6 +202,51 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
               lihat juga <NuxtLink :to="`/crm/parties/${party.id}`" class="text-primary hover:underline">
                 Party Detail (CRM)
               </NuxtLink> untuk tab Overview/Contacts/Leads/Activities standar.
+            </p>
+          </SectionCard>
+
+          <SectionCard title="Credit Facility" description="Plafon piutang B2B — berapa banyak invoice belum lunas boleh menggantung sebelum Finance perlu menahan Project Order/Invoice baru.">
+            <template #actions>
+              <Button v-if="canManageCredit" size="sm" variant="outline" @click="openEditCreditLimit">
+                {{ creditFacility?.limitIdr ? 'Edit Limit' : 'Set Limit' }}
+              </Button>
+            </template>
+            <div v-if="creditFacility && creditFacility.limitIdr > 0" class="space-y-3">
+              <div class="flex flex-wrap items-center gap-x-8 gap-y-3">
+                <div>
+                  <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Limit
+                  </p>
+                  <p class="mt-1 text-lg font-bold text-foreground">
+                    {{ formatCurrencyIdr(creditFacility.limitIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Terpakai (Outstanding)
+                  </p>
+                  <p class="mt-1 text-lg font-bold" :class="creditFacility.isOverLimit ? 'text-destructive' : 'text-foreground'">
+                    {{ formatCurrencyIdr(creditFacility.usedIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {{ creditFacility.remainingIdr < 0 ? 'Over Limit' : 'Sisa' }}
+                  </p>
+                  <p class="mt-1 text-lg font-bold" :class="creditFacility.remainingIdr < 0 ? 'text-destructive' : 'text-success'">
+                    {{ formatCurrencyIdr(Math.abs(creditFacility.remainingIdr)) }}
+                  </p>
+                </div>
+              </div>
+              <div class="h-2 w-full max-w-md overflow-hidden rounded-full bg-muted">
+                <div class="h-full rounded-full" :class="creditFacility.isOverLimit ? 'bg-destructive' : 'bg-primary'" :style="{ width: `${Math.min(100, creditFacility.percentUsed)}%` }" />
+              </div>
+              <p v-if="creditFacility.isOverLimit" class="text-xs text-destructive">
+                Outstanding sudah melebihi limit — pertimbangkan menahan Project Order/Invoice baru sampai company ini melunasi sebagian.
+              </p>
+            </div>
+            <p v-else class="text-sm text-muted-foreground">
+              Belum ada limit diset untuk company ini.
             </p>
           </SectionCard>
         </TabsContent>
@@ -393,6 +456,32 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
           </SectionCard>
         </TabsContent>
       </Tabs>
+
+      <Sheet v-if="canManageCredit" v-model:open="isEditCreditOpen">
+        <SheetContent side="right" class="w-full sm:max-w-sm">
+          <SheetHeader>
+            <SheetTitle>{{ creditFacility?.limitIdr ? 'Edit' : 'Set' }} Credit Limit</SheetTitle>
+            <SheetDescription>Plafon piutang untuk {{ party?.name }}. Kosongkan untuk menghapus limit (tidak ada batas).</SheetDescription>
+          </SheetHeader>
+          <div class="space-y-4 py-4">
+            <div class="space-y-1.5">
+              <Label for="cust-credit-limit">Credit Limit (IDR)</Label>
+              <CurrencyInput id="cust-credit-limit" v-model="editCreditLimitIdr" placeholder="mis. 500000000" />
+            </div>
+            <p v-if="creditFacility" class="text-xs text-muted-foreground">
+              Outstanding saat ini: <span class="font-medium text-foreground">{{ formatCurrencyIdr(creditFacility.usedIdr) }}</span>
+            </p>
+          </div>
+          <SheetFooter class="flex-row justify-end gap-2">
+            <Button variant="outline" @click="isEditCreditOpen = false">
+              Batal
+            </Button>
+            <Button @click="submitEditCreditLimit">
+              Simpan
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </template>
   </div>
 </template>

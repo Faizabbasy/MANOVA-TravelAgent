@@ -53,6 +53,8 @@ export interface Party {
   preferredCurrency?: InvoiceCurrency
   poRequired?: boolean
   travelPreferences?: string
+  /** Plafon piutang B2B (Net-term invoicing) — batas maksimum total invoice outstanding company ini sebelum Finance perlu menahan Project Order/Invoice baru. Diisi Finance/Management, bukan self-service client (beda dari field Company Profile lain di atas). Kosong berarti tidak ada limit (default lama, tidak mengubah perilaku existing). */
+  creditLimitIdr?: number
   /** Field sensitif (Wajib "Verification state") — nilai AKTIF/terverifikasi, lihat `SensitiveCompanyProfileFields`. */
   registrationNumber?: string
   npwp?: string

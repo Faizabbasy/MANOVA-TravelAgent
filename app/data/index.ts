@@ -7075,6 +7075,38 @@ export function getClientFinanceSummary (partyId: string): ClientFinanceSummary 
   return { totalProjectValueIdr, totalInvoicedIdr, totalPaidIdr, outstandingIdr, overdueIdr, nextDueDate: nextDue?.dueAt }
 }
 
+export interface PartyCreditFacility {
+  limitIdr: number
+  usedIdr: number
+  remainingIdr: number
+  /** 0 kalau `limitIdr` 0 (belum diset Finance) — dipakai UI progress bar, di-cap 999 supaya bar tidak meledak saat over-limit jauh. */
+  percentUsed: number
+  isOverLimit: boolean
+}
+
+/**
+ * Limit Credit Facility (Database Customer) — "terpakai" reuse `getClientFinanceSummary().outstandingIdr`
+ * apa adanya (total invoice belum lunas lintas seluruh Project Order company), bukan hitungan baru. Party
+ * tanpa `creditLimitIdr` (default lama, individual/B2C atau company yang belum diberi plafon oleh Finance)
+ * mengembalikan `limitIdr: 0` — UI menampilkan "Belum diset", bukan 0% yang menyesatkan.
+ */
+export function getPartyCreditFacility (partyId: string): PartyCreditFacility {
+  const party = getPartyById(partyId)
+  const limitIdr = party?.creditLimitIdr ?? 0
+  const usedIdr = getClientFinanceSummary(partyId).outstandingIdr
+  const remainingIdr = limitIdr - usedIdr
+  const percentUsed = limitIdr > 0 ? Math.min(999, Math.round((usedIdr / limitIdr) * 100)) : 0
+  return { limitIdr, usedIdr, remainingIdr, percentUsed, isOverLimit: limitIdr > 0 && usedIdr > limitIdr }
+}
+
+/** Finance/Management saja (gate di halaman, bukan di sini) — plafon piutang company, lihat `Party.creditLimitIdr`. */
+export function updatePartyCreditLimit (partyId: string, creditLimitIdr: number | undefined): Party | undefined {
+  const party = getPartyById(partyId)
+  if (!party) { return undefined }
+  party.creditLimitIdr = creditLimitIdr && creditLimitIdr > 0 ? creditLimitIdr : undefined
+  return party
+}
+
 /* ---------------------------------------------------------------------------
  * Messages & Activities — reuse penuh `Message`/`sendMessage`/`getUnifiedActivityTimeline` (Section 21).
  * ------------------------------------------------------------------------ */
