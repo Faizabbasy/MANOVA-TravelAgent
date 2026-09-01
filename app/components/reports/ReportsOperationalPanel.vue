@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Handshake, FolderKanban, Building2, Wallet, Receipt, Download, Save, X, Clock } from 'lucide-vue-next'
+import { Handshake, FolderKanban, Building2, Wallet, Receipt, Download, Save, X, Clock, Eye } from 'lucide-vue-next'
 import {
   PROJECTS, LEADS, QUOTATIONS, VENDOR_QUOTATIONS, INVOICES,
   getProjectById, getLeadById, getProjectServices, getServicesForProjects, getVendorById,
@@ -571,6 +571,7 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
                     <TableHead>Vendor</TableHead>
                     <TableHead>Committed Cost</TableHead>
                     <TableHead>Penugasan</TableHead>
+                    <TableHead />
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -581,6 +582,9 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
                     <TableCell>{{ formatCurrencyIdr(row.committedIdr) }}</TableCell>
                     <TableCell class="text-muted-foreground">
                       {{ row.assignments }}
+                    </TableCell>
+                    <TableCell>
+                      <Eye class="h-4 w-4 text-muted-foreground" />
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -623,6 +627,7 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
                 <TableHead>Outstanding</TableHead>
                 <TableHead>Jatuh Tempo</TableHead>
                 <TableHead>Aging</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -644,6 +649,9 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
                 </TableCell>
                 <TableCell :class="row.agingDays < 0 ? 'text-destructive' : 'text-muted-foreground'">
                   {{ agingLabel(row.agingDays) }}
+                </TableCell>
+                <TableCell>
+                  <Eye class="h-4 w-4 text-muted-foreground" />
                 </TableCell>
               </TableRow>
             </TableBody>
@@ -682,6 +690,7 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
                 <TableHead>Quotation Dibuat</TableHead>
                 <TableHead>Cycle Time</TableHead>
                 <TableHead>SLA</TableHead>
+                <TableHead />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -706,6 +715,9 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
                 <TableCell>{{ row.cycleDays }} hari</TableCell>
                 <TableCell>
                   <StatusBadge :label="row.withinSla ? 'Dalam SLA' : 'Melebihi SLA'" :tone="row.withinSla ? 'success' : 'destructive'" />
+                </TableCell>
+                <TableCell>
+                  <Eye class="h-4 w-4 text-muted-foreground" />
                 </TableCell>
               </TableRow>
             </TableBody>

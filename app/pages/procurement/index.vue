@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Plus, ClipboardList, FileText, CheckCircle2, Clock } from 'lucide-vue-next'
+import { Search, Plus, ClipboardList, FileText, CheckCircle2, Clock, Eye } from 'lucide-vue-next'
 import { RFQS, SERVICE_ORDERS, PROJECTS, getProjectById, getVendorById, createRfq } from '~/data'
 import { RFQ_STATUSES, SERVICE_ORDER_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { ServiceTypeKey } from '~/types/project'
@@ -212,6 +212,7 @@ function submitCreate () {
                   <TableHead>Jenis Layanan</TableHead>
                   <TableHead>Due Date</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -227,8 +228,11 @@ function submitCreate () {
                     {{ row.rfq.dueAt ?? '—' }}
                   </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(RFQ_STATUSES, row.rfq.status).label" :tone="findStatusOption(RFQ_STATUSES, row.rfq.status).tone" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
                 </TableRow>
-                <TableEmpty v-if="rfqRows.length === 0" :colspan="5">
+                <TableEmpty v-if="rfqRows.length === 0" :colspan="6">
                   {{ rfqSearch || rfqStatusFilter !== 'all' ? 'Tidak ada RFQ yang cocok dengan filter.' : 'Belum ada RFQ.' }}
                 </TableEmpty>
               </TableBody>
@@ -259,6 +263,7 @@ function submitCreate () {
                   <TableHead>Project</TableHead>
                   <TableHead>RFQ Asal</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -273,8 +278,11 @@ function submitCreate () {
                     {{ row.so.rfqId ?? '— (engagement langsung)' }}
                   </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).label" :tone="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).tone" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
                 </TableRow>
-                <TableEmpty v-if="soRows.length === 0" :colspan="4">
+                <TableEmpty v-if="soRows.length === 0" :colspan="5">
                   {{ soSearch || soStatusFilter !== 'all' ? 'Tidak ada Service Order yang cocok dengan filter.' : 'Belum ada Service Order.' }}
                 </TableEmpty>
               </TableBody>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Plus, Trash2 } from 'lucide-vue-next'
+import { FileX, Plus, Trash2, Eye } from 'lucide-vue-next'
 import {
   getProductTemplateById, getCostSheetsByProduct, getCostSheetBreakdown,
   updateProductTemplate, updateProductTemplateStatus, getProductTemplateStatusTransitions
@@ -246,6 +246,7 @@ function submitEdit () {
               <TableHead>Lead</TableHead>
               <TableHead>Total Sell</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -260,8 +261,11 @@ function submitEdit () {
                 {{ formatCurrencyIdr(getCostSheetBreakdown(sheet).totalSellIdr) }}
               </TableCell>
               <TableCell><StatusBadge :label="sheet.status === 'final' ? 'Final' : 'Draft'" :tone="sheet.status === 'final' ? 'success' : 'neutral'" /></TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="costSheets.length === 0" :colspan="4">
+            <TableEmpty v-if="costSheets.length === 0" :colspan="5">
               Belum ada Cost Sheet dari template ini.
             </TableEmpty>
           </TableBody>

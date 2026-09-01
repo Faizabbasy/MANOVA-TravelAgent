@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Plus } from 'lucide-vue-next'
+import { Search, Plus, Eye } from 'lucide-vue-next'
 import { FLIGHT_BOOKINGS, PROJECTS, VENDORS, getProjectById, createFlightBooking, setServiceVendor, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
 import { FLIGHT_BOOKING_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
@@ -220,6 +220,7 @@ function cancelDuplicateCreate () {
               <TableHead>Traveler</TableHead>
               <TableHead>Deadline</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -240,8 +241,11 @@ function cancelDuplicateCreate () {
                 {{ row.booking.ticketingDeadline ? formatDate(row.booking.ticketingDeadline) : '—' }}
               </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).tone" /></TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
+            <TableEmpty v-if="rows.length === 0" :colspan="7">
               {{ searchQuery || statusFilter !== 'all' || projectFilter !== 'all' ? 'Tidak ada Flight Booking yang cocok dengan filter.' : 'Belum ada Flight Booking.' }}
             </TableEmpty>
           </TableBody>

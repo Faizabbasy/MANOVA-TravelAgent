@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Search, Plus } from 'lucide-vue-next'
+import { Search, Plus, Eye } from 'lucide-vue-next'
 import { PRODUCT_TEMPLATES, getCostSheetsByProduct, createProductTemplate } from '~/data'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { ServiceTypeKey } from '~/types/project'
@@ -169,6 +169,7 @@ function submitCreate () {
               <TableHead>Basis Pax</TableHead>
               <TableHead>Cost Sheet</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -196,8 +197,11 @@ function submitCreate () {
                   :tone="STATUS_OPTIONS.find(o => o.value === row.product.status)?.tone ?? 'neutral'"
                 />
               </TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
+            <TableEmpty v-if="rows.length === 0" :colspan="7">
               {{ searchQuery || statusFilter !== 'all' || serviceFilter !== 'all' ? 'Tidak ada Product Template yang cocok dengan filter.' : 'Belum ada Product Template.' }}
             </TableEmpty>
           </TableBody>

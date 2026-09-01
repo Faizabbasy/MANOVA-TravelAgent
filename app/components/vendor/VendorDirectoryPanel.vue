@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Search, Plus } from 'lucide-vue-next'
+import { Search, Plus, Eye } from 'lucide-vue-next'
 import { VENDORS, getServicesByVendor, createVendor, getUserByVendorId } from '~/data'
 import { SERVICE_TYPES, VENDOR_STATUSES, findStatusOption } from '~/constants/status'
 import type { ServiceTypeKey } from '~/types/project'
@@ -150,6 +150,7 @@ function submitCreate () {
               <TableHead>Status</TableHead>
               <TableHead>Kontak</TableHead>
               <TableHead>Penugasan Aktif</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -178,8 +179,11 @@ function submitCreate () {
               <TableCell class="text-muted-foreground">
                 {{ row.activeAssignmentCount }} service
               </TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
+            <TableEmpty v-if="rows.length === 0" :colspan="7">
               {{ searchQuery || serviceTypeFilter !== 'all' ? 'Tidak ada vendor yang cocok dengan filter.' : 'Belum ada vendor.' }}
             </TableEmpty>
           </TableBody>

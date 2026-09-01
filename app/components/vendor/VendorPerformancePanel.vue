@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Eye } from 'lucide-vue-next'
 import { getVendorsWithProcurementActivity, getVendorProcurementPerformance } from '~/data'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 
@@ -83,6 +84,7 @@ const rows = computed(() => getVendorsWithProcurementActivity().map(vendor => ({
               <TableHead>Total Penawaran</TableHead>
               <TableHead>Diajukan</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -97,8 +99,11 @@ const rows = computed(() => getVendorsWithProcurementActivity().map(vendor => ({
                 {{ formatDate(response.submittedAt) }}
               </TableCell>
               <TableCell><StatusBadge :label="response.status" :tone="response.status === 'selected' ? 'success' : response.status === 'rejected' ? 'destructive' : 'info'" /></TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="row.performance.quotationHistory.length === 0" :colspan="4">
+            <TableEmpty v-if="row.performance.quotationHistory.length === 0" :colspan="5">
               Belum ada riwayat quotation.
             </TableEmpty>
           </TableBody>

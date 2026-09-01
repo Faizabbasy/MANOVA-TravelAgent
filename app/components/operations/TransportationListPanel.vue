@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Plus } from 'lucide-vue-next'
+import { Search, Plus, Eye } from 'lucide-vue-next'
 import { TRANSPORT_BOOKINGS, PROJECTS, VENDORS, getProjectById, createTransportBooking, setServiceVendor, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
 import { TRANSPORT_BOOKING_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDateTime } from '~/utils/format'
@@ -214,6 +214,7 @@ function cancelDuplicateCreate () {
               <TableHead>Manifest</TableHead>
               <TableHead>Jadwal Terdekat</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -234,8 +235,11 @@ function cancelDuplicateCreate () {
                 {{ row.booking.legs[0]?.scheduledAt ? formatDateTime(row.booking.legs[0].scheduledAt) : '—' }}
               </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(TRANSPORT_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(TRANSPORT_BOOKING_STATUSES, row.booking.status).tone" /></TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
+            <TableEmpty v-if="rows.length === 0" :colspan="7">
               {{ searchQuery || statusFilter !== 'all' || projectFilter !== 'all' ? 'Tidak ada Transport Booking yang cocok dengan filter.' : 'Belum ada Transport Booking.' }}
             </TableEmpty>
           </TableBody>

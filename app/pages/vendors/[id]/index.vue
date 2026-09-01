@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Plus } from 'lucide-vue-next'
+import { FileX, Plus, Eye } from 'lucide-vue-next'
 import {
   getVendorById, getVendorContacts, getVendorQuotations, getVendorActivities, getServicesByVendor,
   createVendorContact, submitVendorQuotation, updateVendor,
@@ -252,6 +252,7 @@ function submitQuotation () {
                   <TableHead>Detail Service</TableHead>
                   <TableHead>Booking Reference</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -271,8 +272,11 @@ function submitQuotation () {
                       :tone="findStatusOption(SERVICE_STATUSES, service.status).tone"
                     />
                   </TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
                 </TableRow>
-                <TableEmpty v-if="assignedServices.length === 0" :colspan="4">
+                <TableEmpty v-if="assignedServices.length === 0" :colspan="5">
                   Belum ada service yang ditugaskan ke vendor ini.
                 </TableEmpty>
               </TableBody>

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2, MapPin, CalendarRange, CreditCard, FileText, PieChart, Eye, EyeOff, LayoutGrid, List, Download, MessageSquare, FileClock, Settings2, ImagePlus, Plane, Hotel, Bus, PartyPopper, Package, Gauge, ArrowRight, Tag, Clock, ChevronRight, ChevronLeft, ListChecks, CircleDashed, Check, MoreVertical, FolderOpen, Kanban, GanttChartSquare, MoreHorizontal, Calculator, Info } from 'lucide-vue-next'
+import { FileX, Wallet, Users, User, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2, MapPin, CalendarRange, CreditCard, FileText, PieChart, Eye, EyeOff, LayoutGrid, List, Download, MessageSquare, FileClock, Settings2, ImagePlus, Plane, Hotel, Bus, PartyPopper, Package, Gauge, Clock, ChevronRight, ChevronLeft, ListChecks, CircleDashed, Check, MoreVertical, FolderOpen, Kanban, GanttChartSquare, MoreHorizontal, Calculator, Info } from 'lucide-vue-next'
 import {
-  getProjectById, getPartyById, getContactsByParty, getUserById, getVendorById, getLeadById, getQuotationByLead,
+  getProjectById, getPartyById, getContactsByParty, getUserById, getVendorById, getLeadById,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
   getProjectServices, getItineraryItems, updateServiceStatus, updateProjectServiceBudget, ensureProjectServiceForBudget, updateItineraryItem, createItineraryItem, removeItineraryItem,
   getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation, recordVendorPaymentDirect,
@@ -36,6 +36,7 @@ import {
   setMilestoneActualDate, updateMilestonePlannedDate, updateMilestoneNote, getProjectOrderStep
 } from '~/data/project-order-workflow'
 import { getProjectActualCostIdr, getProjectExpenses, createProjectExpense, PROJECT_EXPENSE_CATEGORIES, getServiceTypeSpendBreakdown } from '~/data/finance-ext'
+import { getEmployeeByUserId } from '~/data/hr'
 import { serviceCapabilityKey } from '~/constants/capabilities'
 import { INVOICE_MILESTONE_TEMPLATES } from '~/constants/invoice-milestones'
 import {
@@ -305,6 +306,8 @@ const party = computed(() => project.value ? getPartyById(project.value.partyId)
 /** PIC (contact person) sisi client — kontak pertama yang tercatat untuk Party ini (`CONTACTS`, `app/data/parties.ts`), ditampilkan di header project untuk memudahkan koordinasi cepat lewat WhatsApp. */
 const clientPic = computed(() => (party.value ? getContactsByParty(party.value.id)[0] : undefined))
 const owner = computed(() => project.value ? getUserById(project.value.ownerId) : undefined)
+/** Divisi/department Owner/PIC (card "Ringkasan Layanan") — dari `Employee.department` via `Employee.userId`, bukan field baru di `User`. Kosong bila owner belum punya record HR bertaut. */
+const ownerEmployee = computed(() => (owner.value ? getEmployeeByUserId(owner.value.id) : undefined))
 const team = computed(() => project.value
   ? project.value.teamUserIds.map(id => getUserById(id)).filter((user): user is NonNullable<typeof user> => Boolean(user))
   : [])
@@ -319,7 +322,6 @@ const canManageProjectOrder = computed(() => can('project-order.accept-handover'
 
 const sourceLead = computed(() => project.value?.leadId ? getLeadById(project.value.leadId) : undefined)
 const accountExecutive = computed(() => sourceLead.value ? getUserById(sourceLead.value.handedOverTo ?? sourceLead.value.ownerId) : undefined)
-const sourceQuotation = computed(() => sourceLead.value ? getQuotationByLead(sourceLead.value.id) : undefined)
 
 /* Team assignment */
 const isTeamDialogOpen = ref(false)
@@ -543,6 +545,10 @@ function serviceReadinessTone (percent: number): 'success' | 'warning' | 'destru
 const SERVICE_READINESS_STATUS_LABEL: Record<'success' | 'warning' | 'destructive', string> = {
   success: 'Siap', warning: 'Proses', destructive: 'Perlu Perhatian'
 }
+
+/** Palet avatar anggota tim non-PM/AE (card "Ringkasan Layanan") — dirotasi per index murni supaya baris tim
+ * mudah dipindai sekilas, bukan penanda peran/status. PM (primary) dan AE (chart-5) tetap warna tetap di luar palet ini. */
+const TEAM_AVATAR_TONE = ['bg-chart-1/15 text-chart-1', 'bg-chart-2/15 text-chart-2', 'bg-chart-3/15 text-chart-3', 'bg-chart-4/15 text-chart-4']
 
 /** Icon badge tint per tipe layanan (tab Vendors) — reuse tone `SERVICE_TYPES` (Flight=info/biru, Hotel=purple, dst.) supaya konsisten dengan chip yang sudah ada, bukan warna baru. */
 const TONE_ICON_BG: Record<BadgeTone, string> = {
@@ -1835,314 +1841,352 @@ const tripDurationDays = computed(() => {
         </TabsList>
 
         <TabsContent value="overview">
-          <div class="space-y-6">
-            <SectionCard v-if="project.isGroupTrip" compact title="Kapasitas Group Trip">
-              <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                <StatsCard title="Seat Terisi" :value="`${getProjectSeatsFilled(project.id)} / ${project.travelerCount}`" :icon="Users" />
-                <StatsCard title="Destinasi" :value="project.destination" :icon="MapPin" />
-                <StatsCard title="Jadwal" :value="formatDateRange(project.travelStartDate, project.travelEndDate)" :icon="CalendarRange" />
-              </div>
-            </SectionCard>
+          <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
+            <div class="space-y-6 lg:col-span-2">
+              <SectionCard v-if="project.isGroupTrip" compact title="Kapasitas Group Trip">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                  <StatsCard title="Seat Terisi" :value="`${getProjectSeatsFilled(project.id)} / ${project.travelerCount}`" :icon="Users" />
+                  <StatsCard title="Destinasi" :value="project.destination" :icon="MapPin" />
+                  <StatsCard title="Jadwal" :value="formatDateRange(project.travelStartDate, project.travelEndDate)" :icon="CalendarRange" />
+                </div>
+              </SectionCard>
 
-            <!-- Stat ringkas (padat, angka besar + label kecil) — teaser, detail lengkap tetap di card di bawahnya. -->
-            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-              <StatsCard
-                title="Budget Terpakai"
-                :value="`${budgetUsedPercent}%`"
-                :icon="Wallet"
-                :icon-color="budgetUsedPercent > 100 ? 'destructive' : 'primary'"
-                :footer-progress="{ label: `${formatCurrencyIdr(actualCostIdr)} / ${formatCurrencyIdr(project.budgetIdr)}`, percent: budgetUsedPercent }"
-              />
-              <StatsCard title="H- Keberangkatan" :value="departureReadiness ? String(departureReadiness.daysUntilDeparture) : '—'" :icon="CalendarRange" subtitle="Hari lagi" />
-              <StatsCard
-                title="Task Selesai"
-                :value="`${tasksDoneCount}/${tasks.length}`"
-                :icon="CheckCircle2"
-                :footer-progress="tasks.length > 0 ? { label: tasksDoneCount === tasks.length ? 'Semua task selesai' : `${tasksDoneCount} dari ${tasks.length} selesai`, percent: Math.round((tasksDoneCount / tasks.length) * 100) } : undefined"
-              />
-              <StatsCard
-                title="Risk Terbuka"
-                :value="String(departureReadiness?.openRisksCount ?? 0)"
-                :icon="AlertTriangle"
-                :icon-color="(departureReadiness?.openRisksCount ?? 0) > 0 ? 'warning' : 'success'"
-                :subtitle="(departureReadiness?.openRisksCount ?? 0) > 0 ? `${departureReadiness?.openRisksCount} risk masih terbuka` : 'Tidak ada risk terbuka'"
-              />
-            </div>
-
-            <!-- Ringkasan Komersial — separuh lebar (bukan edge-to-edge), ditaruh di bawah 4 stat card di atas. items-start supaya "Action Required" (jauh lebih pendek) tidak di-stretch mengikuti tinggi Ringkasan Komersial. -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
-              <ProjectCommercialHero
-                v-if="canViewFinancials"
-                :quotation-amount-idr="project.quotationAmountIdr"
-                :invoice-issued-idr="invoiceIssuedIdr"
-                :paid-idr="collectedIdr"
-                :outstanding-idr="projectOutstandingIdr"
-                :next-payment="nextPaymentForHero"
-                :has-any-invoice="invoices.length > 0"
-              />
-              <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <!-- Stat ringkas (padat, angka besar + label kecil) — teaser, detail lengkap tetap di card di bawahnya. -->
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 <StatsCard
-                  title="Nilai Quotation"
-                  :value="formatCurrencyIdr(project.quotationAmountIdr)"
-                  :subtitle="`Terkumpul ${formatCurrencyIdr(collectedIdr)} dari client${quotationGapIdr > 0 ? ' · Kurang ' + formatCurrencyIdr(quotationGapIdr) : ' · Lunas'}`"
-                  :progress-percent="quotationCollectionPercent"
-                  :icon="FileText"
-                  :icon-color="quotationGapIdr > 0 ? 'warning' : 'success'"
+                  title="Budget Terpakai"
+                  :value="`${budgetUsedPercent}%`"
+                  :icon="Wallet"
+                  :icon-color="budgetUsedPercent > 100 ? 'destructive' : 'primary'"
+                  :footer-progress="{ label: `${formatCurrencyIdr(actualCostIdr)} / ${formatCurrencyIdr(project.budgetIdr)}`, percent: budgetUsedPercent }"
                 />
-                <StatsCard title="Outstanding" :value="formatCurrencyIdr(projectOutstandingIdr)" :icon="Wallet" icon-color="warning" />
+                <StatsCard title="H- Keberangkatan" :value="departureReadiness ? String(departureReadiness.daysUntilDeparture) : '—'" :icon="CalendarRange" subtitle="Hari lagi" />
+                <StatsCard
+                  title="Task Selesai"
+                  :value="`${tasksDoneCount}/${tasks.length}`"
+                  :icon="CheckCircle2"
+                  :footer-progress="tasks.length > 0 ? { label: tasksDoneCount === tasks.length ? 'Semua task selesai' : `${tasksDoneCount} dari ${tasks.length} selesai`, percent: Math.round((tasksDoneCount / tasks.length) * 100) } : undefined"
+                />
+                <StatsCard
+                  title="Risk Terbuka"
+                  :value="String(departureReadiness?.openRisksCount ?? 0)"
+                  :icon="AlertTriangle"
+                  :icon-color="(departureReadiness?.openRisksCount ?? 0) > 0 ? 'warning' : 'success'"
+                  :subtitle="(departureReadiness?.openRisksCount ?? 0) > 0 ? `${departureReadiness?.openRisksCount} risk masih terbuka` : 'Tidak ada risk terbuka'"
+                />
               </div>
 
-              <SectionCard
-                v-if="attentionQueue.length > 0"
-                compact
-                title="Action Required"
-                :description="`${attentionQueue.length} item butuh perhatian`"
-                accent
-                tone="destructive"
-              >
-                <div class="space-y-1">
-                  <button
-                    v-for="(item, index) in attentionQueue.slice(0, 4)"
-                    :key="index"
-                    type="button"
-                    class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/60"
-                    @click="goToAttentionTab(item.tab)"
-                  >
-                    <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="ATTENTION_DOT_CLASS[item.severity]" />
-                    <span class="min-w-0 flex-1 truncate text-xs text-foreground">{{ item.message }}</span>
-                    <ChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                  </button>
-                </div>
-                <Button size="sm" variant="outline" class="mt-2 w-full" @click="goToAttentionQueue">
-                  Lihat Semua ({{ attentionQueue.length }})
-                </Button>
-              </SectionCard>
-              <SectionCard v-else compact title="Action Required" description="Tidak ada item yang butuh perhatian saat ini.">
-                <div class="flex items-center gap-2 text-xs text-muted-foreground">
-                  <CheckCircle2 class="h-4 w-4 shrink-0 text-success" />
-                  Semua beres — tidak ada item mendesak.
-                </div>
-              </SectionCard>
-            </div>
-
-            <!-- Peta Lokasi (dipindah dari header — header sekarang identitas murni) + Kesiapan Layanan (breakdown bar, versi ringkas dari tabel "Service Readiness Matrix" tab Itinerary & Services). -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <SectionCard compact title="Peta Lokasi" :class="serviceReadinessMatrix.length === 0 ? 'lg:col-span-2' : ''">
-                <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" show-route />
-              </SectionCard>
-
-              <SectionCard v-if="serviceReadinessMatrix.length > 0" compact title="Kesiapan Layanan" description="Agregat Confirmed/Completed per tipe layanan.">
-                <template #actions>
-                  <StatusBadge
-                    :label="`${SERVICE_READINESS_STATUS_LABEL[serviceReadinessTone(serviceReadinessOverallPercent)]} · ${serviceConfirmedTotals.confirmed}/${serviceConfirmedTotals.total}`"
-                    :tone="serviceReadinessTone(serviceReadinessOverallPercent)"
+              <!-- Ringkasan Komersial — separuh lebar (bukan edge-to-edge), ditaruh di bawah 4 stat card di atas. Kolom di-stretch (bukan items-start lagi) supaya "Action Required" saat kosong ikut setinggi Ringkasan Komersial, bukan terlihat terpotong pendek sendirian. -->
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <ProjectCommercialHero
+                  v-if="canViewFinancials"
+                  :quotation-amount-idr="project.quotationAmountIdr"
+                  :invoice-issued-idr="invoiceIssuedIdr"
+                  :paid-idr="collectedIdr"
+                  :outstanding-idr="projectOutstandingIdr"
+                  :next-payment="nextPaymentForHero"
+                  :has-any-invoice="invoices.length > 0"
+                />
+                <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <StatsCard
+                    title="Nilai Quotation"
+                    :value="formatCurrencyIdr(project.quotationAmountIdr)"
+                    :subtitle="`Terkumpul ${formatCurrencyIdr(collectedIdr)} dari client${quotationGapIdr > 0 ? ' · Kurang ' + formatCurrencyIdr(quotationGapIdr) : ' · Lunas'}`"
+                    :progress-percent="quotationCollectionPercent"
+                    :icon="FileText"
+                    :icon-color="quotationGapIdr > 0 ? 'warning' : 'success'"
                   />
-                </template>
-                <div class="divide-y divide-border">
-                  <div v-for="row in serviceReadinessMatrix" :key="row.type" class="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                    <div
-                      class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                      :class="{
-                        'bg-success/10 text-success': serviceReadinessTone(row.percent) === 'success',
-                        'bg-warning/10 text-warning': serviceReadinessTone(row.percent) === 'warning',
-                        'bg-destructive/10 text-destructive': serviceReadinessTone(row.percent) === 'destructive'
-                      }"
+                  <StatsCard title="Outstanding" :value="formatCurrencyIdr(projectOutstandingIdr)" :icon="Wallet" icon-color="warning" />
+                </div>
+
+                <SectionCard
+                  v-if="attentionQueue.length > 0"
+                  compact
+                  title="Action Required"
+                  :description="`${attentionQueue.length} item butuh perhatian`"
+                  accent
+                  tone="destructive"
+                >
+                  <div class="space-y-1">
+                    <button
+                      v-for="(item, index) in attentionQueue.slice(0, 4)"
+                      :key="index"
+                      type="button"
+                      class="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-muted/60"
+                      @click="goToAttentionTab(item.tab)"
                     >
-                      <component :is="SERVICE_TYPE_ICON[row.type]" class="h-4 w-4" />
-                    </div>
-                    <div class="min-w-0 flex-1">
-                      <div class="mb-1.5 flex items-center justify-between gap-2">
-                        <div class="flex items-center gap-2 min-w-0">
-                          <span class="text-sm font-medium text-foreground truncate">{{ findStatusOption(SERVICE_TYPES, row.type).label }}</span>
-                          <StatusBadge :label="SERVICE_READINESS_STATUS_LABEL[serviceReadinessTone(row.percent)]" :tone="serviceReadinessTone(row.percent)" />
+                      <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="ATTENTION_DOT_CLASS[item.severity]" />
+                      <span class="min-w-0 flex-1 truncate text-xs text-foreground">{{ item.message }}</span>
+                      <ChevronRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    </button>
+                  </div>
+                  <Button size="sm" variant="outline" class="mt-2 w-full" @click="goToAttentionQueue">
+                    Lihat Semua ({{ attentionQueue.length }})
+                  </Button>
+                </SectionCard>
+                <SectionCard
+                  v-else
+                  compact
+                  title="Action Required"
+                  description="Tidak ada item yang butuh perhatian saat ini."
+                  class="flex h-full flex-col"
+                  content-class="flex flex-1 flex-col items-center justify-center text-center"
+                >
+                  <div class="flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
+                    <CheckCircle2 class="h-6 w-6 text-success" />
+                  </div>
+                  <p class="mt-3 text-sm font-semibold text-foreground">
+                    Semua beres — tidak ada item mendesak.
+                  </p>
+                </SectionCard>
+              </div>
+
+              <!-- Peta Lokasi (dipindah dari header — header sekarang identitas murni) + Kesiapan Layanan (breakdown bar, versi ringkas dari tabel "Service Readiness Matrix" tab Itinerary & Services). -->
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <SectionCard compact title="Peta Lokasi" :class="serviceReadinessMatrix.length === 0 ? 'lg:col-span-2' : ''">
+                  <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" show-route />
+                </SectionCard>
+
+                <SectionCard v-if="serviceReadinessMatrix.length > 0" compact title="Kesiapan Layanan" description="Agregat Confirmed/Completed per tipe layanan.">
+                  <template #actions>
+                    <StatusBadge
+                      :label="`${SERVICE_READINESS_STATUS_LABEL[serviceReadinessTone(serviceReadinessOverallPercent)]} · ${serviceConfirmedTotals.confirmed}/${serviceConfirmedTotals.total}`"
+                      :tone="serviceReadinessTone(serviceReadinessOverallPercent)"
+                    />
+                  </template>
+                  <div class="divide-y divide-border">
+                    <div v-for="row in serviceReadinessMatrix" :key="row.type" class="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                      <div
+                        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                        :class="{
+                          'bg-success/10 text-success': serviceReadinessTone(row.percent) === 'success',
+                          'bg-warning/10 text-warning': serviceReadinessTone(row.percent) === 'warning',
+                          'bg-destructive/10 text-destructive': serviceReadinessTone(row.percent) === 'destructive'
+                        }"
+                      >
+                        <component :is="SERVICE_TYPE_ICON[row.type]" class="h-4 w-4" />
+                      </div>
+                      <div class="min-w-0 flex-1">
+                        <div class="mb-1.5 flex items-center justify-between gap-2">
+                          <div class="flex items-center gap-2 min-w-0">
+                            <span class="text-sm font-medium text-foreground truncate">{{ findStatusOption(SERVICE_TYPES, row.type).label }}</span>
+                            <StatusBadge :label="SERVICE_READINESS_STATUS_LABEL[serviceReadinessTone(row.percent)]" :tone="serviceReadinessTone(row.percent)" />
+                          </div>
+                          <span class="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">{{ row.confirmedCount }}/{{ row.total }}</span>
                         </div>
-                        <span class="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">{{ row.confirmedCount }}/{{ row.total }}</span>
-                      </div>
-                      <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          class="h-full rounded-full transition-all duration-500"
-                          :class="{
-                            'bg-success': serviceReadinessTone(row.percent) === 'success',
-                            'bg-warning': serviceReadinessTone(row.percent) === 'warning',
-                            'bg-destructive': serviceReadinessTone(row.percent) === 'destructive'
-                          }"
-                          :style="{ width: `${row.percent}%` }"
-                        />
+                        <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            class="h-full rounded-full transition-all duration-500"
+                            :class="{
+                              'bg-success': serviceReadinessTone(row.percent) === 'success',
+                              'bg-warning': serviceReadinessTone(row.percent) === 'warning',
+                              'bg-destructive': serviceReadinessTone(row.percent) === 'destructive'
+                            }"
+                            :style="{ width: `${row.percent}%` }"
+                          />
+                        </div>
                       </div>
                     </div>
+                  </div>
+                </SectionCard>
+              </div>
+
+              <ProjectOrderTimelineTracking
+                :project-id="project.id"
+                :milestones="milestones"
+                :can-manage="canManageOperations"
+                :planned-dates-locked="plannedDatesLocked"
+                @mark-actual="onMarkMilestoneActual"
+                @update-planned="onUpdateMilestonePlanned"
+                @update-note="onUpdateMilestoneNote"
+              />
+            </div>
+
+            <!-- Sidebar kanan Overview — Cakupan Layanan/Nilai Project/Tim Project ditumpuk vertikal sebagai 3 card terpisah (dulu satu card dibagi 3 kolom horizontal), supaya sejajar dengan pola sidebar kanan tab Itinerary & Services. -->
+            <div class="space-y-6">
+              <SectionCard compact>
+                <div v-if="primaryServiceType" class="flex h-12 w-12 items-center justify-center rounded-xl" :class="TONE_ICON_BG[primaryServiceType.tone]">
+                  <component :is="SERVICE_TYPE_ICON[primaryServiceType.value]" class="h-6 w-6" />
+                </div>
+                <p class="mt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Ringkasan Layanan
+                </p>
+                <p class="mt-0.5 text-lg font-bold text-foreground">
+                  Cakupan Layanan
+                </p>
+
+                <div class="mt-2.5 flex flex-wrap gap-1.5">
+                  <StatusBadge
+                    :label="findStatusOption(PROJECT_STATUSES, project.status).label"
+                    :tone="findStatusOption(PROJECT_STATUSES, project.status).tone"
+                    dot
+                    size="md"
+                  />
+                  <StatusBadge
+                    v-if="departureReadiness"
+                    :label="departureReadiness.isReady ? 'Ready to Depart' : 'Belum Siap'"
+                    :tone="departureReadiness.isReady ? 'success' : 'warning'"
+                    dot
+                    size="md"
+                  />
+                </div>
+
+                <div class="mt-2.5 flex flex-wrap gap-1.5">
+                  <div
+                    v-for="type in SERVICE_TYPES.filter(t => project.serviceScope.includes(t.value))"
+                    :key="type.value"
+                    class="inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5"
+                    :class="TONE_ICON_BG[type.tone]"
+                  >
+                    <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-card">
+                      <component :is="SERVICE_TYPE_ICON[type.value]" class="h-3 w-3" />
+                    </span>
+                    <span class="text-xs font-medium">{{ type.label }}</span>
+                  </div>
+                </div>
+
+                <ul class="mt-2.5 space-y-1.5 border-t border-border pt-2.5">
+                  <li v-for="row in cakupanLayananChecklist" :key="row.label" class="flex items-center justify-between gap-3 text-sm">
+                    <span class="flex items-center gap-2 text-muted-foreground">
+                      <CheckCircle2 class="h-3.5 w-3.5 shrink-0 text-primary" />{{ row.label }}
+                    </span>
+                    <span class="font-medium text-foreground">{{ row.value }}</span>
+                  </li>
+                </ul>
+              </SectionCard>
+
+              <SectionCard compact>
+                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                  <Wallet class="h-6 w-6" />
+                </div>
+                <p class="mt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Asal Project
+                </p>
+                <p class="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
+                  Nilai Project
+                </p>
+                <p class="mt-0.5 text-2xl font-bold tabular-nums text-foreground">
+                  {{ formatCurrencyIdr(project.quotationAmountIdr) }}
+                </p>
+                <button
+                  v-if="project.leadId"
+                  type="button"
+                  class="mt-1.5 inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+                  @click="isLeadDetailSheetOpen = true"
+                >
+                  Dari {{ project.leadId }}
+                </button>
+
+                <div class="mt-3 flex items-start gap-2.5 border-t border-dashed border-border pt-3">
+                  <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
+                    <User class="h-4 w-4" />
+                  </div>
+                  <div class="min-w-0">
+                    <p class="text-[11px] font-semibold uppercase tracking-wide text-success">
+                      Owner / PIC
+                    </p>
+                    <p class="truncate text-sm font-semibold text-foreground">
+                      {{ owner?.name ?? '—' }}
+                    </p>
+                    <p v-if="ownerEmployee?.department" class="text-xs text-muted-foreground">
+                      {{ ownerEmployee.department }}
+                    </p>
+                  </div>
+                </div>
+              </SectionCard>
+
+              <SectionCard compact>
+                <div class="flex items-center justify-between gap-2">
+                  <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                    <Users class="h-6 w-6" />
+                  </div>
+                  <Sheet v-if="canManageProjectOrder" v-model:open="isTeamDialogOpen">
+                    <SheetTrigger as-child>
+                      <button type="button" class="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20">
+                        <Plus class="h-3 w-3" />Tambah
+                      </button>
+                    </SheetTrigger>
+                    <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
+                      <SheetHeader>
+                        <SheetTitle>Tambah Anggota Tim</SheetTitle>
+                        <SheetDescription>Anggota baru akan ditambahkan ke `teamUserIds` project ini.</SheetDescription>
+                      </SheetHeader>
+                      <div class="space-y-1.5 py-2">
+                        <Label for="team-member">User</Label>
+                        <select id="team-member" v-model="teamMemberToAdd" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                          <option value="" disabled>
+                            Pilih user
+                          </option>
+                          <option v-for="user in teamOptions" :key="user.id" :value="user.id">
+                            {{ user.name }} ({{ user.role }})
+                          </option>
+                        </select>
+                      </div>
+                      <SheetFooter class="mt-6 flex-row justify-end gap-2">
+                        <Button variant="outline" @click="isTeamDialogOpen = false">
+                          Batal
+                        </Button>
+                        <Button :disabled="!teamMemberToAdd" @click="submitAddTeamMember">
+                          Tambah
+                        </Button>
+                      </SheetFooter>
+                    </SheetContent>
+                  </Sheet>
+                </div>
+                <p class="mt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Tim Project
+                </p>
+
+                <div class="mt-2 space-y-2">
+                  <div class="flex items-center gap-2.5">
+                    <Avatar class="h-9 w-9 shrink-0">
+                      <AvatarFallback class="bg-primary/15 text-xs font-semibold text-primary">
+                        {{ initials(owner?.name) }}
+                      </AvatarFallback>
+                    </Avatar>
+                    <p class="min-w-0 truncate text-sm">
+                      <span class="font-medium text-foreground">{{ owner?.name ?? '—' }}</span> <span class="text-muted-foreground">· PM</span>
+                    </p>
+                  </div>
+                  <div class="flex items-center gap-2.5">
+                    <Avatar class="h-9 w-9 shrink-0">
+                      <AvatarFallback class="bg-chart-5/15 text-xs font-semibold text-chart-5">
+                        {{ initials(accountExecutive?.name) }}
+                      </AvatarFallback>
+                    </Avatar>
+                    <p class="min-w-0 truncate text-sm">
+                      <span class="font-medium text-foreground">{{ accountExecutive?.name ?? '—' }}</span> <span class="text-muted-foreground">· AE</span>
+                    </p>
+                  </div>
+                </div>
+
+                <!-- `team` panjangnya tidak dibatasi (bisa nambah anggota tanpa batas) — dibungkus scroll dengan tinggi tetap supaya card ini tidak ikut memanjang mengikuti jumlah anggota, PM/AE di atas tetap selalu terlihat. -->
+                <div
+                  v-if="team.length"
+                  class="-mr-1 mt-2 max-h-[152px] space-y-2 overflow-y-auto border-t border-border pr-1 pt-2"
+                >
+                  <div v-for="(member, index) in team" :key="member.id" class="group flex items-center gap-2.5">
+                    <Avatar class="h-9 w-9 shrink-0">
+                      <AvatarFallback class="text-xs font-semibold" :class="TEAM_AVATAR_TONE[index % TEAM_AVATAR_TONE.length]">
+                        {{ initials(member.name) }}
+                      </AvatarFallback>
+                    </Avatar>
+                    <p class="min-w-0 flex-1 truncate text-sm">
+                      <span class="font-medium text-foreground">{{ member.name }}</span> <span class="text-muted-foreground">· {{ member.role }}</span>
+                    </p>
+                    <button
+                      v-if="canManageProjectOrder"
+                      type="button"
+                      class="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
+                      title="Hapus dari tim"
+                      @click="submitRemoveTeamMember(member.id)"
+                    >
+                      ×
+                    </button>
                   </div>
                 </div>
               </SectionCard>
             </div>
-
-            <div class="rounded-2xl border border-border bg-card p-6">
-              <div class="grid grid-cols-1 gap-6 sm:grid-cols-3 sm:divide-x sm:divide-border">
-                <div class="sm:pr-6">
-                  <div v-if="primaryServiceType" class="mb-3 flex h-14 w-14 items-center justify-center rounded-2xl" :class="TONE_ICON_BG[primaryServiceType.tone]">
-                    <component :is="SERVICE_TYPE_ICON[primaryServiceType.value]" class="h-7 w-7" />
-                  </div>
-                  <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Ringkasan Layanan
-                  </p>
-                  <p class="mt-0.5 text-xl font-bold text-foreground">
-                    Cakupan Layanan
-                  </p>
-
-                  <div class="mt-4 flex flex-wrap gap-1.5">
-                    <div
-                      v-for="type in SERVICE_TYPES.filter(t => project.serviceScope.includes(t.value))"
-                      :key="type.value"
-                      class="inline-flex items-center gap-1.5 rounded-full py-1 pl-1 pr-2.5"
-                      :class="TONE_ICON_BG[type.tone]"
-                    >
-                      <span class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-card">
-                        <component :is="SERVICE_TYPE_ICON[type.value]" class="h-3 w-3" />
-                      </span>
-                      <span class="text-xs font-medium">{{ type.label }}</span>
-                    </div>
-                  </div>
-
-                  <ul class="mt-4 space-y-3">
-                    <li v-for="row in cakupanLayananChecklist" :key="row.label" class="flex items-center justify-between gap-3 text-sm">
-                      <span class="flex items-center gap-2 text-muted-foreground">
-                        <CheckCircle2 class="h-4 w-4 shrink-0 text-primary" />{{ row.label }}
-                      </span>
-                      <span class="font-medium text-foreground">{{ row.value }}</span>
-                    </li>
-                  </ul>
-                </div>
-
-                <div class="sm:px-6">
-                  <div class="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Tag class="h-5 w-5" />
-                  </div>
-                  <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Asal Project
-                  </p>
-
-                  <div class="mt-3 flex flex-wrap items-center gap-2">
-                    <button
-                      v-if="project.leadId"
-                      type="button"
-                      class="inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-2 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
-                      @click="isLeadDetailSheetOpen = true"
-                    >
-                      {{ project.leadId }}
-                    </button>
-                    <span v-else class="text-xs text-muted-foreground">Tanpa lead asal</span>
-                    <ArrowRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                    <span class="text-sm font-semibold tabular-nums text-foreground">{{ sourceQuotation ? formatCurrencyIdr(sourceQuotation.amountIdr) : '—' }}</span>
-                  </div>
-
-                  <div class="mt-4 flex items-start gap-2.5">
-                    <CheckCircle2 class="mt-0.5 h-5 w-5 shrink-0 text-success" />
-                    <div>
-                      <p class="text-sm font-medium text-foreground">
-                        Quotation approved
-                      </p>
-                      <p class="text-xs text-muted-foreground">
-                        Detail penawaran telah disetujui dan siap untuk diproses.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="sm:pl-6">
-                  <div class="mb-3 flex items-center justify-between gap-2">
-                    <div class="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                      <Users class="h-5 w-5" />
-                    </div>
-                    <Sheet v-if="canManageProjectOrder" v-model:open="isTeamDialogOpen">
-                      <SheetTrigger as-child>
-                        <button type="button" class="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20">
-                          <Plus class="h-3 w-3" />Tambah
-                        </button>
-                      </SheetTrigger>
-                      <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
-                        <SheetHeader>
-                          <SheetTitle>Tambah Anggota Tim</SheetTitle>
-                          <SheetDescription>Anggota baru akan ditambahkan ke `teamUserIds` project ini.</SheetDescription>
-                        </SheetHeader>
-                        <div class="space-y-1.5 py-2">
-                          <Label for="team-member">User</Label>
-                          <select id="team-member" v-model="teamMemberToAdd" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                            <option value="" disabled>
-                              Pilih user
-                            </option>
-                            <option v-for="user in teamOptions" :key="user.id" :value="user.id">
-                              {{ user.name }} ({{ user.role }})
-                            </option>
-                          </select>
-                        </div>
-                        <SheetFooter class="mt-6 flex-row justify-end gap-2">
-                          <Button variant="outline" @click="isTeamDialogOpen = false">
-                            Batal
-                          </Button>
-                          <Button :disabled="!teamMemberToAdd" @click="submitAddTeamMember">
-                            Tambah
-                          </Button>
-                        </SheetFooter>
-                      </SheetContent>
-                    </Sheet>
-                  </div>
-                  <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Tim Project
-                  </p>
-
-                  <div class="mt-3 space-y-3">
-                    <div class="flex items-center gap-2.5">
-                      <Avatar class="h-10 w-10 shrink-0">
-                        <AvatarFallback class="bg-primary/15 text-xs font-semibold text-primary">
-                          {{ initials(owner?.name) }}
-                        </AvatarFallback>
-                      </Avatar>
-                      <p class="min-w-0 truncate text-sm">
-                        <span class="font-medium text-foreground">{{ owner?.name ?? '—' }}</span> <span class="text-muted-foreground">· PM</span>
-                      </p>
-                    </div>
-                    <div class="flex items-center gap-2.5">
-                      <Avatar class="h-10 w-10 shrink-0">
-                        <AvatarFallback class="bg-chart-5/15 text-xs font-semibold text-chart-5">
-                          {{ initials(accountExecutive?.name) }}
-                        </AvatarFallback>
-                      </Avatar>
-                      <p class="min-w-0 truncate text-sm">
-                        <span class="font-medium text-foreground">{{ accountExecutive?.name ?? '—' }}</span> <span class="text-muted-foreground">· AE</span>
-                      </p>
-                    </div>
-                    <div v-for="member in team" :key="member.id" class="group flex items-center gap-2.5">
-                      <Avatar class="h-10 w-10 shrink-0">
-                        <AvatarFallback class="bg-muted text-xs font-semibold text-muted-foreground">
-                          {{ initials(member.name) }}
-                        </AvatarFallback>
-                      </Avatar>
-                      <p class="min-w-0 flex-1 truncate text-sm">
-                        <span class="font-medium text-foreground">{{ member.name }}</span> <span class="text-muted-foreground">· {{ member.role }}</span>
-                      </p>
-                      <button
-                        v-if="canManageProjectOrder"
-                        type="button"
-                        class="shrink-0 text-muted-foreground opacity-0 transition-opacity hover:text-destructive group-hover:opacity-100"
-                        title="Hapus dari tim"
-                        @click="submitRemoveTeamMember(member.id)"
-                      >
-                        ×
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <ProjectOrderTimelineTracking
-              :project-id="project.id"
-              :milestones="milestones"
-              :can-manage="canManageOperations"
-              :planned-dates-locked="plannedDatesLocked"
-              @mark-actual="onMarkMilestoneActual"
-              @update-planned="onUpdateMilestonePlanned"
-              @update-note="onUpdateMilestoneNote"
-            />
           </div>
         </TabsContent>
 
@@ -2222,9 +2266,22 @@ const tripDurationDays = computed(() => {
 
                   <div class="relative flex h-40 w-40 shrink-0 items-center justify-center">
                     <svg viewBox="0 0 80 80" class="h-40 w-40 -rotate-90">
-                      <circle cx="40" cy="40" r="34" fill="none" stroke="hsl(var(--muted))" stroke-width="7" />
                       <circle
-                        cx="40" cy="40" r="34" fill="none" stroke="hsl(var(--primary))" stroke-width="7" stroke-linecap="round"
+                        cx="40"
+                        cy="40"
+                        r="34"
+                        fill="none"
+                        stroke="hsl(var(--muted))"
+                        stroke-width="7"
+                      />
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="34"
+                        fill="none"
+                        stroke="hsl(var(--primary))"
+                        stroke-width="7"
+                        stroke-linecap="round"
                         class="transition-[stroke-dashoffset] duration-700 ease-out"
                         :stroke-dasharray="2 * Math.PI * 34"
                         :stroke-dashoffset="2 * Math.PI * 34 * (1 - overallReadinessPercent / 100)"
@@ -2527,8 +2584,12 @@ const tripDurationDays = computed(() => {
                               · {{ formatDate(entry.deadlineDate) }}
                             </template>
                           </TableCell>
-                          <TableCell class="px-4 py-4"><StatusBadge size="md" :label="entry.internalStatus" :tone="entry.internalStatusTone" /></TableCell>
-                          <TableCell class="px-4 py-4"><StatusBadge size="md" :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" /></TableCell>
+                          <TableCell class="px-4 py-4">
+                            <StatusBadge size="md" :label="entry.internalStatus" :tone="entry.internalStatusTone" />
+                          </TableCell>
+                          <TableCell class="px-4 py-4">
+                            <StatusBadge size="md" :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
+                          </TableCell>
                           <TableCell class="px-4 py-4 text-right">
                             <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank" class="inline-flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary">
                               Voucher<ChevronRight class="h-3.5 w-3.5" />
@@ -2803,7 +2864,6 @@ const tripDurationDays = computed(() => {
                       </ul>
                     </div>
                   </div>
-
                 </div>
                 <EmptyState v-else size="compact" title="Belum ada itinerary tercatat" />
                 <Button v-if="canManageOperations" variant="outline" class="mt-4 w-full" @click="openCreateItineraryItem">
@@ -3691,304 +3751,314 @@ const tripDurationDays = computed(() => {
           <div class="space-y-4">
             <template v-if="canViewFinancials">
               <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-              <div class="min-w-0 space-y-4">
-              <div>
-                <p class="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Financial Snapshot
-                </p>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <StatsCard
-                    title="Project Value"
-                    :value="formatCurrencyIdr(project.quotationAmountIdr)"
-                    :subtitle="`Terkumpul ${formatCurrencyIdr(collectedIdr)} dari client${quotationGapIdr > 0 ? ' · Kurang ' + formatCurrencyIdr(quotationGapIdr) : ' · Lunas'}`"
-                    :progress-percent="quotationCollectionPercent"
-                    :icon="FileText"
-                    :icon-color="quotationGapIdr > 0 ? 'warning' : 'success'"
-                  />
-                  <StatsCard
-                    title="Actual Cost"
-                    :value="formatCurrencyIdr(actualCostIdr)"
-                    subtitle="Biaya aktual saat ini"
-                    :progress-percent="project.budgetIdr > 0 ? (actualCostIdr / project.budgetIdr) * 100 : 0"
-                    :icon="CreditCard"
-                    :icon-color="actualCostIdr > project.budgetIdr ? 'destructive' : 'success'"
-                  />
-                  <StatsCard
-                    v-if="canViewMargin"
-                    title="Project Margin"
-                    :value="formatCurrencyIdr(marginIdr)"
-                    subtitle="Perkiraan margin proyek"
-                    :progress-percent="project.quotationAmountIdr > 0 ? (marginIdr / project.quotationAmountIdr) * 100 : 0"
-                    :icon="PieChart"
-                    :icon-color="marginIdr >= 0 ? 'success' : 'destructive'"
-                  />
-                </div>
-              </div>
-
-              <SectionCard v-if="serviceTypeSpendRows.length" compact title="Pengeluaran per Layanan" description="Alokasi budget dan actual cost per tipe layanan — dipecah dari Project Value/Actual Cost di atas.">
-                <div class="space-y-4">
-                  <!-- Ringkasan Budget Project -->
-                  <div class="rounded-xl border border-border bg-card p-5">
-                    <div class="flex items-center gap-2.5">
-                      <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                        <Calculator class="h-4 w-4" />
-                      </div>
-                      <p class="text-xs font-semibold uppercase tracking-wide text-foreground">
-                        Ringkasan Budget Project
-                      </p>
-                    </div>
-
-                    <div class="mt-4 flex flex-wrap items-center gap-x-10 gap-y-4">
-                      <div>
-                        <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Total Budget Project
-                        </p>
-                        <p class="mt-1 text-2xl font-bold leading-tight text-foreground">
-                          {{ formatCurrencyIdr(serviceBudgetAllocationSummary.totalIdr) }}
-                        </p>
-                        <p class="mt-0.5 text-xs text-muted-foreground">
-                          Total budget
-                        </p>
-                      </div>
-                      <div>
-                        <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Sudah Dialokasikan
-                        </p>
-                        <p class="mt-1 text-2xl font-bold leading-tight text-success">
-                          {{ formatCurrencyIdr(serviceBudgetAllocationSummary.allocatedIdr) }}
-                        </p>
-                        <p class="mt-0.5 flex items-center gap-1 text-xs text-success">
-                          <CheckCircle2 class="h-3 w-3 shrink-0" />{{ serviceBudgetAllocationPercent }}% dari total budget
-                        </p>
-                      </div>
-                      <div>
-                        <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Belum Dialokasikan
-                        </p>
-                        <p class="mt-1 text-2xl font-bold leading-tight text-foreground">
-                          {{ formatCurrencyIdr(Math.max(0, serviceBudgetAllocationSummary.unallocatedIdr)) }}
-                        </p>
-                        <p class="mt-0.5 text-xs text-muted-foreground">
-                          {{ Math.max(0, 100 - serviceBudgetAllocationPercent) }}% dari total budget
-                        </p>
-                      </div>
-                      <div>
-                        <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Tingkat Alokasi
-                        </p>
-                        <p class="mt-1 text-2xl font-bold leading-tight" :class="ALLOCATION_TEXT_CLASS[allocationRingTone]">
-                          {{ serviceBudgetAllocationPercent }}%
-                        </p>
-                        <p class="mt-0.5 text-xs" :class="ALLOCATION_TEXT_CLASS[allocationRingTone]">
-                          {{ ALLOCATION_STATUS_LABEL[allocationRingTone] }}
-                        </p>
-                      </div>
-
-                      <div class="ml-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-4" :class="ALLOCATION_RING_CLASS[allocationRingTone]">
-                        <component :is="ALLOCATION_RING_ICON[allocationRingTone]" class="h-6 w-6" />
-                      </div>
-                    </div>
-
-                    <div class="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-muted">
-                      <div class="h-full rounded-full transition-all" :class="TONE_BAR_BG[allocationRingTone]" :style="{ width: `${Math.min(100, serviceBudgetAllocationPercent)}%` }" />
-                    </div>
-                    <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                      <span class="flex items-center gap-1.5">
-                        <span class="h-2 w-2 shrink-0 rounded-full bg-success" />
-                        Teralokasikan: <span class="font-medium text-foreground">{{ formatCurrencyIdr(serviceBudgetAllocationSummary.allocatedIdr) }}</span>
-                      </span>
-                      <span class="flex items-center gap-1.5">
-                        <span class="h-2 w-2 shrink-0 rounded-full border border-muted-foreground/40" />
-                        {{ serviceBudgetAllocationSummary.unallocatedIdr < 0 ? 'Over' : 'Sisa' }}: <span class="font-medium text-foreground">{{ formatCurrencyIdr(Math.abs(serviceBudgetAllocationSummary.unallocatedIdr)) }}</span>
-                      </span>
+                <div class="min-w-0 space-y-4">
+                  <div>
+                    <p class="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Financial Snapshot
+                    </p>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                      <StatsCard
+                        title="Project Value"
+                        :value="formatCurrencyIdr(project.quotationAmountIdr)"
+                        :subtitle="`Terkumpul ${formatCurrencyIdr(collectedIdr)} dari client${quotationGapIdr > 0 ? ' · Kurang ' + formatCurrencyIdr(quotationGapIdr) : ' · Lunas'}`"
+                        :progress-percent="quotationCollectionPercent"
+                        :icon="FileText"
+                        :icon-color="quotationGapIdr > 0 ? 'warning' : 'success'"
+                      />
+                      <StatsCard
+                        title="Actual Cost"
+                        :value="formatCurrencyIdr(actualCostIdr)"
+                        subtitle="Biaya aktual saat ini"
+                        :progress-percent="project.budgetIdr > 0 ? (actualCostIdr / project.budgetIdr) * 100 : 0"
+                        :icon="CreditCard"
+                        :icon-color="actualCostIdr > project.budgetIdr ? 'destructive' : 'success'"
+                      />
+                      <StatsCard
+                        v-if="canViewMargin"
+                        title="Project Margin"
+                        :value="formatCurrencyIdr(marginIdr)"
+                        subtitle="Perkiraan margin proyek"
+                        :progress-percent="project.quotationAmountIdr > 0 ? (marginIdr / project.quotationAmountIdr) * 100 : 0"
+                        :icon="PieChart"
+                        :icon-color="marginIdr >= 0 ? 'success' : 'destructive'"
+                      />
                     </div>
                   </div>
 
-                  <!-- Baris per layanan -->
-                  <div class="space-y-2.5">
-                    <div v-for="row in serviceTypeSpendRows" :key="row.type" class="flex flex-col gap-4 rounded-lg border border-border p-3.5 sm:flex-row sm:items-center">
-                      <div class="flex min-w-0 items-center gap-2.5 sm:w-52 sm:shrink-0">
-                        <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" :class="TONE_ICON_BG[findStatusOption(SERVICE_TYPES, row.type).tone]">
-                          <component :is="SERVICE_TYPE_ICON[row.type]" class="h-4 w-4" />
-                        </div>
-                        <div class="min-w-0">
-                          <p class="text-sm font-semibold text-foreground">
-                            {{ row.label }}
-                          </p>
-                          <p class="text-xs text-muted-foreground">
-                            Budget: <span class="font-medium text-foreground">{{ row.hasBudget ? formatCurrencyIdr(row.budgetIdr) : 'Belum dialokasikan' }}</span>
-                          </p>
-                          <p class="text-xs text-muted-foreground">
-                            Actual: <span class="font-medium text-foreground">{{ formatCurrencyIdr(row.actualIdr) }}</span>
+                  <SectionCard v-if="serviceTypeSpendRows.length" compact title="Pengeluaran per Layanan" description="Alokasi budget dan actual cost per tipe layanan — dipecah dari Project Value/Actual Cost di atas.">
+                    <div class="space-y-4">
+                      <!-- Ringkasan Budget Project -->
+                      <div class="rounded-xl border border-border bg-card p-5">
+                        <div class="flex items-center gap-2.5">
+                          <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                            <Calculator class="h-4 w-4" />
+                          </div>
+                          <p class="text-xs font-semibold uppercase tracking-wide text-foreground">
+                            Ringkasan Budget Project
                           </p>
                         </div>
-                      </div>
 
-                      <div v-if="row.hasBudget" class="min-w-0 flex-1">
-                        <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                          Alokasi
-                        </p>
-                        <p class="mt-0.5 text-xl font-bold leading-tight text-foreground">
-                          {{ row.percent }}%
-                        </p>
-                        <div class="mt-1.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted">
-                          <div
-                            class="h-full rounded-full transition-all"
-                            :class="row.remainingIdr < 0 ? 'bg-destructive' : TONE_BAR_BG[findStatusOption(SERVICE_TYPES, row.type).tone]"
-                            :style="{ width: `${row.percent}%` }"
-                          />
-                        </div>
-                        <p class="mt-1 text-xs text-muted-foreground">
-                          {{ formatCurrencyIdr(row.actualIdr) }} dari {{ formatCurrencyIdr(row.budgetIdr) }}
-                        </p>
-                      </div>
-                      <p v-else class="flex-1 text-xs text-muted-foreground">
-                        Belum ada alokasi budget untuk layanan ini.
-                      </p>
+                        <div class="mt-4 flex flex-wrap items-center gap-x-10 gap-y-4">
+                          <div>
+                            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Total Budget Project
+                            </p>
+                            <p class="mt-1 text-2xl font-bold leading-tight text-foreground">
+                              {{ formatCurrencyIdr(serviceBudgetAllocationSummary.totalIdr) }}
+                            </p>
+                            <p class="mt-0.5 text-xs text-muted-foreground">
+                              Total budget
+                            </p>
+                          </div>
+                          <div>
+                            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Sudah Dialokasikan
+                            </p>
+                            <p class="mt-1 text-2xl font-bold leading-tight text-success">
+                              {{ formatCurrencyIdr(serviceBudgetAllocationSummary.allocatedIdr) }}
+                            </p>
+                            <p class="mt-0.5 flex items-center gap-1 text-xs text-success">
+                              <CheckCircle2 class="h-3 w-3 shrink-0" />{{ serviceBudgetAllocationPercent }}% dari total budget
+                            </p>
+                          </div>
+                          <div>
+                            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Belum Dialokasikan
+                            </p>
+                            <p class="mt-1 text-2xl font-bold leading-tight text-foreground">
+                              {{ formatCurrencyIdr(Math.max(0, serviceBudgetAllocationSummary.unallocatedIdr)) }}
+                            </p>
+                            <p class="mt-0.5 text-xs text-muted-foreground">
+                              {{ Math.max(0, 100 - serviceBudgetAllocationPercent) }}% dari total budget
+                            </p>
+                          </div>
+                          <div>
+                            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Tingkat Alokasi
+                            </p>
+                            <p class="mt-1 text-2xl font-bold leading-tight" :class="ALLOCATION_TEXT_CLASS[allocationRingTone]">
+                              {{ serviceBudgetAllocationPercent }}%
+                            </p>
+                            <p class="mt-0.5 text-xs" :class="ALLOCATION_TEXT_CLASS[allocationRingTone]">
+                              {{ ALLOCATION_STATUS_LABEL[allocationRingTone] }}
+                            </p>
+                          </div>
 
-                      <div class="flex shrink-0 items-center gap-3">
-                        <div v-if="row.hasBudget">
-                          <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                            {{ row.remainingIdr < 0 ? 'Over Budget' : 'Sisa Alokasi' }}
-                          </p>
-                          <span class="mt-0.5 inline-block rounded-full px-2.5 py-1 text-sm font-semibold" :class="row.remainingIdr < 0 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'">
-                            {{ formatCurrencyIdr(Math.abs(row.remainingIdr)) }}
+                          <div class="ml-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-4" :class="ALLOCATION_RING_CLASS[allocationRingTone]">
+                            <component :is="ALLOCATION_RING_ICON[allocationRingTone]" class="h-6 w-6" />
+                          </div>
+                        </div>
+
+                        <div class="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                          <div class="h-full rounded-full transition-all" :class="TONE_BAR_BG[allocationRingTone]" :style="{ width: `${Math.min(100, serviceBudgetAllocationPercent)}%` }" />
+                        </div>
+                        <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+                          <span class="flex items-center gap-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full bg-success" />
+                            Teralokasikan: <span class="font-medium text-foreground">{{ formatCurrencyIdr(serviceBudgetAllocationSummary.allocatedIdr) }}</span>
+                          </span>
+                          <span class="flex items-center gap-1.5">
+                            <span class="h-2 w-2 shrink-0 rounded-full border border-muted-foreground/40" />
+                            {{ serviceBudgetAllocationSummary.unallocatedIdr < 0 ? 'Over' : 'Sisa' }}: <span class="font-medium text-foreground">{{ formatCurrencyIdr(Math.abs(serviceBudgetAllocationSummary.unallocatedIdr)) }}</span>
                           </span>
                         </div>
-                        <Button v-if="canManageFinance" size="sm" variant="outline" @click="openEditServiceBudget(row.type, row.label)">
-                          Edit Budget
-                        </Button>
-                        <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
                       </div>
-                    </div>
-                  </div>
 
-                  <p class="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                    <Info class="mt-0.5 h-3 w-3 shrink-0" />
-                    Total actual di sini bisa berbeda dari "Actual Cost" di atas — Actual Cost project juga menghitung pengeluaran ad-hoc/Opex yang tidak terhubung ke layanan spesifik.
-                  </p>
+                      <!-- Baris per layanan -->
+                      <div class="space-y-2.5">
+                        <div v-for="row in serviceTypeSpendRows" :key="row.type" class="flex flex-col gap-4 rounded-lg border border-border p-3.5 sm:flex-row sm:items-center">
+                          <div class="flex min-w-0 items-center gap-2.5 sm:w-52 sm:shrink-0">
+                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" :class="TONE_ICON_BG[findStatusOption(SERVICE_TYPES, row.type).tone]">
+                              <component :is="SERVICE_TYPE_ICON[row.type]" class="h-4 w-4" />
+                            </div>
+                            <div class="min-w-0">
+                              <p class="text-sm font-semibold text-foreground">
+                                {{ row.label }}
+                              </p>
+                              <p class="text-xs text-muted-foreground">
+                                Budget: <span class="font-medium text-foreground">{{ row.hasBudget ? formatCurrencyIdr(row.budgetIdr) : 'Belum dialokasikan' }}</span>
+                              </p>
+                              <p class="text-xs text-muted-foreground">
+                                Actual: <span class="font-medium text-foreground">{{ formatCurrencyIdr(row.actualIdr) }}</span>
+                              </p>
+                            </div>
+                          </div>
+
+                          <div v-if="row.hasBudget" class="min-w-0 flex-1">
+                            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                              Alokasi
+                            </p>
+                            <p class="mt-0.5 text-xl font-bold leading-tight text-foreground">
+                              {{ row.percent }}%
+                            </p>
+                            <div class="mt-1.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted">
+                              <div
+                                class="h-full rounded-full transition-all"
+                                :class="row.remainingIdr < 0 ? 'bg-destructive' : TONE_BAR_BG[findStatusOption(SERVICE_TYPES, row.type).tone]"
+                                :style="{ width: `${row.percent}%` }"
+                              />
+                            </div>
+                            <p class="mt-1 text-xs text-muted-foreground">
+                              {{ formatCurrencyIdr(row.actualIdr) }} dari {{ formatCurrencyIdr(row.budgetIdr) }}
+                            </p>
+                          </div>
+                          <p v-else class="flex-1 text-xs text-muted-foreground">
+                            Belum ada alokasi budget untuk layanan ini.
+                          </p>
+
+                          <div class="flex shrink-0 items-center gap-3">
+                            <div v-if="row.hasBudget">
+                              <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                                {{ row.remainingIdr < 0 ? 'Over Budget' : 'Sisa Alokasi' }}
+                              </p>
+                              <span class="mt-0.5 inline-block rounded-full px-2.5 py-1 text-sm font-semibold" :class="row.remainingIdr < 0 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'">
+                                {{ formatCurrencyIdr(Math.abs(row.remainingIdr)) }}
+                              </span>
+                            </div>
+                            <Button v-if="canManageFinance" size="sm" variant="outline" @click="openEditServiceBudget(row.type, row.label)">
+                              Edit Budget
+                            </Button>
+                            <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+                          </div>
+                        </div>
+                      </div>
+
+                      <p class="flex items-start gap-1.5 text-[11px] text-muted-foreground">
+                        <Info class="mt-0.5 h-3 w-3 shrink-0" />
+                        Total actual di sini bisa berbeda dari "Actual Cost" di atas — Actual Cost project juga menghitung pengeluaran ad-hoc/Opex yang tidak terhubung ke layanan spesifik.
+                      </p>
+                    </div>
+                  </SectionCard>
                 </div>
-              </SectionCard>
-              </div>
 
-              <div class="space-y-4">
-                <!-- Spacer transparan — samain classes-nya persis sama label "Financial Snapshot" (bukan pixel tebakan) supaya kartu ini rata sejajar sama baris StatsCard di kolom kiri. -->
-                <p class="mb-3 hidden text-[11px] font-semibold uppercase tracking-wide text-transparent select-none xl:block" aria-hidden="true">
-                  .
-                </p>
-                <SectionCard compact title="Close Finance" description="Financial closure gate — menandai project ini &quot;Finance diselesaikan&quot; sebelum Project Closure.">
-                  <p v-if="isFinanceAlreadySettled" class="mb-3 flex items-center gap-1.5 text-sm text-success">
-                    <CheckCircle2 class="h-4 w-4 shrink-0" />Finance project ini sudah ditutup.
+                <div class="space-y-4">
+                  <!-- Spacer transparan — samain classes-nya persis sama label "Financial Snapshot" (bukan pixel tebakan) supaya kartu ini rata sejajar sama baris StatsCard di kolom kiri. -->
+                  <p class="mb-3 hidden text-[11px] font-semibold uppercase tracking-wide text-transparent select-none xl:block" aria-hidden="true">
+                    .
                   </p>
-
-                  <div class="flex flex-col items-center gap-2 text-center">
-                    <div class="relative flex h-24 w-24 shrink-0 items-center justify-center">
-                      <svg viewBox="0 0 96 96" class="h-24 w-24 -rotate-90">
-                        <circle cx="48" cy="48" r="40" fill="none" stroke="hsl(var(--muted))" stroke-width="9" />
-                        <circle
-                          cx="48" cy="48" r="40" fill="none"
-                          :stroke="quotationGapIdr <= 0 ? 'hsl(var(--success))' : 'hsl(var(--primary))'"
-                          stroke-width="9"
-                          stroke-linecap="round"
-                          class="transition-all duration-500"
-                          :stroke-dasharray="2 * Math.PI * 40"
-                          :stroke-dashoffset="2 * Math.PI * 40 * (1 - quotationCollectionPercent / 100)"
-                        />
-                      </svg>
-                      <div class="absolute inset-0 flex flex-col items-center justify-center">
-                        <CheckCircle2 v-if="quotationGapIdr <= 0" class="h-8 w-8 text-success" />
-                        <p v-else class="text-xl font-bold leading-none text-primary">
-                          {{ quotationCollectionPercent }}%
-                        </p>
-                      </div>
-                    </div>
-                    <p class="text-xs text-muted-foreground">
-                      Sudah dibayar
+                  <SectionCard compact title="Close Finance" description="Financial closure gate — menandai project ini &quot;Finance diselesaikan&quot; sebelum Project Closure.">
+                    <p v-if="isFinanceAlreadySettled" class="mb-3 flex items-center gap-1.5 text-sm text-success">
+                      <CheckCircle2 class="h-4 w-4 shrink-0" />Finance project ini sudah ditutup.
                     </p>
-                    <span class="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-medium" :class="quotationGapIdr <= 0 ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'">
-                      Client Payment
-                    </span>
-                  </div>
 
-                  <p class="mt-4 text-xl font-bold leading-tight text-foreground">
-                    {{ formatCurrencyIdr(collectedIdr) }}
-                  </p>
-                  <p class="text-xs text-muted-foreground">
-                    dari {{ formatCurrencyIdr(project.quotationAmountIdr) }}
-                  </p>
-                  <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                    <div class="h-full rounded-full transition-all" :class="quotationGapIdr <= 0 ? 'bg-success' : 'bg-primary'" :style="{ width: `${quotationCollectionPercent}%` }" />
-                  </div>
-
-                  <div class="mt-4 space-y-3 border-t border-border pt-3">
-                    <div class="flex items-center justify-between gap-2">
-                      <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span class="h-2 w-2 shrink-0 rounded-full" :class="quotationGapIdr <= 0 ? 'bg-success' : 'bg-primary'" />Sudah Dibayar
-                      </p>
-                      <div class="text-right">
-                        <p class="text-sm font-semibold text-foreground">
-                          {{ formatCurrencyIdr(collectedIdr) }}
-                        </p>
-                        <p class="text-[11px] text-muted-foreground">
-                          {{ quotationCollectionPercent }}% dari total
-                        </p>
+                    <div class="flex flex-col items-center gap-2 text-center">
+                      <div class="relative flex h-24 w-24 shrink-0 items-center justify-center">
+                        <svg viewBox="0 0 96 96" class="h-24 w-24 -rotate-90">
+                          <circle
+                            cx="48"
+                            cy="48"
+                            r="40"
+                            fill="none"
+                            stroke="hsl(var(--muted))"
+                            stroke-width="9"
+                          />
+                          <circle
+                            cx="48"
+                            cy="48"
+                            r="40"
+                            fill="none"
+                            :stroke="quotationGapIdr <= 0 ? 'hsl(var(--success))' : 'hsl(var(--primary))'"
+                            stroke-width="9"
+                            stroke-linecap="round"
+                            class="transition-all duration-500"
+                            :stroke-dasharray="2 * Math.PI * 40"
+                            :stroke-dashoffset="2 * Math.PI * 40 * (1 - quotationCollectionPercent / 100)"
+                          />
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                          <CheckCircle2 v-if="quotationGapIdr <= 0" class="h-8 w-8 text-success" />
+                          <p v-else class="text-xl font-bold leading-none text-primary">
+                            {{ quotationCollectionPercent }}%
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <div class="flex items-center justify-between gap-2">
-                      <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span class="h-2 w-2 shrink-0 rounded-full border border-muted-foreground/40" />Sisa Tagihan
+                      <p class="text-xs text-muted-foreground">
+                        Sudah dibayar
                       </p>
-                      <div class="text-right">
-                        <p class="text-sm font-semibold text-foreground">
-                          {{ formatCurrencyIdr(quotationGapIdr) }}
-                        </p>
-                        <p class="text-[11px] text-muted-foreground">
-                          {{ 100 - quotationCollectionPercent }}% dari total
-                        </p>
-                      </div>
-                    </div>
-                    <div class="flex items-center justify-between gap-2">
-                      <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
-                        <span class="h-2 w-2 shrink-0 rounded-full bg-border" />Total Kontrak
-                      </p>
-                      <div class="text-right">
-                        <p class="text-sm font-semibold text-foreground">
-                          {{ formatCurrencyIdr(project.quotationAmountIdr) }}
-                        </p>
-                        <p class="text-[11px] text-muted-foreground">
-                          100%
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </SectionCard>
-
-                <div v-if="!isFinanceAlreadySettled" class="rounded-xl border p-4" :class="financeClosureGate.ready ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5'">
-                  <template v-if="financeClosureGate.ready">
-                    <p class="flex items-center gap-1.5 text-sm font-medium text-success">
-                      <CheckCircle2 class="h-4 w-4 shrink-0" />Tidak ada blocker — siap Close Finance.
-                    </p>
-                  </template>
-                  <template v-else>
-                    <div class="flex items-center justify-between gap-2">
-                      <p class="text-xs font-medium text-destructive">
-                        Blocker sebelum Close Finance
-                      </p>
-                      <span class="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
-                        0 / {{ financeClosureGate.blockers.length }} selesai
+                      <span class="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-medium" :class="quotationGapIdr <= 0 ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'">
+                        Client Payment
                       </span>
                     </div>
-                    <ul class="mt-2 list-disc list-inside space-y-1 text-xs text-destructive">
-                      <li v-for="(blocker, index) in financeClosureGate.blockers" :key="index">
-                        {{ blocker }}
-                      </li>
-                    </ul>
-                  </template>
-                  <Button v-if="canManageFinance" size="sm" class="mt-3 w-full" :disabled="!financeClosureGate.ready" @click="submitCloseFinance">
-                    Close Finance
-                  </Button>
+
+                    <p class="mt-4 text-xl font-bold leading-tight text-foreground">
+                      {{ formatCurrencyIdr(collectedIdr) }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      dari {{ formatCurrencyIdr(project.quotationAmountIdr) }}
+                    </p>
+                    <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div class="h-full rounded-full transition-all" :class="quotationGapIdr <= 0 ? 'bg-success' : 'bg-primary'" :style="{ width: `${quotationCollectionPercent}%` }" />
+                    </div>
+
+                    <div class="mt-4 space-y-3 border-t border-border pt-3">
+                      <div class="flex items-center justify-between gap-2">
+                        <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span class="h-2 w-2 shrink-0 rounded-full" :class="quotationGapIdr <= 0 ? 'bg-success' : 'bg-primary'" />Sudah Dibayar
+                        </p>
+                        <div class="text-right">
+                          <p class="text-sm font-semibold text-foreground">
+                            {{ formatCurrencyIdr(collectedIdr) }}
+                          </p>
+                          <p class="text-[11px] text-muted-foreground">
+                            {{ quotationCollectionPercent }}% dari total
+                          </p>
+                        </div>
+                      </div>
+                      <div class="flex items-center justify-between gap-2">
+                        <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span class="h-2 w-2 shrink-0 rounded-full border border-muted-foreground/40" />Sisa Tagihan
+                        </p>
+                        <div class="text-right">
+                          <p class="text-sm font-semibold text-foreground">
+                            {{ formatCurrencyIdr(quotationGapIdr) }}
+                          </p>
+                          <p class="text-[11px] text-muted-foreground">
+                            {{ 100 - quotationCollectionPercent }}% dari total
+                          </p>
+                        </div>
+                      </div>
+                      <div class="flex items-center justify-between gap-2">
+                        <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <span class="h-2 w-2 shrink-0 rounded-full bg-border" />Total Kontrak
+                        </p>
+                        <div class="text-right">
+                          <p class="text-sm font-semibold text-foreground">
+                            {{ formatCurrencyIdr(project.quotationAmountIdr) }}
+                          </p>
+                          <p class="text-[11px] text-muted-foreground">
+                            100%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </SectionCard>
+
+                  <div v-if="!isFinanceAlreadySettled" class="rounded-xl border p-4" :class="financeClosureGate.ready ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5'">
+                    <template v-if="financeClosureGate.ready">
+                      <p class="flex items-center gap-1.5 text-sm font-medium text-success">
+                        <CheckCircle2 class="h-4 w-4 shrink-0" />Tidak ada blocker — siap Close Finance.
+                      </p>
+                    </template>
+                    <template v-else>
+                      <div class="flex items-center justify-between gap-2">
+                        <p class="text-xs font-medium text-destructive">
+                          Blocker sebelum Close Finance
+                        </p>
+                        <span class="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
+                          0 / {{ financeClosureGate.blockers.length }} selesai
+                        </span>
+                      </div>
+                      <ul class="mt-2 list-disc list-inside space-y-1 text-xs text-destructive">
+                        <li v-for="(blocker, index) in financeClosureGate.blockers" :key="index">
+                          {{ blocker }}
+                        </li>
+                      </ul>
+                    </template>
+                    <Button v-if="canManageFinance" size="sm" class="mt-3 w-full" :disabled="!financeClosureGate.ready" @click="submitCloseFinance">
+                      Close Finance
+                    </Button>
+                  </div>
                 </div>
-              </div>
               </div>
 
               <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
@@ -4802,136 +4872,136 @@ const tripDurationDays = computed(() => {
             </div>
 
             <div class="min-h-[420px]">
-            <Transition name="docs-view" mode="out-in">
-              <Table v-if="documentsViewMode === 'list'" key="list">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Dokumen</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead>Access Level</TableHead>
-                    <TableHead>Expired / Expiry</TableHead>
-                    <TableHead>Upload Oleh</TableHead>
-                    <TableHead class="text-right">
-                      Aksi
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="document in paginatedDocuments" :key="document.id">
-                    <TableCell class="max-w-[300px]">
-                      <div class="flex items-center gap-2.5">
-                        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" :class="TONE_ICON_BG[documentCategoryTone(document.category)]">
-                          <FileText class="h-4 w-4" />
+              <Transition name="docs-view" mode="out-in">
+                <Table v-if="documentsViewMode === 'list'" key="list">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Dokumen</TableHead>
+                      <TableHead>Kategori</TableHead>
+                      <TableHead>Access Level</TableHead>
+                      <TableHead>Expired / Expiry</TableHead>
+                      <TableHead>Upload Oleh</TableHead>
+                      <TableHead class="text-right">
+                        Aksi
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="document in paginatedDocuments" :key="document.id">
+                      <TableCell class="max-w-[300px]">
+                        <div class="flex items-center gap-2.5">
+                          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" :class="TONE_ICON_BG[documentCategoryTone(document.category)]">
+                            <FileText class="h-4 w-4" />
+                          </div>
+                          <div class="min-w-0">
+                            <p class="truncate font-medium text-foreground">
+                              {{ document.name }}
+                            </p>
+                            <p class="truncate text-xs text-muted-foreground">
+                              {{ document.category }} · v{{ document.version }}
+                              <template v-if="document.sourceType === 'generated' && document.previewRoute">
+                                · <NuxtLink :to="document.previewRoute" target="_blank" class="text-primary hover:underline">
+                                  Preview
+                                </NuxtLink>
+                              </template>
+                            </p>
+                          </div>
                         </div>
-                        <div class="min-w-0">
-                          <p class="truncate font-medium text-foreground">
-                            {{ document.name }}
-                          </p>
-                          <p class="truncate text-xs text-muted-foreground">
-                            {{ document.category }} · v{{ document.version }}
-                            <template v-if="document.sourceType === 'generated' && document.previewRoute">
-                              · <NuxtLink :to="document.previewRoute" target="_blank" class="text-primary hover:underline">
-                                Preview
-                              </NuxtLink>
-                            </template>
-                          </p>
+                      </TableCell>
+                      <TableCell><StatusBadge :label="document.category" :tone="documentCategoryTone(document.category)" /></TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).tone" /></TableCell>
+                      <TableCell>
+                        <template v-if="document.expiresAt">
+                          <StatusBadge
+                            :label="isDocumentExpired(document.expiresAt) ? `Expired ${formatDate(document.expiresAt)}` : isDocumentExpiringSoon(document.expiresAt) ? `Segera: ${formatDate(document.expiresAt)}` : formatDate(document.expiresAt)"
+                            :tone="isDocumentExpired(document.expiresAt) ? 'destructive' : isDocumentExpiringSoon(document.expiresAt) ? 'warning' : 'neutral'"
+                          />
+                        </template>
+                        <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
+                      </TableCell>
+                      <TableCell>
+                        <p class="text-xs text-foreground">
+                          {{ documentUploaderName(document) }}
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                          {{ documentUploadedDate(document) }}
+                        </p>
+                      </TableCell>
+                      <TableCell class="text-right">
+                        <div class="flex items-center justify-end gap-2">
+                          <button type="button" class="inline-flex items-center gap-1 text-xs text-primary hover:underline" @click="handleDownloadDocument(document)">
+                            <Download class="h-3 w-3" />Download
+                          </button>
+                          <button type="button" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title="Lainnya" @click="handleDocumentMenu(document)">
+                            <MoreVertical class="h-3.5 w-3.5" />
+                          </button>
                         </div>
-                      </div>
-                    </TableCell>
-                    <TableCell><StatusBadge :label="document.category" :tone="documentCategoryTone(document.category)" /></TableCell>
-                    <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).tone" /></TableCell>
-                    <TableCell>
-                      <template v-if="document.expiresAt">
-                        <StatusBadge
-                          :label="isDocumentExpired(document.expiresAt) ? `Expired ${formatDate(document.expiresAt)}` : isDocumentExpiringSoon(document.expiresAt) ? `Segera: ${formatDate(document.expiresAt)}` : formatDate(document.expiresAt)"
-                          :tone="isDocumentExpired(document.expiresAt) ? 'destructive' : isDocumentExpiringSoon(document.expiresAt) ? 'warning' : 'neutral'"
-                        />
-                      </template>
-                      <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
-                    </TableCell>
-                    <TableCell>
-                      <p class="text-xs text-foreground">
-                        {{ documentUploaderName(document) }}
-                      </p>
-                      <p class="text-xs text-muted-foreground">
-                        {{ documentUploadedDate(document) }}
-                      </p>
-                    </TableCell>
-                    <TableCell class="text-right">
-                      <div class="flex items-center justify-end gap-2">
-                        <button type="button" class="inline-flex items-center gap-1 text-xs text-primary hover:underline" @click="handleDownloadDocument(document)">
-                          <Download class="h-3 w-3" />Download
-                        </button>
-                        <button type="button" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title="Lainnya" @click="handleDocumentMenu(document)">
-                          <MoreVertical class="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  <TableEmpty v-if="paginatedDocuments.length === 0" :colspan="6">
-                    <EmptyState
-                      :icon="FileText"
-                      :title="unifiedDocuments.length === 0 ? 'Belum ada dokumen diunggah' : 'Tidak ada dokumen sesuai filter'"
-                    />
-                  </TableEmpty>
-                </TableBody>
-              </Table>
+                      </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="paginatedDocuments.length === 0" :colspan="6">
+                      <EmptyState
+                        :icon="FileText"
+                        :title="unifiedDocuments.length === 0 ? 'Belum ada dokumen diunggah' : 'Tidak ada dokumen sesuai filter'"
+                      />
+                    </TableEmpty>
+                  </TableBody>
+                </Table>
 
-              <div v-else-if="paginatedDocuments.length" key="grid" class="grid content-start grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-                <div
-                  v-for="document in paginatedDocuments"
-                  :key="document.id"
-                  class="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-gradient-to-b from-card to-muted/20 p-3.5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
-                >
-                  <span class="absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 bg-gradient-to-r from-primary to-primary/30 transition-transform duration-300 group-hover:scale-x-100" />
-                  <div class="mb-3 flex items-start justify-between">
-                    <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-border/60" :class="TONE_ICON_BG[documentCategoryTone(document.category)]">
-                      <FileText class="h-4.5 w-4.5" />
-                    </div>
-                    <button type="button" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100" title="Lainnya" @click="handleDocumentMenu(document)">
-                      <MoreVertical class="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <p class="truncate text-sm font-semibold leading-tight text-foreground" :title="document.name">
-                    {{ document.name }}
-                  </p>
-                  <p class="mt-1 truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                    {{ document.category }} · v{{ document.version }}
-                  </p>
-                  <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
-                    <StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).tone" />
-                    <StatusBadge
-                      v-if="document.expiresAt"
-                      :label="isDocumentExpired(document.expiresAt) ? `Expired ${formatDate(document.expiresAt)}` : isDocumentExpiringSoon(document.expiresAt) ? `Segera: ${formatDate(document.expiresAt)}` : formatDate(document.expiresAt)"
-                      :tone="isDocumentExpired(document.expiresAt) ? 'destructive' : isDocumentExpiringSoon(document.expiresAt) ? 'warning' : 'neutral'"
-                    />
-                  </div>
-                  <div class="mt-3 flex items-center justify-between gap-2 border-t border-border/70 pt-2.5">
-                    <div class="min-w-0">
-                      <p class="truncate text-xs text-foreground">
-                        {{ documentUploaderName(document) }}
-                      </p>
-                      <p class="truncate text-[11px] text-muted-foreground">
-                        {{ documentUploadedDate(document) }}
-                      </p>
-                    </div>
-                    <div class="flex shrink-0 items-center gap-1">
-                      <NuxtLink v-if="document.sourceType === 'generated' && document.previewRoute" :to="document.previewRoute" target="_blank" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary" title="Preview">
-                        <Eye class="h-3.5 w-3.5" />
-                      </NuxtLink>
-                      <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary" title="Download" @click="handleDownloadDocument(document)">
-                        <Download class="h-3.5 w-3.5" />
+                <div v-else-if="paginatedDocuments.length" key="grid" class="grid content-start grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                  <div
+                    v-for="document in paginatedDocuments"
+                    :key="document.id"
+                    class="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-gradient-to-b from-card to-muted/20 p-3.5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
+                  >
+                    <span class="absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 bg-gradient-to-r from-primary to-primary/30 transition-transform duration-300 group-hover:scale-x-100" />
+                    <div class="mb-3 flex items-start justify-between">
+                      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-border/60" :class="TONE_ICON_BG[documentCategoryTone(document.category)]">
+                        <FileText class="h-4.5 w-4.5" />
+                      </div>
+                      <button type="button" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100" title="Lainnya" @click="handleDocumentMenu(document)">
+                        <MoreVertical class="h-3.5 w-3.5" />
                       </button>
+                    </div>
+                    <p class="truncate text-sm font-semibold leading-tight text-foreground" :title="document.name">
+                      {{ document.name }}
+                    </p>
+                    <p class="mt-1 truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                      {{ document.category }} · v{{ document.version }}
+                    </p>
+                    <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
+                      <StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).tone" />
+                      <StatusBadge
+                        v-if="document.expiresAt"
+                        :label="isDocumentExpired(document.expiresAt) ? `Expired ${formatDate(document.expiresAt)}` : isDocumentExpiringSoon(document.expiresAt) ? `Segera: ${formatDate(document.expiresAt)}` : formatDate(document.expiresAt)"
+                        :tone="isDocumentExpired(document.expiresAt) ? 'destructive' : isDocumentExpiringSoon(document.expiresAt) ? 'warning' : 'neutral'"
+                      />
+                    </div>
+                    <div class="mt-3 flex items-center justify-between gap-2 border-t border-border/70 pt-2.5">
+                      <div class="min-w-0">
+                        <p class="truncate text-xs text-foreground">
+                          {{ documentUploaderName(document) }}
+                        </p>
+                        <p class="truncate text-[11px] text-muted-foreground">
+                          {{ documentUploadedDate(document) }}
+                        </p>
+                      </div>
+                      <div class="flex shrink-0 items-center gap-1">
+                        <NuxtLink v-if="document.sourceType === 'generated' && document.previewRoute" :to="document.previewRoute" target="_blank" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary" title="Preview">
+                          <Eye class="h-3.5 w-3.5" />
+                        </NuxtLink>
+                        <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary" title="Download" @click="handleDownloadDocument(document)">
+                          <Download class="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
-              <EmptyState
-                v-else
-                key="empty"
-                :title="unifiedDocuments.length === 0 ? 'Belum ada dokumen diunggah' : 'Tidak ada dokumen sesuai filter'"
-              />
-            </Transition>
+                <EmptyState
+                  v-else
+                  key="empty"
+                  :title="unifiedDocuments.length === 0 ? 'Belum ada dokumen diunggah' : 'Tidak ada dokumen sesuai filter'"
+                />
+              </Transition>
             </div>
 
             <div v-if="filteredDocuments.length" class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">

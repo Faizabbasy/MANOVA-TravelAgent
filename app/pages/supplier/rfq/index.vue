@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Eye } from 'lucide-vue-next'
 import { getRfqsForVendor, getRfqResponseByVendor, getProjectById } from '~/data'
 import { RFQ_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 
@@ -40,6 +41,7 @@ const rows = computed(() => {
               <TableHead>Due Date</TableHead>
               <TableHead>Respons Saya</TableHead>
               <TableHead>Status RFQ</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -63,8 +65,11 @@ const rows = computed(() => {
                 <span v-else class="text-xs text-muted-foreground">Belum merespons</span>
               </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(RFQ_STATUSES, row.rfq.status).label" :tone="findStatusOption(RFQ_STATUSES, row.rfq.status).tone" /></TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
+            <TableEmpty v-if="rows.length === 0" :colspan="7">
               Belum ada RFQ yang mengundang company Anda.
             </TableEmpty>
           </TableBody>

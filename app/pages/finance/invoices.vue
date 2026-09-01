@@ -23,9 +23,6 @@ useHead({ title: 'Invoice & Piutang' })
     />
 
     <section id="invoice" class="space-y-4 scroll-mt-20">
-      <h2 class="text-lg font-semibold text-foreground">
-        Invoice
-      </h2>
       <InvoiceListPanel />
     </section>
 

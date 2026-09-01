@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Eye } from 'lucide-vue-next'
 import { getVendorById, getServicesByVendor, getVendorQuotations, getProjectById } from '~/data'
 import { SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -32,6 +33,7 @@ function projectLabel (projectId: string) {
               <TableHead>Layanan</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Booking Reference</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -46,8 +48,11 @@ function projectLabel (projectId: string) {
               <TableCell class="text-muted-foreground">
                 {{ service.bookingReference ?? '—' }}
               </TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="assignments.length === 0" :colspan="4">
+            <TableEmpty v-if="assignments.length === 0" :colspan="5">
               Belum ada assignment.
             </TableEmpty>
           </TableBody>
@@ -63,6 +68,7 @@ function projectLabel (projectId: string) {
               <TableHead>Status</TableHead>
               <TableHead>Diajukan</TableHead>
               <TableHead>Catatan</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -85,8 +91,11 @@ function projectLabel (projectId: string) {
               <TableCell class="text-muted-foreground">
                 {{ quotation.notes ?? '—' }}
               </TableCell>
+              <TableCell>
+                <Eye v-if="quotation.serviceId" class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="quotations.length === 0" :colspan="5">
+            <TableEmpty v-if="quotations.length === 0" :colspan="6">
               Belum ada quotation.
             </TableEmpty>
           </TableBody>

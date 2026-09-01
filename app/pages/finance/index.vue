@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Receipt, Wallet, AlertTriangle, FileStack, GitCompareArrows, CheckCircle2 } from 'lucide-vue-next'
-import { getOutstandingInvoices, INVOICES, PROJECTS, getSupplierInvoiceReconciliationQueue, evaluateFinanceClosureGate } from '~/data'
-import { isInvoiceOverdue } from '~/utils/attention'
+import { Receipt, Wallet, AlertTriangle, FileStack, GitCompareArrows, CheckCircle2, HandCoins, ArrowDownToLine, ShieldAlert } from 'lucide-vue-next'
+import { getOutstandingInvoices, INVOICES, PAYMENTS, PROJECTS, getSupplierInvoiceReconciliationQueue, evaluateFinanceClosureGate } from '~/data'
+import { getPayables } from '~/data/finance-ext'
+import { isInvoiceOverdue, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import { formatCurrencyIdr, formatNumber } from '~/utils/format'
 
 /**
@@ -24,6 +25,16 @@ const reconciliationQueueCount = computed(() => getSupplierInvoiceReconciliation
 const closureReadiness = computed(() => PROJECTS
   .filter(project => !project.closureChecklist?.financeSettled)
   .map(project => ({ project, gate: evaluateFinanceClosureGate(project.id) })))
+
+/** Total Hutang (AP) — sisi payables, pelengkap "Total Outstanding" (AR) supaya stat row tidak cuma cerita piutang. */
+const payablesTotal = computed(() => getPayables().reduce((sum, row) => sum + row.outstandingIdr, 0))
+/** Uang yang benar-benar diterima bulan berjalan (bukan sekadar outstanding) — pola sama `getRevenueByPeriod().collectedIdr`. */
+const currentPeriod = computed(() => DEMO_REFERENCE_DATE.slice(0, 7))
+const collectedThisMonth = computed(() => PAYMENTS
+  .filter(payment => payment.receivedAt.startsWith(currentPeriod.value))
+  .reduce((sum, payment) => sum + payment.amountIdr, 0))
+/** Jumlah project yang macet Close Finance-nya — angka ringkas dari `closureReadiness` yang sudah dihitung di atas. */
+const closureBlockerCount = computed(() => closureReadiness.value.filter(row => !row.gate.ready).length)
 </script>
 
 <template>
@@ -37,7 +48,7 @@ const closureReadiness = computed(() => PROJECTS
     <RoleAccessState v-if="!canView('finance')" module-label="modul Finance" />
 
     <template v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Invoice Outstanding" :value="formatNumber(outstanding.length)" :icon="Receipt" />
         <StatsCard
           v-if="canViewFinancials"
@@ -47,6 +58,27 @@ const closureReadiness = computed(() => PROJECTS
           icon-color="warning"
         />
         <StatsCard title="Invoice Overdue" :value="formatNumber(overdueCount)" :icon="AlertTriangle" icon-color="destructive" />
+        <StatsCard
+          v-if="canViewFinancials"
+          title="Total Hutang (AP)"
+          :value="formatCurrencyIdr(payablesTotal)"
+          :icon="HandCoins"
+          icon-color="warning"
+        />
+        <StatsCard
+          v-if="canViewFinancials"
+          title="Collected Bulan Ini"
+          :value="formatCurrencyIdr(collectedThisMonth)"
+          :icon="ArrowDownToLine"
+          icon-color="success"
+        />
+        <StatsCard title="Reconciliation Pending" :value="formatNumber(reconciliationQueueCount)" :icon="GitCompareArrows" />
+        <StatsCard
+          title="Financial Closure Blocker"
+          :value="formatNumber(closureBlockerCount)"
+          :icon="ShieldAlert"
+          :icon-color="closureBlockerCount > 0 ? 'warning' : 'success'"
+        />
       </div>
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

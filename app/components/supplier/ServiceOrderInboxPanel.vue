@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Eye } from 'lucide-vue-next'
 import { getServiceOrdersByVendor, getProjectById } from '~/data'
 import { SERVICE_ORDER_STATUSES, findStatusOption } from '~/constants/status'
 
@@ -28,6 +29,7 @@ const rows = computed(() => {
               <TableHead>RFQ Asal</TableHead>
               <TableHead>Line Items</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -42,8 +44,11 @@ const rows = computed(() => {
                 {{ row.so.lineItems.length }} item
               </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).label" :tone="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).tone" /></TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="4">
+            <TableEmpty v-if="rows.length === 0" :colspan="5">
               Belum ada Service Order untuk company Anda.
             </TableEmpty>
           </TableBody>

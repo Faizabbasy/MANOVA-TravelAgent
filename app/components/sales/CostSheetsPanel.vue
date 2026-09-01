@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Plus } from 'lucide-vue-next'
+import { Search, Plus, Eye } from 'lucide-vue-next'
 import { COST_SHEETS, PRODUCT_TEMPLATES, LEADS, getCostSheetBreakdown, getLeadById, createCostSheet } from '~/data'
 import { formatCurrencyIdr } from '~/utils/format'
 
@@ -211,6 +211,7 @@ function submitCreate () {
               <TableHead>Total Sell</TableHead>
               <TableHead>Versi</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -236,8 +237,11 @@ function submitCreate () {
                   <StatusBadge v-if="row.sheet.appliedToQuotationId" label="Applied" tone="info" />
                 </div>
               </TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
+            <TableEmpty v-if="rows.length === 0" :colspan="7">
               {{ searchQuery || statusFilter !== 'all' || leadFilter !== 'all' ? 'Tidak ada Cost Sheet yang cocok dengan filter.' : 'Belum ada Cost Sheet.' }}
             </TableEmpty>
           </TableBody>

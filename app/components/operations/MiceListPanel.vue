@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Plus } from 'lucide-vue-next'
+import { Search, Plus, Eye } from 'lucide-vue-next'
 import { MICE_EVENTS, PROJECTS, VENDORS, getProjectById, createMiceEvent, setServiceVendor } from '~/data'
 import { MICE_EVENT_STATUSES, MICE_APPROVAL_STATUSES, findStatusOption } from '~/constants/status'
 
@@ -162,6 +162,7 @@ function submitCreate () {
               <TableHead>Peserta Diharapkan</TableHead>
               <TableHead>Client Approval</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -180,8 +181,11 @@ function submitCreate () {
               </TableCell>
               <TableCell><StatusBadge :label="findStatusOption(MICE_APPROVAL_STATUSES, row.event.clientApprovalStatus).label" :tone="findStatusOption(MICE_APPROVAL_STATUSES, row.event.clientApprovalStatus).tone" /></TableCell>
               <TableCell><StatusBadge :label="findStatusOption(MICE_EVENT_STATUSES, row.event.status).label" :tone="findStatusOption(MICE_EVENT_STATUSES, row.event.status).tone" /></TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
+            <TableEmpty v-if="rows.length === 0" :colspan="7">
               {{ searchQuery || statusFilter !== 'all' || projectFilter !== 'all' ? 'Tidak ada MICE Event yang cocok dengan filter.' : 'Belum ada MICE Event.' }}
             </TableEmpty>
           </TableBody>

@@ -117,6 +117,10 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-weight: 500; /* Default to Medium instead of Regular */
+    /** App tidak punya dark mode aktif (`.dark` di atas tidak pernah di-apply) — tanpa ini, browser pakai
+     * color-scheme OS untuk chrome native yang tidak di-style Tailwind (kalender `input[type=date]`,
+     * resize handle `textarea`), jadi hitam sendiri di OS/browser dark mode meski halaman tetap terang. */
+    color-scheme: light;
   }
 }
 

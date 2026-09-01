@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Plus } from 'lucide-vue-next'
+import { Search, Plus, Eye } from 'lucide-vue-next'
 import { PARTIES, getUserById, getLeadsByParty, getProjectsByParty, getPartiesByAccountOwner, createParty, isManovaClient } from '~/data'
 import { findStatusOption } from '~/constants/status'
 import type { StatusOption } from '~/types/common'
@@ -179,6 +179,7 @@ function submitCreate () {
               <TableHead>Account Owner</TableHead>
               <TableHead>Leads</TableHead>
               <TableHead>Project Orders</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -203,8 +204,11 @@ function submitCreate () {
               </TableCell>
               <TableCell>{{ row.leadCount }}</TableCell>
               <TableCell>{{ row.projectOrderCount }}</TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="7">
+            <TableEmpty v-if="rows.length === 0" :colspan="8">
               {{ searchQuery || statusFilter !== 'all' || industryFilter !== 'all' || cityFilter !== 'all' || ownerFilter !== 'all' ? 'Tidak ada company yang cocok dengan filter.' : (portfolioOnly ? 'Belum ada company di portfolio Anda.' : 'Belum ada company.') }}
             </TableEmpty>
           </TableBody>

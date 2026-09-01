@@ -233,6 +233,11 @@ export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   { key: 'hidden.lead-sources', label: 'Lead Source Recap', to: '/customer-journey/lead-sources', moduleKey: 'sales' },
   { key: 'hidden.opportunities', label: 'Opportunities', to: '/crm/opportunities', moduleKey: 'sales' },
   { key: 'hidden.quotations-internal', label: 'Quotations (internal)', to: '/crm/quotations', moduleKey: 'sales' },
+  /** Halaman detail Lead (`/crm/leads/[id]`, dan child `/quotation-preview`) — TIDAK deprecated, satu-satunya tempat
+   * membangun Quotation dan menjalankan Commercial Approval setelah Lead B2B di-qualify. Tanpa entri spesifik ini,
+   * `findNavItemForPath` jatuh ke entri terpanjang berikutnya yang cocok (`hidden.crm-hub`, `/crm`) sehingga header
+   * salah menampilkan "CRM Hub (lama)" — padahal path `/crm/leads/*` tidak terkait section CRM Hub lama itu sama sekali. */
+  { key: 'hidden.crm-lead-detail', label: 'Quotation & Approval', to: '/crm/leads', moduleKey: 'sales' },
   { key: 'hidden.product-planning', label: 'Produk & Costing', to: '/product-planning', moduleKey: 'sales' },
   { key: 'hidden.cost-sheets', label: 'Cost Sheets', to: '/product-planning/cost-sheets', moduleKey: 'sales' },
 

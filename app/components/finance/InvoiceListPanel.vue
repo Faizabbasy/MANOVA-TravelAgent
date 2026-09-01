@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Search, FileX, Plus } from 'lucide-vue-next'
+import { Search, FileX, Plus, ChevronRight } from 'lucide-vue-next'
 import {
   INVOICES, PROJECTS, getProjectById, getPaymentsByInvoice, getInvoiceOutstandingIdr, getCreditNotesByInvoice,
   createInvoice, recordPayment, voidInvoice, issueCreditNote
@@ -159,101 +159,101 @@ function submitCreditNote () {
 
 <template>
   <div class="space-y-6">
-    <div v-if="canManageFinance" class="flex justify-end">
-      <Dialog v-model:open="isCreateOpen">
-        <DialogTrigger as-child>
-          <Button size="sm">
-            <Plus class="h-4 w-4 mr-1.5" />Buat Invoice
-          </Button>
-        </DialogTrigger>
-        <DialogScrollContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Buat Invoice Baru</DialogTitle>
-            <DialogDescription>Invoice baru terbit berstatus "Belum Dibayar".</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="space-y-1.5">
-              <Label for="inv-project">Project</Label>
-              <select id="inv-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option value="" disabled>
-                  Pilih project
-                </option>
-                <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
-                  {{ project.name }}
-                </option>
-              </select>
-            </div>
-            <div class="space-y-1.5">
-              <Label for="inv-label">Label</Label>
-              <Input id="inv-label" v-model="newLabel" placeholder="mis. Invoice Termin 2" />
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div class="space-y-1.5">
-                <Label for="inv-amount">Jumlah (Rp)</Label>
-                <CurrencyInput id="inv-amount" v-model="newAmount" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="inv-due">Jatuh Tempo</Label>
-                <Input id="inv-due" v-model="newDueAt" type="date" />
-              </div>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div class="space-y-1.5">
-                <Label for="inv-currency">Currency</Label>
-                <select id="inv-currency" v-model="newCurrency" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="option in INVOICE_CURRENCIES" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </div>
-              <div class="space-y-1.5">
-                <Label for="inv-type">Tipe</Label>
-                <select id="inv-type" v-model="newInvoiceType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="option in INVOICE_TYPES" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </div>
-            </div>
-            <div v-if="newCurrency !== 'IDR'" class="space-y-1.5">
-              <Label for="inv-fx">Exchange Rate Snapshot (1 {{ newCurrency }} = ? IDR)</Label>
-              <Input id="inv-fx" v-model.number="newFxRate" type="number" placeholder="mis. 15600" />
-              <p class="text-xs text-muted-foreground">
-                Mock snapshot — dicatat sekali saat invoice diterbitkan, tidak mengikuti kurs pasar nyata.
-              </p>
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isCreateOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!newProjectId || !newLabel.trim() || !newAmount || !newDueAt" @click="submitCreateInvoice">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
-    </div>
-
     <RoleAccessState v-if="!canView('finance')" module-label="modul Finance & ACC" />
 
     <template v-else>
-      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div class="relative flex-1 max-w-sm w-full">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input v-model="searchQuery" placeholder="Cari invoice atau project..." class="pl-9" />
+      <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+        <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+          <div class="relative flex-1 max-w-sm w-full">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input v-model="searchQuery" placeholder="Cari invoice atau project..." class="pl-9" />
+          </div>
+          <select
+            v-model="statusFilter"
+            class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+          >
+            <option value="all">
+              Semua Status
+            </option>
+            <option v-for="status in INVOICE_STATUSES" :key="status.value" :value="status.value">
+              {{ status.label }}
+            </option>
+          </select>
         </div>
-        <select
-          v-model="statusFilter"
-          class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-        >
-          <option value="all">
-            Semua Status
-          </option>
-          <option v-for="status in INVOICE_STATUSES" :key="status.value" :value="status.value">
-            {{ status.label }}
-          </option>
-        </select>
+
+        <Dialog v-if="canManageFinance" v-model:open="isCreateOpen">
+          <DialogTrigger as-child>
+            <Button size="sm">
+              <Plus class="h-4 w-4 mr-1.5" />Buat Invoice
+            </Button>
+          </DialogTrigger>
+          <DialogScrollContent class="max-w-lg">
+            <DialogHeader>
+              <DialogTitle>Buat Invoice Baru</DialogTitle>
+              <DialogDescription>Invoice baru terbit berstatus "Belum Dibayar".</DialogDescription>
+            </DialogHeader>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="inv-project">Project</Label>
+                <select id="inv-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="" disabled>
+                    Pilih project
+                  </option>
+                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
+                <Label for="inv-label">Label</Label>
+                <Input id="inv-label" v-model="newLabel" placeholder="mis. Invoice Termin 2" />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="inv-amount">Jumlah (Rp)</Label>
+                  <CurrencyInput id="inv-amount" v-model="newAmount" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="inv-due">Jatuh Tempo</Label>
+                  <Input id="inv-due" v-model="newDueAt" type="date" />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="inv-currency">Currency</Label>
+                  <select id="inv-currency" v-model="newCurrency" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option v-for="option in INVOICE_CURRENCIES" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="inv-type">Tipe</Label>
+                  <select id="inv-type" v-model="newInvoiceType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option v-for="option in INVOICE_TYPES" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <div v-if="newCurrency !== 'IDR'" class="space-y-1.5">
+                <Label for="inv-fx">Exchange Rate Snapshot (1 {{ newCurrency }} = ? IDR)</Label>
+                <Input id="inv-fx" v-model.number="newFxRate" type="number" placeholder="mis. 15600" />
+                <p class="text-xs text-muted-foreground">
+                  Mock snapshot — dicatat sekali saat invoice diterbitkan, tidak mengikuti kurs pasar nyata.
+                </p>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newProjectId || !newLabel.trim() || !newAmount || !newDueAt" @click="submitCreateInvoice">
+                Simpan
+              </Button>
+            </DialogFooter>
+          </DialogScrollContent>
+        </Dialog>
       </div>
 
       <SectionCard>
@@ -267,11 +267,12 @@ function submitCreditNote () {
               <TableHead>Jatuh Tempo</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Aging</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow v-for="row in rows" :key="row.invoice.id" class="cursor-pointer hover:bg-muted/50" @click="openDetail(row.invoice)">
-              <TableCell class="font-medium text-foreground">
+            <TableRow v-for="row in rows" :key="row.invoice.id" class="group cursor-pointer transition-colors hover:bg-muted/50" @click="openDetail(row.invoice)">
+              <TableCell class="font-medium text-primary group-hover:underline">
                 {{ row.invoice.label }}
               </TableCell>
               <TableCell class="text-muted-foreground">
@@ -296,8 +297,11 @@ function submitCreditNote () {
               <TableCell :class="isInvoiceOverdue(row.invoice) ? 'text-destructive' : 'text-muted-foreground'">
                 {{ agingLabel(row.invoice) }}
               </TableCell>
+              <TableCell>
+                <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="7">
+            <TableEmpty v-if="rows.length === 0" :colspan="8">
               {{ searchQuery || statusFilter !== 'all' ? 'Tidak ada invoice yang cocok dengan filter.' : 'Belum ada invoice.' }}
             </TableEmpty>
           </TableBody>

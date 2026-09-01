@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search } from 'lucide-vue-next'
+import { Search, ChevronRight } from 'lucide-vue-next'
 import {
   QUOTATIONS, getLeadById, getPartyById, getUserById,
   approveQuotation, rejectQuotation
@@ -104,6 +104,22 @@ function submitReject () {
   showToast('Quotation Dikembalikan untuk Revisi', `${result.id} ditolak — AE perlu merevisi sebelum submit ulang.`, 'warning')
   isReviewOpen.value = false
 }
+
+/** Edit lengkap (amount/discount/tax/service breakdown/dst) hidup di tab "Quotation" milik `LeadDetailSheet`
+ * — dibuka di sini lewat lead-nya, bukan navigasi ke halaman terpisah (`/crm/leads/[id]` sudah deprecated). */
+const isEditDrawerOpen = ref(false)
+const editDrawerLeadId = ref<string | null>(null)
+
+function openQuotationEdit (leadId: string) {
+  editDrawerLeadId.value = leadId
+  isEditDrawerOpen.value = true
+}
+
+function viewLeadDetail () {
+  if (!selectedQuotation.value) { return }
+  isReviewOpen.value = false
+  openQuotationEdit(selectedQuotation.value.leadId)
+}
 </script>
 
 <template>
@@ -141,8 +157,8 @@ function submitReject () {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow v-for="quotation in allQuotations" :key="quotation.id" class="cursor-pointer hover:bg-muted/50" @click="openReview(quotation)">
-              <TableCell class="font-medium text-foreground">
+            <TableRow v-for="quotation in allQuotations" :key="quotation.id" class="group cursor-pointer transition-colors hover:bg-muted/50" @click="openReview(quotation)">
+              <TableCell class="font-medium text-primary group-hover:underline">
                 {{ quotation.id }}
               </TableCell>
               <TableCell class="text-muted-foreground">
@@ -165,9 +181,15 @@ function submitReject () {
                 {{ formatDate(quotation.createdAt) }}
               </TableCell>
               <TableCell>
-                <Button size="sm" variant="outline" @click.stop="openReview(quotation)">
-                  Detail
-                </Button>
+                <div class="flex items-center justify-end gap-1.5">
+                  <Button size="sm" variant="outline" @click.stop="openReview(quotation)">
+                    Detail
+                  </Button>
+                  <Button size="sm" variant="outline" @click.stop="openQuotationEdit(quotation.leadId)">
+                    Edit
+                  </Button>
+                  <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                </div>
               </TableCell>
             </TableRow>
             <TableEmpty v-if="allQuotations.length === 0" :colspan="8">
@@ -226,9 +248,9 @@ function submitReject () {
             Catatan keputusan terakhir: {{ selectedQuotation.approvalNote }}
           </p>
 
-          <NuxtLink :to="`/crm/leads/${selectedLead.id}`" class="text-sm text-primary hover:underline block mt-2">
+          <button type="button" class="text-sm text-primary hover:underline block mt-2" @click="viewLeadDetail">
             Lihat Lead lengkap →
-          </NuxtLink>
+          </button>
 
           <DialogFooter class="mt-4">
             <template v-if="canApproveCommercial && selectedQuotation.approvalStatus === 'submitted'">
@@ -255,5 +277,8 @@ function submitReject () {
         </template>
       </DialogScrollContent>
     </Dialog>
+
+    <!-- Edit Quotation lengkap — tab "Quotation" di sheet ini, bukan navigasi ke halaman terpisah -->
+    <LeadDetailSheet v-model:open="isEditDrawerOpen" :lead-id="editDrawerLeadId" initial-tab="quotation" />
   </div>
 </template>

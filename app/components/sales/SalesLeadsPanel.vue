@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Plus, List, LayoutGrid, Inbox as InboxIcon } from 'lucide-vue-next'
+import { Search, Plus, List, LayoutGrid, Inbox as InboxIcon, Eye } from 'lucide-vue-next'
 import {
   LEADS, createLead, getLeadWorkflowStatus, getUserById, getLeadFollowUps, getLeadDuplicateCandidates
 } from '~/data'
@@ -256,6 +256,7 @@ function openDrawer (lead: Lead) {
               <TableHead>Owner</TableHead>
               <TableHead>Update Terakhir</TableHead>
               <TableHead>Follow-up</TableHead>
+              <TableHead />
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -287,8 +288,11 @@ function openDrawer (lead: Lead) {
                 <StatusBadge v-if="hasUpcomingFollowUp(lead.id)" label="Follow-up Mendatang" tone="warning" />
                 <span v-else class="text-muted-foreground text-xs">—</span>
               </TableCell>
+              <TableCell>
+                <Eye class="h-4 w-4 text-muted-foreground" />
+              </TableCell>
             </TableRow>
-            <TableEmpty v-if="filteredLeads.length === 0" :colspan="7">
+            <TableEmpty v-if="filteredLeads.length === 0" :colspan="8">
               {{ searchQuery || stageFilter !== 'all' || ownerFilter !== 'all' || sourceFilter !== 'all' ? 'Tidak ada lead yang cocok dengan filter.' : (showArchived ? 'Belum ada lead diarsipkan.' : 'Belum ada lead.') }}
             </TableEmpty>
           </TableBody>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Plus, FileWarning, Ban, RefreshCcw, Siren } from 'lucide-vue-next'
+import { Search, Plus, FileWarning, Ban, RefreshCcw, Siren, Eye } from 'lucide-vue-next'
 import {
   PROJECTS, getProjectById, getUserById,
   CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS,
@@ -453,6 +453,7 @@ function submitCreateRefund () {
                   <TableHead>Sumber</TableHead>
                   <TableHead>Before → After</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -468,8 +469,11 @@ function submitCreateRefund () {
                     {{ row.item.beforeSummary }} → {{ row.item.afterSummary }}
                   </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(CHANGE_REQUEST_STATUSES, row.item.status).label" :tone="findStatusOption(CHANGE_REQUEST_STATUSES, row.item.status).tone" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
                 </TableRow>
-                <TableEmpty v-if="crRows.length === 0" :colspan="5">
+                <TableEmpty v-if="crRows.length === 0" :colspan="6">
                   {{ crSearch || crSourceFilter !== 'all' || crStatusFilter !== 'all' ? 'Tidak ada Change Request yang cocok dengan filter.' : 'Belum ada Change Request.' }}
                 </TableEmpty>
               </TableBody>
@@ -511,6 +515,7 @@ function submitCreateRefund () {
                   <TableHead>Alasan</TableHead>
                   <TableHead>Penalty</TableHead>
                   <TableHead>Refund Eligible</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -531,8 +536,11 @@ function submitCreateRefund () {
                     {{ row.item.penaltyIdr !== undefined ? formatCurrencyIdr(row.item.penaltyIdr) : 'Tidak ada' }}
                   </TableCell>
                   <TableCell><StatusBadge :label="row.item.refundEligible ? 'Eligible' : 'Tidak Eligible'" :tone="row.item.refundEligible ? 'success' : 'neutral'" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
                 </TableRow>
-                <TableEmpty v-if="cnxRows.length === 0" :colspan="6">
+                <TableEmpty v-if="cnxRows.length === 0" :colspan="7">
                   {{ cnxSearch || cnxDomainFilter !== 'all' ? 'Tidak ada Cancellation yang cocok dengan filter.' : 'Belum ada Cancellation tercatat.' }}
                 </TableEmpty>
               </TableBody>
@@ -565,6 +573,7 @@ function submitCreateRefund () {
                   <TableHead>Jumlah</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Credit Status</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -583,8 +592,11 @@ function submitCreateRefund () {
                   </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(REFUND_REQUEST_STATUSES, row.item.status).label" :tone="findStatusOption(REFUND_REQUEST_STATUSES, row.item.status).tone" /></TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(REFUND_CREDIT_STATUSES, row.item.creditStatus).label" :tone="findStatusOption(REFUND_CREDIT_STATUSES, row.item.creditStatus).tone" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
                 </TableRow>
-                <TableEmpty v-if="refRows.length === 0" :colspan="6">
+                <TableEmpty v-if="refRows.length === 0" :colspan="7">
                   {{ refSearch || refStatusFilter !== 'all' ? 'Tidak ada Refund Request yang cocok dengan filter.' : 'Belum ada Refund Request.' }}
                 </TableEmpty>
               </TableBody>
@@ -625,6 +637,7 @@ function submitCreateRefund () {
                   <TableHead>Owner</TableHead>
                   <TableHead>Severity</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -648,8 +661,11 @@ function submitCreateRefund () {
                   </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(INCIDENT_SEVERITIES, row.item.severity).label" :tone="findStatusOption(INCIDENT_SEVERITIES, row.item.severity).tone" /></TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(INCIDENT_STATUSES, row.item.status).label" :tone="findStatusOption(INCIDENT_STATUSES, row.item.status).tone" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
                 </TableRow>
-                <TableEmpty v-if="incRows.length === 0" :colspan="6">
+                <TableEmpty v-if="incRows.length === 0" :colspan="7">
                   {{ incSearch || incSeverityFilter !== 'all' || incStatusFilter !== 'all' ? 'Tidak ada Incident yang cocok dengan filter.' : 'Belum ada Incident tercatat.' }}
                 </TableEmpty>
               </TableBody>

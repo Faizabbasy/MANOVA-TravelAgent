@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Plus } from 'lucide-vue-next'
+import { FileX, Plus, Eye } from 'lucide-vue-next'
 import {
   getPartyById, getContactsByParty, getLeadsByParty, getProjectsByParty, getPartyActivities,
   getDocumentsByParty, getUserById, getQuotationByLead, createProject,
@@ -217,6 +217,7 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
                   <TableHead>Status Quotation</TableHead>
                   <TableHead>Account Executive</TableHead>
                   <TableHead>Nilai Quotation</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -236,6 +237,9 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
                     {{ getUserById(row.lead.handedOverTo ?? row.lead.ownerId)?.name ?? '—' }}
                   </TableCell>
                   <TableCell>{{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}</TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
@@ -334,6 +338,7 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
                   <TableHead>Destinasi</TableHead>
                   <TableHead>Tanggal</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead />
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -348,6 +353,9 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
                     {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
                   </TableCell>
                   <TableCell><StatusBadge :label="findStatusOption(PROJECT_STATUSES, project.status).label" :tone="findStatusOption(PROJECT_STATUSES, project.status).tone" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
                 </TableRow>
               </TableBody>
             </Table>
