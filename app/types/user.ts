@@ -67,3 +67,16 @@ export interface User {
   /** Isolasi client — hanya terisi untuk role portal ber-`scopeField: 'clientPartyId'`; menentukan satu-satunya `Party` (company) yang boleh dilihat user ini di `/client/*`. */
   clientPartyId?: ID
 }
+
+/** Log Session (Administration) — audit trail login/logout per user, terpisah dari `ActivityEntry`/`SystemEvent` (aktivitas bisnis) karena ini murni akses sesi. */
+export type SessionLogStatus = 'active' | 'ended'
+
+export interface SessionLog {
+  id: ID
+  userId: ID
+  loginAt: string
+  logoutAt?: string
+  ipAddress: string
+  device: string
+  status: SessionLogStatus
+}
