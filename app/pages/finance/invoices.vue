@@ -2,11 +2,13 @@
 import InvoiceListPanel from '~/components/finance/InvoiceListPanel.vue'
 import ReceivablesPanel from '~/components/finance/ReceivablesPanel.vue'
 import CreditDebitNotesPanel from '~/components/finance/CreditDebitNotesPanel.vue'
+import BillingPanel from '~/components/finance/BillingPanel.vue'
 
 /**
  * Finance & ACC > Invoice & Piutang (Penyederhanaan 7-Role/Menu, revisi "satu menu tanpa tab tapi saling
  * ngalir") — satu menu menampung Invoice (dulu halaman ini sendiri), AR Aging (dulu `/finance/receivables`),
- * dan Credit & Debit Note (dulu `/finance/notes`). Konten tiap section dipindah apa adanya ke
+ * Credit & Debit Note (dulu `/finance/notes`), dan Billing (rekap invoice per customer — dulu hanya ada di
+ * Client Portal, sekarang ada juga versi internal di sini). Konten tiap section dipindah apa adanya ke
  * `app/components/finance/*Panel.vue`. Disusun sebagai section bertumpuk dalam satu halaman scroll (BUKAN
  * `<Tabs>`) — tiap section punya `id` untuk deep-link `#section`.
  */
@@ -42,6 +44,15 @@ useHead({ title: 'Invoice & Piutang' })
         Credit & Debit Note
       </h2>
       <CreditDebitNotesPanel />
+    </section>
+
+    <Separator />
+
+    <section id="billing" class="space-y-4 scroll-mt-20">
+      <h2 class="text-lg font-semibold text-foreground">
+        Billing
+      </h2>
+      <BillingPanel />
     </section>
   </div>
 </template>
