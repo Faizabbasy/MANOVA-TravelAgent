@@ -19,7 +19,7 @@ const hasAccess = computed(() => canView('finance-acc'))
  * dan opex yang sudah ada — tidak ada entri yang diketik ulang, sehingga buku besar mustahil menyimpang
  * dari transaksi yang mendasarinya.
  */
-const activeTab = ref<'balances' | 'journal' | 'revenue'>('balances')
+const activeTab = ref<'balances' | 'journal' | 'revenue' | 'balance-sheet' | 'cashflow'>('balances')
 const accountFilter = ref<'all' | string>('all')
 /** Filter project (Fase 3.1 — Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu) — setiap `JournalEntry` kini membawa `projectId`, jadi P&L per project bisa dibaca langsung dari jurnal yang sama, bukan angka statis terpisah. */
 const projectFilter = ref<'all' | string>('all')
@@ -54,6 +54,35 @@ const ACCOUNT_TYPE_LABEL: Record<string, string> = {
   revenue: 'Pendapatan',
   expense: 'Beban'
 }
+
+/**
+ * Neraca (Balance Sheet) — SELURUH angka reuse `balances` (`getLedgerBalances()`) di atas apa adanya,
+ * dikelompokkan per `LedgerAccount.type`. `LEDGER_ACCOUNTS` belum punya akun bertipe `equity` tersendiri
+ * (revisi.md tidak meminta modal disetor/laba ditahan sebagai entitas baru), jadi Ekuitas di sini adalah
+ * angka plug standar akuntansi (Aset − Kewajiban) — bukan akun jurnal terpisah, dilabeli jelas sebagai
+ * turunan supaya tidak disalahpahami sebagai modal disetor riil.
+ */
+const balanceSheetAssets = computed(() => balances.value.filter(row => row.account.type === 'asset'))
+const balanceSheetLiabilities = computed(() => balances.value.filter(row => row.account.type === 'liability'))
+const totalAssetsIdr = computed(() => balanceSheetAssets.value.reduce((sum, row) => sum + row.balanceIdr, 0))
+const totalLiabilitiesIdr = computed(() => balanceSheetLiabilities.value.reduce((sum, row) => sum + row.balanceIdr, 0))
+const derivedEquityIdr = computed(() => totalAssetsIdr.value - totalLiabilitiesIdr.value)
+
+/**
+ * Cashflow — SELURUH angka reuse `revenue` (`getRevenueByPeriod()`) di atas apa adanya. Kas masuk =
+ * `collectedIdr` (Payment yang benar-benar diterima), kas keluar = `directCostIdr` (tagihan vendor) +
+ * `opexIdr` (Opex disetujui/dibayar). Saldo kas kumulatif murni akumulasi net cash flow lintas periode demo
+ * — bukan saldo kas riil awal (tidak ada modal awal yang tercatat di fixture ini).
+ */
+const cashFlowRows = computed(() => {
+  let cumulative = 0
+  return revenue.value.map((row) => {
+    const cashOutIdr = row.directCostIdr + row.opexIdr
+    const netCashFlowIdr = row.collectedIdr - cashOutIdr
+    cumulative += netCashFlowIdr
+    return { period: row.period, cashInIdr: row.collectedIdr, cashOutIdr, netCashFlowIdr, cumulativeIdr: cumulative }
+  })
+})
 </script>
 
 <template>
@@ -84,6 +113,12 @@ const ACCOUNT_TYPE_LABEL: Record<string, string> = {
           </TabsTrigger>
           <TabsTrigger value="revenue">
             Revenue Report
+          </TabsTrigger>
+          <TabsTrigger value="balance-sheet">
+            Neraca
+          </TabsTrigger>
+          <TabsTrigger value="cashflow">
+            Cashflow
           </TabsTrigger>
         </TabsList>
 
@@ -276,6 +311,97 @@ const ACCOUNT_TYPE_LABEL: Record<string, string> = {
               Laba bersih = pendapatan − biaya langsung vendor − opex periode tersebut. Opex hanya dihitung
               untuk entri berstatus Disetujui atau Dibayar.
             </p>
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="balance-sheet" class="pt-4 space-y-4">
+          <SectionCard
+            title="Neraca (Balance Sheet)"
+            description="Aset dan Kewajiban reuse saldo akun (tab Saldo Akun) apa adanya. Ekuitas adalah angka plug (Aset − Kewajiban) — Buku Besar ini belum punya akun modal disetor/laba ditahan tersendiri."
+          >
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+              <div>
+                <p class="text-sm font-semibold text-foreground mb-2">
+                  Aset
+                </p>
+                <ul class="divide-y divide-border">
+                  <li v-for="row in balanceSheetAssets" :key="row.account.code" class="flex items-center justify-between gap-3 py-2 text-sm">
+                    <span class="text-muted-foreground">{{ row.account.name }}</span>
+                    <span class="font-medium text-foreground">{{ formatCurrencyIdr(row.balanceIdr) }}</span>
+                  </li>
+                </ul>
+                <div class="flex items-center justify-between gap-3 pt-2 mt-2 border-t border-border text-sm font-semibold text-foreground">
+                  <span>Total Aset</span>
+                  <span>{{ formatCurrencyIdr(totalAssetsIdr) }}</span>
+                </div>
+              </div>
+
+              <div>
+                <p class="text-sm font-semibold text-foreground mb-2">
+                  Kewajiban & Ekuitas
+                </p>
+                <ul class="divide-y divide-border">
+                  <li v-for="row in balanceSheetLiabilities" :key="row.account.code" class="flex items-center justify-between gap-3 py-2 text-sm">
+                    <span class="text-muted-foreground">{{ row.account.name }}</span>
+                    <span class="font-medium text-foreground">{{ formatCurrencyIdr(row.balanceIdr) }}</span>
+                  </li>
+                  <li class="flex items-center justify-between gap-3 py-2 text-sm">
+                    <span class="text-muted-foreground">Ekuitas (Laba Ditahan, turunan)</span>
+                    <span class="font-medium" :class="derivedEquityIdr >= 0 ? 'text-foreground' : 'text-destructive'">{{ formatCurrencyIdr(derivedEquityIdr) }}</span>
+                  </li>
+                </ul>
+                <div class="flex items-center justify-between gap-3 pt-2 mt-2 border-t border-border text-sm font-semibold text-foreground">
+                  <span>Total Kewajiban & Ekuitas</span>
+                  <span>{{ formatCurrencyIdr(totalLiabilitiesIdr + derivedEquityIdr) }}</span>
+                </div>
+              </div>
+            </div>
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="cashflow" class="pt-4">
+          <SectionCard
+            title="Cashflow per Periode"
+            description="Kas masuk = Payment yang benar-benar diterima (sama dengan kolom Diterima di Revenue Report). Kas keluar = tagihan vendor + Opex disetujui/dibayar pada periode yang sama. Saldo kumulatif murni akumulasi net cash flow demo, bukan saldo kas awal riil."
+          >
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Periode</TableHead>
+                  <TableHead class="text-right">
+                    Kas Masuk
+                  </TableHead>
+                  <TableHead class="text-right">
+                    Kas Keluar
+                  </TableHead>
+                  <TableHead class="text-right">
+                    Net Cash Flow
+                  </TableHead>
+                  <TableHead class="text-right">
+                    Saldo Kumulatif
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in cashFlowRows" :key="row.period">
+                  <TableCell class="text-sm font-medium text-foreground">
+                    {{ row.period }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm text-success">
+                    {{ formatCurrencyIdr(row.cashInIdr) }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm text-destructive">
+                    {{ formatCurrencyIdr(row.cashOutIdr) }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm font-semibold" :class="row.netCashFlowIdr >= 0 ? 'text-success' : 'text-destructive'">
+                    {{ formatCurrencyIdr(row.netCashFlowIdr) }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm font-semibold" :class="row.cumulativeIdr >= 0 ? 'text-foreground' : 'text-destructive'">
+                    {{ formatCurrencyIdr(row.cumulativeIdr) }}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
           </SectionCard>
         </TabsContent>
       </Tabs>
