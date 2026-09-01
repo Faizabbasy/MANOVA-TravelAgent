@@ -26,6 +26,8 @@ export interface ScheduleEvent {
   tone: BadgeTone
   /** Menandai item yang butuh perhatian (mis. milestone telat, maintenance terlewat). */
   isAttention?: boolean
+  /** Jam kejadian `HH:mm`, kalau sumbernya punya jam. Tanpa ini event dianggap "sepanjang hari" di tampilan Hari/Minggu. */
+  time?: string
 }
 
 const KIND_META: Record<ScheduleEventKind, { label: string; tone: BadgeTone }> = {
@@ -41,6 +43,17 @@ const KIND_META: Record<ScheduleEventKind, { label: string; tone: BadgeTone }> =
 }
 
 export const SCHEDULE_KIND_META = KIND_META
+
+/** Kelas titik warna per tone — dipakai bersama oleh semua tampilan kalender (bulan/minggu/hari). */
+export const TONE_DOT: Record<BadgeTone, string> = {
+  neutral: 'bg-muted-foreground',
+  primary: 'bg-primary',
+  success: 'bg-success',
+  warning: 'bg-warning',
+  destructive: 'bg-destructive',
+  info: 'bg-chart-5',
+  purple: 'bg-chart-4'
+}
 
 /**
  * Booking Calendar (Revisi 9-Modul, `revisi.md` #13 — "buatkan kalender untuk jadwal").
@@ -84,7 +97,8 @@ export function useScheduleEvents () {
         title: item.title,
         detail: [item.time, item.location].filter(Boolean).join(' · ') || undefined,
         projectId: item.projectId,
-        tone: KIND_META.itinerary.tone
+        tone: KIND_META.itinerary.tone,
+        time: item.time
       })
     }
 
@@ -104,7 +118,8 @@ export function useScheduleEvents () {
     }
 
     for (const booking of FLIGHT_BOOKINGS) {
-      const date = booking.segments?.[0]?.departureAt?.slice(0, 10)
+      const departureAt = booking.segments?.[0]?.departureAt
+      const date = departureAt?.slice(0, 10)
       if (!date) { continue }
       list.push({
         id: `SCH-FLT-${booking.id}`,
@@ -113,7 +128,8 @@ export function useScheduleEvents () {
         title: `Penerbangan ${booking.id}`,
         detail: booking.pnr ? `PNR ${booking.pnr}` : undefined,
         projectId: booking.projectId,
-        tone: KIND_META.flight.tone
+        tone: KIND_META.flight.tone,
+        time: departureAt?.slice(11, 16)
       })
     }
 
@@ -143,13 +159,15 @@ export function useScheduleEvents () {
         title: `Transportasi ${booking.id}`,
         detail: leg?.pickupLocation,
         projectId: booking.projectId,
-        tone: KIND_META.transport.tone
+        tone: KIND_META.transport.tone,
+        time: leg?.scheduledAt?.slice(11, 16)
       })
     }
 
     for (const event of MICE_EVENTS) {
       /** `MiceEvent` tidak punya tanggal sendiri — tanggal event diambil dari sesi paling awal. */
-      const date = [...(event.sessions ?? [])].map(session => session.startAt).sort()[0]?.slice(0, 10)
+      const earliestStartAt = [...(event.sessions ?? [])].map(session => session.startAt).sort()[0]
+      const date = earliestStartAt?.slice(0, 10)
       if (!date) { continue }
       list.push({
         id: `SCH-MIC-${event.id}`,
@@ -158,7 +176,8 @@ export function useScheduleEvents () {
         title: event.venueName ? `MICE — ${event.venueName}` : `MICE ${event.id}`,
         detail: event.sessions?.[0]?.sessionTitle,
         projectId: event.projectId,
-        tone: KIND_META.mice.tone
+        tone: KIND_META.mice.tone,
+        time: earliestStartAt?.slice(11, 16)
       })
     }
 

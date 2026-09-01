@@ -8,6 +8,8 @@ import { searchDestinations, haversineKm, type GeoPoint, type PlanningPin } from
 const props = withDefaults(defineProps<{
   pins: PlanningPin[]
   canManage?: boolean
+  /** Titik tujuan yang di-"fly to" otomatis oleh peta — dipakai saat user memilih project dari daftar, terpisah dari pin yang dibuat manual. */
+  focusPoint?: { lat: number; lng: number; label: string }
 }>(), {
   canManage: true
 })
@@ -47,10 +49,16 @@ function pinIconHtml (label: string): string {
   `
 }
 
+/** Marker "target" untuk `focusPoint` — sengaja beda gaya (cincin ambar, bukan pin ungu) supaya jelas ini tujuan project, bukan pin yang dibuat manual. */
+const focusIconHtml = `
+  <div style="width:22px; height:22px; border-radius:9999px; background:hsl(38 92% 50% / 0.18); border:2px solid hsl(38 92% 50%); box-shadow:0 0 0 4px hsl(38 92% 50% / 0.12);"></div>
+`
+
 const mapEl = ref<HTMLDivElement>()
 let map: LeafletMap | undefined
 let markers: LeafletMarker[] = []
 let route: LeafletPolyline | undefined
+let focusMarker: LeafletMarker | undefined
 
 async function renderMap () {
   if (!mapEl.value) { return }
@@ -85,8 +93,22 @@ async function renderMap () {
     ? L.polyline(plotted.value.map(pin => [pin.lat, pin.lng]), { color: 'hsl(241 98% 55%)', weight: 3, dashArray: '6 6' }).addTo(map)
     : undefined
 
-  if (plotted.value.length) {
-    map.fitBounds(plotted.value.map(pin => [pin.lat, pin.lng]), { padding: [40, 40], maxZoom: 10 })
+  focusMarker?.remove()
+  focusMarker = props.focusPoint
+    ? L.marker([props.focusPoint.lat, props.focusPoint.lng], {
+      icon: L.divIcon({ html: focusIconHtml, className: '', iconSize: [22, 22], iconAnchor: [11, 11] }),
+      interactive: false,
+      zIndexOffset: -100
+    }).bindTooltip(props.focusPoint.label, { direction: 'top', offset: [0, -10] }).addTo(map)
+    : undefined
+
+  const bounds: [number, number][] = plotted.value.map(pin => [pin.lat, pin.lng])
+  if (props.focusPoint) { bounds.push([props.focusPoint.lat, props.focusPoint.lng]) }
+
+  if (bounds.length > 1) {
+    map.fitBounds(bounds, { padding: [40, 40], maxZoom: 10 })
+  } else if (bounds.length === 1) {
+    map.flyTo(bounds[0], 9, { duration: 0.6 })
   }
 }
 
@@ -95,9 +117,10 @@ function destroyMap () {
   map = undefined
   markers = []
   route = undefined
+  focusMarker = undefined
 }
 
-watch(plotted, () => { void nextTick(() => renderMap()) }, { deep: true })
+watch([plotted, () => props.focusPoint], () => { void nextTick(() => renderMap()) }, { deep: true })
 
 onMounted(() => { renderMap() })
 onBeforeUnmount(() => { destroyMap() })
@@ -141,7 +164,7 @@ function addFromSuggestion (point: GeoPoint) {
     </div>
 
     <div class="rounded-lg border border-border overflow-hidden">
-      <div ref="mapEl" class="relative z-0 h-[340px] w-full" />
+      <div ref="mapEl" class="relative z-0 h-[420px] w-full" />
     </div>
 
     <div class="flex flex-wrap items-center justify-between gap-2">
