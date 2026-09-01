@@ -129,13 +129,6 @@ function setStatus (entry: OpexEntry, status: OpexEntry['status']) {
 
 <template>
   <div class="space-y-6">
-    <div v-if="canManage" class="flex justify-end">
-      <Button size="sm" @click="openCreate">
-        <Plus class="h-4 w-4 mr-1.5" />
-        Tambah Opex
-      </Button>
-    </div>
-
     <RoleAccessState v-if="!hasAccess" module-label="modul Finance & ACC" />
 
     <template v-else>
@@ -156,6 +149,10 @@ function setStatus (entry: OpexEntry, status: OpexEntry['status']) {
             {{ project.name }}
           </option>
         </select>
+        <Button v-if="canManage" size="sm" class="ml-auto" @click="openCreate">
+          <Plus class="h-4 w-4 mr-1.5" />
+          Tambah Opex
+        </Button>
       </div>
 
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">

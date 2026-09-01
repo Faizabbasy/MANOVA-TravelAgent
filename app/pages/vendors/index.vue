@@ -22,9 +22,6 @@ useHead({ title: 'Data Vendor' })
     />
 
     <section id="directory" class="space-y-4 scroll-mt-20">
-      <h2 class="text-lg font-semibold text-foreground">
-        Direktori
-      </h2>
       <VendorDirectoryPanel />
     </section>
 

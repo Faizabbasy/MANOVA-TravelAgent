@@ -92,80 +92,80 @@ function submitDebitNote () {
 
 <template>
   <div class="space-y-6">
-    <div v-if="canManageFinance && activeTab === 'debit'" class="flex justify-end">
-      <Dialog v-model:open="isCreateOpen">
-        <DialogTrigger as-child>
-          <Button size="sm">
-            <Plus class="h-4 w-4 mr-1.5" />Buat Debit Note
-          </Button>
-        </DialogTrigger>
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Buat Debit Note Baru</DialogTitle>
-            <DialogDescription>Murni informasional — TIDAK mengubah jumlah invoice mana pun secara otomatis.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="space-y-1.5">
-              <Label for="dn-project">Project</Label>
-              <select id="dn-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option value="" disabled>
-                  Pilih project
-                </option>
-                <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
-                  {{ project.name }}
-                </option>
-              </select>
-            </div>
-            <div class="space-y-1.5">
-              <Label for="dn-invoice">Invoice Terkait (opsional)</Label>
-              <select id="dn-invoice" v-model="newInvoiceId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option value="">
-                  Tidak terkait invoice tertentu
-                </option>
-                <option v-for="invoice in projectInvoices" :key="invoice.id" :value="invoice.id">
-                  {{ invoice.label }}
-                </option>
-              </select>
-            </div>
-            <div class="space-y-1.5">
-              <Label for="dn-amount">Jumlah (Rp)</Label>
-              <CurrencyInput id="dn-amount" v-model="newAmount" />
-            </div>
-            <div class="space-y-1.5">
-              <Label for="dn-reason">Alasan</Label>
-              <Input id="dn-reason" v-model="newReason" placeholder="mis. Biaya tambahan di luar quotation" />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isCreateOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!newProjectId || !newAmount || !newReason.trim()" @click="submitDebitNote">
-              Terbitkan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-
     <RoleAccessState v-if="!canView('finance')" module-label="modul Finance & ACC" />
 
     <template v-else>
       <Tabs v-model="activeTab">
-        <TabsList>
-          <TabsTrigger value="credit">
-            Credit Notes
-          </TabsTrigger>
-          <TabsTrigger value="debit">
-            Debit Notes
-          </TabsTrigger>
-        </TabsList>
+        <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+          <div class="relative w-full max-w-sm">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input v-if="activeTab === 'credit'" v-model="creditSearch" placeholder="Cari Credit Note, invoice, atau project..." class="pl-9" />
+            <Input v-else v-model="debitSearch" placeholder="Cari Debit Note atau project..." class="pl-9" />
+          </div>
+          <div class="flex items-center gap-2">
+            <Button :variant="activeTab === 'credit' ? 'default' : 'outline'" size="sm" @click="activeTab = 'credit'">
+              Credit Notes
+            </Button>
+            <Button :variant="activeTab === 'debit' ? 'default' : 'outline'" size="sm" @click="activeTab = 'debit'">
+              Debit Notes
+            </Button>
+          </div>
+          <Dialog v-if="canManageFinance && activeTab === 'debit'" v-model:open="isCreateOpen">
+            <DialogTrigger as-child>
+              <Button size="sm" class="ml-auto">
+                <Plus class="h-4 w-4 mr-1.5" />Buat Debit Note
+              </Button>
+            </DialogTrigger>
+            <DialogContent class="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Buat Debit Note Baru</DialogTitle>
+                <DialogDescription>Murni informasional — TIDAK mengubah jumlah invoice mana pun secara otomatis.</DialogDescription>
+              </DialogHeader>
+              <div class="space-y-4 py-2">
+                <div class="space-y-1.5">
+                  <Label for="dn-project">Project</Label>
+                  <select id="dn-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="" disabled>
+                      Pilih project
+                    </option>
+                    <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                      {{ project.name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="dn-invoice">Invoice Terkait (opsional)</Label>
+                  <select id="dn-invoice" v-model="newInvoiceId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="">
+                      Tidak terkait invoice tertentu
+                    </option>
+                    <option v-for="invoice in projectInvoices" :key="invoice.id" :value="invoice.id">
+                      {{ invoice.label }}
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="dn-amount">Jumlah (Rp)</Label>
+                  <CurrencyInput id="dn-amount" v-model="newAmount" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="dn-reason">Alasan</Label>
+                  <Input id="dn-reason" v-model="newReason" placeholder="mis. Biaya tambahan di luar quotation" />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" @click="isCreateOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!newProjectId || !newAmount || !newReason.trim()" @click="submitDebitNote">
+                  Terbitkan
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
 
         <TabsContent value="credit">
-          <div class="relative max-w-sm w-full mb-4">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input v-model="creditSearch" placeholder="Cari Credit Note, invoice, atau project..." class="pl-9" />
-          </div>
           <SectionCard description="Dibuat manual dari dialog detail Invoice, atau otomatis saat Refund Request diproses (Section 19). Setiap Credit Note otomatis menghasilkan entri jurnal Dr Pendapatan/Cr Piutang Usaha (Fase 3.4) — lihat Buku Besar.">
             <Table>
               <TableHeader>
@@ -210,10 +210,6 @@ function submitDebitNote () {
         </TabsContent>
 
         <TabsContent value="debit">
-          <div class="relative max-w-sm w-full mb-4">
-            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input v-model="debitSearch" placeholder="Cari Debit Note atau project..." class="pl-9" />
-          </div>
           <SectionCard description="Murni informasional — TIDAK secara otomatis menambah jumlah invoice mana pun, dan TIDAK menghasilkan entri jurnal apa pun (berbeda dari Credit Note, Fase 3.4) — tidak memengaruhi saldo Buku Besar sama sekali.">
             <Table>
               <TableHeader>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { Eye } from 'lucide-vue-next'
 import { getVendorsWithProcurementActivity, getVendorProcurementPerformance } from '~/data'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -14,6 +14,11 @@ const rows = computed(() => getVendorsWithProcurementActivity().map(vendor => ({
   vendor,
   performance: getVendorProcurementPerformance(vendor.id)
 })))
+
+/** Quotation History (grid vendor, pola navbar — tile aktif menentukan konten yang tampil di bawahnya)
+ * — menggantikan stack SectionCard satu per vendor. */
+const selectedVendorRowId = ref<string | null>(null)
+const selectedVendorRow = computed(() => rows.value.find(row => row.vendor.id === selectedVendorRowId.value))
 </script>
 
 <template>
@@ -76,38 +81,62 @@ const rows = computed(() => getVendorsWithProcurementActivity().map(vendor => ({
         </p>
       </SectionCard>
 
-      <SectionCard v-for="row in rows" :key="`history-${row.vendor.id}`" :title="`Quotation History — ${row.vendor.name}`">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>RFQ</TableHead>
-              <TableHead>Total Penawaran</TableHead>
-              <TableHead>Diajukan</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="response in row.performance.quotationHistory" :key="response.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/procurement/rfq/${response.rfqId}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ response.rfqId }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(response.totalAmountIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDate(response.submittedAt) }}
-              </TableCell>
-              <TableCell><StatusBadge :label="response.status" :tone="response.status === 'selected' ? 'success' : response.status === 'rejected' ? 'destructive' : 'info'" /></TableCell>
-              <TableCell>
-                <Eye class="h-4 w-4 text-muted-foreground" />
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="row.performance.quotationHistory.length === 0" :colspan="5">
-              Belum ada riwayat quotation.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+      <SectionCard title="Quotation History" description="Klik vendor untuk melihat riwayat quotation-nya.">
+        <div v-if="rows.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+          <button
+            v-for="row in rows"
+            :key="`tile-${row.vendor.id}`"
+            type="button"
+            class="rounded-lg border p-3 text-left transition-colors"
+            :class="row.vendor.id === selectedVendorRowId ? 'border-primary bg-primary/5' : 'border-border bg-card hover:border-primary/50 hover:bg-muted/50'"
+            @click="selectedVendorRowId = row.vendor.id"
+          >
+            <p class="text-sm font-medium text-foreground truncate">
+              {{ row.vendor.name }}
+            </p>
+            <p class="text-xs text-muted-foreground mt-0.5">
+              {{ row.performance.quotationHistory.length }} quotation
+            </p>
+          </button>
+        </div>
+        <EmptyState v-else title="Belum ada aktivitas RFQ/Service Order untuk vendor manapun." />
+
+        <div v-if="selectedVendorRow" class="mt-4 pt-4 border-t border-border">
+          <p class="text-sm font-medium text-foreground mb-2">
+            Quotation History — {{ selectedVendorRow.vendor.name }}
+          </p>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>RFQ</TableHead>
+                <TableHead>Total Penawaran</TableHead>
+                <TableHead>Diajukan</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="response in selectedVendorRow.performance.quotationHistory" :key="response.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/procurement/rfq/${response.rfqId}`)">
+                <TableCell class="font-medium text-foreground">
+                  {{ response.rfqId }}
+                </TableCell>
+                <TableCell class="text-foreground">
+                  {{ formatCurrencyIdr(response.totalAmountIdr) }}
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ formatDate(response.submittedAt) }}
+                </TableCell>
+                <TableCell><StatusBadge :label="response.status" :tone="response.status === 'selected' ? 'success' : response.status === 'rejected' ? 'destructive' : 'info'" /></TableCell>
+                <TableCell>
+                  <Eye class="h-4 w-4 text-muted-foreground" />
+                </TableCell>
+              </TableRow>
+              <TableEmpty v-if="selectedVendorRow.performance.quotationHistory.length === 0" :colspan="5">
+                Belum ada riwayat quotation.
+              </TableEmpty>
+            </TableBody>
+          </Table>
+        </div>
       </SectionCard>
     </template>
   </div>

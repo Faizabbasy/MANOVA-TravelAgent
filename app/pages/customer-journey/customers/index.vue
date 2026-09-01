@@ -88,39 +88,7 @@ function submitCreate () {
       title="Database Customer"
       description="Directory company (Party) — Prospect dan Active Client dalam satu tabel, filter status untuk mempersempit."
       :breadcrumb="[{ label: 'Database Customer' }]"
-    >
-      <template v-if="canManageParty" #actions>
-        <Dialog v-model:open="isCreateOpen">
-          <DialogTrigger as-child>
-            <Button><Plus class="h-4 w-4 mr-1.5" />Tambah Prospect</Button>
-          </DialogTrigger>
-          <DialogContent class="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Tambah Prospect Baru</DialogTitle>
-              <DialogDescription>Party baru akan dibuat dengan lifecycle status Prospect.</DialogDescription>
-            </DialogHeader>
-            <div class="space-y-4 py-2">
-              <div class="space-y-1.5">
-                <Label for="prospect-name">Nama Party</Label>
-                <Input id="prospect-name" v-model="newName" placeholder="mis. PT Nama Perusahaan" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="prospect-industry">Industri (opsional)</Label>
-                <Input id="prospect-industry" v-model="newIndustry" placeholder="mis. Manufaktur, Retail, dll." />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">
-                Batal
-              </Button>
-              <Button :disabled="!newName.trim()" @click="submitCreate">
-                Simpan
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </template>
-    </PageHeader>
+    />
 
     <RoleAccessState v-if="!hasAccess" module-label="modul CRM" />
 
@@ -166,6 +134,36 @@ function submitCreate () {
           <Checkbox v-model="portfolioOnly" />
           Hanya Portfolio Saya
         </label>
+
+        <Dialog v-if="canManageParty" v-model:open="isCreateOpen">
+          <DialogTrigger as-child>
+            <Button class="ml-auto"><Plus class="h-4 w-4 mr-1.5" />Tambah Prospect</Button>
+          </DialogTrigger>
+          <DialogContent class="max-w-md">
+            <DialogHeader>
+              <DialogTitle>Tambah Prospect Baru</DialogTitle>
+              <DialogDescription>Party baru akan dibuat dengan lifecycle status Prospect.</DialogDescription>
+            </DialogHeader>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="prospect-name">Nama Party</Label>
+                <Input id="prospect-name" v-model="newName" placeholder="mis. PT Nama Perusahaan" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="prospect-industry">Industri (opsional)</Label>
+                <Input id="prospect-industry" v-model="newIndustry" placeholder="mis. Manufaktur, Retail, dll." />
+              </div>
+            </div>
+            <DialogFooter>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newName.trim()" @click="submitCreate">
+                Simpan
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
 
       <SectionCard>
