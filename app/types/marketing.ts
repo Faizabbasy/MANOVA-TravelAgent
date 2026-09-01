@@ -99,6 +99,32 @@ export interface ChannelAcquisition {
   conversionPercent: number
 }
 
+export type ContentPlatform = 'instagram' | 'tiktok' | 'website' | 'email' | 'youtube' | 'linkedin'
+
+export type ContentScheduleStatus = 'draft' | 'scheduled' | 'published'
+
+export interface ContentScheduleItem {
+  id: ID
+  publishDate: string
+  platform: ContentPlatform
+  title: string
+  status: ContentScheduleStatus
+  campaignId?: ID
+  note?: string
+}
+
+export type ContentDevelopmentStage = 'idea' | 'draft' | 'review' | 'ready'
+
+export interface ContentDevelopmentItem {
+  id: ID
+  title: string
+  stage: ContentDevelopmentStage
+  platform: ContentPlatform
+  ownerId?: ID
+  updatedAt: string
+  note?: string
+}
+
 export interface CustomerLifetimeValue {
   partyId: ID
   partyName: string

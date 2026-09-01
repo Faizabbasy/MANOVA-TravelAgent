@@ -7,7 +7,12 @@ import type {
   PromoVariantResult,
   FunnelStage,
   ChannelAcquisition,
-  CustomerLifetimeValue
+  CustomerLifetimeValue,
+  ContentScheduleItem,
+  ContentScheduleStatus,
+  ContentDevelopmentItem,
+  ContentDevelopmentStage,
+  ContentPlatform
 } from '~/types/marketing'
 import type { StatusOption } from '~/types/common'
 import type { LeadSource } from '~/types/lead'
@@ -45,6 +50,28 @@ export const PROMO_STATUSES: StatusOption<PromoCode['status']>[] = [
   { value: 'draft', label: 'Draft', tone: 'neutral', order: 1 },
   { value: 'running', label: 'Berjalan', tone: 'primary', order: 2 },
   { value: 'ended', label: 'Berakhir', tone: 'neutral', order: 3 }
+]
+
+export const CONTENT_PLATFORMS: StatusOption<ContentPlatform>[] = [
+  { value: 'instagram', label: 'Instagram', tone: 'purple', order: 1 },
+  { value: 'tiktok', label: 'TikTok', tone: 'neutral', order: 2 },
+  { value: 'website', label: 'Website', tone: 'info', order: 3 },
+  { value: 'email', label: 'Email', tone: 'primary', order: 4 },
+  { value: 'youtube', label: 'YouTube', tone: 'destructive', order: 5 },
+  { value: 'linkedin', label: 'LinkedIn', tone: 'info', order: 6 }
+]
+
+export const CONTENT_SCHEDULE_STATUSES: StatusOption<ContentScheduleStatus>[] = [
+  { value: 'draft', label: 'Draft', tone: 'neutral', order: 1 },
+  { value: 'scheduled', label: 'Terjadwal', tone: 'warning', order: 2 },
+  { value: 'published', label: 'Tayang', tone: 'success', order: 3 }
+]
+
+export const CONTENT_DEVELOPMENT_STAGES: StatusOption<ContentDevelopmentStage>[] = [
+  { value: 'idea', label: 'Ide', tone: 'neutral', order: 1 },
+  { value: 'draft', label: 'Draft', tone: 'warning', order: 2 },
+  { value: 'review', label: 'Review', tone: 'info', order: 3 },
+  { value: 'ready', label: 'Siap Tayang', tone: 'success', order: 4 }
 ]
 
 export const CAMPAIGNS: Campaign[] = reactive([
@@ -114,6 +141,75 @@ export const PROMO_CODES: PromoCode[] = reactive([
     ]
   }
 ])
+
+/**
+ * Content Schedule Management & Content Development — jadwal publikasi konten per platform, dan pipeline
+ * pengembangan ide/draft konten sebelum masuk jadwal. Keduanya data baru (belum ada entitas lain yang bisa
+ * dipakai ulang), jadi disimpan sebagai array reactive sendiri dengan CRUD dasar di bawah.
+ */
+const contentScheduleSeed: ContentScheduleItem[] = [
+  { id: 'CTS-001', publishDate: '2026-09-03', platform: 'instagram', title: 'Teaser Corporate Retreat Season 2026', status: 'published', campaignId: 'CMP-001' },
+  { id: 'CTS-002', publishDate: '2026-09-05', platform: 'tiktok', title: 'Behind the scene MICE Nusantara Expo', status: 'scheduled', campaignId: 'CMP-002' },
+  { id: 'CTS-003', publishDate: '2026-09-08', platform: 'email', title: 'Newsletter promo REFER50', status: 'scheduled', campaignId: 'CMP-003' },
+  { id: 'CTS-004', publishDate: '2026-09-10', platform: 'website', title: 'Artikel: Tips Outbound Korporat Q4', status: 'draft' },
+  { id: 'CTS-005', publishDate: '2026-09-12', platform: 'linkedin', title: 'Studi kasus klien corporate retreat', status: 'draft' },
+  { id: 'CTS-006', publishDate: '2026-09-15', platform: 'youtube', title: 'Video testimoni klien MICE', status: 'scheduled' },
+  { id: 'CTS-007', publishDate: '2026-08-28', platform: 'instagram', title: 'Highlight expo Q3', status: 'published' }
+]
+export const CONTENT_SCHEDULE: ContentScheduleItem[] = reactive(contentScheduleSeed)
+
+const contentDevelopmentSeed: ContentDevelopmentItem[] = [
+  { id: 'CTD-001', title: 'Video promo Outbound Korporat Q4', stage: 'idea', platform: 'tiktok', ownerId: 'USR-001', updatedAt: '2026-08-20' },
+  { id: 'CTD-002', title: 'Carousel tips memilih vendor MICE', stage: 'draft', platform: 'instagram', ownerId: 'USR-001', updatedAt: '2026-08-24' },
+  { id: 'CTD-003', title: 'Artikel SEO: destinasi retreat 2026', stage: 'review', platform: 'website', ownerId: 'USR-001', updatedAt: '2026-08-27' },
+  { id: 'CTD-004', title: 'Email sequence onboarding klien baru', stage: 'ready', platform: 'email', ownerId: 'USR-001', updatedAt: '2026-08-30' },
+  { id: 'CTD-005', title: 'Reel behind-the-scene site visit', stage: 'idea', platform: 'instagram', updatedAt: '2026-08-18' },
+  { id: 'CTD-006', title: 'Studi kasus klien enterprise', stage: 'draft', platform: 'linkedin', updatedAt: '2026-08-25' }
+]
+export const CONTENT_DEVELOPMENT: ContentDevelopmentItem[] = reactive(contentDevelopmentSeed)
+
+/* ------------------------------------------------------------------ *
+ * Content Schedule
+ * ------------------------------------------------------------------ */
+
+export function getContentSchedule (): ContentScheduleItem[] {
+  return [...CONTENT_SCHEDULE].sort((a, b) => a.publishDate.localeCompare(b.publishDate))
+}
+
+export function createContentScheduleItem (input: Omit<ContentScheduleItem, 'id'>): ContentScheduleItem {
+  const id = `CTS-${String(CONTENT_SCHEDULE.length + 1).padStart(3, '0')}`
+  const item: ContentScheduleItem = { id, ...input }
+  CONTENT_SCHEDULE.push(item)
+  return item
+}
+
+export function updateContentScheduleStatus (id: string, status: ContentScheduleStatus): void {
+  const item = CONTENT_SCHEDULE.find(entry => entry.id === id)
+  if (item) { item.status = status }
+}
+
+/* ------------------------------------------------------------------ *
+ * Content Development
+ * ------------------------------------------------------------------ */
+
+export function getContentDevelopment (): ContentDevelopmentItem[] {
+  return [...CONTENT_DEVELOPMENT].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+}
+
+export function createContentDevelopmentItem (input: Omit<ContentDevelopmentItem, 'id'>): ContentDevelopmentItem {
+  const id = `CTD-${String(CONTENT_DEVELOPMENT.length + 1).padStart(3, '0')}`
+  const item: ContentDevelopmentItem = { id, ...input }
+  CONTENT_DEVELOPMENT.push(item)
+  return item
+}
+
+export function updateContentDevelopmentStage (id: string, stage: ContentDevelopmentStage): void {
+  const item = CONTENT_DEVELOPMENT.find(entry => entry.id === id)
+  if (item) {
+    item.stage = stage
+    item.updatedAt = DEMO_REFERENCE_DATE
+  }
+}
 
 /* ------------------------------------------------------------------ *
  * Campaign
