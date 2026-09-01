@@ -10,6 +10,9 @@ import type {
   OpexCategoryKey,
   ProjectExpense,
   ProjectExpenseCategoryKey,
+  PurchaseEntry,
+  PurchaseCategoryKey,
+  PurchaseStatus,
   LedgerAccount,
   LedgerAccountBalance,
   JournalEntry,
@@ -107,6 +110,60 @@ export function updateOpexStatus (opexId: string, status: OpexEntry['status'], a
     entry.approvedAt = DEMO_REFERENCE_DATE
   }
   if (status === 'paid') { entry.paidAt = DEMO_REFERENCE_DATE }
+  return entry
+}
+
+/* ------------------------------------------------------------------ *
+ * Purchases — pembelian barang/jasa non-vendor-service (office supplies, software subscription, dst),
+ * lihat komentar `PurchaseEntry` (`app/types/finance-ext.ts`) untuk perbedaannya dengan Opex/SupplierInvoice.
+ * ------------------------------------------------------------------ */
+
+export const PURCHASE_CATEGORIES: StatusOption<PurchaseCategoryKey>[] = [
+  { value: 'office-supplies', label: 'Office Supplies', tone: 'neutral', order: 1 },
+  { value: 'software-subscription', label: 'Software Subscription', tone: 'info', order: 2 },
+  { value: 'equipment', label: 'Peralatan Kantor', tone: 'purple', order: 3 },
+  { value: 'other', label: 'Lain-lain', tone: 'neutral', order: 4 }
+]
+
+export const PURCHASE_STATUSES: StatusOption<PurchaseStatus>[] = [
+  { value: 'requested', label: 'Diajukan', tone: 'neutral', order: 1 },
+  { value: 'ordered', label: 'Dipesan', tone: 'info', order: 2 },
+  { value: 'received', label: 'Diterima', tone: 'primary', order: 3 },
+  { value: 'paid', label: 'Dibayar', tone: 'success', order: 4 }
+]
+
+const purchaseEntrySeed: PurchaseEntry[] = [
+  { id: 'PUR-001', purchaseDate: '2026-07-03', category: 'software-subscription', description: 'Lisensi tahunan Canva Pro Team', amountIdr: 8_400_000, status: 'paid', createdBy: 'USR-008', vendorName: 'Canva Pty Ltd' },
+  { id: 'PUR-002', purchaseDate: '2026-07-08', category: 'office-supplies', description: 'ATK dan consumables kantor Juli', amountIdr: 3_150_000, status: 'received', createdBy: 'USR-008', vendorName: 'Gramedia Office Supplies' },
+  { id: 'PUR-003', purchaseDate: '2026-07-12', category: 'equipment', description: '2 unit laptop untuk tim Operations baru', amountIdr: 32_000_000, status: 'received', createdBy: 'USR-008', vendorName: 'PT Digital Solusi Prima' },
+  { id: 'PUR-004', purchaseDate: '2026-07-18', category: 'software-subscription', description: 'Upgrade paket Zoom Business', amountIdr: 5_600_000, status: 'ordered', createdBy: 'USR-008', vendorName: 'Zoom Video Communications' },
+  { id: 'PUR-005', purchaseDate: '2026-07-24', category: 'office-supplies', description: 'Isi ulang toner printer seluruh lantai', amountIdr: 1_850_000, status: 'requested', createdBy: 'USR-008' },
+  { id: 'PUR-006', purchaseDate: '2026-07-27', category: 'other', description: 'Sewa proyektor untuk town hall bulanan', amountIdr: 1_200_000, status: 'requested', createdBy: 'USR-003' }
+]
+export const PURCHASE_ENTRIES: PurchaseEntry[] = reactive(purchaseEntrySeed)
+
+export function getPurchaseEntries (): PurchaseEntry[] {
+  return [...PURCHASE_ENTRIES].sort((a, b) => b.purchaseDate.localeCompare(a.purchaseDate))
+}
+
+export function getPurchaseTotalIdr (statuses: PurchaseStatus[] = ['received', 'paid']): number {
+  return PURCHASE_ENTRIES.filter(entry => statuses.includes(entry.status)).reduce((sum, entry) => sum + entry.amountIdr, 0)
+}
+
+export function createPurchaseEntry (input: Omit<PurchaseEntry, 'id' | 'status'> & { status?: PurchaseStatus }): PurchaseEntry {
+  const entry: PurchaseEntry = {
+    ...input,
+    id: `PUR-${String(PURCHASE_ENTRIES.length + 1).padStart(3, '0')}`,
+    status: input.status ?? 'requested'
+  }
+  PURCHASE_ENTRIES.push(entry)
+  return entry
+}
+
+export function updatePurchaseStatus (purchaseId: string, status: PurchaseStatus): PurchaseEntry | undefined {
+  const entry = PURCHASE_ENTRIES.find(item => item.id === purchaseId)
+  if (!entry) { return undefined }
+  entry.status = status
   return entry
 }
 

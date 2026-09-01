@@ -68,6 +68,32 @@ export interface ProjectExpense {
   note?: string
 }
 
+export type PurchaseCategoryKey =
+  | 'office-supplies'
+  | 'software-subscription'
+  | 'equipment'
+  | 'other'
+
+export type PurchaseStatus = 'requested' | 'ordered' | 'received' | 'paid'
+
+/**
+ * Purchases — pembelian barang/jasa non-vendor-service perusahaan (mis. office supplies, software
+ * subscription, peralatan kantor). Beda dari `OpexEntry` (biaya operasional periodik yang sudah
+ * approved/paid begitu tercatat) dan `SupplierInvoice` (tagihan vendor formal lewat `ServiceOrder` untuk
+ * layanan project) — Purchases punya alur pembelian sendiri (requested → ordered → received → paid).
+ */
+export interface PurchaseEntry {
+  id: ID
+  purchaseDate: string
+  category: PurchaseCategoryKey
+  description: string
+  amountIdr: number
+  status: PurchaseStatus
+  createdBy: ID
+  vendorName?: string
+  note?: string
+}
+
 export type LedgerAccountType = 'asset' | 'liability' | 'equity' | 'revenue' | 'expense'
 
 export interface LedgerAccount {
