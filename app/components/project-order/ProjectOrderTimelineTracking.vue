@@ -155,7 +155,7 @@ function delayLabel (delay: number | undefined): string {
             </TableCell>
             <TableCell class="whitespace-nowrap">
               <input
-                v-if="canManage && !plannedDatesLocked"
+                v-if="canManage && !plannedDatesLocked && row.milestone.status !== 'completed'"
                 type="date"
                 :value="row.milestone.plannedDate"
                 class="rounded-lg border border-input bg-card px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"

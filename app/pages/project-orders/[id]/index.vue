@@ -672,12 +672,6 @@ const ATTENTION_DOT_CLASS: Record<AttentionQueueItem['severity'], string> = {
   low: 'bg-chart-5', medium: 'bg-warning', high: 'bg-destructive'
 }
 
-/** "Calendar/timeline views" — toggle tampilan itinerary, data sama persis (bukan komponen calendar baru). */
-const itineraryViewMode = ref<'list' | 'timeline'>('list')
-/** Collapse hari yang ditampilkan (padat by default) — "Lihat Selengkapnya" membuka sisanya, data tidak dipotong permanen. */
-const itineraryDaysExpanded = ref(false)
-const ITINERARY_DAYS_COLLAPSED_COUNT = 3
-
 /** "Internal vs client-shared itinerary" — toggle tunggal per item, hanya `canManageOperations`. */
 function toggleItineraryVisibility (item: { id: string; visibleToClient?: boolean }) {
   const makeInternal = item.visibleToClient !== false
@@ -1421,8 +1415,11 @@ const needsAttention = computed(() => project.value
   ? isProjectNeedingAttention(project.value, { invoices: invoices.value, tasks: tasks.value, activities: activities.value })
   : false)
 
+/** Scroll ke card "Riwayat Aktivitas" (pola sama `taskBoardRef`/`attentionQueueSidebarRef`) — dipanggil dari tombol "Lihat Semua" (card "Aktivitas Terbaru") dan "Lihat Activity & Changes" (card "Attention / Exception Queue"), supaya posisi scroll ikut lompat ke section-nya, bukan cuma pindah tab lalu diam di posisi scroll lama. */
+const activityHistoryRef = ref<HTMLElement | null>(null)
 function goToActivityTab () {
   activeTab.value = 'activity-changes'
+  nextTick(() => activityHistoryRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
 }
 
 /* Travelers tab (Section 11 lama + Section 11 baru "Traveler dan Travel Documents") — filter/search/CRUD state. */
@@ -1869,8 +1866,8 @@ const tripDurationDays = computed(() => {
               />
             </div>
 
-            <!-- Ringkasan Komersial — separuh lebar (bukan edge-to-edge), ditaruh di bawah 4 stat card di atas. -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Ringkasan Komersial — separuh lebar (bukan edge-to-edge), ditaruh di bawah 4 stat card di atas. items-start supaya "Action Required" (jauh lebih pendek) tidak di-stretch mengikuti tinggi Ringkasan Komersial. -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
               <ProjectCommercialHero
                 v-if="canViewFinancials"
                 :quotation-amount-idr="project.quotationAmountIdr"
@@ -2462,61 +2459,77 @@ const tripDurationDays = computed(() => {
                 Percobaan TETAP di `/bookings` (bukan di sini) — tab ini murni ringkasan+link, konsisten pola
                 ringkasan Procurement di bawah.
               -->
-                <SectionCard v-if="projectBookingTimeline.length" compact title="Booking Timeline" description="Konsolidasi Flight/Hotel/Transport/MICE booking untuk project ini — satu sumber kebenaran seluruh service (Section 18).">
+                <SectionCard v-if="projectBookingTimeline.length" content-class="p-0">
+                  <template #header>
+                    <div>
+                      <h2 class="text-lg font-bold uppercase tracking-wide text-foreground">
+                        Booking Timeline
+                      </h2>
+                      <p class="mt-1 text-sm text-muted-foreground">
+                        Konsolidasi Flight/Hotel/Transport/MICE booking untuk project ini — satu sumber kebenaran seluruh service (Section 18).
+                      </p>
+                    </div>
+                  </template>
                   <template #actions>
                     <NuxtLink :to="`/bookings?projectId=${project.id}`">
-                      <Button size="sm" variant="outline">
+                      <Button size="sm" variant="outline" class="rounded-full">
                         Buka Booking Center
                       </Button>
                     </NuxtLink>
                   </template>
-                  <div class="overflow-x-auto">
+                  <div class="overflow-x-auto border-t border-border">
                     <Table class="w-auto">
                       <TableHeader>
-                        <TableRow>
-                          <TableHead>Booking</TableHead>
-                          <TableHead>Reference</TableHead>
-                          <TableHead>Internal</TableHead>
-                          <TableHead>Payment</TableHead>
-                          <TableHead class="text-right">
+                        <TableRow class="bg-muted/40 hover:bg-muted/40">
+                          <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Booking
+                          </TableHead>
+                          <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Reference
+                          </TableHead>
+                          <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Internal
+                          </TableHead>
+                          <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Payment
+                          </TableHead>
+                          <TableHead class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                             Action
                           </TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
                         <TableRow v-for="entry in projectBookingTimeline" :key="`${entry.bookingType}-${entry.bookingId}`">
-                          <TableCell class="max-w-[260px]">
-                            <div class="flex items-center gap-1.5">
-                              <StatusBadge :label="BOOKING_DOMAIN_LABEL_MAP[entry.bookingType]" :tone="BOOKING_DOMAIN_TONE_MAP[entry.bookingType]" />
-                              <NuxtLink :to="entry.detailHref" class="font-ticket-mono text-sm font-medium text-foreground hover:text-primary hover:underline">
+                          <TableCell class="max-w-[260px] px-4 py-4">
+                            <div class="flex items-center gap-2">
+                              <StatusBadge size="md" :label="BOOKING_DOMAIN_LABEL_MAP[entry.bookingType]" :tone="BOOKING_DOMAIN_TONE_MAP[entry.bookingType]" />
+                              <NuxtLink :to="entry.detailHref" class="text-sm font-bold text-foreground hover:text-primary hover:underline">
                                 {{ entry.bookingId }}
                               </NuxtLink>
                             </div>
-                            <p class="mt-0.5 truncate text-xs text-muted-foreground" :title="entry.label">
+                            <p class="mt-1 truncate text-sm text-muted-foreground" :title="entry.label">
                               {{ entry.label }}
                             </p>
-                            <p v-if="entry.exceptions.length" class="mt-0.5 truncate text-[11px] text-destructive" :title="entry.exceptions.join(' · ')">
+                            <p v-if="entry.exceptions.length" class="mt-1 truncate text-xs text-destructive" :title="entry.exceptions.join(' · ')">
                               {{ entry.exceptions[0] }}<template v-if="entry.exceptions.length > 1">
                                 +{{ entry.exceptions.length - 1 }} lagi
                               </template>
                             </p>
                           </TableCell>
-                          <TableCell class="font-ticket-mono text-xs text-muted-foreground">
+                          <TableCell class="px-4 py-4 text-sm text-muted-foreground">
                             {{ entry.reference ?? 'Belum terbit' }}
                             <br>
                             {{ entry.travelerCount }} pax<template v-if="entry.deadlineDate">
                               · {{ formatDate(entry.deadlineDate) }}
                             </template>
                           </TableCell>
-                          <TableCell><StatusBadge :label="entry.internalStatus" :tone="entry.internalStatusTone" /></TableCell>
-                          <TableCell><StatusBadge :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" /></TableCell>
-                          <TableCell class="text-right">
-                            <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank">
-                              <Button size="sm" variant="ghost">
-                                Voucher
-                              </Button>
+                          <TableCell class="px-4 py-4"><StatusBadge size="md" :label="entry.internalStatus" :tone="entry.internalStatusTone" /></TableCell>
+                          <TableCell class="px-4 py-4"><StatusBadge size="md" :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" /></TableCell>
+                          <TableCell class="px-4 py-4 text-right">
+                            <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank" class="inline-flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary">
+                              Voucher<ChevronRight class="h-3.5 w-3.5" />
                             </NuxtLink>
-                            <span v-else class="text-xs text-muted-foreground">—</span>
+                            <span v-else class="text-sm text-muted-foreground">—</span>
                           </TableCell>
                         </TableRow>
                       </TableBody>
@@ -2720,29 +2733,13 @@ const tripDurationDays = computed(() => {
             <!-- Sidebar kanan (Section 12 baru) — Daily Itinerary dipindah ke sini (dari main flow), Tim Project dan Aktivitas Terbaru reuse data yang sudah dihitung di tab Overview, bukan selector baru. Attention / Exception Queue ditumpuk di bawah Aktivitas Terbaru (bukan main flow) supaya nempel di sisi kanan dan sejajar vertikal tepat di bawahnya. -->
             <div class="space-y-6 lg:col-span-1 lg:sticky lg:top-6">
               <SectionCard compact title="Daily Itinerary" description="Jadwal harian perjalanan (timezone lokal ditampilkan berdampingan jam).">
-                <template #actions>
-                  <div class="flex items-center gap-1.5">
-                    <div class="flex items-center gap-1">
-                      <button type="button" class="flex h-7 w-7 items-center justify-center rounded-md border" :class="itineraryViewMode === 'list' ? 'border-primary/40 bg-primary/5 text-primary' : 'border-border text-muted-foreground'" title="List" @click="itineraryViewMode = 'list'">
-                        <List class="h-3.5 w-3.5" />
-                      </button>
-                      <button type="button" class="flex h-7 w-7 items-center justify-center rounded-md border" :class="itineraryViewMode === 'timeline' ? 'border-primary/40 bg-primary/5 text-primary' : 'border-border text-muted-foreground'" title="Timeline" @click="itineraryViewMode = 'timeline'">
-                        <LayoutGrid class="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                    <button v-if="canManageOperations" type="button" class="flex h-7 w-7 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary transition-colors hover:bg-primary/20" title="Tambah Item" @click="openCreateItineraryItem">
-                      <Plus class="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </template>
                 <div v-if="itineraryByDate.length" class="space-y-4">
-                  <div v-for="day in (itineraryDaysExpanded ? itineraryByDate : itineraryByDate.slice(0, ITINERARY_DAYS_COLLAPSED_COUNT))" :key="day.date" class="flex gap-3">
+                  <div v-for="day in itineraryByDate" :key="day.date" class="flex gap-3">
                     <div class="flex shrink-0 flex-col items-center">
                       <div class="flex h-10 w-10 flex-col items-center justify-center rounded-lg border border-primary/30 bg-primary/5 text-primary">
                         <span class="text-xs font-bold leading-none">{{ formatDayBadge(day.date).day }}</span>
                         <span class="text-[9px] font-medium uppercase leading-none mt-0.5">{{ formatDayBadge(day.date).month }}</span>
                       </div>
-                      <div v-if="itineraryViewMode === 'timeline'" class="mt-1 w-px flex-1 bg-border" />
                     </div>
                     <div class="min-w-0 flex-1 pb-1">
                       <p class="text-xs font-medium text-muted-foreground mb-2">
@@ -2803,13 +2800,11 @@ const tripDurationDays = computed(() => {
                     </div>
                   </div>
 
-                  <div v-if="itineraryByDate.length > ITINERARY_DAYS_COLLAPSED_COUNT" class="flex justify-center">
-                    <Button size="sm" variant="ghost" @click="itineraryDaysExpanded = !itineraryDaysExpanded">
-                      {{ itineraryDaysExpanded ? 'Sembunyikan' : `Lihat Selengkapnya (${itineraryByDate.length - ITINERARY_DAYS_COLLAPSED_COUNT} hari lagi)` }}
-                    </Button>
-                  </div>
                 </div>
                 <EmptyState v-else size="compact" title="Belum ada itinerary tercatat" />
+                <Button v-if="canManageOperations" variant="outline" class="mt-4 w-full" @click="openCreateItineraryItem">
+                  <Plus class="h-3.5 w-3.5 mr-1.5" />Tambah Itinerary
+                </Button>
               </SectionCard>
 
               <SectionCard compact title="Tim Project">
@@ -5014,7 +5009,7 @@ const tripDurationDays = computed(() => {
         </TabsContent>
 
         <TabsContent value="activity-changes">
-          <div class="space-y-6">
+          <div ref="activityHistoryRef" class="space-y-6">
             <SectionCard compact title="Riwayat Aktivitas" description="Riwayat kronologis perubahan, komunikasi, dan event sistem untuk project ini — Activity/Change, Message, System Event, dan Document dalam satu list (Section 21, D-078).">
               <template #actions>
                 <div class="flex items-center gap-2">
