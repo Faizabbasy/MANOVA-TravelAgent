@@ -4,7 +4,7 @@ import { format, addMonths, addDays, addWeeks, startOfWeek, eachDayOfInterval, p
 import { id as localeId } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle, MapPin, CalendarClock, CalendarRange, Search } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
-import { useScheduleEvents, SCHEDULE_KIND_META, TONE_DOT, type ScheduleEventKind } from '~/composables/useScheduleEvents'
+import { useScheduleEvents, SCHEDULE_KIND_META, TONE_DOT, type ScheduleEventKind, type ScheduleEvent } from '~/composables/useScheduleEvents'
 import { PLANNING_PINS, getPinsByProject, createPlanningPin, removePlanningPin } from '~/data/geo'
 import { PROJECTS, getProjectById } from '~/data'
 import { PROJECT_STATUSES } from '~/constants/status'
@@ -96,6 +96,16 @@ function toggleDayCollapsed (iso: string) {
 }
 const sideTitle = computed(() => (viewMode.value === 'week' ? 'Minggu Ini' : 'Bulan Ini'))
 const sideRangeNoun = computed(() => (viewMode.value === 'week' ? 'minggu' : 'bulan'))
+
+/** Baris meta ke-2 di card list event (padet, satu baris) — `detail` sumbernya beda-beda per kind
+ * (mis. milestone = nama project, maintenance = vendor, itinerary = waktu/lokasi). Nama project ditempel
+ * di belakang kalau `detail` BUKAN nama project itu sendiri (mis. milestone), supaya tidak dobel tampil
+ * seperti sebelumnya (dulu ada baris link terpisah "Nama Project →" di bawah `detail` yang sering sama persis). */
+function eventMetaLine (event: ScheduleEvent): string {
+  const projectName = event.projectId ? getProjectById(event.projectId)?.name : undefined
+  const parts = [event.detail, projectName && projectName !== event.detail ? projectName : undefined]
+  return parts.filter(Boolean).join(' · ')
+}
 
 const rangeLabel = computed(() => {
   if (viewMode.value === 'day') { return format(parseISO(selectedDate.value), 'd MMMM yyyy', { locale: localeId }) }
@@ -270,93 +280,78 @@ function onRemovePin (pinId: string) {
               </div>
             </SectionCard>
 
-            <div class="xl:col-span-4 space-y-5">
-            <SectionCard v-if="attentionEvents.length">
+            <div class="xl:col-span-4 space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
+            <SectionCard v-if="attentionEvents.length" compact contentClass="max-h-56 overflow-y-auto">
               <template #header>
                 <div class="flex items-center gap-2">
                   <AlertTriangle class="h-4 w-4 shrink-0 text-destructive" />
                   <div>
-                    <p class="text-sm font-semibold text-foreground">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-foreground">
                       Jadwal Butuh Perhatian
                     </p>
                     <p class="text-xs text-muted-foreground">
-                      {{ attentionEvents.length }} jadwal terlambat/melewati tenggat.
+                      {{ attentionEvents.length }} jadwal terlambat/melewati tenggat
                     </p>
                   </div>
                 </div>
               </template>
-              <ul class="space-y-2">
+              <ul class="space-y-1.5">
                 <li
                   v-for="event in attentionEvents"
                   :key="event.id"
-                  class="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2.5"
+                  class="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5"
                 >
-                  <div class="flex items-start gap-2">
-                    <div class="min-w-0 flex-1">
-                      <p class="text-sm font-medium text-foreground">
+                  <div class="flex items-start justify-between gap-2">
+                    <component :is="event.projectId ? 'NuxtLink' : 'div'" :to="event.projectId ? `/project-orders/${event.projectId}` : undefined" class="min-w-0 flex-1" :class="event.projectId && 'hover:underline'">
+                      <p class="truncate text-sm font-medium text-foreground">
                         {{ event.title }}
                       </p>
-                      <p v-if="event.detail" class="text-xs text-muted-foreground mt-0.5">
-                        {{ event.detail }}
+                      <p class="truncate text-xs text-muted-foreground">
+                        <template v-if="event.detail">{{ event.detail }} · </template>{{ formatDate(event.date) }}
                       </p>
-                      <p class="text-xs text-muted-foreground mt-0.5">
-                        {{ formatDate(event.date) }}
-                      </p>
-                    </div>
-                    <StatusBadge :label="SCHEDULE_KIND_META[event.kind].label" tone="destructive" />
+                    </component>
+                    <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" tone="destructive" />
                   </div>
-                  <NuxtLink
-                    v-if="event.projectId"
-                    :to="`/project-orders/${event.projectId}`"
-                    class="inline-block mt-1.5 text-xs text-primary hover:underline"
-                  >
-                    {{ getProjectById(event.projectId)?.name ?? event.projectId }} →
-                  </NuxtLink>
                 </li>
               </ul>
             </SectionCard>
 
             <SectionCard
               v-if="viewMode !== 'day'"
+              compact
+              contentClass="max-h-[calc(100vh-22rem)] overflow-y-auto"
               :title="sideTitle"
               :description="`${sideEventCount} jadwal pada ${sideRangeNoun} ini.`"
             >
-              <div v-if="sideDayGroups.length" class="space-y-4">
+              <div v-if="sideDayGroups.length" class="space-y-3">
                 <div v-for="day in sideDayGroups" :key="day.iso">
                   <button
                     type="button"
-                    class="mb-1.5 flex w-full items-center gap-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                    class="mb-1 flex w-full items-center gap-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
                     @click="toggleDayCollapsed(day.iso)"
                   >
                     <ChevronDown class="h-3 w-3 shrink-0 transition-transform" :class="{ '-rotate-90': collapsedDays.has(day.iso) }" />
                     {{ day.label }}
                     <span class="font-normal normal-case text-muted-foreground/70">({{ day.events.length }})</span>
                   </button>
-                  <ul v-if="!collapsedDays.has(day.iso)" class="space-y-2">
+                  <ul v-if="!collapsedDays.has(day.iso)" class="space-y-1.5">
                     <li
                       v-for="event in day.events"
                       :key="event.id"
-                      class="rounded-lg border px-3 py-2.5"
+                      class="rounded-md border px-2.5 py-1.5"
                       :class="event.isAttention ? 'border-destructive/40 bg-destructive/5' : 'border-border'"
                     >
-                      <div class="flex items-start gap-2">
-                        <div class="min-w-0 flex-1">
-                          <p class="text-sm font-medium text-foreground">
+                      <div class="flex items-start justify-between gap-2">
+                        <component :is="event.projectId ? 'NuxtLink' : 'div'" :to="event.projectId ? `/project-orders/${event.projectId}` : undefined" class="min-w-0 flex-1" :class="event.projectId && 'hover:underline'">
+                          <p class="truncate text-sm font-medium text-foreground">
                             <span v-if="event.time" class="font-medium tabular-nums text-muted-foreground">{{ event.time }} · </span>{{ event.title }}
                           </p>
-                          <p v-if="event.detail" class="text-xs text-muted-foreground mt-0.5">
-                            {{ event.detail }}
+                          <p v-if="eventMetaLine(event)" class="truncate text-xs text-muted-foreground">
+                            {{ eventMetaLine(event) }}
                           </p>
-                        </div>
-                        <StatusBadge :label="SCHEDULE_KIND_META[event.kind].label" :tone="event.tone" />
+                        </component>
+                        <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" :tone="event.tone" />
                       </div>
-                      <NuxtLink
-                        v-if="event.projectId"
-                        :to="`/project-orders/${event.projectId}`"
-                        class="inline-block mt-1.5 text-xs text-primary hover:underline"
-                      >
-                        {{ getProjectById(event.projectId)?.name ?? event.projectId }} →
-                      </NuxtLink>
                     </li>
                   </ul>
                 </div>
@@ -365,32 +360,25 @@ function onRemovePin (pinId: string) {
               <EmptyState v-else :icon="CalendarDays" title="Tidak ada jadwal" :description="`Tidak ada jadwal pada ${sideRangeNoun} ini.`" />
             </SectionCard>
 
-            <SectionCard v-else :title="formatDate(selectedDate)" :description="`${selectedEvents.length} jadwal pada tanggal ini.`">
-              <ul v-if="selectedEvents.length" class="space-y-2.5">
+            <SectionCard v-else compact :title="formatDate(selectedDate)" :description="`${selectedEvents.length} jadwal pada tanggal ini.`">
+              <ul v-if="selectedEvents.length" class="space-y-1.5">
                 <li
                   v-for="event in selectedEvents"
                   :key="event.id"
-                  class="rounded-lg border px-3 py-2.5"
+                  class="rounded-md border px-2.5 py-1.5"
                   :class="event.isAttention ? 'border-destructive/40 bg-destructive/5' : 'border-border'"
                 >
-                  <div class="flex items-start gap-2">
-                    <div class="min-w-0 flex-1">
-                      <p class="text-sm font-medium text-foreground">
+                  <div class="flex items-start justify-between gap-2">
+                    <component :is="event.projectId ? 'NuxtLink' : 'div'" :to="event.projectId ? `/project-orders/${event.projectId}` : undefined" class="min-w-0 flex-1" :class="event.projectId && 'hover:underline'">
+                      <p class="truncate text-sm font-medium text-foreground">
                         <span v-if="event.time" class="font-medium tabular-nums text-muted-foreground">{{ event.time }} · </span>{{ event.title }}
                       </p>
-                      <p v-if="event.detail" class="text-xs text-muted-foreground mt-0.5">
-                        {{ event.detail }}
+                      <p v-if="eventMetaLine(event)" class="truncate text-xs text-muted-foreground">
+                        {{ eventMetaLine(event) }}
                       </p>
-                    </div>
-                    <StatusBadge :label="SCHEDULE_KIND_META[event.kind].label" :tone="event.tone" />
+                    </component>
+                    <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" :tone="event.tone" />
                   </div>
-                  <NuxtLink
-                    v-if="event.projectId"
-                    :to="`/project-orders/${event.projectId}`"
-                    class="inline-block mt-1.5 text-xs text-primary hover:underline"
-                  >
-                    {{ getProjectById(event.projectId)?.name ?? event.projectId }} →
-                  </NuxtLink>
                 </li>
               </ul>
 
