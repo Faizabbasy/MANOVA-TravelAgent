@@ -77,6 +77,10 @@ export interface NavItem {
  */
 export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', to: '/', icon: LayoutDashboard },
+  /** Varian dashboard eksekutif — angka besar + Analytics & Marketing ROI, tanpa widget operasional harian.
+   * `moduleKey: 'bi'` sengaja membuat item ini otomatis tersembunyi untuk role tanpa akses Reporting & BI
+   * (kebanyakan role selain Management/Super Admin), jadi tidak menambah baris sidebar untuk mereka. */
+  { key: 'leader-dashboard', label: 'Leader Dashboard', to: '/leader-dashboard', icon: BarChart3, moduleKey: 'bi' },
 
   /* ---------- Operations & Scheduling (poros: Project Order) ---------- */
   { key: 'operations', label: 'Project', to: '/project-orders', icon: Route, moduleKey: 'operations' },
@@ -261,7 +265,6 @@ export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   { key: 'hidden.marketing', label: 'Marketing & Analysis', to: '/marketing', moduleKey: 'marketing' },
   { key: 'hidden.activity-center', label: 'Activity Center', to: '/activity-center', moduleKey: 'administration' },
   { key: 'hidden.session-log', label: 'Log Session', to: '/admin/session-log', moduleKey: 'administration' },
-  { key: 'hidden.leader-dashboard', label: 'Leader Dashboard', to: '/leader-dashboard', moduleKey: 'bi' },
   { key: 'hidden.admin-roles', label: 'Roles & Permissions', to: '/admin/roles', moduleKey: 'administration' },
   { key: 'hidden.admin-organization', label: 'Organization Profile', to: '/admin/organization', moduleKey: 'administration' },
 
