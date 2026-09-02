@@ -2,7 +2,7 @@
 import { computed, ref } from 'vue'
 import { format, addMonths, addDays, addWeeks, startOfWeek, eachDayOfInterval, parseISO } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, MapPin, CalendarClock, CalendarRange, Search } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle, MapPin, CalendarClock, CalendarRange, Search } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import { useScheduleEvents, SCHEDULE_KIND_META, TONE_DOT, type ScheduleEventKind } from '~/composables/useScheduleEvents'
 import { PLANNING_PINS, getPinsByProject, createPlanningPin, removePlanningPin } from '~/data/geo'
@@ -87,6 +87,13 @@ const monthDayGroups = computed(() => {
 /** Card detail sisi kanan: Hari -> daftar tunggal tanggal terpilih, Minggu/Bulan -> digrup per hari (hanya hari mode itu, day mode punya card sendiri). */
 const sideDayGroups = computed(() => (viewMode.value === 'week' ? weekDayGroups.value : monthDayGroups.value))
 const sideEventCount = computed(() => sideDayGroups.value.reduce((total, day) => total + day.events.length, 0))
+/** Grup per tanggal (permintaan: "harusnya bisa di collapse") — default terbuka semua, klik header tanggal untuk collapse/expand. Key-nya `day.iso`, di-reset otomatis begitu view/bulan/minggu ganti karena `Set` baru dibuat tiap kali (bukan persist lintas navigasi). */
+const collapsedDays = ref(new Set<string>())
+function toggleDayCollapsed (iso: string) {
+  const next = new Set(collapsedDays.value)
+  if (next.has(iso)) { next.delete(iso) } else { next.add(iso) }
+  collapsedDays.value = next
+}
 const sideTitle = computed(() => (viewMode.value === 'week' ? 'Minggu Ini' : 'Bulan Ini'))
 const sideRangeNoun = computed(() => (viewMode.value === 'week' ? 'minggu' : 'bulan'))
 
@@ -282,10 +289,16 @@ function onRemovePin (pinId: string) {
             >
               <div v-if="sideDayGroups.length" class="space-y-4">
                 <div v-for="day in sideDayGroups" :key="day.iso">
-                  <p class="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  <button
+                    type="button"
+                    class="mb-1.5 flex w-full items-center gap-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                    @click="toggleDayCollapsed(day.iso)"
+                  >
+                    <ChevronDown class="h-3 w-3 shrink-0 transition-transform" :class="{ '-rotate-90': collapsedDays.has(day.iso) }" />
                     {{ day.label }}
-                  </p>
-                  <ul class="space-y-2">
+                    <span class="font-normal normal-case text-muted-foreground/70">({{ day.events.length }})</span>
+                  </button>
+                  <ul v-if="!collapsedDays.has(day.iso)" class="space-y-2">
                     <li
                       v-for="event in day.events"
                       :key="event.id"
