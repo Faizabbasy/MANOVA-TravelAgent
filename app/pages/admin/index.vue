@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Database, Users, History, UserCheck } from 'lucide-vue-next'
+import { Database, Users, History, UserCheck, ClipboardList } from 'lucide-vue-next'
 import { ROLES } from '~/constants/roles'
 import OrganizationProfilePanel from '~/components/admin/OrganizationProfilePanel.vue'
 
@@ -20,7 +20,8 @@ const { users, currentUser, setCurrentUser } = useCurrentUser()
 const links = [
   { label: 'Master Data', description: 'Kelola daftar master lintas modul', to: '/admin/master-data', icon: Database },
   { label: 'Users & Roles', description: 'Kelola user, access review, dan role & permission', to: '/admin/users', icon: Users },
-  { label: 'Audit & Activity', description: 'Log aktivitas project dan log sistem lintas-modul', to: '/admin/audit-trail', icon: History }
+  { label: 'Audit & Activity', description: 'Log aktivitas project dan log sistem lintas-modul', to: '/admin/audit-trail', icon: History },
+  { label: 'Log Session', description: 'Riwayat login/logout user — waktu, IP, device, dan status sesi', to: '/admin/session-log', icon: ClipboardList }
 ]
 
 const canAdmin = computed(() => canView('administration'))
