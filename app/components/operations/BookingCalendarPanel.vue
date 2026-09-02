@@ -217,17 +217,6 @@ function onRemovePin (pinId: string) {
               <p class="hidden text-sm font-semibold capitalize text-foreground sm:block">
                 {{ rangeLabel }}
               </p>
-            </div>
-
-            <div class="flex flex-col items-end gap-1.5">
-              <div
-                v-if="attentionEvents.length"
-                title="Milestone terlambat dan maintenance yang sudah melewati jadwalnya ditandai merah di kalender."
-                class="inline-flex items-center gap-1.5 rounded-full border border-destructive/40 bg-destructive/5 px-3 py-1 text-xs font-medium text-destructive"
-              >
-                <AlertTriangle class="h-3.5 w-3.5 shrink-0" />
-                {{ attentionEvents.length }} jadwal butuh perhatian
-              </div>
 
               <select v-model="kindFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
                 <option value="all">
@@ -281,9 +270,54 @@ function onRemovePin (pinId: string) {
               </div>
             </SectionCard>
 
+            <div class="xl:col-span-4 space-y-5">
+            <SectionCard v-if="attentionEvents.length">
+              <template #header>
+                <div class="flex items-center gap-2">
+                  <AlertTriangle class="h-4 w-4 shrink-0 text-destructive" />
+                  <div>
+                    <p class="text-sm font-semibold text-foreground">
+                      Jadwal Butuh Perhatian
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ attentionEvents.length }} jadwal terlambat/melewati tenggat.
+                    </p>
+                  </div>
+                </div>
+              </template>
+              <ul class="space-y-2">
+                <li
+                  v-for="event in attentionEvents"
+                  :key="event.id"
+                  class="rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2.5"
+                >
+                  <div class="flex items-start gap-2">
+                    <div class="min-w-0 flex-1">
+                      <p class="text-sm font-medium text-foreground">
+                        {{ event.title }}
+                      </p>
+                      <p v-if="event.detail" class="text-xs text-muted-foreground mt-0.5">
+                        {{ event.detail }}
+                      </p>
+                      <p class="text-xs text-muted-foreground mt-0.5">
+                        {{ formatDate(event.date) }}
+                      </p>
+                    </div>
+                    <StatusBadge :label="SCHEDULE_KIND_META[event.kind].label" tone="destructive" />
+                  </div>
+                  <NuxtLink
+                    v-if="event.projectId"
+                    :to="`/project-orders/${event.projectId}`"
+                    class="inline-block mt-1.5 text-xs text-primary hover:underline"
+                  >
+                    {{ getProjectById(event.projectId)?.name ?? event.projectId }} →
+                  </NuxtLink>
+                </li>
+              </ul>
+            </SectionCard>
+
             <SectionCard
               v-if="viewMode !== 'day'"
-              class="xl:col-span-4"
               :title="sideTitle"
               :description="`${sideEventCount} jadwal pada ${sideRangeNoun} ini.`"
             >
@@ -331,7 +365,7 @@ function onRemovePin (pinId: string) {
               <EmptyState v-else :icon="CalendarDays" title="Tidak ada jadwal" :description="`Tidak ada jadwal pada ${sideRangeNoun} ini.`" />
             </SectionCard>
 
-            <SectionCard v-else class="xl:col-span-4" :title="formatDate(selectedDate)" :description="`${selectedEvents.length} jadwal pada tanggal ini.`">
+            <SectionCard v-else :title="formatDate(selectedDate)" :description="`${selectedEvents.length} jadwal pada tanggal ini.`">
               <ul v-if="selectedEvents.length" class="space-y-2.5">
                 <li
                   v-for="event in selectedEvents"
@@ -362,6 +396,7 @@ function onRemovePin (pinId: string) {
 
               <EmptyState v-else :icon="CalendarDays" title="Tidak ada jadwal" description="Pilih tanggal lain pada kalender." />
             </SectionCard>
+            </div>
           </div>
         </TabsContent>
 
