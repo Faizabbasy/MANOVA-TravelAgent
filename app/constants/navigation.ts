@@ -26,7 +26,8 @@ import {
   ArrowUpFromLine,
   BookOpen,
   UserCog,
-  Settings
+  Settings,
+  Megaphone
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
 
@@ -136,11 +137,14 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'hr', label: 'Karyawan', to: '/hr', icon: UserCog, moduleKey: 'hr', isNew: true },
   { key: 'inventory', label: 'Inventory', to: '/inventory', icon: Package, moduleKey: 'inventory', isNew: true },
 
-  /* Reporting & BI, Marketing & Analysis — di-hold sementara (diminta hilang dulu dari sidebar).
+  /* Reporting & BI — masih di-hold sementara (diminta hilang dulu dari sidebar).
    * Route tetap hidup, tetap tergerbang RBAC lewat HIDDEN_NAV_ROUTES di bawah. */
 
   /* ---------- Documents & Communication — entri tunggal, tab Documents/Messages/Notifications di dalam halaman ---------- */
   { key: 'documents', label: 'Documents & Communication', to: '/documents', icon: FileText, moduleKey: 'documents' },
+
+  /* ---------- Marketing & Analysis — ditampilkan lagi di sidebar, di bawah Documents & Communication ---------- */
+  { key: 'marketing', label: 'Marketing & Analysis', to: '/marketing', icon: Megaphone, moduleKey: 'marketing' },
 
   /* ---------- Administration ---------- */
   {
@@ -261,8 +265,6 @@ export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   { key: 'hidden.bi', label: 'Reporting & BI', to: '/reports', moduleKey: 'bi' },
   { key: 'hidden.reports-analytics', label: 'Analytics & Marketing ROI', to: '/reports/analytics', moduleKey: 'bi' },
 
-  // Marketing & Analysis
-  { key: 'hidden.marketing', label: 'Marketing & Analysis', to: '/marketing', moduleKey: 'marketing' },
   { key: 'hidden.activity-center', label: 'Activity Center', to: '/activity-center', moduleKey: 'administration' },
   { key: 'hidden.session-log', label: 'Log Session', to: '/admin/session-log', moduleKey: 'administration' },
   { key: 'hidden.admin-roles', label: 'Roles & Permissions', to: '/admin/roles', moduleKey: 'administration' },
