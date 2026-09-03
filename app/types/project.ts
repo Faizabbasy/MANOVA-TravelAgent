@@ -89,11 +89,6 @@ export interface ProjectClosureChecklist {
   finalNote?: string
 }
 
-/** Klasifikasi Leisure/Business (menu "Project" — Leisure vs Business, masing-masing beranak FIT/GIT). */
-export type ProjectSegment = 'leisure' | 'business'
-/** Sub-divisi Business — hanya bermakna bila `Project.segment === 'business'`. */
-export type ProjectBusinessType = 'corporate' | 'government' | 'association'
-
 export interface Project {
   id: ID
   name: string
@@ -101,16 +96,8 @@ export interface Project {
   /** Group Trip B2C (`createProject`/`joinLeadToGroupProject`, `app/data/index.ts`) — Project dibuat lebih
    * dulu tanpa customer nyata (`partyId` menunjuk Party placeholder sistem), banyak Lead individual berbeda
    * bisa "gabung" belakangan sebagai `Traveler` masing-masing, tiap gabung otomatis jadi Customer sendiri.
-   * `false`/kosong = Project B2B biasa, `partyId` adalah customer sungguhan. Dipakai sebagai penanda FIT/GIT
-   * (`false`/kosong = FIT, `true` = GIT) — lihat `segment`/`businessType` untuk sumbu klasifikasi kedua
-   * (Leisure vs Business/Corporate/Government/Association), yang independen dari FIT/GIT ini. */
+   * `false`/kosong = Project B2B biasa, `partyId` adalah customer sungguhan. */
   isGroupTrip?: boolean
-  /** Leisure vs Business (menu "Project") — independen dari `isGroupTrip`. Diisi manual saat Project dibuat
-   * (`createProject`/`markLeadWon`), TIDAK di-derive otomatis tiap render (supaya bisa di-override manual per
-   * project bila klasifikasi awalnya salah). */
-  segment?: ProjectSegment
-  /** Sub-divisi Business — hanya diisi bila `segment === 'business'`. */
-  businessType?: ProjectBusinessType
   /** Lead asal (Won) — referensi, bukan duplikasi. */
   leadId?: ID
   /** Quotation yang di-Won-kan, referensi (docs/route-and-role-matrix.md bagian 2.2 item 6). */

@@ -1,6 +1,6 @@
 import type { StatusOption } from '~/types/common'
 import type { QuotationApprovalStatus } from '~/types/quotation'
-import type { ProjectStatus, ProjectCharacteristic, ServiceStatus, ServiceTypeKey, RoomType, ProjectOrderStatus, ProjectSegment, ProjectBusinessType } from '~/types/project'
+import type { ProjectStatus, ProjectCharacteristic, ServiceStatus, ServiceTypeKey, RoomType, ProjectOrderStatus } from '~/types/project'
 import type { InvoiceStatus, InvoiceCurrency, InvoiceType, CreditNoteStatus, DebitNoteStatus } from '~/types/finance'
 import type { PartyActivityType, CompanyType } from '~/types/party'
 import type { SalesOrderStatus } from '~/types/sales-order'
@@ -54,19 +54,6 @@ export const PROJECT_ORDER_STATUSES: StatusOption<ProjectOrderStatus>[] = [
   { value: 'closed', label: 'Closed', tone: 'success', order: 8 },
   { value: 'on-hold', label: 'On Hold', tone: 'warning', order: 9 },
   { value: 'cancelled', label: 'Cancelled', tone: 'destructive', order: 10 }
-]
-
-/** Klasifikasi menu "Project" (Leisure vs Business), independen dari `isGroupTrip`/FIT-GIT — lihat `Project.segment`. */
-export const PROJECT_SEGMENTS: StatusOption<ProjectSegment>[] = [
-  { value: 'leisure', label: 'Leisure', tone: 'primary', order: 1 },
-  { value: 'business', label: 'Business', tone: 'purple', order: 2 }
-]
-
-/** Sub-divisi Business — lihat `Project.businessType`. */
-export const PROJECT_BUSINESS_TYPES: StatusOption<ProjectBusinessType>[] = [
-  { value: 'corporate', label: 'Corporate', tone: 'primary', order: 1 },
-  { value: 'government', label: 'Government', tone: 'info', order: 2 },
-  { value: 'association', label: 'Association', tone: 'warning', order: 3 }
 ]
 
 /** Sales Order (B2C individual, `docs/superpowers/specs/2026-08-11-sales-order-b2c-design.md`) — flow linear + cancel, terpisah total dari `PROJECT_ORDER_STATUSES`. */
