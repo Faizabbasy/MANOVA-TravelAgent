@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock, Plus, Users, MapPin } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import {
@@ -13,10 +13,10 @@ import {
   evaluateProjectOrderStepGate,
   getProjectMilestoneSummary
 } from '~/data/project-order-workflow'
-import { PROJECT_ORDER_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
+import { PROJECT_ORDER_STATUSES, PROJECT_STATUSES, PROJECT_SEGMENTS, PROJECT_BUSINESS_TYPES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange } from '~/utils/format'
 import type { ProjectOrderStepKey } from '~/types/project-order'
-import type { ServiceTypeKey } from '~/types/project'
+import type { Project, ProjectSegment, ProjectBusinessType, ServiceTypeKey } from '~/types/project'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Project' })
@@ -32,15 +32,41 @@ const { showToast } = useToast()
 const hasAccess = computed(() => canView('operations'))
 const canManageOrders = computed(() => canManage('operations'))
 
-/** Pill-tab: Project Orders (B2B, tabel yang sudah ada, tidak berubah) vs Sales Orders (B2C individual, baru). */
-const activeOrderTab = ref<'project-orders' | 'sales-orders'>('project-orders')
+/**
+ * Klasifikasi "Leisure" (dulu "Project Orders") vs "Business" (dulu "Sales Order"), masing-masing beranak
+ * FIT/GIT — Business beranak sekali lagi Corporate/Government/Association sebelum FIT/GIT. `isGroupTrip`
+ * TIDAK berubah maknanya (GIT = `true`, FIT = `false`/kosong) — `segment`/`businessType` (`Project`,
+ * `app/types/project.ts`) adalah sumbu klasifikasi terpisah, independen dari FIT/GIT.
+ */
+const activeSegment = ref<ProjectSegment>('leisure')
+const leisureDivision = ref<'fit' | 'git'>('fit')
+const businessDivision = ref<ProjectBusinessType>('corporate')
+const businessFitGit = ref<'fit' | 'git'>('fit')
+const FIT_GIT_OPTIONS = [
+  { value: 'fit' as const, label: 'FIT' },
+  { value: 'git' as const, label: 'GIT' }
+]
+
+/** Tabel mana yang tampil — tabel FIT (6-step order workflow, tidak berubah) atau tabel GIT (seats/revenue,
+ * tidak berubah), terlepas dari Leisure/Business/Corporate/Government/Association yang sedang aktif. */
+const isGitView = computed(() =>
+  activeSegment.value === 'leisure' ? leisureDivision.value === 'git' : businessFitGit.value === 'git')
+
+/** Filter bersama `rows` (FIT) dan `groupTripRows` (GIT) — `wantGit` dikunci per pemanggil (bukan `isGitView`),
+ * supaya kedua computed tetap terhitung independen dari view yang lagi aktif dan cuma salah satu yang dirender. */
+function matchesActiveDivision (project: Project, wantGit: boolean): boolean {
+  if (Boolean(project.isGroupTrip) !== wantGit) { return false }
+  if (project.segment !== activeSegment.value) { return false }
+  if (activeSegment.value === 'business' && project.businessType !== businessDivision.value) { return false }
+  return true
+}
 
 /** Tab "Project B2C" — dulu list `SalesOrder` mentah + tombol "Buat Sales Order" berdiri sendiri. Sejak
  * Group Trip ada (`createProject` dengan `isGroupTrip: true` + `joinLeadToGroupProject`), itulah cara B2C
  * sebenarnya sekarang — jadi list di sini diganti Project ber-`isGroupTrip`, bukan `SALES_ORDERS` lagi.
- * Tidak ada tombol "Buat" di tab ini — Group Trip dibuat lewat tombol "Buat Project" di tab Project Orders
- * (centang "Group Trip"). */
-const groupTripRows = computed(() => PROJECTS.filter(project => project.isGroupTrip).map((project) => {
+ * Tidak ada tombol "Buat" di tab ini — Group Trip dibuat lewat tombol "Buat Project" di tab Leisure/Business
+ * (centang "Group Trip"). Difilter ke Leisure/Business/Corporate/Government/Association yang sedang aktif. */
+const groupTripRows = computed(() => PROJECTS.filter(project => matchesActiveDivision(project, true)).map((project) => {
   const bookings = getTravelers(project.id)
     .filter(traveler => traveler.salesOrderId)
     .map(traveler => getSalesOrderById(traveler.salesOrderId!))
@@ -75,6 +101,8 @@ const clientParties = computed(() => PARTIES.filter(party => party.lifecycleStat
 
 const isCreateProjectOpen = ref(false)
 const newProjectIsGroupTrip = ref(false)
+const newProjectSegment = ref<ProjectSegment>('leisure')
+const newProjectBusinessType = ref<ProjectBusinessType>('corporate')
 const newProjectPartyId = ref('')
 const newProjectName = ref('')
 const newProjectDestination = ref('')
@@ -93,8 +121,19 @@ function toggleNewProjectServiceScope (type: ServiceTypeKey) {
   if (index === -1) { newProjectServiceScope.value.push(type) } else { newProjectServiceScope.value.splice(index, 1) }
 }
 
+/** Prefill Segment/BusinessType/Group Trip dari konteks navigasi yang sedang dibuka — supaya "Buat Project"
+ * lewat mis. tab Business > Government > GIT langsung sesuai tanpa harus diisi ulang manual. */
+watch(isCreateProjectOpen, (open) => {
+  if (!open) { return }
+  newProjectSegment.value = activeSegment.value
+  newProjectBusinessType.value = activeSegment.value === 'business' ? businessDivision.value : 'corporate'
+  newProjectIsGroupTrip.value = isGitView.value
+})
+
 function resetCreateProjectForm () {
   newProjectIsGroupTrip.value = false
+  newProjectSegment.value = 'leisure'
+  newProjectBusinessType.value = 'corporate'
   newProjectPartyId.value = ''
   newProjectName.value = ''
   newProjectDestination.value = ''
@@ -126,6 +165,8 @@ function submitCreateProject () {
   const project = createProject({
     isGroupTrip: newProjectIsGroupTrip.value,
     partyId: newProjectIsGroupTrip.value ? undefined : newProjectPartyId.value,
+    segment: newProjectSegment.value,
+    businessType: newProjectSegment.value === 'business' ? newProjectBusinessType.value : undefined,
     name: newProjectName.value.trim(),
     destination: newProjectDestination.value.trim(),
     travelStartDate: newProjectStartDate.value,
@@ -150,7 +191,7 @@ function submitCreateProject () {
 const searchQuery = ref('')
 const stepFilter = ref<'all' | ProjectOrderStepKey>('all')
 
-const rows = computed(() => PROJECTS.map((project) => {
+const rows = computed(() => PROJECTS.filter(project => matchesActiveDivision(project, false)).map((project) => {
   const stepKey = getProjectOrderStep(project)
   const step = PROJECT_ORDER_STEPS.find(item => item.key === stepKey)!
   const gate = evaluateProjectOrderStepGate(project.id, stepKey)
@@ -203,32 +244,71 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
       :breadcrumb="[{ label: 'Operations & Scheduling' }, { label: 'Project' }]"
     />
 
-    <div v-if="hasAccess" class="flex flex-wrap gap-2">
-      <button
-        type="button"
-        :class="cn(
-          'px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors',
-          activeOrderTab === 'project-orders' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
-        )"
-        @click="activeOrderTab = 'project-orders'"
-      >
-        Project Orders
-      </button>
-      <button
-        type="button"
-        :class="cn(
-          'px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors',
-          activeOrderTab === 'sales-orders' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
-        )"
-        @click="activeOrderTab = 'sales-orders'"
-      >
-        Sales Order
-      </button>
+    <div v-if="hasAccess" class="space-y-2">
+      <div class="flex flex-wrap gap-2">
+        <button
+          v-for="seg in PROJECT_SEGMENTS"
+          :key="seg.value"
+          type="button"
+          :class="cn(
+            'px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors',
+            activeSegment === seg.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
+          )"
+          @click="activeSegment = seg.value"
+        >
+          {{ seg.label }}
+        </button>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-2">
+        <template v-if="activeSegment === 'leisure'">
+          <button
+            v-for="div in FIT_GIT_OPTIONS"
+            :key="div.value"
+            type="button"
+            :class="cn(
+              'px-3 py-1 text-xs font-medium rounded-md border transition-colors',
+              leisureDivision === div.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
+            )"
+            @click="leisureDivision = div.value"
+          >
+            {{ div.label }}
+          </button>
+        </template>
+        <template v-else>
+          <button
+            v-for="div in PROJECT_BUSINESS_TYPES"
+            :key="div.value"
+            type="button"
+            :class="cn(
+              'px-3 py-1 text-xs font-medium rounded-md border transition-colors',
+              businessDivision === div.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
+            )"
+            @click="businessDivision = div.value"
+          >
+            {{ div.label }}
+          </button>
+          <div class="ml-1 flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+            <button
+              v-for="fg in FIT_GIT_OPTIONS"
+              :key="fg.value"
+              type="button"
+              :class="cn(
+                'rounded-md px-2.5 py-1 text-xs font-medium transition-all',
+                businessFitGit === fg.value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              )"
+              @click="businessFitGit = fg.value"
+            >
+              {{ fg.label }}
+            </button>
+          </div>
+        </template>
+      </div>
     </div>
 
     <RoleAccessState v-if="!hasAccess" module-label="modul Operations & Scheduling" />
 
-    <template v-else-if="activeOrderTab === 'project-orders'">
+    <template v-else-if="!isGitView">
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total Project" :value="String(stats.total)" :icon="FolderKanban" />
         <StatsCard title="Step Tertahan" :value="String(stats.blocked)" :icon="AlertTriangle" :icon-color="stats.blocked ? 'destructive' : 'success'" />
@@ -253,11 +333,38 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
               <SheetDescription>Untuk customer yang sudah ada — tanpa lewat Lead, status awal "Draft".</SheetDescription>
             </SheetHeader>
             <div class="space-y-4 py-4">
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="prj-segment">Segment</Label>
+                  <select
+                    id="prj-segment"
+                    v-model="newProjectSegment"
+                    class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                  >
+                    <option v-for="seg in PROJECT_SEGMENTS" :key="seg.value" :value="seg.value">
+                      {{ seg.label }}
+                    </option>
+                  </select>
+                </div>
+                <div v-if="newProjectSegment === 'business'" class="space-y-1.5">
+                  <Label for="prj-business-type">Divisi Business</Label>
+                  <select
+                    id="prj-business-type"
+                    v-model="newProjectBusinessType"
+                    class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                  >
+                    <option v-for="type in PROJECT_BUSINESS_TYPES" :key="type.value" :value="type.value">
+                      {{ type.label }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+
               <label class="flex items-start gap-2 text-sm text-foreground cursor-pointer rounded-lg border border-input px-3 py-2.5">
                 <Checkbox v-model="newProjectIsGroupTrip" class="mt-0.5" />
                 <span>
-                  <span class="block font-medium">Group Trip (B2C) — banyak traveler individual</span>
-                  <span class="block text-xs text-muted-foreground">Project dibuat tanpa customer dulu — tiap Lead yang gabung belakangan jadi Customer sendiri-sendiri.</span>
+                  <span class="block font-medium">Group Trip (GIT) — banyak traveler individual</span>
+                  <span class="block text-xs text-muted-foreground">Project dibuat tanpa customer dulu — tiap Lead yang gabung belakangan jadi Customer sendiri-sendiri. Kosongkan untuk FIT.</span>
                 </span>
               </label>
 
@@ -446,7 +553,7 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
       </SectionCard>
     </template>
 
-    <template v-else-if="activeOrderTab === 'sales-orders'">
+    <template v-else-if="isGitView">
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total Project B2C" :value="String(salesOrdersSummary.total)" :icon="Users" />
         <StatsCard title="Total Seat Terisi" :value="String(salesOrdersSummary.seatsFilled)" :icon="CheckCircle2" icon-color="primary" />
@@ -460,7 +567,7 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
           <Input v-model="salesOrderSearch" placeholder="Cari nama project atau destinasi..." class="pl-9" />
         </div>
         <p class="text-xs text-muted-foreground ml-auto">
-          Group Trip baru dibuat dari tab "Project Orders" — tombol "Buat Project", centang "Group Trip (B2C)".
+          Group Trip baru dibuat dari tab "FIT" (di divisi yang sama) — tombol "Buat Project", centang "Group Trip (GIT)".
         </p>
       </div>
 
@@ -525,8 +632,8 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
         <EmptyState
           v-else
           :icon="Users"
-          title="Belum ada Project B2C"
-          description="Buat Group Trip dulu dari tab Project Orders (tombol Buat Project, centang Group Trip)."
+          title="Belum ada Project GIT di divisi ini"
+          description="Buat Group Trip dulu dari tab FIT di divisi yang sama (tombol Buat Project, centang Group Trip)."
         />
       </SectionCard>
     </template>
