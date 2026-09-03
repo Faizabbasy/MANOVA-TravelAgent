@@ -41,7 +41,7 @@ import {
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT } from '~/utils/attention'
 import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
 import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES, PROJECT_STATUSES, SUPPORT_TICKET_CATEGORIES, INVOICE_STATUSES } from '~/constants/status'
-import type { Project, ProjectStatus, ProjectCharacteristic, ServiceTypeKey, ServiceStatus, ProjectService, Traveler, TravelerGroup, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
+import type { Project, ProjectStatus, ProjectCharacteristic, ServiceTypeKey, ServiceStatus, ProjectService, Traveler, TravelerGroup, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType, ProjectSegment, ProjectBusinessType } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType, CompanyType, SensitiveCompanyProfileFields } from '~/types/party'
 import type { Quotation, QuotationAttachment, QuotationComment } from '~/types/quotation'
 import type { Vendor, VendorContact, VendorQuotation, VendorProduct, VendorDocument } from '~/types/vendor'
@@ -1226,6 +1226,11 @@ export interface CreateProjectInput {
   serviceScope: ServiceTypeKey[]
   quotationAmountIdr: number
   characteristic?: ProjectCharacteristic
+  /** Klasifikasi Leisure/Business (menu "Project") — independen dari `isGroupTrip`. Kosong = default
+   * `isGroupTrip ? 'leisure' : 'business'`, lihat `createProject`. */
+  segment?: ProjectSegment
+  /** Hanya dipakai bila `segment === 'business'` (atau default-nya jatuh ke 'business'). */
+  businessType?: ProjectBusinessType
 }
 
 const GROUP_TRIP_PLACEHOLDER_PARTY_NAME = 'MANOVA Group Trip (Internal)'
@@ -1260,11 +1265,14 @@ export function createProject (input: CreateProjectInput): Project | undefined {
   if (!input.travelStartDate || !input.travelEndDate || input.travelStartDate > input.travelEndDate) { return undefined }
   if (!(input.travelerCount > 0) || !input.serviceScope.length) { return undefined }
 
+  const segment: ProjectSegment = input.segment ?? (input.isGroupTrip ? 'leisure' : 'business')
   const project: Project = {
     id: nextSequentialId('PRJ-', PROJECTS),
     name: input.name.trim(),
     partyId: party.id,
     isGroupTrip: input.isGroupTrip || undefined,
+    segment,
+    businessType: segment === 'business' ? input.businessType : undefined,
     destination: input.destination.trim(),
     destinationGeo: resolveDestinationGeo(input.destination.trim()),
     travelStartDate: input.travelStartDate,
@@ -1632,11 +1640,21 @@ export function markLeadWon (leadId: string, approverId: string): Project | unde
   if (!quotation || quotation.approvalStatus !== 'approved') { return undefined }
   const party = getPartyById(lead.partyId)
   const accountExecutiveId = lead.handedOverTo ?? lead.ownerId
+  /** FIT (Lead -> Won -> Project, menu "Project" Leisure/Business) — `isGroupTrip` TIDAK di-set di sini
+   * (jalur ini selalu FIT), tapi Leisure/Business tetap perlu ditentukan: Party individual -> Leisure,
+   * Party company -> Business, sub-divisi dari `Party.companyType` (hanya 'government-agency' yang punya
+   * pemetaan eksplisit hari ini; sisanya default 'corporate', bisa di-override manual belakangan). */
+  const segment: ProjectSegment = party?.partyType === 'individual' ? 'leisure' : 'business'
+  const businessType: ProjectBusinessType | undefined = segment === 'business'
+    ? (party?.companyType === 'government-agency' ? 'government' : 'corporate')
+    : undefined
 
   const project: Project = {
     id: nextSequentialId('PRJ-', PROJECTS),
     name: lead.title ?? lead.companyName ?? lead.name,
     partyId: lead.partyId,
+    segment,
+    businessType,
     leadId: lead.id,
     sourceQuotationId: quotation.id,
     destination: lead.destination,
