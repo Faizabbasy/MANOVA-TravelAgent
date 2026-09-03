@@ -2435,12 +2435,13 @@ const tripDurationDays = computed(() => {
         </TabsContent>
 
         <TabsContent value="itinerary-services">
-          <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
-            <div class="space-y-6 lg:col-span-2">
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start">
+            <div class="space-y-4 lg:col-span-2">
               <!-- Departure Readiness Gate (Section 12 baru) -->
               <SectionCard
                 v-if="departureReadiness"
                 compact
+                titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
                 title="Departure Readiness Gate"
                 description="Ringkasan kesiapan lintas-domain sebelum keberangkatan — advisory, tidak memblokir transisi status."
                 accent
@@ -2495,19 +2496,8 @@ const tripDurationDays = computed(() => {
               </SectionCard>
 
               <!-- Progress Readiness (donut, dibesarkan biar isi card padat tanpa duplikasi angka yang sudah ada di 4 StatsCard "Departure Readiness Gate" di atas) + Alasan Belum Siap & Countdown Keberangkatan (satu card, dipisah divider — bukan diduplikasi). items-start supaya card yang lebih pendek tidak di-stretch mengikuti tinggi sibling-nya. -->
-              <div v-if="departureReadiness" class="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:items-start">
-                <SectionCard compact content-class="flex flex-col items-center py-2 text-center">
-                  <template #header>
-                    <div class="flex items-center gap-3">
-                      <span class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <Gauge class="h-5 w-5" />
-                      </span>
-                      <CardTitle class="text-sm font-bold uppercase tracking-wide text-foreground">
-                        Progress Readiness
-                      </CardTitle>
-                    </div>
-                  </template>
-
+              <div v-if="departureReadiness" class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:items-start">
+                <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Progress Readiness" content-class="flex flex-col items-center py-2 text-center">
                   <div class="relative flex h-40 w-40 shrink-0 items-center justify-center">
                     <svg viewBox="0 0 80 80" class="h-40 w-40 -rotate-90">
                       <circle
@@ -2549,7 +2539,7 @@ const tripDurationDays = computed(() => {
                   </div>
                 </SectionCard>
 
-                <SectionCard compact title="Alasan Belum Siap">
+                <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Alasan Belum Siap">
                   <ul v-if="departureReadiness.blockingReasons.length > 0" class="space-y-2">
                     <li v-for="(reason, index) in departureReadiness.blockingReasons" :key="index" class="flex items-start gap-2 text-xs text-foreground">
                       <AlertTriangle class="h-3.5 w-3.5 shrink-0 mt-0.5 text-warning" />
@@ -2681,30 +2671,17 @@ const tripDurationDays = computed(() => {
               jadi flex column penuh tinggi (`class`+`content-class`) dan tombol "Buat Booking" ditempel ke
               dasar via `mt-auto`, bukan menyisakan celah kosong mengambang di tengah.
             -->
-              <div v-if="visibleServiceTypes.length || projectBookingTimeline.length" class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
+              <div v-if="visibleServiceTypes.length || projectBookingTimeline.length" class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
                 <SectionCard
                   v-for="type in visibleServiceTypes"
                   :key="type.value"
                   compact
                   class="flex h-full flex-col"
                   content-class="flex flex-1 flex-col"
+                  titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
+                  :title="type.label"
+                  :description="serviceReadinessLabel(type.value)"
                 >
-                  <template #header>
-                    <div class="flex items-center gap-2.5">
-                      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" :class="TONE_ICON_BG[type.tone]">
-                        <component :is="SERVICE_TYPE_ICON[type.value]" class="h-4 w-4" />
-                      </div>
-                      <div class="min-w-0">
-                        <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                          {{ type.label }}
-                        </p>
-                        <p class="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                          {{ serviceReadinessLabel(type.value) }}
-                        </p>
-                      </div>
-                    </div>
-                  </template>
-
                   <ul v-if="servicesByType(type.value).length" class="flex-1 divide-y divide-border">
                     <li v-for="service in servicesByType(type.value)" :key="service.id" class="flex flex-wrap items-center justify-between gap-2 py-2.5">
                       <div class="min-w-0 flex-1">
@@ -2765,17 +2742,13 @@ const tripDurationDays = computed(() => {
                 aksi yang sering dipakai — "Buka Booking Center" tetap ada untuk Catat Percobaan/exception
                 lain yang belum dipindah ke sini.
               -->
-                <SectionCard v-if="projectBookingTimeline.length" content-class="p-0">
-                  <template #header>
-                    <div>
-                      <h2 class="text-lg font-bold uppercase tracking-wide text-foreground">
-                        Booking Timeline
-                      </h2>
-                      <p class="mt-1 text-sm text-muted-foreground">
-                        Konsolidasi Flight/Hotel/Transport/MICE booking untuk project ini — satu sumber kebenaran seluruh service (Section 18).
-                      </p>
-                    </div>
-                  </template>
+                <SectionCard
+                  v-if="projectBookingTimeline.length"
+                  content-class="p-0"
+                  titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
+                  title="Booking Timeline"
+                  description="Konsolidasi Flight/Hotel/Transport/MICE booking untuk project ini — satu sumber kebenaran seluruh service (Section 18)."
+                >
                   <template #actions>
                     <NuxtLink :to="`/bookings?projectId=${project.id}`">
                       <Button size="sm" variant="outline" class="rounded-full">
@@ -2908,10 +2881,11 @@ const tripDurationDays = computed(() => {
               <EmptyState v-if="!visibleServiceTypes.length && !projectBookingTimeline.length" :icon="Truck" title="Belum ada layanan tercatat untuk project ini" />
 
               <!-- Procurement + Operational Tasks + Shift Notes dalam SATU grid responsif — pola sama grid layanan+Booking Timeline di atas: total genap → berdampingan setengah lebar, total ganjil → card terakhir (biasanya Shift Notes) otomatis full-width sendiri, tidak ada card sepi konten yang kepaksa full-width sendirian. -->
-              <div class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
+              <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
                 <SectionCard
                   v-if="projectRfqs.length || projectServiceOrders.length"
                   compact
+                  titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
                   title="Procurement — RFQ dan Service Order"
                   description="Ringkasan sourcing formal dan Service Order untuk project ini."
                 >
@@ -2954,6 +2928,7 @@ const tripDurationDays = computed(() => {
                 <SectionCard
                   v-if="false"
                   compact
+                  titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
                   title="Operational Tasks"
                   :description="`${tasks.length} task tercatat untuk project ini`"
                 >
@@ -2985,7 +2960,7 @@ const tripDurationDays = computed(() => {
                 </SectionCard>
 
                 <!-- On-Trip Updates / Shift Notes (Section 12 baru) -->
-                <SectionCard compact title="On-Trip Updates / Shift Notes" description="Catatan serah-terima operasional selama trip berlangsung (mock).">
+                <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="On-Trip Updates / Shift Notes" description="Catatan serah-terima operasional selama trip berlangsung (mock).">
                   <template v-if="canManageOperations" #actions>
                     <Sheet v-model:open="isShiftNoteDialogOpen">
                       <SheetTrigger as-child>
@@ -3046,8 +3021,8 @@ const tripDurationDays = computed(() => {
             </div>
 
             <!-- Sidebar kanan (Section 12 baru) — Daily Itinerary dipindah ke sini (dari main flow), Tim Project dan Aktivitas Terbaru reuse data yang sudah dihitung di tab Overview, bukan selector baru. Attention / Exception Queue ditumpuk di bawah Aktivitas Terbaru (bukan main flow) supaya nempel di sisi kanan dan sejajar vertikal tepat di bawahnya. -->
-            <div class="space-y-6 lg:col-span-1 lg:sticky lg:top-6">
-              <SectionCard compact title="Daily Itinerary" description="Jadwal harian perjalanan (timezone lokal ditampilkan berdampingan jam).">
+            <div class="space-y-4 lg:col-span-1 lg:sticky lg:top-6">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Daily Itinerary" description="Jadwal harian perjalanan (timezone lokal ditampilkan berdampingan jam).">
                 <div v-if="itineraryByDate.length" class="space-y-4">
                   <div v-for="day in itineraryByDate" :key="day.date" class="flex gap-3">
                     <div class="flex shrink-0 flex-col items-center">
@@ -3121,7 +3096,7 @@ const tripDurationDays = computed(() => {
                 </Button>
               </SectionCard>
 
-              <SectionCard compact title="Tim Project">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Tim Project">
                 <template v-if="canManageProjectOrder" #actions>
                   <button type="button" class="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20" @click="isTeamDialogOpen = true">
                     <Plus class="h-3 w-3" />Tambah
@@ -3173,7 +3148,7 @@ const tripDurationDays = computed(() => {
                 </div>
               </SectionCard>
 
-              <SectionCard compact title="Aktivitas Terbaru">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Aktivitas Terbaru">
                 <template v-if="!project.isGroupTrip && historyEntries.length" #actions>
                   <Button size="sm" variant="ghost" @click="goToActivityTab">
                     Lihat Semua
@@ -3196,6 +3171,7 @@ const tripDurationDays = computed(() => {
               <div v-if="hasAttentionSidebarContent" ref="attentionQueueSidebarRef">
                 <SectionCard
                   compact
+                  titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
                   title="Attention / Exception Queue"
                   description="Item lintas-domain yang butuh perhatian."
                   accent
