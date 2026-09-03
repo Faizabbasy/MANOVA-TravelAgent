@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock, Plus, Users, MapPin, Palmtree, Briefcase } from 'lucide-vue-next'
+import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock, Plus, Users, MapPin } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import {
   PROJECTS, PARTIES, getPartyById, getUserById, getProjectOrderStatus,
@@ -250,19 +250,11 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
               v-for="seg in PROJECT_SEGMENTS"
               :key="seg.value"
               type="button"
-              class="flex flex-col items-center gap-1.5 rounded-xl px-4 py-2 transition-all"
+              class="flex flex-col items-center gap-1.5 rounded-xl px-5 py-2 text-sm font-medium transition-all"
               :class="activeSegment === seg.value ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'"
               @click="activeSegment = seg.value"
             >
-              <span class="flex items-center gap-2 text-sm font-medium">
-                <span
-                  class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
-                  :class="activeSegment === seg.value ? 'bg-primary/10 text-primary' : 'text-muted-foreground'"
-                >
-                  <component :is="seg.value === 'leisure' ? Palmtree : Briefcase" class="h-3.5 w-3.5" />
-                </span>
-                {{ seg.label }}
-              </span>
+              {{ seg.label }}
               <span class="h-0.5 w-8 rounded-full" :class="activeSegment === seg.value ? 'bg-primary' : 'bg-transparent'" />
             </button>
           </div>
