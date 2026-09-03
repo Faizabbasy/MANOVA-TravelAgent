@@ -68,7 +68,7 @@ const overviewDetailRows = computed(() => {
     { icon: UserCheck, label: 'Account Executive Tujuan', value: lead.handedOverTo ? ownerName(lead.handedOverTo) : 'Belum ditentukan' },
     { icon: Phone, label: 'Telepon', value: lead.phone || '—' },
     { icon: Mail, label: 'Email', value: lead.email || '—' },
-    { icon: CalendarClock, label: 'Expected Close', value: lead.expectedCloseDate ? formatDate(lead.expectedCloseDate) : '—' },
+    { icon: CalendarClock, label: 'Do Date', value: lead.expectedCloseDate ? formatDate(lead.expectedCloseDate) : '—' },
     { icon: Calendar, label: 'Dibuat', value: formatDate(lead.createdAt) }
   ]
 })
@@ -96,6 +96,23 @@ const qualServiceScope = ref<ServiceTypeKey[]>([])
 const qualRequirementSummary = ref('')
 const qualHandedOverTo = ref('')
 const qualBudgetRange = ref('')
+
+/** Kategori Estimasi Budget (dulu free-text) — pilihan tetap supaya data lebih konsisten untuk filtering/reporting. */
+const BUDGET_RANGE_OPTIONS = [
+  '< Rp 50 Juta',
+  'Rp 50 Juta - Rp 100 Juta',
+  'Rp 100 Juta - Rp 200 Juta',
+  'Rp 200 Juta - Rp 500 Juta',
+  'Rp 500 Juta - Rp 1 Miliar',
+  '> Rp 1 Miliar'
+]
+/** Lead lama yang budget-nya masih free-text (belum cocok kategori di atas) tetap tampil sebagai pilihan
+ * sendiri, supaya nilai tersimpannya tidak diam-diam hilang saat drawer dibuka. */
+const budgetRangeOptions = computed(() => (
+  qualBudgetRange.value && !BUDGET_RANGE_OPTIONS.includes(qualBudgetRange.value)
+    ? [qualBudgetRange.value, ...BUDGET_RANGE_OPTIONS]
+    : BUDGET_RANGE_OPTIONS
+))
 const qualDateFlexible = ref(false)
 const qualDecisionMaker = ref('')
 const qualUrgency = ref<LeadUrgency | ''>('')
@@ -873,14 +890,21 @@ function submitActivity () {
                 </p>
                 <div class="space-y-1.5">
                   <Label for="qual-budget">Estimasi Budget / Budget Range</Label>
-                  <Input id="qual-budget" v-model="qualBudgetRange" placeholder="mis. Rp 100 juta - Rp 150 juta" />
+                  <select id="qual-budget" v-model="qualBudgetRange" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="">
+                      Pilih kategori budget
+                    </option>
+                    <option v-for="range in budgetRangeOptions" :key="range" :value="range">
+                      {{ range }}
+                    </option>
+                  </select>
                 </div>
                 <div class="flex items-center gap-2">
                   <input id="qual-flexible" v-model="qualDateFlexible" type="checkbox" class="h-4 w-4 rounded border-input">
                   <Label for="qual-flexible" class="!mb-0">Fleksibilitas Tanggal</Label>
                 </div>
                 <div class="space-y-1.5">
-                  <Label for="qual-decision-maker">Decision Maker</Label>
+                  <Label for="qual-decision-maker">PIC</Label>
                   <Input id="qual-decision-maker" v-model="qualDecisionMaker" placeholder="mis. Direktur Operasional" />
                 </div>
                 <div class="space-y-1.5">
@@ -895,8 +919,11 @@ function submitActivity () {
                   </select>
                 </div>
                 <div class="space-y-1.5">
-                  <Label for="qual-expected-close">Expected Close</Label>
+                  <Label for="qual-expected-close">Do Date</Label>
                   <Input id="qual-expected-close" v-model="qualExpectedCloseDate" type="date" />
+                  <p class="text-xs text-muted-foreground">
+                    Ekspektasi tanggal Lead ini perlu di-follow-up berikutnya.
+                  </p>
                 </div>
                 <div class="space-y-1.5">
                   <Label for="qual-special-request">Special Request Awal</Label>

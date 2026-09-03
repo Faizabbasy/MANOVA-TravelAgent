@@ -66,7 +66,7 @@ const summaryMetadata = computed(() => {
         : 'Belum ditentukan'
     },
     { label: 'Estimasi Traveler', value: lead.value.travelerEstimate ? `${lead.value.travelerEstimate} pax` : '—' },
-    { label: 'Expected Close', value: lead.value.expectedCloseDate ? formatDate(lead.value.expectedCloseDate) : '—' },
+    { label: 'Do Date', value: lead.value.expectedCloseDate ? formatDate(lead.value.expectedCloseDate) : '—' },
     { label: 'Qualified', value: lead.value.qualifiedAt ? formatDate(lead.value.qualifiedAt) : '—' }
   ]
 })
