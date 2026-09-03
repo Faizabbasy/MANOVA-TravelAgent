@@ -479,9 +479,9 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
         </button>
       </div>
 
-      <SectionCard>
+      <SectionCard contentClass="max-h-[60vh] overflow-y-auto">
         <Table v-if="filteredRows.length">
-          <TableHeader>
+          <TableHeader class="sticky top-0 z-10 bg-card">
             <TableRow>
               <TableHead>Project</TableHead>
               <TableHead>Customer</TableHead>
@@ -566,9 +566,9 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
         </p>
       </div>
 
-      <SectionCard class="mt-4">
+      <SectionCard class="mt-4" contentClass="max-h-[60vh] overflow-y-auto">
         <Table v-if="filteredGroupTripRows.length">
-          <TableHeader>
+          <TableHeader class="sticky top-0 z-10 bg-card">
             <TableRow>
               <TableHead>Project</TableHead>
               <TableHead>Tanggal</TableHead>
