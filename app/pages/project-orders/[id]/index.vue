@@ -752,8 +752,6 @@ const serviceReadinessOverallPercent = computed(() => serviceConfirmedTotals.val
 /** Rata-rata dua metrik readiness yang punya basis persen (dokumen traveler + layanan confirmed) — dipakai bar "kesiapan keseluruhan" di card Countdown Keberangkatan, bukan angka karangan. */
 const overallReadinessPercent = computed(() => departureReadiness.value ? Math.round((departureReadiness.value.travelerReadinessPercent + departureReadiness.value.servicesConfirmedPercent) / 2) : 0)
 
-/** Tipe layanan pertama dalam `serviceScope` — dipakai ikon besar hero card "Ringkasan Layanan", murni representatif (bukan klaim "layanan utama"). */
-const primaryServiceType = computed(() => project.value ? SERVICE_TYPES.find(type => project.value!.serviceScope.includes(type.value)) : undefined)
 /** Checklist ringkas card "Ringkasan Layanan" — seluruhnya angka nyata (jumlah layanan, traveler, destinasi, confirmed), bukan field per-booking (rute/kelas/kursi) yang tidak ada di level agregat `serviceScope`. */
 const cakupanLayananChecklist = computed(() => project.value
   ? [
@@ -2027,10 +2025,10 @@ const tripDurationDays = computed(() => {
         </TabsList>
 
         <TabsContent value="overview">
-          <div class="grid grid-cols-1 gap-6 lg:grid-cols-3 lg:items-start">
-            <div class="space-y-6 lg:col-span-2">
-              <SectionCard v-if="project.isGroupTrip" compact title="Kapasitas Group Trip">
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start">
+            <div class="space-y-4 lg:col-span-2">
+              <SectionCard v-if="project.isGroupTrip" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Kapasitas Group Trip">
+                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <StatsCard title="Seat Terisi" :value="`${getProjectSeatsFilled(project.id)} / ${project.travelerCount}`" :icon="Users" />
                   <StatsCard title="Destinasi" :value="project.destination" :icon="MapPin" />
                   <StatsCard title="Jadwal" :value="formatDateRange(project.travelStartDate, project.travelEndDate)" :icon="CalendarRange" />
@@ -2038,7 +2036,7 @@ const tripDurationDays = computed(() => {
               </SectionCard>
 
               <!-- Stat ringkas (padat, angka besar + label kecil) — teaser, detail lengkap tetap di card di bawahnya. -->
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 <StatsCard
                   title="Budget Terpakai"
                   :value="`${budgetUsedPercent}%`"
@@ -2063,13 +2061,13 @@ const tripDurationDays = computed(() => {
               </div>
 
               <!-- Kontak Lapangan (tour leader/emergency contact/meeting point) — sebelumnya cuma bisa diisi lewat fixture data, dibutuhkan gate step "Start" (field-contacts) dan Client Trip Center. -->
-              <SectionCard compact title="Kontak Lapangan">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Kontak Lapangan">
                 <template v-if="canManageProjectOrder" #actions>
                   <Button size="sm" variant="outline" @click="openFieldContactsDialog">
                     <Pencil class="h-3.5 w-3.5 mr-1.5" />Edit
                   </Button>
                 </template>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                   <div>
                     <p class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                       Tour Leader
@@ -2147,7 +2145,7 @@ const tripDurationDays = computed(() => {
               </Dialog>
 
               <!-- Ringkasan Komersial — separuh lebar (bukan edge-to-edge), ditaruh di bawah 4 stat card di atas. Kolom di-stretch (bukan items-start lagi) supaya "Action Required" saat kosong ikut setinggi Ringkasan Komersial, bukan terlihat terpotong pendek sendirian. -->
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <ProjectCommercialHero
                   v-if="canViewFinancials"
                   :quotation-amount-idr="project.quotationAmountIdr"
@@ -2157,7 +2155,7 @@ const tripDurationDays = computed(() => {
                   :next-payment="nextPaymentForHero"
                   :has-any-invoice="invoices.length > 0"
                 />
-                <div v-else class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <StatsCard
                     title="Nilai Quotation"
                     :value="formatCurrencyIdr(project.quotationAmountIdr)"
@@ -2172,10 +2170,9 @@ const tripDurationDays = computed(() => {
                 <SectionCard
                   v-if="attentionQueue.length > 0"
                   compact
+                  titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
                   title="Action Required"
                   :description="`${attentionQueue.length} item butuh perhatian`"
-                  accent
-                  tone="destructive"
                 >
                   <div class="space-y-1">
                     <button
@@ -2197,27 +2194,28 @@ const tripDurationDays = computed(() => {
                 <SectionCard
                   v-else
                   compact
+                  titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
                   title="Action Required"
                   description="Tidak ada item yang butuh perhatian saat ini."
                   class="flex h-full flex-col"
                   content-class="flex flex-1 flex-col items-center justify-center text-center"
                 >
-                  <div class="flex h-12 w-12 items-center justify-center rounded-full bg-success/10">
-                    <CheckCircle2 class="h-6 w-6 text-success" />
+                  <div class="flex h-10 w-10 items-center justify-center rounded-full bg-success/10">
+                    <CheckCircle2 class="h-5 w-5 text-success" />
                   </div>
-                  <p class="mt-3 text-sm font-semibold text-foreground">
+                  <p class="mt-2 text-sm font-semibold text-foreground">
                     Semua beres — tidak ada item mendesak.
                   </p>
                 </SectionCard>
               </div>
 
               <!-- Peta Lokasi (dipindah dari header — header sekarang identitas murni) + Kesiapan Layanan (breakdown bar, versi ringkas dari tabel "Service Readiness Matrix" tab Itinerary & Services). -->
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <SectionCard compact title="Peta Lokasi" :class="serviceReadinessMatrix.length === 0 ? 'lg:col-span-2' : ''">
+              <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Peta Lokasi" :class="serviceReadinessMatrix.length === 0 ? 'lg:col-span-2' : ''">
                   <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" show-route />
                 </SectionCard>
 
-                <SectionCard v-if="serviceReadinessMatrix.length > 0" compact title="Kesiapan Layanan" description="Agregat Confirmed/Completed per tipe layanan.">
+                <SectionCard v-if="serviceReadinessMatrix.length > 0" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Kesiapan Layanan" description="Agregat Confirmed/Completed per tipe layanan.">
                   <template #actions>
                     <StatusBadge
                       :label="`${SERVICE_READINESS_STATUS_LABEL[serviceReadinessTone(serviceReadinessOverallPercent)]} · ${serviceConfirmedTotals.confirmed}/${serviceConfirmedTotals.total}`"
@@ -2260,32 +2258,12 @@ const tripDurationDays = computed(() => {
                   </div>
                 </SectionCard>
               </div>
-
-              <ProjectOrderTimelineTracking
-                :project-id="project.id"
-                :milestones="milestones"
-                :can-manage="canManageOperations"
-                :planned-dates-locked="plannedDatesLocked"
-                @mark-actual="onMarkMilestoneActual"
-                @update-planned="onUpdateMilestonePlanned"
-                @update-note="onUpdateMilestoneNote"
-              />
             </div>
 
             <!-- Sidebar kanan Overview — Cakupan Layanan/Nilai Project/Tim Project ditumpuk vertikal sebagai 3 card terpisah (dulu satu card dibagi 3 kolom horizontal), supaya sejajar dengan pola sidebar kanan tab Itinerary & Services. -->
-            <div class="space-y-6">
-              <SectionCard compact>
-                <div v-if="primaryServiceType" class="flex h-12 w-12 items-center justify-center rounded-xl" :class="TONE_ICON_BG[primaryServiceType.tone]">
-                  <component :is="SERVICE_TYPE_ICON[primaryServiceType.value]" class="h-6 w-6" />
-                </div>
-                <p class="mt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Ringkasan Layanan
-                </p>
-                <p class="mt-0.5 text-lg font-bold text-foreground">
-                  Cakupan Layanan
-                </p>
-
-                <div class="mt-2.5 flex flex-wrap gap-1.5">
+            <div class="space-y-4">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Cakupan Layanan">
+                <div class="flex flex-wrap gap-1.5">
                   <StatusBadge
                     :label="findStatusOption(PROJECT_STATUSES, project.status).label"
                     :tone="findStatusOption(PROJECT_STATUSES, project.status).tone"
@@ -2325,17 +2303,8 @@ const tripDurationDays = computed(() => {
                 </ul>
               </SectionCard>
 
-              <SectionCard compact>
-                <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                  <Wallet class="h-6 w-6" />
-                </div>
-                <p class="mt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Asal Project
-                </p>
-                <p class="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-primary">
-                  Nilai Project
-                </p>
-                <p class="mt-0.5 text-2xl font-bold tabular-nums text-foreground">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Nilai Project">
+                <p class="text-2xl font-bold tabular-nums text-foreground">
                   {{ formatCurrencyIdr(project.quotationAmountIdr) }}
                 </p>
                 <button
@@ -2365,12 +2334,9 @@ const tripDurationDays = computed(() => {
                 </div>
               </SectionCard>
 
-              <SectionCard compact>
-                <div class="flex items-center justify-between gap-2">
-                  <div class="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <Users class="h-6 w-6" />
-                  </div>
-                  <Sheet v-if="canManageProjectOrder" v-model:open="isTeamDialogOpen">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Tim Project">
+                <template v-if="canManageProjectOrder" #actions>
+                  <Sheet v-model:open="isTeamDialogOpen">
                     <SheetTrigger as-child>
                       <button type="button" class="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20">
                         <Plus class="h-3 w-3" />Tambah
@@ -2402,12 +2368,9 @@ const tripDurationDays = computed(() => {
                       </SheetFooter>
                     </SheetContent>
                   </Sheet>
-                </div>
-                <p class="mt-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Tim Project
-                </p>
+                </template>
 
-                <div class="mt-2 space-y-2">
+                <div class="space-y-2">
                   <div class="flex items-center gap-2.5">
                     <Avatar class="h-9 w-9 shrink-0">
                       <AvatarFallback class="bg-primary/15 text-xs font-semibold text-primary">
@@ -2458,6 +2421,17 @@ const tripDurationDays = computed(() => {
               </SectionCard>
             </div>
           </div>
+
+          <ProjectOrderTimelineTracking
+            class="mt-4"
+            :project-id="project.id"
+            :milestones="milestones"
+            :can-manage="canManageOperations"
+            :planned-dates-locked="plannedDatesLocked"
+            @mark-actual="onMarkMilestoneActual"
+            @update-planned="onUpdateMilestonePlanned"
+            @update-note="onUpdateMilestoneNote"
+          />
         </TabsContent>
 
         <TabsContent value="itinerary-services">

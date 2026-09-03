@@ -69,27 +69,15 @@ function delayLabel (delay: number | undefined): string {
 </script>
 
 <template>
-  <SectionCard>
-    <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
-      <div>
-        <h3 class="text-base font-semibold text-foreground">
-          Timeline Tracking
-        </h3>
-        <p class="text-xs text-muted-foreground mt-0.5">
-          {{ summary.completed }}/{{ summary.total }} milestone selesai
-          <template v-if="summary.delayed">
-            · <span class="text-destructive font-medium">{{ summary.delayed }} terlambat ({{ summary.totalDelayDays }} hari kumulatif)</span>
-          </template>
-        </p>
-      </div>
-
+  <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Timeline Tracking">
+    <template #actions>
       <div class="inline-flex rounded-lg border border-border p-0.5">
         <button
           v-for="option in (['table', 'gantt'] as const)"
           :key="option"
           type="button"
           :class="cn(
-            'flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-md transition-colors',
+            'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
             view === option ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
           )"
           @click="view = option"
@@ -98,9 +86,16 @@ function delayLabel (delay: number | undefined): string {
           {{ option === 'table' ? 'Table' : 'Gantt' }}
         </button>
       </div>
-    </div>
+    </template>
 
-    <div v-if="!plannedDatesLocked" class="rounded-lg border border-chart-5/30 bg-chart-5/5 px-3 py-2.5 mb-4 flex gap-2">
+    <p class="-mt-2 mb-3 text-xs text-muted-foreground">
+      {{ summary.completed }}/{{ summary.total }} milestone selesai
+      <template v-if="summary.delayed">
+        · <span class="text-destructive font-medium">{{ summary.delayed }} terlambat ({{ summary.totalDelayDays }} hari kumulatif)</span>
+      </template>
+    </p>
+
+    <div v-if="!plannedDatesLocked" class="rounded-lg border border-chart-5/30 bg-chart-5/5 px-3 py-2 mb-3 flex gap-2">
       <Info class="h-4 w-4 text-chart-5 shrink-0 mt-0.5" />
       <div>
         <p class="text-xs font-medium text-foreground">

@@ -5,6 +5,8 @@ import { cn } from '~/lib/utils'
 const props = withDefaults(defineProps<{
   title?: string
   description?: string
+  /** Override kelas judul (mis. `font-bold normal-case`) — dipakai halaman yang butuh gaya judul beda dari default `compact`/normal (mis. seragamkan bold di satu tab tertentu tanpa mengubah default global). */
+  titleClass?: HTMLAttributes['class']
   /** Kelas tambahan untuk `CardContent` (bukan root `Card`, itu sudah otomatis lewat attribute fallthrough) — dipakai kartu yang perlu isinya jadi flex column penuh tinggi (mis. menempelkan tombol ke dasar kartu dengan `mt-auto` saat card lain di grid yang sama membuatnya di-stretch lebih tinggi dari kontennya sendiri). */
   contentClass?: HTMLAttributes['class']
   /** Bento sizing (Dashboard redesign) — mengatur span kolom pada grid dashboard. */
@@ -48,7 +50,7 @@ const showAccent = props.accent || props.size === 'hero'
     <CardHeader v-if="title || $slots.header" :class="cn('flex flex-row items-start justify-between gap-3 space-y-0', props.compact ? 'pb-2.5' : 'gap-4 pb-4')">
       <div class="min-w-0">
         <slot name="header">
-          <CardTitle :class="cn(props.compact ? 'text-xs font-semibold uppercase tracking-wide text-muted-foreground' : 'text-[0.9375rem] leading-6', props.size === 'hero' && 'text-lg')">
+          <CardTitle :class="cn(props.compact ? 'text-xs font-semibold uppercase tracking-wide text-muted-foreground' : 'text-[0.9375rem] leading-6', props.size === 'hero' && 'text-lg', props.titleClass)">
             {{ title }}
           </CardTitle>
           <CardDescription v-if="description" :class="cn('leading-relaxed', props.compact ? 'mt-0.5 text-xs' : 'mt-1')">
