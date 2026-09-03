@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock, Plus, Users, MapPin } from 'lucide-vue-next'
+import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock, Plus, Users, MapPin, Palmtree, Briefcase } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import {
   PROJECTS, PARTIES, getPartyById, getUserById, getProjectOrderStatus,
@@ -242,69 +242,64 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
       title="Project"
       description="Seluruh project order MANOVA dalam alur 6 step: Drafting → Confirmed → Start → Departure → On Progress → Done."
       :breadcrumb="[{ label: 'Operations & Scheduling' }, { label: 'Project' }]"
-    />
-
-    <div v-if="hasAccess" class="space-y-2">
-      <div class="flex flex-wrap gap-2">
-        <button
-          v-for="seg in PROJECT_SEGMENTS"
-          :key="seg.value"
-          type="button"
-          :class="cn(
-            'px-3 py-1.5 text-xs font-medium rounded-lg border transition-colors',
-            activeSegment === seg.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
-          )"
-          @click="activeSegment = seg.value"
-        >
-          {{ seg.label }}
-        </button>
-      </div>
-
-      <div class="flex flex-wrap items-center gap-2">
-        <template v-if="activeSegment === 'leisure'">
-          <button
-            v-for="div in FIT_GIT_OPTIONS"
-            :key="div.value"
-            type="button"
-            :class="cn(
-              'px-3 py-1 text-xs font-medium rounded-md border transition-colors',
-              leisureDivision === div.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
-            )"
-            @click="leisureDivision = div.value"
-          >
-            {{ div.label }}
-          </button>
-        </template>
-        <template v-else>
-          <button
-            v-for="div in PROJECT_BUSINESS_TYPES"
-            :key="div.value"
-            type="button"
-            :class="cn(
-              'px-3 py-1 text-xs font-medium rounded-md border transition-colors',
-              businessDivision === div.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
-            )"
-            @click="businessDivision = div.value"
-          >
-            {{ div.label }}
-          </button>
-          <div class="ml-1 flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+    >
+      <template v-if="hasAccess" #actions>
+        <div class="flex flex-col items-end gap-2">
+          <div class="inline-flex items-stretch gap-1 rounded-2xl border border-border bg-muted/40 p-1">
             <button
-              v-for="fg in FIT_GIT_OPTIONS"
-              :key="fg.value"
+              v-for="seg in PROJECT_SEGMENTS"
+              :key="seg.value"
               type="button"
-              :class="cn(
-                'rounded-md px-2.5 py-1 text-xs font-medium transition-all',
-                businessFitGit === fg.value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-              )"
-              @click="businessFitGit = fg.value"
+              class="flex flex-col items-center gap-1.5 rounded-xl px-4 py-2 transition-all"
+              :class="activeSegment === seg.value ? 'bg-card text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+              @click="activeSegment = seg.value"
             >
-              {{ fg.label }}
+              <span class="flex items-center gap-2 text-sm font-medium">
+                <span
+                  class="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg"
+                  :class="activeSegment === seg.value ? 'bg-primary/10 text-primary' : 'text-muted-foreground'"
+                >
+                  <component :is="seg.value === 'leisure' ? Palmtree : Briefcase" class="h-3.5 w-3.5" />
+                </span>
+                {{ seg.label }}
+              </span>
+              <span class="h-0.5 w-8 rounded-full" :class="activeSegment === seg.value ? 'bg-primary' : 'bg-transparent'" />
             </button>
           </div>
-        </template>
-      </div>
-    </div>
+
+          <div class="flex flex-wrap items-center justify-end gap-2">
+            <template v-if="activeSegment === 'business'">
+              <button
+                v-for="div in PROJECT_BUSINESS_TYPES"
+                :key="div.value"
+                type="button"
+                :class="cn(
+                  'px-3 py-1 text-xs font-medium rounded-md border transition-colors',
+                  businessDivision === div.value ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground hover:text-foreground'
+                )"
+                @click="businessDivision = div.value"
+              >
+                {{ div.label }}
+              </button>
+            </template>
+            <div class="flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+              <button
+                v-for="fg in FIT_GIT_OPTIONS"
+                :key="fg.value"
+                type="button"
+                :class="cn(
+                  'rounded-md px-3 py-1 text-xs font-medium transition-all',
+                  (activeSegment === 'leisure' ? leisureDivision : businessFitGit) === fg.value ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+                )"
+                @click="activeSegment === 'leisure' ? (leisureDivision = fg.value) : (businessFitGit = fg.value)"
+              >
+                {{ fg.label }}
+              </button>
+            </div>
+          </div>
+        </div>
+      </template>
+    </PageHeader>
 
     <RoleAccessState v-if="!hasAccess" module-label="modul Operations & Scheduling" />
 
