@@ -2209,55 +2209,6 @@ const tripDurationDays = computed(() => {
                 </SectionCard>
               </div>
 
-              <!-- Peta Lokasi (dipindah dari header — header sekarang identitas murni) + Kesiapan Layanan (breakdown bar, versi ringkas dari tabel "Service Readiness Matrix" tab Itinerary & Services). -->
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Peta Lokasi" :class="serviceReadinessMatrix.length === 0 ? 'lg:col-span-2' : ''">
-                  <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" show-route />
-                </SectionCard>
-
-                <SectionCard v-if="serviceReadinessMatrix.length > 0" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Kesiapan Layanan" description="Agregat Confirmed/Completed per tipe layanan.">
-                  <template #actions>
-                    <StatusBadge
-                      :label="`${SERVICE_READINESS_STATUS_LABEL[serviceReadinessTone(serviceReadinessOverallPercent)]} · ${serviceConfirmedTotals.confirmed}/${serviceConfirmedTotals.total}`"
-                      :tone="serviceReadinessTone(serviceReadinessOverallPercent)"
-                    />
-                  </template>
-                  <div class="divide-y divide-border">
-                    <div v-for="row in serviceReadinessMatrix" :key="row.type" class="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                      <div
-                        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                        :class="{
-                          'bg-success/10 text-success': serviceReadinessTone(row.percent) === 'success',
-                          'bg-warning/10 text-warning': serviceReadinessTone(row.percent) === 'warning',
-                          'bg-destructive/10 text-destructive': serviceReadinessTone(row.percent) === 'destructive'
-                        }"
-                      >
-                        <component :is="SERVICE_TYPE_ICON[row.type]" class="h-4 w-4" />
-                      </div>
-                      <div class="min-w-0 flex-1">
-                        <div class="mb-1.5 flex items-center justify-between gap-2">
-                          <div class="flex items-center gap-2 min-w-0">
-                            <span class="text-sm font-medium text-foreground truncate">{{ findStatusOption(SERVICE_TYPES, row.type).label }}</span>
-                            <StatusBadge :label="SERVICE_READINESS_STATUS_LABEL[serviceReadinessTone(row.percent)]" :tone="serviceReadinessTone(row.percent)" />
-                          </div>
-                          <span class="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">{{ row.confirmedCount }}/{{ row.total }}</span>
-                        </div>
-                        <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
-                          <div
-                            class="h-full rounded-full transition-all duration-500"
-                            :class="{
-                              'bg-success': serviceReadinessTone(row.percent) === 'success',
-                              'bg-warning': serviceReadinessTone(row.percent) === 'warning',
-                              'bg-destructive': serviceReadinessTone(row.percent) === 'destructive'
-                            }"
-                            :style="{ width: `${row.percent}%` }"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </SectionCard>
-              </div>
             </div>
 
             <!-- Sidebar kanan Overview — Cakupan Layanan/Nilai Project/Tim Project ditumpuk vertikal sebagai 3 card terpisah (dulu satu card dibagi 3 kolom horizontal), supaya sejajar dengan pola sidebar kanan tab Itinerary & Services. -->
@@ -2422,6 +2373,56 @@ const tripDurationDays = computed(() => {
             </div>
           </div>
 
+          <!-- Peta Lokasi (dipindah dari header — header sekarang identitas murni) + Kesiapan Layanan (breakdown bar, versi ringkas dari tabel "Service Readiness Matrix" tab Itinerary & Services). Full-width di luar grid 3-kolom (pola sama Timeline Tracking) — di dalam kolom kiri 2/3 baris ini jatuh jauh di bawah sidebar kanan yang jauh lebih pendek, menyisakan area kosong di sebelah kanannya. -->
+          <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Peta Lokasi" :class="serviceReadinessMatrix.length === 0 ? 'lg:col-span-2' : ''">
+              <DestinationMap :geo="project.destinationGeo" :destination-text="project.destination" show-route />
+            </SectionCard>
+
+            <SectionCard v-if="serviceReadinessMatrix.length > 0" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Kesiapan Layanan" description="Agregat Confirmed/Completed per tipe layanan.">
+              <template #actions>
+                <StatusBadge
+                  :label="`${SERVICE_READINESS_STATUS_LABEL[serviceReadinessTone(serviceReadinessOverallPercent)]} · ${serviceConfirmedTotals.confirmed}/${serviceConfirmedTotals.total}`"
+                  :tone="serviceReadinessTone(serviceReadinessOverallPercent)"
+                />
+              </template>
+              <div class="divide-y divide-border">
+                <div v-for="row in serviceReadinessMatrix" :key="row.type" class="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
+                  <div
+                    class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
+                    :class="{
+                      'bg-success/10 text-success': serviceReadinessTone(row.percent) === 'success',
+                      'bg-warning/10 text-warning': serviceReadinessTone(row.percent) === 'warning',
+                      'bg-destructive/10 text-destructive': serviceReadinessTone(row.percent) === 'destructive'
+                    }"
+                  >
+                    <component :is="SERVICE_TYPE_ICON[row.type]" class="h-4 w-4" />
+                  </div>
+                  <div class="min-w-0 flex-1">
+                    <div class="mb-1.5 flex items-center justify-between gap-2">
+                      <div class="flex items-center gap-2 min-w-0">
+                        <span class="text-sm font-medium text-foreground truncate">{{ findStatusOption(SERVICE_TYPES, row.type).label }}</span>
+                        <StatusBadge :label="SERVICE_READINESS_STATUS_LABEL[serviceReadinessTone(row.percent)]" :tone="serviceReadinessTone(row.percent)" />
+                      </div>
+                      <span class="shrink-0 text-xs font-semibold tabular-nums text-muted-foreground">{{ row.confirmedCount }}/{{ row.total }}</span>
+                    </div>
+                    <div class="h-2 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        class="h-full rounded-full transition-all duration-500"
+                        :class="{
+                          'bg-success': serviceReadinessTone(row.percent) === 'success',
+                          'bg-warning': serviceReadinessTone(row.percent) === 'warning',
+                          'bg-destructive': serviceReadinessTone(row.percent) === 'destructive'
+                        }"
+                        :style="{ width: `${row.percent}%` }"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+          </div>
+
           <ProjectOrderTimelineTracking
             class="mt-4"
             :project-id="project.id"
@@ -2444,8 +2445,6 @@ const tripDurationDays = computed(() => {
                 titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
                 title="Departure Readiness Gate"
                 description="Ringkasan kesiapan lintas-domain sebelum keberangkatan — advisory, tidak memblokir transisi status."
-                accent
-                :tone="departureReadiness.isReady ? 'success' : 'warning'"
               >
                 <template #actions>
                   <NuxtLink :to="`/project-orders/${project.id}/run-sheet-preview`" target="_blank">
@@ -3421,9 +3420,10 @@ const tripDurationDays = computed(() => {
         </TabsContent>
 
         <TabsContent value="travelers">
-          <div class="space-y-6">
+          <div class="space-y-4">
             <SectionCard
               compact
+              titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
               title="Travelers"
               :description="`${travelers.length} dari ${formatTravelerCount(project.travelerCount)} tercatat detail profilnya`"
             >
@@ -3544,39 +3544,41 @@ const tripDurationDays = computed(() => {
                 </div>
               </template>
 
-              <!-- Readiness indicator (Section 11 baru) — flat stat tile per metrik (icon badge + label sebaris, angka besar, caption kecil), TANPA sparkline/progress bar. -->
-              <div v-if="travelerReadinessSteps.length" class="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <div v-for="step in travelerReadinessSteps" :key="step.key" class="rounded-2xl border border-border bg-card p-4">
-                  <div class="flex items-center gap-2.5">
-                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" :class="TONE_ICON_BG[step.tone]">
-                      <component :is="step.icon" class="h-4 w-4" />
+              <!-- Readiness indicator (Section 11 baru) — flat stat tile per metrik (icon badge + label sebaris, angka besar, caption kecil), TANPA sparkline/progress bar. Dibungkus satu background bersama supaya terbaca sebagai satu grup, bukan 4 card lepas. -->
+              <div v-if="travelerReadinessSteps.length" class="mb-4 rounded-xl border border-border bg-muted/20 p-3">
+                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                  <div v-for="step in travelerReadinessSteps" :key="step.key" class="rounded-lg border border-border bg-card p-3.5">
+                    <div class="flex items-center gap-2.5">
+                      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="TONE_ICON_BG[step.tone]">
+                        <component :is="step.icon" class="h-4 w-4" />
+                      </div>
+                      <p class="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {{ step.label }}
+                      </p>
                     </div>
-                    <p class="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      {{ step.label }}
+                    <p class="mt-2.5 text-2xl font-bold leading-none tabular-nums text-foreground">
+                      {{ step.count }}
+                    </p>
+                    <p class="mt-1 text-xs text-muted-foreground">
+                      dari {{ travelerReadiness?.total }} traveler
                     </p>
                   </div>
-                  <p class="mt-3 text-2xl font-bold leading-none tabular-nums text-foreground">
-                    {{ step.count }}
-                  </p>
-                  <p class="mt-1 text-xs text-muted-foreground">
-                    dari {{ travelerReadiness?.total }} traveler
-                  </p>
-                </div>
-                <div class="rounded-2xl border border-border bg-card p-4">
-                  <div class="flex items-center gap-2.5">
-                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl" :class="TONE_ICON_BG[serviceReadinessTone(travelerReadiness?.readinessPercent ?? 0)]">
-                      <Gauge class="h-4 w-4" />
+                  <div class="rounded-lg border border-border bg-card p-3.5">
+                    <div class="flex items-center gap-2.5">
+                      <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="TONE_ICON_BG[serviceReadinessTone(travelerReadiness?.readinessPercent ?? 0)]">
+                        <Gauge class="h-4 w-4" />
+                      </div>
+                      <p class="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Readiness
+                      </p>
                     </div>
-                    <p class="truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Readiness
+                    <p class="mt-2.5 text-2xl font-bold leading-none tabular-nums text-foreground">
+                      {{ travelerReadiness?.readinessPercent ?? 0 }}%
+                    </p>
+                    <p class="mt-1 text-xs text-muted-foreground">
+                      kesiapan keseluruhan
                     </p>
                   </div>
-                  <p class="mt-3 text-2xl font-bold leading-none tabular-nums text-foreground">
-                    {{ travelerReadiness?.readinessPercent ?? 0 }}%
-                  </p>
-                  <p class="mt-1 text-xs text-muted-foreground">
-                    kesiapan keseluruhan
-                  </p>
                 </div>
               </div>
 
@@ -3607,7 +3609,7 @@ const tripDurationDays = computed(() => {
                 </ul>
               </div>
 
-              <div v-if="travelers.length" class="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+              <div v-if="travelers.length" class="flex flex-col sm:flex-row sm:items-center gap-3 mb-4 rounded-xl border border-border bg-muted/20 p-3">
                 <div class="relative flex-1 max-w-sm">
                   <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input v-model="travelerSearch" placeholder="Cari nama traveler..." class="pl-9" />
@@ -3632,7 +3634,7 @@ const tripDurationDays = computed(() => {
                 </label>
               </div>
 
-              <Table v-if="travelers.length">
+              <Table v-if="travelers.length" class="rounded-xl border border-border">
                 <TableHeader>
                   <TableRow>
                     <TableHead>Nama</TableHead>
@@ -3837,17 +3839,16 @@ const tripDurationDays = computed(() => {
         </TabsContent>
 
         <TabsContent value="vendors">
-          <SectionCard compact title="Vendors" description="Vendor yang ditugaskan dan perbandingan quotation untuk tiap layanan project ini.">
+          <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Vendors" description="Vendor yang ditugaskan dan perbandingan quotation untuk tiap layanan project ini.">
             <div v-if="services.length" class="space-y-3">
               <div
                 v-for="row in vendorServiceRows"
                 :key="row.service.id"
-                class="rounded-lg border border-l-2 border-border p-4"
-                :class="TONE_BORDER_L[findStatusOption(SERVICE_STATUSES, row.service.status).tone]"
+                class="rounded-lg border border-border p-3.5"
               >
                 <div class="flex flex-wrap items-start justify-between gap-3">
                   <div class="flex min-w-0 items-start gap-2.5">
-                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" :class="TONE_ICON_BG[findStatusOption(SERVICE_TYPES, row.service.type).tone]">
+                    <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
                       <component :is="SERVICE_TYPE_ICON[row.service.type]" class="h-4 w-4" />
                     </div>
                     <div class="min-w-0">
@@ -4021,7 +4022,7 @@ const tripDurationDays = computed(() => {
                     <p class="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                       Financial Snapshot
                     </p>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <StatsCard
                         title="Project Value"
                         :value="formatCurrencyIdr(project.quotationAmountIdr)"
@@ -4050,12 +4051,12 @@ const tripDurationDays = computed(() => {
                     </div>
                   </div>
 
-                  <SectionCard v-if="serviceTypeSpendRows.length" compact title="Pengeluaran per Layanan" description="Alokasi budget dan actual cost per tipe layanan — dipecah dari Project Value/Actual Cost di atas.">
-                    <div class="space-y-4">
+                  <SectionCard v-if="serviceTypeSpendRows.length" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Pengeluaran per Layanan" description="Alokasi budget dan actual cost per tipe layanan — dipecah dari Project Value/Actual Cost di atas.">
+                    <div class="space-y-3">
                       <!-- Ringkasan Budget Project -->
-                      <div class="rounded-xl border border-border bg-card p-5">
+                      <div class="rounded-xl border border-border bg-card p-4">
                         <div class="flex items-center gap-2.5">
-                          <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                             <Calculator class="h-4 w-4" />
                           </div>
                           <p class="text-xs font-semibold uppercase tracking-wide text-foreground">
@@ -4063,12 +4064,12 @@ const tripDurationDays = computed(() => {
                           </p>
                         </div>
 
-                        <div class="mt-4 flex flex-wrap items-center gap-x-10 gap-y-4">
+                        <div class="mt-3 flex flex-wrap items-center gap-x-8 gap-y-3">
                           <div>
                             <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                               Total Budget Project
                             </p>
-                            <p class="mt-1 text-2xl font-bold leading-tight text-foreground">
+                            <p class="mt-1 text-xl font-bold leading-tight text-foreground">
                               {{ formatCurrencyIdr(serviceBudgetAllocationSummary.totalIdr) }}
                             </p>
                             <p class="mt-0.5 text-xs text-muted-foreground">
@@ -4079,7 +4080,7 @@ const tripDurationDays = computed(() => {
                             <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                               Sudah Dialokasikan
                             </p>
-                            <p class="mt-1 text-2xl font-bold leading-tight text-success">
+                            <p class="mt-1 text-xl font-bold leading-tight text-success">
                               {{ formatCurrencyIdr(serviceBudgetAllocationSummary.allocatedIdr) }}
                             </p>
                             <p class="mt-0.5 flex items-center gap-1 text-xs text-success">
@@ -4090,7 +4091,7 @@ const tripDurationDays = computed(() => {
                             <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                               Belum Dialokasikan
                             </p>
-                            <p class="mt-1 text-2xl font-bold leading-tight text-foreground">
+                            <p class="mt-1 text-xl font-bold leading-tight text-foreground">
                               {{ formatCurrencyIdr(Math.max(0, serviceBudgetAllocationSummary.unallocatedIdr)) }}
                             </p>
                             <p class="mt-0.5 text-xs text-muted-foreground">
@@ -4101,7 +4102,7 @@ const tripDurationDays = computed(() => {
                             <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                               Tingkat Alokasi
                             </p>
-                            <p class="mt-1 text-2xl font-bold leading-tight" :class="ALLOCATION_TEXT_CLASS[allocationRingTone]">
+                            <p class="mt-1 text-xl font-bold leading-tight" :class="ALLOCATION_TEXT_CLASS[allocationRingTone]">
                               {{ serviceBudgetAllocationPercent }}%
                             </p>
                             <p class="mt-0.5 text-xs" :class="ALLOCATION_TEXT_CLASS[allocationRingTone]">
@@ -4109,12 +4110,12 @@ const tripDurationDays = computed(() => {
                             </p>
                           </div>
 
-                          <div class="ml-auto flex h-14 w-14 shrink-0 items-center justify-center rounded-full border-4" :class="ALLOCATION_RING_CLASS[allocationRingTone]">
-                            <component :is="ALLOCATION_RING_ICON[allocationRingTone]" class="h-6 w-6" />
+                          <div class="ml-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-4" :class="ALLOCATION_RING_CLASS[allocationRingTone]">
+                            <component :is="ALLOCATION_RING_ICON[allocationRingTone]" class="h-5 w-5" />
                           </div>
                         </div>
 
-                        <div class="mt-4 h-2.5 w-full overflow-hidden rounded-full bg-muted">
+                        <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
                           <div class="h-full rounded-full transition-all" :class="TONE_BAR_BG[allocationRingTone]" :style="{ width: `${Math.min(100, serviceBudgetAllocationPercent)}%` }" />
                         </div>
                         <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -4130,10 +4131,10 @@ const tripDurationDays = computed(() => {
                       </div>
 
                       <!-- Baris per layanan -->
-                      <div class="space-y-2.5">
-                        <div v-for="row in serviceTypeSpendRows" :key="row.type" class="flex flex-col gap-4 rounded-lg border border-border p-3.5 sm:flex-row sm:items-center">
+                      <div class="space-y-2">
+                        <div v-for="row in serviceTypeSpendRows" :key="row.type" class="flex flex-col gap-3 rounded-lg border border-border p-3 sm:flex-row sm:items-center">
                           <div class="flex min-w-0 items-center gap-2.5 sm:w-52 sm:shrink-0">
-                            <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full" :class="TONE_ICON_BG[findStatusOption(SERVICE_TYPES, row.type).tone]">
+                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" :class="TONE_ICON_BG[findStatusOption(SERVICE_TYPES, row.type).tone]">
                               <component :is="SERVICE_TYPE_ICON[row.type]" class="h-4 w-4" />
                             </div>
                             <div class="min-w-0">
@@ -4201,7 +4202,7 @@ const tripDurationDays = computed(() => {
                   <p class="mb-3 hidden text-[11px] font-semibold uppercase tracking-wide text-transparent select-none xl:block" aria-hidden="true">
                     .
                   </p>
-                  <SectionCard compact title="Close Finance" description="Financial closure gate — menandai project ini &quot;Finance diselesaikan&quot; sebelum Project Closure.">
+                  <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Close Finance" description="Financial closure gate — menandai project ini &quot;Finance diselesaikan&quot; sebelum Project Closure.">
                     <p v-if="isFinanceAlreadySettled" class="mb-3 flex items-center gap-1.5 text-sm text-success">
                       <CheckCircle2 class="h-4 w-4 shrink-0" />Finance project ini sudah ditutup.
                     </p>
@@ -4326,7 +4327,7 @@ const tripDurationDays = computed(() => {
                 </div>
               </div>
 
-              <div class="grid grid-cols-1 items-start gap-6 lg:grid-cols-2">
+              <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
                 <ProjectInvoicesPanel
                   :invoices="invoices"
                   :can-manage-finance="canManageFinance"
@@ -4335,67 +4336,69 @@ const tripDurationDays = computed(() => {
                   @download-pdf="(invoice) => showToast('PDF (Mock)', `${invoice.id} — simulasi unduhan PDF, tidak ada file nyata (D-006).`, 'info')"
                 />
 
-                <ProjectPricingBreakdownCard
-                  :quotation-amount-idr="project.quotationAmountIdr"
-                  :invoice-issued-idr="invoiceIssuedIdr"
-                  :collected-idr="collectedIdr"
-                  :outstanding-idr="projectOutstandingIdr"
-                />
+                <!-- Rincian Harga + Credit/Debit Notes ditumpuk satu kolom (bukan grid 2 kolom terpisah) supaya mengisi tinggi kolom kanan sejajar dengan Invoice & Pembayaran yang biasanya lebih tinggi, tidak menyisakan space kosong di bawah Rincian Harga. -->
+                <div class="space-y-4">
+                  <ProjectPricingBreakdownCard
+                    :quotation-amount-idr="project.quotationAmountIdr"
+                    :invoice-issued-idr="invoiceIssuedIdr"
+                    :collected-idr="collectedIdr"
+                    :outstanding-idr="projectOutstandingIdr"
+                  />
+
+                  <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Credit / Debit Notes" description="Kelola dari Finance &gt; Credit/Debit Notes.">
+                    <template #actions>
+                      <NuxtLink to="/finance/invoices#notes">
+                        <Button size="sm">
+                          <Plus class="h-3.5 w-3.5 mr-1" />Add Note
+                        </Button>
+                      </NuxtLink>
+                    </template>
+                    <div class="space-y-3">
+                      <div>
+                        <p class="text-xs font-medium text-muted-foreground mb-1.5">
+                          Credit Notes
+                        </p>
+                        <ul v-if="projectCreditNotes.length" class="divide-y divide-border">
+                          <li v-for="note in projectCreditNotes" :key="note.id" class="py-1.5">
+                            <div class="flex items-center justify-between gap-2">
+                              <span class="text-sm text-foreground"><span class="font-ticket-mono font-medium">{{ note.id }}</span> — {{ formatCurrencyIdr(note.amountIdr) }}</span>
+                              <StatusBadge :label="findStatusOption(CREDIT_NOTE_STATUSES, note.status).label" :tone="findStatusOption(CREDIT_NOTE_STATUSES, note.status).tone" />
+                            </div>
+                            <p class="text-xs text-muted-foreground mt-0.5">
+                              {{ note.reason }}
+                            </p>
+                          </li>
+                        </ul>
+                        <p v-else class="text-xs text-muted-foreground">
+                          Belum ada Credit Note.
+                        </p>
+                      </div>
+                      <div class="border-t border-border pt-3">
+                        <p class="text-xs font-medium text-muted-foreground mb-1.5">
+                          Debit Notes
+                        </p>
+                        <ul v-if="projectDebitNotes.length" class="divide-y divide-border">
+                          <li v-for="note in projectDebitNotes" :key="note.id" class="py-1.5">
+                            <div class="flex items-center justify-between gap-2">
+                              <span class="text-sm text-foreground"><span class="font-ticket-mono font-medium">{{ note.id }}</span> — {{ formatCurrencyIdr(note.amountIdr) }}</span>
+                              <StatusBadge :label="findStatusOption(DEBIT_NOTE_STATUSES, note.status).label" :tone="findStatusOption(DEBIT_NOTE_STATUSES, note.status).tone" />
+                            </div>
+                            <p class="text-xs text-muted-foreground mt-0.5">
+                              {{ note.reason }}
+                            </p>
+                          </li>
+                        </ul>
+                        <p v-else class="text-xs text-muted-foreground">
+                          Belum ada Debit Note.
+                        </p>
+                      </div>
+                    </div>
+                  </SectionCard>
+                </div>
               </div>
 
-              <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <SectionCard compact title="Credit / Debit Notes" description="Kelola dari Finance &gt; Credit/Debit Notes.">
-                  <template #actions>
-                    <NuxtLink to="/finance/invoices#notes">
-                      <Button size="sm">
-                        <Plus class="h-3.5 w-3.5 mr-1" />Add Note
-                      </Button>
-                    </NuxtLink>
-                  </template>
-                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div>
-                      <p class="text-xs font-medium text-muted-foreground mb-2">
-                        Credit Notes
-                      </p>
-                      <ul v-if="projectCreditNotes.length" class="divide-y divide-border">
-                        <li v-for="note in projectCreditNotes" :key="note.id" class="py-2">
-                          <div class="flex items-center justify-between gap-2">
-                            <span class="text-sm text-foreground"><span class="font-ticket-mono font-medium">{{ note.id }}</span> — {{ formatCurrencyIdr(note.amountIdr) }}</span>
-                            <StatusBadge :label="findStatusOption(CREDIT_NOTE_STATUSES, note.status).label" :tone="findStatusOption(CREDIT_NOTE_STATUSES, note.status).tone" />
-                          </div>
-                          <p class="text-xs text-muted-foreground mt-0.5">
-                            {{ note.reason }}
-                          </p>
-                        </li>
-                      </ul>
-                      <p v-else class="text-xs text-muted-foreground">
-                        Belum ada Credit Note.
-                      </p>
-                    </div>
-                    <div>
-                      <p class="text-xs font-medium text-muted-foreground mb-2">
-                        Debit Notes
-                      </p>
-                      <ul v-if="projectDebitNotes.length" class="divide-y divide-border">
-                        <li v-for="note in projectDebitNotes" :key="note.id" class="py-2">
-                          <div class="flex items-center justify-between gap-2">
-                            <span class="text-sm text-foreground"><span class="font-ticket-mono font-medium">{{ note.id }}</span> — {{ formatCurrencyIdr(note.amountIdr) }}</span>
-                            <StatusBadge :label="findStatusOption(DEBIT_NOTE_STATUSES, note.status).label" :tone="findStatusOption(DEBIT_NOTE_STATUSES, note.status).tone" />
-                          </div>
-                          <p class="text-xs text-muted-foreground mt-0.5">
-                            {{ note.reason }}
-                          </p>
-                        </li>
-                      </ul>
-                      <p v-else class="text-xs text-muted-foreground">
-                        Belum ada Debit Note.
-                      </p>
-                    </div>
-                  </div>
-                </SectionCard>
-
-                <SectionCard compact title="Supplier Invoice (AP Summary)" description="Reconciliation lengkap di Finance &gt; Reconciliation.">
-                  <Table>
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Supplier Invoice (AP Summary)" description="Reconciliation lengkap di Finance &gt; Reconciliation.">
+                <Table>
                     <TableHeader>
                       <TableRow>
                         <TableHead>Supplier Invoice</TableHead>
@@ -4435,10 +4438,9 @@ const tripDurationDays = computed(() => {
                       </TableEmpty>
                     </TableBody>
                   </Table>
-                </SectionCard>
-              </div>
+              </SectionCard>
 
-              <SectionCard compact title="Pengeluaran Project" description="Pengeluaran ad-hoc (transport, konsumsi, perlengkapan, dll) yang langsung tercatat dan ikut Actual Cost — tanpa approval berlapis.">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Pengeluaran Project" description="Pengeluaran ad-hoc (transport, konsumsi, perlengkapan, dll) yang langsung tercatat dan ikut Actual Cost — tanpa approval berlapis.">
                 <template v-if="canManageFinance" #actions>
                   <Button size="sm" variant="outline" @click="openCreateExpense">
                     + Catat Pengeluaran
@@ -4470,11 +4472,11 @@ const tripDurationDays = computed(() => {
             </template>
 
             <template v-else>
-              <SectionCard compact title="Finance">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Finance">
                 <p class="text-xs text-muted-foreground mb-4">
                   Ringkasan terbatas — detail Budget, Actual Cost, Committed Vendor Cost, dan Margin hanya terlihat oleh role dengan akses modul Finance.
                 </p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <StatsCard
                     title="Nilai Quotation"
                     :value="formatCurrencyIdr(project.quotationAmountIdr)"
@@ -5058,7 +5060,7 @@ const tripDurationDays = computed(() => {
         </TabsContent>
 
         <TabsContent value="documents">
-          <SectionCard compact title="Documents" description="Kelola dan akses semua dokumen project secara terstruktur.">
+          <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Documents" description="Kelola dan akses semua dokumen project secara terstruktur.">
             <template #actions>
               <div class="flex flex-wrap items-center gap-2">
                 <div class="inline-flex items-center rounded-lg border border-input bg-muted/40 p-0.5">
@@ -5090,7 +5092,7 @@ const tripDurationDays = computed(() => {
               </div>
             </template>
 
-            <div class="mb-4 flex flex-wrap items-center gap-3">
+            <div class="mb-4 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-muted/20 p-3">
               <div class="relative min-w-[200px] flex-1">
                 <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
                 <Input v-model="documentSearchQuery" placeholder="Cari dokumen..." class="pl-9" />
@@ -5354,8 +5356,8 @@ const tripDurationDays = computed(() => {
         </TabsContent>
 
         <TabsContent value="activity-changes">
-          <div ref="activityHistoryRef" class="space-y-6">
-            <SectionCard compact title="Riwayat Aktivitas" description="Riwayat kronologis perubahan, komunikasi, dan event sistem untuk project ini — Activity/Change, Message, System Event, dan Document dalam satu list (Section 21, D-078).">
+          <div ref="activityHistoryRef" class="space-y-4">
+            <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Riwayat Aktivitas" description="Riwayat kronologis perubahan, komunikasi, dan event sistem untuk project ini — Activity/Change, Message, System Event, dan Document dalam satu list (Section 21, D-078).">
               <template #actions>
                 <div class="flex items-center gap-2">
                   <Sheet v-if="canLogChange" v-model:open="isChangeDialogOpen">
@@ -5480,7 +5482,7 @@ const tripDurationDays = computed(() => {
                 <li
                   v-for="item in visibleHistoryEntries"
                   :key="item.id"
-                  :class="['py-3 flex items-start gap-3', item.kind === 'change' ? 'border-l-2 pl-3 -ml-3' : '', item.activity?.approvalStatus === 'pending' ? 'border-warning' : item.activity?.approvalStatus === 'approved' ? 'border-success' : item.activity?.approvalStatus === 'rejected' ? 'border-destructive' : item.kind === 'change' ? 'border-border' : '']"
+                  class="py-3 flex items-start gap-3"
                 >
                   <component
                     :is="item.kind === 'message' ? MessageSquare : item.kind === 'document' ? FileText : item.kind === 'system-event' ? Settings2 : FileClock"
@@ -5563,8 +5565,8 @@ const tripDurationDays = computed(() => {
               <EmptyState v-if="visibleHistoryEntries.length === 0" title="Belum ada aktivitas tercatat" />
             </SectionCard>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <SectionCard compact title="Change Requests" description="Change Request terstruktur (before/after, dampak, approval) — Section 19, D-076. Lihat modul Changes & Incidents untuk daftar lengkap lintas project.">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Change Requests" description="Change Request terstruktur (before/after, dampak, approval) — Section 19, D-076. Lihat modul Changes & Incidents untuk daftar lengkap lintas project.">
                 <template #actions>
                   <NuxtLink to="/changes">
                     <Button size="sm" variant="outline">
@@ -5591,7 +5593,7 @@ const tripDurationDays = computed(() => {
                 <EmptyState v-else title="Belum ada Change Request terstruktur" />
               </SectionCard>
 
-              <SectionCard compact title="Cancellations" description="Penalty-tracking seragam lintas Flight/Hotel/Transport/MICE — dibuat otomatis saat booking dibatalkan.">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Cancellations" description="Penalty-tracking seragam lintas Flight/Hotel/Transport/MICE — dibuat otomatis saat booking dibatalkan.">
                 <ul v-if="projectCancellations.length" class="divide-y divide-border">
                   <li v-for="item in projectCancellations" :key="item.id" class="py-3">
                     <NuxtLink :to="`/changes/cancellations/${item.id}`" class="flex items-center justify-between gap-3 group">
@@ -5616,8 +5618,8 @@ const tripDurationDays = computed(() => {
               </SectionCard>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <SectionCard compact title="Refund Requests">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Refund Requests">
                 <ul v-if="projectRefunds.length" class="divide-y divide-border">
                   <li v-for="item in projectRefunds" :key="item.id" class="py-3">
                     <NuxtLink :to="`/changes/refunds/${item.id}`" class="flex items-center justify-between gap-3 group">
@@ -5636,7 +5638,7 @@ const tripDurationDays = computed(() => {
                 <EmptyState v-else title="Belum ada Refund Request" />
               </SectionCard>
 
-              <SectionCard compact title="Incidents">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Incidents">
                 <ul v-if="projectIncidents.length" class="divide-y divide-border">
                   <li v-for="item in projectIncidents" :key="item.id" class="py-3">
                     <NuxtLink :to="`/changes/incidents/${item.id}`" class="flex items-center justify-between gap-3 group">

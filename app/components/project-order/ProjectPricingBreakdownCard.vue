@@ -23,14 +23,14 @@ const isFullyPaid = computed(() => props.outstandingIdr <= 0 && props.quotationA
 </script>
 
 <template>
-  <SectionCard compact content-class="space-y-4">
+  <SectionCard compact content-class="space-y-2.5">
     <template #header>
-      <div class="flex items-start gap-3">
-        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <Calculator class="h-5 w-5" />
+      <div class="flex items-start gap-2.5">
+        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Calculator class="h-4 w-4" />
         </span>
         <div class="min-w-0">
-          <CardTitle class="text-sm font-bold uppercase tracking-wide text-foreground">
+          <CardTitle class="text-sm font-bold normal-case tracking-normal text-foreground">
             Rincian Harga
           </CardTitle>
           <CardDescription class="mt-0.5 text-xs">
@@ -45,17 +45,17 @@ const isFullyPaid = computed(() => props.outstandingIdr <= 0 && props.quotationA
         <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Nilai Kontrak
         </p>
-        <div class="mt-1.5 flex items-center justify-between text-sm">
+        <div class="mt-1 flex items-center justify-between text-sm">
           <span class="text-foreground">Nilai Kontrak Project</span>
           <span class="font-medium tabular-nums text-foreground">{{ formatCurrencyIdr(quotationAmountIdr) }}</span>
         </div>
       </div>
 
-      <div class="border-t border-border pt-3">
+      <div class="border-t border-border pt-2.5">
         <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Penagihan
         </p>
-        <div class="mt-1.5 space-y-1.5 text-sm">
+        <div class="mt-1 space-y-1 text-sm">
           <div class="flex items-center justify-between">
             <span class="text-foreground">Total Ditagih</span>
             <span class="font-medium tabular-nums text-foreground">{{ formatCurrencyIdr(invoiceIssuedIdr) }}</span>
@@ -67,17 +67,17 @@ const isFullyPaid = computed(() => props.outstandingIdr <= 0 && props.quotationA
         </div>
       </div>
 
-      <div class="border-t border-border pt-3">
+      <div class="border-t border-border pt-2.5">
         <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
           Pembayaran
         </p>
-        <div class="mt-1.5 flex items-center justify-between text-sm">
+        <div class="mt-1 flex items-center justify-between text-sm">
           <span class="text-foreground">Sudah Dibayar</span>
           <span class="font-medium tabular-nums text-success">{{ formatCurrencyIdr(collectedIdr) }}</span>
         </div>
       </div>
 
-      <div class="flex items-center justify-between border-t border-border pt-3">
+      <div class="flex items-center justify-between border-t border-border pt-2.5">
         <span class="text-sm font-bold text-foreground">{{ isFullyPaid ? 'Lunas' : 'Outstanding' }}</span>
         <span class="text-lg font-bold tabular-nums" :class="isFullyPaid ? 'text-success' : 'text-warning'">
           {{ formatCurrencyIdr(outstandingIdr) }}

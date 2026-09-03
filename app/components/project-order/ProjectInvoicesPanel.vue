@@ -54,14 +54,14 @@ function lastPaymentSummary (invoiceId: string, milestoneId?: string): string | 
 </script>
 
 <template>
-  <SectionCard compact content-class="space-y-4">
+  <SectionCard compact content-class="space-y-3">
     <template #header>
-      <div class="flex items-start gap-3">
-        <span class="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-          <Receipt class="h-5 w-5" />
+      <div class="flex items-start gap-2.5">
+        <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Receipt class="h-4 w-4" />
         </span>
         <div class="min-w-0">
-          <CardTitle class="text-sm font-bold uppercase tracking-wide text-foreground">
+          <CardTitle class="text-sm font-bold normal-case tracking-normal text-foreground">
             Invoice & Pembayaran
           </CardTitle>
           <CardDescription class="mt-0.5 text-xs">
@@ -77,17 +77,17 @@ function lastPaymentSummary (invoiceId: string, milestoneId?: string): string | 
     </template>
 
     <template v-if="invoices.length">
-      <div class="rounded-xl border border-primary/20 bg-primary/10 p-4">
+      <div class="rounded-lg border border-primary/20 bg-primary/10 p-3">
         <div class="flex items-center justify-between gap-3">
           <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-primary">
             <TrendingUp class="h-4 w-4" />Payment Progress
           </span>
           <span class="text-xl font-bold tabular-nums text-primary">{{ totals.percent }}%</span>
         </div>
-        <div class="mt-2.5 h-2 w-full overflow-hidden rounded-full bg-primary/15">
+        <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-primary/15">
           <div class="h-full rounded-full bg-primary transition-[width] duration-700 ease-out" :style="{ width: `${totals.percent}%` }" />
         </div>
-        <div class="mt-3 grid grid-cols-3 gap-2">
+        <div class="mt-2.5 grid grid-cols-3 gap-2">
           <div class="min-w-0">
             <p class="text-[11px] text-muted-foreground">
               Total Invoiced
@@ -115,8 +115,8 @@ function lastPaymentSummary (invoiceId: string, milestoneId?: string): string | 
         </div>
       </div>
 
-      <div class="space-y-3">
-        <div v-for="invoice in sortedInvoices" :key="invoice.id" class="rounded-xl border border-border p-4">
+      <div class="space-y-2.5">
+        <div v-for="invoice in sortedInvoices" :key="invoice.id" class="rounded-lg border border-border p-3">
           <div class="flex flex-wrap items-start justify-between gap-2">
             <div class="min-w-0">
               <p class="text-sm font-bold text-foreground">
@@ -141,7 +141,7 @@ function lastPaymentSummary (invoiceId: string, milestoneId?: string): string | 
           </div>
 
           <template v-if="invoice.milestones?.length">
-            <div class="mt-3 space-y-1.5 border-t border-border pt-2">
+            <div class="mt-2.5 space-y-1 border-t border-border pt-2">
               <div
                 v-for="milestone in invoice.milestones"
                 :key="milestone.id"
@@ -180,7 +180,7 @@ function lastPaymentSummary (invoiceId: string, milestoneId?: string): string | 
             </div>
           </template>
           <template v-else>
-            <div class="mt-3 flex items-center justify-between border-t border-border pt-2">
+            <div class="mt-2.5 flex items-center justify-between border-t border-border pt-2">
               <StatusBadge :label="findStatusOption(INVOICE_TYPES, invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, invoice.invoiceType).tone" />
               <span class="text-sm font-semibold tabular-nums text-foreground">{{ formatCurrencyIdr(invoice.amountIdr) }}</span>
             </div>
@@ -189,7 +189,7 @@ function lastPaymentSummary (invoiceId: string, milestoneId?: string): string | 
             </p>
           </template>
 
-          <div class="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+          <div class="mt-2.5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-2.5">
             <p class="text-xs text-muted-foreground">
               Total: <span class="font-semibold text-foreground">{{ formatCurrencyIdr(invoice.amountIdr) }}</span>
               · Paid: <span class="font-semibold text-success">{{ formatCurrencyIdr(paymentsForInvoice(invoice.id).reduce((sum, payment) => sum + payment.amountIdr, 0)) }}</span>
@@ -209,7 +209,7 @@ function lastPaymentSummary (invoiceId: string, milestoneId?: string): string | 
             </div>
           </div>
 
-          <p v-if="invoice.notes" class="mt-3 truncate border-t border-border pt-2 text-xs text-muted-foreground">
+          <p v-if="invoice.notes" class="mt-2.5 truncate border-t border-border pt-2 text-xs text-muted-foreground">
             Notes: {{ invoice.notes }}
           </p>
         </div>
