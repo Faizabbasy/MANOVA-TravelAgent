@@ -4770,22 +4770,22 @@ const tripDurationDays = computed(() => {
         <TabsContent value="tasks">
           <div class="space-y-6">
             <!-- Task Overview — ringkasan status task (klik salah satu tile untuk membuka papan Kanban terfilter di bawah). -->
-            <div class="rounded-2xl border border-border bg-card p-6 shadow-sm">
-              <div class="flex flex-wrap items-start justify-between gap-4">
-                <div class="flex items-start gap-3">
-                  <div class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <ListChecks class="h-5 w-5" />
+            <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div class="flex items-center gap-2.5">
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                    <ListChecks class="h-4 w-4" />
                   </div>
                   <div>
-                    <p class="text-sm font-bold uppercase tracking-wide text-foreground">
+                    <p class="text-xs font-bold uppercase tracking-wide text-foreground">
                       Task Overview
                     </p>
-                    <p class="mt-0.5 text-xs text-muted-foreground">
+                    <p class="text-xs text-muted-foreground">
                       Progress tugas project secara keseluruhan
                     </p>
                   </div>
                 </div>
-                <div class="flex items-center gap-2">
+                <div class="flex items-center gap-1.5">
                   <Button v-if="canManageProjectOrder" size="sm" variant="outline" @click="openCreateTask">
                     <Plus class="h-3.5 w-3.5 mr-1" />Tambah Task
                   </Button>
@@ -4795,56 +4795,56 @@ const tripDurationDays = computed(() => {
                 </div>
               </div>
 
-              <div v-if="tasks.length" class="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+              <div v-if="tasks.length" class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
                 <button
                   v-for="tile in taskOverviewTiles"
                   :key="tile.key"
                   type="button"
-                  class="rounded-xl border p-4 text-left transition-colors hover:border-primary/30 hover:bg-muted/20"
+                  class="rounded-lg border p-3 text-left transition-colors hover:border-primary/30 hover:bg-muted/20"
                   :class="taskBoardStatusFilter === tile.key ? 'border-primary/40 bg-primary/5' : 'border-border'"
                   @click="toggleTaskStatusTile(tile.key)"
                 >
-                  <div class="flex items-center gap-2.5">
-                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" :class="tile.toneClasses.iconBg">
-                      <component :is="tile.icon" class="h-4 w-4" :class="tile.toneClasses.icon" />
+                  <div class="flex items-center gap-2">
+                    <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full" :class="tile.toneClasses.iconBg">
+                      <component :is="tile.icon" class="h-3.5 w-3.5" :class="tile.toneClasses.icon" />
                     </div>
-                    <span class="truncate text-sm font-medium text-foreground">{{ tile.label }}</span>
+                    <span class="truncate text-xs font-medium text-foreground">{{ tile.label }}</span>
                   </div>
-                  <p class="mt-3 text-2xl font-bold leading-none text-foreground tabular-nums">
-                    {{ tile.count }}
-                  </p>
-                  <p class="mt-1 text-xs text-muted-foreground">
+                  <div class="mt-2 flex items-end justify-between gap-2">
+                    <p class="text-lg font-bold leading-none text-foreground tabular-nums">
+                      {{ tile.count }}
+                    </p>
+                    <span class="rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums" :class="tile.toneClasses.badge">{{ tile.percent }}%</span>
+                  </div>
+                  <p class="mt-0.5 text-[11px] text-muted-foreground">
                     {{ tile.subtitle }}
                   </p>
-                  <div class="mt-3 flex items-center justify-end">
-                    <span class="rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums" :class="tile.toneClasses.badge">{{ tile.percent }}%</span>
-                  </div>
-                  <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div class="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
                     <div class="h-full rounded-full transition-all" :class="tile.toneClasses.bar" :style="{ width: `${tile.percent}%` }" />
                   </div>
                 </button>
 
-                <div class="rounded-xl border border-border p-4">
+                <div class="rounded-lg border border-border p-3">
                   <div class="flex items-center justify-between gap-2">
-                    <p class="text-sm font-medium text-foreground">
+                    <p class="text-xs font-medium text-foreground">
                       Task Due Soon
                     </p>
-                    <span v-if="tasksDueSoon.length" class="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[11px] font-semibold text-destructive">{{ tasksDueSoon.length }}</span>
+                    <span v-if="tasksDueSoon.length" class="shrink-0 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold text-destructive">{{ tasksDueSoon.length }}</span>
                   </div>
-                  <ul v-if="tasksDueSoon.length" class="mt-3 space-y-3">
+                  <ul v-if="tasksDueSoon.length" class="mt-2 space-y-2">
                     <li v-for="task in tasksDueSoon.slice(0, 2)" :key="task.id" class="flex items-start gap-2">
                       <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" :class="isTaskDueVerySoon(task) ? 'bg-destructive' : 'bg-warning'" />
                       <div class="min-w-0">
-                        <p class="truncate text-xs font-medium text-foreground">
+                        <p class="truncate text-[11px] font-medium text-foreground">
                           {{ task.title }}
                         </p>
-                        <p class="text-[11px] text-muted-foreground">
+                        <p class="text-[10px] text-muted-foreground">
                           Jatuh tempo: <span :class="isTaskDueVerySoon(task) ? 'text-destructive font-medium' : 'text-warning font-medium'">{{ formatDate(task.dueAt) }}</span>
                         </p>
                       </div>
                     </li>
                   </ul>
-                  <p v-else class="mt-3 text-xs text-muted-foreground">
+                  <p v-else class="mt-2 text-[11px] text-muted-foreground">
                     Tidak ada task jatuh tempo dalam waktu dekat.
                   </p>
                 </div>
