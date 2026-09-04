@@ -54,7 +54,7 @@ function lastPaymentSummary (invoiceId: string, milestoneId?: string): string | 
 </script>
 
 <template>
-  <SectionCard compact content-class="space-y-3">
+  <SectionCard compact class="flex h-full flex-col" content-class="flex flex-1 flex-col space-y-3">
     <template #header>
       <div class="flex items-start gap-2.5">
         <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
@@ -214,10 +214,21 @@ function lastPaymentSummary (invoiceId: string, milestoneId?: string): string | 
           </p>
         </div>
       </div>
+
+      <!-- Mengisi sisa tinggi card supaya sejajar dengan kolom Rincian Harga + Credit/Debit Notes di sebelahnya (bukan dibiarkan kosong di bawah invoice terakhir). -->
+      <div class="flex flex-1 items-center justify-center rounded-lg border border-dashed border-border">
+        <EmptyState
+          :icon="Receipt"
+          size="compact"
+          title="Belum ada invoice berikutnya"
+          description="Invoice baru akan muncul di sini setelah dibuat."
+        />
+      </div>
     </template>
 
     <EmptyState
       v-else
+      class="flex flex-1 flex-col justify-center"
       :icon="Receipt"
       title="Belum ada invoice"
       :description="canManageFinance ? 'Buat invoice pertama langsung dari project ini — tidak perlu pindah ke modul Finance.' : 'Invoice akan muncul di sini setelah diterbitkan.'"

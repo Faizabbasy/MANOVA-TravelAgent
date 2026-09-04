@@ -4327,7 +4327,7 @@ const tripDurationDays = computed(() => {
                 </div>
               </div>
 
-              <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+              <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-stretch">
                 <ProjectInvoicesPanel
                   :invoices="invoices"
                   :can-manage-finance="canManageFinance"
