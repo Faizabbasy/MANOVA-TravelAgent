@@ -18,14 +18,24 @@ import type { ProjectMilestone, ProjectNote } from '~/types/project-order'
  */
 export const PROJECT_MILESTONES: ProjectMilestone[] = reactive([
   // PRJ-101 — Manila Business Trip (confirmed, sebagian besar on-track)
-  { id: 'PMS-101-1', projectId: 'PRJ-101', stepKey: 'drafting', name: 'SPK / Handover Diterima', plannedDate: '2026-06-10', actualDate: '2026-06-10', ownerId: 'USR-002', status: 'completed' },
+  { id: 'PMS-101-1', projectId: 'PRJ-101', stepKey: 'drafting', name: 'SPK / Handover Diterima', plannedDate: '2026-06-10', actualDate: '2026-06-10', ownerId: 'USR-002', status: 'completed', budgetIdr: 2_000_000, deliverables: [
+    { id: 'PMD-101-1-1', label: 'SPK ditandatangani', done: true },
+    { id: 'PMD-101-1-2', label: 'Handover checklist internal', done: true }
+  ] },
   { id: 'PMS-101-2', projectId: 'PRJ-101', stepKey: 'drafting', name: 'Finalisasi Itinerary', plannedDate: '2026-06-18', actualDate: '2026-06-16', ownerId: 'USR-002', status: 'completed', note: 'Selesai 2 hari lebih cepat.' },
   { id: 'PMS-101-3', projectId: 'PRJ-101', stepKey: 'confirmed', name: 'Invoice DP Terbit', plannedDate: '2026-06-20', actualDate: '2026-06-21', ownerId: 'USR-008', status: 'completed' },
-  { id: 'PMS-101-4', projectId: 'PRJ-101', stepKey: 'confirmed', name: 'Konfirmasi Vendor & Booking', plannedDate: '2026-07-05', actualDate: '2026-07-08', ownerId: 'USR-002', status: 'completed', note: 'Menunggu konfirmasi ulang hotel.' },
-  { id: 'PMS-101-5', projectId: 'PRJ-101', stepKey: 'start', name: 'Dokumen Traveler Lengkap', plannedDate: '2026-07-25', ownerId: 'USR-002', status: 'in-progress' },
+  { id: 'PMS-101-4', projectId: 'PRJ-101', stepKey: 'confirmed', name: 'Konfirmasi Vendor & Booking', plannedDate: '2026-07-05', actualDate: '2026-07-08', ownerId: 'USR-002', status: 'completed', note: 'Menunggu konfirmasi ulang hotel.', budgetIdr: 18_000_000, deliverables: [
+    { id: 'PMD-101-4-1', label: 'Kontrak vendor hotel', done: true },
+    { id: 'PMD-101-4-2', label: 'Kontrak vendor transportasi', done: true },
+    { id: 'PMD-101-4-3', label: 'PO ke seluruh vendor', done: false }
+  ] },
+  { id: 'PMS-101-5', projectId: 'PRJ-101', stepKey: 'start', name: 'Dokumen Traveler Lengkap', plannedDate: '2026-07-25', ownerId: 'USR-002', status: 'in-progress', deliverables: [
+    { id: 'PMD-101-5-1', label: 'Paspor & visa terkumpul', done: true },
+    { id: 'PMD-101-5-2', label: 'Form kesehatan terkumpul', done: false }
+  ] },
   { id: 'PMS-101-6', projectId: 'PRJ-101', stepKey: 'departure', name: 'Keberangkatan', plannedDate: '2026-08-12', ownerId: 'USR-002', status: 'not-started' },
   { id: 'PMS-101-7', projectId: 'PRJ-101', stepKey: 'on-progress', name: 'Trip Selesai', plannedDate: '2026-08-16', ownerId: 'USR-002', status: 'not-started' },
-  { id: 'PMS-101-8', projectId: 'PRJ-101', stepKey: 'done', name: 'Laporan Akhir & Review Klien', plannedDate: '2026-08-25', ownerId: 'USR-002', status: 'not-started' },
+  { id: 'PMS-101-8', projectId: 'PRJ-101', stepKey: 'done', name: 'Laporan Akhir & Review Klien', plannedDate: '2026-08-25', ownerId: 'USR-002', status: 'not-started', budgetIdr: 1_500_000 },
 
   // PRJ-102 — Abu Dhabi Corporate Gathering (planning, high-change — sengaja ada keterlambatan)
   { id: 'PMS-102-1', projectId: 'PRJ-102', stepKey: 'drafting', name: 'SPK / Handover Diterima', plannedDate: '2026-06-25', actualDate: '2026-07-02', ownerId: 'USR-002', status: 'completed', note: 'Tertunda karena revisi scope dari klien.' },

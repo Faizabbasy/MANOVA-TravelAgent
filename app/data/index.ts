@@ -904,6 +904,7 @@ export function removeProjectTeamMember (projectId: string, userId: string): Pro
 export interface CreateProjectTaskInput {
   projectId: string
   title: string
+  status?: ProjectTask['status']
   dueAt?: string
   isMilestone?: boolean
   dependsOnTaskId?: string

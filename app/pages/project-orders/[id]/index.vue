@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Wallet, Users, User, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2, MapPin, CalendarRange, CreditCard, FileText, PieChart, Eye, EyeOff, LayoutGrid, List, Download, MessageSquare, FileClock, Settings2, ImagePlus, Plane, Hotel, Bus, PartyPopper, Package, Gauge, Clock, ChevronRight, ChevronLeft, ListChecks, CircleDashed, Check, MoreVertical, FolderOpen, Kanban, GanttChartSquare, MoreHorizontal, Calculator, Info } from 'lucide-vue-next'
+import { FileX, Wallet, Users, User, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2, MapPin, CalendarRange, CreditCard, FileText, PieChart, Eye, EyeOff, LayoutGrid, List, Download, MessageSquare, FileClock, Settings2, ImagePlus, Plane, Hotel, Bus, PartyPopper, Package, Gauge, Clock, ChevronRight, ChevronLeft, ListChecks, CircleDashed, Check, MoreVertical, FolderOpen, Kanban, MoreHorizontal, Calculator, Info } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getContactsByParty, getUserById, getVendorById, getLeadById,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
@@ -36,7 +36,9 @@ import type { SalesOrder } from '~/types/sales-order'
 import type { BookingTimelineEntry } from '~/types/booking-orchestration'
 import {
   getProjectOrderStepViews, advanceProjectOrder, getProjectMilestones,
-  setMilestoneActualDate, updateMilestonePlannedDate, updateMilestoneNote, getProjectOrderStep
+  setMilestoneActualDate, updateMilestonePlannedDate, updateMilestoneNote, getProjectOrderStep,
+  getProjectMilestoneSummary, getMilestoneProgressPercent, toggleMilestoneDeliverable,
+  addMilestoneDeliverable, removeMilestoneDeliverable, updateMilestoneBudget, getProjectMilestoneBudgetSummary
 } from '~/data/project-order-workflow'
 import { getProjectActualCostIdr, getProjectExpenses, createProjectExpense, PROJECT_EXPENSE_CATEGORIES, getServiceTypeSpendBreakdown } from '~/data/finance-ext'
 import { getEmployeeByUserId } from '~/data/hr'
@@ -50,8 +52,8 @@ import {
   CREDIT_NOTE_STATUSES, DEBIT_NOTE_STATUSES, SUPPLIER_INVOICE_MATCH_STATUSES, SUPPLIER_INVOICE_STATUSES,
   DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES, SALES_ORDER_STATUSES
 } from '~/constants/status'
-import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatDayBadge, formatTravelerCount, maskDocumentNumber, daysUntil } from '~/utils/format'
-import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, isInvoiceDueSoon, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT, isDpBalanceOverdue, isTaskUpcoming } from '~/utils/attention'
+import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatDayBadge, formatTravelerCount, maskDocumentNumber } from '~/utils/format'
+import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, isInvoiceDueSoon, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT, isDpBalanceOverdue } from '~/utils/attention'
 import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ItineraryItem, ProjectService } from '~/types/project'
 import type { ChangeCategory, ProjectTask, ShiftPeriod } from '~/types/activity'
 import type { Invoice, InvoiceMilestone, InvoiceType } from '~/types/finance'
@@ -144,6 +146,7 @@ const activeTab = computed<ProjectDetailTab>({
 const TABS = computed<{ value: ProjectDetailTab; label: string }[]>(() => (project.value?.isGroupTrip
   ? [
       { value: 'overview', label: 'Overview' },
+      { value: 'milestone', label: 'Milestone' },
       { value: 'bookings', label: 'Bookings' },
       { value: 'travelers', label: 'Participants' },
       { value: 'itinerary-services', label: 'Itinerary & Services' },
@@ -154,6 +157,7 @@ const TABS = computed<{ value: ProjectDetailTab; label: string }[]>(() => (proje
     ]
   : [
       { value: 'overview', label: 'Overview' },
+      { value: 'milestone', label: 'Milestone' },
       { value: 'itinerary-services', label: 'Itinerary & Services' },
       { value: 'travelers', label: 'Travelers' },
       { value: 'vendors', label: 'Vendors' },
@@ -391,6 +395,43 @@ function onUpdateMilestoneNote (payload: { milestoneId: string; note: string }) 
   showToast('Catatan Disimpan', 'Catatan milestone berhasil diperbarui.', 'success')
 }
 
+/** Tab "Milestone" — ringkasan (StatsCard) dan aksi checklist/budget. Progress % diturunkan, lihat `getMilestoneProgressPercent`. */
+const milestoneSummary = computed(() => {
+  void refreshKey.value
+  return getProjectMilestoneSummary(project.value?.id ?? '')
+})
+const milestoneBudgetSummary = computed(() => {
+  void refreshKey.value
+  return getProjectMilestoneBudgetSummary(project.value?.id ?? '')
+})
+const milestoneOverallProgressPercent = computed(() => {
+  const list = milestones.value
+  if (list.length === 0) { return 0 }
+  const total = list.reduce((sum, milestone) => sum + getMilestoneProgressPercent(milestone), 0)
+  return Math.round(total / list.length)
+})
+
+function onToggleMilestoneDeliverable (payload: { milestoneId: string; deliverableId: string }) {
+  toggleMilestoneDeliverable(payload.milestoneId, payload.deliverableId)
+  refreshStep()
+}
+
+function onAddMilestoneDeliverable (payload: { milestoneId: string; label: string }) {
+  addMilestoneDeliverable(payload.milestoneId, payload.label)
+  refreshStep()
+}
+
+function onRemoveMilestoneDeliverable (payload: { milestoneId: string; deliverableId: string }) {
+  removeMilestoneDeliverable(payload.milestoneId, payload.deliverableId)
+  refreshStep()
+}
+
+function onUpdateMilestoneBudget (payload: { milestoneId: string; budgetIdr?: number }) {
+  updateMilestoneBudget(payload.milestoneId, payload.budgetIdr)
+  refreshStep()
+  showToast('Budget Disimpan', 'Budget milestone berhasil diperbarui.', 'success')
+}
+
 const party = computed(() => project.value ? getPartyById(project.value.partyId) : undefined)
 /** PIC (contact person) sisi client — kontak pertama yang tercatat untuk Party ini (`CONTACTS`, `app/data/parties.ts`), ditampilkan di header project untuk memudahkan koordinasi cepat lewat WhatsApp. */
 const clientPic = computed(() => (party.value ? getContactsByParty(party.value.id)[0] : undefined))
@@ -433,6 +474,7 @@ function submitRemoveTeamMember (userId: string) {
 const isTaskDialogOpen = ref(false)
 const editingTaskId = ref<string | null>(null)
 const taskTitle = ref('')
+const taskStatus = ref<ProjectTask['status']>('not-started')
 const taskDueAt = ref('')
 const taskIsMilestone = ref(false)
 const taskDependsOn = ref('')
@@ -441,6 +483,7 @@ const taskAssignedTo = ref('')
 function openCreateTask () {
   editingTaskId.value = null
   taskTitle.value = ''
+  taskStatus.value = 'not-started'
   taskDueAt.value = ''
   taskIsMilestone.value = false
   taskDependsOn.value = ''
@@ -452,6 +495,7 @@ function submitTask () {
   if (!project.value || !taskTitle.value.trim()) { return }
   const payload = {
     title: taskTitle.value.trim(),
+    status: taskStatus.value,
     dueAt: taskDueAt.value || undefined,
     isMilestone: taskIsMilestone.value || undefined,
     dependsOnTaskId: taskDependsOn.value || undefined,
@@ -1007,6 +1051,15 @@ const allocationRingTone = computed<'success' | 'destructive' | 'primary'>(() =>
 const ALLOCATION_RING_ICON = { success: Check, destructive: AlertTriangle, primary: PieChart } as const
 const ALLOCATION_STATUS_LABEL = { success: 'Fully allocated', destructive: 'Over-alokasi', primary: 'Sebagian dialokasikan' } as const
 
+/** Tone kartu "Ringkasan Budget per Milestone" (tab Finance) — breakdown alternatif dari `project.budgetIdr`
+ * yang sama, pola tone sama seperti alokasi per-layanan di atas. */
+const milestoneAllocationTone = computed<'success' | 'destructive' | 'primary'>(() => {
+  const summary = milestoneBudgetSummary.value
+  if (summary.allocatedToMilestonesIdr > summary.totalProjectBudgetIdr && summary.totalProjectBudgetIdr > 0) { return 'destructive' }
+  if (summary.totalProjectBudgetIdr > 0 && summary.unallocatedIdr === 0) { return 'success' }
+  return 'primary'
+})
+
 /** Edit alokasi budget per layanan — Sheet berisi seluruh baris `ProjectService` dari satu tipe (bisa lebih dari 1, mis. 2 hotel), satu `CurrencyInput` per baris, pola sama Sheet "Catat Pengeluaran". */
 const isServiceBudgetDialogOpen = ref(false)
 const serviceBudgetTypeLabel = ref('')
@@ -1193,13 +1246,6 @@ const tasks = computed(() => project.value ? getTasksByProject(project.value.id)
 /** Stat ringkas tab Overview — 'done' adalah key status task yang sudah completed (`TASK_STATUSES`). */
 const tasksDoneCount = computed(() => tasks.value.filter(task => task.status === 'done').length)
 
-/** "Task Overview" (tab Tasks) — 4 tile ringkasan (To Do/In Progress/Waiting/Done), murni derivasi dari `tasks`; `overdue` sendiri tetap terwakili sebagai kolom kelima di Kanban board, tidak jadi tile ringkasan terpisah. */
-const TASK_OVERVIEW_TILE_DEFS = [
-  { key: 'not-started', label: 'To Do', subtitle: 'Belum dikerjakan', icon: List, tone: 'primary' },
-  { key: 'in-progress', label: 'In Progress', subtitle: 'Sedang dikerjakan', icon: CircleDashed, tone: 'info' },
-  { key: 'pending-confirmation', label: 'Waiting / On Hold', subtitle: 'Menunggu / Ditunda', icon: Clock, tone: 'warning' },
-  { key: 'done', label: 'Done', subtitle: 'Selesai', icon: CheckCircle2, tone: 'success' }
-] as const
 const TASK_TILE_TONE_CLASSES: Record<string, { iconBg: string; icon: string; badge: string; bar: string; solid: string; bgSoft: string; border: string }> = {
   primary: { iconBg: 'bg-primary/10', icon: 'text-primary', badge: 'bg-primary/10 text-primary', bar: 'bg-primary', solid: 'bg-primary text-primary-foreground', bgSoft: 'bg-primary/[0.06]', border: 'border-primary/20' },
   info: { iconBg: 'bg-chart-5/10', icon: 'text-chart-5', badge: 'bg-chart-5/10 text-chart-5', bar: 'bg-chart-5', solid: 'bg-chart-5 text-white', bgSoft: 'bg-chart-5/[0.06]', border: 'border-chart-5/20' },
@@ -1222,20 +1268,6 @@ const TASK_COLUMN_TONE: Record<string, string> = {
   done: 'success',
   overdue: 'destructive'
 }
-const taskOverviewTiles = computed(() => TASK_OVERVIEW_TILE_DEFS.map((def) => {
-  const count = tasks.value.filter(task => task.status === def.key).length
-  const percent = tasks.value.length > 0 ? Math.round((count / tasks.value.length) * 100) : 0
-  return { ...def, count, percent, toneClasses: TASK_TILE_TONE_CLASSES[def.tone] }
-}))
-/** "Task Due Soon" — reuse `isTaskUpcoming` (window H+14, sudah ada untuk widget dashboard PM), diurutkan due date terdekat dulu. */
-const tasksDueSoon = computed(() => tasks.value
-  .filter(task => isTaskUpcoming(task))
-  .sort((a, b) => (a.dueAt ?? '').localeCompare(b.dueAt ?? '')))
-/** Dot merah untuk task due soon yang sangat mepet (H-3) — hijau/oranye tetap dianggap "cukup waktu", pola sama urgency tiering di komponen lain (bukan threshold baru). */
-function isTaskDueVerySoon (task: ProjectTask): boolean {
-  return !!task.dueAt && daysUntil(task.dueAt, DEMO_REFERENCE_DATE) <= 3
-}
-
 function handleTaskColumnMenu (status: { label: string }) {
   showToast('Menu (Mock)', `Aksi kolom "${status.label}" — kelola urutan/warna kolom lengkap di modul Tasks.`, 'info')
 }
@@ -1245,10 +1277,6 @@ function handleTaskColumnMenu (status: { label: string }) {
  * sama dua kali (atau "Lihat Semua") mengembalikan ke 5 kolom penuh. */
 const taskBoardStatusFilter = ref<string | null>(null)
 const taskBoardRef = ref<HTMLElement | null>(null)
-function toggleTaskStatusTile (statusKey: string) {
-  taskBoardStatusFilter.value = taskBoardStatusFilter.value === statusKey ? null : statusKey
-  nextTick(() => taskBoardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
-}
 function showAllTasks () {
   taskBoardStatusFilter.value = null
   nextTick(() => taskBoardRef.value?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
@@ -1257,20 +1285,20 @@ const visibleTaskStatuses = computed(() => taskBoardStatusFilter.value
   ? TASK_STATUSES.filter(status => status.value === taskBoardStatusFilter.value)
   : TASK_STATUSES)
 
-/** Badge tone/label untuk "Task Progress Timeline" — pola sama `STATUS_META` di `ProjectOrderTimelineTracking.vue` (tidak diimpor karena komponen itu terikat ke tabel/gantt, bukan stepper horizontal). */
-const TASK_TIMELINE_STATUS_META: Record<string, { label: string; tone: BadgeTone }> = {
-  'not-started': { label: 'Belum Mulai', tone: 'neutral' },
-  'in-progress': { label: 'Berjalan', tone: 'info' },
-  completed: { label: 'Selesai', tone: 'success' },
-  delayed: { label: 'Terlambat', tone: 'destructive' },
-  cancelled: { label: 'Dibatalkan', tone: 'neutral' }
-}
 /** Section 21 (D-078) — union `Document` baru + `ProjectDocument` legacy, dipakai tab "Documents" yang diperkaya (category/version/expiry/access level). */
 const unifiedDocuments = computed(() => project.value ? getDocumentsForProject(project.value.id) : [])
 /** Toggle List/Grid ala Google Drive untuk tab Documents — preferensi tampilan saja, tidak memengaruhi data. */
 const documentsViewMode = ref<'list' | 'grid'>('grid')
 function handleDownloadDocument (document: { name: string }) {
   showToast('Download (Mock)', `${document.name} — simulasi unduhan, tidak ada file nyata (D-006).`, 'info')
+}
+/** Tombol "Lihat" (kartu grid Documents) — dokumen `generated` punya halaman preview asli, sisanya (upload manual) belum ada file nyata untuk dipratinjau (D-006), jadi fallback ke toast mock yang sama dengan Download. */
+function handlePreviewDocument (document: { name: string; sourceType?: string; previewRoute?: string }) {
+  if (document.sourceType === 'generated' && document.previewRoute) {
+    void navigateTo(document.previewRoute, { open: { target: '_blank' } })
+    return
+  }
+  showToast('Preview (Mock)', `${document.name} — pratinjau belum tersedia untuk dokumen upload manual (D-006).`, 'info')
 }
 function handleDocumentMenu (document: { name: string }) {
   showToast('Menu (Mock)', `Aksi lain untuk "${document.name}" — kelola versi/hapus lengkap di Documents & Communication.`, 'info')
@@ -2422,9 +2450,23 @@ const tripDurationDays = computed(() => {
               </div>
             </SectionCard>
           </div>
+        </TabsContent>
+
+        <TabsContent value="milestone">
+          <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+            <StatsCard title="Total Milestone" :value="String(milestoneSummary.total)" :icon="ListChecks" />
+            <StatsCard title="Selesai" :value="String(milestoneSummary.completed)" :icon="CheckCircle2" icon-color="success" />
+            <StatsCard title="Delay" :value="String(milestoneSummary.delayed)" :icon="AlertTriangle" :icon-color="milestoneSummary.delayed > 0 ? 'destructive' : 'primary'" />
+            <StatsCard title="Progress Keseluruhan" :value="`${milestoneOverallProgressPercent}%`" :icon="Gauge" :progress-percent="milestoneOverallProgressPercent" />
+            <StatsCard
+              title="Total Budget Milestone"
+              :value="formatCurrencyIdr(milestoneBudgetSummary.allocatedToMilestonesIdr)"
+              :icon="Wallet"
+              :subtitle="milestoneBudgetSummary.allocationPercent !== undefined ? `${milestoneBudgetSummary.allocationPercent}% dari budget project` : undefined"
+            />
+          </div>
 
           <ProjectOrderTimelineTracking
-            class="mt-4"
             :project-id="project.id"
             :milestones="milestones"
             :can-manage="canManageOperations"
@@ -2432,6 +2474,10 @@ const tripDurationDays = computed(() => {
             @mark-actual="onMarkMilestoneActual"
             @update-planned="onUpdateMilestonePlanned"
             @update-note="onUpdateMilestoneNote"
+            @toggle-deliverable="onToggleMilestoneDeliverable"
+            @add-deliverable="onAddMilestoneDeliverable"
+            @remove-deliverable="onRemoveMilestoneDeliverable"
+            @update-budget="onUpdateMilestoneBudget"
           />
         </TabsContent>
 
@@ -4194,6 +4240,62 @@ const tripDurationDays = computed(() => {
                       </p>
                     </div>
                   </SectionCard>
+
+                  <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Ringkasan Budget per Milestone" description="Breakdown alternatif dari Total Budget Project yang sama — lihat detail per milestone di tab Milestone.">
+                    <div class="rounded-xl border border-border bg-card p-4">
+                      <div class="flex items-center gap-2.5">
+                        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                          <Wallet class="h-4 w-4" />
+                        </div>
+                        <p class="text-xs font-semibold uppercase tracking-wide text-foreground">
+                          Ringkasan Budget per Milestone
+                        </p>
+                      </div>
+
+                      <div class="mt-3 flex flex-wrap items-center gap-x-8 gap-y-3">
+                        <div>
+                          <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Total Budget Project
+                          </p>
+                          <p class="mt-1 text-xl font-bold leading-tight text-foreground">
+                            {{ formatCurrencyIdr(milestoneBudgetSummary.totalProjectBudgetIdr) }}
+                          </p>
+                        </div>
+                        <div>
+                          <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Sudah Dialokasikan ke Milestone
+                          </p>
+                          <p class="mt-1 text-xl font-bold leading-tight text-success">
+                            {{ formatCurrencyIdr(milestoneBudgetSummary.allocatedToMilestonesIdr) }}
+                          </p>
+                        </div>
+                        <div>
+                          <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Belum Dialokasikan
+                          </p>
+                          <p class="mt-1 text-xl font-bold leading-tight text-foreground">
+                            {{ formatCurrencyIdr(Math.max(0, milestoneBudgetSummary.unallocatedIdr)) }}
+                          </p>
+                        </div>
+                        <div>
+                          <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                            Tingkat Alokasi
+                          </p>
+                          <p class="mt-1 text-xl font-bold leading-tight" :class="ALLOCATION_TEXT_CLASS[milestoneAllocationTone]">
+                            {{ milestoneBudgetSummary.allocationPercent ?? 0 }}%
+                          </p>
+                        </div>
+
+                        <div class="ml-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-4" :class="ALLOCATION_RING_CLASS[milestoneAllocationTone]">
+                          <component :is="ALLOCATION_RING_ICON[milestoneAllocationTone]" class="h-5 w-5" />
+                        </div>
+                      </div>
+
+                      <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+                        <div class="h-full rounded-full transition-all" :class="TONE_BAR_BG[milestoneAllocationTone]" :style="{ width: `${Math.min(100, milestoneBudgetSummary.allocationPercent ?? 0)}%` }" />
+                      </div>
+                    </div>
+                  </SectionCard>
                 </div>
 
                 <div class="space-y-4">
@@ -4720,141 +4822,6 @@ const tripDurationDays = computed(() => {
 
         <TabsContent value="tasks">
           <div class="space-y-6">
-            <!-- Task Overview — ringkasan status task (klik salah satu tile untuk membuka papan Kanban terfilter di bawah). -->
-            <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
-              <div class="flex flex-wrap items-start justify-between gap-3">
-                <div class="flex items-center gap-2.5">
-                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                    <ListChecks class="h-4 w-4" />
-                  </div>
-                  <div>
-                    <p class="text-xs font-bold uppercase tracking-wide text-foreground">
-                      Task Overview
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      Progress tugas project secara keseluruhan
-                    </p>
-                  </div>
-                </div>
-                <div class="flex items-center gap-1.5">
-                  <Button v-if="canManageProjectOrder" size="sm" variant="outline" @click="openCreateTask">
-                    <Plus class="h-3.5 w-3.5 mr-1" />Tambah Task
-                  </Button>
-                  <Button v-if="tasks.length" size="sm" class="border-primary/25 bg-primary/10 text-primary hover:bg-primary/20" variant="outline" @click="showAllTasks">
-                    <ListChecks class="h-3.5 w-3.5 mr-1.5" />Lihat Semua<ChevronRight class="h-3.5 w-3.5 ml-1" />
-                  </Button>
-                </div>
-              </div>
-
-              <div v-if="tasks.length" class="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                <button
-                  v-for="tile in taskOverviewTiles"
-                  :key="tile.key"
-                  type="button"
-                  class="rounded-lg border p-3 text-left transition-colors hover:border-primary/30 hover:bg-muted/20"
-                  :class="taskBoardStatusFilter === tile.key ? 'border-primary/40 bg-primary/5' : 'border-border'"
-                  @click="toggleTaskStatusTile(tile.key)"
-                >
-                  <div class="flex items-center gap-2">
-                    <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full" :class="tile.toneClasses.iconBg">
-                      <component :is="tile.icon" class="h-3.5 w-3.5" :class="tile.toneClasses.icon" />
-                    </div>
-                    <span class="truncate text-xs font-medium text-foreground">{{ tile.label }}</span>
-                  </div>
-                  <div class="mt-2 flex items-end justify-between gap-2">
-                    <p class="text-lg font-bold leading-none text-foreground tabular-nums">
-                      {{ tile.count }}
-                    </p>
-                    <span class="rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums" :class="tile.toneClasses.badge">{{ tile.percent }}%</span>
-                  </div>
-                  <p class="mt-0.5 text-[11px] text-muted-foreground">
-                    {{ tile.subtitle }}
-                  </p>
-                  <div class="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-muted">
-                    <div class="h-full rounded-full transition-all" :class="tile.toneClasses.bar" :style="{ width: `${tile.percent}%` }" />
-                  </div>
-                </button>
-
-                <div class="rounded-lg border border-border p-3">
-                  <div class="flex items-center justify-between gap-2">
-                    <p class="text-xs font-medium text-foreground">
-                      Task Due Soon
-                    </p>
-                    <span v-if="tasksDueSoon.length" class="shrink-0 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[10px] font-semibold text-destructive">{{ tasksDueSoon.length }}</span>
-                  </div>
-                  <ul v-if="tasksDueSoon.length" class="mt-2 space-y-2">
-                    <li v-for="task in tasksDueSoon.slice(0, 2)" :key="task.id" class="flex items-start gap-2">
-                      <span class="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full" :class="isTaskDueVerySoon(task) ? 'bg-destructive' : 'bg-warning'" />
-                      <div class="min-w-0">
-                        <p class="truncate text-[11px] font-medium text-foreground">
-                          {{ task.title }}
-                        </p>
-                        <p class="text-[10px] text-muted-foreground">
-                          Jatuh tempo: <span :class="isTaskDueVerySoon(task) ? 'text-destructive font-medium' : 'text-warning font-medium'">{{ formatDate(task.dueAt) }}</span>
-                        </p>
-                      </div>
-                    </li>
-                  </ul>
-                  <p v-else class="mt-2 text-[11px] text-muted-foreground">
-                    Tidak ada task jatuh tempo dalam waktu dekat.
-                  </p>
-                </div>
-              </div>
-              <EmptyState v-else title="Belum ada task tercatat" />
-            </div>
-
-            <!-- Task Progress Timeline — dipisah di atas Kanban board (bukan lagi toggle), milestone project ini (`getProjectMilestones`), digambar horizontal ala Order Status Stepper (Overview). -->
-            <div v-if="milestones.length" class="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
-                <div class="flex items-center gap-3">
-                  <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                    <GanttChartSquare class="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p class="text-sm font-bold uppercase tracking-wide text-foreground">
-                      Task Progress Timeline
-                    </p>
-                    <p class="mt-0.5 text-xs text-muted-foreground">
-                      Periode: {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div class="overflow-x-auto no-scrollbar [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden pb-1">
-                <ol class="flex min-w-[640px] items-start">
-                  <li v-for="(milestone, index) in milestones" :key="milestone.id" class="flex flex-1 items-start last:flex-none">
-                    <div class="flex w-[150px] shrink-0 flex-col items-center gap-2 px-1">
-                      <span
-                        class="flex h-9 w-9 items-center justify-center rounded-full border-2 text-xs font-semibold shadow-sm"
-                        :class="milestone.status === 'completed' ? 'border-primary bg-primary text-primary-foreground' : milestone.status === 'delayed' ? 'border-destructive bg-destructive text-destructive-foreground' : milestone.status === 'in-progress' ? 'border-primary bg-primary/15 text-primary' : 'border-border bg-muted text-muted-foreground'"
-                      >
-                        <Check v-if="milestone.status === 'completed'" class="h-4 w-4" />
-                        <AlertTriangle v-else-if="milestone.status === 'delayed'" class="h-4 w-4" />
-                        <span
-                          v-else-if="milestone.status === 'in-progress'"
-                          class="h-4 w-4 rounded-full"
-                          style="background: conic-gradient(hsl(var(--primary)) 0deg 180deg, transparent 180deg 360deg)"
-                        />
-                        <template v-else>{{ index + 1 }}</template>
-                      </span>
-                      <div class="flex flex-col items-center gap-1 text-center">
-                        <span class="text-xs font-medium text-foreground">{{ milestone.name }}</span>
-                        <span class="text-[11px] text-muted-foreground">
-                          {{ milestone.actualDate ? formatDate(milestone.actualDate) : (milestone.status === 'in-progress' ? `Start: ${formatDate(milestone.plannedDate)}` : `Due: ${formatDate(milestone.plannedDate)}`) }}
-                        </span>
-                        <StatusBadge :label="TASK_TIMELINE_STATUS_META[milestone.status].label" :tone="TASK_TIMELINE_STATUS_META[milestone.status].tone" />
-                      </div>
-                    </div>
-                    <span
-                      v-if="index < milestones.length - 1"
-                      class="mt-[16px] h-[3px] flex-1 rounded-full"
-                      :class="milestone.status === 'completed' ? 'bg-primary' : 'bg-border'"
-                    />
-                  </li>
-                </ol>
-              </div>
-            </div>
-
             <!-- Tasks Kanban Board — kolom diberi tint warna lembut per status (bukan cuma header) supaya halaman terasa lebih hidup, kartu task TETAP putih polos di atasnya supaya tidak "nabrak" dengan tint kolom. -->
             <div ref="taskBoardRef" class="rounded-2xl border border-border bg-card p-5 shadow-sm">
               <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -4872,6 +4839,9 @@ const tripDurationDays = computed(() => {
                   </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
+                  <Button v-if="canManageProjectOrder" size="sm" variant="outline" @click="openCreateTask">
+                    <Plus class="h-3.5 w-3.5 mr-1" />Tambah Task
+                  </Button>
                   <select
                     :value="taskBoardStatusFilter ?? ''"
                     class="appearance-none rounded-lg border border-input bg-card py-1.5 pl-3 pr-8 text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
@@ -4904,9 +4874,6 @@ const tripDurationDays = computed(() => {
                     <div class="flex items-center gap-0.5">
                       <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title="Menu Kolom" @click="handleTaskColumnMenu(status)">
                         <MoreHorizontal class="h-3.5 w-3.5" />
-                      </button>
-                      <button v-if="canManageProjectOrder" type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title="Tambah Task" @click="openCreateTask">
-                        <Plus class="h-3.5 w-3.5" />
                       </button>
                     </div>
                   </div>
@@ -4973,10 +4940,6 @@ const tripDurationDays = computed(() => {
                         Belum ada task pada tahap ini
                       </p>
                     </div>
-
-                    <Button v-if="canManageProjectOrder" size="sm" variant="ghost" class="w-full justify-center text-muted-foreground hover:bg-card" @click="openCreateTask">
-                      <Plus class="h-3.5 w-3.5 mr-1" />Tambah Task
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -5012,6 +4975,14 @@ const tripDurationDays = computed(() => {
               <div class="space-y-4 py-2">
                 <div class="space-y-1.5">
                   <Label for="task-title">Judul</Label><Input id="task-title" v-model="taskTitle" maxlength="120" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="task-status">Status</Label>
+                  <select id="task-status" v-model="taskStatus" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option v-for="option in TASK_STATUSES" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
                 </div>
                 <div class="space-y-1.5">
                   <Label for="task-due">Jatuh Tempo</Label><Input id="task-due" v-model="taskDueAt" type="date" />
@@ -5062,19 +5033,23 @@ const tripDurationDays = computed(() => {
           <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Documents" description="Kelola dan akses semua dokumen project secara terstruktur.">
             <template #actions>
               <div class="flex flex-wrap items-center gap-2">
-                <div class="inline-flex items-center rounded-lg border border-input bg-muted/40 p-0.5">
+                <div class="relative inline-flex items-center rounded-lg border border-input bg-muted/40 p-0.5">
+                  <span
+                    class="absolute inset-y-0.5 left-0.5 w-[72px] rounded-md bg-primary shadow-sm shadow-primary/30 transition-transform duration-300 ease-out"
+                    :style="{ transform: documentsViewMode === 'grid' ? 'translateX(72px)' : 'translateX(0)' }"
+                  />
                   <button
                     type="button"
-                    class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200"
-                    :class="documentsViewMode === 'list' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'"
+                    class="relative z-10 flex w-[72px] items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors duration-300"
+                    :class="documentsViewMode === 'list' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'"
                     @click="documentsViewMode = 'list'"
                   >
                     <List class="h-3.5 w-3.5" />List
                   </button>
                   <button
                     type="button"
-                    class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all duration-200"
-                    :class="documentsViewMode === 'grid' ? 'bg-primary text-primary-foreground shadow-sm shadow-primary/30' : 'text-muted-foreground hover:text-foreground'"
+                    class="relative z-10 flex w-[72px] items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors duration-300"
+                    :class="documentsViewMode === 'grid' ? 'text-primary-foreground' : 'text-muted-foreground hover:text-foreground'"
                     @click="documentsViewMode = 'grid'"
                   >
                     <LayoutGrid class="h-3.5 w-3.5" />Grid
@@ -5219,49 +5194,44 @@ const tripDurationDays = computed(() => {
                   </TableBody>
                 </Table>
 
-                <div v-else-if="paginatedDocuments.length" key="grid" class="grid content-start grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+                <div v-else-if="paginatedDocuments.length" key="grid" class="grid content-start grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
                   <div
                     v-for="document in paginatedDocuments"
                     :key="document.id"
-                    class="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-gradient-to-b from-card to-muted/20 p-3.5 transition-all duration-300 hover:-translate-y-1 hover:border-primary/50 hover:shadow-lg hover:shadow-primary/10"
+                    class="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2 transition-all duration-200 hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm"
                   >
-                    <span class="absolute inset-x-0 top-0 h-0.5 origin-left scale-x-0 bg-gradient-to-r from-primary to-primary/30 transition-transform duration-300 group-hover:scale-x-100" />
-                    <div class="mb-3 flex items-start justify-between">
-                      <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ring-1 ring-inset ring-border/60" :class="TONE_ICON_BG[documentCategoryTone(document.category)]">
-                        <FileText class="h-4.5 w-4.5" />
+                    <div class="flex items-start justify-between gap-1">
+                      <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" :class="TONE_ICON_BG[documentCategoryTone(document.category)]">
+                        <FileText class="h-3.5 w-3.5" />
                       </div>
-                      <button type="button" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100" title="Lainnya" @click="handleDocumentMenu(document)">
-                        <MoreVertical class="h-3.5 w-3.5" />
+                      <button type="button" class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100" title="Lainnya" @click="handleDocumentMenu(document)">
+                        <MoreVertical class="h-3 w-3" />
                       </button>
                     </div>
-                    <p class="truncate text-sm font-semibold leading-tight text-foreground" :title="document.name">
+
+                    <p class="mt-1.5 truncate text-[11px] font-semibold leading-tight text-foreground" :title="document.name">
                       {{ document.name }}
                     </p>
-                    <p class="mt-1 truncate text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    <p class="mt-0.5 truncate text-[10px] text-muted-foreground">
                       {{ document.category }} · v{{ document.version }}
                     </p>
-                    <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
-                      <StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).tone" />
-                      <StatusBadge
-                        v-if="document.expiresAt"
-                        :label="isDocumentExpired(document.expiresAt) ? `Expired ${formatDate(document.expiresAt)}` : isDocumentExpiringSoon(document.expiresAt) ? `Segera: ${formatDate(document.expiresAt)}` : formatDate(document.expiresAt)"
-                        :tone="isDocumentExpired(document.expiresAt) ? 'destructive' : isDocumentExpiringSoon(document.expiresAt) ? 'warning' : 'neutral'"
-                      />
-                    </div>
-                    <div class="mt-3 flex items-center justify-between gap-2 border-t border-border/70 pt-2.5">
-                      <div class="min-w-0">
-                        <p class="truncate text-xs text-foreground">
-                          {{ documentUploaderName(document) }}
-                        </p>
-                        <p class="truncate text-[11px] text-muted-foreground">
-                          {{ documentUploadedDate(document) }}
-                        </p>
-                      </div>
-                      <div class="flex shrink-0 items-center gap-1">
-                        <NuxtLink v-if="document.sourceType === 'generated' && document.previewRoute" :to="document.previewRoute" target="_blank" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary" title="Preview">
+                    <StatusBadge
+                      v-if="document.expiresAt && (isDocumentExpired(document.expiresAt) || isDocumentExpiringSoon(document.expiresAt))"
+                      class="mt-1 w-fit"
+                      :label="isDocumentExpired(document.expiresAt) ? 'Expired' : 'Segera'"
+                      :tone="isDocumentExpired(document.expiresAt) ? 'destructive' : 'warning'"
+                      dot
+                    />
+
+                    <div class="mt-1.5 flex items-center justify-between gap-1 border-t border-border/70 pt-1.5">
+                      <p class="truncate text-[10px] text-muted-foreground" :title="documentUploaderName(document)">
+                        {{ documentUploaderName(document) }}
+                      </p>
+                      <div class="flex shrink-0 items-center gap-0.5">
+                        <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Lihat" @click="handlePreviewDocument(document)">
                           <Eye class="h-3.5 w-3.5" />
-                        </NuxtLink>
-                        <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-primary" title="Download" @click="handleDownloadDocument(document)">
+                        </button>
+                        <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Download" @click="handleDownloadDocument(document)">
                           <Download class="h-3.5 w-3.5" />
                         </button>
                       </div>

@@ -30,6 +30,7 @@ export type ServiceStatus =
 /** Tab identifiers for the Project Detail workspace (docs/mockup-information-architecture.md bagian 4). */
 export type ProjectDetailTab =
   | 'overview'
+  | 'milestone'
   | 'itinerary-services'
   | 'travelers'
   | 'vendors'

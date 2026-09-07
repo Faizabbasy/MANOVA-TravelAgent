@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Table as TableIcon, GanttChartSquare, Info, Check, X, StickyNote, ChevronDown } from 'lucide-vue-next'
+import { Table as TableIcon, GanttChartSquare, Info, Check, X, StickyNote, ChevronDown, Wallet, ListChecks, Trash2, Settings2 } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
-import { getMilestoneDelayDays, getProjectMilestoneSummary } from '~/data/project-order-workflow'
+import { getMilestoneDelayDays, getProjectMilestoneSummary, getMilestoneProgressPercent } from '~/data/project-order-workflow'
 import { getUserById } from '~/data'
-import { formatDate } from '~/utils/format'
+import { formatDate, formatCurrencyIdr } from '~/utils/format'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 import type { BadgeTone } from '~/types/common'
 import type { ProjectMilestone, ProjectMilestoneStatus } from '~/types/project-order'
@@ -21,6 +21,10 @@ const emit = defineEmits<{
   'update-planned': [payload: { milestoneId: string; plannedDate: string }]
   'mark-actual': [milestoneId: string]
   'update-note': [payload: { milestoneId: string; note: string }]
+  'toggle-deliverable': [payload: { milestoneId: string; deliverableId: string }]
+  'add-deliverable': [payload: { milestoneId: string; label: string }]
+  'remove-deliverable': [payload: { milestoneId: string; deliverableId: string }]
+  'update-budget': [payload: { milestoneId: string; budgetIdr?: number }]
 }>()
 
 const view = ref<'table' | 'gantt'>('table')
@@ -65,6 +69,50 @@ function delayLabel (delay: number | undefined): string {
   if (delay > 0) { return `+${delay} hari` }
   if (delay < 0) { return `${delay} hari` }
   return 'Tepat waktu'
+}
+
+function deliverableCount (milestone: ProjectMilestone): { done: number; total: number } {
+  const list = milestone.deliverables ?? []
+  return { done: list.filter(item => item.done).length, total: list.length }
+}
+
+/** Sheet "Kelola Milestone" — budget & checklist deliverables. Toggle/tambah/hapus deliverable diterapkan
+ * langsung (sama seperti "Tandai Selesai" di baris utama); budget pakai draft + tombol Simpan eksplisit,
+ * konsisten dengan pola "Edit Budget Layanan" di halaman detail project. */
+const isManageOpen = ref(false)
+const manageMilestoneId = ref<string | null>(null)
+const budgetDraft = ref<number | null>(null)
+const newDeliverableLabel = ref('')
+
+const manageMilestone = computed(() => props.milestones.find(item => item.id === manageMilestoneId.value))
+
+function openManageSheet (milestone: ProjectMilestone) {
+  manageMilestoneId.value = milestone.id
+  budgetDraft.value = milestone.budgetIdr ?? null
+  newDeliverableLabel.value = ''
+  isManageOpen.value = true
+}
+
+function saveBudget () {
+  if (!manageMilestoneId.value) { return }
+  emit('update-budget', { milestoneId: manageMilestoneId.value, budgetIdr: budgetDraft.value ?? undefined })
+  isManageOpen.value = false
+}
+
+function addDeliverable () {
+  if (!manageMilestoneId.value || !newDeliverableLabel.value.trim()) { return }
+  emit('add-deliverable', { milestoneId: manageMilestoneId.value, label: newDeliverableLabel.value })
+  newDeliverableLabel.value = ''
+}
+
+function toggleDeliverable (deliverableId: string) {
+  if (!manageMilestoneId.value) { return }
+  emit('toggle-deliverable', { milestoneId: manageMilestoneId.value, deliverableId })
+}
+
+function removeDeliverable (deliverableId: string) {
+  if (!manageMilestoneId.value) { return }
+  emit('remove-deliverable', { milestoneId: manageMilestoneId.value, deliverableId })
 }
 
 function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }): boolean {
@@ -159,7 +207,22 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
                 <template v-if="isLate(row)">
                   · <span class="font-medium text-destructive">{{ delayLabel(row.delay) }}</span>
                 </template>
+                <template v-if="row.milestone.budgetIdr">
+                  · {{ formatCurrencyIdr(row.milestone.budgetIdr) }}
+                </template>
               </p>
+              <div class="mt-1.5 flex items-center gap-2">
+                <div class="h-1.5 w-24 shrink-0 overflow-hidden rounded-full bg-muted">
+                  <div
+                    class="h-full rounded-full bg-primary transition-all"
+                    :style="{ width: `${getMilestoneProgressPercent(row.milestone)}%` }"
+                  />
+                </div>
+                <span class="text-[11px] text-muted-foreground">{{ getMilestoneProgressPercent(row.milestone) }}%</span>
+                <span v-if="deliverableCount(row.milestone).total" class="inline-flex items-center gap-1 rounded-full bg-muted px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                  <ListChecks class="h-3 w-3" />{{ deliverableCount(row.milestone).done }}/{{ deliverableCount(row.milestone).total }} selesai
+                </span>
+              </div>
             </div>
 
             <div class="flex shrink-0 items-start gap-1.5" @click.stop>
@@ -249,6 +312,44 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
                 {{ row.milestone.note || 'Belum ada catatan.' }}
               </p>
             </div>
+
+            <div class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2">
+              <div class="min-w-0">
+                <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Budget Milestone
+                </p>
+                <p class="mt-0.5 text-sm font-semibold text-foreground">
+                  {{ row.milestone.budgetIdr ? formatCurrencyIdr(row.milestone.budgetIdr) : 'Belum diisi' }}
+                </p>
+              </div>
+              <div v-if="deliverableCount(row.milestone).total" class="shrink-0 text-right">
+                <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Deliverables
+                </p>
+                <p class="mt-0.5 text-sm font-semibold text-foreground">
+                  {{ deliverableCount(row.milestone).done }}/{{ deliverableCount(row.milestone).total }} selesai
+                </p>
+              </div>
+              <Button v-if="canManage" size="sm" variant="outline" class="shrink-0" @click="openManageSheet(row.milestone)">
+                <Settings2 class="mr-1 h-3.5 w-3.5" />Kelola
+              </Button>
+            </div>
+
+            <div v-if="deliverableCount(row.milestone).total" class="space-y-1.5">
+              <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                Checklist
+              </p>
+              <label v-for="deliverable in row.milestone.deliverables" :key="deliverable.id" class="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  :checked="deliverable.done"
+                  :disabled="!canManage"
+                  class="h-3.5 w-3.5 shrink-0 rounded border-input"
+                  @change="emit('toggle-deliverable', { milestoneId: row.milestone.id, deliverableId: deliverable.id })"
+                >
+                <span :class="deliverable.done ? 'text-muted-foreground line-through' : 'text-foreground'">{{ deliverable.label }}</span>
+              </label>
+            </div>
           </div>
         </div>
       </div>
@@ -263,5 +364,67 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
       terhadap tanggal acuan demo ({{ formatDate(DEMO_REFERENCE_DATE) }}), sehingga keterlambatan yang sedang
       berjalan ikut terlihat.
     </p>
+
+    <Sheet v-model:open="isManageOpen">
+      <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>Kelola Milestone{{ manageMilestone ? `: ${manageMilestone.name}` : '' }}</SheetTitle>
+          <SheetDescription>Atur budget dan checklist deliverables milestone ini.</SheetDescription>
+        </SheetHeader>
+
+        <div class="space-y-5 py-2">
+          <div class="space-y-1.5">
+            <Label for="milestone-budget">
+              <Wallet class="mr-1 inline h-3.5 w-3.5" />Budget (Rp)
+            </Label>
+            <CurrencyInput id="milestone-budget" v-model="budgetDraft" placeholder="mis. 5000000" />
+          </div>
+
+          <div class="space-y-2">
+            <Label>
+              <ListChecks class="mr-1 inline h-3.5 w-3.5" />Deliverables
+            </Label>
+            <div v-if="manageMilestone?.deliverables?.length" class="space-y-1.5">
+              <div v-for="deliverable in manageMilestone.deliverables" :key="deliverable.id" class="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5">
+                <input
+                  type="checkbox"
+                  :checked="deliverable.done"
+                  class="h-3.5 w-3.5 shrink-0 rounded border-input"
+                  @change="toggleDeliverable(deliverable.id)"
+                >
+                <span class="min-w-0 flex-1 truncate text-sm" :class="deliverable.done ? 'text-muted-foreground line-through' : 'text-foreground'">{{ deliverable.label }}</span>
+                <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive" title="Hapus" @click="removeDeliverable(deliverable.id)">
+                  <Trash2 class="h-3.5 w-3.5" />
+                </button>
+              </div>
+            </div>
+            <p v-else class="text-xs text-muted-foreground">
+              Belum ada item checklist.
+            </p>
+            <div class="flex gap-2">
+              <input
+                v-model="newDeliverableLabel"
+                type="text"
+                placeholder="Tambah item checklist"
+                class="w-full rounded-lg border border-input bg-card px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                @keyup.enter="addDeliverable"
+              >
+              <Button size="sm" variant="outline" class="shrink-0" @click="addDeliverable">
+                Tambah
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <SheetFooter class="mt-6 flex-row justify-end gap-2">
+          <Button variant="outline" @click="isManageOpen = false">
+            Tutup
+          </Button>
+          <Button @click="saveBudget">
+            Simpan Budget
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   </SectionCard>
 </template>
