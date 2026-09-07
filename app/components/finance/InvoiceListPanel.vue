@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { Search, FileX, Plus, ChevronRight } from 'lucide-vue-next'
 import {
-  INVOICES, PROJECTS, getProjectById, getPaymentsByInvoice, getInvoiceOutstandingIdr, getCreditNotesByInvoice,
+  INVOICES, PROJECTS, getProjectById, getPartyById, getPaymentsByInvoice, getInvoiceOutstandingIdr, getCreditNotesByInvoice,
   createInvoice, recordPayment, voidInvoice, issueCreditNote
 } from '~/data'
 import { INVOICE_STATUSES, INVOICE_CURRENCIES, INVOICE_TYPES, CREDIT_NOTE_STATUSES, findStatusOption } from '~/constants/status'
@@ -25,6 +25,12 @@ function projectName (projectId: string) {
   return getProjectById(projectId)?.name ?? projectId
 }
 
+function customerName (projectId: string) {
+  const project = getProjectById(projectId)
+  if (!project) { return '—' }
+  return getPartyById(project.partyId)?.name ?? '—'
+}
+
 function agingLabel (invoice: Invoice) {
   if (invoice.status === 'paid') { return 'Lunas' }
   if (invoice.status === 'void') { return 'Void' }
@@ -35,14 +41,14 @@ function agingLabel (invoice: Invoice) {
 }
 
 const rows = computed(() => {
-  let result = INVOICES.map(invoice => ({ invoice, projectLabel: projectName(invoice.projectId) }))
+  let result = INVOICES.map(invoice => ({ invoice, projectLabel: projectName(invoice.projectId), customerLabel: customerName(invoice.projectId) }))
 
   if (statusFilter.value !== 'all') {
     result = result.filter(row => row.invoice.status === statusFilter.value)
   }
   if (searchQuery.value.trim()) {
     const q = searchQuery.value.toLowerCase()
-    result = result.filter(row => row.invoice.label.toLowerCase().includes(q) || row.projectLabel.toLowerCase().includes(q))
+    result = result.filter(row => row.invoice.label.toLowerCase().includes(q) || row.projectLabel.toLowerCase().includes(q) || row.customerLabel.toLowerCase().includes(q))
   }
   return result
 })
@@ -166,7 +172,7 @@ function submitCreditNote () {
         <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div class="relative flex-1 max-w-sm w-full">
             <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input v-model="searchQuery" placeholder="Cari invoice atau project..." class="pl-9" />
+            <Input v-model="searchQuery" placeholder="Cari invoice, project, atau customer..." class="pl-9" />
           </div>
           <select
             v-model="statusFilter"
@@ -256,56 +262,86 @@ function submitCreditNote () {
         </Dialog>
       </div>
 
-      <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Invoice</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Tipe</TableHead>
-              <TableHead>Jumlah</TableHead>
-              <TableHead>Jatuh Tempo</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Aging</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.invoice.id" class="group cursor-pointer transition-colors hover:bg-muted/50" @click="openDetail(row.invoice)">
-              <TableCell class="font-medium text-primary group-hover:underline">
-                {{ row.invoice.label }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.projectLabel }}
-              </TableCell>
-              <TableCell>
-                <div class="flex flex-col gap-1">
-                  <StatusBadge :label="findStatusOption(INVOICE_TYPES, row.invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, row.invoice.invoiceType).tone" />
-                  <span v-if="row.invoice.currency !== 'IDR'" class="text-xs text-muted-foreground">{{ row.invoice.currency }}</span>
-                </div>
-              </TableCell>
-              <TableCell>{{ formatCurrencyIdr(row.invoice.amountIdr) }}</TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDate(row.invoice.dueAt) }}
-              </TableCell>
-              <TableCell>
-                <StatusBadge
-                  :label="findStatusOption(INVOICE_STATUSES, row.invoice.status).label"
-                  :tone="findStatusOption(INVOICE_STATUSES, row.invoice.status).tone"
-                />
-              </TableCell>
-              <TableCell :class="isInvoiceOverdue(row.invoice) ? 'text-destructive' : 'text-muted-foreground'">
-                {{ agingLabel(row.invoice) }}
-              </TableCell>
-              <TableCell>
-                <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="8">
-              {{ searchQuery || statusFilter !== 'all' ? 'Tidak ada invoice yang cocok dengan filter.' : 'Belum ada invoice.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+      <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Invoice & Piutang" description="Daftar invoice dan status pembayaran proyek.">
+        <div class="overflow-x-auto border-t border-border">
+          <Table class="w-full min-w-[920px]">
+            <TableHeader>
+              <TableRow class="bg-muted/40 hover:bg-muted/40">
+                <TableHead class="w-10 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  No
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Invoice
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Project
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Customer
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Tipe
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Jml. Tagihan
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Jatuh Tempo
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Status
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Aging
+                </TableHead>
+                <TableHead class="w-8 px-4 py-2.5" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="(row, index) in rows" :key="row.invoice.id" class="group cursor-pointer transition-colors hover:bg-muted/50" @click="openDetail(row.invoice)">
+                <TableCell class="px-4 py-3 text-xs text-muted-foreground">
+                  {{ index + 1 }}
+                </TableCell>
+                <TableCell class="px-4 py-3 font-medium text-primary group-hover:underline">
+                  {{ row.invoice.label }}
+                </TableCell>
+                <TableCell class="px-4 py-3 text-muted-foreground">
+                  {{ row.projectLabel }}
+                </TableCell>
+                <TableCell class="px-4 py-3 text-muted-foreground">
+                  {{ row.customerLabel }}
+                </TableCell>
+                <TableCell class="px-4 py-3">
+                  <div class="flex flex-col gap-1">
+                    <StatusBadge :label="findStatusOption(INVOICE_TYPES, row.invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, row.invoice.invoiceType).tone" />
+                    <span v-if="row.invoice.currency !== 'IDR'" class="text-xs text-muted-foreground">{{ row.invoice.currency }}</span>
+                  </div>
+                </TableCell>
+                <TableCell class="px-4 py-3 tabular-nums">
+                  {{ formatCurrencyIdr(row.invoice.amountIdr) }}
+                </TableCell>
+                <TableCell class="px-4 py-3 text-muted-foreground">
+                  {{ formatDate(row.invoice.dueAt) }}
+                </TableCell>
+                <TableCell class="px-4 py-3">
+                  <StatusBadge
+                    :label="findStatusOption(INVOICE_STATUSES, row.invoice.status).label"
+                    :tone="findStatusOption(INVOICE_STATUSES, row.invoice.status).tone"
+                  />
+                </TableCell>
+                <TableCell class="px-4 py-3" :class="isInvoiceOverdue(row.invoice) ? 'text-destructive' : 'text-muted-foreground'">
+                  {{ agingLabel(row.invoice) }}
+                </TableCell>
+                <TableCell class="px-4 py-3">
+                  <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                </TableCell>
+              </TableRow>
+              <TableEmpty v-if="rows.length === 0" :colspan="9">
+                {{ searchQuery || statusFilter !== 'all' ? 'Tidak ada invoice yang cocok dengan filter.' : 'Belum ada invoice.' }}
+              </TableEmpty>
+            </TableBody>
+          </Table>
+        </div>
       </SectionCard>
     </template>
 
