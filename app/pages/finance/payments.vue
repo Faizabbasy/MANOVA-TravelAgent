@@ -21,19 +21,11 @@ useHead({ title: 'Pembayaran & Rekonsiliasi' })
       :breadcrumb="[{ label: 'Finance & ACC', to: '/finance' }, { label: 'Pembayaran & Rekonsiliasi' }]"
     />
 
-    <section id="payments" class="space-y-4 scroll-mt-20">
-      <h2 class="text-lg font-semibold text-foreground">
-        Payments
-      </h2>
+    <section id="payments" class="scroll-mt-20">
       <PaymentsPanel />
     </section>
 
-    <Separator />
-
-    <section id="reconciliation" class="space-y-4 scroll-mt-20">
-      <h2 class="text-lg font-semibold text-foreground">
-        Reconciliation
-      </h2>
+    <section id="reconciliation" class="scroll-mt-20">
       <ReconciliationPanel />
     </section>
   </div>

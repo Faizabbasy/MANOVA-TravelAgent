@@ -49,7 +49,10 @@ const activeTab = ref<'employees' | 'attendance' | 'payroll' | 'commissions' | '
 const searchQuery = ref('')
 const departmentFilter = ref<'all' | string>('all')
 const periods = computed(() => getAttendancePeriods())
-const selectedPeriod = ref('')
+/** Diisi periode terbaru dari awal (bukan string kosong) — select native tidak match apa pun kalau v-model-nya
+ * `''` sementara seluruh `<option>` bernilai periode asli, sehingga dropdown tampil kosong walau
+ * `activePeriod` di bawah sudah fallback dengan benar secara logic. */
+const selectedPeriod = ref(getAttendancePeriods()[0] ?? '')
 const activePeriod = computed(() => selectedPeriod.value || periods.value[0])
 
 const departments = computed(() => [...new Set(EMPLOYEES.map(employee => employee.department))])
@@ -168,7 +171,9 @@ const stats = computed(() => {
   }
 })
 
-const selectedPayrollRunId = ref('')
+/** Diisi payroll run terbaru dari awal — alasan sama seperti `selectedPeriod` di atas (select native kosong
+ * kalau v-model tidak match `<option>` mana pun). */
+const selectedPayrollRunId = ref(PAYROLL_RUNS.at(-1)?.id ?? '')
 const activePayrollRun = computed(() => PAYROLL_RUNS.find(run => run.id === selectedPayrollRunId.value) ?? PAYROLL_RUNS.at(-1))
 const payrollBreakdown = computed(() => {
   void refreshKey.value
@@ -364,295 +369,337 @@ function submitPayrollLineForm () {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="employees" class="pt-4 space-y-4">
-          <div class="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3">
-            <div class="relative flex-1 max-w-sm w-full">
-              <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input v-model="searchQuery" placeholder="Cari nama atau posisi..." class="pl-9" />
+        <TabsContent value="employees" class="pt-4">
+          <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Data Karyawan" :description="`${filteredEmployees.length} dari ${EMPLOYEES.length} karyawan`">
+            <template #actions>
+              <div class="flex flex-nowrap items-center gap-2">
+                <div class="relative w-48 shrink-0 sm:w-64">
+                  <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input v-model="searchQuery" placeholder="Cari nama atau posisi..." class="pl-9" />
+                </div>
+                <select v-model="departmentFilter" class="shrink-0 appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="all">
+                    Semua Departemen
+                  </option>
+                  <option v-for="department in departments" :key="department" :value="department">
+                    {{ department }}
+                  </option>
+                </select>
+              </div>
+            </template>
+
+            <div class="overflow-x-auto border-t border-border">
+              <Table class="w-full min-w-[780px]">
+                <TableHeader>
+                  <TableRow class="bg-muted/40 hover:bg-muted/40">
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Karyawan
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Departemen
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Tipe
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Bergabung
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Gaji Pokok
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Status
+                    </TableHead>
+                    <TableHead v-if="canManageEmployees" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Aksi
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="employee in filteredEmployees" :key="employee.id">
+                    <TableCell class="px-4 py-3">
+                      <p class="text-sm font-medium text-foreground">
+                        {{ employee.name }}
+                      </p>
+                      <p class="text-xs text-muted-foreground">
+                        {{ employee.position }}
+                        <template v-if="employee.commissionRatePercent"> · komisi {{ employee.commissionRatePercent }}%</template>
+                      </p>
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-sm text-foreground">
+                      {{ employee.department }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3">
+                      <StatusBadge
+                        :label="findStatusOption(EMPLOYMENT_TYPES, employee.employmentType).label"
+                        :tone="findStatusOption(EMPLOYMENT_TYPES, employee.employmentType).tone"
+                      />
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-sm text-muted-foreground">
+                      {{ formatDate(employee.joinedAt) }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-foreground">
+                      {{ employee.baseSalaryIdr ? formatCurrencyIdr(employee.baseSalaryIdr) : 'Per proyek' }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3">
+                      <StatusBadge
+                        :label="findStatusOption(EMPLOYEE_STATUSES, employee.status).label"
+                        :tone="findStatusOption(EMPLOYEE_STATUSES, employee.status).tone"
+                      />
+                    </TableCell>
+                    <TableCell v-if="canManageEmployees" class="px-4 py-3 text-right">
+                      <Button variant="outline" size="sm" @click="openEditEmployee(employee)">
+                        <Pencil class="h-3.5 w-3.5 mr-1" />
+                        Edit
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  <TableEmpty v-if="filteredEmployees.length === 0" :colspan="canManageEmployees ? 7 : 6">
+                    Tidak ada karyawan yang cocok dengan filter.
+                  </TableEmpty>
+                </TableBody>
+              </Table>
             </div>
-            <select v-model="departmentFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">
-                Semua Departemen
-              </option>
-              <option v-for="department in departments" :key="department" :value="department">
-                {{ department }}
-              </option>
-            </select>
-          </div>
-
-          <SectionCard>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Karyawan</TableHead>
-                  <TableHead>Departemen</TableHead>
-                  <TableHead>Tipe</TableHead>
-                  <TableHead>Bergabung</TableHead>
-                  <TableHead class="text-right">
-                    Gaji Pokok
-                  </TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead v-if="canManageEmployees" class="text-right">
-                    Aksi
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="employee in filteredEmployees" :key="employee.id">
-                  <TableCell>
-                    <p class="text-sm font-medium text-foreground">
-                      {{ employee.name }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ employee.position }}
-                      <template v-if="employee.commissionRatePercent"> · komisi {{ employee.commissionRatePercent }}%</template>
-                    </p>
-                  </TableCell>
-                  <TableCell class="text-sm text-foreground">
-                    {{ employee.department }}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      :label="findStatusOption(EMPLOYMENT_TYPES, employee.employmentType).label"
-                      :tone="findStatusOption(EMPLOYMENT_TYPES, employee.employmentType).tone"
-                    />
-                  </TableCell>
-                  <TableCell class="text-sm text-muted-foreground">
-                    {{ formatDate(employee.joinedAt) }}
-                  </TableCell>
-                  <TableCell class="text-right text-sm text-foreground">
-                    {{ employee.baseSalaryIdr ? formatCurrencyIdr(employee.baseSalaryIdr) : 'Per proyek' }}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      :label="findStatusOption(EMPLOYEE_STATUSES, employee.status).label"
-                      :tone="findStatusOption(EMPLOYEE_STATUSES, employee.status).tone"
-                    />
-                  </TableCell>
-                  <TableCell v-if="canManageEmployees" class="text-right">
-                    <Button variant="outline" size="sm" @click="openEditEmployee(employee)">
-                      <Pencil class="h-3.5 w-3.5 mr-1" />
-                      Edit
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
           </SectionCard>
         </TabsContent>
 
-        <TabsContent value="attendance" class="pt-4 space-y-4">
-          <select v-model="selectedPeriod" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-            <option v-for="period in periods" :key="period" :value="period">
-              Periode {{ period }}
-            </option>
-          </select>
+        <TabsContent value="attendance" class="pt-4">
+          <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Absensi" :description="`Rekap kehadiran periode ${activePeriod}. Hadir dan remote sama-sama dihitung bekerja.`">
+            <template #actions>
+              <select v-model="selectedPeriod" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option v-for="period in periods" :key="period" :value="period">
+                  Periode {{ period }}
+                </option>
+              </select>
+            </template>
 
-          <SectionCard :description="`Rekap kehadiran periode ${activePeriod}. Hadir dan remote sama-sama dihitung bekerja.`">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Karyawan</TableHead>
-                  <TableHead v-for="status in ATTENDANCE_STATUSES" :key="status.value" class="text-center">
-                    {{ status.label }}
-                  </TableHead>
-                  <TableHead>Tingkat Kehadiran</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in attendanceRows" :key="row.employee.id">
-                  <TableCell>
-                    <p class="text-sm font-medium text-foreground">
-                      {{ row.employee.name }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ row.employee.position }}
-                    </p>
-                  </TableCell>
-                  <TableCell class="text-center text-sm text-foreground">
-                    {{ row.summary.present }}
-                  </TableCell>
-                  <TableCell class="text-center text-sm text-foreground">
-                    {{ row.summary.remote }}
-                  </TableCell>
-                  <TableCell class="text-center text-sm text-foreground">
-                    {{ row.summary.leave }}
-                  </TableCell>
-                  <TableCell class="text-center text-sm text-foreground">
-                    {{ row.summary.sick }}
-                  </TableCell>
-                  <TableCell class="text-center text-sm" :class="row.summary.absent ? 'text-destructive font-medium' : 'text-foreground'">
-                    {{ row.summary.absent }}
-                  </TableCell>
-                  <TableCell>
-                    <div class="flex items-center gap-2">
-                      <span class="h-2 w-20 rounded-full bg-muted overflow-hidden">
-                        <span
-                          :class="cn('block h-full rounded-full', row.summary.ratePercent >= 90 ? 'bg-success' : row.summary.ratePercent >= 75 ? 'bg-warning' : 'bg-destructive')"
-                          :style="{ width: `${row.summary.ratePercent}%` }"
-                        />
-                      </span>
-                      <span class="text-sm font-medium text-foreground">{{ row.summary.ratePercent }}%</span>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </SectionCard>
-        </TabsContent>
-
-        <TabsContent value="payroll" class="pt-4 space-y-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <select v-model="selectedPayrollRunId" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option v-for="run in PAYROLL_RUNS" :key="run.id" :value="run.id">
-                Payroll {{ run.period }}
-              </option>
-            </select>
-
-            <div v-if="canManagePayroll && activePayrollRun" class="flex items-center gap-2">
-              <StatusBadge
-                :label="findStatusOption(PAYROLL_RUN_STATUSES, activePayrollRun.status).label"
-                :tone="findStatusOption(PAYROLL_RUN_STATUSES, activePayrollRun.status).tone"
-              />
-              <Button v-if="activePayrollRun.status === 'draft'" size="sm" @click="setPayrollStatus('approved')">
-                Setujui Payroll
-              </Button>
-              <Button v-if="activePayrollRun.status === 'approved'" size="sm" @click="setPayrollStatus('paid')">
-                Tandai Dibayar
-              </Button>
+            <div class="overflow-x-auto border-t border-border">
+              <Table class="w-full min-w-[720px]">
+                <TableHeader>
+                  <TableRow class="bg-muted/40 hover:bg-muted/40">
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Karyawan
+                    </TableHead>
+                    <TableHead v-for="status in ATTENDANCE_STATUSES" :key="status.value" class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {{ status.label }}
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Tingkat Kehadiran
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in attendanceRows" :key="row.employee.id">
+                    <TableCell class="px-4 py-3">
+                      <p class="text-sm font-medium text-foreground">
+                        {{ row.employee.name }}
+                      </p>
+                      <p class="text-xs text-muted-foreground">
+                        {{ row.employee.position }}
+                      </p>
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
+                      {{ row.summary.present }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
+                      {{ row.summary.remote }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
+                      {{ row.summary.leave }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
+                      {{ row.summary.sick }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums" :class="row.summary.absent ? 'text-destructive font-medium' : 'text-foreground'">
+                      {{ row.summary.absent }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3">
+                      <div class="flex items-center gap-2">
+                        <span class="h-2 w-20 rounded-full bg-muted overflow-hidden">
+                          <span
+                            :class="cn('block h-full rounded-full', row.summary.ratePercent >= 90 ? 'bg-success' : row.summary.ratePercent >= 75 ? 'bg-warning' : 'bg-destructive')"
+                            :style="{ width: `${row.summary.ratePercent}%` }"
+                          />
+                        </span>
+                        <span class="text-sm font-medium tabular-nums text-foreground">{{ row.summary.ratePercent }}%</span>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
             </div>
-          </div>
-
-          <SectionCard v-if="activePayrollRun" :title="`Payroll ${activePayrollRun.period}`" :description="`Total ${formatCurrencyIdr(getPayrollTotalIdr(activePayrollRun.id))}`">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Karyawan</TableHead>
-                  <TableHead class="text-right">
-                    Gaji Pokok
-                  </TableHead>
-                  <TableHead class="text-right">
-                    Tunjangan
-                  </TableHead>
-                  <TableHead class="text-right">
-                    Komisi
-                  </TableHead>
-                  <TableHead class="text-right">
-                    Potongan
-                  </TableHead>
-                  <TableHead class="text-right">
-                    Take Home Pay
-                  </TableHead>
-                  <TableHead v-if="canManagePayroll && activePayrollRun.status !== 'paid'" class="text-right">
-                    Aksi
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="line in payrollBreakdown" :key="line.id">
-                  <TableCell class="text-sm font-medium text-foreground">
-                    {{ line.employee?.name ?? line.employeeId }}
-                  </TableCell>
-                  <TableCell class="text-right text-sm text-muted-foreground">
-                    {{ formatCurrencyIdr(line.baseSalaryIdr) }}
-                  </TableCell>
-                  <TableCell class="text-right text-sm text-muted-foreground">
-                    {{ formatCurrencyIdr(line.allowanceIdr) }}
-                  </TableCell>
-                  <TableCell class="text-right text-sm" :class="line.commissionIdr ? 'text-success' : 'text-muted-foreground'">
-                    {{ formatCurrencyIdr(line.commissionIdr) }}
-                  </TableCell>
-                  <TableCell class="text-right text-sm text-destructive">
-                    −{{ formatCurrencyIdr(line.deductionIdr) }}
-                  </TableCell>
-                  <TableCell class="text-right text-sm font-semibold text-foreground">
-                    {{ formatCurrencyIdr(line.netIdr) }}
-                  </TableCell>
-                  <TableCell v-if="canManagePayroll && activePayrollRun.status !== 'paid'" class="text-right">
-                    <Button variant="outline" size="sm" @click="openEditPayrollLine(line)">
-                      <Pencil class="h-3.5 w-3.5 mr-1" />
-                      Edit
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
           </SectionCard>
         </TabsContent>
 
-        <TabsContent value="commissions" class="pt-4 space-y-4">
-          <div v-if="canManagePayroll" class="flex justify-end">
-            <Button size="sm" @click="openAddIncentive">
-              <Plus class="h-4 w-4 mr-1.5" />
-              Tambah Insentif
-            </Button>
-          </div>
+        <TabsContent value="payroll" class="pt-4">
+          <SectionCard v-if="activePayrollRun" compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" :title="`Payroll ${activePayrollRun.period}`" :description="`Total ${formatCurrencyIdr(getPayrollTotalIdr(activePayrollRun.id))}`">
+            <template #actions>
+              <div class="flex flex-wrap items-center gap-2">
+                <select v-model="selectedPayrollRunId" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="run in PAYROLL_RUNS" :key="run.id" :value="run.id">
+                    Payroll {{ run.period }}
+                  </option>
+                </select>
+                <StatusBadge
+                  :label="findStatusOption(PAYROLL_RUN_STATUSES, activePayrollRun.status).label"
+                  :tone="findStatusOption(PAYROLL_RUN_STATUSES, activePayrollRun.status).tone"
+                />
+                <template v-if="canManagePayroll">
+                  <Button v-if="activePayrollRun.status === 'draft'" size="sm" @click="setPayrollStatus('approved')">
+                    Setujui Payroll
+                  </Button>
+                  <Button v-if="activePayrollRun.status === 'approved'" size="sm" @click="setPayrollStatus('paid')">
+                    Tandai Dibayar
+                  </Button>
+                </template>
+              </div>
+            </template>
 
-          <SectionCard description="Komisi diturunkan dari nilai kontrak project yang dipegang karyawan dan tarif komisinya masing-masing. Insentif dicatat manual per project dan orangnya.">
-            <Table v-if="commissions.length">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Karyawan</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Periode</TableHead>
-                  <TableHead class="text-right">
-                    Nilai Kontrak
-                  </TableHead>
-                  <TableHead class="text-right">
-                    Tarif
-                  </TableHead>
-                  <TableHead class="text-right">
-                    Komisi
-                  </TableHead>
-                  <TableHead>Tipe</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="record in commissions" :key="record.id">
-                  <TableCell class="text-sm font-medium text-foreground">
-                    {{ EMPLOYEES.find(item => item.id === record.employeeId)?.name ?? record.employeeId }}
-                  </TableCell>
-                  <TableCell>
-                    <NuxtLink :to="`/project-orders/${record.projectId}`" class="text-sm text-primary hover:underline">
-                      {{ getProjectById(record.projectId)?.name ?? record.projectId }}
-                    </NuxtLink>
-                  </TableCell>
-                  <TableCell class="text-sm text-muted-foreground">
-                    {{ record.period }}
-                  </TableCell>
-                  <TableCell class="text-right text-sm text-muted-foreground">
-                    {{ record.baseAmountIdr ? formatCurrencyIdr(record.baseAmountIdr) : '—' }}
-                  </TableCell>
-                  <TableCell class="text-right text-sm text-muted-foreground">
-                    {{ record.baseAmountIdr ? `${record.ratePercent}%` : '—' }}
-                  </TableCell>
-                  <TableCell class="text-right text-sm font-semibold text-foreground">
-                    {{ formatCurrencyIdr(record.amountIdr) }}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      :label="record.source === 'manual' ? 'Insentif' : 'Otomatis'"
-                      :tone="record.source === 'manual' ? 'purple' : 'neutral'"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      :label="findStatusOption(COMMISSION_STATUSES, record.status).label"
-                      :tone="findStatusOption(COMMISSION_STATUSES, record.status).tone"
-                    />
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+            <div class="overflow-x-auto border-t border-border">
+              <Table class="w-full min-w-[780px]">
+                <TableHeader>
+                  <TableRow class="bg-muted/40 hover:bg-muted/40">
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Karyawan
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Gaji Pokok
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Tunjangan
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Komisi
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Potongan
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Take Home Pay
+                    </TableHead>
+                    <TableHead v-if="canManagePayroll && activePayrollRun.status !== 'paid'" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Aksi
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="line in payrollBreakdown" :key="line.id">
+                    <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+                      {{ line.employee?.name ?? line.employeeId }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                      {{ formatCurrencyIdr(line.baseSalaryIdr) }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                      {{ formatCurrencyIdr(line.allowanceIdr) }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums" :class="line.commissionIdr ? 'text-success' : 'text-muted-foreground'">
+                      {{ formatCurrencyIdr(line.commissionIdr) }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-destructive">
+                      −{{ formatCurrencyIdr(line.deductionIdr) }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
+                      {{ formatCurrencyIdr(line.netIdr) }}
+                    </TableCell>
+                    <TableCell v-if="canManagePayroll && activePayrollRun.status !== 'paid'" class="px-4 py-3 text-right">
+                      <Button variant="outline" size="sm" @click="openEditPayrollLine(line)">
+                        <Pencil class="h-3.5 w-3.5 mr-1" />
+                        Edit
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="commissions" class="pt-4">
+          <SectionCard compact :content-class="commissions.length ? 'p-0' : ''" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Komisi & Insentif" description="Komisi diturunkan dari nilai kontrak project yang dipegang karyawan dan tarif komisinya masing-masing. Insentif dicatat manual per project dan orangnya.">
+            <template v-if="canManagePayroll" #actions>
+              <Button size="sm" @click="openAddIncentive">
+                <Plus class="h-4 w-4 mr-1.5" />
+                Tambah Insentif
+              </Button>
+            </template>
+
+            <div v-if="commissions.length" class="overflow-x-auto border-t border-border">
+              <Table class="w-full min-w-[860px]">
+                <TableHeader>
+                  <TableRow class="bg-muted/40 hover:bg-muted/40">
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Karyawan
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Project
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Periode
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Nilai Kontrak
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Tarif
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Komisi
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Tipe
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Status
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="record in commissions" :key="record.id">
+                    <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+                      {{ EMPLOYEES.find(item => item.id === record.employeeId)?.name ?? record.employeeId }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3">
+                      <NuxtLink :to="`/project-orders/${record.projectId}`" class="text-sm text-primary hover:underline">
+                        {{ getProjectById(record.projectId)?.name ?? record.projectId }}
+                      </NuxtLink>
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-sm text-muted-foreground">
+                      {{ record.period }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                      {{ record.baseAmountIdr ? formatCurrencyIdr(record.baseAmountIdr) : '—' }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                      {{ record.baseAmountIdr ? `${record.ratePercent}%` : '—' }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
+                      {{ formatCurrencyIdr(record.amountIdr) }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3">
+                      <StatusBadge
+                        :label="record.source === 'manual' ? 'Insentif' : 'Otomatis'"
+                        :tone="record.source === 'manual' ? 'purple' : 'neutral'"
+                      />
+                    </TableCell>
+                    <TableCell class="px-4 py-3">
+                      <StatusBadge
+                        :label="findStatusOption(COMMISSION_STATUSES, record.status).label"
+                        :tone="findStatusOption(COMMISSION_STATUSES, record.status).tone"
+                      />
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
             <EmptyState v-else :icon="Award" title="Belum ada komisi tercatat" />
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="performance" class="pt-4">
-          <SectionCard :description="canManagePerformance ? 'Hasil review periodik per karyawan.' : 'Anda hanya dapat melihat hasil review.'">
+          <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Performance" :description="canManagePerformance ? 'Hasil review periodik per karyawan.' : 'Anda hanya dapat melihat hasil review.'">
             <ul v-if="reviews.length" class="divide-y divide-border">
-              <li v-for="review in reviews" :key="review.id" class="py-4 first:pt-0 last:pb-0">
+              <li v-for="review in reviews" :key="review.id" class="py-3 first:pt-0 last:pb-0">
                 <div class="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p class="text-sm font-medium text-foreground">
@@ -663,7 +710,7 @@ function submitPayrollLineForm () {
                     </p>
                   </div>
                   <div class="text-right">
-                    <p class="text-lg font-bold" :class="review.overallScore >= 4 ? 'text-success' : review.overallScore >= 3 ? 'text-warning' : 'text-destructive'">
+                    <p class="text-lg font-bold tabular-nums" :class="review.overallScore >= 4 ? 'text-success' : review.overallScore >= 3 ? 'text-warning' : 'text-destructive'">
                       {{ review.overallScore.toFixed(2) }}
                     </p>
                     <p class="text-xs text-muted-foreground">
@@ -672,22 +719,22 @@ function submitPayrollLineForm () {
                   </div>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-3">
-                  <div v-for="item in [{ label: 'Delivery', value: review.deliveryScore }, { label: 'Kualitas', value: review.qualityScore }, { label: 'Kolaborasi', value: review.collaborationScore }, { label: 'Inisiatif', value: review.initiativeScore }]" :key="item.label" class="rounded-lg bg-muted/40 px-2.5 py-1.5">
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mt-2.5">
+                  <div v-for="item in [{ label: 'Delivery', value: review.deliveryScore }, { label: 'Kualitas', value: review.qualityScore }, { label: 'Kolaborasi', value: review.collaborationScore }, { label: 'Inisiatif', value: review.initiativeScore }]" :key="item.label" class="rounded-lg bg-muted/30 px-2.5 py-1.5">
                     <p class="text-xs text-muted-foreground">
                       {{ item.label }}
                     </p>
-                    <p class="text-sm font-semibold text-foreground">
+                    <p class="text-sm font-semibold tabular-nums text-foreground">
                       {{ item.value }}/5
                     </p>
                   </div>
                 </div>
 
                 <p v-if="review.strengths" class="text-xs text-muted-foreground mt-2">
-                  <span class="text-success font-medium">Kekuatan:</span> {{ review.strengths }}
+                  <span class="font-medium text-success">Kekuatan:</span> {{ review.strengths }}
                 </p>
                 <p v-if="review.improvements" class="text-xs text-muted-foreground mt-0.5">
-                  <span class="text-warning font-medium">Perbaikan:</span> {{ review.improvements }}
+                  <span class="font-medium text-warning">Perbaikan:</span> {{ review.improvements }}
                 </p>
               </li>
             </ul>
@@ -696,64 +743,70 @@ function submitPayrollLineForm () {
         </TabsContent>
 
         <TabsContent value="productivity" class="pt-4">
-          <SectionCard description="Seluruh angka diturunkan dari project dan task yang benar-benar dipegang karyawan — bukan input manual.">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Karyawan</TableHead>
-                  <TableHead class="text-center">
-                    Project
-                  </TableHead>
-                  <TableHead class="text-center">
-                    Task Selesai
-                  </TableHead>
-                  <TableHead>Penyelesaian Task</TableHead>
-                  <TableHead class="text-right">
-                    Nilai Dikelola
-                  </TableHead>
-                  <TableHead class="text-center">
-                    Kehadiran
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in productivity" :key="row.employeeId">
-                  <TableCell>
-                    <p class="text-sm font-medium text-foreground">
-                      {{ row.employeeName }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ row.position }}
-                    </p>
-                  </TableCell>
-                  <TableCell class="text-center text-sm text-foreground">
-                    {{ row.projectsCompleted }}/{{ row.projectsOwned }}
-                  </TableCell>
-                  <TableCell class="text-center text-sm text-foreground">
-                    {{ row.tasksCompleted }}/{{ row.tasksAssigned }}
-                  </TableCell>
-                  <TableCell>
-                    <div class="flex items-center gap-2">
-                      <span class="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
-                        <span class="block h-full rounded-full bg-primary" :style="{ width: `${row.taskCompletionPercent}%` }" />
-                      </span>
-                      <span class="text-xs text-muted-foreground">{{ row.taskCompletionPercent }}%</span>
-                    </div>
-                  </TableCell>
-                  <TableCell class="text-right">
-                    <div class="flex items-center justify-end gap-2">
-                      <span class="h-1.5 w-12 rounded-full bg-muted overflow-hidden">
-                        <span class="block h-full rounded-full bg-success" :style="{ width: `${(row.revenueHandledIdr / maxRevenueHandled) * 100}%` }" />
-                      </span>
-                      <span class="text-sm text-foreground">{{ formatCurrencyIdr(row.revenueHandledIdr) }}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell class="text-center text-sm" :class="row.attendanceRatePercent >= 90 ? 'text-success' : 'text-muted-foreground'">
-                    {{ row.attendanceRatePercent ? `${row.attendanceRatePercent}%` : '—' }}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+          <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Produktivitas" description="Seluruh angka diturunkan dari project dan task yang benar-benar dipegang karyawan — bukan input manual.">
+            <div class="overflow-x-auto border-t border-border">
+              <Table class="w-full min-w-[780px]">
+                <TableHeader>
+                  <TableRow class="bg-muted/40 hover:bg-muted/40">
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Karyawan
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Project
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Task Selesai
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Penyelesaian Task
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Nilai Dikelola
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Kehadiran
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in productivity" :key="row.employeeId">
+                    <TableCell class="px-4 py-3">
+                      <p class="text-sm font-medium text-foreground">
+                        {{ row.employeeName }}
+                      </p>
+                      <p class="text-xs text-muted-foreground">
+                        {{ row.position }}
+                      </p>
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
+                      {{ row.projectsCompleted }}/{{ row.projectsOwned }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
+                      {{ row.tasksCompleted }}/{{ row.tasksAssigned }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3">
+                      <div class="flex items-center gap-2">
+                        <span class="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+                          <span class="block h-full rounded-full bg-primary" :style="{ width: `${row.taskCompletionPercent}%` }" />
+                        </span>
+                        <span class="text-xs tabular-nums text-muted-foreground">{{ row.taskCompletionPercent }}%</span>
+                      </div>
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-right">
+                      <div class="flex items-center justify-end gap-2">
+                        <span class="h-1.5 w-12 rounded-full bg-muted overflow-hidden">
+                          <span class="block h-full rounded-full bg-success" :style="{ width: `${(row.revenueHandledIdr / maxRevenueHandled) * 100}%` }" />
+                        </span>
+                        <span class="text-sm tabular-nums text-foreground">{{ formatCurrencyIdr(row.revenueHandledIdr) }}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums" :class="row.attendanceRatePercent >= 90 ? 'text-success' : 'text-muted-foreground'">
+                      {{ row.attendanceRatePercent ? `${row.attendanceRatePercent}%` : '—' }}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
           </SectionCard>
         </TabsContent>
       </Tabs>

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Search, CheckCircle2, AlertTriangle } from 'lucide-vue-next'
+import { Search, CheckCircle2, AlertTriangle, ListChecks, FileStack } from 'lucide-vue-next'
 import { getSupplierInvoiceReconciliationQueue, getServiceOrderById, getVendorById, getProjectById, updateSupplierInvoiceMatchStatus } from '~/data'
 import { SUPPLIER_INVOICE_MATCH_STATUSES, SUPPLIER_INVOICE_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -45,6 +45,8 @@ const rows = computed(() => {
 const unmatchedCount = computed(() => rows.value.filter(row => row.invoice.matchStatus === 'unmatched').length)
 const disputedCount = computed(() => rows.value.filter(row => row.invoice.matchStatus === 'disputed').length)
 
+const { pageSize, currentPage, totalPages, pageItems: paginatedRows, rangeLabel } = usePagination(rows)
+
 function markMatched (id: string) {
   const result = updateSupplierInvoiceMatchStatus(id, 'matched', currentUser.value.id)
   if (result) { showToast('Supplier Invoice Matched', `${result.id} kini berstatus "Matched".`, 'success') }
@@ -74,67 +76,118 @@ function submitDispute () {
     <RoleAccessState v-if="!canView('finance')" module-label="modul Finance & ACC" />
 
     <template v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <StatsCard title="Unmatched" :value="String(unmatchedCount)" :icon="AlertTriangle" icon-color="warning" />
-        <StatsCard title="Disputed" :value="String(disputedCount)" :icon="AlertTriangle" icon-color="destructive" />
-      </div>
+      <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Reconciliation">
+        <template #actions>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-muted-foreground">
+              <ListChecks class="h-3.5 w-3.5" />Worklist Summary
+            </span>
+            <span class="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs">
+              <AlertTriangle class="h-3.5 w-3.5 text-warning" />
+              <span class="text-muted-foreground">Unmatched</span>
+              <span class="font-semibold tabular-nums text-foreground">{{ unmatchedCount }}</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs">
+              <AlertTriangle class="h-3.5 w-3.5 text-destructive" />
+              <span class="text-muted-foreground">Disputed</span>
+              <span class="font-semibold tabular-nums text-foreground">{{ disputedCount }}</span>
+            </span>
+            <span class="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs">
+              <FileStack class="h-3.5 w-3.5 text-muted-foreground" />
+              <span class="text-muted-foreground">Total Supplier Invoice</span>
+              <span class="font-semibold tabular-nums text-foreground">{{ rows.length }}</span>
+            </span>
+          </div>
+        </template>
 
-      <div class="relative max-w-sm w-full">
-        <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input v-model="searchQuery" placeholder="Cari Supplier Invoice, vendor, atau project..." class="pl-9" />
-      </div>
+        <div class="border-t border-border px-4 py-3">
+          <div class="relative max-w-sm w-full">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input v-model="searchQuery" placeholder="Cari Supplier Invoice, vendor, atau project..." class="pl-9" />
+          </div>
+        </div>
 
-      <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Supplier Invoice</TableHead>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Jumlah</TableHead>
-              <TableHead>Jadwal Pembayaran</TableHead>
-              <TableHead>Status Invoice</TableHead>
-              <TableHead>Match Status</TableHead>
-              <TableHead v-if="canManageFinance">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.invoice.id">
-              <TableCell class="font-medium text-foreground">
-                {{ row.invoice.id }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.vendorLabel }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.project?.name ?? '—' }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(row.invoice.amountIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.invoice.paymentScheduleDate ? formatDate(row.invoice.paymentScheduleDate) : 'Belum dijadwalkan' }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, row.invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, row.invoice.status).tone" /></TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, row.invoice.matchStatus!).label" :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, row.invoice.matchStatus!).tone" /></TableCell>
-              <TableCell v-if="canManageFinance">
-                <div class="flex flex-wrap gap-1.5">
-                  <Button size="sm" variant="outline" @click="markMatched(row.invoice.id)">
-                    <CheckCircle2 class="h-3.5 w-3.5 mr-1" />Mark Matched
-                  </Button>
-                  <Button v-if="row.invoice.matchStatus !== 'disputed'" size="sm" variant="ghost" @click="openDisputeDialog(row.invoice.id)">
-                    Flag Disputed
-                  </Button>
-                </div>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="canManageFinance ? 8 : 7">
-              {{ searchQuery ? 'Tidak ada Supplier Invoice yang cocok dengan pencarian.' : 'Tidak ada Supplier Invoice yang perlu direkonsiliasi — seluruhnya sudah matched.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <div class="overflow-x-auto border-t border-border">
+          <Table class="w-full min-w-[920px]">
+            <TableHeader>
+              <TableRow class="bg-muted/40 hover:bg-muted/40">
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Supplier Invoice
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Vendor
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Project
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Jumlah
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Jadwal Pembayaran
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Status Invoice
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Match Status
+                </TableHead>
+                <TableHead v-if="canManageFinance" class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Aksi
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="row in paginatedRows" :key="row.invoice.id">
+                <TableCell class="px-4 py-3 font-medium text-foreground">
+                  {{ row.invoice.id }}
+                </TableCell>
+                <TableCell class="px-4 py-3 text-muted-foreground">
+                  {{ row.vendorLabel }}
+                </TableCell>
+                <TableCell class="px-4 py-3 text-muted-foreground">
+                  {{ row.project?.name ?? '—' }}
+                </TableCell>
+                <TableCell class="px-4 py-3 tabular-nums text-foreground">
+                  {{ formatCurrencyIdr(row.invoice.amountIdr) }}
+                </TableCell>
+                <TableCell class="px-4 py-3 text-muted-foreground">
+                  {{ row.invoice.paymentScheduleDate ? formatDate(row.invoice.paymentScheduleDate) : 'Belum dijadwalkan' }}
+                </TableCell>
+                <TableCell class="px-4 py-3">
+                  <StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, row.invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, row.invoice.status).tone" />
+                </TableCell>
+                <TableCell class="px-4 py-3">
+                  <StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, row.invoice.matchStatus ?? 'unmatched').label" :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, row.invoice.matchStatus ?? 'unmatched').tone" />
+                </TableCell>
+                <TableCell v-if="canManageFinance" class="px-4 py-3">
+                  <div class="flex flex-wrap gap-1.5">
+                    <Button size="sm" variant="outline" @click="markMatched(row.invoice.id)">
+                      <CheckCircle2 class="h-3.5 w-3.5 mr-1" />Mark Matched
+                    </Button>
+                    <Button v-if="row.invoice.matchStatus !== 'disputed'" size="sm" variant="ghost" @click="openDisputeDialog(row.invoice.id)">
+                      Flag Disputed
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+              <TableEmpty v-if="rows.length === 0" :colspan="canManageFinance ? 8 : 7">
+                {{ searchQuery ? 'Tidak ada Supplier Invoice yang cocok dengan pencarian.' : 'Tidak ada Supplier Invoice yang perlu direkonsiliasi — seluruhnya sudah matched.' }}
+              </TableEmpty>
+            </TableBody>
+          </Table>
+        </div>
+
+        <TablePaginationFooter
+          :total="rows.length"
+          :item-label="rows.length === 1 ? 'supplier invoice' : 'supplier invoices'"
+          :page-size="pageSize"
+          :current-page="currentPage"
+          :total-pages="totalPages"
+          :range-label="rangeLabel"
+          @update:page-size="pageSize = $event"
+          @update:current-page="currentPage = $event"
+        />
       </SectionCard>
     </template>
 

@@ -21,7 +21,7 @@ function projectNameOfInvoice (invoiceId: string) {
 }
 
 const rows = computed(() => {
-  let result = PAYMENTS.map(payment => ({
+  let result = [...PAYMENTS].sort((a, b) => b.receivedAt.localeCompare(a.receivedAt)).map(payment => ({
     payment,
     invoiceLabel: invoiceOf(payment.invoiceId)?.label ?? payment.invoiceId,
     projectLabel: projectNameOfInvoice(payment.invoiceId)
@@ -33,6 +33,8 @@ const rows = computed(() => {
   }
   return result
 })
+
+const { pageSize, currentPage, totalPages, pageItems: paginatedRows, rangeLabel } = usePagination(rows)
 </script>
 
 <template>
@@ -40,39 +42,64 @@ const rows = computed(() => {
     <RoleAccessState v-if="!canView('finance')" module-label="modul Finance & ACC" />
 
     <template v-else>
-      <div class="relative max-w-sm w-full">
-        <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input v-model="searchQuery" placeholder="Cari invoice atau project..." class="pl-9" />
-      </div>
+      <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Payments">
+        <template #actions>
+          <div class="relative max-w-sm w-full">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input v-model="searchQuery" placeholder="Cari invoice atau project..." class="pl-9" />
+          </div>
+        </template>
 
-      <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Invoice</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Jumlah</TableHead>
-              <TableHead>Diterima</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.payment.id">
-              <TableCell class="font-medium text-foreground">
-                {{ row.invoiceLabel }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.projectLabel }}
-              </TableCell>
-              <TableCell>{{ formatCurrencyIdr(row.payment.amountIdr) }}</TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDate(row.payment.receivedAt) }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="4">
-              {{ searchQuery ? 'Tidak ada payment yang cocok dengan pencarian.' : 'Belum ada payment.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <div class="overflow-x-auto border-t border-border">
+          <Table class="w-full min-w-[640px]">
+            <TableHeader>
+              <TableRow class="bg-muted/40 hover:bg-muted/40">
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Invoice
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Project
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Jumlah
+                </TableHead>
+                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                  Diterima
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="row in paginatedRows" :key="row.payment.id">
+                <TableCell class="px-4 py-3 font-medium text-foreground">
+                  {{ row.invoiceLabel }}
+                </TableCell>
+                <TableCell class="px-4 py-3 text-muted-foreground">
+                  {{ row.projectLabel }}
+                </TableCell>
+                <TableCell class="px-4 py-3 tabular-nums">
+                  {{ formatCurrencyIdr(row.payment.amountIdr) }}
+                </TableCell>
+                <TableCell class="px-4 py-3 text-muted-foreground">
+                  {{ formatDate(row.payment.receivedAt) }}
+                </TableCell>
+              </TableRow>
+              <TableEmpty v-if="rows.length === 0" :colspan="4">
+                {{ searchQuery ? 'Tidak ada payment yang cocok dengan pencarian.' : 'Belum ada payment.' }}
+              </TableEmpty>
+            </TableBody>
+          </Table>
+        </div>
+
+        <TablePaginationFooter
+          :total="rows.length"
+          :item-label="rows.length === 1 ? 'payment' : 'payments'"
+          :page-size="pageSize"
+          :current-page="currentPage"
+          :total-pages="totalPages"
+          :range-label="rangeLabel"
+          @update:page-size="pageSize = $event"
+          @update:current-page="currentPage = $event"
+        />
       </SectionCard>
     </template>
   </div>

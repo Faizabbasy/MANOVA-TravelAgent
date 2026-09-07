@@ -44,40 +44,48 @@ const calculation = computed(() => {
         <StatsCard title="NPWP Perusahaan" :value="ORGANIZATION_PROFILE.npwp || '—'" :icon="Calculator" />
       </div>
 
-      <div class="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
-        <SectionCard title="Aturan Pajak" description="Dikelola di Administration > Master Data.">
-          <Table v-if="TAX_RULES.length">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Nama</TableHead>
-                <TableHead>Berlaku Untuk</TableHead>
-                <TableHead class="text-right">
-                  Tarif
-                </TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="rule in TAX_RULES" :key="rule.id">
-                <TableCell class="text-sm font-medium text-foreground">
-                  {{ rule.name }}
-                </TableCell>
-                <TableCell class="text-sm text-muted-foreground">
-                  {{ rule.appliesTo }}
-                </TableCell>
-                <TableCell class="text-right text-sm font-semibold text-foreground">
-                  {{ formatPercentage(rule.ratePercent, 1) }}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge :label="rule.isActive ? 'Aktif' : 'Nonaktif'" :tone="rule.isActive ? 'success' : 'neutral'" />
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
+        <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Aturan Pajak" description="Dikelola di Administration > Master Data.">
+          <div v-if="TAX_RULES.length" class="overflow-x-auto border-t border-border">
+            <Table class="w-full min-w-[480px]">
+              <TableHeader>
+                <TableRow class="bg-muted/40 hover:bg-muted/40">
+                  <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Nama
+                  </TableHead>
+                  <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Berlaku Untuk
+                  </TableHead>
+                  <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Tarif
+                  </TableHead>
+                  <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Status
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="rule in TAX_RULES" :key="rule.id">
+                  <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+                    {{ rule.name }}
+                  </TableCell>
+                  <TableCell class="px-4 py-3 text-sm text-muted-foreground">
+                    {{ rule.appliesTo }}
+                  </TableCell>
+                  <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
+                    {{ formatPercentage(rule.ratePercent, 1) }}
+                  </TableCell>
+                  <TableCell class="px-4 py-3">
+                    <StatusBadge :label="rule.isActive ? 'Aktif' : 'Nonaktif'" :tone="rule.isActive ? 'success' : 'neutral'" />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
           <EmptyState v-else title="Belum ada aturan pajak" />
         </SectionCard>
 
-        <SectionCard title="Kalkulator Pajak" description="Memverifikasi angka invoice tanpa berpindah halaman.">
+        <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Kalkulator Pajak" description="Memverifikasi angka invoice tanpa berpindah halaman.">
           <div class="space-y-3">
             <div class="space-y-1.5">
               <Label>Dasar Pengenaan (IDR)</Label>
@@ -113,6 +121,8 @@ const calculation = computed(() => {
       </div>
 
       <SectionCard
+        compact
+        titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
         title="Multi Currency"
         description="Mata uang yang dapat dipilih pada invoice. Nilai tukar disimpan sebagai snapshot pada invoice masing-masing agar riwayat tidak berubah saat kurs bergerak."
       >
