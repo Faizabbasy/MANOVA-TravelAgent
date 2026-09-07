@@ -2660,17 +2660,14 @@ const tripDurationDays = computed(() => {
               </Dialog>
 
               <!--
-              Card per tipe layanan + Booking Timeline dalam SATU grid responsif: kalau totalnya genap (mis.
-              1 layanan + Booking Timeline = 2 card), keduanya berdampingan setengah lebar — tidak ada card
-              sepi konten yang dipaksa full-width sendirian. Kalau totalnya ganjil (mis. 2 layanan + Booking
-              Timeline = 3 card, kasus Abu Dhabi yang datanya banyak), card TERAKHIR (Booking Timeline, sering
-              paling panjang datanya) otomatis full-width sendiri lewat `lg:[&>*:last-child:nth-child(odd)]`
-              — supaya tabel banyak-baris tidak terjepit setengah lebar. Tinggi card di-stretch SAMA (default
-              grid stretch) supaya sepasang card tetap imbang meski jumlah baris beda — card tipe layanan
-              jadi flex column penuh tinggi (`class`+`content-class`) dan tombol "Buat Booking" ditempel ke
-              dasar via `mt-auto`, bukan menyisakan celah kosong mengambang di tengah.
+              Card per tipe layanan — grid 2 kolom, card TERAKHIR otomatis full-width sendiri kalau totalnya
+              ganjil (`lg:[&>*:last-child:nth-child(odd)]`) supaya tidak ada card sepi konten yang dipaksa
+              setengah lebar sendirian. Tinggi card di-stretch SAMA (default grid stretch) supaya sepasang
+              card tetap imbang meski jumlah baris beda — card tipe layanan jadi flex column penuh tinggi
+              (`class`+`content-class`) dan tombol "Buat Booking" ditempel ke dasar via `mt-auto`, bukan
+              menyisakan celah kosong mengambang di tengah.
             -->
-              <div v-if="visibleServiceTypes.length || projectBookingTimeline.length" class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
+              <div v-if="visibleServiceTypes.length" class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
                 <SectionCard
                   v-for="type in visibleServiceTypes"
                   :key="type.value"
@@ -2731,99 +2728,101 @@ const tripDurationDays = computed(() => {
                     </Button>
                   </div>
                 </SectionCard>
-
-                <!--
-                Booking Timeline (Section 18, D-075) — SATU list terunifikasi lintas Flight/Hotel/Transport/MICE
-                MENGGANTIKAN 4 blok ringkasan terpisah lama (Section 13-16, lihat CI-048). Informasi identik
-                dengan `/bookings` (booking reference/status internal-supplier-client/deadline/voucher/exception/
-                dependency/payment-gate), hanya pre-filtered ke project ini. "Mark Payment Cleared" bisa
-                langsung dari sini (bukan cuma `/bookings`) supaya PM/Ops tidak perlu pindah halaman untuk
-                aksi yang sering dipakai — "Buka Booking Center" tetap ada untuk Catat Percobaan/exception
-                lain yang belum dipindah ke sini.
-              -->
-                <SectionCard
-                  v-if="projectBookingTimeline.length"
-                  content-class="p-0"
-                  titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
-                  title="Booking Timeline"
-                  description="Konsolidasi Flight/Hotel/Transport/MICE booking untuk project ini — satu sumber kebenaran seluruh service (Section 18)."
-                >
-                  <template #actions>
-                    <NuxtLink :to="`/bookings?projectId=${project.id}`">
-                      <Button size="sm" variant="outline" class="rounded-full">
-                        Buka Booking Center
-                      </Button>
-                    </NuxtLink>
-                  </template>
-                  <div class="overflow-x-auto border-t border-border">
-                    <Table class="w-auto">
-                      <TableHeader>
-                        <TableRow class="bg-muted/40 hover:bg-muted/40">
-                          <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Booking
-                          </TableHead>
-                          <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Reference
-                          </TableHead>
-                          <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Internal
-                          </TableHead>
-                          <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Payment
-                          </TableHead>
-                          <TableHead class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                            Action
-                          </TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <TableRow v-for="entry in projectBookingTimeline" :key="`${entry.bookingType}-${entry.bookingId}`">
-                          <TableCell class="max-w-[260px] px-4 py-4">
-                            <div class="flex items-center gap-2">
-                              <StatusBadge size="md" :label="BOOKING_DOMAIN_LABEL_MAP[entry.bookingType]" :tone="BOOKING_DOMAIN_TONE_MAP[entry.bookingType]" />
-                              <NuxtLink :to="entry.detailHref" class="text-sm font-bold text-foreground hover:text-primary hover:underline">
-                                {{ entry.bookingId }}
-                              </NuxtLink>
-                            </div>
-                            <p class="mt-1 truncate text-sm text-muted-foreground" :title="entry.label">
-                              {{ entry.label }}
-                            </p>
-                            <p v-if="entry.exceptions.length" class="mt-1 truncate text-xs text-destructive" :title="entry.exceptions.join(' · ')">
-                              {{ entry.exceptions[0] }}<template v-if="entry.exceptions.length > 1">
-                                +{{ entry.exceptions.length - 1 }} lagi
-                              </template>
-                            </p>
-                          </TableCell>
-                          <TableCell class="px-4 py-4 text-sm text-muted-foreground">
-                            {{ entry.reference ?? 'Belum terbit' }}
-                            <br>
-                            {{ entry.travelerCount }} pax<template v-if="entry.deadlineDate">
-                              · {{ formatDate(entry.deadlineDate) }}
-                            </template>
-                          </TableCell>
-                          <TableCell class="px-4 py-4">
-                            <StatusBadge size="md" :label="entry.internalStatus" :tone="entry.internalStatusTone" />
-                          </TableCell>
-                          <TableCell class="px-4 py-4">
-                            <StatusBadge size="md" :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
-                            <div v-if="canManageBookings && entry.paymentGateStatus === 'pending'" class="mt-1">
-                              <Button size="sm" variant="outline" @click="markBookingPaymentCleared(entry)">
-                                Mark Payment Cleared
-                              </Button>
-                            </div>
-                          </TableCell>
-                          <TableCell class="px-4 py-4 text-right">
-                            <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank" class="inline-flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary">
-                              Voucher<ChevronRight class="h-3.5 w-3.5" />
-                            </NuxtLink>
-                            <span v-else class="text-sm text-muted-foreground">—</span>
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </div>
-                </SectionCard>
               </div>
+
+              <!--
+              Booking Timeline (Section 18, D-075) — SATU list terunifikasi lintas Flight/Hotel/Transport/MICE
+              MENGGANTIKAN 4 blok ringkasan terpisah lama (Section 13-16, lihat CI-048). Informasi identik
+              dengan `/bookings` (booking reference/status internal-supplier-client/deadline/voucher/exception/
+              dependency/payment-gate), hanya pre-filtered ke project ini. "Mark Payment Cleared" bisa
+              langsung dari sini (bukan cuma `/bookings`) supaya PM/Ops tidak perlu pindah halaman untuk
+              aksi yang sering dipakai — "Buka Booking Center" tetap ada untuk Catat Percobaan/exception
+              lain yang belum dipindah ke sini. Full-width sendiri (bukan setengah lebar di grid layanan) —
+              5 kolom (Booking/Reference/Internal/Payment/Action) kepenuhan dan terjepit-scroll kalau dipaksa
+              setengah lebar.
+            -->
+              <SectionCard
+                v-if="projectBookingTimeline.length"
+                content-class="p-0"
+                titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
+                title="Booking Timeline"
+                description="Konsolidasi Flight/Hotel/Transport/MICE booking untuk project ini — satu sumber kebenaran seluruh service (Section 18)."
+              >
+                <template #actions>
+                  <NuxtLink :to="`/bookings?projectId=${project.id}`">
+                    <Button size="sm" variant="outline" class="rounded-full">
+                      Buka Booking Center
+                    </Button>
+                  </NuxtLink>
+                </template>
+                <div class="overflow-x-auto border-t border-border">
+                  <Table class="w-full min-w-[720px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Booking
+                        </TableHead>
+                        <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Reference
+                        </TableHead>
+                        <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Internal
+                        </TableHead>
+                        <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Payment
+                        </TableHead>
+                        <TableHead class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Action
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="entry in projectBookingTimeline" :key="`${entry.bookingType}-${entry.bookingId}`">
+                        <TableCell class="max-w-[260px] px-4 py-4">
+                          <div class="flex items-center gap-2">
+                            <StatusBadge size="md" :label="BOOKING_DOMAIN_LABEL_MAP[entry.bookingType]" :tone="BOOKING_DOMAIN_TONE_MAP[entry.bookingType]" />
+                            <NuxtLink :to="entry.detailHref" class="text-sm font-bold text-foreground hover:text-primary hover:underline">
+                              {{ entry.bookingId }}
+                            </NuxtLink>
+                          </div>
+                          <p class="mt-1 truncate text-sm text-muted-foreground" :title="entry.label">
+                            {{ entry.label }}
+                          </p>
+                          <p v-if="entry.exceptions.length" class="mt-1 truncate text-xs text-destructive" :title="entry.exceptions.join(' · ')">
+                            {{ entry.exceptions[0] }}<template v-if="entry.exceptions.length > 1">
+                              +{{ entry.exceptions.length - 1 }} lagi
+                            </template>
+                          </p>
+                        </TableCell>
+                        <TableCell class="px-4 py-4 text-sm text-muted-foreground">
+                          {{ entry.reference ?? 'Belum terbit' }}
+                          <br>
+                          {{ entry.travelerCount }} pax<template v-if="entry.deadlineDate">
+                            · {{ formatDate(entry.deadlineDate) }}
+                          </template>
+                        </TableCell>
+                        <TableCell class="px-4 py-4">
+                          <StatusBadge size="md" :label="entry.internalStatus" :tone="entry.internalStatusTone" />
+                        </TableCell>
+                        <TableCell class="px-4 py-4">
+                          <StatusBadge size="md" :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
+                          <div v-if="canManageBookings && entry.paymentGateStatus === 'pending'" class="mt-1">
+                            <Button size="sm" variant="outline" @click="markBookingPaymentCleared(entry)">
+                              Mark Payment Cleared
+                            </Button>
+                          </div>
+                        </TableCell>
+                        <TableCell class="px-4 py-4 text-right">
+                          <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank" class="inline-flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary">
+                            Voucher<ChevronRight class="h-3.5 w-3.5" />
+                          </NuxtLink>
+                          <span v-else class="text-sm text-muted-foreground">—</span>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </SectionCard>
 
               <!-- "Buat Booking" quick-create — Sheet reusable satu instance untuk Flight/Hotel/Transport/MICE, dibuka via `openCreateBooking(type)` dari tombol di masing-masing card di atas. -->
               <Sheet v-model:open="isBookingSheetOpen">
