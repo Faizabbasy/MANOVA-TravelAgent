@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
-import { Plus, Pencil, Ban, RotateCcw, Layers, MapPin, Building2, FolderKanban, Plane, BedDouble, Coins, Percent, CalendarClock, ShieldAlert, Hash, FileText, Gauge, Route } from 'lucide-vue-next'
+import { Plus, Pencil, Ban, RotateCcw, Layers, MapPin, Building2, FolderKanban, Plane, BedDouble, Coins, Percent, CalendarClock, ShieldAlert, Hash, FileText, Gauge, Route, LayoutTemplate, Trash2 } from 'lucide-vue-next'
 import {
-  MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
+  MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES, MILESTONE_TEMPLATES,
   AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
   NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES,
   createMasterDataRecord, updateMasterDataRecord, deactivateMasterDataRecord, reactivateMasterDataRecord, getMasterDataUsageCount
@@ -61,7 +61,8 @@ const GROUPS: GroupDef[] = [
       { key: 'vendor-category', label: 'Kategori Vendor', description: 'Jenis layanan yang disediakan vendor.', list: MASTER_VENDOR_CATEGORIES, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'text' }] },
       { key: 'airport', label: 'Airport', description: 'Referensi bandara. TIDAK ditautkan sebagai foreign key ke FlightBooking (LOCKED) — murni referensi admin.', list: AIRPORTS, fields: [{ key: 'iataCode', label: 'Kode IATA', type: 'text', placeholder: 'mis. CGK' }, { key: 'name', label: 'Nama Airport', type: 'text' }, { key: 'city', label: 'Kota', type: 'text' }] },
       { key: 'airline', label: 'Airline', description: 'Referensi maskapai. TIDAK ditautkan sebagai foreign key ke FlightBooking (LOCKED) — murni referensi admin.', list: AIRLINES, fields: [{ key: 'iataCode', label: 'Kode IATA', type: 'text', placeholder: 'mis. GA' }, { key: 'name', label: 'Nama Airline', type: 'text' }] },
-      { key: 'hotel', label: 'Hotel', description: 'Referensi hotel. TIDAK ditautkan sebagai foreign key ke HotelBooking (LOCKED) — murni referensi admin.', list: MASTER_HOTELS, fields: [{ key: 'name', label: 'Nama Hotel', type: 'text' }, { key: 'city', label: 'Kota', type: 'text' }, { key: 'starRating', label: 'Star Rating', type: 'number' }] }
+      { key: 'hotel', label: 'Hotel', description: 'Referensi hotel. TIDAK ditautkan sebagai foreign key ke HotelBooking (LOCKED) — murni referensi admin.', list: MASTER_HOTELS, fields: [{ key: 'name', label: 'Nama Hotel', type: 'text' }, { key: 'city', label: 'Kota', type: 'text' }, { key: 'starRating', label: 'Star Rating', type: 'number' }] },
+      { key: 'milestone-template', label: 'Milestone Template', description: 'Template milestone standar (nama + offset hari dari tanggal acuan) — bisa diterapkan sekaligus ke Timeline Tracking sebuah Project Order.', list: MILESTONE_TEMPLATES, fields: [{ key: 'label', label: 'Nama', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'text' }] }
     ]
   },
   {
@@ -103,7 +104,8 @@ const CATEGORY_ICONS: Record<MasterDataCategoryKey, any> = {
   'numbering-scheme': Hash,
   'document-template': FileText,
   'readiness-gate': Gauge,
-  'assignment-rule': Route
+  'assignment-rule': Route,
+  'milestone-template': LayoutTemplate
 }
 
 const activeGroupId = ref(GROUPS[0].id)
@@ -137,11 +139,30 @@ const formMode = ref<'create' | 'edit'>('create')
 const editingId = ref<string | null>(null)
 const formValues = reactive<Record<string, any>>({})
 
+/** Item milestone template — TERPISAH dari `formValues` generik karena bukan flat field (array of {id, label, offsetDays}). */
+const formItems = ref<{ id: string; label: string; offsetDays: number }[]>([])
+const newItemLabel = ref('')
+const newItemOffset = ref<number | null>(0)
+let itemSeq = 0
+
+function addTemplateItem () {
+  if (!newItemLabel.value.trim()) { return }
+  itemSeq += 1
+  formItems.value.push({ id: `TPLITEM-${Date.now()}-${itemSeq}`, label: newItemLabel.value.trim(), offsetDays: newItemOffset.value ?? 0 })
+  newItemLabel.value = ''
+  newItemOffset.value = 0
+}
+
+function removeTemplateItem (id: string) {
+  formItems.value = formItems.value.filter(item => item.id !== id)
+}
+
 function openCreate () {
   formMode.value = 'create'
   editingId.value = null
   for (const key in formValues) { delete formValues[key] }
   for (const field of activeCategory.value.fields) { formValues[field.key] = field.type === 'number' ? null : '' }
+  formItems.value = []
   isFormOpen.value = true
 }
 
@@ -150,6 +171,9 @@ function openEdit (item: Record<string, any>) {
   editingId.value = item.id
   for (const key in formValues) { delete formValues[key] }
   for (const field of activeCategory.value.fields) { formValues[field.key] = item[field.key] ?? (field.type === 'number' ? null : '') }
+  formItems.value = activeCategoryKey.value === 'milestone-template'
+    ? ((item.items as { id: string; label: string; offsetDays: number }[] | undefined) ?? []).map(templateItem => ({ ...templateItem }))
+    : []
   isFormOpen.value = true
 }
 
@@ -193,6 +217,9 @@ function submitForm () {
   const payload: Record<string, any> = {}
   for (const field of activeCategory.value.fields) {
     payload[field.key] = field.type === 'number' ? formValues[field.key] : String(formValues[field.key]).trim()
+  }
+  if (activeCategoryKey.value === 'milestone-template') {
+    payload.items = formItems.value
   }
 
   if (formMode.value === 'create') {
@@ -379,6 +406,29 @@ function reactivateItem (item: Record<string, any>) {
                 :type="field.type === 'number' ? 'number' : 'text'"
                 :placeholder="field.placeholder"
               />
+            </div>
+
+            <div v-if="activeCategoryKey === 'milestone-template'" class="space-y-2">
+              <Label>Item Milestone</Label>
+              <div v-if="formItems.length" class="space-y-1.5">
+                <div v-for="item in formItems" :key="item.id" class="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5">
+                  <span class="min-w-0 flex-1 truncate text-sm text-foreground">{{ item.label }}</span>
+                  <span class="shrink-0 text-xs text-muted-foreground">H{{ item.offsetDays >= 0 ? '+' : '' }}{{ item.offsetDays }}</span>
+                  <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive" title="Hapus" @click="removeTemplateItem(item.id)">
+                    <Trash2 class="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              <p v-else class="text-xs text-muted-foreground">
+                Belum ada item milestone.
+              </p>
+              <div class="flex gap-2">
+                <Input v-model="newItemLabel" type="text" placeholder="Nama milestone" class="flex-1" @keyup.enter="addTemplateItem" />
+                <Input v-model.number="newItemOffset" type="number" placeholder="Offset hari" class="w-28" @keyup.enter="addTemplateItem" />
+                <Button size="sm" variant="outline" class="shrink-0" @click="addTemplateItem">
+                  Tambah
+                </Button>
+              </div>
             </div>
           </div>
           <DialogFooter>
