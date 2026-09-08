@@ -38,7 +38,8 @@ import {
   getProjectOrderStepViews, advanceProjectOrder, getProjectMilestones,
   setMilestoneActualDate, updateMilestonePlannedDate, updateMilestoneNote, getProjectOrderStep,
   getProjectMilestoneSummary, getMilestoneProgressPercent, toggleMilestoneDeliverable,
-  addMilestoneDeliverable, removeMilestoneDeliverable, updateMilestoneBudget, getProjectMilestoneBudgetSummary
+  addMilestoneDeliverable, removeMilestoneDeliverable, updateMilestoneBudget, getProjectMilestoneBudgetSummary,
+  createProjectMilestone, applyMilestoneTemplate
 } from '~/data/project-order-workflow'
 import { getProjectActualCostIdr, getProjectExpenses, createProjectExpense, PROJECT_EXPENSE_CATEGORIES, getServiceTypeSpendBreakdown } from '~/data/finance-ext'
 import { getEmployeeByUserId } from '~/data/hr'
@@ -432,6 +433,26 @@ function onUpdateMilestoneBudget (payload: { milestoneId: string; budgetIdr?: nu
   showToast('Budget Disimpan', 'Budget milestone berhasil diperbarui.', 'success')
 }
 
+function onAddMilestone (payload: { name: string; plannedDate: string; ownerId?: string; budgetIdr?: number }) {
+  if (!project.value) { return }
+  createProjectMilestone({
+    projectId: project.value.id,
+    name: payload.name,
+    plannedDate: payload.plannedDate,
+    ownerId: payload.ownerId,
+    budgetIdr: payload.budgetIdr
+  })
+  refreshStep()
+  showToast('Milestone Ditambahkan', `"${payload.name}" berhasil ditambahkan ke Timeline Tracking.`, 'success')
+}
+
+function onApplyMilestoneTemplate (payload: { templateId: string; baseDate: string }) {
+  if (!project.value) { return }
+  const created = applyMilestoneTemplate(project.value.id, payload.templateId, payload.baseDate)
+  refreshStep()
+  showToast('Template Diterapkan', `${created.length} milestone dibuat dari template.`, 'success')
+}
+
 const party = computed(() => project.value ? getPartyById(project.value.partyId) : undefined)
 /** PIC (contact person) sisi client — kontak pertama yang tercatat untuk Party ini (`CONTACTS`, `app/data/parties.ts`), ditampilkan di header project untuk memudahkan koordinasi cepat lewat WhatsApp. */
 const clientPic = computed(() => (party.value ? getContactsByParty(party.value.id)[0] : undefined))
@@ -480,10 +501,10 @@ const taskIsMilestone = ref(false)
 const taskDependsOn = ref('')
 const taskAssignedTo = ref('')
 
-function openCreateTask () {
+function openCreateTask (defaultStatus?: ProjectTask['status']) {
   editingTaskId.value = null
   taskTitle.value = ''
-  taskStatus.value = 'not-started'
+  taskStatus.value = defaultStatus ?? 'not-started'
   taskDueAt.value = ''
   taskIsMilestone.value = false
   taskDependsOn.value = ''
@@ -2478,6 +2499,8 @@ const tripDurationDays = computed(() => {
             @add-deliverable="onAddMilestoneDeliverable"
             @remove-deliverable="onRemoveMilestoneDeliverable"
             @update-budget="onUpdateMilestoneBudget"
+            @add-milestone="onAddMilestone"
+            @apply-template="onApplyMilestoneTemplate"
           />
         </TabsContent>
 
@@ -4940,6 +4963,15 @@ const tripDurationDays = computed(() => {
                         Belum ada task pada tahap ini
                       </p>
                     </div>
+
+                    <button
+                      v-if="canManageProjectOrder"
+                      type="button"
+                      class="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-card py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                      @click="openCreateTask(status.value)"
+                    >
+                      <Plus class="h-3.5 w-3.5" />Tambah Task
+                    </button>
                   </div>
                 </div>
               </div>

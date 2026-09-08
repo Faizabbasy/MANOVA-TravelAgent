@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Table as TableIcon, GanttChartSquare, Info, Check, X, StickyNote, ChevronDown, Wallet, ListChecks, Trash2, Settings2 } from 'lucide-vue-next'
+import { Table as TableIcon, GanttChartSquare, Info, Check, X, StickyNote, ChevronDown, Wallet, ListChecks, Trash2, Settings2, Plus, LayoutTemplate, AlertTriangle } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import { getMilestoneDelayDays, getProjectMilestoneSummary, getMilestoneProgressPercent } from '~/data/project-order-workflow'
-import { getUserById } from '~/data'
+import { USERS, MILESTONE_TEMPLATES, getUserById } from '~/data'
 import { formatDate, formatCurrencyIdr } from '~/utils/format'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 import type { BadgeTone } from '~/types/common'
@@ -25,9 +25,57 @@ const emit = defineEmits<{
   'add-deliverable': [payload: { milestoneId: string; label: string }]
   'remove-deliverable': [payload: { milestoneId: string; deliverableId: string }]
   'update-budget': [payload: { milestoneId: string; budgetIdr?: number }]
+  'add-milestone': [payload: { name: string; plannedDate: string; ownerId?: string; budgetIdr?: number }]
+  'apply-template': [payload: { templateId: string; baseDate: string }]
 }>()
 
 const view = ref<'table' | 'gantt'>('table')
+
+/** Dialog "Tambah Milestone" — form baru, terpisah dari expand-panel per milestone existing di atas. */
+const isAddOpen = ref(false)
+const newName = ref('')
+const newPlannedDate = ref('')
+const newOwnerId = ref('')
+const newBudget = ref<number | null>(null)
+
+function openAddDialog () {
+  newName.value = ''
+  newPlannedDate.value = ''
+  newOwnerId.value = ''
+  newBudget.value = null
+  isAddOpen.value = true
+}
+
+function submitAddMilestone () {
+  if (!newName.value.trim() || !newPlannedDate.value) { return }
+  emit('add-milestone', {
+    name: newName.value.trim(),
+    plannedDate: newPlannedDate.value,
+    ownerId: newOwnerId.value || undefined,
+    budgetIdr: newBudget.value ?? undefined
+  })
+  isAddOpen.value = false
+}
+
+/** Dialog "Terapkan Template" — pilih Milestone Template aktif + tanggal acuan, mengganti seluruh milestone project ini. */
+const isApplyTemplateOpen = ref(false)
+const applyTemplateId = ref('')
+const applyBaseDate = ref('')
+
+const activeMilestoneTemplates = computed(() => MILESTONE_TEMPLATES.filter(template => template.isActive))
+const selectedApplyTemplate = computed(() => MILESTONE_TEMPLATES.find(template => template.id === applyTemplateId.value))
+
+function openApplyTemplateDialog () {
+  applyTemplateId.value = ''
+  applyBaseDate.value = ''
+  isApplyTemplateOpen.value = true
+}
+
+function submitApplyTemplate () {
+  if (!applyTemplateId.value || !applyBaseDate.value) { return }
+  emit('apply-template', { templateId: applyTemplateId.value, baseDate: applyBaseDate.value })
+  isApplyTemplateOpen.value = false
+}
 
 /** Panel expand per milestone (tanggal rencana + catatan) — dibuka/ditutup lokal di komponen ini (tidak
  * perlu state di parent, sama seperti `view`), cuma nilai final yang di-emit lewat "Save"/perubahan input. */
@@ -123,20 +171,28 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
 <template>
   <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Timeline Tracking">
     <template #actions>
-      <div class="inline-flex rounded-lg border border-border p-0.5">
-        <button
-          v-for="option in (['table', 'gantt'] as const)"
-          :key="option"
-          type="button"
-          :class="cn(
-            'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
-            view === option ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
-          )"
-          @click="view = option"
-        >
-          <component :is="option === 'table' ? TableIcon : GanttChartSquare" class="h-3.5 w-3.5" />
-          {{ option === 'table' ? 'Table' : 'Gantt' }}
-        </button>
+      <div class="flex items-center gap-2">
+        <Button v-if="canManage" size="sm" variant="outline" @click="openApplyTemplateDialog">
+          <LayoutTemplate class="mr-1 h-3.5 w-3.5" />Terapkan Template
+        </Button>
+        <Button v-if="canManage" size="sm" variant="outline" @click="openAddDialog">
+          <Plus class="mr-1 h-3.5 w-3.5" />Tambah Milestone
+        </Button>
+        <div class="inline-flex rounded-lg border border-border p-0.5">
+          <button
+            v-for="option in (['table', 'gantt'] as const)"
+            :key="option"
+            type="button"
+            :class="cn(
+              'flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md transition-colors',
+              view === option ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'
+            )"
+            @click="view = option"
+          >
+            <component :is="option === 'table' ? TableIcon : GanttChartSquare" class="h-3.5 w-3.5" />
+            {{ option === 'table' ? 'Table' : 'Gantt' }}
+          </button>
+        </div>
       </div>
     </template>
 
@@ -364,6 +420,88 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
       terhadap tanggal acuan demo ({{ formatDate(DEMO_REFERENCE_DATE) }}), sehingga keterlambatan yang sedang
       berjalan ikut terlihat.
     </p>
+
+    <Dialog v-model:open="isAddOpen">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Tambah Milestone</DialogTitle>
+          <DialogDescription>Milestone baru ditambahkan ke Timeline Tracking project ini.</DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="new-milestone-name">Nama Milestone</Label>
+            <Input id="new-milestone-name" v-model="newName" placeholder="mis. Konfirmasi Vendor & Booking" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="new-milestone-date">Tanggal Rencana</Label>
+            <Input id="new-milestone-date" v-model="newPlannedDate" type="date" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="new-milestone-owner">Owner (opsional)</Label>
+            <select id="new-milestone-owner" v-model="newOwnerId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="">
+                Belum ditentukan
+              </option>
+              <option v-for="user in USERS" :key="user.id" :value="user.id">
+                {{ user.name }}
+              </option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <Label for="new-milestone-budget">Budget (Rp, opsional)</Label>
+            <CurrencyInput id="new-milestone-budget" v-model="newBudget" placeholder="mis. 5000000" />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="isAddOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!newName.trim() || !newPlannedDate" @click="submitAddMilestone">
+            Simpan
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+
+    <Dialog v-model:open="isApplyTemplateOpen">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Terapkan Milestone Template</DialogTitle>
+          <DialogDescription>Seluruh milestone project ini akan digantikan oleh isi template yang dipilih.</DialogDescription>
+        </DialogHeader>
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="apply-template-select">Template</Label>
+            <select id="apply-template-select" v-model="applyTemplateId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="">
+                Pilih template
+              </option>
+              <option v-for="template in activeMilestoneTemplates" :key="template.id" :value="template.id">
+                {{ template.label }} ({{ template.items.length }} milestone)
+              </option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <Label for="apply-template-date">Tanggal Acuan</Label>
+            <Input id="apply-template-date" v-model="applyBaseDate" type="date" />
+          </div>
+          <div v-if="selectedApplyTemplate" class="flex gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2">
+            <AlertTriangle class="h-4 w-4 shrink-0 text-destructive mt-0.5" />
+            <p class="text-xs text-destructive">
+              Seluruh milestone project ini akan DIHAPUS dan digantikan oleh {{ selectedApplyTemplate.items.length }} milestone dari template ini. Aksi ini tidak dapat dibatalkan.
+            </p>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" @click="isApplyTemplateOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!applyTemplateId || !applyBaseDate" variant="destructive" @click="submitApplyTemplate">
+            Terapkan
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <Sheet v-model:open="isManageOpen">
       <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
