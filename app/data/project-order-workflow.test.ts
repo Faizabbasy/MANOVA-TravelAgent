@@ -12,9 +12,10 @@ import {
   setMilestoneActualDate,
   getProjectNotes,
   createProjectNote,
-  toggleProjectNotePin
+  toggleProjectNotePin,
+  applyMilestoneTemplate
 } from './project-order-workflow'
-import { getProjectById, getProjectStatusTransitions, createProject } from './index'
+import { getProjectById, getProjectStatusTransitions, createProject, createMasterDataRecord } from './index'
 import type { Project } from '~/types/project'
 
 function project (id: string): Project {
@@ -252,5 +253,79 @@ describe('Catatan Project Order', () => {
     const toggled = toggleProjectNotePin(note!.id)
     expect(toggled?.pinned).toBe(true)
     expect(toggleProjectNotePin(note!.id)?.pinned).toBe(false)
+  })
+})
+
+describe('applyMilestoneTemplate', () => {
+  it('mengganti seluruh milestone project dengan item dari template, plannedDate = baseDate + offset', () => {
+    const created = createProject({
+      partyId: 'PTY-001',
+      name: 'Test Trip Apply Template',
+      destination: 'Bandung, Indonesia',
+      travelStartDate: '2027-05-10',
+      travelEndDate: '2027-05-13',
+      travelerCount: 4,
+      serviceScope: ['flight'],
+      quotationAmountIdr: 50_000_000
+    })
+    if (!created) { throw new Error('project harus berhasil dibuat') }
+
+    const template = createMasterDataRecord('milestone-template', {
+      label: 'Test Template',
+      isActive: true,
+      items: [
+        { id: 'ITEM-1', label: 'Kickoff', offsetDays: 0 },
+        { id: 'ITEM-2', label: 'Mid Check', offsetDays: 5 },
+        { id: 'ITEM-3', label: 'Wrap Up', offsetDays: 12 }
+      ]
+    }, 'USR-001')
+
+    const beforeCount = getProjectMilestones(created.id).length
+    expect(beforeCount).toBeGreaterThan(0) // createProject auto-generates 8 default milestones
+
+    const result = applyMilestoneTemplate(created.id, template.id, '2027-05-01')
+
+    expect(result).toHaveLength(3)
+    const milestones = getProjectMilestones(created.id)
+    expect(milestones).toHaveLength(3)
+    expect(milestones.map(m => m.name)).toEqual(['Kickoff', 'Mid Check', 'Wrap Up'])
+    expect(milestones.map(m => m.plannedDate)).toEqual(['2027-05-01', '2027-05-06', '2027-05-13'])
+    expect(milestones.every(m => m.status === 'not-started')).toBe(true)
+  })
+
+  it('tidak menyentuh milestone milik project lain', () => {
+    const projectA = createProject({
+      partyId: 'PTY-001',
+      name: 'Test Trip A',
+      destination: 'Solo, Indonesia',
+      travelStartDate: '2027-06-01',
+      travelEndDate: '2027-06-03',
+      travelerCount: 2,
+      serviceScope: ['flight'],
+      quotationAmountIdr: 20_000_000
+    })
+    const projectB = createProject({
+      partyId: 'PTY-001',
+      name: 'Test Trip B',
+      destination: 'Semarang, Indonesia',
+      travelStartDate: '2027-06-05',
+      travelEndDate: '2027-06-07',
+      travelerCount: 2,
+      serviceScope: ['flight'],
+      quotationAmountIdr: 20_000_000
+    })
+    if (!projectA || !projectB) { throw new Error('kedua project harus berhasil dibuat') }
+
+    const template = createMasterDataRecord('milestone-template', {
+      label: 'Test Template B',
+      isActive: true,
+      items: [{ id: 'ITEM-B1', label: 'Only Step', offsetDays: 0 }]
+    }, 'USR-001')
+
+    const projectBMilestonesBefore = getProjectMilestones(projectB.id).length
+    applyMilestoneTemplate(projectA.id, template.id, '2027-06-01')
+
+    expect(getProjectMilestones(projectA.id)).toHaveLength(1)
+    expect(getProjectMilestones(projectB.id)).toHaveLength(projectBMilestonesBefore)
   })
 })

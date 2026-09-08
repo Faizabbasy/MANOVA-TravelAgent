@@ -1,4 +1,4 @@
-import { differenceInCalendarDays, parseISO } from 'date-fns'
+import { differenceInCalendarDays, parseISO, addDays, formatISO } from 'date-fns'
 import type { Project, ProjectStatus } from '~/types/project'
 import type {
   MilestoneDeliverable,
@@ -10,6 +10,7 @@ import type {
   ProjectOrderStepView
 } from '~/types/project-order'
 import { PROJECT_MILESTONES, PROJECT_NOTES } from './project-orders'
+import { MILESTONE_TEMPLATES } from './master-data'
 import { areProjectAssetsReturned, getAssetById } from './inventory'
 import {
   getProjectById,
@@ -494,6 +495,27 @@ export function createProjectMilestone (input: Omit<ProjectMilestone, 'id' | 'st
   }
   PROJECT_MILESTONES.push(milestone)
   return milestone
+}
+
+/**
+ * Terapkan Milestone Template ke sebuah project — MENGGANTI SELURUH milestone project ini (destruktif,
+ * termasuk yang sudah selesai/ada catatan/budget/deliverables), bukan menambahkan. Keputusan desain
+ * dikonfirmasi user (lihat docs/superpowers/specs/2026-09-08-milestone-template-design.md) — UI pemanggil
+ * WAJIB menampilkan peringatan sebelum memanggil fungsi ini.
+ */
+export function applyMilestoneTemplate (projectId: string, templateId: string, baseDate: string): ProjectMilestone[] {
+  const template = MILESTONE_TEMPLATES.find(item => item.id === templateId)
+  if (!template) { return [] }
+
+  const remaining = PROJECT_MILESTONES.filter(milestone => milestone.projectId !== projectId)
+  PROJECT_MILESTONES.length = 0
+  PROJECT_MILESTONES.push(...remaining)
+
+  return template.items.map(item => createProjectMilestone({
+    projectId,
+    name: item.label,
+    plannedDate: formatISO(addDays(parseISO(baseDate), item.offsetDays), { representation: 'date' })
+  }))
 }
 
 /**
