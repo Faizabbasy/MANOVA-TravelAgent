@@ -32,6 +32,7 @@ export type ProjectDetailTab =
   | 'overview'
   | 'milestone'
   | 'itinerary-services'
+  | 'calendar'
   | 'travelers'
   | 'vendors'
   | 'finance'

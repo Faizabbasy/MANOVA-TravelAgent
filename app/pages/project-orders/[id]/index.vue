@@ -151,6 +151,7 @@ const TABS = computed<{ value: ProjectDetailTab; label: string }[]>(() => (proje
       { value: 'bookings', label: 'Bookings' },
       { value: 'travelers', label: 'Participants' },
       { value: 'itinerary-services', label: 'Itinerary & Services' },
+      { value: 'calendar', label: 'Kalender' },
       { value: 'reservations', label: 'Reservations' },
       { value: 'payments', label: 'Payments' },
       { value: 'tasks', label: 'Operations' },
@@ -160,6 +161,7 @@ const TABS = computed<{ value: ProjectDetailTab; label: string }[]>(() => (proje
       { value: 'overview', label: 'Overview' },
       { value: 'milestone', label: 'Milestone' },
       { value: 'itinerary-services', label: 'Itinerary & Services' },
+      { value: 'calendar', label: 'Kalender' },
       { value: 'travelers', label: 'Travelers' },
       { value: 'vendors', label: 'Vendors' },
       { value: 'finance', label: 'Finance' },
@@ -873,9 +875,10 @@ const itineraryForm = ref({
   visibleToClient: true
 })
 
-function openCreateItineraryItem () {
+/** `prefillDate` dipakai tab Kalender — klik "Tambah Jadwal" langsung isi tanggal yang lagi dilihat/dipilih di kalender, bukan kosong. */
+function openCreateItineraryItem (prefillDate?: string) {
   editingItineraryItemId.value = undefined
-  itineraryForm.value = { date: '', time: '', title: '', description: '', location: '', serviceType: '', groupId: '', timezone: '', visibleToClient: true }
+  itineraryForm.value = { date: prefillDate ?? '', time: '', title: '', description: '', location: '', serviceType: '', groupId: '', timezone: '', visibleToClient: true }
   isItineraryFormOpen.value = true
 }
 
@@ -1999,17 +2002,18 @@ const tripDurationDays = computed(() => {
       </SectionCard>
 
       <SectionCard compact>
-        <div class="flex flex-wrap items-start justify-between gap-4">
-          <ProjectOrderStepper
-            class="min-w-0 flex-1"
-            :steps="stepViews"
-            :selected-step-key="selectedStepKey"
-            @select="value => selectedStepKey = selectedStepKey === value ? undefined : value"
-          />
-          <Button v-if="canAcceptHandover" size="sm" variant="outline" class="shrink-0" @click="onAcceptHandover">
+        <ProjectOrderStepper
+          class="px-1 pt-4"
+          :steps="stepViews"
+          :selected-step-key="selectedStepKey"
+          @select="value => selectedStepKey = selectedStepKey === value ? undefined : value"
+        />
+
+        <div v-if="canAcceptHandover || (canAdvanceStep && currentStepView)" class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
+          <Button v-if="canAcceptHandover" size="sm" variant="outline" @click="onAcceptHandover">
             Terima Handover
           </Button>
-          <Button v-if="canAdvanceStep && currentStepView" size="sm" class="shrink-0" :disabled="!currentStepView.gate.ready" @click="onAdvanceStep">
+          <Button v-if="canAdvanceStep && currentStepView" size="sm" :disabled="!currentStepView.gate.ready" @click="onAdvanceStep">
             Advance: {{ currentStepView.def.label }} →
           </Button>
         </div>
@@ -2067,7 +2071,7 @@ const tripDurationDays = computed(() => {
       </Dialog>
 
       <Tabs v-model="activeTab">
-        <TabsList>
+        <TabsList class="h-14 py-1.5">
           <TabsTrigger v-for="tab in TABS" :key="tab.value" :value="tab.value">
             {{ tab.label }}
           </TabsTrigger>
@@ -2505,23 +2509,142 @@ const tripDurationDays = computed(() => {
         </TabsContent>
 
         <TabsContent value="itinerary-services">
-          <div class="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start">
-            <div class="space-y-4 lg:col-span-2">
-              <!-- Departure Readiness Gate (Section 12 baru) -->
+          <div class="space-y-6">
+            <div class="space-y-4">
+              <!-- Daily Itinerary — konten utama tab ini (lebar penuh, tabel per tanggal). Card-card lain
+                   mengalir di grid responsif di bawah (bukan sidebar sempit) supaya tidak ada celah kosong
+                   ketika Daily Itinerary lebih pendek dari total tinggi card-card lainnya. -->
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Daily Itinerary" description="Jadwal harian perjalanan (timezone lokal ditampilkan berdampingan jam).">
+                <template v-if="canManageOperations" #actions>
+                  <Button size="sm" variant="outline" @click="openCreateItineraryItem">
+                    <Plus class="h-3.5 w-3.5 mr-1.5" />Tambah Itinerary
+                  </Button>
+                </template>
+                <div v-if="itineraryByDate.length" class="overflow-x-auto rounded-lg border border-border">
+                  <Table class="w-full min-w-[720px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="w-10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          No
+                        </TableHead>
+                        <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Day
+                        </TableHead>
+                        <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Time
+                        </TableHead>
+                        <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Activity
+                        </TableHead>
+                        <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Location
+                        </TableHead>
+                        <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Remarks
+                        </TableHead>
+                        <TableHead v-if="canManageOperations" class="px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Aksi
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <template v-for="day in itineraryByDate" :key="day.date">
+                        <TableRow v-for="(item, index) in day.items" :key="item.id" :class="index === 0 ? 'border-t-2 border-border' : ''">
+                          <TableCell class="px-3 py-2.5 text-sm text-muted-foreground">
+                            {{ index + 1 }}
+                          </TableCell>
+                          <TableCell class="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
+                            {{ formatDate(day.date) }}
+                          </TableCell>
+                          <TableCell class="px-3 py-2.5 text-sm text-muted-foreground">
+                            {{ item.time ?? '—' }}<template v-if="item.timezone">
+                              ({{ item.timezone }})
+                            </template>
+                          </TableCell>
+                          <TableCell class="px-3 py-2.5">
+                            <p class="text-sm text-foreground">
+                              {{ item.title }}
+                            </p>
+                            <p v-if="item.groupId" class="text-xs text-muted-foreground">
+                              Group: {{ groupNameById(item.groupId) }}
+                            </p>
+                            <div v-if="item.visibleToClient === false || item.serviceType" class="mt-1 flex flex-wrap items-center gap-1">
+                              <StatusBadge v-if="item.visibleToClient === false" label="Internal Only" tone="neutral" />
+                              <StatusBadge
+                                v-if="item.serviceType"
+                                :label="findStatusOption(SERVICE_TYPES, item.serviceType).label"
+                                :tone="findStatusOption(SERVICE_TYPES, item.serviceType).tone"
+                              />
+                            </div>
+                          </TableCell>
+                          <TableCell class="px-3 py-2.5 text-sm text-muted-foreground">
+                            {{ item.location ?? '—' }}
+                          </TableCell>
+                          <TableCell class="px-3 py-2.5 text-sm text-muted-foreground">
+                            {{ item.description ?? '—' }}
+                          </TableCell>
+                          <TableCell v-if="canManageOperations" class="px-3 py-2.5 text-right">
+                            <div class="flex items-center justify-end gap-1">
+                              <button
+                                type="button"
+                                class="flex h-6 w-6 items-center justify-center rounded-md border transition-colors"
+                                :class="item.visibleToClient === false ? 'border-chart-5/30 bg-chart-5/10 text-chart-5 hover:bg-chart-5/20' : 'border-warning/30 bg-warning/10 text-warning hover:bg-warning/20'"
+                                :title="item.visibleToClient === false ? 'Tampilkan ke Client' : 'Jadikan Internal'"
+                                @click="toggleItineraryVisibility(item)"
+                              >
+                                <component :is="item.visibleToClient === false ? Eye : EyeOff" class="h-3 w-3" />
+                              </button>
+                              <button
+                                type="button"
+                                class="flex h-6 w-6 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+                                title="Edit"
+                                @click="openEditItineraryItem(item)"
+                              >
+                                <Pencil class="h-3 w-3" />
+                              </button>
+                              <button
+                                type="button"
+                                class="flex h-6 w-6 items-center justify-center rounded-md border border-destructive/25 bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20"
+                                title="Hapus"
+                                @click="pendingDeleteItineraryItem = item"
+                              >
+                                <Trash2 class="h-3 w-3" />
+                              </button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      </template>
+                    </TableBody>
+                  </Table>
+                </div>
+                <EmptyState v-else size="compact" title="Belum ada itinerary tercatat" />
+              </SectionCard>
+
+              <!-- Daily itinerary — create/edit form (docs/superpowers/specs/2026-08-05-daily-itinerary-crud-design.md) -->
+            </div>
+
+            <!-- Card-card lain — grid biasa (BUKAN masonry) dengan stretch default (tanpa items-start), supaya card yang lebih pendek dari sibling-nya di baris yang sama otomatis diperpanjang (card-nya sendiri yang melebar mengisi sisa tinggi, bukan menyisakan ruang kosong di luar card). -->
+            <div class="grid grid-flow-dense grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
+              <!-- Departure Readiness Gate (Section 12 baru). Deskripsi + tombol Run Sheet SENGAJA dipindah dari
+                   header `#actions` (yang flex-row berdampingan dengan title, gampang numpuk/wrap di card sempit)
+                   ke body sendiri (stack vertikal di layar sempit, sejajar di layar cukup lebar). -->
               <SectionCard
                 v-if="departureReadiness"
+                class="h-full"
                 compact
                 titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
                 title="Departure Readiness Gate"
-                description="Ringkasan kesiapan lintas-domain sebelum keberangkatan — advisory, tidak memblokir transisi status."
               >
-                <template #actions>
-                  <NuxtLink :to="`/project-orders/${project.id}/run-sheet-preview`" target="_blank">
+                <div class="mb-4 flex flex-col items-start gap-3">
+                  <p class="text-sm text-muted-foreground">
+                    Ringkasan kesiapan lintas-domain sebelum keberangkatan — advisory, tidak memblokir transisi status.
+                  </p>
+                  <NuxtLink :to="`/project-orders/${project.id}/run-sheet-preview`" target="_blank" class="shrink-0">
                     <Button size="sm" variant="outline">
                       <Printer class="h-4 w-4 mr-1.5" />Run Sheet / Export Preview
                     </Button>
                   </NuxtLink>
-                </template>
+                </div>
                 <div class="flex items-center gap-3 mb-4">
                   <StatusBadge :label="departureReadiness.isReady ? 'Ready to Depart' : 'Belum Siap'" :tone="departureReadiness.isReady ? 'success' : 'warning'" />
                   <p class="text-sm text-muted-foreground">
@@ -2533,7 +2656,7 @@ const tripDurationDays = computed(() => {
                     </template>
                   </p>
                 </div>
-                <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div class="grid grid-cols-2 gap-3">
                   <StatsCard
                     title="Dokumen Traveler"
                     :value="`${departureReadiness.travelerReadinessPercent}%`"
@@ -2564,8 +2687,8 @@ const tripDurationDays = computed(() => {
               </SectionCard>
 
               <!-- Progress Readiness (donut, dibesarkan biar isi card padat tanpa duplikasi angka yang sudah ada di 4 StatsCard "Departure Readiness Gate" di atas) + Alasan Belum Siap & Countdown Keberangkatan (satu card, dipisah divider — bukan diduplikasi). items-start supaya card yang lebih pendek tidak di-stretch mengikuti tinggi sibling-nya. -->
-              <div v-if="departureReadiness" class="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:items-start">
-                <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Progress Readiness" content-class="flex flex-col items-center py-2 text-center">
+              <template v-if="departureReadiness">
+                <SectionCard class="h-full" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Progress Readiness" content-class="flex flex-1 flex-col items-center py-2 text-center">
                   <div class="relative flex h-40 w-40 shrink-0 items-center justify-center">
                     <svg viewBox="0 0 80 80" class="h-40 w-40 -rotate-90">
                       <circle
@@ -2605,9 +2728,42 @@ const tripDurationDays = computed(() => {
                       <span class="text-muted-foreground">{{ 100 - overallReadinessPercent }}% Belum Lengkap</span>
                     </span>
                   </div>
+
+                  <ul class="mt-4 w-full space-y-2.5 border-t border-border pt-4 text-left">
+                    <li class="flex items-center justify-between gap-3 text-sm">
+                      <span class="flex items-center gap-2 text-muted-foreground">
+                        <FileText class="h-4 w-4 shrink-0 text-primary" />Dokumen Traveler
+                      </span>
+                      <span class="font-medium text-foreground">{{ departureReadiness.travelerReadinessPercent }}%</span>
+                    </li>
+                    <li class="flex items-center justify-between gap-3 text-sm">
+                      <span class="flex items-center gap-2 text-muted-foreground">
+                        <CheckCircle2 class="h-4 w-4 shrink-0 text-primary" />Layanan Confirmed
+                      </span>
+                      <span class="font-medium text-foreground">{{ departureReadiness.servicesConfirmedPercent }}%</span>
+                    </li>
+                    <li class="flex items-center justify-between gap-3 text-sm">
+                      <span class="flex items-center gap-2 text-muted-foreground">
+                        <AlertTriangle class="h-4 w-4 shrink-0" :class="departureReadiness.blockedTasksCount > 0 ? 'text-warning' : 'text-primary'" />Task Diblokir
+                      </span>
+                      <span class="font-medium text-foreground">{{ departureReadiness.blockedTasksCount }}</span>
+                    </li>
+                    <li class="flex items-center justify-between gap-3 text-sm">
+                      <span class="flex items-center gap-2 text-muted-foreground">
+                        <AlertTriangle class="h-4 w-4 shrink-0" :class="departureReadiness.openRisksCount > 0 ? 'text-warning' : 'text-primary'" />Risk Terbuka
+                      </span>
+                      <span class="font-medium text-foreground">{{ departureReadiness.openRisksCount }}</span>
+                    </li>
+                    <li class="flex items-center justify-between gap-3 text-sm">
+                      <span class="flex items-center gap-2 text-muted-foreground">
+                        <CalendarRange class="h-4 w-4 shrink-0 text-primary" />Keberangkatan
+                      </span>
+                      <span class="font-medium text-foreground">{{ formatDate(project.travelStartDate) }}</span>
+                    </li>
+                  </ul>
                 </SectionCard>
 
-                <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Alasan Belum Siap">
+                <SectionCard class="h-full" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Alasan Belum Siap">
                   <ul v-if="departureReadiness.blockingReasons.length > 0" class="space-y-2">
                     <li v-for="(reason, index) in departureReadiness.blockingReasons" :key="index" class="flex items-start gap-2 text-xs text-foreground">
                       <AlertTriangle class="h-3.5 w-3.5 shrink-0 mt-0.5 text-warning" />
@@ -2639,104 +2795,9 @@ const tripDurationDays = computed(() => {
                     </p>
                   </div>
                 </SectionCard>
-              </div>
+              </template>
 
-              <!-- Daily itinerary — create/edit form (docs/superpowers/specs/2026-08-05-daily-itinerary-crud-design.md) -->
-              <Sheet v-model:open="isItineraryFormOpen">
-                <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
-                  <SheetHeader>
-                    <SheetTitle>{{ editingItineraryItemId ? 'Edit Item Itinerary' : 'Tambah Item Itinerary' }}</SheetTitle>
-                  </SheetHeader>
-                  <div class="space-y-4 py-2">
-                    <div class="grid grid-cols-2 gap-3">
-                      <div class="space-y-1.5">
-                        <Label for="itin-date">Tanggal</Label><Input id="itin-date" v-model="itineraryForm.date" type="date" />
-                      </div>
-                      <div class="space-y-1.5">
-                        <Label for="itin-time">Jam</Label><Input id="itin-time" v-model="itineraryForm.time" type="time" />
-                      </div>
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="itin-title">Judul</Label><Input id="itin-title" v-model="itineraryForm.title" placeholder="mis. Keberangkatan Jakarta → Manila" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="itin-description">Deskripsi</Label>
-                      <textarea id="itin-description" v-model="itineraryForm.description" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="itin-location">Lokasi</Label><Input id="itin-location" v-model="itineraryForm.location" placeholder="mis. Lobi Hotel, pukul 08:00" />
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                      <div class="space-y-1.5">
-                        <Label for="itin-service-type">Jenis Layanan</Label>
-                        <select id="itin-service-type" v-model="itineraryForm.serviceType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                          <option value="">
-                            Tidak ada
-                          </option>
-                          <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
-                            {{ type.label }}
-                          </option>
-                        </select>
-                      </div>
-                      <div class="space-y-1.5">
-                        <Label for="itin-group">Group Traveler</Label>
-                        <select id="itin-group" v-model="itineraryForm.groupId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                          <option value="">
-                            Tidak ada
-                          </option>
-                          <option v-for="grp in groups" :key="grp.id" :value="grp.id">
-                            {{ grp.name }}
-                          </option>
-                        </select>
-                      </div>
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="itin-timezone">Timezone</Label><Input id="itin-timezone" v-model="itineraryForm.timezone" placeholder="mis. Asia/Jakarta" />
-                    </div>
-                    <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                      <Checkbox v-model="itineraryForm.visibleToClient" />
-                      Tampilkan ke Client
-                    </label>
-                  </div>
-                  <SheetFooter class="mt-6 flex-row justify-end gap-2">
-                    <Button variant="outline" @click="isItineraryFormOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!itineraryForm.date.trim() || !itineraryForm.title.trim()" @click="submitItineraryForm">
-                      Simpan
-                    </Button>
-                  </SheetFooter>
-                </SheetContent>
-              </Sheet>
-
-              <Dialog :open="!!pendingDeleteItineraryItem" @update:open="value => { if (!value) pendingDeleteItineraryItem = undefined }">
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Hapus Item Itinerary</DialogTitle>
-                    <DialogDescription>
-                      Item "{{ pendingDeleteItineraryItem?.title }}" akan dihapus dari itinerary project ini. Tindakan ini tidak dapat dibatalkan.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="outline" @click="pendingDeleteItineraryItem = undefined">
-                      Batal
-                    </Button>
-                    <Button variant="destructive" @click="confirmDeleteItineraryItem">
-                      Hapus
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-
-              <!--
-              Card per tipe layanan — grid 2 kolom, card TERAKHIR otomatis full-width sendiri kalau totalnya
-              ganjil (`lg:[&>*:last-child:nth-child(odd)]`) supaya tidak ada card sepi konten yang dipaksa
-              setengah lebar sendirian. Tinggi card di-stretch SAMA (default grid stretch) supaya sepasang
-              card tetap imbang meski jumlah baris beda — card tipe layanan jadi flex column penuh tinggi
-              (`class`+`content-class`) dan tombol "Buat Booking" ditempel ke dasar via `mt-auto`, bukan
-              menyisakan celah kosong mengambang di tengah.
-            -->
-              <div v-if="visibleServiceTypes.length" class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
+              <!-- Card per tipe layanan — item masonry, urutan/lebar mengikuti flow kolom (bukan lagi grid 2 kolom berpasangan). -->
                 <SectionCard
                   v-for="type in visibleServiceTypes"
                   :key="type.value"
@@ -2797,101 +2858,6 @@ const tripDurationDays = computed(() => {
                     </Button>
                   </div>
                 </SectionCard>
-              </div>
-
-              <!--
-              Booking Timeline (Section 18, D-075) — SATU list terunifikasi lintas Flight/Hotel/Transport/MICE
-              MENGGANTIKAN 4 blok ringkasan terpisah lama (Section 13-16, lihat CI-048). Informasi identik
-              dengan `/bookings` (booking reference/status internal-supplier-client/deadline/voucher/exception/
-              dependency/payment-gate), hanya pre-filtered ke project ini. "Mark Payment Cleared" bisa
-              langsung dari sini (bukan cuma `/bookings`) supaya PM/Ops tidak perlu pindah halaman untuk
-              aksi yang sering dipakai — "Buka Booking Center" tetap ada untuk Catat Percobaan/exception
-              lain yang belum dipindah ke sini. Full-width sendiri (bukan setengah lebar di grid layanan) —
-              5 kolom (Booking/Reference/Internal/Payment/Action) kepenuhan dan terjepit-scroll kalau dipaksa
-              setengah lebar.
-            -->
-              <SectionCard
-                v-if="projectBookingTimeline.length"
-                content-class="p-0"
-                titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
-                title="Booking Timeline"
-                description="Konsolidasi Flight/Hotel/Transport/MICE booking untuk project ini — satu sumber kebenaran seluruh service (Section 18)."
-              >
-                <template #actions>
-                  <NuxtLink :to="`/bookings?projectId=${project.id}`">
-                    <Button size="sm" variant="outline" class="rounded-full">
-                      Buka Booking Center
-                    </Button>
-                  </NuxtLink>
-                </template>
-                <div class="overflow-x-auto border-t border-border">
-                  <Table class="w-full min-w-[720px]">
-                    <TableHeader>
-                      <TableRow class="bg-muted/40 hover:bg-muted/40">
-                        <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Booking
-                        </TableHead>
-                        <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Reference
-                        </TableHead>
-                        <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Internal
-                        </TableHead>
-                        <TableHead class="px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Payment
-                        </TableHead>
-                        <TableHead class="px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Action
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow v-for="entry in projectBookingTimeline" :key="`${entry.bookingType}-${entry.bookingId}`">
-                        <TableCell class="max-w-[260px] px-4 py-4">
-                          <div class="flex items-center gap-2">
-                            <StatusBadge size="md" :label="BOOKING_DOMAIN_LABEL_MAP[entry.bookingType]" :tone="BOOKING_DOMAIN_TONE_MAP[entry.bookingType]" />
-                            <NuxtLink :to="entry.detailHref" class="text-sm font-bold text-foreground hover:text-primary hover:underline">
-                              {{ entry.bookingId }}
-                            </NuxtLink>
-                          </div>
-                          <p class="mt-1 truncate text-sm text-muted-foreground" :title="entry.label">
-                            {{ entry.label }}
-                          </p>
-                          <p v-if="entry.exceptions.length" class="mt-1 truncate text-xs text-destructive" :title="entry.exceptions.join(' · ')">
-                            {{ entry.exceptions[0] }}<template v-if="entry.exceptions.length > 1">
-                              +{{ entry.exceptions.length - 1 }} lagi
-                            </template>
-                          </p>
-                        </TableCell>
-                        <TableCell class="px-4 py-4 text-sm text-muted-foreground">
-                          {{ entry.reference ?? 'Belum terbit' }}
-                          <br>
-                          {{ entry.travelerCount }} pax<template v-if="entry.deadlineDate">
-                            · {{ formatDate(entry.deadlineDate) }}
-                          </template>
-                        </TableCell>
-                        <TableCell class="px-4 py-4">
-                          <StatusBadge size="md" :label="entry.internalStatus" :tone="entry.internalStatusTone" />
-                        </TableCell>
-                        <TableCell class="px-4 py-4">
-                          <StatusBadge size="md" :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
-                          <div v-if="canManageBookings && entry.paymentGateStatus === 'pending'" class="mt-1">
-                            <Button size="sm" variant="outline" @click="markBookingPaymentCleared(entry)">
-                              Mark Payment Cleared
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell class="px-4 py-4 text-right">
-                          <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank" class="inline-flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary">
-                            Voucher<ChevronRight class="h-3.5 w-3.5" />
-                          </NuxtLink>
-                          <span v-else class="text-sm text-muted-foreground">—</span>
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
-                </div>
-              </SectionCard>
 
               <!-- "Buat Booking" quick-create — Sheet reusable satu instance untuk Flight/Hotel/Transport/MICE, dibuka via `openCreateBooking(type)` dari tombol di masing-masing card di atas. -->
               <Sheet v-model:open="isBookingSheetOpen">
@@ -2945,12 +2911,11 @@ const tripDurationDays = computed(() => {
                 </SheetContent>
               </Sheet>
 
-              <EmptyState v-if="!visibleServiceTypes.length && !projectBookingTimeline.length" :icon="Truck" title="Belum ada layanan tercatat untuk project ini" />
+              <EmptyState v-if="!visibleServiceTypes.length && !projectBookingTimeline.length" class="h-full" :icon="Truck" title="Belum ada layanan tercatat untuk project ini" />
 
-              <!-- Procurement + Operational Tasks + Shift Notes dalam SATU grid responsif — pola sama grid layanan+Booking Timeline di atas: total genap → berdampingan setengah lebar, total ganjil → card terakhir (biasanya Shift Notes) otomatis full-width sendiri, tidak ada card sepi konten yang kepaksa full-width sendirian. -->
-              <div class="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:[&>*:last-child:nth-child(odd)]:col-span-2">
                 <SectionCard
                   v-if="projectRfqs.length || projectServiceOrders.length"
+                  class="h-full"
                   compact
                   titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
                   title="Procurement — RFQ dan Service Order"
@@ -3027,7 +2992,7 @@ const tripDurationDays = computed(() => {
                 </SectionCard>
 
                 <!-- On-Trip Updates / Shift Notes (Section 12 baru) -->
-                <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="On-Trip Updates / Shift Notes" description="Catatan serah-terima operasional selama trip berlangsung (mock).">
+                <SectionCard class="flex h-full flex-col" content-class="flex flex-1 flex-col" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="On-Trip Updates / Shift Notes" description="Catatan serah-terima operasional selama trip berlangsung (mock).">
                   <template v-if="canManageOperations" #actions>
                     <Sheet v-model:open="isShiftNoteDialogOpen">
                       <SheetTrigger as-child>
@@ -3082,88 +3047,11 @@ const tripDurationDays = computed(() => {
                       </p>
                     </li>
                   </ul>
-                  <EmptyState v-else size="compact" title="Belum ada shift note tercatat" />
+                  <EmptyState v-else class="flex flex-1 flex-col items-center justify-center" size="compact" title="Belum ada shift note tercatat" />
                 </SectionCard>
-              </div>
-            </div>
 
-            <!-- Sidebar kanan (Section 12 baru) — Daily Itinerary dipindah ke sini (dari main flow), Tim Project dan Aktivitas Terbaru reuse data yang sudah dihitung di tab Overview, bukan selector baru. Attention / Exception Queue ditumpuk di bawah Aktivitas Terbaru (bukan main flow) supaya nempel di sisi kanan dan sejajar vertikal tepat di bawahnya. -->
-            <div class="space-y-4 lg:col-span-1 lg:sticky lg:top-6">
-              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Daily Itinerary" description="Jadwal harian perjalanan (timezone lokal ditampilkan berdampingan jam).">
-                <div v-if="itineraryByDate.length" class="space-y-4">
-                  <div v-for="day in itineraryByDate" :key="day.date" class="flex gap-3">
-                    <div class="flex shrink-0 flex-col items-center">
-                      <div class="flex h-10 w-10 flex-col items-center justify-center rounded-lg border border-primary/30 bg-primary/5 text-primary">
-                        <span class="text-xs font-bold leading-none">{{ formatDayBadge(day.date).day }}</span>
-                        <span class="text-[9px] font-medium uppercase leading-none mt-0.5">{{ formatDayBadge(day.date).month }}</span>
-                      </div>
-                    </div>
-                    <div class="min-w-0 flex-1 pb-1">
-                      <p class="text-xs font-medium text-muted-foreground mb-2">
-                        {{ formatDayLabel(day.date) }}
-                      </p>
-                      <ul class="space-y-2.5">
-                        <li v-for="item in day.items" :key="item.id" class="flex items-start justify-between gap-2">
-                          <div class="min-w-0 flex-1">
-                            <p class="text-xs text-muted-foreground">
-                              {{ item.time ?? '—' }}<template v-if="item.timezone">
-                                ({{ item.timezone }})
-                              </template>
-                            </p>
-                            <p class="text-sm text-foreground truncate">
-                              {{ item.title }}
-                            </p>
-                            <p v-if="item.groupId" class="text-xs text-muted-foreground">
-                              Group: {{ groupNameById(item.groupId) }}
-                            </p>
-                          </div>
-                          <div class="flex shrink-0 flex-col items-end gap-1">
-                            <StatusBadge v-if="item.visibleToClient === false" label="Internal Only" tone="neutral" />
-                            <StatusBadge
-                              v-if="item.serviceType"
-                              :label="findStatusOption(SERVICE_TYPES, item.serviceType).label"
-                              :tone="findStatusOption(SERVICE_TYPES, item.serviceType).tone"
-                            />
-                            <div v-if="canManageOperations" class="flex items-center gap-1">
-                              <button
-                                type="button"
-                                class="flex h-6 w-6 items-center justify-center rounded-md border transition-colors"
-                                :class="item.visibleToClient === false ? 'border-chart-5/30 bg-chart-5/10 text-chart-5 hover:bg-chart-5/20' : 'border-warning/30 bg-warning/10 text-warning hover:bg-warning/20'"
-                                :title="item.visibleToClient === false ? 'Tampilkan ke Client' : 'Jadikan Internal'"
-                                @click="toggleItineraryVisibility(item)"
-                              >
-                                <component :is="item.visibleToClient === false ? Eye : EyeOff" class="h-3 w-3" />
-                              </button>
-                              <button
-                                type="button"
-                                class="flex h-6 w-6 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary transition-colors hover:bg-primary/20"
-                                title="Edit"
-                                @click="openEditItineraryItem(item)"
-                              >
-                                <Pencil class="h-3 w-3" />
-                              </button>
-                              <button
-                                type="button"
-                                class="flex h-6 w-6 items-center justify-center rounded-md border border-destructive/25 bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20"
-                                title="Hapus"
-                                @click="pendingDeleteItineraryItem = item"
-                              >
-                                <Trash2 class="h-3 w-3" />
-                              </button>
-                            </div>
-                          </div>
-                        </li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-                <EmptyState v-else size="compact" title="Belum ada itinerary tercatat" />
-                <Button v-if="canManageOperations" variant="outline" class="mt-4 w-full" @click="openCreateItineraryItem">
-                  <Plus class="h-3.5 w-3.5 mr-1.5" />Tambah Itinerary
-                </Button>
-              </SectionCard>
-
-              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Tim Project">
+              <!-- Tim Project dan Aktivitas Terbaru reuse data yang sudah dihitung di tab Overview, bukan selector baru. -->
+              <SectionCard class="h-full" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Tim Project">
                 <template v-if="canManageProjectOrder" #actions>
                   <button type="button" class="inline-flex items-center gap-1 rounded-full border border-primary/25 bg-primary/10 px-3 py-1 text-xs font-medium text-primary transition-colors hover:bg-primary/20" @click="isTeamDialogOpen = true">
                     <Plus class="h-3 w-3" />Tambah
@@ -3215,7 +3103,7 @@ const tripDurationDays = computed(() => {
                 </div>
               </SectionCard>
 
-              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Aktivitas Terbaru">
+              <SectionCard class="h-full" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Aktivitas Terbaru">
                 <template v-if="!project.isGroupTrip && historyEntries.length" #actions>
                   <Button size="sm" variant="ghost" @click="goToActivityTab">
                     Lihat Semua
@@ -3234,15 +3122,14 @@ const tripDurationDays = computed(() => {
                 <EmptyState v-else size="compact" title="Belum ada aktivitas tercatat" />
               </SectionCard>
 
-              <!-- Attention / Exception Queue (Section 12 baru) — ditumpuk tepat di bawah "Aktivitas Terbaru" di sidebar kanan yang sama (bukan sidebar terpisah), sejajar vertikal persis di bawahnya sesuai permintaan. "Penanda Perubahan" digabung sebagai baris terakhir kartu yang sama supaya tingginya selalu mengikuti konten sendiri. Dibungkus div ref (bukan ref langsung di SectionCard, komponen bukan elemen DOM native) supaya "Lihat Semua" di card Action Required (Overview) bisa scroll ke sini. -->
-              <div v-if="hasAttentionSidebarContent" ref="attentionQueueSidebarRef">
+              <!-- Attention / Exception Queue (Section 12 baru). "Penanda Perubahan" digabung sebagai baris terakhir kartu yang sama supaya tingginya selalu mengikuti konten sendiri. Dibungkus div ref (bukan ref langsung di SectionCard, komponen bukan elemen DOM native) supaya "Lihat Semua" di card Action Required (Overview) bisa scroll ke sini. -->
+              <div v-if="hasAttentionSidebarContent" ref="attentionQueueSidebarRef" class="flex h-full flex-col">
                 <SectionCard
+                  class="h-full"
                   compact
                   titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
                   title="Attention / Exception Queue"
                   description="Item lintas-domain yang butuh perhatian."
-                  accent
-                  tone="destructive"
                 >
                   <div v-if="attentionQueue.length > 0" class="space-y-1">
                     <button
@@ -3272,7 +3159,109 @@ const tripDurationDays = computed(() => {
                 </SectionCard>
               </div>
             </div>
+
+            <!--
+              Booking Timeline (Section 18, D-075) — SATU list terunifikasi lintas Flight/Hotel/Transport/MICE
+              MENGGANTIKAN 4 blok ringkasan terpisah lama (Section 13-16, lihat CI-048). Informasi identik
+              dengan `/bookings` (booking reference/status internal-supplier-client/deadline/voucher/exception/
+              dependency/payment-gate), hanya pre-filtered ke project ini. "Mark Payment Cleared" bisa
+              langsung dari sini (bukan cuma `/bookings`) supaya PM/Ops tidak perlu pindah halaman untuk
+              aksi yang sering dipakai — "Buka Booking Center" tetap ada untuk Catat Percobaan/exception
+              lain yang belum dipindah ke sini. Full-width sendiri di LUAR grid masonry card-card lain — 5
+              kolom (Booking/Reference/Internal/Payment/Action) kepenuhan dan terjepit-scroll kalau dipaksa
+              masuk ke kolom masonry yang sempit.
+            -->
+            <SectionCard
+              v-if="projectBookingTimeline.length"
+              content-class="p-0"
+              titleClass="text-sm font-bold normal-case tracking-normal text-foreground"
+              title="Booking Timeline"
+              description="Konsolidasi Flight/Hotel/Transport/MICE booking untuk project ini — satu sumber kebenaran seluruh service (Section 18)."
+            >
+              <template #actions>
+                <NuxtLink :to="`/bookings?projectId=${project.id}`">
+                  <Button size="sm" variant="outline" class="rounded-full">
+                    Buka Booking Center
+                  </Button>
+                </NuxtLink>
+              </template>
+              <div class="overflow-x-auto border-t border-border">
+                <Table class="w-full min-w-[720px] table-fixed">
+                  <TableHeader>
+                    <TableRow class="bg-muted/40 hover:bg-muted/40">
+                      <TableHead class="w-[32%] px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Booking
+                      </TableHead>
+                      <TableHead class="w-[22%] px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Reference
+                      </TableHead>
+                      <TableHead class="w-[16%] px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Internal
+                      </TableHead>
+                      <TableHead class="w-[20%] px-4 py-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Payment
+                      </TableHead>
+                      <TableHead class="w-[10%] px-4 py-3 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Action
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="entry in projectBookingTimeline" :key="`${entry.bookingType}-${entry.bookingId}`">
+                      <TableCell class="px-4 py-4">
+                        <div class="flex items-center gap-2">
+                          <StatusBadge size="md" :label="BOOKING_DOMAIN_LABEL_MAP[entry.bookingType]" :tone="BOOKING_DOMAIN_TONE_MAP[entry.bookingType]" />
+                          <NuxtLink :to="entry.detailHref" class="text-sm font-bold text-foreground hover:text-primary hover:underline">
+                            {{ entry.bookingId }}
+                          </NuxtLink>
+                        </div>
+                        <p class="mt-1 truncate text-sm text-muted-foreground" :title="entry.label">
+                          {{ entry.label }}
+                        </p>
+                        <p v-if="entry.exceptions.length" class="mt-1 truncate text-xs text-destructive" :title="entry.exceptions.join(' · ')">
+                          {{ entry.exceptions[0] }}<template v-if="entry.exceptions.length > 1">
+                            +{{ entry.exceptions.length - 1 }} lagi
+                          </template>
+                        </p>
+                      </TableCell>
+                      <TableCell class="px-4 py-4 text-sm text-muted-foreground">
+                        {{ entry.reference ?? 'Belum terbit' }}
+                        <br>
+                        {{ entry.travelerCount }} pax<template v-if="entry.deadlineDate">
+                          · {{ formatDate(entry.deadlineDate) }}
+                        </template>
+                      </TableCell>
+                      <TableCell class="px-4 py-4">
+                        <StatusBadge size="md" :label="entry.internalStatus" :tone="entry.internalStatusTone" />
+                      </TableCell>
+                      <TableCell class="px-4 py-4">
+                        <StatusBadge size="md" :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
+                        <div v-if="canManageBookings && entry.paymentGateStatus === 'pending'" class="mt-1">
+                          <Button size="sm" variant="outline" @click="markBookingPaymentCleared(entry)">
+                            Mark Payment Cleared
+                          </Button>
+                        </div>
+                      </TableCell>
+                      <TableCell class="px-4 py-4 text-right">
+                        <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank" class="inline-flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary">
+                          Voucher<ChevronRight class="h-3.5 w-3.5" />
+                        </NuxtLink>
+                        <span v-else class="text-sm text-muted-foreground">—</span>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </SectionCard>
           </div>
+        </TabsContent>
+
+        <TabsContent value="calendar">
+          <ProjectOrderCalendarPanel
+            :project-id="project.id"
+            :default-date="project.travelStartDate"
+            @add="dateIso => openCreateItineraryItem(dateIso)"
+          />
         </TabsContent>
 
         <TabsContent v-if="project.isGroupTrip" value="bookings">
@@ -5663,6 +5652,96 @@ const tripDurationDays = computed(() => {
         </TabsContent>
       </Tabs>
     </template>
+
+    <!-- Daily itinerary — create/edit form. Sengaja di LUAR <Tabs> (bukan di dalam TabsContent
+         "itinerary-services") karena Reka UI TabsContent meng-unmount panel tab yang tidak aktif — Sheet ini
+         juga dipicu dari tombol "Tambah Jadwal" di tab Kalender, jadi harus selalu ter-mount terlepas tab
+         mana yang lagi aktif. -->
+    <Sheet v-model:open="isItineraryFormOpen">
+      <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
+        <SheetHeader>
+          <SheetTitle>{{ editingItineraryItemId ? 'Edit Item Itinerary' : 'Tambah Item Itinerary' }}</SheetTitle>
+        </SheetHeader>
+        <div class="space-y-4 py-2">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label for="itin-date">Tanggal</Label><Input id="itin-date" v-model="itineraryForm.date" type="date" />
+            </div>
+            <div class="space-y-1.5">
+              <Label for="itin-time">Jam</Label><Input id="itin-time" v-model="itineraryForm.time" type="time" />
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <Label for="itin-title">Judul</Label><Input id="itin-title" v-model="itineraryForm.title" placeholder="mis. Keberangkatan Jakarta → Manila" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="itin-description">Deskripsi</Label>
+            <textarea id="itin-description" v-model="itineraryForm.description" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="itin-location">Lokasi</Label><Input id="itin-location" v-model="itineraryForm.location" placeholder="mis. Lobi Hotel, pukul 08:00" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label for="itin-service-type">Jenis Layanan</Label>
+              <select id="itin-service-type" v-model="itineraryForm.serviceType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option value="">
+                  Tidak ada
+                </option>
+                <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+                  {{ type.label }}
+                </option>
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <Label for="itin-group">Group Traveler</Label>
+              <select id="itin-group" v-model="itineraryForm.groupId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option value="">
+                  Tidak ada
+                </option>
+                <option v-for="grp in groups" :key="grp.id" :value="grp.id">
+                  {{ grp.name }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <Label for="itin-timezone">Timezone</Label><Input id="itin-timezone" v-model="itineraryForm.timezone" placeholder="mis. Asia/Jakarta" />
+          </div>
+          <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+            <Checkbox v-model="itineraryForm.visibleToClient" />
+            Tampilkan ke Client
+          </label>
+        </div>
+        <SheetFooter class="mt-6 flex-row justify-end gap-2">
+          <Button variant="outline" @click="isItineraryFormOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!itineraryForm.date.trim() || !itineraryForm.title.trim()" @click="submitItineraryForm">
+            Simpan
+          </Button>
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
+
+    <Dialog :open="!!pendingDeleteItineraryItem" @update:open="value => { if (!value) pendingDeleteItineraryItem = undefined }">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Hapus Item Itinerary</DialogTitle>
+          <DialogDescription>
+            Item "{{ pendingDeleteItineraryItem?.title }}" akan dihapus dari itinerary project ini. Tindakan ini tidak dapat dibatalkan.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <Button variant="outline" @click="pendingDeleteItineraryItem = undefined">
+            Batal
+          </Button>
+          <Button variant="destructive" @click="confirmDeleteItineraryItem">
+            Hapus
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
 
     <LeadDetailSheet v-if="project" v-model:open="isLeadDetailSheetOpen" :lead-id="project.leadId ?? null" />
   </div>

@@ -158,6 +158,8 @@ export const DOCUMENTS: ProjectDocument[] = [
  */
 export const TASKS: ProjectTask[] = reactive([
   { id: 'TSK-1011', projectId: 'PRJ-101', title: 'Konfirmasi manifest penumpang', status: 'done', assignedTo: 'USR-002' },
+  { id: 'TSK-1012', projectId: 'PRJ-101', title: 'Kirim briefing pra-keberangkatan ke seluruh traveler', status: 'in-progress', dueAt: '2026-08-15', assignedTo: 'USR-002' },
+  { id: 'TSK-1013', projectId: 'PRJ-101', title: 'Siapkan dokumen asuransi perjalanan', status: 'not-started', dueAt: '2026-08-17', assignedTo: 'USR-002' },
 
   // isBlocked/blockedReason (Section 12 baru, Wajib "blocker") — dibackfill pada 1 task per skenario yang paling wajar diblokir oleh faktor eksternal (bukan seluruh task, agar tetap merepresentasikan kondisi realistis campuran blocked/tidak).
   { id: 'TSK-1021', projectId: 'PRJ-102', title: 'Reschedule hotel booking', status: 'in-progress', assignedTo: 'USR-002', isBlocked: true, blockedReason: 'Menunggu konfirmasi ketersediaan kamar Suite dari hotel' },
@@ -184,10 +186,12 @@ export const TASKS: ProjectTask[] = reactive([
 
 /**
  * Project Risk (Section 09 — roadmap Section 00–24 baru, Wajib "risks"). Diseed pada `PRJ-103` (project
- * `complex`, MICE 60 pax — skenario paling wajar untuk risk tracking nyata), tidak dipaksakan ke seluruh
- * project demo lain.
+ * `complex`, MICE 60 pax — skenario paling wajar untuk risk tracking nyata) dan satu risk ringan pada
+ * `PRJ-101` (supaya Departure Readiness Gate/Alasan Belum Siap punya contoh isi selain "tidak ada blocker"),
+ * tidak dipaksakan ke seluruh project demo lain.
  */
 export const PROJECT_RISKS: ProjectRisk[] = reactive([
+  { id: 'RSK-1011', projectId: 'PRJ-101', title: 'Cuaca musim hujan berpotensi mengganggu jadwal penerbangan', description: 'Pantau prakiraan cuaca H-3 keberangkatan, siapkan kontinjensi reschedule bila diperlukan.', severity: 'low', status: 'open', raisedBy: 'USR-002', createdAt: '2026-08-05' },
   { id: 'RSK-1031', projectId: 'PRJ-103', title: 'Ketersediaan venue MICE hari ke-2 belum terkonfirmasi final', description: 'Venue alternatif perlu disiapkan bila konfirmasi tidak turun H-7.', severity: 'high', status: 'open', raisedBy: 'USR-002', createdAt: '2026-07-20' },
   { id: 'RSK-1032', projectId: 'PRJ-103', title: 'Cuaca ekstrem berpotensi mengganggu sesi outdoor', description: 'Rencana cadangan indoor perlu disiapkan tim Operations.', severity: 'medium', status: 'mitigated', raisedBy: 'USR-002', createdAt: '2026-07-18' }
 ])

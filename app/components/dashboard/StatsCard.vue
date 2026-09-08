@@ -94,7 +94,7 @@ const sparkGradientId = `spark-fill-${useId()}`
       </span>
     </div>
     <div v-else class="flex items-start justify-between gap-3">
-      <p class="min-w-0 flex-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <p class="min-w-0 flex-1 truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
         {{ title }}
       </p>
       <div :class="cn('shrink-0 rounded-lg p-2.5', iconColorClasses[iconColor])">
@@ -146,9 +146,9 @@ const sparkGradientId = `spark-fill-${useId()}`
       <circle :cx="spark.last.x" :cy="spark.last.y" r="2.2" :fill="TONE_STROKE[iconColor]" />
     </svg>
 
-    <div v-if="footerProgress" class="mt-3 flex items-center gap-2">
-      <span class="shrink-0 text-[11px] text-muted-foreground">{{ footerProgress.label }}</span>
-      <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+    <div v-if="footerProgress" class="mt-3 space-y-1.5">
+      <span class="block break-words text-[11px] text-muted-foreground">{{ footerProgress.label }}</span>
+      <div class="h-1.5 w-full overflow-hidden rounded-full bg-muted">
         <div
           class="h-full rounded-full transition-all"
           :class="iconColorClasses[iconColor].split(' ')[1].replace('text-', 'bg-')"
