@@ -22,21 +22,19 @@ Setting > Master Data, lalu bisa "diterapkan" ke Timeline Tracking sebuah projec
 
 ## Data model
 
-**`app/types/master-data.ts`** — interface baru, mengikuti pola generik `MasterDataItem` (id/label→name/
-description/isActive) tapi dengan field tambahan `items`:
+**`app/types/master-data.ts`** — `MilestoneTemplate` MEMPERLUAS `MasterDataItem` (id/label/description/
+isActive — sama seperti seluruh kategori Master Data lain) ditambah `items`. Nama tiap item pakai `label`
+(bukan `name`), konsisten dengan `MilestoneDeliverable.label` (`app/types/project-order.ts:59-63`) yang
+sudah dipakai untuk pola "daftar sub-item bernama" yang sama persis:
 
 ```ts
 export interface MilestoneTemplateItem {
   id: ID
-  name: string
+  label: string
   offsetDays: number   // 0 = tanggal acuan, 3 = acuan + 3 hari, boleh negatif (sebelum acuan)
 }
 
-export interface MilestoneTemplate {
-  id: ID
-  name: string
-  description?: string
-  isActive: boolean
+export interface MilestoneTemplate extends MasterDataItem {
   items: MilestoneTemplateItem[]
 }
 ```
@@ -77,7 +75,7 @@ export function applyMilestoneTemplate (projectId: string, templateId: string, b
 
   const created = template.items.map(item => createProjectMilestone({
     projectId,
-    name: item.name,
+    name: item.label,
     plannedDate: formatISO(addDays(parseISO(baseDate), item.offsetDays), { representation: 'date' })
   }))
   return created
@@ -92,12 +90,9 @@ export function applyMilestoneTemplate (projectId: string, templateId: string, b
 Kategori "Milestone Template" masuk grup **Operational Reference**, tapi TIDAK memakai generic `FieldDef`
 renderer (field-nya bukan flat text/number) — dialog Tambah/Edit-nya bikin markup khusus untuk kategori
 ini (percabangan `v-if="activeCategory.key === 'milestone-template'"` di dialog yang sudah ada), berisi:
-- Input Nama Template, Deskripsi (textarea) — sama seperti kategori lain.
-- Daftar baris item (Nama Milestone + Offset Hari, angka boleh negatif) dengan tombol tambah baris/hapus
-  baris — pola sama seperti editor "Deliverables" yang sudah ada di `ProjectOrderTimelineTracking.vue`
-  Sheet "Kelola Milestone" (list + input baru + tombol Tambah + tombol hapus per baris), supaya konsisten
-  dengan pola UI yang sudah ada di codebase ini untuk "daftar item bisa tambah/hapus" — bukan pola baru.
-- Tabel daftar kategori tetap pola sama (Nama, jumlah item, status Aktif/Nonaktif, Edit/Nonaktifkan/Aktifkan).
+- `CategoryDef.fields` kategori ini HANYA `[{ key: 'label', label: 'Nama', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'textarea' }]` — supaya tabel daftar + kolom "Nama"/"Deskripsi" tetap dirender generik apa adanya oleh markup existing (tidak perlu sentuh table rendering sama sekali). Field `items` SENGAJA tidak dimasukkan ke `fields` (bukan flat text/number, tidak lolos loop generik `formValues`/`payload` di `submitForm`).
+- Dialog Tambah/Edit menambah blok item-editor TERPISAH dari loop `v-for="field in activeCategory.fields"` yang sudah ada — muncul cuma saat `activeCategoryKey === 'milestone-template'`, backed oleh `ref` lokal baru `formItems: Array<{ id: string; label: string; offsetDays: number }>` (bukan bagian dari `formValues` generik). Baris item (Nama Milestone + Offset Hari, angka boleh negatif) dengan tombol tambah/hapus baris — pola sama seperti editor "Deliverables" yang sudah ada di `ProjectOrderTimelineTracking.vue` Sheet "Kelola Milestone" (list + input baru + tombol Tambah + tombol hapus per baris).
+- `openCreate`/`openEdit` di-extend: reset/isi `formItems` juga (di luar loop `fields` yang sudah ada). `submitForm` di-extend: kalau `activeCategoryKey.value === 'milestone-template'`, tambahkan `payload.items = formItems.value` sebelum memanggil `createMasterDataRecord`/`updateMasterDataRecord`.
 
 ## UI — Timeline Tracking (`app/components/project-order/ProjectOrderTimelineTracking.vue`)
 
