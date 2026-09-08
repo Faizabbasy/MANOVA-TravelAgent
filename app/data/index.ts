@@ -36,7 +36,8 @@ import { QUOTATION_ATTACHMENTS, QUOTATION_COMMENTS } from './quotation-extras'
 import {
   MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
   AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
-  NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES, ORGANIZATION_PROFILE
+  NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES, ORGANIZATION_PROFILE,
+  MILESTONE_TEMPLATES
 } from './master-data'
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT } from '~/utils/attention'
 import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
@@ -99,6 +100,7 @@ export {
   MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
   AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
   NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES, ORGANIZATION_PROFILE,
+  MILESTONE_TEMPLATES,
   TRAVEL_REQUESTS, TRAVEL_REQUEST_ATTACHMENTS, TRAVEL_REQUEST_ACTIVITIES,
   CLIENT_APPROVALS,
   ITINERARY_VERSIONS, ITINERARY_COMMENTS,
@@ -5088,7 +5090,8 @@ const MASTER_DATA_REGISTRY: Record<MasterDataCategoryKey, { list: MasterDataReco
   'numbering-scheme': { list: NUMBERING_SCHEMES as unknown as MasterDataRecordShape[], prefix: 'NUM-', label: 'Numbering Scheme' },
   'document-template': { list: DOCUMENT_TEMPLATES as unknown as MasterDataRecordShape[], prefix: 'DTPL-', label: 'Document Template' },
   'readiness-gate': { list: READINESS_GATE_CONFIGS as unknown as MasterDataRecordShape[], prefix: 'RGC-', label: 'Readiness Gate' },
-  'assignment-rule': { list: ASSIGNMENT_RULES as unknown as MasterDataRecordShape[], prefix: 'ASR-', label: 'Assignment Rule' }
+  'assignment-rule': { list: ASSIGNMENT_RULES as unknown as MasterDataRecordShape[], prefix: 'ASR-', label: 'Assignment Rule' },
+  'milestone-template': { list: MILESTONE_TEMPLATES as unknown as MasterDataRecordShape[], prefix: 'MTPL-', label: 'Milestone Template' }
 }
 
 export function getMasterDataCategoryMeta (key: MasterDataCategoryKey) {

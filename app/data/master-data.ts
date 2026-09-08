@@ -1,7 +1,7 @@
 import { reactive } from 'vue'
 import type {
   MasterDataItem, Airport, Airline, Hotel, MasterCurrency, TaxRule, PaymentTerm, CancellationRule,
-  NumberingScheme, DocumentTemplate, ReadinessGateConfig, AssignmentRule, OrganizationProfile
+  NumberingScheme, DocumentTemplate, ReadinessGateConfig, AssignmentRule, OrganizationProfile, MilestoneTemplate
 } from '~/types/master-data'
 
 /**
@@ -141,6 +141,26 @@ export const ASSIGNMENT_RULES: AssignmentRule[] = reactive([
   { id: 'ASR-001', name: 'Lead Sumber Website → Sales Rotasi', description: 'Lead dari sumber Website ditugaskan bergilir ke tim Sales', triggerCondition: 'source = website', targetRole: 'sales', isActive: true },
   { id: 'ASR-002', name: 'Lead Urgency Tinggi → Sales Senior', description: 'Lead dengan urgency tinggi diprioritaskan ke Sales senior', triggerCondition: 'urgency = high', targetRole: 'sales', isActive: true },
   { id: 'ASR-003', name: 'Lead Won → PM Rotasi', description: 'Project baru dari Lead Won ditugaskan bergilir ke Project Manager', triggerCondition: 'lead.projectId is set', targetRole: 'project-manager', isActive: true }
+])
+
+/** Milestone Template — daftar milestone standar siap pakai untuk `applyMilestoneTemplate`. */
+export const MILESTONE_TEMPLATES: MilestoneTemplate[] = reactive([
+  {
+    id: 'MTPL-001',
+    label: 'Standard Corporate Trip',
+    description: 'Alur milestone standar untuk corporate/business trip B2B.',
+    isActive: true,
+    items: [
+      { id: 'MTPL-001-1', label: 'SPK / Handover Diterima', offsetDays: 0 },
+      { id: 'MTPL-001-2', label: 'Finalisasi Itinerary', offsetDays: 3 },
+      { id: 'MTPL-001-3', label: 'Invoice DP Terbit', offsetDays: 5 },
+      { id: 'MTPL-001-4', label: 'Konfirmasi Vendor & Booking', offsetDays: 10 },
+      { id: 'MTPL-001-5', label: 'Dokumen Traveler Lengkap', offsetDays: 20 },
+      { id: 'MTPL-001-6', label: 'Keberangkatan', offsetDays: 30 },
+      { id: 'MTPL-001-7', label: 'Trip Selesai', offsetDays: 34 },
+      { id: 'MTPL-001-8', label: 'Closing Report', offsetDays: 40 }
+    ]
+  }
 ])
 
 /**

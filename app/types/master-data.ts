@@ -123,6 +123,28 @@ export interface AssignmentRule {
 }
 
 /**
+ * Milestone Template — Setting > Master Data, kategori baru. Daftar milestone standar (nama + offset hari
+ * dari satu tanggal acuan) yang bisa "diterapkan" sekaligus ke Timeline Tracking sebuah Project Order
+ * (`applyMilestoneTemplate`, `app/data/project-order-workflow.ts`). Sub-item pakai `label` (bukan `name`),
+ * konsisten dengan `MilestoneDeliverable.label` (`app/types/project-order.ts`) — pola sama untuk "daftar
+ * sub-item bernama".
+ */
+export interface MilestoneTemplateItem {
+  id: ID
+  label: string
+  /** 0 = tanggal acuan, 3 = acuan + 3 hari. Boleh negatif (sebelum tanggal acuan). */
+  offsetDays: number
+}
+
+export interface MilestoneTemplate {
+  id: ID
+  label: string
+  description?: string
+  items: MilestoneTemplateItem[]
+  isActive: boolean
+}
+
+/**
  * Organization Profile — Section 23, baru. Diinterpretasikan sebagai profil PERUSAHAAN travel agency itu
  * sendiri (singleton), BUKAN multi-tenancy — tidak ada indikasi sistem multi-tenant di 22 section sebelumnya
  * (judgment call, didokumentasikan D-080).
@@ -161,3 +183,4 @@ export type MasterDataCategoryKey =
   | 'document-template'
   | 'readiness-gate'
   | 'assignment-rule'
+  | 'milestone-template'
