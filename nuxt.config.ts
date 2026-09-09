@@ -52,7 +52,6 @@ export default defineNuxtConfig({
    * di dokumen lama akan jatuh ke halaman 404.
    */
   routeRules: {
-    '/tasks': { redirect: { to: '/project-orders', statusCode: 301 } },
     '/expenses': { redirect: { to: '/finance/opex', statusCode: 301 } },
     '/projects/create': { redirect: { to: '/project-orders', statusCode: 301 } },
     '/customer-journey/project-orders': { redirect: { to: '/project-orders', statusCode: 301 } }

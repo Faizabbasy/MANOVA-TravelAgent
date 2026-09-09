@@ -26,7 +26,10 @@ import {
   ArrowUpFromLine,
   BookOpen,
   UserCog,
-  Settings
+  Settings,
+  Milestone,
+  ListChecks,
+  NotebookText
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
 
@@ -67,8 +70,9 @@ export interface NavItem {
  * tergerbang RBAC walau sudah tidak ada di `NAV_ITEMS`.
  *
  * Urutan sidebar sengaja menaruh poros bisnis di atas: Dashboard → Operations & Scheduling (Project Order)
- * → Finance & ACC (pencatatan jurnal) → Sales → CRM → Vendor & Partner → HR/Inventory/Marketing →
- * Reporting & BI → Documents → Administration → Vendor Portal → Client Portal.
+ * → Milestones/Tugas/Dokumen/Kalender/Catatan-Aktivitas (agregasi lintas-project) → Finance & ACC
+ * (pencatatan jurnal) → Sales → CRM → Vendor & Partner → HR/Inventory/Marketing → Reporting & BI →
+ * Administration → Vendor Portal → Client Portal.
  *
  * Modul HR/Inventory/Marketing belum punya halaman sendiri — entri navigasinya tetap flat tanpa anak
  * sampai halamannya dibangun, supaya tidak ada menu yang mengarah ke 404.
@@ -81,8 +85,26 @@ export const NAV_ITEMS: NavItem[] = [
   /* ---------- Operations & Scheduling (poros: Project Order) ---------- */
   { key: 'operations', label: 'Project', to: '/project-orders', icon: Route, moduleKey: 'operations' },
 
-  /* ---------- Kalender — sejajar dengan grup lain, bukan anak Operations & Scheduling ---------- */
-  { key: 'calendar', label: 'Kalender', to: '/calendar', icon: CalendarDays, moduleKey: 'operations' },
+  /* ---------- Operasional — Milestones/Tugas/Dokumen/Kalender/Catatan-Aktivitas diindukkan ke satu grup
+   * beranak (bukan lagi 5 item top-level terpisah, per permintaan). Kelimanya agregasi data lintas-project
+   * yang sudah ada (milestone, task, document, schedule, activity/shift note) — tidak ada entity baru, cuma
+   * sudut pandang global dengan drill-down ke tab terkait di detail Project Order. Key anak diprefix
+   * `operasional.` (pola sama grup lain, dijaga test navigasi) — kelimanya baru ditambahkan sesi ini juga,
+   * jadi rename key di sini tidak mencabut RoleMenuGrant lama manapun. ---------- */
+  {
+    key: 'operasional',
+    label: 'Operasional',
+    to: '/milestones',
+    icon: ClipboardList,
+    moduleKey: 'operations',
+    children: [
+      { key: 'operasional.milestones', label: 'Milestones', to: '/milestones', icon: Milestone, moduleKey: 'operations' },
+      { key: 'operasional.tasks', label: 'Tugas', to: '/tasks', icon: ListChecks, moduleKey: 'operations' },
+      { key: 'operasional.documents', label: 'Dokumen', to: '/documents', icon: FileText, moduleKey: 'documents' },
+      { key: 'operasional.calendar', label: 'Kalender', to: '/calendar', icon: CalendarDays, moduleKey: 'operations' },
+      { key: 'operasional.notes-activity', label: 'Catatan/Aktivitas', to: '/notes-activity', icon: NotebookText, moduleKey: 'operations' }
+    ]
+  },
 
   /* ---------- Finance & ACC (poros: pencatatan jurnal) ---------- */
   {
@@ -134,9 +156,6 @@ export const NAV_ITEMS: NavItem[] = [
 
   /* Reporting & BI, Marketing & Analysis, Leader Dashboard — di-hold sementara (diminta hilang dulu dari sidebar).
    * Route tetap hidup, tetap tergerbang RBAC lewat HIDDEN_NAV_ROUTES di bawah. */
-
-  /* ---------- Documents & Communication — entri tunggal, tab Documents/Messages/Notifications di dalam halaman ---------- */
-  { key: 'documents', label: 'Documents & Communication', to: '/documents', icon: FileText, moduleKey: 'documents' },
 
   /* ---------- Administration ---------- */
   {

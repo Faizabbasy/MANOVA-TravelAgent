@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Plus, FileText, Bell, AlertTriangle, CheckCheck, X, ExternalLink, List, LayoutGrid, Image, FileSpreadsheet, File as FileIcon } from 'lucide-vue-next'
+import { Search, Plus, FileText, Bell, AlertTriangle, CheckCheck, X, ExternalLink, List, LayoutGrid, Eye, Download, MoreVertical } from 'lucide-vue-next'
 import {
   PROJECTS, USERS,
   getProjectById, getUserById,
@@ -16,7 +16,8 @@ import {
 } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import { isDocumentExpired, isDocumentExpiringSoon } from '~/utils/attention'
-import type { DocumentEntityType, DocumentAccessLevel, MessageChannel } from '~/types/document-comms'
+import type { DocumentEntityType, DocumentAccessLevel, MessageChannel, Document as AppDocument } from '~/types/document-comms'
+import type { BadgeTone } from '~/types/common'
 
 /**
  * Documents & Communication (Section 21 — roadmap Section 00–24 baru, D-078). Modul konsolidasi-style baru
@@ -37,6 +38,51 @@ const { canView, canManage } = usePermissions()
 const { showToast } = useToast()
 const canManageDocuments = computed(() => canManage('documents'))
 
+/** Icon badge tint per kategori dokumen (kartu grid) — pola sama `documentCategoryTone`/`TONE_ICON_BG` di
+ * tab Documents per-project (`project-orders/[id]/index.vue`), disalin ke sini supaya kartu grid halaman
+ * global ini konsisten visualnya, bukan tabel polos seperti sebelumnya. */
+const TONE_ICON_BG: Record<BadgeTone, string> = {
+  neutral: 'bg-muted text-muted-foreground',
+  primary: 'bg-primary/10 text-primary',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  destructive: 'bg-destructive/10 text-destructive',
+  info: 'bg-chart-5/10 text-chart-5',
+  purple: 'bg-purple-500/10 text-purple-500'
+}
+const DOCUMENT_CATEGORY_TONE_MAP: Record<string, BadgeTone> = {
+  legacy: 'neutral',
+  finance: 'success',
+  invoice: 'success',
+  contract: 'purple',
+  quotation: 'primary',
+  'travel-document': 'info'
+}
+const DOCUMENT_CATEGORY_TONE_FALLBACK: BadgeTone[] = ['primary', 'success', 'warning', 'destructive', 'info', 'purple']
+function documentCategoryTone (category: string): BadgeTone {
+  const key = category.trim().toLowerCase()
+  if (DOCUMENT_CATEGORY_TONE_MAP[key]) { return DOCUMENT_CATEGORY_TONE_MAP[key] }
+  let hash = 0
+  for (let i = 0; i < key.length; i++) { hash = (hash * 31 + key.charCodeAt(i)) >>> 0 }
+  return DOCUMENT_CATEGORY_TONE_FALLBACK[hash % DOCUMENT_CATEGORY_TONE_FALLBACK.length]
+}
+function documentUploaderName (document: AppDocument) {
+  return document.uploadedBy ? (getUserById(document.uploadedBy)?.name ?? document.uploadedBy) : '—'
+}
+function handleDownloadDocument (document: { name: string }) {
+  showToast('Download (Mock)', `${document.name} — simulasi unduhan, tidak ada file nyata (D-006).`, 'info')
+}
+function handlePreviewDocument (document: { name: string; sourceType?: string; previewRoute?: string }) {
+  if (document.sourceType === 'generated' && document.previewRoute) {
+    void navigateTo(document.previewRoute, { open: { target: '_blank' } })
+    return
+  }
+  showToast('Preview (Mock)', `${document.name} — pratinjau belum tersedia untuk dokumen upload manual (D-006).`, 'info')
+}
+function handleDocumentMenu (document: { name: string }) {
+  showToast('Menu (Mock)', `Aksi lain untuk "${document.name}" — kelola versi/hapus lengkap dari sini.`, 'info')
+}
+
 type DocTab = 'documents' | 'messages' | 'notifications'
 const activeTab = computed<DocTab>({
   get: () => {
@@ -51,16 +97,7 @@ function entityLabel (entityType: DocumentEntityType, entityId: string): string 
 }
 
 /* --- Documents tab --- */
-const docViewMode = ref<'list' | 'grid'>('list')
-/** Ikon kartu Grid — dokumen di sini murni metadata mock (tidak ada file/thumbnail sungguhan), jadi ikon
- * ditentukan dari ekstensi nama file, pola sama Google Drive saat tidak ada preview. */
-function documentFileIcon (name: string) {
-  const extension = name.split('.').pop()?.toLowerCase() ?? ''
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(extension)) { return Image }
-  if (['xls', 'xlsx', 'csv'].includes(extension)) { return FileSpreadsheet }
-  if (['pdf', 'doc', 'docx'].includes(extension)) { return FileText }
-  return FileIcon
-}
+const docViewMode = ref<'list' | 'grid'>('grid')
 const docSearch = ref('')
 const docCategoryFilter = ref('all')
 const docAccessFilter = ref<'all' | DocumentAccessLevel>('all')
@@ -504,20 +541,49 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
           </SectionCard>
 
           <SectionCard v-else description="Dokumen 'uploaded' murni metadata mock; dokumen 'generated' menautkan ke halaman preview existing (tidak menduplikasi generator dokumen).">
-            <div v-if="documentRows.length > 0" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-              <a
+            <div v-if="documentRows.length > 0" class="grid content-start grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+              <div
                 v-for="row in documentRows"
                 :key="row.item.id"
-                :href="row.item.sourceType === 'generated' && row.item.previewRoute ? row.item.previewRoute : undefined"
-                :target="row.item.sourceType === 'generated' && row.item.previewRoute ? '_blank' : undefined"
-                class="flex flex-col items-center gap-2 rounded-lg border border-border p-4 text-center hover:bg-accent/50 transition-colors"
-                :class="row.item.sourceType === 'generated' && row.item.previewRoute ? 'cursor-pointer' : 'cursor-default'"
+                class="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2 transition-all duration-200 hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm"
               >
-                <component :is="documentFileIcon(row.item.name)" class="h-10 w-10 text-muted-foreground" />
-                <p class="text-xs font-medium text-foreground w-full truncate" :title="row.item.name">
+                <div class="flex items-start justify-between gap-1">
+                  <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" :class="TONE_ICON_BG[documentCategoryTone(row.item.category)]">
+                    <FileText class="h-3.5 w-3.5" />
+                  </div>
+                  <button type="button" class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100" title="Lainnya" @click="handleDocumentMenu(row.item)">
+                    <MoreVertical class="h-3 w-3" />
+                  </button>
+                </div>
+
+                <p class="mt-1.5 truncate text-[11px] font-semibold leading-tight text-foreground" :title="row.item.name">
                   {{ row.item.name }}
                 </p>
-              </a>
+                <p class="mt-0.5 truncate text-[10px] text-muted-foreground">
+                  {{ row.item.category }} · v{{ row.item.version }}
+                </p>
+                <StatusBadge
+                  v-if="row.item.expiresAt && (isDocumentExpired(row.item.expiresAt) || isDocumentExpiringSoon(row.item.expiresAt))"
+                  class="mt-1 w-fit"
+                  :label="isDocumentExpired(row.item.expiresAt) ? 'Expired' : 'Segera'"
+                  :tone="isDocumentExpired(row.item.expiresAt) ? 'destructive' : 'warning'"
+                  dot
+                />
+
+                <div class="mt-1.5 flex items-center justify-between gap-1 border-t border-border/70 pt-1.5">
+                  <p class="truncate text-[10px] text-muted-foreground" :title="documentUploaderName(row.item)">
+                    {{ documentUploaderName(row.item) }}
+                  </p>
+                  <div class="flex shrink-0 items-center gap-0.5">
+                    <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Lihat" @click="handlePreviewDocument(row.item)">
+                      <Eye class="h-3.5 w-3.5" />
+                    </button>
+                    <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Download" @click="handleDownloadDocument(row.item)">
+                      <Download class="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
             <p v-else class="text-sm text-muted-foreground text-center py-6">
               {{ docSearch || docCategoryFilter !== 'all' || docAccessFilter !== 'all' || docEntityFilter !== 'all' || docExpiryFilter !== 'all' ? 'Tidak ada dokumen yang cocok dengan filter.' : 'Belum ada dokumen tercatat.' }}

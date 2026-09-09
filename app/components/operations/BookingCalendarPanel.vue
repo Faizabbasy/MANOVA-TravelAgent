@@ -2,11 +2,11 @@
 import { computed, ref } from 'vue'
 import { format, addMonths, addDays, addWeeks, startOfWeek, eachDayOfInterval, parseISO } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle, MapPin, CalendarClock, CalendarRange, Search } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle, MapPin, CalendarClock, CalendarRange, Search, Plus } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import { useScheduleEvents, SCHEDULE_KIND_META, TONE_DOT, type ScheduleEventKind, type ScheduleEvent } from '~/composables/useScheduleEvents'
 import { PLANNING_PINS, getPinsByProject, createPlanningPin, removePlanningPin } from '~/data/geo'
-import { PROJECTS, getProjectById } from '~/data'
+import { PROJECTS, getProjectById, createItineraryItem } from '~/data'
 import { PROJECT_STATUSES } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
@@ -135,6 +135,31 @@ function shiftView (offset: number) {
   month.value = format(addMonths(parseISO(`${month.value}-01`), offset), 'yyyy-MM')
 }
 
+/** "Tambah Acara" (menu Kalender, lintas-project) — bikin `ItineraryItem` sama seperti "Tambah Jadwal" di
+ * tab Kalender per-project, hanya ditambah pilih Project dulu karena di sini belum ada project context. */
+const isAddEventOpen = ref(false)
+const addEventForm = ref({ projectId: '', date: '', time: '', title: '', location: '', description: '' })
+
+function openAddEvent () {
+  addEventForm.value = { projectId: '', date: selectedDate.value, time: '', title: '', location: '', description: '' }
+  isAddEventOpen.value = true
+}
+
+function submitAddEvent () {
+  if (!addEventForm.value.projectId || !addEventForm.value.date || !addEventForm.value.title.trim()) { return }
+  createItineraryItem({
+    projectId: addEventForm.value.projectId,
+    date: addEventForm.value.date,
+    time: addEventForm.value.time.trim() || undefined,
+    title: addEventForm.value.title.trim(),
+    location: addEventForm.value.location.trim() || undefined,
+    description: addEventForm.value.description.trim() || undefined,
+    visibleToClient: true
+  })
+  isAddEventOpen.value = false
+  showToast('Jadwal Ditambahkan', `"${addEventForm.value.title}" berhasil dicatat di kalender.`, 'success')
+}
+
 /* Map perencanaan */
 const mapProjectId = ref<'all' | string>('all')
 const projectSearch = ref('')
@@ -237,6 +262,63 @@ function onRemovePin (pinId: string) {
                 </option>
               </select>
             </div>
+
+            <Sheet v-if="canManage" v-model:open="isAddEventOpen">
+              <SheetTrigger as-child>
+                <Button size="sm" @click="openAddEvent">
+                  <Plus class="h-4 w-4 mr-1.5" />Tambah Acara
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
+                <SheetHeader>
+                  <SheetTitle>Tambah Acara</SheetTitle>
+                  <SheetDescription>Jadwal baru untuk salah satu project (itinerary item).</SheetDescription>
+                </SheetHeader>
+                <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="event-project">Project</Label>
+                    <select id="event-project" v-model="addEventForm.projectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                      <option value="" disabled>
+                        Pilih project...
+                      </option>
+                      <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                        {{ project.name }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                      <Label for="event-date">Tanggal</Label>
+                      <Input id="event-date" v-model="addEventForm.date" type="date" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="event-time">Waktu (opsional)</Label>
+                      <Input id="event-time" v-model="addEventForm.time" type="time" />
+                    </div>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="event-title">Judul</Label>
+                    <Input id="event-title" v-model="addEventForm.title" placeholder="mis. Penjemputan Bandara" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="event-location">Lokasi (opsional)</Label>
+                    <Input id="event-location" v-model="addEventForm.location" placeholder="mis. Terminal 3, Bandara Soekarno-Hatta" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="event-description">Deskripsi (opsional)</Label>
+                    <textarea id="event-description" v-model="addEventForm.description" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                  </div>
+                </div>
+                <SheetFooter class="mt-6 flex-row justify-end gap-2">
+                  <Button variant="outline" @click="isAddEventOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!addEventForm.projectId || !addEventForm.date || !addEventForm.title.trim()" @click="submitAddEvent">
+                    Simpan
+                  </Button>
+                </SheetFooter>
+              </SheetContent>
+            </Sheet>
           </div>
 
           <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
