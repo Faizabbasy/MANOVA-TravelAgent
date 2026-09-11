@@ -191,6 +191,12 @@ export interface ItineraryItem {
   visibleToClient?: boolean
   /** Meeting point/lokasi hari ini (Repair Phase Section 5 — Trip Center, Master Prompt bagian 10). Opsional, teks bebas mis. "Lobi Hotel, pukul 08:00". */
   location?: string
+  /** Vendor terkait item ini (mis. supir/guide/venue lokal untuk agenda tsb) — opsional, murni pencatatan
+   * mock (bukan booking/invoice sungguhan, beda dari `ProjectService.vendorId` yang punya alur booking
+   * penuh). Referensi ke `Vendor` yang sudah ada, bukan entitas vendor baru. */
+  vendorId?: ID
+  /** Nominal yang perlu dibayar ke vendor untuk item ini (Rupiah) — hanya bermakna bila `vendorId` terisi. */
+  vendorAmountIdr?: number
 }
 
 export interface TravelerGroup {

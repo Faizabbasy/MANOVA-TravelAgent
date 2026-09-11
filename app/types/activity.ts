@@ -33,7 +33,10 @@ export interface ProjectDocument {
 
 export interface ProjectTask {
   id: ID
-  projectId: ID
+  /** Opsional — task lintas-project dibuat dari halaman global "Tugas" (`/tasks`) boleh tidak ditautkan ke
+   * project manapun (mis. tugas administratif umum). Task per-project (dibuat dari tab Tasks detail
+   * project) selalu mengisi ini. */
+  projectId?: ID
   title: string
   status: 'not-started' | 'in-progress' | 'pending-confirmation' | 'done' | 'overdue'
   dueAt?: string

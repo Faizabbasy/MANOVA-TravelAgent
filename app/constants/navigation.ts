@@ -29,7 +29,8 @@ import {
   Settings,
   Milestone,
   ListChecks,
-  NotebookText
+  NotebookText,
+  Map as MapIcon
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
 
@@ -85,12 +86,14 @@ export const NAV_ITEMS: NavItem[] = [
   /* ---------- Operations & Scheduling (poros: Project Order) ---------- */
   { key: 'operations', label: 'Project', to: '/project-orders', icon: Route, moduleKey: 'operations' },
 
-  /* ---------- Operasional — Milestones/Tugas/Dokumen/Kalender/Catatan-Aktivitas diindukkan ke satu grup
-   * beranak (bukan lagi 5 item top-level terpisah, per permintaan). Kelimanya agregasi data lintas-project
-   * yang sudah ada (milestone, task, document, schedule, activity/shift note) — tidak ada entity baru, cuma
-   * sudut pandang global dengan drill-down ke tab terkait di detail Project Order. Key anak diprefix
-   * `operasional.` (pola sama grup lain, dijaga test navigasi) — kelimanya baru ditambahkan sesi ini juga,
-   * jadi rename key di sini tidak mencabut RoleMenuGrant lama manapun. ---------- */
+  /* ---------- Operasional — Milestones/Tugas/Dokumen/Kalender/Perencanaan Project/Catatan-Aktivitas
+   * diindukkan ke satu grup beranak (bukan item top-level terpisah). Semuanya agregasi data lintas-project
+   * yang sudah ada (milestone, task, document, schedule, geo pin, activity/shift note) — tidak ada entity
+   * baru, cuma sudut pandang global dengan drill-down ke tab terkait di detail Project Order.
+   * "Perencanaan Project" dulu tab dalam halaman Kalender ("Perencanaan Peta") — dipisah jadi menu sendiri
+   * per permintaan, isinya tetap sama (`ProjectPlanningPanel.vue`). Key anak diprefix `operasional.` (pola
+   * sama grup lain, dijaga test navigasi) — semuanya baru ditambahkan sesi ini juga, jadi rename key di
+   * sini tidak mencabut RoleMenuGrant lama manapun. ---------- */
   {
     key: 'operasional',
     label: 'Operasional',
@@ -102,6 +105,7 @@ export const NAV_ITEMS: NavItem[] = [
       { key: 'operasional.tasks', label: 'Tugas', to: '/tasks', icon: ListChecks, moduleKey: 'operations' },
       { key: 'operasional.documents', label: 'Dokumen', to: '/documents', icon: FileText, moduleKey: 'documents' },
       { key: 'operasional.calendar', label: 'Kalender', to: '/calendar', icon: CalendarDays, moduleKey: 'operations' },
+      { key: 'operasional.project-planning', label: 'Perencanaan Project', to: '/project-planning', icon: MapIcon, moduleKey: 'operations' },
       { key: 'operasional.notes-activity', label: 'Catatan/Aktivitas', to: '/notes-activity', icon: NotebookText, moduleKey: 'operations' }
     ]
   },

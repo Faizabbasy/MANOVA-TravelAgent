@@ -904,7 +904,7 @@ export function removeProjectTeamMember (projectId: string, userId: string): Pro
 
 /** Tasks/Milestones/Dependencies (Wajib) — Tasks tab sebelumnya read-only murni, tidak ada create/edit sama sekali. */
 export interface CreateProjectTaskInput {
-  projectId: string
+  projectId?: string
   title: string
   status?: ProjectTask['status']
   dueAt?: string

@@ -2,10 +2,10 @@
 import { computed, ref, watch } from 'vue'
 import type { SortableEvent } from 'vue-draggable-plus'
 import { VueDraggable } from 'vue-draggable-plus'
-import { AlertTriangle, Calendar, CheckCircle2, CircleDashed, Clock, GripVertical, List as ListIcon, Lock, UserRound } from 'lucide-vue-next'
-import { PROJECTS, getProjectById, getUserById, updateProjectTask } from '~/data'
+import { AlertTriangle, Calendar, CheckCircle2, CircleDashed, Clock, GripVertical, LayoutGrid, List as ListIcon, Lock, Plus, Search, UserRound } from 'lucide-vue-next'
+import { PROJECTS, USERS, getProjectById, getUserById, updateProjectTask, createProjectTask } from '~/data'
 import { TASKS } from '~/data/activity'
-import { TASK_STATUSES } from '~/constants/status'
+import { TASK_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import type { ProjectTask } from '~/types/activity'
 
@@ -39,7 +39,12 @@ const projectsWithTasks = computed(() => {
   return PROJECTS.filter(project => ids.has(project.id))
 })
 
-const filteredTasks = computed(() => TASKS.filter(task => projectFilter.value === 'all' || task.projectId === projectFilter.value))
+const searchQuery = ref('')
+const viewMode = ref<'kanban' | 'table'>('kanban')
+
+const filteredTasks = computed(() => TASKS
+  .filter(task => projectFilter.value === 'all' || task.projectId === projectFilter.value)
+  .filter(task => !searchQuery.value.trim() || task.title.toLowerCase().includes(searchQuery.value.trim().toLowerCase())))
 
 const totalCount = computed(() => filteredTasks.value.length)
 const inProgressCount = computed(() => filteredTasks.value.filter(task => task.status === 'in-progress').length)
@@ -65,6 +70,28 @@ function onDragEnd (event: SortableEvent, targetStatus: ProjectTask['status']) {
   if (!task || task.status === targetStatus) { return }
   updateProjectTask(taskId, { status: targetStatus })
 }
+
+/** "Tambah Tugas" (global) — `projectId` opsional (beda dari "Tambah Task" per-project yang selalu terikat
+ * satu project): task tanpa project itu murni tugas umum, tidak tertaut/tidak muncul di board manapun
+ * selain di sini. Reuse `createProjectTask` yang sudah ada (bukan mutator baru). */
+const isFormOpen = ref(false)
+const form = ref({ title: '', projectId: '', dueAt: '', assignedTo: '' })
+
+function openForm () {
+  form.value = { title: '', projectId: '', dueAt: '', assignedTo: '' }
+  isFormOpen.value = true
+}
+
+function submitForm () {
+  if (!form.value.title.trim()) { return }
+  createProjectTask({
+    projectId: form.value.projectId || undefined,
+    title: form.value.title.trim(),
+    dueAt: form.value.dueAt || undefined,
+    assignedTo: form.value.assignedTo || undefined
+  })
+  isFormOpen.value = false
+}
 </script>
 
 <template>
@@ -76,16 +103,86 @@ function onDragEnd (event: SortableEvent, targetStatus: ProjectTask['status']) {
       <StatsCard title="Selesai" :value="String(doneCount)" :icon="CheckCircle2" icon-color="success" />
     </div>
 
-    <select v-model="projectFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-      <option value="all">
-        Semua Project
-      </option>
-      <option v-for="project in projectsWithTasks" :key="project.id" :value="project.id">
-        {{ project.name }}
-      </option>
-    </select>
+    <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+      <div class="relative flex-1 w-full">
+        <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input v-model="searchQuery" placeholder="Cari judul tugas..." class="pl-9" />
+      </div>
 
-    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+      <select v-model="projectFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+        <option value="all">
+          Semua Project
+        </option>
+        <option v-for="project in projectsWithTasks" :key="project.id" :value="project.id">
+          {{ project.name }}
+        </option>
+      </select>
+
+      <div class="flex items-center gap-1 rounded-lg border border-border p-0.5">
+        <Button :variant="viewMode === 'table' ? 'secondary' : 'ghost'" size="sm" @click="viewMode = 'table'">
+          <ListIcon class="h-4 w-4" />
+        </Button>
+        <Button :variant="viewMode === 'kanban' ? 'secondary' : 'ghost'" size="sm" @click="viewMode = 'kanban'">
+          <LayoutGrid class="h-4 w-4" />
+        </Button>
+      </div>
+
+      <Sheet v-if="canManage" v-model:open="isFormOpen">
+        <SheetTrigger as-child>
+          <Button size="sm" @click="openForm">
+            <Plus class="h-4 w-4 mr-1.5" />Tambah Tugas
+          </Button>
+        </SheetTrigger>
+        <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Tambah Tugas</SheetTitle>
+            <SheetDescription>Project opsional — kosongkan kalau ini tugas umum, tidak terkait project tertentu.</SheetDescription>
+          </SheetHeader>
+          <div class="space-y-4 py-2">
+            <div class="space-y-1.5">
+              <Label for="task-title">Judul</Label>
+              <Input id="task-title" v-model="form.title" placeholder="mis. Follow-up pembayaran termin" />
+            </div>
+            <div class="space-y-1.5">
+              <Label for="task-project">Project (opsional)</Label>
+              <select id="task-project" v-model="form.projectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option value="">
+                  Tidak terkait project tertentu
+                </option>
+                <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                  {{ project.name }}
+                </option>
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <Label for="task-due">Due Date (opsional)</Label>
+              <Input id="task-due" v-model="form.dueAt" type="date" />
+            </div>
+            <div class="space-y-1.5">
+              <Label for="task-assignee">Assignee (opsional)</Label>
+              <select id="task-assignee" v-model="form.assignedTo" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option value="">
+                  Belum ditentukan
+                </option>
+                <option v-for="user in USERS" :key="user.id" :value="user.id">
+                  {{ user.name }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <SheetFooter class="mt-6 flex-row justify-end gap-2">
+            <Button variant="outline" @click="isFormOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!form.title.trim()" @click="submitForm">
+              Simpan
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
+    </div>
+
+    <div v-if="viewMode === 'kanban'" class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
       <div v-for="status in TASK_STATUSES" :key="status.value" class="flex min-w-0 flex-col rounded-lg p-2" :class="COLUMN_TONE_CLASSES[status.value].column">
         <div class="flex items-center gap-1.5 px-1 py-1">
           <span :class="['h-1.5 w-1.5 shrink-0 rounded-full', COLUMN_TONE_CLASSES[status.value].dot]" />
@@ -124,9 +221,12 @@ function onDragEnd (event: SortableEvent, targetStatus: ProjectTask['status']) {
             <p class="mt-1 break-words text-xs font-semibold leading-snug text-foreground [overflow-wrap:anywhere]">
               {{ task.title }}
             </p>
-            <NuxtLink :to="`/project-orders/${task.projectId}?tab=tasks`" class="mt-1 block truncate text-[11px] text-primary hover:underline">
+            <NuxtLink v-if="task.projectId" :to="`/project-orders/${task.projectId}?tab=tasks`" class="mt-1 block truncate text-[11px] text-primary hover:underline">
               {{ getProjectById(task.projectId)?.name ?? task.projectId }}
             </NuxtLink>
+            <p v-else class="mt-1 truncate text-[11px] text-muted-foreground">
+              Tidak terkait project
+            </p>
             <div class="mt-1.5 flex items-center justify-between gap-1.5">
               <span class="flex min-w-0 items-center gap-1 text-[11px] text-muted-foreground">
                 <Calendar class="h-3 w-3 shrink-0" />{{ task.dueAt ? formatDate(task.dueAt) : '—' }}
@@ -152,5 +252,50 @@ function onDragEnd (event: SortableEvent, targetStatus: ProjectTask['status']) {
         </VueDraggable>
       </div>
     </div>
+
+    <SectionCard v-else flush>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Judul</TableHead>
+            <TableHead>Project</TableHead>
+            <TableHead>Status</TableHead>
+            <TableHead>Due Date</TableHead>
+            <TableHead>Assignee</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="task in filteredTasks" :key="task.id">
+            <TableCell class="max-w-[280px]">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span v-if="task.isMilestone" class="shrink-0 rounded-full border border-primary/30 bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">Milestone</span>
+                <p class="truncate font-medium text-foreground">
+                  {{ task.title }}
+                </p>
+                <StatusBadge v-if="task.isBlocked" label="Blocked" tone="destructive" />
+              </div>
+            </TableCell>
+            <TableCell class="text-muted-foreground">
+              <NuxtLink v-if="task.projectId" :to="`/project-orders/${task.projectId}?tab=tasks`" class="text-primary hover:underline">
+                {{ getProjectById(task.projectId)?.name ?? task.projectId }}
+              </NuxtLink>
+              <span v-else>Tidak terkait project</span>
+            </TableCell>
+            <TableCell>
+              <StatusBadge :label="findStatusOption(TASK_STATUSES, task.status).label" :tone="findStatusOption(TASK_STATUSES, task.status).tone" />
+            </TableCell>
+            <TableCell class="text-muted-foreground">
+              {{ task.dueAt ? formatDate(task.dueAt) : '—' }}
+            </TableCell>
+            <TableCell class="text-muted-foreground">
+              {{ task.assignedTo ? (getUserById(task.assignedTo)?.name ?? task.assignedTo) : '—' }}
+            </TableCell>
+          </TableRow>
+          <TableEmpty v-if="filteredTasks.length === 0" :colspan="5">
+            Tidak ada task yang cocok dengan filter ini.
+          </TableEmpty>
+        </TableBody>
+      </Table>
+    </SectionCard>
   </div>
 </template>

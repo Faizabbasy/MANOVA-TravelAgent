@@ -2,17 +2,15 @@
 import { computed, ref } from 'vue'
 import { format, addMonths, addDays, addWeeks, startOfWeek, eachDayOfInterval, parseISO } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
-import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle, MapPin, CalendarClock, CalendarRange, Search, Plus } from 'lucide-vue-next'
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle, CalendarClock, CalendarRange, Plus } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import { useScheduleEvents, SCHEDULE_KIND_META, TONE_DOT, type ScheduleEventKind, type ScheduleEvent } from '~/composables/useScheduleEvents'
-import { PLANNING_PINS, getPinsByProject, createPlanningPin, removePlanningPin } from '~/data/geo'
 import { PROJECTS, getProjectById, createItineraryItem } from '~/data'
-import { PROJECT_STATUSES } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 
-/** Menu Operations > Kalender (Penyederhanaan 7-Role/Menu). Dulu `/operations/calendar`, sempat jadi
- * section di `/bookings` bersama Bookings/Exceptions, sekarang halaman tersendiri lagi — logika tidak diubah. */
+/** Menu Operasional > Kalender. Dulu satu halaman bertab bareng "Perencanaan Peta" (`ProjectPlanningPanel`
+ * sekarang) — dipisah jadi menu sidebar sendiri-sendiri per permintaan, supaya keduanya independen. */
 
 const { canView, can } = usePermissions()
 const { showToast } = useToast()
@@ -22,8 +20,6 @@ const canManage = computed(() => can('project-order.manage-operations'))
 
 const { events } = useScheduleEvents()
 
-const refreshKey = ref(0)
-const innerTab = ref<'calendar' | 'map'>('calendar')
 const viewMode = ref<'day' | 'week' | 'month'>('month')
 const month = ref(DEMO_REFERENCE_DATE.slice(0, 7))
 const selectedDate = ref(DEMO_REFERENCE_DATE)
@@ -160,393 +156,337 @@ function submitAddEvent () {
   showToast('Jadwal Ditambahkan', `"${addEventForm.value.title}" berhasil dicatat di kalender.`, 'success')
 }
 
-/* Map perencanaan */
-const mapProjectId = ref<'all' | string>('all')
-const projectSearch = ref('')
-
-const mapPins = computed(() => {
-  void refreshKey.value
-  return mapProjectId.value === 'all' ? [...PLANNING_PINS] : getPinsByProject(mapProjectId.value)
-})
-
-const plannableProjects = computed(() => PROJECTS.filter(project => project.status !== 'cancelled'))
-
-const filteredProjects = computed(() => {
-  const term = projectSearch.value.trim().toLowerCase()
-  if (!term) { return plannableProjects.value }
-  return plannableProjects.value.filter(project =>
-    project.name.toLowerCase().includes(term) || project.destination.toLowerCase().includes(term))
-})
-
-/** Titik yang di-"fly to" otomatis oleh peta saat satu project dipilih dari daftar — memakai `destinationGeo` project, terlepas dari pin manual yang sudah/belum dibuat untuk project itu. */
-const mapFocusPoint = computed(() => {
-  if (mapProjectId.value === 'all') { return undefined }
-  const project = getProjectById(mapProjectId.value)
-  if (!project?.destinationGeo) { return undefined }
-  return { lat: project.destinationGeo.lat, lng: project.destinationGeo.lng, label: `${project.name} — ${project.destination}` }
-})
-
-function selectMapProject (projectId: 'all' | string) {
-  mapProjectId.value = projectId
+/** Klik kotak tanggal di grid Bulan/Minggu buka slide-over kanan berisi SEMUA jadwal tanggal itu sekaligus
+ * (bukan satu-satu per item) — pola sama LeadDetailSheet (`components/sales`), disesuaikan jadi list
+ * ringkas per jadwal, tiap baris link ke project-nya masing-masing. */
+const isDaySheetOpen = ref(false)
+const daySheetDate = ref<string | null>(null)
+const daySheetEvents = computed(() => (daySheetDate.value ? filteredEvents.value.filter(event => event.date === daySheetDate.value) : []))
+function openDaySheet (dateIso: string) {
+  selectedDate.value = dateIso
+  daySheetDate.value = dateIso
+  isDaySheetOpen.value = true
 }
+const daySheetLabel = computed(() => (daySheetDate.value ? format(parseISO(daySheetDate.value), 'EEEE, d MMMM yyyy', { locale: localeId }) : ''))
 
-function onAddPin (payload: { label: string; lat: number; lng: number }) {
-  const scoped = mapProjectId.value === 'all' ? undefined : mapProjectId.value
-  const order = mapPins.value.length + 1
-  createPlanningPin({ ...payload, projectId: scoped, order })
-  refreshKey.value += 1
-  showToast('Pin ditambahkan', `${payload.label} disematkan di peta perencanaan.`, 'success')
-}
-
-function onRemovePin (pinId: string) {
-  removePlanningPin(pinId)
-  refreshKey.value += 1
+/** Klik baris jadwal (yang punya `projectId`) langsung ke detail project-nya. Dulu dicoba lewat
+ * `<component :is="event.projectId ? 'NuxtLink' : 'div'">`, tapi resolusi komponen dinamis via string
+ * tidak jalan di sini — diganti `@click` + `navigateTo` yang pasti jalan. */
+function goToProject (projectId?: string) {
+  if (!projectId) { return }
+  isDaySheetOpen.value = false
+  navigateTo(`/project-orders/${projectId}`)
 }
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
     <RoleAccessState v-if="!hasAccess" module-label="modul Operations & Scheduling" />
 
     <template v-else>
-      <Tabs v-model="innerTab">
-        <TabsList>
-          <TabsTrigger value="calendar">
-            Kalender Jadwal
-          </TabsTrigger>
-          <TabsTrigger value="map">
-            Perencanaan Peta
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="calendar" class="pt-4 space-y-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex flex-wrap items-center gap-3">
-              <div class="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
-                <Button variant="ghost" size="sm" class="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" @click="shiftView(-1)">
-                  <ChevronLeft class="h-4 w-4" />
-                </Button>
-                <Button variant="ghost" size="sm" class="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" @click="shiftView(1)">
-                  <ChevronRight class="h-4 w-4" />
-                </Button>
-              </div>
-
-              <div class="flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
-                <button
-                  v-for="mode in VIEW_MODES"
-                  :key="mode.value"
-                  type="button"
-                  :class="cn(
-                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
-                    viewMode === mode.value
-                      ? 'bg-card text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-foreground'
-                  )"
-                  @click="setViewMode(mode.value)"
-                >
-                  <component :is="mode.icon" class="h-3.5 w-3.5" />
-                  {{ mode.label }}
-                </button>
-              </div>
-
-              <p class="hidden text-sm font-semibold capitalize text-foreground sm:block">
-                {{ rangeLabel }}
-              </p>
-
-              <select v-model="kindFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option value="all">
-                  Semua Jenis Jadwal
-                </option>
-                <option v-for="entry in kindCounts" :key="entry.kind" :value="entry.kind">
-                  {{ entry.meta.label }} ({{ entry.count }})
-                </option>
-              </select>
-            </div>
-
-            <Sheet v-if="canManage" v-model:open="isAddEventOpen">
-              <SheetTrigger as-child>
-                <Button size="sm" @click="openAddEvent">
-                  <Plus class="h-4 w-4 mr-1.5" />Tambah Acara
-                </Button>
-              </SheetTrigger>
-              <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
-                <SheetHeader>
-                  <SheetTitle>Tambah Acara</SheetTitle>
-                  <SheetDescription>Jadwal baru untuk salah satu project (itinerary item).</SheetDescription>
-                </SheetHeader>
-                <div class="space-y-4 py-2">
-                  <div class="space-y-1.5">
-                    <Label for="event-project">Project</Label>
-                    <select id="event-project" v-model="addEventForm.projectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                      <option value="" disabled>
-                        Pilih project...
-                      </option>
-                      <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
-                        {{ project.name }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="grid grid-cols-2 gap-3">
-                    <div class="space-y-1.5">
-                      <Label for="event-date">Tanggal</Label>
-                      <Input id="event-date" v-model="addEventForm.date" type="date" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="event-time">Waktu (opsional)</Label>
-                      <Input id="event-time" v-model="addEventForm.time" type="time" />
-                    </div>
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="event-title">Judul</Label>
-                    <Input id="event-title" v-model="addEventForm.title" placeholder="mis. Penjemputan Bandara" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="event-location">Lokasi (opsional)</Label>
-                    <Input id="event-location" v-model="addEventForm.location" placeholder="mis. Terminal 3, Bandara Soekarno-Hatta" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="event-description">Deskripsi (opsional)</Label>
-                    <textarea id="event-description" v-model="addEventForm.description" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-                  </div>
-                </div>
-                <SheetFooter class="mt-6 flex-row justify-end gap-2">
-                  <Button variant="outline" @click="isAddEventOpen = false">
-                    Batal
-                  </Button>
-                  <Button :disabled="!addEventForm.projectId || !addEventForm.date || !addEventForm.title.trim()" @click="submitAddEvent">
-                    Simpan
-                  </Button>
-                </SheetFooter>
-              </SheetContent>
-            </Sheet>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
+            <Button variant="ghost" size="sm" class="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" @click="shiftView(-1)">
+              <ChevronLeft class="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" class="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" @click="shiftView(1)">
+              <ChevronRight class="h-4 w-4" />
+            </Button>
           </div>
 
-          <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-            <SectionCard class="xl:col-span-8">
-              <Transition name="calendar-fade" mode="out-in">
-                <CalendarDayView
-                  v-if="viewMode === 'day'"
-                  key="day"
-                  :date="selectedDate"
-                  :events="filteredEvents"
-                />
-                <CalendarWeekView
-                  v-else-if="viewMode === 'week'"
-                  key="week"
-                  :week-start="weekStart"
-                  :events="filteredEvents"
-                  :today-iso="DEMO_REFERENCE_DATE"
-                  :selected-date="selectedDate"
-                  @select="value => selectedDate = value"
-                />
-                <CalendarMonthGrid
-                  v-else
-                  key="month"
-                  :month="month"
-                  :events="filteredEvents"
-                  :today-iso="DEMO_REFERENCE_DATE"
-                  :selected-date="selectedDate"
-                  @select="value => selectedDate = value"
-                />
-              </Transition>
-
-              <div class="flex flex-wrap gap-x-1.5 gap-y-1.5 mt-4 pt-4 border-t border-border">
-                <span
-                  v-for="entry in kindCounts.filter(item => item.count)"
-                  :key="entry.kind"
-                  class="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1"
-                >
-                  <span :class="cn('h-1.5 w-1.5 rounded-full', TONE_DOT[entry.meta.tone] ?? 'bg-muted-foreground')" />
-                  <span class="text-xs text-muted-foreground">{{ entry.meta.label }} ({{ entry.count }})</span>
-                </span>
-              </div>
-            </SectionCard>
-
-            <div class="xl:col-span-4 space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
-            <SectionCard v-if="attentionEvents.length" compact contentClass="max-h-56 overflow-y-auto">
-              <template #header>
-                <div class="flex items-center gap-2">
-                  <AlertTriangle class="h-4 w-4 shrink-0 text-destructive" />
-                  <div>
-                    <p class="text-xs font-semibold uppercase tracking-wide text-foreground">
-                      Jadwal Butuh Perhatian
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ attentionEvents.length }} jadwal terlambat/melewati tenggat
-                    </p>
-                  </div>
-                </div>
-              </template>
-              <ul class="space-y-1.5">
-                <li
-                  v-for="event in attentionEvents"
-                  :key="event.id"
-                  class="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5"
-                >
-                  <div class="flex items-start justify-between gap-2">
-                    <component :is="event.projectId ? 'NuxtLink' : 'div'" :to="event.projectId ? `/project-orders/${event.projectId}` : undefined" class="min-w-0 flex-1" :class="event.projectId && 'hover:underline'">
-                      <p class="truncate text-sm font-medium text-foreground">
-                        {{ event.title }}
-                      </p>
-                      <p class="truncate text-xs text-muted-foreground">
-                        <template v-if="event.detail">{{ event.detail }} · </template>{{ formatDate(event.date) }}
-                      </p>
-                    </component>
-                    <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" tone="destructive" />
-                  </div>
-                </li>
-              </ul>
-            </SectionCard>
-
-            <SectionCard
-              v-if="viewMode !== 'day'"
-              compact
-              contentClass="max-h-[calc(100vh-22rem)] overflow-y-auto"
-              :title="sideTitle"
-              :description="`${sideEventCount} jadwal pada ${sideRangeNoun} ini.`"
+          <div class="flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+            <button
+              v-for="mode in VIEW_MODES"
+              :key="mode.value"
+              type="button"
+              :class="cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                viewMode === mode.value
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )"
+              @click="setViewMode(mode.value)"
             >
-              <div v-if="sideDayGroups.length" class="space-y-3">
-                <div v-for="day in sideDayGroups" :key="day.iso">
-                  <button
-                    type="button"
-                    class="mb-1 flex w-full items-center gap-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
-                    @click="toggleDayCollapsed(day.iso)"
-                  >
-                    <ChevronDown class="h-3 w-3 shrink-0 transition-transform" :class="{ '-rotate-90': collapsedDays.has(day.iso) }" />
-                    {{ day.label }}
-                    <span class="font-normal normal-case text-muted-foreground/70">({{ day.events.length }})</span>
-                  </button>
-                  <ul v-if="!collapsedDays.has(day.iso)" class="space-y-1.5">
-                    <li
-                      v-for="event in day.events"
-                      :key="event.id"
-                      class="rounded-md border px-2.5 py-1.5"
-                      :class="event.isAttention ? 'border-destructive/40 bg-destructive/5' : 'border-border'"
-                    >
-                      <div class="flex items-start justify-between gap-2">
-                        <component :is="event.projectId ? 'NuxtLink' : 'div'" :to="event.projectId ? `/project-orders/${event.projectId}` : undefined" class="min-w-0 flex-1" :class="event.projectId && 'hover:underline'">
-                          <p class="truncate text-sm font-medium text-foreground">
-                            <span v-if="event.time" class="font-medium tabular-nums text-muted-foreground">{{ event.time }} · </span>{{ event.title }}
-                          </p>
-                          <p v-if="eventMetaLine(event)" class="truncate text-xs text-muted-foreground">
-                            {{ eventMetaLine(event) }}
-                          </p>
-                        </component>
-                        <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" :tone="event.tone" />
-                      </div>
-                    </li>
-                  </ul>
+              <component :is="mode.icon" class="h-3.5 w-3.5" />
+              {{ mode.label }}
+            </button>
+          </div>
+
+          <p class="hidden text-sm font-semibold capitalize text-foreground sm:block">
+            {{ rangeLabel }}
+          </p>
+
+          <select v-model="kindFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+            <option value="all">
+              Semua Jenis Jadwal
+            </option>
+            <option v-for="entry in kindCounts" :key="entry.kind" :value="entry.kind">
+              {{ entry.meta.label }} ({{ entry.count }})
+            </option>
+          </select>
+        </div>
+
+        <Sheet v-if="canManage" v-model:open="isAddEventOpen">
+          <SheetTrigger as-child>
+            <Button size="sm" @click="openAddEvent">
+              <Plus class="h-4 w-4 mr-1.5" />Tambah Acara
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Tambah Acara</SheetTitle>
+              <SheetDescription>Jadwal baru untuk salah satu project (itinerary item).</SheetDescription>
+            </SheetHeader>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="event-project">Project</Label>
+                <select id="event-project" v-model="addEventForm.projectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="" disabled>
+                    Pilih project...
+                  </option>
+                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="event-date">Tanggal</Label>
+                  <Input id="event-date" v-model="addEventForm.date" type="date" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="event-time">Waktu (opsional)</Label>
+                  <Input id="event-time" v-model="addEventForm.time" type="time" />
                 </div>
               </div>
+              <div class="space-y-1.5">
+                <Label for="event-title">Judul</Label>
+                <Input id="event-title" v-model="addEventForm.title" placeholder="mis. Penjemputan Bandara" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="event-location">Lokasi (opsional)</Label>
+                <Input id="event-location" v-model="addEventForm.location" placeholder="mis. Terminal 3, Bandara Soekarno-Hatta" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="event-description">Deskripsi (opsional)</Label>
+                <textarea id="event-description" v-model="addEventForm.description" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+            </div>
+            <SheetFooter class="mt-6 flex-row justify-end gap-2">
+              <Button variant="outline" @click="isAddEventOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!addEventForm.projectId || !addEventForm.date || !addEventForm.title.trim()" @click="submitAddEvent">
+                Simpan
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      </div>
 
-              <EmptyState v-else :icon="CalendarDays" title="Tidak ada jadwal" :description="`Tidak ada jadwal pada ${sideRangeNoun} ini.`" />
-            </SectionCard>
+      <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+        <SectionCard class="xl:col-span-8">
+          <Transition name="calendar-fade" mode="out-in">
+            <CalendarDayView
+              v-if="viewMode === 'day'"
+              key="day"
+              :date="selectedDate"
+              :events="filteredEvents"
+            />
+            <CalendarWeekView
+              v-else-if="viewMode === 'week'"
+              key="week"
+              :week-start="weekStart"
+              :events="filteredEvents"
+              :today-iso="DEMO_REFERENCE_DATE"
+              :selected-date="selectedDate"
+              @select="openDaySheet"
+            />
+            <CalendarMonthGrid
+              v-else
+              key="month"
+              :month="month"
+              :events="filteredEvents"
+              :today-iso="DEMO_REFERENCE_DATE"
+              :selected-date="selectedDate"
+              @select="openDaySheet"
+            />
+          </Transition>
 
-            <SectionCard v-else compact :title="formatDate(selectedDate)" :description="`${selectedEvents.length} jadwal pada tanggal ini.`">
-              <ul v-if="selectedEvents.length" class="space-y-1.5">
+          <div class="flex flex-wrap gap-x-1.5 gap-y-1.5 mt-4 pt-4 border-t border-border">
+            <span
+              v-for="entry in kindCounts.filter(item => item.count)"
+              :key="entry.kind"
+              class="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1"
+            >
+              <span :class="cn('h-1.5 w-1.5 rounded-full', TONE_DOT[entry.meta.tone] ?? 'bg-muted-foreground')" />
+              <span class="text-xs text-muted-foreground">{{ entry.meta.label }} ({{ entry.count }})</span>
+            </span>
+          </div>
+        </SectionCard>
+
+        <div class="xl:col-span-4 space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
+        <SectionCard v-if="attentionEvents.length" compact contentClass="max-h-56 overflow-y-auto">
+          <template #header>
+            <div class="flex items-center gap-2">
+              <AlertTriangle class="h-4 w-4 shrink-0 text-destructive" />
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-foreground">
+                  Jadwal Butuh Perhatian
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ attentionEvents.length }} jadwal terlambat/melewati tenggat
+                </p>
+              </div>
+            </div>
+          </template>
+          <ul class="space-y-1.5">
+            <li
+              v-for="event in attentionEvents"
+              :key="event.id"
+              class="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div
+                  class="min-w-0 flex-1"
+                  :class="event.projectId && 'cursor-pointer hover:underline'"
+                  @click="goToProject(event.projectId)"
+                >
+                  <p class="truncate text-sm font-medium text-foreground">
+                    {{ event.title }}
+                  </p>
+                  <p class="truncate text-xs text-muted-foreground">
+                    <template v-if="event.detail">{{ event.detail }} · </template>{{ formatDate(event.date) }}
+                  </p>
+                </div>
+                <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" tone="destructive" />
+              </div>
+            </li>
+          </ul>
+        </SectionCard>
+
+        <SectionCard
+          v-if="viewMode !== 'day'"
+          compact
+          contentClass="max-h-[calc(100vh-22rem)] overflow-y-auto"
+          :title="sideTitle"
+          :description="`${sideEventCount} jadwal pada ${sideRangeNoun} ini.`"
+        >
+          <div v-if="sideDayGroups.length" class="space-y-3">
+            <div v-for="day in sideDayGroups" :key="day.iso">
+              <button
+                type="button"
+                class="mb-1 flex w-full items-center gap-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                @click="toggleDayCollapsed(day.iso)"
+              >
+                <ChevronDown class="h-3 w-3 shrink-0 transition-transform" :class="{ '-rotate-90': collapsedDays.has(day.iso) }" />
+                {{ day.label }}
+                <span class="font-normal normal-case text-muted-foreground/70">({{ day.events.length }})</span>
+              </button>
+              <ul v-if="!collapsedDays.has(day.iso)" class="space-y-1.5">
                 <li
-                  v-for="event in selectedEvents"
+                  v-for="event in day.events"
                   :key="event.id"
                   class="rounded-md border px-2.5 py-1.5"
                   :class="event.isAttention ? 'border-destructive/40 bg-destructive/5' : 'border-border'"
                 >
                   <div class="flex items-start justify-between gap-2">
-                    <component :is="event.projectId ? 'NuxtLink' : 'div'" :to="event.projectId ? `/project-orders/${event.projectId}` : undefined" class="min-w-0 flex-1" :class="event.projectId && 'hover:underline'">
+                    <div
+                      class="min-w-0 flex-1"
+                      :class="event.projectId && 'cursor-pointer hover:underline'"
+                      @click="goToProject(event.projectId)"
+                    >
                       <p class="truncate text-sm font-medium text-foreground">
                         <span v-if="event.time" class="font-medium tabular-nums text-muted-foreground">{{ event.time }} · </span>{{ event.title }}
                       </p>
                       <p v-if="eventMetaLine(event)" class="truncate text-xs text-muted-foreground">
                         {{ eventMetaLine(event) }}
                       </p>
-                    </component>
+                    </div>
                     <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" :tone="event.tone" />
                   </div>
                 </li>
               </ul>
-
-              <EmptyState v-else :icon="CalendarDays" title="Tidak ada jadwal" description="Pilih tanggal lain pada kalender." />
-            </SectionCard>
             </div>
           </div>
-        </TabsContent>
 
-        <TabsContent value="map" class="pt-4">
-          <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-            <SectionCard class="xl:col-span-4">
-              <div class="relative mb-3">
-                <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input v-model="projectSearch" placeholder="Cari project atau destinasi..." class="pl-9" />
-              </div>
+          <EmptyState v-else :icon="CalendarDays" title="Tidak ada jadwal" :description="`Tidak ada jadwal pada ${sideRangeNoun} ini.`" />
+        </SectionCard>
 
-              <div class="space-y-1 max-h-[420px] overflow-y-auto -mr-1 pr-1">
-                <button
-                  type="button"
-                  :class="cn(
-                    'w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
-                    mapProjectId === 'all' ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : 'hover:bg-muted/40'
-                  )"
-                  @click="selectMapProject('all')"
+        <SectionCard v-else compact :title="formatDate(selectedDate)" :description="`${selectedEvents.length} jadwal pada tanggal ini.`">
+          <ul v-if="selectedEvents.length" class="space-y-1.5">
+            <li
+              v-for="event in selectedEvents"
+              :key="event.id"
+              class="rounded-md border px-2.5 py-1.5"
+              :class="event.isAttention ? 'border-destructive/40 bg-destructive/5' : 'border-border'"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div
+                  class="min-w-0 flex-1"
+                  :class="event.projectId && 'cursor-pointer hover:underline'"
+                  @click="goToProject(event.projectId)"
                 >
-                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-                    <MapPin class="h-4 w-4" />
-                  </span>
-                  <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-medium text-foreground">Semua Project</span>
-                    <span class="block text-xs text-muted-foreground">{{ PLANNING_PINS.length }} titik tersimpan</span>
-                  </span>
-                </button>
-
-                <button
-                  v-for="project in filteredProjects"
-                  :key="project.id"
-                  type="button"
-                  :class="cn(
-                    'w-full flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-left transition-colors',
-                    mapProjectId === project.id ? 'bg-primary/10 ring-1 ring-inset ring-primary/30' : 'hover:bg-muted/40'
-                  )"
-                  @click="selectMapProject(project.id)"
-                >
-                  <span class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
-                    {{ project.name.slice(0, 1) }}
-                  </span>
-                  <span class="min-w-0 flex-1">
-                    <span class="block text-sm font-medium text-foreground truncate">{{ project.name }}</span>
-                    <span class="block text-xs text-muted-foreground truncate">{{ project.destination }}</span>
-                  </span>
-                  <StatusBadge
-                    class="shrink-0"
-                    :label="PROJECT_STATUSES.find(option => option.value === project.status)?.label ?? project.status"
-                    :tone="PROJECT_STATUSES.find(option => option.value === project.status)?.tone ?? 'neutral'"
-                  />
-                </button>
-
-                <EmptyState v-if="!filteredProjects.length" :icon="Search" title="Tidak ditemukan" description="Coba kata kunci lain." />
+                  <p class="truncate text-sm font-medium text-foreground">
+                    <span v-if="event.time" class="font-medium tabular-nums text-muted-foreground">{{ event.time }} · </span>{{ event.title }}
+                  </p>
+                  <p v-if="eventMetaLine(event)" class="truncate text-xs text-muted-foreground">
+                    {{ eventMetaLine(event) }}
+                  </p>
+                </div>
+                <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" :tone="event.tone" />
               </div>
+            </li>
+          </ul>
 
-              <p class="mt-3 pt-3 border-t border-border text-[11px] text-muted-foreground">
-                Klik project untuk fokuskan peta ke destinasinya. Pin yang dibuat saat satu project dipilih otomatis tertaut ke project tersebut.
-              </p>
-            </SectionCard>
+          <EmptyState v-else :icon="CalendarDays" title="Tidak ada jadwal" description="Pilih tanggal lain pada kalender." />
+        </SectionCard>
+        </div>
+      </div>
 
-            <SectionCard class="xl:col-span-8">
-              <div class="flex items-center gap-2 mb-3">
-                <MapPin class="h-4 w-4 text-muted-foreground" />
-                <h3 class="text-base font-semibold text-foreground">
-                  Perencanaan Lokasi
-                </h3>
+      <Sheet v-model:open="isDaySheetOpen">
+        <SheetContent side="right" class="w-full sm:max-w-sm overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle class="capitalize">
+              {{ daySheetLabel }}
+            </SheetTitle>
+            <SheetDescription>{{ daySheetEvents.length }} jadwal pada tanggal ini.</SheetDescription>
+          </SheetHeader>
+
+          <div v-if="daySheetEvents.length" class="mt-4 divide-y divide-border overflow-hidden rounded-lg border border-border">
+            <div
+              v-for="event in daySheetEvents"
+              :key="event.id"
+              :class="[
+                'flex items-start gap-2 px-3 py-2 transition-colors',
+                event.isAttention ? 'bg-destructive/5' : '',
+                event.projectId && 'cursor-pointer hover:bg-muted/40'
+              ]"
+              @click="goToProject(event.projectId)"
+            >
+              <span :class="cn('mt-1 h-1.5 w-1.5 shrink-0 self-start rounded-full', TONE_DOT[event.tone] ?? 'bg-muted-foreground')" />
+              <div class="min-w-0 flex-1 py-0.5">
+                <div class="flex items-start gap-1.5">
+                  <p class="min-w-0 flex-1 break-words text-xs font-semibold leading-snug text-foreground [overflow-wrap:anywhere]">
+                    <span v-if="event.time" class="tabular-nums font-normal text-muted-foreground">{{ event.time }} · </span>{{ event.title }}
+                  </p>
+                  <AlertTriangle v-if="event.isAttention" class="mt-0.5 h-3 w-3 shrink-0 text-destructive" />
+                </div>
+                <p class="mt-0.5 break-words text-[11px] leading-snug text-muted-foreground [overflow-wrap:anywhere]">
+                  {{ SCHEDULE_KIND_META[event.kind].label }}
+                  <template v-if="event.projectId"> · {{ getProjectById(event.projectId)?.name ?? event.projectId }}</template>
+                </p>
+                <p v-if="event.detail" class="mt-0.5 break-words text-[11px] leading-snug text-muted-foreground [overflow-wrap:anywhere]">
+                  {{ event.detail }}
+                </p>
               </div>
-
-              <RegionMapPicker
-                :pins="mapPins"
-                :can-manage="canManage"
-                :focus-point="mapFocusPoint"
-                @add="onAddPin"
-                @remove="onRemovePin"
-              />
-            </SectionCard>
+              <ChevronRight v-if="event.projectId" class="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+            </div>
           </div>
-        </TabsContent>
-      </Tabs>
+          <EmptyState v-else title="Tidak ada jadwal" description="Tidak ada jadwal pada tanggal ini." />
+        </SheetContent>
+      </Sheet>
     </template>
   </div>
 </template>

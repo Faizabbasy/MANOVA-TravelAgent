@@ -118,15 +118,17 @@ export function useScheduleEvents () {
     }
 
     for (const booking of FLIGHT_BOOKINGS) {
-      const departureAt = booking.segments?.[0]?.departureAt
+      const segment = booking.segments?.[0]
+      const departureAt = segment?.departureAt
       const date = departureAt?.slice(0, 10)
       if (!date) { continue }
+      const route = segment?.origin && segment?.destination ? `${segment.origin} → ${segment.destination}` : undefined
       list.push({
         id: `SCH-FLT-${booking.id}`,
         date,
         kind: 'flight',
-        title: `Penerbangan ${booking.id}`,
-        detail: booking.pnr ? `PNR ${booking.pnr}` : undefined,
+        title: route ? `Penerbangan ${route}` : `Penerbangan ${booking.id}`,
+        detail: [segment?.flightNumber, booking.pnr ? `PNR ${booking.pnr}` : undefined].filter(Boolean).join(' · ') || undefined,
         projectId: booking.projectId,
         tone: KIND_META.flight.tone,
         time: departureAt?.slice(11, 16)
@@ -152,12 +154,13 @@ export function useScheduleEvents () {
       const leg = booking.legs?.[0]
       const date = leg?.scheduledAt?.slice(0, 10)
       if (!date) { continue }
+      const route = leg?.pickupLocation && leg?.dropoffLocation ? `${leg.pickupLocation} → ${leg.dropoffLocation}` : leg?.pickupLocation
       list.push({
         id: `SCH-TRP-${booking.id}`,
         date,
         kind: 'transport',
-        title: `Transportasi ${booking.id}`,
-        detail: leg?.pickupLocation,
+        title: leg?.label ? `Transportasi — ${leg.label}` : route ? `Transportasi ${route}` : `Transportasi ${booking.id}`,
+        detail: route,
         projectId: booking.projectId,
         tone: KIND_META.transport.tone,
         time: leg?.scheduledAt?.slice(11, 16)

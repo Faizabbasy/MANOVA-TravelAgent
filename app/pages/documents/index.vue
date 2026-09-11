@@ -120,6 +120,23 @@ const documentRows = computed(() => {
   return result.sort((a, b) => (b.item.uploadedAt ?? b.item.generatedAt ?? '').localeCompare(a.item.uploadedAt ?? a.item.generatedAt ?? ''))
 })
 
+/** Saat filter Category = "Semua", dokumen ditampilkan dikelompokkan per category (turun ke bawah) supaya
+ * tetap mudah dipindai — bukan satu daftar rata tanpa konteks category. Kalau satu category sudah dipilih
+ * di filter, tidak perlu dikelompokkan lagi (isinya cuma 1 grup). */
+const documentGroups = computed(() => {
+  if (docCategoryFilter.value !== 'all') {
+    return [{ category: null as string | null, rows: documentRows.value }]
+  }
+  const groups = new Map<string, typeof documentRows.value>()
+  for (const row of documentRows.value) {
+    if (!groups.has(row.item.category)) { groups.set(row.item.category, []) }
+    groups.get(row.item.category)!.push(row)
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([category, rows]) => ({ category, rows }))
+})
+
 const expiredCount = computed(() => DOCUMENT_RECORDS.filter(item => isDocumentExpired(item.expiresAt)).length)
 const expiringSoonCount = computed(() => DOCUMENT_RECORDS.filter(item => isDocumentExpiringSoon(item.expiresAt)).length)
 
@@ -486,101 +503,117 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
             </div>
           </div>
           <SectionCard v-if="docViewMode === 'list'" description="Dokumen 'uploaded' murni metadata mock; dokumen 'generated' menautkan ke halaman preview existing (tidak menduplikasi generator dokumen).">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Document</TableHead>
-                  <TableHead>Entity</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Access Level</TableHead>
-                  <TableHead>Expiry</TableHead>
-                  <TableHead>Source</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in documentRows" :key="row.item.id">
-                  <TableCell class="font-medium text-foreground max-w-[220px] truncate">
-                    {{ row.item.name }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ entityLabel(row.item.entityType, row.item.entityId) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.project?.name ?? '—' }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.item.category }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    v{{ row.item.version }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).tone" /></TableCell>
-                  <TableCell>
-                    <template v-if="row.item.expiresAt">
-                      <StatusBadge
-                        :label="isDocumentExpired(row.item.expiresAt) ? `Expired ${formatDate(row.item.expiresAt)}` : isDocumentExpiringSoon(row.item.expiresAt) ? `Segera: ${formatDate(row.item.expiresAt)}` : formatDate(row.item.expiresAt)"
-                        :tone="isDocumentExpired(row.item.expiresAt) ? 'destructive' : isDocumentExpiringSoon(row.item.expiresAt) ? 'warning' : 'neutral'"
-                      />
-                    </template>
-                    <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
-                  </TableCell>
-                  <TableCell>
-                    <NuxtLink v-if="row.item.sourceType === 'generated' && row.item.previewRoute" :to="row.item.previewRoute" target="_blank" class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                      Preview <ExternalLink class="h-3 w-3" />
-                    </NuxtLink>
-                    <span v-else class="text-xs text-muted-foreground">Uploaded</span>
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="documentRows.length === 0" :colspan="8">
-                  {{ docSearch || docCategoryFilter !== 'all' || docAccessFilter !== 'all' || docEntityFilter !== 'all' || docExpiryFilter !== 'all' ? 'Tidak ada dokumen yang cocok dengan filter.' : 'Belum ada dokumen tercatat.' }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
+            <div v-if="documentRows.length > 0" class="space-y-5">
+              <div v-for="group in documentGroups" :key="group.category ?? '_all'">
+                <p v-if="group.category" class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {{ group.category }} <span class="font-normal normal-case text-muted-foreground/70">({{ group.rows.length }})</span>
+                </p>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Document</TableHead>
+                      <TableHead>Entity</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead v-if="!group.category">
+                        Category
+                      </TableHead>
+                      <TableHead>Version</TableHead>
+                      <TableHead>Access Level</TableHead>
+                      <TableHead>Expiry</TableHead>
+                      <TableHead>Source</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in group.rows" :key="row.item.id">
+                      <TableCell class="font-medium text-foreground max-w-[220px] truncate">
+                        {{ row.item.name }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ entityLabel(row.item.entityType, row.item.entityId) }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.project?.name ?? '—' }}
+                      </TableCell>
+                      <TableCell v-if="!group.category" class="text-muted-foreground">
+                        {{ row.item.category }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        v{{ row.item.version }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).tone" /></TableCell>
+                      <TableCell>
+                        <template v-if="row.item.expiresAt">
+                          <StatusBadge
+                            :label="isDocumentExpired(row.item.expiresAt) ? `Expired ${formatDate(row.item.expiresAt)}` : isDocumentExpiringSoon(row.item.expiresAt) ? `Segera: ${formatDate(row.item.expiresAt)}` : formatDate(row.item.expiresAt)"
+                            :tone="isDocumentExpired(row.item.expiresAt) ? 'destructive' : isDocumentExpiringSoon(row.item.expiresAt) ? 'warning' : 'neutral'"
+                          />
+                        </template>
+                        <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
+                      </TableCell>
+                      <TableCell>
+                        <NuxtLink v-if="row.item.sourceType === 'generated' && row.item.previewRoute" :to="row.item.previewRoute" target="_blank" class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          Preview <ExternalLink class="h-3 w-3" />
+                        </NuxtLink>
+                        <span v-else class="text-xs text-muted-foreground">Uploaded</span>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </div>
+            <p v-else class="text-sm text-muted-foreground text-center py-6">
+              {{ docSearch || docCategoryFilter !== 'all' || docAccessFilter !== 'all' || docEntityFilter !== 'all' || docExpiryFilter !== 'all' ? 'Tidak ada dokumen yang cocok dengan filter.' : 'Belum ada dokumen tercatat.' }}
+            </p>
           </SectionCard>
 
           <SectionCard v-else description="Dokumen 'uploaded' murni metadata mock; dokumen 'generated' menautkan ke halaman preview existing (tidak menduplikasi generator dokumen).">
-            <div v-if="documentRows.length > 0" class="grid content-start grid-cols-2 gap-2.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-              <div
-                v-for="row in documentRows"
-                :key="row.item.id"
-                class="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2 transition-all duration-200 hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm"
-              >
-                <div class="flex items-start justify-between gap-1">
-                  <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" :class="TONE_ICON_BG[documentCategoryTone(row.item.category)]">
-                    <FileText class="h-3.5 w-3.5" />
-                  </div>
-                  <button type="button" class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100" title="Lainnya" @click="handleDocumentMenu(row.item)">
-                    <MoreVertical class="h-3 w-3" />
-                  </button>
-                </div>
-
-                <p class="mt-1.5 truncate text-[11px] font-semibold leading-tight text-foreground" :title="row.item.name">
-                  {{ row.item.name }}
+            <div v-if="documentRows.length > 0" class="space-y-5">
+              <div v-for="group in documentGroups" :key="group.category ?? '_all'">
+                <p v-if="group.category" class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {{ group.category }} <span class="font-normal normal-case text-muted-foreground/70">({{ group.rows.length }})</span>
                 </p>
-                <p class="mt-0.5 truncate text-[10px] text-muted-foreground">
-                  {{ row.item.category }} · v{{ row.item.version }}
-                </p>
-                <StatusBadge
-                  v-if="row.item.expiresAt && (isDocumentExpired(row.item.expiresAt) || isDocumentExpiringSoon(row.item.expiresAt))"
-                  class="mt-1 w-fit"
-                  :label="isDocumentExpired(row.item.expiresAt) ? 'Expired' : 'Segera'"
-                  :tone="isDocumentExpired(row.item.expiresAt) ? 'destructive' : 'warning'"
-                  dot
-                />
+                <div class="flex gap-2.5 overflow-x-auto pb-1">
+                  <div
+                    v-for="row in group.rows"
+                    :key="row.item.id"
+                    class="group relative flex w-40 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-card p-2 transition-all duration-200 hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm"
+                  >
+                    <div class="flex items-start justify-between gap-1">
+                      <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" :class="TONE_ICON_BG[documentCategoryTone(row.item.category)]">
+                        <FileText class="h-3.5 w-3.5" />
+                      </div>
+                      <button type="button" class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100" title="Lainnya" @click="handleDocumentMenu(row.item)">
+                        <MoreVertical class="h-3 w-3" />
+                      </button>
+                    </div>
 
-                <div class="mt-1.5 flex items-center justify-between gap-1 border-t border-border/70 pt-1.5">
-                  <p class="truncate text-[10px] text-muted-foreground" :title="documentUploaderName(row.item)">
-                    {{ documentUploaderName(row.item) }}
-                  </p>
-                  <div class="flex shrink-0 items-center gap-0.5">
-                    <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Lihat" @click="handlePreviewDocument(row.item)">
-                      <Eye class="h-3.5 w-3.5" />
-                    </button>
-                    <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Download" @click="handleDownloadDocument(row.item)">
-                      <Download class="h-3.5 w-3.5" />
-                    </button>
+                    <p class="mt-1.5 truncate text-[11px] font-semibold leading-tight text-foreground" :title="row.item.name">
+                      {{ row.item.name }}
+                    </p>
+                    <p class="mt-0.5 truncate text-[10px] text-muted-foreground">
+                      {{ row.item.category }} · v{{ row.item.version }}
+                    </p>
+                    <StatusBadge
+                      v-if="row.item.expiresAt && (isDocumentExpired(row.item.expiresAt) || isDocumentExpiringSoon(row.item.expiresAt))"
+                      class="mt-1 w-fit"
+                      :label="isDocumentExpired(row.item.expiresAt) ? 'Expired' : 'Segera'"
+                      :tone="isDocumentExpired(row.item.expiresAt) ? 'destructive' : 'warning'"
+                      dot
+                    />
+
+                    <div class="mt-1.5 flex items-center justify-between gap-1 border-t border-border/70 pt-1.5">
+                      <p class="truncate text-[10px] text-muted-foreground" :title="documentUploaderName(row.item)">
+                        {{ documentUploaderName(row.item) }}
+                      </p>
+                      <div class="flex shrink-0 items-center gap-0.5">
+                        <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Lihat" @click="handlePreviewDocument(row.item)">
+                          <Eye class="h-3.5 w-3.5" />
+                        </button>
+                        <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Download" @click="handleDownloadDocument(row.item)">
+                          <Download class="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>

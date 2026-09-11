@@ -872,13 +872,15 @@ const itineraryForm = ref({
   serviceType: '' as ServiceTypeKey | '',
   groupId: '',
   timezone: '',
-  visibleToClient: true
+  visibleToClient: true,
+  vendorId: '',
+  vendorAmountIdr: null as number | null
 })
 
 /** `prefillDate` dipakai tab Kalender — klik "Tambah Jadwal" langsung isi tanggal yang lagi dilihat/dipilih di kalender, bukan kosong. */
 function openCreateItineraryItem (prefillDate?: string) {
   editingItineraryItemId.value = undefined
-  itineraryForm.value = { date: prefillDate ?? '', time: '', title: '', description: '', location: '', serviceType: '', groupId: '', timezone: '', visibleToClient: true }
+  itineraryForm.value = { date: prefillDate ?? '', time: '', title: '', description: '', location: '', serviceType: '', groupId: '', timezone: '', visibleToClient: true, vendorId: '', vendorAmountIdr: null }
   isItineraryFormOpen.value = true
 }
 
@@ -893,7 +895,9 @@ function openEditItineraryItem (item: ItineraryItem) {
     serviceType: item.serviceType ?? '',
     groupId: item.groupId ?? '',
     timezone: item.timezone ?? '',
-    visibleToClient: item.visibleToClient !== false
+    visibleToClient: item.visibleToClient !== false,
+    vendorId: item.vendorId ?? '',
+    vendorAmountIdr: item.vendorAmountIdr ?? null
   }
   isItineraryFormOpen.value = true
 }
@@ -912,7 +916,9 @@ function submitItineraryForm () {
     serviceType: itineraryForm.value.serviceType || undefined,
     groupId: itineraryForm.value.groupId || undefined,
     timezone: itineraryForm.value.timezone.trim() || undefined,
-    visibleToClient: itineraryForm.value.visibleToClient
+    visibleToClient: itineraryForm.value.visibleToClient,
+    vendorId: itineraryForm.value.vendorId || undefined,
+    vendorAmountIdr: itineraryForm.value.vendorId ? (itineraryForm.value.vendorAmountIdr ?? undefined) : undefined
   }
   if (editingItineraryItemId.value) {
     updateItineraryItem(editingItineraryItemId.value, payload)
@@ -2516,7 +2522,7 @@ const tripDurationDays = computed(() => {
                    ketika Daily Itinerary lebih pendek dari total tinggi card-card lainnya. -->
               <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Daily Itinerary" description="Jadwal harian perjalanan (timezone lokal ditampilkan berdampingan jam).">
                 <template v-if="canManageOperations" #actions>
-                  <Button size="sm" variant="outline" @click="openCreateItineraryItem">
+                  <Button size="sm" variant="outline" @click="() => openCreateItineraryItem()">
                     <Plus class="h-3.5 w-3.5 mr-1.5" />Tambah Itinerary
                   </Button>
                 </template>
@@ -2567,6 +2573,9 @@ const tripDurationDays = computed(() => {
                             </p>
                             <p v-if="item.groupId" class="text-xs text-muted-foreground">
                               Group: {{ groupNameById(item.groupId) }}
+                            </p>
+                            <p v-if="item.vendorId" class="text-xs text-muted-foreground">
+                              Vendor: {{ getVendorById(item.vendorId)?.name ?? item.vendorId }}<template v-if="item.vendorAmountIdr"> · {{ formatCurrencyIdr(item.vendorAmountIdr) }}</template>
                             </p>
                             <div v-if="item.visibleToClient === false || item.serviceType" class="mt-1 flex flex-wrap items-center gap-1">
                               <StatusBadge v-if="item.visibleToClient === false" label="Internal Only" tone="neutral" />
@@ -5707,6 +5716,23 @@ const tripDurationDays = computed(() => {
           </div>
           <div class="space-y-1.5">
             <Label for="itin-timezone">Timezone</Label><Input id="itin-timezone" v-model="itineraryForm.timezone" placeholder="mis. Asia/Jakarta" />
+          </div>
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label for="itin-vendor">Vendor (opsional)</Label>
+              <select id="itin-vendor" v-model="itineraryForm.vendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option value="">
+                  Tidak ada
+                </option>
+                <option v-for="vendor in VENDORS" :key="vendor.id" :value="vendor.id">
+                  {{ vendor.name }}
+                </option>
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <Label for="itin-vendor-amount">Nominal ke Vendor (Rp)</Label>
+              <CurrencyInput id="itin-vendor-amount" v-model="itineraryForm.vendorAmountIdr" :disabled="!itineraryForm.vendorId" placeholder="mis. 1500000" />
+            </div>
           </div>
           <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
             <Checkbox v-model="itineraryForm.visibleToClient" />
