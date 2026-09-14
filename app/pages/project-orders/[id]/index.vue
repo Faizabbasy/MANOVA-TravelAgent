@@ -5614,30 +5614,62 @@ const tripDurationDays = computed(() => {
 
             <div class="min-h-[420px]">
               <Transition name="docs-view" mode="out-in">
-                <div v-if="documentsViewMode === 'list'" key="list" class="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Dokumen</TableHead>
-                      <TableHead>Kategori</TableHead>
-                      <TableHead>Access Level</TableHead>
-                      <TableHead>Expired / Expiry</TableHead>
-                      <TableHead>Upload Oleh</TableHead>
-                      <TableHead class="text-right">
-                        Aksi
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow v-for="document in paginatedDocuments" :key="document.id">
-                      <TableCell class="max-w-[300px]">
-                        <div class="flex items-center gap-2.5">
-                          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" :class="TONE_ICON_BG[documentCategoryTone(document.category)]">
-                            <FileText class="h-4 w-4" />
-                          </div>
-                          <div class="min-w-0">
-                            <p class="truncate font-medium text-foreground">
-                              {{ document.name }}
+                <div v-if="documentsViewMode === 'list' && filteredDocuments.length" key="list" class="space-y-5">
+                  <div v-for="group in documentGroups" :key="group.category ?? '_all'">
+                    <p v-if="group.category" class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {{ group.category }} <span class="font-normal normal-case text-muted-foreground/70">({{ group.rows.length }})</span>
+                    </p>
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Dokumen</TableHead>
+                          <TableHead v-if="!group.category">
+                            Kategori
+                          </TableHead>
+                          <TableHead>Access Level</TableHead>
+                          <TableHead>Expired / Expiry</TableHead>
+                          <TableHead>Upload Oleh</TableHead>
+                          <TableHead class="text-right">
+                            Aksi
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow v-for="document in group.rows" :key="document.id">
+                          <TableCell class="max-w-[300px]">
+                            <div class="flex items-center gap-2.5">
+                              <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" :class="TONE_ICON_BG[documentCategoryTone(document.category)]">
+                                <FileText class="h-4 w-4" />
+                              </div>
+                              <div class="min-w-0">
+                                <p class="truncate font-medium text-foreground">
+                                  {{ document.name }}
+                                </p>
+                                <p class="truncate text-xs text-muted-foreground">
+                                  {{ document.category }} · v{{ document.version }}
+                                  <template v-if="document.sourceType === 'generated' && document.previewRoute">
+                                    · <NuxtLink :to="document.previewRoute" target="_blank" class="text-primary hover:underline">
+                                      Preview
+                                    </NuxtLink>
+                                  </template>
+                                </p>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell v-if="!group.category"><StatusBadge :label="document.category" :tone="documentCategoryTone(document.category)" /></TableCell>
+                          <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).tone" /></TableCell>
+                          <TableCell>
+                            <template v-if="document.expiresAt">
+                              <StatusBadge
+                                :label="isDocumentExpired(document.expiresAt) ? `Expired ${formatDate(document.expiresAt)}` : isDocumentExpiringSoon(document.expiresAt) ? `Segera: ${formatDate(document.expiresAt)}` : formatDate(document.expiresAt)"
+                                :tone="isDocumentExpired(document.expiresAt) ? 'destructive' : isDocumentExpiringSoon(document.expiresAt) ? 'warning' : 'neutral'"
+                              />
+                            </template>
+                            <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
+                          </TableCell>
+                          <TableCell>
+                            <p class="text-xs text-foreground">
+                              {{ documentUploaderName(document) }}
                             </p>
                             <p class="text-xs text-muted-foreground">
                               {{ documentUploadedDate(document) }}
@@ -5678,17 +5710,6 @@ const tripDurationDays = computed(() => {
                             <MoreVertical class="h-3 w-3" />
                           </button>
                         </div>
-                      </TableCell>
-                    </TableRow>
-                    <TableEmpty v-if="paginatedDocuments.length === 0" :colspan="6">
-                      <EmptyState
-                        :icon="FileText"
-                        :title="unifiedDocuments.length === 0 ? 'Belum ada dokumen diunggah' : 'Tidak ada dokumen sesuai filter'"
-                      />
-                    </TableEmpty>
-                  </TableBody>
-                </Table>
-                </div>
 
                         <p class="mt-1.5 truncate text-[11px] font-semibold leading-tight text-foreground" :title="document.name">
                           {{ document.name }}
