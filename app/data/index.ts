@@ -7120,6 +7120,12 @@ export const getClientProjectMessages = (projectId: string) => MESSAGE_RECORDS
   .filter(item => item.projectId === projectId && item.channel !== 'internal-note')
   .sort((a, b) => a.sentAt.localeCompare(b.sentAt))
 
+/** Kebalikan `getClientProjectMessages` — HANYA `internal-note`, dipakai tab "Diskusi" (chat tim internal per
+ * project, dengan mention + attachment mock) di Project Detail. Client/supplier TIDAK PERNAH melihat ini. */
+export const getInternalProjectMessages = (projectId: string) => MESSAGE_RECORDS
+  .filter(item => item.projectId === projectId && item.channel === 'internal-note')
+  .sort((a, b) => a.sentAt.localeCompare(b.sentAt))
+
 export function isMessageUnread (message: Message, userId: string): boolean {
   return !(message.readBy ?? []).includes(userId)
 }

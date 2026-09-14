@@ -36,8 +36,10 @@ export type ProjectDetailTab =
   | 'travelers'
   | 'vendors'
   | 'finance'
+  | 'expenses'
   | 'tasks'
   | 'documents'
+  | 'discussion'
   | 'activity-changes'
   /** Group Trip B2C (`Project.isGroupTrip`) — tab tambahan, tab value lama di atas tetap dipakai (direlabel) untuk sisanya. */
   | 'bookings'
