@@ -27,6 +27,11 @@ export function formatDate (isoDate: string): string {
   return format(parseISO(isoDate), 'd MMM yyyy', { locale: localeId })
 }
 
+/** Nama bulan penuh (mis. "31 Oktober 2026") — dipakai badge tanggal yang butuh tampilan lebih formal/lega, mis. kartu highlight milestone aktif. */
+export function formatDateLong (isoDate: string): string {
+  return format(parseISO(isoDate), 'd MMMM yyyy', { locale: localeId })
+}
+
 export function formatDateTime (isoDate: string): string {
   return format(parseISO(isoDate), 'd MMM yyyy, HH:mm', { locale: localeId })
 }

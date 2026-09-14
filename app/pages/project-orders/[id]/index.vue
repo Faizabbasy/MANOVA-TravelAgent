@@ -3,7 +3,7 @@ import { ref, computed, nextTick, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { SortableEvent } from 'vue-draggable-plus'
 import { VueDraggable } from 'vue-draggable-plus'
-import { FileX, Wallet, Users, User, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2, MapPin, CalendarRange, CreditCard, FileText, PieChart, Eye, EyeOff, LayoutGrid, List, Download, MessageSquare, FileClock, Settings2, ImagePlus, Plane, Hotel, Bus, PartyPopper, Package, Gauge, Clock, ChevronRight, ChevronLeft, ListChecks, CircleDashed, Check, MoreVertical, FolderOpen, Kanban, MoreHorizontal, Calculator, Info, GripVertical, Paperclip, X } from 'lucide-vue-next'
+import { FileX, Wallet, Users, User, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2, MapPin, CalendarRange, CreditCard, FileText, PieChart, Eye, EyeOff, LayoutGrid, List, Download, MessageSquare, FileClock, Settings2, ImagePlus, Plane, Hotel, Bus, PartyPopper, Package, Gauge, Clock, ChevronRight, ChevronLeft, ListChecks, CircleDashed, Check, MoreVertical, FolderOpen, Kanban, MoreHorizontal, Calculator, Info, GripVertical, Paperclip, X, Flag, CalendarDays } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getContactsByParty, getUserById, getVendorById, getLeadById,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
@@ -21,7 +21,6 @@ import {
   addProjectTeamMember, removeProjectTeamMember,
   createProjectTask, updateProjectTask,
   toggleTaskBlocked, getServiceReadinessMatrix, getDepartureReadiness, getProjectAttentionQueue,
-  getShiftNotes, createShiftNote,
   getBookingTimeline,
   getServiceOrdersByProject, getRfqsByProject,
   getChangeRequestsByProject, getCancellationRecordsByProject, getRefundRequestsByProject, getIncidentsByProject,
@@ -55,10 +54,10 @@ import {
   CREDIT_NOTE_STATUSES, DEBIT_NOTE_STATUSES, SUPPLIER_INVOICE_MATCH_STATUSES, SUPPLIER_INVOICE_STATUSES,
   DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES, SALES_ORDER_STATUSES
 } from '~/constants/status'
-import { formatCurrencyIdr, formatDateRange, formatDate, formatDateTime, formatDayLabel, formatDayBadge, formatTravelerCount, maskDocumentNumber, daysUntil } from '~/utils/format'
+import { formatCurrencyIdr, formatDateRange, formatDate, formatDateLong, formatDateTime, formatDayLabel, formatDayBadge, formatTravelerCount, maskDocumentNumber, daysUntil } from '~/utils/format'
 import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, isInvoiceDueSoon, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT, isDpBalanceOverdue, PASSPORT_EXPIRY_WARNING_DAYS } from '~/utils/attention'
 import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ItineraryItem, ProjectService } from '~/types/project'
-import type { ChangeCategory, ProjectTask, ShiftPeriod } from '~/types/activity'
+import type { ChangeCategory, ProjectTask } from '~/types/activity'
 import type { Invoice, InvoiceMilestone, InvoiceType } from '~/types/finance'
 import type { ProjectExpenseCategoryKey } from '~/types/finance-ext'
 import type { MessageChannel, Document as AppDocument } from '~/types/document-comms'
@@ -284,6 +283,41 @@ const currentStepView = computed(() => stepViews.value.find(view => view.state =
 const canAdvanceStep = computed(() => can('project-order.advance-step'))
 const selectedStepKey = ref<string | undefined>()
 
+/** "Order Status" 6-langkah (drafting→done) diringkas jadi 3 fase pill (Draft/Sedang Berjalan/Selesai) —
+ * gantinya stepper besar lama, pola pill sama seperti section Progress Milestone di bawahnya. Detail
+ * per-step (gate/blocker) tetap ada, dipicu klik pill "Sedang Berjalan" (bukan lagi pilih salah satu dari
+ * 6 step). */
+type OrderPhase = 'draft' | 'sedang-berjalan' | 'selesai'
+const ORDER_PHASE_ORDER: Record<OrderPhase, number> = { draft: 0, 'sedang-berjalan': 1, selesai: 2 }
+const orderPhase = computed<OrderPhase>(() => {
+  const step = project.value ? getProjectOrderStep(project.value) : 'drafting'
+  if (step === 'drafting') { return 'draft' }
+  if (step === 'done') { return 'selesai' }
+  return 'sedang-berjalan'
+})
+function orderPhasePillClass (phase: OrderPhase): string {
+  const current = ORDER_PHASE_ORDER[orderPhase.value]
+  const target = ORDER_PHASE_ORDER[phase]
+  if (target < current) { return 'border-success/30 bg-success/10 text-success' }
+  if (target === current) { return 'border-primary/40 bg-primary/10 font-semibold text-primary' }
+  return 'border-border bg-card text-muted-foreground'
+}
+function orderPhaseDotClass (phase: OrderPhase): string {
+  const current = ORDER_PHASE_ORDER[orderPhase.value]
+  if (ORDER_PHASE_ORDER[phase] === current) { return 'bg-primary' }
+  return 'bg-muted-foreground'
+}
+function toggleStepGateByKey (stepKey: string) {
+  selectedStepKey.value = selectedStepKey.value === stepKey ? undefined : stepKey
+}
+/** Klik pill "Sedang Berjalan" → step yang lagi aktif (bisa `confirmed`/`start`/`departure`/`on-progress`,
+ * apa pun yang lagi jalan sekarang), bukan key tetap — 4 step itu diringkas jadi 1 pill tapi detail
+ * gate-nya tetap per-step yang sebenarnya. */
+function toggleCurrentStepGate () {
+  if (!currentStepView.value) { return }
+  toggleStepGateByKey(currentStepView.value.def.key)
+}
+
 function onAdvanceStep () {
   if (!project.value) { return }
   const result = advanceProjectOrder(project.value.id, currentUser.value.id)
@@ -428,7 +462,7 @@ const milestoneOverallProgressPercent = computed(() => {
 const sortedMilestoneSteps = computed(() => [...milestones.value].sort((a, b) => a.plannedDate.localeCompare(b.plannedDate)))
 const MILESTONE_STEP_NODE_CLASS: Record<ProjectMilestone['status'], string> = {
   completed: 'border-primary bg-primary text-primary-foreground',
-  'in-progress': 'border-primary bg-primary/15 text-primary',
+  'in-progress': 'border-primary bg-card text-primary ring-4 ring-primary/15',
   delayed: 'border-destructive bg-destructive text-destructive-foreground',
   'not-started': 'border-border bg-card text-muted-foreground',
   cancelled: 'border-border bg-muted text-muted-foreground/50'
@@ -442,17 +476,30 @@ const MILESTONE_STEP_LABEL_CLASS: Record<ProjectMilestone['status'], string> = {
 }
 const MILESTONE_STEP_STATUS_LABEL: Record<ProjectMilestone['status'], string> = {
   completed: 'Selesai',
-  'in-progress': 'Berjalan',
+  'in-progress': 'Sedang Dikerjakan',
   delayed: 'Terlambat',
   'not-started': 'Belum Mulai',
   cancelled: 'Dibatalkan'
 }
+/** Segmen garis konektor mengikuti milestone TUJUAN-nya — sudah "dilalui" (bukan `not-started`) jadi
+ * solid primary, sisanya abu-abu. */
 function milestoneStepConnectorClass (milestone: ProjectMilestone): string {
-  return milestone.status === 'completed' ? 'border-solid border-primary/60' : 'border-dotted border-border'
+  return milestone.status === 'not-started' ? 'border-border' : 'border-primary/60'
 }
 function goToMilestoneStep () {
   activeTab.value = 'milestone'
 }
+
+/** Milestone yang lagi jalan (fallback: milestone belum-mulai paling awal) — dipakai kartu highlight di
+ * bawah stepper kecil, plus ringkasan checklist/progress-nya sendiri (`deliverables`, bukan progress
+ * keseluruhan project). */
+const currentMilestoneStep = computed(() => sortedMilestoneSteps.value.find(m => m.status === 'in-progress')
+  ?? sortedMilestoneSteps.value.find(m => m.status === 'not-started'))
+const currentMilestoneDeliverables = computed(() => {
+  const deliverables = currentMilestoneStep.value?.deliverables ?? []
+  return { done: deliverables.filter(item => item.done).length, total: deliverables.length }
+})
+const currentMilestoneProgressPercent = computed(() => (currentMilestoneStep.value ? getMilestoneProgressPercent(currentMilestoneStep.value) : 0))
 
 function onToggleMilestoneDeliverable (payload: { milestoneId: string; deliverableId: string }) {
   toggleMilestoneDeliverable(payload.milestoneId, payload.deliverableId)
@@ -975,21 +1022,6 @@ function confirmDeleteItineraryItem () {
   removeItineraryItem(pendingDeleteItineraryItem.value.id)
   pendingDeleteItineraryItem.value = undefined
   showToast('Item Dihapus', 'Item itinerary berhasil dihapus.', 'success')
-}
-
-/** "On-trip updates dan shift notes mock" */
-const shiftNotes = computed(() => project.value ? getShiftNotes(project.value.id) : [])
-const isShiftNoteDialogOpen = ref(false)
-const shiftNoteShift = ref<ShiftPeriod>('pagi')
-const shiftNoteText = ref('')
-
-function submitShiftNote () {
-  if (!project.value || !shiftNoteText.value.trim()) { return }
-  createShiftNote({ projectId: project.value.id, authorId: currentUser.value.id, shift: shiftNoteShift.value, note: shiftNoteText.value.trim() })
-  shiftNoteText.value = ''
-  shiftNoteShift.value = 'pagi'
-  isShiftNoteDialogOpen.value = false
-  showToast('Shift Note Dicatat', 'Catatan serah-terima shift berhasil ditambahkan.', 'success')
 }
 
 /** "Blocker" (Tasks) — dialog untuk memblokir (wajib alasan); buka blokir langsung tanpa dialog (tidak butuh alasan). */
@@ -2158,49 +2190,90 @@ const tripDurationDays = computed(() => {
       </SectionCard>
 
       <SectionCard compact>
-        <ProjectOrderStepper
-          class="px-1 pt-4"
-          :steps="stepViews"
-          :selected-step-key="selectedStepKey"
-          @select="value => selectedStepKey = selectedStepKey === value ? undefined : value"
-        />
+        <!-- "Order Status" diringkas jadi 3 pill (bukan lagi stepper 6-langkah besar) + stepper kecil per
+             milestone di bawahnya (urut plannedDate, klik titik mana pun loncat ke tab Milestone). -->
+        <div>
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-3 px-1 pt-4">
+            <div class="flex items-center gap-1.5">
+              <button type="button" class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors" :class="orderPhasePillClass('draft')" title="Lihat syarat step Drafting" @click="toggleStepGateByKey('drafting')">
+                <Check v-if="ORDER_PHASE_ORDER.draft < ORDER_PHASE_ORDER[orderPhase]" class="h-3 w-3" />
+                <span v-else class="h-1.5 w-1.5 shrink-0 rounded-full" :class="orderPhaseDotClass('draft')" />Draft
+              </button>
+              <span class="h-px w-4 shrink-0 bg-border" />
+              <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors" :class="orderPhasePillClass('sedang-berjalan')" title="Lihat syarat step yang sedang berjalan" @click="toggleCurrentStepGate">
+                <Check v-if="ORDER_PHASE_ORDER['sedang-berjalan'] < ORDER_PHASE_ORDER[orderPhase]" class="h-3 w-3" />
+                <span v-else class="h-1.5 w-1.5 shrink-0 rounded-full" :class="orderPhaseDotClass('sedang-berjalan')" />Sedang Berjalan
+              </button>
+              <span class="h-px w-4 shrink-0 bg-border" />
+              <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors" :class="orderPhasePillClass('selesai')" title="Lihat syarat step Done" @click="toggleStepGateByKey('done')">
+                <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="orderPhaseDotClass('selesai')" />Selesai
+              </button>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="text-muted-foreground">
+                <span class="font-semibold text-foreground">{{ milestoneSummary.completed }}/{{ milestoneSummary.total }}</span> milestone
+              </span>
+              <span v-if="currentMilestoneDeliverables.total > 0" class="text-muted-foreground">
+                <span class="font-semibold text-foreground">{{ currentMilestoneDeliverables.done }}/{{ currentMilestoneDeliverables.total }}</span> tugas
+              </span>
+              <span class="font-bold text-primary">{{ currentMilestoneDeliverables.total > 0 ? currentMilestoneProgressPercent : milestoneOverallProgressPercent }}%</span>
+            </div>
+          </div>
 
-        <!-- Stepper kedua — langkah kecil per milestone (bukan "Order Status" 6-langkah besar di atas).
-             Urut plannedDate, klik titik mana pun loncat ke tab Milestone. -->
-        <div v-if="sortedMilestoneSteps.length" class="mt-4 border-t border-border pt-4">
-          <p class="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Progress Milestone ({{ sortedMilestoneSteps.length }})
-          </p>
-          <div class="overflow-x-auto pb-1 no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            <ol class="grid min-w-max items-start px-1" :style="{ gridTemplateColumns: `repeat(${sortedMilestoneSteps.length}, minmax(76px, 1fr))` }">
+          <div v-if="sortedMilestoneSteps.length" class="overflow-x-auto pb-1 no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <ol class="grid min-w-max items-start px-1" :style="{ gridTemplateColumns: `repeat(${sortedMilestoneSteps.length}, minmax(96px, 1fr))` }">
               <li v-for="(milestone, index) in sortedMilestoneSteps" :key="milestone.id" class="flex flex-col items-center px-1">
                 <div class="flex w-full items-center">
-                  <span class="h-0 flex-1 border-t-2" :class="index === 0 ? 'border-transparent' : milestoneStepConnectorClass(milestone)" />
+                  <span class="h-[3px] flex-1 border-t-[3px]" :class="index === 0 ? 'border-transparent' : milestoneStepConnectorClass(milestone)" />
                   <button
                     type="button"
                     class="group flex shrink-0 items-center justify-center rounded-full p-0"
                     :title="`${milestone.name} · ${MILESTONE_STEP_STATUS_LABEL[milestone.status]}`"
                     @click="goToMilestoneStep"
                   >
-                    <span :class="['flex h-4 w-4 items-center justify-center rounded-full border-2 transition-colors', MILESTONE_STEP_NODE_CLASS[milestone.status]]">
-                      <Check v-if="milestone.status === 'completed'" class="h-2.5 w-2.5" />
-                      <AlertTriangle v-else-if="milestone.status === 'delayed'" class="h-2.5 w-2.5" />
+                    <span :class="['flex h-9 w-9 items-center justify-center rounded-full border-[3px] text-xs font-bold transition-colors', MILESTONE_STEP_NODE_CLASS[milestone.status]]">
+                      <Check v-if="milestone.status === 'completed'" class="h-4 w-4" />
+                      <AlertTriangle v-else-if="milestone.status === 'delayed'" class="h-4 w-4" />
+                      <template v-else>{{ index + 1 }}</template>
                     </span>
                   </button>
-                  <span v-if="index < sortedMilestoneSteps.length - 1" class="h-0 flex-1 border-t-2" :class="milestoneStepConnectorClass(sortedMilestoneSteps[index + 1])" />
+                  <span v-if="index < sortedMilestoneSteps.length - 1" class="h-[3px] flex-1 border-t-[3px]" :class="milestoneStepConnectorClass(sortedMilestoneSteps[index + 1])" />
                   <span v-else class="flex-1" />
                 </div>
-                <button type="button" class="mt-1.5 flex max-w-[84px] flex-col items-center gap-0 rounded px-0.5 hover:bg-muted/50" @click="goToMilestoneStep">
-                  <span :class="['line-clamp-2 text-center text-[10px] leading-tight', MILESTONE_STEP_LABEL_CLASS[milestone.status]]" :title="milestone.name">
+                <button type="button" class="mt-2 flex max-w-[92px] flex-col items-center gap-0 rounded px-0.5 hover:bg-muted/50" @click="goToMilestoneStep">
+                  <span :class="['line-clamp-2 text-center text-xs leading-tight', MILESTONE_STEP_LABEL_CLASS[milestone.status]]" :title="milestone.name">
                     {{ milestone.name }}
                   </span>
-                  <span class="mt-0.5 font-ticket-mono text-[9px] leading-none text-muted-foreground">
+                  <span class="mt-0.5 font-ticket-mono text-[10px] leading-none text-muted-foreground">
                     {{ formatDate(milestone.actualDate ?? milestone.plannedDate) }}
                   </span>
                 </button>
               </li>
             </ol>
           </div>
+
+          <!-- Kartu highlight milestone yang lagi jalan — pola sama "kamu di sini sekarang" stepper besar di atas, tapi untuk milestone. -->
+          <button
+            v-if="currentMilestoneStep"
+            type="button"
+            class="mt-4 flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-left transition-colors hover:bg-primary/10"
+            @click="goToMilestoneStep"
+          >
+            <div class="flex min-w-0 items-center gap-2">
+              <Flag class="h-4 w-4 shrink-0 text-primary" />
+              <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  {{ MILESTONE_STEP_STATUS_LABEL[currentMilestoneStep.status] }}
+                </p>
+                <p class="truncate text-sm font-semibold text-foreground">
+                  {{ currentMilestoneStep.name }}
+                </p>
+              </div>
+            </div>
+            <span class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground">
+              <CalendarDays class="h-3.5 w-3.5" />{{ formatDateLong(currentMilestoneStep.plannedDate) }}
+            </span>
+          </button>
         </div>
 
         <div v-if="canAcceptHandover || (canAdvanceStep && currentStepView)" class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
@@ -2501,27 +2574,14 @@ const tripDurationDays = computed(() => {
                 </ul>
               </SectionCard>
 
-              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Nilai Project">
-                <p class="text-2xl font-bold tabular-nums text-foreground">
-                  {{ formatCurrencyIdr(project.quotationAmountIdr) }}
-                </p>
-                <button
-                  v-if="project.leadId"
-                  type="button"
-                  class="mt-1.5 inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
-                  @click="isLeadDetailSheetOpen = true"
-                >
-                  Dari {{ project.leadId }}
-                </button>
-
-                <div class="mt-3 flex items-start gap-2.5 border-t border-dashed border-border pt-3">
+              <!-- Dulu "Nilai Project" — angka quotation-nya dihapus (D-audit: sudah tampil 2x di atas, di
+                   header hero dan "Ringkasan Komersial"), card ini sekarang murni Owner/PIC + link lead asal. -->
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Owner / PIC">
+                <div class="flex items-start gap-2.5">
                   <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
                     <User class="h-4 w-4" />
                   </div>
                   <div class="min-w-0">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-success">
-                      Owner / PIC
-                    </p>
                     <p class="truncate text-sm font-semibold text-foreground">
                       {{ owner?.name ?? '—' }}
                     </p>
@@ -2530,6 +2590,14 @@ const tripDurationDays = computed(() => {
                     </p>
                   </div>
                 </div>
+                <button
+                  v-if="project.leadId"
+                  type="button"
+                  class="mt-2.5 inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+                  @click="isLeadDetailSheetOpen = true"
+                >
+                  Dari {{ project.leadId }}
+                </button>
               </SectionCard>
 
               <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Tim Project">
@@ -2862,83 +2930,9 @@ const tripDurationDays = computed(() => {
                 </div>
               </SectionCard>
 
-              <!-- Progress Readiness (donut, dibesarkan biar isi card padat tanpa duplikasi angka yang sudah ada di 4 StatsCard "Departure Readiness Gate" di atas) + Alasan Belum Siap & Countdown Keberangkatan (satu card, dipisah divider — bukan diduplikasi). items-start supaya card yang lebih pendek tidak di-stretch mengikuti tinggi sibling-nya. -->
+              <!-- "Progress Readiness" (donut) dihapus — cuma re-visualisasi persentase gabungan yang sudah
+                   kebaca dari 4 StatsCard "Departure Readiness Gate" di atas, dianggap tidak perlu. -->
               <template v-if="departureReadiness">
-                <SectionCard class="h-full" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Progress Readiness" content-class="flex flex-1 flex-col items-center py-2 text-center">
-                  <div class="relative flex h-40 w-40 shrink-0 items-center justify-center">
-                    <svg viewBox="0 0 80 80" class="h-40 w-40 -rotate-90">
-                      <circle
-                        cx="40"
-                        cy="40"
-                        r="34"
-                        fill="none"
-                        stroke="hsl(var(--muted))"
-                        stroke-width="7"
-                      />
-                      <circle
-                        cx="40"
-                        cy="40"
-                        r="34"
-                        fill="none"
-                        stroke="hsl(var(--primary))"
-                        stroke-width="7"
-                        stroke-linecap="round"
-                        class="transition-[stroke-dashoffset] duration-700 ease-out"
-                        :stroke-dasharray="2 * Math.PI * 34"
-                        :stroke-dashoffset="2 * Math.PI * 34 * (1 - overallReadinessPercent / 100)"
-                      />
-                    </svg>
-                    <div class="absolute flex flex-col items-center">
-                      <span class="text-3xl font-bold leading-none tabular-nums text-foreground">{{ overallReadinessPercent }}%</span>
-                      <span class="mt-1 text-xs text-muted-foreground">Siap Berangkat</span>
-                    </div>
-                  </div>
-
-                  <div class="mt-4 flex items-center gap-4 text-xs">
-                    <span class="flex items-center gap-1.5">
-                      <span class="h-2 w-2 shrink-0 rounded-full bg-primary" />
-                      <span class="text-foreground">{{ overallReadinessPercent }}% Siap</span>
-                    </span>
-                    <span class="flex items-center gap-1.5">
-                      <span class="h-2 w-2 shrink-0 rounded-full bg-muted" />
-                      <span class="text-muted-foreground">{{ 100 - overallReadinessPercent }}% Belum Lengkap</span>
-                    </span>
-                  </div>
-
-                  <ul class="mt-4 w-full space-y-2.5 border-t border-border pt-4 text-left">
-                    <li class="flex items-center justify-between gap-3 text-sm">
-                      <span class="flex items-center gap-2 text-muted-foreground">
-                        <FileText class="h-4 w-4 shrink-0 text-primary" />Dokumen Traveler
-                      </span>
-                      <span class="font-medium text-foreground">{{ departureReadiness.travelerReadinessPercent }}%</span>
-                    </li>
-                    <li class="flex items-center justify-between gap-3 text-sm">
-                      <span class="flex items-center gap-2 text-muted-foreground">
-                        <CheckCircle2 class="h-4 w-4 shrink-0 text-primary" />Layanan Confirmed
-                      </span>
-                      <span class="font-medium text-foreground">{{ departureReadiness.servicesConfirmedPercent }}%</span>
-                    </li>
-                    <li class="flex items-center justify-between gap-3 text-sm">
-                      <span class="flex items-center gap-2 text-muted-foreground">
-                        <AlertTriangle class="h-4 w-4 shrink-0" :class="departureReadiness.blockedTasksCount > 0 ? 'text-warning' : 'text-primary'" />Task Diblokir
-                      </span>
-                      <span class="font-medium text-foreground">{{ departureReadiness.blockedTasksCount }}</span>
-                    </li>
-                    <li class="flex items-center justify-between gap-3 text-sm">
-                      <span class="flex items-center gap-2 text-muted-foreground">
-                        <AlertTriangle class="h-4 w-4 shrink-0" :class="departureReadiness.openRisksCount > 0 ? 'text-warning' : 'text-primary'" />Risk Terbuka
-                      </span>
-                      <span class="font-medium text-foreground">{{ departureReadiness.openRisksCount }}</span>
-                    </li>
-                    <li class="flex items-center justify-between gap-3 text-sm">
-                      <span class="flex items-center gap-2 text-muted-foreground">
-                        <CalendarRange class="h-4 w-4 shrink-0 text-primary" />Keberangkatan
-                      </span>
-                      <span class="font-medium text-foreground">{{ formatDate(project.travelStartDate) }}</span>
-                    </li>
-                  </ul>
-                </SectionCard>
-
                 <SectionCard class="h-full" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Alasan Belum Siap">
                   <ul v-if="departureReadiness.blockingReasons.length > 0" class="space-y-2">
                     <li v-for="(reason, index) in departureReadiness.blockingReasons" :key="index" class="flex items-start gap-2 text-xs text-foreground">
@@ -3165,65 +3159,6 @@ const tripDurationDays = computed(() => {
                     </li>
                   </ul>
                   <EmptyState v-else title="Belum ada task tercatat" />
-                </SectionCard>
-
-                <!-- On-Trip Updates / Shift Notes (Section 12 baru) -->
-                <SectionCard class="flex h-full flex-col" content-class="flex flex-1 flex-col" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="On-Trip Updates / Shift Notes" description="Catatan serah-terima operasional selama trip berlangsung (mock).">
-                  <template v-if="canManageOperations" #actions>
-                    <Sheet v-model:open="isShiftNoteDialogOpen">
-                      <SheetTrigger as-child>
-                        <Button size="sm" variant="outline">
-                          + Catat Shift Note
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
-                        <SheetHeader>
-                          <SheetTitle>Catat Shift Note Baru</SheetTitle>
-                          <SheetDescription>Catatan serah-terima antar staf lapangan — mock, bukan sistem shift roster sungguhan.</SheetDescription>
-                        </SheetHeader>
-                        <div class="space-y-4 py-2">
-                          <div class="space-y-1.5">
-                            <Label for="shift-period">Shift</Label>
-                            <select id="shift-period" v-model="shiftNoteShift" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                              <option value="pagi">
-                                Pagi
-                              </option>
-                              <option value="siang">
-                                Siang
-                              </option>
-                              <option value="malam">
-                                Malam
-                              </option>
-                            </select>
-                          </div>
-                          <div class="space-y-1.5">
-                            <Label for="shift-note">Catatan</Label>
-                            <textarea id="shift-note" v-model="shiftNoteText" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Seluruh peserta sudah check-in, tidak ada kendala." />
-                          </div>
-                        </div>
-                        <SheetFooter class="mt-6 flex-row justify-end gap-2">
-                          <Button variant="outline" @click="isShiftNoteDialogOpen = false">
-                            Batal
-                          </Button>
-                          <Button :disabled="!shiftNoteText.trim()" @click="submitShiftNote">
-                            Simpan
-                          </Button>
-                        </SheetFooter>
-                      </SheetContent>
-                    </Sheet>
-                  </template>
-                  <ul v-if="shiftNotes.length" class="divide-y divide-border">
-                    <li v-for="note in shiftNotes" :key="note.id" class="py-3">
-                      <div class="flex items-center gap-2">
-                        <StatusBadge :label="note.shift === 'pagi' ? 'Pagi' : note.shift === 'siang' ? 'Siang' : 'Malam'" tone="info" />
-                        <span class="text-xs text-muted-foreground">{{ getUserById(note.authorId)?.name ?? note.authorId }} · {{ formatDate(note.createdAt) }}</span>
-                      </div>
-                      <p class="text-sm text-foreground mt-1">
-                        {{ note.note }}
-                      </p>
-                    </li>
-                  </ul>
-                  <EmptyState v-else class="flex flex-1 flex-col items-center justify-center" size="compact" title="Belum ada shift note tercatat" />
                 </SectionCard>
 
               <!-- Tim Project dan Aktivitas Terbaru reuse data yang sudah dihitung di tab Overview, bukan selector baru. -->
@@ -5160,7 +5095,7 @@ const tripDurationDays = computed(() => {
                       >
                         <div class="flex items-start justify-between gap-2">
                           <div class="min-w-0 w-full flex items-start gap-1.5 flex-wrap">
-                            <span v-if="task.isMilestone" class="shrink-0 rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Milestone</span>
+                            <span v-if="task.isMilestone" class="shrink-0 rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Task Penting</span>
                             <span class="min-w-0 flex-1 text-sm font-medium text-foreground break-words [overflow-wrap:anywhere]">{{ task.title }}</span>
                             <GripVertical v-if="canManageProjectOrder" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
                           </div>
@@ -5300,7 +5235,7 @@ const tripDurationDays = computed(() => {
                 </div>
                 <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                   <Checkbox v-model="taskIsMilestone" />
-                  Tandai sebagai Milestone
+                  Tandai sebagai Task Penting
                 </label>
               </div>
               <SheetFooter class="mt-6 flex-row justify-end gap-2">
