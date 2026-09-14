@@ -139,70 +139,143 @@ const BUCKET_TONE: Record<AgingBucketKey, string> = {
           </select>
         </div>
 
-        <Table v-if="filteredRows.length">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tagihan</TableHead>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Jadwal Bayar</TableHead>
-              <TableHead class="text-right">
-                Nilai
-              </TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Umur</TableHead>
-              <TableHead v-if="canManageFinance">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in filteredRows" :key="row.supplierInvoiceId">
-              <TableCell class="text-sm font-medium text-foreground font-mono">
-                {{ row.supplierInvoiceId }}
-              </TableCell>
-              <TableCell>
-                <NuxtLink :to="`/vendors/${row.vendorId}`" class="text-sm text-foreground hover:text-primary">
-                  {{ row.vendorName }}
-                </NuxtLink>
-              </TableCell>
-              <TableCell>
-                <NuxtLink v-if="row.projectId" :to="`/project-orders/${row.projectId}`" class="text-sm text-primary hover:underline">
-                  {{ row.projectName }}
-                </NuxtLink>
-                <span v-else class="text-sm text-muted-foreground">—</span>
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground">
-                {{ row.scheduleDate ? formatDate(row.scheduleDate) : 'Belum dijadwalkan' }}
-              </TableCell>
-              <TableCell class="text-right text-sm font-semibold text-foreground">
-                {{ formatCurrencyIdr(row.amountIdr) }}
-              </TableCell>
-              <TableCell>
-                <StatusBadge
-                  :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, row.status).label"
-                  :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, row.status).tone"
-                />
-                <StatusBadge
-                  v-if="row.matchStatus"
-                  :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, row.matchStatus).label"
-                  :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, row.matchStatus).tone"
-                />
-              </TableCell>
-              <TableCell>
-                <StatusBadge
-                  :label="row.agingDays > 0 ? `${row.agingDays} hari` : 'Belum jatuh tempo'"
-                  :tone="BUCKET_TONE[row.bucket] as never"
-                />
-              </TableCell>
-              <TableCell v-if="canManageFinance">
-                <Button v-if="row.status === 'approved'" size="sm" variant="outline" @click="handlePay(row.supplierInvoiceId)">
+        <ResponsiveDataView v-if="filteredRows.length" :items="filteredRows" :get-key="row => row.supplierInvoiceId">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tagihan</TableHead>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Jadwal Bayar</TableHead>
+                  <TableHead class="text-right">
+                    Nilai
+                  </TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Umur</TableHead>
+                  <TableHead v-if="canManageFinance">
+                    Aksi
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.supplierInvoiceId">
+                  <TableCell class="text-sm font-medium text-foreground font-mono">
+                    {{ row.supplierInvoiceId }}
+                  </TableCell>
+                  <TableCell>
+                    <NuxtLink :to="`/vendors/${row.vendorId}`" class="text-sm text-foreground hover:text-primary">
+                      {{ row.vendorName }}
+                    </NuxtLink>
+                  </TableCell>
+                  <TableCell>
+                    <NuxtLink v-if="row.projectId" :to="`/project-orders/${row.projectId}`" class="text-sm text-primary hover:underline">
+                      {{ row.projectName }}
+                    </NuxtLink>
+                    <span v-else class="text-sm text-muted-foreground">—</span>
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ row.scheduleDate ? formatDate(row.scheduleDate) : 'Belum dijadwalkan' }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm font-semibold text-foreground">
+                    {{ formatCurrencyIdr(row.amountIdr) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, row.status).label"
+                      :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, row.status).tone"
+                    />
+                    <StatusBadge
+                      v-if="row.matchStatus"
+                      :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, row.matchStatus).label"
+                      :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, row.matchStatus).tone"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="row.agingDays > 0 ? `${row.agingDays} hari` : 'Belum jatuh tempo'"
+                      :tone="BUCKET_TONE[row.bucket] as never"
+                    />
+                  </TableCell>
+                  <TableCell v-if="canManageFinance">
+                    <Button v-if="row.status === 'approved'" size="sm" variant="outline" @click="handlePay(row.supplierInvoiceId)">
+                      Bayar
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground font-mono">
+                    {{ row.supplierInvoiceId }}
+                  </p>
+                  <NuxtLink :to="`/vendors/${row.vendorId}`" class="text-xs text-foreground hover:text-primary">
+                    {{ row.vendorName }}
+                  </NuxtLink>
+                </div>
+                <div class="flex flex-col items-end gap-1">
+                  <StatusBadge
+                    :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, row.status).label"
+                    :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, row.status).tone"
+                  />
+                  <StatusBadge
+                    v-if="row.matchStatus"
+                    :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, row.matchStatus).label"
+                    :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, row.matchStatus).tone"
+                  />
+                </div>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Project
+                  </p>
+                  <NuxtLink v-if="row.projectId" :to="`/project-orders/${row.projectId}`" class="text-primary hover:underline">
+                    {{ row.projectName }}
+                  </NuxtLink>
+                  <p v-else class="text-foreground">
+                    —
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Jadwal Bayar
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.scheduleDate ? formatDate(row.scheduleDate) : 'Belum dijadwalkan' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Nilai
+                  </p>
+                  <p class="text-foreground font-medium">
+                    {{ formatCurrencyIdr(row.amountIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Umur
+                  </p>
+                  <StatusBadge
+                    :label="row.agingDays > 0 ? `${row.agingDays} hari` : 'Belum jatuh tempo'"
+                    :tone="BUCKET_TONE[row.bucket] as never"
+                  />
+                </div>
+              </div>
+              <div v-if="canManageFinance && row.status === 'approved'" class="mt-3 flex justify-end">
+                <Button size="sm" variant="outline" @click="handlePay(row.supplierInvoiceId)">
                   Bayar
                 </Button>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
 
         <EmptyState v-else :icon="ArrowUpFromLine" title="Tidak ada hutang" description="Seluruh tagihan vendor sudah terselesaikan untuk filter ini." />
       </SectionCard>

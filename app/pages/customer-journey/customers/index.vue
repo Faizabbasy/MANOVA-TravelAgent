@@ -169,62 +169,132 @@ function submitCreate () {
       </div>
 
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Company</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Kota</TableHead>
-              <TableHead>Telepon</TableHead>
-              <TableHead>Account Owner</TableHead>
-              <TableHead>Leads</TableHead>
-              <TableHead>Project Orders</TableHead>
-              <TableHead>Credit Limit</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.party.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/customer-journey/customers/${row.party.id}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ row.party.name }}
-              </TableCell>
-              <TableCell>
-                <div class="flex items-center gap-1.5">
+        <ResponsiveDataView v-if="rows.length" :items="rows" :get-key="row => row.party.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Company</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Kota</TableHead>
+                  <TableHead>Telepon</TableHead>
+                  <TableHead>Account Owner</TableHead>
+                  <TableHead>Leads</TableHead>
+                  <TableHead>Project Orders</TableHead>
+                  <TableHead>Credit Limit</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.party.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/customer-journey/customers/${row.party.id}`)">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.party.name }}
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex items-center gap-1.5">
+                      <StatusBadge :label="findStatusOption(LIFECYCLE_STATUSES, row.party.lifecycleStatus).label" :tone="findStatusOption(LIFECYCLE_STATUSES, row.party.lifecycleStatus).tone" />
+                      <StatusBadge v-if="row.party.lifecycleStatus === 'client' && isManovaClient(row.party.id)" label="Manova Client" tone="purple" />
+                    </div>
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.party.city ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.party.phone ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.party.accountOwnerId ? getUserById(row.party.accountOwnerId)?.name ?? '—' : '—' }}
+                  </TableCell>
+                  <TableCell>{{ row.leadCount }}</TableCell>
+                  <TableCell>{{ row.projectOrderCount }}</TableCell>
+                  <TableCell>
+                    <template v-if="row.credit.limitIdr > 0">
+                      <p class="text-sm" :class="row.credit.isOverLimit ? 'text-destructive font-medium' : 'text-foreground'">
+                        {{ formatCurrencyIdr(row.credit.usedIdr) }} / {{ formatCurrencyIdr(row.credit.limitIdr) }}
+                      </p>
+                      <div class="mt-1 h-1.5 w-28 overflow-hidden rounded-full bg-muted">
+                        <div class="h-full rounded-full" :class="row.credit.isOverLimit ? 'bg-destructive' : 'bg-primary'" :style="{ width: `${Math.min(100, row.credit.percentUsed)}%` }" />
+                      </div>
+                    </template>
+                    <span v-else class="text-muted-foreground">Belum diset</span>
+                  </TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="navigateTo(`/customer-journey/customers/${row.party.id}`)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground truncate">
+                  {{ row.party.name }}
+                </p>
+                <div class="flex items-center gap-1.5 shrink-0">
                   <StatusBadge :label="findStatusOption(LIFECYCLE_STATUSES, row.party.lifecycleStatus).label" :tone="findStatusOption(LIFECYCLE_STATUSES, row.party.lifecycleStatus).tone" />
                   <StatusBadge v-if="row.party.lifecycleStatus === 'client' && isManovaClient(row.party.id)" label="Manova Client" tone="purple" />
                 </div>
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.party.city ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.party.phone ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.party.accountOwnerId ? getUserById(row.party.accountOwnerId)?.name ?? '—' : '—' }}
-              </TableCell>
-              <TableCell>{{ row.leadCount }}</TableCell>
-              <TableCell>{{ row.projectOrderCount }}</TableCell>
-              <TableCell>
-                <template v-if="row.credit.limitIdr > 0">
-                  <p class="text-sm" :class="row.credit.isOverLimit ? 'text-destructive font-medium' : 'text-foreground'">
-                    {{ formatCurrencyIdr(row.credit.usedIdr) }} / {{ formatCurrencyIdr(row.credit.limitIdr) }}
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Kota
                   </p>
-                  <div class="mt-1 h-1.5 w-28 overflow-hidden rounded-full bg-muted">
-                    <div class="h-full rounded-full" :class="row.credit.isOverLimit ? 'bg-destructive' : 'bg-primary'" :style="{ width: `${Math.min(100, row.credit.percentUsed)}%` }" />
-                  </div>
-                </template>
-                <span v-else class="text-muted-foreground">Belum diset</span>
-              </TableCell>
-              <TableCell>
-                <Eye class="h-4 w-4 text-muted-foreground" />
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="9">
-              {{ searchQuery || statusFilter !== 'all' || industryFilter !== 'all' || cityFilter !== 'all' || ownerFilter !== 'all' ? 'Tidak ada company yang cocok dengan filter.' : (portfolioOnly ? 'Belum ada company di portfolio Anda.' : 'Belum ada company.') }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+                  <p class="text-foreground">
+                    {{ row.party.city ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Telepon
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.party.phone ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Account Owner
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.party.accountOwnerId ? getUserById(row.party.accountOwnerId)?.name ?? '—' : '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Leads / Project Orders
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.leadCount }} / {{ row.projectOrderCount }}
+                  </p>
+                </div>
+              </div>
+              <div v-if="row.credit.limitIdr > 0" class="mt-3 text-xs">
+                <p class="text-muted-foreground">
+                  Credit Limit
+                </p>
+                <p :class="row.credit.isOverLimit ? 'text-destructive font-medium' : 'text-foreground'">
+                  {{ formatCurrencyIdr(row.credit.usedIdr) }} / {{ formatCurrencyIdr(row.credit.limitIdr) }}
+                </p>
+                <div class="mt-1 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                  <div class="h-full rounded-full" :class="row.credit.isOverLimit ? 'bg-destructive' : 'bg-primary'" :style="{ width: `${Math.min(100, row.credit.percentUsed)}%` }" />
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState
+          v-else
+          title="Tidak ada company"
+          :description="searchQuery || statusFilter !== 'all' || industryFilter !== 'all' || cityFilter !== 'all' || ownerFilter !== 'all' ? 'Tidak ada company yang cocok dengan filter.' : (portfolioOnly ? 'Belum ada company di portfolio Anda.' : 'Belum ada company.')"
+        />
       </SectionCard>
     </template>
   </div>

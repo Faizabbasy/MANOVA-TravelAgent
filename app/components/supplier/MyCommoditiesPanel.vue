@@ -152,48 +152,95 @@ function submitCreate () {
       </div>
 
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama Komoditas</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Harga Jual</TableHead>
-              <TableHead>Variant</TableHead>
-              <TableHead>Availability</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow
-              v-for="row in rows"
-              :key="row.product.id"
-              class="cursor-pointer hover:bg-muted/50"
-              @click="navigateTo(`/supplier/commodities/${row.product.id}`)"
-            >
-              <TableCell class="font-medium text-foreground">
-                {{ row.product.name }}
-              </TableCell>
-              <TableCell>
-                <StatusBadge :label="findStatusOption(SERVICE_TYPES, row.product.category).label" :tone="findStatusOption(SERVICE_TYPES, row.product.category).tone" />
-              </TableCell>
-              <TableCell>
+        <ResponsiveDataView :items="rows" :get-key="row => row.product.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama Komoditas</TableHead>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Harga Jual</TableHead>
+                  <TableHead>Variant</TableHead>
+                  <TableHead>Availability</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow
+                  v-for="row in items"
+                  :key="row.product.id"
+                  class="cursor-pointer hover:bg-muted/50"
+                  @click="navigateTo(`/supplier/commodities/${row.product.id}`)"
+                >
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.product.name }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(SERVICE_TYPES, row.product.category).label" :tone="findStatusOption(SERVICE_TYPES, row.product.category).tone" />
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(COMMODITY_PRODUCT_STATUSES, row.product.status).label" :tone="findStatusOption(COMMODITY_PRODUCT_STATUSES, row.product.status).tone" />
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(row.product.sellPriceIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.variantCount }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.totalAvailable }}
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="rows.length === 0" :colspan="6">
+                  {{ searchQuery || statusFilter !== 'all' ? 'Tidak ada komoditas yang cocok dengan filter.' : 'Belum ada komoditas. Klik "Buat Komoditas" untuk memulai.' }}
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button type="button" class="w-full text-left rounded-xl border border-border bg-card p-4" @click="navigateTo(`/supplier/commodities/${row.product.id}`)">
+              <div class="flex items-start justify-between gap-2">
+                <p class="font-medium text-foreground">
+                  {{ row.product.name }}
+                </p>
                 <StatusBadge :label="findStatusOption(COMMODITY_PRODUCT_STATUSES, row.product.status).label" :tone="findStatusOption(COMMODITY_PRODUCT_STATUSES, row.product.status).tone" />
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(row.product.sellPriceIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.variantCount }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.totalAvailable }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
-              {{ searchQuery || statusFilter !== 'all' ? 'Tidak ada komoditas yang cocok dengan filter.' : 'Belum ada komoditas. Klik "Buat Komoditas" untuk memulai.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Kategori
+                  </p>
+                  <StatusBadge :label="findStatusOption(SERVICE_TYPES, row.product.category).label" :tone="findStatusOption(SERVICE_TYPES, row.product.category).tone" />
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Harga Jual
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(row.product.sellPriceIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Variant
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.variantCount }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Availability
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.totalAvailable }}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

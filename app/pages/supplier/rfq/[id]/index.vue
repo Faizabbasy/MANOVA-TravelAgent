@@ -100,28 +100,58 @@ function submitClarification () {
       </SectionCard>
 
       <SectionCard title="Kebutuhan (Line Items)">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Deskripsi</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Unit</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(item, index) in rfq.lineItems" :key="index">
-              <TableCell class="text-foreground">
+        <ResponsiveDataView :items="rfq.lineItems" :get-key="(item, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Unit</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(item, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ item.description }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ item.quantity }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ item.unit }}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <p class="text-sm font-medium text-foreground">
                 {{ item.description }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ item.quantity }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ item.unit }}
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              </p>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Qty
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.quantity }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Unit
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.unit }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard title="Ajukan Penawaran Harga" description="Isi harga satuan per line item — total dihitung otomatis.">

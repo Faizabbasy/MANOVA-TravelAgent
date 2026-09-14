@@ -139,53 +139,106 @@ function submitCreate () {
       </div>
 
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Jenis Layanan</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Kontak</TableHead>
-              <TableHead>Penugasan Aktif</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.vendor.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/vendors/${row.vendor.id}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ row.vendor.name }}
-              </TableCell>
-              <TableCell>
-                <StatusBadge
-                  :label="findStatusOption(SERVICE_TYPES, row.vendor.serviceType).label"
-                  :tone="findStatusOption(SERVICE_TYPES, row.vendor.serviceType).tone"
-                />
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.vendor.category ?? '—' }}
-              </TableCell>
-              <TableCell>
+        <ResponsiveDataView :items="rows" :get-key="row => row.vendor.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead>Jenis Layanan</TableHead>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Kontak</TableHead>
+                  <TableHead>Penugasan Aktif</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.vendor.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/vendors/${row.vendor.id}`)">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.vendor.name }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(SERVICE_TYPES, row.vendor.serviceType).label"
+                      :tone="findStatusOption(SERVICE_TYPES, row.vendor.serviceType).tone"
+                    />
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.vendor.category ?? '—' }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(VENDOR_STATUSES, row.vendor.status ?? 'active').label"
+                      :tone="findStatusOption(VENDOR_STATUSES, row.vendor.status ?? 'active').tone"
+                    />
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.vendor.contactName }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.activeAssignmentCount }} service
+                  </TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="rows.length === 0" :colspan="7">
+                  {{ searchQuery || serviceTypeFilter !== 'all' ? 'Tidak ada vendor yang cocok dengan filter.' : 'Belum ada vendor.' }}
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="navigateTo(`/vendors/${row.vendor.id}`)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.vendor.name }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ row.vendor.contactName }}
+                  </p>
+                </div>
                 <StatusBadge
                   :label="findStatusOption(VENDOR_STATUSES, row.vendor.status ?? 'active').label"
                   :tone="findStatusOption(VENDOR_STATUSES, row.vendor.status ?? 'active').tone"
                 />
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.vendor.contactName }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.activeAssignmentCount }} service
-              </TableCell>
-              <TableCell>
-                <Eye class="h-4 w-4 text-muted-foreground" />
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="7">
-              {{ searchQuery || serviceTypeFilter !== 'all' ? 'Tidak ada vendor yang cocok dengan filter.' : 'Belum ada vendor.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Jenis Layanan
+                  </p>
+                  <p class="text-foreground">
+                    {{ findStatusOption(SERVICE_TYPES, row.vendor.serviceType).label }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Kategori
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.vendor.category ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Penugasan Aktif
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.activeAssignmentCount }} service
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

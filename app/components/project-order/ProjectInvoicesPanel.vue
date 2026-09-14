@@ -87,12 +87,12 @@ function lastPaymentSummary (invoiceId: string, milestoneId?: string): string | 
         <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-primary/15">
           <div class="h-full rounded-full bg-primary transition-[width] duration-700 ease-out" :style="{ width: `${totals.percent}%` }" />
         </div>
-        <div class="mt-2.5 grid grid-cols-3 gap-2">
+        <div class="mt-2.5 grid grid-cols-1 gap-2 sm:grid-cols-3">
           <div class="min-w-0">
             <p class="text-[11px] text-muted-foreground">
               Total Invoiced
             </p>
-            <p class="truncate text-sm font-semibold tabular-nums text-foreground">
+            <p class="text-sm font-semibold tabular-nums text-foreground [overflow-wrap:anywhere]">
               {{ formatCurrencyIdr(totals.invoiced) }}
             </p>
           </div>
@@ -100,7 +100,7 @@ function lastPaymentSummary (invoiceId: string, milestoneId?: string): string | 
             <p class="text-[11px] text-muted-foreground">
               Paid
             </p>
-            <p class="truncate text-sm font-semibold tabular-nums text-success">
+            <p class="text-sm font-semibold tabular-nums text-success [overflow-wrap:anywhere]">
               {{ formatCurrencyIdr(totals.paid) }}
             </p>
           </div>
@@ -108,7 +108,7 @@ function lastPaymentSummary (invoiceId: string, milestoneId?: string): string | 
             <p class="text-[11px] text-muted-foreground">
               Outstanding
             </p>
-            <p class="truncate text-sm font-semibold tabular-nums text-warning">
+            <p class="text-sm font-semibold tabular-nums text-warning [overflow-wrap:anywhere]">
               {{ formatCurrencyIdr(totals.outstanding) }}
             </p>
           </div>

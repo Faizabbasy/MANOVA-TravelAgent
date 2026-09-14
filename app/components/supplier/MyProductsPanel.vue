@@ -92,31 +92,64 @@ function submitCreate () {
 
     <template v-else>
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama Produk/Layanan</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Deskripsi</TableHead>
-              <TableHead>Harga</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="product in products" :key="product.id">
-              <TableCell class="font-medium text-foreground">
-                {{ product.name }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, product.category).label" :tone="findStatusOption(SERVICE_TYPES, product.category).tone" /></TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ product.description ?? '—' }}
-              </TableCell>
-              <TableCell>{{ product.priceIdr ? formatCurrencyIdr(product.priceIdr) : '—' }}</TableCell>
-            </TableRow>
-            <TableEmpty v-if="products.length === 0" :colspan="4">
-              Belum ada produk/layanan.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="products" :get-key="product => product.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama Produk/Layanan</TableHead>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Harga</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="product in items" :key="product.id">
+                  <TableCell class="font-medium text-foreground">
+                    {{ product.name }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, product.category).label" :tone="findStatusOption(SERVICE_TYPES, product.category).tone" /></TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ product.description ?? '—' }}
+                  </TableCell>
+                  <TableCell>{{ product.priceIdr ? formatCurrencyIdr(product.priceIdr) : '—' }}</TableCell>
+                </TableRow>
+                <TableEmpty v-if="products.length === 0" :colspan="4">
+                  Belum ada produk/layanan.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: product }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="font-medium text-foreground">
+                  {{ product.name }}
+                </p>
+                <StatusBadge :label="findStatusOption(SERVICE_TYPES, product.category).label" :tone="findStatusOption(SERVICE_TYPES, product.category).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Deskripsi
+                  </p>
+                  <p class="text-foreground">
+                    {{ product.description ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Harga
+                  </p>
+                  <p class="text-foreground">
+                    {{ product.priceIdr ? formatCurrencyIdr(product.priceIdr) : '—' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

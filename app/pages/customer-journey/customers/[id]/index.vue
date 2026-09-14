@@ -273,39 +273,80 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
 
         <TabsContent value="leads">
           <SectionCard title="Leads">
-            <Table v-if="leadDealRows.length">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Lead</TableHead>
-                  <TableHead>Status Quotation</TableHead>
-                  <TableHead>Account Executive</TableHead>
-                  <TableHead>Nilai Quotation</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in leadDealRows" :key="row.lead.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/crm/leads/${row.lead.id}`)">
-                  <TableCell class="font-medium text-foreground">
-                    {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
-                  </TableCell>
-                  <TableCell>
+            <ResponsiveDataView v-if="leadDealRows.length" :items="leadDealRows" :get-key="row => row.lead.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Lead</TableHead>
+                      <TableHead>Status Quotation</TableHead>
+                      <TableHead>Account Executive</TableHead>
+                      <TableHead>Nilai Quotation</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in items" :key="row.lead.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/crm/leads/${row.lead.id}`)">
+                      <TableCell class="font-medium text-foreground">
+                        {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          v-if="row.quotation"
+                          :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').label"
+                          :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').tone"
+                        />
+                        <span v-else class="text-muted-foreground">—</span>
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ getUserById(row.lead.handedOverTo ?? row.lead.ownerId)?.name ?? '—' }}
+                      </TableCell>
+                      <TableCell>{{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}</TableCell>
+                      <TableCell>
+                        <Eye class="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: row }">
+                <button
+                  type="button"
+                  class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+                  @click="navigateTo(`/crm/leads/${row.lead.id}`)"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
+                      {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
+                    </p>
                     <StatusBadge
                       v-if="row.quotation"
                       :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').label"
                       :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').tone"
                     />
-                    <span v-else class="text-muted-foreground">—</span>
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ getUserById(row.lead.handedOverTo ?? row.lead.ownerId)?.name ?? '—' }}
-                  </TableCell>
-                  <TableCell>{{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}</TableCell>
-                  <TableCell>
-                    <Eye class="h-4 w-4 text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Account Executive
+                      </p>
+                      <p class="text-foreground">
+                        {{ getUserById(row.lead.handedOverTo ?? row.lead.ownerId)?.name ?? '—' }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Nilai Quotation
+                      </p>
+                      <p class="text-foreground">
+                        {{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
             <EmptyState v-else title="Belum ada lead" />
           </SectionCard>
         </TabsContent>
@@ -333,7 +374,7 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
                       <Label for="cust-prj-destination">Destinasi</Label>
                       <Input id="cust-prj-destination" v-model="newProjectDestination" placeholder="mis. Bali" />
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div class="space-y-1.5">
                         <Label for="cust-prj-start">Tanggal Berangkat</Label>
                         <Input id="cust-prj-start" v-model="newProjectStartDate" type="date" />
@@ -343,7 +384,7 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
                         <Input id="cust-prj-end" v-model="newProjectEndDate" type="date" />
                       </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div class="space-y-1.5">
                         <Label for="cust-prj-travelers">Jumlah Traveler</Label>
                         <Input id="cust-prj-travelers" v-model.number="newProjectTravelerCount" type="number" min="1" />
@@ -394,34 +435,76 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
               </Sheet>
             </template>
 
-            <Table v-if="projectOrders.length">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Project Order</TableHead>
-                  <TableHead>Destinasi</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="project in projectOrders" :key="project.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/project-orders/${project.id}`)">
-                  <TableCell class="font-medium text-foreground">
-                    {{ project.name }}<span class="block text-xs text-muted-foreground font-normal">{{ project.id }}</span>
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ project.destination }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(PROJECT_STATUSES, project.status).label" :tone="findStatusOption(PROJECT_STATUSES, project.status).tone" /></TableCell>
-                  <TableCell>
-                    <Eye class="h-4 w-4 text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+            <ResponsiveDataView v-if="projectOrders.length" :items="projectOrders" :get-key="project => project.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Project Order</TableHead>
+                      <TableHead>Destinasi</TableHead>
+                      <TableHead>Tanggal</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="project in items" :key="project.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/project-orders/${project.id}`)">
+                      <TableCell class="font-medium text-foreground">
+                        {{ project.name }}<span class="block text-xs text-muted-foreground font-normal">{{ project.id }}</span>
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ project.destination }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(PROJECT_STATUSES, project.status).label" :tone="findStatusOption(PROJECT_STATUSES, project.status).tone" /></TableCell>
+                      <TableCell>
+                        <Eye class="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: project }">
+                <button
+                  type="button"
+                  class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+                  @click="navigateTo(`/project-orders/${project.id}`)"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-foreground truncate">
+                        {{ project.name }}
+                      </p>
+                      <p class="text-xs text-muted-foreground">
+                        {{ project.id }}
+                      </p>
+                    </div>
+                    <StatusBadge :label="findStatusOption(PROJECT_STATUSES, project.status).label" :tone="findStatusOption(PROJECT_STATUSES, project.status).tone" />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Destinasi
+                      </p>
+                      <p class="text-foreground">
+                        {{ project.destination }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Tanggal
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
             <EmptyState v-else title="Belum ada Project Order" description="Company ini belum memiliki Project Order (belum ada Lead yang Won)." />
           </SectionCard>
         </TabsContent>

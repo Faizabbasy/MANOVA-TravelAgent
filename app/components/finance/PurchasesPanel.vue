@@ -154,62 +154,120 @@ function nextStatus (status: PurchaseStatus): PurchaseStatus | null {
       </div>
 
       <SectionCard title="Daftar Purchases">
-        <Table v-if="entries.length">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Deskripsi</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Tanggal</TableHead>
-              <TableHead class="text-right">
-                Jumlah
-              </TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead v-if="canManagePurchases" class="text-right">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="entry in entries" :key="entry.id">
-              <TableCell>
-                <p class="text-sm font-medium text-foreground">
-                  {{ entry.description }}
-                </p>
-                <p v-if="entry.vendorName" class="text-xs text-muted-foreground">
-                  {{ entry.vendorName }}
-                </p>
-              </TableCell>
-              <TableCell>
-                <StatusBadge
-                  :label="findStatusOption(PURCHASE_CATEGORIES, entry.category).label"
-                  :tone="findStatusOption(PURCHASE_CATEGORIES, entry.category).tone"
-                />
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground">
-                {{ formatDate(entry.purchaseDate) }}
-              </TableCell>
-              <TableCell class="text-right text-sm font-medium text-foreground">
-                {{ formatCurrencyIdr(entry.amountIdr) }}
-              </TableCell>
-              <TableCell>
+        <ResponsiveDataView v-if="entries.length" :items="entries" :get-key="entry => entry.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead class="text-right">
+                    Jumlah
+                  </TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead v-if="canManagePurchases" class="text-right">
+                    Aksi
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="entry in items" :key="entry.id">
+                  <TableCell>
+                    <p class="text-sm font-medium text-foreground">
+                      {{ entry.description }}
+                    </p>
+                    <p v-if="entry.vendorName" class="text-xs text-muted-foreground">
+                      {{ entry.vendorName }}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(PURCHASE_CATEGORIES, entry.category).label"
+                      :tone="findStatusOption(PURCHASE_CATEGORIES, entry.category).tone"
+                    />
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ formatDate(entry.purchaseDate) }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm font-medium text-foreground">
+                    {{ formatCurrencyIdr(entry.amountIdr) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(PURCHASE_STATUSES, entry.status).label"
+                      :tone="findStatusOption(PURCHASE_STATUSES, entry.status).tone"
+                    />
+                  </TableCell>
+                  <TableCell v-if="canManagePurchases" class="text-right">
+                    <Button
+                      v-if="nextStatus(entry.status)"
+                      variant="outline"
+                      size="sm"
+                      @click="setStatus(entry, nextStatus(entry.status) as PurchaseStatus)"
+                    >
+                      Tandai {{ findStatusOption(PURCHASE_STATUSES, nextStatus(entry.status) as PurchaseStatus).label }}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: entry }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ entry.description }}
+                  </p>
+                  <p v-if="entry.vendorName" class="text-xs text-muted-foreground">
+                    {{ entry.vendorName }}
+                  </p>
+                </div>
                 <StatusBadge
                   :label="findStatusOption(PURCHASE_STATUSES, entry.status).label"
                   :tone="findStatusOption(PURCHASE_STATUSES, entry.status).tone"
                 />
-              </TableCell>
-              <TableCell v-if="canManagePurchases" class="text-right">
-                <Button
-                  v-if="nextStatus(entry.status)"
-                  variant="outline"
-                  size="sm"
-                  @click="setStatus(entry, nextStatus(entry.status) as PurchaseStatus)"
-                >
-                  Tandai {{ findStatusOption(PURCHASE_STATUSES, nextStatus(entry.status) as PurchaseStatus).label }}
-                </Button>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Kategori
+                  </p>
+                  <p class="text-foreground">
+                    {{ findStatusOption(PURCHASE_CATEGORIES, entry.category).label }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Tanggal
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(entry.purchaseDate) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Jumlah
+                  </p>
+                  <p class="text-foreground font-medium">
+                    {{ formatCurrencyIdr(entry.amountIdr) }}
+                  </p>
+                </div>
+              </div>
+              <Button
+                v-if="canManagePurchases && nextStatus(entry.status)"
+                variant="outline"
+                size="sm"
+                class="mt-3 w-full"
+                @click="setStatus(entry, nextStatus(entry.status) as PurchaseStatus)"
+              >
+                Tandai {{ findStatusOption(PURCHASE_STATUSES, nextStatus(entry.status) as PurchaseStatus).label }}
+              </Button>
+            </div>
+          </template>
+        </ResponsiveDataView>
 
         <EmptyState v-else :icon="ShoppingCart" title="Belum ada purchase" />
       </SectionCard>

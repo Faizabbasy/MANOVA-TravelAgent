@@ -389,76 +389,139 @@ function submitPayrollLineForm () {
             </template>
 
             <div class="overflow-x-auto border-t border-border">
-              <Table class="w-full min-w-[780px]">
-                <TableHeader>
-                  <TableRow class="bg-muted/40 hover:bg-muted/40">
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Karyawan
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Departemen
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Tipe
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Bergabung
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Gaji Pokok
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Status
-                    </TableHead>
-                    <TableHead v-if="canManageEmployees" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Aksi
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="employee in filteredEmployees" :key="employee.id">
-                    <TableCell class="px-4 py-3">
-                      <p class="text-sm font-medium text-foreground">
-                        {{ employee.name }}
-                      </p>
-                      <p class="text-xs text-muted-foreground">
-                        {{ employee.position }}
-                        <template v-if="employee.commissionRatePercent"> · komisi {{ employee.commissionRatePercent }}%</template>
-                      </p>
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-sm text-foreground">
-                      {{ employee.department }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
-                      <StatusBadge
-                        :label="findStatusOption(EMPLOYMENT_TYPES, employee.employmentType).label"
-                        :tone="findStatusOption(EMPLOYMENT_TYPES, employee.employmentType).tone"
-                      />
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-sm text-muted-foreground">
-                      {{ formatDate(employee.joinedAt) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-foreground">
-                      {{ employee.baseSalaryIdr ? formatCurrencyIdr(employee.baseSalaryIdr) : 'Per proyek' }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
+              <ResponsiveDataView :items="filteredEmployees" :get-key="employee => employee.id">
+                <template #desktop="{ items }">
+                  <Table class="w-full min-w-[780px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Karyawan
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Departemen
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Tipe
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Bergabung
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Gaji Pokok
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Status
+                        </TableHead>
+                        <TableHead v-if="canManageEmployees" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Aksi
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="employee in items" :key="employee.id">
+                        <TableCell class="px-4 py-3">
+                          <p class="text-sm font-medium text-foreground">
+                            {{ employee.name }}
+                          </p>
+                          <p class="text-xs text-muted-foreground">
+                            {{ employee.position }}
+                            <template v-if="employee.commissionRatePercent"> · komisi {{ employee.commissionRatePercent }}%</template>
+                          </p>
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-sm text-foreground">
+                          {{ employee.department }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <StatusBadge
+                            :label="findStatusOption(EMPLOYMENT_TYPES, employee.employmentType).label"
+                            :tone="findStatusOption(EMPLOYMENT_TYPES, employee.employmentType).tone"
+                          />
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-sm text-muted-foreground">
+                          {{ formatDate(employee.joinedAt) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-foreground">
+                          {{ employee.baseSalaryIdr ? formatCurrencyIdr(employee.baseSalaryIdr) : 'Per proyek' }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <StatusBadge
+                            :label="findStatusOption(EMPLOYEE_STATUSES, employee.status).label"
+                            :tone="findStatusOption(EMPLOYEE_STATUSES, employee.status).tone"
+                          />
+                        </TableCell>
+                        <TableCell v-if="canManageEmployees" class="px-4 py-3 text-right">
+                          <Button variant="outline" size="sm" @click="openEditEmployee(employee)">
+                            <Pencil class="h-3.5 w-3.5 mr-1" />
+                            Edit
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                      <TableEmpty v-if="filteredEmployees.length === 0" :colspan="canManageEmployees ? 7 : 6">
+                        Tidak ada karyawan yang cocok dengan filter.
+                      </TableEmpty>
+                    </TableBody>
+                  </Table>
+                </template>
+
+                <template #mobile-card="{ item: employee }">
+                  <div class="rounded-xl border border-border bg-card p-4">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-foreground truncate">
+                          {{ employee.name }}
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                          {{ employee.position }}
+                          <template v-if="employee.commissionRatePercent"> · komisi {{ employee.commissionRatePercent }}%</template>
+                        </p>
+                      </div>
                       <StatusBadge
                         :label="findStatusOption(EMPLOYEE_STATUSES, employee.status).label"
                         :tone="findStatusOption(EMPLOYEE_STATUSES, employee.status).tone"
                       />
-                    </TableCell>
-                    <TableCell v-if="canManageEmployees" class="px-4 py-3 text-right">
-                      <Button variant="outline" size="sm" @click="openEditEmployee(employee)">
-                        <Pencil class="h-3.5 w-3.5 mr-1" />
-                        Edit
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                  <TableEmpty v-if="filteredEmployees.length === 0" :colspan="canManageEmployees ? 7 : 6">
-                    Tidak ada karyawan yang cocok dengan filter.
-                  </TableEmpty>
-                </TableBody>
-              </Table>
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p class="text-muted-foreground">
+                          Departemen
+                        </p>
+                        <p class="font-medium text-foreground">
+                          {{ employee.department }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Tipe
+                        </p>
+                        <StatusBadge
+                          :label="findStatusOption(EMPLOYMENT_TYPES, employee.employmentType).label"
+                          :tone="findStatusOption(EMPLOYMENT_TYPES, employee.employmentType).tone"
+                        />
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Bergabung
+                        </p>
+                        <p class="font-medium text-foreground">
+                          {{ formatDate(employee.joinedAt) }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Gaji Pokok
+                        </p>
+                        <p class="font-medium tabular-nums text-foreground">
+                          {{ employee.baseSalaryIdr ? formatCurrencyIdr(employee.baseSalaryIdr) : 'Per proyek' }}
+                        </p>
+                      </div>
+                    </div>
+                    <Button v-if="canManageEmployees" variant="outline" size="sm" class="mt-3 w-full" @click="openEditEmployee(employee)">
+                      <Pencil class="h-3.5 w-3.5 mr-1" />
+                      Edit
+                    </Button>
+                  </div>
+                </template>
+              </ResponsiveDataView>
             </div>
           </SectionCard>
         </TabsContent>
@@ -474,59 +537,129 @@ function submitPayrollLineForm () {
             </template>
 
             <div class="overflow-x-auto border-t border-border">
-              <Table class="w-full min-w-[720px]">
-                <TableHeader>
-                  <TableRow class="bg-muted/40 hover:bg-muted/40">
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Karyawan
-                    </TableHead>
-                    <TableHead v-for="status in ATTENDANCE_STATUSES" :key="status.value" class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      {{ status.label }}
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Tingkat Kehadiran
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="row in attendanceRows" :key="row.employee.id">
-                    <TableCell class="px-4 py-3">
-                      <p class="text-sm font-medium text-foreground">
-                        {{ row.employee.name }}
-                      </p>
-                      <p class="text-xs text-muted-foreground">
-                        {{ row.employee.position }}
-                      </p>
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
-                      {{ row.summary.present }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
-                      {{ row.summary.remote }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
-                      {{ row.summary.leave }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
-                      {{ row.summary.sick }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums" :class="row.summary.absent ? 'text-destructive font-medium' : 'text-foreground'">
-                      {{ row.summary.absent }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
-                      <div class="flex items-center gap-2">
-                        <span class="h-2 w-20 rounded-full bg-muted overflow-hidden">
-                          <span
-                            :class="cn('block h-full rounded-full', row.summary.ratePercent >= 90 ? 'bg-success' : row.summary.ratePercent >= 75 ? 'bg-warning' : 'bg-destructive')"
-                            :style="{ width: `${row.summary.ratePercent}%` }"
-                          />
-                        </span>
-                        <span class="text-sm font-medium tabular-nums text-foreground">{{ row.summary.ratePercent }}%</span>
+              <ResponsiveDataView :items="attendanceRows" :get-key="row => row.employee.id">
+                <template #desktop="{ items }">
+                  <Table class="w-full min-w-[720px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Karyawan
+                        </TableHead>
+                        <TableHead v-for="status in ATTENDANCE_STATUSES" :key="status.value" class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          {{ status.label }}
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Tingkat Kehadiran
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="row in items" :key="row.employee.id">
+                        <TableCell class="px-4 py-3">
+                          <p class="text-sm font-medium text-foreground">
+                            {{ row.employee.name }}
+                          </p>
+                          <p class="text-xs text-muted-foreground">
+                            {{ row.employee.position }}
+                          </p>
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
+                          {{ row.summary.present }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
+                          {{ row.summary.remote }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
+                          {{ row.summary.leave }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
+                          {{ row.summary.sick }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-center text-sm tabular-nums" :class="row.summary.absent ? 'text-destructive font-medium' : 'text-foreground'">
+                          {{ row.summary.absent }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <div class="flex items-center gap-2">
+                            <span class="h-2 w-20 rounded-full bg-muted overflow-hidden">
+                              <span
+                                :class="cn('block h-full rounded-full', row.summary.ratePercent >= 90 ? 'bg-success' : row.summary.ratePercent >= 75 ? 'bg-warning' : 'bg-destructive')"
+                                :style="{ width: `${row.summary.ratePercent}%` }"
+                              />
+                            </span>
+                            <span class="text-sm font-medium tabular-nums text-foreground">{{ row.summary.ratePercent }}%</span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </template>
+
+                <template #mobile-card="{ item: row }">
+                  <div class="rounded-xl border border-border bg-card p-4">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-foreground truncate">
+                          {{ row.employee.name }}
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                          {{ row.employee.position }}
+                        </p>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+                      <span class="text-sm font-medium tabular-nums text-foreground">{{ row.summary.ratePercent }}%</span>
+                    </div>
+                    <div class="mt-2 flex items-center gap-2">
+                      <span class="h-2 flex-1 rounded-full bg-muted overflow-hidden">
+                        <span
+                          :class="cn('block h-full rounded-full', row.summary.ratePercent >= 90 ? 'bg-success' : row.summary.ratePercent >= 75 ? 'bg-warning' : 'bg-destructive')"
+                          :style="{ width: `${row.summary.ratePercent}%` }"
+                        />
+                      </span>
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p class="text-muted-foreground">
+                          Hadir
+                        </p>
+                        <p class="font-medium tabular-nums text-foreground">
+                          {{ row.summary.present }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Remote
+                        </p>
+                        <p class="font-medium tabular-nums text-foreground">
+                          {{ row.summary.remote }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Cuti
+                        </p>
+                        <p class="font-medium tabular-nums text-foreground">
+                          {{ row.summary.leave }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Sakit
+                        </p>
+                        <p class="font-medium tabular-nums text-foreground">
+                          {{ row.summary.sick }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Absen
+                        </p>
+                        <p class="font-medium tabular-nums" :class="row.summary.absent ? 'text-destructive' : 'text-foreground'">
+                          {{ row.summary.absent }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </ResponsiveDataView>
             </div>
           </SectionCard>
         </TabsContent>
@@ -556,61 +689,116 @@ function submitPayrollLineForm () {
             </template>
 
             <div class="overflow-x-auto border-t border-border">
-              <Table class="w-full min-w-[780px]">
-                <TableHeader>
-                  <TableRow class="bg-muted/40 hover:bg-muted/40">
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Karyawan
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Gaji Pokok
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Tunjangan
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Komisi
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Potongan
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Take Home Pay
-                    </TableHead>
-                    <TableHead v-if="canManagePayroll && activePayrollRun.status !== 'paid'" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Aksi
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="line in payrollBreakdown" :key="line.id">
-                    <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
-                      {{ line.employee?.name ?? line.employeeId }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
-                      {{ formatCurrencyIdr(line.baseSalaryIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
-                      {{ formatCurrencyIdr(line.allowanceIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums" :class="line.commissionIdr ? 'text-success' : 'text-muted-foreground'">
-                      {{ formatCurrencyIdr(line.commissionIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-destructive">
-                      −{{ formatCurrencyIdr(line.deductionIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
-                      {{ formatCurrencyIdr(line.netIdr) }}
-                    </TableCell>
-                    <TableCell v-if="canManagePayroll && activePayrollRun.status !== 'paid'" class="px-4 py-3 text-right">
-                      <Button variant="outline" size="sm" @click="openEditPayrollLine(line)">
-                        <Pencil class="h-3.5 w-3.5 mr-1" />
-                        Edit
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+              <ResponsiveDataView :items="payrollBreakdown" :get-key="line => line.id">
+                <template #desktop="{ items }">
+                  <Table class="w-full min-w-[780px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Karyawan
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Gaji Pokok
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Tunjangan
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Komisi
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Potongan
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Take Home Pay
+                        </TableHead>
+                        <TableHead v-if="canManagePayroll && activePayrollRun.status !== 'paid'" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Aksi
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="line in items" :key="line.id">
+                        <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+                          {{ line.employee?.name ?? line.employeeId }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                          {{ formatCurrencyIdr(line.baseSalaryIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                          {{ formatCurrencyIdr(line.allowanceIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums" :class="line.commissionIdr ? 'text-success' : 'text-muted-foreground'">
+                          {{ formatCurrencyIdr(line.commissionIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-destructive">
+                          −{{ formatCurrencyIdr(line.deductionIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
+                          {{ formatCurrencyIdr(line.netIdr) }}
+                        </TableCell>
+                        <TableCell v-if="canManagePayroll && activePayrollRun.status !== 'paid'" class="px-4 py-3 text-right">
+                          <Button variant="outline" size="sm" @click="openEditPayrollLine(line)">
+                            <Pencil class="h-3.5 w-3.5 mr-1" />
+                            Edit
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </template>
+
+                <template #mobile-card="{ item: line }">
+                  <div class="rounded-xl border border-border bg-card p-4">
+                    <div class="flex items-start justify-between gap-2">
+                      <p class="text-sm font-medium text-foreground truncate">
+                        {{ line.employee?.name ?? line.employeeId }}
+                      </p>
+                      <p class="text-sm font-semibold tabular-nums text-foreground">
+                        {{ formatCurrencyIdr(line.netIdr) }}
+                      </p>
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p class="text-muted-foreground">
+                          Gaji Pokok
+                        </p>
+                        <p class="font-medium tabular-nums text-foreground">
+                          {{ formatCurrencyIdr(line.baseSalaryIdr) }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Tunjangan
+                        </p>
+                        <p class="font-medium tabular-nums text-foreground">
+                          {{ formatCurrencyIdr(line.allowanceIdr) }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Komisi
+                        </p>
+                        <p class="font-medium tabular-nums" :class="line.commissionIdr ? 'text-success' : 'text-foreground'">
+                          {{ formatCurrencyIdr(line.commissionIdr) }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Potongan
+                        </p>
+                        <p class="font-medium tabular-nums text-destructive">
+                          −{{ formatCurrencyIdr(line.deductionIdr) }}
+                        </p>
+                      </div>
+                    </div>
+                    <Button v-if="canManagePayroll && activePayrollRun.status !== 'paid'" variant="outline" size="sm" class="mt-3 w-full" @click="openEditPayrollLine(line)">
+                      <Pencil class="h-3.5 w-3.5 mr-1" />
+                      Edit
+                    </Button>
+                  </div>
+                </template>
+              </ResponsiveDataView>
             </div>
           </SectionCard>
         </TabsContent>
@@ -625,72 +813,138 @@ function submitPayrollLineForm () {
             </template>
 
             <div v-if="commissions.length" class="overflow-x-auto border-t border-border">
-              <Table class="w-full min-w-[860px]">
-                <TableHeader>
-                  <TableRow class="bg-muted/40 hover:bg-muted/40">
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Karyawan
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Project
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Periode
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Nilai Kontrak
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Tarif
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Komisi
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Tipe
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Status
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="record in commissions" :key="record.id">
-                    <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
-                      {{ EMPLOYEES.find(item => item.id === record.employeeId)?.name ?? record.employeeId }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
-                      <NuxtLink :to="`/project-orders/${record.projectId}`" class="text-sm text-primary hover:underline">
-                        {{ getProjectById(record.projectId)?.name ?? record.projectId }}
-                      </NuxtLink>
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-sm text-muted-foreground">
-                      {{ record.period }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
-                      {{ record.baseAmountIdr ? formatCurrencyIdr(record.baseAmountIdr) : '—' }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
-                      {{ record.baseAmountIdr ? `${record.ratePercent}%` : '—' }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
-                      {{ formatCurrencyIdr(record.amountIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
-                      <StatusBadge
-                        :label="record.source === 'manual' ? 'Insentif' : 'Otomatis'"
-                        :tone="record.source === 'manual' ? 'purple' : 'neutral'"
-                      />
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
+              <ResponsiveDataView :items="commissions" :get-key="record => record.id">
+                <template #desktop="{ items }">
+                  <Table class="w-full min-w-[860px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Karyawan
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Project
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Periode
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Nilai Kontrak
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Tarif
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Komisi
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Tipe
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Status
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="record in items" :key="record.id">
+                        <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+                          {{ EMPLOYEES.find(item => item.id === record.employeeId)?.name ?? record.employeeId }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <NuxtLink :to="`/project-orders/${record.projectId}`" class="text-sm text-primary hover:underline">
+                            {{ getProjectById(record.projectId)?.name ?? record.projectId }}
+                          </NuxtLink>
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-sm text-muted-foreground">
+                          {{ record.period }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                          {{ record.baseAmountIdr ? formatCurrencyIdr(record.baseAmountIdr) : '—' }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                          {{ record.baseAmountIdr ? `${record.ratePercent}%` : '—' }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
+                          {{ formatCurrencyIdr(record.amountIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <StatusBadge
+                            :label="record.source === 'manual' ? 'Insentif' : 'Otomatis'"
+                            :tone="record.source === 'manual' ? 'purple' : 'neutral'"
+                          />
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <StatusBadge
+                            :label="findStatusOption(COMMISSION_STATUSES, record.status).label"
+                            :tone="findStatusOption(COMMISSION_STATUSES, record.status).tone"
+                          />
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </template>
+
+                <template #mobile-card="{ item: record }">
+                  <div class="rounded-xl border border-border bg-card p-4">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-foreground truncate">
+                          {{ EMPLOYEES.find(item => item.id === record.employeeId)?.name ?? record.employeeId }}
+                        </p>
+                        <NuxtLink :to="`/project-orders/${record.projectId}`" class="text-xs text-primary hover:underline">
+                          {{ getProjectById(record.projectId)?.name ?? record.projectId }}
+                        </NuxtLink>
+                      </div>
                       <StatusBadge
                         :label="findStatusOption(COMMISSION_STATUSES, record.status).label"
                         :tone="findStatusOption(COMMISSION_STATUSES, record.status).tone"
                       />
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p class="text-muted-foreground">
+                          Periode
+                        </p>
+                        <p class="font-medium text-foreground">
+                          {{ record.period }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Tipe
+                        </p>
+                        <StatusBadge
+                          :label="record.source === 'manual' ? 'Insentif' : 'Otomatis'"
+                          :tone="record.source === 'manual' ? 'purple' : 'neutral'"
+                        />
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Nilai Kontrak
+                        </p>
+                        <p class="font-medium tabular-nums text-foreground">
+                          {{ record.baseAmountIdr ? formatCurrencyIdr(record.baseAmountIdr) : '—' }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Tarif
+                        </p>
+                        <p class="font-medium tabular-nums text-foreground">
+                          {{ record.baseAmountIdr ? `${record.ratePercent}%` : '—' }}
+                        </p>
+                      </div>
+                      <div class="col-span-2">
+                        <p class="text-muted-foreground">
+                          Komisi
+                        </p>
+                        <p class="font-semibold tabular-nums text-foreground">
+                          {{ formatCurrencyIdr(record.amountIdr) }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </ResponsiveDataView>
             </div>
             <EmptyState v-else :icon="Award" title="Belum ada komisi tercatat" />
           </SectionCard>
@@ -745,67 +999,126 @@ function submitPayrollLineForm () {
         <TabsContent value="productivity" class="pt-4">
           <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Produktivitas" description="Seluruh angka diturunkan dari project dan task yang benar-benar dipegang karyawan — bukan input manual.">
             <div class="overflow-x-auto border-t border-border">
-              <Table class="w-full min-w-[780px]">
-                <TableHeader>
-                  <TableRow class="bg-muted/40 hover:bg-muted/40">
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Karyawan
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Project
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Task Selesai
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Penyelesaian Task
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Nilai Dikelola
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Kehadiran
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="row in productivity" :key="row.employeeId">
-                    <TableCell class="px-4 py-3">
-                      <p class="text-sm font-medium text-foreground">
-                        {{ row.employeeName }}
-                      </p>
-                      <p class="text-xs text-muted-foreground">
-                        {{ row.position }}
-                      </p>
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
-                      {{ row.projectsCompleted }}/{{ row.projectsOwned }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
-                      {{ row.tasksCompleted }}/{{ row.tasksAssigned }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
-                      <div class="flex items-center gap-2">
-                        <span class="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
-                          <span class="block h-full rounded-full bg-primary" :style="{ width: `${row.taskCompletionPercent}%` }" />
-                        </span>
-                        <span class="text-xs tabular-nums text-muted-foreground">{{ row.taskCompletionPercent }}%</span>
+              <ResponsiveDataView :items="productivity" :get-key="row => row.employeeId">
+                <template #desktop="{ items }">
+                  <Table class="w-full min-w-[780px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Karyawan
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Project
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Task Selesai
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Penyelesaian Task
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Nilai Dikelola
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Kehadiran
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="row in items" :key="row.employeeId">
+                        <TableCell class="px-4 py-3">
+                          <p class="text-sm font-medium text-foreground">
+                            {{ row.employeeName }}
+                          </p>
+                          <p class="text-xs text-muted-foreground">
+                            {{ row.position }}
+                          </p>
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
+                          {{ row.projectsCompleted }}/{{ row.projectsOwned }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-center text-sm tabular-nums text-foreground">
+                          {{ row.tasksCompleted }}/{{ row.tasksAssigned }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <div class="flex items-center gap-2">
+                            <span class="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+                              <span class="block h-full rounded-full bg-primary" :style="{ width: `${row.taskCompletionPercent}%` }" />
+                            </span>
+                            <span class="text-xs tabular-nums text-muted-foreground">{{ row.taskCompletionPercent }}%</span>
+                          </div>
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right">
+                          <div class="flex items-center justify-end gap-2">
+                            <span class="h-1.5 w-12 rounded-full bg-muted overflow-hidden">
+                              <span class="block h-full rounded-full bg-success" :style="{ width: `${(row.revenueHandledIdr / maxRevenueHandled) * 100}%` }" />
+                            </span>
+                            <span class="text-sm tabular-nums text-foreground">{{ formatCurrencyIdr(row.revenueHandledIdr) }}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-center text-sm tabular-nums" :class="row.attendanceRatePercent >= 90 ? 'text-success' : 'text-muted-foreground'">
+                          {{ row.attendanceRatePercent ? `${row.attendanceRatePercent}%` : '—' }}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </template>
+
+                <template #mobile-card="{ item: row }">
+                  <div class="rounded-xl border border-border bg-card p-4">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-foreground truncate">
+                          {{ row.employeeName }}
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                          {{ row.position }}
+                        </p>
                       </div>
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right">
-                      <div class="flex items-center justify-end gap-2">
-                        <span class="h-1.5 w-12 rounded-full bg-muted overflow-hidden">
-                          <span class="block h-full rounded-full bg-success" :style="{ width: `${(row.revenueHandledIdr / maxRevenueHandled) * 100}%` }" />
-                        </span>
-                        <span class="text-sm tabular-nums text-foreground">{{ formatCurrencyIdr(row.revenueHandledIdr) }}</span>
+                      <span class="text-sm tabular-nums" :class="row.attendanceRatePercent >= 90 ? 'text-success' : 'text-muted-foreground'">
+                        {{ row.attendanceRatePercent ? `${row.attendanceRatePercent}%` : '—' }}
+                      </span>
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p class="text-muted-foreground">
+                          Project
+                        </p>
+                        <p class="font-medium tabular-nums text-foreground">
+                          {{ row.projectsCompleted }}/{{ row.projectsOwned }}
+                        </p>
                       </div>
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-center text-sm tabular-nums" :class="row.attendanceRatePercent >= 90 ? 'text-success' : 'text-muted-foreground'">
-                      {{ row.attendanceRatePercent ? `${row.attendanceRatePercent}%` : '—' }}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Task Selesai
+                        </p>
+                        <p class="font-medium tabular-nums text-foreground">
+                          {{ row.tasksCompleted }}/{{ row.tasksAssigned }}
+                        </p>
+                      </div>
+                      <div class="col-span-2">
+                        <p class="text-muted-foreground">
+                          Penyelesaian Task
+                        </p>
+                        <div class="flex items-center gap-2">
+                          <span class="h-1.5 flex-1 rounded-full bg-muted overflow-hidden">
+                            <span class="block h-full rounded-full bg-primary" :style="{ width: `${row.taskCompletionPercent}%` }" />
+                          </span>
+                          <span class="tabular-nums text-foreground">{{ row.taskCompletionPercent }}%</span>
+                        </div>
+                      </div>
+                      <div class="col-span-2">
+                        <p class="text-muted-foreground">
+                          Nilai Dikelola
+                        </p>
+                        <p class="font-medium tabular-nums text-foreground">
+                          {{ formatCurrencyIdr(row.revenueHandledIdr) }}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </ResponsiveDataView>
             </div>
           </SectionCard>
         </TabsContent>
@@ -825,7 +1138,7 @@ function submitPayrollLineForm () {
               <Label>Nama Karyawan</Label>
               <Input v-model="employeeForm.name" placeholder="mis. Rani Kusuma" />
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label>Posisi</Label>
                 <Input v-model="employeeForm.position" placeholder="mis. Sales Executive" />
@@ -835,7 +1148,7 @@ function submitPayrollLineForm () {
                 <Input v-model="employeeForm.department" placeholder="mis. Sales" />
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label>Tipe Kepegawaian</Label>
                 <select v-model="employeeForm.employmentType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -873,7 +1186,7 @@ function submitPayrollLineForm () {
               <Label>Komisi % (opsional)</Label>
               <Input v-model.number="employeeForm.commissionRatePercent" type="number" step="0.1" placeholder="mis. 2" />
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label>Telepon (opsional)</Label>
                 <Input v-model="employeeForm.phone" placeholder="0812-xxxx-xxxx" />
@@ -966,7 +1279,7 @@ function submitPayrollLineForm () {
               </p>
             </div>
 
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label>Periode</Label>
                 <Input v-model="incentiveForm.period" placeholder="2026-07" />

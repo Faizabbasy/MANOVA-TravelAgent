@@ -391,45 +391,87 @@ function submitActivity () {
 
         <TabsContent value="leads">
           <SectionCard title="Leads">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Lead</TableHead>
-                  <TableHead>Status Quotation</TableHead>
-                  <TableHead>Nilai Quotation</TableHead>
-                  <TableHead>Dibuat</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow
-                  v-for="row in leadDealRows"
-                  :key="row.lead.id"
-                  class="cursor-pointer hover:bg-muted/50"
+            <ResponsiveDataView :items="leadDealRows" :get-key="row => row.lead.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Lead</TableHead>
+                      <TableHead>Status Quotation</TableHead>
+                      <TableHead>Nilai Quotation</TableHead>
+                      <TableHead>Dibuat</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow
+                      v-for="row in items"
+                      :key="row.lead.id"
+                      class="cursor-pointer hover:bg-muted/50"
+                      @click="navigateTo(`/crm/leads/${row.lead.id}`)"
+                    >
+                      <TableCell class="font-medium text-foreground">
+                        {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          v-if="row.quotation"
+                          :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').label"
+                          :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').tone"
+                        />
+                        <span v-else class="text-muted-foreground">—</span>
+                      </TableCell>
+                      <TableCell>
+                        {{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ formatDate(row.lead.createdAt) }}
+                      </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="leadDealRows.length === 0" :colspan="4">
+                      Belum ada lead untuk party ini.
+                    </TableEmpty>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: row }">
+                <button
+                  type="button"
+                  class="w-full rounded-xl border border-border bg-card p-4 text-left"
                   @click="navigateTo(`/crm/leads/${row.lead.id}`)"
                 >
-                  <TableCell class="font-medium text-foreground">
-                    {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
-                  </TableCell>
-                  <TableCell>
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
+                    </p>
                     <StatusBadge
                       v-if="row.quotation"
                       :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').label"
                       :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').tone"
                     />
-                    <span v-else class="text-muted-foreground">—</span>
-                  </TableCell>
-                  <TableCell>
-                    {{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(row.lead.createdAt) }}
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="leadDealRows.length === 0" :colspan="4">
-                  Belum ada lead untuk party ini.
-                </TableEmpty>
-              </TableBody>
-            </Table>
+                    <span v-else class="text-xs text-muted-foreground">—</span>
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Nilai Quotation
+                      </p>
+                      <p class="text-foreground">
+                        {{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Dibuat
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatDate(row.lead.createdAt) }}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
 
@@ -526,7 +568,7 @@ function submitActivity () {
                       <Label for="party-prj-destination">Destinasi</Label>
                       <Input id="party-prj-destination" v-model="newProjectDestination" placeholder="mis. Bali" />
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div class="space-y-1.5">
                         <Label for="party-prj-start">Tanggal Berangkat</Label>
                         <Input id="party-prj-start" v-model="newProjectStartDate" type="date" />
@@ -536,7 +578,7 @@ function submitActivity () {
                         <Input id="party-prj-end" v-model="newProjectEndDate" type="date" />
                       </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div class="space-y-1.5">
                         <Label for="party-prj-travelers">Jumlah Traveler</Label>
                         <Input id="party-prj-travelers" v-model.number="newProjectTravelerCount" type="number" min="1" />

@@ -167,89 +167,193 @@ function submitDebitNote () {
 
         <TabsContent value="credit">
           <SectionCard description="Dibuat manual dari dialog detail Invoice, atau otomatis saat Refund Request diproses (Section 19). Setiap Credit Note otomatis menghasilkan entri jurnal Dr Pendapatan/Cr Piutang Usaha (Fase 3.4) — lihat Buku Besar.">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Credit Note</TableHead>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Jumlah</TableHead>
-                  <TableHead>Diterbitkan</TableHead>
-                  <TableHead>Alasan</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in creditRows" :key="row.note.id">
-                  <TableCell class="font-medium text-foreground">
-                    {{ row.note.id }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.invoiceLabel }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.project?.name ?? '—' }}
-                  </TableCell>
-                  <TableCell class="text-foreground">
-                    {{ formatCurrencyIdr(row.note.amountIdr) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(row.note.issuedAt) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground max-w-[260px] truncate">
+            <ResponsiveDataView :items="creditRows" :get-key="row => row.note.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Credit Note</TableHead>
+                      <TableHead>Invoice</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Jumlah</TableHead>
+                      <TableHead>Diterbitkan</TableHead>
+                      <TableHead>Alasan</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in items" :key="row.note.id">
+                      <TableCell class="font-medium text-foreground">
+                        {{ row.note.id }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.invoiceLabel }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.project?.name ?? '—' }}
+                      </TableCell>
+                      <TableCell class="text-foreground">
+                        {{ formatCurrencyIdr(row.note.amountIdr) }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ formatDate(row.note.issuedAt) }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground max-w-[260px] truncate">
+                        {{ row.note.reason }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(CREDIT_NOTE_STATUSES, row.note.status).label" :tone="findStatusOption(CREDIT_NOTE_STATUSES, row.note.status).tone" /></TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="creditRows.length === 0" :colspan="7">
+                      {{ creditSearch ? 'Tidak ada Credit Note yang cocok dengan pencarian.' : 'Belum ada Credit Note.' }}
+                    </TableEmpty>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: row }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
+                      {{ row.note.id }}
+                    </p>
+                    <StatusBadge :label="findStatusOption(CREDIT_NOTE_STATUSES, row.note.status).label" :tone="findStatusOption(CREDIT_NOTE_STATUSES, row.note.status).tone" />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Invoice
+                      </p>
+                      <p class="text-foreground">
+                        {{ row.invoiceLabel }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Project
+                      </p>
+                      <p class="text-foreground">
+                        {{ row.project?.name ?? '—' }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Jumlah
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatCurrencyIdr(row.note.amountIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Diterbitkan
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatDate(row.note.issuedAt) }}
+                      </p>
+                    </div>
+                  </div>
+                  <p class="mt-2 text-xs text-muted-foreground">
                     {{ row.note.reason }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(CREDIT_NOTE_STATUSES, row.note.status).label" :tone="findStatusOption(CREDIT_NOTE_STATUSES, row.note.status).tone" /></TableCell>
-                </TableRow>
-                <TableEmpty v-if="creditRows.length === 0" :colspan="7">
-                  {{ creditSearch ? 'Tidak ada Credit Note yang cocok dengan pencarian.' : 'Belum ada Credit Note.' }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
+                  </p>
+                </div>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="debit">
           <SectionCard description="Murni informasional — TIDAK secara otomatis menambah jumlah invoice mana pun, dan TIDAK menghasilkan entri jurnal apa pun (berbeda dari Credit Note, Fase 3.4) — tidak memengaruhi saldo Buku Besar sama sekali.">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Debit Note</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Invoice Terkait</TableHead>
-                  <TableHead>Jumlah</TableHead>
-                  <TableHead>Diterbitkan</TableHead>
-                  <TableHead>Alasan</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in debitRows" :key="row.note.id">
-                  <TableCell class="font-medium text-foreground">
-                    {{ row.note.id }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.project?.name ?? row.note.projectId }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ invoiceLabel(row.note.invoiceId) }}
-                  </TableCell>
-                  <TableCell class="text-foreground">
-                    {{ formatCurrencyIdr(row.note.amountIdr) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(row.note.issuedAt) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground max-w-[260px] truncate">
+            <ResponsiveDataView :items="debitRows" :get-key="row => row.note.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Debit Note</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Invoice Terkait</TableHead>
+                      <TableHead>Jumlah</TableHead>
+                      <TableHead>Diterbitkan</TableHead>
+                      <TableHead>Alasan</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in items" :key="row.note.id">
+                      <TableCell class="font-medium text-foreground">
+                        {{ row.note.id }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.project?.name ?? row.note.projectId }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ invoiceLabel(row.note.invoiceId) }}
+                      </TableCell>
+                      <TableCell class="text-foreground">
+                        {{ formatCurrencyIdr(row.note.amountIdr) }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ formatDate(row.note.issuedAt) }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground max-w-[260px] truncate">
+                        {{ row.note.reason }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(DEBIT_NOTE_STATUSES, row.note.status).label" :tone="findStatusOption(DEBIT_NOTE_STATUSES, row.note.status).tone" /></TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="debitRows.length === 0" :colspan="7">
+                      {{ debitSearch ? 'Tidak ada Debit Note yang cocok dengan pencarian.' : 'Belum ada Debit Note.' }}
+                    </TableEmpty>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: row }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
+                      {{ row.note.id }}
+                    </p>
+                    <StatusBadge :label="findStatusOption(DEBIT_NOTE_STATUSES, row.note.status).label" :tone="findStatusOption(DEBIT_NOTE_STATUSES, row.note.status).tone" />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Project
+                      </p>
+                      <p class="text-foreground">
+                        {{ row.project?.name ?? row.note.projectId }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Invoice Terkait
+                      </p>
+                      <p class="text-foreground">
+                        {{ invoiceLabel(row.note.invoiceId) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Jumlah
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatCurrencyIdr(row.note.amountIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Diterbitkan
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatDate(row.note.issuedAt) }}
+                      </p>
+                    </div>
+                  </div>
+                  <p class="mt-2 text-xs text-muted-foreground">
                     {{ row.note.reason }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(DEBIT_NOTE_STATUSES, row.note.status).label" :tone="findStatusOption(DEBIT_NOTE_STATUSES, row.note.status).tone" /></TableCell>
-                </TableRow>
-                <TableEmpty v-if="debitRows.length === 0" :colspan="7">
-                  {{ debitSearch ? 'Tidak ada Debit Note yang cocok dengan pencarian.' : 'Belum ada Debit Note.' }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
+                  </p>
+                </div>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
       </Tabs>

@@ -363,59 +363,129 @@ function onCompleteMaintenance (maintenanceId: string) {
               </div>
             </template>
 
-            <div v-if="filteredAssets.length" class="overflow-x-auto border-t border-border">
-              <Table class="w-full min-w-[780px]">
-                <TableHeader>
-                  <TableRow class="bg-muted/40 hover:bg-muted/40">
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Aset
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Kategori
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Lokasi
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Kondisi
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Stok
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Aksi
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="asset in filteredAssets" :key="asset.id">
-                    <TableCell class="px-4 py-3">
-                      <p class="text-sm font-medium text-foreground">
+            <ResponsiveDataView v-if="filteredAssets.length" :items="filteredAssets" :get-key="asset => asset.id">
+              <template #desktop="{ items }">
+                <div class="overflow-x-auto border-t border-border">
+                  <Table class="w-full min-w-[780px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Aset
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Kategori
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Lokasi
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Kondisi
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Stok
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Aksi
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="asset in items" :key="asset.id">
+                        <TableCell class="px-4 py-3">
+                          <p class="text-sm font-medium text-foreground">
+                            {{ asset.name }}
+                          </p>
+                          <p class="font-mono text-xs text-muted-foreground">
+                            {{ asset.code }}<template v-if="asset.serialNumber"> · {{ asset.serialNumber }}</template>
+                          </p>
+                          <p v-if="asset.note" class="mt-0.5 text-xs italic text-muted-foreground">
+                            {{ asset.note }}
+                          </p>
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <StatusBadge
+                            :label="findStatusOption(ASSET_CATEGORIES, asset.category).label"
+                            :tone="findStatusOption(ASSET_CATEGORIES, asset.category).tone"
+                          />
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-sm text-muted-foreground">
+                          {{ asset.location }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <StatusBadge
+                            :label="findStatusOption(ASSET_CONDITIONS, asset.condition).label"
+                            :tone="findStatusOption(ASSET_CONDITIONS, asset.condition).tone"
+                          />
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <span
+                            :class="cn(
+                              'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold font-mono',
+                              getAssetQuantityInUse(asset) === 0
+                                ? 'bg-success/10 text-success'
+                                : getAssetQuantityInUse(asset) >= asset.quantity
+                                  ? 'bg-destructive/10 text-destructive'
+                                  : 'bg-warning/10 text-warning'
+                            )"
+                            :title="`Dipakai ${getAssetQuantityInUse(asset)} dari stok ${asset.quantity}`"
+                          >
+                            {{ getAssetQuantityInUse(asset) }}/{{ asset.quantity }}
+                          </span>
+                        </TableCell>
+                        <TableCell class="space-x-1.5 whitespace-nowrap px-4 py-3 text-right">
+                          <Button variant="outline" size="sm" @click="detailAssetId = asset.id">
+                            <Eye class="h-3.5 w-3.5 mr-1" />
+                            Detail
+                          </Button>
+                          <Button v-if="canManage" variant="outline" size="sm" @click="openEdit(asset)">
+                            <Pencil class="h-3.5 w-3.5 mr-1" />
+                            Edit
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </template>
+
+              <template #mobile-card="{ item: asset }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-foreground truncate">
                         {{ asset.name }}
                       </p>
                       <p class="font-mono text-xs text-muted-foreground">
                         {{ asset.code }}<template v-if="asset.serialNumber"> · {{ asset.serialNumber }}</template>
                       </p>
-                      <p v-if="asset.note" class="mt-0.5 text-xs italic text-muted-foreground">
-                        {{ asset.note }}
+                    </div>
+                    <StatusBadge
+                      :label="findStatusOption(ASSET_CATEGORIES, asset.category).label"
+                      :tone="findStatusOption(ASSET_CATEGORIES, asset.category).tone"
+                    />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Lokasi
                       </p>
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
-                      <StatusBadge
-                        :label="findStatusOption(ASSET_CATEGORIES, asset.category).label"
-                        :tone="findStatusOption(ASSET_CATEGORIES, asset.category).tone"
-                      />
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-sm text-muted-foreground">
-                      {{ asset.location }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
+                      <p class="text-foreground">
+                        {{ asset.location }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Kondisi
+                      </p>
                       <StatusBadge
                         :label="findStatusOption(ASSET_CONDITIONS, asset.condition).label"
                         :tone="findStatusOption(ASSET_CONDITIONS, asset.condition).tone"
                       />
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Stok
+                      </p>
                       <span
                         :class="cn(
                           'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-semibold font-mono',
@@ -425,25 +495,27 @@ function onCompleteMaintenance (maintenanceId: string) {
                               ? 'bg-destructive/10 text-destructive'
                               : 'bg-warning/10 text-warning'
                         )"
-                        :title="`Dipakai ${getAssetQuantityInUse(asset)} dari stok ${asset.quantity}`"
                       >
                         {{ getAssetQuantityInUse(asset) }}/{{ asset.quantity }}
                       </span>
-                    </TableCell>
-                    <TableCell class="space-x-1.5 whitespace-nowrap px-4 py-3 text-right">
-                      <Button variant="outline" size="sm" @click="detailAssetId = asset.id">
-                        <Eye class="h-3.5 w-3.5 mr-1" />
-                        Detail
-                      </Button>
-                      <Button v-if="canManage" variant="outline" size="sm" @click="openEdit(asset)">
-                        <Pencil class="h-3.5 w-3.5 mr-1" />
-                        Edit
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+                    </div>
+                  </div>
+                  <p v-if="asset.note" class="mt-2 text-xs italic text-muted-foreground">
+                    {{ asset.note }}
+                  </p>
+                  <div class="mt-3 flex items-center gap-1.5">
+                    <Button variant="outline" size="sm" @click="detailAssetId = asset.id">
+                      <Eye class="h-3.5 w-3.5 mr-1" />
+                      Detail
+                    </Button>
+                    <Button v-if="canManage" variant="outline" size="sm" @click="openEdit(asset)">
+                      <Pencil class="h-3.5 w-3.5 mr-1" />
+                      Edit
+                    </Button>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
             <EmptyState v-else :icon="Package" title="Aset tidak ditemukan" description="Ubah kata kunci atau filter kategori." />
           </SectionCard>
         </TabsContent>
@@ -456,146 +528,271 @@ function onCompleteMaintenance (maintenanceId: string) {
             title="Maintenance Schedule"
             :description="upcomingMaintenance.length ? `${upcomingMaintenance.length} maintenance dalam 30 hari ke depan — terdekat ${getAssetById(upcomingMaintenance[0].assetId)?.name} pada ${formatDate(upcomingMaintenance[0].scheduledAt)}.` : undefined"
           >
-            <div class="overflow-x-auto border-t border-border">
-              <Table class="w-full min-w-[860px]">
-                <TableHeader>
-                  <TableRow class="bg-muted/40 hover:bg-muted/40">
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Aset
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Jenis
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Jadwal
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Vendor
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Biaya
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Status
-                    </TableHead>
-                    <TableHead v-if="canManage" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Aksi
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="schedule in allMaintenance" :key="schedule.id">
-                    <TableCell class="px-4 py-3">
-                      <p class="text-sm font-medium text-foreground">
+            <ResponsiveDataView :items="allMaintenance" :get-key="schedule => schedule.id">
+              <template #desktop="{ items }">
+                <div class="overflow-x-auto border-t border-border">
+                  <Table class="w-full min-w-[860px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Aset
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Jenis
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Jadwal
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Vendor
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Biaya
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Status
+                        </TableHead>
+                        <TableHead v-if="canManage" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Aksi
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="schedule in items" :key="schedule.id">
+                        <TableCell class="px-4 py-3">
+                          <p class="text-sm font-medium text-foreground">
+                            {{ getAssetById(schedule.assetId)?.name ?? schedule.assetId }}
+                          </p>
+                          <p v-if="schedule.note" class="text-xs text-muted-foreground">
+                            {{ schedule.note }}
+                          </p>
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <StatusBadge
+                            :label="findStatusOption(MAINTENANCE_TYPES, schedule.type).label"
+                            :tone="findStatusOption(MAINTENANCE_TYPES, schedule.type).tone"
+                          />
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <p class="text-sm text-foreground">
+                            {{ formatDate(schedule.scheduledAt) }}
+                          </p>
+                          <p v-if="schedule.intervalDays" class="text-xs text-muted-foreground">
+                            berulang tiap {{ schedule.intervalDays }} hari
+                          </p>
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-sm text-muted-foreground">
+                          {{ schedule.vendorName ?? 'Internal' }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-foreground">
+                          {{ schedule.costIdr ? formatCurrencyIdr(schedule.costIdr) : '—' }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <StatusBadge
+                            :label="findStatusOption(MAINTENANCE_STATUSES, schedule.status).label"
+                            :tone="findStatusOption(MAINTENANCE_STATUSES, schedule.status).tone"
+                          />
+                        </TableCell>
+                        <TableCell v-if="canManage" class="px-4 py-3 text-right">
+                          <Button v-if="schedule.status !== 'completed'" variant="outline" size="sm" @click="onCompleteMaintenance(schedule.id)">
+                            Tandai Selesai
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </template>
+
+              <template #mobile-card="{ item: schedule }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-foreground truncate">
                         {{ getAssetById(schedule.assetId)?.name ?? schedule.assetId }}
                       </p>
                       <p v-if="schedule.note" class="text-xs text-muted-foreground">
                         {{ schedule.note }}
                       </p>
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
+                    </div>
+                    <StatusBadge
+                      :label="findStatusOption(MAINTENANCE_STATUSES, schedule.status).label"
+                      :tone="findStatusOption(MAINTENANCE_STATUSES, schedule.status).tone"
+                    />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Jenis
+                      </p>
                       <StatusBadge
                         :label="findStatusOption(MAINTENANCE_TYPES, schedule.type).label"
                         :tone="findStatusOption(MAINTENANCE_TYPES, schedule.type).tone"
                       />
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
-                      <p class="text-sm text-foreground">
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Vendor
+                      </p>
+                      <p class="text-foreground">
+                        {{ schedule.vendorName ?? 'Internal' }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Jadwal
+                      </p>
+                      <p class="text-foreground">
                         {{ formatDate(schedule.scheduledAt) }}
+                        <span v-if="schedule.intervalDays" class="block text-muted-foreground">berulang tiap {{ schedule.intervalDays }} hari</span>
                       </p>
-                      <p v-if="schedule.intervalDays" class="text-xs text-muted-foreground">
-                        berulang tiap {{ schedule.intervalDays }} hari
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Biaya
                       </p>
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-sm text-muted-foreground">
-                      {{ schedule.vendorName ?? 'Internal' }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-foreground">
-                      {{ schedule.costIdr ? formatCurrencyIdr(schedule.costIdr) : '—' }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
-                      <StatusBadge
-                        :label="findStatusOption(MAINTENANCE_STATUSES, schedule.status).label"
-                        :tone="findStatusOption(MAINTENANCE_STATUSES, schedule.status).tone"
-                      />
-                    </TableCell>
-                    <TableCell v-if="canManage" class="px-4 py-3 text-right">
-                      <Button v-if="schedule.status !== 'completed'" variant="outline" size="sm" @click="onCompleteMaintenance(schedule.id)">
-                        Tandai Selesai
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+                      <p class="text-foreground">
+                        {{ schedule.costIdr ? formatCurrencyIdr(schedule.costIdr) : '—' }}
+                      </p>
+                    </div>
+                  </div>
+                  <div v-if="canManage && schedule.status !== 'completed'" class="mt-3">
+                    <Button variant="outline" size="sm" @click="onCompleteMaintenance(schedule.id)">
+                      Tandai Selesai
+                    </Button>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="checkouts" class="pt-4">
           <SectionCard compact :content-class="activeCheckouts.length ? 'p-0' : ''" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Peminjaman" description="Peminjaman yang belum kembali. Aset yang tertaut project menahan penutupan project tersebut sampai dikembalikan.">
-            <div v-if="activeCheckouts.length" class="overflow-x-auto border-t border-border">
-              <Table class="w-full min-w-[780px]">
-                <TableHeader>
-                  <TableRow class="bg-muted/40 hover:bg-muted/40">
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Aset
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Peminjam
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Project
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Dipinjam
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Jatuh Tempo
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Status
-                    </TableHead>
-                    <TableHead v-if="canManage" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Aksi
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="checkout in activeCheckouts" :key="checkout.id">
-                    <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+            <ResponsiveDataView v-if="activeCheckouts.length" :items="activeCheckouts" :get-key="checkout => checkout.id">
+              <template #desktop="{ items }">
+                <div class="overflow-x-auto border-t border-border">
+                  <Table class="w-full min-w-[780px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Aset
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Peminjam
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Project
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Dipinjam
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Jatuh Tempo
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Status
+                        </TableHead>
+                        <TableHead v-if="canManage" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Aksi
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="checkout in items" :key="checkout.id">
+                        <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+                          {{ getAssetById(checkout.assetId)?.name ?? checkout.assetId }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-sm text-foreground">
+                          {{ getUserById(checkout.borrowedBy)?.name ?? checkout.borrowedBy }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <NuxtLink v-if="checkout.projectId" :to="`/project-orders/${checkout.projectId}`" class="text-sm text-primary hover:underline">
+                            {{ getProjectById(checkout.projectId)?.name ?? checkout.projectId }}
+                          </NuxtLink>
+                          <span v-else class="text-sm text-muted-foreground">Internal</span>
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-sm text-muted-foreground">
+                          {{ formatDate(checkout.checkedOutAt) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-sm" :class="checkout.status === 'overdue' ? 'text-destructive font-medium' : 'text-muted-foreground'">
+                          {{ formatDate(checkout.dueAt) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <StatusBadge
+                            :label="findStatusOption(CHECKOUT_STATUSES, checkout.status).label"
+                            :tone="findStatusOption(CHECKOUT_STATUSES, checkout.status).tone"
+                          />
+                        </TableCell>
+                        <TableCell v-if="canManage" class="px-4 py-3 text-right">
+                          <Button variant="outline" size="sm" @click="returnTargetId = checkout.id">
+                            <Undo2 class="h-3.5 w-3.5 mr-1" />
+                            Kembalikan
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </template>
+
+              <template #mobile-card="{ item: checkout }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground truncate">
                       {{ getAssetById(checkout.assetId)?.name ?? checkout.assetId }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-sm text-foreground">
-                      {{ getUserById(checkout.borrowedBy)?.name ?? checkout.borrowedBy }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
-                      <NuxtLink v-if="checkout.projectId" :to="`/project-orders/${checkout.projectId}`" class="text-sm text-primary hover:underline">
+                    </p>
+                    <StatusBadge
+                      :label="findStatusOption(CHECKOUT_STATUSES, checkout.status).label"
+                      :tone="findStatusOption(CHECKOUT_STATUSES, checkout.status).tone"
+                    />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Peminjam
+                      </p>
+                      <p class="text-foreground">
+                        {{ getUserById(checkout.borrowedBy)?.name ?? checkout.borrowedBy }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Project
+                      </p>
+                      <NuxtLink v-if="checkout.projectId" :to="`/project-orders/${checkout.projectId}`" class="text-primary hover:underline">
                         {{ getProjectById(checkout.projectId)?.name ?? checkout.projectId }}
                       </NuxtLink>
-                      <span v-else class="text-sm text-muted-foreground">Internal</span>
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-sm text-muted-foreground">
-                      {{ formatDate(checkout.checkedOutAt) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-sm" :class="checkout.status === 'overdue' ? 'text-destructive font-medium' : 'text-muted-foreground'">
-                      {{ formatDate(checkout.dueAt) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
-                      <StatusBadge
-                        :label="findStatusOption(CHECKOUT_STATUSES, checkout.status).label"
-                        :tone="findStatusOption(CHECKOUT_STATUSES, checkout.status).tone"
-                      />
-                    </TableCell>
-                    <TableCell v-if="canManage" class="px-4 py-3 text-right">
-                      <Button variant="outline" size="sm" @click="returnTargetId = checkout.id">
-                        <Undo2 class="h-3.5 w-3.5 mr-1" />
-                        Kembalikan
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+                      <p v-else class="text-foreground">
+                        Internal
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Dipinjam
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatDate(checkout.checkedOutAt) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Jatuh Tempo
+                      </p>
+                      <p :class="checkout.status === 'overdue' ? 'text-destructive font-medium' : 'text-foreground'">
+                        {{ formatDate(checkout.dueAt) }}
+                      </p>
+                    </div>
+                  </div>
+                  <div v-if="canManage" class="mt-3">
+                    <Button variant="outline" size="sm" @click="returnTargetId = checkout.id">
+                      <Undo2 class="h-3.5 w-3.5 mr-1" />
+                      Kembalikan
+                    </Button>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
             <EmptyState v-else :icon="PackageCheck" title="Semua aset sudah kembali" />
           </SectionCard>
         </TabsContent>
@@ -633,7 +830,7 @@ function onCompleteMaintenance (maintenanceId: string) {
               <Label>Nama Aset</Label>
               <Input v-model="assetForm.name" placeholder="mis. Sony A7 IV Body" />
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label>Kategori</Label>
                 <select v-model="assetForm.category" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -647,7 +844,7 @@ function onCompleteMaintenance (maintenanceId: string) {
                 <Input v-model="assetForm.location" placeholder="mis. Gudang Jakarta" />
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label>Brand (opsional)</Label>
                 <Input v-model="assetForm.brand" placeholder="mis. Sony" />
@@ -657,7 +854,7 @@ function onCompleteMaintenance (maintenanceId: string) {
                 <Input v-model="assetForm.serialNumber" placeholder="mis. SN-A7IV-88213" />
               </div>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label>Tanggal Pembelian</Label>
                 <Input v-model="assetForm.purchasedAt" type="date" />
@@ -671,7 +868,7 @@ function onCompleteMaintenance (maintenanceId: string) {
               <Label>Nilai Perolehan (IDR) — Opsional</Label>
               <CurrencyInput v-model="assetForm.purchasePriceIdr" placeholder="Belum diisi" />
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label>Kondisi</Label>
                 <select v-model="assetForm.condition" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">

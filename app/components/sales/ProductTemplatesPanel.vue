@@ -160,52 +160,100 @@ function submitCreate () {
       </div>
 
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama</TableHead>
-              <TableHead>Destinasi</TableHead>
-              <TableHead>Service Scope</TableHead>
-              <TableHead>Basis Pax</TableHead>
-              <TableHead>Cost Sheet</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.product.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/product-planning/${row.product.id}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ row.product.name }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.product.destination }}
-              </TableCell>
-              <TableCell>
-                <div class="flex flex-wrap gap-1">
-                  <StatusBadge v-for="type in row.product.serviceScope" :key="type" :label="findStatusOption(SERVICE_TYPES, type).label" :tone="findStatusOption(SERVICE_TYPES, type).tone" />
+        <ResponsiveDataView :items="rows" :get-key="row => row.product.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama</TableHead>
+                  <TableHead>Destinasi</TableHead>
+                  <TableHead>Service Scope</TableHead>
+                  <TableHead>Basis Pax</TableHead>
+                  <TableHead>Cost Sheet</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.product.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/product-planning/${row.product.id}`)">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.product.name }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.product.destination }}
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex flex-wrap gap-1">
+                      <StatusBadge v-for="type in row.product.serviceScope" :key="type" :label="findStatusOption(SERVICE_TYPES, type).label" :tone="findStatusOption(SERVICE_TYPES, type).tone" />
+                    </div>
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.product.basePaxCount }} pax
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.costSheetCount }} cost sheet
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="STATUS_OPTIONS.find(o => o.value === row.product.status)?.label ?? row.product.status"
+                      :tone="STATUS_OPTIONS.find(o => o.value === row.product.status)?.tone ?? 'neutral'"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="items.length === 0" :colspan="7">
+                  {{ searchQuery || statusFilter !== 'all' || serviceFilter !== 'all' ? 'Tidak ada Product Template yang cocok dengan filter.' : 'Belum ada Product Template.' }}
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="navigateTo(`/product-planning/${row.product.id}`)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.product.name }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ row.product.destination }}
+                  </p>
                 </div>
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.product.basePaxCount }} pax
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.costSheetCount }} cost sheet
-              </TableCell>
-              <TableCell>
                 <StatusBadge
                   :label="STATUS_OPTIONS.find(o => o.value === row.product.status)?.label ?? row.product.status"
                   :tone="STATUS_OPTIONS.find(o => o.value === row.product.status)?.tone ?? 'neutral'"
                 />
-              </TableCell>
-              <TableCell>
-                <Eye class="h-4 w-4 text-muted-foreground" />
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="7">
-              {{ searchQuery || statusFilter !== 'all' || serviceFilter !== 'all' ? 'Tidak ada Product Template yang cocok dengan filter.' : 'Belum ada Product Template.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-2 flex flex-wrap gap-1">
+                <StatusBadge v-for="type in row.product.serviceScope" :key="type" :label="findStatusOption(SERVICE_TYPES, type).label" :tone="findStatusOption(SERVICE_TYPES, type).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Basis Pax
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.product.basePaxCount }} pax
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Cost Sheet
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.costSheetCount }} cost sheet
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

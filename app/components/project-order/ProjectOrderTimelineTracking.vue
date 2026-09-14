@@ -171,7 +171,7 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
 <template>
   <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Timeline Tracking">
     <template #actions>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-2">
         <Button v-if="canManage" size="sm" variant="outline" @click="openApplyTemplateDialog">
           <LayoutTemplate class="mr-1 h-3.5 w-3.5" />Terapkan Template
         </Button>

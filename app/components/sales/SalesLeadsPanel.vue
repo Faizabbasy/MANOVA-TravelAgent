@@ -246,57 +246,117 @@ function openDrawer (lead: Lead) {
 
       <!-- Table view -->
       <SectionCard v-if="viewMode === 'table'">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Lead</TableHead>
-              <TableHead>Sumber</TableHead>
-              <TableHead>Stage</TableHead>
-              <TableHead>Status Deal</TableHead>
-              <TableHead>Owner</TableHead>
-              <TableHead>Update Terakhir</TableHead>
-              <TableHead>Follow-up</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="lead in filteredLeads" :key="lead.id" class="cursor-pointer hover:bg-muted/50" @click="openDrawer(lead)">
-              <TableCell class="font-medium text-foreground">
-                <span class="inline-flex items-center gap-1.5">
-                  {{ lead.name }}
-                  <StatusBadge v-if="hasDuplicateCandidates(lead)" label="Possible Duplicate" tone="warning" />
-                </span>
-                <span v-if="lead.companyName" class="block text-xs text-muted-foreground font-normal">{{ lead.companyName }}</span>
-              </TableCell>
-              <TableCell>
-                <StatusBadge :label="findStatusOption(LEAD_SOURCES, lead.source).label" :tone="findStatusOption(LEAD_SOURCES, lead.source).tone" />
-              </TableCell>
-              <TableCell>
+        <ResponsiveDataView v-if="filteredLeads.length" :items="filteredLeads" :get-key="lead => lead.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Sumber</TableHead>
+                  <TableHead>Stage</TableHead>
+                  <TableHead>Status Deal</TableHead>
+                  <TableHead>Owner</TableHead>
+                  <TableHead>Update Terakhir</TableHead>
+                  <TableHead>Follow-up</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="lead in items" :key="lead.id" class="cursor-pointer hover:bg-muted/50" @click="openDrawer(lead)">
+                  <TableCell class="font-medium text-foreground">
+                    <span class="inline-flex items-center gap-1.5">
+                      {{ lead.name }}
+                      <StatusBadge v-if="hasDuplicateCandidates(lead)" label="Possible Duplicate" tone="warning" />
+                    </span>
+                    <span v-if="lead.companyName" class="block text-xs text-muted-foreground font-normal">{{ lead.companyName }}</span>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(LEAD_SOURCES, lead.source).label" :tone="findStatusOption(LEAD_SOURCES, lead.source).tone" />
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(LEAD_STAGES, lead.stage).label" :tone="findStatusOption(LEAD_STAGES, lead.stage).tone" />
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge v-if="dealStatus(lead.id)" :label="dealStatus(lead.id)?.label ?? ''" :tone="dealStatus(lead.id)?.tone ?? 'neutral'" />
+                    <span v-else class="text-muted-foreground text-xs">—</span>
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ ownerName(lead.ownerId) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(lead.lastUpdatedAt) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge v-if="hasUpcomingFollowUp(lead.id)" label="Follow-up Mendatang" tone="warning" />
+                    <span v-else class="text-muted-foreground text-xs">—</span>
+                  </TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: lead }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="openDrawer(lead)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <span class="inline-flex items-center gap-1.5 text-sm font-medium text-foreground">
+                    <span class="truncate">{{ lead.name }}</span>
+                    <StatusBadge v-if="hasDuplicateCandidates(lead)" label="Possible Duplicate" tone="warning" />
+                  </span>
+                  <p v-if="lead.companyName" class="text-xs text-muted-foreground truncate">
+                    {{ lead.companyName }}
+                  </p>
+                </div>
                 <StatusBadge :label="findStatusOption(LEAD_STAGES, lead.stage).label" :tone="findStatusOption(LEAD_STAGES, lead.stage).tone" />
-              </TableCell>
-              <TableCell>
-                <StatusBadge v-if="dealStatus(lead.id)" :label="dealStatus(lead.id)?.label ?? ''" :tone="dealStatus(lead.id)?.tone ?? 'neutral'" />
-                <span v-else class="text-muted-foreground text-xs">—</span>
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ ownerName(lead.ownerId) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDate(lead.lastUpdatedAt) }}
-              </TableCell>
-              <TableCell>
-                <StatusBadge v-if="hasUpcomingFollowUp(lead.id)" label="Follow-up Mendatang" tone="warning" />
-                <span v-else class="text-muted-foreground text-xs">—</span>
-              </TableCell>
-              <TableCell>
-                <Eye class="h-4 w-4 text-muted-foreground" />
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="filteredLeads.length === 0" :colspan="8">
-              {{ searchQuery || stageFilter !== 'all' || ownerFilter !== 'all' || sourceFilter !== 'all' ? 'Tidak ada lead yang cocok dengan filter.' : (showArchived ? 'Belum ada lead diarsipkan.' : 'Belum ada lead.') }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Sumber
+                  </p>
+                  <StatusBadge :label="findStatusOption(LEAD_SOURCES, lead.source).label" :tone="findStatusOption(LEAD_SOURCES, lead.source).tone" />
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Status Deal
+                  </p>
+                  <StatusBadge v-if="dealStatus(lead.id)" :label="dealStatus(lead.id)?.label ?? ''" :tone="dealStatus(lead.id)?.tone ?? 'neutral'" />
+                  <span v-else class="text-foreground">—</span>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Owner
+                  </p>
+                  <p class="text-foreground">
+                    {{ ownerName(lead.ownerId) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Update Terakhir
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(lead.lastUpdatedAt) }}
+                  </p>
+                </div>
+              </div>
+              <StatusBadge v-if="hasUpcomingFollowUp(lead.id)" label="Follow-up Mendatang" tone="warning" class="mt-3" />
+            </button>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState
+          v-else
+          title="Tidak ada lead"
+          :description="searchQuery || stageFilter !== 'all' || ownerFilter !== 'all' || sourceFilter !== 'all' ? 'Tidak ada lead yang cocok dengan filter.' : (showArchived ? 'Belum ada lead diarsipkan.' : 'Belum ada lead.')"
+        />
       </SectionCard>
 
       <!-- Kanban view -->

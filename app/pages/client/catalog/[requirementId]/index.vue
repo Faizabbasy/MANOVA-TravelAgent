@@ -276,96 +276,192 @@ function cancelSelection (selectionId: string) {
         :key="group.key"
       >
         <SectionCard v-if="group.results.length" :title="group.title">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Bandingkan</TableHead>
-                <TableHead>Nama Komoditas</TableHead>
-                <TableHead>Harga</TableHead>
-                <TableHead>Availability</TableHead>
-                <TableHead>Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="result in group.results" :key="result.commodity.id">
-                <TableCell>
-                  <Checkbox :model-value="compareIds.includes(result.commodity.id)" @update:model-value="() => toggleCompare(result.commodity.id)" />
-                </TableCell>
-                <TableCell class="font-medium text-foreground">
-                  {{ result.commodity.name }}
-                </TableCell>
-                <TableCell class="text-foreground">
-                  {{ formatCurrencyIdr(result.commodity.sellPriceIdr) }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ getCommodityTotalAvailable(result.commodity.id) }}
-                </TableCell>
-                <TableCell>
-                  <div class="flex items-center gap-2">
-                    <Button size="sm" variant="ghost" @click="viewingCommodityId = result.commodity.id">
-                      Detail
-                    </Button>
-                    <Button size="sm" @click="openSelectDialog(result.commodity.id)">
-                      <Plus class="h-4 w-4 mr-1" />Pilih
-                    </Button>
+          <ResponsiveDataView :items="group.results" :get-key="result => result.commodity.id">
+            <template #desktop="{ items }">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Bandingkan</TableHead>
+                    <TableHead>Nama Komoditas</TableHead>
+                    <TableHead>Harga</TableHead>
+                    <TableHead>Availability</TableHead>
+                    <TableHead>Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="result in items" :key="result.commodity.id">
+                    <TableCell>
+                      <Checkbox :model-value="compareIds.includes(result.commodity.id)" @update:model-value="() => toggleCompare(result.commodity.id)" />
+                    </TableCell>
+                    <TableCell class="font-medium text-foreground">
+                      {{ result.commodity.name }}
+                    </TableCell>
+                    <TableCell class="text-foreground">
+                      {{ formatCurrencyIdr(result.commodity.sellPriceIdr) }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ getCommodityTotalAvailable(result.commodity.id) }}
+                    </TableCell>
+                    <TableCell>
+                      <div class="flex items-center gap-2">
+                        <Button size="sm" variant="ghost" @click="viewingCommodityId = result.commodity.id">
+                          Detail
+                        </Button>
+                        <Button size="sm" @click="openSelectDialog(result.commodity.id)">
+                          <Plus class="h-4 w-4 mr-1" />Pilih
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </template>
+
+            <template #mobile-card="{ item: result }">
+              <div class="rounded-xl border border-border bg-card p-4">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="flex items-start gap-2 min-w-0">
+                    <Checkbox class="mt-0.5" :model-value="compareIds.includes(result.commodity.id)" @update:model-value="() => toggleCompare(result.commodity.id)" />
+                    <p class="text-sm font-medium text-foreground">
+                      {{ result.commodity.name }}
+                    </p>
                   </div>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Harga
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(result.commodity.sellPriceIdr) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Availability
+                    </p>
+                    <p class="text-foreground">
+                      {{ getCommodityTotalAvailable(result.commodity.id) }}
+                    </p>
+                  </div>
+                </div>
+                <div class="mt-3 flex items-center gap-2">
+                  <Button size="sm" variant="ghost" @click="viewingCommodityId = result.commodity.id">
+                    Detail
+                  </Button>
+                  <Button size="sm" @click="openSelectDialog(result.commodity.id)">
+                    <Plus class="h-4 w-4 mr-1" />Pilih
+                  </Button>
+                </div>
+              </div>
+            </template>
+          </ResponsiveDataView>
         </SectionCard>
       </template>
 
       <SectionCard title="Selected Commodities" description="Kebutuhan komoditas Anda yang sudah dipilih untuk kebutuhan ini.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Komoditas</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Pilihan</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Hold Kadaluarsa</TableHead>
-              <TableHead>Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="selection in mySelections" :key="selection.id">
-              <TableCell class="font-medium text-foreground">
-                {{ selectionCommodityName(selection.commodityProductId) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ selection.quantity }}
-              </TableCell>
-              <TableCell>
-                <StatusBadge :label="findStatusOption(SELECTION_CHOICE_RANKS, selection.choiceRank).label" :tone="findStatusOption(SELECTION_CHOICE_RANKS, selection.choiceRank).tone" />
-              </TableCell>
-              <TableCell>
+        <ResponsiveDataView v-if="mySelections.length" :items="mySelections" :get-key="selection => selection.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Komoditas</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Pilihan</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Hold Kadaluarsa</TableHead>
+                  <TableHead>Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="selection in items" :key="selection.id">
+                  <TableCell class="font-medium text-foreground">
+                    {{ selectionCommodityName(selection.commodityProductId) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ selection.quantity }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(SELECTION_CHOICE_RANKS, selection.choiceRank).label" :tone="findStatusOption(SELECTION_CHOICE_RANKS, selection.choiceRank).tone" />
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(COMMODITY_SELECTION_STATUSES, selection.status).label" :tone="findStatusOption(COMMODITY_SELECTION_STATUSES, selection.status).tone" />
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    <template v-if="selection.status === 'soft-hold' && selection.holdExpiresAt">
+                      {{ formatDate(selection.holdExpiresAt) }} ({{ daysUntil(selection.holdExpiresAt, DEMO_REFERENCE_DATE) }} hari lagi)
+                    </template>
+                    <template v-else>
+                      —
+                    </template>
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex items-center gap-2">
+                      <Button v-if="selection.status === 'draft'" size="sm" variant="outline" @click="submitDraftFromList(selection.id, selection.commodityProductId, selection.variantId, selection.quantity)">
+                        Ajukan
+                      </Button>
+                      <Button v-if="['draft', 'soft-hold'].includes(selection.status)" size="sm" variant="destructive" @click="cancelSelection(selection.id)">
+                        Batalkan
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: selection }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
+                  {{ selectionCommodityName(selection.commodityProductId) }}
+                </p>
                 <StatusBadge :label="findStatusOption(COMMODITY_SELECTION_STATUSES, selection.status).label" :tone="findStatusOption(COMMODITY_SELECTION_STATUSES, selection.status).tone" />
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                <template v-if="selection.status === 'soft-hold' && selection.holdExpiresAt">
-                  {{ formatDate(selection.holdExpiresAt) }} ({{ daysUntil(selection.holdExpiresAt, DEMO_REFERENCE_DATE) }} hari lagi)
-                </template>
-                <template v-else>
-                  —
-                </template>
-              </TableCell>
-              <TableCell>
-                <div class="flex items-center gap-2">
-                  <Button v-if="selection.status === 'draft'" size="sm" variant="outline" @click="submitDraftFromList(selection.id, selection.commodityProductId, selection.variantId, selection.quantity)">
-                    Ajukan
-                  </Button>
-                  <Button v-if="['draft', 'soft-hold'].includes(selection.status)" size="sm" variant="destructive" @click="cancelSelection(selection.id)">
-                    Batalkan
-                  </Button>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Qty
+                  </p>
+                  <p class="text-foreground">
+                    {{ selection.quantity }}
+                  </p>
                 </div>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="mySelections.length === 0" :colspan="6">
-              Belum ada komoditas yang dipilih untuk kebutuhan ini.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+                <div>
+                  <p class="text-muted-foreground">
+                    Pilihan
+                  </p>
+                  <StatusBadge :label="findStatusOption(SELECTION_CHOICE_RANKS, selection.choiceRank).label" :tone="findStatusOption(SELECTION_CHOICE_RANKS, selection.choiceRank).tone" />
+                </div>
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Hold Kadaluarsa
+                  </p>
+                  <p class="text-foreground">
+                    <template v-if="selection.status === 'soft-hold' && selection.holdExpiresAt">
+                      {{ formatDate(selection.holdExpiresAt) }} ({{ daysUntil(selection.holdExpiresAt, DEMO_REFERENCE_DATE) }} hari lagi)
+                    </template>
+                    <template v-else>
+                      —
+                    </template>
+                  </p>
+                </div>
+              </div>
+              <div v-if="selection.status === 'draft' || ['draft', 'soft-hold'].includes(selection.status)" class="mt-3 flex items-center gap-2">
+                <Button v-if="selection.status === 'draft'" size="sm" variant="outline" @click="submitDraftFromList(selection.id, selection.commodityProductId, selection.variantId, selection.quantity)">
+                  Ajukan
+                </Button>
+                <Button v-if="['draft', 'soft-hold'].includes(selection.status)" size="sm" variant="destructive" @click="cancelSelection(selection.id)">
+                  Batalkan
+                </Button>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+
+        <p v-else class="text-sm text-muted-foreground">
+          Belum ada komoditas yang dipilih untuk kebutuhan ini.
+        </p>
       </SectionCard>
 
       <!-- ── Detail Dialog (read-only) ─────────────────────────────────── -->

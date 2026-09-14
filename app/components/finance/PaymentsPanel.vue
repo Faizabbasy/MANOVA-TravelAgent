@@ -51,43 +51,80 @@ const { pageSize, currentPage, totalPages, pageItems: paginatedRows, rangeLabel 
         </template>
 
         <div class="overflow-x-auto border-t border-border">
-          <Table class="w-full min-w-[640px]">
-            <TableHeader>
-              <TableRow class="bg-muted/40 hover:bg-muted/40">
-                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Invoice
-                </TableHead>
-                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Project
-                </TableHead>
-                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Jumlah
-                </TableHead>
-                <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                  Diterima
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="row in paginatedRows" :key="row.payment.id">
-                <TableCell class="px-4 py-3 font-medium text-foreground">
-                  {{ row.invoiceLabel }}
-                </TableCell>
-                <TableCell class="px-4 py-3 text-muted-foreground">
-                  {{ row.projectLabel }}
-                </TableCell>
-                <TableCell class="px-4 py-3 tabular-nums">
-                  {{ formatCurrencyIdr(row.payment.amountIdr) }}
-                </TableCell>
-                <TableCell class="px-4 py-3 text-muted-foreground">
-                  {{ formatDate(row.payment.receivedAt) }}
-                </TableCell>
-              </TableRow>
-              <TableEmpty v-if="rows.length === 0" :colspan="4">
-                {{ searchQuery ? 'Tidak ada payment yang cocok dengan pencarian.' : 'Belum ada payment.' }}
-              </TableEmpty>
-            </TableBody>
-          </Table>
+          <ResponsiveDataView :items="paginatedRows" :get-key="row => row.payment.id">
+            <template #desktop="{ items }">
+              <Table class="w-full min-w-[640px]">
+                <TableHeader>
+                  <TableRow class="bg-muted/40 hover:bg-muted/40">
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Invoice
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Project
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Jumlah
+                    </TableHead>
+                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Diterima
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in items" :key="row.payment.id">
+                    <TableCell class="px-4 py-3 font-medium text-foreground">
+                      {{ row.invoiceLabel }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-muted-foreground">
+                      {{ row.projectLabel }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 tabular-nums">
+                      {{ formatCurrencyIdr(row.payment.amountIdr) }}
+                    </TableCell>
+                    <TableCell class="px-4 py-3 text-muted-foreground">
+                      {{ formatDate(row.payment.receivedAt) }}
+                    </TableCell>
+                  </TableRow>
+                  <TableEmpty v-if="rows.length === 0" :colspan="4">
+                    {{ searchQuery ? 'Tidak ada payment yang cocok dengan pencarian.' : 'Belum ada payment.' }}
+                  </TableEmpty>
+                </TableBody>
+              </Table>
+            </template>
+
+            <template #mobile-card="{ item: row }">
+              <div class="rounded-xl border border-border bg-card p-4">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ row.invoiceLabel }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ row.projectLabel }}
+                    </p>
+                  </div>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Jumlah
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(row.payment.amountIdr) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Diterima
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatDate(row.payment.receivedAt) }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </ResponsiveDataView>
         </div>
 
         <TablePaginationFooter

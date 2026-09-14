@@ -246,78 +246,163 @@ function submitEdit () {
       </SectionCard>
 
       <SectionCard title="Flight Options" description="Fare, cabin, baggage, dan ancillary per opsi maskapai yang dibandingkan.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Maskapai</TableHead>
-              <TableHead>Cabin</TableHead>
-              <TableHead>Fare</TableHead>
-              <TableHead>Bagasi</TableHead>
-              <TableHead>Ancillary</TableHead>
-              <TableHead v-if="canManageTicketing">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(option, index) in booking.options" :key="index">
-              <TableCell class="text-foreground">
-                {{ option.airline }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(CABIN_CLASSES, option.cabinClass).label" :tone="findStatusOption(CABIN_CLASSES, option.cabinClass).tone" /></TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(option.fareIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ option.baggageAllowance ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ option.ancillaries ?? '—' }}
-              </TableCell>
-              <TableCell v-if="canManageTicketing">
+        <ResponsiveDataView v-if="booking.options.length" :items="booking.options" :get-key="(option, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Maskapai</TableHead>
+                  <TableHead>Cabin</TableHead>
+                  <TableHead>Fare</TableHead>
+                  <TableHead>Bagasi</TableHead>
+                  <TableHead>Ancillary</TableHead>
+                  <TableHead v-if="canManageTicketing">
+                    Aksi
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(option, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ option.airline }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(CABIN_CLASSES, option.cabinClass).label" :tone="findStatusOption(CABIN_CLASSES, option.cabinClass).tone" /></TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(option.fareIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ option.baggageAllowance ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ option.ancillaries ?? '—' }}
+                  </TableCell>
+                  <TableCell v-if="canManageTicketing">
+                    <StatusBadge v-if="option.isSelected" label="Dipilih" tone="success" />
+                    <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">
+                      Pilih
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: option, index }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
+                  {{ option.airline }}
+                </p>
+                <StatusBadge :label="findStatusOption(CABIN_CLASSES, option.cabinClass).label" :tone="findStatusOption(CABIN_CLASSES, option.cabinClass).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Fare
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(option.fareIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Bagasi
+                  </p>
+                  <p class="text-foreground">
+                    {{ option.baggageAllowance ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Ancillary
+                  </p>
+                  <p class="text-foreground">
+                    {{ option.ancillaries ?? '—' }}
+                  </p>
+                </div>
+              </div>
+              <div v-if="canManageTicketing" class="mt-3">
                 <StatusBadge v-if="option.isSelected" label="Dipilih" tone="success" />
                 <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">
                   Pilih
                 </Button>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="booking.options.length === 0" :colspan="canManageTicketing ? 6 : 5">
-              Belum ada opsi tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState v-else title="Belum ada opsi tercatat." />
       </SectionCard>
 
       <SectionCard title="Segments">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Rute</TableHead>
-              <TableHead>Nomor Penerbangan</TableHead>
-              <TableHead>Keberangkatan</TableHead>
-              <TableHead>Kedatangan</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(segment, index) in booking.segments" :key="index">
-              <TableCell class="text-foreground">
-                {{ segment.origin }} → {{ segment.destination }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ segment.flightNumber ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDateTime(segment.departureAt) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ segment.arrivalAt ? formatDateTime(segment.arrivalAt) : '—' }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="booking.segments.length === 0" :colspan="4">
-              Belum ada segmen tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView v-if="booking.segments.length" :items="booking.segments" :get-key="(segment, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rute</TableHead>
+                  <TableHead>Nomor Penerbangan</TableHead>
+                  <TableHead>Keberangkatan</TableHead>
+                  <TableHead>Kedatangan</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(segment, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ segment.origin }} → {{ segment.destination }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ segment.flightNumber ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDateTime(segment.departureAt) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ segment.arrivalAt ? formatDateTime(segment.arrivalAt) : '—' }}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: segment }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
+                  {{ segment.origin }} → {{ segment.destination }}
+                </p>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Nomor Penerbangan
+                  </p>
+                  <p class="text-foreground">
+                    {{ segment.flightNumber ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Keberangkatan
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDateTime(segment.departureAt) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Kedatangan
+                  </p>
+                  <p class="text-foreground">
+                    {{ segment.arrivalAt ? formatDateTime(segment.arrivalAt) : '—' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState v-else title="Belum ada segmen tercatat." />
       </SectionCard>
 
       <SectionCard title="Traveler Assignment / Name List" :description="`${booking.travelerIds.length} traveler ditugaskan pada booking ini`">

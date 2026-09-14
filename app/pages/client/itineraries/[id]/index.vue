@@ -146,34 +146,57 @@ function submitRevisionRequest () {
           </div>
         </template>
         <template v-else>
-          <div class="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Waktu</TableHead>
-                  <TableHead>Kegiatan</TableHead>
-                  <TableHead>Deskripsi</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="item in displayItems" :key="item.id">
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(item.date) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ item.time || '—' }}
-                  </TableCell>
-                  <TableCell class="font-medium text-foreground">
+          <ResponsiveDataView :items="displayItems" :get-key="item => item.id">
+            <template #desktop="{ items }">
+              <div class="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Tanggal</TableHead>
+                      <TableHead>Waktu</TableHead>
+                      <TableHead>Kegiatan</TableHead>
+                      <TableHead>Deskripsi</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="item in items" :key="item.id">
+                      <TableCell class="text-muted-foreground">
+                        {{ formatDate(item.date) }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ item.time || '—' }}
+                      </TableCell>
+                      <TableCell class="font-medium text-foreground">
+                        {{ item.title }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ item.description || '—' }}
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </template>
+
+            <template #mobile-card="{ item }">
+              <div class="rounded-xl border border-border bg-card p-4">
+                <div class="flex items-start justify-between gap-2">
+                  <p class="text-sm font-medium text-foreground">
                     {{ item.title }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ item.description || '—' }}
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
+                  </p>
+                  <p class="shrink-0 text-xs text-muted-foreground">
+                    {{ item.time || '—' }}
+                  </p>
+                </div>
+                <p class="mt-1 text-xs text-muted-foreground">
+                  {{ formatDate(item.date) }}
+                </p>
+                <p v-if="item.description" class="mt-2 text-xs text-muted-foreground">
+                  {{ item.description }}
+                </p>
+              </div>
+            </template>
+          </ResponsiveDataView>
         </template>
 
         <div v-if="canDecide" class="mt-4 pt-4 border-t border-border flex flex-wrap gap-2">

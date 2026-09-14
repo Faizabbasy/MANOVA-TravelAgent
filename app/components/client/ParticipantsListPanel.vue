@@ -161,53 +161,95 @@ function submitExport () {
           </Button>
         </div>
 
-        <div class="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead />
-                <TableHead>Nama</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Paspor</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="row in filteredRows" :key="row.traveler.id">
-                <TableCell>
-                  <Checkbox :model-value="selectedIds.includes(row.traveler.id)" @update:model-value="toggleSelect(row.traveler.id)" />
-                </TableCell>
-                <TableCell class="font-medium text-foreground">
-                  <NuxtLink :to="`/client/participants/${row.traveler.id}`" class="hover:underline">
-                    {{ row.traveler.name }}
-                  </NuxtLink>
-                  <Star v-if="row.traveler.isVip" class="h-3.5 w-3.5 inline ml-1.5 text-warning fill-warning" />
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.project.name }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.traveler.passportNumber || '—' }}
-                  <AlertTriangle v-if="isPassportExpiringSoon(row.traveler.passportExpiryDate)" class="h-3.5 w-3.5 inline ml-1 text-warning" />
-                </TableCell>
-                <TableCell>
-                  <StatusBadge :label="participantStatusLabel(row).label" :tone="participantStatusLabel(row).tone" />
-                </TableCell>
-                <TableCell>
-                  <NuxtLink :to="`/client/participants/${row.traveler.id}`">
-                    <Button size="sm" variant="ghost">
-                      Detail
-                    </Button>
-                  </NuxtLink>
-                </TableCell>
-              </TableRow>
-              <TableEmpty v-if="filteredRows.length === 0" :colspan="6">
-                <EmptyState :icon="Users" :title="rows.length ? 'Tidak ada peserta yang cocok' : 'Belum ada peserta'" :description="rows.length ? 'Coba ubah kata kunci pencarian atau filter.' : 'Tambahkan peserta ke Project Order Anda.'" />
-              </TableEmpty>
-            </TableBody>
-          </Table>
-        </div>
+        <ResponsiveDataView v-if="filteredRows.length" :items="filteredRows" :get-key="row => row.traveler.id">
+          <template #desktop="{ items }">
+            <div class="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead />
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Paspor</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in items" :key="row.traveler.id">
+                    <TableCell>
+                      <Checkbox :model-value="selectedIds.includes(row.traveler.id)" @update:model-value="toggleSelect(row.traveler.id)" />
+                    </TableCell>
+                    <TableCell class="font-medium text-foreground">
+                      <NuxtLink :to="`/client/participants/${row.traveler.id}`" class="hover:underline">
+                        {{ row.traveler.name }}
+                      </NuxtLink>
+                      <Star v-if="row.traveler.isVip" class="h-3.5 w-3.5 inline ml-1.5 text-warning fill-warning" />
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.project.name }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.traveler.passportNumber || '—' }}
+                      <AlertTriangle v-if="isPassportExpiringSoon(row.traveler.passportExpiryDate)" class="h-3.5 w-3.5 inline ml-1 text-warning" />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge :label="participantStatusLabel(row).label" :tone="participantStatusLabel(row).tone" />
+                    </TableCell>
+                    <TableCell>
+                      <NuxtLink :to="`/client/participants/${row.traveler.id}`">
+                        <Button size="sm" variant="ghost">
+                          Detail
+                        </Button>
+                      </NuxtLink>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-start gap-2 min-w-0">
+                  <Checkbox class="mt-0.5" :model-value="selectedIds.includes(row.traveler.id)" @update:model-value="toggleSelect(row.traveler.id)" />
+                  <div class="min-w-0">
+                    <NuxtLink :to="`/client/participants/${row.traveler.id}`" class="text-sm font-medium text-foreground hover:underline">
+                      {{ row.traveler.name }}
+                      <Star v-if="row.traveler.isVip" class="h-3.5 w-3.5 inline ml-1 text-warning fill-warning" />
+                    </NuxtLink>
+                    <p class="text-xs text-muted-foreground">
+                      {{ row.project.name }}
+                    </p>
+                  </div>
+                </div>
+                <StatusBadge :label="participantStatusLabel(row).label" :tone="participantStatusLabel(row).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Paspor
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.traveler.passportNumber || '—' }}
+                    <AlertTriangle v-if="isPassportExpiringSoon(row.traveler.passportExpiryDate)" class="h-3.5 w-3.5 inline ml-1 text-warning" />
+                  </p>
+                </div>
+              </div>
+              <NuxtLink :to="`/client/participants/${row.traveler.id}`" class="mt-3 inline-block text-xs text-primary hover:underline">
+                Detail →
+              </NuxtLink>
+            </div>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState
+          v-else
+          :icon="Users"
+          :title="rows.length ? 'Tidak ada peserta yang cocok' : 'Belum ada peserta'"
+          :description="rows.length ? 'Coba ubah kata kunci pencarian atau filter.' : 'Tambahkan peserta ke Project Order Anda.'"
+        />
       </SectionCard>
     </template>
 

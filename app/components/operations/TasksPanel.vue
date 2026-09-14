@@ -254,48 +254,80 @@ function submitForm () {
     </div>
 
     <SectionCard v-else flush>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Judul</TableHead>
-            <TableHead>Project</TableHead>
-            <TableHead>Status</TableHead>
-            <TableHead>Due Date</TableHead>
-            <TableHead>Assignee</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow v-for="task in filteredTasks" :key="task.id">
-            <TableCell class="max-w-[280px]">
-              <div class="flex flex-wrap items-center gap-1.5">
-                <span v-if="task.isMilestone" class="shrink-0 rounded-full border border-primary/30 bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">Milestone</span>
-                <p class="truncate font-medium text-foreground">
-                  {{ task.title }}
-                </p>
-                <StatusBadge v-if="task.isBlocked" label="Blocked" tone="destructive" />
-              </div>
-            </TableCell>
-            <TableCell class="text-muted-foreground">
-              <NuxtLink v-if="task.projectId" :to="`/project-orders/${task.projectId}?tab=tasks`" class="text-primary hover:underline">
-                {{ getProjectById(task.projectId)?.name ?? task.projectId }}
-              </NuxtLink>
-              <span v-else>Tidak terkait project</span>
-            </TableCell>
-            <TableCell>
+      <ResponsiveDataView v-if="filteredTasks.length" :items="filteredTasks" :get-key="task => task.id">
+        <template #desktop="{ items }">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Judul</TableHead>
+                <TableHead>Project</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Due Date</TableHead>
+                <TableHead>Assignee</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="task in items" :key="task.id">
+                <TableCell class="max-w-[280px]">
+                  <div class="flex flex-wrap items-center gap-1.5">
+                    <span v-if="task.isMilestone" class="shrink-0 rounded-full border border-primary/30 bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">Milestone</span>
+                    <p class="truncate font-medium text-foreground">
+                      {{ task.title }}
+                    </p>
+                    <StatusBadge v-if="task.isBlocked" label="Blocked" tone="destructive" />
+                  </div>
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  <NuxtLink v-if="task.projectId" :to="`/project-orders/${task.projectId}?tab=tasks`" class="text-primary hover:underline">
+                    {{ getProjectById(task.projectId)?.name ?? task.projectId }}
+                  </NuxtLink>
+                  <span v-else>Tidak terkait project</span>
+                </TableCell>
+                <TableCell>
+                  <StatusBadge :label="findStatusOption(TASK_STATUSES, task.status).label" :tone="findStatusOption(TASK_STATUSES, task.status).tone" />
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ task.dueAt ? formatDate(task.dueAt) : '—' }}
+                </TableCell>
+                <TableCell class="text-muted-foreground">
+                  {{ task.assignedTo ? (getUserById(task.assignedTo)?.name ?? task.assignedTo) : '—' }}
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </template>
+
+        <template #mobile-card="{ item: task }">
+          <div class="rounded-xl border border-border bg-card p-4">
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span v-if="task.isMilestone" class="shrink-0 rounded-full border border-primary/30 bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">Milestone</span>
+              <p class="flex-1 truncate text-sm font-medium text-foreground">
+                {{ task.title }}
+              </p>
+              <StatusBadge v-if="task.isBlocked" label="Blocked" tone="destructive" />
+            </div>
+            <NuxtLink v-if="task.projectId" :to="`/project-orders/${task.projectId}?tab=tasks`" class="mt-1 block truncate text-xs text-primary hover:underline">
+              {{ getProjectById(task.projectId)?.name ?? task.projectId }}
+            </NuxtLink>
+            <p v-else class="mt-1 text-xs text-muted-foreground">
+              Tidak terkait project
+            </p>
+            <div class="mt-3 flex items-center justify-between gap-2 text-xs">
               <StatusBadge :label="findStatusOption(TASK_STATUSES, task.status).label" :tone="findStatusOption(TASK_STATUSES, task.status).tone" />
-            </TableCell>
-            <TableCell class="text-muted-foreground">
-              {{ task.dueAt ? formatDate(task.dueAt) : '—' }}
-            </TableCell>
-            <TableCell class="text-muted-foreground">
-              {{ task.assignedTo ? (getUserById(task.assignedTo)?.name ?? task.assignedTo) : '—' }}
-            </TableCell>
-          </TableRow>
-          <TableEmpty v-if="filteredTasks.length === 0" :colspan="5">
-            Tidak ada task yang cocok dengan filter ini.
-          </TableEmpty>
-        </TableBody>
-      </Table>
+              <span class="text-muted-foreground">{{ task.dueAt ? formatDate(task.dueAt) : '—' }}</span>
+            </div>
+            <p class="mt-1 text-xs text-muted-foreground">
+              {{ task.assignedTo ? (getUserById(task.assignedTo)?.name ?? task.assignedTo) : 'Belum ditugaskan' }}
+            </p>
+          </div>
+        </template>
+      </ResponsiveDataView>
+
+      <EmptyState
+        v-else
+        title="Tidak ada task"
+        description="Tidak ada task yang cocok dengan filter ini."
+      />
     </SectionCard>
   </div>
 </template>

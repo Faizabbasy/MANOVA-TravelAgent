@@ -152,49 +152,98 @@ const maxCampaignRoas = computed(() => Math.max(1, ...campaigns.value.map(row =>
 
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
         <SectionCard title="Cost per Trip" description="Biaya nyata per project dan per traveler, beserta marginnya.">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Project</TableHead>
-                <TableHead class="text-right">
-                  Biaya
-                </TableHead>
-                <TableHead class="text-right">
-                  Per Traveler
-                </TableHead>
-                <TableHead class="text-right">
-                  Margin
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="row in costPerTrip" :key="row.project.id">
-                <TableCell>
-                  <NuxtLink :to="`/project-orders/${row.project.id}`" class="text-sm font-medium text-foreground hover:text-primary">
-                    {{ row.project.name }}
-                  </NuxtLink>
-                  <p class="text-xs text-muted-foreground">
-                    {{ row.partyName }} · {{ row.project.travelerCount }} pax
-                  </p>
-                </TableCell>
-                <TableCell class="text-right text-sm text-foreground">
-                  {{ formatCurrencyIdr(row.costIdr) }}
-                </TableCell>
-                <TableCell class="text-right text-sm text-muted-foreground">
-                  {{ formatCurrencyIdr(row.costPerTravelerIdr) }}
-                </TableCell>
-                <TableCell class="text-right">
+          <ResponsiveDataView :items="costPerTrip" :get-key="row => row.project.id">
+            <template #desktop="{ items }">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Project</TableHead>
+                    <TableHead class="text-right">
+                      Biaya
+                    </TableHead>
+                    <TableHead class="text-right">
+                      Per Traveler
+                    </TableHead>
+                    <TableHead class="text-right">
+                      Margin
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in items" :key="row.project.id">
+                    <TableCell>
+                      <NuxtLink :to="`/project-orders/${row.project.id}`" class="text-sm font-medium text-foreground hover:text-primary">
+                        {{ row.project.name }}
+                      </NuxtLink>
+                      <p class="text-xs text-muted-foreground">
+                        {{ row.partyName }} · {{ row.project.travelerCount }} pax
+                      </p>
+                    </TableCell>
+                    <TableCell class="text-right text-sm text-foreground">
+                      {{ formatCurrencyIdr(row.costIdr) }}
+                    </TableCell>
+                    <TableCell class="text-right text-sm text-muted-foreground">
+                      {{ formatCurrencyIdr(row.costPerTravelerIdr) }}
+                    </TableCell>
+                    <TableCell class="text-right">
+                      <span
+                        class="text-sm font-semibold"
+                        :class="row.marginPercent >= 20 ? 'text-success' : row.marginPercent >= 0 ? 'text-warning' : 'text-destructive'"
+                      >{{ formatPercentage(row.marginPercent, 1) }}</span>
+                      <p class="text-xs text-muted-foreground">
+                        {{ formatCurrencyIdr(row.marginIdr) }}
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </template>
+
+            <template #mobile-card="{ item: row }">
+              <NuxtLink :to="`/project-orders/${row.project.id}`" class="block rounded-xl border border-border bg-card p-4">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ row.project.name }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ row.partyName }} · {{ row.project.travelerCount }} pax
+                    </p>
+                  </div>
                   <span
-                    class="text-sm font-semibold"
+                    class="shrink-0 text-sm font-semibold"
                     :class="row.marginPercent >= 20 ? 'text-success' : row.marginPercent >= 0 ? 'text-warning' : 'text-destructive'"
                   >{{ formatPercentage(row.marginPercent, 1) }}</span>
-                  <p class="text-xs text-muted-foreground">
-                    {{ formatCurrencyIdr(row.marginIdr) }}
-                  </p>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Biaya
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(row.costIdr) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Per Traveler
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(row.costPerTravelerIdr) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Margin
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(row.marginIdr) }}
+                    </p>
+                  </div>
+                </div>
+              </NuxtLink>
+            </template>
+          </ResponsiveDataView>
         </SectionCard>
 
         <SectionCard title="Vendor Performance" description="Konsentrasi belanja dan cakupan project per vendor.">
@@ -280,38 +329,71 @@ const maxCampaignRoas = computed(() => Math.max(1, ...campaigns.value.map(row =>
 
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
         <SectionCard title="Akuisisi per Channel">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Channel</TableHead>
-                <TableHead class="text-center">
-                  Lead
-                </TableHead>
-                <TableHead class="text-right">
-                  Belanja
-                </TableHead>
-                <TableHead class="text-right">
-                  CAC
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="row in channels" :key="row.channel">
-                <TableCell class="text-sm text-foreground">
-                  {{ row.channelLabel }}
-                </TableCell>
-                <TableCell class="text-center text-sm text-foreground">
-                  {{ row.leads }}
-                </TableCell>
-                <TableCell class="text-right text-sm text-muted-foreground">
-                  {{ formatCurrencyIdr(row.spendIdr) }}
-                </TableCell>
-                <TableCell class="text-right text-sm font-medium text-foreground">
-                  {{ row.cacIdr ? formatCurrencyIdr(row.cacIdr) : '—' }}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          <ResponsiveDataView :items="channels" :get-key="row => row.channel">
+            <template #desktop="{ items }">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Channel</TableHead>
+                    <TableHead class="text-center">
+                      Lead
+                    </TableHead>
+                    <TableHead class="text-right">
+                      Belanja
+                    </TableHead>
+                    <TableHead class="text-right">
+                      CAC
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in items" :key="row.channel">
+                    <TableCell class="text-sm text-foreground">
+                      {{ row.channelLabel }}
+                    </TableCell>
+                    <TableCell class="text-center text-sm text-foreground">
+                      {{ row.leads }}
+                    </TableCell>
+                    <TableCell class="text-right text-sm text-muted-foreground">
+                      {{ formatCurrencyIdr(row.spendIdr) }}
+                    </TableCell>
+                    <TableCell class="text-right text-sm font-medium text-foreground">
+                      {{ row.cacIdr ? formatCurrencyIdr(row.cacIdr) : '—' }}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </template>
+
+            <template #mobile-card="{ item: row }">
+              <div class="rounded-xl border border-border bg-card p-4">
+                <div class="flex items-start justify-between gap-2">
+                  <p class="text-sm font-medium text-foreground">
+                    {{ row.channelLabel }}
+                  </p>
+                  <span class="text-sm font-medium text-foreground">{{ row.cacIdr ? formatCurrencyIdr(row.cacIdr) : '—' }}</span>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Lead
+                    </p>
+                    <p class="text-foreground">
+                      {{ row.leads }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Belanja
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(row.spendIdr) }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </ResponsiveDataView>
         </SectionCard>
 
         <SectionCard title="Operasional & Sumber Daya">

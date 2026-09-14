@@ -62,33 +62,80 @@ const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
       </SectionCard>
 
       <SectionCard title="Detail per Sumber">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Sumber</TableHead>
-              <TableHead>Total Leads</TableHead>
-              <TableHead>Qualified</TableHead>
-              <TableHead>Deals Created</TableHead>
-              <TableHead>Won</TableHead>
-              <TableHead>Conversion Rate</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in sourceRecapRows" :key="row.source.value">
-              <TableCell>
+        <ResponsiveDataView :items="sourceRecapRows" :get-key="row => row.source.value">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sumber</TableHead>
+                  <TableHead>Total Leads</TableHead>
+                  <TableHead>Qualified</TableHead>
+                  <TableHead>Deals Created</TableHead>
+                  <TableHead>Won</TableHead>
+                  <TableHead>Conversion Rate</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.source.value">
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(LEAD_SOURCES, row.source.value).label" :tone="findStatusOption(LEAD_SOURCES, row.source.value).tone" />
+                  </TableCell>
+                  <TableCell>{{ row.totalLeads }}</TableCell>
+                  <TableCell>{{ row.qualifiedLeads }}</TableCell>
+                  <TableCell>{{ row.dealsCreated }}</TableCell>
+                  <TableCell>{{ row.won }}</TableCell>
+                  <TableCell>{{ formatPercentage(row.conversionRatePct) }}</TableCell>
+                </TableRow>
+                <TableEmpty v-if="items.length === 0" :colspan="6">
+                  Belum ada data lead.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
                 <StatusBadge :label="findStatusOption(LEAD_SOURCES, row.source.value).label" :tone="findStatusOption(LEAD_SOURCES, row.source.value).tone" />
-              </TableCell>
-              <TableCell>{{ row.totalLeads }}</TableCell>
-              <TableCell>{{ row.qualifiedLeads }}</TableCell>
-              <TableCell>{{ row.dealsCreated }}</TableCell>
-              <TableCell>{{ row.won }}</TableCell>
-              <TableCell>{{ formatPercentage(row.conversionRatePct) }}</TableCell>
-            </TableRow>
-            <TableEmpty v-if="sourceRecapRows.length === 0" :colspan="6">
-              Belum ada data lead.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+                <span class="text-xs font-medium text-foreground">{{ formatPercentage(row.conversionRatePct) }}</span>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Total Leads
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.totalLeads }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Qualified
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.qualifiedLeads }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Deals Created
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.dealsCreated }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Won
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.won }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

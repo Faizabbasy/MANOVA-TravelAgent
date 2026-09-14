@@ -211,45 +211,98 @@ function cancelDuplicateCreate () {
       </div>
 
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>PNR</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Rute</TableHead>
-              <TableHead>Traveler</TableHead>
-              <TableHead>Deadline</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.booking.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/ticketing/${row.booking.id}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ row.booking.pnr ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.project?.name ?? row.booking.projectId }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ routeLabel(row.booking) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.booking.travelerIds.length }} pax
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.booking.ticketingDeadline ? formatDate(row.booking.ticketingDeadline) : '—' }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).tone" /></TableCell>
-              <TableCell>
-                <Eye class="h-4 w-4 text-muted-foreground" />
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="7">
-              {{ searchQuery || statusFilter !== 'all' || projectFilter !== 'all' ? 'Tidak ada Flight Booking yang cocok dengan filter.' : 'Belum ada Flight Booking.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView v-if="rows.length" :items="rows" :get-key="row => row.booking.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>PNR</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Rute</TableHead>
+                  <TableHead>Traveler</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.booking.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/ticketing/${row.booking.id}`)">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.booking.pnr ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? row.booking.projectId }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ routeLabel(row.booking) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.booking.travelerIds.length }} pax
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.booking.ticketingDeadline ? formatDate(row.booking.ticketingDeadline) : '—' }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).tone" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="navigateTo(`/ticketing/${row.booking.id}`)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.booking.pnr ?? '—' }}
+                  </p>
+                  <p class="text-xs text-muted-foreground truncate">
+                    {{ row.project?.name ?? row.booking.projectId }}
+                  </p>
+                </div>
+                <StatusBadge :label="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Rute
+                  </p>
+                  <p class="text-foreground">
+                    {{ routeLabel(row.booking) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Traveler
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.booking.travelerIds.length }} pax
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Deadline
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.booking.ticketingDeadline ? formatDate(row.booking.ticketingDeadline) : '—' }}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState
+          v-else
+          title="Tidak ada Flight Booking"
+          :description="searchQuery || statusFilter !== 'all' || projectFilter !== 'all' ? 'Tidak ada Flight Booking yang cocok dengan filter.' : 'Belum ada Flight Booking.'"
+        />
       </SectionCard>
     </template>
   </div>

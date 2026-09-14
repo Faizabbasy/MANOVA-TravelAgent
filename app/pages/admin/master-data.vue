@@ -297,7 +297,7 @@ function reactivateItem (item: Record<string, any>) {
       <!-- Active category detail -->
       <SectionCard :title="activeCategory.label" :description="activeCategory.description">
         <template #actions>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <select
               v-model="activeFilter"
               class="appearance-none px-3 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
@@ -324,61 +324,110 @@ function reactivateItem (item: Record<string, any>) {
           description="Tidak ada item yang cocok dengan filter saat ini."
         />
 
-        <div v-else class="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead v-for="field in activeCategory.fields" :key="field.key">
-                  {{ field.label }}
-                </TableHead>
-                <TableHead class="text-center">
-                  Status
-                </TableHead>
-                <TableHead v-if="canEdit" class="text-right">
-                  Aksi
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="item in displayedItems" :key="item.id">
-                <TableCell class="font-mono text-xs text-muted-foreground">
-                  {{ item.id }}
-                </TableCell>
-                <TableCell v-for="field in activeCategory.fields" :key="field.key" class="text-sm text-foreground max-w-[240px]">
-                  <span v-if="field.type === 'textarea'" class="line-clamp-2 text-muted-foreground">{{ item[field.key] || '—' }}</span>
-                  <span v-else>{{ item[field.key] ?? '—' }}</span>
-                </TableCell>
-                <TableCell class="text-center">
-                  <StatusBadge :label="item.isActive ? 'Aktif' : 'Non-aktif'" :tone="item.isActive ? 'success' : 'neutral'" />
-                </TableCell>
-                <TableCell v-if="canEdit" class="text-right">
-                  <div class="flex items-center justify-end gap-1">
-                    <button class="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground" title="Edit" @click="openEdit(item)">
-                      <Pencil class="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      v-if="item.isActive"
-                      class="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive"
-                      title="Nonaktifkan"
-                      @click="requestDeactivate(item)"
-                    >
-                      <Ban class="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      v-else
-                      class="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-success"
-                      title="Aktifkan Kembali"
-                      @click="reactivateItem(item)"
-                    >
-                      <RotateCcw class="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
+        <ResponsiveDataView v-else :items="displayedItems" :get-key="item => item.id">
+          <template #desktop="{ items }">
+            <div class="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead v-for="field in activeCategory.fields" :key="field.key">
+                      {{ field.label }}
+                    </TableHead>
+                    <TableHead class="text-center">
+                      Status
+                    </TableHead>
+                    <TableHead v-if="canEdit" class="text-right">
+                      Aksi
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="item in items" :key="item.id">
+                    <TableCell class="font-mono text-xs text-muted-foreground">
+                      {{ item.id }}
+                    </TableCell>
+                    <TableCell v-for="field in activeCategory.fields" :key="field.key" class="text-sm text-foreground max-w-[240px]">
+                      <span v-if="field.type === 'textarea'" class="line-clamp-2 text-muted-foreground">{{ item[field.key] || '—' }}</span>
+                      <span v-else>{{ item[field.key] ?? '—' }}</span>
+                    </TableCell>
+                    <TableCell class="text-center">
+                      <StatusBadge :label="item.isActive ? 'Aktif' : 'Non-aktif'" :tone="item.isActive ? 'success' : 'neutral'" />
+                    </TableCell>
+                    <TableCell v-if="canEdit" class="text-right">
+                      <div class="flex items-center justify-end gap-1">
+                        <button class="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground" title="Edit" @click="openEdit(item)">
+                          <Pencil class="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          v-if="item.isActive"
+                          class="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive"
+                          title="Nonaktifkan"
+                          @click="requestDeactivate(item)"
+                        >
+                          <Ban class="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          v-else
+                          class="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-success"
+                          title="Aktifkan Kembali"
+                          @click="reactivateItem(item)"
+                        >
+                          <RotateCcw class="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </template>
+
+          <template #mobile-card="{ item }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ itemDisplayName(item) }}
+                  </p>
+                  <p class="text-xs text-muted-foreground font-mono">
+                    {{ item.id }}
+                  </p>
+                </div>
+                <StatusBadge :label="item.isActive ? 'Aktif' : 'Non-aktif'" :tone="item.isActive ? 'success' : 'neutral'" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div v-for="field in activeCategory.fields" :key="field.key">
+                  <p class="text-muted-foreground">
+                    {{ field.label }}
+                  </p>
+                  <p class="text-foreground line-clamp-2">
+                    {{ item[field.key] || '—' }}
+                  </p>
+                </div>
+              </div>
+              <div v-if="canEdit" class="mt-3 flex items-center gap-3 border-t border-border pt-3">
+                <button class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" @click="openEdit(item)">
+                  <Pencil class="h-3.5 w-3.5" />Edit
+                </button>
+                <button
+                  v-if="item.isActive"
+                  class="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+                  @click="requestDeactivate(item)"
+                >
+                  <Ban class="h-3.5 w-3.5" />Nonaktifkan
+                </button>
+                <button
+                  v-else
+                  class="flex items-center gap-1 text-xs text-muted-foreground hover:text-success"
+                  @click="reactivateItem(item)"
+                >
+                  <RotateCcw class="h-3.5 w-3.5" />Aktifkan
+                </button>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <!-- Create/Edit dialog (generik, field dari CategoryDef) -->

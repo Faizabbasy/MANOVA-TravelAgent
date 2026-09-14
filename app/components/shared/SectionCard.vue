@@ -47,7 +47,7 @@ const showAccent = props.accent || props.size === 'hero'
       showAccent && `${props.compact ? 'border-l-2' : 'border-l-4'} ${ACCENT_BORDER[props.tone]}`
     )"
   >
-    <CardHeader v-if="title || $slots.header" :class="cn('flex flex-row items-start justify-between gap-3 space-y-0', props.compact ? 'pb-2.5' : 'gap-4 pb-4')">
+    <CardHeader v-if="title || $slots.header" :class="cn('flex flex-row flex-wrap items-start justify-between gap-3 space-y-0', props.compact ? 'pb-2.5' : 'gap-4 pb-4')">
       <div class="min-w-0">
         <slot name="header">
           <CardTitle :class="cn(props.compact ? 'text-xs font-semibold uppercase tracking-wide text-muted-foreground' : 'text-[0.9375rem] leading-6', props.size === 'hero' && 'text-lg', props.titleClass)">
@@ -58,7 +58,7 @@ const showAccent = props.accent || props.size === 'hero'
           </CardDescription>
         </slot>
       </div>
-      <div v-if="$slots.actions" class="flex shrink-0 items-center gap-2">
+      <div v-if="$slots.actions" class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
         <slot name="actions" />
       </div>
     </CardHeader>

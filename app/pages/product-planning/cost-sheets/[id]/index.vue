@@ -205,33 +205,66 @@ function submitApplyToQuotation () {
       </SectionCard>
 
       <SectionCard title="Line Items">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Layanan</TableHead>
-              <TableHead>Deskripsi</TableHead>
-              <TableHead>Biaya / Pax</TableHead>
-              <TableHead>Total ({{ costSheet.travelerCount }} pax)</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(item, index) in costSheet.lineItems" :key="index">
-              <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, item.service).label" :tone="findStatusOption(SERVICE_TYPES, item.service).tone" /></TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ item.description ?? '—' }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(item.costPerPaxIdr) }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(item.costPerPaxIdr * costSheet.travelerCount) }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="costSheet.lineItems.length === 0" :colspan="4">
-              Belum ada line item biaya.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="costSheet.lineItems" :get-key="(item, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Layanan</TableHead>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Biaya / Pax</TableHead>
+                  <TableHead>Total ({{ costSheet.travelerCount }} pax)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(item, index) in items" :key="index">
+                  <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, item.service).label" :tone="findStatusOption(SERVICE_TYPES, item.service).tone" /></TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ item.description ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(item.costPerPaxIdr) }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(item.costPerPaxIdr * costSheet.travelerCount) }}
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="costSheet.lineItems.length === 0" :colspan="4">
+                  Belum ada line item biaya.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm text-foreground">
+                  {{ item.description ?? '—' }}
+                </p>
+                <StatusBadge :label="findStatusOption(SERVICE_TYPES, item.service).label" :tone="findStatusOption(SERVICE_TYPES, item.service).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Biaya / Pax
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(item.costPerPaxIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Total ({{ costSheet.travelerCount }} pax)
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(item.costPerPaxIdr * costSheet.travelerCount) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
 
         <div v-if="breakdown" class="mt-4 pt-4 border-t border-border grid gap-2 sm:grid-cols-2 max-w-xl">
           <div class="flex items-center justify-between text-sm">
@@ -380,7 +413,7 @@ function submitApplyToQuotation () {
                 <Input id="edit-cs-pax" v-model.number="editTravelerCount" type="number" />
               </div>
             </div>
-            <div class="grid grid-cols-4 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
               <div class="space-y-1.5">
                 <Label for="edit-cs-currency">Currency</Label>
                 <Input id="edit-cs-currency" v-model="editCurrency" placeholder="IDR" />

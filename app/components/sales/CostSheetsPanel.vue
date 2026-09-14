@@ -145,7 +145,7 @@ function submitCreate () {
               <Label for="cs-pax">Traveler Count</Label>
               <Input id="cs-pax" v-model.number="newTravelerCount" type="number" placeholder="mis. 25" />
             </div>
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div class="space-y-1.5">
                 <Label for="cs-markup">Markup (%)</Label>
                 <Input id="cs-markup" v-model.number="newMarkupPercent" type="number" placeholder="0" />
@@ -202,50 +202,106 @@ function submitCreate () {
       </div>
 
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama Cost Sheet</TableHead>
-              <TableHead>Lead</TableHead>
-              <TableHead>Traveler</TableHead>
-              <TableHead>Total Sell</TableHead>
-              <TableHead>Versi</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.sheet.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/product-planning/cost-sheets/${row.sheet.id}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ row.sheet.name }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ leadLabel(row.sheet.leadId) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.sheet.travelerCount }} pax
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(row.breakdown.totalSellIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                v{{ row.sheet.version }}
-              </TableCell>
-              <TableCell>
-                <div class="flex items-center gap-1.5">
+        <ResponsiveDataView :items="rows" :get-key="row => row.sheet.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama Cost Sheet</TableHead>
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Traveler</TableHead>
+                  <TableHead>Total Sell</TableHead>
+                  <TableHead>Versi</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.sheet.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/product-planning/cost-sheets/${row.sheet.id}`)">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.sheet.name }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ leadLabel(row.sheet.leadId) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.sheet.travelerCount }} pax
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(row.breakdown.totalSellIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    v{{ row.sheet.version }}
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex items-center gap-1.5">
+                      <StatusBadge :label="row.sheet.status === 'final' ? 'Final' : 'Draft'" :tone="row.sheet.status === 'final' ? 'success' : 'neutral'" />
+                      <StatusBadge v-if="row.sheet.appliedToQuotationId" label="Applied" tone="info" />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="items.length === 0" :colspan="7">
+                  {{ searchQuery || statusFilter !== 'all' || leadFilter !== 'all' ? 'Tidak ada Cost Sheet yang cocok dengan filter.' : 'Belum ada Cost Sheet.' }}
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="navigateTo(`/product-planning/cost-sheets/${row.sheet.id}`)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground truncate">
+                  {{ row.sheet.name }}
+                </p>
+                <div class="flex shrink-0 items-center gap-1.5">
                   <StatusBadge :label="row.sheet.status === 'final' ? 'Final' : 'Draft'" :tone="row.sheet.status === 'final' ? 'success' : 'neutral'" />
                   <StatusBadge v-if="row.sheet.appliedToQuotationId" label="Applied" tone="info" />
                 </div>
-              </TableCell>
-              <TableCell>
-                <Eye class="h-4 w-4 text-muted-foreground" />
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="7">
-              {{ searchQuery || statusFilter !== 'all' || leadFilter !== 'all' ? 'Tidak ada Cost Sheet yang cocok dengan filter.' : 'Belum ada Cost Sheet.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Lead
+                  </p>
+                  <p class="text-foreground">
+                    {{ leadLabel(row.sheet.leadId) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Traveler
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.sheet.travelerCount }} pax
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Total Sell
+                  </p>
+                  <p class="text-foreground font-medium">
+                    {{ formatCurrencyIdr(row.breakdown.totalSellIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Versi
+                  </p>
+                  <p class="text-foreground">
+                    v{{ row.sheet.version }}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

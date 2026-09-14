@@ -240,77 +240,134 @@ const quickLinkTiles = computed<StatTile[]>(() => [
         </template>
 
         <template v-if="closureReadiness.length">
-          <div class="overflow-x-auto border-t border-border">
-            <Table class="w-full min-w-[860px]">
-              <TableHeader>
-                <TableRow class="bg-muted/40 hover:bg-muted/40">
-                  <TableHead class="w-10 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    No
-                  </TableHead>
-                  <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Project
-                  </TableHead>
-                  <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Status Finance
-                  </TableHead>
-                  <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Invoice
-                  </TableHead>
-                  <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Payment
-                  </TableHead>
-                  <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    AR/AP
-                  </TableHead>
-                  <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Notes
-                  </TableHead>
-                  <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Aksi
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="(row, index) in closureReadiness" :key="row.project.id">
-                  <TableCell class="px-4 py-3 text-xs text-muted-foreground">
-                    {{ index + 1 }}
-                  </TableCell>
-                  <TableCell class="px-4 py-3">
+          <ResponsiveDataView :items="closureReadiness" :get-key="row => row.project.id">
+            <template #desktop="{ items }">
+              <div class="overflow-x-auto border-t border-border">
+                <Table class="w-full min-w-[860px]">
+                  <TableHeader>
+                    <TableRow class="bg-muted/40 hover:bg-muted/40">
+                      <TableHead class="w-10 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        No
+                      </TableHead>
+                      <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Project
+                      </TableHead>
+                      <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Status Finance
+                      </TableHead>
+                      <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Invoice
+                      </TableHead>
+                      <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Payment
+                      </TableHead>
+                      <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        AR/AP
+                      </TableHead>
+                      <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Notes
+                      </TableHead>
+                      <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Aksi
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="(row, index) in items" :key="row.project.id">
+                      <TableCell class="px-4 py-3 text-xs text-muted-foreground">
+                        {{ index + 1 }}
+                      </TableCell>
+                      <TableCell class="px-4 py-3">
+                        <p class="text-sm font-medium text-foreground">
+                          {{ row.project.name }}
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                          {{ row.project.destination }}
+                        </p>
+                      </TableCell>
+                      <TableCell class="px-4 py-3">
+                        <StatusBadge :label="row.status.label" :tone="row.status.tone" />
+                      </TableCell>
+                      <TableCell class="px-4 py-3 text-sm tabular-nums text-foreground">
+                        {{ row.invoiceLabel }}
+                      </TableCell>
+                      <TableCell class="px-4 py-3 text-sm tabular-nums text-foreground">
+                        {{ row.paymentLabel }}
+                      </TableCell>
+                      <TableCell class="px-4 py-3">
+                        <span class="inline-flex items-center gap-1 text-sm tabular-nums" :class="row.arApCount > 0 ? 'text-warning' : 'text-muted-foreground'">
+                          <AlertTriangle v-if="row.arApCount > 0" class="h-3.5 w-3.5" />{{ row.arApCount }}
+                        </span>
+                      </TableCell>
+                      <TableCell class="px-4 py-3">
+                        <span class="inline-flex items-center gap-1 text-sm tabular-nums text-muted-foreground">
+                          <FileStack class="h-3.5 w-3.5" />{{ row.notesCount }}
+                        </span>
+                      </TableCell>
+                      <TableCell class="px-4 py-3 text-right">
+                        <NuxtLink :to="`/project-orders/${row.project.id}?tab=finance`" class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+                          Lihat Detail<ChevronRight class="h-3.5 w-3.5" />
+                        </NuxtLink>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </template>
+
+            <template #mobile-card="{ item: row }">
+              <div class="rounded-xl border border-border bg-card p-4">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
                     <p class="text-sm font-medium text-foreground">
                       {{ row.project.name }}
                     </p>
                     <p class="text-xs text-muted-foreground">
                       {{ row.project.destination }}
                     </p>
-                  </TableCell>
-                  <TableCell class="px-4 py-3">
-                    <StatusBadge :label="row.status.label" :tone="row.status.tone" />
-                  </TableCell>
-                  <TableCell class="px-4 py-3 text-sm tabular-nums text-foreground">
-                    {{ row.invoiceLabel }}
-                  </TableCell>
-                  <TableCell class="px-4 py-3 text-sm tabular-nums text-foreground">
-                    {{ row.paymentLabel }}
-                  </TableCell>
-                  <TableCell class="px-4 py-3">
-                    <span class="inline-flex items-center gap-1 text-sm tabular-nums" :class="row.arApCount > 0 ? 'text-warning' : 'text-muted-foreground'">
+                  </div>
+                  <StatusBadge :label="row.status.label" :tone="row.status.tone" />
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Invoice
+                    </p>
+                    <p class="text-foreground">
+                      {{ row.invoiceLabel }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Payment
+                    </p>
+                    <p class="text-foreground">
+                      {{ row.paymentLabel }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      AR/AP
+                    </p>
+                    <p class="inline-flex items-center gap-1" :class="row.arApCount > 0 ? 'text-warning' : 'text-foreground'">
                       <AlertTriangle v-if="row.arApCount > 0" class="h-3.5 w-3.5" />{{ row.arApCount }}
-                    </span>
-                  </TableCell>
-                  <TableCell class="px-4 py-3">
-                    <span class="inline-flex items-center gap-1 text-sm tabular-nums text-muted-foreground">
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Notes
+                    </p>
+                    <p class="inline-flex items-center gap-1 text-foreground">
                       <FileStack class="h-3.5 w-3.5" />{{ row.notesCount }}
-                    </span>
-                  </TableCell>
-                  <TableCell class="px-4 py-3 text-right">
-                    <NuxtLink :to="`/project-orders/${row.project.id}?tab=finance`" class="inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
-                      Lihat Detail<ChevronRight class="h-3.5 w-3.5" />
-                    </NuxtLink>
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
+                    </p>
+                  </div>
+                </div>
+                <NuxtLink :to="`/project-orders/${row.project.id}?tab=finance`" class="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline">
+                  Lihat Detail<ChevronRight class="h-3.5 w-3.5" />
+                </NuxtLink>
+              </div>
+            </template>
+          </ResponsiveDataView>
 
           <!-- Aktivitas Terbaru — highlight nyata (bukan feed generik), lihat computed `recentFinanceActivity`. -->
           <div v-if="recentFinanceActivity.length" class="grid grid-cols-1 gap-3 border-t border-border p-3 sm:grid-cols-2 lg:grid-cols-4">

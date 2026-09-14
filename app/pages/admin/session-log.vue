@@ -55,47 +55,107 @@ function durationLabel (log: ReturnType<typeof getSessionLogs>[number]): string 
       </div>
 
       <SectionCard description="Diurutkan dari login terbaru. Sesi tanpa waktu logout berarti user masih aktif.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>User</TableHead>
-              <TableHead>Login</TableHead>
-              <TableHead>Logout</TableHead>
-              <TableHead>Durasi</TableHead>
-              <TableHead>IP Address</TableHead>
-              <TableHead>Perangkat</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="log in logs" :key="log.id">
-              <TableCell class="text-sm font-medium text-foreground whitespace-nowrap">
-                {{ userLabel(log.userId) }}
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground whitespace-nowrap">
-                {{ formatDateTime(log.loginAt) }}
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground whitespace-nowrap">
-                {{ log.logoutAt ? formatDateTime(log.logoutAt) : '—' }}
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground whitespace-nowrap">
-                {{ durationLabel(log) }}
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground font-mono">
-                {{ log.ipAddress }}
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground">
-                {{ log.device }}
-              </TableCell>
-              <TableCell>
+        <ResponsiveDataView :items="logs" :get-key="log => log.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>User</TableHead>
+                  <TableHead>Login</TableHead>
+                  <TableHead>Logout</TableHead>
+                  <TableHead>Durasi</TableHead>
+                  <TableHead>IP Address</TableHead>
+                  <TableHead>Perangkat</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="log in items" :key="log.id">
+                  <TableCell class="text-sm font-medium text-foreground whitespace-nowrap">
+                    {{ userLabel(log.userId) }}
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground whitespace-nowrap">
+                    {{ formatDateTime(log.loginAt) }}
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground whitespace-nowrap">
+                    {{ log.logoutAt ? formatDateTime(log.logoutAt) : '—' }}
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground whitespace-nowrap">
+                    {{ durationLabel(log) }}
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground font-mono">
+                    {{ log.ipAddress }}
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ log.device }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="log.status === 'active' ? 'Aktif' : 'Berakhir'"
+                      :tone="log.status === 'active' ? 'success' : 'neutral'"
+                    />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: log }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground truncate">
+                  {{ userLabel(log.userId) }}
+                </p>
                 <StatusBadge
                   :label="log.status === 'active' ? 'Aktif' : 'Berakhir'"
                   :tone="log.status === 'active' ? 'success' : 'neutral'"
                 />
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Login
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDateTime(log.loginAt) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Logout
+                  </p>
+                  <p class="text-foreground">
+                    {{ log.logoutAt ? formatDateTime(log.logoutAt) : '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Durasi
+                  </p>
+                  <p class="text-foreground">
+                    {{ durationLabel(log) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    IP Address
+                  </p>
+                  <p class="text-foreground font-mono">
+                    {{ log.ipAddress }}
+                  </p>
+                </div>
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Perangkat
+                  </p>
+                  <p class="text-foreground">
+                    {{ log.device }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

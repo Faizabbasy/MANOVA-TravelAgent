@@ -176,70 +176,136 @@ function setStatus (entry: OpexEntry, status: OpexEntry['status']) {
       </SectionCard>
 
       <SectionCard title="Daftar Opex">
-        <Table v-if="entries.length">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Deskripsi</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Tanggal</TableHead>
-              <TableHead class="text-right">
-                Jumlah
-              </TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead v-if="canManage" class="text-right">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="entry in entries" :key="entry.id">
-              <TableCell>
-                <p class="text-sm font-medium text-foreground">
-                  {{ entry.description }}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  <template v-if="entry.vendorName">{{ entry.vendorName }} · </template>
-                  <template v-if="entry.submittedBy">diajukan {{ getUserById(entry.submittedBy)?.name ?? entry.submittedBy }}</template>
-                </p>
-                <NuxtLink
-                  v-if="entry.projectId"
-                  :to="`/project-orders/${entry.projectId}`"
-                  class="text-xs text-primary hover:underline"
-                >
-                  Dialokasikan ke {{ getProjectById(entry.projectId)?.name ?? entry.projectId }}
-                </NuxtLink>
-              </TableCell>
-              <TableCell>
-                <StatusBadge
-                  :label="findStatusOption(OPEX_CATEGORIES, entry.category).label"
-                  :tone="findStatusOption(OPEX_CATEGORIES, entry.category).tone"
-                />
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground">
-                {{ formatDate(entry.incurredAt) }}
-              </TableCell>
-              <TableCell class="text-right text-sm font-medium text-foreground">
-                {{ formatCurrencyIdr(entry.amountIdr) }}
-              </TableCell>
-              <TableCell>
+        <ResponsiveDataView v-if="entries.length" :items="entries" :get-key="entry => entry.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead class="text-right">
+                    Jumlah
+                  </TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead v-if="canManage" class="text-right">
+                    Aksi
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="entry in items" :key="entry.id">
+                  <TableCell>
+                    <p class="text-sm font-medium text-foreground">
+                      {{ entry.description }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      <template v-if="entry.vendorName">{{ entry.vendorName }} · </template>
+                      <template v-if="entry.submittedBy">diajukan {{ getUserById(entry.submittedBy)?.name ?? entry.submittedBy }}</template>
+                    </p>
+                    <NuxtLink
+                      v-if="entry.projectId"
+                      :to="`/project-orders/${entry.projectId}`"
+                      class="text-xs text-primary hover:underline"
+                    >
+                      Dialokasikan ke {{ getProjectById(entry.projectId)?.name ?? entry.projectId }}
+                    </NuxtLink>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(OPEX_CATEGORIES, entry.category).label"
+                      :tone="findStatusOption(OPEX_CATEGORIES, entry.category).tone"
+                    />
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ formatDate(entry.incurredAt) }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm font-medium text-foreground">
+                    {{ formatCurrencyIdr(entry.amountIdr) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(OPEX_STATUSES, entry.status).label"
+                      :tone="findStatusOption(OPEX_STATUSES, entry.status).tone"
+                    />
+                  </TableCell>
+                  <TableCell v-if="canManage" class="text-right">
+                    <div class="flex justify-end gap-1.5">
+                      <Button v-if="entry.status === 'submitted' || entry.status === 'draft'" variant="outline" size="sm" @click="setStatus(entry, 'approved')">
+                        Setujui
+                      </Button>
+                      <Button v-if="entry.status === 'approved'" size="sm" @click="setStatus(entry, 'paid')">
+                        Tandai Dibayar
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: entry }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ entry.description }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    <template v-if="entry.vendorName">{{ entry.vendorName }} · </template>
+                    <template v-if="entry.submittedBy">diajukan {{ getUserById(entry.submittedBy)?.name ?? entry.submittedBy }}</template>
+                  </p>
+                  <NuxtLink
+                    v-if="entry.projectId"
+                    :to="`/project-orders/${entry.projectId}`"
+                    class="text-xs text-primary hover:underline"
+                  >
+                    Dialokasikan ke {{ getProjectById(entry.projectId)?.name ?? entry.projectId }}
+                  </NuxtLink>
+                </div>
                 <StatusBadge
                   :label="findStatusOption(OPEX_STATUSES, entry.status).label"
                   :tone="findStatusOption(OPEX_STATUSES, entry.status).tone"
                 />
-              </TableCell>
-              <TableCell v-if="canManage" class="text-right">
-                <div class="flex justify-end gap-1.5">
-                  <Button v-if="entry.status === 'submitted' || entry.status === 'draft'" variant="outline" size="sm" @click="setStatus(entry, 'approved')">
-                    Setujui
-                  </Button>
-                  <Button v-if="entry.status === 'approved'" size="sm" @click="setStatus(entry, 'paid')">
-                    Tandai Dibayar
-                  </Button>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Kategori
+                  </p>
+                  <StatusBadge
+                    :label="findStatusOption(OPEX_CATEGORIES, entry.category).label"
+                    :tone="findStatusOption(OPEX_CATEGORIES, entry.category).tone"
+                  />
                 </div>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+                <div>
+                  <p class="text-muted-foreground">
+                    Tanggal
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(entry.incurredAt) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Jumlah
+                  </p>
+                  <p class="text-foreground font-medium">
+                    {{ formatCurrencyIdr(entry.amountIdr) }}
+                  </p>
+                </div>
+              </div>
+              <div v-if="canManage" class="mt-3 flex justify-end gap-1.5">
+                <Button v-if="entry.status === 'submitted' || entry.status === 'draft'" variant="outline" size="sm" @click="setStatus(entry, 'approved')">
+                  Setujui
+                </Button>
+                <Button v-if="entry.status === 'approved'" size="sm" @click="setStatus(entry, 'paid')">
+                  Tandai Dibayar
+                </Button>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
 
         <EmptyState v-else :icon="Wallet" title="Belum ada opex pada periode ini" />
       </SectionCard>
@@ -252,7 +318,7 @@ function setStatus (entry: OpexEntry, status: OpexEntry['status']) {
           </DialogHeader>
 
           <div class="space-y-3">
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label>Periode</Label>
                 <Input v-model="form.period" placeholder="2026-07" />

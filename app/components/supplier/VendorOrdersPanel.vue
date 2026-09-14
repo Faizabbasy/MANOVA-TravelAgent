@@ -79,39 +79,83 @@ const soldTotals = computed(() => soldSummary.value.reduce(
         title="Menunggu Konfirmasi"
         description="Selection Client yang sedang Soft Hold pada komoditas Anda — konfirmasi untuk membuat Order (held quantity dipindahkan menjadi booked)."
       >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Komoditas</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Kebutuhan Client</TableHead>
-              <TableHead>Hold Kadaluarsa</TableHead>
-              <TableHead>Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in pendingSelections" :key="row.selection.id">
-              <TableCell class="font-medium text-foreground">
-                {{ row.product?.name ?? row.selection.commodityProductId }}
-                <span v-if="row.variant" class="text-muted-foreground"> — {{ row.variant.name }}</span>
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.selection.quantity }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.requirement?.title ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.selection.holdExpiresAt ? formatDate(row.selection.holdExpiresAt) : '—' }}
-              </TableCell>
-              <TableCell>
-                <Button size="sm" @click="confirmSelection(row.selection.id)">
-                  Konfirmasi Order
-                </Button>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="pendingSelections" :get-key="row => row.selection.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Komoditas</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Kebutuhan Client</TableHead>
+                  <TableHead>Hold Kadaluarsa</TableHead>
+                  <TableHead>Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.selection.id">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.product?.name ?? row.selection.commodityProductId }}
+                    <span v-if="row.variant" class="text-muted-foreground"> — {{ row.variant.name }}</span>
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.selection.quantity }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.requirement?.title ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.selection.holdExpiresAt ? formatDate(row.selection.holdExpiresAt) : '—' }}
+                  </TableCell>
+                  <TableCell>
+                    <Button size="sm" @click="confirmSelection(row.selection.id)">
+                      Konfirmasi Order
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="font-medium text-foreground">
+                  {{ row.product?.name ?? row.selection.commodityProductId }}
+                  <span v-if="row.variant" class="text-muted-foreground"> — {{ row.variant.name }}</span>
+                </p>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Qty
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.selection.quantity }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Hold Kadaluarsa
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.selection.holdExpiresAt ? formatDate(row.selection.holdExpiresAt) : '—' }}
+                  </p>
+                </div>
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Kebutuhan Client
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.requirement?.title ?? '—' }}
+                  </p>
+                </div>
+              </div>
+              <Button size="sm" class="mt-3 w-full" @click="confirmSelection(row.selection.id)">
+                Konfirmasi Order
+              </Button>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 justify-between">
@@ -130,93 +174,192 @@ const soldTotals = computed(() => soldSummary.value.reduce(
       </div>
 
       <SectionCard title="Orders">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>ID</TableHead>
-              <TableHead>Komoditas</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Harga</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Dibuat</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow
-              v-for="order in orders"
-              :key="order.id"
-              class="cursor-pointer hover:bg-muted/50"
-              @click="navigateTo(`/supplier/commodity-orders/${order.id}`)"
-            >
-              <TableCell class="font-medium text-foreground">
-                {{ order.id }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ order.commodityNameSnapshot }}
-                <span v-if="order.variantNameSnapshot" class="text-muted-foreground"> — {{ order.variantNameSnapshot }}</span>
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ order.quantity }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(order.sellPriceIdrSnapshot) }}
-              </TableCell>
-              <TableCell>
+        <ResponsiveDataView :items="orders" :get-key="order => order.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>ID</TableHead>
+                  <TableHead>Komoditas</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Harga</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Dibuat</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow
+                  v-for="order in items"
+                  :key="order.id"
+                  class="cursor-pointer hover:bg-muted/50"
+                  @click="navigateTo(`/supplier/commodity-orders/${order.id}`)"
+                >
+                  <TableCell class="font-medium text-foreground">
+                    {{ order.id }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ order.commodityNameSnapshot }}
+                    <span v-if="order.variantNameSnapshot" class="text-muted-foreground"> — {{ order.variantNameSnapshot }}</span>
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ order.quantity }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(order.sellPriceIdrSnapshot) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(COMMODITY_ORDER_STATUSES, order.status).label" :tone="findStatusOption(COMMODITY_ORDER_STATUSES, order.status).tone" />
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(order.createdAt) }}
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="orders.length === 0" :colspan="6">
+                  {{ searchQuery || statusFilter !== 'all' ? 'Tidak ada Order yang cocok dengan filter.' : 'Belum ada Order untuk komoditas Anda.' }}
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: order }">
+            <button type="button" class="w-full text-left rounded-xl border border-border bg-card p-4" @click="navigateTo(`/supplier/commodity-orders/${order.id}`)">
+              <div class="flex items-start justify-between gap-2">
+                <p class="font-medium text-foreground">
+                  {{ order.commodityNameSnapshot }}
+                  <span v-if="order.variantNameSnapshot" class="text-muted-foreground"> — {{ order.variantNameSnapshot }}</span>
+                </p>
                 <StatusBadge :label="findStatusOption(COMMODITY_ORDER_STATUSES, order.status).label" :tone="findStatusOption(COMMODITY_ORDER_STATUSES, order.status).tone" />
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDate(order.createdAt) }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="orders.length === 0" :colspan="6">
-              {{ searchQuery || statusFilter !== 'all' ? 'Tidak ada Order yang cocok dengan filter.' : 'Belum ada Order untuk komoditas Anda.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    ID
+                  </p>
+                  <p class="text-foreground">
+                    {{ order.id }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Qty
+                  </p>
+                  <p class="text-foreground">
+                    {{ order.quantity }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Harga
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(order.sellPriceIdrSnapshot) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Dibuat
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(order.createdAt) }}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard title="Sold Commodities" description="Ringkasan komoditas yang sudah terjual — Confirmed, Booked, In Service, dan Completed dihitung sold; Soft Hold belum.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Komoditas</TableHead>
-              <TableHead>Qty Terjual</TableHead>
-              <TableHead>Jumlah Order</TableHead>
-              <TableHead>Revenue</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in soldSummary" :key="row.commodityProductId">
-              <TableCell class="font-medium text-foreground">
-                {{ row.commodityName }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.soldQuantity }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.orderCount }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(row.soldRevenueIdr) }}
-              </TableCell>
-            </TableRow>
-            <TableRow v-if="soldSummary.length">
-              <TableCell class="font-semibold text-foreground">
-                Total
-              </TableCell>
-              <TableCell class="font-semibold text-foreground">
-                {{ soldTotals.quantity }}
-              </TableCell>
-              <TableCell />
-              <TableCell class="font-semibold text-foreground">
-                {{ formatCurrencyIdr(soldTotals.revenue) }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="soldSummary.length === 0" :colspan="4">
-              Belum ada komoditas terjual — konfirmasi Selection Soft Hold di atas untuk mulai menghasilkan Order yang dihitung sebagai sold.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="soldSummary" :get-key="row => row.commodityProductId">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Komoditas</TableHead>
+                  <TableHead>Qty Terjual</TableHead>
+                  <TableHead>Jumlah Order</TableHead>
+                  <TableHead>Revenue</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.commodityProductId">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.commodityName }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.soldQuantity }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.orderCount }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(row.soldRevenueIdr) }}
+                  </TableCell>
+                </TableRow>
+                <TableRow v-if="soldSummary.length">
+                  <TableCell class="font-semibold text-foreground">
+                    Total
+                  </TableCell>
+                  <TableCell class="font-semibold text-foreground">
+                    {{ soldTotals.quantity }}
+                  </TableCell>
+                  <TableCell />
+                  <TableCell class="font-semibold text-foreground">
+                    {{ formatCurrencyIdr(soldTotals.revenue) }}
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="soldSummary.length === 0" :colspan="4">
+                  Belum ada komoditas terjual — konfirmasi Selection Soft Hold di atas untuk mulai menghasilkan Order yang dihitung sebagai sold.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="font-medium text-foreground">
+                  {{ row.commodityName }}
+                </p>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Qty Terjual
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.soldQuantity }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Jumlah Order
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.orderCount }}
+                  </p>
+                </div>
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Revenue
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(row.soldRevenueIdr) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+        <div v-if="soldSummary.length" class="mt-3 rounded-xl border border-border bg-muted/30 p-4 text-xs sm:hidden">
+          <div class="flex items-center justify-between font-semibold text-foreground">
+            <span>Total</span>
+            <span>{{ soldTotals.quantity }} qty</span>
+          </div>
+          <p class="mt-1 text-right font-semibold text-foreground">
+            {{ formatCurrencyIdr(soldTotals.revenue) }}
+          </p>
+        </div>
       </SectionCard>
     </template>
   </div>

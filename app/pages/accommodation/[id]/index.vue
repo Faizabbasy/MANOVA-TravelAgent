@@ -255,50 +255,94 @@ function submitEdit () {
       </SectionCard>
 
       <SectionCard title="Hotel Options" description="Property, room type, rate plan, meal plan, dan policies per opsi yang dibandingkan.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Property</TableHead>
-              <TableHead>Room Type</TableHead>
-              <TableHead>Rate Plan</TableHead>
-              <TableHead>Meal</TableHead>
-              <TableHead>Rate/Malam</TableHead>
-              <TableHead>Policies</TableHead>
-              <TableHead v-if="canManageAccommodation">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(option, index) in booking.options" :key="index">
-              <TableCell class="text-foreground">
-                {{ option.propertyName }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ option.roomType }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ option.ratePlan }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(MEAL_PLANS, option.mealPlan).label" :tone="findStatusOption(MEAL_PLANS, option.mealPlan).tone" /></TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(option.ratePerNightIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ option.policies ?? '—' }}
-              </TableCell>
-              <TableCell v-if="canManageAccommodation">
+        <ResponsiveDataView :items="booking.options" :get-key="(option, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Property</TableHead>
+                  <TableHead>Room Type</TableHead>
+                  <TableHead>Rate Plan</TableHead>
+                  <TableHead>Meal</TableHead>
+                  <TableHead>Rate/Malam</TableHead>
+                  <TableHead>Policies</TableHead>
+                  <TableHead v-if="canManageAccommodation">
+                    Aksi
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(option, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ option.propertyName }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ option.roomType }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ option.ratePlan }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(MEAL_PLANS, option.mealPlan).label" :tone="findStatusOption(MEAL_PLANS, option.mealPlan).tone" /></TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(option.ratePerNightIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ option.policies ?? '—' }}
+                  </TableCell>
+                  <TableCell v-if="canManageAccommodation">
+                    <StatusBadge v-if="option.isSelected" label="Dipilih" tone="success" />
+                    <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">
+                      Pilih
+                    </Button>
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="booking.options.length === 0" :colspan="canManageAccommodation ? 7 : 6">
+                  Belum ada opsi tercatat.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: option, index }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ option.propertyName }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ option.roomType }} · {{ option.ratePlan }}
+                  </p>
+                </div>
+                <StatusBadge :label="findStatusOption(MEAL_PLANS, option.mealPlan).label" :tone="findStatusOption(MEAL_PLANS, option.mealPlan).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Rate/Malam
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(option.ratePerNightIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Policies
+                  </p>
+                  <p class="text-foreground">
+                    {{ option.policies ?? '—' }}
+                  </p>
+                </div>
+              </div>
+              <div v-if="canManageAccommodation" class="mt-3">
                 <StatusBadge v-if="option.isSelected" label="Dipilih" tone="success" />
                 <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">
                   Pilih
                 </Button>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="booking.options.length === 0" :colspan="canManageAccommodation ? 7 : 6">
-              Belum ada opsi tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard

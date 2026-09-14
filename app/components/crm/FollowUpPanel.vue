@@ -83,50 +83,96 @@ function contactLink (task: { channel: FollowUpChannel; phone?: string; email?: 
         title="Rule Follow-up"
         description="Setiap rule memicu task otomatis sekian hari setelah kejadian sumbernya."
       >
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Rule</TableHead>
-              <TableHead>Pemicu</TableHead>
-              <TableHead>Jeda</TableHead>
-              <TableHead>Kanal</TableHead>
-              <TableHead class="text-right">
-                Status
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="rule in FOLLOW_UP_RULES" :key="rule.id">
-              <TableCell>
-                <p class="text-sm font-medium text-foreground">
-                  {{ rule.name }}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  {{ rule.description }}
-                </p>
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground">
-                {{ rule.trigger }}
-              </TableCell>
-              <TableCell class="text-sm text-foreground">
-                +{{ rule.offsetDays }} hari
-              </TableCell>
-              <TableCell>
-                <div class="flex items-center gap-1.5">
-                  <component :is="CHANNEL_ICON[rule.channel]" class="h-3.5 w-3.5 text-muted-foreground" />
-                  <span class="text-sm text-foreground">{{ FOLLOW_UP_CHANNEL_LABEL[rule.channel] }}</span>
+        <ResponsiveDataView :items="FOLLOW_UP_RULES" :get-key="rule => rule.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rule</TableHead>
+                  <TableHead>Pemicu</TableHead>
+                  <TableHead>Jeda</TableHead>
+                  <TableHead>Kanal</TableHead>
+                  <TableHead class="text-right">
+                    Status
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="rule in items" :key="rule.id">
+                  <TableCell>
+                    <p class="text-sm font-medium text-foreground">
+                      {{ rule.name }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ rule.description }}
+                    </p>
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ rule.trigger }}
+                  </TableCell>
+                  <TableCell class="text-sm text-foreground">
+                    +{{ rule.offsetDays }} hari
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex items-center gap-1.5">
+                      <component :is="CHANNEL_ICON[rule.channel]" class="h-3.5 w-3.5 text-muted-foreground" />
+                      <span class="text-sm text-foreground">{{ FOLLOW_UP_CHANNEL_LABEL[rule.channel] }}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell class="text-right">
+                    <Button v-if="canManage" variant="outline" size="sm" @click="onToggleRule(rule.id)">
+                      <Power class="h-3.5 w-3.5 mr-1.5" />
+                      {{ rule.isActive ? 'Nonaktifkan' : 'Aktifkan' }}
+                    </Button>
+                    <StatusBadge v-else :label="rule.isActive ? 'Aktif' : 'Nonaktif'" :tone="rule.isActive ? 'success' : 'neutral'" />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: rule }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ rule.name }}
+                  </p>
+                  <p class="text-xs text-muted-foreground mt-0.5">
+                    {{ rule.description }}
+                  </p>
                 </div>
-              </TableCell>
-              <TableCell class="text-right">
                 <Button v-if="canManage" variant="outline" size="sm" @click="onToggleRule(rule.id)">
                   <Power class="h-3.5 w-3.5 mr-1.5" />
                   {{ rule.isActive ? 'Nonaktifkan' : 'Aktifkan' }}
                 </Button>
                 <StatusBadge v-else :label="rule.isActive ? 'Aktif' : 'Nonaktif'" :tone="rule.isActive ? 'success' : 'neutral'" />
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Pemicu
+                  </p>
+                  <p class="text-foreground">
+                    {{ rule.trigger }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Jeda
+                  </p>
+                  <p class="text-foreground">
+                    +{{ rule.offsetDays }} hari
+                  </p>
+                </div>
+                <div class="col-span-2 flex items-center gap-1.5">
+                  <component :is="CHANNEL_ICON[rule.channel]" class="h-3.5 w-3.5 text-muted-foreground" />
+                  <span class="text-foreground">{{ FOLLOW_UP_CHANNEL_LABEL[rule.channel] }}</span>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard>
@@ -155,61 +201,114 @@ function contactLink (task: { channel: FollowUpChannel; phone?: string; email?: 
           </div>
         </div>
 
-        <Table v-if="filteredTasks.length">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Kontak</TableHead>
-              <TableHead>Rule</TableHead>
-              <TableHead>Jatuh Tempo</TableHead>
-              <TableHead>Pesan Siap Kirim</TableHead>
-              <TableHead class="text-right">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="task in filteredTasks" :key="task.id">
-              <TableCell>
-                <p class="text-sm font-medium text-foreground">
-                  {{ task.contactName }}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  {{ task.companyName ?? '—' }}
-                </p>
-              </TableCell>
-              <TableCell>
-                <div class="flex items-center gap-1.5">
-                  <component :is="CHANNEL_ICON[task.channel]" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                  <span class="text-sm text-foreground">{{ task.ruleName }}</span>
+        <ResponsiveDataView v-if="filteredTasks.length" :items="filteredTasks" :get-key="task => task.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kontak</TableHead>
+                  <TableHead>Rule</TableHead>
+                  <TableHead>Jatuh Tempo</TableHead>
+                  <TableHead>Pesan Siap Kirim</TableHead>
+                  <TableHead class="text-right">
+                    Aksi
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="task in items" :key="task.id">
+                  <TableCell>
+                    <p class="text-sm font-medium text-foreground">
+                      {{ task.contactName }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ task.companyName ?? '—' }}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex items-center gap-1.5">
+                      <component :is="CHANNEL_ICON[task.channel]" class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                      <span class="text-sm text-foreground">{{ task.ruleName }}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <p class="text-sm text-foreground">
+                      {{ formatDate(task.dueDate) }}
+                    </p>
+                    <p
+                      :class="cn('text-xs', task.overdueDays > 0 ? 'text-destructive font-medium' : 'text-muted-foreground')"
+                    >
+                      {{ task.overdueDays > 0 ? `telat ${task.overdueDays} hari` : `${Math.abs(task.overdueDays)} hari lagi` }}
+                    </p>
+                  </TableCell>
+                  <TableCell class="max-w-sm">
+                    <p class="text-xs text-muted-foreground line-clamp-2">
+                      {{ task.message }}
+                    </p>
+                  </TableCell>
+                  <TableCell class="text-right">
+                    <a v-if="contactLink(task)" :href="contactLink(task)" target="_blank" rel="noopener">
+                      <Button size="sm" :variant="task.channel === 'whatsapp' ? 'default' : 'outline'">
+                        <ExternalLink class="h-3.5 w-3.5 mr-1.5" />
+                        {{ FOLLOW_UP_CHANNEL_LABEL[task.channel] }}
+                      </Button>
+                    </a>
+                    <span v-else class="text-xs text-muted-foreground">Kontak belum lengkap</span>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: task }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ task.contactName }}
+                  </p>
+                  <p class="text-xs text-muted-foreground truncate">
+                    {{ task.companyName ?? '—' }}
+                  </p>
                 </div>
-              </TableCell>
-              <TableCell>
-                <p class="text-sm text-foreground">
-                  {{ formatDate(task.dueDate) }}
-                </p>
-                <p
-                  :class="cn('text-xs', task.overdueDays > 0 ? 'text-destructive font-medium' : 'text-muted-foreground')"
-                >
-                  {{ task.overdueDays > 0 ? `telat ${task.overdueDays} hari` : `${Math.abs(task.overdueDays)} hari lagi` }}
-                </p>
-              </TableCell>
-              <TableCell class="max-w-sm">
-                <p class="text-xs text-muted-foreground line-clamp-2">
-                  {{ task.message }}
-                </p>
-              </TableCell>
-              <TableCell class="text-right">
-                <a v-if="contactLink(task)" :href="contactLink(task)" target="_blank" rel="noopener">
-                  <Button size="sm" :variant="task.channel === 'whatsapp' ? 'default' : 'outline'">
+                <div class="flex shrink-0 items-center gap-1.5">
+                  <component :is="CHANNEL_ICON[task.channel]" class="h-3.5 w-3.5 text-muted-foreground" />
+                  <span class="text-xs text-foreground">{{ task.ruleName }}</span>
+                </div>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Jatuh Tempo
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(task.dueDate) }}
+                  </p>
+                  <p :class="cn('text-xs', task.overdueDays > 0 ? 'text-destructive font-medium' : 'text-muted-foreground')">
+                    {{ task.overdueDays > 0 ? `telat ${task.overdueDays} hari` : `${Math.abs(task.overdueDays)} hari lagi` }}
+                  </p>
+                </div>
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Pesan Siap Kirim
+                  </p>
+                  <p class="text-foreground line-clamp-2">
+                    {{ task.message }}
+                  </p>
+                </div>
+              </div>
+              <div class="mt-3">
+                <a v-if="contactLink(task)" :href="contactLink(task)" target="_blank" rel="noopener" class="block">
+                  <Button size="sm" class="w-full" :variant="task.channel === 'whatsapp' ? 'default' : 'outline'">
                     <ExternalLink class="h-3.5 w-3.5 mr-1.5" />
                     {{ FOLLOW_UP_CHANNEL_LABEL[task.channel] }}
                   </Button>
                 </a>
                 <span v-else class="text-xs text-muted-foreground">Kontak belum lengkap</span>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
 
         <EmptyState
           v-else

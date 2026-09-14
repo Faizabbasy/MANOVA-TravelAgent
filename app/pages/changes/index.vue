@@ -445,39 +445,65 @@ function submitCreateRefund () {
             </select>
           </div>
           <SectionCard>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Change Request</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Sumber</TableHead>
-                  <TableHead>Before → After</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in crRows" :key="row.item.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/changes/${row.item.id}`)">
-                  <TableCell class="font-medium text-foreground">
-                    {{ row.item.id }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
+            <ResponsiveDataView v-if="crRows.length" :items="crRows" :get-key="row => row.item.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Change Request</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Sumber</TableHead>
+                      <TableHead>Before → After</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in items" :key="row.item.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/changes/${row.item.id}`)">
+                      <TableCell class="font-medium text-foreground">
+                        {{ row.item.id }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.project?.name ?? row.item.projectId }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(CHANGE_REQUEST_SOURCES, row.item.source).label" :tone="findStatusOption(CHANGE_REQUEST_SOURCES, row.item.source).tone" /></TableCell>
+                      <TableCell class="text-muted-foreground max-w-[320px] truncate">
+                        {{ row.item.beforeSummary }} → {{ row.item.afterSummary }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(CHANGE_REQUEST_STATUSES, row.item.status).label" :tone="findStatusOption(CHANGE_REQUEST_STATUSES, row.item.status).tone" /></TableCell>
+                      <TableCell>
+                        <Eye class="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </template>
+              <template #mobile-card="{ item: row }">
+                <button type="button" class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted" @click="navigateTo(`/changes/${row.item.id}`)">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
+                      {{ row.item.id }}
+                    </p>
+                    <StatusBadge :label="findStatusOption(CHANGE_REQUEST_STATUSES, row.item.status).label" :tone="findStatusOption(CHANGE_REQUEST_STATUSES, row.item.status).tone" />
+                  </div>
+                  <p class="mt-1 text-xs text-muted-foreground">
                     {{ row.project?.name ?? row.item.projectId }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(CHANGE_REQUEST_SOURCES, row.item.source).label" :tone="findStatusOption(CHANGE_REQUEST_SOURCES, row.item.source).tone" /></TableCell>
-                  <TableCell class="text-muted-foreground max-w-[320px] truncate">
+                  </p>
+                  <p class="mt-2 text-xs text-muted-foreground">
                     {{ row.item.beforeSummary }} → {{ row.item.afterSummary }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(CHANGE_REQUEST_STATUSES, row.item.status).label" :tone="findStatusOption(CHANGE_REQUEST_STATUSES, row.item.status).tone" /></TableCell>
-                  <TableCell>
-                    <Eye class="h-4 w-4 text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="crRows.length === 0" :colspan="6">
-                  {{ crSearch || crSourceFilter !== 'all' || crStatusFilter !== 'all' ? 'Tidak ada Change Request yang cocok dengan filter.' : 'Belum ada Change Request.' }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
+                  </p>
+                  <div class="mt-2">
+                    <StatusBadge :label="findStatusOption(CHANGE_REQUEST_SOURCES, row.item.source).label" :tone="findStatusOption(CHANGE_REQUEST_SOURCES, row.item.source).tone" />
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
+            <EmptyState
+              v-else
+              :icon="Eye"
+              title="Tidak ada Change Request"
+              :description="crSearch || crSourceFilter !== 'all' || crStatusFilter !== 'all' ? 'Tidak ada Change Request yang cocok dengan filter.' : 'Belum ada Change Request.'"
+            />
           </SectionCard>
         </TabsContent>
 
@@ -506,45 +532,71 @@ function submitCreateRefund () {
             </select>
           </div>
           <SectionCard description="Cancellation dibuat otomatis dari halaman detail booking (Ticketing/Accommodation/Transportation/MICE) saat status berpindah ke cancelled/no-show/refunded.">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Cancellation</TableHead>
-                  <TableHead>Booking</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Alasan</TableHead>
-                  <TableHead>Penalty</TableHead>
-                  <TableHead>Refund Eligible</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in cnxRows" :key="row.item.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/changes/cancellations/${row.item.id}`)">
-                  <TableCell class="font-medium text-foreground">
-                    {{ row.item.id }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.item.bookingType }} {{ row.item.bookingId }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.project?.name ?? row.item.projectId }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground max-w-[260px] truncate">
+            <ResponsiveDataView v-if="cnxRows.length" :items="cnxRows" :get-key="row => row.item.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Cancellation</TableHead>
+                      <TableHead>Booking</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Alasan</TableHead>
+                      <TableHead>Penalty</TableHead>
+                      <TableHead>Refund Eligible</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in items" :key="row.item.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/changes/cancellations/${row.item.id}`)">
+                      <TableCell class="font-medium text-foreground">
+                        {{ row.item.id }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.item.bookingType }} {{ row.item.bookingId }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.project?.name ?? row.item.projectId }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground max-w-[260px] truncate">
+                        {{ row.item.reason }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.item.penaltyIdr !== undefined ? formatCurrencyIdr(row.item.penaltyIdr) : 'Tidak ada' }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="row.item.refundEligible ? 'Eligible' : 'Tidak Eligible'" :tone="row.item.refundEligible ? 'success' : 'neutral'" /></TableCell>
+                      <TableCell>
+                        <Eye class="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </template>
+              <template #mobile-card="{ item: row }">
+                <button type="button" class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted" @click="navigateTo(`/changes/cancellations/${row.item.id}`)">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
+                      {{ row.item.id }}
+                    </p>
+                    <StatusBadge :label="row.item.refundEligible ? 'Eligible' : 'Tidak Eligible'" :tone="row.item.refundEligible ? 'success' : 'neutral'" />
+                  </div>
+                  <p class="mt-1 text-xs text-muted-foreground">
+                    {{ row.item.bookingType }} {{ row.item.bookingId }} · {{ row.project?.name ?? row.item.projectId }}
+                  </p>
+                  <p class="mt-2 text-xs text-muted-foreground">
                     {{ row.item.reason }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.item.penaltyIdr !== undefined ? formatCurrencyIdr(row.item.penaltyIdr) : 'Tidak ada' }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="row.item.refundEligible ? 'Eligible' : 'Tidak Eligible'" :tone="row.item.refundEligible ? 'success' : 'neutral'" /></TableCell>
-                  <TableCell>
-                    <Eye class="h-4 w-4 text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="cnxRows.length === 0" :colspan="7">
-                  {{ cnxSearch || cnxDomainFilter !== 'all' ? 'Tidak ada Cancellation yang cocok dengan filter.' : 'Belum ada Cancellation tercatat.' }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
+                  </p>
+                  <p class="mt-1 text-xs text-muted-foreground">
+                    Penalty: {{ row.item.penaltyIdr !== undefined ? formatCurrencyIdr(row.item.penaltyIdr) : 'Tidak ada' }}
+                  </p>
+                </button>
+              </template>
+            </ResponsiveDataView>
+            <EmptyState
+              v-else
+              :icon="Eye"
+              title="Tidak ada Cancellation"
+              :description="cnxSearch || cnxDomainFilter !== 'all' ? 'Tidak ada Cancellation yang cocok dengan filter.' : 'Belum ada Cancellation tercatat.'"
+            />
           </SectionCard>
         </TabsContent>
 
@@ -564,43 +616,79 @@ function submitCreateRefund () {
             </select>
           </div>
           <SectionCard>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Refund</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Tipe</TableHead>
-                  <TableHead>Jumlah</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Credit Status</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in refRows" :key="row.item.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/changes/refunds/${row.item.id}`)">
-                  <TableCell class="font-medium text-foreground">
-                    {{ row.item.id }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.project?.name ?? row.item.projectId }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground capitalize">
-                    {{ row.item.type }}
-                  </TableCell>
-                  <TableCell class="text-foreground">
-                    {{ formatCurrencyIdr(row.item.amountIdr) }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(REFUND_REQUEST_STATUSES, row.item.status).label" :tone="findStatusOption(REFUND_REQUEST_STATUSES, row.item.status).tone" /></TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(REFUND_CREDIT_STATUSES, row.item.creditStatus).label" :tone="findStatusOption(REFUND_CREDIT_STATUSES, row.item.creditStatus).tone" /></TableCell>
-                  <TableCell>
-                    <Eye class="h-4 w-4 text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="refRows.length === 0" :colspan="7">
-                  {{ refSearch || refStatusFilter !== 'all' ? 'Tidak ada Refund Request yang cocok dengan filter.' : 'Belum ada Refund Request.' }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
+            <ResponsiveDataView v-if="refRows.length" :items="refRows" :get-key="row => row.item.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Refund</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Tipe</TableHead>
+                      <TableHead>Jumlah</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Credit Status</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in items" :key="row.item.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/changes/refunds/${row.item.id}`)">
+                      <TableCell class="font-medium text-foreground">
+                        {{ row.item.id }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.project?.name ?? row.item.projectId }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground capitalize">
+                        {{ row.item.type }}
+                      </TableCell>
+                      <TableCell class="text-foreground">
+                        {{ formatCurrencyIdr(row.item.amountIdr) }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(REFUND_REQUEST_STATUSES, row.item.status).label" :tone="findStatusOption(REFUND_REQUEST_STATUSES, row.item.status).tone" /></TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(REFUND_CREDIT_STATUSES, row.item.creditStatus).label" :tone="findStatusOption(REFUND_CREDIT_STATUSES, row.item.creditStatus).tone" /></TableCell>
+                      <TableCell>
+                        <Eye class="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </template>
+              <template #mobile-card="{ item: row }">
+                <button type="button" class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted" @click="navigateTo(`/changes/refunds/${row.item.id}`)">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
+                      {{ row.item.id }}
+                    </p>
+                    <StatusBadge :label="findStatusOption(REFUND_REQUEST_STATUSES, row.item.status).label" :tone="findStatusOption(REFUND_REQUEST_STATUSES, row.item.status).tone" />
+                  </div>
+                  <p class="mt-1 text-xs text-muted-foreground">
+                    {{ row.project?.name ?? row.item.projectId }} · <span class="capitalize">{{ row.item.type }}</span>
+                  </p>
+                  <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Jumlah
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatCurrencyIdr(row.item.amountIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Credit Status
+                      </p>
+                      <StatusBadge :label="findStatusOption(REFUND_CREDIT_STATUSES, row.item.creditStatus).label" :tone="findStatusOption(REFUND_CREDIT_STATUSES, row.item.creditStatus).tone" />
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
+            <EmptyState
+              v-else
+              :icon="Eye"
+              title="Tidak ada Refund Request"
+              :description="refSearch || refStatusFilter !== 'all' ? 'Tidak ada Refund Request yang cocok dengan filter.' : 'Belum ada Refund Request.'"
+            />
           </SectionCard>
         </TabsContent>
 
@@ -628,48 +716,91 @@ function submitCreateRefund () {
             </select>
           </div>
           <SectionCard>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Incident</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Booking Terkait</TableHead>
-                  <TableHead>Owner</TableHead>
-                  <TableHead>Severity</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead />
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in incRows" :key="row.item.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/changes/incidents/${row.item.id}`)">
-                  <TableCell class="min-w-[200px]">
-                    <p class="font-medium text-foreground">
-                      {{ row.item.id }}
-                    </p>
-                    <p class="text-xs text-muted-foreground truncate max-w-[220px]">
-                      {{ row.item.title }}
-                    </p>
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.project?.name ?? row.item.projectId }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.item.bookingId ? `${row.item.bookingType} ${row.item.bookingId}` : 'Project-level' }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ getUserById(row.item.ownerId)?.name ?? row.item.ownerId }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(INCIDENT_SEVERITIES, row.item.severity).label" :tone="findStatusOption(INCIDENT_SEVERITIES, row.item.severity).tone" /></TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(INCIDENT_STATUSES, row.item.status).label" :tone="findStatusOption(INCIDENT_STATUSES, row.item.status).tone" /></TableCell>
-                  <TableCell>
-                    <Eye class="h-4 w-4 text-muted-foreground" />
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="incRows.length === 0" :colspan="7">
-                  {{ incSearch || incSeverityFilter !== 'all' || incStatusFilter !== 'all' ? 'Tidak ada Incident yang cocok dengan filter.' : 'Belum ada Incident tercatat.' }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
+            <ResponsiveDataView v-if="incRows.length" :items="incRows" :get-key="row => row.item.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Incident</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Booking Terkait</TableHead>
+                      <TableHead>Owner</TableHead>
+                      <TableHead>Severity</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in items" :key="row.item.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/changes/incidents/${row.item.id}`)">
+                      <TableCell class="min-w-[200px]">
+                        <p class="font-medium text-foreground">
+                          {{ row.item.id }}
+                        </p>
+                        <p class="text-xs text-muted-foreground truncate max-w-[220px]">
+                          {{ row.item.title }}
+                        </p>
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.project?.name ?? row.item.projectId }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.item.bookingId ? `${row.item.bookingType} ${row.item.bookingId}` : 'Project-level' }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ getUserById(row.item.ownerId)?.name ?? row.item.ownerId }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(INCIDENT_SEVERITIES, row.item.severity).label" :tone="findStatusOption(INCIDENT_SEVERITIES, row.item.severity).tone" /></TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(INCIDENT_STATUSES, row.item.status).label" :tone="findStatusOption(INCIDENT_STATUSES, row.item.status).tone" /></TableCell>
+                      <TableCell>
+                        <Eye class="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </template>
+              <template #mobile-card="{ item: row }">
+                <button type="button" class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted" @click="navigateTo(`/changes/incidents/${row.item.id}`)">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-foreground">
+                        {{ row.item.id }}
+                      </p>
+                      <p class="text-xs text-muted-foreground truncate">
+                        {{ row.item.title }}
+                      </p>
+                    </div>
+                    <StatusBadge :label="findStatusOption(INCIDENT_STATUSES, row.item.status).label" :tone="findStatusOption(INCIDENT_STATUSES, row.item.status).tone" />
+                  </div>
+                  <div class="mt-2 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Project
+                      </p>
+                      <p class="text-foreground">
+                        {{ row.project?.name ?? row.item.projectId }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Owner
+                      </p>
+                      <p class="text-foreground">
+                        {{ getUserById(row.item.ownerId)?.name ?? row.item.ownerId }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="mt-2">
+                    <StatusBadge :label="findStatusOption(INCIDENT_SEVERITIES, row.item.severity).label" :tone="findStatusOption(INCIDENT_SEVERITIES, row.item.severity).tone" />
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
+            <EmptyState
+              v-else
+              :icon="Eye"
+              title="Tidak ada Incident"
+              :description="incSearch || incSeverityFilter !== 'all' || incStatusFilter !== 'all' ? 'Tidak ada Incident yang cocok dengan filter.' : 'Belum ada Incident tercatat.'"
+            />
           </SectionCard>
         </TabsContent>
       </Tabs>

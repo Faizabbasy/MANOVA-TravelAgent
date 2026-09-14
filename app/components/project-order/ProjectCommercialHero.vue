@@ -88,22 +88,22 @@ onMounted(() => {
 
     <div class="rounded-xl border border-border">
       <template v-if="quotationAmountIdr > 0">
-        <div class="grid grid-cols-2 gap-3 p-4">
+        <div class="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2">
           <div class="min-w-0">
             <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               Nilai Kontrak (Project)
             </p>
-            <p class="mt-1.5 truncate text-xl font-bold leading-none tabular-nums text-foreground">
+            <p class="mt-1.5 text-xl font-bold leading-none tabular-nums text-foreground [overflow-wrap:anywhere]">
               {{ formatCurrencyIdr(quotationAmountIdr) }}
             </p>
           </div>
 
-          <div class="flex items-center justify-between gap-3 border-l border-border pl-3">
+          <div class="flex items-center justify-between gap-3 border-t border-border pt-3 sm:border-l sm:border-t-0 sm:pl-3 sm:pt-0">
             <div class="min-w-0">
               <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                 Ditagih ({{ invoicedPercentOfQuotation }}%)
               </p>
-              <p class="mt-1.5 truncate text-lg font-bold leading-none tabular-nums text-success">
+              <p class="mt-1.5 text-lg font-bold leading-none tabular-nums text-success [overflow-wrap:anywhere]">
                 {{ formatCurrencyIdr(invoiceIssuedIdr) }}
               </p>
             </div>
@@ -137,13 +137,13 @@ onMounted(() => {
           Invoice terbit melebihi nilai quotation.
         </p>
 
-        <div class="mt-3 grid grid-cols-3 divide-x divide-border border-t border-border">
+        <div class="mt-3 grid grid-cols-1 divide-y divide-border border-t border-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
           <div class="p-3">
             <span class="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
               <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-success" />Terbayar
             </span>
             <div class="mt-2 flex items-center justify-between gap-2">
-              <p class="truncate text-base font-bold tabular-nums text-foreground">
+              <p class="text-base font-bold tabular-nums text-foreground [overflow-wrap:anywhere]">
                 {{ formatCurrencyIdr(paidIdr) }}
               </p>
               <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-success/10 text-success">
@@ -160,7 +160,7 @@ onMounted(() => {
               <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-warning" />Outstanding
             </span>
             <div class="mt-2 flex items-center justify-between gap-2">
-              <p class="truncate text-base font-bold tabular-nums text-foreground">
+              <p class="text-base font-bold tabular-nums text-foreground [overflow-wrap:anywhere]">
                 {{ formatCurrencyIdr(outstandingIdr) }}
               </p>
               <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-warning/10 text-warning">
@@ -177,7 +177,7 @@ onMounted(() => {
               <span class="h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40" />Belum Ditagih
             </span>
             <div class="mt-2 flex items-center justify-between gap-2">
-              <p class="truncate text-base font-bold tabular-nums text-foreground">
+              <p class="text-base font-bold tabular-nums text-foreground [overflow-wrap:anywhere]">
                 {{ formatCurrencyIdr(remainderIdr) }}
               </p>
               <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-muted text-muted-foreground">

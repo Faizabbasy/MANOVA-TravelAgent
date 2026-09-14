@@ -378,64 +378,126 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
       </div>
 
       <SectionCard>
-        <Table v-if="filteredRows.length">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Kondisi</TableHead>
-              <TableHead>Jadwal</TableHead>
-              <TableHead>Milestone</TableHead>
-              <TableHead v-if="canViewFinancials" class="text-right">
-                Nilai Kontrak
-              </TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow
-              v-for="row in filteredRows"
-              :key="row.project.id"
-              class="cursor-pointer"
+        <ResponsiveDataView v-if="filteredRows.length" :items="filteredRows" :get-key="row => row.project.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Kondisi</TableHead>
+                  <TableHead>Jadwal</TableHead>
+                  <TableHead>Milestone</TableHead>
+                  <TableHead v-if="canViewFinancials" class="text-right">
+                    Nilai Kontrak
+                  </TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow
+                  v-for="row in items"
+                  :key="row.project.id"
+                  class="cursor-pointer"
+                  @click="$router.push(`/project-orders/${row.project.id}`)"
+                >
+                  <TableCell>
+                    <p class="text-sm font-medium text-foreground">
+                      {{ row.project.name }}
+                    </p>
+                    <p class="text-xs text-muted-foreground font-mono">
+                      {{ row.project.id }} · {{ row.owner?.name ?? '—' }}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <p class="text-sm text-foreground">
+                      {{ row.party?.name ?? '—' }}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <p v-if="!row.gate.ready" class="text-xs text-destructive line-clamp-1" :title="row.gate.blockers.join(' ')">
+                      {{ row.gate.blockers.length }} syarat belum terpenuhi
+                    </p>
+                    <span v-else class="text-xs text-muted-foreground">—</span>
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
+                  </TableCell>
+                  <TableCell>
+                    <span class="text-sm text-foreground">{{ row.milestones.completed }}/{{ row.milestones.total }}</span>
+                    <p v-if="row.milestones.delayed" class="text-xs text-destructive">
+                      {{ row.milestones.delayed }} telat
+                    </p>
+                  </TableCell>
+                  <TableCell v-if="canViewFinancials" class="text-right text-sm font-medium text-foreground">
+                    {{ formatCurrencyIdr(row.project.quotationAmountIdr) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="row.orderStatus.label" :tone="row.orderStatus.tone" />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
               @click="$router.push(`/project-orders/${row.project.id}`)"
             >
-              <TableCell>
-                <p class="text-sm font-medium text-foreground">
-                  {{ row.project.name }}
-                </p>
-                <p class="text-xs text-muted-foreground font-mono">
-                  {{ row.project.id }} · {{ row.owner?.name ?? '—' }}
-                </p>
-              </TableCell>
-              <TableCell>
-                <p class="text-sm text-foreground">
-                  {{ row.party?.name ?? '—' }}
-                </p>
-              </TableCell>
-              <TableCell>
-                <p v-if="!row.gate.ready" class="text-xs text-destructive line-clamp-1" :title="row.gate.blockers.join(' ')">
-                  {{ row.gate.blockers.length }} syarat belum terpenuhi
-                </p>
-                <span v-else class="text-xs text-muted-foreground">—</span>
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground">
-                {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
-              </TableCell>
-              <TableCell>
-                <span class="text-sm text-foreground">{{ row.milestones.completed }}/{{ row.milestones.total }}</span>
-                <p v-if="row.milestones.delayed" class="text-xs text-destructive">
-                  {{ row.milestones.delayed }} telat
-                </p>
-              </TableCell>
-              <TableCell v-if="canViewFinancials" class="text-right text-sm font-medium text-foreground">
-                {{ formatCurrencyIdr(row.project.quotationAmountIdr) }}
-              </TableCell>
-              <TableCell>
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.project.name }}
+                  </p>
+                  <p class="text-xs text-muted-foreground font-mono">
+                    {{ row.project.id }} · {{ row.owner?.name ?? '—' }}
+                  </p>
+                </div>
                 <StatusBadge :label="row.orderStatus.label" :tone="row.orderStatus.tone" />
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Customer
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.party?.name ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Jadwal
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Milestone
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.milestones.completed }}/{{ row.milestones.total }}
+                    <span v-if="row.milestones.delayed" class="text-destructive">· {{ row.milestones.delayed }} telat</span>
+                  </p>
+                </div>
+                <div v-if="canViewFinancials">
+                  <p class="text-muted-foreground">
+                    Nilai Kontrak
+                  </p>
+                  <p class="text-foreground font-medium">
+                    {{ formatCurrencyIdr(row.project.quotationAmountIdr) }}
+                  </p>
+                </div>
+              </div>
+              <p v-if="!row.gate.ready" class="mt-2 text-xs text-destructive">
+                {{ row.gate.blockers.length }} syarat belum terpenuhi
+              </p>
+            </button>
+          </template>
+        </ResponsiveDataView>
 
         <EmptyState
           v-else
@@ -465,62 +527,124 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
       </div>
 
       <SectionCard class="mt-4">
-        <Table v-if="filteredGroupTripRows.length">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>Tanggal</TableHead>
-              <TableHead>Seats</TableHead>
-              <TableHead class="text-right">
-                Price/pax
-              </TableHead>
-              <TableHead class="text-right">
-                Revenue
-              </TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow
-              v-for="row in filteredGroupTripRows"
-              :key="row.project.id"
-              class="cursor-pointer"
+        <ResponsiveDataView v-if="filteredGroupTripRows.length" :items="filteredGroupTripRows" :get-key="row => row.project.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead>Seats</TableHead>
+                  <TableHead class="text-right">
+                    Price/pax
+                  </TableHead>
+                  <TableHead class="text-right">
+                    Revenue
+                  </TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow
+                  v-for="row in items"
+                  :key="row.project.id"
+                  class="cursor-pointer"
+                  @click="$router.push(`/project-orders/${row.project.id}`)"
+                >
+                  <TableCell>
+                    <div class="flex items-center gap-3">
+                      <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary">
+                        <img v-if="row.project.photoUrl" :src="row.project.photoUrl" alt="" class="h-full w-full object-cover">
+                        <MapPin v-else class="h-4 w-4" />
+                      </div>
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-foreground">
+                          {{ row.project.name }}
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                          {{ row.project.destination }}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ row.seatsFilled }} / {{ row.project.travelerCount }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm text-muted-foreground">
+                    {{ formatCurrencyIdr(row.pricePerPaxIdr) }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm font-medium text-foreground">
+                    {{ formatCurrencyIdr(row.revenueIdr) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(PROJECT_STATUSES, row.project.status).label" :tone="findStatusOption(PROJECT_STATUSES, row.project.status).tone" />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
               @click="$router.push(`/project-orders/${row.project.id}`)"
             >
-              <TableCell>
-                <div class="flex items-center gap-3">
-                  <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary">
-                    <img v-if="row.project.photoUrl" :src="row.project.photoUrl" alt="" class="h-full w-full object-cover">
-                    <MapPin v-else class="h-4 w-4" />
-                  </div>
-                  <div class="min-w-0">
-                    <p class="text-sm font-medium text-foreground">
-                      {{ row.project.name }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      {{ row.project.destination }}
-                    </p>
-                  </div>
+              <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary">
+                  <img v-if="row.project.photoUrl" :src="row.project.photoUrl" alt="" class="h-full w-full object-cover">
+                  <MapPin v-else class="h-4 w-4" />
                 </div>
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground">
-                {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground">
-                {{ row.seatsFilled }} / {{ row.project.travelerCount }}
-              </TableCell>
-              <TableCell class="text-right text-sm text-muted-foreground">
-                {{ formatCurrencyIdr(row.pricePerPaxIdr) }}
-              </TableCell>
-              <TableCell class="text-right text-sm font-medium text-foreground">
-                {{ formatCurrencyIdr(row.revenueIdr) }}
-              </TableCell>
-              <TableCell>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.project.name }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ row.project.destination }}
+                  </p>
+                </div>
                 <StatusBadge :label="findStatusOption(PROJECT_STATUSES, row.project.status).label" :tone="findStatusOption(PROJECT_STATUSES, row.project.status).tone" />
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Tanggal
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Seats
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.seatsFilled }} / {{ row.project.travelerCount }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Price/pax
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(row.pricePerPaxIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Revenue
+                  </p>
+                  <p class="text-foreground font-medium">
+                    {{ formatCurrencyIdr(row.revenueIdr) }}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
 
         <EmptyState
           v-else

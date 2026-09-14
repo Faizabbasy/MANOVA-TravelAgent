@@ -11,6 +11,8 @@ import {
 } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import { NAV_ITEMS, type NavItem } from '~/constants/navigation'
+import { isNavPathActive } from '~/utils/nav-active'
+import { getVisibleNavItems } from '~/utils/nav-visibility'
 
 const route = useRoute()
 const router = useRouter()
@@ -24,26 +26,7 @@ const handleLogout = () => {
   router.push('/login')
 }
 
-/**
- * Visibilitas menu (Revisi 9-Modul). Urutan: override `RoleMenuGrant` per `item.key` menang, kalau tidak
- * ada mewarisi level modul — keduanya ditangani `canViewMenu()`. Item tanpa `moduleKey` selalu tampil.
- *
- * `item.roles` masih didukung untuk kompatibilitas tapi sudah deprecated; pemeriksaannya lewat `isRole()`
- * supaya role id lama tetap teresolusi ke role hasil penggabungan.
- */
-function isNavItemVisible (item: NavItem) {
-  if (item.roles) { return isRole(...item.roles) }
-  if (!item.moduleKey) { return true }
-  return canViewMenu(item.key, item.moduleKey)
-}
-
-const allowedItems = computed(() =>
-  NAV_ITEMS
-    .filter(isNavItemVisible)
-    .map(item => ({ ...item, children: item.children?.filter(isNavItemVisible) }))
-    /** Grup yang seluruh anaknya tercabut lewat menu grant tidak perlu tampil sebagai induk kosong. */
-    .filter(item => !item.children || item.children.length > 0)
-)
+const allowedItems = computed(() => getVisibleNavItems(NAV_ITEMS, { isRole, canViewMenu }))
 
 /**
  * Refinement UI: kolom "Search anything..." sebelumnya tidak terhubung ke apa pun — murni UI mati yang
@@ -80,12 +63,7 @@ const hasResults = computed(() => visibleItems.value.length > 0)
  * membawa `tab` — cocokkan juga `route.query.tab` supaya highlight tab tetap akurat.
  */
 function isActive (to: string) {
-  const [base, queryString] = to.split('?')
-  if (route.path !== base) { return false }
-  if (!queryString) { return true }
-  const tab = new URLSearchParams(queryString).get('tab')
-  if (tab === null) { return true }
-  return route.query.tab === tab
+  return isNavPathActive(to, route)
 }
 const isSectionActive = (item: NavItem) =>
   isActive(item.to) || Boolean(item.children?.some(child => isActive(child.to)))
@@ -107,7 +85,7 @@ function toggleExpanded (item: NavItem) {
   <TooltipProvider :delay-duration="0">
     <aside
       :class="cn(
-        'bg-card border-r border-border flex flex-col h-screen sticky top-0 transition-all duration-300 ease-in-out overflow-hidden',
+        'hidden md:flex bg-card border-r border-border flex-col h-screen sticky top-0 transition-all duration-300 ease-in-out overflow-hidden',
         isCollapsed ? 'w-16' : 'w-64'
       )"
     >

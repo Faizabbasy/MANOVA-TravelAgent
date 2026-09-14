@@ -120,6 +120,7 @@ const repeatRate = computed(() => (ltvs.value.length
 
         <TabsContent value="campaigns" class="pt-4 space-y-4">
           <SectionCard description="Lead diatribusikan otomatis ke campaign lewat kecocokan channel dan rentang tanggal — bukan angka yang diketik manual.">
+          <div class="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -198,6 +199,7 @@ const repeatRate = computed(() => (ltvs.value.length
                 </TableRow>
               </TableBody>
             </Table>
+          </div>
           </SectionCard>
 
           <SectionCard title="Belanja per Channel">
@@ -346,6 +348,7 @@ const repeatRate = computed(() => (ltvs.value.length
 
         <TabsContent value="cac" class="pt-4">
           <SectionCard description="CAC = belanja campaign pada channel tersebut ÷ jumlah klien baru yang berasal darinya.">
+          <div class="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -408,6 +411,7 @@ const repeatRate = computed(() => (ltvs.value.length
                 </TableRow>
               </TableBody>
             </Table>
+          </div>
           </SectionCard>
         </TabsContent>
 
@@ -425,6 +429,7 @@ const repeatRate = computed(() => (ltvs.value.length
           </div>
 
           <SectionCard description="Revenue dihitung dari invoice yang benar-benar lunas, bukan nilai kontrak yang belum tertagih.">
+          <div class="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -479,11 +484,13 @@ const repeatRate = computed(() => (ltvs.value.length
                 </TableRow>
               </TableBody>
             </Table>
+          </div>
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="content-schedule" class="pt-4 space-y-4">
           <SectionCard description="Jadwal publikasi konten per platform. Ubah status langsung dari daftar saat konten sudah dipublikasikan.">
+          <div class="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -530,11 +537,13 @@ const repeatRate = computed(() => (ltvs.value.length
                 </TableRow>
               </TableBody>
             </Table>
+          </div>
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="content-development" class="pt-4 space-y-4">
           <SectionCard description="Pipeline pengembangan ide dan draft konten sebelum masuk jadwal publikasi: Ide → Draft → Review → Siap Tayang.">
+          <div class="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -577,6 +586,7 @@ const repeatRate = computed(() => (ltvs.value.length
                 </TableRow>
               </TableBody>
             </Table>
+          </div>
           </SectionCard>
         </TabsContent>
       </Tabs>

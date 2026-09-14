@@ -325,39 +325,71 @@ function variantName (variantId?: string): string {
           </Dialog>
         </template>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama Variant</TableHead>
-              <TableHead>Harga</TableHead>
-              <TableHead>Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="variant in variants" :key="variant.id">
-              <TableCell class="font-medium text-foreground">
-                {{ variant.name }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ variant.sellPriceIdr ? formatCurrencyIdr(variant.sellPriceIdr) : `${formatCurrencyIdr(commodity.sellPriceIdr)} (induk)` }}
-              </TableCell>
-              <TableCell>
-                <div v-if="canEdit" class="flex items-center gap-2">
-                  <Button size="sm" variant="outline" @click="openEditVariant(variant.id)">
-                    Edit
-                  </Button>
-                  <Button size="sm" variant="destructive" @click="requestDeleteVariant(variant.id, variant.name)">
-                    Hapus
-                  </Button>
+        <ResponsiveDataView :items="variants" :get-key="variant => variant.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama Variant</TableHead>
+                  <TableHead>Harga</TableHead>
+                  <TableHead>Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="variant in items" :key="variant.id">
+                  <TableCell class="font-medium text-foreground">
+                    {{ variant.name }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ variant.sellPriceIdr ? formatCurrencyIdr(variant.sellPriceIdr) : `${formatCurrencyIdr(commodity.sellPriceIdr)} (induk)` }}
+                  </TableCell>
+                  <TableCell>
+                    <div v-if="canEdit" class="flex items-center gap-2">
+                      <Button size="sm" variant="outline" @click="openEditVariant(variant.id)">
+                        Edit
+                      </Button>
+                      <Button size="sm" variant="destructive" @click="requestDeleteVariant(variant.id, variant.name)">
+                        Hapus
+                      </Button>
+                    </div>
+                    <span v-else class="text-xs text-muted-foreground">—</span>
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="variants.length === 0" :colspan="3">
+                  Belum ada variant.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: variant }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
+                  {{ variant.name }}
+                </p>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Harga
+                  </p>
+                  <p class="text-foreground">
+                    {{ variant.sellPriceIdr ? formatCurrencyIdr(variant.sellPriceIdr) : `${formatCurrencyIdr(commodity.sellPriceIdr)} (induk)` }}
+                  </p>
                 </div>
-                <span v-else class="text-xs text-muted-foreground">—</span>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="variants.length === 0" :colspan="3">
-              Belum ada variant.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+              <div v-if="canEdit" class="mt-3 flex items-center gap-2">
+                <Button size="sm" variant="outline" @click="openEditVariant(variant.id)">
+                  Edit
+                </Button>
+                <Button size="sm" variant="destructive" @click="requestDeleteVariant(variant.id, variant.name)">
+                  Hapus
+                </Button>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard title="Availability" description="Kapasitas per periode. availableQuantity = totalQuantity - heldQuantity - bookedQuantity.">
@@ -384,7 +416,7 @@ function variantName (variantId?: string): string {
                     </option>
                   </select>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div class="space-y-1.5">
                     <Label for="slot-start">Periode Mulai</Label>
                     <Input id="slot-start" v-model="newSlotPeriodStart" type="date" />
@@ -415,61 +447,128 @@ function variantName (variantId?: string): string {
           </Dialog>
         </template>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Periode</TableHead>
-              <TableHead>Berlaku Untuk</TableHead>
-              <TableHead>Total</TableHead>
-              <TableHead>Held</TableHead>
-              <TableHead>Booked</TableHead>
-              <TableHead>Available</TableHead>
-              <TableHead>Aksi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="slot in slots" :key="slot.id">
-              <TableCell class="text-foreground">
-                {{ formatDate(slot.periodStart) }} – {{ formatDate(slot.periodEnd) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ variantName(slot.variantId) }}
-              </TableCell>
-              <TableCell>
-                <div v-if="canEdit" class="flex items-center gap-1.5">
-                  <Input
-                    :model-value="capacityValue(slot.id, slot.totalQuantity)"
-                    type="number"
-                    class="w-20 h-8"
-                    @update:model-value="val => slotCapacityEdits[slot.id] = Number(val)"
-                  />
-                  <Button size="sm" variant="outline" @click="submitCapacityUpdate(slot.id)">
-                    Update
-                  </Button>
+        <ResponsiveDataView :items="slots" :get-key="slot => slot.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Periode</TableHead>
+                  <TableHead>Berlaku Untuk</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Held</TableHead>
+                  <TableHead>Booked</TableHead>
+                  <TableHead>Available</TableHead>
+                  <TableHead>Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="slot in items" :key="slot.id">
+                  <TableCell class="text-foreground">
+                    {{ formatDate(slot.periodStart) }} – {{ formatDate(slot.periodEnd) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ variantName(slot.variantId) }}
+                  </TableCell>
+                  <TableCell>
+                    <div v-if="canEdit" class="flex items-center gap-1.5">
+                      <Input
+                        :model-value="capacityValue(slot.id, slot.totalQuantity)"
+                        type="number"
+                        class="w-20 h-8"
+                        @update:model-value="val => slotCapacityEdits[slot.id] = Number(val)"
+                      />
+                      <Button size="sm" variant="outline" @click="submitCapacityUpdate(slot.id)">
+                        Update
+                      </Button>
+                    </div>
+                    <span v-else>{{ slot.totalQuantity }}</span>
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ slot.heldQuantity }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ slot.bookedQuantity }}
+                  </TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ getAvailableQuantity(slot) }}
+                  </TableCell>
+                  <TableCell>
+                    <Button v-if="canEdit" size="sm" variant="destructive" @click="requestDeleteSlot(slot.id)">
+                      Hapus
+                    </Button>
+                    <span v-else class="text-xs text-muted-foreground">—</span>
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="slots.length === 0" :colspan="7">
+                  Belum ada availability. Komoditas tidak akan tampil sebagai "Available" di katalog Client sampai availability diatur.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: slot }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div>
+                  <p class="text-sm font-medium text-foreground">
+                    {{ formatDate(slot.periodStart) }} – {{ formatDate(slot.periodEnd) }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ variantName(slot.variantId) }}
+                  </p>
                 </div>
-                <span v-else>{{ slot.totalQuantity }}</span>
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ slot.heldQuantity }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ slot.bookedQuantity }}
-              </TableCell>
-              <TableCell class="font-medium text-foreground">
-                {{ getAvailableQuantity(slot) }}
-              </TableCell>
-              <TableCell>
-                <Button v-if="canEdit" size="sm" variant="destructive" @click="requestDeleteSlot(slot.id)">
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Held
+                  </p>
+                  <p class="text-foreground">
+                    {{ slot.heldQuantity }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Booked
+                  </p>
+                  <p class="text-foreground">
+                    {{ slot.bookedQuantity }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Available
+                  </p>
+                  <p class="text-foreground font-medium">
+                    {{ getAvailableQuantity(slot) }}
+                  </p>
+                </div>
+                <div v-if="!canEdit">
+                  <p class="text-muted-foreground">
+                    Total
+                  </p>
+                  <p class="text-foreground">
+                    {{ slot.totalQuantity }}
+                  </p>
+                </div>
+              </div>
+              <div v-if="canEdit" class="mt-3 flex items-center gap-1.5">
+                <Input
+                  :model-value="capacityValue(slot.id, slot.totalQuantity)"
+                  type="number"
+                  class="w-20 h-8"
+                  @update:model-value="val => slotCapacityEdits[slot.id] = Number(val)"
+                />
+                <Button size="sm" variant="outline" @click="submitCapacityUpdate(slot.id)">
+                  Update
+                </Button>
+                <Button size="sm" variant="destructive" class="ml-auto" @click="requestDeleteSlot(slot.id)">
                   Hapus
                 </Button>
-                <span v-else class="text-xs text-muted-foreground">—</span>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="slots.length === 0" :colspan="7">
-              Belum ada availability. Komoditas tidak akan tampil sebagai "Available" di katalog Client sampai availability diatur.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
 

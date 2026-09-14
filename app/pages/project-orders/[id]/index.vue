@@ -1950,7 +1950,7 @@ const tripDurationDays = computed(() => {
             </div>
           </div>
 
-          <div class="flex shrink-0 flex-wrap items-center gap-2">
+          <div class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
             <div class="flex items-center gap-2.5 rounded-lg bg-primary/5 py-2 pl-2.5 pr-4">
               <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                 <Users class="h-4 w-4" />
@@ -2054,7 +2054,7 @@ const tripDurationDays = computed(() => {
               <Label for="edit-destination">Destinasi</Label>
               <Input id="edit-destination" v-model="editDestination" placeholder="mis. Kuala Lumpur, Malaysia" />
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div class="space-y-1.5">
                 <Label for="edit-travel-start">Tanggal Berangkat</Label>
                 <Input id="edit-travel-start" v-model="editTravelStartDate" type="date" />
@@ -2087,15 +2087,17 @@ const tripDurationDays = computed(() => {
           <div class="grid grid-cols-1 gap-4 lg:grid-cols-3 lg:items-start">
             <div class="space-y-4 lg:col-span-2">
               <SectionCard v-if="project.isGroupTrip" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Kapasitas Group Trip">
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
                   <StatsCard title="Seat Terisi" :value="`${getProjectSeatsFilled(project.id)} / ${project.travelerCount}`" :icon="Users" />
                   <StatsCard title="Destinasi" :value="project.destination" :icon="MapPin" />
                   <StatsCard title="Jadwal" :value="formatDateRange(project.travelStartDate, project.travelEndDate)" :icon="CalendarRange" />
                 </div>
               </SectionCard>
 
-              <!-- Stat ringkas (padat, angka besar + label kecil) — teaser, detail lengkap tetap di card di bawahnya. -->
-              <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <!-- Stat ringkas (padat, angka besar + label kecil) — teaser, detail lengkap tetap di card di bawahnya.
+                   1 kolom di mobile: judul StatsCard ("Budget Terpakai"/"H- Keberangkatan") ke-truncate parah
+                   di lebar 2-kolom pada layar sempit. -->
+              <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
                 <StatsCard
                   title="Budget Terpakai"
                   :value="`${budgetUsedPercent}%`"
@@ -2167,7 +2169,7 @@ const tripDurationDays = computed(() => {
                     <DialogDescription>Tour leader dan kontak darurat 24 jam untuk project ini — dibutuhkan sebelum status bisa maju ke step "Start".</DialogDescription>
                   </DialogHeader>
                   <div class="space-y-4 py-2">
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div class="space-y-1.5">
                         <Label for="edit-tour-leader-name">Nama Tour Leader</Label>
                         <Input id="edit-tour-leader-name" v-model="editTourLeaderName" placeholder="mis. Arif Setiawan" />
@@ -2177,7 +2179,7 @@ const tripDurationDays = computed(() => {
                         <Input id="edit-tour-leader-phone" v-model="editTourLeaderPhone" placeholder="mis. 0812-7000-1001" />
                       </div>
                     </div>
-                    <div class="grid grid-cols-2 gap-3">
+                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div class="space-y-1.5">
                         <Label for="edit-emergency-name">Nama Kontak Darurat</Label>
                         <Input id="edit-emergency-name" v-model="editEmergencyContactName" placeholder="mis. Manova 24/7 Operations" />
@@ -2484,7 +2486,7 @@ const tripDurationDays = computed(() => {
         </TabsContent>
 
         <TabsContent value="milestone">
-          <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-5">
+          <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <StatsCard title="Total Milestone" :value="String(milestoneSummary.total)" :icon="ListChecks" />
             <StatsCard title="Selesai" :value="String(milestoneSummary.completed)" :icon="CheckCircle2" icon-color="success" />
             <StatsCard title="Delay" :value="String(milestoneSummary.delayed)" :icon="AlertTriangle" :icon-color="milestoneSummary.delayed > 0 ? 'destructive' : 'primary'" />
@@ -2526,106 +2528,177 @@ const tripDurationDays = computed(() => {
                     <Plus class="h-3.5 w-3.5 mr-1.5" />Tambah Itinerary
                   </Button>
                 </template>
-                <div v-if="itineraryByDate.length" class="overflow-x-auto rounded-lg border border-border">
-                  <Table class="w-full min-w-[720px]">
-                    <TableHeader>
-                      <TableRow class="bg-muted/40 hover:bg-muted/40">
-                        <TableHead class="w-10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          No
-                        </TableHead>
-                        <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Day
-                        </TableHead>
-                        <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Time
-                        </TableHead>
-                        <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Activity
-                        </TableHead>
-                        <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Location
-                        </TableHead>
-                        <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Remarks
-                        </TableHead>
-                        <TableHead v-if="canManageOperations" class="px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                          Aksi
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <template v-for="day in itineraryByDate" :key="day.date">
-                        <TableRow v-for="(item, index) in day.items" :key="item.id" :class="index === 0 ? 'border-t-2 border-border' : ''">
-                          <TableCell class="px-3 py-2.5 text-sm text-muted-foreground">
-                            {{ index + 1 }}
-                          </TableCell>
-                          <TableCell class="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
-                            {{ formatDate(day.date) }}
-                          </TableCell>
-                          <TableCell class="px-3 py-2.5 text-sm text-muted-foreground">
-                            {{ item.time ?? '—' }}<template v-if="item.timezone">
-                              ({{ item.timezone }})
-                            </template>
-                          </TableCell>
-                          <TableCell class="px-3 py-2.5">
-                            <p class="text-sm text-foreground">
+                <template v-if="itineraryByDate.length">
+                  <div class="hidden md:block overflow-x-auto rounded-lg border border-border">
+                    <Table class="w-full min-w-[720px]">
+                      <TableHeader>
+                        <TableRow class="bg-muted/40 hover:bg-muted/40">
+                          <TableHead class="w-10 px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            No
+                          </TableHead>
+                          <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Day
+                          </TableHead>
+                          <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Time
+                          </TableHead>
+                          <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Activity
+                          </TableHead>
+                          <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Location
+                          </TableHead>
+                          <TableHead class="px-3 py-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Remarks
+                          </TableHead>
+                          <TableHead v-if="canManageOperations" class="px-3 py-2 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                            Aksi
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <template v-for="day in itineraryByDate" :key="day.date">
+                          <TableRow v-for="(item, index) in day.items" :key="item.id" :class="index === 0 ? 'border-t-2 border-border' : ''">
+                            <TableCell class="px-3 py-2.5 text-sm text-muted-foreground">
+                              {{ index + 1 }}
+                            </TableCell>
+                            <TableCell class="px-3 py-2.5 text-sm text-muted-foreground whitespace-nowrap">
+                              {{ formatDate(day.date) }}
+                            </TableCell>
+                            <TableCell class="px-3 py-2.5 text-sm text-muted-foreground">
+                              {{ item.time ?? '—' }}<template v-if="item.timezone">
+                                ({{ item.timezone }})
+                              </template>
+                            </TableCell>
+                            <TableCell class="px-3 py-2.5">
+                              <p class="text-sm text-foreground">
+                                {{ item.title }}
+                              </p>
+                              <p v-if="item.groupId" class="text-xs text-muted-foreground">
+                                Group: {{ groupNameById(item.groupId) }}
+                              </p>
+                              <p v-if="item.vendorId" class="text-xs text-muted-foreground">
+                                Vendor: {{ getVendorById(item.vendorId)?.name ?? item.vendorId }}<template v-if="item.vendorAmountIdr"> · {{ formatCurrencyIdr(item.vendorAmountIdr) }}</template>
+                              </p>
+                              <div v-if="item.visibleToClient === false || item.serviceType" class="mt-1 flex flex-wrap items-center gap-1">
+                                <StatusBadge v-if="item.visibleToClient === false" label="Internal Only" tone="neutral" />
+                                <StatusBadge
+                                  v-if="item.serviceType"
+                                  :label="findStatusOption(SERVICE_TYPES, item.serviceType).label"
+                                  :tone="findStatusOption(SERVICE_TYPES, item.serviceType).tone"
+                                />
+                              </div>
+                            </TableCell>
+                            <TableCell class="px-3 py-2.5 text-sm text-muted-foreground">
+                              {{ item.location ?? '—' }}
+                            </TableCell>
+                            <TableCell class="px-3 py-2.5 text-sm text-muted-foreground">
+                              {{ item.description ?? '—' }}
+                            </TableCell>
+                            <TableCell v-if="canManageOperations" class="px-3 py-2.5 text-right">
+                              <div class="flex items-center justify-end gap-1">
+                                <button
+                                  type="button"
+                                  class="flex h-6 w-6 items-center justify-center rounded-md border transition-colors"
+                                  :class="item.visibleToClient === false ? 'border-chart-5/30 bg-chart-5/10 text-chart-5 hover:bg-chart-5/20' : 'border-warning/30 bg-warning/10 text-warning hover:bg-warning/20'"
+                                  :title="item.visibleToClient === false ? 'Tampilkan ke Client' : 'Jadikan Internal'"
+                                  @click="toggleItineraryVisibility(item)"
+                                >
+                                  <component :is="item.visibleToClient === false ? Eye : EyeOff" class="h-3 w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  class="flex h-6 w-6 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary transition-colors hover:bg-primary/20"
+                                  title="Edit"
+                                  @click="openEditItineraryItem(item)"
+                                >
+                                  <Pencil class="h-3 w-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  class="flex h-6 w-6 items-center justify-center rounded-md border border-destructive/25 bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20"
+                                  title="Hapus"
+                                  @click="pendingDeleteItineraryItem = item"
+                                >
+                                  <Trash2 class="h-3 w-3" />
+                                </button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </template>
+                      </TableBody>
+                    </Table>
+                  </div>
+
+                  <div class="space-y-4 md:hidden">
+                    <div v-for="day in itineraryByDate" :key="day.date" class="space-y-2">
+                      <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                        {{ formatDate(day.date) }}
+                      </p>
+                      <div v-for="item in day.items" :key="item.id" class="rounded-xl border border-border bg-card p-4">
+                        <div class="flex items-start justify-between gap-2">
+                          <div class="min-w-0">
+                            <p class="text-sm font-medium text-foreground">
                               {{ item.title }}
                             </p>
-                            <p v-if="item.groupId" class="text-xs text-muted-foreground">
-                              Group: {{ groupNameById(item.groupId) }}
+                            <p class="text-xs text-muted-foreground">
+                              {{ item.time ?? '—' }}<template v-if="item.timezone"> ({{ item.timezone }})</template>
                             </p>
-                            <p v-if="item.vendorId" class="text-xs text-muted-foreground">
-                              Vendor: {{ getVendorById(item.vendorId)?.name ?? item.vendorId }}<template v-if="item.vendorAmountIdr"> · {{ formatCurrencyIdr(item.vendorAmountIdr) }}</template>
-                            </p>
-                            <div v-if="item.visibleToClient === false || item.serviceType" class="mt-1 flex flex-wrap items-center gap-1">
-                              <StatusBadge v-if="item.visibleToClient === false" label="Internal Only" tone="neutral" />
-                              <StatusBadge
-                                v-if="item.serviceType"
-                                :label="findStatusOption(SERVICE_TYPES, item.serviceType).label"
-                                :tone="findStatusOption(SERVICE_TYPES, item.serviceType).tone"
-                              />
-                            </div>
-                          </TableCell>
-                          <TableCell class="px-3 py-2.5 text-sm text-muted-foreground">
-                            {{ item.location ?? '—' }}
-                          </TableCell>
-                          <TableCell class="px-3 py-2.5 text-sm text-muted-foreground">
-                            {{ item.description ?? '—' }}
-                          </TableCell>
-                          <TableCell v-if="canManageOperations" class="px-3 py-2.5 text-right">
-                            <div class="flex items-center justify-end gap-1">
-                              <button
-                                type="button"
-                                class="flex h-6 w-6 items-center justify-center rounded-md border transition-colors"
-                                :class="item.visibleToClient === false ? 'border-chart-5/30 bg-chart-5/10 text-chart-5 hover:bg-chart-5/20' : 'border-warning/30 bg-warning/10 text-warning hover:bg-warning/20'"
-                                :title="item.visibleToClient === false ? 'Tampilkan ke Client' : 'Jadikan Internal'"
-                                @click="toggleItineraryVisibility(item)"
-                              >
-                                <component :is="item.visibleToClient === false ? Eye : EyeOff" class="h-3 w-3" />
-                              </button>
-                              <button
-                                type="button"
-                                class="flex h-6 w-6 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary transition-colors hover:bg-primary/20"
-                                title="Edit"
-                                @click="openEditItineraryItem(item)"
-                              >
-                                <Pencil class="h-3 w-3" />
-                              </button>
-                              <button
-                                type="button"
-                                class="flex h-6 w-6 items-center justify-center rounded-md border border-destructive/25 bg-destructive/10 text-destructive transition-colors hover:bg-destructive/20"
-                                title="Hapus"
-                                @click="pendingDeleteItineraryItem = item"
-                              >
-                                <Trash2 class="h-3 w-3" />
-                              </button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      </template>
-                    </TableBody>
-                  </Table>
-                </div>
+                          </div>
+                          <div v-if="canManageOperations" class="flex shrink-0 items-center gap-1">
+                            <button
+                              type="button"
+                              class="flex h-7 w-7 items-center justify-center rounded-md border transition-colors"
+                              :class="item.visibleToClient === false ? 'border-chart-5/30 bg-chart-5/10 text-chart-5' : 'border-warning/30 bg-warning/10 text-warning'"
+                              :title="item.visibleToClient === false ? 'Tampilkan ke Client' : 'Jadikan Internal'"
+                              @click="toggleItineraryVisibility(item)"
+                            >
+                              <component :is="item.visibleToClient === false ? Eye : EyeOff" class="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              class="flex h-7 w-7 items-center justify-center rounded-md border border-primary/25 bg-primary/10 text-primary transition-colors"
+                              title="Edit"
+                              @click="openEditItineraryItem(item)"
+                            >
+                              <Pencil class="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              type="button"
+                              class="flex h-7 w-7 items-center justify-center rounded-md border border-destructive/25 bg-destructive/10 text-destructive transition-colors"
+                              title="Hapus"
+                              @click="pendingDeleteItineraryItem = item"
+                            >
+                              <Trash2 class="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                        <p v-if="item.groupId" class="mt-1 text-xs text-muted-foreground">
+                          Group: {{ groupNameById(item.groupId) }}
+                        </p>
+                        <p v-if="item.vendorId" class="mt-0.5 text-xs text-muted-foreground">
+                          Vendor: {{ getVendorById(item.vendorId)?.name ?? item.vendorId }}<template v-if="item.vendorAmountIdr"> · {{ formatCurrencyIdr(item.vendorAmountIdr) }}</template>
+                        </p>
+                        <div v-if="item.location || item.description" class="mt-2 grid grid-cols-1 gap-1 text-xs sm:grid-cols-2">
+                          <p v-if="item.location" class="text-muted-foreground">
+                            <span class="text-foreground">Lokasi:</span> {{ item.location }}
+                          </p>
+                          <p v-if="item.description" class="text-muted-foreground">
+                            <span class="text-foreground">Remarks:</span> {{ item.description }}
+                          </p>
+                        </div>
+                        <div v-if="item.visibleToClient === false || item.serviceType" class="mt-2 flex flex-wrap items-center gap-1">
+                          <StatusBadge v-if="item.visibleToClient === false" label="Internal Only" tone="neutral" />
+                          <StatusBadge
+                            v-if="item.serviceType"
+                            :label="findStatusOption(SERVICE_TYPES, item.serviceType).label"
+                            :tone="findStatusOption(SERVICE_TYPES, item.serviceType).tone"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </template>
                 <EmptyState v-else size="compact" title="Belum ada itinerary tercatat" />
               </SectionCard>
 
@@ -2665,7 +2738,7 @@ const tripDurationDays = computed(() => {
                     </template>
                   </p>
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <StatsCard
                     title="Dokumen Traveler"
                     :value="`${departureReadiness.travelerReadinessPercent}%`"
@@ -2893,7 +2966,7 @@ const tripDurationDays = computed(() => {
                       <Input id="booking-ticketing-deadline" v-model="bookingTicketingDeadline" type="date" />
                     </div>
 
-                    <div v-if="bookingSheetType === 'hotel'" class="grid grid-cols-2 gap-3">
+                    <div v-if="bookingSheetType === 'hotel'" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                       <div class="space-y-1.5">
                         <Label for="booking-checkin">Check-in (opsional)</Label>
                         <Input id="booking-checkin" v-model="bookingCheckInDate" type="date" />
@@ -3494,7 +3567,7 @@ const tripDurationDays = computed(() => {
               :description="`${travelers.length} dari ${formatTravelerCount(project.travelerCount)} tercatat detail profilnya`"
             >
               <template #actions>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                   <NuxtLink :to="`/project-orders/${project.id}/manifest-preview`" target="_blank">
                     <Button size="sm" variant="outline">
                       <Printer class="h-4 w-4 mr-1.5" />Manifest / Export Preview
@@ -3612,7 +3685,7 @@ const tripDurationDays = computed(() => {
 
               <!-- Readiness indicator (Section 11 baru) — flat stat tile per metrik (icon badge + label sebaris, angka besar, caption kecil), TANPA sparkline/progress bar. Dibungkus satu background bersama supaya terbaca sebagai satu grup, bukan 4 card lepas. -->
               <div v-if="travelerReadinessSteps.length" class="mb-4 rounded-xl border border-border bg-muted/20 p-3">
-                <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <div v-for="step in travelerReadinessSteps" :key="step.key" class="rounded-lg border border-border bg-card p-3.5">
                     <div class="flex items-center gap-2.5">
                       <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="TONE_ICON_BG[step.tone]">
@@ -3700,107 +3773,186 @@ const tripDurationDays = computed(() => {
                 </label>
               </div>
 
-              <Table v-if="travelers.length" class="rounded-xl border border-border">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>Dokumen</TableHead>
-                    <TableHead>Kontak Darurat</TableHead>
-                    <TableHead>Catatan</TableHead>
-                    <TableHead>Status Dokumen</TableHead>
-                    <TableHead>Verifikasi</TableHead>
-                    <TableHead v-if="canManageTravelers">
-                      Aksi
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="traveler in filteredTravelers" :key="traveler.id">
-                    <TableCell class="font-medium text-foreground">
-                      {{ traveler.name }}
-                      <p v-if="traveler.groupId" class="text-xs font-normal text-muted-foreground">
-                        Group: {{ groupNameById(traveler.groupId) }}
-                      </p>
-                      <p v-if="companionSummary(traveler)" class="text-xs font-normal text-muted-foreground">
-                        {{ companionSummary(traveler) }}
-                      </p>
-                      <p v-if="traveler.salesOrderId && getSalesOrderOutstandingIdr(traveler.salesOrderId) > 0" class="text-xs font-normal text-warning">
-                        Sisa tagihan booking: {{ formatCurrencyIdr(getSalesOrderOutstandingIdr(traveler.salesOrderId)) }} (saldo bersama per booking, bukan per-pax)
-                      </p>
-                    </TableCell>
-                    <TableCell class="font-ticket-mono text-muted-foreground text-xs">
-                      <p class="whitespace-nowrap">
-                        Paspor: {{ passportSummary(traveler) }}
-                      </p>
-                      <p v-if="traveler.idNumber" class="whitespace-nowrap">
-                        ID: {{ idNumberSummary(traveler) }}
-                      </p>
-                      <p v-if="traveler.visaNumber" class="whitespace-nowrap">
-                        Visa: {{ visaSummary(traveler) }}
-                      </p>
-                    </TableCell>
-                    <TableCell class="text-muted-foreground">
-                      <template v-if="traveler.emergencyContactName">
-                        <p class="text-foreground">
-                          {{ traveler.emergencyContactName }}
-                        </p>
-                        <p v-if="traveler.emergencyContactPhone" class="whitespace-nowrap text-xs">
-                          {{ traveler.emergencyContactPhone }}
-                        </p>
-                      </template>
-                      <template v-else>
-                        —
-                      </template>
-                    </TableCell>
-                    <TableCell class="text-muted-foreground text-xs">
-                      <p v-if="traveler.dietaryRestrictions">
-                        Dietary: {{ traveler.dietaryRestrictions }}
-                      </p>
-                      <p v-if="traveler.accessibilityNeeds">
-                        Accessibility: {{ traveler.accessibilityNeeds }}
-                      </p>
-                      <p v-if="traveler.specialRequest">
-                        Lainnya: {{ traveler.specialRequest }}
-                      </p>
-                      <p v-if="!traveler.dietaryRestrictions && !traveler.accessibilityNeeds && !traveler.specialRequest">
-                        —
-                      </p>
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge v-if="travelerDocumentMissing(traveler)" label="Dokumen Belum Lengkap" tone="destructive" />
-                      <StatusBadge v-else label="Dokumen Lengkap" tone="success" />
-                    </TableCell>
-                    <TableCell>
-                      <button
-                        v-if="canManageTravelers"
-                        type="button"
-                        class="inline-flex"
-                        @click="toggleVerification(traveler)"
-                      >
-                        <StatusBadge v-if="traveler.documentsVerifiedAt" label="Terverifikasi" tone="success" />
-                        <StatusBadge v-else label="Belum Diverifikasi" tone="neutral" />
-                      </button>
-                      <template v-else>
-                        <StatusBadge v-if="traveler.documentsVerifiedAt" label="Terverifikasi" tone="success" />
-                        <StatusBadge v-else label="Belum Diverifikasi" tone="neutral" />
-                      </template>
-                    </TableCell>
-                    <TableCell v-if="canManageTravelers">
-                      <div class="flex items-center gap-1">
-                        <Button size="icon" variant="ghost" @click="openEditTraveler(traveler)">
-                          <Pencil class="h-4 w-4" />
-                        </Button>
-                        <Button size="icon" variant="ghost" @click="travelerToDelete = traveler">
-                          <Trash2 class="h-4 w-4 text-destructive" />
-                        </Button>
+              <template v-if="travelers.length">
+                <ResponsiveDataView v-if="filteredTravelers.length" :items="filteredTravelers" :get-key="traveler => traveler.id">
+                  <template #desktop="{ items }">
+                    <Table class="rounded-xl border border-border">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Nama</TableHead>
+                          <TableHead>Dokumen</TableHead>
+                          <TableHead>Kontak Darurat</TableHead>
+                          <TableHead>Catatan</TableHead>
+                          <TableHead>Status Dokumen</TableHead>
+                          <TableHead>Verifikasi</TableHead>
+                          <TableHead v-if="canManageTravelers">
+                            Aksi
+                          </TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow v-for="traveler in items" :key="traveler.id">
+                          <TableCell class="font-medium text-foreground">
+                            {{ traveler.name }}
+                            <p v-if="traveler.groupId" class="text-xs font-normal text-muted-foreground">
+                              Group: {{ groupNameById(traveler.groupId) }}
+                            </p>
+                            <p v-if="companionSummary(traveler)" class="text-xs font-normal text-muted-foreground">
+                              {{ companionSummary(traveler) }}
+                            </p>
+                            <p v-if="traveler.salesOrderId && getSalesOrderOutstandingIdr(traveler.salesOrderId) > 0" class="text-xs font-normal text-warning">
+                              Sisa tagihan booking: {{ formatCurrencyIdr(getSalesOrderOutstandingIdr(traveler.salesOrderId)) }} (saldo bersama per booking, bukan per-pax)
+                            </p>
+                          </TableCell>
+                          <TableCell class="font-ticket-mono text-muted-foreground text-xs">
+                            <p class="whitespace-nowrap">
+                              Paspor: {{ passportSummary(traveler) }}
+                            </p>
+                            <p v-if="traveler.idNumber" class="whitespace-nowrap">
+                              ID: {{ idNumberSummary(traveler) }}
+                            </p>
+                            <p v-if="traveler.visaNumber" class="whitespace-nowrap">
+                              Visa: {{ visaSummary(traveler) }}
+                            </p>
+                          </TableCell>
+                          <TableCell class="text-muted-foreground">
+                            <template v-if="traveler.emergencyContactName">
+                              <p class="text-foreground">
+                                {{ traveler.emergencyContactName }}
+                              </p>
+                              <p v-if="traveler.emergencyContactPhone" class="whitespace-nowrap text-xs">
+                                {{ traveler.emergencyContactPhone }}
+                              </p>
+                            </template>
+                            <template v-else>
+                              —
+                            </template>
+                          </TableCell>
+                          <TableCell class="text-muted-foreground text-xs">
+                            <p v-if="traveler.dietaryRestrictions">
+                              Dietary: {{ traveler.dietaryRestrictions }}
+                            </p>
+                            <p v-if="traveler.accessibilityNeeds">
+                              Accessibility: {{ traveler.accessibilityNeeds }}
+                            </p>
+                            <p v-if="traveler.specialRequest">
+                              Lainnya: {{ traveler.specialRequest }}
+                            </p>
+                            <p v-if="!traveler.dietaryRestrictions && !traveler.accessibilityNeeds && !traveler.specialRequest">
+                              —
+                            </p>
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge v-if="travelerDocumentMissing(traveler)" label="Dokumen Belum Lengkap" tone="destructive" />
+                            <StatusBadge v-else label="Dokumen Lengkap" tone="success" />
+                          </TableCell>
+                          <TableCell>
+                            <button
+                              v-if="canManageTravelers"
+                              type="button"
+                              class="inline-flex"
+                              @click="toggleVerification(traveler)"
+                            >
+                              <StatusBadge v-if="traveler.documentsVerifiedAt" label="Terverifikasi" tone="success" />
+                              <StatusBadge v-else label="Belum Diverifikasi" tone="neutral" />
+                            </button>
+                            <template v-else>
+                              <StatusBadge v-if="traveler.documentsVerifiedAt" label="Terverifikasi" tone="success" />
+                              <StatusBadge v-else label="Belum Diverifikasi" tone="neutral" />
+                            </template>
+                          </TableCell>
+                          <TableCell v-if="canManageTravelers">
+                            <div class="flex items-center gap-1">
+                              <Button size="icon" variant="ghost" @click="openEditTraveler(traveler)">
+                                <Pencil class="h-4 w-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" @click="travelerToDelete = traveler">
+                                <Trash2 class="h-4 w-4 text-destructive" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </template>
+
+                  <template #mobile-card="{ item: traveler }">
+                    <div class="rounded-xl border border-border bg-card p-4">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                          <p class="text-sm font-medium text-foreground">
+                            {{ traveler.name }}
+                          </p>
+                          <p v-if="traveler.groupId" class="text-xs text-muted-foreground">
+                            Group: {{ groupNameById(traveler.groupId) }}
+                          </p>
+                          <p v-if="companionSummary(traveler)" class="text-xs text-muted-foreground">
+                            {{ companionSummary(traveler) }}
+                          </p>
+                        </div>
+                        <div v-if="canManageTravelers" class="flex shrink-0 items-center gap-1">
+                          <Button size="icon" variant="ghost" @click="openEditTraveler(traveler)">
+                            <Pencil class="h-4 w-4" />
+                          </Button>
+                          <Button size="icon" variant="ghost" @click="travelerToDelete = traveler">
+                            <Trash2 class="h-4 w-4 text-destructive" />
+                          </Button>
+                        </div>
                       </div>
-                    </TableCell>
-                  </TableRow>
-                  <TableEmpty v-if="travelers.length > 0 && filteredTravelers.length === 0" :colspan="canManageTravelers ? 7 : 6">
-                    Tidak ada traveler yang cocok dengan filter saat ini.
-                  </TableEmpty>
-                </TableBody>
-              </Table>
+
+                      <p v-if="traveler.salesOrderId && getSalesOrderOutstandingIdr(traveler.salesOrderId) > 0" class="mt-1.5 text-xs text-warning">
+                        Sisa tagihan booking: {{ formatCurrencyIdr(getSalesOrderOutstandingIdr(traveler.salesOrderId)) }}
+                      </p>
+
+                      <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
+                        <StatusBadge v-if="travelerDocumentMissing(traveler)" label="Dokumen Belum Lengkap" tone="destructive" />
+                        <StatusBadge v-else label="Dokumen Lengkap" tone="success" />
+                        <button
+                          v-if="canManageTravelers"
+                          type="button"
+                          class="inline-flex"
+                          @click="toggleVerification(traveler)"
+                        >
+                          <StatusBadge v-if="traveler.documentsVerifiedAt" label="Terverifikasi" tone="success" />
+                          <StatusBadge v-else label="Belum Diverifikasi" tone="neutral" />
+                        </button>
+                        <template v-else>
+                          <StatusBadge v-if="traveler.documentsVerifiedAt" label="Terverifikasi" tone="success" />
+                          <StatusBadge v-else label="Belum Diverifikasi" tone="neutral" />
+                        </template>
+                      </div>
+
+                      <div class="mt-2.5 space-y-1 border-t border-border pt-2.5 text-xs text-muted-foreground">
+                        <p class="font-ticket-mono">
+                          Paspor: {{ passportSummary(traveler) }}
+                        </p>
+                        <p v-if="traveler.idNumber" class="font-ticket-mono">
+                          ID: {{ idNumberSummary(traveler) }}
+                        </p>
+                        <p v-if="traveler.visaNumber" class="font-ticket-mono">
+                          Visa: {{ visaSummary(traveler) }}
+                        </p>
+                        <p v-if="traveler.emergencyContactName">
+                          Kontak Darurat: <span class="text-foreground">{{ traveler.emergencyContactName }}</span>
+                          <template v-if="traveler.emergencyContactPhone"> · {{ traveler.emergencyContactPhone }}</template>
+                        </p>
+                        <p v-if="traveler.dietaryRestrictions">
+                          Dietary: {{ traveler.dietaryRestrictions }}
+                        </p>
+                        <p v-if="traveler.accessibilityNeeds">
+                          Accessibility: {{ traveler.accessibilityNeeds }}
+                        </p>
+                        <p v-if="traveler.specialRequest">
+                          Lainnya: {{ traveler.specialRequest }}
+                        </p>
+                      </div>
+                    </div>
+                  </template>
+                </ResponsiveDataView>
+                <p v-else class="py-6 text-center text-sm text-muted-foreground">
+                  Tidak ada traveler yang cocok dengan filter saat ini.
+                </p>
+              </template>
 
               <EmptyState v-if="travelers.length === 0" :icon="Users" title="Belum ada traveler tercatat" description="Tambahkan traveler secara manual atau gunakan Import (Mock) untuk mensimulasikan hasil import." />
               <p v-if="!canManageTravelers && travelers.length > 0" class="mt-3 text-xs text-muted-foreground">
@@ -3857,6 +4009,7 @@ const tripDurationDays = computed(() => {
                 <DialogDescription>Simulasi hasil parsing file (bukan file sungguhan) — tinjau baris di bawah sebelum mengimpor. Baris dengan error akan dilewati.</DialogDescription>
               </DialogHeader>
               <div class="py-2">
+                <div class="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -3885,6 +4038,7 @@ const tripDurationDays = computed(() => {
                     </TableRow>
                   </TableBody>
                 </Table>
+                </div>
                 <p class="mt-3 text-sm text-muted-foreground">
                   {{ importValidCount }} baris valid, {{ importErrorCount }} baris error (error report — baris ini tidak akan diimpor).
                 </p>
@@ -3950,44 +4104,73 @@ const tripDurationDays = computed(() => {
                   <p class="mb-1.5 mt-3 text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                     Perbandingan Quotation ({{ row.quotations.length }})
                   </p>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Vendor</TableHead>
-                        <TableHead>Nilai</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead v-if="canManageServiceType(row.service.type)">
-                          Aksi
-                        </TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow v-for="quotation in row.quotations" :key="quotation.id">
-                        <TableCell class="text-foreground">
-                          {{ getVendorById(quotation.vendorId)?.name ?? quotation.vendorId }}
-                        </TableCell>
-                        <TableCell class="tabular-nums">
-                          {{ formatCurrencyIdr(quotation.amountIdr) }}
-                        </TableCell>
-                        <TableCell>
+                  <ResponsiveDataView :items="row.quotations" :get-key="quotation => quotation.id">
+                    <template #desktop="{ items }">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Vendor</TableHead>
+                            <TableHead>Nilai</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead v-if="canManageServiceType(row.service.type)">
+                              Aksi
+                            </TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          <TableRow v-for="quotation in items" :key="quotation.id">
+                            <TableCell class="text-foreground">
+                              {{ getVendorById(quotation.vendorId)?.name ?? quotation.vendorId }}
+                            </TableCell>
+                            <TableCell class="tabular-nums">
+                              {{ formatCurrencyIdr(quotation.amountIdr) }}
+                            </TableCell>
+                            <TableCell>
+                              <StatusBadge
+                                :label="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).label"
+                                :tone="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).tone"
+                              />
+                            </TableCell>
+                            <TableCell v-if="canManageServiceType(row.service.type)">
+                              <div v-if="quotation.status === 'submitted'" class="flex items-center gap-1">
+                                <Button size="sm" variant="outline" @click="handleAcceptQuotation(quotation.id)">
+                                  Terima
+                                </Button>
+                                <Button size="sm" variant="ghost" @click="handleRejectQuotation(quotation.id)">
+                                  Tolak
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        </TableBody>
+                      </Table>
+                    </template>
+
+                    <template #mobile-card="{ item: quotation }">
+                      <div class="rounded-lg border border-border bg-card p-3">
+                        <div class="flex items-start justify-between gap-2">
+                          <p class="text-sm font-medium text-foreground">
+                            {{ getVendorById(quotation.vendorId)?.name ?? quotation.vendorId }}
+                          </p>
                           <StatusBadge
                             :label="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).label"
                             :tone="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).tone"
                           />
-                        </TableCell>
-                        <TableCell v-if="canManageServiceType(row.service.type)">
-                          <div v-if="quotation.status === 'submitted'" class="flex items-center gap-1">
-                            <Button size="sm" variant="outline" @click="handleAcceptQuotation(quotation.id)">
-                              Terima
-                            </Button>
-                            <Button size="sm" variant="ghost" @click="handleRejectQuotation(quotation.id)">
-                              Tolak
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    </TableBody>
-                  </Table>
+                        </div>
+                        <p class="mt-1 text-xs tabular-nums text-muted-foreground">
+                          {{ formatCurrencyIdr(quotation.amountIdr) }}
+                        </p>
+                        <div v-if="canManageServiceType(row.service.type) && quotation.status === 'submitted'" class="mt-2 flex items-center gap-1">
+                          <Button size="sm" variant="outline" @click="handleAcceptQuotation(quotation.id)">
+                            Terima
+                          </Button>
+                          <Button size="sm" variant="ghost" @click="handleRejectQuotation(quotation.id)">
+                            Tolak
+                          </Button>
+                        </div>
+                      </div>
+                    </template>
+                  </ResponsiveDataView>
                 </template>
                 <div v-else-if="row.quotations.length === 1" class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-border pt-3 text-xs">
                   <span class="text-muted-foreground">{{ getVendorById(row.quotations[0].vendorId)?.name ?? row.quotations[0].vendorId }}</span>
@@ -4520,46 +4703,73 @@ const tripDurationDays = computed(() => {
               </div>
 
               <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Supplier Invoice (AP Summary)" description="Reconciliation lengkap di Finance &gt; Reconciliation.">
-                <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Supplier Invoice</TableHead>
-                        <TableHead>Vendor</TableHead>
-                        <TableHead>Jumlah</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Match Status</TableHead>
-                        <TableHead class="text-right">Aksi</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      <TableRow v-for="supplierInvoice in projectSupplierInvoices" :key="supplierInvoice.id">
-                        <TableCell class="font-ticket-mono text-foreground">
-                          {{ supplierInvoice.id }}
-                        </TableCell>
-                        <TableCell class="text-muted-foreground">
-                          {{ getVendorById(supplierInvoice.vendorId)?.name ?? supplierInvoice.vendorId }}
-                        </TableCell>
-                        <TableCell>{{ formatCurrencyIdr(supplierInvoice.amountIdr) }}</TableCell>
-                        <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).tone" /></TableCell>
-                        <TableCell>
-                          <StatusBadge v-if="supplierInvoice.matchStatus" :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).label" :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).tone" />
-                          <span v-else class="text-xs text-muted-foreground">Belum ditriase</span>
-                        </TableCell>
-                        <TableCell class="text-right">
-                          <Button v-if="canManageFinance && supplierInvoice.status === 'approved'" size="sm" variant="outline" @click="onPaySupplierInvoice(supplierInvoice.id)">
-                            Bayar
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                      <TableEmpty v-if="projectSupplierInvoices.length === 0" :colspan="6">
-                        <EmptyState
-                          :icon="FileText"
-                          title="Belum ada Supplier Invoice untuk project ini."
-                          description="Invoice dari vendor akan muncul di sini untuk proses reconciliation."
-                        />
-                      </TableEmpty>
-                    </TableBody>
-                  </Table>
+                <ResponsiveDataView v-if="projectSupplierInvoices.length" :items="projectSupplierInvoices" :get-key="supplierInvoice => supplierInvoice.id">
+                  <template #desktop="{ items }">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Supplier Invoice</TableHead>
+                          <TableHead>Vendor</TableHead>
+                          <TableHead>Jumlah</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Match Status</TableHead>
+                          <TableHead class="text-right">Aksi</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        <TableRow v-for="supplierInvoice in items" :key="supplierInvoice.id">
+                          <TableCell class="font-ticket-mono text-foreground">
+                            {{ supplierInvoice.id }}
+                          </TableCell>
+                          <TableCell class="text-muted-foreground">
+                            {{ getVendorById(supplierInvoice.vendorId)?.name ?? supplierInvoice.vendorId }}
+                          </TableCell>
+                          <TableCell>{{ formatCurrencyIdr(supplierInvoice.amountIdr) }}</TableCell>
+                          <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).tone" /></TableCell>
+                          <TableCell>
+                            <StatusBadge v-if="supplierInvoice.matchStatus" :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).label" :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).tone" />
+                            <span v-else class="text-xs text-muted-foreground">Belum ditriase</span>
+                          </TableCell>
+                          <TableCell class="text-right">
+                            <Button v-if="canManageFinance && supplierInvoice.status === 'approved'" size="sm" variant="outline" @click="onPaySupplierInvoice(supplierInvoice.id)">
+                              Bayar
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </template>
+
+                  <template #mobile-card="{ item: supplierInvoice }">
+                    <div class="rounded-xl border border-border bg-card p-4">
+                      <div class="flex items-start justify-between gap-2">
+                        <div class="min-w-0">
+                          <p class="font-ticket-mono text-sm font-medium text-foreground">
+                            {{ supplierInvoice.id }}
+                          </p>
+                          <p class="text-xs text-muted-foreground">
+                            {{ getVendorById(supplierInvoice.vendorId)?.name ?? supplierInvoice.vendorId }}
+                          </p>
+                        </div>
+                        <StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).tone" />
+                      </div>
+                      <div class="mt-2 flex items-center justify-between gap-2 text-xs">
+                        <span class="text-foreground">{{ formatCurrencyIdr(supplierInvoice.amountIdr) }}</span>
+                        <StatusBadge v-if="supplierInvoice.matchStatus" :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).label" :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).tone" />
+                        <span v-else class="text-muted-foreground">Belum ditriase</span>
+                      </div>
+                      <Button v-if="canManageFinance && supplierInvoice.status === 'approved'" size="sm" variant="outline" class="mt-2 w-full" @click="onPaySupplierInvoice(supplierInvoice.id)">
+                        Bayar
+                      </Button>
+                    </div>
+                  </template>
+                </ResponsiveDataView>
+                <EmptyState
+                  v-else
+                  :icon="FileText"
+                  title="Belum ada Supplier Invoice untuk project ini."
+                  description="Invoice dari vendor akan muncul di sini untuk proses reconciliation."
+                />
               </SectionCard>
 
               <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Pengeluaran Project" description="Pengeluaran ad-hoc (transport, konsumsi, perlengkapan, dll) yang langsung tercatat dan ikut Actual Cost — tanpa approval berlapis.">
@@ -4635,7 +4845,7 @@ const tripDurationDays = computed(() => {
                   <Label for="expense-description">Keterangan</Label>
                   <Input id="expense-description" v-model="expenseDescription" placeholder="mis. Taksi bandara ke hotel untuk rombongan" />
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div class="space-y-1.5">
                     <Label for="expense-amount">Nominal (Rp)</Label>
                     <CurrencyInput id="expense-amount" v-model="expenseAmountIdr" placeholder="mis. 500000" />
@@ -4691,7 +4901,7 @@ const tripDurationDays = computed(() => {
                   <Label for="inv-label">Label Invoice</Label>
                   <Input id="inv-label" v-model="createInvoiceLabel" placeholder="mis. Invoice Tour Bali 5D4N" />
                 </div>
-                <div class="grid grid-cols-2 gap-3">
+                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <div class="space-y-1.5">
                     <Label for="inv-amount">Nilai Invoice (Rp)</Label>
                     <CurrencyInput id="inv-amount" v-model="createInvoiceAmountIdr" placeholder="mis. 95000000" />
@@ -5150,7 +5360,8 @@ const tripDurationDays = computed(() => {
 
             <div class="min-h-[420px]">
               <Transition name="docs-view" mode="out-in">
-                <Table v-if="documentsViewMode === 'list'" key="list">
+                <div v-if="documentsViewMode === 'list'" key="list" class="overflow-x-auto">
+                <Table>
                   <TableHeader>
                     <TableRow>
                       <TableHead>Dokumen</TableHead>
@@ -5223,6 +5434,7 @@ const tripDurationDays = computed(() => {
                     </TableEmpty>
                   </TableBody>
                 </Table>
+                </div>
 
                 <div v-else-if="paginatedDocuments.length" key="grid" class="grid content-start grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
                   <div
@@ -5358,7 +5570,7 @@ const tripDurationDays = computed(() => {
           <div ref="activityHistoryRef" class="space-y-4">
             <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Riwayat Aktivitas" description="Riwayat kronologis perubahan, komunikasi, dan event sistem untuk project ini — Activity/Change, Message, System Event, dan Document dalam satu list (Section 21, D-078).">
               <template #actions>
-                <div class="flex items-center gap-2">
+                <div class="flex flex-wrap items-center gap-2">
                   <Sheet v-if="canLogChange" v-model:open="isChangeDialogOpen">
                     <SheetTrigger as-child>
                       <Button size="sm" variant="outline">
@@ -5387,7 +5599,7 @@ const tripDurationDays = computed(() => {
                           <Label for="change-reason">Alasan / Deskripsi Perubahan</Label>
                           <Input id="change-reason" v-model="changeReason" placeholder="mis. Permintaan upgrade kamar dari klien" />
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                           <div class="space-y-1.5">
                             <Label for="change-before">Sebelum (opsional)</Label>
                             <Input id="change-before" v-model="changeBefore" placeholder="mis. Deluxe" />
@@ -5672,7 +5884,7 @@ const tripDurationDays = computed(() => {
           <SheetTitle>{{ editingItineraryItemId ? 'Edit Item Itinerary' : 'Tambah Item Itinerary' }}</SheetTitle>
         </SheetHeader>
         <div class="space-y-4 py-2">
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div class="space-y-1.5">
               <Label for="itin-date">Tanggal</Label><Input id="itin-date" v-model="itineraryForm.date" type="date" />
             </div>
@@ -5690,7 +5902,7 @@ const tripDurationDays = computed(() => {
           <div class="space-y-1.5">
             <Label for="itin-location">Lokasi</Label><Input id="itin-location" v-model="itineraryForm.location" placeholder="mis. Lobi Hotel, pukul 08:00" />
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div class="space-y-1.5">
               <Label for="itin-service-type">Jenis Layanan</Label>
               <select id="itin-service-type" v-model="itineraryForm.serviceType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -5717,7 +5929,7 @@ const tripDurationDays = computed(() => {
           <div class="space-y-1.5">
             <Label for="itin-timezone">Timezone</Label><Input id="itin-timezone" v-model="itineraryForm.timezone" placeholder="mis. Asia/Jakarta" />
           </div>
-          <div class="grid grid-cols-2 gap-3">
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div class="space-y-1.5">
               <Label for="itin-vendor">Vendor (opsional)</Label>
               <select id="itin-vendor" v-model="itineraryForm.vendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">

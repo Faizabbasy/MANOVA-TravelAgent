@@ -133,54 +133,100 @@ const cashFlowRows = computed(() => {
 
         <TabsContent value="balances" class="pt-4">
           <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Saldo Akun" description="Saldo debit/kredit per akun — diturunkan langsung dari jurnal, tidak ada input manual.">
-            <div class="overflow-x-auto border-t border-border">
-              <Table class="w-full min-w-[720px]">
-                <TableHeader>
-                  <TableRow class="bg-muted/40 hover:bg-muted/40">
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Kode
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Nama Akun
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Tipe
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Debit
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Kredit
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Saldo
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="row in balances" :key="row.account.code">
-                    <TableCell class="px-4 py-3 font-mono text-sm text-muted-foreground">
-                      {{ row.account.code }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
-                      {{ row.account.name }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
-                      <StatusBadge :label="ACCOUNT_TYPE_LABEL[row.account.type]" :tone="ACCOUNT_TYPE_TONE[row.account.type]" />
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
-                      {{ formatCurrencyIdr(row.debitIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
-                      {{ formatCurrencyIdr(row.creditIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums" :class="row.balanceIdr >= 0 ? 'text-foreground' : 'text-destructive'">
-                      {{ formatCurrencyIdr(row.balanceIdr) }}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+            <ResponsiveDataView :items="balances" :get-key="row => row.account.code">
+              <template #desktop="{ items }">
+                <div class="overflow-x-auto border-t border-border">
+                  <Table class="w-full min-w-[720px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Kode
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Nama Akun
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Tipe
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Debit
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Kredit
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Saldo
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="row in items" :key="row.account.code">
+                        <TableCell class="px-4 py-3 font-mono text-sm text-muted-foreground">
+                          {{ row.account.code }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+                          {{ row.account.name }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <StatusBadge :label="ACCOUNT_TYPE_LABEL[row.account.type]" :tone="ACCOUNT_TYPE_TONE[row.account.type]" />
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                          {{ formatCurrencyIdr(row.debitIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                          {{ formatCurrencyIdr(row.creditIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums" :class="row.balanceIdr >= 0 ? 'text-foreground' : 'text-destructive'">
+                          {{ formatCurrencyIdr(row.balanceIdr) }}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </template>
+
+              <template #mobile-card="{ item: row }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-foreground truncate">
+                        {{ row.account.name }}
+                      </p>
+                      <p class="text-xs text-muted-foreground font-mono">
+                        {{ row.account.code }}
+                      </p>
+                    </div>
+                    <StatusBadge :label="ACCOUNT_TYPE_LABEL[row.account.type]" :tone="ACCOUNT_TYPE_TONE[row.account.type]" />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Debit
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatCurrencyIdr(row.debitIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Kredit
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatCurrencyIdr(row.creditIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Saldo
+                      </p>
+                      <p class="font-medium" :class="row.balanceIdr >= 0 ? 'text-foreground' : 'text-destructive'">
+                        {{ formatCurrencyIdr(row.balanceIdr) }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
 
@@ -263,76 +309,143 @@ const cashFlowRows = computed(() => {
 
         <TabsContent value="revenue" class="pt-4">
           <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Revenue Report per Periode">
-            <div class="overflow-x-auto border-t border-border">
-              <Table class="w-full min-w-[920px]">
-                <TableHeader>
-                  <TableRow class="bg-muted/40 hover:bg-muted/40">
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Periode
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Pendapatan
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Diterima
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Biaya Langsung
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Opex
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Laba Kotor
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Laba Bersih
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Margin
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="row in revenue" :key="row.period">
-                    <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+            <ResponsiveDataView :items="revenue" :get-key="row => row.period">
+              <template #desktop="{ items }">
+                <div class="overflow-x-auto border-t border-border">
+                  <Table class="w-full min-w-[920px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Periode
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Pendapatan
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Diterima
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Biaya Langsung
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Opex
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Laba Kotor
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Laba Bersih
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Margin
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="row in items" :key="row.period">
+                        <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+                          {{ row.period }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-foreground">
+                          {{ formatCurrencyIdr(row.revenueIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-success">
+                          {{ formatCurrencyIdr(row.collectedIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                          {{ formatCurrencyIdr(row.directCostIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
+                          {{ formatCurrencyIdr(row.opexIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums" :class="row.grossProfitIdr >= 0 ? 'text-foreground' : 'text-destructive'">
+                          {{ formatCurrencyIdr(row.grossProfitIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums" :class="row.netProfitIdr >= 0 ? 'text-success' : 'text-destructive'">
+                          {{ formatCurrencyIdr(row.netProfitIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3">
+                          <div class="flex items-center gap-2">
+                            <span class="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
+                              <span
+                                :class="cn('block h-full rounded-full', row.netProfitIdr >= 0 ? 'bg-success' : 'bg-destructive')"
+                                :style="{ width: `${Math.min(100, (Math.abs(row.revenueIdr) / maxRevenue) * 100)}%` }"
+                              />
+                            </span>
+                            <span class="text-xs tabular-nums text-muted-foreground">
+                              {{ row.revenueIdr ? formatPercentage((row.netProfitIdr / row.revenueIdr) * 100, 1) : '—' }}
+                            </span>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </template>
+
+              <template #mobile-card="{ item: row }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
                       {{ row.period }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-foreground">
-                      {{ formatCurrencyIdr(row.revenueIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-success">
-                      {{ formatCurrencyIdr(row.collectedIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
-                      {{ formatCurrencyIdr(row.directCostIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-muted-foreground">
-                      {{ formatCurrencyIdr(row.opexIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums" :class="row.grossProfitIdr >= 0 ? 'text-foreground' : 'text-destructive'">
-                      {{ formatCurrencyIdr(row.grossProfitIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums" :class="row.netProfitIdr >= 0 ? 'text-success' : 'text-destructive'">
-                      {{ formatCurrencyIdr(row.netProfitIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3">
-                      <div class="flex items-center gap-2">
-                        <span class="h-1.5 w-16 rounded-full bg-muted overflow-hidden">
-                          <span
-                            :class="cn('block h-full rounded-full', row.netProfitIdr >= 0 ? 'bg-success' : 'bg-destructive')"
-                            :style="{ width: `${Math.min(100, (Math.abs(row.revenueIdr) / maxRevenue) * 100)}%` }"
-                          />
-                        </span>
-                        <span class="text-xs tabular-nums text-muted-foreground">
-                          {{ row.revenueIdr ? formatPercentage((row.netProfitIdr / row.revenueIdr) * 100, 1) : '—' }}
-                        </span>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+                    </p>
+                    <span class="text-xs tabular-nums text-muted-foreground">
+                      {{ row.revenueIdr ? formatPercentage((row.netProfitIdr / row.revenueIdr) * 100, 1) : '—' }}
+                    </span>
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Pendapatan
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatCurrencyIdr(row.revenueIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Diterima
+                      </p>
+                      <p class="text-success">
+                        {{ formatCurrencyIdr(row.collectedIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Biaya Langsung
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatCurrencyIdr(row.directCostIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Opex
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatCurrencyIdr(row.opexIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Laba Kotor
+                      </p>
+                      <p :class="row.grossProfitIdr >= 0 ? 'text-foreground' : 'text-destructive'">
+                        {{ formatCurrencyIdr(row.grossProfitIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Laba Bersih
+                      </p>
+                      <p class="font-medium" :class="row.netProfitIdr >= 0 ? 'text-success' : 'text-destructive'">
+                        {{ formatCurrencyIdr(row.netProfitIdr) }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
             <p class="px-4 py-3 text-xs text-muted-foreground border-t border-border">
               Laba bersih = pendapatan − biaya langsung vendor − opex periode tersebut. Opex hanya dihitung
               untuk entri berstatus Disetujui atau Dibayar.
@@ -405,48 +518,94 @@ const cashFlowRows = computed(() => {
             title="Cashflow per Periode"
             description="Kas masuk = Payment yang benar-benar diterima (sama dengan kolom Diterima di Revenue Report). Kas keluar = tagihan vendor + Opex disetujui/dibayar pada periode yang sama. Saldo kumulatif murni akumulasi net cash flow demo, bukan saldo kas awal riil."
           >
-            <div class="overflow-x-auto border-t border-border">
-              <Table class="w-full min-w-[640px]">
-                <TableHeader>
-                  <TableRow class="bg-muted/40 hover:bg-muted/40">
-                    <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Periode
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Kas Masuk
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Kas Keluar
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Net Cash Flow
-                    </TableHead>
-                    <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Saldo Kumulatif
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="row in cashFlowRows" :key="row.period">
-                    <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
-                      {{ row.period }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-success">
-                      {{ formatCurrencyIdr(row.cashInIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-destructive">
-                      {{ formatCurrencyIdr(row.cashOutIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums" :class="row.netCashFlowIdr >= 0 ? 'text-success' : 'text-destructive'">
-                      {{ formatCurrencyIdr(row.netCashFlowIdr) }}
-                    </TableCell>
-                    <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums" :class="row.cumulativeIdr >= 0 ? 'text-foreground' : 'text-destructive'">
-                      {{ formatCurrencyIdr(row.cumulativeIdr) }}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+            <ResponsiveDataView :items="cashFlowRows" :get-key="row => row.period">
+              <template #desktop="{ items }">
+                <div class="overflow-x-auto border-t border-border">
+                  <Table class="w-full min-w-[640px]">
+                    <TableHeader>
+                      <TableRow class="bg-muted/40 hover:bg-muted/40">
+                        <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Periode
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Kas Masuk
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Kas Keluar
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Net Cash Flow
+                        </TableHead>
+                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Saldo Kumulatif
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="row in items" :key="row.period">
+                        <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+                          {{ row.period }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-success">
+                          {{ formatCurrencyIdr(row.cashInIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-destructive">
+                          {{ formatCurrencyIdr(row.cashOutIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums" :class="row.netCashFlowIdr >= 0 ? 'text-success' : 'text-destructive'">
+                          {{ formatCurrencyIdr(row.netCashFlowIdr) }}
+                        </TableCell>
+                        <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums" :class="row.cumulativeIdr >= 0 ? 'text-foreground' : 'text-destructive'">
+                          {{ formatCurrencyIdr(row.cumulativeIdr) }}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </template>
+
+              <template #mobile-card="{ item: row }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <p class="text-sm font-medium text-foreground">
+                    {{ row.period }}
+                  </p>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Kas Masuk
+                      </p>
+                      <p class="text-success">
+                        {{ formatCurrencyIdr(row.cashInIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Kas Keluar
+                      </p>
+                      <p class="text-destructive">
+                        {{ formatCurrencyIdr(row.cashOutIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Net Cash Flow
+                      </p>
+                      <p class="font-medium" :class="row.netCashFlowIdr >= 0 ? 'text-success' : 'text-destructive'">
+                        {{ formatCurrencyIdr(row.netCashFlowIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Saldo Kumulatif
+                      </p>
+                      <p class="font-medium" :class="row.cumulativeIdr >= 0 ? 'text-foreground' : 'text-destructive'">
+                        {{ formatCurrencyIdr(row.cumulativeIdr) }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
       </Tabs>

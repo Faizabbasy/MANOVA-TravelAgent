@@ -143,60 +143,128 @@ function viewLeadDetail () {
       </div>
 
       <SectionCard description="Seluruh quotation lintas Lead, apa pun status approval-nya.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Quotation</TableHead>
-              <TableHead>Lead</TableHead>
-              <TableHead>Party</TableHead>
-              <TableHead>Nilai</TableHead>
-              <TableHead>Versi</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Dibuat</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="quotation in allQuotations" :key="quotation.id" class="group cursor-pointer transition-colors hover:bg-muted/50" @click="openReview(quotation)">
-              <TableCell class="font-medium text-primary group-hover:underline">
-                {{ quotation.id }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ leadTitle(quotation.leadId) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ partyName(quotation.leadId) }}
-              </TableCell>
-              <TableCell>{{ formatCurrencyIdr(quotation.amountIdr) }}</TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ quotation.version }}
-              </TableCell>
-              <TableCell>
+        <ResponsiveDataView v-if="allQuotations.length" :items="allQuotations" :get-key="quotation => quotation.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Quotation</TableHead>
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Party</TableHead>
+                  <TableHead>Nilai</TableHead>
+                  <TableHead>Versi</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Dibuat</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="quotation in items" :key="quotation.id" class="group cursor-pointer transition-colors hover:bg-muted/50" @click="openReview(quotation)">
+                  <TableCell class="font-medium text-primary group-hover:underline">
+                    {{ quotation.id }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ leadTitle(quotation.leadId) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ partyName(quotation.leadId) }}
+                  </TableCell>
+                  <TableCell>{{ formatCurrencyIdr(quotation.amountIdr) }}</TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ quotation.version }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').label"
+                      :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').tone"
+                    />
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(quotation.createdAt) }}
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex items-center justify-end gap-1.5">
+                      <Button size="sm" variant="outline" @click.stop="openReview(quotation)">
+                        Detail
+                      </Button>
+                      <Button size="sm" variant="outline" @click.stop="openQuotationEdit(quotation.leadId)">
+                        Edit
+                      </Button>
+                      <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: quotation }">
+            <div class="rounded-xl border border-border bg-card p-4 cursor-pointer transition-colors active:bg-muted" @click="openReview(quotation)">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-primary truncate">
+                    {{ quotation.id }}
+                  </p>
+                  <p class="text-xs text-muted-foreground truncate">
+                    {{ leadTitle(quotation.leadId) }}
+                  </p>
+                </div>
                 <StatusBadge
                   :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').label"
                   :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, quotation.approvalStatus ?? 'draft').tone"
                 />
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDate(quotation.createdAt) }}
-              </TableCell>
-              <TableCell>
-                <div class="flex items-center justify-end gap-1.5">
-                  <Button size="sm" variant="outline" @click.stop="openReview(quotation)">
-                    Detail
-                  </Button>
-                  <Button size="sm" variant="outline" @click.stop="openQuotationEdit(quotation.leadId)">
-                    Edit
-                  </Button>
-                  <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Party
+                  </p>
+                  <p class="text-foreground">
+                    {{ partyName(quotation.leadId) }}
+                  </p>
                 </div>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="allQuotations.length === 0" :colspan="8">
-              Belum ada quotation.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+                <div>
+                  <p class="text-muted-foreground">
+                    Nilai
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(quotation.amountIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Versi
+                  </p>
+                  <p class="text-foreground">
+                    {{ quotation.version }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Dibuat
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(quotation.createdAt) }}
+                  </p>
+                </div>
+              </div>
+              <div class="mt-3 flex items-center justify-end gap-1.5">
+                <Button size="sm" variant="outline" @click.stop="openReview(quotation)">
+                  Detail
+                </Button>
+                <Button size="sm" variant="outline" @click.stop="openQuotationEdit(quotation.leadId)">
+                  Edit
+                </Button>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState
+          v-else
+          title="Belum ada quotation"
+          description="Belum ada quotation."
+        />
       </SectionCard>
     </template>
 

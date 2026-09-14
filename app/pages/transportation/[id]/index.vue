@@ -276,78 +276,170 @@ function submitEdit () {
       </SectionCard>
 
       <SectionCard title="Transport Options" description="Tipe kendaraan, kapasitas, bagasi, dan aksesibilitas per opsi yang dibandingkan.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Tipe Kendaraan</TableHead>
-              <TableHead>Kapasitas</TableHead>
-              <TableHead>Bagasi</TableHead>
-              <TableHead>Aksesibilitas</TableHead>
-              <TableHead>Rate</TableHead>
-              <TableHead v-if="canManageTransportation">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(option, index) in booking.options" :key="index">
-              <TableCell><StatusBadge :label="findStatusOption(VEHICLE_TYPES, option.vehicleType).label" :tone="findStatusOption(VEHICLE_TYPES, option.vehicleType).tone" /></TableCell>
-              <TableCell class="text-foreground">
-                {{ option.capacity }} pax
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ option.luggageCapacity ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ option.accessibilityFeatures ?? '—' }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(option.ratePerUnitIdr) }} / {{ option.rateUnit }}
-              </TableCell>
-              <TableCell v-if="canManageTransportation">
-                <StatusBadge v-if="option.isSelected" label="Dipilih" tone="success" />
-                <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">
-                  Pilih
-                </Button>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="booking.options.length === 0" :colspan="canManageTransportation ? 6 : 5">
-              Belum ada opsi tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="booking.options" :get-key="(option, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tipe Kendaraan</TableHead>
+                  <TableHead>Kapasitas</TableHead>
+                  <TableHead>Bagasi</TableHead>
+                  <TableHead>Aksesibilitas</TableHead>
+                  <TableHead>Rate</TableHead>
+                  <TableHead v-if="canManageTransportation">
+                    Aksi
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(option, index) in items" :key="index">
+                  <TableCell><StatusBadge :label="findStatusOption(VEHICLE_TYPES, option.vehicleType).label" :tone="findStatusOption(VEHICLE_TYPES, option.vehicleType).tone" /></TableCell>
+                  <TableCell class="text-foreground">
+                    {{ option.capacity }} pax
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ option.luggageCapacity ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ option.accessibilityFeatures ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(option.ratePerUnitIdr) }} / {{ option.rateUnit }}
+                  </TableCell>
+                  <TableCell v-if="canManageTransportation">
+                    <StatusBadge v-if="option.isSelected" label="Dipilih" tone="success" />
+                    <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">
+                      Pilih
+                    </Button>
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="booking.options.length === 0" :colspan="canManageTransportation ? 6 : 5">
+                  Belum ada opsi tercatat.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: option, index }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <StatusBadge :label="findStatusOption(VEHICLE_TYPES, option.vehicleType).label" :tone="findStatusOption(VEHICLE_TYPES, option.vehicleType).tone" />
+                <template v-if="canManageTransportation">
+                  <StatusBadge v-if="option.isSelected" label="Dipilih" tone="success" />
+                  <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">
+                    Pilih
+                  </Button>
+                </template>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Kapasitas
+                  </p>
+                  <p class="text-foreground">
+                    {{ option.capacity }} pax
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Bagasi
+                  </p>
+                  <p class="text-foreground">
+                    {{ option.luggageCapacity ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Aksesibilitas
+                  </p>
+                  <p class="text-foreground">
+                    {{ option.accessibilityFeatures ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Rate
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(option.ratePerUnitIdr) }} / {{ option.rateUnit }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard title="Dispatch / Legs" description="Pickup/drop-off, rute, dan jadwal per leg (multi-leg dispatch).">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Leg</TableHead>
-              <TableHead>Pickup</TableHead>
-              <TableHead>Drop-off</TableHead>
-              <TableHead>Jadwal</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(leg, index) in booking.legs" :key="index">
-              <TableCell class="text-foreground">
-                {{ leg.label ?? `Leg ${index + 1}` }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ leg.pickupLocation }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ leg.dropoffLocation }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDateTime(leg.scheduledAt) }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="booking.legs.length === 0" :colspan="4">
-              Belum ada leg tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="booking.legs" :get-key="(leg, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Leg</TableHead>
+                  <TableHead>Pickup</TableHead>
+                  <TableHead>Drop-off</TableHead>
+                  <TableHead>Jadwal</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(leg, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ leg.label ?? `Leg ${index + 1}` }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ leg.pickupLocation }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ leg.dropoffLocation }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDateTime(leg.scheduledAt) }}
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="booking.legs.length === 0" :colspan="4">
+                  Belum ada leg tercatat.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: leg, index }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
+                  {{ leg.label ?? `Leg ${index + 1}` }}
+                </p>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Pickup
+                  </p>
+                  <p class="text-foreground">
+                    {{ leg.pickupLocation }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Drop-off
+                  </p>
+                  <p class="text-foreground">
+                    {{ leg.dropoffLocation }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Jadwal
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDateTime(leg.scheduledAt) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard title="Manifest / Group Allocation" :description="`${booking.travelerIds.length} traveler ditugaskan pada booking ini`">

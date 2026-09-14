@@ -46,42 +46,75 @@ const calculation = computed(() => {
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
         <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Aturan Pajak" description="Dikelola di Administration > Master Data.">
-          <div v-if="TAX_RULES.length" class="overflow-x-auto border-t border-border">
-            <Table class="w-full min-w-[480px]">
-              <TableHeader>
-                <TableRow class="bg-muted/40 hover:bg-muted/40">
-                  <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Nama
-                  </TableHead>
-                  <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Berlaku Untuk
-                  </TableHead>
-                  <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Tarif
-                  </TableHead>
-                  <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Status
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="rule in TAX_RULES" :key="rule.id">
-                  <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+          <ResponsiveDataView v-if="TAX_RULES.length" :items="TAX_RULES" :get-key="rule => rule.id">
+            <template #desktop="{ items }">
+              <div class="overflow-x-auto border-t border-border">
+                <Table class="w-full min-w-[480px]">
+                  <TableHeader>
+                    <TableRow class="bg-muted/40 hover:bg-muted/40">
+                      <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Nama
+                      </TableHead>
+                      <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Berlaku Untuk
+                      </TableHead>
+                      <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Tarif
+                      </TableHead>
+                      <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        Status
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="rule in items" :key="rule.id">
+                      <TableCell class="px-4 py-3 text-sm font-medium text-foreground">
+                        {{ rule.name }}
+                      </TableCell>
+                      <TableCell class="px-4 py-3 text-sm text-muted-foreground">
+                        {{ rule.appliesTo }}
+                      </TableCell>
+                      <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
+                        {{ formatPercentage(rule.ratePercent, 1) }}
+                      </TableCell>
+                      <TableCell class="px-4 py-3">
+                        <StatusBadge :label="rule.isActive ? 'Aktif' : 'Nonaktif'" :tone="rule.isActive ? 'success' : 'neutral'" />
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </div>
+            </template>
+
+            <template #mobile-card="{ item: rule }">
+              <div class="rounded-xl border border-border bg-card p-4">
+                <div class="flex items-start justify-between gap-2">
+                  <p class="text-sm font-medium text-foreground">
                     {{ rule.name }}
-                  </TableCell>
-                  <TableCell class="px-4 py-3 text-sm text-muted-foreground">
-                    {{ rule.appliesTo }}
-                  </TableCell>
-                  <TableCell class="px-4 py-3 text-right text-sm font-semibold tabular-nums text-foreground">
-                    {{ formatPercentage(rule.ratePercent, 1) }}
-                  </TableCell>
-                  <TableCell class="px-4 py-3">
-                    <StatusBadge :label="rule.isActive ? 'Aktif' : 'Nonaktif'" :tone="rule.isActive ? 'success' : 'neutral'" />
-                  </TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
-          </div>
+                  </p>
+                  <StatusBadge :label="rule.isActive ? 'Aktif' : 'Nonaktif'" :tone="rule.isActive ? 'success' : 'neutral'" />
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Berlaku Untuk
+                    </p>
+                    <p class="text-foreground">
+                      {{ rule.appliesTo }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Tarif
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatPercentage(rule.ratePercent, 1) }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </ResponsiveDataView>
           <EmptyState v-else title="Belum ada aturan pajak" />
         </SectionCard>
 

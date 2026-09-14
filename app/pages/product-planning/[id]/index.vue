@@ -168,38 +168,72 @@ function submitEdit () {
       </SectionCard>
 
       <SectionCard title="Service Alternatives" description="Opsi layanan yang dibandingkan sebelum dituangkan ke Cost Sheet.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Layanan</TableHead>
-              <TableHead>Opsi</TableHead>
-              <TableHead>Biaya / Pax</TableHead>
-              <TableHead>Catatan</TableHead>
-              <TableHead>Rekomendasi</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(alt, index) in product.serviceAlternatives" :key="index">
-              <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, alt.service).label" :tone="findStatusOption(SERVICE_TYPES, alt.service).tone" /></TableCell>
-              <TableCell class="font-medium text-foreground">
-                {{ alt.label }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(alt.costPerPaxIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ alt.notes ?? '—' }}
-              </TableCell>
-              <TableCell>
-                <StatusBadge v-if="alt.isRecommended" label="Direkomendasikan" tone="success" />
-                <span v-else class="text-muted-foreground text-sm">—</span>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="product.serviceAlternatives.length === 0" :colspan="5">
-              Belum ada alternatif layanan tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="product.serviceAlternatives" :get-key="(alt, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Layanan</TableHead>
+                  <TableHead>Opsi</TableHead>
+                  <TableHead>Biaya / Pax</TableHead>
+                  <TableHead>Catatan</TableHead>
+                  <TableHead>Rekomendasi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(alt, index) in items" :key="index">
+                  <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, alt.service).label" :tone="findStatusOption(SERVICE_TYPES, alt.service).tone" /></TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ alt.label }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(alt.costPerPaxIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ alt.notes ?? '—' }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge v-if="alt.isRecommended" label="Direkomendasikan" tone="success" />
+                    <span v-else class="text-muted-foreground text-sm">—</span>
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="product.serviceAlternatives.length === 0" :colspan="5">
+                  Belum ada alternatif layanan tercatat.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: alt }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
+                  {{ alt.label }}
+                </p>
+                <StatusBadge :label="findStatusOption(SERVICE_TYPES, alt.service).label" :tone="findStatusOption(SERVICE_TYPES, alt.service).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Biaya / Pax
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(alt.costPerPaxIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Catatan
+                  </p>
+                  <p class="text-foreground">
+                    {{ alt.notes ?? '—' }}
+                  </p>
+                </div>
+              </div>
+              <StatusBadge v-if="alt.isRecommended" class="mt-2" label="Direkomendasikan" tone="success" />
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard v-if="product.inclusions || product.exclusions || product.assumptions" title="Inclusions, Exclusions dan Assumptions">
@@ -239,37 +273,74 @@ function submitEdit () {
             </Button>
           </NuxtLink>
         </template>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama Cost Sheet</TableHead>
-              <TableHead>Lead</TableHead>
-              <TableHead>Total Sell</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="sheet in costSheets" :key="sheet.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/product-planning/cost-sheets/${sheet.id}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ sheet.name }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ sheet.leadId ?? '—' }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(getCostSheetBreakdown(sheet).totalSellIdr) }}
-              </TableCell>
-              <TableCell><StatusBadge :label="sheet.status === 'final' ? 'Final' : 'Draft'" :tone="sheet.status === 'final' ? 'success' : 'neutral'" /></TableCell>
-              <TableCell>
-                <Eye class="h-4 w-4 text-muted-foreground" />
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="costSheets.length === 0" :colspan="5">
-              Belum ada Cost Sheet dari template ini.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="costSheets" :get-key="sheet => sheet.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama Cost Sheet</TableHead>
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Total Sell</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="sheet in items" :key="sheet.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/product-planning/cost-sheets/${sheet.id}`)">
+                  <TableCell class="font-medium text-foreground">
+                    {{ sheet.name }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ sheet.leadId ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(getCostSheetBreakdown(sheet).totalSellIdr) }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="sheet.status === 'final' ? 'Final' : 'Draft'" :tone="sheet.status === 'final' ? 'success' : 'neutral'" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="costSheets.length === 0" :colspan="5">
+                  Belum ada Cost Sheet dari template ini.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: sheet }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="navigateTo(`/product-planning/cost-sheets/${sheet.id}`)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
+                  {{ sheet.name }}
+                </p>
+                <StatusBadge :label="sheet.status === 'final' ? 'Final' : 'Draft'" :tone="sheet.status === 'final' ? 'success' : 'neutral'" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Lead
+                  </p>
+                  <p class="text-foreground">
+                    {{ sheet.leadId ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Total Sell
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(getCostSheetBreakdown(sheet).totalSellIdr) }}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <Dialog v-model:open="isEditOpen">

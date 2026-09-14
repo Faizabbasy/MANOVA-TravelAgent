@@ -108,46 +108,110 @@ function statusLabel (invoice: Invoice) {
           </select>
         </div>
 
-        <div class="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Tipe</TableHead>
-                <TableHead>Jumlah</TableHead>
-                <TableHead>Outstanding</TableHead>
-                <TableHead>Jatuh Tempo</TableHead>
-                <TableHead>Status</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="invoice in rows" :key="invoice.id">
-                <TableCell class="font-medium text-foreground">
-                  <NuxtLink :to="`/client/billing/invoices/${invoice.id}`" class="text-primary hover:underline">
+        <ResponsiveDataView v-if="rows.length" :items="rows" :get-key="invoice => invoice.id">
+          <template #desktop="{ items }">
+            <div class="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Tipe</TableHead>
+                    <TableHead>Jumlah</TableHead>
+                    <TableHead>Outstanding</TableHead>
+                    <TableHead>Jatuh Tempo</TableHead>
+                    <TableHead>Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="invoice in items" :key="invoice.id">
+                    <TableCell class="font-medium text-foreground">
+                      <NuxtLink :to="`/client/billing/invoices/${invoice.id}`" class="text-primary hover:underline">
+                        {{ invoice.label }}
+                      </NuxtLink>
+                      <p class="text-xs text-muted-foreground">
+                        {{ invoice.id }}
+                      </p>
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ projectName(invoice.projectId) }}
+                    </TableCell>
+                    <TableCell><StatusBadge :label="findStatusOption(INVOICE_TYPES, invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, invoice.invoiceType).tone" /></TableCell>
+                    <TableCell>{{ formatCurrencyIdr(invoice.amountIdr) }}</TableCell>
+                    <TableCell>{{ formatCurrencyIdr(getInvoiceOutstandingIdr(invoice.id)) }}</TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ formatDate(invoice.dueAt) }}
+                    </TableCell>
+                    <TableCell><StatusBadge :label="statusLabel(invoice)" :tone="statusTone(invoice)" /></TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </template>
+
+          <template #mobile-card="{ item: invoice }">
+            <NuxtLink :to="`/client/billing/invoices/${invoice.id}`" class="block rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
                     {{ invoice.label }}
-                  </NuxtLink>
-                  <p class="text-xs text-muted-foreground">
+                  </p>
+                  <p class="text-xs text-muted-foreground font-mono">
                     {{ invoice.id }}
                   </p>
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ projectName(invoice.projectId) }}
-                </TableCell>
-                <TableCell><StatusBadge :label="findStatusOption(INVOICE_TYPES, invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, invoice.invoiceType).tone" /></TableCell>
-                <TableCell>{{ formatCurrencyIdr(invoice.amountIdr) }}</TableCell>
-                <TableCell>{{ formatCurrencyIdr(getInvoiceOutstandingIdr(invoice.id)) }}</TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ formatDate(invoice.dueAt) }}
-                </TableCell>
-                <TableCell><StatusBadge :label="statusLabel(invoice)" :tone="statusTone(invoice)" /></TableCell>
-              </TableRow>
-              <TableEmpty v-if="rows.length === 0" :colspan="7">
-                <EmptyState :icon="FileText" :title="invoices.length ? 'Tidak ada invoice yang cocok' : 'Belum ada invoice'" :description="invoices.length ? 'Coba ubah kata kunci pencarian atau filter.' : 'Invoice akan tampil di sini setelah tim kami menerbitkannya.'" />
-              </TableEmpty>
-            </TableBody>
-          </Table>
-        </div>
+                </div>
+                <StatusBadge :label="statusLabel(invoice)" :tone="statusTone(invoice)" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Project
+                  </p>
+                  <p class="text-foreground">
+                    {{ projectName(invoice.projectId) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Tipe
+                  </p>
+                  <StatusBadge :label="findStatusOption(INVOICE_TYPES, invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, invoice.invoiceType).tone" />
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Jumlah
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(invoice.amountIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Outstanding
+                  </p>
+                  <p class="text-foreground font-medium">
+                    {{ formatCurrencyIdr(getInvoiceOutstandingIdr(invoice.id)) }}
+                  </p>
+                </div>
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Jatuh Tempo
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(invoice.dueAt) }}
+                  </p>
+                </div>
+              </div>
+            </NuxtLink>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState
+          v-else
+          :icon="FileText"
+          :title="invoices.length ? 'Tidak ada invoice yang cocok' : 'Belum ada invoice'"
+          :description="invoices.length ? 'Coba ubah kata kunci pencarian atau filter.' : 'Invoice akan tampil di sini setelah tim kami menerbitkannya.'"
+        />
       </SectionCard>
     </template>
   </div>

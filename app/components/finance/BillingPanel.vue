@@ -61,44 +61,85 @@ const totalThisMonthIdr = computed(() => rows.value.reduce((sum, row) => sum + r
       <SectionCard
         :description="`Invoice diterbitkan bulan berjalan (${currentMonthKey}) per customer company. Total ${formatCurrencyIdr(totalThisMonthIdr)} — angka sama persis dengan Invoice dan AR Aging di atas, hanya direkap per customer.`"
       >
-        <Table v-if="rows.length">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Customer</TableHead>
-              <TableHead class="text-center">
-                Invoice Bulan Ini
-              </TableHead>
-              <TableHead class="text-right">
-                Nilai Invoice Bulan Ini
-              </TableHead>
-              <TableHead class="text-right">
-                Outstanding
-              </TableHead>
-              <TableHead>Status Pembayaran</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.partyId">
-              <TableCell>
+        <ResponsiveDataView v-if="rows.length" :items="rows" :get-key="row => row.partyId">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead class="text-center">
+                    Invoice Bulan Ini
+                  </TableHead>
+                  <TableHead class="text-right">
+                    Nilai Invoice Bulan Ini
+                  </TableHead>
+                  <TableHead class="text-right">
+                    Outstanding
+                  </TableHead>
+                  <TableHead>Status Pembayaran</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.partyId">
+                  <TableCell>
+                    <NuxtLink :to="`/customer-journey/customers/${row.partyId}`" class="text-sm font-medium text-foreground hover:text-primary">
+                      {{ row.partyName }}
+                    </NuxtLink>
+                  </TableCell>
+                  <TableCell class="text-center text-sm text-foreground">
+                    {{ row.invoicesThisMonthCount }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm text-foreground">
+                    {{ formatCurrencyIdr(row.invoicesThisMonthIdr) }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm text-muted-foreground">
+                    {{ formatCurrencyIdr(row.outstandingIdr) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="paymentStatus(row).label" :tone="paymentStatus(row).tone" />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
                 <NuxtLink :to="`/customer-journey/customers/${row.partyId}`" class="text-sm font-medium text-foreground hover:text-primary">
                   {{ row.partyName }}
                 </NuxtLink>
-              </TableCell>
-              <TableCell class="text-center text-sm text-foreground">
-                {{ row.invoicesThisMonthCount }}
-              </TableCell>
-              <TableCell class="text-right text-sm text-foreground">
-                {{ formatCurrencyIdr(row.invoicesThisMonthIdr) }}
-              </TableCell>
-              <TableCell class="text-right text-sm text-muted-foreground">
-                {{ formatCurrencyIdr(row.outstandingIdr) }}
-              </TableCell>
-              <TableCell>
                 <StatusBadge :label="paymentStatus(row).label" :tone="paymentStatus(row).tone" />
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Invoice Bulan Ini
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.invoicesThisMonthCount }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Nilai Invoice Bulan Ini
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(row.invoicesThisMonthIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Outstanding
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(row.outstandingIdr) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
 
         <EmptyState v-else :icon="Receipt" title="Belum ada data billing" description="Belum ada customer company dengan Project Order." />
       </SectionCard>

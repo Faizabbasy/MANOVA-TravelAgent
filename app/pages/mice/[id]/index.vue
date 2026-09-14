@@ -395,41 +395,85 @@ function submitAddDeliverable () {
             Kelola Sessions
           </Button>
         </template>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Sesi</TableHead>
-              <TableHead>Room</TableHead>
-              <TableHead>Jadwal</TableHead>
-              <TableHead>Kapasitas</TableHead>
-              <TableHead>PIC</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(session, index) in event.sessions" :key="index">
-              <TableCell class="text-foreground">
-                {{ session.sessionTitle }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ session.roomName }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDateTime(session.startAt) }} – {{ formatDateTime(session.endAt) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ session.capacity }} pax
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ userName(session.picUserId) }}
-              </TableCell>
-              <TableCell><StatusBadge :label="session.isConfirmed ? 'Confirmed' : 'Tentatif'" :tone="session.isConfirmed ? 'success' : 'warning'" /></TableCell>
-            </TableRow>
-            <TableEmpty v-if="event.sessions.length === 0" :colspan="6">
-              Belum ada sesi tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView v-if="event.sessions.length" :items="event.sessions" :get-key="(session, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sesi</TableHead>
+                  <TableHead>Room</TableHead>
+                  <TableHead>Jadwal</TableHead>
+                  <TableHead>Kapasitas</TableHead>
+                  <TableHead>PIC</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(session, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ session.sessionTitle }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ session.roomName }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDateTime(session.startAt) }} – {{ formatDateTime(session.endAt) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ session.capacity }} pax
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ userName(session.picUserId) }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="session.isConfirmed ? 'Confirmed' : 'Tentatif'" :tone="session.isConfirmed ? 'success' : 'warning'" /></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: session }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ session.sessionTitle }}
+                  </p>
+                  <p class="text-xs text-muted-foreground truncate">
+                    {{ session.roomName }}
+                  </p>
+                </div>
+                <StatusBadge :label="session.isConfirmed ? 'Confirmed' : 'Tentatif'" :tone="session.isConfirmed ? 'success' : 'warning'" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Jadwal
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDateTime(session.startAt) }} – {{ formatDateTime(session.endAt) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Kapasitas
+                  </p>
+                  <p class="text-foreground">
+                    {{ session.capacity }} pax
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    PIC
+                  </p>
+                  <p class="text-foreground">
+                    {{ userName(session.picUserId) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+        <EmptyState v-else title="Belum ada sesi tercatat" />
       </SectionCard>
 
       <SectionCard title="Participant Categories / Attendance" description="Kategori peserta, target, dan realisasi kehadiran.">
@@ -438,31 +482,59 @@ function submitAddDeliverable () {
             Kelola Peserta
           </Button>
         </template>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Expected</TableHead>
-              <TableHead>Actual (Attendance)</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(category, index) in event.participantCategories" :key="index">
-              <TableCell class="text-foreground">
+        <ResponsiveDataView v-if="event.participantCategories.length" :items="event.participantCategories" :get-key="(category, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Expected</TableHead>
+                  <TableHead>Actual (Attendance)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(category, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ category.category }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ category.expectedCount }} pax
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ category.actualCount !== undefined ? `${category.actualCount} pax` : '—' }}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: category }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <p class="text-sm font-medium text-foreground">
                 {{ category.category }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ category.expectedCount }} pax
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ category.actualCount !== undefined ? `${category.actualCount} pax` : '—' }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="event.participantCategories.length === 0" :colspan="3">
-              Belum ada kategori peserta tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </p>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Expected
+                  </p>
+                  <p class="text-foreground">
+                    {{ category.expectedCount }} pax
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Actual (Attendance)
+                  </p>
+                  <p class="text-foreground">
+                    {{ category.actualCount !== undefined ? `${category.actualCount} pax` : '—' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+        <EmptyState v-else title="Belum ada kategori peserta tercatat" />
       </SectionCard>
 
       <SectionCard title="BOQ (Bill of Quantities)" description="Catering, AV, staging, equipment, booth, dan vendor package.">
@@ -471,43 +543,90 @@ function submitAddDeliverable () {
             Kelola BOQ
           </Button>
         </template>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Deskripsi</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Vendor</TableHead>
-              <TableHead v-if="canViewMiceFinancials">
-                Net Cost
-              </TableHead>
-              <TableHead>Sell Price</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(item, index) in event.boqItems" :key="index">
-              <TableCell><StatusBadge :label="findStatusOption(MICE_BOQ_CATEGORIES, item.category).label" :tone="findStatusOption(MICE_BOQ_CATEGORIES, item.category).tone" /></TableCell>
-              <TableCell class="text-foreground">
-                {{ item.description }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ item.quantity }} {{ item.unit }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ vendorName(item.vendorId) }}
-              </TableCell>
-              <TableCell v-if="canViewMiceFinancials" class="text-foreground">
-                {{ item.netCostIdr !== undefined ? formatCurrencyIdr(item.netCostIdr) : '—' }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ item.sellPriceIdr !== undefined ? formatCurrencyIdr(item.sellPriceIdr) : '—' }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="event.boqItems.length === 0" :colspan="canViewMiceFinancials ? 6 : 5">
-              Belum ada baris BOQ tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView v-if="event.boqItems.length" :items="event.boqItems" :get-key="(item, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead v-if="canViewMiceFinancials">
+                    Net Cost
+                  </TableHead>
+                  <TableHead>Sell Price</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(item, index) in items" :key="index">
+                  <TableCell><StatusBadge :label="findStatusOption(MICE_BOQ_CATEGORIES, item.category).label" :tone="findStatusOption(MICE_BOQ_CATEGORIES, item.category).tone" /></TableCell>
+                  <TableCell class="text-foreground">
+                    {{ item.description }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ item.quantity }} {{ item.unit }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ vendorName(item.vendorId) }}
+                  </TableCell>
+                  <TableCell v-if="canViewMiceFinancials" class="text-foreground">
+                    {{ item.netCostIdr !== undefined ? formatCurrencyIdr(item.netCostIdr) : '—' }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ item.sellPriceIdr !== undefined ? formatCurrencyIdr(item.sellPriceIdr) : '—' }}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground min-w-0 truncate">
+                  {{ item.description }}
+                </p>
+                <StatusBadge :label="findStatusOption(MICE_BOQ_CATEGORIES, item.category).label" :tone="findStatusOption(MICE_BOQ_CATEGORIES, item.category).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Qty
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.quantity }} {{ item.unit }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Vendor
+                  </p>
+                  <p class="text-foreground">
+                    {{ vendorName(item.vendorId) }}
+                  </p>
+                </div>
+                <div v-if="canViewMiceFinancials">
+                  <p class="text-muted-foreground">
+                    Net Cost
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.netCostIdr !== undefined ? formatCurrencyIdr(item.netCostIdr) : '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Sell Price
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.sellPriceIdr !== undefined ? formatCurrencyIdr(item.sellPriceIdr) : '—' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+        <EmptyState v-else title="Belum ada baris BOQ tercatat" />
         <div class="grid gap-3 sm:grid-cols-3 mt-4">
           <div v-if="canViewMiceFinancials" class="rounded-lg border border-border p-3">
             <p class="text-xs text-muted-foreground">

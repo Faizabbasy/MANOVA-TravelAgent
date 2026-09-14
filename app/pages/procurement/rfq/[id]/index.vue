@@ -171,111 +171,215 @@ function submitClarification () {
       </SectionCard>
 
       <SectionCard title="Line Items" description="Kebutuhan yang dikirim ke seluruh vendor yang diundang.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Deskripsi</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Unit</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(item, index) in rfq.lineItems" :key="index">
-              <TableCell class="text-foreground">
+        <ResponsiveDataView :items="rfq.lineItems" :get-key="(item, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Unit</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(item, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ item.description }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ item.quantity }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ item.unit }}
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="rfq.lineItems.length === 0" :colspan="3">
+                  Belum ada line item.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <p class="text-sm font-medium text-foreground">
                 {{ item.description }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ item.quantity }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ item.unit }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rfq.lineItems.length === 0" :colspan="3">
-              Belum ada line item.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </p>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Qty
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.quantity }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Unit
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.unit }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard title="Vendor Diundang dan Status Respons">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Diundang</TableHead>
-              <TableHead>Status Respons</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="invitation in invitations" :key="invitation.id">
-              <TableCell class="font-medium text-foreground">
-                {{ vendorName(invitation.vendorId) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDate(invitation.invitedAt) }}
-              </TableCell>
-              <TableCell><StatusBadge :label="invitation.status" :tone="invitation.status === 'responded' ? 'success' : invitation.status === 'declined' ? 'destructive' : 'warning'" /></TableCell>
-            </TableRow>
-            <TableEmpty v-if="invitations.length === 0" :colspan="3">
-              RFQ belum dikirim ke vendor manapun.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="invitations" :get-key="invitation => invitation.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead>Diundang</TableHead>
+                  <TableHead>Status Respons</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="invitation in items" :key="invitation.id">
+                  <TableCell class="font-medium text-foreground">
+                    {{ vendorName(invitation.vendorId) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(invitation.invitedAt) }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="invitation.status" :tone="invitation.status === 'responded' ? 'success' : invitation.status === 'declined' ? 'destructive' : 'warning'" /></TableCell>
+                </TableRow>
+                <TableEmpty v-if="invitations.length === 0" :colspan="3">
+                  RFQ belum dikirim ke vendor manapun.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: invitation }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
+                  {{ vendorName(invitation.vendorId) }}
+                </p>
+                <StatusBadge :label="invitation.status" :tone="invitation.status === 'responded' ? 'success' : invitation.status === 'declined' ? 'destructive' : 'warning'" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Diundang
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(invitation.invitedAt) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard title="Side-by-Side Comparison" description="Perbandingan respons harga seluruh vendor, diurutkan dari harga terendah.">
-        <div class="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Vendor</TableHead>
-                <TableHead>Total Penawaran</TableHead>
-                <TableHead>Catatan</TableHead>
-                <TableHead>Diajukan</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead v-if="canManageProcurement">
-                  Aksi
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="response in responses" :key="response.id">
-                <TableCell class="font-medium text-foreground">
+        <ResponsiveDataView :items="responses" :get-key="response => response.id">
+          <template #desktop="{ items }">
+            <div class="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vendor</TableHead>
+                    <TableHead>Total Penawaran</TableHead>
+                    <TableHead>Catatan</TableHead>
+                    <TableHead>Diajukan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead v-if="canManageProcurement">
+                      Aksi
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="response in items" :key="response.id">
+                    <TableCell class="font-medium text-foreground">
+                      {{ vendorName(response.vendorId) }}
+                    </TableCell>
+                    <TableCell class="text-foreground">
+                      {{ formatCurrencyIdr(response.totalAmountIdr) }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ response.notes ?? '—' }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ formatDate(response.submittedAt) }}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge
+                        :label="response.status"
+                        :tone="response.status === 'selected' ? 'success' : response.status === 'rejected' ? 'destructive' : 'info'"
+                      />
+                    </TableCell>
+                    <TableCell v-if="canManageProcurement">
+                      <Button
+                        v-if="['responses-in', 'comparison', 'clarification'].includes(rfq.status) && response.status === 'submitted'"
+                        size="sm"
+                        variant="outline"
+                        @click="openSelectDialog(response.vendorId)"
+                      >
+                        Select
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                  <TableEmpty v-if="responses.length === 0" :colspan="canManageProcurement ? 6 : 5">
+                    Belum ada respons vendor.
+                  </TableEmpty>
+                </TableBody>
+              </Table>
+            </div>
+          </template>
+
+          <template #mobile-card="{ item: response }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
                   {{ vendorName(response.vendorId) }}
-                </TableCell>
-                <TableCell class="text-foreground">
-                  {{ formatCurrencyIdr(response.totalAmountIdr) }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ response.notes ?? '—' }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ formatDate(response.submittedAt) }}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge
-                    :label="response.status"
-                    :tone="response.status === 'selected' ? 'success' : response.status === 'rejected' ? 'destructive' : 'info'"
-                  />
-                </TableCell>
-                <TableCell v-if="canManageProcurement">
-                  <Button
-                    v-if="['responses-in', 'comparison', 'clarification'].includes(rfq.status) && response.status === 'submitted'"
-                    size="sm"
-                    variant="outline"
-                    @click="openSelectDialog(response.vendorId)"
-                  >
-                    Select
-                  </Button>
-                </TableCell>
-              </TableRow>
-              <TableEmpty v-if="responses.length === 0" :colspan="canManageProcurement ? 6 : 5">
-                Belum ada respons vendor.
-              </TableEmpty>
-            </TableBody>
-          </Table>
-        </div>
+                </p>
+                <StatusBadge
+                  :label="response.status"
+                  :tone="response.status === 'selected' ? 'success' : response.status === 'rejected' ? 'destructive' : 'info'"
+                />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Total Penawaran
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(response.totalAmountIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Diajukan
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(response.submittedAt) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Catatan
+                  </p>
+                  <p class="text-foreground">
+                    {{ response.notes ?? '—' }}
+                  </p>
+                </div>
+              </div>
+              <div v-if="canManageProcurement && ['responses-in', 'comparison', 'clarification'].includes(rfq.status) && response.status === 'submitted'" class="mt-3">
+                <Button size="sm" variant="outline" @click="openSelectDialog(response.vendorId)">
+                  Select
+                </Button>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard v-if="rfq.status === 'selected' || rfq.status === 'closed'" title="Service Order" description="Handoff formal dari RFQ ke Service Order setelah vendor terpilih.">

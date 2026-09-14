@@ -20,7 +20,8 @@ const canManage = computed(() => can('project-order.manage-operations'))
 
 const { events } = useScheduleEvents()
 
-const viewMode = ref<'day' | 'week' | 'month'>('month')
+/** Grid bulan (7 kolom) terlalu sempit di layar HP — default ke tampilan Hari Ini di mobile, tetap "month" di desktop. */
+const viewMode = ref<'day' | 'week' | 'month'>(useIsMobile().value ? 'day' : 'month')
 const month = ref(DEMO_REFERENCE_DATE.slice(0, 7))
 const selectedDate = ref(DEMO_REFERENCE_DATE)
 const kindFilter = ref<'all' | ScheduleEventKind>('all')

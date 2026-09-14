@@ -148,7 +148,7 @@ function cancelDuplicateCreate () {
                 </option>
               </select>
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label for="htl-checkin">Check-in (opsional)</Label>
                 <Input id="htl-checkin" v-model="newCheckInDate" type="date" />
@@ -219,45 +219,95 @@ function cancelDuplicateCreate () {
       </div>
 
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Konfirmasi</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Property / Room Type</TableHead>
-              <TableHead>Check-in / Check-out</TableHead>
-              <TableHead>Traveler</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead />
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.booking.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/accommodation/${row.booking.id}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ row.booking.confirmationNumber ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.project?.name ?? row.booking.projectId }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ propertyLabel(row.booking) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.booking.checkInDate ? formatDate(row.booking.checkInDate) : '—' }} – {{ row.booking.checkOutDate ? formatDate(row.booking.checkOutDate) : '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.booking.travelerIds.length }} pax
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(HOTEL_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(HOTEL_BOOKING_STATUSES, row.booking.status).tone" /></TableCell>
-              <TableCell>
-                <Eye class="h-4 w-4 text-muted-foreground" />
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="7">
-              {{ searchQuery || statusFilter !== 'all' || projectFilter !== 'all' ? 'Tidak ada Hotel Booking yang cocok dengan filter.' : 'Belum ada Hotel Booking.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="rows" :get-key="row => row.booking.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Konfirmasi</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Property / Room Type</TableHead>
+                  <TableHead>Check-in / Check-out</TableHead>
+                  <TableHead>Traveler</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.booking.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/accommodation/${row.booking.id}`)">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.booking.confirmationNumber ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? row.booking.projectId }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ propertyLabel(row.booking) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.booking.checkInDate ? formatDate(row.booking.checkInDate) : '—' }} – {{ row.booking.checkOutDate ? formatDate(row.booking.checkOutDate) : '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.booking.travelerIds.length }} pax
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(HOTEL_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(HOTEL_BOOKING_STATUSES, row.booking.status).tone" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="rows.length === 0" :colspan="7">
+                  {{ searchQuery || statusFilter !== 'all' || projectFilter !== 'all' ? 'Tidak ada Hotel Booking yang cocok dengan filter.' : 'Belum ada Hotel Booking.' }}
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="navigateTo(`/accommodation/${row.booking.id}`)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.booking.confirmationNumber ?? '—' }}
+                  </p>
+                  <p class="text-xs text-muted-foreground truncate">
+                    {{ row.project?.name ?? row.booking.projectId }}
+                  </p>
+                </div>
+                <StatusBadge :label="findStatusOption(HOTEL_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(HOTEL_BOOKING_STATUSES, row.booking.status).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Property / Room Type
+                  </p>
+                  <p class="text-foreground">
+                    {{ propertyLabel(row.booking) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Check-in / Check-out
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.booking.checkInDate ? formatDate(row.booking.checkInDate) : '—' }} – {{ row.booking.checkOutDate ? formatDate(row.booking.checkOutDate) : '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Traveler
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.booking.travelerIds.length }} pax
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

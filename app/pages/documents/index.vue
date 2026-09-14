@@ -508,6 +508,7 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                 <p v-if="group.category" class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {{ group.category }} <span class="font-normal normal-case text-muted-foreground/70">({{ group.rows.length }})</span>
                 </p>
+                <div class="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -559,6 +560,7 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                     </TableRow>
                   </TableBody>
                 </Table>
+                </div>
               </div>
             </div>
             <p v-else class="text-sm text-muted-foreground text-center py-6">
@@ -572,11 +574,11 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                 <p v-if="group.category" class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                   {{ group.category }} <span class="font-normal normal-case text-muted-foreground/70">({{ group.rows.length }})</span>
                 </p>
-                <div class="flex gap-2.5 overflow-x-auto pb-1">
+                <div class="grid grid-cols-2 gap-2.5 sm:flex sm:overflow-x-auto sm:pb-1">
                   <div
                     v-for="row in group.rows"
                     :key="row.item.id"
-                    class="group relative flex w-40 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-card p-2 transition-all duration-200 hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm"
+                    class="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2 transition-all duration-200 hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm sm:w-40 sm:shrink-0"
                   >
                     <div class="flex items-start justify-between gap-1">
                       <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" :class="TONE_ICON_BG[documentCategoryTone(row.item.category)]">
@@ -641,43 +643,69 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
             <StatusBadge v-if="failedDeliveryCount > 0" :label="`${failedDeliveryCount} Gagal Terkirim`" tone="destructive" />
           </div>
           <SectionCard description="Delivery status Email/WhatsApp bersifat simulasi mock (D-006) — tidak ada integrasi channel komunikasi nyata.">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Entity</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Channel</TableHead>
-                  <TableHead>Sender</TableHead>
-                  <TableHead>Pesan</TableHead>
-                  <TableHead>Sent At</TableHead>
-                  <TableHead>Delivery Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in messageRows" :key="row.item.id">
-                  <TableCell class="text-muted-foreground">
-                    {{ entityLabel(row.item.entityType, row.item.entityId) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.project?.name ?? '—' }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(MESSAGE_CHANNELS, row.item.channel).label" :tone="findStatusOption(MESSAGE_CHANNELS, row.item.channel).tone" /></TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.sender?.name ?? row.item.senderId }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground max-w-[280px] truncate">
+            <ResponsiveDataView v-if="messageRows.length" :items="messageRows" :get-key="row => row.item.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Entity</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Channel</TableHead>
+                      <TableHead>Sender</TableHead>
+                      <TableHead>Pesan</TableHead>
+                      <TableHead>Sent At</TableHead>
+                      <TableHead>Delivery Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in items" :key="row.item.id">
+                      <TableCell class="text-muted-foreground">
+                        {{ entityLabel(row.item.entityType, row.item.entityId) }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.project?.name ?? '—' }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(MESSAGE_CHANNELS, row.item.channel).label" :tone="findStatusOption(MESSAGE_CHANNELS, row.item.channel).tone" /></TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.sender?.name ?? row.item.senderId }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground max-w-[280px] truncate">
+                        {{ row.item.body }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ formatDate(row.item.sentAt) }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).label" :tone="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).tone" /></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </template>
+              <template #mobile-card="{ item: row }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
+                      {{ entityLabel(row.item.entityType, row.item.entityId) }}
+                    </p>
+                    <StatusBadge :label="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).label" :tone="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).tone" />
+                  </div>
+                  <p class="mt-1 text-xs text-muted-foreground">
+                    {{ row.project?.name ?? '—' }} · {{ row.sender?.name ?? row.item.senderId }}
+                  </p>
+                  <p class="mt-2 text-xs text-muted-foreground">
                     {{ row.item.body }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(row.item.sentAt) }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).label" :tone="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).tone" /></TableCell>
-                </TableRow>
-                <TableEmpty v-if="messageRows.length === 0" :colspan="7">
-                  {{ msgSearch || msgChannelFilter !== 'all' ? 'Tidak ada pesan yang cocok dengan filter.' : 'Belum ada pesan tercatat.' }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
+                  </p>
+                  <div class="mt-2 flex items-center justify-between gap-2 text-xs">
+                    <StatusBadge :label="findStatusOption(MESSAGE_CHANNELS, row.item.channel).label" :tone="findStatusOption(MESSAGE_CHANNELS, row.item.channel).tone" />
+                    <span class="text-muted-foreground">{{ formatDate(row.item.sentAt) }}</span>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
+            <EmptyState
+              v-else
+              title="Tidak ada pesan"
+              :description="msgSearch || msgChannelFilter !== 'all' ? 'Tidak ada pesan yang cocok dengan filter.' : 'Belum ada pesan tercatat.'"
+            />
           </SectionCard>
         </TabsContent>
 

@@ -102,58 +102,123 @@ const maxBucketAmount = computed(() => Math.max(1, ...aging.value.map(bucket => 
           </Button>
         </div>
 
-        <Table v-if="filteredRows.length">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Invoice</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Jatuh Tempo</TableHead>
-              <TableHead class="text-right">
-                Nilai
-              </TableHead>
-              <TableHead class="text-right">
-                Terbayar
-              </TableHead>
-              <TableHead class="text-right">
-                Outstanding
-              </TableHead>
-              <TableHead>Umur</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in filteredRows" :key="row.invoiceId">
-              <TableCell>
-                <p class="text-sm font-medium text-foreground">
-                  {{ row.label }}
-                </p>
-                <NuxtLink :to="`/project-orders/${row.projectId}`" class="text-xs text-primary hover:underline">
-                  {{ row.projectName }}
-                </NuxtLink>
-              </TableCell>
-              <TableCell class="text-sm text-foreground">
-                {{ row.partyName }}
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground">
-                {{ formatDate(row.dueAt) }}
-              </TableCell>
-              <TableCell class="text-right text-sm text-muted-foreground">
-                {{ formatCurrencyIdr(row.amountIdr) }}
-              </TableCell>
-              <TableCell class="text-right text-sm text-success">
-                {{ formatCurrencyIdr(row.paidIdr) }}
-              </TableCell>
-              <TableCell class="text-right text-sm font-semibold text-foreground">
-                {{ formatCurrencyIdr(row.outstandingIdr) }}
-              </TableCell>
-              <TableCell>
+        <ResponsiveDataView v-if="filteredRows.length" :items="filteredRows" :get-key="row => row.invoiceId">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Invoice</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Jatuh Tempo</TableHead>
+                  <TableHead class="text-right">
+                    Nilai
+                  </TableHead>
+                  <TableHead class="text-right">
+                    Terbayar
+                  </TableHead>
+                  <TableHead class="text-right">
+                    Outstanding
+                  </TableHead>
+                  <TableHead>Umur</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.invoiceId">
+                  <TableCell>
+                    <p class="text-sm font-medium text-foreground">
+                      {{ row.label }}
+                    </p>
+                    <NuxtLink :to="`/project-orders/${row.projectId}`" class="text-xs text-primary hover:underline">
+                      {{ row.projectName }}
+                    </NuxtLink>
+                  </TableCell>
+                  <TableCell class="text-sm text-foreground">
+                    {{ row.partyName }}
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ formatDate(row.dueAt) }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm text-muted-foreground">
+                    {{ formatCurrencyIdr(row.amountIdr) }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm text-success">
+                    {{ formatCurrencyIdr(row.paidIdr) }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm font-semibold text-foreground">
+                    {{ formatCurrencyIdr(row.outstandingIdr) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="row.agingDays > 0 ? `${row.agingDays} hari` : 'Belum jatuh tempo'"
+                      :tone="BUCKET_TONE[row.bucket] as never"
+                    />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.label }}
+                  </p>
+                  <NuxtLink :to="`/project-orders/${row.projectId}`" class="text-xs text-primary hover:underline">
+                    {{ row.projectName }}
+                  </NuxtLink>
+                </div>
                 <StatusBadge
                   :label="row.agingDays > 0 ? `${row.agingDays} hari` : 'Belum jatuh tempo'"
                   :tone="BUCKET_TONE[row.bucket] as never"
                 />
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Customer
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.partyName }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Jatuh Tempo
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(row.dueAt) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Nilai
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(row.amountIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Terbayar
+                  </p>
+                  <p class="text-success">
+                    {{ formatCurrencyIdr(row.paidIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Outstanding
+                  </p>
+                  <p class="text-foreground font-semibold">
+                    {{ formatCurrencyIdr(row.outstandingIdr) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
 
         <EmptyState v-else :icon="ArrowDownToLine" title="Tidak ada piutang" description="Seluruh invoice sudah lunas untuk filter ini." />
       </SectionCard>

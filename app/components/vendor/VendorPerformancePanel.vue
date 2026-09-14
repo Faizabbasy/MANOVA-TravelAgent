@@ -27,55 +27,104 @@ const selectedVendorRow = computed(() => rows.value.find(row => row.vendor.id ==
 
     <template v-else>
       <SectionCard>
-        <div class="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Vendor</TableHead>
-                <TableHead>RFQ Diundang</TableHead>
-                <TableHead>RFQ Direspons</TableHead>
-                <TableHead>RFQ Menang</TableHead>
-                <TableHead>Win Rate</TableHead>
-                <TableHead>Rata-rata Waktu Respons</TableHead>
-                <TableHead>Service Order</TableHead>
-                <TableHead>On-Time Fulfillment</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="row in rows" :key="row.vendor.id">
-                <TableCell class="font-medium text-foreground">
-                  <NuxtLink :to="`/vendors/${row.vendor.id}`" class="hover:text-primary hover:underline">
-                    {{ row.vendor.name }}
-                  </NuxtLink>
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.performance.rfqInvitedCount }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.performance.rfqRespondedCount }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.performance.rfqWinCount }}
-                </TableCell>
-                <TableCell class="text-foreground">
-                  {{ row.performance.winRatePercent !== undefined ? `${row.performance.winRatePercent}%` : '—' }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.performance.avgResponseDays !== undefined ? `${row.performance.avgResponseDays} hari` : '—' }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.performance.fulfilledServiceOrderCount }} / {{ row.performance.serviceOrderCount }}
-                </TableCell>
-                <TableCell class="text-foreground">
-                  {{ row.performance.onTimeFulfillmentPercent !== undefined ? `${row.performance.onTimeFulfillmentPercent}%` : '—' }}
-                </TableCell>
-              </TableRow>
-              <TableEmpty v-if="rows.length === 0" :colspan="8">
-                Belum ada aktivitas RFQ/Service Order untuk vendor manapun.
-              </TableEmpty>
-            </TableBody>
-          </Table>
-        </div>
+        <ResponsiveDataView :items="rows" :get-key="row => row.vendor.id">
+          <template #desktop="{ items }">
+            <div class="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Vendor</TableHead>
+                    <TableHead>RFQ Diundang</TableHead>
+                    <TableHead>RFQ Direspons</TableHead>
+                    <TableHead>RFQ Menang</TableHead>
+                    <TableHead>Win Rate</TableHead>
+                    <TableHead>Rata-rata Waktu Respons</TableHead>
+                    <TableHead>Service Order</TableHead>
+                    <TableHead>On-Time Fulfillment</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in items" :key="row.vendor.id">
+                    <TableCell class="font-medium text-foreground">
+                      <NuxtLink :to="`/vendors/${row.vendor.id}`" class="hover:text-primary hover:underline">
+                        {{ row.vendor.name }}
+                      </NuxtLink>
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.performance.rfqInvitedCount }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.performance.rfqRespondedCount }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.performance.rfqWinCount }}
+                    </TableCell>
+                    <TableCell class="text-foreground">
+                      {{ row.performance.winRatePercent !== undefined ? `${row.performance.winRatePercent}%` : '—' }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.performance.avgResponseDays !== undefined ? `${row.performance.avgResponseDays} hari` : '—' }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.performance.fulfilledServiceOrderCount }} / {{ row.performance.serviceOrderCount }}
+                    </TableCell>
+                    <TableCell class="text-foreground">
+                      {{ row.performance.onTimeFulfillmentPercent !== undefined ? `${row.performance.onTimeFulfillmentPercent}%` : '—' }}
+                    </TableCell>
+                  </TableRow>
+                  <TableEmpty v-if="rows.length === 0" :colspan="8">
+                    Belum ada aktivitas RFQ/Service Order untuk vendor manapun.
+                  </TableEmpty>
+                </TableBody>
+              </Table>
+            </div>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <NuxtLink :to="`/vendors/${row.vendor.id}`" class="text-sm font-medium text-foreground hover:text-primary hover:underline truncate">
+                  {{ row.vendor.name }}
+                </NuxtLink>
+                <span class="text-xs text-foreground shrink-0">{{ row.performance.winRatePercent !== undefined ? `${row.performance.winRatePercent}% win rate` : '—' }}</span>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    RFQ Diundang / Direspons / Menang
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.performance.rfqInvitedCount }} / {{ row.performance.rfqRespondedCount }} / {{ row.performance.rfqWinCount }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Rata-rata Waktu Respons
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.performance.avgResponseDays !== undefined ? `${row.performance.avgResponseDays} hari` : '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Service Order
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.performance.fulfilledServiceOrderCount }} / {{ row.performance.serviceOrderCount }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    On-Time Fulfillment
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.performance.onTimeFulfillmentPercent !== undefined ? `${row.performance.onTimeFulfillmentPercent}%` : '—' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
         <p class="mt-3 text-xs text-muted-foreground">
           "On-Time Fulfillment" disederhanakan sebagai rasio Service Order yang mencapai status "Fulfilled" terhadap seluruh Service Order milik vendor (tidak ada field due-date terpisah untuk dibandingkan dengan tanggal fulfillment aktual — lihat D-074).
         </p>
@@ -105,37 +154,74 @@ const selectedVendorRow = computed(() => rows.value.find(row => row.vendor.id ==
           <p class="text-sm font-medium text-foreground mb-2">
             Quotation History — {{ selectedVendorRow.vendor.name }}
           </p>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>RFQ</TableHead>
-                <TableHead>Total Penawaran</TableHead>
-                <TableHead>Diajukan</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="response in selectedVendorRow.performance.quotationHistory" :key="response.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/procurement/rfq/${response.rfqId}`)">
-                <TableCell class="font-medium text-foreground">
-                  {{ response.rfqId }}
-                </TableCell>
-                <TableCell class="text-foreground">
-                  {{ formatCurrencyIdr(response.totalAmountIdr) }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ formatDate(response.submittedAt) }}
-                </TableCell>
-                <TableCell><StatusBadge :label="response.status" :tone="response.status === 'selected' ? 'success' : response.status === 'rejected' ? 'destructive' : 'info'" /></TableCell>
-                <TableCell>
-                  <Eye class="h-4 w-4 text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-              <TableEmpty v-if="selectedVendorRow.performance.quotationHistory.length === 0" :colspan="5">
-                Belum ada riwayat quotation.
-              </TableEmpty>
-            </TableBody>
-          </Table>
+          <ResponsiveDataView :items="selectedVendorRow.performance.quotationHistory" :get-key="response => response.id">
+            <template #desktop="{ items }">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>RFQ</TableHead>
+                    <TableHead>Total Penawaran</TableHead>
+                    <TableHead>Diajukan</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="response in items" :key="response.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/procurement/rfq/${response.rfqId}`)">
+                    <TableCell class="font-medium text-foreground">
+                      {{ response.rfqId }}
+                    </TableCell>
+                    <TableCell class="text-foreground">
+                      {{ formatCurrencyIdr(response.totalAmountIdr) }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ formatDate(response.submittedAt) }}
+                    </TableCell>
+                    <TableCell><StatusBadge :label="response.status" :tone="response.status === 'selected' ? 'success' : response.status === 'rejected' ? 'destructive' : 'info'" /></TableCell>
+                    <TableCell>
+                      <Eye class="h-4 w-4 text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                  <TableEmpty v-if="selectedVendorRow.performance.quotationHistory.length === 0" :colspan="5">
+                    Belum ada riwayat quotation.
+                  </TableEmpty>
+                </TableBody>
+              </Table>
+            </template>
+
+            <template #mobile-card="{ item: response }">
+              <button
+                type="button"
+                class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+                @click="navigateTo(`/procurement/rfq/${response.rfqId}`)"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ response.rfqId }}
+                  </p>
+                  <StatusBadge :label="response.status" :tone="response.status === 'selected' ? 'success' : response.status === 'rejected' ? 'destructive' : 'info'" />
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Total Penawaran
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(response.totalAmountIdr) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Diajukan
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatDate(response.submittedAt) }}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </template>
+          </ResponsiveDataView>
         </div>
       </SectionCard>
     </template>

@@ -565,30 +565,67 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
               <p class="text-xs font-medium text-muted-foreground mb-3">
                 Top Vendor (Committed Cost)
               </p>
-              <Table v-if="topVendorRows.length">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vendor</TableHead>
-                    <TableHead>Committed Cost</TableHead>
-                    <TableHead>Penugasan</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="row in topVendorRows" :key="row.vendorId" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/vendors/${row.vendorId}`)">
-                    <TableCell class="font-medium text-foreground">
-                      {{ row.vendor?.name ?? row.vendorId }}
-                    </TableCell>
-                    <TableCell>{{ formatCurrencyIdr(row.committedIdr) }}</TableCell>
-                    <TableCell class="text-muted-foreground">
-                      {{ row.assignments }}
-                    </TableCell>
-                    <TableCell>
-                      <Eye class="h-4 w-4 text-muted-foreground" />
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+              <ResponsiveDataView v-if="topVendorRows.length" :items="topVendorRows" :get-key="row => row.vendorId">
+                <template #desktop="{ items }">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Vendor</TableHead>
+                        <TableHead>Committed Cost</TableHead>
+                        <TableHead>Penugasan</TableHead>
+                        <TableHead />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="row in items" :key="row.vendorId" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/vendors/${row.vendorId}`)">
+                        <TableCell class="font-medium text-foreground">
+                          {{ row.vendor?.name ?? row.vendorId }}
+                        </TableCell>
+                        <TableCell>{{ formatCurrencyIdr(row.committedIdr) }}</TableCell>
+                        <TableCell class="text-muted-foreground">
+                          {{ row.assignments }}
+                        </TableCell>
+                        <TableCell>
+                          <Eye class="h-4 w-4 text-muted-foreground" />
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </template>
+
+                <template #mobile-card="{ item: row }">
+                  <button
+                    type="button"
+                    class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+                    @click="navigateTo(`/vendors/${row.vendorId}`)"
+                  >
+                    <div class="flex items-start justify-between gap-2">
+                      <p class="text-sm font-medium text-foreground truncate">
+                        {{ row.vendor?.name ?? row.vendorId }}
+                      </p>
+                      <Eye class="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p class="text-muted-foreground">
+                          Committed Cost
+                        </p>
+                        <p class="text-foreground">
+                          {{ formatCurrencyIdr(row.committedIdr) }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Penugasan
+                        </p>
+                        <p class="text-foreground">
+                          {{ row.assignments }}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                </template>
+              </ResponsiveDataView>
               <EmptyState v-else title="Belum ada quotation vendor yang diterima" />
             </div>
           </div>
@@ -619,43 +656,93 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
             <StatsCard title="Invoice Overdue" :value="String(overdueInvoiceCount)" :icon="Receipt" icon-color="destructive" />
           </div>
           <StatusBreakdownList :items="invoiceAgingItems" empty-label="Tidak ada invoice outstanding sesuai filter" class="mb-6" />
-          <Table v-if="outstandingInvoiceRows.length">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Outstanding</TableHead>
-                <TableHead>Jatuh Tempo</TableHead>
-                <TableHead>Aging</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow
-                v-for="row in outstandingInvoiceRows"
-                :key="row.invoice.id"
-                class="cursor-pointer hover:bg-muted/50"
+          <ResponsiveDataView v-if="outstandingInvoiceRows.length" :items="outstandingInvoiceRows" :get-key="row => row.invoice.id">
+            <template #desktop="{ items }">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Outstanding</TableHead>
+                    <TableHead>Jatuh Tempo</TableHead>
+                    <TableHead>Aging</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow
+                    v-for="row in items"
+                    :key="row.invoice.id"
+                    class="cursor-pointer hover:bg-muted/50"
+                    @click="navigateTo(`/project-orders/${row.invoice.projectId}?tab=finance`)"
+                  >
+                    <TableCell class="font-medium text-foreground">
+                      {{ row.invoice.label }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.projectName }}
+                    </TableCell>
+                    <TableCell>{{ formatCurrencyIdr(row.outstandingIdr) }}</TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ formatDate(row.invoice.dueAt) }}
+                    </TableCell>
+                    <TableCell :class="row.agingDays < 0 ? 'text-destructive' : 'text-muted-foreground'">
+                      {{ agingLabel(row.agingDays) }}
+                    </TableCell>
+                    <TableCell>
+                      <Eye class="h-4 w-4 text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </template>
+
+            <template #mobile-card="{ item: row }">
+              <button
+                type="button"
+                class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
                 @click="navigateTo(`/project-orders/${row.invoice.projectId}?tab=finance`)"
               >
-                <TableCell class="font-medium text-foreground">
-                  {{ row.invoice.label }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.projectName }}
-                </TableCell>
-                <TableCell>{{ formatCurrencyIdr(row.outstandingIdr) }}</TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ formatDate(row.invoice.dueAt) }}
-                </TableCell>
-                <TableCell :class="row.agingDays < 0 ? 'text-destructive' : 'text-muted-foreground'">
-                  {{ agingLabel(row.agingDays) }}
-                </TableCell>
-                <TableCell>
-                  <Eye class="h-4 w-4 text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ row.invoice.label }}
+                    </p>
+                    <p class="text-xs text-muted-foreground truncate">
+                      {{ row.projectName }}
+                    </p>
+                  </div>
+                  <Eye class="h-4 w-4 shrink-0 text-muted-foreground" />
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Outstanding
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(row.outstandingIdr) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Jatuh Tempo
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatDate(row.invoice.dueAt) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Aging
+                    </p>
+                    <p :class="row.agingDays < 0 ? 'text-destructive' : 'text-foreground'">
+                      {{ agingLabel(row.agingDays) }}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </template>
+          </ResponsiveDataView>
           <EmptyState v-else title="Tidak ada invoice outstanding sesuai filter" />
         </SectionCard>
 
@@ -681,47 +768,100 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
             "Approval cycle time" (Wajib literal Section 22) tidak dapat dihitung — Quotation tidak menyimpan timestamp <code>approvedAt</code>
             (hanya <code>approvedBy</code>/<code>approvalNote</code>), lihat known issues.
           </p>
-          <Table v-if="opportunityQuotationCycle.length">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Lead</TableHead>
-                <TableHead>Quotation</TableHead>
-                <TableHead>Lead Qualified</TableHead>
-                <TableHead>Quotation Dibuat</TableHead>
-                <TableHead>Cycle Time</TableHead>
-                <TableHead>SLA</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow
-                v-for="row in opportunityQuotationCycle"
-                :key="row.quotation.id"
-                class="cursor-pointer hover:bg-muted/50"
+          <ResponsiveDataView v-if="opportunityQuotationCycle.length" :items="opportunityQuotationCycle" :get-key="row => row.quotation.id">
+            <template #desktop="{ items }">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Lead</TableHead>
+                    <TableHead>Quotation</TableHead>
+                    <TableHead>Lead Qualified</TableHead>
+                    <TableHead>Quotation Dibuat</TableHead>
+                    <TableHead>Cycle Time</TableHead>
+                    <TableHead>SLA</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow
+                    v-for="row in items"
+                    :key="row.quotation.id"
+                    class="cursor-pointer hover:bg-muted/50"
+                    @click="navigateTo(`/crm/leads/${row.lead.id}`)"
+                  >
+                    <TableCell class="font-medium text-foreground">
+                      {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.quotation.id }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ formatDate(row.lead.qualifiedAt) }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ formatDate(row.quotation.createdAt) }}
+                    </TableCell>
+                    <TableCell>{{ row.cycleDays }} hari</TableCell>
+                    <TableCell>
+                      <StatusBadge :label="row.withinSla ? 'Dalam SLA' : 'Melebihi SLA'" :tone="row.withinSla ? 'success' : 'destructive'" />
+                    </TableCell>
+                    <TableCell>
+                      <Eye class="h-4 w-4 text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </template>
+
+            <template #mobile-card="{ item: row }">
+              <button
+                type="button"
+                class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
                 @click="navigateTo(`/crm/leads/${row.lead.id}`)"
               >
-                <TableCell class="font-medium text-foreground">
-                  {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.quotation.id }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ formatDate(row.lead.qualifiedAt) }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ formatDate(row.quotation.createdAt) }}
-                </TableCell>
-                <TableCell>{{ row.cycleDays }} hari</TableCell>
-                <TableCell>
+                <div class="flex items-start justify-between gap-2">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
+                  </p>
                   <StatusBadge :label="row.withinSla ? 'Dalam SLA' : 'Melebihi SLA'" :tone="row.withinSla ? 'success' : 'destructive'" />
-                </TableCell>
-                <TableCell>
-                  <Eye class="h-4 w-4 text-muted-foreground" />
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Quotation
+                    </p>
+                    <p class="text-foreground">
+                      {{ row.quotation.id }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Cycle Time
+                    </p>
+                    <p class="text-foreground">
+                      {{ row.cycleDays }} hari
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Lead Qualified
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatDate(row.lead.qualifiedAt) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Quotation Dibuat
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatDate(row.quotation.createdAt) }}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </template>
+          </ResponsiveDataView>
           <EmptyState v-else title="Belum ada Lead dengan Quotation untuk dihitung cycle time-nya" />
         </SectionCard>
       </template>
