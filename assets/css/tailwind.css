@@ -10,6 +10,10 @@
 
 @layer base {
   :root {
+    /** Sama alasan `color-scheme: light` di `body` di bawah — di `:root` juga karena ini yang dicek browser
+     * untuk sinyal document-level "app tidak dark-mode-aware", supaya sheet/dialog (portal ke luar `body`)
+     * tidak ikut di-invert oleh Force Dark Mode browser/OS pada device yang mengaktifkannya. */
+    color-scheme: light;
     --background: 220 14% 96%;
     --foreground: 224 71% 4%;
 

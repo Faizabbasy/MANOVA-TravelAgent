@@ -328,7 +328,7 @@ function goToProject (projectId?: string) {
         </SectionCard>
 
         <div class="xl:col-span-4 space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
-        <SectionCard v-if="attentionEvents.length" compact contentClass="max-h-56 overflow-y-auto">
+        <SectionCard v-if="attentionEvents.length" compact contentClass="max-h-72 overflow-y-auto snap-y snap-mandatory scroll-pb-1.5">
           <template #header>
             <div class="flex items-center gap-2">
               <AlertTriangle class="h-4 w-4 shrink-0 text-destructive" />
@@ -342,27 +342,27 @@ function goToProject (projectId?: string) {
               </div>
             </div>
           </template>
+          <!-- `snap-mandatory` + `snap-start` per kartu (bukan fade overlay — sempat dicoba tapi malah
+               nge-wash teks kartu yang utuh karena `sticky` selalu nempel di bawah terlepas posisi scroll)
+               supaya scroll SELALU berhenti pas kartu penuh, tidak pernah berhenti di tengah kartu. -->
           <ul class="space-y-1.5">
             <li
               v-for="event in attentionEvents"
               :key="event.id"
-              class="rounded-md border border-destructive/40 bg-destructive/5 px-2.5 py-1.5"
+              class="snap-start scroll-mt-1.5 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2"
+              :class="event.projectId && 'cursor-pointer transition-colors hover:bg-destructive/10'"
+              @click="goToProject(event.projectId)"
             >
-              <div class="flex items-start justify-between gap-2">
-                <div
-                  class="min-w-0 flex-1"
-                  :class="event.projectId && 'cursor-pointer hover:underline'"
-                  @click="goToProject(event.projectId)"
-                >
-                  <p class="truncate text-sm font-medium text-foreground">
-                    {{ event.title }}
-                  </p>
-                  <p class="truncate text-xs text-muted-foreground">
-                    <template v-if="event.detail">{{ event.detail }} · </template>{{ formatDate(event.date) }}
-                  </p>
-                </div>
+              <div class="flex items-center justify-between gap-2">
                 <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" tone="destructive" />
+                <span class="shrink-0 text-[11px] font-medium text-muted-foreground">{{ formatDate(event.date) }}</span>
               </div>
+              <p class="mt-1.5 line-clamp-2 text-sm font-medium leading-snug text-foreground" :class="event.projectId && 'hover:underline'">
+                {{ event.title }}
+              </p>
+              <p v-if="event.detail" class="mt-0.5 truncate text-xs text-muted-foreground">
+                {{ event.detail }}
+              </p>
             </li>
           </ul>
         </SectionCard>
@@ -370,7 +370,7 @@ function goToProject (projectId?: string) {
         <SectionCard
           v-if="viewMode !== 'day'"
           compact
-          contentClass="max-h-[calc(100vh-22rem)] overflow-y-auto"
+          contentClass="max-h-[calc(100vh-22rem)] overflow-y-auto snap-y snap-mandatory scroll-pb-1.5"
           :title="sideTitle"
           :description="`${sideEventCount} jadwal pada ${sideRangeNoun} ini.`"
         >
@@ -389,24 +389,23 @@ function goToProject (projectId?: string) {
                 <li
                   v-for="event in day.events"
                   :key="event.id"
-                  class="rounded-md border px-2.5 py-1.5"
-                  :class="event.isAttention ? 'border-destructive/40 bg-destructive/5' : 'border-border'"
+                  class="snap-start scroll-mt-1.5 rounded-lg border px-3 py-2 transition-colors"
+                  :class="[
+                    event.isAttention ? 'border-destructive/40 bg-destructive/5' : 'border-border',
+                    event.projectId && (event.isAttention ? 'cursor-pointer hover:bg-destructive/10' : 'cursor-pointer hover:border-primary/30 hover:bg-muted/30')
+                  ]"
+                  @click="goToProject(event.projectId)"
                 >
-                  <div class="flex items-start justify-between gap-2">
-                    <div
-                      class="min-w-0 flex-1"
-                      :class="event.projectId && 'cursor-pointer hover:underline'"
-                      @click="goToProject(event.projectId)"
-                    >
-                      <p class="truncate text-sm font-medium text-foreground">
-                        <span v-if="event.time" class="font-medium tabular-nums text-muted-foreground">{{ event.time }} · </span>{{ event.title }}
-                      </p>
-                      <p v-if="eventMetaLine(event)" class="truncate text-xs text-muted-foreground">
-                        {{ eventMetaLine(event) }}
-                      </p>
-                    </div>
+                  <div class="flex items-center justify-between gap-2">
                     <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" :tone="event.tone" />
+                    <span v-if="event.time" class="shrink-0 text-[11px] font-medium tabular-nums text-muted-foreground">{{ event.time }}</span>
                   </div>
+                  <p class="mt-1.5 line-clamp-2 text-sm font-medium leading-snug text-foreground" :class="event.projectId && 'hover:underline'">
+                    {{ event.title }}
+                  </p>
+                  <p v-if="eventMetaLine(event)" class="mt-0.5 truncate text-xs text-muted-foreground">
+                    {{ eventMetaLine(event) }}
+                  </p>
                 </li>
               </ul>
             </div>
@@ -420,24 +419,23 @@ function goToProject (projectId?: string) {
             <li
               v-for="event in selectedEvents"
               :key="event.id"
-              class="rounded-md border px-2.5 py-1.5"
-              :class="event.isAttention ? 'border-destructive/40 bg-destructive/5' : 'border-border'"
+              class="rounded-lg border px-3 py-2 transition-colors"
+              :class="[
+                event.isAttention ? 'border-destructive/40 bg-destructive/5' : 'border-border',
+                event.projectId && (event.isAttention ? 'cursor-pointer hover:bg-destructive/10' : 'cursor-pointer hover:border-primary/30 hover:bg-muted/30')
+              ]"
+              @click="goToProject(event.projectId)"
             >
-              <div class="flex items-start justify-between gap-2">
-                <div
-                  class="min-w-0 flex-1"
-                  :class="event.projectId && 'cursor-pointer hover:underline'"
-                  @click="goToProject(event.projectId)"
-                >
-                  <p class="truncate text-sm font-medium text-foreground">
-                    <span v-if="event.time" class="font-medium tabular-nums text-muted-foreground">{{ event.time }} · </span>{{ event.title }}
-                  </p>
-                  <p v-if="eventMetaLine(event)" class="truncate text-xs text-muted-foreground">
-                    {{ eventMetaLine(event) }}
-                  </p>
-                </div>
+              <div class="flex items-center justify-between gap-2">
                 <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" :tone="event.tone" />
+                <span v-if="event.time" class="shrink-0 text-[11px] font-medium tabular-nums text-muted-foreground">{{ event.time }}</span>
               </div>
+              <p class="mt-1.5 line-clamp-2 text-sm font-medium leading-snug text-foreground" :class="event.projectId && 'hover:underline'">
+                {{ event.title }}
+              </p>
+              <p v-if="eventMetaLine(event)" class="mt-0.5 truncate text-xs text-muted-foreground">
+                {{ eventMetaLine(event) }}
+              </p>
             </li>
           </ul>
 
@@ -447,45 +445,56 @@ function goToProject (projectId?: string) {
       </div>
 
       <Sheet v-model:open="isDaySheetOpen">
-        <SheetContent side="right" class="w-full sm:max-w-sm overflow-y-auto">
-          <SheetHeader>
-            <SheetTitle class="capitalize">
-              {{ daySheetLabel }}
-            </SheetTitle>
-            <SheetDescription>{{ daySheetEvents.length }} jadwal pada tanggal ini.</SheetDescription>
-          </SheetHeader>
-
-          <div v-if="daySheetEvents.length" class="mt-4 divide-y divide-border overflow-hidden rounded-lg border border-border">
-            <div
-              v-for="event in daySheetEvents"
-              :key="event.id"
-              :class="[
-                'flex items-start gap-2 px-3 py-2 transition-colors',
-                event.isAttention ? 'bg-destructive/5' : '',
-                event.projectId && 'cursor-pointer hover:bg-muted/40'
-              ]"
-              @click="goToProject(event.projectId)"
-            >
-              <span :class="cn('mt-1 h-1.5 w-1.5 shrink-0 self-start rounded-full', TONE_DOT[event.tone] ?? 'bg-muted-foreground')" />
-              <div class="min-w-0 flex-1 py-0.5">
-                <div class="flex items-start gap-1.5">
-                  <p class="min-w-0 flex-1 break-words text-xs font-semibold leading-snug text-foreground [overflow-wrap:anywhere]">
-                    <span v-if="event.time" class="tabular-nums font-normal text-muted-foreground">{{ event.time }} · </span>{{ event.title }}
-                  </p>
-                  <AlertTriangle v-if="event.isAttention" class="mt-0.5 h-3 w-3 shrink-0 text-destructive" />
+        <SheetContent side="right" class="w-full overflow-y-auto bg-card p-0 sm:max-w-sm">
+          <div class="border-b border-border bg-gradient-to-br from-primary/10 via-muted/40 to-transparent px-6 py-5">
+            <SheetHeader class="pr-8">
+              <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                  <CalendarDays class="h-5 w-5" />
                 </div>
-                <p class="mt-0.5 break-words text-[11px] leading-snug text-muted-foreground [overflow-wrap:anywhere]">
-                  {{ SCHEDULE_KIND_META[event.kind].label }}
-                  <template v-if="event.projectId"> · {{ getProjectById(event.projectId)?.name ?? event.projectId }}</template>
-                </p>
-                <p v-if="event.detail" class="mt-0.5 break-words text-[11px] leading-snug text-muted-foreground [overflow-wrap:anywhere]">
-                  {{ event.detail }}
-                </p>
+                <div class="min-w-0 text-left">
+                  <SheetTitle class="capitalize">
+                    {{ daySheetLabel }}
+                  </SheetTitle>
+                  <SheetDescription>{{ daySheetEvents.length }} jadwal pada tanggal ini.</SheetDescription>
+                </div>
               </div>
-              <ChevronRight v-if="event.projectId" class="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            </div>
+            </SheetHeader>
           </div>
-          <EmptyState v-else title="Tidak ada jadwal" description="Tidak ada jadwal pada tanggal ini." />
+
+          <div class="px-6 py-4">
+            <div v-if="daySheetEvents.length" class="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+              <div
+                v-for="event in daySheetEvents"
+                :key="event.id"
+                :class="[
+                  'flex items-start gap-2 px-3 py-2 transition-colors',
+                  event.isAttention ? 'bg-destructive/5' : '',
+                  event.projectId && 'cursor-pointer hover:bg-muted/40'
+                ]"
+                @click="goToProject(event.projectId)"
+              >
+                <span :class="cn('mt-1 h-1.5 w-1.5 shrink-0 self-start rounded-full', TONE_DOT[event.tone] ?? 'bg-muted-foreground')" />
+                <div class="min-w-0 flex-1 py-0.5">
+                  <div class="flex items-start gap-1.5">
+                    <p class="min-w-0 flex-1 break-words text-xs font-semibold leading-snug text-foreground [overflow-wrap:anywhere]">
+                      <span v-if="event.time" class="tabular-nums font-normal text-muted-foreground">{{ event.time }} · </span>{{ event.title }}
+                    </p>
+                    <AlertTriangle v-if="event.isAttention" class="mt-0.5 h-3 w-3 shrink-0 text-destructive" />
+                  </div>
+                  <p class="mt-0.5 break-words text-[11px] leading-snug text-muted-foreground [overflow-wrap:anywhere]">
+                    {{ SCHEDULE_KIND_META[event.kind].label }}
+                    <template v-if="event.projectId"> · {{ getProjectById(event.projectId)?.name ?? event.projectId }}</template>
+                  </p>
+                  <p v-if="event.detail" class="mt-0.5 break-words text-[11px] leading-snug text-muted-foreground [overflow-wrap:anywhere]">
+                    {{ event.detail }}
+                  </p>
+                </div>
+                <ChevronRight v-if="event.projectId" class="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </div>
+            </div>
+            <EmptyState v-else title="Tidak ada jadwal" description="Tidak ada jadwal pada tanggal ini." />
+          </div>
         </SheetContent>
       </Sheet>
     </template>

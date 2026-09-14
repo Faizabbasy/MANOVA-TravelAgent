@@ -213,7 +213,7 @@ function submitForm () {
             :class="canManage ? 'cursor-grab active:cursor-grabbing' : ''"
           >
             <div class="flex items-center gap-1">
-              <span v-if="task.isMilestone" class="shrink-0 rounded-full border border-primary/30 bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">Milestone</span>
+              <span v-if="task.isMilestone" class="shrink-0 rounded-full border border-primary/30 bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-primary">Task Penting</span>
               <StatusBadge v-if="task.isBlocked" label="Blocked" tone="destructive" />
               <span class="ml-auto shrink-0 font-mono text-[9px] text-muted-foreground">{{ task.id }}</span>
               <GripVertical v-if="canManage" class="h-3 w-3 shrink-0 text-muted-foreground/50" />

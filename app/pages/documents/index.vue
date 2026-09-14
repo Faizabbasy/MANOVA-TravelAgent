@@ -595,6 +595,9 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                     <p class="mt-0.5 truncate text-[10px] text-muted-foreground">
                       {{ row.item.category }} · v{{ row.item.version }}
                     </p>
+                    <p class="mt-0.5 truncate text-[10px] text-muted-foreground" :title="row.project?.name ?? 'Tidak terkait project'">
+                      {{ row.project?.name ?? '—' }}
+                    </p>
                     <StatusBadge
                       v-if="row.item.expiresAt && (isDocumentExpired(row.item.expiresAt) || isDocumentExpiringSoon(row.item.expiresAt))"
                       class="mt-1 w-fit"

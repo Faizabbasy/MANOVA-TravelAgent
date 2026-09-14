@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, nextTick, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Wallet, Users, User, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2, MapPin, CalendarRange, CreditCard, FileText, PieChart, Eye, EyeOff, LayoutGrid, List, Download, MessageSquare, FileClock, Settings2, ImagePlus, Plane, Hotel, Bus, PartyPopper, Package, Gauge, Clock, ChevronRight, ChevronLeft, ListChecks, CircleDashed, Check, MoreVertical, FolderOpen, Kanban, MoreHorizontal, Calculator, Info } from 'lucide-vue-next'
+import type { SortableEvent } from 'vue-draggable-plus'
+import { VueDraggable } from 'vue-draggable-plus'
+import { FileX, Wallet, Users, User, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2, MapPin, CalendarRange, CreditCard, FileText, PieChart, Eye, EyeOff, LayoutGrid, List, Download, MessageSquare, FileClock, Settings2, ImagePlus, Plane, Hotel, Bus, PartyPopper, Package, Gauge, Clock, ChevronRight, ChevronLeft, ListChecks, CircleDashed, Check, MoreVertical, FolderOpen, Kanban, MoreHorizontal, Calculator, Info, GripVertical, Paperclip, X, Flag, CalendarDays } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getContactsByParty, getUserById, getVendorById, getLeadById,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
@@ -19,11 +21,10 @@ import {
   addProjectTeamMember, removeProjectTeamMember,
   createProjectTask, updateProjectTask,
   toggleTaskBlocked, getServiceReadinessMatrix, getDepartureReadiness, getProjectAttentionQueue,
-  getShiftNotes, createShiftNote,
   getBookingTimeline,
   getServiceOrdersByProject, getRfqsByProject,
   getChangeRequestsByProject, getCancellationRecordsByProject, getRefundRequestsByProject, getIncidentsByProject,
-  getDocumentsForProject, createDocument, MESSAGE_RECORDS, sendMessage, getUnifiedActivityTimeline, updateProjectPhoto,
+  getDocumentsForProject, createDocument, MESSAGE_RECORDS, sendMessage, getInternalProjectMessages, getUnifiedActivityTimeline, updateProjectPhoto,
   USERS,
   getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject,
   confirmGroupTripDp, getSalesOrderOutstandingIdr,
@@ -53,14 +54,16 @@ import {
   CREDIT_NOTE_STATUSES, DEBIT_NOTE_STATUSES, SUPPLIER_INVOICE_MATCH_STATUSES, SUPPLIER_INVOICE_STATUSES,
   DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES, SALES_ORDER_STATUSES
 } from '~/constants/status'
-import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatDayBadge, formatTravelerCount, maskDocumentNumber } from '~/utils/format'
-import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, isInvoiceDueSoon, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT, isDpBalanceOverdue } from '~/utils/attention'
+import { formatCurrencyIdr, formatDateRange, formatDate, formatDateLong, formatDateTime, formatDayLabel, formatDayBadge, formatTravelerCount, maskDocumentNumber, daysUntil } from '~/utils/format'
+import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, isInvoiceDueSoon, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT, isDpBalanceOverdue, PASSPORT_EXPIRY_WARNING_DAYS } from '~/utils/attention'
 import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ItineraryItem, ProjectService } from '~/types/project'
-import type { ChangeCategory, ProjectTask, ShiftPeriod } from '~/types/activity'
+import type { ChangeCategory, ProjectTask } from '~/types/activity'
 import type { Invoice, InvoiceMilestone, InvoiceType } from '~/types/finance'
 import type { ProjectExpenseCategoryKey } from '~/types/finance-ext'
 import type { MessageChannel, Document as AppDocument } from '~/types/document-comms'
 import type { BadgeTone } from '~/types/common'
+import type { ProjectMilestone } from '~/types/project-order'
+import { excludesAllRoles } from '~/data/rbac'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
@@ -155,7 +158,9 @@ const TABS = computed<{ value: ProjectDetailTab; label: string }[]>(() => (proje
       { value: 'reservations', label: 'Reservations' },
       { value: 'payments', label: 'Payments' },
       { value: 'tasks', label: 'Operations' },
-      { value: 'finance', label: 'Financial' }
+      { value: 'finance', label: 'Financial' },
+      { value: 'expenses', label: 'Pengeluaran' },
+      { value: 'discussion', label: 'Diskusi' }
     ]
   : [
       { value: 'overview', label: 'Overview' },
@@ -165,8 +170,10 @@ const TABS = computed<{ value: ProjectDetailTab; label: string }[]>(() => (proje
       { value: 'travelers', label: 'Travelers' },
       { value: 'vendors', label: 'Vendors' },
       { value: 'finance', label: 'Finance' },
+      { value: 'expenses', label: 'Pengeluaran' },
       { value: 'tasks', label: 'Tasks' },
       { value: 'documents', label: 'Documents' },
+      { value: 'discussion', label: 'Diskusi' },
       { value: 'activity-changes', label: 'Activity & Changes' }
     ]))
 
@@ -275,6 +282,41 @@ const stepViews = computed(() => {
 const currentStepView = computed(() => stepViews.value.find(view => view.state === 'current' || view.state === 'blocked'))
 const canAdvanceStep = computed(() => can('project-order.advance-step'))
 const selectedStepKey = ref<string | undefined>()
+
+/** "Order Status" 6-langkah (drafting→done) diringkas jadi 3 fase pill (Draft/Sedang Berjalan/Selesai) —
+ * gantinya stepper besar lama, pola pill sama seperti section Progress Milestone di bawahnya. Detail
+ * per-step (gate/blocker) tetap ada, dipicu klik pill "Sedang Berjalan" (bukan lagi pilih salah satu dari
+ * 6 step). */
+type OrderPhase = 'draft' | 'sedang-berjalan' | 'selesai'
+const ORDER_PHASE_ORDER: Record<OrderPhase, number> = { draft: 0, 'sedang-berjalan': 1, selesai: 2 }
+const orderPhase = computed<OrderPhase>(() => {
+  const step = project.value ? getProjectOrderStep(project.value) : 'drafting'
+  if (step === 'drafting') { return 'draft' }
+  if (step === 'done') { return 'selesai' }
+  return 'sedang-berjalan'
+})
+function orderPhasePillClass (phase: OrderPhase): string {
+  const current = ORDER_PHASE_ORDER[orderPhase.value]
+  const target = ORDER_PHASE_ORDER[phase]
+  if (target < current) { return 'border-success/30 bg-success/10 text-success' }
+  if (target === current) { return 'border-primary/40 bg-primary/10 font-semibold text-primary' }
+  return 'border-border bg-card text-muted-foreground'
+}
+function orderPhaseDotClass (phase: OrderPhase): string {
+  const current = ORDER_PHASE_ORDER[orderPhase.value]
+  if (ORDER_PHASE_ORDER[phase] === current) { return 'bg-primary' }
+  return 'bg-muted-foreground'
+}
+function toggleStepGateByKey (stepKey: string) {
+  selectedStepKey.value = selectedStepKey.value === stepKey ? undefined : stepKey
+}
+/** Klik pill "Sedang Berjalan" → step yang lagi aktif (bisa `confirmed`/`start`/`departure`/`on-progress`,
+ * apa pun yang lagi jalan sekarang), bukan key tetap — 4 step itu diringkas jadi 1 pill tapi detail
+ * gate-nya tetap per-step yang sebenarnya. */
+function toggleCurrentStepGate () {
+  if (!currentStepView.value) { return }
+  toggleStepGateByKey(currentStepView.value.def.key)
+}
 
 function onAdvanceStep () {
   if (!project.value) { return }
@@ -413,6 +455,51 @@ const milestoneOverallProgressPercent = computed(() => {
   const total = list.reduce((sum, milestone) => sum + getMilestoneProgressPercent(milestone), 0)
   return Math.round(total / list.length)
 })
+
+/** Stepper kedua di bawah "Order Status" (langkah besar Drafting→Done) — versi kecil per milestone project
+ * ini, urut `plannedDate`. Reuse `milestones`/`ProjectMilestoneStatus` yang sudah ada (tab Milestone),
+ * bukan entity baru — ini murni tampilan ringkas, klik satu titik loncat ke tab Milestone untuk detailnya. */
+const sortedMilestoneSteps = computed(() => [...milestones.value].sort((a, b) => a.plannedDate.localeCompare(b.plannedDate)))
+const MILESTONE_STEP_NODE_CLASS: Record<ProjectMilestone['status'], string> = {
+  completed: 'border-primary bg-primary text-primary-foreground',
+  'in-progress': 'border-primary bg-card text-primary ring-4 ring-primary/15',
+  delayed: 'border-destructive bg-destructive text-destructive-foreground',
+  'not-started': 'border-border bg-card text-muted-foreground',
+  cancelled: 'border-border bg-muted text-muted-foreground/50'
+}
+const MILESTONE_STEP_LABEL_CLASS: Record<ProjectMilestone['status'], string> = {
+  completed: 'text-foreground',
+  'in-progress': 'text-primary font-semibold',
+  delayed: 'text-destructive font-semibold',
+  'not-started': 'text-muted-foreground',
+  cancelled: 'text-muted-foreground/50 line-through'
+}
+const MILESTONE_STEP_STATUS_LABEL: Record<ProjectMilestone['status'], string> = {
+  completed: 'Selesai',
+  'in-progress': 'Sedang Dikerjakan',
+  delayed: 'Terlambat',
+  'not-started': 'Belum Mulai',
+  cancelled: 'Dibatalkan'
+}
+/** Segmen garis konektor mengikuti milestone TUJUAN-nya — sudah "dilalui" (bukan `not-started`) jadi
+ * solid primary, sisanya abu-abu. */
+function milestoneStepConnectorClass (milestone: ProjectMilestone): string {
+  return milestone.status === 'not-started' ? 'border-border' : 'border-primary/60'
+}
+function goToMilestoneStep () {
+  activeTab.value = 'milestone'
+}
+
+/** Milestone yang lagi jalan (fallback: milestone belum-mulai paling awal) — dipakai kartu highlight di
+ * bawah stepper kecil, plus ringkasan checklist/progress-nya sendiri (`deliverables`, bukan progress
+ * keseluruhan project). */
+const currentMilestoneStep = computed(() => sortedMilestoneSteps.value.find(m => m.status === 'in-progress')
+  ?? sortedMilestoneSteps.value.find(m => m.status === 'not-started'))
+const currentMilestoneDeliverables = computed(() => {
+  const deliverables = currentMilestoneStep.value?.deliverables ?? []
+  return { done: deliverables.filter(item => item.done).length, total: deliverables.length }
+})
+const currentMilestoneProgressPercent = computed(() => (currentMilestoneStep.value ? getMilestoneProgressPercent(currentMilestoneStep.value) : 0))
 
 function onToggleMilestoneDeliverable (payload: { milestoneId: string; deliverableId: string }) {
   toggleMilestoneDeliverable(payload.milestoneId, payload.deliverableId)
@@ -937,21 +1024,6 @@ function confirmDeleteItineraryItem () {
   showToast('Item Dihapus', 'Item itinerary berhasil dihapus.', 'success')
 }
 
-/** "On-trip updates dan shift notes mock" */
-const shiftNotes = computed(() => project.value ? getShiftNotes(project.value.id) : [])
-const isShiftNoteDialogOpen = ref(false)
-const shiftNoteShift = ref<ShiftPeriod>('pagi')
-const shiftNoteText = ref('')
-
-function submitShiftNote () {
-  if (!project.value || !shiftNoteText.value.trim()) { return }
-  createShiftNote({ projectId: project.value.id, authorId: currentUser.value.id, shift: shiftNoteShift.value, note: shiftNoteText.value.trim() })
-  shiftNoteText.value = ''
-  shiftNoteShift.value = 'pagi'
-  isShiftNoteDialogOpen.value = false
-  showToast('Shift Note Dicatat', 'Catatan serah-terima shift berhasil ditambahkan.', 'success')
-}
-
 /** "Blocker" (Tasks) — dialog untuk memblokir (wajib alasan); buka blokir langsung tanpa dialog (tidak butuh alasan). */
 const isBlockDialogOpen = ref(false)
 const blockingTask = ref<ProjectTask | null>(null)
@@ -1315,6 +1387,27 @@ const visibleTaskStatuses = computed(() => taskBoardStatusFilter.value
   ? TASK_STATUSES.filter(status => status.value === taskBoardStatusFilter.value)
   : TASK_STATUSES)
 
+/** Kartu bisa ditarik antar kolom (pola sama Kanban global `TasksPanel.vue`, menu Operasional > Tugas) —
+ * dulu status cuma bisa diubah lewat dropdown di kartu. Salinan lokal per kolom untuk `VueDraggable`
+ * (butuh array yang bisa dia mutasi langsung sewaktu drag); sumber kebenaran tetap `tasks`, disinkronkan
+ * ulang tiap kali berubah (termasuk setelah drag men-trigger `updateProjectTask`). */
+const taskBoardColumns = ref<Record<string, typeof tasks.value>>({})
+function syncTaskBoardColumns () {
+  const map: Record<string, typeof tasks.value> = {}
+  for (const status of TASK_STATUSES) { map[status.value] = [] }
+  for (const task of tasks.value) { map[task.status]?.push(task) }
+  taskBoardColumns.value = map
+}
+watch(tasks, syncTaskBoardColumns, { immediate: true, deep: true })
+
+function onTaskDragEnd (event: SortableEvent, targetStatus: string) {
+  const taskId = (event.item as HTMLElement).dataset.taskId
+  if (!taskId) { return }
+  const task = tasks.value.find(item => item.id === taskId)
+  if (!task || task.status === targetStatus) { return }
+  updateProjectTask(taskId, { status: targetStatus as ProjectTask['status'] })
+}
+
 /** Section 21 (D-078) — union `Document` baru + `ProjectDocument` legacy, dipakai tab "Documents" yang diperkaya (category/version/expiry/access level). */
 const unifiedDocuments = computed(() => project.value ? getDocumentsForProject(project.value.id) : [])
 /** Toggle List/Grid ala Google Drive untuk tab Documents — preferensi tampilan saja, tidak memengaruhi data. */
@@ -1349,7 +1442,9 @@ const filteredDocuments = computed(() => unifiedDocuments.value.filter((document
   if (documentExpiryFilter.value === 'expired' && !(document.expiresAt && isDocumentExpired(document.expiresAt))) { return false }
   return true
 }))
-/** Pagination (5/halaman, pola "Menampilkan X-Y dari Z") — reset ke halaman 1 setiap kali search/filter berubah. */
+/** Pagination (5/halaman, pola "Menampilkan X-Y dari Z") — reset ke halaman 1 setiap kali search/filter berubah.
+ * TIDAK berlaku saat filter Category = "Semua" (lihat `documentGroups`) — begitu dikelompokkan per category,
+ * pagination flat jadi tidak relevan lagi (sama pola dengan halaman global `/documents`, D-078). */
 const DOCUMENTS_PAGE_SIZE = 5
 const documentsCurrentPage = ref(1)
 watch([documentSearchQuery, documentCategoryFilter, documentAccessLevelFilter, documentExpiryFilter], () => { documentsCurrentPage.value = 1 })
@@ -1357,6 +1452,22 @@ const documentsTotalPages = computed(() => Math.max(1, Math.ceil(filteredDocumen
 const paginatedDocuments = computed(() => {
   const start = (documentsCurrentPage.value - 1) * DOCUMENTS_PAGE_SIZE
   return filteredDocuments.value.slice(start, start + DOCUMENTS_PAGE_SIZE)
+})
+
+/** Grouping per category saat filter = "Semua Kategori" (sama pola dengan halaman global `/documents`) —
+ * satu category dipilih tetap flat+paginated seperti semula (isinya cuma 1 grup). */
+const documentGroups = computed(() => {
+  if (documentCategoryFilter.value !== 'all') {
+    return [{ category: null as string | null, rows: paginatedDocuments.value }]
+  }
+  const groups = new Map<string, typeof filteredDocuments.value>()
+  for (const document of filteredDocuments.value) {
+    if (!groups.has(document.category)) { groups.set(document.category, []) }
+    groups.get(document.category)!.push(document)
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([category, rows]) => ({ category, rows }))
 })
 function documentUploaderName (document: AppDocument) {
   return document.uploadedBy ? (getUserById(document.uploadedBy)?.name ?? document.uploadedBy) : '—'
@@ -1491,6 +1602,46 @@ function submitMessage () {
   resetMessageForm()
   isMessageDialogOpen.value = false
   showToast('Pesan Terkirim', `Status: ${findStatusOption(MESSAGE_DELIVERY_STATUSES, message.deliveryStatus).label} (simulasi, bukan email/WA nyata).`)
+}
+
+/** Tab "Diskusi" — chat internal tim project ini (channel `internal-note` selalu, beda dari "Kirim Pesan" di
+ * atas yang bisa pilih channel client/supplier). Reuse penuh `sendMessage`/`Message.mentions`/
+ * `Message.attachmentName` yang sudah ada (Section 21) — pola UI (bubble chat + chip mention + input nama
+ * lampiran mock) disalin dari `client/messages/[projectId]/index.vue` yang sudah lebih dulu ada untuk sisi
+ * Client, di sini untuk sisi internal. */
+const discussionMessages = computed(() => (project.value ? getInternalProjectMessages(project.value.id) : []))
+/** User internal saja untuk mention — client/supplier/vendor dikecualikan (mereka tidak pernah melihat/ikut chat internal ini). */
+const discussionMentionableUsers = computed(() => USERS.filter(user => excludesAllRoles(user.role, ['client', 'supplier', 'vendor'])))
+const discussionBody = ref('')
+const discussionMentions = ref<string[]>([])
+const discussionAttachmentName = ref('')
+
+function toggleDiscussionMention (userId: string) {
+  const index = discussionMentions.value.indexOf(userId)
+  if (index === -1) { discussionMentions.value.push(userId) } else { discussionMentions.value.splice(index, 1) }
+}
+
+/** Mock upload (D-006) — hanya nama file yang diambil dari file picker, tidak ada file yang benar-benar diunggah/disimpan. */
+function handleDiscussionFileChange (event: Event) {
+  const file = (event.target as HTMLInputElement).files?.[0]
+  discussionAttachmentName.value = file?.name ?? ''
+}
+
+function submitDiscussionMessage () {
+  if (!project.value || !discussionBody.value.trim()) { return }
+  sendMessage({
+    entityType: 'project',
+    entityId: project.value.id,
+    projectId: project.value.id,
+    channel: 'internal-note',
+    senderId: currentUser.value.id,
+    body: discussionBody.value.trim(),
+    mentions: discussionMentions.value.length ? [...discussionMentions.value] : undefined,
+    attachmentName: discussionAttachmentName.value.trim() || undefined
+  })
+  discussionBody.value = ''
+  discussionMentions.value = []
+  discussionAttachmentName.value = ''
 }
 
 function handleApproveChange (entryId: string) {
@@ -1681,6 +1832,37 @@ function visaSummary (traveler: Traveler) {
   if (!traveler.visaNumber) { return '—' }
   const number = canManageTravelers.value ? traveler.visaNumber : maskDocumentNumber(traveler.visaNumber)
   return traveler.visaExpiryDate ? `${number} · ${formatDate(traveler.visaExpiryDate)}` : number
+}
+
+/** Popup "Detail Dokumen" — dipicu klik badge Status Dokumen (dulu cuma badge diam, tidak ada cara lihat
+ * rincian per-dokumen tanpa buka form Edit Traveler). Rincian & aturan validitas sama persis dengan
+ * `isTravelerDocumentMissing` (utils/attention.ts), cuma dipecah per dokumen supaya user tahu persisnya
+ * yang mana yang bermasalah. */
+const docDetailTraveler = ref<Traveler | null>(null)
+function openDocDetail (traveler: Traveler) {
+  docDetailTraveler.value = traveler
+}
+
+type DocDetailStatus = { label: string; tone: 'success' | 'warning' | 'destructive' | 'neutral' }
+
+function passportDetailStatus (traveler: Traveler): DocDetailStatus {
+  if (!traveler.passportNumber || !traveler.passportExpiryDate) { return { label: 'Belum diisi', tone: 'destructive' } }
+  if (project.value?.travelStartDate) {
+    const remaining = daysUntil(traveler.passportExpiryDate, project.value.travelStartDate)
+    if (remaining < PASSPORT_EXPIRY_WARNING_DAYS) {
+      return { label: `Sisa berlaku ${remaining} hari saat keberangkatan (min. ${PASSPORT_EXPIRY_WARNING_DAYS} hari)`, tone: 'destructive' }
+    }
+  }
+  return { label: 'Berlaku', tone: 'success' }
+}
+
+function visaDetailStatus (traveler: Traveler): DocDetailStatus {
+  if (!traveler.visaNumber) { return { label: 'Tidak diisi (opsional)', tone: 'neutral' } }
+  if (!traveler.visaExpiryDate) { return { label: 'Tanggal expiry belum diisi', tone: 'destructive' } }
+  if (project.value?.travelStartDate && daysUntil(traveler.visaExpiryDate, project.value.travelStartDate) < 0) {
+    return { label: 'Kedaluwarsa sebelum keberangkatan', tone: 'destructive' }
+  }
+  return { label: 'Berlaku', tone: 'success' }
 }
 
 function companionSummary (traveler: Traveler) {
@@ -2008,12 +2190,91 @@ const tripDurationDays = computed(() => {
       </SectionCard>
 
       <SectionCard compact>
-        <ProjectOrderStepper
-          class="px-1 pt-4"
-          :steps="stepViews"
-          :selected-step-key="selectedStepKey"
-          @select="value => selectedStepKey = selectedStepKey === value ? undefined : value"
-        />
+        <!-- "Order Status" diringkas jadi 3 pill (bukan lagi stepper 6-langkah besar) + stepper kecil per
+             milestone di bawahnya (urut plannedDate, klik titik mana pun loncat ke tab Milestone). -->
+        <div>
+          <div class="mb-4 flex flex-wrap items-center justify-between gap-3 px-1 pt-4">
+            <div class="flex items-center gap-1.5">
+              <button type="button" class="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium transition-colors" :class="orderPhasePillClass('draft')" title="Lihat syarat step Drafting" @click="toggleStepGateByKey('drafting')">
+                <Check v-if="ORDER_PHASE_ORDER.draft < ORDER_PHASE_ORDER[orderPhase]" class="h-3 w-3" />
+                <span v-else class="h-1.5 w-1.5 shrink-0 rounded-full" :class="orderPhaseDotClass('draft')" />Draft
+              </button>
+              <span class="h-px w-4 shrink-0 bg-border" />
+              <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors" :class="orderPhasePillClass('sedang-berjalan')" title="Lihat syarat step yang sedang berjalan" @click="toggleCurrentStepGate">
+                <Check v-if="ORDER_PHASE_ORDER['sedang-berjalan'] < ORDER_PHASE_ORDER[orderPhase]" class="h-3 w-3" />
+                <span v-else class="h-1.5 w-1.5 shrink-0 rounded-full" :class="orderPhaseDotClass('sedang-berjalan')" />Sedang Berjalan
+              </button>
+              <span class="h-px w-4 shrink-0 bg-border" />
+              <button type="button" class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors" :class="orderPhasePillClass('selesai')" title="Lihat syarat step Done" @click="toggleStepGateByKey('done')">
+                <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="orderPhaseDotClass('selesai')" />Selesai
+              </button>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <span class="text-muted-foreground">
+                <span class="font-semibold text-foreground">{{ milestoneSummary.completed }}/{{ milestoneSummary.total }}</span> milestone
+              </span>
+              <span v-if="currentMilestoneDeliverables.total > 0" class="text-muted-foreground">
+                <span class="font-semibold text-foreground">{{ currentMilestoneDeliverables.done }}/{{ currentMilestoneDeliverables.total }}</span> tugas
+              </span>
+              <span class="font-bold text-primary">{{ currentMilestoneDeliverables.total > 0 ? currentMilestoneProgressPercent : milestoneOverallProgressPercent }}%</span>
+            </div>
+          </div>
+
+          <div v-if="sortedMilestoneSteps.length" class="overflow-x-auto pb-1 no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <ol class="grid min-w-max items-start px-1" :style="{ gridTemplateColumns: `repeat(${sortedMilestoneSteps.length}, minmax(96px, 1fr))` }">
+              <li v-for="(milestone, index) in sortedMilestoneSteps" :key="milestone.id" class="flex flex-col items-center px-1">
+                <div class="flex w-full items-center">
+                  <span class="h-[3px] flex-1 border-t-[3px]" :class="index === 0 ? 'border-transparent' : milestoneStepConnectorClass(milestone)" />
+                  <button
+                    type="button"
+                    class="group flex shrink-0 items-center justify-center rounded-full p-0"
+                    :title="`${milestone.name} · ${MILESTONE_STEP_STATUS_LABEL[milestone.status]}`"
+                    @click="goToMilestoneStep"
+                  >
+                    <span :class="['flex h-9 w-9 items-center justify-center rounded-full border-[3px] text-xs font-bold transition-colors', MILESTONE_STEP_NODE_CLASS[milestone.status]]">
+                      <Check v-if="milestone.status === 'completed'" class="h-4 w-4" />
+                      <AlertTriangle v-else-if="milestone.status === 'delayed'" class="h-4 w-4" />
+                      <template v-else>{{ index + 1 }}</template>
+                    </span>
+                  </button>
+                  <span v-if="index < sortedMilestoneSteps.length - 1" class="h-[3px] flex-1 border-t-[3px]" :class="milestoneStepConnectorClass(sortedMilestoneSteps[index + 1])" />
+                  <span v-else class="flex-1" />
+                </div>
+                <button type="button" class="mt-2 flex max-w-[92px] flex-col items-center gap-0 rounded px-0.5 hover:bg-muted/50" @click="goToMilestoneStep">
+                  <span :class="['line-clamp-2 text-center text-xs leading-tight', MILESTONE_STEP_LABEL_CLASS[milestone.status]]" :title="milestone.name">
+                    {{ milestone.name }}
+                  </span>
+                  <span class="mt-0.5 font-ticket-mono text-[10px] leading-none text-muted-foreground">
+                    {{ formatDate(milestone.actualDate ?? milestone.plannedDate) }}
+                  </span>
+                </button>
+              </li>
+            </ol>
+          </div>
+
+          <!-- Kartu highlight milestone yang lagi jalan — pola sama "kamu di sini sekarang" stepper besar di atas, tapi untuk milestone. -->
+          <button
+            v-if="currentMilestoneStep"
+            type="button"
+            class="mt-4 flex w-full flex-wrap items-center justify-between gap-2 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5 text-left transition-colors hover:bg-primary/10"
+            @click="goToMilestoneStep"
+          >
+            <div class="flex min-w-0 items-center gap-2">
+              <Flag class="h-4 w-4 shrink-0 text-primary" />
+              <div class="min-w-0">
+                <p class="text-[10px] font-semibold uppercase tracking-wide text-primary">
+                  {{ MILESTONE_STEP_STATUS_LABEL[currentMilestoneStep.status] }}
+                </p>
+                <p class="truncate text-sm font-semibold text-foreground">
+                  {{ currentMilestoneStep.name }}
+                </p>
+              </div>
+            </div>
+            <span class="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-2 py-1 text-xs text-muted-foreground">
+              <CalendarDays class="h-3.5 w-3.5" />{{ formatDateLong(currentMilestoneStep.plannedDate) }}
+            </span>
+          </button>
+        </div>
 
         <div v-if="canAcceptHandover || (canAdvanceStep && currentStepView)" class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
           <Button v-if="canAcceptHandover" size="sm" variant="outline" @click="onAcceptHandover">
@@ -2315,27 +2576,14 @@ const tripDurationDays = computed(() => {
                 </ul>
               </SectionCard>
 
-              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Nilai Project">
-                <p class="text-2xl font-bold tabular-nums text-foreground">
-                  {{ formatCurrencyIdr(project.quotationAmountIdr) }}
-                </p>
-                <button
-                  v-if="project.leadId"
-                  type="button"
-                  class="mt-1.5 inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
-                  @click="isLeadDetailSheetOpen = true"
-                >
-                  Dari {{ project.leadId }}
-                </button>
-
-                <div class="mt-3 flex items-start gap-2.5 border-t border-dashed border-border pt-3">
+              <!-- Dulu "Nilai Project" — angka quotation-nya dihapus (D-audit: sudah tampil 2x di atas, di
+                   header hero dan "Ringkasan Komersial"), card ini sekarang murni Owner/PIC + link lead asal. -->
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Owner / PIC">
+                <div class="flex items-start gap-2.5">
                   <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
                     <User class="h-4 w-4" />
                   </div>
                   <div class="min-w-0">
-                    <p class="text-[11px] font-semibold uppercase tracking-wide text-success">
-                      Owner / PIC
-                    </p>
                     <p class="truncate text-sm font-semibold text-foreground">
                       {{ owner?.name ?? '—' }}
                     </p>
@@ -2344,6 +2592,14 @@ const tripDurationDays = computed(() => {
                     </p>
                   </div>
                 </div>
+                <button
+                  v-if="project.leadId"
+                  type="button"
+                  class="mt-2.5 inline-flex items-center gap-1 rounded-md border border-primary/25 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary transition-colors hover:bg-primary/20"
+                  @click="isLeadDetailSheetOpen = true"
+                >
+                  Dari {{ project.leadId }}
+                </button>
               </SectionCard>
 
               <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Tim Project">
@@ -2768,83 +3024,9 @@ const tripDurationDays = computed(() => {
                 </div>
               </SectionCard>
 
-              <!-- Progress Readiness (donut, dibesarkan biar isi card padat tanpa duplikasi angka yang sudah ada di 4 StatsCard "Departure Readiness Gate" di atas) + Alasan Belum Siap & Countdown Keberangkatan (satu card, dipisah divider — bukan diduplikasi). items-start supaya card yang lebih pendek tidak di-stretch mengikuti tinggi sibling-nya. -->
+              <!-- "Progress Readiness" (donut) dihapus — cuma re-visualisasi persentase gabungan yang sudah
+                   kebaca dari 4 StatsCard "Departure Readiness Gate" di atas, dianggap tidak perlu. -->
               <template v-if="departureReadiness">
-                <SectionCard class="h-full" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Progress Readiness" content-class="flex flex-1 flex-col items-center py-2 text-center">
-                  <div class="relative flex h-40 w-40 shrink-0 items-center justify-center">
-                    <svg viewBox="0 0 80 80" class="h-40 w-40 -rotate-90">
-                      <circle
-                        cx="40"
-                        cy="40"
-                        r="34"
-                        fill="none"
-                        stroke="hsl(var(--muted))"
-                        stroke-width="7"
-                      />
-                      <circle
-                        cx="40"
-                        cy="40"
-                        r="34"
-                        fill="none"
-                        stroke="hsl(var(--primary))"
-                        stroke-width="7"
-                        stroke-linecap="round"
-                        class="transition-[stroke-dashoffset] duration-700 ease-out"
-                        :stroke-dasharray="2 * Math.PI * 34"
-                        :stroke-dashoffset="2 * Math.PI * 34 * (1 - overallReadinessPercent / 100)"
-                      />
-                    </svg>
-                    <div class="absolute flex flex-col items-center">
-                      <span class="text-3xl font-bold leading-none tabular-nums text-foreground">{{ overallReadinessPercent }}%</span>
-                      <span class="mt-1 text-xs text-muted-foreground">Siap Berangkat</span>
-                    </div>
-                  </div>
-
-                  <div class="mt-4 flex items-center gap-4 text-xs">
-                    <span class="flex items-center gap-1.5">
-                      <span class="h-2 w-2 shrink-0 rounded-full bg-primary" />
-                      <span class="text-foreground">{{ overallReadinessPercent }}% Siap</span>
-                    </span>
-                    <span class="flex items-center gap-1.5">
-                      <span class="h-2 w-2 shrink-0 rounded-full bg-muted" />
-                      <span class="text-muted-foreground">{{ 100 - overallReadinessPercent }}% Belum Lengkap</span>
-                    </span>
-                  </div>
-
-                  <ul class="mt-4 w-full space-y-2.5 border-t border-border pt-4 text-left">
-                    <li class="flex items-center justify-between gap-3 text-sm">
-                      <span class="flex items-center gap-2 text-muted-foreground">
-                        <FileText class="h-4 w-4 shrink-0 text-primary" />Dokumen Traveler
-                      </span>
-                      <span class="font-medium text-foreground">{{ departureReadiness.travelerReadinessPercent }}%</span>
-                    </li>
-                    <li class="flex items-center justify-between gap-3 text-sm">
-                      <span class="flex items-center gap-2 text-muted-foreground">
-                        <CheckCircle2 class="h-4 w-4 shrink-0 text-primary" />Layanan Confirmed
-                      </span>
-                      <span class="font-medium text-foreground">{{ departureReadiness.servicesConfirmedPercent }}%</span>
-                    </li>
-                    <li class="flex items-center justify-between gap-3 text-sm">
-                      <span class="flex items-center gap-2 text-muted-foreground">
-                        <AlertTriangle class="h-4 w-4 shrink-0" :class="departureReadiness.blockedTasksCount > 0 ? 'text-warning' : 'text-primary'" />Task Diblokir
-                      </span>
-                      <span class="font-medium text-foreground">{{ departureReadiness.blockedTasksCount }}</span>
-                    </li>
-                    <li class="flex items-center justify-between gap-3 text-sm">
-                      <span class="flex items-center gap-2 text-muted-foreground">
-                        <AlertTriangle class="h-4 w-4 shrink-0" :class="departureReadiness.openRisksCount > 0 ? 'text-warning' : 'text-primary'" />Risk Terbuka
-                      </span>
-                      <span class="font-medium text-foreground">{{ departureReadiness.openRisksCount }}</span>
-                    </li>
-                    <li class="flex items-center justify-between gap-3 text-sm">
-                      <span class="flex items-center gap-2 text-muted-foreground">
-                        <CalendarRange class="h-4 w-4 shrink-0 text-primary" />Keberangkatan
-                      </span>
-                      <span class="font-medium text-foreground">{{ formatDate(project.travelStartDate) }}</span>
-                    </li>
-                  </ul>
-                </SectionCard>
-
                 <SectionCard class="h-full" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Alasan Belum Siap">
                   <ul v-if="departureReadiness.blockingReasons.length > 0" class="space-y-2">
                     <li v-for="(reason, index) in departureReadiness.blockingReasons" :key="index" class="flex items-start gap-2 text-xs text-foreground">
@@ -3071,65 +3253,6 @@ const tripDurationDays = computed(() => {
                     </li>
                   </ul>
                   <EmptyState v-else title="Belum ada task tercatat" />
-                </SectionCard>
-
-                <!-- On-Trip Updates / Shift Notes (Section 12 baru) -->
-                <SectionCard class="flex h-full flex-col" content-class="flex flex-1 flex-col" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="On-Trip Updates / Shift Notes" description="Catatan serah-terima operasional selama trip berlangsung (mock).">
-                  <template v-if="canManageOperations" #actions>
-                    <Sheet v-model:open="isShiftNoteDialogOpen">
-                      <SheetTrigger as-child>
-                        <Button size="sm" variant="outline">
-                          + Catat Shift Note
-                        </Button>
-                      </SheetTrigger>
-                      <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
-                        <SheetHeader>
-                          <SheetTitle>Catat Shift Note Baru</SheetTitle>
-                          <SheetDescription>Catatan serah-terima antar staf lapangan — mock, bukan sistem shift roster sungguhan.</SheetDescription>
-                        </SheetHeader>
-                        <div class="space-y-4 py-2">
-                          <div class="space-y-1.5">
-                            <Label for="shift-period">Shift</Label>
-                            <select id="shift-period" v-model="shiftNoteShift" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                              <option value="pagi">
-                                Pagi
-                              </option>
-                              <option value="siang">
-                                Siang
-                              </option>
-                              <option value="malam">
-                                Malam
-                              </option>
-                            </select>
-                          </div>
-                          <div class="space-y-1.5">
-                            <Label for="shift-note">Catatan</Label>
-                            <textarea id="shift-note" v-model="shiftNoteText" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Seluruh peserta sudah check-in, tidak ada kendala." />
-                          </div>
-                        </div>
-                        <SheetFooter class="mt-6 flex-row justify-end gap-2">
-                          <Button variant="outline" @click="isShiftNoteDialogOpen = false">
-                            Batal
-                          </Button>
-                          <Button :disabled="!shiftNoteText.trim()" @click="submitShiftNote">
-                            Simpan
-                          </Button>
-                        </SheetFooter>
-                      </SheetContent>
-                    </Sheet>
-                  </template>
-                  <ul v-if="shiftNotes.length" class="divide-y divide-border">
-                    <li v-for="note in shiftNotes" :key="note.id" class="py-3">
-                      <div class="flex items-center gap-2">
-                        <StatusBadge :label="note.shift === 'pagi' ? 'Pagi' : note.shift === 'siang' ? 'Siang' : 'Malam'" tone="info" />
-                        <span class="text-xs text-muted-foreground">{{ getUserById(note.authorId)?.name ?? note.authorId }} · {{ formatDate(note.createdAt) }}</span>
-                      </div>
-                      <p class="text-sm text-foreground mt-1">
-                        {{ note.note }}
-                      </p>
-                    </li>
-                  </ul>
-                  <EmptyState v-else class="flex flex-1 flex-col items-center justify-center" size="compact" title="Belum ada shift note tercatat" />
                 </SectionCard>
 
               <!-- Tim Project dan Aktivitas Terbaru reuse data yang sudah dihitung di tab Overview, bukan selector baru. -->
@@ -3980,6 +4103,67 @@ const tripDurationDays = computed(() => {
             </DialogContent>
           </Dialog>
 
+          <Dialog :open="!!docDetailTraveler" @update:open="value => { if (!value) docDetailTraveler = null }">
+            <DialogContent class="max-w-md">
+              <DialogHeader>
+                <DialogTitle>Detail Dokumen — {{ docDetailTraveler?.name }}</DialogTitle>
+                <DialogDescription>
+                  Rincian dokumen perjalanan traveler ini terhadap tanggal keberangkatan project ({{ project?.travelStartDate ? formatDate(project.travelStartDate) : '—' }}).
+                </DialogDescription>
+              </DialogHeader>
+              <div v-if="docDetailTraveler" class="space-y-3 py-1">
+                <div class="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
+                  <div class="min-w-0">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Paspor
+                    </p>
+                    <p class="mt-0.5 text-sm text-foreground">
+                      {{ passportSummary(docDetailTraveler) }}
+                    </p>
+                  </div>
+                  <StatusBadge class="shrink-0" :label="passportDetailStatus(docDetailTraveler).label" :tone="passportDetailStatus(docDetailTraveler).tone" />
+                </div>
+                <div class="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
+                  <div class="min-w-0">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      ID / KTP
+                    </p>
+                    <p class="mt-0.5 text-sm text-foreground">
+                      {{ idNumberSummary(docDetailTraveler) }}
+                    </p>
+                  </div>
+                </div>
+                <div class="flex items-start justify-between gap-3 rounded-lg border border-border p-3">
+                  <div class="min-w-0">
+                    <p class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      Visa
+                    </p>
+                    <p class="mt-0.5 text-sm text-foreground">
+                      {{ visaSummary(docDetailTraveler) }}
+                    </p>
+                  </div>
+                  <StatusBadge class="shrink-0" :label="visaDetailStatus(docDetailTraveler).label" :tone="visaDetailStatus(docDetailTraveler).tone" />
+                </div>
+                <div class="flex items-center justify-between border-t border-border pt-3">
+                  <span class="text-xs text-muted-foreground">Status keseluruhan</span>
+                  <StatusBadge v-if="travelerDocumentMissing(docDetailTraveler)" label="Dokumen Belum Lengkap" tone="destructive" />
+                  <StatusBadge v-else label="Dokumen Lengkap" tone="success" />
+                </div>
+                <p v-if="!canManageTravelers" class="text-xs text-muted-foreground">
+                  Nomor dokumen ditampilkan tersamar — hanya Project Manager dan Super Admin yang melihat nomor penuh.
+                </p>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" @click="docDetailTraveler = null">
+                  Tutup
+                </Button>
+                <Button v-if="canManageTravelers" @click="() => { const t = docDetailTraveler; docDetailTraveler = null; if (t) openEditTraveler(t) }">
+                  Edit Dokumen
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
           <!-- Traveler Group baru — dipicu tombol "+ Group Baru" di dialog Tambah/Edit Traveler. -->
           <Sheet v-model:open="isCreateGroupOpen">
             <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
@@ -4771,36 +4955,6 @@ const tripDurationDays = computed(() => {
                   description="Invoice dari vendor akan muncul di sini untuk proses reconciliation."
                 />
               </SectionCard>
-
-              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Pengeluaran Project" description="Pengeluaran ad-hoc (transport, konsumsi, perlengkapan, dll) yang langsung tercatat dan ikut Actual Cost — tanpa approval berlapis.">
-                <template v-if="canManageFinance" #actions>
-                  <Button size="sm" variant="outline" @click="openCreateExpense">
-                    + Catat Pengeluaran
-                  </Button>
-                </template>
-                <ul v-if="projectExpenses.length" class="divide-y divide-border">
-                  <li v-for="expense in projectExpenses" :key="expense.id" class="flex items-center justify-between gap-3 py-2.5">
-                    <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-2">
-                        <StatusBadge :label="findStatusOption(PROJECT_EXPENSE_CATEGORIES, expense.category).label" :tone="findStatusOption(PROJECT_EXPENSE_CATEGORIES, expense.category).tone" />
-                        <span class="text-xs text-muted-foreground">{{ formatDate(expense.incurredAt) }}</span>
-                      </div>
-                      <p class="mt-0.5 truncate text-sm text-foreground">
-                        <span class="font-ticket-mono text-xs text-muted-foreground">{{ expense.id }}</span> {{ expense.description }}
-                      </p>
-                      <p class="text-xs text-muted-foreground">
-                        Dicatat oleh {{ getUserById(expense.recordedBy)?.name ?? expense.recordedBy }}
-                      </p>
-                    </div>
-                    <span class="shrink-0 text-sm font-semibold tabular-nums text-foreground">{{ formatCurrencyIdr(expense.amountIdr) }}</span>
-                  </li>
-                </ul>
-                <div v-if="projectExpenses.length" class="mt-3 flex items-center justify-end gap-3 border-t border-border pt-3">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total Actual Expense</span>
-                  <span class="text-sm font-semibold tabular-nums text-success">{{ formatCurrencyIdr(projectExpensesTotalIdr) }}</span>
-                </div>
-                <EmptyState v-else :icon="Wallet" title="Belum ada pengeluaran project tercatat" />
-              </SectionCard>
             </template>
 
             <template v-else>
@@ -5051,6 +5205,93 @@ const tripDurationDays = computed(() => {
           </Sheet>
         </TabsContent>
 
+        <TabsContent value="expenses">
+          <div class="space-y-4">
+            <template v-if="canViewFinancials">
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Pengeluaran Project" description="Pengeluaran ad-hoc (transport, konsumsi, perlengkapan, dll) yang langsung tercatat dan ikut Actual Cost — tanpa approval berlapis.">
+                <template v-if="canManageFinance" #actions>
+                  <Button size="sm" variant="outline" @click="openCreateExpense">
+                    + Catat Pengeluaran
+                  </Button>
+                </template>
+                <ul v-if="projectExpenses.length" class="divide-y divide-border">
+                  <li v-for="expense in projectExpenses" :key="expense.id" class="flex items-center justify-between gap-3 py-2.5">
+                    <div class="min-w-0 flex-1">
+                      <div class="flex items-center gap-2">
+                        <StatusBadge :label="findStatusOption(PROJECT_EXPENSE_CATEGORIES, expense.category).label" :tone="findStatusOption(PROJECT_EXPENSE_CATEGORIES, expense.category).tone" />
+                        <span class="text-xs text-muted-foreground">{{ formatDate(expense.incurredAt) }}</span>
+                      </div>
+                      <p class="mt-0.5 truncate text-sm text-foreground">
+                        <span class="font-ticket-mono text-xs text-muted-foreground">{{ expense.id }}</span> {{ expense.description }}
+                      </p>
+                      <p class="text-xs text-muted-foreground">
+                        Dicatat oleh {{ getUserById(expense.recordedBy)?.name ?? expense.recordedBy }}
+                      </p>
+                    </div>
+                    <span class="shrink-0 text-sm font-semibold tabular-nums text-foreground">{{ formatCurrencyIdr(expense.amountIdr) }}</span>
+                  </li>
+                </ul>
+                <div v-if="projectExpenses.length" class="mt-3 flex items-center justify-end gap-3 border-t border-border pt-3">
+                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total Actual Expense</span>
+                  <span class="text-sm font-semibold tabular-nums text-success">{{ formatCurrencyIdr(projectExpensesTotalIdr) }}</span>
+                </div>
+                <EmptyState v-else :icon="Wallet" title="Belum ada pengeluaran project tercatat" />
+              </SectionCard>
+            </template>
+            <template v-else>
+              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Pengeluaran">
+                <p class="text-xs text-muted-foreground">
+                  Detail pengeluaran ad-hoc hanya terlihat oleh role dengan akses modul Finance.
+                </p>
+              </SectionCard>
+            </template>
+          </div>
+
+          <Sheet v-model:open="isExpenseDialogOpen">
+            <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
+              <SheetHeader>
+                <SheetTitle>Catat Pengeluaran</SheetTitle>
+                <SheetDescription>Langsung tercatat dan ikut Actual Cost project — tanpa alur approval.</SheetDescription>
+              </SheetHeader>
+              <div class="space-y-4 py-2">
+                <div class="space-y-1.5">
+                  <Label for="expense-category">Kategori</Label>
+                  <select id="expense-category" v-model="expenseCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="" disabled>
+                      Pilih kategori
+                    </option>
+                    <option v-for="option in PROJECT_EXPENSE_CATEGORIES" :key="option.value" :value="option.value">
+                      {{ option.label }}
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="expense-description">Keterangan</Label>
+                  <Input id="expense-description" v-model="expenseDescription" placeholder="mis. Taksi bandara ke hotel untuk rombongan" />
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="space-y-1.5">
+                    <Label for="expense-amount">Nominal (Rp)</Label>
+                    <CurrencyInput id="expense-amount" v-model="expenseAmountIdr" placeholder="mis. 500000" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="expense-date">Tanggal</Label>
+                    <Input id="expense-date" v-model="expenseIncurredAt" type="date" />
+                  </div>
+                </div>
+              </div>
+              <SheetFooter class="mt-6 flex-row justify-end gap-2">
+                <Button variant="outline" @click="isExpenseDialogOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!expenseCategory || !expenseDescription.trim() || !expenseAmountIdr || !expenseIncurredAt" @click="submitExpense">
+                  Simpan
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </TabsContent>
+
         <TabsContent value="tasks">
           <div class="space-y-6">
             <!-- Tasks Kanban Board — kolom diberi tint warna lembut per status (bukan cuma header) supaya halaman terasa lebih hidup, kartu task TETAP putih polos di atasnya supaya tidak "nabrak" dengan tint kolom. -->
@@ -5100,7 +5341,7 @@ const tripDurationDays = computed(() => {
                   <div class="mb-2 flex items-center justify-between gap-2 px-0.5">
                     <div class="flex items-center gap-2">
                       <span class="rounded-full px-2.5 py-1 text-xs font-semibold shadow-sm" :class="TASK_TILE_TONE_CLASSES[TASK_COLUMN_TONE[status.value]].solid">{{ status.label }}</span>
-                      <span class="text-sm font-semibold text-foreground">{{ tasks.filter(t => t.status === status.value).length }}</span>
+                      <span class="text-sm font-semibold text-foreground">{{ taskBoardColumns[status.value]?.length ?? 0 }}</span>
                     </div>
                     <div class="flex items-center gap-0.5">
                       <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title="Menu Kolom" @click="handleTaskColumnMenu(status)">
@@ -5108,74 +5349,87 @@ const tripDurationDays = computed(() => {
                       </button>
                     </div>
                   </div>
-                  <div class="space-y-2 rounded-xl bg-muted/40 p-2.5 min-h-[560px]">
-                    <div
-                      v-for="task in tasks.filter(t => t.status === status.value)"
-                      :key="task.id"
-                      class="rounded-lg border border-border bg-card p-3 shadow-sm"
+                  <div class="rounded-xl bg-muted/40 p-2.5 min-h-[560px]">
+                    <VueDraggable
+                      v-model="taskBoardColumns[status.value]"
+                      :group="{ name: 'project-tasks', disabled: !canManageProjectOrder }"
+                      :disabled="!canManageProjectOrder"
+                      :animation="150"
+                      item-key="id"
+                      class="space-y-2 min-h-[1px]"
+                      @end="event => onTaskDragEnd(event, status.value)"
                     >
-                      <div class="flex items-start justify-between gap-2">
-                        <div class="min-w-0 w-full flex items-start gap-1.5 flex-wrap">
-                          <span v-if="task.isMilestone" class="shrink-0 rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Milestone</span>
-                          <span class="min-w-0 flex-1 text-sm font-medium text-foreground break-words [overflow-wrap:anywhere]">{{ task.title }}</span>
+                      <div
+                        v-for="task in taskBoardColumns[status.value]"
+                        :key="task.id"
+                        :data-task-id="task.id"
+                        class="rounded-lg border border-border bg-card p-3 shadow-sm"
+                        :class="canManageProjectOrder ? 'cursor-grab active:cursor-grabbing' : ''"
+                      >
+                        <div class="flex items-start justify-between gap-2">
+                          <div class="min-w-0 w-full flex items-start gap-1.5 flex-wrap">
+                            <span v-if="task.isMilestone" class="shrink-0 rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">Task Penting</span>
+                            <span class="min-w-0 flex-1 text-sm font-medium text-foreground break-words [overflow-wrap:anywhere]">{{ task.title }}</span>
+                            <GripVertical v-if="canManageProjectOrder" class="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
+                          </div>
+                        </div>
+                        <StatusBadge v-if="task.isBlocked" label="Blocked" tone="destructive" class="mt-1.5" />
+                        <p class="text-xs text-muted-foreground mt-1.5">
+                          <template v-if="task.dueAt">
+                            Due {{ formatDate(task.dueAt) }}<template v-if="task.dependsOnTaskId">
+                              ·
+                            </template>
+                          </template>
+                          <template v-if="task.dependsOnTaskId">
+                            Depends on: {{ taskTitleById(task.dependsOnTaskId) ?? task.dependsOnTaskId }}
+                          </template>
+                        </p>
+                        <p v-if="task.isBlocked" class="text-xs text-destructive mt-1">
+                          Blocked: {{ task.blockedReason }}
+                        </p>
+                        <div class="mt-2.5 flex items-center justify-between gap-2">
+                          <div class="flex min-w-0 items-center gap-1.5">
+                            <Avatar v-if="task.assignedTo" class="h-5 w-5 shrink-0" :title="getUserById(task.assignedTo)?.name ?? task.assignedTo">
+                              <AvatarFallback class="bg-primary/15 text-[9px] font-semibold text-primary">
+                                {{ initials(getUserById(task.assignedTo)?.name) }}
+                              </AvatarFallback>
+                            </Avatar>
+                            <template v-if="canManageProjectOrder">
+                              <Button v-if="task.isBlocked" size="xs" variant="ghost" @click="unblockTask(task)">
+                                Buka Blokir
+                              </Button>
+                              <Button v-else size="xs" variant="ghost" @click="openBlockDialog(task)">
+                                Blokir
+                              </Button>
+                            </template>
+                          </div>
+                          <select
+                            :value="task.status"
+                            :disabled="!canManageProjectOrder"
+                            class="shrink-0 appearance-none px-2 py-1 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:cursor-not-allowed"
+                            @change="handleTaskStatusChange(task.id, $event)"
+                          >
+                            <option v-for="option in TASK_STATUSES" :key="option.value" :value="option.value">
+                              {{ option.label }}
+                            </option>
+                          </select>
                         </div>
                       </div>
-                      <StatusBadge v-if="task.isBlocked" label="Blocked" tone="destructive" class="mt-1.5" />
-                      <p class="text-xs text-muted-foreground mt-1.5">
-                        <template v-if="task.dueAt">
-                          Due {{ formatDate(task.dueAt) }}<template v-if="task.dependsOnTaskId">
-                            ·
-                          </template>
-                        </template>
-                        <template v-if="task.dependsOnTaskId">
-                          Depends on: {{ taskTitleById(task.dependsOnTaskId) ?? task.dependsOnTaskId }}
-                        </template>
-                      </p>
-                      <p v-if="task.isBlocked" class="text-xs text-destructive mt-1">
-                        Blocked: {{ task.blockedReason }}
-                      </p>
-                      <div class="mt-2.5 flex items-center justify-between gap-2">
-                        <div class="flex min-w-0 items-center gap-1.5">
-                          <Avatar v-if="task.assignedTo" class="h-5 w-5 shrink-0" :title="getUserById(task.assignedTo)?.name ?? task.assignedTo">
-                            <AvatarFallback class="bg-primary/15 text-[9px] font-semibold text-primary">
-                              {{ initials(getUserById(task.assignedTo)?.name) }}
-                            </AvatarFallback>
-                          </Avatar>
-                          <template v-if="canManageProjectOrder">
-                            <Button v-if="task.isBlocked" size="xs" variant="ghost" @click="unblockTask(task)">
-                              Buka Blokir
-                            </Button>
-                            <Button v-else size="xs" variant="ghost" @click="openBlockDialog(task)">
-                              Blokir
-                            </Button>
-                          </template>
-                        </div>
-                        <select
-                          :value="task.status"
-                          :disabled="!canManageProjectOrder"
-                          class="shrink-0 appearance-none px-2 py-1 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:cursor-not-allowed"
-                          @change="handleTaskStatusChange(task.id, $event)"
-                        >
-                          <option v-for="option in TASK_STATUSES" :key="option.value" :value="option.value">
-                            {{ option.label }}
-                          </option>
-                        </select>
-                      </div>
-                    </div>
 
-                    <div v-if="tasks.filter(t => t.status === status.value).length === 0" class="flex flex-col items-center gap-2 rounded-lg border border-dashed py-6 text-center" :class="TASK_TILE_TONE_CLASSES[TASK_COLUMN_TONE[status.value]].border">
-                      <div class="flex h-9 w-9 items-center justify-center rounded-full bg-card shadow-sm">
-                        <component :is="TASK_COLUMN_ICON[status.value]" class="h-4 w-4" :class="TASK_TILE_TONE_CLASSES[TASK_COLUMN_TONE[status.value]].icon" />
+                      <div v-if="(taskBoardColumns[status.value]?.length ?? 0) === 0" class="flex flex-col items-center gap-2 rounded-lg border border-dashed py-6 text-center" :class="TASK_TILE_TONE_CLASSES[TASK_COLUMN_TONE[status.value]].border">
+                        <div class="flex h-9 w-9 items-center justify-center rounded-full bg-card shadow-sm">
+                          <component :is="TASK_COLUMN_ICON[status.value]" class="h-4 w-4" :class="TASK_TILE_TONE_CLASSES[TASK_COLUMN_TONE[status.value]].icon" />
+                        </div>
+                        <p class="px-2 text-xs text-muted-foreground">
+                          {{ canManageProjectOrder ? 'Tarik task ke sini, atau' : 'Belum ada task pada tahap ini' }}
+                        </p>
                       </div>
-                      <p class="px-2 text-xs text-muted-foreground">
-                        Belum ada task pada tahap ini
-                      </p>
-                    </div>
+                    </VueDraggable>
 
                     <button
                       v-if="canManageProjectOrder"
                       type="button"
-                      class="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-card py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+                      class="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-border bg-card py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
                       @click="openCreateTask(status.value)"
                     >
                       <Plus class="h-3.5 w-3.5" />Tambah Task
@@ -5254,7 +5508,7 @@ const tripDurationDays = computed(() => {
                 </div>
                 <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                   <Checkbox v-model="taskIsMilestone" />
-                  Tandai sebagai Milestone
+                  Tandai sebagai Task Penting
                 </label>
               </div>
               <SheetFooter class="mt-6 flex-row justify-end gap-2">
@@ -5385,43 +5639,43 @@ const tripDurationDays = computed(() => {
                             <p class="truncate font-medium text-foreground">
                               {{ document.name }}
                             </p>
-                            <p class="truncate text-xs text-muted-foreground">
-                              {{ document.category }} · v{{ document.version }}
-                              <template v-if="document.sourceType === 'generated' && document.previewRoute">
-                                · <NuxtLink :to="document.previewRoute" target="_blank" class="text-primary hover:underline">
-                                  Preview
-                                </NuxtLink>
-                              </template>
+                            <p class="text-xs text-muted-foreground">
+                              {{ documentUploadedDate(document) }}
                             </p>
+                          </TableCell>
+                          <TableCell class="text-right">
+                            <div class="flex items-center justify-end gap-2">
+                              <button type="button" class="inline-flex items-center gap-1 text-xs text-primary hover:underline" @click="handleDownloadDocument(document)">
+                                <Download class="h-3 w-3" />Download
+                              </button>
+                              <button type="button" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title="Lainnya" @click="handleDocumentMenu(document)">
+                                <MoreVertical class="h-3.5 w-3.5" />
+                              </button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      </TableBody>
+                    </Table>
+                  </div>
+                </div>
+
+                <div v-else-if="documentsViewMode === 'grid' && filteredDocuments.length" key="grid" class="space-y-5">
+                  <div v-for="group in documentGroups" :key="group.category ?? '_all'">
+                    <p v-if="group.category" class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                      {{ group.category }} <span class="font-normal normal-case text-muted-foreground/70">({{ group.rows.length }})</span>
+                    </p>
+                    <div :class="group.category ? 'flex gap-2.5 overflow-x-auto pb-1' : 'grid content-start grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8'">
+                      <div
+                        v-for="document in group.rows"
+                        :key="document.id"
+                        :class="group.category ? 'group relative flex w-40 shrink-0 flex-col overflow-hidden rounded-lg border border-border bg-card p-2 transition-all duration-200 hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm' : 'group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2 transition-all duration-200 hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm'"
+                      >
+                        <div class="flex items-start justify-between gap-1">
+                          <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" :class="TONE_ICON_BG[documentCategoryTone(document.category)]">
+                            <FileText class="h-3.5 w-3.5" />
                           </div>
-                        </div>
-                      </TableCell>
-                      <TableCell><StatusBadge :label="document.category" :tone="documentCategoryTone(document.category)" /></TableCell>
-                      <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, document.accessLevel).tone" /></TableCell>
-                      <TableCell>
-                        <template v-if="document.expiresAt">
-                          <StatusBadge
-                            :label="isDocumentExpired(document.expiresAt) ? `Expired ${formatDate(document.expiresAt)}` : isDocumentExpiringSoon(document.expiresAt) ? `Segera: ${formatDate(document.expiresAt)}` : formatDate(document.expiresAt)"
-                            :tone="isDocumentExpired(document.expiresAt) ? 'destructive' : isDocumentExpiringSoon(document.expiresAt) ? 'warning' : 'neutral'"
-                          />
-                        </template>
-                        <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
-                      </TableCell>
-                      <TableCell>
-                        <p class="text-xs text-foreground">
-                          {{ documentUploaderName(document) }}
-                        </p>
-                        <p class="text-xs text-muted-foreground">
-                          {{ documentUploadedDate(document) }}
-                        </p>
-                      </TableCell>
-                      <TableCell class="text-right">
-                        <div class="flex items-center justify-end gap-2">
-                          <button type="button" class="inline-flex items-center gap-1 text-xs text-primary hover:underline" @click="handleDownloadDocument(document)">
-                            <Download class="h-3 w-3" />Download
-                          </button>
-                          <button type="button" class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground" title="Lainnya" @click="handleDocumentMenu(document)">
-                            <MoreVertical class="h-3.5 w-3.5" />
+                          <button type="button" class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100" title="Lainnya" @click="handleDocumentMenu(document)">
+                            <MoreVertical class="h-3 w-3" />
                           </button>
                         </div>
                       </TableCell>
@@ -5436,46 +5690,33 @@ const tripDurationDays = computed(() => {
                 </Table>
                 </div>
 
-                <div v-else-if="paginatedDocuments.length" key="grid" class="grid content-start grid-cols-3 gap-2.5 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8">
-                  <div
-                    v-for="document in paginatedDocuments"
-                    :key="document.id"
-                    class="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2 transition-all duration-200 hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm"
-                  >
-                    <div class="flex items-start justify-between gap-1">
-                      <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" :class="TONE_ICON_BG[documentCategoryTone(document.category)]">
-                        <FileText class="h-3.5 w-3.5" />
-                      </div>
-                      <button type="button" class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100" title="Lainnya" @click="handleDocumentMenu(document)">
-                        <MoreVertical class="h-3 w-3" />
-                      </button>
-                    </div>
+                        <p class="mt-1.5 truncate text-[11px] font-semibold leading-tight text-foreground" :title="document.name">
+                          {{ document.name }}
+                        </p>
+                        <p class="mt-0.5 truncate text-[10px] text-muted-foreground">
+                          {{ document.category }} · v{{ document.version }}
+                        </p>
+                        <StatusBadge
+                          v-if="document.expiresAt && (isDocumentExpired(document.expiresAt) || isDocumentExpiringSoon(document.expiresAt))"
+                          class="mt-1 w-fit"
+                          :label="isDocumentExpired(document.expiresAt) ? 'Expired' : 'Segera'"
+                          :tone="isDocumentExpired(document.expiresAt) ? 'destructive' : 'warning'"
+                          dot
+                        />
 
-                    <p class="mt-1.5 truncate text-[11px] font-semibold leading-tight text-foreground" :title="document.name">
-                      {{ document.name }}
-                    </p>
-                    <p class="mt-0.5 truncate text-[10px] text-muted-foreground">
-                      {{ document.category }} · v{{ document.version }}
-                    </p>
-                    <StatusBadge
-                      v-if="document.expiresAt && (isDocumentExpired(document.expiresAt) || isDocumentExpiringSoon(document.expiresAt))"
-                      class="mt-1 w-fit"
-                      :label="isDocumentExpired(document.expiresAt) ? 'Expired' : 'Segera'"
-                      :tone="isDocumentExpired(document.expiresAt) ? 'destructive' : 'warning'"
-                      dot
-                    />
-
-                    <div class="mt-1.5 flex items-center justify-between gap-1 border-t border-border/70 pt-1.5">
-                      <p class="truncate text-[10px] text-muted-foreground" :title="documentUploaderName(document)">
-                        {{ documentUploaderName(document) }}
-                      </p>
-                      <div class="flex shrink-0 items-center gap-0.5">
-                        <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Lihat" @click="handlePreviewDocument(document)">
-                          <Eye class="h-3.5 w-3.5" />
-                        </button>
-                        <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Download" @click="handleDownloadDocument(document)">
-                          <Download class="h-3.5 w-3.5" />
-                        </button>
+                        <div class="mt-1.5 flex items-center justify-between gap-1 border-t border-border/70 pt-1.5">
+                          <p class="truncate text-[10px] text-muted-foreground" :title="documentUploaderName(document)">
+                            {{ documentUploaderName(document) }}
+                          </p>
+                          <div class="flex shrink-0 items-center gap-0.5">
+                            <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Lihat" @click="handlePreviewDocument(document)">
+                              <Eye class="h-3.5 w-3.5" />
+                            </button>
+                            <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Download" @click="handleDownloadDocument(document)">
+                              <Download class="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -5488,7 +5729,12 @@ const tripDurationDays = computed(() => {
               </Transition>
             </div>
 
-            <div v-if="filteredDocuments.length" class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+            <div v-if="documentCategoryFilter === 'all'" class="mt-4 border-t border-border pt-3">
+              <p class="text-xs text-muted-foreground">
+                Menampilkan {{ filteredDocuments.length }} dokumen, dikelompokkan per category.
+              </p>
+            </div>
+            <div v-else-if="filteredDocuments.length" class="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
               <p class="text-xs text-muted-foreground">
                 Menampilkan {{ (documentsCurrentPage - 1) * DOCUMENTS_PAGE_SIZE + 1 }} - {{ Math.min(documentsCurrentPage * DOCUMENTS_PAGE_SIZE, filteredDocuments.length) }} dari {{ filteredDocuments.length }} dokumen
               </p>
@@ -5564,6 +5810,62 @@ const tripDurationDays = computed(() => {
               </SheetFooter>
             </SheetContent>
           </Sheet>
+        </TabsContent>
+
+        <TabsContent value="discussion">
+          <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Diskusi" description="Chat internal tim project ini — mention rekan kerja pakai chip @nama, lampirkan dokumen (mock, metadata nama file saja, D-006). Client/supplier tidak pernah melihat diskusi ini.">
+            <ul v-if="discussionMessages.length" class="mb-4 max-h-[520px] space-y-4 overflow-y-auto pr-1">
+              <li v-for="message in discussionMessages" :key="message.id" :class="['max-w-lg', message.senderId === currentUser.id ? 'ml-auto text-right' : '']">
+                <div :class="['inline-block rounded-lg px-3 py-2 text-left text-sm', message.senderId === currentUser.id ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground']">
+                  {{ message.body }}
+                  <div v-if="message.mentions?.length" class="mt-1 flex flex-wrap gap-1">
+                    <span
+                      v-for="mentionedId in message.mentions"
+                      :key="mentionedId"
+                      :class="['rounded-full px-1.5 py-0.5 text-xs font-medium', message.senderId === currentUser.id ? 'bg-primary-foreground/15' : 'bg-primary/10 text-primary']"
+                    >
+                      @{{ getUserById(mentionedId)?.name ?? mentionedId }}
+                    </span>
+                  </div>
+                  <p v-if="message.attachmentName" class="mt-1 text-xs opacity-80">
+                    📎 {{ message.attachmentName }}
+                  </p>
+                </div>
+                <p class="mt-0.5 text-xs text-muted-foreground">
+                  {{ getUserById(message.senderId)?.name ?? message.senderId }} · {{ formatDateTime(message.sentAt) }}
+                </p>
+              </li>
+            </ul>
+            <EmptyState v-else :icon="MessageSquare" title="Belum ada diskusi" description="Mulai diskusi dengan tim project di bawah." />
+
+            <div class="space-y-2 border-t border-border pt-4">
+              <textarea v-model="discussionBody" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Tulis pesan... klik chip @nama di bawah untuk mention" />
+              <div class="flex flex-wrap items-center gap-1.5">
+                <input id="discussion-file-input" type="file" class="hidden" @change="handleDiscussionFileChange">
+                <label for="discussion-file-input" class="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-dashed border-input bg-card px-2.5 py-1 text-xs text-muted-foreground hover:border-primary/40 hover:text-foreground">
+                  <Paperclip class="h-3 w-3" />{{ discussionAttachmentName || 'Lampirkan Dokumen' }}
+                </label>
+                <button v-if="discussionAttachmentName" type="button" class="text-muted-foreground hover:text-destructive" title="Hapus lampiran" @click="discussionAttachmentName = ''">
+                  <X class="h-3.5 w-3.5" />
+                </button>
+                <span class="mx-1 h-4 w-px bg-border" />
+                <button
+                  v-for="user in discussionMentionableUsers"
+                  :key="user.id"
+                  type="button"
+                  :class="['px-2 py-1 text-xs rounded-full border', discussionMentions.includes(user.id) ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground']"
+                  @click="toggleDiscussionMention(user.id)"
+                >
+                  @{{ user.name }}
+                </button>
+              </div>
+              <div class="flex justify-end">
+                <Button size="sm" :disabled="!discussionBody.trim()" @click="submitDiscussionMessage">
+                  Kirim
+                </Button>
+              </div>
+            </div>
+          </SectionCard>
         </TabsContent>
 
         <TabsContent value="activity-changes">
