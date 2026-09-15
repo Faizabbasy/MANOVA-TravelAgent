@@ -421,13 +421,13 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
       berjalan ikut terlihat.
     </p>
 
-    <Dialog v-model:open="isAddOpen">
-      <DialogContent class="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Tambah Milestone</DialogTitle>
-          <DialogDescription>Milestone baru ditambahkan ke Timeline Tracking project ini.</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-4 py-2">
+    <ResponsiveFormSheet
+      v-model:open="isAddOpen"
+      title="Tambah Milestone"
+      description="Milestone baru ditambahkan ke Timeline Tracking project ini."
+      content-class="max-w-md"
+    >
+      <div class="space-y-4 py-2">
           <div class="space-y-1.5">
             <Label for="new-milestone-name">Nama Milestone</Label>
             <Input id="new-milestone-name" v-model="newName" placeholder="mis. Konfirmasi Vendor & Booking" />
@@ -452,24 +452,23 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
             <CurrencyInput id="new-milestone-budget" v-model="newBudget" placeholder="mis. 5000000" />
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isAddOpen = false">
-            Batal
-          </Button>
-          <Button :disabled="!newName.trim() || !newPlannedDate" @click="submitAddMilestone">
-            Simpan
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <template #footer>
+        <Button variant="outline" @click="isAddOpen = false">
+          Batal
+        </Button>
+        <Button :disabled="!newName.trim() || !newPlannedDate" @click="submitAddMilestone">
+          Simpan
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
 
-    <Dialog v-model:open="isApplyTemplateOpen">
-      <DialogContent class="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Terapkan Milestone Template</DialogTitle>
-          <DialogDescription>Seluruh milestone project ini akan digantikan oleh isi template yang dipilih.</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-4 py-2">
+    <ResponsiveFormSheet
+      v-model:open="isApplyTemplateOpen"
+      title="Terapkan Milestone Template"
+      description="Seluruh milestone project ini akan digantikan oleh isi template yang dipilih."
+      content-class="max-w-md"
+    >
+      <div class="space-y-4 py-2">
           <div class="space-y-1.5">
             <Label for="apply-template-select">Template</Label>
             <select id="apply-template-select" v-model="applyTemplateId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -492,16 +491,15 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
             </p>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isApplyTemplateOpen = false">
-            Batal
-          </Button>
-          <Button :disabled="!applyTemplateId || !applyBaseDate" variant="destructive" @click="submitApplyTemplate">
-            Terapkan
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      <template #footer>
+        <Button variant="outline" @click="isApplyTemplateOpen = false">
+          Batal
+        </Button>
+        <Button :disabled="!applyTemplateId || !applyBaseDate" variant="destructive" @click="submitApplyTemplate">
+          Terapkan
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
 
     <Sheet v-model:open="isManageOpen">
       <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">

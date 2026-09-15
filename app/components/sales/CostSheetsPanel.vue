@@ -103,18 +103,19 @@ function submitCreate () {
 <template>
   <div class="space-y-6">
     <div v-if="canManageCostSheet" class="flex justify-end">
-      <Dialog v-model:open="isCreateOpen">
-        <DialogTrigger as-child>
+      <ResponsiveFormSheet
+        v-model:open="isCreateOpen"
+        title="Cost Sheet Baru"
+        description="Dapat dibuat lepas (referensi katalog) atau langsung terhubung ke satu Lead untuk kolaborasi dengan Account Executive."
+        content-class="max-w-md"
+        scroll
+      >
+        <template #trigger>
           <Button @click="openCreateDialog">
             <Plus class="h-4 w-4 mr-1.5" />Buat Cost Sheet
           </Button>
-        </DialogTrigger>
-        <DialogScrollContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Cost Sheet Baru</DialogTitle>
-            <DialogDescription>Dapat dibuat lepas (referensi katalog) atau langsung terhubung ke satu Lead untuk kolaborasi dengan Account Executive.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </template>
+        <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="cs-name">Nama / Label Skenario</Label>
               <Input id="cs-name" v-model="newName" placeholder="mis. Palu MICE 2027 — Economy Scenario" />
@@ -160,16 +161,15 @@ function submitCreate () {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isCreateOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!newName.trim() || !newTravelerCount" @click="submitCreate">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isCreateOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!newName.trim() || !newTravelerCount" @click="submitCreate">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </div>
 
     <RoleAccessState v-if="!canView('product-planning')" module-label="modul Product Planning" />

@@ -79,16 +79,17 @@ function submitCreate () {
 <template>
   <div class="space-y-6">
     <div v-if="canManageProduct" class="flex justify-end">
-      <Dialog v-model:open="isCreateOpen">
-        <DialogTrigger as-child>
+      <ResponsiveFormSheet
+        v-model:open="isCreateOpen"
+        title="Product Template Baru"
+        description="Template akan tersimpan sebagai Draft — lengkapi detail lain (alternatif layanan, inclusions/exclusions, validity) di halaman detail."
+        content-class="max-w-lg"
+        scroll
+      >
+        <template #trigger>
           <Button><Plus class="h-4 w-4 mr-1.5" />Buat Product Template</Button>
-        </DialogTrigger>
-        <DialogScrollContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Product Template Baru</DialogTitle>
-            <DialogDescription>Template akan tersimpan sebagai Draft — lengkapi detail lain (alternatif layanan, inclusions/exclusions, validity) di halaman detail.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </template>
+        <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="pt-name">Nama Product Template</Label>
               <Input id="pt-name" v-model="newName" placeholder="mis. Bali Team Building Package" />
@@ -121,16 +122,15 @@ function submitCreate () {
               <textarea id="pt-concept" v-model="newItineraryConcept" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Ringkasan konsep perjalanan" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isCreateOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!newName.trim() || !newDestination.trim() || newServiceScope.length === 0 || !newBasePaxCount" @click="submitCreate">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isCreateOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!newName.trim() || !newDestination.trim() || newServiceScope.length === 0 || !newBasePaxCount" @click="submitCreate">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </div>
 
     <RoleAccessState v-if="!canView('product-planning')" module-label="modul Product Planning" />

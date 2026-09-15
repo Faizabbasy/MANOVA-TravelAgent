@@ -155,29 +155,27 @@ function submitLateral () {
       </template>
     </div>
 
-    <Dialog :open="Boolean(pendingLateral)" @update:open="value => { if (!value) pendingLateral = undefined }">
-      <DialogContent class="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>{{ pendingLateral ? LATERAL_META[pendingLateral].label : '' }}</DialogTitle>
-          <DialogDescription>
-            Alasan wajib diisi — transisi ini berdampak besar dan harus terlihat jejaknya di Activity Log.
-          </DialogDescription>
-        </DialogHeader>
-        <textarea
-          v-model="lateralReason"
-          rows="3"
-          placeholder="Tuliskan alasan..."
-          class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-        />
-        <DialogFooter>
-          <Button variant="outline" @click="pendingLateral = undefined">
-            Batal
-          </Button>
-          <Button variant="destructive" :disabled="!lateralReason.trim()" @click="submitLateral">
-            Konfirmasi
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveFormSheet
+      :open="Boolean(pendingLateral)"
+      @update:open="value => { if (!value) pendingLateral = undefined }"
+      :title="pendingLateral ? LATERAL_META[pendingLateral].label : ''"
+      description="Alasan wajib diisi — transisi ini berdampak besar dan harus terlihat jejaknya di Activity Log."
+      content-class="max-w-sm"
+    >
+      <textarea
+        v-model="lateralReason"
+        rows="3"
+        placeholder="Tuliskan alasan..."
+        class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
+      />
+      <template #footer>
+        <Button variant="outline" @click="pendingLateral = undefined">
+          Batal
+        </Button>
+        <Button variant="destructive" :disabled="!lateralReason.trim()" @click="submitLateral">
+          Konfirmasi
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
   </SectionCard>
 </template>

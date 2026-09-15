@@ -328,18 +328,18 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
 <template>
   <div class="space-y-6">
     <div class="flex justify-end">
-      <Dialog v-model:open="isExportOpen">
-        <DialogTrigger as-child>
+      <ResponsiveFormSheet
+        v-model:open="isExportOpen"
+        title="Export Report"
+        description="Mock export — tidak ada file yang benar-benar dihasilkan, murni simulasi (D-006)."
+        content-class="max-w-sm"
+      >
+        <template #trigger>
           <Button size="sm" variant="outline">
             <Download class="h-4 w-4 mr-1.5" />Export
           </Button>
-        </DialogTrigger>
-        <DialogContent class="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Export Report</DialogTitle>
-            <DialogDescription>Mock export — tidak ada file yang benar-benar dihasilkan, murni simulasi (D-006).</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </template>
+        <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="export-section">Bagian</Label>
               <select id="export-section" v-model="exportSectionKey" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -360,16 +360,15 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
               </select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isExportOpen = false">
-              Batal
-            </Button>
-            <Button @click="submitExport">
-              Export
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isExportOpen = false">
+            Batal
+          </Button>
+          <Button @click="submitExport">
+            Export
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </div>
 
     <RoleAccessState v-if="!canView('reports')" module-label="modul Reporting & BI" />
@@ -380,31 +379,30 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
       <template v-else>
         <SectionCard title="Filter" description="Berlaku untuk seluruh section berbasis Project di bawah (Sales Pipeline dan SLA/Quotation Performance tidak terpengaruh).">
           <template #actions>
-            <Dialog v-model:open="isSaveViewOpen">
-              <DialogTrigger as-child>
+            <ResponsiveFormSheet
+              v-model:open="isSaveViewOpen"
+              title="Simpan Saved View"
+              description="Menyimpan kombinasi filter aktif saat ini (mock, tersimpan per user login, bukan localStorage)."
+              content-class="max-w-sm"
+            >
+              <template #trigger>
                 <Button size="sm" variant="outline">
                   <Save class="h-4 w-4 mr-1.5" />Simpan View
                 </Button>
-              </DialogTrigger>
-              <DialogContent class="max-w-sm">
-                <DialogHeader>
-                  <DialogTitle>Simpan Saved View</DialogTitle>
-                  <DialogDescription>Menyimpan kombinasi filter aktif saat ini (mock, tersimpan per user login, bukan localStorage).</DialogDescription>
-                </DialogHeader>
-                <div class="space-y-1.5 py-2">
-                  <Label for="reports-view-label">Nama View</Label>
-                  <Input id="reports-view-label" v-model="newViewLabel" placeholder="mis. Project In Progress Kuartal Ini" />
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" @click="isSaveViewOpen = false">
-                    Batal
-                  </Button>
-                  <Button :disabled="!newViewLabel.trim()" @click="submitSaveView">
-                    Simpan
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+              </template>
+              <div class="space-y-1.5 py-2">
+                <Label for="reports-view-label">Nama View</Label>
+                <Input id="reports-view-label" v-model="newViewLabel" placeholder="mis. Project In Progress Kuartal Ini" />
+              </div>
+              <template #footer>
+                <Button variant="outline" @click="isSaveViewOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!newViewLabel.trim()" @click="submitSaveView">
+                  Simpan
+                </Button>
+              </template>
+            </ResponsiveFormSheet>
           </template>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
