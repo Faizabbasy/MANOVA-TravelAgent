@@ -5,9 +5,9 @@ import { id as localeId } from 'date-fns/locale'
 import {
   FolderKanban, Handshake, PlaneTakeoff, AlertTriangle, Receipt, Users, Save, X,
   Wallet, PieChart, ListChecks, CheckCircle2, CalendarClock, History, Activity, ShieldCheck, Package, Building2,
-  TrendingUp, TrendingDown, Clock, SlidersHorizontal
+  TrendingUp, TrendingDown, Clock, SlidersHorizontal, ArrowDownToLine, ArrowUpFromLine
 } from 'lucide-vue-next'
-import type { HeroMetric } from '~/components/dashboard/DashboardHeroPanel.vue'
+import type { HeroMetric, HeroSecondaryMetric } from '~/components/dashboard/DashboardHeroPanel.vue'
 import type { CashFlowSideMetric } from '~/components/dashboard/DashboardCashFlowSection.vue'
 import {
   PROJECTS, LEADS, QUOTATIONS, PARTIES, USERS,
@@ -15,7 +15,7 @@ import {
   getServicesForProjects, getUpcomingTasks, getRecentChanges, getUpcomingFollowUps,
   getSavedViewsForUser, createSavedView, deleteSavedView, applySavedView
 } from '~/data'
-import { getProjectActualCostIdr, getRevenueByPeriod, getOpexTotalIdr, getOpexPeriods, OPEX_ENTRIES } from '~/data/finance-ext'
+import { getProjectActualCostIdr, getRevenueByPeriod, getOpexTotalIdr, getOpexPeriods, OPEX_ENTRIES, getPayables } from '~/data/finance-ext'
 import {
   PROJECT_STATUSES, QUOTATION_APPROVAL_STATUSES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, findStatusOption
 } from '~/constants/status'
@@ -412,31 +412,66 @@ const financialPeriodLabel = computed(() => {
   return format(parseISO(`${period}-01`), 'MMMM yyyy', { locale: localeId })
 })
 
-const heroMetrics = computed<HeroMetric[]>(() => {
-  if (!showFinancialSummary.value || !latestRevenuePeriod.value) { return [] }
+/** Pemasukan Bersih — satu kartu hero besar (bukan lagi dua kartu sejajar), sesuai layout referensi. */
+const heroPrimary = computed<HeroMetric | undefined>(() => {
+  if (!showFinancialSummary.value || !latestRevenuePeriod.value) { return undefined }
   const period = latestRevenuePeriod.value
   const previous = previousRevenuePeriod.value
   const history = revenuePeriods.value.slice(-6)
+  return {
+    key: 'net-revenue',
+    label: 'Pemasukan Bersih',
+    valueIdr: period.revenueIdr,
+    icon: TrendingUp,
+    series: history.map(row => row.revenueIdr),
+    trend: periodTrend(period.revenueIdr, previous?.revenueIdr)
+  }
+})
+
+/** Payables (Hutang) — total outstanding Supplier Invoice belum lunas, sumber sama dengan `PayablesPanel`
+ * (`getPayables`), bukan angka baru. Tidak ada histori bulanan di data model sehingga tidak ada trend. */
+const payablesTotal = computed(() => getPayables().reduce((sum, row) => sum + row.outstandingIdr, 0))
+
+/** Grid 2x2 di bawah hero: Profit/Pengeluaran dari periode revenue yang sama (dengan trend), Piutang/Hutang
+ * dari total outstanding saat ini (snapshot, tanpa trend histori bulanan). */
+const heroSecondaryMetrics = computed<HeroSecondaryMetric[]>(() => {
+  if (!showFinancialSummary.value || !latestRevenuePeriod.value) { return [] }
+  const period = latestRevenuePeriod.value
+  const previous = previousRevenuePeriod.value
+  const expenseIdr = period.directCostIdr + period.opexIdr
+  const previousExpenseIdr = previous ? previous.directCostIdr + previous.opexIdr : undefined
   /** Merah hanya saat benar-benar rugi — supaya warna panel tetap jujur, bukan selalu hijau apa pun angkanya. */
   const profitPositive = period.netProfitIdr >= 0
   return [
     {
-      key: 'net-revenue',
-      label: 'Pemasukan Bersih',
-      valueIdr: period.revenueIdr,
-      icon: TrendingUp,
-      series: history.map(row => row.revenueIdr),
-      trend: periodTrend(period.revenueIdr, previous?.revenueIdr),
-      accent: 'blue'
-    },
-    {
       key: 'net-profit',
       label: 'Profit',
       valueIdr: period.netProfitIdr,
-      icon: Wallet,
-      series: history.map(row => row.netProfitIdr),
+      icon: TrendingUp,
       trend: periodTrend(period.netProfitIdr, previous?.netProfitIdr),
       accent: profitPositive ? 'emerald' : 'rose'
+    },
+    {
+      key: 'expense',
+      label: 'Pengeluaran',
+      valueIdr: expenseIdr,
+      icon: TrendingDown,
+      trend: periodTrend(expenseIdr, previousExpenseIdr),
+      accent: 'rose'
+    },
+    {
+      key: 'receivable',
+      label: 'Piutang',
+      valueIdr: outstandingTotal.value,
+      icon: ArrowDownToLine,
+      accent: 'amber'
+    },
+    {
+      key: 'payable',
+      label: 'Hutang',
+      valueIdr: payablesTotal.value,
+      icon: ArrowUpFromLine,
+      accent: 'violet'
     }
   ]
 })
@@ -600,8 +635,9 @@ const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
 
     <template v-else>
       <DashboardHeroPanel
-        v-if="heroMetrics.length"
-        :metrics="heroMetrics"
+        v-if="heroPrimary"
+        :primary="heroPrimary"
+        :metrics="heroSecondaryMetrics"
         :period-label="financialPeriodLabel"
         class="mb-4"
       />
@@ -616,7 +652,7 @@ const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
       />
 
       <DashboardKpiHero
-        v-if="visibleKpiCards.length === 1 && !heroMetrics.length"
+        v-if="visibleKpiCards.length === 1 && !heroPrimary"
         class="mb-6"
         :label="visibleKpiCards[0].title"
         :value="Number(visibleKpiCards[0].value)"
