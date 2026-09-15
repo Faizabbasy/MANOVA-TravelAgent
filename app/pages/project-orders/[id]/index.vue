@@ -54,7 +54,7 @@ import {
   CREDIT_NOTE_STATUSES, DEBIT_NOTE_STATUSES, SUPPLIER_INVOICE_MATCH_STATUSES, SUPPLIER_INVOICE_STATUSES,
   DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES, SALES_ORDER_STATUSES
 } from '~/constants/status'
-import { formatCurrencyIdr, formatDateRange, formatDate, formatDateLong, formatDateTime, formatDayLabel, formatDayBadge, formatTravelerCount, maskDocumentNumber, daysUntil } from '~/utils/format'
+import { formatCurrencyIdr, formatCurrencyIdrCompact, formatDateRange, formatDate, formatDateLong, formatDateTime, formatDayLabel, formatDayBadge, formatTravelerCount, maskDocumentNumber, daysUntil } from '~/utils/format'
 import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, isInvoiceDueSoon, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT, isDpBalanceOverdue, PASSPORT_EXPIRY_WARNING_DAYS } from '~/utils/attention'
 import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ItineraryItem, ProjectService } from '~/types/project'
 import type { ChangeCategory, ProjectTask } from '~/types/activity'
@@ -2153,8 +2153,8 @@ const tripDurationDays = computed(() => {
                 <FileText class="h-4 w-4" />
               </div>
               <div>
-                <p class="text-lg font-bold leading-none text-foreground tabular-nums">
-                  {{ formatCurrencyIdr(project.quotationAmountIdr) }}
+                <p class="text-lg font-bold leading-none text-foreground tabular-nums" :title="formatCurrencyIdr(project.quotationAmountIdr)">
+                  {{ formatCurrencyIdrCompact(project.quotationAmountIdr) }}
                 </p>
                 <p class="mt-1 whitespace-nowrap text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
                   Nilai Quotation
@@ -2256,8 +2256,8 @@ const tripDurationDays = computed(() => {
               <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
                 <FileText class="h-3.5 w-3.5" />
               </div>
-              <p class="break-words text-center text-sm font-bold leading-tight text-foreground tabular-nums">
-                {{ formatCurrencyIdr(project.quotationAmountIdr) }}
+              <p class="break-words text-center text-sm font-bold leading-tight text-foreground tabular-nums" :title="formatCurrencyIdr(project.quotationAmountIdr)">
+                {{ formatCurrencyIdrCompact(project.quotationAmountIdr) }}
               </p>
               <p class="text-center text-[9px] font-medium uppercase leading-tight tracking-wide text-muted-foreground">
                 Quotation
@@ -2595,13 +2595,14 @@ const tripDurationDays = computed(() => {
                 <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <StatsCard
                     title="Nilai Quotation"
-                    :value="formatCurrencyIdr(project.quotationAmountIdr)"
+                    :value="formatCurrencyIdrCompact(project.quotationAmountIdr)"
+                    :full-value="formatCurrencyIdr(project.quotationAmountIdr)"
                     :subtitle="`Terkumpul ${formatCurrencyIdr(collectedIdr)} dari client${quotationGapIdr > 0 ? ' · Kurang ' + formatCurrencyIdr(quotationGapIdr) : ' · Lunas'}`"
                     :progress-percent="quotationCollectionPercent"
                     :icon="FileText"
                     :icon-color="quotationGapIdr > 0 ? 'warning' : 'success'"
                   />
-                  <StatsCard title="Outstanding" :value="formatCurrencyIdr(projectOutstandingIdr)" :icon="Wallet" icon-color="warning" />
+                  <StatsCard title="Outstanding" :value="formatCurrencyIdrCompact(projectOutstandingIdr)" :full-value="formatCurrencyIdr(projectOutstandingIdr)" :icon="Wallet" icon-color="warning" />
                 </div>
 
                 <SectionCard
@@ -2870,7 +2871,8 @@ const tripDurationDays = computed(() => {
             <StatsCard title="Progress Keseluruhan" :value="`${milestoneOverallProgressPercent}%`" :icon="Gauge" :progress-percent="milestoneOverallProgressPercent" />
             <StatsCard
               title="Total Budget Milestone"
-              :value="formatCurrencyIdr(milestoneBudgetSummary.allocatedToMilestonesIdr)"
+              :value="formatCurrencyIdrCompact(milestoneBudgetSummary.allocatedToMilestonesIdr)"
+              :full-value="formatCurrencyIdr(milestoneBudgetSummary.allocatedToMilestonesIdr)"
               :icon="Wallet"
               :subtitle="milestoneBudgetSummary.allocationPercent !== undefined ? `${milestoneBudgetSummary.allocationPercent}% dari budget project` : undefined"
             />
@@ -2883,7 +2885,8 @@ const tripDurationDays = computed(() => {
             <StatsCard title="Progress Keseluruhan" :value="`${milestoneOverallProgressPercent}%`" :icon="Gauge" :progress-percent="milestoneOverallProgressPercent" />
             <StatsCard
               title="Total Budget Milestone"
-              :value="formatCurrencyIdr(milestoneBudgetSummary.allocatedToMilestonesIdr)"
+              :value="formatCurrencyIdrCompact(milestoneBudgetSummary.allocatedToMilestonesIdr)"
+              :full-value="formatCurrencyIdr(milestoneBudgetSummary.allocatedToMilestonesIdr)"
               :icon="Wallet"
               :subtitle="milestoneBudgetSummary.allocationPercent !== undefined ? `${milestoneBudgetSummary.allocationPercent}% dari budget project` : undefined"
             />
@@ -4592,7 +4595,8 @@ const tripDurationDays = computed(() => {
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <StatsCard
                         title="Project Value"
-                        :value="formatCurrencyIdr(project.quotationAmountIdr)"
+                        :value="formatCurrencyIdrCompact(project.quotationAmountIdr)"
+                        :full-value="formatCurrencyIdr(project.quotationAmountIdr)"
                         :subtitle="`Terkumpul ${formatCurrencyIdr(collectedIdr)} dari client${quotationGapIdr > 0 ? ' · Kurang ' + formatCurrencyIdr(quotationGapIdr) : ' · Lunas'}`"
                         :progress-percent="quotationCollectionPercent"
                         :icon="FileText"
@@ -4600,7 +4604,8 @@ const tripDurationDays = computed(() => {
                       />
                       <StatsCard
                         title="Actual Cost"
-                        :value="formatCurrencyIdr(actualCostIdr)"
+                        :value="formatCurrencyIdrCompact(actualCostIdr)"
+                        :full-value="formatCurrencyIdr(actualCostIdr)"
                         subtitle="Biaya aktual saat ini"
                         :progress-percent="project.budgetIdr > 0 ? (actualCostIdr / project.budgetIdr) * 100 : 0"
                         :icon="CreditCard"
@@ -4609,7 +4614,8 @@ const tripDurationDays = computed(() => {
                       <StatsCard
                         v-if="canViewMargin"
                         title="Project Margin"
-                        :value="formatCurrencyIdr(marginIdr)"
+                        :value="formatCurrencyIdrCompact(marginIdr)"
+                        :full-value="formatCurrencyIdr(marginIdr)"
                         subtitle="Perkiraan margin proyek"
                         :progress-percent="project.quotationAmountIdr > 0 ? (marginIdr / project.quotationAmountIdr) * 100 : 0"
                         :icon="PieChart"
@@ -5099,13 +5105,14 @@ const tripDurationDays = computed(() => {
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <StatsCard
                     title="Nilai Quotation"
-                    :value="formatCurrencyIdr(project.quotationAmountIdr)"
+                    :value="formatCurrencyIdrCompact(project.quotationAmountIdr)"
+                    :full-value="formatCurrencyIdr(project.quotationAmountIdr)"
                     :subtitle="`Terkumpul ${formatCurrencyIdr(collectedIdr)} dari client${quotationGapIdr > 0 ? ' · Kurang ' + formatCurrencyIdr(quotationGapIdr) : ' · Lunas'}`"
                     :progress-percent="quotationCollectionPercent"
                     :icon="FileText"
                     :icon-color="quotationGapIdr > 0 ? 'warning' : 'success'"
                   />
-                  <StatsCard title="Outstanding" :value="formatCurrencyIdr(projectOutstandingIdr)" :icon="Wallet" icon-color="warning" />
+                  <StatsCard title="Outstanding" :value="formatCurrencyIdrCompact(projectOutstandingIdr)" :full-value="formatCurrencyIdr(projectOutstandingIdr)" :icon="Wallet" icon-color="warning" />
                 </div>
               </SectionCard>
             </template>

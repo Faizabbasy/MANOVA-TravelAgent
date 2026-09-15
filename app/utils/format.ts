@@ -15,6 +15,21 @@ export function formatCurrencyIdr (value: number): string {
   return idrFormatter.format(value)
 }
 
+/**
+ * Notasi ringkas ("Rp 1,25 M" / "Rp 950 Jt") untuk StatsCard bernilai besar — full precision-nya
+ * cuma numerik biasa (di bawah 1 juta) tetap dipakai supaya tidak over-abbreviate angka kecil.
+ * Dipakai berbarengan dengan `formatCurrencyIdr` (versi lengkap) sebagai tooltip/`fullValue`
+ * di kartu, jadi presisi aslinya tetap kebaca tanpa bikin card yang sempit meluber.
+ */
+export function formatCurrencyIdrCompact (value: number): string {
+  const abs = Math.abs(value)
+  const sign = value < 0 ? '-' : ''
+  const trimmed = (n: number) => n.toFixed(2).replace(/\.?0+$/, '').replace('.', ',')
+  if (abs >= 1_000_000_000) { return `${sign}Rp ${trimmed(abs / 1_000_000_000)} M` }
+  if (abs >= 1_000_000) { return `${sign}Rp ${trimmed(abs / 1_000_000)} Jt` }
+  return formatCurrencyIdr(value)
+}
+
 export function formatNumber (value: number): string {
   return numberFormatter.format(value)
 }

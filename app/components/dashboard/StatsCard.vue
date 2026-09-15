@@ -15,6 +15,9 @@ interface Props {
   icon: Component
   iconColor?: 'primary' | 'success' | 'warning' | 'destructive'
   subtitle?: string
+  /** Nominal lengkap sebelum disingkat (mis. "Rp 1.250.000.000" saat `value` sudah "Rp 1,25 M") —
+   * ditampilkan sebagai tooltip native di atas angka, supaya presisi aslinya tetap bisa dicek. */
+  fullValue?: string
   /** `sm` — tile ringkas untuk grid 3-kolom sejajar di mobile (mis. Total/Selesai/Delay milestone),
    * padding & font lebih kecil, tanpa sparkline/footer-progress. */
   size?: 'default' | 'lg' | 'sm'
@@ -105,7 +108,10 @@ const sparkGradientId = `spark-fill-${useId()}`
     </div>
 
     <div class="mt-2 flex items-center gap-1.5">
-      <p :class="cn('font-semibold tracking-tight text-foreground break-words', props.size === 'lg' ? 'text-[1.75rem] leading-9' : props.size === 'sm' ? 'text-xl leading-6' : 'text-2xl leading-8')">
+      <p
+        :title="fullValue"
+        :class="cn('font-semibold tracking-tight text-foreground break-words', props.size === 'lg' ? 'text-[1.75rem] leading-9' : props.size === 'sm' ? 'text-xl leading-6' : 'text-2xl leading-8')"
+      >
         {{ value }}
       </p>
       <component
