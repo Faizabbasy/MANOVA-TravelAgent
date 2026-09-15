@@ -5,7 +5,7 @@ import { id as localeId } from 'date-fns/locale'
 import {
   FolderKanban, Handshake, PlaneTakeoff, AlertTriangle, Receipt, Users, Save, X,
   Wallet, PieChart, ListChecks, CheckCircle2, CalendarClock, History, Activity, ShieldCheck, Package, Building2,
-  TrendingUp, TrendingDown, Clock, SlidersHorizontal, ArrowDownToLine, ArrowUpFromLine
+  TrendingUp, TrendingDown, Clock, SlidersHorizontal, ArrowDownToLine, ArrowUpFromLine, CalendarRange
 } from 'lucide-vue-next'
 import type { HeroMetric, HeroSecondaryMetric } from '~/components/dashboard/DashboardHeroPanel.vue'
 import type { CashFlowSideMetric } from '~/components/dashboard/DashboardCashFlowSection.vue'
@@ -70,6 +70,38 @@ const typeFilter = ref<'all' | Project['characteristic']>('all')
 const clientFilter = ref<'all' | string>('all')
 const ownerFilter = ref<'all' | string>('all')
 const periodFilter = ref<'all' | '30' | '60' | '90'>('all')
+
+/**
+ * Filter periode financial (Pemasukan Bersih/Profit/Monthly Cash Flow) — terpisah dari box Filter di atas
+ * (yang menyaring Project). Preset "Custom" tidak langsung mengubah state, hanya membuka sheet tanggal —
+ * baru diterapkan saat user menekan "Terapkan" (`applyCustomPeriod`), supaya widget tidak berkedip ke
+ * rentang kosong saat baru satu dari dua tanggal terisi.
+ */
+type FinancialPeriodPreset = 'this-month' | 'this-year' | 'all-time' | 'custom'
+const FINANCIAL_PERIOD_OPTIONS: { value: FinancialPeriodPreset; label: string }[] = [
+  { value: 'this-month', label: 'Bulan Ini' },
+  { value: 'this-year', label: 'Tahun Ini' },
+  { value: 'all-time', label: 'Semua Waktu' },
+  { value: 'custom', label: 'Custom' }
+]
+const financialPeriodPreset = ref<FinancialPeriodPreset>('this-month')
+const isCustomPeriodOpen = ref(false)
+const customStartDate = ref('')
+const customEndDate = ref('')
+
+function selectFinancialPeriod (value: FinancialPeriodPreset) {
+  if (value === 'custom') {
+    isCustomPeriodOpen.value = true
+    return
+  }
+  financialPeriodPreset.value = value
+}
+
+function applyCustomPeriod () {
+  if (!customStartDate.value || !customEndDate.value) { return }
+  financialPeriodPreset.value = 'custom'
+  isCustomPeriodOpen.value = false
+}
 
 const showFilters = visibleTo('management', 'project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'finance', 'super-admin', 'viewer')
 /**
@@ -393,9 +425,69 @@ const kpiCards = computed(() => [
  * dari histori 6 periode terakhir asli (bukan dekorasi) — lihat komentar desain di komponen itu sendiri.
  * ================================================== */
 const revenuePeriods = computed(() => getRevenueByPeriod())
-const latestRevenuePeriod = computed(() => revenuePeriods.value.at(-1))
-const previousRevenuePeriod = computed(() => revenuePeriods.value.at(-2))
 const showFinancialSummary = visibleTo('finance', 'management', 'super-admin', 'viewer')
+
+/**
+ * Periode acuan "sekarang" untuk preset Bulan Ini/Tahun Ini — `DEMO_REFERENCE_DATE` (fixture ini tidak
+ * pakai `Date.now()` beneran), konsisten dengan seluruh perhitungan "hari ini" lain di codebase.
+ */
+const referenceYearMonth = DEMO_REFERENCE_DATE.slice(0, 7)
+const referenceYear = DEMO_REFERENCE_DATE.slice(0, 4)
+
+/**
+ * Baris `revenuePeriods` yang masuk rentang preset aktif — dipakai bersama oleh hero panel (dijumlah jadi
+ * satu angka) dan chart Monthly Cash Flow (satu bar per baris). Fallback ke data terakhir/seluruhnya kalau
+ * preset tidak match apa pun (mis. fixture belum py sampai bulan acuan) supaya widget tidak kosong.
+ */
+const currentFinancialPeriods = computed(() => {
+  const all = revenuePeriods.value
+  if (!all.length) { return [] }
+  if (financialPeriodPreset.value === 'this-month') {
+    const rows = all.filter(row => row.period === referenceYearMonth)
+    return rows.length ? rows : all.slice(-1)
+  }
+  if (financialPeriodPreset.value === 'this-year') {
+    const rows = all.filter(row => row.period.startsWith(referenceYear))
+    return rows.length ? rows : all
+  }
+  if (financialPeriodPreset.value === 'custom' && customStartDate.value && customEndDate.value) {
+    const start = customStartDate.value.slice(0, 7)
+    const end = customEndDate.value.slice(0, 7)
+    return all.filter(row => row.period >= start && row.period <= end)
+  }
+  return all
+})
+
+/** Rentang pembanding untuk trend naik/turun — hanya bermakna untuk Bulan Ini (vs bulan sebelumnya) dan
+ * Tahun Ini (vs tahun sebelumnya). Semua Waktu & Custom tidak punya "periode sebelumnya" yang jelas,
+ * jadi trend disembunyikan (`periodTrend` return `undefined` kalau baris pembanding kosong). */
+const previousFinancialPeriods = computed(() => {
+  const all = revenuePeriods.value
+  if (financialPeriodPreset.value === 'this-month') {
+    const idx = all.findIndex(row => row.period === referenceYearMonth)
+    if (idx > 0) { return [all[idx - 1]] }
+    return all.length > 1 ? [all[all.length - 2]] : []
+  }
+  if (financialPeriodPreset.value === 'this-year') {
+    const previousYear = String(Number(referenceYear) - 1)
+    return all.filter(row => row.period.startsWith(previousYear))
+  }
+  return []
+})
+
+function sumRevenuePeriods (rows: typeof revenuePeriods.value) {
+  return rows.reduce((acc, row) => ({
+    revenueIdr: acc.revenueIdr + row.revenueIdr,
+    directCostIdr: acc.directCostIdr + row.directCostIdr,
+    opexIdr: acc.opexIdr + row.opexIdr,
+    netProfitIdr: acc.netProfitIdr + row.netProfitIdr
+  }), { revenueIdr: 0, directCostIdr: 0, opexIdr: 0, netProfitIdr: 0 })
+}
+
+const financialAggregate = computed(() => sumRevenuePeriods(currentFinancialPeriods.value))
+const previousFinancialAggregate = computed(() => (
+  previousFinancialPeriods.value.length ? sumRevenuePeriods(previousFinancialPeriods.value) : undefined
+))
 
 function periodTrend (currentIdr: number, previousIdr: number | undefined): { direction: 'up' | 'down'; percentLabel: string } | undefined {
   if (previousIdr === undefined || previousIdr === 0) { return undefined }
@@ -407,36 +499,45 @@ function periodTrend (currentIdr: number, previousIdr: number | undefined): { di
 }
 
 const financialPeriodLabel = computed(() => {
-  const period = latestRevenuePeriod.value?.period
-  if (!period) { return undefined }
-  return format(parseISO(`${period}-01`), 'MMMM yyyy', { locale: localeId })
+  if (financialPeriodPreset.value === 'this-year') { return `Tahun ${referenceYear}` }
+  if (financialPeriodPreset.value === 'all-time') { return 'Semua Waktu' }
+  if (financialPeriodPreset.value === 'custom') {
+    if (!customStartDate.value || !customEndDate.value) { return undefined }
+    const start = format(parseISO(customStartDate.value), 'd MMM yyyy', { locale: localeId })
+    const end = format(parseISO(customEndDate.value), 'd MMM yyyy', { locale: localeId })
+    return `${start} – ${end}`
+  }
+  const period = currentFinancialPeriods.value[0]?.period
+  return period ? format(parseISO(`${period}-01`), 'MMMM yyyy', { locale: localeId }) : undefined
 })
 
 /** Dua kartu hero desktop (tidak berubah) — Pemasukan Bersih & Profit sejajar. Di mobile, `metrics[0]`
- * (Pemasukan Bersih) dipakai sebagai kartu hero tunggal oleh `DashboardHeroPanel` sendiri. */
+ * (Pemasukan Bersih) dipakai sebagai kartu hero tunggal oleh `DashboardHeroPanel` sendiri. Sparkline tetap
+ * dari 6 bulan terakhir ASLI (bukan mengikuti rentang filter) supaya bentuk tren tetap informatif walau
+ * preset-nya "Bulan Ini" (yang datanya sendiri cuma 1 titik). */
 const heroMetrics = computed<HeroMetric[]>(() => {
-  if (!showFinancialSummary.value || !latestRevenuePeriod.value) { return [] }
-  const period = latestRevenuePeriod.value
-  const previous = previousRevenuePeriod.value
+  if (!showFinancialSummary.value || !currentFinancialPeriods.value.length) { return [] }
+  const agg = financialAggregate.value
+  const previousAgg = previousFinancialAggregate.value
   const history = revenuePeriods.value.slice(-6)
-  const profitPositive = period.netProfitIdr >= 0
+  const profitPositive = agg.netProfitIdr >= 0
   return [
     {
       key: 'net-revenue',
       label: 'Pemasukan Bersih',
-      valueIdr: period.revenueIdr,
+      valueIdr: agg.revenueIdr,
       icon: TrendingUp,
       series: history.map(row => row.revenueIdr),
-      trend: periodTrend(period.revenueIdr, previous?.revenueIdr),
+      trend: periodTrend(agg.revenueIdr, previousAgg?.revenueIdr),
       accent: 'blue'
     },
     {
       key: 'net-profit',
       label: 'Profit',
-      valueIdr: period.netProfitIdr,
+      valueIdr: agg.netProfitIdr,
       icon: Wallet,
       series: history.map(row => row.netProfitIdr),
-      trend: periodTrend(period.netProfitIdr, previous?.netProfitIdr),
+      trend: periodTrend(agg.netProfitIdr, previousAgg?.netProfitIdr),
       accent: profitPositive ? 'emerald' : 'rose'
     }
   ]
@@ -446,23 +547,23 @@ const heroMetrics = computed<HeroMetric[]>(() => {
  * (`getPayables`), bukan angka baru. Tidak ada histori bulanan di data model sehingga tidak ada trend. */
 const payablesTotal = computed(() => getPayables().reduce((sum, row) => sum + row.outstandingIdr, 0))
 
-/** Grid 2x2 di bawah hero: Profit/Pengeluaran dari periode revenue yang sama (dengan trend), Piutang/Hutang
- * dari total outstanding saat ini (snapshot, tanpa trend histori bulanan). */
+/** Grid 2x2 di bawah hero: Profit/Pengeluaran dari agregat periode terfilter (dengan trend), Piutang/Hutang
+ * dari total outstanding saat ini (snapshot, tanpa trend histori bulanan — tidak ikut filter periode). */
 const heroSecondaryMetrics = computed<HeroSecondaryMetric[]>(() => {
-  if (!showFinancialSummary.value || !latestRevenuePeriod.value) { return [] }
-  const period = latestRevenuePeriod.value
-  const previous = previousRevenuePeriod.value
-  const expenseIdr = period.directCostIdr + period.opexIdr
-  const previousExpenseIdr = previous ? previous.directCostIdr + previous.opexIdr : undefined
+  if (!showFinancialSummary.value || !currentFinancialPeriods.value.length) { return [] }
+  const agg = financialAggregate.value
+  const previousAgg = previousFinancialAggregate.value
+  const expenseIdr = agg.directCostIdr + agg.opexIdr
+  const previousExpenseIdr = previousAgg ? previousAgg.directCostIdr + previousAgg.opexIdr : undefined
   /** Merah hanya saat benar-benar rugi — supaya warna panel tetap jujur, bukan selalu hijau apa pun angkanya. */
-  const profitPositive = period.netProfitIdr >= 0
+  const profitPositive = agg.netProfitIdr >= 0
   return [
     {
       key: 'net-profit',
       label: 'Profit',
-      valueIdr: period.netProfitIdr,
+      valueIdr: agg.netProfitIdr,
       icon: TrendingUp,
-      trend: periodTrend(period.netProfitIdr, previous?.netProfitIdr),
+      trend: periodTrend(agg.netProfitIdr, previousAgg?.netProfitIdr),
       accent: profitPositive ? 'emerald' : 'rose'
     },
     {
@@ -492,18 +593,18 @@ const heroSecondaryMetrics = computed<HeroSecondaryMetric[]>(() => {
 
 /* ==================================================
  * Monthly Cash Flow — section baru (permintaan eksplisit, referensi eksternal). Chart dari periode ASLI
- * yang sama dengan `heroMetrics` (bukan data fiktif Jan-Des) — Income = revenueIdr, Expense = directCostIdr
- * + opexIdr per periode. 4 kartu di sampingnya menampilkan ringkasan Opex periode berjalan (sumber sama
- * dengan `OpexPanel` — "Total Opex Periode"/"Sudah Dibayar"/"Menunggu Persetujuan") + Outstanding Invoices
- * yang sudah ada — bukan metrik baru di luar yang sudah tercatat.
+ * yang sama dengan `heroMetrics`, disaring rentang yang sama (`currentFinancialPeriods`) — Income =
+ * revenueIdr, Expense = directCostIdr + opexIdr per periode. 4 kartu di sampingnya menampilkan ringkasan
+ * Opex periode berjalan (sumber sama dengan `OpexPanel` — "Total Opex Periode"/"Sudah Dibayar"/"Menunggu
+ * Persetujuan") + Outstanding Invoices yang sudah ada — TIDAK ikut filter periode (snapshot saat ini).
  * ================================================== */
-const cashFlowLabels = computed(() => revenuePeriods.value.map(row => format(parseISO(`${row.period}-01`), 'MMM', { locale: localeId })))
-const cashFlowIncome = computed(() => revenuePeriods.value.map(row => row.revenueIdr))
-const cashFlowExpense = computed(() => revenuePeriods.value.map(row => row.directCostIdr + row.opexIdr))
+const cashFlowLabels = computed(() => currentFinancialPeriods.value.map(row => format(parseISO(`${row.period}-01`), 'MMM yy', { locale: localeId })))
+const cashFlowIncome = computed(() => currentFinancialPeriods.value.map(row => row.revenueIdr))
+const cashFlowExpense = computed(() => currentFinancialPeriods.value.map(row => row.directCostIdr + row.opexIdr))
 
 const cashFlowSideMetrics = computed<CashFlowSideMetric[]>(() => {
-  if (!showFinancialSummary.value || !latestRevenuePeriod.value) { return [] }
-  /** Periode Opex terbaru YANG BENAR-BENAR ADA datanya (`OPEX_ENTRIES`), bukan `latestRevenuePeriod` —
+  if (!showFinancialSummary.value || !currentFinancialPeriods.value.length) { return [] }
+  /** Periode Opex terbaru YANG BENAR-BENAR ADA datanya (`OPEX_ENTRIES`), bukan periode revenue terfilter —
    * periode invoice bisa lebih baru (mis. 2026-08) padahal fixture Opex cuma sampai 2026-07, jadi kalau
    * ikut periode invoice, 3 card ini selalu Rp0. */
   const period = getOpexPeriods()[0]
@@ -648,6 +749,53 @@ const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
     <LoadingState v-if="isLoading" message="Memuat ringkasan dashboard..." :rows="4" />
 
     <template v-else>
+      <!-- Filter periode financial — terpisah dari box Filter Project di bawah, cuma mempengaruhi hero
+           Pemasukan Bersih/Profit dan Monthly Cash Flow. -->
+      <div v-if="showFinancialSummary" class="mb-3 flex flex-wrap items-center gap-2">
+        <div class="inline-flex items-center gap-0.5 rounded-lg border border-border bg-card p-0.5">
+          <button
+            v-for="option in FINANCIAL_PERIOD_OPTIONS"
+            :key="option.value"
+            type="button"
+            class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+            :class="financialPeriodPreset === option.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'"
+            @click="selectFinancialPeriod(option.value)"
+          >
+            <CalendarRange v-if="option.value === 'custom'" class="h-3.5 w-3.5" />
+            {{ option.label }}
+          </button>
+        </div>
+        <span v-if="financialPeriodPreset === 'custom' && financialPeriodLabel" class="text-xs text-muted-foreground">
+          {{ financialPeriodLabel }}
+        </span>
+      </div>
+
+      <ResponsiveFormSheet
+        v-model:open="isCustomPeriodOpen"
+        title="Pilih Rentang Tanggal"
+        description="Custom period untuk Pemasukan Bersih, Profit, dan Monthly Cash Flow."
+        content-class="max-w-sm"
+      >
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="dashboard-custom-start">Tanggal Mulai</Label>
+            <Input id="dashboard-custom-start" v-model="customStartDate" type="date" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="dashboard-custom-end">Tanggal Selesai</Label>
+            <Input id="dashboard-custom-end" v-model="customEndDate" type="date" :min="customStartDate || undefined" />
+          </div>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isCustomPeriodOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!customStartDate || !customEndDate" @click="applyCustomPeriod">
+            Terapkan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
+
       <DashboardHeroPanel
         v-if="heroMetrics.length"
         :metrics="heroMetrics"
