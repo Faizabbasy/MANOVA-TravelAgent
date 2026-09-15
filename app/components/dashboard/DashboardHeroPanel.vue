@@ -97,7 +97,10 @@ const SECONDARY_CHIP: Record<HeroSecondaryMetric['accent'], string> = {
   violet: 'bg-violet-500/10 text-violet-600'
 }
 
-const displayValues = props.metrics.map((metric, index) => useCountUp(metric.valueIdr, index * 200))
+/** Getter (bukan `metric.valueIdr` langsung) — `useCountUp` mem-`watch` fungsi ini supaya selalu membaca
+ * nilai LIVE dari `props.metrics[index]`, bukan objek metric yang dicaptured beku saat mount (bug lama:
+ * ganti filter periode Dashboard tidak mengubah angka yang tampil di kartu hero). */
+const displayValues = props.metrics.map((_, index) => useCountUp(() => props.metrics[index]?.valueIdr ?? 0, index * 200))
 const sparklines = computed(() => props.metrics.map(metric => buildSparkline(metric.series)))
 
 /** Angka statis (bukan count-up) untuk grid mobile — `formatNumber` langsung dari prop reaktif, supaya

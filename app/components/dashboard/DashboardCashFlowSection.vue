@@ -62,7 +62,9 @@ const ACCENT_STROKE: Record<CashFlowSideMetric['accent'], string> = {
   violet: '#8b5cf6'
 }
 
-const displayValues = props.sideMetrics.map((metric, index) => useCountUp(metric.value, index * 90))
+/** Getter, bukan `metric.value` langsung — supaya `useCountUp` ikut menghitung ulang saat filter periode
+ * Dashboard diganti (props berubah tanpa remount), bukan cuma sekali saat komponen pertama mount. */
+const displayValues = props.sideMetrics.map((_, index) => useCountUp(() => props.sideMetrics[index]?.value ?? 0, index * 90))
 const sparklines = computed(() => props.sideMetrics.map(metric => (metric.series ? buildSparkline(metric.series) : null)))
 </script>
 

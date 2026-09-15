@@ -69,7 +69,9 @@ const ACCENT_WATERMARK: Record<string, string> = {
   cyan: 'text-cyan-500/[0.06]'
 }
 
-const displayValue = useCountUp(props.value, 80)
+/** Getter, bukan `props.value` langsung — supaya ikut menghitung ulang saat filter periode Dashboard
+ * diganti (props berubah tanpa remount), bukan cuma sekali saat komponen pertama mount. */
+const displayValue = useCountUp(() => props.value, 80)
 </script>
 
 <template>
