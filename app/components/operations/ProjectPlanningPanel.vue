@@ -64,7 +64,66 @@ function onRemovePin (pinId: string) {
   <div class="space-y-4">
     <RoleAccessState v-if="!hasAccess" module-label="modul Operations & Scheduling" />
 
-    <div v-else class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+    <!-- Mobile — peta ditonjolkan duluan (bukan list project vertikal panjang yang mendorongnya ke bawah);
+         pilih project lewat chip yang bisa discroll horizontal, konsisten pola filter kategori native app
+         yang sudah dipakai di halaman lain. Desktop/tablet (grid 12-kolom lama) tidak berubah. -->
+    <div v-else class="space-y-4 sm:hidden">
+      <SectionCard content-class="p-3">
+        <div class="relative mb-3">
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input v-model="projectSearch" placeholder="Cari project atau destinasi..." class="pl-9" />
+        </div>
+        <div class="-mx-1 flex gap-2 overflow-x-auto px-1 pb-0.5 no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <button
+            type="button"
+            :class="cn(
+              'flex shrink-0 items-center gap-2 rounded-full border px-3 py-1.5 transition-colors',
+              mapProjectId === 'all' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'
+            )"
+            @click="selectMapProject('all')"
+          >
+            <MapPin class="h-3.5 w-3.5 shrink-0" />
+            <span class="text-xs font-medium">Semua ({{ PLANNING_PINS.length }})</span>
+          </button>
+          <button
+            v-for="project in filteredProjects"
+            :key="project.id"
+            type="button"
+            :class="cn(
+              'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 transition-colors',
+              mapProjectId === project.id ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'
+            )"
+            @click="selectMapProject(project.id)"
+          >
+            <span class="text-xs font-medium">{{ project.name }}</span>
+          </button>
+          <EmptyState v-if="!filteredProjects.length" size="compact" :icon="Search" title="Tidak ditemukan" />
+        </div>
+      </SectionCard>
+
+      <SectionCard content-class="p-3">
+        <div class="mb-3 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2">
+            <MapPin class="h-4 w-4 text-muted-foreground" />
+            <h3 class="text-sm font-semibold text-foreground">
+              Perencanaan Lokasi
+            </h3>
+          </div>
+          <p v-if="mapProjectId !== 'all'" class="truncate text-xs text-muted-foreground">
+            {{ getProjectById(mapProjectId)?.destination }}
+          </p>
+        </div>
+        <RegionMapPicker
+          :pins="mapPins"
+          :can-manage="canManage"
+          :focus-point="mapFocusPoint"
+          @add="onAddPin"
+          @remove="onRemovePin"
+        />
+      </SectionCard>
+    </div>
+
+    <div v-if="hasAccess" class="hidden grid-cols-1 gap-5 sm:grid xl:grid-cols-12 items-start">
       <SectionCard class="xl:col-span-4">
         <div class="relative mb-3">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />

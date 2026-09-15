@@ -87,12 +87,12 @@ const groupedByDate = computed(() => {
 
 <template>
   <div class="space-y-4">
-    <SectionCard flush content-class="flex flex-wrap items-center gap-3 p-3">
-      <div class="relative min-w-[220px] flex-1">
+    <SectionCard flush content-class="flex flex-col gap-2.5 p-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+      <div class="relative min-w-0 flex-1 sm:min-w-[220px]">
         <Search class="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input v-model="searchQuery" placeholder="Cari catatan..." class="pl-9" />
       </div>
-      <select v-model="kindFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+      <select v-model="kindFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer sm:w-auto">
         <option value="all">
           Semua Tipe
         </option>
@@ -113,11 +113,12 @@ const groupedByDate = computed(() => {
         </div>
 
         <div class="space-y-2">
+          <!-- Desktop/tablet — tidak diubah. -->
           <NuxtLink
             v-for="row in group.entries"
             :key="`${row.entry.kind}-${row.entry.id}`"
             :to="`/project-orders/${row.entry.projectId}?tab=activity-changes`"
-            class="flex items-start gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition-colors hover:bg-muted/30"
+            class="hidden items-start gap-3 rounded-xl border border-border bg-card p-3 shadow-sm transition-colors hover:bg-muted/30 sm:flex"
           >
             <span :class="['flex h-9 w-9 shrink-0 items-center justify-center rounded-full', KIND_META[row.entry.kind].iconBg]">
               <Briefcase :class="['h-4 w-4', KIND_META[row.entry.kind].iconColor]" />
@@ -146,6 +147,43 @@ const groupedByDate = computed(() => {
             <span class="ml-auto flex shrink-0 items-center gap-1 whitespace-nowrap text-xs text-muted-foreground">
               <Clock class="h-3.5 w-3.5" />{{ relativeDays(row.entry.createdAt) }}
             </span>
+          </NuxtLink>
+
+          <!-- Mobile — badge/lock chip dulu ke bawah supaya baris atas (avatar+nama+waktu) tidak sesak,
+               teks pesan diberi indent sejajar nama biar terbaca seperti bubble chat/notifikasi native. -->
+          <NuxtLink
+            v-for="row in group.entries"
+            :key="`m-${row.entry.kind}-${row.entry.id}`"
+            :to="`/project-orders/${row.entry.projectId}?tab=activity-changes`"
+            class="flex flex-col gap-1.5 rounded-xl border border-border bg-card p-3 shadow-sm transition-colors active:bg-muted/40 sm:hidden"
+          >
+            <div class="flex items-start gap-2.5">
+              <span :class="['flex h-8 w-8 shrink-0 items-center justify-center rounded-full', KIND_META[row.entry.kind].iconBg]">
+                <Briefcase :class="['h-3.5 w-3.5', KIND_META[row.entry.kind].iconColor]" />
+              </span>
+              <div class="min-w-0 flex-1">
+                <div class="flex items-center gap-1.5">
+                  <Avatar class="h-[18px] w-[18px] shrink-0">
+                    <AvatarFallback class="bg-primary/15 text-[8px] font-semibold text-primary">
+                      {{ initials(row.author?.name) }}
+                    </AvatarFallback>
+                  </Avatar>
+                  <p class="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+                    {{ row.author?.name ?? 'Sistem' }}
+                  </p>
+                  <span class="shrink-0 whitespace-nowrap text-[11px] text-muted-foreground">{{ relativeDays(row.entry.createdAt) }}</span>
+                </div>
+                <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                  <StatusBadge class="shrink-0" :label="row.project?.name ?? 'Project'" tone="warning" />
+                  <span v-if="row.entry.kind === 'shift-note'" class="inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md border border-border bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground">
+                    <Lock class="h-3 w-3" />Internal
+                  </span>
+                </div>
+              </div>
+            </div>
+            <p class="pl-[42px] text-sm text-foreground">
+              {{ row.entry.text }}
+            </p>
           </NuxtLink>
         </div>
       </div>
