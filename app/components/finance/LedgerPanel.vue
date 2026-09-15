@@ -99,7 +99,8 @@ const cashFlowRows = computed(() => {
     <RoleAccessState v-if="!hasAccess" module-label="modul Finance & ACC" />
 
     <template v-else>
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- grid-cols-1 di mobile — nominal rupiah (Total Debit/Kredit/Laba Bersih) panjang, 2-kolom bikin kepotong -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total Debit" :value="formatCurrencyIdr(trialBalance.debit)" :icon="BookOpen" />
         <StatsCard title="Total Kredit" :value="formatCurrencyIdr(trialBalance.credit)" :icon="BookOpen" />
         <StatsCard title="Neraca Saldo" :value="isBalanced ? 'Seimbang' : 'Tidak Seimbang'" :icon="Scale" :icon-color="isBalanced ? 'success' : 'destructive'" />

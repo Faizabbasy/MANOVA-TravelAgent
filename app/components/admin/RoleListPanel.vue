@@ -66,7 +66,9 @@ const portalRoles = computed(() => filteredRoles.value.filter(role => role.kind 
             <div class="mt-1.5 flex items-center gap-2">
               <span class="text-[11px] text-muted-foreground font-mono truncate">{{ role.id }}</span>
               <StatusBadge v-if="!role.isSystem" label="Custom" tone="info" />
-              <span v-if="canManage" class="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+              <!-- `opacity-0 group-hover` tidak pernah ter-trigger di layar sentuh (tidak ada hover) —
+                   aksi jadi tak terjangkau di mobile. Tampilkan selalu di bawah `sm`, tetap hover-reveal di desktop. -->
+              <span v-if="canManage" class="ml-auto flex items-center gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                 <button
                   class="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
                   title="Duplikat role ini"

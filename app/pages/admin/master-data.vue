@@ -255,7 +255,7 @@ function reactivateItem (item: Record<string, any>) {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 sm:space-y-6">
     <PageHeader
       title="Master Data"
       description="Kelola konfigurasi referensi lintas modul. Perubahan tercatat di Audit Trail; record historis yang sudah memakai nilai lama tidak terpengaruh."
@@ -265,12 +265,12 @@ function reactivateItem (item: Record<string, any>) {
     <RoleAccessState v-if="!canView('administration')" module-label="modul Administration" />
 
     <template v-else>
-      <!-- Group tabs -->
-      <div class="flex flex-wrap gap-2">
+      <!-- Group tabs — 3 item saja, dibiarkan scroll horizontal di layar sempit alih-alih wrap acak. -->
+      <div class="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible">
         <button
           v-for="group in GROUPS"
           :key="group.id"
-          class="flex items-center gap-2 px-3.5 py-2 rounded-xl border text-sm font-medium transition-colors"
+          class="flex shrink-0 items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-medium transition-colors sm:px-3.5 sm:py-2"
           :class="group.id === activeGroupId ? 'border-primary/40 bg-primary/5 text-primary' : 'border-border hover:bg-muted text-foreground'"
           @click="activeGroupId = group.id"
         >
@@ -280,16 +280,16 @@ function reactivateItem (item: Record<string, any>) {
       </div>
 
       <!-- Category sub-tabs (chips) -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         <button
           v-for="category in activeGroup.categories"
           :key="category.key"
-          class="flex flex-col items-start gap-1 p-3 rounded-xl border transition-colors text-left"
+          class="flex flex-col items-start gap-1 p-2.5 rounded-xl border transition-colors text-left sm:p-3"
           :class="category.key === activeCategoryKey ? 'border-primary/40 bg-primary/5' : 'border-border hover:bg-muted'"
           @click="activeCategoryKey = category.key"
         >
           <component :is="CATEGORY_ICONS[category.key]" class="h-5 w-5 text-muted-foreground mb-0.5" />
-          <span class="text-sm font-medium text-foreground leading-tight">{{ category.label }}</span>
+          <span class="text-sm font-medium text-foreground leading-tight line-clamp-2">{{ category.label }}</span>
           <span class="text-xs text-muted-foreground">{{ totalActive(category.list) }} aktif / {{ category.list.length }} total</span>
         </button>
       </div>

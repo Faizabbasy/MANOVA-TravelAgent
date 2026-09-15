@@ -146,38 +146,46 @@ const TONE_ICON_BG: Partial<Record<BadgeTone, string>> = {
 }
 
 type StatsCardTone = 'primary' | 'success' | 'warning' | 'destructive'
-interface StatTile { key: string; label: string; value: string; icon: typeof Receipt; tone: StatsCardTone; to: string }
+/** `kind` bedain tile angka tunggal (count, cocok buat strip kecil sejajar horizontal) vs nominal rupiah
+ * (currency, tetap ukuran normal & full-width supaya nominal panjang tidak overflow/kepotong).
+ * `shortLabel` — label ringkas khusus strip mobile (card-nya sempit), `label` penuh tetap dipakai di desktop. */
+interface StatTile { key: string; label: string; shortLabel?: string; value: string; icon: typeof Receipt; tone: StatsCardTone; to: string; kind: 'count' | 'currency' }
 
 /** Stat tile — pakai `StatsCard` (komponen yang sama dipakai di seluruh dashboard/halaman lain), dibungkus
  * `NuxtLink` supaya tetap klik-able ke halaman terkait. Sebelumnya sempat dibikin varian custom (border kiri
  * berwarna) yang bikin halaman ini terlihat beda tema dari halaman lain — dikembalikan ke komponen standar. */
 const statTilesRowOne = computed<StatTile[]>(() => [
-  { key: 'invoice-outstanding', label: 'Invoice Outstanding', value: formatNumber(outstanding.value.length), icon: Receipt, tone: 'primary', to: '/finance/invoices' },
+  { key: 'invoice-outstanding', label: 'Invoice Outstanding', shortLabel: 'Invoice OS', value: formatNumber(outstanding.value.length), icon: Receipt, tone: 'primary', to: '/finance/invoices', kind: 'count' },
   ...(canViewFinancials.value
-    ? [{ key: 'total-outstanding', label: 'Total Outstanding', value: formatCurrencyIdr(outstandingTotal.value), icon: Wallet, tone: 'success' as StatsCardTone, to: '/finance/invoices' }]
+    ? [{ key: 'total-outstanding', label: 'Total Outstanding', value: formatCurrencyIdr(outstandingTotal.value), icon: Wallet, tone: 'success' as StatsCardTone, to: '/finance/invoices', kind: 'currency' as const }]
     : []),
-  { key: 'invoice-overdue', label: 'Invoice Overdue', value: formatNumber(overdueCount.value), icon: AlertTriangle, tone: 'destructive', to: '/finance/invoices' },
+  { key: 'invoice-overdue', label: 'Invoice Overdue', shortLabel: 'Overdue', value: formatNumber(overdueCount.value), icon: AlertTriangle, tone: 'destructive', to: '/finance/invoices', kind: 'count' },
   ...(canViewFinancials.value
-    ? [{ key: 'total-hutang', label: 'Total Hutang (AP)', value: formatCurrencyIdr(payablesTotal.value), icon: HandCoins, tone: 'warning' as StatsCardTone, to: '/finance/payables#payables' }]
+    ? [{ key: 'total-hutang', label: 'Total Hutang (AP)', value: formatCurrencyIdr(payablesTotal.value), icon: HandCoins, tone: 'warning' as StatsCardTone, to: '/finance/payables#payables', kind: 'currency' as const }]
     : [])
 ])
 
 const statTilesRowTwo = computed<StatTile[]>(() => [
   ...(canViewFinancials.value
-    ? [{ key: 'collected-bulan-ini', label: 'Collected Bulan Ini', value: formatCurrencyIdr(collectedThisMonth.value), icon: ArrowDownToLine, tone: 'success' as StatsCardTone, to: '/finance/payments' }]
+    ? [{ key: 'collected-bulan-ini', label: 'Collected Bulan Ini', value: formatCurrencyIdr(collectedThisMonth.value), icon: ArrowDownToLine, tone: 'success' as StatsCardTone, to: '/finance/payments', kind: 'currency' as const }]
     : []),
-  { key: 'reconciliation-pending', label: 'Reconciliation Pending', value: formatNumber(reconciliationQueueCount.value), icon: GitCompareArrows, tone: 'primary', to: '/finance/payments#reconciliation' },
-  { key: 'closure-blocker', label: 'Financial Closure Blocker', value: formatNumber(closureBlockerCount.value), icon: ShieldAlert, tone: closureBlockerCount.value > 0 ? 'warning' : 'success', to: '#closure-readiness' }
+  { key: 'reconciliation-pending', label: 'Reconciliation Pending', shortLabel: 'Reconciliation', value: formatNumber(reconciliationQueueCount.value), icon: GitCompareArrows, tone: 'primary', to: '/finance/payments#reconciliation', kind: 'count' },
+  { key: 'closure-blocker', label: 'Financial Closure Blocker', shortLabel: 'Closure Blocker', value: formatNumber(closureBlockerCount.value), icon: ShieldAlert, tone: closureBlockerCount.value > 0 ? 'warning' : 'success', to: '#closure-readiness', kind: 'count' }
 ])
+
+/** Split untuk mobile: tile count (angka tunggal) jadi horizontal-scroll strip kecil,
+ * tile currency (nominal rupiah) tetap grid 2-kolom karena teksnya lebih panjang. */
+const mobileCountTiles = computed(() => [...statTilesRowOne.value, ...statTilesRowTwo.value].filter(tile => tile.kind === 'count'))
+const mobileCurrencyTiles = computed(() => [...statTilesRowOne.value, ...statTilesRowTwo.value].filter(tile => tile.kind === 'currency'))
 
 /** Anatomi disamakan persis dengan `StatsCard` di atasnya (chip ikon bertone di kanan judul, p-4, border+shadow
  * yang sama) — TANPA baris "Buka X →" terpisah di bawah (itu yang bikin card ini terlihat beda/ada
  * "list" tambahan dibanding stat tile lain). Seluruh card sudah `NuxtLink`, jadi teks link terpisah redundan. */
 const quickLinkTiles = computed<StatTile[]>(() => [
-  { key: 'invoices', label: 'Invoices', value: 'Lihat seluruh invoice lintas-project', icon: FileText, tone: 'primary', to: '/finance/invoices' },
-  { key: 'payments', label: 'Payments', value: 'Lihat seluruh payment lintas-project', icon: CreditCard, tone: 'success', to: '/finance/payments' },
-  { key: 'notes', label: 'Credit/Debit Notes', value: 'Lihat seluruh Credit/Debit Note lintas-project', icon: FileStack, tone: 'warning', to: '/finance/invoices#notes' },
-  { key: 'reconciliation', label: 'Reconciliation', value: `${reconciliationQueueCount.value} Supplier Invoice perlu ditriase`, icon: GitCompareArrows, tone: 'destructive', to: '/finance/payments#reconciliation' }
+  { key: 'invoices', label: 'Invoices', value: 'Lihat seluruh invoice lintas-project', icon: FileText, tone: 'primary', to: '/finance/invoices', kind: 'currency' },
+  { key: 'payments', label: 'Payments', value: 'Lihat seluruh payment lintas-project', icon: CreditCard, tone: 'success', to: '/finance/payments', kind: 'currency' },
+  { key: 'notes', label: 'Credit/Debit Notes', value: 'Lihat seluruh Credit/Debit Note lintas-project', icon: FileStack, tone: 'warning', to: '/finance/invoices#notes', kind: 'currency' },
+  { key: 'reconciliation', label: 'Reconciliation', value: `${reconciliationQueueCount.value} Supplier Invoice perlu ditriase`, icon: GitCompareArrows, tone: 'destructive', to: '/finance/payments#reconciliation', kind: 'currency' }
 ])
 </script>
 
@@ -192,13 +200,30 @@ const quickLinkTiles = computed<StatTile[]>(() => [
     <RoleAccessState v-if="!canView('finance')" module-label="modul Finance" />
 
     <template v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Mobile: tile angka tunggal jadi strip horizontal-scroll kecil (label ringkas, muat penuh tanpa
+           kepotong); tile nominal rupiah TIDAK diperkecil — full-width satu kolom & ukuran normal supaya
+           angka panjang (mis. "Rp 1.725.000.000") tidak overflow/kepotong. -->
+      <div class="space-y-2 sm:hidden">
+        <div class="-mx-1 grid grid-flow-col auto-cols-[minmax(110px,1fr)] gap-2 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <NuxtLink v-for="tile in mobileCountTiles" :key="tile.key" :to="tile.to" class="block">
+            <StatsCard size="sm" :title="tile.shortLabel ?? tile.label" :value="tile.value" :icon="tile.icon" :icon-color="tile.tone" />
+          </NuxtLink>
+        </div>
+        <div class="space-y-2">
+          <NuxtLink v-for="tile in mobileCurrencyTiles" :key="tile.key" :to="tile.to" class="block">
+            <StatsCard :title="tile.label" :value="tile.value" :icon="tile.icon" :icon-color="tile.tone" />
+          </NuxtLink>
+        </div>
+      </div>
+
+      <!-- Desktop: grid asli, tidak diubah -->
+      <div class="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <NuxtLink v-for="tile in statTilesRowOne" :key="tile.key" :to="tile.to" class="block">
           <StatsCard :title="tile.label" :value="tile.value" :icon="tile.icon" :icon-color="tile.tone" />
         </NuxtLink>
       </div>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="hidden sm:grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <NuxtLink v-for="tile in statTilesRowTwo" :key="tile.key" :to="tile.to" class="block">
           <StatsCard :title="tile.label" :value="tile.value" :icon="tile.icon" :icon-color="tile.tone" />
         </NuxtLink>

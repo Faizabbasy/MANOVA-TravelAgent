@@ -70,33 +70,36 @@ function submitCreate () {
     <RoleAccessState v-if="!canView('vendor')" module-label="modul Vendor & Partner" />
 
     <template v-else>
-      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
         <div class="relative flex-1 max-w-sm w-full">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input v-model="searchQuery" placeholder="Cari nama vendor..." class="pl-9" />
         </div>
-        <select
-          v-model="serviceTypeFilter"
-          class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-        >
-          <option value="all">
-            Semua Jenis Layanan
-          </option>
-          <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
-            {{ type.label }}
-          </option>
-        </select>
 
-        <ResponsiveFormSheet
-          v-if="canManageVendor"
-          v-model:open="isCreateOpen"
-          title="Tambah Vendor Baru"
-          description="Vendor baru akan tersedia untuk ditugaskan ke service project."
-          content-class="max-w-md"
-        >
-          <template #trigger>
-            <Button class="ml-auto"><Plus class="h-4 w-4 mr-1.5" />Tambah Vendor</Button>
-          </template>
+        <!-- Select + tombol sejajar horizontal di satu baris (mobile maupun desktop), bukan ditumpuk. -->
+        <div class="flex items-center gap-3">
+          <select
+            v-model="serviceTypeFilter"
+            class="min-w-0 flex-1 appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer sm:flex-initial"
+          >
+            <option value="all">
+              Semua Jenis Layanan
+            </option>
+            <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+              {{ type.label }}
+            </option>
+          </select>
+
+          <ResponsiveFormSheet
+            v-if="canManageVendor"
+            v-model:open="isCreateOpen"
+            title="Tambah Vendor Baru"
+            description="Vendor baru akan tersedia untuk ditugaskan ke service project."
+            content-class="max-w-md"
+          >
+            <template #trigger>
+              <Button class="shrink-0 sm:ml-auto"><Plus class="h-4 w-4 mr-1.5" />Tambah Vendor</Button>
+            </template>
           <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="vendor-name">Nama Vendor</Label>
@@ -136,6 +139,7 @@ function submitCreate () {
             </Button>
           </template>
         </ResponsiveFormSheet>
+        </div>
       </div>
 
       <SectionCard>

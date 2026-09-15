@@ -83,7 +83,8 @@ const BUCKET_TONE: Record<AgingBucketKey, string> = {
     <RoleAccessState v-if="!hasAccess" module-label="modul Finance & ACC" />
 
     <template v-else>
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- grid-cols-1 di mobile — nominal rupiah panjang, 2-kolom bikin kepotong -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total Hutang" :value="formatCurrencyIdr(totals.outstanding)" :icon="ArrowUpFromLine" icon-color="warning" />
         <StatsCard title="Tertunggak > 30 Hari" :value="formatCurrencyIdr(totals.overdue)" :icon="AlertTriangle" :icon-color="totals.overdue ? 'destructive' : 'success'" />
         <StatsCard title="Jumlah Vendor" :value="String(totals.vendors)" :icon="Building2" />

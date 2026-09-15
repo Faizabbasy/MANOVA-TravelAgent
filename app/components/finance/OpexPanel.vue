@@ -149,13 +149,15 @@ function setStatus (entry: OpexEntry, status: OpexEntry['status']) {
             {{ project.name }}
           </option>
         </select>
-        <Button v-if="canManage" size="sm" class="ml-auto" @click="openCreate">
-          <Plus class="h-4 w-4 mr-1.5" />
+        <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+        <Button v-if="canManage" size="sm" class="ml-auto fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none" @click="openCreate">
+          <Plus class="h-4 w-4" />
           Tambah Opex
         </Button>
       </div>
 
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- grid-cols-1 di mobile — nominal rupiah panjang, 2-kolom bikin kepotong -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total Opex Periode" :value="formatCurrencyIdr(stats.total)" :icon="TrendingDown" icon-color="destructive" />
         <StatsCard title="Sudah Dibayar" :value="formatCurrencyIdr(stats.paid)" :icon="CheckCircle2" icon-color="success" />
         <StatsCard title="Menunggu Persetujuan" :value="formatCurrencyIdr(stats.pending)" :icon="Clock" icon-color="warning" />

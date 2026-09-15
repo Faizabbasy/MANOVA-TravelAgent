@@ -99,7 +99,7 @@ const sparkGradientId = `spark-fill-${useId()}`
       </span>
     </div>
     <div v-else class="flex items-start justify-between gap-3">
-      <p :class="cn('min-w-0 flex-1 truncate font-medium uppercase tracking-wide text-muted-foreground', props.size === 'sm' ? 'text-[10px]' : 'text-xs')">
+      <p :class="cn('min-w-0 flex-1 line-clamp-2 break-words font-medium uppercase tracking-wide text-muted-foreground', props.size === 'sm' ? 'text-[10px]' : 'text-xs')">
         {{ title }}
       </p>
       <div :class="cn('shrink-0 rounded-lg', props.size === 'sm' ? 'p-1.5' : 'p-2.5', iconColorClasses[iconColor])">

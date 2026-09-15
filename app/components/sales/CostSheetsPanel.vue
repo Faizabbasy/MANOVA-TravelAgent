@@ -111,8 +111,12 @@ function submitCreate () {
         scroll
       >
         <template #trigger>
-          <Button @click="openCreateDialog">
-            <Plus class="h-4 w-4 mr-1.5" />Buat Cost Sheet
+          <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+          <Button
+            class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+            @click="openCreateDialog"
+          >
+            <Plus class="h-4 w-4" />Buat Cost Sheet
           </Button>
         </template>
         <div class="space-y-4 py-2">

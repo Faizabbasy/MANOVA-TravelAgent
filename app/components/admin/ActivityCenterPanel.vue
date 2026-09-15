@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { SlidersHorizontal } from 'lucide-vue-next'
 import { SYSTEM_EVENTS, VENDOR_QUOTATIONS, getUserById, getQuotationById, getPartyById, getProjectById } from '~/data'
 import { formatDateTime } from '~/utils/format'
 import type { SystemEvent, SystemEventModule } from '~/types/activity'
@@ -48,6 +49,14 @@ const userOptions = computed(() => {
 })
 
 const allEvents = [...SYSTEM_EVENTS].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+
+/** Filter di mobile — 2 select (Modul/User) disembunyikan di belakang tombol Filter (bottom Sheet),
+ * pola sama SalesLeadsPanel — search tetap tampil langsung. */
+const isMobileFilterOpen = ref(false)
+const activeFilterCount = computed(() => [
+  moduleFilter.value !== 'all',
+  userFilter.value !== 'all'
+].filter(Boolean).length)
 
 const filteredEvents = computed(() => {
   let result = allEvents
@@ -109,25 +118,84 @@ function eventLink (event: SystemEvent): string | undefined {
         </div>
       </div>
 
-      <div class="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3">
-        <Input v-model="searchQuery" placeholder="Cari pesan atau entity ID..." class="max-w-sm" />
-        <select v-model="moduleFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">
-            Semua Modul
-          </option>
-          <option v-for="(label, key) in MODULE_LABELS" :key="key" :value="key">
-            {{ label }}
-          </option>
-        </select>
-        <select v-model="userFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">
-            Semua User
-          </option>
-          <option v-for="user in userOptions" :key="user.id" :value="user.id">
-            {{ user.name }}
-          </option>
-        </select>
-        <span class="text-xs text-muted-foreground ml-auto">Menampilkan {{ filteredEvents.length }} dari {{ allEvents.length }} entri</span>
+      <div class="space-y-3">
+        <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+          <Input v-model="searchQuery" placeholder="Cari pesan atau entity ID..." class="max-w-sm" />
+
+          <!-- Desktop/tablet — filter inline, tidak diubah. -->
+          <div class="hidden lg:flex lg:items-center gap-3">
+            <select v-model="moduleFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="all">
+                Semua Modul
+              </option>
+              <option v-for="(label, key) in MODULE_LABELS" :key="key" :value="key">
+                {{ label }}
+              </option>
+            </select>
+            <select v-model="userFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="all">
+                Semua User
+              </option>
+              <option v-for="user in userOptions" :key="user.id" :value="user.id">
+                {{ user.name }}
+              </option>
+            </select>
+            <span class="text-xs text-muted-foreground ml-auto">Menampilkan {{ filteredEvents.length }} dari {{ allEvents.length }} entri</span>
+          </div>
+        </div>
+
+        <!-- Mobile — 2 select di belakang tombol Filter (bottom Sheet), supaya tidak numpuk vertikal. -->
+        <div class="lg:hidden">
+          <Sheet v-model:open="isMobileFilterOpen">
+            <SheetTrigger as-child>
+              <Button variant="outline" size="sm" class="w-full justify-start">
+                <SlidersHorizontal class="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                Filter
+                <span v-if="activeFilterCount" class="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                  {{ activeFilterCount }}
+                </span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" class="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+              <SheetHeader class="text-left">
+                <SheetTitle>Filter Activity Center</SheetTitle>
+              </SheetHeader>
+              <div class="space-y-3 py-4">
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Modul</Label>
+                  <select v-model="moduleFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="all">
+                      Semua Modul
+                    </option>
+                    <option v-for="(label, key) in MODULE_LABELS" :key="key" :value="key">
+                      {{ label }}
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">User</Label>
+                  <select v-model="userFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="all">
+                      Semua User
+                    </option>
+                    <option v-for="user in userOptions" :key="user.id" :value="user.id">
+                      {{ user.name }}
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <SheetFooter class="flex-row gap-2">
+                <Button variant="outline" class="flex-1" @click="isMobileFilterOpen = false">
+                  Terapkan
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </div>
+
+        <p class="lg:hidden text-xs text-muted-foreground">
+          Menampilkan {{ filteredEvents.length }} dari {{ allEvents.length }} entri
+        </p>
       </div>
 
       <SectionCard>

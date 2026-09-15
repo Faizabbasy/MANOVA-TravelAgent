@@ -29,16 +29,22 @@ const overdueCount = computed(() => INVOICES.filter(invoice => isInvoiceOverdue(
 const payablesTotal = computed(() => getPayables().reduce((sum, row) => sum + row.outstandingIdr, 0))
 
 type StatsCardTone = 'primary' | 'success' | 'warning' | 'destructive'
-interface StatTile { key: string; label: string; value: string; icon: typeof Receipt; tone: StatsCardTone; to: string }
+/** `kind` bedain tile angka tunggal (count, cocok buat strip kecil sejajar horizontal) vs nominal rupiah
+ * (currency, tetap ukuran normal & full-width supaya nominal panjang tidak overflow/kepotong).
+ * `shortLabel` — label ringkas khusus strip mobile (card-nya sempit), `label` penuh tetap dipakai di desktop. */
+interface StatTile { key: string; label: string; shortLabel?: string; value: string; icon: typeof Receipt; tone: StatsCardTone; to: string; kind: 'count' | 'currency' }
 
 /** Pakai `StatsCard` (komponen yang sama dipakai di seluruh dashboard/halaman lain), dibungkus `NuxtLink`
  * supaya tetap klik-able jump ke section terkait. */
 const statTiles = computed<StatTile[]>(() => [
-  { key: 'invoice-outstanding', label: 'Invoice Outstanding', value: formatNumber(outstanding.value.length), icon: Receipt, tone: 'primary', to: '#invoice' },
-  { key: 'total-outstanding', label: 'Total Outstanding', value: formatCurrencyIdr(outstandingTotal.value), icon: Wallet, tone: 'success', to: '#receivables' },
-  { key: 'invoice-overdue', label: 'Invoice Overdue', value: formatNumber(overdueCount.value), icon: AlertTriangle, tone: 'destructive', to: '#invoice' },
-  { key: 'total-hutang', label: 'Total Hutang (AP)', value: formatCurrencyIdr(payablesTotal.value), icon: HandCoins, tone: 'warning', to: '/finance/payables#payables' }
+  { key: 'invoice-outstanding', label: 'Invoice Outstanding', shortLabel: 'Invoice OS', value: formatNumber(outstanding.value.length), icon: Receipt, tone: 'primary', to: '#invoice', kind: 'count' },
+  { key: 'total-outstanding', label: 'Total Outstanding', value: formatCurrencyIdr(outstandingTotal.value), icon: Wallet, tone: 'success', to: '#receivables', kind: 'currency' },
+  { key: 'invoice-overdue', label: 'Invoice Overdue', shortLabel: 'Overdue', value: formatNumber(overdueCount.value), icon: AlertTriangle, tone: 'destructive', to: '#invoice', kind: 'count' },
+  { key: 'total-hutang', label: 'Total Hutang (AP)', value: formatCurrencyIdr(payablesTotal.value), icon: HandCoins, tone: 'warning', to: '/finance/payables#payables', kind: 'currency' }
 ])
+
+const countTiles = computed(() => statTiles.value.filter(tile => tile.kind === 'count'))
+const currencyTiles = computed(() => statTiles.value.filter(tile => tile.kind === 'currency'))
 </script>
 
 <template>
@@ -49,7 +55,24 @@ const statTiles = computed<StatTile[]>(() => [
       :breadcrumb="[{ label: 'Finance & ACC', to: '/finance' }, { label: 'Invoice & Piutang' }]"
     />
 
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+    <!-- Mobile: tile angka tunggal jadi strip horizontal-scroll kecil (label ringkas, muat penuh); tile
+         nominal rupiah TIDAK diperkecil — full-width satu kolom & ukuran normal supaya angka panjang
+         tidak overflow/kepotong. -->
+    <div class="space-y-2 sm:hidden">
+      <div class="-mx-1 grid grid-flow-col auto-cols-[minmax(110px,1fr)] gap-2 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <NuxtLink v-for="tile in countTiles" :key="tile.key" :to="tile.to" class="block">
+          <StatsCard size="sm" :title="tile.shortLabel ?? tile.label" :value="tile.value" :icon="tile.icon" :icon-color="tile.tone" />
+        </NuxtLink>
+      </div>
+      <div class="space-y-2">
+        <NuxtLink v-for="tile in currencyTiles" :key="tile.key" :to="tile.to" class="block">
+          <StatsCard :title="tile.label" :value="tile.value" :icon="tile.icon" :icon-color="tile.tone" />
+        </NuxtLink>
+      </div>
+    </div>
+
+    <!-- Desktop: grid asli, tidak diubah -->
+    <div class="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
       <NuxtLink v-for="tile in statTiles" :key="tile.key" :to="tile.to" class="block">
         <StatsCard :title="tile.label" :value="tile.value" :icon="tile.icon" :icon-color="tile.tone" />
       </NuxtLink>

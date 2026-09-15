@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Plus, List, LayoutGrid, Inbox as InboxIcon, Eye } from 'lucide-vue-next'
+import { Search, Plus, List, LayoutGrid, Inbox as InboxIcon, Eye, SlidersHorizontal } from 'lucide-vue-next'
 import {
   LEADS, createLead, getLeadWorkflowStatus, getUserById, getLeadFollowUps, getLeadDuplicateCandidates
 } from '~/data'
@@ -38,6 +38,17 @@ const showArchived = ref(false)
 
 /** "Assigned Leads" (Section 05) — AE melihat Lead yang di-handover ke dirinya (`handedOverTo`), terpisah dari `ownerFilter` (Sales owner). */
 const assignedToMeOnly = ref(false)
+
+/** Filter di mobile — 3 select (Stage/Owner/Source) + toggle Assigned to Me disembunyikan di belakang satu
+ * tombol "Filter" (bottom Sheet) supaya tidak numpuk sendiri-sendiri di layar sempit, pola sama Documents
+ * & Communication. Badge menunjukkan jumlah filter aktif tanpa perlu buka sheet-nya dulu. */
+const isMobileFilterOpen = ref(false)
+const activeFilterCount = computed(() => [
+  stageFilter.value !== 'all',
+  ownerFilter.value !== 'all',
+  sourceFilter.value !== 'all',
+  assignedToMeOnly.value
+].filter(Boolean).length)
 
 const ownerOptions = computed(() => {
   const ids = [...new Set(LEADS.map(lead => lead.ownerId))]
@@ -138,44 +149,119 @@ function openDrawer (lead: Lead) {
     <RoleAccessState v-if="!canView('sales')" module-label="modul Sales" />
 
     <template v-else>
-      <div class="flex flex-col lg:flex-row lg:items-center gap-3">
-        <div class="relative flex-1 w-full">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input v-model="searchQuery" placeholder="Cari nama atau company..." class="pl-9" />
-        </div>
-        <select v-model="stageFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">
-            Semua Stage
-          </option>
-          <option v-for="stage in LEAD_STAGES" :key="stage.value" :value="stage.value">
-            {{ stage.label }}
-          </option>
-        </select>
-        <select v-model="ownerFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">
-            Semua Owner
-          </option>
-          <option v-for="user in ownerOptions" :key="user.id" :value="user.id">
-            {{ user.name }}
-          </option>
-        </select>
-        <select v-model="sourceFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">
-            Semua Sumber
-          </option>
-          <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">
-            {{ source.label }}
-          </option>
-        </select>
+      <div class="space-y-3">
+        <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+          <div class="relative flex-1 w-full">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input v-model="searchQuery" placeholder="Cari nama atau company..." class="pl-9" />
+          </div>
 
-        <Button
-          v-if="showAssignedToMeToggle"
-          :variant="assignedToMeOnly ? 'default' : 'outline'"
-          size="sm"
-          @click="assignedToMeOnly = !assignedToMeOnly"
-        >
-          Assigned to Me
-        </Button>
+          <!-- Desktop/tablet — filter inline, tidak diubah. -->
+          <div class="hidden lg:flex lg:items-center gap-3">
+            <select v-model="stageFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="all">
+                Semua Stage
+              </option>
+              <option v-for="stage in LEAD_STAGES" :key="stage.value" :value="stage.value">
+                {{ stage.label }}
+              </option>
+            </select>
+            <select v-model="ownerFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="all">
+                Semua Owner
+              </option>
+              <option v-for="user in ownerOptions" :key="user.id" :value="user.id">
+                {{ user.name }}
+              </option>
+            </select>
+            <select v-model="sourceFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="all">
+                Semua Sumber
+              </option>
+              <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">
+                {{ source.label }}
+              </option>
+            </select>
+
+            <Button
+              v-if="showAssignedToMeToggle"
+              :variant="assignedToMeOnly ? 'default' : 'outline'"
+              size="sm"
+              @click="assignedToMeOnly = !assignedToMeOnly"
+            >
+              Assigned to Me
+            </Button>
+          </div>
+        </div>
+
+        <!-- Mobile — 3 select (Stage/Owner/Source) + toggle Assigned to Me di belakang tombol Filter (bottom Sheet). -->
+        <div class="lg:hidden">
+          <Sheet v-model:open="isMobileFilterOpen">
+            <SheetTrigger as-child>
+              <Button variant="outline" size="sm" class="w-full justify-start">
+                <SlidersHorizontal class="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                Filter
+                <span v-if="activeFilterCount" class="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                  {{ activeFilterCount }}
+                </span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" class="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+              <SheetHeader class="text-left">
+                <SheetTitle>Filter Lead</SheetTitle>
+              </SheetHeader>
+              <div class="space-y-3 py-4">
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Stage</Label>
+                  <select v-model="stageFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="all">
+                      Semua Stage
+                    </option>
+                    <option v-for="stage in LEAD_STAGES" :key="stage.value" :value="stage.value">
+                      {{ stage.label }}
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Owner</Label>
+                  <select v-model="ownerFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="all">
+                      Semua Owner
+                    </option>
+                    <option v-for="user in ownerOptions" :key="user.id" :value="user.id">
+                      {{ user.name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Sumber</Label>
+                  <select v-model="sourceFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="all">
+                      Semua Sumber
+                    </option>
+                    <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">
+                      {{ source.label }}
+                    </option>
+                  </select>
+                </div>
+                <Button
+                  v-if="showAssignedToMeToggle"
+                  :variant="assignedToMeOnly ? 'default' : 'outline'"
+                  size="sm"
+                  class="w-full justify-start"
+                  @click="assignedToMeOnly = !assignedToMeOnly"
+                >
+                  Assigned to Me
+                </Button>
+              </div>
+              <SheetFooter class="flex-row gap-2">
+                <Button variant="outline" class="flex-1" @click="isMobileFilterOpen = false">
+                  Terapkan
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </div>
 
         <div class="flex items-center gap-3">
           <div class="flex items-center gap-1 rounded-lg border border-border p-0.5">
@@ -197,7 +283,12 @@ function openDrawer (lead: Lead) {
             description='Lead baru masuk dengan stage "New", ditugaskan ke Anda.'
           >
             <template #trigger>
-              <Button><Plus class="h-4 w-4 mr-1.5" />New Lead</Button>
+              <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+              <Button
+                class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+              >
+                <Plus class="h-4 w-4" />New Lead
+              </Button>
             </template>
             <div class="space-y-4 py-2">
               <div class="space-y-1.5">
@@ -358,9 +449,13 @@ function openDrawer (lead: Lead) {
         />
       </SectionCard>
 
-      <!-- Kanban view -->
-      <div v-else-if="viewMode === 'kanban'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div v-for="stage in LEAD_STAGES" :key="stage.value" class="space-y-3">
+      <!-- Kanban view — mobile: swimlane horizontal-scroll per stage (bukan ditumpuk vertikal 4x layar
+           penuh); desktop: grid 4 kolom seperti semula, tidak diubah. -->
+      <div
+        v-else-if="viewMode === 'kanban'"
+        class="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-2 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:snap-none sm:grid-cols-2 sm:overflow-visible sm:pb-0 lg:grid-cols-4"
+      >
+        <div v-for="stage in LEAD_STAGES" :key="stage.value" class="w-[82vw] max-w-[300px] shrink-0 snap-start space-y-3 sm:w-auto sm:max-w-none sm:shrink">
           <div class="flex items-center justify-between px-1">
             <StatusBadge :label="stage.label" :tone="stage.tone" />
             <span class="text-xs text-muted-foreground">{{ leadsByStage.get(stage.value)?.length ?? 0 }}</span>
@@ -394,7 +489,7 @@ function openDrawer (lead: Lead) {
           <li
             v-for="lead in filteredLeads"
             :key="lead.id"
-            class="py-3 flex items-center gap-3 cursor-pointer hover:bg-muted/50 -mx-6 px-6"
+            class="py-3 flex items-center gap-3 cursor-pointer hover:bg-muted/50 -mx-5 px-5"
             @click="openDrawer(lead)"
           >
             <Avatar class="h-9 w-9 shrink-0">

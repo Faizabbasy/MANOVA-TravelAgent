@@ -345,14 +345,15 @@ function goToProject (projectId?: string) {
         </div>
       </div>
 
+      <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa (di toolbar atas), tidak diubah. -->
       <button
         v-if="canManage"
         type="button"
         aria-label="Tambah Acara"
-        class="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-90 sm:hidden"
+        class="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-12 items-center gap-2 rounded-full bg-primary pl-4 pr-5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-90 sm:hidden"
         @click="openAddEvent"
       >
-        <Plus class="h-6 w-6" />
+        <Plus class="h-4 w-4" />Tambah Acara
       </button>
 
       <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">

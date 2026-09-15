@@ -517,8 +517,14 @@ function submitChangeRequest () {
         <TabsContent value="travelers">
           <SectionCard title="Traveler / Participant">
             <template #actions>
-              <Button size="sm" variant="outline" @click="openTravelerDialog(null)">
-                <Plus class="h-4 w-4 mr-1.5" />Tambah Traveler
+              <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+              <Button
+                size="sm"
+                variant="outline"
+                class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+                @click="openTravelerDialog(null)"
+              >
+                <Plus class="h-4 w-4" />Tambah Traveler
               </Button>
             </template>
             <ResponsiveDataView v-if="travelers.length" :items="travelers" :get-key="traveler => traveler.id">
@@ -846,8 +852,13 @@ function submitChangeRequest () {
                   description="Sampaikan perubahan yang Anda butuhkan untuk Project Order ini."
                 >
                   <template #trigger>
-                    <Button size="sm" variant="outline">
-                      <Plus class="h-4 w-4 mr-1.5" />Ajukan Perubahan
+                    <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+                    >
+                      <Plus class="h-4 w-4" />Ajukan Perubahan
                     </Button>
                   </template>
                   <div class="space-y-4 py-2">
@@ -956,8 +967,14 @@ function submitChangeRequest () {
         <TabsContent value="commodity">
           <SectionCard title="Kebutuhan Komoditas" description="Kebutuhan komoditas yang Anda ajukan untuk project ini — terpisah dari katalog komoditas milik Vendor.">
             <template #actions>
-              <Button size="sm" variant="outline" @click="openCreateRequirement">
-                <Plus class="h-4 w-4 mr-1.5" />Tambah Kebutuhan
+              <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+              <Button
+                size="sm"
+                variant="outline"
+                class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+                @click="openCreateRequirement"
+              >
+                <Plus class="h-4 w-4" />Tambah Kebutuhan
               </Button>
             </template>
             <ResponsiveDataView v-if="requirements.length" :items="requirements" :get-key="requirement => requirement.id">

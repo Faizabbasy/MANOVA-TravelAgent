@@ -55,7 +55,8 @@ const maxBucketAmount = computed(() => Math.max(1, ...aging.value.map(bucket => 
     <RoleAccessState v-if="!hasAccess" module-label="modul Finance & ACC" />
 
     <template v-else>
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- grid-cols-1 di mobile — semua nominal rupiah, 2-kolom bikin kepotong -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total Piutang" :value="formatCurrencyIdr(totals.receivable)" :icon="ArrowDownToLine" icon-color="primary" />
         <StatsCard title="Piutang Jatuh Tempo" :value="formatCurrencyIdr(totals.overdue)" :icon="AlertTriangle" :icon-color="totals.overdue ? 'destructive' : 'success'" />
         <StatsCard title="Total Hutang (AP)" :value="formatCurrencyIdr(totals.payable)" :icon="Building2" icon-color="warning" />

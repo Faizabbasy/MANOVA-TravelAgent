@@ -38,7 +38,8 @@ const calculation = computed(() => {
     <RoleAccessState v-if="!hasAccess" module-label="modul Finance & ACC" />
 
     <template v-else>
-      <div class="grid grid-cols-2 lg:grid-cols-3 gap-4">
+      <!-- grid-cols-1 di mobile — NPWP bisa panjang, 2-kolom bikin kepotong -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
         <StatsCard title="Aturan Pajak Aktif" :value="`${activeTaxRules.length}/${TAX_RULES.length}`" :icon="Percent" icon-color="primary" />
         <StatsCard title="Mata Uang Aktif" :value="`${activeCurrencies.length}/${MASTER_CURRENCIES.length}`" :icon="Coins" icon-color="warning" />
         <StatsCard title="NPWP Perusahaan" :value="ORGANIZATION_PROFILE.npwp || '—'" :icon="Calculator" />

@@ -28,7 +28,7 @@ const canAdmin = computed(() => canView('administration'))
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6 sm:space-y-8">
     <PageHeader
       title="Administration"
       description="Master data, user, role & permission, audit trail, dan profil organisasi."

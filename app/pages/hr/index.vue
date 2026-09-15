@@ -340,7 +340,18 @@ function submitPayrollLineForm () {
     <RoleAccessState v-if="!hasAccess" module-label="modul Human Resource" />
 
     <template v-else>
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Mobile — 3 card angka pendek (headcount/cuti/kehadiran) jadi strip horizontal ringkas; Payroll
+           (nominal rupiah panjang) tetap full-width ukuran normal supaya tidak overflow. Desktop tidak diubah. -->
+      <div class="space-y-2 sm:hidden">
+        <div class="-mx-1 grid grid-flow-col auto-cols-[minmax(110px,1fr)] gap-2 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <StatsCard size="sm" title="Karyawan Aktif" :value="String(stats.headcount)" :icon="Users" icon-color="primary" />
+          <StatsCard size="sm" title="Sedang Cuti" :value="String(stats.onLeave)" :icon="CalendarCheck" :icon-color="stats.onLeave ? 'warning' : 'success'" />
+          <StatsCard size="sm" title="Rata-rata Kehadiran" :value="formatPercentage(stats.attendanceRate)" :icon="CalendarCheck" :icon-color="stats.attendanceRate >= 90 ? 'success' : 'warning'" />
+        </div>
+        <StatsCard title="Payroll Periode Terakhir" :value="formatCurrencyIdr(stats.monthlyPayroll)" :icon="Wallet" />
+      </div>
+
+      <div class="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Karyawan Aktif" :value="String(stats.headcount)" :icon="Users" icon-color="primary" />
         <StatsCard title="Sedang Cuti" :value="String(stats.onLeave)" :icon="CalendarCheck" :icon-color="stats.onLeave ? 'warning' : 'success'" />
         <StatsCard title="Rata-rata Kehadiran" :value="formatPercentage(stats.attendanceRate)" :icon="CalendarCheck" :icon-color="stats.attendanceRate >= 90 ? 'success' : 'warning'" />
@@ -372,12 +383,12 @@ function submitPayrollLineForm () {
         <TabsContent value="employees" class="pt-4">
           <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Data Karyawan" :description="`${filteredEmployees.length} dari ${EMPLOYEES.length} karyawan`">
             <template #actions>
-              <div class="flex flex-nowrap items-center gap-2">
-                <div class="relative w-48 shrink-0 sm:w-64">
+              <div class="flex flex-wrap sm:flex-nowrap items-center gap-2">
+                <div class="relative w-full sm:w-64 shrink-0">
                   <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input v-model="searchQuery" placeholder="Cari nama atau posisi..." class="pl-9" />
                 </div>
-                <select v-model="departmentFilter" class="shrink-0 appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <select v-model="departmentFilter" class="w-full sm:w-auto shrink-0 appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
                   <option value="all">
                     Semua Departemen
                   </option>

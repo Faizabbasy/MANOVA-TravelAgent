@@ -196,8 +196,9 @@ function submitCreditNote () {
           scroll
         >
           <template #trigger>
-            <Button size="sm">
-              <Plus class="h-4 w-4 mr-1.5" />Buat Invoice
+            <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+            <Button size="sm" class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none">
+              <Plus class="h-4 w-4" />Buat Invoice
             </Button>
           </template>
             <div class="space-y-4 py-2">

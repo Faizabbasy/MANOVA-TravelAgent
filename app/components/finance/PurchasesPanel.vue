@@ -98,15 +98,16 @@ function nextStatus (status: PurchaseStatus): PurchaseStatus | null {
 
     <template v-else>
       <div class="flex flex-wrap items-center gap-3">
-        <div class="grid grid-cols-2 gap-3 flex-1">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 flex-1">
           <StatsCard title="Total Purchases (Diterima/Dibayar)" :value="formatCurrencyIdr(totalReceivedOrPaidIdr)" :icon="ShoppingCart" icon-color="primary" />
           <StatsCard title="Menunggu Diproses" :value="String(pendingCount)" :icon="ShoppingCart" :icon-color="pendingCount ? 'warning' : 'success'" />
         </div>
 
         <Sheet v-if="canManagePurchases" v-model:open="isCreateOpen">
           <SheetTrigger as-child>
-            <Button @click="openCreate">
-              <Plus class="h-4 w-4 mr-1.5" />
+            <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+            <Button class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none" @click="openCreate">
+              <Plus class="h-4 w-4" />
               Tambah Purchase
             </Button>
           </SheetTrigger>

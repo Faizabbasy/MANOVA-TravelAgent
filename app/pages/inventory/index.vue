@@ -228,7 +228,18 @@ function onCompleteMaintenance (maintenanceId: string) {
     <RoleAccessState v-if="!hasAccess" module-label="modul Inventory" />
 
     <template v-else>
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Mobile — 3 card angka pendek (Total/Tersedia/Maintenance) jadi strip horizontal ringkas; "Nilai
+           Aset" (nominal rupiah panjang) tetap full-width ukuran normal supaya tidak overflow/kepotong. -->
+      <div class="space-y-2 sm:hidden">
+        <div class="-mx-1 grid grid-flow-col auto-cols-[minmax(110px,1fr)] gap-2 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <StatsCard size="sm" title="Total Aset" :value="String(summary.total)" :icon="Package" icon-color="primary" />
+          <StatsCard size="sm" title="Tersedia" :value="String(summary.available)" :icon="PackageCheck" icon-color="success" />
+          <StatsCard size="sm" title="Maintenance Terlewat" :value="String(summary.overdueMaintenance)" :icon="Wrench" :icon-color="summary.overdueMaintenance ? 'destructive' : 'success'" />
+        </div>
+        <StatsCard title="Nilai Aset" :value="formatCurrencyIdr(summary.totalValueIdr)" :icon="Package" />
+      </div>
+
+      <div class="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total Aset" :value="String(summary.total)" :icon="Package" icon-color="primary" />
         <StatsCard title="Tersedia" :value="String(summary.available)" :icon="PackageCheck" icon-color="success" />
         <StatsCard title="Maintenance Terlewat" :value="String(summary.overdueMaintenance)" :icon="Wrench" :icon-color="summary.overdueMaintenance ? 'destructive' : 'success'" />
@@ -357,7 +368,7 @@ function onCompleteMaintenance (maintenanceId: string) {
 
           <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Daftar Aset" :description="`${filteredAssets.length} dari ${ASSETS.length} aset`">
             <template #actions>
-              <div class="relative w-48 shrink-0 sm:w-64">
+              <div class="relative w-full shrink-0 sm:w-64">
                 <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input v-model="searchQuery" placeholder="Cari nama, kode, atau merek..." class="pl-9" />
               </div>
@@ -801,7 +812,7 @@ function onCompleteMaintenance (maintenanceId: string) {
           <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Utilisasi" description="Berapa lama tiap aset benar-benar terpakai dalam 90 hari terakhir — dasar keputusan menambah atau melepas aset.">
             <ul class="divide-y divide-border">
               <li v-for="row in utilization" :key="row.assetId" class="flex items-center gap-3 py-2">
-                <span class="w-40 shrink-0 truncate text-sm text-foreground sm:w-56" :title="row.assetName">{{ row.assetName }}</span>
+                <span class="w-20 shrink-0 truncate text-sm text-foreground sm:w-56" :title="row.assetName">{{ row.assetName }}</span>
                 <span class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                   <span
                     :class="cn('block h-full rounded-full', row.utilizationPercent >= 60 ? 'bg-success' : row.utilizationPercent >= 25 ? 'bg-warning' : 'bg-destructive')"
@@ -899,16 +910,15 @@ function onCompleteMaintenance (maintenanceId: string) {
           </template>
       </ResponsiveFormSheet>
 
-      <Dialog :open="Boolean(detailAsset)" @update:open="value => { if (!value) detailAssetId = undefined }">
-        <DialogContent v-if="detailAsset" class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{{ detailAsset.name }}</DialogTitle>
-            <DialogDescription>
-              {{ detailAsset.code }}<template v-if="detailAsset.serialNumber"> · {{ detailAsset.serialNumber }}</template>
-            </DialogDescription>
-          </DialogHeader>
-
-          <div class="space-y-3 text-sm">
+      <!-- Dialog -> ResponsiveFormSheet: sheet bottom di mobile biar berasa native app, desktop tetap Dialog persis sama -->
+      <ResponsiveFormSheet
+        :open="Boolean(detailAsset)"
+        @update:open="value => { if (!value) detailAssetId = undefined }"
+        :title="detailAsset?.name ?? ''"
+        :description="detailAsset ? `${detailAsset.code}${detailAsset.serialNumber ? ' · ' + detailAsset.serialNumber : ''}` : undefined"
+        content-class="max-w-md"
+      >
+        <div v-if="detailAsset" class="space-y-3 text-sm">
             <div class="grid grid-cols-2 gap-3">
               <div>
                 <p class="text-xs text-muted-foreground">
@@ -989,19 +999,18 @@ function onCompleteMaintenance (maintenanceId: string) {
                 {{ detailAsset.note }}
               </p>
             </div>
-          </div>
+        </div>
 
-          <DialogFooter>
-            <Button variant="outline" @click="detailAssetId = undefined">
-              Tutup
-            </Button>
-            <Button v-if="canManage" @click="openEdit(detailAsset); detailAssetId = undefined">
-              <Pencil class="h-3.5 w-3.5 mr-1" />
-              Edit Aset
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="detailAssetId = undefined">
+            Tutup
+          </Button>
+          <Button v-if="detailAsset && canManage" @click="openEdit(detailAsset); detailAssetId = undefined">
+            <Pencil class="h-3.5 w-3.5 mr-1" />
+            Edit Aset
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
       <ResponsiveFormSheet
         :open="Boolean(returnTargetId)"

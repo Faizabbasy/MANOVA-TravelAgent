@@ -335,8 +335,9 @@ function submitQuotation () {
                 content-class="max-w-md"
               >
                 <template #trigger>
-                  <Button size="sm" variant="outline">
-                    <Plus class="h-4 w-4 mr-1.5" />Submit Quotation
+                  <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                  <Button size="sm" variant="outline" class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none">
+                    <Plus class="h-4 w-4" />Submit Quotation
                   </Button>
                 </template>
                 <div class="space-y-4 py-2">
@@ -488,8 +489,9 @@ function submitQuotation () {
                 content-class="max-w-md"
               >
                 <template #trigger>
-                  <Button size="sm" variant="outline">
-                    <Plus class="h-4 w-4 mr-1.5" />Tambah Produk
+                  <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                  <Button size="sm" variant="outline" class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none">
+                    <Plus class="h-4 w-4" />Tambah Produk
                   </Button>
                 </template>
                 <div class="space-y-4 py-2">
@@ -599,8 +601,9 @@ function submitQuotation () {
                 content-class="max-w-md"
               >
                 <template #trigger>
-                  <Button size="sm" variant="outline">
-                    <Plus class="h-4 w-4 mr-1.5" />Tambah Dokumen
+                  <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                  <Button size="sm" variant="outline" class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none">
+                    <Plus class="h-4 w-4" />Tambah Dokumen
                   </Button>
                 </template>
                 <div class="space-y-4 py-2">
@@ -686,8 +689,9 @@ function submitQuotation () {
                 content-class="max-w-md"
               >
                 <template #trigger>
-                  <Button size="sm" variant="outline">
-                    <Plus class="h-4 w-4 mr-1.5" />Tambah Contact
+                  <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                  <Button size="sm" variant="outline" class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none">
+                    <Plus class="h-4 w-4" />Tambah Contact
                   </Button>
                 </template>
                 <div class="space-y-4 py-2">

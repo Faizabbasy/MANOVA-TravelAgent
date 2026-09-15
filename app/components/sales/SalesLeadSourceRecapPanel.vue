@@ -50,7 +50,15 @@ const sourceBreakdown = computed<StatusBreakdownItem[]>(() =>
         Performa sumber lead lintas Website/Instagram/TikTok/WhatsApp/Referral/Event/Email/Sales Outreach/Lainnya — agregat seluruh Sales, tidak ter-scope portfolio.
       </p>
 
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Mobile — 4 angka tunggal ringkas jadi grid 2-kolom compact (bukan ditumpuk 1 kolom penuh). Desktop tidak diubah. -->
+      <div class="grid grid-cols-2 gap-2.5 sm:hidden">
+        <StatsCard size="sm" title="Total Leads" :value="String(sourceTotalLeads)" :icon="Users" />
+        <StatsCard size="sm" title="Qualified Leads" :value="String(sourceTotalQualified)" :icon="Users" icon-color="success" />
+        <StatsCard size="sm" title="Deals Created" :value="String(sourceTotalDeals)" :icon="Target" />
+        <StatsCard size="sm" title="Won" :value="String(sourceTotalWon)" :icon="Target" icon-color="success" />
+      </div>
+
+      <div class="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total Leads" :value="String(sourceTotalLeads)" :icon="Users" />
         <StatsCard title="Qualified Leads" :value="String(sourceTotalQualified)" :icon="Users" icon-color="success" />
         <StatsCard title="Deals Created" :value="String(sourceTotalDeals)" :icon="Target" />

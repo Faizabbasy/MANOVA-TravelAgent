@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Search } from 'lucide-vue-next'
+import { Search, SlidersHorizontal } from 'lucide-vue-next'
 import { ACTIVITIES, SYSTEM_EVENTS, PROJECTS, getUserById, getProjectById } from '~/data'
 import { formatDateTime } from '~/utils/format'
 import { ROLES } from '~/constants/roles'
@@ -21,6 +21,15 @@ const reviewFilter = ref<'all' | 'reviewed' | 'unreviewed'>('all')
  * Mencari lintas `ActivityEntry.message`/`reason`/`impactNote`/`category` DAN `SystemEvent.message`/`type`.
  */
 const searchQuery = ref('')
+
+/** Filter di mobile — 3 select (Project/Tipe/Status Tinjauan) disembunyikan di belakang tombol Filter
+ * (bottom Sheet), pola sama SalesLeadsPanel — supaya tidak numpuk sendiri-sendiri di layar sempit. */
+const isMobileFilterOpen = ref(false)
+const activeFilterCount = computed(() => [
+  projectFilter.value !== 'all',
+  typeFilter.value !== 'all',
+  reviewFilter.value !== 'all'
+].filter(Boolean).length)
 
 // All entries sorted latest-first
 const allEntries = [...ACTIVITIES].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
@@ -95,87 +104,161 @@ const CAT_TONE: Record<string, string> = {
     <RoleAccessState v-if="!canView('administration')" module-label="modul Administration" />
 
     <template v-else>
-      <!-- Summary stats -->
-      <div class="grid grid-cols-3 gap-3">
-        <div class="rounded-xl border border-border bg-card px-4 py-3 text-sm">
-          <p class="text-muted-foreground text-xs mb-0.5">
+      <!-- Summary stats — nilai pendek (angka), aman dipadatkan 3-kolom di mobile. -->
+      <div class="grid grid-cols-3 gap-2 sm:gap-3">
+        <div class="rounded-xl border border-border bg-card px-3 py-2.5 text-sm sm:px-4 sm:py-3">
+          <p class="text-muted-foreground text-[11px] sm:text-xs mb-0.5">
             Total Entri
           </p>
-          <p class="text-xl font-semibold text-foreground">
+          <p class="text-lg sm:text-xl font-semibold text-foreground">
             {{ totalEntries }}
           </p>
         </div>
-        <div class="rounded-xl border border-border bg-card px-4 py-3 text-sm">
-          <p class="text-muted-foreground text-xs mb-0.5">
-            Perubahan (isChange)
+        <div class="rounded-xl border border-border bg-card px-3 py-2.5 text-sm sm:px-4 sm:py-3">
+          <p class="text-muted-foreground text-[11px] sm:text-xs mb-0.5">
+            Perubahan
           </p>
-          <p class="text-xl font-semibold text-foreground">
+          <p class="text-lg sm:text-xl font-semibold text-foreground">
             {{ changeCount }}
           </p>
         </div>
-        <div class="rounded-xl border border-border bg-card px-4 py-3 text-sm">
-          <p class="text-muted-foreground text-xs mb-0.5">
-            Perubahan Belum Ditinjau
+        <div class="rounded-xl border border-border bg-card px-3 py-2.5 text-sm sm:px-4 sm:py-3">
+          <p class="text-muted-foreground text-[11px] sm:text-xs mb-0.5">
+            Belum Ditinjau
           </p>
-          <p class="text-xl font-semibold" :class="unreviewedCount > 0 ? 'text-warning' : 'text-success'">
+          <p class="text-lg sm:text-xl font-semibold" :class="unreviewedCount > 0 ? 'text-warning' : 'text-success'">
             {{ unreviewedCount }}
           </p>
         </div>
       </div>
 
       <!-- Search (Section 23, D-080) — lintas ActivityEntry dan SystemEvent, aditif ke 3 filter dropdown di bawah -->
-      <div class="relative max-w-sm w-full">
-        <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input v-model="searchQuery" placeholder="Cari pesan, alasan, dampak, kategori..." class="pl-9" />
-      </div>
+      <div class="space-y-3">
+        <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+          <div class="relative max-w-sm w-full">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input v-model="searchQuery" placeholder="Cari pesan, alasan, dampak, kategori..." class="pl-9" />
+          </div>
 
-      <!-- Filters -->
-      <div class="flex flex-wrap items-center gap-3">
-        <select
-          v-model="projectFilter"
-          class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-        >
-          <option value="all">
-            Semua Project
-          </option>
-          <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
-            {{ project.name }}
-          </option>
-        </select>
+          <!-- Desktop/tablet — filter inline, tidak diubah. -->
+          <div class="hidden lg:flex lg:items-center gap-3">
+            <select
+              v-model="projectFilter"
+              class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+            >
+              <option value="all">
+                Semua Project
+              </option>
+              <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                {{ project.name }}
+              </option>
+            </select>
 
-        <select
-          v-model="typeFilter"
-          class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-        >
-          <option value="all">
-            Semua Tipe
-          </option>
-          <option value="change">
-            Perubahan saja
-          </option>
-          <option value="activity">
-            Aktivitas saja
-          </option>
-        </select>
+            <select
+              v-model="typeFilter"
+              class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+            >
+              <option value="all">
+                Semua Tipe
+              </option>
+              <option value="change">
+                Perubahan saja
+              </option>
+              <option value="activity">
+                Aktivitas saja
+              </option>
+            </select>
 
-        <select
-          v-model="reviewFilter"
-          class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-        >
-          <option value="all">
-            Semua Status Tinjauan
-          </option>
-          <option value="reviewed">
-            Sudah Ditinjau
-          </option>
-          <option value="unreviewed">
-            Belum Ditinjau
-          </option>
-        </select>
+            <select
+              v-model="reviewFilter"
+              class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+            >
+              <option value="all">
+                Semua Status Tinjauan
+              </option>
+              <option value="reviewed">
+                Sudah Ditinjau
+              </option>
+              <option value="unreviewed">
+                Belum Ditinjau
+              </option>
+            </select>
 
-        <span class="text-xs text-muted-foreground ml-auto">
+            <span class="text-xs text-muted-foreground ml-auto">
+              Menampilkan {{ filteredEntries.length }} dari {{ totalEntries }} entri
+            </span>
+          </div>
+        </div>
+
+        <!-- Mobile — 3 select di belakang tombol Filter (bottom Sheet), supaya tidak numpuk vertikal. -->
+        <div class="lg:hidden">
+          <Sheet v-model:open="isMobileFilterOpen">
+            <SheetTrigger as-child>
+              <Button variant="outline" size="sm" class="w-full justify-start">
+                <SlidersHorizontal class="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                Filter
+                <span v-if="activeFilterCount" class="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                  {{ activeFilterCount }}
+                </span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" class="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+              <SheetHeader class="text-left">
+                <SheetTitle>Filter Audit Trail</SheetTitle>
+              </SheetHeader>
+              <div class="space-y-3 py-4">
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Project</Label>
+                  <select v-model="projectFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="all">
+                      Semua Project
+                    </option>
+                    <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                      {{ project.name }}
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Tipe</Label>
+                  <select v-model="typeFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="all">
+                      Semua Tipe
+                    </option>
+                    <option value="change">
+                      Perubahan saja
+                    </option>
+                    <option value="activity">
+                      Aktivitas saja
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Status Tinjauan</Label>
+                  <select v-model="reviewFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="all">
+                      Semua Status Tinjauan
+                    </option>
+                    <option value="reviewed">
+                      Sudah Ditinjau
+                    </option>
+                    <option value="unreviewed">
+                      Belum Ditinjau
+                    </option>
+                  </select>
+                </div>
+              </div>
+              <SheetFooter class="flex-row gap-2">
+                <Button variant="outline" class="flex-1" @click="isMobileFilterOpen = false">
+                  Terapkan
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </div>
+
+        <p class="lg:hidden text-xs text-muted-foreground">
           Menampilkan {{ filteredEntries.length }} dari {{ totalEntries }} entri
-        </span>
+        </p>
       </div>
 
       <!-- Log entries -->

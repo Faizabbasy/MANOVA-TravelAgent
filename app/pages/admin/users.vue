@@ -14,7 +14,7 @@ useHead({ title: 'Users & Roles' })
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6 sm:space-y-8">
     <PageHeader
       title="Users & Roles"
       description="Directory user, access review, dan konfigurasi role & permission — dalam satu menu."

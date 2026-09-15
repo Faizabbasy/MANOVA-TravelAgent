@@ -26,6 +26,15 @@ const closedRfqCount = computed(() => RFQS.filter(rfq => rfq.status === 'closed'
 const activeServiceOrderCount = computed(() => SERVICE_ORDERS.filter(so => !['fulfilled', 'cancelled'].includes(so.status)).length)
 const fulfilledServiceOrderCount = computed(() => SERVICE_ORDERS.filter(so => so.status === 'fulfilled').length)
 
+/** Versi ringkas 4 stat di atas, dipakai strip horizontal-scroll mobile — semua nilainya angka pendek jadi
+ * aman dipadatkan (beda dari kartu bernilai currency/ID panjang yang wajib grid-cols-1 di mobile). */
+const countTiles = computed(() => [
+  { key: 'rfq-active', label: 'RFQ Aktif', value: String(openRfqCount.value), icon: ClipboardList, tone: 'primary' as const },
+  { key: 'rfq-closed', label: 'RFQ Closed', value: String(closedRfqCount.value), icon: CheckCircle2, tone: 'success' as const },
+  { key: 'so-active', label: 'SO Aktif', value: String(activeServiceOrderCount.value), icon: Clock, tone: 'warning' as const },
+  { key: 'so-fulfilled', label: 'SO Fulfilled', value: String(fulfilledServiceOrderCount.value), icon: FileText, tone: 'success' as const }
+])
+
 /* RFQ list */
 const rfqSearch = ref('')
 const rfqStatusFilter = ref('all')
@@ -171,11 +180,24 @@ function submitCreate () {
     <RoleAccessState v-if="!canView('procurement')" module-label="modul Procurement" />
 
     <template v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="RFQ Aktif" :value="String(openRfqCount)" :icon="ClipboardList" />
         <StatsCard title="RFQ Closed" :value="String(closedRfqCount)" :icon="CheckCircle2" icon-color="success" />
         <StatsCard title="Service Order Aktif" :value="String(activeServiceOrderCount)" :icon="Clock" icon-color="warning" />
         <StatsCard title="Service Order Fulfilled" :value="String(fulfilledServiceOrderCount)" :icon="FileText" icon-color="success" />
+      </div>
+
+      <!-- Mobile: strip horizontal-scroll, nilai semuanya angka pendek jadi aman dipadatkan (StatsCard size="sm") -->
+      <div class="sm:hidden -mx-1 grid grid-flow-col auto-cols-[minmax(110px,1fr)] gap-2 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <StatsCard
+          v-for="tile in countTiles"
+          :key="tile.key"
+          size="sm"
+          :title="tile.label"
+          :value="tile.value"
+          :icon="tile.icon"
+          :icon-color="tile.tone"
+        />
       </div>
 
       <Tabs v-model="activeTab">
@@ -189,7 +211,7 @@ function submitCreate () {
         </TabsList>
 
         <TabsContent value="rfq">
-          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
             <div class="relative flex-1 max-w-sm w-full">
               <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input v-model="rfqSearch" placeholder="Cari judul RFQ atau project..." class="pl-9" />
@@ -286,7 +308,7 @@ function submitCreate () {
         </TabsContent>
 
         <TabsContent value="service-orders">
-          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
             <div class="relative flex-1 max-w-sm w-full">
               <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input v-model="soSearch" placeholder="Cari vendor atau project..." class="pl-9" />

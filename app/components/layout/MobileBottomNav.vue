@@ -9,7 +9,7 @@ const isMoreOpen = ref(false)
 
 <template>
   <nav
-    class="md:hidden fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-stretch border-t border-border bg-card/95 shadow-[0_-2px_12px_-2px_rgb(0_0_0/0.08)] backdrop-blur pb-[env(safe-area-inset-bottom)]"
+    class="md:hidden fixed inset-x-0 bottom-0 z-40 flex h-[calc(4rem+env(safe-area-inset-bottom))] items-stretch rounded-t-3xl border border-b-0 border-border bg-card/95 shadow-[0_-4px_20px_-4px_rgb(0_0_0/0.12)] backdrop-blur pb-[env(safe-area-inset-bottom)]"
   >
     <NuxtLink
       v-for="tab in tabs"

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Plus, Eye } from 'lucide-vue-next'
+import { Search, Plus, Eye, SlidersHorizontal } from 'lucide-vue-next'
 import { PARTIES, getUserById, getLeadsByParty, getProjectsByParty, getPartiesByAccountOwner, createParty, isManovaClient, getPartyCreditFacility } from '~/data'
 import { findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr } from '~/utils/format'
@@ -41,6 +41,16 @@ const cityFilter = ref('all')
 const ownerFilter = ref('all')
 /** "AE data scope ke portfolio miliknya" (Section 07, Wajib) — default ON untuk AE, tidak berlaku/tidak tampil untuk role lain (Super Admin/Management selalu melihat seluruh data). */
 const portfolioOnly = ref(isAeScoped.value)
+
+/** Filter di mobile — 4 select (Status/Industri/Kota/Owner) numpuk vertikal penuh layar kalau dibiarkan,
+ * disembunyikan di belakang satu tombol "Filter" (bottom Sheet), pola sama SalesLeadsPanel. */
+const isMobileFilterOpen = ref(false)
+const activeFilterCount = computed(() => [
+  statusFilter.value !== 'all',
+  industryFilter.value !== 'all',
+  cityFilter.value !== 'all',
+  ownerFilter.value !== 'all'
+].filter(Boolean).length)
 
 const ownerOptions = computed(() => {
   const ids = [...new Set(PARTIES.map(p => p.accountOwnerId).filter(Boolean))] as string[]
@@ -95,77 +105,158 @@ function submitCreate () {
     <RoleAccessState v-if="!hasAccess" module-label="modul CRM" />
 
     <template v-else>
-      <div class="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3">
-        <div class="relative flex-1 max-w-sm w-full">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input v-model="searchQuery" placeholder="Cari nama company..." class="pl-9" />
-        </div>
-        <select v-model="statusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">
-            Semua Status
-          </option>
-          <option v-for="status in LIFECYCLE_STATUSES" :key="status.value" :value="status.value">
-            {{ status.label }}
-          </option>
-        </select>
-        <select v-model="industryFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">
-            Semua Industri
-          </option>
-          <option v-for="industry in industryOptions" :key="industry" :value="industry">
-            {{ industry }}
-          </option>
-        </select>
-        <select v-model="cityFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">
-            Semua Kota
-          </option>
-          <option v-for="city in cityOptions" :key="city" :value="city">
-            {{ city }}
-          </option>
-        </select>
-        <select v-if="!isAeScoped" v-model="ownerFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">
-            Semua Account Owner
-          </option>
-          <option v-for="user in ownerOptions" :key="user.id" :value="user.id">
-            {{ user.name }}
-          </option>
-        </select>
-        <label v-if="isAeScoped" class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-          <Checkbox v-model="portfolioOnly" />
-          Hanya Portfolio Saya
-        </label>
+      <div class="space-y-3">
+        <div class="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3">
+          <div class="relative flex-1 max-w-sm w-full">
+            <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input v-model="searchQuery" placeholder="Cari nama company..." class="pl-9" />
+          </div>
 
-        <ResponsiveFormSheet
-          v-if="canManageParty"
-          v-model:open="isCreateOpen"
-          title="Tambah Prospect Baru"
-          description="Party baru akan dibuat dengan lifecycle status Prospect."
-          content-class="max-w-md"
-        >
-          <template #trigger>
-            <Button class="ml-auto"><Plus class="h-4 w-4 mr-1.5" />Tambah Prospect</Button>
-          </template>
-            <div class="space-y-4 py-2">
-              <div class="space-y-1.5">
-                <Label for="prospect-name">Nama Party</Label>
-                <Input id="prospect-name" v-model="newName" placeholder="mis. PT Nama Perusahaan" />
+          <!-- Desktop/tablet — filter inline, tidak diubah. -->
+          <div class="hidden sm:flex sm:flex-wrap sm:items-center gap-3">
+            <select v-model="statusFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="all">
+                Semua Status
+              </option>
+              <option v-for="status in LIFECYCLE_STATUSES" :key="status.value" :value="status.value">
+                {{ status.label }}
+              </option>
+            </select>
+            <select v-model="industryFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="all">
+                Semua Industri
+              </option>
+              <option v-for="industry in industryOptions" :key="industry" :value="industry">
+                {{ industry }}
+              </option>
+            </select>
+            <select v-model="cityFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="all">
+                Semua Kota
+              </option>
+              <option v-for="city in cityOptions" :key="city" :value="city">
+                {{ city }}
+              </option>
+            </select>
+            <select v-if="!isAeScoped" v-model="ownerFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="all">
+                Semua Account Owner
+              </option>
+              <option v-for="user in ownerOptions" :key="user.id" :value="user.id">
+                {{ user.name }}
+              </option>
+            </select>
+            <label v-if="isAeScoped" class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+              <Checkbox v-model="portfolioOnly" />
+              Hanya Portfolio Saya
+            </label>
+          </div>
+
+          <ResponsiveFormSheet
+            v-if="canManageParty"
+            v-model:open="isCreateOpen"
+            title="Tambah Prospect Baru"
+            description="Party baru akan dibuat dengan lifecycle status Prospect."
+            content-class="max-w-md"
+          >
+            <template #trigger>
+              <Button class="w-full sm:w-auto sm:ml-auto"><Plus class="h-4 w-4 mr-1.5" />Tambah Prospect</Button>
+            </template>
+              <div class="space-y-4 py-2">
+                <div class="space-y-1.5">
+                  <Label for="prospect-name">Nama Party</Label>
+                  <Input id="prospect-name" v-model="newName" placeholder="mis. PT Nama Perusahaan" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="prospect-industry">Industri (opsional)</Label>
+                  <Input id="prospect-industry" v-model="newIndustry" placeholder="mis. Manufaktur, Retail, dll." />
+                </div>
               </div>
-              <div class="space-y-1.5">
-                <Label for="prospect-industry">Industri (opsional)</Label>
-                <Input id="prospect-industry" v-model="newIndustry" placeholder="mis. Manufaktur, Retail, dll." />
+            <template #footer>
+                <Button variant="outline" @click="isCreateOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!newName.trim()" @click="submitCreate">
+                  Simpan
+                </Button>
+            </template>
+          </ResponsiveFormSheet>
+        </div>
+
+        <!-- Mobile — 4 select (Status/Industri/Kota/Owner) + toggle Portfolio di belakang tombol Filter (bottom Sheet). -->
+        <div class="sm:hidden">
+          <Sheet v-model:open="isMobileFilterOpen">
+            <SheetTrigger as-child>
+              <Button variant="outline" size="sm" class="w-full justify-start">
+                <SlidersHorizontal class="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                Filter
+                <span v-if="activeFilterCount" class="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                  {{ activeFilterCount }}
+                </span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" class="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+              <SheetHeader class="text-left">
+                <SheetTitle>Filter Company</SheetTitle>
+              </SheetHeader>
+              <div class="space-y-3 py-4">
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Status</Label>
+                  <select v-model="statusFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="all">
+                      Semua Status
+                    </option>
+                    <option v-for="status in LIFECYCLE_STATUSES" :key="status.value" :value="status.value">
+                      {{ status.label }}
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Industri</Label>
+                  <select v-model="industryFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="all">
+                      Semua Industri
+                    </option>
+                    <option v-for="industry in industryOptions" :key="industry" :value="industry">
+                      {{ industry }}
+                    </option>
+                  </select>
+                </div>
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Kota</Label>
+                  <select v-model="cityFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="all">
+                      Semua Kota
+                    </option>
+                    <option v-for="city in cityOptions" :key="city" :value="city">
+                      {{ city }}
+                    </option>
+                  </select>
+                </div>
+                <div v-if="!isAeScoped" class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Account Owner</Label>
+                  <select v-model="ownerFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                    <option value="all">
+                      Semua Account Owner
+                    </option>
+                    <option v-for="user in ownerOptions" :key="user.id" :value="user.id">
+                      {{ user.name }}
+                    </option>
+                  </select>
+                </div>
+                <label v-if="isAeScoped" class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+                  <Checkbox v-model="portfolioOnly" />
+                  Hanya Portfolio Saya
+                </label>
               </div>
-            </div>
-          <template #footer>
-              <Button variant="outline" @click="isCreateOpen = false">
-                Batal
-              </Button>
-              <Button :disabled="!newName.trim()" @click="submitCreate">
-                Simpan
-              </Button>
-          </template>
-        </ResponsiveFormSheet>
+              <SheetFooter class="flex-row gap-2">
+                <Button variant="outline" class="flex-1" @click="isMobileFilterOpen = false">
+                  Terapkan
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+        </div>
       </div>
 
       <SectionCard>
