@@ -20,8 +20,9 @@ const canManage = computed(() => can('project-order.manage-operations'))
 
 const { events } = useScheduleEvents()
 
+const isMobile = useIsMobile()
 /** Grid bulan (7 kolom) terlalu sempit di layar HP — default ke tampilan Hari Ini di mobile, tetap "month" di desktop. */
-const viewMode = ref<'day' | 'week' | 'month'>(useIsMobile().value ? 'day' : 'month')
+const viewMode = ref<'day' | 'week' | 'month'>(isMobile.value ? 'day' : 'month')
 const month = ref(DEMO_REFERENCE_DATE.slice(0, 7))
 const selectedDate = ref(DEMO_REFERENCE_DATE)
 const kindFilter = ref<'all' | ScheduleEventKind>('all')
@@ -185,7 +186,8 @@ function goToProject (projectId?: string) {
     <RoleAccessState v-if="!hasAccess" module-label="modul Operations & Scheduling" />
 
     <template v-else>
-      <div class="flex flex-wrap items-center justify-between gap-3">
+      <!-- Desktop/tablet — tidak diubah. -->
+      <div class="hidden sm:flex flex-wrap items-center justify-between gap-3">
         <div class="flex flex-wrap items-center gap-3">
           <div class="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
             <Button variant="ghost" size="sm" class="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" @click="shiftView(-1)">
@@ -234,7 +236,7 @@ function goToProject (projectId?: string) {
               <Plus class="h-4 w-4 mr-1.5" />Tambah Acara
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
+          <SheetContent :side="isMobile ? 'bottom' : 'right'" :class="isMobile ? 'max-h-[85vh] overflow-y-auto rounded-t-2xl' : 'w-full sm:max-w-lg overflow-y-auto'">
             <SheetHeader>
               <SheetTitle>Tambah Acara</SheetTitle>
               <SheetDescription>Jadwal baru untuk salah satu project (itinerary item).</SheetDescription>
@@ -285,6 +287,61 @@ function goToProject (projectId?: string) {
           </SheetContent>
         </Sheet>
       </div>
+
+      <!-- Mobile — toolbar ringkas: nav tanggal + judul rentang sejajar satu baris, lalu segmented
+           control 3-kolom penuh dan filter jenis jadwal di baris sendiri (bukan numpuk 4 kontrol dalam
+           satu baris yang wrap berantakan seperti di desktop). "Tambah Acara" jadi FAB melayang di atas
+           bottom nav, bukan tombol yang ikut wrap. -->
+      <div class="space-y-2 sm:hidden">
+        <div class="flex items-center gap-2">
+          <Button variant="outline" size="sm" class="h-9 w-9 shrink-0 p-0" @click="shiftView(-1)">
+            <ChevronLeft class="h-4 w-4" />
+          </Button>
+          <p class="min-w-0 flex-1 truncate text-center text-sm font-semibold capitalize text-foreground">
+            {{ rangeLabel }}
+          </p>
+          <Button variant="outline" size="sm" class="h-9 w-9 shrink-0 p-0" @click="shiftView(1)">
+            <ChevronRight class="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-1 rounded-lg bg-muted p-0.5">
+          <button
+            v-for="mode in VIEW_MODES"
+            :key="mode.value"
+            type="button"
+            :class="cn(
+              'flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-all',
+              viewMode === mode.value
+                ? 'bg-card text-foreground shadow-sm'
+                : 'text-muted-foreground'
+            )"
+            @click="setViewMode(mode.value)"
+          >
+            <component :is="mode.icon" class="h-3.5 w-3.5" />
+            {{ mode.label }}
+          </button>
+        </div>
+
+        <select v-model="kindFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+          <option value="all">
+            Semua Jenis Jadwal
+          </option>
+          <option v-for="entry in kindCounts" :key="entry.kind" :value="entry.kind">
+            {{ entry.meta.label }} ({{ entry.count }})
+          </option>
+        </select>
+      </div>
+
+      <button
+        v-if="canManage"
+        type="button"
+        aria-label="Tambah Acara"
+        class="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-14 w-14 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-90 sm:hidden"
+        @click="openAddEvent"
+      >
+        <Plus class="h-6 w-6" />
+      </button>
 
       <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
         <SectionCard class="xl:col-span-8">
