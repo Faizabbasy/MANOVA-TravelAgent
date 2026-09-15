@@ -293,36 +293,35 @@ function variantName (variantId?: string): string {
 
       <SectionCard title="Variant">
         <template v-if="canEdit" #actions>
-          <Dialog v-model:open="isAddVariantOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet
+            v-model:open="isAddVariantOpen"
+            title="Tambah Variant"
+            content-class="max-w-sm"
+          >
+            <template #trigger>
               <Button size="sm" variant="outline">
                 <Plus class="h-4 w-4 mr-1.5" />Tambah Variant
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Tambah Variant</DialogTitle>
-              </DialogHeader>
-              <div class="space-y-4 py-2">
-                <div class="space-y-1.5">
-                  <Label for="variant-name">Nama Variant</Label>
-                  <Input id="variant-name" v-model="newVariantName" placeholder="mis. King Bed" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="variant-price">Harga Override (Rp, opsional)</Label>
-                  <CurrencyInput id="variant-price" v-model="newVariantPrice" placeholder="Kosongkan untuk pakai harga induk" />
-                </div>
+            </template>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="variant-name">Nama Variant</Label>
+                <Input id="variant-name" v-model="newVariantName" placeholder="mis. King Bed" />
               </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isAddVariantOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!newVariantName.trim()" @click="submitAddVariant">
-                  Simpan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              <div class="space-y-1.5">
+                <Label for="variant-price">Harga Override (Rp, opsional)</Label>
+                <CurrencyInput id="variant-price" v-model="newVariantPrice" placeholder="Kosongkan untuk pakai harga induk" />
+              </div>
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isAddVariantOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newVariantName.trim()" @click="submitAddVariant">
+                Simpan
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </template>
 
         <ResponsiveDataView :items="variants" :get-key="variant => variant.id">
@@ -394,57 +393,56 @@ function variantName (variantId?: string): string {
 
       <SectionCard title="Availability" description="Kapasitas per periode. availableQuantity = totalQuantity - heldQuantity - bookedQuantity.">
         <template v-if="canEdit" #actions>
-          <Dialog v-model:open="isAddSlotOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet
+            v-model:open="isAddSlotOpen"
+            title="Tambah Availability Slot"
+            content-class="max-w-md"
+          >
+            <template #trigger>
               <Button size="sm" variant="outline">
                 <CalendarPlus class="h-4 w-4 mr-1.5" />Tambah Availability
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Tambah Availability Slot</DialogTitle>
-              </DialogHeader>
-              <div class="space-y-4 py-2">
-                <div v-if="variants.length" class="space-y-1.5">
-                  <Label for="slot-variant">Berlaku Untuk</Label>
-                  <select id="slot-variant" v-model="newSlotVariantId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="">
-                      Level Commodity (semua variant)
-                    </option>
-                    <option v-for="variant in variants" :key="variant.id" :value="variant.id">
-                      {{ variant.name }}
-                    </option>
-                  </select>
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div class="space-y-1.5">
-                    <Label for="slot-start">Periode Mulai</Label>
-                    <Input id="slot-start" v-model="newSlotPeriodStart" type="date" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="slot-end">Periode Selesai</Label>
-                    <Input id="slot-end" v-model="newSlotPeriodEnd" type="date" />
-                  </div>
+            </template>
+            <div class="space-y-4 py-2">
+              <div v-if="variants.length" class="space-y-1.5">
+                <Label for="slot-variant">Berlaku Untuk</Label>
+                <select id="slot-variant" v-model="newSlotVariantId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="">
+                    Level Commodity (semua variant)
+                  </option>
+                  <option v-for="variant in variants" :key="variant.id" :value="variant.id">
+                    {{ variant.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="slot-start">Periode Mulai</Label>
+                  <Input id="slot-start" v-model="newSlotPeriodStart" type="date" />
                 </div>
                 <div class="space-y-1.5">
-                  <Label for="slot-total">Total Kapasitas</Label>
-                  <Input id="slot-total" v-model.number="newSlotTotal" type="number" placeholder="mis. 10" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="slot-cutoff">Booking Cutoff (opsional)</Label>
-                  <Input id="slot-cutoff" v-model="newSlotCutoff" type="date" />
+                  <Label for="slot-end">Periode Selesai</Label>
+                  <Input id="slot-end" v-model="newSlotPeriodEnd" type="date" />
                 </div>
               </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isAddSlotOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!newSlotPeriodStart || !newSlotPeriodEnd || newSlotTotal === null" @click="submitAddSlot">
-                  Simpan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              <div class="space-y-1.5">
+                <Label for="slot-total">Total Kapasitas</Label>
+                <Input id="slot-total" v-model.number="newSlotTotal" type="number" placeholder="mis. 10" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="slot-cutoff">Booking Cutoff (opsional)</Label>
+                <Input id="slot-cutoff" v-model="newSlotCutoff" type="date" />
+              </div>
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isAddSlotOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newSlotPeriodStart || !newSlotPeriodEnd || newSlotTotal === null" @click="submitAddSlot">
+                Simpan
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </template>
 
         <ResponsiveDataView :items="slots" :get-key="slot => slot.id">
@@ -573,31 +571,31 @@ function variantName (variantId?: string): string {
     </template>
 
     <!-- ── Edit Variant Dialog ──────────────────────────────────────────── -->
-    <Dialog :open="editingVariantId !== null" @update:open="val => { if (!val) editingVariantId = null }">
-      <DialogContent class="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Edit Variant</DialogTitle>
-        </DialogHeader>
-        <div class="space-y-4 py-2">
-          <div class="space-y-1.5">
-            <Label for="edit-variant-name">Nama Variant</Label>
-            <Input id="edit-variant-name" v-model="editVariantName" />
-          </div>
-          <div class="space-y-1.5">
-            <Label for="edit-variant-price">Harga Override (Rp, opsional)</Label>
-            <CurrencyInput id="edit-variant-price" v-model="editVariantPrice" />
-          </div>
+    <ResponsiveFormSheet
+      :open="editingVariantId !== null"
+      @update:open="val => { if (!val) editingVariantId = null }"
+      title="Edit Variant"
+      content-class="max-w-sm"
+    >
+      <div class="space-y-4 py-2">
+        <div class="space-y-1.5">
+          <Label for="edit-variant-name">Nama Variant</Label>
+          <Input id="edit-variant-name" v-model="editVariantName" />
         </div>
-        <DialogFooter>
-          <Button variant="outline" @click="editingVariantId = null">
-            Batal
-          </Button>
-          <Button :disabled="!editVariantName.trim()" @click="submitEditVariant">
-            Simpan
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div class="space-y-1.5">
+          <Label for="edit-variant-price">Harga Override (Rp, opsional)</Label>
+          <CurrencyInput id="edit-variant-price" v-model="editVariantPrice" />
+        </div>
+      </div>
+      <template #footer>
+        <Button variant="outline" @click="editingVariantId = null">
+          Batal
+        </Button>
+        <Button :disabled="!editVariantName.trim()" @click="submitEditVariant">
+          Simpan
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
 
     <!-- ── Generic Confirmation Dialog ──────────────────────────────────── -->
     <Dialog :open="confirmDialog !== null" @update:open="val => { if (!val) confirmDialog = null }">

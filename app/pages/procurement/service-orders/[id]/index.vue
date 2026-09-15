@@ -346,70 +346,67 @@ function submitRejectInvoice () {
       </SectionCard>
 
       <!-- Cancel dialog -->
-      <Dialog v-model:open="isCancelDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Cancel Service Order</DialogTitle>
-            <DialogDescription>Alasan wajib dicatat — akan tersimpan sebagai jejak historis di Activity & Changes project terkait (bila terhubung).</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-1.5 py-2">
-            <Label for="cancel-reason">Alasan</Label>
-            <Input id="cancel-reason" v-model="cancelReason" placeholder="mis. Kebutuhan dibatalkan klien" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isCancelDialogOpen = false">
-              Batal
-            </Button>
-            <Button variant="destructive" :disabled="!cancelReason.trim()" @click="submitCancel">
-              Konfirmasi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveFormSheet
+        v-model:open="isCancelDialogOpen"
+        title="Cancel Service Order"
+        description="Alasan wajib dicatat — akan tersimpan sebagai jejak historis di Activity & Changes project terkait (bila terhubung)."
+        content-class="max-w-md"
+      >
+        <div class="space-y-1.5 py-2">
+          <Label for="cancel-reason">Alasan</Label>
+          <Input id="cancel-reason" v-model="cancelReason" placeholder="mis. Kebutuhan dibatalkan klien" />
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isCancelDialogOpen = false">
+            Batal
+          </Button>
+          <Button variant="destructive" :disabled="!cancelReason.trim()" @click="submitCancel">
+            Konfirmasi
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
       <!-- Amend dialog -->
-      <Dialog v-model:open="isAmendOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Amend Service Order</DialogTitle>
-            <DialogDescription>Alasan amandemen wajib diisi — tercatat di riwayat amendment.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-1.5 py-2">
-            <Label for="amend-reason">Alasan</Label>
-            <Input id="amend-reason" v-model="amendReason" placeholder="mis. Penambahan jumlah kamar" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isAmendOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!amendReason.trim()" @click="submitAmend">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveFormSheet
+        v-model:open="isAmendOpen"
+        title="Amend Service Order"
+        description="Alasan amandemen wajib diisi — tercatat di riwayat amendment."
+        content-class="max-w-md"
+      >
+        <div class="space-y-1.5 py-2">
+          <Label for="amend-reason">Alasan</Label>
+          <Input id="amend-reason" v-model="amendReason" placeholder="mis. Penambahan jumlah kamar" />
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isAmendOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!amendReason.trim()" @click="submitAmend">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
       <!-- Reject invoice dialog -->
-      <Dialog v-model:open="isRejectInvoiceOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Tolak Invoice</DialogTitle>
-            <DialogDescription>Catatan alasan penolakan wajib diisi.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-1.5 py-2">
-            <Label for="reject-invoice-note">Catatan</Label>
-            <Input id="reject-invoice-note" v-model="rejectInvoiceNote" placeholder="mis. Jumlah tidak sesuai kontrak" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isRejectInvoiceOpen = false">
-              Batal
-            </Button>
-            <Button variant="destructive" :disabled="!rejectInvoiceNote.trim()" @click="submitRejectInvoice">
-              Konfirmasi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveFormSheet
+        v-model:open="isRejectInvoiceOpen"
+        title="Tolak Invoice"
+        description="Catatan alasan penolakan wajib diisi."
+        content-class="max-w-md"
+      >
+        <div class="space-y-1.5 py-2">
+          <Label for="reject-invoice-note">Catatan</Label>
+          <Input id="reject-invoice-note" v-model="rejectInvoiceNote" placeholder="mis. Jumlah tidak sesuai kontrak" />
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isRejectInvoiceOpen = false">
+            Batal
+          </Button>
+          <Button variant="destructive" :disabled="!rejectInvoiceNote.trim()" @click="submitRejectInvoice">
+            Konfirmasi
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

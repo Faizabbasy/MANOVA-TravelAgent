@@ -327,68 +327,68 @@ function submitQuotation () {
         <TabsContent value="quotations">
           <SectionCard title="Quotations">
             <template #actions>
-              <Dialog v-if="canManageVendor" v-model:open="isQuotationDialogOpen">
-                <DialogTrigger as-child>
+              <ResponsiveFormSheet
+                v-if="canManageVendor"
+                v-model:open="isQuotationDialogOpen"
+                title="Submit Quotation Baru"
+                :description="`Quotation akan diajukan untuk ${vendor.name} — keputusan Accept/Reject dilakukan di tab &quot;Vendors&quot; Project Detail.`"
+                content-class="max-w-md"
+              >
+                <template #trigger>
                   <Button size="sm" variant="outline">
                     <Plus class="h-4 w-4 mr-1.5" />Submit Quotation
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Submit Quotation Baru</DialogTitle>
-                    <DialogDescription>Quotation akan diajukan untuk {{ vendor.name }} — keputusan Accept/Reject dilakukan di tab "Vendors" Project Detail.</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                      <Label for="quotation-project">Project</Label>
-                      <select
-                        id="quotation-project"
-                        v-model="quotationProjectId"
-                        class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-                      >
-                        <option value="" disabled>
-                          Pilih project
-                        </option>
-                        <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
-                          {{ project.name }}
-                        </option>
-                      </select>
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="quotation-service">Service (opsional)</Label>
-                      <select
-                        id="quotation-service"
-                        v-model="quotationServiceId"
-                        :disabled="!quotationProjectId"
-                        class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-50"
-                      >
-                        <option value="">
-                          Belum terhubung ke service spesifik
-                        </option>
-                        <option v-for="service in quotationServiceOptions" :key="service.id" :value="service.id">
-                          {{ service.label }}
-                        </option>
-                      </select>
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="quotation-amount">Nilai Quotation (Rp)</Label>
-                      <CurrencyInput id="quotation-amount" v-model="quotationAmount" placeholder="mis. 45000000" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="quotation-notes">Catatan (opsional)</Label>
-                      <Input id="quotation-notes" v-model="quotationNotes" placeholder="mis. Termasuk sopir dan bahan bakar" />
-                    </div>
+                </template>
+                <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="quotation-project">Project</Label>
+                    <select
+                      id="quotation-project"
+                      v-model="quotationProjectId"
+                      class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                    >
+                      <option value="" disabled>
+                        Pilih project
+                      </option>
+                      <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                        {{ project.name }}
+                      </option>
+                    </select>
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isQuotationDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!quotationProjectId || !quotationAmount" @click="submitQuotation">
-                      Simpan
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  <div class="space-y-1.5">
+                    <Label for="quotation-service">Service (opsional)</Label>
+                    <select
+                      id="quotation-service"
+                      v-model="quotationServiceId"
+                      :disabled="!quotationProjectId"
+                      class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="">
+                        Belum terhubung ke service spesifik
+                      </option>
+                      <option v-for="service in quotationServiceOptions" :key="service.id" :value="service.id">
+                        {{ service.label }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="quotation-amount">Nilai Quotation (Rp)</Label>
+                    <CurrencyInput id="quotation-amount" v-model="quotationAmount" placeholder="mis. 45000000" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="quotation-notes">Catatan (opsional)</Label>
+                    <Input id="quotation-notes" v-model="quotationNotes" placeholder="mis. Termasuk sopir dan bahan bakar" />
+                  </div>
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isQuotationDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!quotationProjectId || !quotationAmount" @click="submitQuotation">
+                    Simpan
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </template>
 
             <ResponsiveDataView :items="quotations" :get-key="quotation => quotation.id">
@@ -480,49 +480,49 @@ function submitQuotation () {
         <TabsContent value="products">
           <SectionCard title="Products" description="Katalog produk/layanan milik vendor ini (Prompt 19).">
             <template #actions>
-              <Dialog v-if="canManageVendor" v-model:open="isProductDialogOpen">
-                <DialogTrigger as-child>
+              <ResponsiveFormSheet
+                v-if="canManageVendor"
+                v-model:open="isProductDialogOpen"
+                title="Tambah Produk/Layanan Baru"
+                :description="`Produk baru akan tampil di katalog ${vendor.name}.`"
+                content-class="max-w-md"
+              >
+                <template #trigger>
                   <Button size="sm" variant="outline">
                     <Plus class="h-4 w-4 mr-1.5" />Tambah Produk
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Tambah Produk/Layanan Baru</DialogTitle>
-                    <DialogDescription>Produk baru akan tampil di katalog {{ vendor.name }}.</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                      <Label for="vp-name">Nama Produk/Layanan</Label>
-                      <Input id="vp-name" v-model="productName" placeholder="mis. Paket Kamar Deluxe" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vp-category">Kategori</Label>
-                      <select id="vp-category" v-model="productCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                        <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
-                          {{ type.label }}
-                        </option>
-                      </select>
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vp-description">Deskripsi (opsional)</Label>
-                      <Input id="vp-description" v-model="productDescription" placeholder="Deskripsi singkat" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vp-price">Harga per Unit (Rp, opsional)</Label>
-                      <CurrencyInput id="vp-price" v-model="productPrice" placeholder="mis. 1200000" />
-                    </div>
+                </template>
+                <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="vp-name">Nama Produk/Layanan</Label>
+                    <Input id="vp-name" v-model="productName" placeholder="mis. Paket Kamar Deluxe" />
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isProductDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!productName.trim()" @click="submitProduct">
-                      Simpan
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  <div class="space-y-1.5">
+                    <Label for="vp-category">Kategori</Label>
+                    <select id="vp-category" v-model="productCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                      <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+                        {{ type.label }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="vp-description">Deskripsi (opsional)</Label>
+                    <Input id="vp-description" v-model="productDescription" placeholder="Deskripsi singkat" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="vp-price">Harga per Unit (Rp, opsional)</Label>
+                    <CurrencyInput id="vp-price" v-model="productPrice" placeholder="mis. 1200000" />
+                  </div>
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isProductDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!productName.trim()" @click="submitProduct">
+                    Simpan
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </template>
 
             <ResponsiveDataView :items="products" :get-key="product => product.id">
@@ -591,37 +591,37 @@ function submitQuotation () {
         <TabsContent value="documents">
           <SectionCard title="Documents" description="Dokumen vendor (kontrak, sertifikasi, NPWP, dsb.) — preview mock, bukan file upload nyata.">
             <template #actions>
-              <Dialog v-if="canManageVendor" v-model:open="isDocumentDialogOpen">
-                <DialogTrigger as-child>
+              <ResponsiveFormSheet
+                v-if="canManageVendor"
+                v-model:open="isDocumentDialogOpen"
+                title="Tambah Dokumen Baru"
+                description="Preview mock — bukan file upload nyata (D-006)."
+                content-class="max-w-md"
+              >
+                <template #trigger>
                   <Button size="sm" variant="outline">
                     <Plus class="h-4 w-4 mr-1.5" />Tambah Dokumen
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Tambah Dokumen Baru</DialogTitle>
-                    <DialogDescription>Preview mock — bukan file upload nyata (D-006).</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                      <Label for="vdoc-name">Nama Dokumen</Label>
-                      <Input id="vdoc-name" v-model="documentName" placeholder="mis. Kontrak Kerjasama 2026.pdf" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vdoc-type">Tipe</Label>
-                      <Input id="vdoc-type" v-model="documentType" placeholder="mis. Kontrak, NPWP, Sertifikasi" />
-                    </div>
+                </template>
+                <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="vdoc-name">Nama Dokumen</Label>
+                    <Input id="vdoc-name" v-model="documentName" placeholder="mis. Kontrak Kerjasama 2026.pdf" />
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isDocumentDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!documentName.trim() || !documentType.trim()" @click="submitDocument">
-                      Simpan
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  <div class="space-y-1.5">
+                    <Label for="vdoc-type">Tipe</Label>
+                    <Input id="vdoc-type" v-model="documentType" placeholder="mis. Kontrak, NPWP, Sertifikasi" />
+                  </div>
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isDocumentDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!documentName.trim() || !documentType.trim()" @click="submitDocument">
+                    Simpan
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </template>
 
             <ResponsiveDataView :items="documents" :get-key="document => document.id">
@@ -678,45 +678,45 @@ function submitQuotation () {
         <TabsContent value="contacts">
           <SectionCard title="Contacts">
             <template #actions>
-              <Dialog v-if="canManageVendor" v-model:open="isContactDialogOpen">
-                <DialogTrigger as-child>
+              <ResponsiveFormSheet
+                v-if="canManageVendor"
+                v-model:open="isContactDialogOpen"
+                title="Tambah Contact Baru"
+                :description="`Contact akan ditambahkan untuk ${vendor.name}.`"
+                content-class="max-w-md"
+              >
+                <template #trigger>
                   <Button size="sm" variant="outline">
                     <Plus class="h-4 w-4 mr-1.5" />Tambah Contact
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Tambah Contact Baru</DialogTitle>
-                    <DialogDescription>Contact akan ditambahkan untuk {{ vendor.name }}.</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                      <Label for="vc-name">Nama</Label>
-                      <Input id="vc-name" v-model="contactName" placeholder="Nama contact person" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vc-title">Jabatan</Label>
-                      <Input id="vc-title" v-model="contactTitle" placeholder="mis. Account Manager" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vc-email">Email (opsional)</Label>
-                      <Input id="vc-email" v-model="contactEmail" type="email" placeholder="nama@vendor.com" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vc-phone">Telepon (opsional)</Label>
-                      <Input id="vc-phone" v-model="contactPhone" placeholder="08xx-xxxx-xxxx" />
-                    </div>
+                </template>
+                <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="vc-name">Nama</Label>
+                    <Input id="vc-name" v-model="contactName" placeholder="Nama contact person" />
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isContactDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
-                      Simpan
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  <div class="space-y-1.5">
+                    <Label for="vc-title">Jabatan</Label>
+                    <Input id="vc-title" v-model="contactTitle" placeholder="mis. Account Manager" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="vc-email">Email (opsional)</Label>
+                    <Input id="vc-email" v-model="contactEmail" type="email" placeholder="nama@vendor.com" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="vc-phone">Telepon (opsional)</Label>
+                    <Input id="vc-phone" v-model="contactPhone" placeholder="08xx-xxxx-xxxx" />
+                  </div>
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isContactDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
+                    Simpan
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </template>
 
             <ul class="divide-y divide-border">
@@ -739,36 +739,35 @@ function submitQuotation () {
       </Tabs>
 
       <!-- Edit kategori/status vendor (Section 17) -->
-      <Dialog v-model:open="isVendorEditOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Kategori/Status Vendor</DialogTitle>
-            <DialogDescription>Kategori sourcing dan lifecycle vendor sebagai partner.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="space-y-1.5">
-              <Label for="edit-vendor-category">Kategori</Label>
-              <Input id="edit-vendor-category" v-model="editCategory" placeholder="mis. Hotel Budget, MICE Full-Service" />
-            </div>
-            <div class="space-y-1.5">
-              <Label for="edit-vendor-status">Status</Label>
-              <select id="edit-vendor-status" v-model="editStatus" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option v-for="option in VENDOR_STATUSES" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
-            </div>
+      <ResponsiveFormSheet
+        v-model:open="isVendorEditOpen"
+        title="Edit Kategori/Status Vendor"
+        description="Kategori sourcing dan lifecycle vendor sebagai partner."
+        content-class="max-w-md"
+      >
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="edit-vendor-category">Kategori</Label>
+            <Input id="edit-vendor-category" v-model="editCategory" placeholder="mis. Hotel Budget, MICE Full-Service" />
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isVendorEditOpen = false">
-              Batal
-            </Button>
-            <Button @click="submitVendorEdit">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div class="space-y-1.5">
+            <Label for="edit-vendor-status">Status</Label>
+            <select id="edit-vendor-status" v-model="editStatus" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option v-for="option in VENDOR_STATUSES" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isVendorEditOpen = false">
+            Batal
+          </Button>
+          <Button @click="submitVendorEdit">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

@@ -99,16 +99,17 @@ function submitCreate () {
       :breadcrumb="[{ label: 'Procurement' }]"
     >
       <template v-if="canManageProcurement && activeTab === 'rfq'" #actions>
-        <Dialog v-model:open="isCreateOpen">
-          <DialogTrigger as-child>
+        <ResponsiveFormSheet
+          v-model:open="isCreateOpen"
+          title="RFQ Baru"
+          description="Dibuat sebagai status &quot;Draft&quot; — undang vendor dan lengkapi line item lain di halaman detail."
+          content-class="max-w-lg"
+          scroll
+        >
+          <template #trigger>
             <Button><Plus class="h-4 w-4 mr-1.5" />Buat RFQ</Button>
-          </DialogTrigger>
-          <DialogScrollContent class="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>RFQ Baru</DialogTitle>
-              <DialogDescription>Dibuat sebagai status "Draft" — undang vendor dan lengkapi line item lain di halaman detail.</DialogDescription>
-            </DialogHeader>
-            <div class="space-y-4 py-2">
+          </template>
+          <div class="space-y-4 py-2">
               <div class="space-y-1.5">
                 <Label for="rfq-title">Judul RFQ</Label>
                 <Input id="rfq-title" v-model="newTitle" placeholder="mis. RFQ Akomodasi Tambahan" />
@@ -154,17 +155,16 @@ function submitCreate () {
                 <Label for="rfq-notes">Catatan (opsional)</Label>
                 <Input id="rfq-notes" v-model="newNotes" />
               </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">
-                Batal
-              </Button>
-              <Button :disabled="!newTitle.trim() || !newLineDescription.trim() || !newLineQuantity" @click="submitCreate">
-                Simpan
-              </Button>
-            </DialogFooter>
-          </DialogScrollContent>
-        </Dialog>
+          </div>
+          <template #footer>
+            <Button variant="outline" @click="isCreateOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!newTitle.trim() || !newLineDescription.trim() || !newLineQuantity" @click="submitCreate">
+              Simpan
+            </Button>
+          </template>
+        </ResponsiveFormSheet>
       </template>
     </PageHeader>
 

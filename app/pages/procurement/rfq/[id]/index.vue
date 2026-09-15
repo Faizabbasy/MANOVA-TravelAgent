@@ -427,31 +427,30 @@ function submitClarification () {
       </SectionCard>
 
       <!-- Kirim ke vendor dialog -->
-      <Dialog v-model:open="isSendOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Kirim RFQ ke Vendor</DialogTitle>
-            <DialogDescription>Pilih vendor dengan jenis layanan yang sesuai ({{ findStatusOption(SERVICE_TYPES, rfq.serviceType).label }}).</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-2 py-2 max-h-64 overflow-y-auto">
-            <label v-for="vendor in candidateVendors" :key="vendor.id" class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-              <Checkbox :model-value="selectedVendorIds.includes(vendor.id)" @update:model-value="checked => toggleVendorSelection(vendor.id, Boolean(checked))" />
-              {{ vendor.name }}
-            </label>
-            <p v-if="candidateVendors.length === 0" class="text-xs text-muted-foreground">
-              Tidak ada vendor dengan jenis layanan yang sesuai.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isSendOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="selectedVendorIds.length === 0" @click="submitSend">
-              Kirim
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveFormSheet
+        v-model:open="isSendOpen"
+        title="Kirim RFQ ke Vendor"
+        :description="`Pilih vendor dengan jenis layanan yang sesuai (${findStatusOption(SERVICE_TYPES, rfq.serviceType).label}).`"
+        content-class="max-w-md"
+      >
+        <div class="space-y-2 py-2 max-h-64 overflow-y-auto">
+          <label v-for="vendor in candidateVendors" :key="vendor.id" class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+            <Checkbox :model-value="selectedVendorIds.includes(vendor.id)" @update:model-value="checked => toggleVendorSelection(vendor.id, Boolean(checked))" />
+            {{ vendor.name }}
+          </label>
+          <p v-if="candidateVendors.length === 0" class="text-xs text-muted-foreground">
+            Tidak ada vendor dengan jenis layanan yang sesuai.
+          </p>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isSendOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="selectedVendorIds.length === 0" @click="submitSend">
+            Kirim
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
       <!-- Formal select confirmation -->
       <Dialog v-model:open="isSelectOpen">
