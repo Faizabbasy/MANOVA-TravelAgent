@@ -288,32 +288,31 @@ function goToProject (projectId?: string) {
         </Sheet>
       </div>
 
-      <!-- Mobile — toolbar ringkas: nav tanggal + judul rentang sejajar satu baris, lalu segmented
-           control 3-kolom penuh dan filter jenis jadwal di baris sendiri (bukan numpuk 4 kontrol dalam
-           satu baris yang wrap berantakan seperti di desktop). "Tambah Acara" jadi FAB melayang di atas
-           bottom nav, bukan tombol yang ikut wrap. -->
-      <div class="space-y-2 sm:hidden">
+      <!-- Mobile — satu kartu toolbar (nav tanggal + segmented control Hari/Minggu/Bulan + filter jenis
+           jadwal sebagai chip yang bisa discroll), bukan kontrol lepas di background halaman. "Tambah
+           Acara" jadi FAB melayang di atas bottom nav, bukan tombol yang ikut wrap. -->
+      <div class="space-y-3 rounded-2xl border border-border bg-card p-3 shadow-sm sm:hidden">
         <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" class="h-9 w-9 shrink-0 p-0" @click="shiftView(-1)">
+          <button type="button" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted" @click="shiftView(-1)">
             <ChevronLeft class="h-4 w-4" />
-          </Button>
-          <p class="min-w-0 flex-1 truncate text-center text-sm font-semibold capitalize text-foreground">
+          </button>
+          <p class="min-w-0 flex-1 truncate text-center text-sm font-bold capitalize text-foreground">
             {{ rangeLabel }}
           </p>
-          <Button variant="outline" size="sm" class="h-9 w-9 shrink-0 p-0" @click="shiftView(1)">
+          <button type="button" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted" @click="shiftView(1)">
             <ChevronRight class="h-4 w-4" />
-          </Button>
+          </button>
         </div>
 
-        <div class="grid grid-cols-3 gap-1 rounded-lg bg-muted p-0.5">
+        <div class="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1">
           <button
             v-for="mode in VIEW_MODES"
             :key="mode.value"
             type="button"
             :class="cn(
-              'flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-all',
+              'flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all active:scale-95',
               viewMode === mode.value
-                ? 'bg-card text-foreground shadow-sm'
+                ? 'bg-primary text-primary-foreground shadow-sm'
                 : 'text-muted-foreground'
             )"
             @click="setViewMode(mode.value)"
@@ -323,14 +322,27 @@ function goToProject (projectId?: string) {
           </button>
         </div>
 
-        <select v-model="kindFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-          <option value="all">
-            Semua Jenis Jadwal
-          </option>
-          <option v-for="entry in kindCounts" :key="entry.kind" :value="entry.kind">
+        <div class="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <button
+            type="button"
+            class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+            :class="kindFilter === 'all' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'"
+            @click="kindFilter = 'all'"
+          >
+            Semua
+          </button>
+          <button
+            v-for="entry in kindCounts"
+            :key="entry.kind"
+            type="button"
+            class="flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+            :class="kindFilter === entry.kind ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'"
+            @click="kindFilter = entry.kind"
+          >
+            <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="TONE_DOT[entry.meta.tone] ?? 'bg-muted-foreground'" />
             {{ entry.meta.label }} ({{ entry.count }})
-          </option>
-        </select>
+          </button>
+        </div>
       </div>
 
       <button
@@ -502,7 +514,10 @@ function goToProject (projectId?: string) {
       </div>
 
       <Sheet v-model:open="isDaySheetOpen">
-        <SheetContent side="right" class="w-full overflow-y-auto bg-card p-0 sm:max-w-sm">
+        <SheetContent
+          :side="isMobile ? 'bottom' : 'right'"
+          :class="isMobile ? 'max-h-[85vh] overflow-y-auto rounded-t-2xl bg-card p-0' : 'w-full overflow-y-auto bg-card p-0 sm:max-w-sm'"
+        >
           <div class="border-b border-border bg-gradient-to-br from-primary/10 via-muted/40 to-transparent px-6 py-5">
             <SheetHeader class="pr-8">
               <div class="flex items-center gap-3">
