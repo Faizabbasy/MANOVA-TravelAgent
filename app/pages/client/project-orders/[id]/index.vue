@@ -638,12 +638,13 @@ function submitChangeRequest () {
             </div>
           </SectionCard>
 
-          <Dialog v-model:open="isTravelerDialogOpen">
-            <DialogScrollContent class="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>{{ editingTraveler ? 'Edit Traveler' : 'Tambah Traveler' }}</DialogTitle>
-                <DialogDescription>Lengkapi data traveler untuk keperluan dokumen perjalanan.</DialogDescription>
-              </DialogHeader>
+          <ResponsiveFormSheet
+            v-model:open="isTravelerDialogOpen"
+            :title="editingTraveler ? 'Edit Traveler' : 'Tambah Traveler'"
+            description="Lengkapi data traveler untuk keperluan dokumen perjalanan."
+            content-class="max-w-lg"
+            scroll
+          >
               <div class="space-y-4 py-2">
                 <div class="space-y-1.5">
                   <Label for="trv-name">Nama Lengkap</Label><Input id="trv-name" v-model="travelerName" />
@@ -681,16 +682,15 @@ function submitChangeRequest () {
                   <Label for="trv-special">Permintaan Khusus Lainnya</Label><Input id="trv-special" v-model="travelerSpecialRequest" />
                 </div>
               </div>
-              <DialogFooter>
+              <template #footer>
                 <Button variant="outline" @click="isTravelerDialogOpen = false">
                   Batal
                 </Button>
                 <Button :disabled="!travelerName.trim()" @click="submitTraveler">
                   Simpan
                 </Button>
-              </DialogFooter>
-            </DialogScrollContent>
-          </Dialog>
+              </template>
+          </ResponsiveFormSheet>
         </TabsContent>
 
         <TabsContent value="documents">
@@ -840,41 +840,39 @@ function submitChangeRequest () {
                 <NuxtLink to="/client/project-orders#change-requests" class="text-xs text-primary hover:underline">
                   Kelola lengkap →
                 </NuxtLink>
-                <Dialog v-model:open="isChangeDialogOpen">
-                  <DialogTrigger as-child>
+                <ResponsiveFormSheet
+                  v-model:open="isChangeDialogOpen"
+                  title="Ajukan Permintaan Perubahan"
+                  description="Sampaikan perubahan yang Anda butuhkan untuk Project Order ini."
+                >
+                  <template #trigger>
                     <Button size="sm" variant="outline">
                       <Plus class="h-4 w-4 mr-1.5" />Ajukan Perubahan
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent class="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Ajukan Permintaan Perubahan</DialogTitle>
-                      <DialogDescription>Sampaikan perubahan yang Anda butuhkan untuk Project Order ini.</DialogDescription>
-                    </DialogHeader>
-                    <div class="space-y-4 py-2">
-                      <div class="space-y-1.5">
-                        <Label for="change-category">Kategori</Label>
-                        <select id="change-category" v-model="changeCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                          <option v-for="cat in CHANGE_CATEGORIES.filter(c => CLIENT_CHANGE_CATEGORIES.includes(c.value))" :key="cat.value" :value="cat.value">
-                            {{ cat.label }}
-                          </option>
-                        </select>
-                      </div>
-                      <div class="space-y-1.5">
-                        <Label for="change-reason">Detail Permintaan</Label>
-                        <textarea id="change-reason" v-model="changeReason" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Jumlah peserta bertambah menjadi 25 orang" />
-                      </div>
+                  </template>
+                  <div class="space-y-4 py-2">
+                    <div class="space-y-1.5">
+                      <Label for="change-category">Kategori</Label>
+                      <select id="change-category" v-model="changeCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option v-for="cat in CHANGE_CATEGORIES.filter(c => CLIENT_CHANGE_CATEGORIES.includes(c.value))" :key="cat.value" :value="cat.value">
+                          {{ cat.label }}
+                        </option>
+                      </select>
                     </div>
-                    <DialogFooter>
-                      <Button variant="outline" @click="isChangeDialogOpen = false">
-                        Batal
-                      </Button>
-                      <Button :disabled="!changeReason.trim()" @click="submitChangeRequest">
-                        Kirim
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                    <div class="space-y-1.5">
+                      <Label for="change-reason">Detail Permintaan</Label>
+                      <textarea id="change-reason" v-model="changeReason" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Jumlah peserta bertambah menjadi 25 orang" />
+                    </div>
+                  </div>
+                  <template #footer>
+                    <Button variant="outline" @click="isChangeDialogOpen = false">
+                      Batal
+                    </Button>
+                    <Button :disabled="!changeReason.trim()" @click="submitChangeRequest">
+                      Kirim
+                    </Button>
+                  </template>
+                </ResponsiveFormSheet>
               </div>
             </template>
             <ul v-if="projectChangeRequests.length" class="divide-y divide-border">
@@ -1067,12 +1065,13 @@ function submitChangeRequest () {
           </SectionCard>
 
           <!-- ── Create/Edit Requirement Dialog ────────────────────────── -->
-          <Dialog v-model:open="isRequirementDialogOpen">
-            <DialogScrollContent class="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>{{ editingRequirement ? 'Edit Kebutuhan Komoditas' : 'Tambah Kebutuhan Komoditas' }}</DialogTitle>
-                <DialogDescription>Kebutuhan ini akan dicocokkan dengan komoditas yang tersedia dari Vendor.</DialogDescription>
-              </DialogHeader>
+          <ResponsiveFormSheet
+            v-model:open="isRequirementDialogOpen"
+            :title="editingRequirement ? 'Edit Kebutuhan Komoditas' : 'Tambah Kebutuhan Komoditas'"
+            description="Kebutuhan ini akan dicocokkan dengan komoditas yang tersedia dari Vendor."
+            content-class="max-w-lg"
+            scroll
+          >
               <div class="space-y-4 py-2">
                 <div class="space-y-1.5">
                   <Label for="req-title">Judul Kebutuhan</Label>
@@ -1144,16 +1143,15 @@ function submitChangeRequest () {
                   <textarea id="req-notes" v-model="reqNotes" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
               </div>
-              <DialogFooter>
+              <template #footer>
                 <Button variant="outline" @click="isRequirementDialogOpen = false">
                   Batal
                 </Button>
                 <Button :disabled="!reqTitle.trim() || !reqQuantity" @click="submitRequirement">
                   Simpan
                 </Button>
-              </DialogFooter>
-            </DialogScrollContent>
-          </Dialog>
+              </template>
+          </ResponsiveFormSheet>
 
           <!-- ── Requirement Detail Dialog (read-only) ─────────────────── -->
           <Dialog :open="viewingRequirement !== null" @update:open="val => { if (!val) viewingRequirement = null }">
