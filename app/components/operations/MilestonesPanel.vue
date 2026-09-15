@@ -99,7 +99,20 @@ function submitForm () {
 
 <template>
   <div class="space-y-4">
-    <div class="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5">
+    <!-- Mobile — Total/Selesai/Delay dibuat ringkas & sejajar 3 kolom (bukan stack 2 kolom yang bikin
+         judul/kartu terakhir kepotong), 2 card sisanya (progress + budget) tetap full-width karena isinya
+         lebih berat. Desktop tidak berubah — grid 5-kolom lama tetap dipakai lewat `hidden sm:grid`. -->
+    <div class="grid grid-cols-3 gap-2 sm:hidden">
+      <StatsCard size="sm" title="Total" :value="String(totalCount)" :icon="ListChecks" />
+      <StatsCard size="sm" title="Selesai" :value="String(completedCount)" :icon="CheckCircle2" icon-color="success" />
+      <StatsCard size="sm" title="Delay" :value="String(delayedCount)" :icon="AlertTriangle" icon-color="destructive" />
+    </div>
+    <div class="grid grid-cols-1 gap-3 sm:hidden">
+      <StatsCard title="Progress Keseluruhan" :value="`${avgProgress}%`" :icon="TrendingUp" :progress-percent="avgProgress" />
+      <StatsCard title="Total Budget Milestone" :value="formatCurrencyIdr(totalBudget)" :icon="Wallet" />
+    </div>
+
+    <div class="hidden grid-cols-2 gap-3 sm:grid sm:grid-cols-3 xl:grid-cols-5">
       <StatsCard title="Total Milestone" :value="String(totalCount)" :icon="ListChecks" />
       <StatsCard title="Selesai" :value="String(completedCount)" :icon="CheckCircle2" icon-color="success" />
       <StatsCard title="Delay" :value="String(delayedCount)" :icon="AlertTriangle" icon-color="destructive" />
