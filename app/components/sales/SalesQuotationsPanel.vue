@@ -269,16 +269,14 @@ function viewLeadDetail () {
     </template>
 
     <!-- Review Dialog -->
-    <Dialog v-model:open="isReviewOpen">
-      <DialogScrollContent class="max-w-lg">
+    <ResponsiveFormSheet
+      v-model:open="isReviewOpen"
+      content-class="max-w-lg"
+      scroll
+      :title="selectedQuotation && selectedLead ? `${selectedQuotation.id} — ${selectedLead.title ?? selectedLead.companyName ?? selectedLead.name}` : ''"
+      :description="selectedLead ? `${selectedLead.partyId ? (getPartyById(selectedLead.partyId)?.name ?? '—') : '—'} · AE ${getUserById(selectedLead.handedOverTo ?? selectedLead.ownerId)?.name ?? selectedLead.handedOverTo ?? selectedLead.ownerId}` : undefined"
+    >
         <template v-if="selectedQuotation && selectedLead">
-          <DialogHeader>
-            <DialogTitle>{{ selectedQuotation.id }} — {{ selectedLead.title ?? selectedLead.companyName ?? selectedLead.name }}</DialogTitle>
-            <DialogDescription>
-              {{ selectedLead.partyId ? (getPartyById(selectedLead.partyId)?.name ?? '—') : '—' }} · AE {{ getUserById(selectedLead.handedOverTo ?? selectedLead.ownerId)?.name ?? selectedLead.handedOverTo ?? selectedLead.ownerId }}
-            </DialogDescription>
-          </DialogHeader>
-
           <div class="flex items-center gap-2">
             <StatusBadge
               :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, selectedQuotation.approvalStatus ?? 'draft').label"
@@ -319,32 +317,31 @@ function viewLeadDetail () {
           <button type="button" class="text-sm text-primary hover:underline block mt-2" @click="viewLeadDetail">
             Lihat Lead lengkap →
           </button>
-
-          <DialogFooter class="mt-4">
-            <template v-if="canApproveCommercial && selectedQuotation.approvalStatus === 'submitted'">
-              <div class="w-full space-y-2">
-                <Label for="decision-note">Catatan Keputusan</Label>
-                <Input id="decision-note" v-model="decisionNote" placeholder="mis. Disetujui sesuai standar margin / Margin terlalu rendah, revisi harga" />
-                <div class="flex justify-end gap-2 pt-1">
-                  <Button variant="outline" @click="isReviewOpen = false">
-                    Batal
-                  </Button>
-                  <Button variant="destructive" :disabled="!decisionNote.trim()" :title="!decisionNote.trim() ? 'Catatan wajib diisi untuk reject' : undefined" @click="submitReject">
-                    Reject (Return for Revision)
-                  </Button>
-                  <Button @click="submitApprove">
-                    Approve
-                  </Button>
-                </div>
-              </div>
-            </template>
-            <Button v-else variant="outline" @click="isReviewOpen = false">
-              Tutup
-            </Button>
-          </DialogFooter>
         </template>
-      </DialogScrollContent>
-    </Dialog>
+
+        <template #footer>
+          <template v-if="selectedQuotation && canApproveCommercial && selectedQuotation.approvalStatus === 'submitted'">
+            <div class="w-full space-y-2">
+              <Label for="decision-note">Catatan Keputusan</Label>
+              <Input id="decision-note" v-model="decisionNote" placeholder="mis. Disetujui sesuai standar margin / Margin terlalu rendah, revisi harga" />
+              <div class="flex justify-end gap-2 pt-1">
+                <Button variant="outline" @click="isReviewOpen = false">
+                  Batal
+                </Button>
+                <Button variant="destructive" :disabled="!decisionNote.trim()" :title="!decisionNote.trim() ? 'Catatan wajib diisi untuk reject' : undefined" @click="submitReject">
+                  Reject (Return for Revision)
+                </Button>
+                <Button @click="submitApprove">
+                  Approve
+                </Button>
+              </div>
+            </div>
+          </template>
+          <Button v-else variant="outline" @click="isReviewOpen = false">
+            Tutup
+          </Button>
+        </template>
+    </ResponsiveFormSheet>
 
     <!-- Edit Quotation lengkap — tab "Quotation" di sheet ini, bukan navigasi ke halaman terpisah -->
     <LeadDetailSheet v-model:open="isEditDrawerOpen" :lead-id="editDrawerLeadId" initial-tab="quotation" />
