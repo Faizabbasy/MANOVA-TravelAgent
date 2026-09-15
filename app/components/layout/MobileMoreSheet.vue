@@ -17,18 +17,25 @@ const { tabs } = useMobileTabs()
 /** Menu lengkap dikurangi 4 yang sudah dipin di bottom bar — supaya tidak duplikat. */
 const pinnedKeys = computed(() => new Set(tabs.value.map(tab => tab.key)))
 
-function flattenForMore (items: NavItem[]): NavItem[] {
-  return items.flatMap((item) => {
-    if (item.children?.length) {
-      return item.children.filter(child => !pinnedKeys.value.has(child.key))
-    }
-    return pinnedKeys.value.has(item.key) ? [] : [item]
-  })
-}
+/**
+ * Sebelumnya anak-anak sub-menu di-flatten jadi satu list rata tanpa induknya, jadi kelihatan acak.
+ * Kini dikelompokkan per induk (label + ikon) sama seperti sidebar desktop, supaya konteksnya kebaca.
+ */
+interface MoreGroup { item: NavItem; children: NavItem[] }
 
-const moreItems = computed(() =>
-  flattenForMore(getVisibleNavItems(NAV_ITEMS, { isRole, canViewMenu }))
-)
+const moreGroups = computed<MoreGroup[]>(() => {
+  const items = getVisibleNavItems(NAV_ITEMS, { isRole, canViewMenu })
+  const groups: MoreGroup[] = []
+  for (const item of items) {
+    if (item.children?.length) {
+      const children = item.children.filter(child => !pinnedKeys.value.has(child.key))
+      if (children.length) { groups.push({ item, children }) }
+    } else if (!pinnedKeys.value.has(item.key)) {
+      groups.push({ item, children: [] })
+    }
+  }
+  return groups
+})
 
 function isActive (to: string) {
   return isNavPathActive(to, route)
@@ -55,17 +62,31 @@ function handleLogout () {
       </SheetHeader>
 
       <nav class="px-3 pb-2">
-        <ul class="space-y-1">
-          <li v-for="item in moreItems" :key="item.key">
+        <ul class="space-y-3">
+          <li v-for="group in moreGroups" :key="group.item.key">
             <button
               class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors"
-              :class="isActive(item.to) ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold' : 'text-foreground hover:bg-muted'"
-              @click="goTo(item.to)"
+              :class="isActive(group.item.to) ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold' : 'text-foreground hover:bg-muted'"
+              @click="goTo(group.item.to)"
             >
-              <component :is="item.icon" class="h-4 w-4 shrink-0" />
-              <span class="flex-1">{{ item.label }}</span>
+              <component :is="group.item.icon" class="h-4 w-4 shrink-0" />
+              <span class="flex-1" :class="group.children.length && 'font-semibold'">{{ group.item.label }}</span>
               <ChevronRight class="h-4 w-4 text-muted-foreground" />
             </button>
+
+            <ul v-if="group.children.length" class="mt-1 ml-6 space-y-1 border-l border-border pl-3">
+              <li v-for="child in group.children" :key="child.key">
+                <button
+                  class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors"
+                  :class="isActive(child.to) ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
+                  @click="goTo(child.to)"
+                >
+                  <component :is="child.icon" class="h-4 w-4 shrink-0" />
+                  <span class="flex-1">{{ child.label }}</span>
+                  <ChevronRight class="h-4 w-4 text-muted-foreground" />
+                </button>
+              </li>
+            </ul>
           </li>
         </ul>
       </nav>
