@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, nextTick, type ComputedRef } from 'vue'
 import { format, parseISO } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
+import { CalendarDate, type DateValue } from '@internationalized/date'
 import {
   FolderKanban, Handshake, PlaneTakeoff, AlertTriangle, Receipt, Users, Save, X,
   Wallet, PieChart, ListChecks, CheckCircle2, CalendarClock, History, Activity, ShieldCheck, Package, Building2,
@@ -102,6 +103,27 @@ function applyCustomPeriod () {
   financialPeriodPreset.value = 'custom'
   isCustomPeriodOpen.value = false
 }
+
+function isoToCalendarDate (iso: string): CalendarDate {
+  const [year, month, day] = iso.split('-').map(Number)
+  return new CalendarDate(year, month, day)
+}
+function calendarDateToIso (date: DateValue): string {
+  return `${String(date.year).padStart(4, '0')}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
+}
+
+/** Jembatan string ISO (`customStartDate`/`customEndDate`, dipakai logic filter) <-> `DateRange` yang
+ * dipakai `RangeCalendar` (kalender klik-langsung, bukan native `&lt;input type="date"&gt;`). */
+const customCalendarRange = computed({
+  get: () => ({
+    start: customStartDate.value ? isoToCalendarDate(customStartDate.value) : undefined,
+    end: customEndDate.value ? isoToCalendarDate(customEndDate.value) : undefined
+  }),
+  set: (value) => {
+    customStartDate.value = value?.start ? calendarDateToIso(value.start) : ''
+    customEndDate.value = value?.end ? calendarDateToIso(value.end) : ''
+  }
+})
 
 const showFilters = visibleTo('management', 'project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'finance', 'super-admin', 'viewer')
 /**
@@ -794,15 +816,14 @@ const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
         description="Custom period untuk seluruh widget dashboard — finance per bulan buku, project per tanggal keberangkatan."
         content-class="max-w-sm"
       >
-        <div class="space-y-4 py-2">
-          <div class="space-y-1.5">
-            <Label for="dashboard-custom-start">Tanggal Mulai</Label>
-            <Input id="dashboard-custom-start" v-model="customStartDate" type="date" />
-          </div>
-          <div class="space-y-1.5">
-            <Label for="dashboard-custom-end">Tanggal Selesai</Label>
-            <Input id="dashboard-custom-end" v-model="customEndDate" type="date" :min="customStartDate || undefined" />
-          </div>
+        <div class="space-y-2 py-2">
+          <p class="text-center text-xs text-muted-foreground">
+            Klik tanggal mulai, lalu tanggal selesai.
+          </p>
+          <RangeCalendar v-model="customCalendarRange" class="mx-auto w-fit" />
+          <p v-if="customStartDate && customEndDate" class="text-center text-sm font-medium text-foreground">
+            {{ format(parseISO(customStartDate), 'd MMM yyyy', { locale: localeId }) }} – {{ format(parseISO(customEndDate), 'd MMM yyyy', { locale: localeId }) }}
+          </p>
         </div>
         <template #footer>
           <Button variant="outline" @click="isCustomPeriodOpen = false">
