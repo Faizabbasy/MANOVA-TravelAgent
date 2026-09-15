@@ -44,13 +44,13 @@ function isActive (to: string) {
 const isGroupActive = (group: MoreGroup) =>
   isActive(group.item.to) || group.children.some(child => isActive(child.to))
 
-/** Default terbuka di sheet ini (beda dari sidebar) — semua isi grup langsung kebaca tanpa perlu tap dulu. */
-const collapsed = reactive<Record<string, boolean>>({})
+/** Default tertutup — grup dibuka manual dengan tap, biar list awal ringkas dan jelas mana yang beranak. */
+const expanded = reactive<Record<string, boolean>>({})
 function isExpanded (group: MoreGroup) {
-  return !collapsed[group.item.key]
+  return Boolean(expanded[group.item.key])
 }
 function toggleExpanded (group: MoreGroup) {
-  collapsed[group.item.key] = isExpanded(group)
+  expanded[group.item.key] = !isExpanded(group)
 }
 
 function goTo (to: string) {
@@ -78,11 +78,20 @@ function handleLogout () {
           <li v-for="group in moreGroups" :key="group.item.key">
             <button
               class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-semibold transition-colors"
-              :class="isGroupActive(group) ? 'text-sidebar-accent-foreground' : 'text-foreground hover:bg-muted'"
+              :class="[
+                isGroupActive(group) ? 'text-sidebar-accent-foreground' : 'text-foreground hover:bg-muted',
+                group.children.length && isExpanded(group) && 'bg-muted/60',
+              ]"
               @click="group.children.length ? toggleExpanded(group) : goTo(group.item.to)"
             >
               <component :is="group.item.icon" class="h-4 w-4 shrink-0" />
               <span class="flex-1">{{ group.item.label }}</span>
+              <span
+                v-if="group.children.length"
+                class="rounded-full bg-muted px-1.5 py-0.5 text-[11px] font-medium text-muted-foreground"
+              >
+                {{ group.children.length }}
+              </span>
               <ChevronRight v-if="!group.children.length" class="h-4 w-4 text-muted-foreground" />
               <ChevronDown
                 v-else
