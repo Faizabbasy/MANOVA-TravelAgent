@@ -5,7 +5,7 @@ import { id as localeId } from 'date-fns/locale'
 import {
   FolderKanban, Handshake, PlaneTakeoff, AlertTriangle, Receipt, Users, Save, X,
   Wallet, PieChart, ListChecks, CheckCircle2, CalendarClock, History, Activity, ShieldCheck, Package, Building2,
-  TrendingUp, TrendingDown, Clock
+  TrendingUp, TrendingDown, Clock, SlidersHorizontal
 } from 'lucide-vue-next'
 import type { HeroMetric } from '~/components/dashboard/DashboardHeroPanel.vue'
 import type { CashFlowSideMetric } from '~/components/dashboard/DashboardCashFlowSection.vue'
@@ -97,6 +97,18 @@ const ownerOptions = computed(() => {
 const mySavedViews = computed(() => getSavedViewsForUser(currentUser.value.id, 'dashboard'))
 const isSaveViewOpen = ref(false)
 const newViewLabel = ref('')
+
+/** Filter bar mobile — 5 Select sejajar di desktop tidak muat di layar sempit (wrap jadi beberapa baris
+ * berantakan). Di mobile disembunyikan di belakang satu tombol "Filter" yang buka bottom Sheet, badge
+ * menunjukkan jumlah filter aktif supaya kelihatan tanpa perlu buka sheet-nya dulu. */
+const isMobileFilterOpen = ref(false)
+const activeFilterCount = computed(() => [
+  statusFilter.value !== 'all',
+  typeFilter.value !== 'all',
+  clientFilter.value !== 'all',
+  ownerFilter.value !== 'all',
+  periodFilter.value !== 'all'
+].filter(Boolean).length)
 
 function submitSaveView () {
   const label = newViewLabel.value.trim()
@@ -627,7 +639,11 @@ const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
       </div>
 
       <div v-if="showFilters" class="rounded-2xl border border-border bg-card shadow-sm p-4 mb-6">
-        <div class="flex flex-wrap items-center gap-2">
+        <!-- Dialog "Simpan View" dibungkus di luar, dipakai bareng oleh trigger desktop & mobile
+             (satu state `isSaveViewOpen`, satu DialogContent) supaya tidak dobel ke-teleport saat dibuka. -->
+        <Dialog v-model:open="isSaveViewOpen">
+        <!-- Desktop — tidak diubah. -->
+        <div class="hidden sm:flex flex-wrap items-center gap-2">
           <span class="text-xs font-semibold text-muted-foreground mr-1">Filter</span>
 
           <Select v-model="statusFilter">
@@ -706,32 +722,156 @@ const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
             </SelectContent>
           </Select>
 
-          <Dialog v-model:open="isSaveViewOpen">
-            <DialogTrigger as-child>
-              <Button size="sm" variant="outline" class="ml-auto">
-                <Save class="h-3.5 w-3.5 mr-1.5" />Simpan View
-              </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Simpan Saved View</DialogTitle>
-                <DialogDescription>Menyimpan kombinasi filter aktif saat ini (mock, tersimpan per user login, bukan localStorage).</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="dashboard-view-label">Nama View</Label>
-                <Input id="dashboard-view-label" v-model="newViewLabel" placeholder="mis. Project Confirmed Bulan Ini" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isSaveViewOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!newViewLabel.trim()" @click="submitSaveView">
-                  Simpan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <DialogTrigger as-child>
+            <Button size="sm" variant="outline" class="ml-auto">
+              <Save class="h-3.5 w-3.5 mr-1.5" />Simpan View
+            </Button>
+          </DialogTrigger>
         </div>
+
+        <!-- Mobile — 5 Select disembunyikan di belakang satu tombol "Filter" (bottom Sheet), bukan
+             wrap jadi beberapa baris dropdown yang berantakan. -->
+        <div class="flex items-center gap-2 sm:hidden">
+          <Sheet v-model:open="isMobileFilterOpen">
+            <SheetTrigger as-child>
+              <Button variant="outline" size="sm" class="flex-1 justify-start">
+                <SlidersHorizontal class="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                Filter
+                <span v-if="activeFilterCount" class="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                  {{ activeFilterCount }}
+                </span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" class="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+              <SheetHeader class="text-left">
+                <SheetTitle>Filter Dashboard</SheetTitle>
+              </SheetHeader>
+              <div class="space-y-3 py-4">
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Status</Label>
+                  <Select v-model="statusFilter">
+                    <SelectTrigger class="h-10 w-full text-sm">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        Semua Status
+                      </SelectItem>
+                      <SelectItem v-for="status in PROJECT_STATUSES" :key="status.value" :value="status.value">
+                        {{ status.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Tipe Project</Label>
+                  <Select v-model="typeFilter">
+                    <SelectTrigger class="h-10 w-full text-sm">
+                      <SelectValue placeholder="Tipe Project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        Semua Tipe
+                      </SelectItem>
+                      <SelectItem v-for="type in PROJECT_CHARACTERISTICS" :key="type.value" :value="type.value">
+                        {{ type.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Client</Label>
+                  <Select v-model="clientFilter">
+                    <SelectTrigger class="h-10 w-full text-sm">
+                      <SelectValue placeholder="Client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        Semua Client
+                      </SelectItem>
+                      <SelectItem v-for="party in clientOptions" :key="party.id" :value="party.id">
+                        {{ party.name }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div v-if="showOwnerFilter" class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Owner</Label>
+                  <Select v-model="ownerFilter">
+                    <SelectTrigger class="h-10 w-full text-sm">
+                      <SelectValue placeholder="Owner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        Semua Owner
+                      </SelectItem>
+                      <SelectItem v-for="user in ownerOptions" :key="user.id" :value="user.id">
+                        {{ user.name }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Periode Keberangkatan</Label>
+                  <Select v-model="periodFilter">
+                    <SelectTrigger class="h-10 w-full text-sm">
+                      <SelectValue placeholder="Periode Keberangkatan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        Semua Periode
+                      </SelectItem>
+                      <SelectItem value="30">
+                        30 Hari ke Depan
+                      </SelectItem>
+                      <SelectItem value="60">
+                        60 Hari ke Depan
+                      </SelectItem>
+                      <SelectItem value="90">
+                        90 Hari ke Depan
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <SheetFooter class="flex-row gap-2">
+                <Button variant="outline" class="flex-1" @click="isMobileFilterOpen = false">
+                  Terapkan
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+
+          <DialogTrigger as-child>
+            <Button size="sm" variant="outline">
+              <Save class="h-3.5 w-3.5" />
+            </Button>
+          </DialogTrigger>
+        </div>
+
+        <DialogContent class="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Simpan Saved View</DialogTitle>
+            <DialogDescription>Menyimpan kombinasi filter aktif saat ini (mock, tersimpan per user login, bukan localStorage).</DialogDescription>
+          </DialogHeader>
+          <div class="space-y-1.5 py-2">
+            <Label for="dashboard-view-label">Nama View</Label>
+            <Input id="dashboard-view-label" v-model="newViewLabel" placeholder="mis. Project Confirmed Bulan Ini" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="isSaveViewOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!newViewLabel.trim()" @click="submitSaveView">
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+        </Dialog>
 
         <div v-if="mySavedViews.length" class="flex items-center flex-wrap gap-2 mt-3 pt-3 border-t border-border">
           <span class="text-xs text-muted-foreground">Saved:</span>
