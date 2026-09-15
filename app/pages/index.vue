@@ -412,20 +412,34 @@ const financialPeriodLabel = computed(() => {
   return format(parseISO(`${period}-01`), 'MMMM yyyy', { locale: localeId })
 })
 
-/** Pemasukan Bersih — satu kartu hero besar (bukan lagi dua kartu sejajar), sesuai layout referensi. */
-const heroPrimary = computed<HeroMetric | undefined>(() => {
-  if (!showFinancialSummary.value || !latestRevenuePeriod.value) { return undefined }
+/** Dua kartu hero desktop (tidak berubah) — Pemasukan Bersih & Profit sejajar. Di mobile, `metrics[0]`
+ * (Pemasukan Bersih) dipakai sebagai kartu hero tunggal oleh `DashboardHeroPanel` sendiri. */
+const heroMetrics = computed<HeroMetric[]>(() => {
+  if (!showFinancialSummary.value || !latestRevenuePeriod.value) { return [] }
   const period = latestRevenuePeriod.value
   const previous = previousRevenuePeriod.value
   const history = revenuePeriods.value.slice(-6)
-  return {
-    key: 'net-revenue',
-    label: 'Pemasukan Bersih',
-    valueIdr: period.revenueIdr,
-    icon: TrendingUp,
-    series: history.map(row => row.revenueIdr),
-    trend: periodTrend(period.revenueIdr, previous?.revenueIdr)
-  }
+  const profitPositive = period.netProfitIdr >= 0
+  return [
+    {
+      key: 'net-revenue',
+      label: 'Pemasukan Bersih',
+      valueIdr: period.revenueIdr,
+      icon: TrendingUp,
+      series: history.map(row => row.revenueIdr),
+      trend: periodTrend(period.revenueIdr, previous?.revenueIdr),
+      accent: 'blue'
+    },
+    {
+      key: 'net-profit',
+      label: 'Profit',
+      valueIdr: period.netProfitIdr,
+      icon: Wallet,
+      series: history.map(row => row.netProfitIdr),
+      trend: periodTrend(period.netProfitIdr, previous?.netProfitIdr),
+      accent: profitPositive ? 'emerald' : 'rose'
+    }
+  ]
 })
 
 /** Payables (Hutang) — total outstanding Supplier Invoice belum lunas, sumber sama dengan `PayablesPanel`
@@ -635,9 +649,9 @@ const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
 
     <template v-else>
       <DashboardHeroPanel
-        v-if="heroPrimary"
-        :primary="heroPrimary"
-        :metrics="heroSecondaryMetrics"
+        v-if="heroMetrics.length"
+        :metrics="heroMetrics"
+        :secondary-metrics="heroSecondaryMetrics"
         :period-label="financialPeriodLabel"
         class="mb-4"
       />
@@ -652,7 +666,7 @@ const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
       />
 
       <DashboardKpiHero
-        v-if="visibleKpiCards.length === 1 && !heroPrimary"
+        v-if="visibleKpiCards.length === 1 && !heroMetrics.length"
         class="mb-6"
         :label="visibleKpiCards[0].title"
         :value="Number(visibleKpiCards[0].value)"
