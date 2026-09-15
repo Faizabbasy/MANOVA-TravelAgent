@@ -431,12 +431,11 @@ function reactivateItem (item: Record<string, any>) {
       </SectionCard>
 
       <!-- Create/Edit dialog (generik, field dari CategoryDef) -->
-      <Dialog v-model:open="isFormOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{{ formMode === 'create' ? 'Tambah' : 'Edit' }} {{ activeCategory.label }}</DialogTitle>
-            <DialogDescription>Mock CRUD — perubahan tersimpan di state aplikasi dan tercatat di Audit Trail.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isFormOpen"
+        :title="`${formMode === 'create' ? 'Tambah' : 'Edit'} ${activeCategory.label}`"
+        description="Mock CRUD — perubahan tersimpan di state aplikasi dan tercatat di Audit Trail."
+      >
           <div class="space-y-4 py-2">
             <div v-for="field in activeCategory.fields" :key="field.key" class="space-y-1.5">
               <Label :for="`md-field-${field.key}`">{{ field.label }}</Label>
@@ -480,16 +479,15 @@ function reactivateItem (item: Record<string, any>) {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isFormOpen = false">
               Batal
             </Button>
             <Button :disabled="!isFormValid" @click="submitForm">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
       <!-- Usage warning confirm dialog -->
       <Dialog v-model:open="isUsageDialogOpen">

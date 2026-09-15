@@ -87,18 +87,19 @@ function submitTicket () {
 <template>
   <div class="space-y-6">
     <div v-if="canView('client-portal')" class="flex justify-end">
-      <Dialog v-model:open="isFormOpen">
-        <DialogTrigger as-child>
+      <ResponsiveFormSheet
+        v-model:open="isFormOpen"
+        title="Buat Support Ticket"
+        description="Tim kami akan ditugaskan otomatis sesuai kategori."
+        content-class="max-w-lg"
+        scroll
+      >
+        <template #trigger>
           <Button size="sm" @click="openCreateForm()">
             <Plus class="h-4 w-4 mr-1.5" />Create Ticket
           </Button>
-        </DialogTrigger>
-        <DialogScrollContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Buat Support Ticket</DialogTitle>
-            <DialogDescription>Tim kami akan ditugaskan otomatis sesuai kategori.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </template>
+        <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="tck-project">Project Order (opsional)</Label>
               <select id="tck-project" v-model="formProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -141,16 +142,15 @@ function submitTicket () {
               <Input id="tck-attachment" v-model="formAttachmentName" placeholder="mis. foto-bukti.jpg" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isFormOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!formSubject.trim() || !formDescription.trim()" @click="submitTicket">
-              Kirim
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isFormOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!formSubject.trim() || !formDescription.trim()" @click="submitTicket">
+            Kirim
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </div>
 
     <RoleAccessState v-if="!canView('client-portal')" module-label="Client Portal" />

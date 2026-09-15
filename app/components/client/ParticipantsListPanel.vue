@@ -254,69 +254,68 @@ function submitExport () {
     </template>
 
     <!-- Add Dialog -->
-    <Dialog v-model:open="isAddDialogOpen">
-      <DialogContent class="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Tambah Peserta</DialogTitle>
-          <DialogDescription>Pilih Project Order dan nama peserta. Lengkapi detail lainnya dari halaman Detail setelah tersimpan.</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-4 py-2">
-          <div class="space-y-1.5">
-            <Label for="add-project">Project Order</Label>
-            <select id="add-project" v-model="addProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="">
-                Pilih project...
-              </option>
-              <option v-for="project in projects" :key="project.id" :value="project.id">
-                {{ project.name }}
-              </option>
-            </select>
-          </div>
-          <div class="space-y-1.5">
-            <Label for="add-name">Nama Lengkap</Label>
-            <Input id="add-name" v-model="addName" />
-          </div>
+    <ResponsiveFormSheet
+      v-model:open="isAddDialogOpen"
+      title="Tambah Peserta"
+      description="Pilih Project Order dan nama peserta. Lengkapi detail lainnya dari halaman Detail setelah tersimpan."
+      content-class="max-w-md"
+    >
+      <div class="space-y-4 py-2">
+        <div class="space-y-1.5">
+          <Label for="add-project">Project Order</Label>
+          <select id="add-project" v-model="addProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+            <option value="">
+              Pilih project...
+            </option>
+            <option v-for="project in projects" :key="project.id" :value="project.id">
+              {{ project.name }}
+            </option>
+          </select>
         </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isAddDialogOpen = false">
-            Batal
-          </Button>
-          <Button :disabled="!addProjectId || !addName.trim()" @click="submitAdd">
-            Simpan
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div class="space-y-1.5">
+          <Label for="add-name">Nama Lengkap</Label>
+          <Input id="add-name" v-model="addName" />
+        </div>
+      </div>
+      <template #footer>
+        <Button variant="outline" @click="isAddDialogOpen = false">
+          Batal
+        </Button>
+        <Button :disabled="!addProjectId || !addName.trim()" @click="submitAdd">
+          Simpan
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
 
     <!-- Bulk Cancel Dialog -->
-    <Dialog v-model:open="isBulkCancelDialogOpen">
-      <DialogContent class="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Batalkan {{ selectedIds.length }} Peserta?</DialogTitle>
-          <DialogDescription>Alasan wajib diisi.</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-1.5 py-2">
-          <Label for="bulk-cancel-reason">Alasan</Label>
-          <Input id="bulk-cancel-reason" v-model="bulkCancelReason" />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isBulkCancelDialogOpen = false">
-            Batal
-          </Button>
-          <Button variant="destructive" :disabled="!bulkCancelReason.trim()" @click="submitBulkCancel">
-            Batalkan
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveFormSheet
+      v-model:open="isBulkCancelDialogOpen"
+      :title="`Batalkan ${selectedIds.length} Peserta?`"
+      description="Alasan wajib diisi."
+      content-class="max-w-md"
+    >
+      <div class="space-y-1.5 py-2">
+        <Label for="bulk-cancel-reason">Alasan</Label>
+        <Input id="bulk-cancel-reason" v-model="bulkCancelReason" />
+      </div>
+      <template #footer>
+        <Button variant="outline" @click="isBulkCancelDialogOpen = false">
+          Batal
+        </Button>
+        <Button variant="destructive" :disabled="!bulkCancelReason.trim()" @click="submitBulkCancel">
+          Batalkan
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
 
     <!-- Import Dialog (Bulk import simulation, Wajib) -->
-    <Dialog v-model:open="isImportDialogOpen">
-      <DialogScrollContent class="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Bulk Import Peserta (Mock)</DialogTitle>
-          <DialogDescription>Simulasi parsing file — bukan upload file sungguhan (mock, D-006). Baris dengan error tidak akan diimpor.</DialogDescription>
-        </DialogHeader>
+    <ResponsiveFormSheet
+      v-model:open="isImportDialogOpen"
+      title="Bulk Import Peserta (Mock)"
+      description="Simulasi parsing file — bukan upload file sungguhan (mock, D-006). Baris dengan error tidak akan diimpor."
+      content-class="max-w-lg"
+      scroll
+    >
         <div class="space-y-4 py-2">
           <div class="space-y-1.5">
             <Label for="import-project">Project Order</Label>
@@ -348,44 +347,42 @@ function submitExport () {
             </ul>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isImportDialogOpen = false">
-            Batal
-          </Button>
-          <Button :disabled="importPreviewRows.length === 0" @click="submitImport">
-            Import Baris Valid
-          </Button>
-        </DialogFooter>
-      </DialogScrollContent>
-    </Dialog>
+      <template #footer>
+        <Button variant="outline" @click="isImportDialogOpen = false">
+          Batal
+        </Button>
+        <Button :disabled="importPreviewRows.length === 0" @click="submitImport">
+          Import Baris Valid
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
 
     <!-- Export Dialog (mock, Wajib) -->
-    <Dialog v-model:open="isExportDialogOpen">
-      <DialogContent class="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Export Peserta (Mock)</DialogTitle>
-          <DialogDescription>Simulasi export — tidak ada file yang benar-benar dihasilkan (D-006).</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-1.5 py-2">
-          <Label for="export-format">Format</Label>
-          <select id="export-format" v-model="exportFormat" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-            <option value="csv">
-              CSV
-            </option>
-            <option value="pdf">
-              PDF
-            </option>
-          </select>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isExportDialogOpen = false">
-            Batal
-          </Button>
-          <Button @click="submitExport">
-            Export
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveFormSheet
+      v-model:open="isExportDialogOpen"
+      title="Export Peserta (Mock)"
+      description="Simulasi export — tidak ada file yang benar-benar dihasilkan (D-006)."
+      content-class="max-w-sm"
+    >
+      <div class="space-y-1.5 py-2">
+        <Label for="export-format">Format</Label>
+        <select id="export-format" v-model="exportFormat" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+          <option value="csv">
+            CSV
+          </option>
+          <option value="pdf">
+            PDF
+          </option>
+        </select>
+      </div>
+      <template #footer>
+        <Button variant="outline" @click="isExportDialogOpen = false">
+          Batal
+        </Button>
+        <Button @click="submitExport">
+          Export
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
   </div>
 </template>

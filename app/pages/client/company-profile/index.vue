@@ -473,39 +473,34 @@ function submitDoc () {
         <ActivityTimeline :items="changeHistory" empty-label="Belum ada riwayat perubahan" />
       </SectionCard>
 
-      <Dialog v-model:open="isContactDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{{ editingContact ? 'Edit Kontak' : 'Tambah Kontak' }}</DialogTitle>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="space-y-1.5">
-              <Label for="ct-name">Nama</Label>
-              <Input id="ct-name" v-model="contactName" />
-            </div>
-            <div class="space-y-1.5">
-              <Label for="ct-title">Jabatan</Label>
-              <Input id="ct-title" v-model="contactTitle" placeholder="mis. Finance Contact / Emergency Contact" />
-            </div>
-            <div class="space-y-1.5">
-              <Label for="ct-email">Email (opsional)</Label>
-              <Input id="ct-email" v-model="contactEmail" type="email" />
-            </div>
-            <div class="space-y-1.5">
-              <Label for="ct-phone">Telepon (opsional)</Label>
-              <Input id="ct-phone" v-model="contactPhone" />
-            </div>
+      <ResponsiveFormSheet v-model:open="isContactDialogOpen" :title="editingContact ? 'Edit Kontak' : 'Tambah Kontak'" content-class="max-w-md">
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="ct-name">Nama</Label>
+            <Input id="ct-name" v-model="contactName" />
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isContactDialogOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div class="space-y-1.5">
+            <Label for="ct-title">Jabatan</Label>
+            <Input id="ct-title" v-model="contactTitle" placeholder="mis. Finance Contact / Emergency Contact" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="ct-email">Email (opsional)</Label>
+            <Input id="ct-email" v-model="contactEmail" type="email" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="ct-phone">Telepon (opsional)</Label>
+            <Input id="ct-phone" v-model="contactPhone" />
+          </div>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isContactDialogOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
       <Dialog v-model:open="isDeleteContactDialogOpen">
         <DialogContent class="max-w-md">
@@ -526,57 +521,45 @@ function submitDoc () {
         </DialogContent>
       </Dialog>
 
-      <Dialog v-model:open="isLogoDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Upload Logo</DialogTitle>
-            <DialogDescription>Mock upload — tidak ada file gambar nyata, hanya nama file tercatat.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-1.5 py-2">
-            <Label for="logo-name">Nama File</Label>
-            <Input id="logo-name" v-model="logoFileNameInput" placeholder="mis. logo-manova.png" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isLogoDialogOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!logoFileNameInput.trim()" @click="submitLogo">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveFormSheet v-model:open="isLogoDialogOpen" title="Upload Logo" description="Mock upload — tidak ada file gambar nyata, hanya nama file tercatat." content-class="max-w-md">
+        <div class="space-y-1.5 py-2">
+          <Label for="logo-name">Nama File</Label>
+          <Input id="logo-name" v-model="logoFileNameInput" placeholder="mis. logo-manova.png" />
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isLogoDialogOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!logoFileNameInput.trim()" @click="submitLogo">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
-      <Dialog v-model:open="isDocDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Upload Legal Document</DialogTitle>
-            <DialogDescription>Mock upload — tidak ada file storage nyata, hanya metadata tercatat.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="space-y-1.5">
-              <Label for="doc-name">Nama Dokumen</Label>
-              <Input id="doc-name" v-model="docName" placeholder="mis. Akta Pendirian PT.pdf" />
-            </div>
-            <div class="space-y-1.5">
-              <Label for="doc-category">Kategori</Label>
-              <Input id="doc-category" v-model="docCategory" />
-            </div>
-            <div class="space-y-1.5">
-              <Label for="doc-expiry">Expiry Date (opsional)</Label>
-              <Input id="doc-expiry" v-model="docExpiresAt" type="date" />
-            </div>
+      <ResponsiveFormSheet v-model:open="isDocDialogOpen" title="Upload Legal Document" description="Mock upload — tidak ada file storage nyata, hanya metadata tercatat." content-class="max-w-md">
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="doc-name">Nama Dokumen</Label>
+            <Input id="doc-name" v-model="docName" placeholder="mis. Akta Pendirian PT.pdf" />
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isDocDialogOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!docName.trim()" @click="submitDoc">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div class="space-y-1.5">
+            <Label for="doc-category">Kategori</Label>
+            <Input id="doc-category" v-model="docCategory" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="doc-expiry">Expiry Date (opsional)</Label>
+            <Input id="doc-expiry" v-model="docExpiresAt" type="date" />
+          </div>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isDocDialogOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!docName.trim()" @click="submitDoc">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

@@ -162,79 +162,61 @@ function submitRevisionRequest () {
 
       <SectionCard v-if="canDecide" title="Keputusan Anda">
         <div class="flex flex-wrap gap-2">
-          <Dialog v-model:open="isApproveDialogOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet v-model:open="isApproveDialogOpen" title="Approve" description="Konfirmasi persetujuan Anda." content-class="max-w-md">
+            <template #trigger>
               <Button>Approve</Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Approve</DialogTitle>
-                <DialogDescription>Konfirmasi persetujuan Anda.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="approval-approve-comment">Catatan (opsional)</Label>
-                <Input id="approval-approve-comment" v-model="approveComment" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isApproveDialogOpen = false">
-                  Batal
-                </Button>
-                <Button @click="submitApprove">
-                  Approve
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Dialog v-model:open="isRejectDialogOpen">
-            <DialogTrigger as-child>
+            </template>
+            <div class="space-y-1.5 py-2">
+              <Label for="approval-approve-comment">Catatan (opsional)</Label>
+              <Input id="approval-approve-comment" v-model="approveComment" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isApproveDialogOpen = false">
+                Batal
+              </Button>
+              <Button @click="submitApprove">
+                Approve
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
+          <ResponsiveFormSheet v-model:open="isRejectDialogOpen" title="Reject" description="Alasan wajib diisi." content-class="max-w-md">
+            <template #trigger>
               <Button variant="outline">
                 Reject
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Reject</DialogTitle>
-                <DialogDescription>Alasan wajib diisi.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="approval-reject-reason">Alasan</Label>
-                <Input id="approval-reject-reason" v-model="rejectReason" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isRejectDialogOpen = false">
-                  Batal
-                </Button>
-                <Button variant="destructive" :disabled="!rejectReason.trim()" @click="submitReject">
-                  Reject
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Dialog v-model:open="isRevisionDialogOpen">
-            <DialogTrigger as-child>
+            </template>
+            <div class="space-y-1.5 py-2">
+              <Label for="approval-reject-reason">Alasan</Label>
+              <Input id="approval-reject-reason" v-model="rejectReason" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isRejectDialogOpen = false">
+                Batal
+              </Button>
+              <Button variant="destructive" :disabled="!rejectReason.trim()" @click="submitReject">
+                Reject
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
+          <ResponsiveFormSheet v-model:open="isRevisionDialogOpen" title="Request Revision" description="Alasan wajib diisi." content-class="max-w-md">
+            <template #trigger>
               <Button variant="ghost">
                 Request Revision
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Request Revision</DialogTitle>
-                <DialogDescription>Alasan wajib diisi.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="approval-revision-reason">Alasan</Label>
-                <Input id="approval-revision-reason" v-model="revisionReason" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isRevisionDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!revisionReason.trim()" @click="submitRevisionRequest">
-                  Kirim
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </template>
+            <div class="space-y-1.5 py-2">
+              <Label for="approval-revision-reason">Alasan</Label>
+              <Input id="approval-revision-reason" v-model="revisionReason" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isRevisionDialogOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!revisionReason.trim()" @click="submitRevisionRequest">
+                Kirim
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </div>
       </SectionCard>
 

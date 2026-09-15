@@ -453,49 +453,48 @@ function submitEdit () {
       </SectionCard>
 
       <!-- Status change dialog (cancelled/refunded — reason wajib) -->
-      <Dialog v-model:open="isStatusDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{{ pendingStatus ? findStatusOption(FLIGHT_BOOKING_STATUSES, pendingStatus).label : '' }} Flight Booking</DialogTitle>
-            <DialogDescription>Alasan wajib dicatat untuk transisi ini — akan tersimpan sebagai jejak historis di Activity & Changes project terkait.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="space-y-1.5">
-              <Label for="status-reason">Alasan</Label>
-              <Input id="status-reason" v-model="statusReason" placeholder="mis. Traveler membatalkan perjalanan" />
-            </div>
-            <template v-if="pendingStatus && CANCELLATION_TRIGGER_STATUSES.includes(pendingStatus)">
-              <div class="space-y-1.5 pt-2 border-t border-border">
-                <Label for="status-penalty">Penalty (Rp, opsional)</Label>
-                <CurrencyInput id="status-penalty" v-model="cancellationPenalty" placeholder="0" />
-              </div>
-              <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                <Checkbox v-model="cancellationRefundEligible" />
-                Refund Eligible
-              </label>
-              <p class="text-xs text-muted-foreground">
-                Sebuah Cancellation Record akan otomatis dicatat (Section 19) — dapat ditindaklanjuti dengan Refund Request di modul Changes & Incidents.
-              </p>
-            </template>
+      <ResponsiveFormSheet
+        v-model:open="isStatusDialogOpen"
+        :title="`${pendingStatus ? findStatusOption(FLIGHT_BOOKING_STATUSES, pendingStatus).label : ''} Flight Booking`"
+        description="Alasan wajib dicatat untuk transisi ini — akan tersimpan sebagai jejak historis di Activity & Changes project terkait."
+      >
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="status-reason">Alasan</Label>
+            <Input id="status-reason" v-model="statusReason" placeholder="mis. Traveler membatalkan perjalanan" />
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isStatusDialogOpen = false">
-              Batal
-            </Button>
-            <Button variant="destructive" :disabled="!statusReason.trim()" @click="submitStatusChange">
-              Konfirmasi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <template v-if="pendingStatus && CANCELLATION_TRIGGER_STATUSES.includes(pendingStatus)">
+            <div class="space-y-1.5 pt-2 border-t border-border">
+              <Label for="status-penalty">Penalty (Rp, opsional)</Label>
+              <CurrencyInput id="status-penalty" v-model="cancellationPenalty" placeholder="0" />
+            </div>
+            <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+              <Checkbox v-model="cancellationRefundEligible" />
+              Refund Eligible
+            </label>
+            <p class="text-xs text-muted-foreground">
+              Sebuah Cancellation Record akan otomatis dicatat (Section 19) — dapat ditindaklanjuti dengan Refund Request di modul Changes & Incidents.
+            </p>
+          </template>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isStatusDialogOpen = false">
+            Batal
+          </Button>
+          <Button variant="destructive" :disabled="!statusReason.trim()" @click="submitStatusChange">
+            Konfirmasi
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
       <!-- Edit dialog -->
-      <Dialog v-model:open="isEditOpen">
-        <DialogScrollContent class="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Flight Booking</DialogTitle>
-            <DialogDescription>Perubahan berlaku langsung — status lifecycle diubah lewat tombol terpisah di header.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isEditOpen"
+        title="Edit Flight Booking"
+        description="Perubahan berlaku langsung — status lifecycle diubah lewat tombol terpisah di header."
+        content-class="max-w-2xl"
+        scroll
+      >
           <div class="space-y-4 py-2">
             <div class="grid gap-4 sm:grid-cols-2">
               <div class="space-y-1.5">
@@ -597,16 +596,15 @@ function submitEdit () {
               <textarea v-if="editHasScheduleChange" v-model="editScheduleChangeNote" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Jelaskan perubahan jadwal/gangguan" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isEditOpen = false">
-              Batal
-            </Button>
-            <Button @click="submitEdit">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isEditOpen = false">
+            Batal
+          </Button>
+          <Button @click="submitEdit">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

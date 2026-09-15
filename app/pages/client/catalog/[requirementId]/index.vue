@@ -549,53 +549,47 @@ function cancelSelection (selectionId: string) {
       </Dialog>
 
       <!-- ── Selection Dialog (variant + quantity + rank) ──────────────── -->
-      <Dialog v-model:open="isSelectDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Pilih Komoditas</DialogTitle>
-            <DialogDescription>Availability akan diperiksa ulang saat Anda mengajukan selection.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div v-if="requiresVariant" class="space-y-1.5">
-              <Label for="select-variant">Variant</Label>
-              <select id="select-variant" v-model="selectingVariantId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option v-for="variant in selectingVariants" :key="variant.id" :value="variant.id">
-                  {{ variant.name }}
-                </option>
-              </select>
-            </div>
-            <div class="space-y-1.5">
-              <Label for="select-quantity">Jumlah (maks. {{ maxSelectableQuantity }})</Label>
-              <Input id="select-quantity" v-model.number="selectQuantity" type="number" :max="maxSelectableQuantity" />
-              <p v-if="selectQuantity && selectQuantity > maxSelectableQuantity" class="text-xs text-destructive">
-                Jumlah melebihi sisa availability ({{ maxSelectableQuantity }}).
-              </p>
-            </div>
-            <div class="space-y-1.5">
-              <Label for="select-rank">Pilihan</Label>
-              <select id="select-rank" v-model="selectRank" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option v-for="rank in availableRanks" :key="rank.value" :value="rank.value">
-                  {{ rank.label }}
-                </option>
-              </select>
-              <p v-if="availableRanks.length === 0" class="text-xs text-destructive">
-                Primary, Secondary, dan Third Choice sudah semua terisi — batalkan salah satu pilihan aktif terlebih dahulu.
-              </p>
-            </div>
+      <ResponsiveFormSheet v-model:open="isSelectDialogOpen" title="Pilih Komoditas" description="Availability akan diperiksa ulang saat Anda mengajukan selection." content-class="max-w-md">
+        <div class="space-y-4 py-2">
+          <div v-if="requiresVariant" class="space-y-1.5">
+            <Label for="select-variant">Variant</Label>
+            <select id="select-variant" v-model="selectingVariantId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option v-for="variant in selectingVariants" :key="variant.id" :value="variant.id">
+                {{ variant.name }}
+              </option>
+            </select>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isSelectDialogOpen = false">
-              Batal
-            </Button>
-            <Button variant="outline" :disabled="!selectQuantity || !selectRank || selectQuantity > maxSelectableQuantity" @click="saveDraftSelection">
-              Simpan Draft
-            </Button>
-            <Button :disabled="!selectQuantity || !selectRank || selectQuantity > maxSelectableQuantity" @click="submitSelectionNow">
-              Ajukan Selection
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div class="space-y-1.5">
+            <Label for="select-quantity">Jumlah (maks. {{ maxSelectableQuantity }})</Label>
+            <Input id="select-quantity" v-model.number="selectQuantity" type="number" :max="maxSelectableQuantity" />
+            <p v-if="selectQuantity && selectQuantity > maxSelectableQuantity" class="text-xs text-destructive">
+              Jumlah melebihi sisa availability ({{ maxSelectableQuantity }}).
+            </p>
+          </div>
+          <div class="space-y-1.5">
+            <Label for="select-rank">Pilihan</Label>
+            <select id="select-rank" v-model="selectRank" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option v-for="rank in availableRanks" :key="rank.value" :value="rank.value">
+                {{ rank.label }}
+              </option>
+            </select>
+            <p v-if="availableRanks.length === 0" class="text-xs text-destructive">
+              Primary, Secondary, dan Third Choice sudah semua terisi — batalkan salah satu pilihan aktif terlebih dahulu.
+            </p>
+          </div>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isSelectDialogOpen = false">
+            Batal
+          </Button>
+          <Button variant="outline" :disabled="!selectQuantity || !selectRank || selectQuantity > maxSelectableQuantity" @click="saveDraftSelection">
+            Simpan Draft
+          </Button>
+          <Button :disabled="!selectQuantity || !selectRank || selectQuantity > maxSelectableQuantity" @click="submitSelectionNow">
+            Ajukan Selection
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

@@ -203,31 +203,25 @@ function submitRevisionRequest () {
           <Button @click="submitApprove">
             Approve
           </Button>
-          <Dialog v-model:open="isRevisionDialogOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet v-model:open="isRevisionDialogOpen" title="Request Revision" description="Jelaskan perubahan yang Anda butuhkan — versi baru akan disiapkan menunggu approval Anda kembali." content-class="max-w-md">
+            <template #trigger>
               <Button variant="outline">
                 Request Revision
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Request Revision</DialogTitle>
-                <DialogDescription>Jelaskan perubahan yang Anda butuhkan — versi baru akan disiapkan menunggu approval Anda kembali.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="itin-revision-comment">Detail Revisi</Label>
-                <textarea id="itin-revision-comment" v-model="revisionComment" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isRevisionDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!revisionComment.trim()" @click="submitRevisionRequest">
-                  Kirim
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </template>
+            <div class="space-y-1.5 py-2">
+              <Label for="itin-revision-comment">Detail Revisi</Label>
+              <textarea id="itin-revision-comment" v-model="revisionComment" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isRevisionDialogOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!revisionComment.trim()" @click="submitRevisionRequest">
+                Kirim
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </div>
       </SectionCard>
 

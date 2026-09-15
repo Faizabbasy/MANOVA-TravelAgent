@@ -88,31 +88,25 @@ function submitClarificationResponse () {
           <Button size="sm" variant="outline" @click="submitDuplicate">
             <Copy class="h-4 w-4 mr-1.5" />Duplicate
           </Button>
-          <Dialog v-if="canCancel" v-model:open="isCancelDialogOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet v-if="canCancel" v-model:open="isCancelDialogOpen" title="Batalkan Travel Request?" description="Alasan wajib diisi agar tim kami memahami keputusan Anda." content-class="max-w-md">
+            <template #trigger>
               <Button size="sm" variant="destructive">
                 Cancel
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Batalkan Travel Request?</DialogTitle>
-                <DialogDescription>Alasan wajib diisi agar tim kami memahami keputusan Anda.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="cancel-reason">Alasan</Label>
-                <Input id="cancel-reason" v-model="cancelReason" placeholder="mis. Rencana perjalanan dibatalkan internal" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isCancelDialogOpen = false">
-                  Batal
-                </Button>
-                <Button variant="destructive" :disabled="!cancelReason.trim()" @click="submitCancel">
-                  Batalkan Permintaan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </template>
+            <div class="space-y-1.5 py-2">
+              <Label for="cancel-reason">Alasan</Label>
+              <Input id="cancel-reason" v-model="cancelReason" placeholder="mis. Rencana perjalanan dibatalkan internal" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isCancelDialogOpen = false">
+                Batal
+              </Button>
+              <Button variant="destructive" :disabled="!cancelReason.trim()" @click="submitCancel">
+                Batalkan Permintaan
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </template>
       </PageHeader>
 

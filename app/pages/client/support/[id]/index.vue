@@ -123,31 +123,25 @@ function handleRate (rating: number) {
           <Button v-if="ticket.status === 'resolved'" size="sm" @click="handleConfirmResolution">
             Confirm Resolution
           </Button>
-          <Dialog v-model:open="isReopenOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet v-model:open="isReopenOpen" title="Reopen Ticket" description="Alasan wajib diisi." content-class="max-w-md">
+            <template #trigger>
               <Button size="sm" variant="outline">
                 Reopen
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Reopen Ticket</DialogTitle>
-                <DialogDescription>Alasan wajib diisi.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="reopen-reason">Alasan</Label>
-                <Input id="reopen-reason" v-model="reopenReason" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isReopenOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!reopenReason.trim()" @click="submitReopen">
-                  Reopen
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </template>
+            <div class="space-y-1.5 py-2">
+              <Label for="reopen-reason">Alasan</Label>
+              <Input id="reopen-reason" v-model="reopenReason" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isReopenOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!reopenReason.trim()" @click="submitReopen">
+                Reopen
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
           <div class="flex items-center gap-1">
             <span class="text-xs text-muted-foreground mr-1">Rating:</span>
             <button v-for="star in 5" :key="star" type="button" :aria-label="`Beri rating ${star} bintang`" @click="handleRate(star)">

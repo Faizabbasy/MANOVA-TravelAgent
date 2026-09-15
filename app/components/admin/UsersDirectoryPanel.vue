@@ -428,35 +428,34 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
       </Tabs>
 
       <!-- Suspend Dialog -->
-      <Dialog v-model:open="isSuspendOpen">
-        <DialogContent class="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Suspend {{ suspendTarget?.name }}</DialogTitle>
-            <DialogDescription>User tidak akan bisa dipilih sebagai user aktif demo sampai diaktifkan kembali. Alasan wajib diisi.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isSuspendOpen"
+        :title="`Suspend ${suspendTarget?.name ?? ''}`"
+        content-class="max-w-sm"
+        description="User tidak akan bisa dipilih sebagai user aktif demo sampai diaktifkan kembali. Alasan wajib diisi."
+      >
           <div class="space-y-1.5 py-2">
             <Label for="suspend-reason">Alasan Suspend</Label>
             <Input id="suspend-reason" v-model="suspendReason" placeholder="mis. Cuti panjang, vendor tidak aktif, dst." />
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isSuspendOpen = false">
               Batal
             </Button>
             <Button variant="destructive" :disabled="!suspendReason.trim()" @click="submitSuspend">
               <UserX class="h-4 w-4 mr-1.5" />Suspend
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
       <!-- Detail Dialog -->
-      <Dialog :open="isDetailOpen" @update:open="v => { if (!v) closeDetail() }">
-        <DialogContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{{ selectedUser?.name }}</DialogTitle>
-            <DialogDescription>{{ selectedUser?.email }} · ID: {{ selectedUser?.id }}</DialogDescription>
-          </DialogHeader>
-
+      <ResponsiveFormSheet
+        :open="isDetailOpen"
+        content-class="max-w-lg"
+        :title="selectedUser?.name ?? ''"
+        :description="selectedUser ? `${selectedUser.email} · ID: ${selectedUser.id}` : ''"
+        @update:open="v => { if (!v) closeDetail() }"
+      >
           <div v-if="selectedUser" class="space-y-4">
             <!-- Role badge -->
             <div class="flex items-center gap-2">
@@ -511,7 +510,7 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
             </div>
           </div>
 
-          <DialogFooter class="gap-2">
+          <template #footer>
             <Button variant="outline" @click="closeDetail">
               Tutup
             </Button>
@@ -529,9 +528,8 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
             >
               Ini adalah user aktif saat ini
             </span>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

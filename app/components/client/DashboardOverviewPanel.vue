@@ -354,41 +354,40 @@ function submitContact () {
 
       <SectionCard title="Contacts">
         <template #actions>
-          <Dialog v-model:open="isContactDialogOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet
+            v-model:open="isContactDialogOpen"
+            title="Tambah Kontak Baru"
+            description="Kontak akan tampil untuk tim kami sebagai referensi komunikasi."
+            content-class="max-w-md"
+          >
+            <template #trigger>
               <Button size="sm" variant="outline">
                 <Plus class="h-4 w-4 mr-1.5" />Tambah Kontak
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Tambah Kontak Baru</DialogTitle>
-                <DialogDescription>Kontak akan tampil untuk tim kami sebagai referensi komunikasi.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-4 py-2">
-                <div class="space-y-1.5">
-                  <Label for="contact-name">Nama</Label><Input id="contact-name" v-model="contactName" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="contact-title">Jabatan</Label><Input id="contact-title" v-model="contactTitle" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="contact-email">Email</Label><Input id="contact-email" v-model="contactEmail" type="email" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="contact-phone">Telepon</Label><Input id="contact-phone" v-model="contactPhone" />
-                </div>
+            </template>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="contact-name">Nama</Label><Input id="contact-name" v-model="contactName" />
               </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isContactDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
-                  Simpan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              <div class="space-y-1.5">
+                <Label for="contact-title">Jabatan</Label><Input id="contact-title" v-model="contactTitle" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="contact-email">Email</Label><Input id="contact-email" v-model="contactEmail" type="email" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="contact-phone">Telepon</Label><Input id="contact-phone" v-model="contactPhone" />
+              </div>
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isContactDialogOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
+                Simpan
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </template>
         <ul v-if="contacts.length" class="divide-y divide-border">
           <li v-for="contact in contacts" :key="contact.id" class="py-3 flex items-center justify-between gap-3">

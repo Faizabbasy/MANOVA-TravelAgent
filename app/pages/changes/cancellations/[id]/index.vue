@@ -131,41 +131,40 @@ function submitRefund () {
       </SectionCard>
 
       <!-- Ajukan Refund dialog -->
-      <Dialog v-model:open="isRefundDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Ajukan Refund Request</DialogTitle>
-            <DialogDescription>Menautkan Cancellation {{ record.id }} — self-contained mock, tidak mengubah Invoice/Payment.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="grid grid-cols-2 gap-3">
-              <div class="space-y-1.5">
-                <Label for="refund-type">Tipe</Label>
-                <select id="refund-type" v-model="refundType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="partial">
-                    Partial
-                  </option>
-                  <option value="full">
-                    Full
-                  </option>
-                </select>
-              </div>
-              <div class="space-y-1.5">
-                <Label for="refund-amount">Jumlah (Rp)</Label>
-                <CurrencyInput id="refund-amount" v-model="refundAmount" />
-              </div>
+      <ResponsiveFormSheet
+        v-model:open="isRefundDialogOpen"
+        title="Ajukan Refund Request"
+        :description="record ? `Menautkan Cancellation ${record.id} — self-contained mock, tidak mengubah Invoice/Payment.` : ''"
+        content-class="max-w-md"
+      >
+        <div class="space-y-4 py-2">
+          <div class="grid grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label for="refund-type">Tipe</Label>
+              <select id="refund-type" v-model="refundType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option value="partial">
+                  Partial
+                </option>
+                <option value="full">
+                  Full
+                </option>
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <Label for="refund-amount">Jumlah (Rp)</Label>
+              <CurrencyInput id="refund-amount" v-model="refundAmount" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isRefundDialogOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!refundAmount" @click="submitRefund">
-              Kirim
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isRefundDialogOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!refundAmount" @click="submitRefund">
+            Kirim
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

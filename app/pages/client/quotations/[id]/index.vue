@@ -288,79 +288,61 @@ function submitRevisionRequest () {
               Quotation ini sudah disetujui secara komersial oleh tim kami. Silakan konfirmasi persetujuan Anda, atau ajukan keberatan/revisi.
             </p>
             <div class="flex flex-wrap gap-2">
-              <Dialog v-model:open="isApproveDialogOpen">
-                <DialogTrigger as-child>
+              <ResponsiveFormSheet v-model:open="isApproveDialogOpen" title="Approve Quotation" description="Konfirmasi Anda akan langsung memproses Lead ini menjadi Won dan membuat Project Order (mock)." content-class="max-w-md">
+                <template #trigger>
                   <Button>Approve Quotation</Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Approve Quotation</DialogTitle>
-                    <DialogDescription>Konfirmasi Anda akan langsung memproses Lead ini menjadi Won dan membuat Project Order (mock).</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-1.5 py-2">
-                    <Label for="approve-note">Catatan (opsional)</Label>
-                    <Input id="approve-note" v-model="approveNote" placeholder="mis. Disetujui, mohon segera diproses" />
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isApproveDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button @click="submitApprove">
-                      Approve
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Dialog v-model:open="isRejectDialogOpen">
-                <DialogTrigger as-child>
+                </template>
+                <div class="space-y-1.5 py-2">
+                  <Label for="approve-note">Catatan (opsional)</Label>
+                  <Input id="approve-note" v-model="approveNote" placeholder="mis. Disetujui, mohon segera diproses" />
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isApproveDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button @click="submitApprove">
+                    Approve
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
+              <ResponsiveFormSheet v-model:open="isRejectDialogOpen" title="Reject Quotation" description="Alasan wajib diisi agar tim kami dapat menindaklanjuti." content-class="max-w-md">
+                <template #trigger>
                   <Button variant="outline">
                     Reject Quotation
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Reject Quotation</DialogTitle>
-                    <DialogDescription>Alasan wajib diisi agar tim kami dapat menindaklanjuti.</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-1.5 py-2">
-                    <Label for="reject-note">Alasan</Label>
-                    <Input id="reject-note" v-model="rejectNote" placeholder="mis. Harga di luar budget kami" />
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isRejectDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button variant="destructive" :disabled="!rejectNote.trim()" @click="submitReject">
-                      Reject
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Dialog v-model:open="isRevisionDialogOpen">
-                <DialogTrigger as-child>
+                </template>
+                <div class="space-y-1.5 py-2">
+                  <Label for="reject-note">Alasan</Label>
+                  <Input id="reject-note" v-model="rejectNote" placeholder="mis. Harga di luar budget kami" />
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isRejectDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button variant="destructive" :disabled="!rejectNote.trim()" @click="submitReject">
+                    Reject
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
+              <ResponsiveFormSheet v-model:open="isRevisionDialogOpen" title="Request Revision" description="Sampaikan perubahan yang Anda butuhkan — versi baru quotation akan disiapkan otomatis (mock)." content-class="max-w-md">
+                <template #trigger>
                   <Button variant="ghost">
                     Request Revision
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Request Revision</DialogTitle>
-                    <DialogDescription>Sampaikan perubahan yang Anda butuhkan — versi baru quotation akan disiapkan otomatis (mock).</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-1.5 py-2">
-                    <Label for="revision-note">Detail Revisi</Label>
-                    <textarea id="revision-note" v-model="revisionNote" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Mohon tambahkan opsi hotel bintang 5" />
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isRevisionDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!revisionNote.trim()" @click="submitRevisionRequest">
-                      Kirim Permintaan
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                </template>
+                <div class="space-y-1.5 py-2">
+                  <Label for="revision-note">Detail Revisi</Label>
+                  <textarea id="revision-note" v-model="revisionNote" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Mohon tambahkan opsi hotel bintang 5" />
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isRevisionDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!revisionNote.trim()" @click="submitRevisionRequest">
+                    Kirim Permintaan
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </div>
           </template>
           <p v-else class="text-sm text-muted-foreground">

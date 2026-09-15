@@ -85,18 +85,18 @@ function printPage () {
       <Button size="sm" variant="outline" @click="printPage">
         <Printer class="h-4 w-4 mr-1.5" />Print
       </Button>
-      <Dialog v-model:open="isExportOpen">
-        <DialogTrigger as-child>
+      <ResponsiveFormSheet
+        v-model:open="isExportOpen"
+        title="Export Laporan"
+        description="Mock export — tidak ada file yang benar-benar dihasilkan (D-006)."
+        content-class="max-w-md"
+      >
+        <template #trigger>
           <Button size="sm">
             <Download class="h-4 w-4 mr-1.5" />Export
           </Button>
-        </DialogTrigger>
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Export Laporan</DialogTitle>
-            <DialogDescription>Mock export — tidak ada file yang benar-benar dihasilkan (D-006).</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </template>
+        <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="export-section">Bagian</Label>
               <select id="export-section" v-model="exportSectionKey" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -117,16 +117,15 @@ function printPage () {
               </select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isExportOpen = false">
-              Batal
-            </Button>
-            <Button @click="submitExport">
-              Export
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isExportOpen = false">
+            Batal
+          </Button>
+          <Button @click="submitExport">
+            Export
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </div>
 
     <RoleAccessState v-if="!canView('client-portal')" module-label="Client Portal" />

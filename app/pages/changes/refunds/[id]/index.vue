@@ -136,26 +136,25 @@ function submitReject () {
       </SectionCard>
 
       <!-- Reject dialog -->
-      <Dialog v-model:open="isRejectDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Tolak Refund Request</DialogTitle>
-            <DialogDescription>Alasan wajib dicatat.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-1.5 py-2">
-            <Label for="reject-reason">Alasan</Label>
-            <Input id="reject-reason" v-model="rejectionReason" placeholder="mis. Melewati batas waktu kebijakan refund" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isRejectDialogOpen = false">
-              Batal
-            </Button>
-            <Button variant="destructive" :disabled="!rejectionReason.trim()" @click="submitReject">
-              Konfirmasi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveFormSheet
+        v-model:open="isRejectDialogOpen"
+        title="Tolak Refund Request"
+        description="Alasan wajib dicatat."
+        content-class="max-w-md"
+      >
+        <div class="space-y-1.5 py-2">
+          <Label for="reject-reason">Alasan</Label>
+          <Input id="reject-reason" v-model="rejectionReason" placeholder="mis. Melewati batas waktu kebijakan refund" />
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isRejectDialogOpen = false">
+            Batal
+          </Button>
+          <Button variant="destructive" :disabled="!rejectionReason.trim()" @click="submitReject">
+            Konfirmasi
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

@@ -112,18 +112,19 @@ function handleDownload (document: Document) {
 <template>
   <div class="space-y-6">
     <div v-if="canView('client-portal')" class="flex justify-end">
-      <Dialog v-model:open="isUploadOpen">
-        <DialogTrigger as-child>
+      <ResponsiveFormSheet
+        v-model:open="isUploadOpen"
+        title="Upload Document Baru"
+        description="Mock upload — tidak ada file storage nyata, hanya metadata tercatat (D-006)."
+        content-class="max-w-lg"
+        scroll
+      >
+        <template #trigger>
           <Button size="sm" :disabled="projects.length === 0" @click="openUpload">
             <Plus class="h-4 w-4 mr-1.5" />Upload Document
           </Button>
-        </DialogTrigger>
-        <DialogScrollContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Upload Document Baru</DialogTitle>
-            <DialogDescription>Mock upload — tidak ada file storage nyata, hanya metadata tercatat (D-006).</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </template>
+        <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="doc-project">Project Order</Label>
               <select id="doc-project" v-model="uploadProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -151,16 +152,15 @@ function handleDownload (document: Document) {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isUploadOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!uploadProjectId || !uploadName.trim()" @click="submitUpload">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isUploadOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!uploadProjectId || !uploadName.trim()" @click="submitUpload">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </div>
 
     <RoleAccessState v-if="!canView('client-portal')" module-label="Client Portal" />
@@ -330,12 +330,13 @@ function handleDownload (document: Document) {
         />
       </SectionCard>
 
-      <Dialog v-model:open="isDetailOpen">
-        <DialogScrollContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{{ activeDocument?.name }}</DialogTitle>
-            <DialogDescription>Version history, komentar, dan replace version.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isDetailOpen"
+        :title="activeDocument?.name ?? ''"
+        description="Version history, komentar, dan replace version."
+        content-class="max-w-lg"
+        scroll
+      >
           <div v-if="activeDocument" class="space-y-4 py-2">
             <div>
               <p class="text-xs font-medium text-muted-foreground mb-2">
@@ -376,13 +377,12 @@ function handleDownload (document: Document) {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isDetailOpen = false">
-              Tutup
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isDetailOpen = false">
+            Tutup
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

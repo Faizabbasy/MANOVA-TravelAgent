@@ -211,18 +211,19 @@ function submitCreateRefund () {
     >
       <template v-if="canManageChanges" #actions>
         <div class="flex flex-wrap items-center gap-2">
-          <Dialog v-model:open="isCreateChangeOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet
+            v-model:open="isCreateChangeOpen"
+            title="Buat Change Request Baru"
+            description="Akan tercatat sekaligus sebagai entri Activity & Changes pada project terkait."
+            content-class="max-w-lg"
+            scroll
+          >
+            <template #trigger>
               <Button size="sm" variant="outline">
                 <Plus class="h-4 w-4 mr-1.5" />Change Request
               </Button>
-            </DialogTrigger>
-            <DialogScrollContent class="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>Buat Change Request Baru</DialogTitle>
-                <DialogDescription>Akan tercatat sekaligus sebagai entri Activity & Changes pada project terkait.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-4 py-2">
+            </template>
+            <div class="space-y-4 py-2">
                 <div class="grid grid-cols-2 gap-3">
                   <div class="space-y-1.5">
                     <Label for="cr-project">Project</Label>
@@ -267,29 +268,28 @@ function submitCreateRefund () {
                   </div>
                 </div>
               </div>
-              <DialogFooter>
+              <template #footer>
                 <Button variant="outline" @click="isCreateChangeOpen = false">
                   Batal
                 </Button>
                 <Button :disabled="!newChangeProjectId || !newChangeBefore.trim() || !newChangeAfter.trim()" @click="submitCreateChange">
                   Simpan
                 </Button>
-              </DialogFooter>
-            </DialogScrollContent>
-          </Dialog>
+              </template>
+          </ResponsiveFormSheet>
 
-          <Dialog v-model:open="isCreateRefundOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet
+            v-model:open="isCreateRefundOpen"
+            title="Ajukan Refund Request"
+            description="Self-contained mock — tidak mengubah Invoice/Payment (forward dependency Section 20)."
+            content-class="max-w-md"
+          >
+            <template #trigger>
               <Button size="sm" variant="outline">
                 <Plus class="h-4 w-4 mr-1.5" />Refund
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Ajukan Refund Request</DialogTitle>
-                <DialogDescription>Self-contained mock — tidak mengubah Invoice/Payment (forward dependency Section 20).</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-4 py-2">
+            </template>
+            <div class="space-y-4 py-2">
                 <div class="space-y-1.5">
                   <Label for="ref-project">Project</Label>
                   <select id="ref-project" v-model="newRefundProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -330,29 +330,28 @@ function submitCreateRefund () {
                   </div>
                 </div>
               </div>
-              <DialogFooter>
+              <template #footer>
                 <Button variant="outline" @click="isCreateRefundOpen = false">
                   Batal
                 </Button>
                 <Button :disabled="!newRefundProjectId || !newRefundAmount" @click="submitCreateRefund">
                   Kirim
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </template>
+          </ResponsiveFormSheet>
 
-          <Dialog v-model:open="isCreateIncidentOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet
+            v-model:open="isCreateIncidentOpen"
+            title="Catat Incident Baru"
+            description="Insiden dapat project-level atau ditautkan ke booking tertentu dari halaman detail."
+            content-class="max-w-md"
+          >
+            <template #trigger>
               <Button size="sm">
                 <Plus class="h-4 w-4 mr-1.5" />Incident
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Catat Incident Baru</DialogTitle>
-                <DialogDescription>Insiden dapat project-level atau ditautkan ke booking tertentu dari halaman detail.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-4 py-2">
+            </template>
+            <div class="space-y-4 py-2">
                 <div class="space-y-1.5">
                   <Label for="inc-project">Project</Label>
                   <select id="inc-project" v-model="newIncidentProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -381,16 +380,15 @@ function submitCreateRefund () {
                   </select>
                 </div>
               </div>
-              <DialogFooter>
+              <template #footer>
                 <Button variant="outline" @click="isCreateIncidentOpen = false">
                   Batal
                 </Button>
                 <Button :disabled="!newIncidentProjectId || !newIncidentTitle.trim() || !newIncidentDescription.trim()" @click="submitCreateIncident">
                   Simpan
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </template>
+          </ResponsiveFormSheet>
         </div>
       </template>
     </PageHeader>
