@@ -1,10 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
-import { ChevronRight, LogOut, User } from 'lucide-vue-next'
+import { computed, reactive } from 'vue'
+import { ChevronDown, ChevronRight, LogOut, User } from 'lucide-vue-next'
 import { NAV_ITEMS, type NavItem } from '~/constants/navigation'
 import { getVisibleNavItems } from '~/utils/nav-visibility'
 import { isNavPathActive } from '~/utils/nav-active'
 import { useMobileTabs } from '~/composables/useMobileTabs'
+import { cn } from '~/lib/utils'
 
 const open = defineModel<boolean>('open', { default: false })
 
@@ -40,6 +41,17 @@ const moreGroups = computed<MoreGroup[]>(() => {
 function isActive (to: string) {
   return isNavPathActive(to, route)
 }
+const isGroupActive = (group: MoreGroup) =>
+  isActive(group.item.to) || group.children.some(child => isActive(child.to))
+
+/** Default terbuka di sheet ini (beda dari sidebar) — semua isi grup langsung kebaca tanpa perlu tap dulu. */
+const collapsed = reactive<Record<string, boolean>>({})
+function isExpanded (group: MoreGroup) {
+  return !collapsed[group.item.key]
+}
+function toggleExpanded (group: MoreGroup) {
+  collapsed[group.item.key] = isExpanded(group)
+}
 
 function goTo (to: string) {
   open.value = false
@@ -62,28 +74,30 @@ function handleLogout () {
       </SheetHeader>
 
       <nav class="px-3 pb-2">
-        <ul class="space-y-3">
+        <ul class="space-y-1">
           <li v-for="group in moreGroups" :key="group.item.key">
             <button
-              class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm transition-colors"
-              :class="isActive(group.item.to) ? 'bg-sidebar-accent text-sidebar-accent-foreground font-semibold' : 'text-foreground hover:bg-muted'"
-              @click="goTo(group.item.to)"
+              class="flex w-full items-center gap-3 rounded-lg px-3 py-3 text-left text-sm font-semibold transition-colors"
+              :class="isGroupActive(group) ? 'text-sidebar-accent-foreground' : 'text-foreground hover:bg-muted'"
+              @click="group.children.length ? toggleExpanded(group) : goTo(group.item.to)"
             >
               <component :is="group.item.icon" class="h-4 w-4 shrink-0" />
-              <span class="flex-1" :class="group.children.length && 'font-semibold'">{{ group.item.label }}</span>
-              <ChevronRight class="h-4 w-4 text-muted-foreground" />
+              <span class="flex-1">{{ group.item.label }}</span>
+              <ChevronRight v-if="!group.children.length" class="h-4 w-4 text-muted-foreground" />
+              <ChevronDown
+                v-else
+                :class="cn('h-4 w-4 text-muted-foreground transition-transform', isExpanded(group) && 'rotate-180')"
+              />
             </button>
 
-            <ul v-if="group.children.length" class="mt-1 ml-6 space-y-1 border-l border-border pl-3">
+            <ul v-if="group.children.length && isExpanded(group)" class="mb-1 ml-6 space-y-0.5 border-l border-border pl-3">
               <li v-for="child in group.children" :key="child.key">
                 <button
-                  class="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-sm transition-colors"
-                  :class="isActive(child.to) ? 'bg-sidebar-accent text-sidebar-accent-foreground font-medium' : 'text-muted-foreground hover:bg-muted hover:text-foreground'"
+                  class="flex w-full items-center rounded-lg px-3 py-2 text-left text-sm transition-colors"
+                  :class="isActive(child.to) ? 'text-primary font-medium' : 'text-muted-foreground hover:text-foreground'"
                   @click="goTo(child.to)"
                 >
-                  <component :is="child.icon" class="h-4 w-4 shrink-0" />
-                  <span class="flex-1">{{ child.label }}</span>
-                  <ChevronRight class="h-4 w-4 text-muted-foreground" />
+                  {{ child.label }}
                 </button>
               </li>
             </ul>
