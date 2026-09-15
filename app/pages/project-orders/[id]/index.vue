@@ -3818,20 +3818,27 @@ const tripDurationDays = computed(() => {
               :description="`${travelers.length} dari ${formatTravelerCount(project.travelerCount)} tercatat detail profilnya`"
             >
               <template #actions>
-                <div class="flex flex-wrap items-center gap-2">
-                  <NuxtLink :to="`/project-orders/${project.id}/manifest-preview`" target="_blank">
-                    <Button size="sm" variant="outline">
-                      <Printer class="h-4 w-4 mr-1.5" />Manifest / Export Preview
+                <!-- Mobile — 2 tombol sekunder (Manifest/Import) disejajarkan grid 2-kolom, "Tambah
+                     Traveler" full-width di bawahnya sebagai aksi utama. Tidak ada tombol floating/popup
+                     di halaman detail project — semua tombol inline biasa. Desktop tidak diubah. -->
+                <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+                  <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center">
+                    <NuxtLink :to="`/project-orders/${project.id}/manifest-preview`" target="_blank">
+                      <Button size="sm" variant="outline" class="w-full sm:w-auto">
+                        <Printer class="h-4 w-4 mr-1.5 shrink-0" />
+                        <span class="sm:hidden">Manifest</span>
+                        <span class="hidden sm:inline">Manifest / Export Preview</span>
+                      </Button>
+                    </NuxtLink>
+                    <Button v-if="canManageTravelers" size="sm" variant="outline" class="w-full sm:w-auto" @click="openImportPreview">
+                      <Upload class="h-4 w-4 mr-1.5 shrink-0" />Import (Mock)
                     </Button>
-                  </NuxtLink>
+                  </div>
                   <template v-if="canManageTravelers">
-                    <Button size="sm" variant="outline" @click="openImportPreview">
-                      <Upload class="h-4 w-4 mr-1.5" />Import (Mock)
-                    </Button>
                     <Sheet v-model:open="isTravelerDialogOpen">
                       <SheetTrigger as-child>
-                        <Button size="sm" @click="openCreateTraveler">
-                          <UserPlus class="h-4 w-4 mr-1.5" />Tambah Traveler
+                        <Button size="sm" class="w-full sm:w-auto" @click="openCreateTraveler">
+                          <UserPlus class="h-4 w-4 mr-1.5 shrink-0" />Tambah Traveler
                         </Button>
                       </SheetTrigger>
                       <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
@@ -5653,8 +5660,11 @@ const tripDurationDays = computed(() => {
         <TabsContent value="documents">
           <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Documents" description="Kelola dan akses semua dokumen project secara terstruktur.">
             <template #actions>
-              <div class="flex flex-wrap items-center gap-2">
-                <div class="relative inline-flex items-center rounded-lg border border-input bg-muted/40 p-0.5">
+              <!-- Mobile — toggle List/Grid dapat baris sendiri (kontrol lebar penuh), 2 tombol di
+                   bawahnya disejajarkan horizontal grid 2-kolom. Tidak ada tombol floating/popup di
+                   halaman detail project — semua tetap tombol inline biasa. Desktop tidak diubah. -->
+              <div class="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:flex-wrap sm:items-center">
+                <div class="relative inline-flex items-center self-start rounded-lg border border-input bg-muted/40 p-0.5">
                   <span
                     class="absolute inset-y-0.5 left-0.5 w-[72px] rounded-md bg-primary shadow-sm shadow-primary/30 transition-transform duration-300 ease-out"
                     :style="{ transform: documentsViewMode === 'grid' ? 'translateX(72px)' : 'translateX(0)' }"
@@ -5676,20 +5686,19 @@ const tripDurationDays = computed(() => {
                     <LayoutGrid class="h-3.5 w-3.5" />Grid
                   </button>
                 </div>
-                <NuxtLink to="/documents">
-                  <Button size="sm" variant="outline">
-                    <FolderOpen class="h-3.5 w-3.5 mr-1.5" />Buka Documents & Communication
+
+                <div class="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+                  <Button v-if="canManageOperations" size="sm" class="w-full sm:w-auto" @click="openUploadDocument">
+                    <Plus class="h-3.5 w-3.5 mr-1.5 shrink-0" />Upload Document
                   </Button>
-                </NuxtLink>
-                <!-- Mobile — floating popup button (fixed di atas bottom nav) biar toolbar-nya tidak numpuk 3 baris; desktop tombol inline biasa, tidak diubah. -->
-                <Button
-                  v-if="canManageOperations"
-                  size="sm"
-                  class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
-                  @click="openUploadDocument"
-                >
-                  <Plus class="h-3.5 w-3.5" />Upload Document
-                </Button>
+                  <NuxtLink to="/documents" class="w-full sm:w-auto">
+                    <Button size="sm" variant="outline" class="w-full sm:w-auto">
+                      <FolderOpen class="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                      <span class="sm:hidden">Documents & Communication</span>
+                      <span class="hidden sm:inline">Buka Documents & Communication</span>
+                    </Button>
+                  </NuxtLink>
+                </div>
               </div>
             </template>
 
