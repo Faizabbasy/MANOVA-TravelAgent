@@ -253,25 +253,24 @@ function submitDispute () {
       </SectionCard>
     </template>
 
-    <Dialog v-model:open="isDisputeOpen">
-      <DialogContent class="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Flag Disputed</DialogTitle>
-          <DialogDescription>Catatan wajib dicatat sebagai audit trail project terkait.</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-1.5 py-2">
-          <Label for="dispute-note">Catatan</Label>
-          <Input id="dispute-note" v-model="disputeNote" placeholder="mis. Jumlah tidak sesuai Service Order, menunggu konfirmasi vendor" />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isDisputeOpen = false">
-            Batal
-          </Button>
-          <Button variant="destructive" :disabled="!disputeNote.trim()" @click="submitDispute">
-            Konfirmasi
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveFormSheet
+      v-model:open="isDisputeOpen"
+      title="Flag Disputed"
+      description="Catatan wajib dicatat sebagai audit trail project terkait."
+      content-class="max-w-sm"
+    >
+      <div class="space-y-1.5 py-2">
+        <Label for="dispute-note">Catatan</Label>
+        <Input id="dispute-note" v-model="disputeNote" placeholder="mis. Jumlah tidak sesuai Service Order, menunggu konfirmasi vendor" />
+      </div>
+      <template #footer>
+        <Button variant="outline" @click="isDisputeOpen = false">
+          Batal
+        </Button>
+        <Button variant="destructive" :disabled="!disputeNote.trim()" @click="submitDispute">
+          Konfirmasi
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
   </div>
 </template>

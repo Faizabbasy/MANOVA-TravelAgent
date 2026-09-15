@@ -110,59 +110,58 @@ function submitDebitNote () {
               Debit Notes
             </Button>
           </div>
-          <Dialog v-if="canManageFinance && activeTab === 'debit'" v-model:open="isCreateOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet
+            v-if="canManageFinance && activeTab === 'debit'"
+            v-model:open="isCreateOpen"
+            title="Buat Debit Note Baru"
+            description="Murni informasional — TIDAK mengubah jumlah invoice mana pun secara otomatis."
+          >
+            <template #trigger>
               <Button size="sm" class="ml-auto">
                 <Plus class="h-4 w-4 mr-1.5" />Buat Debit Note
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Buat Debit Note Baru</DialogTitle>
-                <DialogDescription>Murni informasional — TIDAK mengubah jumlah invoice mana pun secara otomatis.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-4 py-2">
-                <div class="space-y-1.5">
-                  <Label for="dn-project">Project</Label>
-                  <select id="dn-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="" disabled>
-                      Pilih project
-                    </option>
-                    <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
-                      {{ project.name }}
-                    </option>
-                  </select>
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="dn-invoice">Invoice Terkait (opsional)</Label>
-                  <select id="dn-invoice" v-model="newInvoiceId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="">
-                      Tidak terkait invoice tertentu
-                    </option>
-                    <option v-for="invoice in projectInvoices" :key="invoice.id" :value="invoice.id">
-                      {{ invoice.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="dn-amount">Jumlah (Rp)</Label>
-                  <CurrencyInput id="dn-amount" v-model="newAmount" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="dn-reason">Alasan</Label>
-                  <Input id="dn-reason" v-model="newReason" placeholder="mis. Biaya tambahan di luar quotation" />
-                </div>
+            </template>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="dn-project">Project</Label>
+                <select id="dn-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="" disabled>
+                    Pilih project
+                  </option>
+                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
+                </select>
               </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isCreateOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!newProjectId || !newAmount || !newReason.trim()" @click="submitDebitNote">
-                  Terbitkan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              <div class="space-y-1.5">
+                <Label for="dn-invoice">Invoice Terkait (opsional)</Label>
+                <select id="dn-invoice" v-model="newInvoiceId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="">
+                    Tidak terkait invoice tertentu
+                  </option>
+                  <option v-for="invoice in projectInvoices" :key="invoice.id" :value="invoice.id">
+                    {{ invoice.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
+                <Label for="dn-amount">Jumlah (Rp)</Label>
+                <CurrencyInput id="dn-amount" v-model="newAmount" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="dn-reason">Alasan</Label>
+                <Input id="dn-reason" v-model="newReason" placeholder="mis. Biaya tambahan di luar quotation" />
+              </div>
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newProjectId || !newAmount || !newReason.trim()" @click="submitDebitNote">
+                Terbitkan
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </div>
 
         <TabsContent value="credit">
