@@ -131,106 +131,201 @@ function submitAttempt () {
       </div>
 
       <SectionCard title="Booking Timeline" :description="`${rows.length} dari ${allEntries.length} booking ditampilkan`">
-        <div class="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Booking</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Traveler / Deadline</TableHead>
-                <TableHead>Status (Internal / Supplier / Client)</TableHead>
-                <TableHead>Payment Gate</TableHead>
-                <TableHead v-if="canViewBookingFinancials">
-                  Net Cost / Sell Price
-                </TableHead>
-                <TableHead>Exceptions</TableHead>
-                <TableHead>Aksi</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="entry in rows" :key="`${entry.bookingType}-${entry.bookingId}`">
-                <TableCell class="min-w-[180px]">
-                  <div class="flex items-center gap-1.5 mb-1">
+        <ResponsiveDataView v-if="rows.length" :items="rows" :get-key="entry => `${entry.bookingType}-${entry.bookingId}`">
+          <template #desktop="{ items }">
+            <div class="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Booking</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Traveler / Deadline</TableHead>
+                    <TableHead>Status (Internal / Supplier / Client)</TableHead>
+                    <TableHead>Payment Gate</TableHead>
+                    <TableHead v-if="canViewBookingFinancials">
+                      Net Cost / Sell Price
+                    </TableHead>
+                    <TableHead>Exceptions</TableHead>
+                    <TableHead>Aksi</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="entry in items" :key="`${entry.bookingType}-${entry.bookingId}`">
+                    <TableCell class="min-w-[180px]">
+                      <div class="flex items-center gap-1.5 mb-1">
+                        <StatusBadge :label="DOMAIN_LABEL[entry.bookingType]" :tone="DOMAIN_TONE[entry.bookingType]" />
+                        <NuxtLink :to="entry.detailHref" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
+                          {{ entry.bookingId }}
+                        </NuxtLink>
+                      </div>
+                      <p class="text-xs text-muted-foreground">
+                        {{ entry.label }}
+                      </p>
+                      <p class="text-xs text-muted-foreground">
+                        Ref: {{ entry.reference ?? 'Belum terbit' }}
+                      </p>
+                      <div v-if="entry.dependencies.length" class="mt-1 flex flex-wrap gap-1">
+                        <StatusBadge
+                          v-for="dep in entry.dependencies"
+                          :key="`${dep.bookingType}-${dep.bookingId}`"
+                          :label="`${dep.isSatisfied ? '✓' : '⏳'} Depends: ${dep.label}`"
+                          :tone="dep.isSatisfied ? 'success' : 'warning'"
+                        />
+                      </div>
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ entry.projectName }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      <p>{{ entry.travelerCount }} pax</p>
+                      <p v-if="entry.deadlineDate">
+                        Deadline: {{ formatDate(entry.deadlineDate) }}
+                      </p>
+                      <p v-else-if="entry.startDate">
+                        Mulai: {{ formatDate(entry.startDate) }}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge :label="entry.internalStatus" :tone="entry.internalStatusTone" />
+                      <p class="text-xs text-muted-foreground mt-1">
+                        Supplier: {{ entry.supplierVisibleStatus }}
+                      </p>
+                      <p class="text-xs text-muted-foreground">
+                        Client: {{ entry.clientVisibleStatus }}
+                      </p>
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
+                      <div v-if="canManageBookings && entry.paymentGateStatus === 'pending'" class="mt-1">
+                        <Button size="sm" variant="outline" @click="markPaymentCleared(entry)">
+                          Mark Payment Cleared
+                        </Button>
+                      </div>
+                    </TableCell>
+                    <TableCell v-if="canViewBookingFinancials" class="text-muted-foreground">
+                      <p>Net: {{ entry.netCostIdr !== undefined ? formatCurrencyIdr(entry.netCostIdr) : '—' }}</p>
+                      <p>Sell: {{ entry.sellPriceIdr !== undefined ? formatCurrencyIdr(entry.sellPriceIdr) : '—' }}</p>
+                    </TableCell>
+                    <TableCell class="max-w-[260px]">
+                      <ul v-if="entry.exceptions.length" class="space-y-1">
+                        <li v-for="(exception, index) in entry.exceptions" :key="index" class="text-xs text-destructive leading-snug">
+                          {{ exception }}
+                        </li>
+                      </ul>
+                      <span v-else class="text-xs text-muted-foreground">Tidak ada exception</span>
+                    </TableCell>
+                    <TableCell class="min-w-[160px]">
+                      <div class="flex flex-col gap-1.5">
+                        <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank">
+                          <Button size="sm" variant="ghost" class="w-full justify-start">
+                            Voucher / Preview
+                          </Button>
+                        </NuxtLink>
+                        <Button v-if="canManageBookings" size="sm" variant="ghost" class="w-full justify-start" @click="openAttemptDialog(entry)">
+                          Catat Percobaan
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </template>
+
+          <template #mobile-card="{ item: entry }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-1.5">
                     <StatusBadge :label="DOMAIN_LABEL[entry.bookingType]" :tone="DOMAIN_TONE[entry.bookingType]" />
-                    <NuxtLink :to="entry.detailHref" class="text-sm font-medium text-foreground hover:text-primary hover:underline">
+                    <NuxtLink :to="entry.detailHref" class="truncate text-sm font-medium text-foreground hover:text-primary hover:underline">
                       {{ entry.bookingId }}
                     </NuxtLink>
                   </div>
-                  <p class="text-xs text-muted-foreground">
+                  <p class="mt-0.5 truncate text-xs text-muted-foreground">
                     {{ entry.label }}
                   </p>
-                  <p class="text-xs text-muted-foreground">
-                    Ref: {{ entry.reference ?? 'Belum terbit' }}
+                </div>
+                <StatusBadge class="shrink-0" :label="entry.internalStatus" :tone="entry.internalStatusTone" />
+              </div>
+
+              <div v-if="entry.dependencies.length" class="mt-2 flex flex-wrap gap-1">
+                <StatusBadge
+                  v-for="dep in entry.dependencies"
+                  :key="`${dep.bookingType}-${dep.bookingId}`"
+                  :label="`${dep.isSatisfied ? '✓' : '⏳'} ${dep.label}`"
+                  :tone="dep.isSatisfied ? 'success' : 'warning'"
+                />
+              </div>
+
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Project
                   </p>
-                  <div v-if="entry.dependencies.length" class="mt-1 flex flex-wrap gap-1">
-                    <StatusBadge
-                      v-for="dep in entry.dependencies"
-                      :key="`${dep.bookingType}-${dep.bookingId}`"
-                      :label="`${dep.isSatisfied ? '✓' : '⏳'} Depends: ${dep.label}`"
-                      :tone="dep.isSatisfied ? 'success' : 'warning'"
-                    />
-                  </div>
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ entry.projectName }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  <p>{{ entry.travelerCount }} pax</p>
-                  <p v-if="entry.deadlineDate">
-                    Deadline: {{ formatDate(entry.deadlineDate) }}
+                  <p class="truncate text-foreground">
+                    {{ entry.projectName }}
                   </p>
-                  <p v-else-if="entry.startDate">
-                    Mulai: {{ formatDate(entry.startDate) }}
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Traveler / Deadline
                   </p>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge :label="entry.internalStatus" :tone="entry.internalStatusTone" />
-                  <p class="text-xs text-muted-foreground mt-1">
-                    Supplier: {{ entry.supplierVisibleStatus }}
+                  <p class="text-foreground">
+                    {{ entry.travelerCount }} pax
+                    <template v-if="entry.deadlineDate"> · {{ formatDate(entry.deadlineDate) }}</template>
+                    <template v-else-if="entry.startDate"> · Mulai {{ formatDate(entry.startDate) }}</template>
                   </p>
-                  <p class="text-xs text-muted-foreground">
-                    Client: {{ entry.clientVisibleStatus }}
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Supplier / Client
                   </p>
-                </TableCell>
-                <TableCell>
-                  <StatusBadge :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
-                  <div v-if="canManageBookings && entry.paymentGateStatus === 'pending'" class="mt-1">
-                    <Button size="sm" variant="outline" @click="markPaymentCleared(entry)">
-                      Mark Payment Cleared
-                    </Button>
-                  </div>
-                </TableCell>
-                <TableCell v-if="canViewBookingFinancials" class="text-muted-foreground">
-                  <p>Net: {{ entry.netCostIdr !== undefined ? formatCurrencyIdr(entry.netCostIdr) : '—' }}</p>
-                  <p>Sell: {{ entry.sellPriceIdr !== undefined ? formatCurrencyIdr(entry.sellPriceIdr) : '—' }}</p>
-                </TableCell>
-                <TableCell class="max-w-[260px]">
-                  <ul v-if="entry.exceptions.length" class="space-y-1">
-                    <li v-for="(exception, index) in entry.exceptions" :key="index" class="text-xs text-destructive leading-snug">
-                      {{ exception }}
-                    </li>
-                  </ul>
-                  <span v-else class="text-xs text-muted-foreground">Tidak ada exception</span>
-                </TableCell>
-                <TableCell class="min-w-[160px]">
-                  <div class="flex flex-col gap-1.5">
-                    <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank">
-                      <Button size="sm" variant="ghost" class="w-full justify-start">
-                        Voucher / Preview
-                      </Button>
-                    </NuxtLink>
-                    <Button v-if="canManageBookings" size="sm" variant="ghost" class="w-full justify-start" @click="openAttemptDialog(entry)">
-                      Catat Percobaan
-                    </Button>
-                  </div>
-                </TableCell>
-              </TableRow>
-              <TableEmpty v-if="rows.length === 0" :colspan="canViewBookingFinancials ? 8 : 7">
-                {{ searchQuery || domainFilter !== 'all' || projectFilter !== 'all' || categoryFilter !== 'all' || exceptionOnly ? 'Tidak ada booking yang cocok dengan filter.' : 'Belum ada booking tercatat.' }}
-              </TableEmpty>
-            </TableBody>
-          </Table>
-        </div>
+                  <p class="text-foreground">
+                    {{ entry.supplierVisibleStatus }} · {{ entry.clientVisibleStatus }}
+                  </p>
+                </div>
+                <div v-if="canViewBookingFinancials">
+                  <p class="text-muted-foreground">
+                    Net / Sell
+                  </p>
+                  <p class="text-foreground">
+                    {{ entry.netCostIdr !== undefined ? formatCurrencyIdr(entry.netCostIdr) : '—' }} / {{ entry.sellPriceIdr !== undefined ? formatCurrencyIdr(entry.sellPriceIdr) : '—' }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
+                <StatusBadge :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
+                <Button v-if="canManageBookings && entry.paymentGateStatus === 'pending'" size="sm" variant="outline" @click="markPaymentCleared(entry)">
+                  Mark Cleared
+                </Button>
+              </div>
+
+              <ul v-if="entry.exceptions.length" class="mt-2 space-y-1 rounded-lg bg-destructive/5 p-2">
+                <li v-for="(exception, index) in entry.exceptions" :key="index" class="text-xs text-destructive leading-snug">
+                  {{ exception }}
+                </li>
+              </ul>
+
+              <div v-if="entry.voucherHref || canManageBookings" class="mt-3 grid grid-cols-2 gap-2">
+                <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank">
+                  <Button size="sm" variant="outline" class="w-full">
+                    Voucher
+                  </Button>
+                </NuxtLink>
+                <Button v-if="canManageBookings" size="sm" variant="outline" class="w-full" @click="openAttemptDialog(entry)">
+                  Catat Percobaan
+                </Button>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+        <EmptyState
+          v-else
+          title="Tidak ada booking"
+          :description="searchQuery || domainFilter !== 'all' || projectFilter !== 'all' || categoryFilter !== 'all' || exceptionOnly ? 'Tidak ada booking yang cocok dengan filter.' : 'Belum ada booking tercatat.'"
+        />
       </SectionCard>
 
       <!-- Failure/retry/manual fallback simulation dialog -->
