@@ -2417,40 +2417,36 @@ const tripDurationDays = computed(() => {
         </div>
       </SectionCard>
 
-      <Dialog v-model:open="isScheduleDialogOpen">
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit Destinasi & Jadwal</DialogTitle>
-            <DialogDescription>
-              Tanggal travel dipakai gate step "Departure"/"On Progress" — dibandingkan terhadap tanggal acuan demo ({{ formatDate(DEMO_REFERENCE_DATE) }}), bukan tanggal hari ini sungguhan.
-            </DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+      <ResponsiveFormSheet
+        v-model:open="isScheduleDialogOpen"
+        title="Edit Destinasi & Jadwal"
+        :description="`Tanggal travel dipakai gate step \`Departure\`/\`On Progress\` — dibandingkan terhadap tanggal acuan demo (${formatDate(DEMO_REFERENCE_DATE)}), bukan tanggal hari ini sungguhan.`"
+      >
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="edit-destination">Destinasi</Label>
+            <Input id="edit-destination" v-model="editDestination" placeholder="mis. Kuala Lumpur, Malaysia" />
+          </div>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div class="space-y-1.5">
-              <Label for="edit-destination">Destinasi</Label>
-              <Input id="edit-destination" v-model="editDestination" placeholder="mis. Kuala Lumpur, Malaysia" />
+              <Label for="edit-travel-start">Tanggal Berangkat</Label>
+              <Input id="edit-travel-start" v-model="editTravelStartDate" type="date" />
             </div>
-            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <div class="space-y-1.5">
-                <Label for="edit-travel-start">Tanggal Berangkat</Label>
-                <Input id="edit-travel-start" v-model="editTravelStartDate" type="date" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="edit-travel-end">Tanggal Pulang</Label>
-                <Input id="edit-travel-end" v-model="editTravelEndDate" type="date" />
-              </div>
+            <div class="space-y-1.5">
+              <Label for="edit-travel-end">Tanggal Pulang</Label>
+              <Input id="edit-travel-end" v-model="editTravelEndDate" type="date" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isScheduleDialogOpen = false">
-              Batal
-            </Button>
-            <Button @click="submitSchedule">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isScheduleDialogOpen = false">
+            Batal
+          </Button>
+          <Button @click="submitSchedule">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
       <Tabs v-model="activeTab">
         <TabsList class="h-14 py-1.5">
@@ -2538,48 +2534,46 @@ const tripDurationDays = computed(() => {
                 </div>
               </SectionCard>
 
-              <Dialog v-model:open="isFieldContactsDialogOpen">
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Edit Kontak Lapangan</DialogTitle>
-                    <DialogDescription>Tour leader dan kontak darurat 24 jam untuk project ini — dibutuhkan sebelum status bisa maju ke step "Start".</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-4 py-2">
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div class="space-y-1.5">
-                        <Label for="edit-tour-leader-name">Nama Tour Leader</Label>
-                        <Input id="edit-tour-leader-name" v-model="editTourLeaderName" placeholder="mis. Arif Setiawan" />
-                      </div>
-                      <div class="space-y-1.5">
-                        <Label for="edit-tour-leader-phone">No. HP Tour Leader</Label>
-                        <Input id="edit-tour-leader-phone" v-model="editTourLeaderPhone" placeholder="mis. 0812-7000-1001" />
-                      </div>
-                    </div>
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                      <div class="space-y-1.5">
-                        <Label for="edit-emergency-name">Nama Kontak Darurat</Label>
-                        <Input id="edit-emergency-name" v-model="editEmergencyContactName" placeholder="mis. Manova 24/7 Operations" />
-                      </div>
-                      <div class="space-y-1.5">
-                        <Label for="edit-emergency-phone">No. HP Kontak Darurat</Label>
-                        <Input id="edit-emergency-phone" v-model="editEmergencyContactPhone" placeholder="mis. +62 21 5000 1188" />
-                      </div>
+              <ResponsiveFormSheet
+                v-model:open="isFieldContactsDialogOpen"
+                title="Edit Kontak Lapangan"
+                description='Tour leader dan kontak darurat 24 jam untuk project ini — dibutuhkan sebelum status bisa maju ke step "Start".'
+              >
+                <div class="space-y-4 py-2">
+                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div class="space-y-1.5">
+                      <Label for="edit-tour-leader-name">Nama Tour Leader</Label>
+                      <Input id="edit-tour-leader-name" v-model="editTourLeaderName" placeholder="mis. Arif Setiawan" />
                     </div>
                     <div class="space-y-1.5">
-                      <Label for="edit-meeting-point">Meeting Point</Label>
-                      <Input id="edit-meeting-point" v-model="editMeetingPoint" placeholder="mis. Terminal 3 Bandara Soekarno-Hatta" />
+                      <Label for="edit-tour-leader-phone">No. HP Tour Leader</Label>
+                      <Input id="edit-tour-leader-phone" v-model="editTourLeaderPhone" placeholder="mis. 0812-7000-1001" />
                     </div>
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isFieldContactsDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button @click="submitFieldContacts">
-                      Simpan
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <div class="space-y-1.5">
+                      <Label for="edit-emergency-name">Nama Kontak Darurat</Label>
+                      <Input id="edit-emergency-name" v-model="editEmergencyContactName" placeholder="mis. Manova 24/7 Operations" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="edit-emergency-phone">No. HP Kontak Darurat</Label>
+                      <Input id="edit-emergency-phone" v-model="editEmergencyContactPhone" placeholder="mis. +62 21 5000 1188" />
+                    </div>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="edit-meeting-point">Meeting Point</Label>
+                    <Input id="edit-meeting-point" v-model="editMeetingPoint" placeholder="mis. Terminal 3 Bandara Soekarno-Hatta" />
+                  </div>
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isFieldContactsDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button @click="submitFieldContacts">
+                    Simpan
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
 
               <!-- Ringkasan Komersial — separuh lebar (bukan edge-to-edge), ditaruh di bawah 4 stat card di atas. Kolom di-stretch (bukan items-start lagi) supaya "Action Required" saat kosong ikut setinggi Ringkasan Komersial, bukan terlihat terpotong pendek sendirian. -->
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -3749,31 +3743,28 @@ const tripDurationDays = computed(() => {
             </SectionCard>
           </div>
 
-          <Dialog v-model:open="isConfirmDpDialogOpen">
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Konfirmasi DP</DialogTitle>
-                <DialogDescription>
-                  {{ confirmDpOrder?.travelerCount }} pax · Harga {{ confirmDpOrder ? formatCurrencyIdr(confirmDpOrder.priceIdr) : '—' }} · Minimal DP {{ formatCurrencyIdr(confirmDpMinimumIdr) }} ({{ MINIMUM_DP_PERCENT }}%). Boleh DP sebagian — sisanya tercatat sebagai outstanding.
-                </DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="confirm-dp-amount">Nominal DP Diterima (Rp)</Label>
-                <CurrencyInput id="confirm-dp-amount" v-model="confirmDpAmountIdr" placeholder="mis. 4000000" />
-                <p v-if="confirmDpMinimumError" class="text-xs text-destructive">
-                  {{ confirmDpMinimumError }}
-                </p>
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isConfirmDpDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!confirmDpAmountIdr" @click="submitConfirmDp">
-                  Konfirmasi
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <ResponsiveFormSheet
+            v-model:open="isConfirmDpDialogOpen"
+            title="Konfirmasi DP"
+            content-class="max-w-md"
+            :description="`${confirmDpOrder?.travelerCount ?? ''} pax · Harga ${confirmDpOrder ? formatCurrencyIdr(confirmDpOrder.priceIdr) : '—'} · Minimal DP ${formatCurrencyIdr(confirmDpMinimumIdr)} (${MINIMUM_DP_PERCENT}%). Boleh DP sebagian — sisanya tercatat sebagai outstanding.`"
+          >
+            <div class="space-y-1.5 py-2">
+              <Label for="confirm-dp-amount">Nominal DP Diterima (Rp)</Label>
+              <CurrencyInput id="confirm-dp-amount" v-model="confirmDpAmountIdr" placeholder="mis. 4000000" />
+              <p v-if="confirmDpMinimumError" class="text-xs text-destructive">
+                {{ confirmDpMinimumError }}
+              </p>
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isConfirmDpDialogOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!confirmDpAmountIdr" @click="submitConfirmDp">
+                Konfirmasi
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </TabsContent>
 
         <TabsContent v-if="project.isGroupTrip" value="reservations">
@@ -4517,41 +4508,37 @@ const tripDurationDays = computed(() => {
             <EmptyState v-else :icon="Truck" title="Belum ada layanan tercatat untuk project ini" />
           </SectionCard>
 
-          <Dialog v-model:open="isAssignVendorDialogOpen">
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Tugaskan Vendor</DialogTitle>
-                <DialogDescription>
-                  Layanan "{{ assignVendorService?.label }}". Isi nominal supaya layanan langsung Confirmed dan Supplier Invoice terbentuk dengan nilai yang benar — kosongkan kalau cuma mau menugaskan vendor dulu tanpa nominal.
-                </DialogDescription>
-              </DialogHeader>
-              <div class="space-y-4 py-2">
-                <div class="space-y-1.5">
-                  <Label for="assign-vendor-id">Vendor</Label>
-                  <select id="assign-vendor-id" v-model="assignVendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="">
-                      Pilih vendor
-                    </option>
-                    <option v-for="vendor in assignVendorOptions" :key="vendor.id" :value="vendor.id">
-                      {{ vendor.name }}
-                    </option>
-                  </select>
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="assign-vendor-amount">Nominal Quotation (Rp, opsional)</Label>
-                  <CurrencyInput id="assign-vendor-amount" v-model="assignVendorAmountIdr" placeholder="mis. 8500000" />
-                </div>
+          <ResponsiveFormSheet
+            v-model:open="isAssignVendorDialogOpen"
+            title="Tugaskan Vendor"
+            :description="`Layanan &quot;${assignVendorService?.label}&quot;. Isi nominal supaya layanan langsung Confirmed dan Supplier Invoice terbentuk dengan nilai yang benar — kosongkan kalau cuma mau menugaskan vendor dulu tanpa nominal.`"
+          >
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="assign-vendor-id">Vendor</Label>
+                <select id="assign-vendor-id" v-model="assignVendorId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="">
+                    Pilih vendor
+                  </option>
+                  <option v-for="vendor in assignVendorOptions" :key="vendor.id" :value="vendor.id">
+                    {{ vendor.name }}
+                  </option>
+                </select>
               </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isAssignVendorDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!assignVendorId" @click="submitAssignVendor">
-                  Simpan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              <div class="space-y-1.5">
+                <Label for="assign-vendor-amount">Nominal Quotation (Rp, opsional)</Label>
+                <CurrencyInput id="assign-vendor-amount" v-model="assignVendorAmountIdr" placeholder="mis. 8500000" />
+              </div>
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isAssignVendorDialogOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!assignVendorId" @click="submitAssignVendor">
+                Simpan
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
 
           <Sheet v-model:open="isVendorPaymentDialogOpen">
             <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
@@ -5578,26 +5565,25 @@ const tripDurationDays = computed(() => {
             </div>
           </div>
 
-          <Dialog v-model:open="isBlockDialogOpen">
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Blokir Task</DialogTitle>
-                <DialogDescription>"{{ blockingTask?.title }}" akan ditandai diblokir sampai dibuka kembali secara manual.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="block-reason">Alasan</Label>
-                <Input id="block-reason" v-model="blockReason" placeholder="mis. Menunggu konfirmasi vendor" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isBlockDialogOpen = false">
-                  Batal
-                </Button>
-                <Button variant="destructive" :disabled="!blockReason.trim()" @click="submitBlockTask">
-                  Blokir
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <ResponsiveFormSheet
+            v-model:open="isBlockDialogOpen"
+            title="Blokir Task"
+            content-class="max-w-md"
+            :description="`&quot;${blockingTask?.title}&quot; akan ditandai diblokir sampai dibuka kembali secara manual.`"
+          >
+            <div class="space-y-1.5 py-2">
+              <Label for="block-reason">Alasan</Label>
+              <Input id="block-reason" v-model="blockReason" placeholder="mis. Menunggu konfirmasi vendor" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isBlockDialogOpen = false">
+                Batal
+              </Button>
+              <Button variant="destructive" :disabled="!blockReason.trim()" @click="submitBlockTask">
+                Blokir
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
 
           <Sheet v-model:open="isTaskDialogOpen">
             <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
