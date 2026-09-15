@@ -2065,7 +2065,9 @@ const tripDurationDays = computed(() => {
       <Breadcrumb :items="[{ label: 'Project', to: '/project-orders' }, { label: project.name }]" />
 
       <SectionCard compact>
-        <div class="flex flex-wrap items-center justify-between gap-6">
+        <!-- Desktop/tablet — layout asli, tidak diubah. Disembunyikan di mobile karena chip statistik
+             lebar (pr-4) dan info PT/PIC/WA inline-flex-wrap-nya numpuk tak beraturan di layar sempit. -->
+        <div class="hidden sm:flex flex-wrap items-center justify-between gap-6">
           <div class="flex min-w-0 items-start gap-3">
             <template v-if="project.isGroupTrip">
               <input ref="photoInputRef" type="file" accept="image/*" class="hidden" @change="handlePhotoSelected">
@@ -2175,7 +2177,107 @@ const tripDurationDays = computed(() => {
           </div>
         </div>
 
-        <div class="mt-4 flex flex-wrap gap-2 border-t border-border pt-4">
+        <!-- Mobile — versi ringkas & terstruktur, bukan reuse layout desktop yang diwrap. Foto pakai
+             `photoInputRef`/`openPhotoPicker` yang sama dengan blok desktop di atas (elemen input-nya
+             tetap ada di DOM walau disembunyikan, jadi aman dipakai bareng). -->
+        <div class="sm:hidden">
+          <div class="flex items-start gap-3">
+            <template v-if="project.isGroupTrip">
+              <button
+                type="button"
+                title="Tambah / ganti foto trip"
+                class="group relative flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-2xl bg-primary/10 text-primary ring-1 ring-border"
+                @click="openPhotoPicker"
+              >
+                <img v-if="project.photoUrl" :src="project.photoUrl" alt="" class="h-full w-full object-cover">
+                <MapPin v-else class="h-6 w-6" />
+              </button>
+            </template>
+            <div v-else class="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+              <MapPin class="h-5 w-5" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <h1 class="truncate text-base font-semibold text-foreground">
+                {{ project.name }}
+              </h1>
+              <div class="mt-1 flex flex-wrap items-center gap-1.5">
+                <StatusBadge :label="findStatusOption(PROJECT_STATUSES, project.status).label" :tone="findStatusOption(PROJECT_STATUSES, project.status).tone" />
+                <StatusBadge v-if="needsAttention" label="Perlu Perhatian" tone="warning" />
+              </div>
+              <p class="mt-1.5 text-xs text-muted-foreground">
+                {{ project.destination }} · {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
+              </p>
+              <p class="mt-0.5 text-xs text-muted-foreground">
+                PM: <span class="font-medium text-foreground">{{ owner?.name ?? '—' }}</span> · AE: <span class="font-medium text-foreground">{{ accountExecutive?.name ?? '—' }}</span>
+              </p>
+            </div>
+          </div>
+
+          <div v-if="party" class="mt-3 grid grid-cols-2 gap-x-3 gap-y-2 rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+            <div class="min-w-0">
+              <p class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Nama PT
+              </p>
+              <p class="truncate text-sm font-medium text-foreground">
+                {{ party.name }}
+              </p>
+            </div>
+            <div v-if="clientPic" class="min-w-0">
+              <p class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                PIC
+              </p>
+              <p class="truncate text-sm font-medium text-foreground">
+                {{ clientPic.name }}
+              </p>
+            </div>
+            <div v-if="clientPic?.phone" class="col-span-2">
+              <p class="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                WA
+              </p>
+              <p class="text-sm font-medium text-foreground">
+                {{ clientPic.phone }}
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-3 grid grid-cols-3 gap-2">
+            <div class="flex flex-col items-center gap-1 rounded-lg bg-primary/5 px-1 py-2.5">
+              <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
+                <Users class="h-3.5 w-3.5" />
+              </div>
+              <p class="text-base font-bold leading-none text-foreground tabular-nums">
+                {{ project.travelerCount }}
+              </p>
+              <p class="text-center text-[9px] font-medium uppercase leading-tight tracking-wide text-muted-foreground">
+                Traveler
+              </p>
+            </div>
+            <div class="flex flex-col items-center gap-1 rounded-lg bg-success/5 px-1 py-2.5">
+              <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-success/10 text-success">
+                <FileText class="h-3.5 w-3.5" />
+              </div>
+              <p class="break-words text-center text-sm font-bold leading-tight text-foreground tabular-nums">
+                {{ formatCurrencyIdr(project.quotationAmountIdr) }}
+              </p>
+              <p class="text-center text-[9px] font-medium uppercase leading-tight tracking-wide text-muted-foreground">
+                Quotation
+              </p>
+            </div>
+            <div class="flex flex-col items-center gap-1 rounded-lg bg-chart-5/5 px-1 py-2.5">
+              <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-chart-5/10 text-chart-5">
+                <CalendarRange class="h-3.5 w-3.5" />
+              </div>
+              <p class="text-base font-bold leading-none text-foreground tabular-nums">
+                {{ tripDurationDays }}
+              </p>
+              <p class="text-center text-[9px] font-medium uppercase leading-tight tracking-wide text-muted-foreground">
+                Hari Trip
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-4 hidden flex-wrap gap-2 border-t border-border pt-4 sm:flex">
           <NuxtLink :to="`/project-orders/${project.id}/run-sheet-preview`" target="_blank">
             <Button size="sm" variant="outline">
               <Printer class="h-3.5 w-3.5 mr-1.5" />Run Sheet / Export Preview
@@ -2184,6 +2286,19 @@ const tripDurationDays = computed(() => {
           <NuxtLink :to="`/project-orders/${project.id}/manifest-preview`" target="_blank">
             <Button size="sm" variant="outline">
               <Users class="h-3.5 w-3.5 mr-1.5" />Manifest Preview
+            </Button>
+          </NuxtLink>
+        </div>
+
+        <div class="mt-4 grid grid-cols-2 gap-2 border-t border-border pt-4 sm:hidden">
+          <NuxtLink :to="`/project-orders/${project.id}/run-sheet-preview`" target="_blank">
+            <Button size="sm" variant="outline" class="w-full">
+              <Printer class="h-3.5 w-3.5 mr-1.5" />Run Sheet
+            </Button>
+          </NuxtLink>
+          <NuxtLink :to="`/project-orders/${project.id}/manifest-preview`" target="_blank">
+            <Button size="sm" variant="outline" class="w-full">
+              <Users class="h-3.5 w-3.5 mr-1.5" />Manifest
             </Button>
           </NuxtLink>
         </div>
@@ -2742,7 +2857,26 @@ const tripDurationDays = computed(() => {
         </TabsContent>
 
         <TabsContent value="milestone">
-          <div class="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+          <!-- Mobile — Total/Selesai/Delay dibuat ringkas & sejajar 3 kolom (bukan stack 1 kolom penuh
+               seperti sebelumnya) supaya sekali lihat kebaca tanpa banyak scroll; 2 card sisanya (progress
+               + budget) tetap full-width karena isinya lebih berat (progress bar/angka rupiah). Desktop
+               tidak berubah — grid 5-kolom lama masih dipakai lewat blok `hidden sm:grid` di bawah. -->
+          <div class="mb-3 grid grid-cols-3 gap-2 sm:hidden">
+            <StatsCard size="sm" title="Total" :value="String(milestoneSummary.total)" :icon="ListChecks" />
+            <StatsCard size="sm" title="Selesai" :value="String(milestoneSummary.completed)" :icon="CheckCircle2" icon-color="success" />
+            <StatsCard size="sm" title="Delay" :value="String(milestoneSummary.delayed)" :icon="AlertTriangle" :icon-color="milestoneSummary.delayed > 0 ? 'destructive' : 'primary'" />
+          </div>
+          <div class="mb-4 grid grid-cols-1 gap-3 sm:hidden">
+            <StatsCard title="Progress Keseluruhan" :value="`${milestoneOverallProgressPercent}%`" :icon="Gauge" :progress-percent="milestoneOverallProgressPercent" />
+            <StatsCard
+              title="Total Budget Milestone"
+              :value="formatCurrencyIdr(milestoneBudgetSummary.allocatedToMilestonesIdr)"
+              :icon="Wallet"
+              :subtitle="milestoneBudgetSummary.allocationPercent !== undefined ? `${milestoneBudgetSummary.allocationPercent}% dari budget project` : undefined"
+            />
+          </div>
+
+          <div class="mb-4 hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-5">
             <StatsCard title="Total Milestone" :value="String(milestoneSummary.total)" :icon="ListChecks" />
             <StatsCard title="Selesai" :value="String(milestoneSummary.completed)" :icon="CheckCircle2" icon-color="success" />
             <StatsCard title="Delay" :value="String(milestoneSummary.delayed)" :icon="AlertTriangle" :icon-color="milestoneSummary.delayed > 0 ? 'destructive' : 'primary'" />

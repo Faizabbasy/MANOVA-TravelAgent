@@ -15,7 +15,9 @@ interface Props {
   icon: Component
   iconColor?: 'primary' | 'success' | 'warning' | 'destructive'
   subtitle?: string
-  size?: 'default' | 'lg'
+  /** `sm` — tile ringkas untuk grid 3-kolom sejajar di mobile (mis. Total/Selesai/Delay milestone),
+   * padding & font lebih kecil, tanpa sparkline/footer-progress. */
+  size?: 'default' | 'lg' | 'sm'
   /** Progres opsional (0-100) — dipakai untuk pill persen (kanan atas, header berpindah ke layout
    * icon+title) dan warna panah kecil di samping value, untuk metrik "terkumpul dari target" (mis.
    * pendapatan terkumpul vs nilai quotation). Dihilangkan (bukan default 0) supaya card tanpa progres
@@ -76,7 +78,7 @@ const sparkGradientId = `spark-fill-${useId()}`
   <div
     :class="cn(
       'group relative overflow-hidden rounded-xl border border-border bg-card shadow-[0_1px_2px_0_hsl(224_71%_4%/0.04)] transition-colors duration-150 hover:border-border/80 hover:bg-muted/20',
-      props.size === 'lg' ? 'p-5' : 'p-4'
+      props.size === 'lg' ? 'p-5' : props.size === 'sm' ? 'p-3' : 'p-4'
     )"
   >
     <div v-if="progressPercent !== undefined" class="flex items-center justify-between gap-2">
@@ -94,16 +96,16 @@ const sparkGradientId = `spark-fill-${useId()}`
       </span>
     </div>
     <div v-else class="flex items-start justify-between gap-3">
-      <p class="min-w-0 flex-1 truncate text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      <p :class="cn('min-w-0 flex-1 truncate font-medium uppercase tracking-wide text-muted-foreground', props.size === 'sm' ? 'text-[10px]' : 'text-xs')">
         {{ title }}
       </p>
-      <div :class="cn('shrink-0 rounded-lg p-2.5', iconColorClasses[iconColor])">
-        <component :is="icon" class="h-4 w-4" />
+      <div :class="cn('shrink-0 rounded-lg', props.size === 'sm' ? 'p-1.5' : 'p-2.5', iconColorClasses[iconColor])">
+        <component :is="icon" :class="props.size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'" />
       </div>
     </div>
 
     <div class="mt-2 flex items-center gap-1.5">
-      <p :class="cn('font-semibold tracking-tight text-foreground break-words', props.size === 'lg' ? 'text-[1.75rem] leading-9' : 'text-2xl leading-8')">
+      <p :class="cn('font-semibold tracking-tight text-foreground break-words', props.size === 'lg' ? 'text-[1.75rem] leading-9' : props.size === 'sm' ? 'text-xl leading-6' : 'text-2xl leading-8')">
         {{ value }}
       </p>
       <component
