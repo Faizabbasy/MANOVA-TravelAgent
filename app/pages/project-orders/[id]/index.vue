@@ -4595,8 +4595,7 @@ const tripDurationDays = computed(() => {
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <StatsCard
                         title="Project Value"
-                        :value="formatCurrencyIdrCompact(project.quotationAmountIdr)"
-                        :full-value="formatCurrencyIdr(project.quotationAmountIdr)"
+                        :value="formatCurrencyIdr(project.quotationAmountIdr)"
                         :subtitle="`Terkumpul ${formatCurrencyIdr(collectedIdr)} dari client${quotationGapIdr > 0 ? ' · Kurang ' + formatCurrencyIdr(quotationGapIdr) : ' · Lunas'}`"
                         :progress-percent="quotationCollectionPercent"
                         :icon="FileText"
@@ -4604,8 +4603,7 @@ const tripDurationDays = computed(() => {
                       />
                       <StatsCard
                         title="Actual Cost"
-                        :value="formatCurrencyIdrCompact(actualCostIdr)"
-                        :full-value="formatCurrencyIdr(actualCostIdr)"
+                        :value="formatCurrencyIdr(actualCostIdr)"
                         subtitle="Biaya aktual saat ini"
                         :progress-percent="project.budgetIdr > 0 ? (actualCostIdr / project.budgetIdr) * 100 : 0"
                         :icon="CreditCard"
@@ -4614,8 +4612,7 @@ const tripDurationDays = computed(() => {
                       <StatsCard
                         v-if="canViewMargin"
                         title="Project Margin"
-                        :value="formatCurrencyIdrCompact(marginIdr)"
-                        :full-value="formatCurrencyIdr(marginIdr)"
+                        :value="formatCurrencyIdr(marginIdr)"
                         subtitle="Perkiraan margin proyek"
                         :progress-percent="project.quotationAmountIdr > 0 ? (marginIdr / project.quotationAmountIdr) * 100 : 0"
                         :icon="PieChart"
