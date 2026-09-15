@@ -261,15 +261,13 @@ function submitAdjust () {
         <EmptyState v-else :icon="Award" title="Belum ada member loyalty" description="Customer masuk program setelah invoice pertamanya lunas." />
       </SectionCard>
 
-      <Dialog :open="Boolean(adjustTargetId)" @update:open="value => { if (!value) adjustTargetId = undefined }">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Sesuaikan Poin — {{ adjustTarget?.partyName }}</DialogTitle>
-            <DialogDescription>
-              Gunakan nilai positif untuk bonus dan negatif untuk penukaran. Alasan wajib diisi agar jejaknya jelas.
-            </DialogDescription>
-          </DialogHeader>
-
+      <ResponsiveFormSheet
+        :open="Boolean(adjustTargetId)"
+        @update:open="value => { if (!value) adjustTargetId = undefined }"
+        :title="`Sesuaikan Poin — ${adjustTarget?.partyName}`"
+        description="Gunakan nilai positif untuk bonus dan negatif untuk penukaran. Alasan wajib diisi agar jejaknya jelas."
+        content-class="max-w-md"
+      >
           <div class="space-y-3">
             <div class="space-y-1.5">
               <Label>Jumlah Poin</Label>
@@ -300,16 +298,15 @@ function submitAdjust () {
             </div>
           </div>
 
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="adjustTargetId = undefined">
               Batal
             </Button>
             <Button :disabled="!adjustPoints || !adjustReason.trim()" @click="submitAdjust">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

@@ -396,12 +396,13 @@ function submitApplyToQuotation () {
         </div>
       </SectionCard>
 
-      <Dialog v-model:open="isEditOpen">
-        <DialogScrollContent class="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Cost Sheet</DialogTitle>
-            <DialogDescription>Hanya dapat diedit selagi masih Draft — setelah diterapkan ke Quotation, revisi wajib lewat "Duplicate as New Version".</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isEditOpen"
+        title="Edit Cost Sheet"
+        description="Hanya dapat diedit selagi masih Draft — setelah diterapkan ke Quotation, revisi wajib lewat &quot;Duplicate as New Version&quot;."
+        content-class="max-w-2xl"
+        scroll
+      >
           <div class="space-y-4 py-2">
             <div class="grid gap-4 sm:grid-cols-2">
               <div class="space-y-1.5">
@@ -485,16 +486,15 @@ function submitApplyToQuotation () {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isEditOpen = false">
               Batal
             </Button>
             <Button :disabled="!editName.trim() || !editTravelerCount" @click="submitEdit">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

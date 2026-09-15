@@ -137,15 +137,16 @@ function submitCreate () {
           Hanya Portfolio Saya
         </label>
 
-        <Dialog v-if="canManageParty" v-model:open="isCreateOpen">
-          <DialogTrigger as-child>
+        <ResponsiveFormSheet
+          v-if="canManageParty"
+          v-model:open="isCreateOpen"
+          title="Tambah Prospect Baru"
+          description="Party baru akan dibuat dengan lifecycle status Prospect."
+          content-class="max-w-md"
+        >
+          <template #trigger>
             <Button class="ml-auto"><Plus class="h-4 w-4 mr-1.5" />Tambah Prospect</Button>
-          </DialogTrigger>
-          <DialogContent class="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Tambah Prospect Baru</DialogTitle>
-              <DialogDescription>Party baru akan dibuat dengan lifecycle status Prospect.</DialogDescription>
-            </DialogHeader>
+          </template>
             <div class="space-y-4 py-2">
               <div class="space-y-1.5">
                 <Label for="prospect-name">Nama Party</Label>
@@ -156,16 +157,15 @@ function submitCreate () {
                 <Input id="prospect-industry" v-model="newIndustry" placeholder="mis. Manufaktur, Retail, dll." />
               </div>
             </div>
-            <DialogFooter>
+          <template #footer>
               <Button variant="outline" @click="isCreateOpen = false">
                 Batal
               </Button>
               <Button :disabled="!newName.trim()" @click="submitCreate">
                 Simpan
               </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+          </template>
+        </ResponsiveFormSheet>
       </div>
 
       <SectionCard>

@@ -246,17 +246,18 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
       :breadcrumb="[{ label: 'Documents & Communication' }]"
     >
       <template v-if="canManageDocuments && activeTab === 'documents'" #actions>
-        <Dialog v-model:open="isUploadOpen">
-          <DialogTrigger as-child>
+        <ResponsiveFormSheet
+          v-model:open="isUploadOpen"
+          title="Upload Document Baru"
+          description="Mock upload — tidak ada file storage nyata, hanya metadata tercatat (D-006)."
+          content-class="max-w-lg"
+          scroll
+        >
+          <template #trigger>
             <Button size="sm">
               <Plus class="h-4 w-4 mr-1.5" />Upload Document
             </Button>
-          </DialogTrigger>
-          <DialogScrollContent class="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Upload Document Baru</DialogTitle>
-              <DialogDescription>Mock upload — tidak ada file storage nyata, hanya metadata tercatat (D-006).</DialogDescription>
-            </DialogHeader>
+          </template>
             <div class="space-y-4 py-2">
               <div class="grid grid-cols-2 gap-3">
                 <div class="space-y-1.5">
@@ -306,30 +307,30 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                 <Input id="doc-expiry" v-model="newDocExpiresAt" type="date" />
               </div>
             </div>
-            <DialogFooter>
+          <template #footer>
               <Button variant="outline" @click="isUploadOpen = false">
                 Batal
               </Button>
               <Button :disabled="!newDocEntityId.trim() || !newDocName.trim() || !newDocCategory.trim()" @click="submitUpload">
                 Simpan
               </Button>
-            </DialogFooter>
-          </DialogScrollContent>
-        </Dialog>
+          </template>
+        </ResponsiveFormSheet>
       </template>
 
       <template v-else-if="canManageDocuments && activeTab === 'messages'" #actions>
-        <Dialog v-model:open="isComposeOpen">
-          <DialogTrigger as-child>
+        <ResponsiveFormSheet
+          v-model:open="isComposeOpen"
+          title="Kirim Pesan Baru"
+          description="Internal note, client message, atau supplier message — delivery status simulasi mock, tanpa integrasi email/WhatsApp nyata."
+          content-class="max-w-lg"
+          scroll
+        >
+          <template #trigger>
             <Button size="sm">
               <Plus class="h-4 w-4 mr-1.5" />New Message
             </Button>
-          </DialogTrigger>
-          <DialogScrollContent class="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Kirim Pesan Baru</DialogTitle>
-              <DialogDescription>Internal note, client message, atau supplier message — delivery status simulasi mock, tanpa integrasi email/WhatsApp nyata.</DialogDescription>
-            </DialogHeader>
+          </template>
             <div class="space-y-4 py-2">
               <div class="grid grid-cols-2 gap-3">
                 <div class="space-y-1.5">
@@ -396,16 +397,15 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                 </div>
               </div>
             </div>
-            <DialogFooter>
+          <template #footer>
               <Button variant="outline" @click="isComposeOpen = false">
                 Batal
               </Button>
               <Button :disabled="!newMsgEntityId.trim() || !newMsgBody.trim()" @click="submitCompose">
                 Kirim
               </Button>
-            </DialogFooter>
-          </DialogScrollContent>
-        </Dialog>
+          </template>
+        </ResponsiveFormSheet>
       </template>
 
       <template v-else-if="activeTab === 'notifications' && unreadCount > 0" #actions>

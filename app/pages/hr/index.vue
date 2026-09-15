@@ -1124,15 +1124,12 @@ function submitPayrollLineForm () {
         </TabsContent>
       </Tabs>
 
-      <Dialog v-model:open="isEmployeeFormOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{{ employeeFormMode === 'edit' ? 'Edit Karyawan' : 'Tambah Karyawan Baru' }}</DialogTitle>
-            <DialogDescription>
-              {{ employeeFormMode === 'edit' ? 'Perbarui data karyawan.' : 'Karyawan baru langsung masuk ke data karyawan MANOVA.' }}
-            </DialogDescription>
-          </DialogHeader>
-
+      <ResponsiveFormSheet
+        v-model:open="isEmployeeFormOpen"
+        :title="employeeFormMode === 'edit' ? 'Edit Karyawan' : 'Tambah Karyawan Baru'"
+        :description="employeeFormMode === 'edit' ? 'Perbarui data karyawan.' : 'Karyawan baru langsung masuk ke data karyawan MANOVA.'"
+        content-class="max-w-md"
+      >
           <div class="space-y-3">
             <div class="space-y-1.5">
               <Label>Nama Karyawan</Label>
@@ -1198,24 +1195,22 @@ function submitPayrollLineForm () {
             </div>
           </div>
 
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isEmployeeFormOpen = false">
               Batal
             </Button>
             <Button :disabled="!isEmployeeFormValid" @click="submitEmployeeForm">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
-      <Dialog v-model:open="isPayrollLineFormOpen">
-        <DialogContent class="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Edit Payroll — {{ editingPayrollLineEmployeeName }}</DialogTitle>
-            <DialogDescription>Komisi diturunkan otomatis dari project dan tidak bisa diedit di sini.</DialogDescription>
-          </DialogHeader>
-
+      <ResponsiveFormSheet
+        v-model:open="isPayrollLineFormOpen"
+        :title="`Edit Payroll — ${editingPayrollLineEmployeeName}`"
+        description="Komisi diturunkan otomatis dari project dan tidak bisa diedit di sini."
+        content-class="max-w-sm"
+      >
           <div class="space-y-3">
             <div class="space-y-1.5">
               <Label>Gaji Pokok (IDR)</Label>
@@ -1231,24 +1226,22 @@ function submitPayrollLineForm () {
             </div>
           </div>
 
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isPayrollLineFormOpen = false">
               Batal
             </Button>
             <Button :disabled="!isPayrollLineFormValid" @click="submitPayrollLineForm">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
-      <Dialog v-model:open="isIncentiveFormOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Tambah Insentif</DialogTitle>
-            <DialogDescription>Insentif manual untuk satu atau beberapa orang di sebuah project. Langsung berstatus disetujui.</DialogDescription>
-          </DialogHeader>
-
+      <ResponsiveFormSheet
+        v-model:open="isIncentiveFormOpen"
+        title="Tambah Insentif"
+        description="Insentif manual untuk satu atau beberapa orang di sebuah project. Langsung berstatus disetujui."
+        content-class="max-w-md"
+      >
           <div class="space-y-3">
             <div class="space-y-1.5">
               <Label>Project</Label>
@@ -1299,16 +1292,15 @@ function submitPayrollLineForm () {
             </div>
           </div>
 
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isIncentiveFormOpen = false">
               Batal
             </Button>
             <Button :disabled="!isIncentiveFormValid" @click="submitIncentiveForm">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

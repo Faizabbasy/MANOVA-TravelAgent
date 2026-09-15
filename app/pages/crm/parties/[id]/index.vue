@@ -319,17 +319,18 @@ function submitActivity () {
         <TabsContent value="contacts">
           <SectionCard title="Contacts">
             <template #actions>
-              <Dialog v-if="canManageParty" v-model:open="isContactDialogOpen">
-                <DialogTrigger as-child>
+              <ResponsiveFormSheet
+                v-if="canManageParty"
+                v-model:open="isContactDialogOpen"
+                title="Tambah Contact Baru"
+                :description="`Contact akan ditambahkan untuk ${party.name}.`"
+                content-class="max-w-md"
+              >
+                <template #trigger>
                   <Button size="sm" variant="outline">
                     <Plus class="h-4 w-4 mr-1.5" />Tambah Contact
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Tambah Contact Baru</DialogTitle>
-                    <DialogDescription>Contact akan ditambahkan untuk {{ party.name }}.</DialogDescription>
-                  </DialogHeader>
+                </template>
                   <div class="space-y-4 py-2">
                     <div class="space-y-1.5">
                       <Label for="contact-name">Nama</Label>
@@ -348,16 +349,15 @@ function submitActivity () {
                       <Input id="contact-phone" v-model="contactPhone" placeholder="08xx-xxxx-xxxx" />
                     </div>
                   </div>
-                  <DialogFooter>
+                <template #footer>
                     <Button variant="outline" @click="isContactDialogOpen = false">
                       Batal
                     </Button>
                     <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
                       Simpan
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                </template>
+              </ResponsiveFormSheet>
             </template>
 
             <ul class="divide-y divide-border">
@@ -478,17 +478,18 @@ function submitActivity () {
         <TabsContent value="activities">
           <SectionCard title="Activities">
             <template #actions>
-              <Dialog v-if="canManageParty" v-model:open="isActivityDialogOpen">
-                <DialogTrigger as-child>
+              <ResponsiveFormSheet
+                v-if="canManageParty"
+                v-model:open="isActivityDialogOpen"
+                title="Catat Activity Baru"
+                :description="`Activity akan dicatat untuk ${party.name}, dimiliki oleh ${currentUser.name}.`"
+                content-class="max-w-md"
+              >
+                <template #trigger>
                   <Button size="sm" variant="outline">
                     <Plus class="h-4 w-4 mr-1.5" />Catat Activity
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Catat Activity Baru</DialogTitle>
-                    <DialogDescription>Activity akan dicatat untuk {{ party.name }}, dimiliki oleh {{ currentUser.name }}.</DialogDescription>
-                  </DialogHeader>
+                </template>
                   <div class="space-y-4 py-2">
                     <div class="space-y-1.5">
                       <Label for="activity-type">Jenis Activity</Label>
@@ -511,16 +512,15 @@ function submitActivity () {
                       <Input id="activity-due" v-model="activityDueAt" type="date" />
                     </div>
                   </div>
-                  <DialogFooter>
+                <template #footer>
                     <Button variant="outline" @click="isActivityDialogOpen = false">
                       Batal
                     </Button>
                     <Button :disabled="!activityMessage.trim()" @click="submitActivity">
                       Simpan
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                </template>
+              </ResponsiveFormSheet>
             </template>
 
             <ul class="divide-y divide-border">

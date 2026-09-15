@@ -816,15 +816,12 @@ function onCompleteMaintenance (maintenanceId: string) {
         </TabsContent>
       </Tabs>
 
-      <Dialog v-model:open="isAssetFormOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{{ assetFormMode === 'edit' ? 'Edit Aset' : 'Tambah Aset Baru' }}</DialogTitle>
-            <DialogDescription>
-              {{ assetFormMode === 'edit' ? 'Perbarui detail aset. Kode aset tidak berubah.' : 'Aset baru langsung masuk ke daftar aset milik MANOVA.' }}
-            </DialogDescription>
-          </DialogHeader>
-
+      <ResponsiveFormSheet
+        v-model:open="isAssetFormOpen"
+        :title="assetFormMode === 'edit' ? 'Edit Aset' : 'Tambah Aset Baru'"
+        :description="assetFormMode === 'edit' ? 'Perbarui detail aset. Kode aset tidak berubah.' : 'Aset baru langsung masuk ke daftar aset milik MANOVA.'"
+        content-class="max-w-md"
+      >
           <div class="space-y-3">
             <div class="space-y-1.5">
               <Label>Nama Aset</Label>
@@ -892,16 +889,15 @@ function onCompleteMaintenance (maintenanceId: string) {
             </div>
           </div>
 
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isAssetFormOpen = false">
               Batal
             </Button>
             <Button :disabled="!isAssetFormValid" @click="submitAssetForm">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
       <Dialog :open="Boolean(detailAsset)" @update:open="value => { if (!value) detailAssetId = undefined }">
         <DialogContent v-if="detailAsset" class="max-w-md">
@@ -1007,16 +1003,13 @@ function onCompleteMaintenance (maintenanceId: string) {
         </DialogContent>
       </Dialog>
 
-      <Dialog :open="Boolean(returnTargetId)" @update:open="value => { if (!value) returnTargetId = undefined }">
-        <DialogContent class="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Kembalikan Aset</DialogTitle>
-            <DialogDescription>
-              Catat kondisi aset saat kembali. Aset yang rusak otomatis masuk antrean maintenance, bukan
-              langsung tersedia kembali.
-            </DialogDescription>
-          </DialogHeader>
-
+      <ResponsiveFormSheet
+        :open="Boolean(returnTargetId)"
+        @update:open="value => { if (!value) returnTargetId = undefined }"
+        title="Kembalikan Aset"
+        description="Catat kondisi aset saat kembali. Aset yang rusak otomatis masuk antrean maintenance, bukan langsung tersedia kembali."
+        content-class="max-w-sm"
+      >
           <div class="space-y-1.5">
             <Label>Kondisi saat Kembali</Label>
             <select v-model="returnCondition" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -1026,16 +1019,15 @@ function onCompleteMaintenance (maintenanceId: string) {
             </select>
           </div>
 
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="returnTargetId = undefined">
               Batal
             </Button>
             <Button @click="submitReturn">
               Konfirmasi Pengembalian
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

@@ -343,12 +343,13 @@ function submitEdit () {
         </ResponsiveDataView>
       </SectionCard>
 
-      <Dialog v-model:open="isEditOpen">
-        <DialogScrollContent class="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Product Template</DialogTitle>
-            <DialogDescription>Perubahan berlaku langsung untuk seluruh Cost Sheet yang mereferensikan template ini.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isEditOpen"
+        title="Edit Product Template"
+        description="Perubahan berlaku langsung untuk seluruh Cost Sheet yang mereferensikan template ini."
+        content-class="max-w-2xl"
+        scroll
+      >
           <div class="space-y-4 py-2">
             <div class="grid gap-4 sm:grid-cols-2">
               <div class="space-y-1.5">
@@ -434,16 +435,15 @@ function submitEdit () {
               </div>
             </div>
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isEditOpen = false">
               Batal
             </Button>
             <Button :disabled="!editName.trim() || !editDestination.trim() || editServiceScope.length === 0 || !editBasePaxCount" @click="submitEdit">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>
