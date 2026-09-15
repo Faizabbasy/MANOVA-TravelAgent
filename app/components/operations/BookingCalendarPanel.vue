@@ -49,6 +49,30 @@ const kindCounts = computed(() => (Object.keys(SCHEDULE_KIND_META) as ScheduleEv
 
 const weekStart = computed(() => format(startOfWeek(parseISO(selectedDate.value), { weekStartsOn: 1 }), 'yyyy-MM-dd'))
 
+/** Kartu strip minggu (mobile) — 7 hari dari minggu `selectedDate`, independen dari `viewMode`, supaya
+ * tetap bisa dipakai buat lompat tanggal sekalipun sedang di tampilan Bulan. */
+const stripDays = computed(() => {
+  const start = parseISO(weekStart.value)
+  return eachDayOfInterval({ start, end: addDays(start, 6) }).map((date) => {
+    const iso = format(date, 'yyyy-MM-dd')
+    return {
+      iso,
+      dayLabel: format(date, 'EEE', { locale: localeId }),
+      dayNumber: format(date, 'd'),
+      isToday: iso === DEMO_REFERENCE_DATE,
+      isSelected: iso === selectedDate.value
+    }
+  })
+})
+const stripMonthLabel = computed(() => format(parseISO(weekStart.value), 'MMMM yyyy', { locale: localeId }))
+function shiftStripWeek (offset: number) {
+  selectedDate.value = format(addWeeks(parseISO(selectedDate.value), offset), 'yyyy-MM-dd')
+}
+function selectStripDay (iso: string) {
+  selectedDate.value = iso
+  if (viewMode.value === 'month') { month.value = iso.slice(0, 7) }
+}
+
 /** Jadwal seminggu digrup per hari untuk card detail sisi kanan — hanya hari yang benar-benar ada jadwal, urut tanggal lalu jam. */
 const weekDayGroups = computed(() => {
   const start = parseISO(weekStart.value)
@@ -288,33 +312,53 @@ function goToProject (projectId?: string) {
         </Sheet>
       </div>
 
-      <!-- Mobile — toolbar ringkas: nav tanggal + judul rentang sejajar satu baris, lalu segmented
-           control 3-kolom penuh dan filter jenis jadwal di baris sendiri (bukan numpuk 4 kontrol dalam
-           satu baris yang wrap berantakan seperti di desktop). "Tambah Acara" jadi FAB melayang di atas
-           bottom nav, bukan tombol yang ikut wrap. -->
-      <div class="space-y-2 sm:hidden">
-        <div class="flex items-center gap-2">
-          <Button variant="outline" size="sm" class="h-9 w-9 shrink-0 p-0" @click="shiftView(-1)">
-            <ChevronLeft class="h-4 w-4" />
-          </Button>
-          <p class="min-w-0 flex-1 truncate text-center text-sm font-semibold capitalize text-foreground">
-            {{ rangeLabel }}
-          </p>
-          <Button variant="outline" size="sm" class="h-9 w-9 shrink-0 p-0" @click="shiftView(1)">
-            <ChevronRight class="h-4 w-4" />
-          </Button>
+      <!-- Mobile — kartu strip minggu (nav bulan + 7 hari, tanggal terpilih jadi bulatan primary) diikuti
+           3 pill Hari Ini/Minggu Ini/Bulan Ini, bukan lagi segmented control 3-kolom + baris nav terpisah.
+           Filter jenis jadwal tetap di bawahnya. "Tambah Acara" jadi FAB melayang di atas bottom nav. -->
+      <div class="space-y-3 sm:hidden">
+        <div class="rounded-2xl border border-border bg-card p-4 shadow-sm">
+          <div class="flex items-center justify-between">
+            <button type="button" class="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted" @click="shiftStripWeek(-1)">
+              <ChevronLeft class="h-4 w-4" />
+            </button>
+            <p class="text-sm font-bold capitalize text-foreground">
+              {{ stripMonthLabel }}
+            </p>
+            <button type="button" class="flex h-7 w-7 items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted" @click="shiftStripWeek(1)">
+              <ChevronRight class="h-4 w-4" />
+            </button>
+          </div>
+
+          <div class="mt-3 grid grid-cols-7 gap-1">
+            <button
+              v-for="day in stripDays"
+              :key="day.iso"
+              type="button"
+              class="flex flex-col items-center gap-1.5 rounded-xl py-1.5 transition-colors"
+              :class="day.isSelected ? '' : 'hover:bg-muted'"
+              @click="selectStripDay(day.iso)"
+            >
+              <span class="text-[10px] font-medium uppercase text-muted-foreground">{{ day.dayLabel }}</span>
+              <span
+                class="flex h-7 w-7 items-center justify-center rounded-full text-sm font-semibold transition-colors"
+                :class="day.isSelected ? 'bg-primary text-primary-foreground shadow-sm' : day.isToday ? 'text-primary' : 'text-foreground'"
+              >
+                {{ day.dayNumber }}
+              </span>
+            </button>
+          </div>
         </div>
 
-        <div class="grid grid-cols-3 gap-1 rounded-lg bg-muted p-0.5">
+        <div class="grid grid-cols-3 gap-2">
           <button
             v-for="mode in VIEW_MODES"
             :key="mode.value"
             type="button"
             :class="cn(
-              'flex items-center justify-center gap-1.5 rounded-md py-1.5 text-xs font-medium transition-all',
+              'flex items-center justify-center gap-1.5 rounded-xl border py-2 text-xs font-semibold transition-colors',
               viewMode === mode.value
-                ? 'bg-card text-foreground shadow-sm'
-                : 'text-muted-foreground'
+                ? 'border-primary bg-primary text-primary-foreground shadow-sm'
+                : 'border-border bg-card text-muted-foreground'
             )"
             @click="setViewMode(mode.value)"
           >
