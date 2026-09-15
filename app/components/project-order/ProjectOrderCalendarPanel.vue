@@ -131,7 +131,10 @@ const { height: calendarCardHeight } = useElementSize(calendarCardRef)
 
 <template>
   <div class="space-y-4">
-    <div class="flex flex-wrap items-center justify-between gap-3">
+    <!-- Mobile — navigasi (chevron/view-toggle) dan select+tombol dipisah jadi 2 baris (flex-col) supaya
+         select "Semua Jenis Jadwal" sejajar horizontal dengan "Tambah Jadwal", bukan masing-masing baris
+         sendiri. Dari sm: kembali ke satu baris seperti semula (flex-row + justify-between). -->
+    <div class="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
       <div class="flex flex-wrap items-center gap-3">
         <div class="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
           <Button variant="ghost" size="sm" class="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" @click="shiftView(-1)">
@@ -161,8 +164,10 @@ const { height: calendarCardHeight } = useElementSize(calendarCardRef)
         <p class="hidden text-sm font-semibold capitalize text-foreground sm:block">
           {{ rangeLabel }}
         </p>
+      </div>
 
-        <select v-model="kindFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+      <div class="flex items-center gap-3">
+        <select v-model="kindFilter" class="min-w-0 flex-1 appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer sm:flex-initial">
           <option value="all">
             Semua Jenis Jadwal
           </option>
@@ -170,11 +175,11 @@ const { height: calendarCardHeight } = useElementSize(calendarCardRef)
             {{ entry.meta.label }} ({{ entry.count }})
           </option>
         </select>
-      </div>
 
-      <Button size="sm" @click="emit('add', selectedDate)">
-        <Plus class="h-4 w-4 mr-1.5" />Tambah Jadwal
-      </Button>
+        <Button size="sm" class="shrink-0" @click="emit('add', selectedDate)">
+          <Plus class="h-4 w-4 mr-1.5" />Tambah Jadwal
+        </Button>
+      </div>
     </div>
 
     <div class="grid grid-cols-1 items-start xl:grid-cols-12 gap-5">

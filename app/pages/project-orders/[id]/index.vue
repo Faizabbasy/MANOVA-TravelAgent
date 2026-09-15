@@ -5421,7 +5421,10 @@ const tripDurationDays = computed(() => {
           <div class="space-y-6">
             <!-- Tasks Kanban Board — kolom diberi tint warna lembut per status (bukan cuma header) supaya halaman terasa lebih hidup, kartu task TETAP putih polos di atasnya supaya tidak "nabrak" dengan tint kolom. -->
             <div ref="taskBoardRef" class="rounded-2xl border border-border bg-card p-5 shadow-sm">
-              <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <!-- Mobile — judul board dan grup kontrol (Tambah Task/select/Reset) dipisah jadi 2 baris
+                   (flex-col) supaya "Tambah Task" tetap sejajar horizontal dengan "Semua Status", bukan
+                   ikut ditumpuk oleh lebarnya blok judul. Dari sm: kembali satu baris seperti semula. -->
+              <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between">
                 <div class="flex items-center gap-3">
                   <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
                     <Kanban class="h-5 w-5" />
@@ -5673,14 +5676,20 @@ const tripDurationDays = computed(() => {
                     <LayoutGrid class="h-3.5 w-3.5" />Grid
                   </button>
                 </div>
-                <Button v-if="canManageOperations" size="sm" @click="openUploadDocument">
-                  <Plus class="h-3.5 w-3.5 mr-1.5" />Upload Document
-                </Button>
                 <NuxtLink to="/documents">
                   <Button size="sm" variant="outline">
                     <FolderOpen class="h-3.5 w-3.5 mr-1.5" />Buka Documents & Communication
                   </Button>
                 </NuxtLink>
+                <!-- Mobile — floating popup button (fixed di atas bottom nav) biar toolbar-nya tidak numpuk 3 baris; desktop tombol inline biasa, tidak diubah. -->
+                <Button
+                  v-if="canManageOperations"
+                  size="sm"
+                  class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+                  @click="openUploadDocument"
+                >
+                  <Plus class="h-3.5 w-3.5" />Upload Document
+                </Button>
               </div>
             </template>
 
