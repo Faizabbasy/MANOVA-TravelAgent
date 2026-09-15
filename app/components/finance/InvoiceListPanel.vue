@@ -187,17 +187,19 @@ function submitCreditNote () {
           </select>
         </div>
 
-        <Dialog v-if="canManageFinance" v-model:open="isCreateOpen">
-          <DialogTrigger as-child>
+        <ResponsiveFormSheet
+          v-if="canManageFinance"
+          v-model:open="isCreateOpen"
+          title="Buat Invoice Baru"
+          description='Invoice baru terbit berstatus "Belum Dibayar".'
+          content-class="max-w-lg"
+          scroll
+        >
+          <template #trigger>
             <Button size="sm">
               <Plus class="h-4 w-4 mr-1.5" />Buat Invoice
             </Button>
-          </DialogTrigger>
-          <DialogScrollContent class="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Buat Invoice Baru</DialogTitle>
-              <DialogDescription>Invoice baru terbit berstatus "Belum Dibayar".</DialogDescription>
-            </DialogHeader>
+          </template>
             <div class="space-y-4 py-2">
               <div class="space-y-1.5">
                 <Label for="inv-project">Project</Label>
@@ -250,16 +252,15 @@ function submitCreditNote () {
                 </p>
               </div>
             </div>
-            <DialogFooter>
+            <template #footer>
               <Button variant="outline" @click="isCreateOpen = false">
                 Batal
               </Button>
               <Button :disabled="!newProjectId || !newLabel.trim() || !newAmount || !newDueAt" @click="submitCreateInvoice">
                 Simpan
               </Button>
-            </DialogFooter>
-          </DialogScrollContent>
-        </Dialog>
+            </template>
+        </ResponsiveFormSheet>
       </div>
 
       <SectionCard compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Invoice & Piutang" description="Daftar invoice dan status pembayaran proyek.">
@@ -474,94 +475,91 @@ function submitCreditNote () {
     </Dialog>
 
     <!-- Record Payment dialog -->
-    <Dialog v-model:open="isPaymentOpen">
-      <DialogContent class="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Record Payment</DialogTitle>
-          <DialogDescription>Mock ledger update — bukan payment gateway nyata.</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-4 py-2">
-          <div class="space-y-1.5">
-            <Label for="pay-amount">Jumlah (Rp)</Label>
-            <CurrencyInput id="pay-amount" v-model="paymentAmount" />
-            <p class="text-xs text-muted-foreground">
-              Outstanding saat ini: {{ formatCurrencyIdr(selectedOutstanding) }}
-            </p>
-          </div>
-          <div class="space-y-1.5">
-            <Label for="pay-method">Metode</Label>
-            <select id="pay-method" v-model="paymentMethod" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="bank-transfer">
-                Bank Transfer
-              </option>
-              <option value="credit-card">
-                Credit Card
-              </option>
-              <option value="cash">
-                Cash
-              </option>
-            </select>
-          </div>
+    <ResponsiveFormSheet
+      v-model:open="isPaymentOpen"
+      title="Record Payment"
+      description="Mock ledger update — bukan payment gateway nyata."
+      content-class="max-w-sm"
+    >
+      <div class="space-y-4 py-2">
+        <div class="space-y-1.5">
+          <Label for="pay-amount">Jumlah (Rp)</Label>
+          <CurrencyInput id="pay-amount" v-model="paymentAmount" />
+          <p class="text-xs text-muted-foreground">
+            Outstanding saat ini: {{ formatCurrencyIdr(selectedOutstanding) }}
+          </p>
         </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isPaymentOpen = false">
-            Batal
-          </Button>
-          <Button :disabled="!paymentAmount || paymentAmount <= 0" @click="submitPayment">
-            Simpan
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div class="space-y-1.5">
+          <Label for="pay-method">Metode</Label>
+          <select id="pay-method" v-model="paymentMethod" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+            <option value="bank-transfer">
+              Bank Transfer
+            </option>
+            <option value="credit-card">
+              Credit Card
+            </option>
+            <option value="cash">
+              Cash
+            </option>
+          </select>
+        </div>
+      </div>
+      <template #footer>
+        <Button variant="outline" @click="isPaymentOpen = false">
+          Batal
+        </Button>
+        <Button :disabled="!paymentAmount || paymentAmount <= 0" @click="submitPayment">
+          Simpan
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
 
     <!-- Void Invoice dialog -->
-    <Dialog v-model:open="isVoidOpen">
-      <DialogContent class="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Void Invoice</DialogTitle>
-          <DialogDescription>Transisi terminal — alasan wajib dicatat.</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-1.5 py-2">
-          <Label for="void-reason">Alasan</Label>
-          <Input id="void-reason" v-model="voidReason" placeholder="mis. Invoice diterbitkan duplikat" />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isVoidOpen = false">
-            Batal
-          </Button>
-          <Button variant="destructive" :disabled="!voidReason.trim()" @click="submitVoid">
-            Konfirmasi Void
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveFormSheet
+      v-model:open="isVoidOpen"
+      title="Void Invoice"
+      description="Transisi terminal — alasan wajib dicatat."
+      content-class="max-w-sm"
+    >
+      <div class="space-y-1.5 py-2">
+        <Label for="void-reason">Alasan</Label>
+        <Input id="void-reason" v-model="voidReason" placeholder="mis. Invoice diterbitkan duplikat" />
+      </div>
+      <template #footer>
+        <Button variant="outline" @click="isVoidOpen = false">
+          Batal
+        </Button>
+        <Button variant="destructive" :disabled="!voidReason.trim()" @click="submitVoid">
+          Konfirmasi Void
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
 
     <!-- Issue Credit Note dialog -->
-    <Dialog v-model:open="isCreditNoteOpen">
-      <DialogContent class="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Issue Credit Note</DialogTitle>
-          <DialogDescription>Mengurangi outstanding invoice tanpa mengubah jumlah invoice asli.</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-4 py-2">
-          <div class="space-y-1.5">
-            <Label for="cn-amount">Jumlah (Rp)</Label>
-            <CurrencyInput id="cn-amount" v-model="creditNoteAmount" />
-          </div>
-          <div class="space-y-1.5">
-            <Label for="cn-reason">Alasan</Label>
-            <Input id="cn-reason" v-model="creditNoteReason" placeholder="mis. Penyesuaian billing" />
-          </div>
+    <ResponsiveFormSheet
+      v-model:open="isCreditNoteOpen"
+      title="Issue Credit Note"
+      description="Mengurangi outstanding invoice tanpa mengubah jumlah invoice asli."
+      content-class="max-w-sm"
+    >
+      <div class="space-y-4 py-2">
+        <div class="space-y-1.5">
+          <Label for="cn-amount">Jumlah (Rp)</Label>
+          <CurrencyInput id="cn-amount" v-model="creditNoteAmount" />
         </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isCreditNoteOpen = false">
-            Batal
-          </Button>
-          <Button :disabled="!creditNoteAmount || !creditNoteReason.trim()" @click="submitCreditNote">
-            Terbitkan
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div class="space-y-1.5">
+          <Label for="cn-reason">Alasan</Label>
+          <Input id="cn-reason" v-model="creditNoteReason" placeholder="mis. Penyesuaian billing" />
+        </div>
+      </div>
+      <template #footer>
+        <Button variant="outline" @click="isCreditNoteOpen = false">
+          Batal
+        </Button>
+        <Button :disabled="!creditNoteAmount || !creditNoteReason.trim()" @click="submitCreditNote">
+          Terbitkan
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
   </div>
 </template>

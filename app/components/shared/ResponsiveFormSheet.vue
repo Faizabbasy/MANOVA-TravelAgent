@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue'
+import { DialogContent, DialogScrollContent } from '~/components/ui/dialog'
 
 /**
  * Padanan `ResponsiveDataView` untuk form input/edit: `Dialog` di desktop (markup existing, tidak
@@ -13,6 +14,9 @@ interface Props {
   description?: string
   /** Class tambahan untuk `DialogContent` (mis. `max-w-md`) — Sheet mobile selalu full-width bawaan. */
   contentClass?: HTMLAttributes['class']
+  /** Form panjang (banyak field) yang butuh scroll internal di desktop — pakai `DialogScrollContent`
+   * (overlay bisa discroll, `my-8`) alih-alih `DialogContent` biasa. Sheet mobile selalu scrollable. */
+  scroll?: boolean
 }
 
 defineProps<Props>()
@@ -25,7 +29,7 @@ const isMobile = useIsMobile()
     <DialogTrigger v-if="$slots.trigger" as-child>
       <slot name="trigger" />
     </DialogTrigger>
-    <DialogContent :class="contentClass ?? 'max-w-md'">
+    <component :is="scroll ? DialogScrollContent : DialogContent" :class="contentClass ?? 'max-w-md'">
       <DialogHeader>
         <DialogTitle>{{ title }}</DialogTitle>
         <DialogDescription v-if="description">
@@ -36,7 +40,7 @@ const isMobile = useIsMobile()
       <DialogFooter v-if="$slots.footer">
         <slot name="footer" />
       </DialogFooter>
-    </DialogContent>
+    </component>
   </Dialog>
 
   <Sheet v-else v-model:open="open">

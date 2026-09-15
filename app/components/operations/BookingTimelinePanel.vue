@@ -329,38 +329,34 @@ function submitAttempt () {
       </SectionCard>
 
       <!-- Failure/retry/manual fallback simulation dialog -->
-      <Dialog v-model:open="isAttemptDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Catat Percobaan Booking</DialogTitle>
-            <DialogDescription>
-              {{ attemptTargetEntry ? `${DOMAIN_LABEL[attemptTargetEntry.bookingType]} Booking ${attemptTargetEntry.bookingId}` : '' }} — simulasi log percobaan (mock, tidak ada integrasi nyata).
-            </DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="space-y-1.5">
-              <Label for="attempt-outcome">Outcome</Label>
-              <select id="attempt-outcome" v-model="attemptOutcome" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option v-for="option in BOOKING_ATTEMPT_OUTCOMES" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
-            </div>
-            <div class="space-y-1.5">
-              <Label for="attempt-note">Catatan (opsional)</Label>
-              <Input id="attempt-note" v-model="attemptNote" placeholder="mis. Retry otomatis gagal, diproses manual oleh tim." />
-            </div>
+      <ResponsiveFormSheet
+        v-model:open="isAttemptDialogOpen"
+        title="Catat Percobaan Booking"
+        :description="`${attemptTargetEntry ? `${DOMAIN_LABEL[attemptTargetEntry.bookingType]} Booking ${attemptTargetEntry.bookingId}` : ''} — simulasi log percobaan (mock, tidak ada integrasi nyata).`"
+      >
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="attempt-outcome">Outcome</Label>
+            <select id="attempt-outcome" v-model="attemptOutcome" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option v-for="option in BOOKING_ATTEMPT_OUTCOMES" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isAttemptDialogOpen = false">
-              Batal
-            </Button>
-            <Button @click="submitAttempt">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div class="space-y-1.5">
+            <Label for="attempt-note">Catatan (opsional)</Label>
+            <Input id="attempt-note" v-model="attemptNote" placeholder="mis. Retry otomatis gagal, diproses manual oleh tim." />
+          </div>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isAttemptDialogOpen = false">
+            Batal
+          </Button>
+          <Button @click="submitAttempt">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

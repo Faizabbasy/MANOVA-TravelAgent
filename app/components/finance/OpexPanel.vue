@@ -310,13 +310,11 @@ function setStatus (entry: OpexEntry, status: OpexEntry['status']) {
         <EmptyState v-else :icon="Wallet" title="Belum ada opex pada periode ini" />
       </SectionCard>
 
-      <Dialog v-model:open="isCreateOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Tambah Opex</DialogTitle>
-            <DialogDescription>Biaya operasional perusahaan, bukan biaya yang ditagihkan ke klien.</DialogDescription>
-          </DialogHeader>
-
+      <ResponsiveFormSheet
+        v-model:open="isCreateOpen"
+        title="Tambah Opex"
+        description="Biaya operasional perusahaan, bukan biaya yang ditagihkan ke klien."
+      >
           <div class="space-y-3">
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
@@ -364,16 +362,15 @@ function setStatus (entry: OpexEntry, status: OpexEntry['status']) {
             </div>
           </div>
 
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isCreateOpen = false">
               Batal
             </Button>
             <Button :disabled="!isFormValid" @click="submitCreate">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>
