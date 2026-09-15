@@ -178,11 +178,28 @@ function removeView (id: string, label: string) {
   showToast('Saved View Dihapus', `"${label}" telah dihapus.`, 'info')
 }
 
+/**
+ * Filter periode dashboard (Bulan Ini/Tahun Ini/Semua Waktu/Custom) — GLOBAL, dipakai baik oleh data
+ * finance (`currentFinancialPeriods`, per bulan invoice/opex) maupun widget berbasis Project di sini
+ * (per `travelStartDate`, konsisten dengan filter "Periode Keberangkatan" yang sudah ada). Beda sumber
+ * tanggal karena beda domain — revenue tercatat per bulan buku, project tercatat per tanggal keberangkatan
+ * — tapi preset & rentang yang dipilih user SAMA untuk keduanya.
+ */
+function isWithinDashboardPeriod (dateIso: string | undefined): boolean {
+  if (!dateIso) { return false }
+  if (financialPeriodPreset.value === 'all-time') { return true }
+  if (financialPeriodPreset.value === 'this-month') { return dateIso.slice(0, 7) === referenceYearMonth }
+  if (financialPeriodPreset.value === 'this-year') { return dateIso.slice(0, 4) === referenceYear }
+  if (!customStartDate.value || !customEndDate.value) { return true }
+  return dateIso >= customStartDate.value && dateIso <= customEndDate.value
+}
+
 function matchesCommonFilters (project: Project): boolean {
   if (statusFilter.value !== 'all' && project.status !== statusFilter.value) { return false }
   if (typeFilter.value !== 'all' && project.characteristic !== typeFilter.value) { return false }
   if (clientFilter.value !== 'all' && project.partyId !== clientFilter.value) { return false }
   if (periodFilter.value !== 'all' && daysUntil(project.travelStartDate, DEMO_REFERENCE_DATE) > Number(periodFilter.value)) { return false }
+  if (!isWithinDashboardPeriod(project.travelStartDate)) { return false }
   return true
 }
 
@@ -749,9 +766,10 @@ const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
     <LoadingState v-if="isLoading" message="Memuat ringkasan dashboard..." :rows="4" />
 
     <template v-else>
-      <!-- Filter periode financial — terpisah dari box Filter Project di bawah, cuma mempengaruhi hero
-           Pemasukan Bersih/Profit dan Monthly Cash Flow. -->
-      <div v-if="showFinancialSummary" class="mb-3 flex flex-wrap items-center gap-2">
+      <!-- Filter periode dashboard (global) — beda dari box Filter Project di bawah (Status/Tipe/Client/
+           Owner/Periode Keberangkatan). Ngefilter SEMUA widget: hero Pemasukan Bersih/Profit, Monthly Cash
+           Flow, KPI cards, dan seluruh widget berbasis Project (per tanggal keberangkatan). -->
+      <div v-if="showFilters" class="mb-3 flex flex-wrap items-center gap-2">
         <div class="inline-flex items-center gap-0.5 rounded-lg border border-border bg-card p-0.5">
           <button
             v-for="option in FINANCIAL_PERIOD_OPTIONS"
@@ -773,7 +791,7 @@ const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
       <ResponsiveFormSheet
         v-model:open="isCustomPeriodOpen"
         title="Pilih Rentang Tanggal"
-        description="Custom period untuk Pemasukan Bersih, Profit, dan Monthly Cash Flow."
+        description="Custom period untuk seluruh widget dashboard — finance per bulan buku, project per tanggal keberangkatan."
         content-class="max-w-sm"
       >
         <div class="space-y-4 py-2">
