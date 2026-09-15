@@ -190,57 +190,56 @@ function openDrawer (lead: Lead) {
             </Button>
           </div>
 
-          <Dialog v-if="canManageLead" v-model:open="isCreateOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet
+            v-if="canManageLead"
+            v-model:open="isCreateOpen"
+            title="Tambah Lead Baru"
+            description='Lead baru masuk dengan stage "New", ditugaskan ke Anda.'
+          >
+            <template #trigger>
               <Button><Plus class="h-4 w-4 mr-1.5" />New Lead</Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Tambah Lead Baru</DialogTitle>
-                <DialogDescription>Lead baru masuk dengan stage "New", ditugaskan ke Anda.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-4 py-2">
-                <div class="space-y-1.5">
-                  <Label for="lead-name">Nama Kontak</Label>
-                  <Input id="lead-name" v-model="newName" placeholder="Nama pemilik/kontak lead" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="lead-company">Nama Company (opsional)</Label>
-                  <Input id="lead-company" v-model="newCompanyName" placeholder="mis. PT Nama Perusahaan" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="lead-source">Sumber Lead</Label>
-                  <select id="lead-source" v-model="newSource" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">
-                      {{ source.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="lead-phone">Telepon (opsional)</Label>
-                  <Input id="lead-phone" v-model="newPhone" placeholder="08xx-xxxx-xxxx" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="lead-email">Email (opsional)</Label>
-                  <Input id="lead-email" v-model="newEmail" type="email" placeholder="nama@example.com" />
-                </div>
-                <div v-if="newLeadDuplicates.length > 0" class="rounded-lg border border-info/30 bg-info/5 p-3">
-                  <p class="text-sm text-info">
-                    Sepertinya sudah ada lead dengan kontak ini:
-                    {{ newLeadDuplicates.map(d => `${d.name} (${d.id})`).join(', ') }}. Tetap bisa disimpan sebagai lead baru bila memang berbeda.
-                  </p>
-                </div>
+            </template>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="lead-name">Nama Kontak</Label>
+                <Input id="lead-name" v-model="newName" placeholder="Nama pemilik/kontak lead" />
               </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isCreateOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!newName.trim()" @click="submitCreate">
-                  Simpan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              <div class="space-y-1.5">
+                <Label for="lead-company">Nama Company (opsional)</Label>
+                <Input id="lead-company" v-model="newCompanyName" placeholder="mis. PT Nama Perusahaan" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="lead-source">Sumber Lead</Label>
+                <select id="lead-source" v-model="newSource" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">
+                    {{ source.label }}
+                  </option>
+                </select>
+              </div>
+              <div class="space-y-1.5">
+                <Label for="lead-phone">Telepon (opsional)</Label>
+                <Input id="lead-phone" v-model="newPhone" placeholder="08xx-xxxx-xxxx" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="lead-email">Email (opsional)</Label>
+                <Input id="lead-email" v-model="newEmail" type="email" placeholder="nama@example.com" />
+              </div>
+              <div v-if="newLeadDuplicates.length > 0" class="rounded-lg border border-info/30 bg-info/5 p-3">
+                <p class="text-sm text-info">
+                  Sepertinya sudah ada lead dengan kontak ini:
+                  {{ newLeadDuplicates.map(d => `${d.name} (${d.id})`).join(', ') }}. Tetap bisa disimpan sebagai lead baru bila memang berbeda.
+                </p>
+              </div>
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isCreateOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!newName.trim()" @click="submitCreate">
+                Simpan
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </div>
       </div>
 
