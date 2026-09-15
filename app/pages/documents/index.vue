@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Plus, FileText, Bell, AlertTriangle, CheckCheck, X, ExternalLink, List, LayoutGrid, Eye, Download, MoreVertical } from 'lucide-vue-next'
+import { Search, Plus, FileText, Bell, AlertTriangle, CheckCheck, X, ExternalLink, List, LayoutGrid, Eye, Download, MoreVertical, SlidersHorizontal } from 'lucide-vue-next'
 import {
   PROJECTS, USERS,
   getProjectById, getUserById,
@@ -139,6 +139,17 @@ const documentGroups = computed(() => {
 
 const expiredCount = computed(() => DOCUMENT_RECORDS.filter(item => isDocumentExpired(item.expiresAt)).length)
 const expiringSoonCount = computed(() => DOCUMENT_RECORDS.filter(item => isDocumentExpiringSoon(item.expiresAt)).length)
+
+/** Filter tab Documents di mobile — 4 select (Category/Access/Entity/Expiry) disembunyikan di belakang
+ * satu tombol "Filter" (bottom Sheet) supaya tidak numpuk sendiri-sendiri di layar sempit, pola sama
+ * Dashboard. Badge menunjukkan jumlah filter aktif tanpa perlu buka sheet-nya dulu. */
+const isMobileDocFilterOpen = ref(false)
+const activeDocFilterCount = computed(() => [
+  docCategoryFilter.value !== 'all',
+  docAccessFilter.value !== 'all',
+  docEntityFilter.value !== 'all',
+  docExpiryFilter.value !== 'all'
+].filter(Boolean).length)
 
 const isUploadOpen = ref(false)
 const newDocEntityType = ref<DocumentEntityType>('project')
@@ -418,7 +429,16 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
     <RoleAccessState v-if="!canView('documents')" module-label="modul Documents & Communication" />
 
     <template v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Mobile — 4 StatsCard ditumpuk 1 kolom bikin daftar dokumen kedorong jauh ke bawah; grid 2 kolom
+           ringkas jauh lebih compact. Desktop tidak berubah. -->
+      <div class="grid grid-cols-2 gap-2.5 sm:hidden">
+        <StatsCard size="sm" title="Total Docs" :value="String(DOCUMENT_RECORDS.length)" :icon="FileText" />
+        <StatsCard size="sm" title="Expired" :value="String(expiredCount)" :icon="AlertTriangle" icon-color="destructive" />
+        <StatsCard size="sm" title="Segera Expired" :value="String(expiringSoonCount)" :icon="AlertTriangle" icon-color="warning" />
+        <StatsCard size="sm" title="Belum Dibaca" :value="String(unreadCount)" :icon="Bell" icon-color="warning" />
+      </div>
+
+      <div class="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total Documents" :value="String(DOCUMENT_RECORDS.length)" :icon="FileText" />
         <StatsCard title="Expired" :value="String(expiredCount)" :icon="AlertTriangle" icon-color="destructive" />
         <StatsCard title="Akan Kedaluwarsa" :value="String(expiringSoonCount)" :icon="AlertTriangle" icon-color="warning" />
@@ -439,7 +459,8 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
         </TabsList>
 
         <TabsContent value="documents">
-          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4 flex-wrap">
+          <!-- Desktop/tablet — tidak diubah. -->
+          <div class="hidden sm:flex flex-row items-center gap-3 mb-4 flex-wrap">
             <div class="relative flex-1 max-w-sm w-full">
               <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input v-model="docSearch" placeholder="Cari nama dokumen, entity, atau project..." class="pl-9" />
@@ -500,6 +521,109 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
               >
                 <LayoutGrid class="h-4 w-4" />
               </button>
+            </div>
+          </div>
+
+          <!-- Mobile — search + tombol Filter (bottom Sheet) + toggle list/grid dalam satu baris ringkas. -->
+          <div class="space-y-2.5 mb-4 sm:hidden">
+            <div class="relative">
+              <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input v-model="docSearch" placeholder="Cari dokumen..." class="pl-9" />
+            </div>
+            <div class="flex items-center gap-2">
+              <Sheet v-model:open="isMobileDocFilterOpen">
+                <SheetTrigger as-child>
+                  <Button variant="outline" size="sm" class="flex-1 justify-start">
+                    <SlidersHorizontal class="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                    Filter
+                    <span v-if="activeDocFilterCount" class="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                      {{ activeDocFilterCount }}
+                    </span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom" class="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+                  <SheetHeader class="text-left">
+                    <SheetTitle>Filter Dokumen</SheetTitle>
+                  </SheetHeader>
+                  <div class="space-y-3 py-4">
+                    <div class="space-y-1.5">
+                      <Label class="text-xs text-muted-foreground">Category</Label>
+                      <select v-model="docCategoryFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="all">
+                          Semua Category
+                        </option>
+                        <option v-for="category in documentCategories" :key="category" :value="category">
+                          {{ category }}
+                        </option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label class="text-xs text-muted-foreground">Access Level</Label>
+                      <select v-model="docAccessFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="all">
+                          Semua Access Level
+                        </option>
+                        <option v-for="option in DOCUMENT_ACCESS_LEVELS" :key="option.value" :value="option.value">
+                          {{ option.label }}
+                        </option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label class="text-xs text-muted-foreground">Entity Type</Label>
+                      <select v-model="docEntityFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="all">
+                          Semua Entity Type
+                        </option>
+                        <option v-for="option in DOCUMENT_ENTITY_TYPES" :key="option.value" :value="option.value">
+                          {{ option.label }}
+                        </option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label class="text-xs text-muted-foreground">Status Expiry</Label>
+                      <select v-model="docExpiryFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="all">
+                          Semua Status Expiry
+                        </option>
+                        <option value="expired">
+                          Expired
+                        </option>
+                        <option value="expiring-soon">
+                          Akan Kedaluwarsa
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                  <SheetFooter class="flex-row gap-2">
+                    <Button variant="outline" class="flex-1" @click="isMobileDocFilterOpen = false">
+                      Terapkan
+                    </Button>
+                  </SheetFooter>
+                </SheetContent>
+              </Sheet>
+
+              <div class="relative flex items-center gap-1 rounded-lg border border-border p-0.5">
+                <div
+                  class="absolute inset-y-0.5 left-0.5 h-8 w-8 rounded-md bg-success transition-transform duration-300 ease-in-out"
+                  :class="docViewMode === 'grid' ? 'translate-x-[calc(100%+0.25rem)]' : 'translate-x-0'"
+                />
+                <button
+                  type="button"
+                  class="relative z-10 flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-300"
+                  :class="docViewMode === 'list' ? 'text-success-foreground' : 'text-muted-foreground'"
+                  @click="docViewMode = 'list'"
+                >
+                  <List class="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  class="relative z-10 flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-300"
+                  :class="docViewMode === 'grid' ? 'text-success-foreground' : 'text-muted-foreground'"
+                  @click="docViewMode = 'grid'"
+                >
+                  <LayoutGrid class="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
           <SectionCard v-if="docViewMode === 'list'" description="Dokumen 'uploaded' murni metadata mock; dokumen 'generated' menautkan ke halaman preview existing (tidak menduplikasi generator dokumen).">
