@@ -44,8 +44,8 @@ Status awal semua belum dikerjakan. Centang hanya dengan bukti file/test/route. 
   Evidence (Phase 4): 9 panel `components/finance/*Panel.vue` + ringkasan mock dihapus; 7 route lama redirect (`phase-reports/phase-4-report.md`). Mock `data/finance*.ts` tetap untuk consumer non-finance (Phase 5–7).
 - [x] Sidebar tepat enam menu: Dashboard, Statement, Ledger, Receivable, Payable, Cash Flow.
   Evidence (Phase 6): `constants/navigation.ts` — Ringkasan, Mutasi Rekening, Rekening & Saldo, Piutang Customer, Utang Vendor, Cash Flow; test `navigation.test.ts`.
-- [ ] Enam halaman tersambung API dengan loading/error/empty/filter empty/success dan mobile/keyboard support.
-  Status: enam halaman tersambung API dan diuji di browser 1440/390px (Cash Flow: `phase-reports/phase-6-report.md`). Audit keyboard/aksesibilitas menyeluruh di Phase 7.
+- [x] Enam halaman tersambung API dengan loading/error/empty/filter empty/success dan mobile/keyboard support.
+  Evidence (Phase 7): audit 1440/390px tanpa overflow, error, atau kontrol tanpa nama; fokus keyboard global, tautan "Lewati ke konten", Tab sungguhan diuji (`phase-reports/phase-7-report.md`).
 - [x] Dashboard cash/inflow/outflow/AR/AP/projected/gap/recent reconcile dengan detail.
   Evidence: Ringkasan Finance memakai endpoint yang sama dengan layar detail; Phase 6 menambah kartu "Perkiraan saldo 30 hari lagi" dan butir saldo minus dari `GET /finance/cash-flow` (sama dengan halaman Cash Flow).
 
@@ -67,5 +67,6 @@ Status awal semua belum dikerjakan. Centang hanya dengan bukti file/test/route. 
 - [ ] Permission negative tests untuk role/ID tampering, proof access, audit trace.
 - [ ] Numeric reconciliation dan E2E journeys `10-TESTING-AND-ACCEPTANCE-CRITERIA.md` lulus.
 - [ ] Browser desktop/tablet/mobile, keyboard/accessibility, deep-link redirects.
+  Status: desktop 1440 dan mobile 390 + keyboard diuji di Phase 7. Belum: lebar tablet dan screen reader sungguhan.
 - [ ] Data migration/cutover rehearsal, backup/restore, no destructive seed.
 - [ ] Semua laporan fase berisi file, check, hasil, risiko; status implementation/deployment/runtime dibedakan.

@@ -114,6 +114,21 @@
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-weight: 500; /* Default to Medium instead of Regular */
   }
+
+  /*
+   * Keyboard focus everywhere (Phase 7 audit). Zero specificity (:where), so components with their own
+   * focus ring keep it. Buttons and clickable rows draw it inside: many sit in rounded lists with
+   * overflow hidden, where an outer outline would be clipped.
+   */
+  :where(button, [role='button'], [tabindex]:not([tabindex='-1'])):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: -2px;
+  }
+  :where(a[href], summary):focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
 }
 
 @layer utilities {

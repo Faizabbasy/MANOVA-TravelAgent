@@ -245,9 +245,11 @@ function toggleExpanded (item: NavItem) {
                 <button
                   v-if="item.children?.length"
                   class="p-2 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                  :aria-label="`Submenu ${item.label}`"
+                  :aria-expanded="isExpanded(item)"
                   @click="toggleExpanded(item)"
                 >
-                  <ChevronDown :class="cn('h-3.5 w-3.5 transition-transform', isExpanded(item) && 'rotate-180')" />
+                  <ChevronDown aria-hidden="true" :class="cn('h-3.5 w-3.5 transition-transform', isExpanded(item) && 'rotate-180')" />
                 </button>
               </div>
 

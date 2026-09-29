@@ -7,7 +7,8 @@ const { toasts } = useToast()
 
 <template>
   <Teleport to="body">
-    <div class="fixed top-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none">
+    <!-- Always in the DOM, so screen readers announce every new toast (success politely, errors at once). -->
+    <div class="fixed top-5 right-5 z-[9999] flex flex-col gap-2 pointer-events-none" role="region" aria-label="Notifikasi" aria-live="polite">
       <TransitionGroup
         enter-active-class="transition-all duration-300 ease-out"
         enter-from-class="opacity-0 translate-x-8 scale-95"
@@ -19,8 +20,9 @@ const { toasts } = useToast()
         <div
           v-for="toast in toasts"
           :key="toast.id"
+          :role="toast.type === 'error' ? 'alert' : 'status'"
           :class="cn(
-            'pointer-events-auto flex items-start gap-3 w-80 rounded-xl border p-4 shadow-lg bg-card',
+            'pointer-events-auto flex items-start gap-3 w-80 max-w-[calc(100vw-2.5rem)] rounded-xl border p-4 shadow-lg bg-card',
             toast.type === 'success' && 'border-success/20',
             toast.type === 'error' && 'border-destructive/20',
             toast.type === 'warning' && 'border-warning/20',
@@ -28,6 +30,7 @@ const { toasts } = useToast()
           )"
         >
           <div
+            aria-hidden="true"
             :class="cn(
               'mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full',
               toast.type === 'success' && 'bg-success/10 text-success',
