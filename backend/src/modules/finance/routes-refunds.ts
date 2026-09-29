@@ -137,8 +137,11 @@ export function refundRoutes(deps: AppDeps, auth: AuthContext) {
 
     // ── Refund cases ─────────────────────────────────────────────────────────────────────────────────
     .get('/finance/refunds', async ({ request, query }) => {
-      await auth.requireCapability(request, 'finance.view-cash')
-      const result = await listRefunds(db, { ...query, limit: parseLimit(query.limit) })
+      // Finance: full worklist. Roles that may cancel (Admin): the same cases, status only (no amounts).
+      const actor = await auth.requireActor(request)
+      const full = hasCapability(actor.role, 'finance.view-cash')
+      if (!full && !hasCapability(actor.role, 'project-order.request-cancellation')) throw errors.forbidden()
+      const result = await listRefunds(db, { ...query, limit: parseLimit(query.limit) }, full)
       return { data: result.items, meta: { requestId: requestIdOf(request), pagination: result.pagination, summary: result.summary } }
     }, {
       query: t.Object({ view: t.Optional(t.String()), projectId: t.Optional(t.String()), partyId: t.Optional(t.String()), cursor: t.Optional(t.String()), limit: t.Optional(t.String()) })

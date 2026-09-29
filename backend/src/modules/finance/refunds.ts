@@ -510,7 +510,8 @@ export async function getRefund(q: Queryable, id: string, full: boolean) {
   }
 }
 
-export async function listRefunds(db: Db, filter: { view?: string; projectId?: string; partyId?: string; limit: number; cursor?: string }) {
+/** Worklist of cases. `full` = Finance (amounts); otherwise the status view only (Admin, Changes screen). */
+export async function listRefunds(db: Db, filter: { view?: string; projectId?: string; partyId?: string; limit: number; cursor?: string }, full = true) {
   const view = filter.view ?? 'open'
   const params: unknown[] = []
   const where: string[] = []
@@ -555,8 +556,8 @@ export async function listRefunds(db: Db, filter: { view?: string; projectId?: s
   const items = rows.slice(0, filter.limit)
   const last = items[items.length - 1]
   return {
-    items: items.map(r => refundDto(r, true)),
-    summary: { requestedCount: Number(summary!.requested), toPayCount: Number(summary!.to_pay), toPayMinor: summary!.to_pay_minor },
+    items: items.map(r => refundDto(r, full)),
+    summary: { requestedCount: Number(summary!.requested), toPayCount: Number(summary!.to_pay), ...(full ? { toPayMinor: summary!.to_pay_minor } : {}) },
     pagination: {
       limit: filter.limit,
       nextCursor: rows.length > filter.limit && last ? Buffer.from(JSON.stringify([(last.requested_at as Date).toISOString(), last.id])).toString('base64url') : null

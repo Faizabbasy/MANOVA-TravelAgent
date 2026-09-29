@@ -278,6 +278,14 @@ describe('no policy → manual case decided by Finance', () => {
     expect(project.refunds).toMatchObject({ openCount: 2, outstandingMinor: '41000000', refundCreditedMinor: '41000000' })
   })
 
+  test('Admin can list cases (for the Changes screen) — status only, no amounts', async () => {
+    const res = await get('admin', '/finance/refunds?view=all')
+    expect(res.status).toBe(200)
+    expect(res.json.data.length).toBeGreaterThan(0)
+    expect(res.json.data.every((r: { view: string }) => r.view === 'status')).toBe(true)
+    expect(JSON.stringify(res.json)).not.toMatch(/Minor/)
+  })
+
   test('a rejected case can be replaced; the rejection needs a reason', async () => {
     const other = await money('finance', '/finance/cancellations', { subjectType: 'flight', subjectId: 'FLT-1023', reason: 'Nama penumpang salah', calculation: 'manual' })
     expect(other.status).toBe(201)

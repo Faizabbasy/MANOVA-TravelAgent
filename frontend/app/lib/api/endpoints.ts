@@ -35,6 +35,7 @@ import type {
   ReceivablesList,
   RefundDetailDto,
   RefundList,
+  RefundStatusList,
   RefundSettlementInput,
   RefundSettlementResult,
   RefundStatusDto,
@@ -206,6 +207,9 @@ export function createManovaApi (client: ApiClient) {
         client.post<RefundDetailDto | RefundStatusDto>('/finance/cancellations', input, { idempotencyKey }),
       refunds: (query: PageQuery & { view?: 'open' | 'requested' | 'to_pay' | 'settled' | 'rejected' | 'all'; projectId?: string; partyId?: string } = {}) =>
         client.request<RefundList>('GET', '/finance/refunds', { query: { ...query } }),
+      /** Status-only view of the same cases (Admin, Changes screen). */
+      refundStatuses: (query: PageQuery & { view?: 'open' | 'requested' | 'to_pay' | 'settled' | 'rejected' | 'all'; projectId?: string } = {}) =>
+        client.request<RefundStatusList>('GET', '/finance/refunds', { query: { ...query } }),
       getRefund: (id: string) => client.get<RefundDetailDto | RefundStatusDto>(`/finance/refunds/${seg(id)}`),
       approveRefund: (id: string, input: { refundMinor?: string; note?: string } = {}) => client.post<RefundDetailDto>(`/finance/refunds/${seg(id)}/approve`, input),
       rejectRefund: (id: string, reason: string) => client.post<RefundDetailDto>(`/finance/refunds/${seg(id)}/reject`, { reason }),

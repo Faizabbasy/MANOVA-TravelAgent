@@ -3,7 +3,7 @@ import { ref, reactive, computed, watch } from 'vue'
 import { Plus, Pencil, Ban, RotateCcw, Layers, MapPin, Building2, FolderKanban, Plane, BedDouble, Coins, Percent, CalendarClock, ShieldAlert, Hash, FileText, Gauge, Route } from 'lucide-vue-next'
 import {
   MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
-  AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
+  AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS,
   NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES,
   createMasterDataRecord, updateMasterDataRecord, deactivateMasterDataRecord, reactivateMasterDataRecord, getMasterDataUsageCount
 } from '~/data'
@@ -72,8 +72,8 @@ const GROUPS: GroupDef[] = [
     categories: [
       { key: 'currency', label: 'Currencies', description: 'Berelasi konseptual dengan Invoice.currency (Section 20) — tidak memutasi type Invoice.', list: MASTER_CURRENCIES, fields: [{ key: 'code', label: 'Kode', type: 'text', placeholder: 'mis. USD' }, { key: 'name', label: 'Nama', type: 'text' }, { key: 'symbol', label: 'Simbol', type: 'text' }] },
       { key: 'tax-rule', label: 'Tax Rules', description: 'Aturan pajak referensi.', list: TAX_RULES, fields: [{ key: 'name', label: 'Nama', type: 'text' }, { key: 'ratePercent', label: 'Rate (%)', type: 'number' }, { key: 'appliesTo', label: 'Berlaku Untuk', type: 'text' }] },
-      { key: 'payment-term', label: 'Payment Terms', description: 'Termin pembayaran referensi.', list: PAYMENT_TERMS, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'daysDue', label: 'Jatuh Tempo (hari)', type: 'number' }] },
-      { key: 'cancellation-rule', label: 'Cancellation Rules', description: 'Konfigurasi/referensi SAJA — TIDAK menyentuh transition guard CancellationRecord (LOCKED, Section 13-19).', list: CANCELLATION_RULES, fields: [{ key: 'name', label: 'Nama', type: 'text' }, { key: 'daysBeforeDeparture', label: 'Hari Sebelum Keberangkatan', type: 'number' }, { key: 'penaltyPercent', label: 'Penalty (%)', type: 'number' }, { key: 'appliesToBookingType', label: 'Berlaku Untuk Tipe Booking', type: 'text', placeholder: 'mis. flight' }] }
+      { key: 'payment-term', label: 'Payment Terms', description: 'Termin pembayaran referensi.', list: PAYMENT_TERMS, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'daysDue', label: 'Jatuh Tempo (hari)', type: 'number' }] }
+      // Cancellation rules moved to Finance › Refund & Pembatalan › Kebijakan (versioned, used for refunds) in Phase 5.
     ]
   },
   {

@@ -775,6 +775,12 @@ export interface RefundList {
   meta: ApiMeta & { pagination: ApiPagination; summary: { requestedCount: number; toPayCount: number; toPayMinor: MoneyMinor } }
 }
 
+/** The same list for roles without finance figures (Admin): cases without amounts. */
+export interface RefundStatusList {
+  data: RefundStatusDto[]
+  meta: ApiMeta & { pagination: ApiPagination; summary: { requestedCount: number; toPayCount: number } }
+}
+
 export interface RefundSettlementInput {
   bankAccountId: string
   amountMinor: MoneyMinor
