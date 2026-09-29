@@ -105,10 +105,10 @@ export const NAV_ITEMS: NavItem[] = [
     moduleKey: 'finance-acc',
     children: [
       { key: 'finance.overview', label: 'Ringkasan', to: '/finance', icon: Wallet, moduleKey: 'finance-acc' },
-      { key: 'finance.receivables', label: 'Piutang Customer', to: '/finance/receivables', icon: ArrowDownToLine, moduleKey: 'finance-acc' },
-      { key: 'finance.payables', label: 'Utang Vendor', to: '/finance/payables', icon: ArrowUpFromLine, moduleKey: 'finance-acc' },
       { key: 'finance.statement', label: 'Mutasi Rekening', to: '/finance/statement', icon: ArrowLeftRight, moduleKey: 'finance-acc' },
-      { key: 'finance.accounts', label: 'Rekening & Saldo', to: '/finance/accounts', icon: Landmark, moduleKey: 'finance-acc' }
+      { key: 'finance.accounts', label: 'Rekening & Saldo', to: '/finance/accounts', icon: Landmark, moduleKey: 'finance-acc' },
+      { key: 'finance.receivables', label: 'Piutang Customer', to: '/finance/receivables', icon: ArrowDownToLine, moduleKey: 'finance-acc' },
+      { key: 'finance.payables', label: 'Utang Vendor', to: '/finance/payables', icon: ArrowUpFromLine, moduleKey: 'finance-acc' }
     ]
   },
 
