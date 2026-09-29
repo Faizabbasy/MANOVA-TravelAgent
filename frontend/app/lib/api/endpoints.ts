@@ -25,6 +25,8 @@ export function createManovaApi (client: ApiClient) {
 
     auth: {
       login: (email: string, password: string) => client.post<MeDto>('/auth/login', { email, password }),
+      /** One-click sign-in as a demo account (dev/demo only; 404 when the server has DEMO_LOGIN off). */
+      demoLogin: (userId: string) => client.post<MeDto>('/auth/demo-login', { userId }),
       logout: () => client.post<{ signedOut: true }>('/auth/logout'),
       me: () => client.get<MeDto>('/auth/me')
     },

@@ -19,6 +19,10 @@ export interface AppConfig {
   cookieSecure: boolean
   /** Only honour `X-Forwarded-For` when the API sits behind a proxy we control. */
   trustProxy: boolean
+  /** One-click sign-in as a demo-fixture account (POST /auth/demo-login). Never in production. */
+  demoLogin: boolean
+  /** Allow client/vendor portal users to sign in (portals are switched off for now). */
+  portalLogin: boolean
   version: string
 }
 
@@ -89,6 +93,9 @@ export function loadConfig(env: Env = process.env): AppConfig {
   const cookieSecure = parseBool(env.COOKIE_SECURE, isProd, 'COOKIE_SECURE', problems)
   if (isProd && !cookieSecure) problems.push('COOKIE_SECURE cannot be disabled in production')
   const trustProxy = parseBool(env.TRUST_PROXY, false, 'TRUST_PROXY', problems)
+  const demoLogin = parseBool(env.DEMO_LOGIN, !isProd, 'DEMO_LOGIN', problems)
+  if (isProd && demoLogin) problems.push('DEMO_LOGIN cannot be enabled in production')
+  const portalLogin = parseBool(env.PORTAL_LOGIN, false, 'PORTAL_LOGIN', problems)
 
   if (problems.length) throw new ConfigError(problems)
 
@@ -100,6 +107,8 @@ export function loadConfig(env: Env = process.env): AppConfig {
     sessionTtlHours,
     cookieSecure,
     trustProxy,
+    demoLogin,
+    portalLogin,
     version: env.APP_VERSION ?? '0.1.0'
   }
 }

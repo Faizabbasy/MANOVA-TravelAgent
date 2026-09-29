@@ -10,16 +10,15 @@ import type { ID } from './common'
  *   - `resolveRoleId()` yang menerjemahkan role id lama, dan
  *   - test `app/data/rbac.test.ts` yang memverifikasi tidak ada akses yang hilang.
  *
- * Penyederhanaan 7-Role: `crm`/`marketing` melebur ke `sales`, `bi`/`hr` ke `management`,
- * `vendor-partner`/`inventory` ke `operations` (`LEGACY_ROLE_ALIAS`, `app/data/rbac.ts`) — id lama tetap
- * diterjemahkan otomatis, hanya tidak lagi jadi `ROLE_DEFINITIONS` tersendiri.
+ * Penyederhanaan 3-Role (29 Sep 2026): role internal aktif hanya `super-admin`, `admin` (semua modul kecuali
+ * Finance), dan `finance`. `management`/`sales`/`operations` (dan seluruh id yang dulu melebur ke sana)
+ * teresolusi ke `admin` lewat `LEGACY_ROLE_ALIAS` (`app/data/rbac.ts`). `client`/`vendor` tetap
+ * didefinisikan tetapi `hidden` — portal dinonaktifkan sementara, kodenya tidak dihapus.
  */
 export type KnownRoleId =
   | 'super-admin'
-  | 'management'
-  | 'sales'
+  | 'admin'
   | 'finance'
-  | 'operations'
   | 'client'
   | 'vendor'
 

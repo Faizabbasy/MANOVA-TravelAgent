@@ -14,12 +14,13 @@ import { seedDemo } from '../src/db/seed-demo'
 export const TEST_PASSWORD = 'test-password-123'
 export const ALLOWED_ORIGIN = 'http://localhost:8080'
 
+/** Demo logins. Rani, Doni and Sari were sales/operations/management; all three are `admin` now. */
 export const DEMO = {
   superAdmin: 'admin@manova.id',
-  management: 'sari.wijaya@manova.id',
-  sales: 'rani.kusuma@manova.id',
+  admin: 'doni.saputra@manova.id',
+  adminSales: 'rani.kusuma@manova.id',
+  adminMgmt: 'sari.wijaya@manova.id',
   finance: 'budi.santoso@manova.id',
-  operations: 'doni.saputra@manova.id',
   vendor: 'hasan.alfarizi@pt-abc.example',
   client: 'dimas.pratama@java-bhakti.example'
 } as const

@@ -8,7 +8,7 @@ import type { User, RoleId, ModuleKey } from '~/types/user'
 /** Modul yang dapat diakses role tertentu (ringkas) — diturunkan dari RBAC reaktif (`app/data/rbac.ts`). */
 import { ROLES, ROLE_MODULE_ACCESS } from '~/constants/roles'
 import { BUSINESS_MODULES } from '~/constants/modules'
-import { assignUserRole } from '~/data/rbac'
+import { assignUserRole, isRoleSelectable } from '~/data/rbac'
 
 /** Tab "Users" — Menu Administration > Users & Roles (Penyederhanaan 7-Role/Menu). Dulu `/admin/users`,
  * kini tab dalam satu menu bersama Roles and Permissions — logika tidak diubah, termasuk sub-tab
@@ -421,7 +421,7 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
               Tutup
             </Button>
             <Button
-              v-if="selectedUser && selectedUser.id !== currentUser.id"
+              v-if="selectedUser && selectedUser.id !== currentUser.id && isRoleSelectable(selectedUser.role)"
               variant="default"
               @click="switchToUser(selectedUser!.id)"
             >
@@ -429,10 +429,16 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
               Beralih ke User Ini
             </Button>
             <span
-              v-else
+              v-else-if="selectedUser && selectedUser.id === currentUser.id"
               class="text-xs text-muted-foreground self-center"
             >
               Ini adalah user aktif saat ini
+            </span>
+            <span
+              v-else
+              class="text-xs text-muted-foreground self-center"
+            >
+              Role portal sedang dinonaktifkan
             </span>
           </DialogFooter>
         </DialogContent>

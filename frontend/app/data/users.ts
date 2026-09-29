@@ -2,7 +2,11 @@ import { reactive } from 'vue'
 import type { User } from '~/types/user'
 
 /**
- * Master user demo — TEPAT satu akun per role (Penyederhanaan 7-Role, menggantikan seed 25-akun/13-role
+ * Penyederhanaan 3-Role (29 Sep 2026): Rani (dulu sales), Doni (dulu operations), dan Sari (dulu
+ * management) kini ber-role `admin`; akun login satu-klik ada di `DEMO_LOGIN_ACCOUNTS` di bawah. Hasan
+ * (vendor) dan Dimas (client) tetap sebagai data, tetapi role portal sedang `hidden`.
+ *
+ * Riwayat — master user demo, satu akun per role (Penyederhanaan 7-Role, menggantikan seed 25-akun/13-role
  * lama). Role switcher sekarang pendek dan tidak membingungkan saat demo.
  *
  * Re-role (13 → 7, `LEGACY_ROLE_ALIAS` di `app/data/rbac.ts`): `crm`/`marketing` → `sales`; `bi`/`hr` →
@@ -26,12 +30,22 @@ import type { User } from '~/types/user'
  * larangan terhadap penambahan akun saat runtime.
  */
 export const USERS: User[] = reactive([
-  { id: 'USR-001', name: 'Rani Kusuma', email: 'rani.kusuma@manova.id', role: 'sales', status: 'active' },
-  { id: 'USR-002', name: 'Doni Saputra', email: 'doni.saputra@manova.id', role: 'operations', status: 'active' },
-  { id: 'USR-003', name: 'Sari Wijaya', email: 'sari.wijaya@manova.id', role: 'management', status: 'active' },
+  { id: 'USR-001', name: 'Rani Kusuma', email: 'rani.kusuma@manova.id', role: 'admin', status: 'active' },
+  { id: 'USR-002', name: 'Doni Saputra', email: 'doni.saputra@manova.id', role: 'admin', status: 'active' },
+  { id: 'USR-003', name: 'Sari Wijaya', email: 'sari.wijaya@manova.id', role: 'admin', status: 'active' },
   { id: 'USR-008', name: 'Budi Santoso', email: 'budi.santoso@manova.id', role: 'finance', status: 'active' },
   { id: 'USR-010', name: 'Admin MANOVA', email: 'admin@manova.id', role: 'super-admin', status: 'active' },
   { id: 'USR-015', name: 'Hasan Alfarizi', email: 'hasan.alfarizi@pt-abc.example', role: 'vendor', status: 'active', vendorId: 'VND-006' },
   /** USR-021 (Client Experience — Repair Phase Section 1) — login demo untuk 5 skenario `docs/client-mock-data-scenarios.md` (PTY-005). */
   { id: 'USR-021', name: 'Dimas Pratama', email: 'dimas.pratama@java-bhakti.example', role: 'client', status: 'active', clientPartyId: 'PTY-005' }
 ])
+
+/**
+ * Akun di halaman login satu-klik — satu per role aktif. Doni dipilih sebagai Admin karena ia pemilik
+ * (owner) seluruh project demo, sehingga layar operasional langsung berisi.
+ */
+export const DEMO_LOGIN_ACCOUNTS: { userId: string; summary: string }[] = [
+  { userId: 'USR-010', summary: 'Akses penuh: seluruh operasional dan Finance, termasuk pengaturan user & role.' },
+  { userId: 'USR-002', summary: 'Sales & CRM, Project, Booking, Vendor, HR, Inventory, Reporting — tanpa Finance.' },
+  { userId: 'USR-008', summary: 'Tagihan customer, kewajiban vendor, pembayaran, rekening, dan arus kas.' }
+]

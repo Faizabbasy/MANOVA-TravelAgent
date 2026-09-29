@@ -320,7 +320,7 @@ const showProjectPerformance = visibleTo('project-manager', 'management', 'super
 const showDepartureReadiness = visibleTo('project-manager', 'management', 'super-admin', 'viewer')
 const showVendorSummary = visibleTo('project-manager', 'finance', 'management', 'super-admin', 'viewer')
 const showBudgetMargin = visibleTo('finance', 'management', 'super-admin', 'viewer')
-const showInvoiceAging = visibleTo('finance', 'management', 'super-admin', 'viewer')
+const showInvoiceAging = visibleTo('finance', 'super-admin') // piutang = data Finance; Admin (eks-management) tidak
 /** SLA dan Quotation Performance (Section 22) — sama seperti Sales Pipeline (domain Opportunity/Quotation, dikelola Sales/AE, dipantau Management). */
 const showSlaPerformance = visibleTo('sales', 'account-executive', 'management', 'super-admin', 'viewer')
 </script>

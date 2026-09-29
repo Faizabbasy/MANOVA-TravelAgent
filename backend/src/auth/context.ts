@@ -23,7 +23,7 @@ export function createAuthContext(deps: AppDeps): AuthContext {
   const actorOf = (request: Request) => {
     let pending = resolved.get(request)
     if (!pending) {
-      pending = resolveSession(deps.db, readCookie(request.headers.get('cookie'), cookieName))
+      pending = resolveSession(deps.db, readCookie(request.headers.get('cookie'), cookieName), { portalLogin: deps.config.portalLogin })
       resolved.set(request, pending)
     }
     return pending

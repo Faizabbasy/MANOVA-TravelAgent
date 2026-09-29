@@ -97,8 +97,14 @@ const project = computed(() => {
 
 useHead({ title: computed(() => project.value ? project.value.name : 'Project Tidak Ditemukan') })
 
+/** Tab Finance (invoice, pembayaran, jurnal, closure) hanya untuk role dengan akses modul Finance. */
+const canSeeFinanceTab = computed(() => canView('finance-acc'))
+
 const activeTab = computed<ProjectDetailTab>({
-  get: () => (route.query.tab as ProjectDetailTab) || 'overview',
+  get: () => {
+    const tab = (route.query.tab as ProjectDetailTab) || 'overview'
+    return tab === 'finance' && !canSeeFinanceTab.value ? 'overview' : tab
+  },
   set: value => router.replace({ query: { ...route.query, tab: value } })
 })
 
@@ -112,6 +118,7 @@ const TABS: { value: ProjectDetailTab; label: string }[] = [
   { value: 'documents', label: 'Documents' },
   { value: 'activity-changes', label: 'Activity & Changes' }
 ]
+const visibleTabs = computed(() => TABS.filter(tab => tab.value !== 'finance' || canSeeFinanceTab.value))
 
 /**
  * Order Status Stepper (Penyederhanaan 7-Role/Menu, dulu halaman terpisah `/project-orders/[id]`) —
@@ -1080,7 +1087,7 @@ const summaryMetadata = computed(() => {
 
       <Tabs v-model="activeTab">
         <TabsList>
-          <TabsTrigger v-for="tab in TABS" :key="tab.value" :value="tab.value">
+          <TabsTrigger v-for="tab in visibleTabs" :key="tab.value" :value="tab.value">
             {{ tab.label }}
           </TabsTrigger>
         </TabsList>
@@ -2484,7 +2491,7 @@ const summaryMetadata = computed(() => {
           </SectionCard>
         </TabsContent>
 
-        <TabsContent value="finance">
+        <TabsContent v-if="canSeeFinanceTab" value="finance">
           <div class="space-y-6">
             <template v-if="canViewFinancials">
               <SectionCard title="Finance">

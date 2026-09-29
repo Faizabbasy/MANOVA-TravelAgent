@@ -10,13 +10,13 @@ import { findNavItemForPath } from '~/constants/navigation'
  * Guard `RoleAccessState` di dalam masing-masing halaman TIDAK dihapus — keduanya berlapis: middleware
  * mencegah navigasi, guard halaman menangani rute yang belum terdaftar di navigasi.
  *
- * Client-only: role bersumber dari `localStorage` (`manovaCurrentUserId`), sehingga di server selalu
- * ter-hidrasi sebagai user default. Menjalankannya saat SSR akan menghasilkan redirect yang tidak konsisten
- * dengan kondisi sebenarnya di browser.
+ * Berjalan di server dan browser. User aktif ada di cookie (`useCurrentUser`), jadi SSR sudah menolak
+ * sebelum halaman terlarang dirender. Dulu middleware ini client-only: server tetap merender, misalnya,
+ * halaman Finance untuk Admin, lalu browser mengalihkannya di tengah hydration. Redirect SSR adalah HTTP
+ * 302 dan toast tidak bisa dibuat di server, jadi path yang ditolak dibawa lewat `?ditolak=` dan toast-nya
+ * ditampilkan `plugins/rbac-denied-notice.client.ts`. Batas akses sebenarnya tetap API server.
  */
 export default defineNuxtRouteMiddleware((to) => {
-  if (import.meta.server) { return }
-
   const navItem = findNavItemForPath(to.path)
   /** Rute di luar navigasi (mis. `/settings`, `/login`, halaman preview) diserahkan ke guard halaman. */
   if (!navItem?.moduleKey) { return }
@@ -24,6 +24,9 @@ export default defineNuxtRouteMiddleware((to) => {
   const { canViewMenu } = usePermissions()
   if (canViewMenu(navItem.key, navItem.moduleKey)) { return }
 
+  if (import.meta.server) {
+    return navigateTo({ path: '/', query: { ditolak: to.path } })
+  }
   const { showToast } = useToast()
   showToast('Akses ditolak', `Anda tidak memiliki akses ke "${navItem.label}".`, 'error')
   return navigateTo('/')

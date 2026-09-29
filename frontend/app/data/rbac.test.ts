@@ -20,7 +20,8 @@ import {
   clearRoleMenuGrant,
   setRoleCapability,
   wouldLockOutActor,
-  resetRbacToDefaults
+  resetRbacToDefaults,
+  isRoleSelectable
 } from './rbac'
 import { CAPABILITY_KEYS, isKnownCapabilityKey } from '~/constants/capabilities'
 import { MODULE_KEYS, BUSINESS_MODULES, resolveModuleKey } from '~/constants/modules'
@@ -57,8 +58,8 @@ describe('RBAC dinamis', () => {
     resetRbacToDefaults()
   })
 
-  describe('Migrasi 16 → 7 role (via alias satu-hop) tidak menghilangkan akses', () => {
-    it('setiap role lama, setelah dipetakan, punya level >= level lamanya di setiap modul', () => {
+  describe('Migrasi 16 → 7 → 3 role (via alias satu-hop) tidak menghilangkan akses', () => {
+    it('setiap role lama, setelah dipetakan, punya level >= level lamanya di setiap modul — kecuali Finance untuk Admin', () => {
       const regressions: string[] = []
 
       for (const legacyRoleId in LEGACY_ROLE_MODULE_ACCESS) {
@@ -68,6 +69,8 @@ describe('RBAC dinamis', () => {
         for (const legacyModuleKey in legacyRow) {
           const legacyLevel = legacyRow[legacyModuleKey]
           if (legacyLevel === 'NONE') { continue }
+          // Keputusan eksplisit Penyederhanaan 3-Role: Admin tidak membuka Finance, walau role asalnya dulu bisa.
+          if (resolveRoleId(newRoleId) === 'admin' && resolveModuleKey(legacyModuleKey) === 'finance-acc') { continue }
 
           const actual = getModuleLevel(newRoleId, legacyModuleKey)
           if (RANK[actual] < RANK[legacyLevel]) {
@@ -82,6 +85,13 @@ describe('RBAC dinamis', () => {
     it('setiap role lama teresolusi ke role baru yang benar-benar ada', () => {
       for (const legacyRoleId in LEGACY_ROLE_MODULE_ACCESS) {
         expect(getRoleDefinition(resolveRoleId(legacyRoleId)), `role lama "${legacyRoleId}" tidak punya tujuan`).toBeDefined()
+      }
+    })
+
+    it('pengecualian Finance memang berlaku: role lama yang dulu melihat Finance kini NONE lewat Admin', () => {
+      for (const legacyRoleId of ['management', 'project-manager', 'viewer']) {
+        expect(RANK[LEGACY_ROLE_MODULE_ACCESS[legacyRoleId].finance]).toBeGreaterThan(RANK.NONE)
+        expect(getModuleLevel(legacyRoleId, 'finance-acc')).toBe('NONE')
       }
     })
 
@@ -180,10 +190,12 @@ describe('RBAC dinamis', () => {
     })
 
     it('menggantikan narrow role exception lama', () => {
+      // Sales, operations, dan management kini satu tangan (Admin) — capability operasional menyatu.
       expect(hasCapability('sales', 'sales.manage-lead-pipeline')).toBe(true)
-      expect(hasCapability('operations', 'sales.manage-lead-pipeline')).toBe(false)
+      expect(hasCapability('operations', 'sales.manage-lead-pipeline')).toBe(true)
       expect(hasCapability('operations', 'project-order.manage-travelers')).toBe(true)
       expect(hasCapability('management', 'sales.approve-quotation')).toBe(true)
+      expect(hasCapability('finance', 'sales.manage-lead-pipeline')).toBe(false)
     })
 
     it('bisa dicabut dan diberikan kembali', () => {
@@ -230,14 +242,14 @@ describe('RBAC dinamis', () => {
     })
 
     it('menolak nama role duplikat dan nama kosong', () => {
-      expect(createRole({ label: 'Sales & CRM' }).success).toBe(false)
+      expect(createRole({ label: 'Admin' }).success).toBe(false)
       expect(createRole({ label: '   ' }).success).toBe(false)
     })
 
     it('menolak menghapus role bawaan sistem', () => {
-      const result = deleteRole('operations')
+      const result = deleteRole('admin')
       expect(result.success).toBe(false)
-      expect(getRoleDefinition('operations')).toBeDefined()
+      expect(getRoleDefinition('admin')).toBeDefined()
     })
 
     it('menolak menghapus role yang masih punya user', () => {
@@ -261,7 +273,7 @@ describe('RBAC dinamis', () => {
 
     it('mengganti nama role tetap menolak bentrok', () => {
       createRole({ label: 'Role Rename' })
-      expect(updateRole('role-rename', { label: 'Finance & ACC' }).success).toBe(false)
+      expect(updateRole('role-rename', { label: 'Finance' }).success).toBe(false)
       expect(updateRole('role-rename', { label: 'Role Rename 2' }).success).toBe(true)
       expect(getRoleDefinition('role-rename')?.label).toBe('Role Rename 2')
     })
@@ -296,15 +308,57 @@ describe('RBAC dinamis', () => {
   describe('resetRbacToDefaults', () => {
     it('mengembalikan role custom, grant, dan override menu ke seed', () => {
       createRole({ label: 'Role Buangan' })
-      setRoleModuleLevel('sales', 'hr', 'MANAGE')
-      setRoleMenuGrant('sales', 'sales.leads', 'NONE')
+      setRoleModuleLevel('finance', 'hr', 'MANAGE')
+      setRoleMenuGrant('admin', 'sales.leads', 'NONE')
 
       resetRbacToDefaults()
 
       expect(getRoleDefinition('role-buangan')).toBeUndefined()
-      expect(getModuleLevel('sales', 'hr')).toBe('NONE')
+      expect(getModuleLevel('finance', 'hr')).toBe('VIEW')
       expect(ROLE_MENU_GRANTS).toHaveLength(0)
-      expect(ROLE_DEFINITIONS).toHaveLength(7)
+      expect(ROLE_DEFINITIONS).toHaveLength(5)
+    })
+  })
+
+  describe('Penyederhanaan 3-Role', () => {
+    it('role aktif hanya Super Admin, Admin, dan Finance; portal tetap ada tetapi hidden', () => {
+      expect(ROLE_DEFINITIONS.filter(role => !role.hidden).map(role => role.id)).toEqual(['super-admin', 'admin', 'finance'])
+      expect(ROLE_DEFINITIONS.filter(role => role.hidden).map(role => role.id)).toEqual(['client', 'vendor'])
+      expect(isRoleSelectable('admin')).toBe(true)
+      expect(isRoleSelectable('operations')).toBe(true) // alias → admin
+      expect(isRoleSelectable('client')).toBe(false)
+      expect(isRoleSelectable('supplier')).toBe(false) // alias → vendor
+      expect(isRoleSelectable('role-tak-ada')).toBe(false)
+    })
+
+    it('Admin mengelola semua modul bisnis kecuali Finance', () => {
+      expect(getModuleLevel('admin', 'finance-acc')).toBe('NONE')
+      for (const module of BUSINESS_MODULES) {
+        if (module.key === 'finance-acc') { continue }
+        expect(RANK[getModuleLevel('admin', module.key)], module.key).toBeGreaterThanOrEqual(RANK.MANAGE)
+      }
+      for (const key of CAPABILITY_KEYS.filter(key => key.startsWith('finance.'))) {
+        expect(hasCapability('admin', key), key).toBe(false)
+      }
+    })
+
+    it('Finance memiliki modul Finance dan hanya melihat modul lain', () => {
+      expect(getModuleLevel('finance', 'finance-acc')).toBe('MANAGE')
+      for (const moduleKey of MODULE_KEYS) {
+        if (moduleKey === 'finance-acc') { continue }
+        expect(RANK[getModuleLevel('finance', moduleKey)], moduleKey).toBeLessThanOrEqual(RANK.VIEW)
+      }
+    })
+
+    it('Super Admin bisa keduanya', () => {
+      expect(getModuleLevel('super-admin', 'finance-acc')).toBe('ADMIN')
+      expect(getModuleLevel('super-admin', 'operations')).toBe('ADMIN')
+    })
+
+    it('pengaturan user & role tetap khusus Super Admin, supaya Admin tidak bisa memberi dirinya Finance', () => {
+      expect(hasCapability('admin', 'admin.manage-roles')).toBe(false)
+      expect(hasCapability('admin', 'admin.manage-users')).toBe(false)
+      expect(hasCapability('admin', 'admin.manage-master-data')).toBe(true)
     })
   })
 

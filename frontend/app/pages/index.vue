@@ -362,8 +362,8 @@ const kpiCards = computed(() => [
     icon: Receipt,
     color: 'amber' as const,
     /** Finance sengaja dikecualikan — card ini dihapus dari Dashboard Finance (sudah ada versinya di
-     * Monthly Cash Flow section), permintaan eksplisit. */
-    visible: visibleTo('management', 'super-admin', 'viewer').value
+     * Monthly Cash Flow section), permintaan eksplisit. Admin (eks-management) juga tidak — data Finance. */
+    visible: visibleTo('super-admin').value
   },
   {
     key: 'total-users',
@@ -383,7 +383,8 @@ const kpiCards = computed(() => [
 const revenuePeriods = computed(() => getRevenueByPeriod())
 const latestRevenuePeriod = computed(() => revenuePeriods.value.at(-1))
 const previousRevenuePeriod = computed(() => revenuePeriods.value.at(-2))
-const showFinancialSummary = visibleTo('finance', 'management', 'super-admin', 'viewer')
+// Finance-only (Penyederhanaan 3-Role): management/viewer kini alias Admin, yang tidak membuka data Finance.
+const showFinancialSummary = visibleTo('finance', 'super-admin')
 
 function periodTrend (currentIdr: number, previousIdr: number | undefined): { direction: 'up' | 'down'; percentLabel: string } | undefined {
   if (previousIdr === undefined || previousIdr === 0) { return undefined }
@@ -508,7 +509,7 @@ const showPipeline = visibleTo('sales', 'account-executive', 'management', 'supe
 const showProjectsByStatus = visibleTo('management', 'super-admin', 'viewer')
 const showBudgetVsActual = visibleTo('management', 'finance', 'super-admin', 'viewer')
 const showCostBreakdown = visibleTo('finance', 'super-admin')
-const showOutstanding = visibleTo('finance', 'management', 'super-admin', 'viewer')
+const showOutstanding = visibleTo('finance', 'super-admin')
 const showAttentionGlobal = visibleTo('management', 'super-admin', 'viewer')
 const showRecentActivity = visibleTo('management', 'super-admin', 'viewer')
 const showQuotationsPending = visibleTo('sales', 'account-executive', 'super-admin')

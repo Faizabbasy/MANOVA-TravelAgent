@@ -20,7 +20,7 @@ describe('backup and restore (PGlite)', () => {
       backupDir: join(work, 'rehearsal')
     })
     expect(steps).toHaveLength(6)
-    expect(steps.at(-1)).toContain('counts identical, schema v3, checksums verified')
+    expect(steps.at(-1)).toContain('counts identical, schema v4, checksums verified')
   }, 60_000)
 
   test('restore refuses a tampered backup', async () => {

@@ -1,13 +1,13 @@
 import { Elysia, t } from 'elysia'
 import type { AppDeps } from '../app-deps'
-import { clientInfo } from '../http/client-info'
-import { ok, requestIdOf } from '../http/envelope'
+import { clientInfo, type ClientInfo } from '../http/client-info'
+import { ID_PATTERN, ok, requestIdOf } from '../http/envelope'
 import { AppError, errors } from '../http/errors'
 import { recordAudit } from '../shared/audit'
 import type { AuthContext, SessionActor } from './context'
 import { LoginThrottle } from './login-throttle'
 import { verifyAgainstDummy, verifyPassword } from './password'
-import { permissionsOf, ROLE_DEFINITIONS, type Actor } from './rbac'
+import { canRoleSignIn, isRoleId, permissionsOf, ROLE_DEFINITIONS, type Actor } from './rbac'
 import { clearedSessionCookie, createSession, revokeSession, sessionCookie } from './sessions'
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -38,6 +38,26 @@ interface LoginUserRow extends Record<string, unknown> {
 export function authRoutes(deps: AppDeps, auth: AuthContext) {
   const throttle = deps.throttle ?? new LoginThrottle()
   const { db, config } = deps
+
+  /** Creates the session, audits it, sets the cookie and returns the `me` payload. */
+  async function startSession(
+    user: LoginUserRow,
+    context: { request: Request; client: ClientInfo; set: { headers: Record<string, string | number> }; action: 'auth.login' | 'auth.demo_login' }
+  ) {
+    const { request, client, set, action } = context
+    const session = await createSession(db, user.id, { ttlHours: config.sessionTtlHours, ...client })
+    await recordAudit(db, { action, actorUserId: user.id, entityType: 'user', entityId: user.id, requestId: requestIdOf(request), ...client })
+    set.headers['set-cookie'] = sessionCookie(auth.cookieName, session.token, {
+      maxAgeSeconds: config.sessionTtlHours * 3600,
+      secure: config.cookieSecure
+    })
+    set.headers['cache-control'] = 'no-store'
+    const actor: Actor = {
+      userId: user.id, name: user.name, email: user.email, role: user.role,
+      partyId: user.party_id, vendorId: user.vendor_id, sessionId: session.sessionId
+    }
+    return ok(request, meDto(actor, session.expiresAt))
+  }
 
   return new Elysia({ prefix: '/api/v1/auth' })
     .post(
@@ -80,19 +100,14 @@ export function authRoutes(deps: AppDeps, auth: AuthContext) {
         }
 
         throttle.reset(client.ip, email)
-        const session = await createSession(db, user.id, { ttlHours: config.sessionTtlHours, ...client })
-        await recordAudit(db, { action: 'auth.login', actorUserId: user.id, entityType: 'user', entityId: user.id, requestId, ...client })
-
-        set.headers['set-cookie'] = sessionCookie(auth.cookieName, session.token, {
-          maxAgeSeconds: config.sessionTtlHours * 3600,
-          secure: config.cookieSecure
-        })
-        set.headers['cache-control'] = 'no-store'
-        const actor: Actor = {
-          userId: user.id, name: user.name, email: user.email, role: user.role,
-          partyId: user.party_id, vendorId: user.vendor_id, sessionId: session.sessionId
+        if (!canRoleSignIn(user.role, config.portalLogin)) {
+          await recordAudit(db, {
+            action: 'auth.login_failed', actorUserId: null, entityType: 'user', entityId: user.id, requestId, ...client,
+            details: { reason: 'role_disabled' }
+          })
+          throw new AppError(403, 'ROLE_DISABLED', 'Akses portal sedang dinonaktifkan. Hubungi admin MANOVA.')
         }
-        return ok(request, meDto(actor, session.expiresAt))
+        return startSession(user, { request, client, set, action: 'auth.login' })
       },
       {
         body: t.Object({
@@ -100,6 +115,26 @@ export function authRoutes(deps: AppDeps, auth: AuthContext) {
           password: t.String({ minLength: 1, maxLength: 256, error: 'Kata sandi wajib diisi.' })
         })
       }
+    )
+    /**
+     * One-click sign-in for the demo accounts on the login page. Development/demo only: DEMO_LOGIN is off
+     * (and cannot be turned on) in production, and only active `demo-fixture` users of a role that may sign
+     * in are accepted — never a real account.
+     */
+    .post(
+      '/demo-login',
+      async ({ body, request, server, set }) => {
+        if (!config.demoLogin) throw new AppError(404, 'ROUTE_NOT_FOUND', 'Endpoint tidak ditemukan.')
+        if (!ID_PATTERN.test(body.userId)) throw errors.notFound('Akun demo')
+        const [user] = await db.query<LoginUserRow>(
+          `select id, name, email, role, party_id, vendor_id, status, password_hash
+             from users where id = $1 and provenance = 'demo-fixture' and status = 'active'`,
+          [body.userId]
+        )
+        if (!user || !isRoleId(user.role) || !canRoleSignIn(user.role, config.portalLogin)) throw errors.notFound('Akun demo')
+        return startSession(user, { request, client: clientInfo(request, server, config.trustProxy), set, action: 'auth.demo_login' })
+      },
+      { body: t.Object({ userId: t.String({ maxLength: 128, error: 'Pilih akun demo.' }) }) }
     )
     .post('/logout', async ({ request, server, set }) => {
       const actor: SessionActor | null = await auth.actorOf(request)

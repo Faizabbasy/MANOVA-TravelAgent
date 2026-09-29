@@ -18,7 +18,11 @@ const { isCollapsed, toggle } = useSidebar()
 const { currentUser } = useCurrentUser()
 const { canViewMenu, isRole } = usePermissions()
 
-const handleLogout = () => {
+const api = useApi()
+
+/** Mengakhiri sesi server (bila ada) dan sesi lokal. Kegagalan jaringan tidak menahan user di dalam app. */
+async function handleLogout () {
+  await api.auth.logout().catch(() => undefined)
   localStorage.removeItem('isAuthenticated')
   localStorage.removeItem('userEmail')
   router.push('/login')

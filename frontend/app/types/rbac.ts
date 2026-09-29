@@ -41,6 +41,11 @@ export interface RoleDefinition {
    * `usePermissions`. Menentukan field `User` mana yang membatasi seluruh query role ini.
    */
   scopeField?: 'vendorId' | 'clientPartyId'
+  /**
+   * Role dinonaktifkan sementara: tidak ditawarkan di halaman login maupun role switcher, dan user-nya
+   * tidak bisa dipakai sebagai sesi aktif. Definisi & grant tetap ada supaya bisa diaktifkan lagi.
+   */
+  hidden?: boolean
   description?: string
   clonedFromRoleId?: RoleId
   createdAt?: string

@@ -10,7 +10,8 @@ let t: TestApp
 const cookies: Record<string, string> = {}
 
 beforeAll(async () => {
-  t = await makeTestApp()
+  // Portals are switched off by default; the scope rules stay and are tested with PORTAL_LOGIN on.
+  t = await makeTestApp({ config: { portalLogin: true } })
   // A vendor that actually owns services (VND-001 flights) — the demo vendor VND-006 only holds a service order.
   await t.addUser({ id: 'USR-T-V1', email: 'vendor.one@tiket.example', role: 'vendor', vendorId: 'VND-001' })
   for (const [key, email] of Object.entries({ ...DEMO, vendorOne: 'vendor.one@tiket.example' })) cookies[key] = await t.login(email)
@@ -31,8 +32,8 @@ describe('unauthenticated', () => {
 })
 
 describe('internal roles', () => {
-  test('finance, operations, management, sales and super-admin see every project', async () => {
-    for (const who of ['finance', 'operations', 'management', 'sales', 'superAdmin']) {
+  test('finance, every admin and super-admin see every project', async () => {
+    for (const who of ['finance', 'admin', 'adminSales', 'adminMgmt', 'superAdmin']) {
       const res = await get(who, '/api/v1/projects?limit=100')
       expect(res.status).toBe(200)
       expect(res.json.data.map((p: { id: string }) => p.id), who).toEqual(ALL_PROJECTS)
@@ -55,7 +56,7 @@ describe('internal roles', () => {
   })
 
   test('internal project view includes party, owner, team and provenance', async () => {
-    const res = await get('operations', '/api/v1/projects/PRJ-103')
+    const res = await get('admin', '/api/v1/projects/PRJ-103')
     expect(res.json.data).toMatchObject({
       id: 'PRJ-103', partyId: 'PTY-003', partyName: 'PT Sinergi Korporindo', ownerUserId: 'USR-002', teamUserIds: ['USR-002'], provenance: 'demo-fixture'
     })
@@ -92,7 +93,7 @@ describe('internal roles', () => {
 
   test('parties, vendors and service orders are readable', async () => {
     expect((await get('finance', '/api/v1/parties?limit=100')).json.data).toHaveLength(8)
-    expect((await get('operations', '/api/v1/vendors?limit=100')).json.data).toHaveLength(7)
+    expect((await get('admin', '/api/v1/vendors?limit=100')).json.data).toHaveLength(7)
     expect((await get('finance', '/api/v1/service-orders/SO-002')).json.data).toEqual({
       id: 'SO-002', vendorId: 'VND-006', vendorName: 'PT ABC', projectId: 'PRJ-102', serviceId: null
     })

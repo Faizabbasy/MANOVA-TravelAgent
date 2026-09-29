@@ -35,6 +35,19 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ APP_ENV: 'production', APP_ORIGINS: 'https://a.b' })).toThrow('DATABASE_URL is required')
   })
 
+  test('one-click demo login is on in development/test, off in production and cannot be forced on there', () => {
+    expect(loadConfig({}).demoLogin).toBe(true)
+    expect(loadConfig({ APP_ENV: 'test' }).demoLogin).toBe(true)
+    const prod = { APP_ENV: 'production', DATABASE_URL: 'postgres://u:p@db/m', APP_ORIGINS: 'https://app.manova.id' }
+    expect(loadConfig(prod).demoLogin).toBe(false)
+    expect(() => loadConfig({ ...prod, DEMO_LOGIN: 'true' })).toThrow('DEMO_LOGIN cannot be enabled in production')
+  })
+
+  test('portal logins are off unless PORTAL_LOGIN=true', () => {
+    expect(loadConfig({}).portalLogin).toBe(false)
+    expect(loadConfig({ PORTAL_LOGIN: 'true' }).portalLogin).toBe(true)
+  })
+
   test('production never falls back to localhost origins', () => {
     expect(() => loadConfig({ APP_ENV: 'production', DATABASE_URL: 'postgres://u:p@db/m' })).toThrow('APP_ORIGINS is required')
   })

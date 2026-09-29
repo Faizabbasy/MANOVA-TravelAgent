@@ -15,7 +15,7 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Administration' })
 
 const { canView } = usePermissions()
-const { users, currentUser, setCurrentUser } = useCurrentUser()
+const { switchableUsers: users, currentUser, setCurrentUser } = useCurrentUser()
 
 const links = [
   { label: 'Master Data', description: 'Kelola daftar master lintas modul', to: '/admin/master-data', icon: Database },

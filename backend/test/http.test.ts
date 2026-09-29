@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { createApp } from '../src/app'
 import { ALLOWED_ORIGIN, DEMO, makeTestApp, TEST_PASSWORD, type TestApp } from './helpers'
 
 let t: TestApp
@@ -21,7 +22,7 @@ describe('health', () => {
       status: 'ok',
       service: 'manova-backend',
       timezone: 'Asia/Jakarta',
-      database: { reachable: true, schemaVersion: 3, latestVersion: 3, pendingMigrations: 0, migrationProblems: 0 }
+      database: { reachable: true, schemaVersion: 4, latestVersion: 4, pendingMigrations: 0, migrationProblems: 0 }
     })
   })
 
@@ -31,7 +32,7 @@ describe('health', () => {
       const res = await bare.call('GET', '/api/v1/health')
       expect(res.status).toBe(503)
       expect(res.json.data.status).toBe('degraded')
-      expect(res.json.data.database).toMatchObject({ reachable: true, schemaVersion: 0, pendingMigrations: 3 })
+      expect(res.json.data.database).toMatchObject({ reachable: true, schemaVersion: 0, pendingMigrations: 4 })
     } finally {
       await bare.cleanup()
     }
@@ -96,14 +97,14 @@ describe('authentication', () => {
     const cookie = res.headers.get('set-cookie')!
     expect(cookie).toMatch(/^manova_session=[A-Za-z0-9_-]{43}; Path=\/; HttpOnly; SameSite=Lax; Max-Age=43200$/)
     expect(res.headers.get('cache-control')).toBe('no-store')
-    expect(res.json.data.user).toEqual({ id: 'USR-008', name: 'Budi Santoso', email: 'budi.santoso@manova.id', role: 'finance', roleLabel: 'Finance & ACC', kind: 'internal' })
+    expect(res.json.data.user).toEqual({ id: 'USR-008', name: 'Budi Santoso', email: 'budi.santoso@manova.id', role: 'finance', roleLabel: 'Finance', kind: 'internal' })
     expect(res.json.data.permissions.modules['finance-acc']).toBe('MANAGE')
     expect(res.json.data.permissions.capabilities).toContain('finance.post-cash')
     expect(res.json.data.permissions.canViewFullFinancials).toBe(true)
   })
 
   test('the database stores only a hash of the session token', async () => {
-    const cookie = await t.login(DEMO.sales)
+    const cookie = await t.login(DEMO.adminSales)
     const token = cookie.split('=')[1]!
     const rows = await t.db.query('select id from sessions where id = $1', [token])
     expect(rows).toHaveLength(0)
@@ -112,7 +113,7 @@ describe('authentication', () => {
   })
 
   test('wrong password and unknown email are indistinguishable', async () => {
-    const wrong = await t.call('POST', '/api/v1/auth/login', { body: { email: DEMO.management, password: 'nope' } })
+    const wrong = await t.call('POST', '/api/v1/auth/login', { body: { email: DEMO.adminMgmt, password: 'nope' } })
     const unknown = await t.call('POST', '/api/v1/auth/login', { body: { email: 'ghost@manova.id', password: 'nope' } })
     expect(wrong.status).toBe(401)
     expect(unknown.status).toBe(401)
@@ -138,15 +139,34 @@ describe('authentication', () => {
     expect((await t.call('GET', '/api/v1/auth/me')).status).toBe(401)
     expect((await t.call('GET', '/api/v1/auth/me', { cookie: 'manova_session=forged-token' })).status).toBe(401)
     expect((await t.call('GET', '/api/v1/auth/me', { cookie: `manova_session=${'A'.repeat(43)}` })).status).toBe(401)
-    const cookie = await t.login(DEMO.client)
+    const cookie = await t.login(DEMO.admin)
     const me = await t.call('GET', '/api/v1/auth/me', { cookie })
     expect(me.status).toBe(200)
-    expect(me.json.data.scope).toEqual({ partyId: 'PTY-005', vendorId: null })
-    expect(me.json.data.permissions.capabilities).toEqual([])
+    expect(me.json.data.user).toMatchObject({ id: 'USR-002', role: 'admin', roleLabel: 'Admin' })
+    expect(me.json.data.permissions.modules['finance-acc']).toBe('NONE')
+    expect(me.json.data.permissions.capabilities).not.toContain('finance.post-cash')
+  })
+
+  test('portal logins are switched off: correct password → 403 ROLE_DISABLED, and old portal sessions stop working', async () => {
+    const res = await t.call('POST', '/api/v1/auth/login', { body: { email: DEMO.client, password: TEST_PASSWORD } })
+    expect(res.status).toBe(403)
+    expect(res.json.error.code).toBe('ROLE_DISABLED')
+
+    const portalOn = await makeTestApp({ config: { portalLogin: true } })
+    try {
+      const cookie = await portalOn.login(DEMO.vendor)
+      expect((await portalOn.call('GET', '/api/v1/auth/me', { cookie })).status).toBe(200)
+      // Same database, portals switched off again (e.g. config change + restart): the session is refused.
+      const off = createApp({ db: portalOn.db, config: { ...portalOn.config, portalLogin: false } })
+      const me = await off.handle(new Request('http://localhost/api/v1/auth/me', { headers: { cookie } }))
+      expect(me.status).toBe(401)
+    } finally {
+      await portalOn.cleanup()
+    }
   })
 
   test('logout revokes the session server-side and clears the cookie', async () => {
-    const cookie = await t.login(DEMO.operations)
+    const cookie = await t.login(DEMO.admin)
     const out = await t.call('POST', '/api/v1/auth/logout', { cookie })
     expect(out.status).toBe(200)
     expect(out.headers.get('set-cookie')).toContain('Max-Age=0')
@@ -154,7 +174,7 @@ describe('authentication', () => {
   })
 
   test('suspending a user ends their existing sessions and blocks login', async () => {
-    await t.addUser({ id: 'USR-T-SUSP', email: 'suspend.me@manova.id', role: 'sales' })
+    await t.addUser({ id: 'USR-T-SUSP', email: 'suspend.me@manova.id', role: 'admin' })
     const cookie = await t.login('suspend.me@manova.id')
     await t.db.query(`update users set status = 'suspended' where id = 'USR-T-SUSP'`)
     expect((await t.call('GET', '/api/v1/auth/me', { cookie })).status).toBe(401)
@@ -164,13 +184,13 @@ describe('authentication', () => {
   })
 
   test('expired sessions are rejected', async () => {
-    const cookie = await t.login(DEMO.management)
+    const cookie = await t.login(DEMO.adminMgmt)
     await t.db.query(`update sessions set created_at = now() - interval '2 days', expires_at = now() - interval '1 second' where user_id = 'USR-003'`)
     expect((await t.call('GET', '/api/v1/auth/me', { cookie })).status).toBe(401)
   })
 
   test('five failed attempts lock that email for the window (429 + Retry-After), even with the right password', async () => {
-    await t.addUser({ id: 'USR-T-LOCK', email: 'lock.me@manova.id', role: 'sales' })
+    await t.addUser({ id: 'USR-T-LOCK', email: 'lock.me@manova.id', role: 'admin' })
     for (let i = 0; i < 5; i++) {
       expect((await t.call('POST', '/api/v1/auth/login', { body: { email: 'lock.me@manova.id', password: 'wrong' } })).status).toBe(401)
     }
@@ -181,7 +201,7 @@ describe('authentication', () => {
   })
 
   test('parallel guesses cannot bypass the throttle (attempts are counted before verification)', async () => {
-    await t.addUser({ id: 'USR-T-PAR', email: 'parallel@manova.id', role: 'sales' })
+    await t.addUser({ id: 'USR-T-PAR', email: 'parallel@manova.id', role: 'admin' })
     const results = await Promise.all(
       Array.from({ length: 20 }, () => t.call('POST', '/api/v1/auth/login', { body: { email: 'parallel@manova.id', password: 'wrong' } }))
     )
@@ -203,5 +223,47 @@ describe('authentication', () => {
     expect(actions).toEqual(new Set(['auth.login', 'auth.login_failed', 'auth.logout']))
     expect(JSON.stringify(rows)).not.toContain(TEST_PASSWORD)
     expect(rows.find(r => r.action === 'auth.login_failed')!.details).toHaveProperty('reason')
+  })
+})
+
+describe('one-click demo login', () => {
+  const demoLogin = (userId: unknown, app: TestApp = t) => app.call('POST', '/api/v1/auth/demo-login', { body: { userId } })
+
+  test('signs in as each of the three demo accounts with a real server session', async () => {
+    for (const [userId, role] of [['USR-010', 'super-admin'], ['USR-002', 'admin'], ['USR-008', 'finance']] as const) {
+      const res = await demoLogin(userId)
+      expect(res.status, userId).toBe(200)
+      expect(res.json.data.user).toMatchObject({ id: userId, role })
+      const cookie = res.headers.get('set-cookie')!.split(';')[0]!
+      expect((await t.call('GET', '/api/v1/auth/me', { cookie })).json.data.user.id).toBe(userId)
+    }
+    const [audit] = await t.db.query<{ n: number }>(`select count(*)::int as n from audit_events where action = 'auth.demo_login'`)
+    expect(audit!.n).toBeGreaterThanOrEqual(3)
+  })
+
+  test('refuses hidden portal roles, unknown ids and non-demo accounts with the same 404', async () => {
+    await t.addUser({ id: 'USR-T-REAL', email: 'real.person@manova.id', role: 'admin' }) // provenance defaults to manual
+    for (const userId of ['USR-021', 'USR-015', 'USR-404', 'USR-T-REAL', '%00']) {
+      const res = await demoLogin(userId)
+      expect(res.status, userId).toBe(404)
+      expect(res.headers.get('set-cookie')).toBeNull()
+    }
+    expect((await demoLogin(42)).status).toBe(400)
+  })
+
+  test('does not exist when DEMO_LOGIN is off (always the case in production)', async () => {
+    const off = await makeTestApp({ config: { demoLogin: false } })
+    try {
+      const res = await demoLogin('USR-010', off)
+      expect(res.status).toBe(404)
+      expect(res.json.error.code).toBe('ROUTE_NOT_FOUND')
+    } finally {
+      await off.cleanup()
+    }
+  })
+
+  test('is still subject to the CSRF origin check', async () => {
+    const res = await t.call('POST', '/api/v1/auth/demo-login', { body: { userId: 'USR-010' }, headers: { origin: 'https://evil.example' } })
+    expect(res.status).toBe(403)
   })
 })

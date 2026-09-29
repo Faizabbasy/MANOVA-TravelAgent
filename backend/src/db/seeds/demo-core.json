@@ -107,7 +107,7 @@
       "id": "USR-001",
       "email": "rani.kusuma@manova.id",
       "name": "Rani Kusuma",
-      "role": "sales",
+      "role": "admin",
       "status": "active",
       "partyId": null,
       "vendorId": null
@@ -116,7 +116,7 @@
       "id": "USR-002",
       "email": "doni.saputra@manova.id",
       "name": "Doni Saputra",
-      "role": "operations",
+      "role": "admin",
       "status": "active",
       "partyId": null,
       "vendorId": null
@@ -125,7 +125,7 @@
       "id": "USR-003",
       "email": "sari.wijaya@manova.id",
       "name": "Sari Wijaya",
-      "role": "management",
+      "role": "admin",
       "status": "active",
       "partyId": null,
       "vendorId": null

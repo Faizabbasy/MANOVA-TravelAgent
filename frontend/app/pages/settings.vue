@@ -7,7 +7,7 @@ import { resetMockState, hasMockSnapshot } from '~/utils/mock-reset'
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Settings' })
 
-const { users, currentUser, setCurrentUser } = useCurrentUser()
+const { switchableUsers: users, currentUser, setCurrentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 /**
@@ -20,7 +20,7 @@ const isRbacResetOpen = ref(false)
 function submitRbacReset () {
   resetRbacToDefaults(currentUser.value.id)
   isRbacResetOpen.value = false
-  showToast('RBAC Direset', 'Seluruh role custom dihapus dan permission 13 role bawaan kembali ke default.', 'success')
+  showToast('RBAC Direset', 'Seluruh role custom dihapus dan permission role bawaan kembali ke default.', 'success')
 }
 
 /** State reset / seed scenario (Section 01) — mengembalikan seluruh mock data ke kondisi seed awal. */
@@ -92,7 +92,7 @@ function submitReset () {
             <DialogTitle>Reset Role & Permission</DialogTitle>
             <DialogDescription>
               Seluruh role custom yang dibuat dari Admin &gt; Roles akan dihapus, dan grant modul, override
-              menu, serta action flag 13 role bawaan dikembalikan ke kondisi seed. Aksi ini tidak dapat dibatalkan.
+              menu, serta action flag role bawaan dikembalikan ke kondisi seed. Aksi ini tidak dapat dibatalkan.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

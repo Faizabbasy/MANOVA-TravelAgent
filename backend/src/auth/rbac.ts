@@ -2,15 +2,19 @@
  * Server-side RBAC — the security boundary (ADR-003). The frontend copy (frontend/app/data/rbac.ts) only
  * decides what to show; every API read and write is checked against THIS table.
  *
- * Module levels and the pre-existing capabilities mirror the frontend seed exactly (role keys, module keys,
- * levels). `finance.*` capabilities marked NEW come from docs/manova-finance-implementation/09 and are not
- * yet in the frontend capability list; the Phase 4 UI reads them from GET /auth/me.
+ * Three active roles (Penyederhanaan 3-Role, 29 Sep 2026 — ADR-006):
+ *  - super-admin: everything, including Finance
+ *  - admin:       every module except Finance (former management / sales / operations)
+ *  - finance:     the Finance module, plus read access to other modules as context
+ * `client` and `vendor` stay defined (row scope is kept and tested) but are `active: false`: their users
+ * cannot sign in until PORTAL_LOGIN is enabled.
  *
- * Runtime-editable roles (Admin > Roles builder in the mock) are not persisted server-side yet: the matrix is
- * code-reviewed and versioned with the code until a roles table is justified.
+ * Module levels and pre-existing capabilities mirror the frontend seed exactly. `finance.*` capabilities
+ * from docs/manova-finance-implementation/09 are server-only for now; the UI reads them from GET /auth/me.
+ * The matrix is code-reviewed and versioned with the code until a roles table is justified.
  */
 
-export const ROLE_IDS = ['super-admin', 'management', 'sales', 'finance', 'operations', 'client', 'vendor'] as const
+export const ROLE_IDS = ['super-admin', 'admin', 'finance', 'client', 'vendor'] as const
 export type RoleId = (typeof ROLE_IDS)[number]
 
 export const MODULE_KEYS = [
@@ -28,37 +32,31 @@ export interface RoleDefinition {
   label: string
   kind: 'internal' | 'portal'
   isSuperAdmin: boolean
+  /** Inactive roles cannot sign in (portals are switched off for now). */
+  active: boolean
   /** Budget, actual cost, margin and vendor net cost. */
   canViewFullFinancials: boolean
   scopeField?: 'partyId' | 'vendorId'
 }
 
 export const ROLE_DEFINITIONS: Record<RoleId, RoleDefinition> = {
-  'super-admin': { id: 'super-admin', label: 'Super Admin', kind: 'internal', isSuperAdmin: true, canViewFullFinancials: true },
-  management: { id: 'management', label: 'Management', kind: 'internal', isSuperAdmin: false, canViewFullFinancials: true },
-  sales: { id: 'sales', label: 'Sales & CRM', kind: 'internal', isSuperAdmin: false, canViewFullFinancials: false },
-  finance: { id: 'finance', label: 'Finance & ACC', kind: 'internal', isSuperAdmin: false, canViewFullFinancials: true },
-  operations: { id: 'operations', label: 'Operations & Project Order', kind: 'internal', isSuperAdmin: false, canViewFullFinancials: true },
-  client: { id: 'client', label: 'Client', kind: 'portal', isSuperAdmin: false, canViewFullFinancials: false, scopeField: 'partyId' },
-  vendor: { id: 'vendor', label: 'Vendor', kind: 'portal', isSuperAdmin: false, canViewFullFinancials: false, scopeField: 'vendorId' }
+  'super-admin': { id: 'super-admin', label: 'Super Admin', kind: 'internal', isSuperAdmin: true, active: true, canViewFullFinancials: true },
+  admin: { id: 'admin', label: 'Admin', kind: 'internal', isSuperAdmin: false, active: true, canViewFullFinancials: true },
+  finance: { id: 'finance', label: 'Finance', kind: 'internal', isSuperAdmin: false, active: true, canViewFullFinancials: true },
+  client: { id: 'client', label: 'Client', kind: 'portal', isSuperAdmin: false, active: false, canViewFullFinancials: false, scopeField: 'partyId' },
+  vendor: { id: 'vendor', label: 'Vendor', kind: 'portal', isSuperAdmin: false, active: false, canViewFullFinancials: false, scopeField: 'vendorId' }
 }
 
 const MODULE_LEVELS: Record<Exclude<RoleId, 'super-admin'>, Partial<Record<ModuleKey, PermissionLevel>>> = {
-  management: {
-    sales: 'APPROVE', 'finance-acc': 'APPROVE', crm: 'APPROVE', operations: 'APPROVE',
-    'vendor-partner': 'VIEW', inventory: 'VIEW', marketing: 'VIEW',
-    hr: 'MANAGE', bi: 'MANAGE', administration: 'VIEW', documents: 'MANAGE'
-  },
-  sales: {
-    sales: 'MANAGE', crm: 'MANAGE', marketing: 'MANAGE', 'vendor-partner': 'VIEW', operations: 'VIEW', bi: 'VIEW', documents: 'VIEW'
+  // Highest level any merged role held, and deliberately no finance-acc.
+  admin: {
+    sales: 'APPROVE', crm: 'APPROVE', operations: 'APPROVE',
+    'vendor-partner': 'MANAGE', inventory: 'MANAGE', marketing: 'MANAGE',
+    hr: 'MANAGE', bi: 'MANAGE', administration: 'MANAGE', documents: 'MANAGE'
   },
   finance: {
     sales: 'VIEW', 'finance-acc': 'MANAGE', crm: 'VIEW', 'vendor-partner': 'VIEW', operations: 'VIEW',
     hr: 'VIEW', inventory: 'VIEW', marketing: 'VIEW', bi: 'VIEW', documents: 'VIEW'
-  },
-  operations: {
-    sales: 'VIEW', 'finance-acc': 'VIEW', crm: 'VIEW', operations: 'MANAGE',
-    'vendor-partner': 'MANAGE', inventory: 'MANAGE', bi: 'VIEW', documents: 'MANAGE'
   },
   client: { 'client-portal': 'MANAGE' },
   vendor: { 'vendor-portal': 'MANAGE' }
@@ -69,49 +67,50 @@ type GrantedTo = Exclude<RoleId, 'super-admin'>[]
 /** super-admin is never listed: it passes every check through `isSuperAdmin`, as in the frontend. */
 const CAPABILITY_GRANTS = {
   // Existing (frontend/app/data/rbac.ts SEED_CAPABILITIES)
-  'project-order.accept-handover': ['operations'],
-  'project-order.manage-operations': ['operations'],
-  'project-order.manage-travelers': ['operations'],
-  'project-order.log-change': ['operations'],
-  'project-order.advance-step': ['operations', 'management'],
-  'project-order.close': ['operations', 'management'],
-  'project-order.view-margin': ['management', 'finance', 'operations'],
-  'project-order.manage-service.flight': ['operations'],
-  'project-order.manage-service.hotel': ['operations'],
-  'project-order.manage-service.transportation': ['operations'],
-  'project-order.manage-service.mice': ['operations'],
-  'project-order.manage-service.additional': ['operations'],
-  'sales.manage-lead': ['sales'],
-  'sales.manage-lead-pipeline': ['sales'],
-  'sales.mark-won': ['sales'],
-  'sales.approve-quotation': ['management'],
-  'crm.manage-party': ['sales'],
-  'crm.manage-follow-up': ['sales'],
+  'project-order.accept-handover': ['admin'],
+  'project-order.manage-operations': ['admin'],
+  'project-order.manage-travelers': ['admin'],
+  'project-order.log-change': ['admin'],
+  'project-order.advance-step': ['admin'],
+  'project-order.close': ['admin'],
+  'project-order.view-margin': ['admin', 'finance'],
+  'project-order.manage-service.flight': ['admin'],
+  'project-order.manage-service.hotel': ['admin'],
+  'project-order.manage-service.transportation': ['admin'],
+  'project-order.manage-service.mice': ['admin'],
+  'project-order.manage-service.additional': ['admin'],
+  'sales.manage-lead': ['admin'],
+  'sales.manage-lead-pipeline': ['admin'],
+  'sales.mark-won': ['admin'],
+  'sales.approve-quotation': ['admin'],
+  'crm.manage-party': ['admin'],
+  'crm.manage-follow-up': ['admin'],
   'finance.record-payment': ['finance'],
   'finance.manage-opex': ['finance'],
-  'finance.close-period': ['finance', 'management'],
-  'hr.manage-employee': ['management'],
-  'hr.manage-payroll': ['management'],
-  'hr.manage-performance': ['management'],
-  'inventory.manage-asset': ['operations'],
+  'finance.close-period': ['finance'],
+  'hr.manage-employee': ['admin'],
+  'hr.manage-payroll': ['admin'],
+  'hr.manage-performance': ['admin'],
+  'inventory.manage-asset': ['admin'],
+  // Users and roles stay super-admin only: whoever manages roles could grant themselves Finance.
   'admin.manage-users': [],
   'admin.manage-roles': [],
-  'admin.manage-master-data': [],
-  'admin.view-activity-center': [],
+  'admin.manage-master-data': ['admin'],
+  'admin.view-activity-center': ['admin'],
 
-  // NEW — finance capability matrix (docs/manova-finance-implementation/09-RBAC-AUDIT-VALIDATION.md)
-  'finance.view-cash': ['finance', 'management'],
-  'finance.view-cash-flow': ['finance', 'management'],
+  // Finance capability matrix (docs/manova-finance-implementation/09-RBAC-AUDIT-VALIDATION.md)
+  'finance.view-cash': ['finance'],
+  'finance.view-cash-flow': ['finance'],
   'finance.manage-bank-accounts': ['finance'],
-  /** Checker for opening balances: deliberately NOT the finance maker role. */
-  'finance.approve-opening-balance': ['management'],
+  /** Checker for opening balances: deliberately NOT the finance maker role — super-admin only. */
+  'finance.approve-opening-balance': [],
   'finance.post-cash': ['finance'],
   'finance.manage-receivables': ['finance'],
   'finance.manage-payables': ['finance'],
-  'finance.approve-refund': ['finance', 'management'],
+  'finance.approve-refund': ['finance'],
   'finance.settle-refund': ['finance'],
   'finance.manage-policy': ['finance'],
-  'finance.view-project-finance': ['finance', 'management', 'operations']
+  'finance.view-project-finance': ['finance']
 } satisfies Record<string, GrantedTo>
 
 export type CapabilityKey = keyof typeof CAPABILITY_GRANTS
@@ -132,6 +131,12 @@ export interface Actor {
 
 export function isRoleId(value: string): value is RoleId {
   return (ROLE_IDS as readonly string[]).includes(value)
+}
+
+/** Whether users of this role may hold a session. Portal roles only when PORTAL_LOGIN is enabled. */
+export function canRoleSignIn(role: RoleId, portalLogin: boolean): boolean {
+  const definition = ROLE_DEFINITIONS[role]
+  return definition.active || (definition.kind === 'portal' && portalLogin)
 }
 
 export function moduleLevel(role: RoleId, module: ModuleKey): PermissionLevel {

@@ -13,8 +13,10 @@ bun run db:seed:demo   # optional: demo references + one login per role (refused
 bun run dev            # applies pending migrations, then serves http://localhost:3000 with --watch
 ```
 
-Demo logins use the frontend fixture emails (e.g. `budi.santoso@manova.id` = finance,
-`dimas.pratama@java-bhakti.example` = client) with password `manova-demo` (override with `DEMO_PASSWORD`).
+Three roles are active: super-admin, admin (everything except Finance) and finance (ADR-006). The login page
+signs in with one click through `POST /api/v1/auth/demo-login` (dev/demo only). Password login also works with
+the fixture emails (e.g. `budi.santoso@manova.id` = finance) and password `manova-demo` (`DEMO_PASSWORD`).
+Client/vendor portal logins are refused unless `PORTAL_LOGIN=true`.
 
 Copy `.env.example` to `.env` to change settings. To use a PostgreSQL server instead of PGlite:
 `DATABASE_URL=postgres://user:pass@localhost:5432/manova`.
@@ -60,6 +62,7 @@ All responses: `{ data, meta: { requestId } }` or `{ error: { code, message, fie
 |---|---|
 | `GET /health`, `GET /api/v1/health` | liveness / readiness (503 when DB unreachable or schema not current) |
 | `POST /api/v1/auth/login`, `POST /api/v1/auth/logout`, `GET /api/v1/auth/me` | HttpOnly session cookie; `me` returns server-computed permissions |
+| `POST /api/v1/auth/demo-login` | One-click demo sign-in by `userId`; demo-fixture accounts only; 404 when `DEMO_LOGIN` is off (always in production) |
 | `GET /api/v1/projects`, `GET /api/v1/projects/:id` | scoped per role; portal roles get a reduced DTO |
 | `GET /api/v1/parties[/:id]`, `GET /api/v1/vendors[/:id]` | internal lists; portals read only their own record |
 | `GET /api/v1/service-orders/:id`, `GET /api/v1/bookings/:type/:id` | typed references (`flight`, `hotel`, `transport`, `mice`) |

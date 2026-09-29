@@ -18,12 +18,14 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Database Customer' })
 
 const route = useRoute()
-const { canView, isRole, can } = usePermissions()
+const { canView, can } = usePermissions()
 const { currentUser } = useCurrentUser()
 /** Sales dibatasi ke Lead saja pada Customer Journey (docs Prompt 19-10 "Sales: terbatas pada Lead") — narrow exception, halaman lain (`crm`) tetap generik. */
 const hasAccess = computed(() => canView('crm'))
 /** Portfolio scoping — Sales (yang kini juga mencakup Account Executive lama) melihat portfolio miliknya. */
-const isAeScoped = computed(() => isRole('sales'))
+// Penyederhanaan 3-Role: tidak ada lagi role Sales yang dibatasi ke portofolionya sendiri — 'sales' kini
+// alias Admin yang melihat seluruh data. Dipertahankan sebagai flag supaya mudah dihidupkan lagi.
+const isAeScoped = computed(() => false)
 /** Aksi tulis (buat prospect) — narrow exception yang sama dengan `/crm/prospects` lama, lihat komentar di sana (sebelum diserap ke sini). */
 const canManageParty = computed(() => can('crm.manage-party'))
 

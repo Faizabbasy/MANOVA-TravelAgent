@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import type { Db } from '../db/client'
-import { isRoleId, type Actor } from './rbac'
+import { canRoleSignIn, isRoleId, type Actor } from './rbac'
 
 /**
  * Opaque server sessions (ADR-003). The cookie holds a random 256-bit token; the database stores only its
@@ -49,7 +49,11 @@ interface SessionRow extends Record<string, unknown> {
   vendor_id: string | null
 }
 
-export async function resolveSession(db: Db, token: string | undefined): Promise<(Actor & { expiresAt: Date }) | null> {
+export async function resolveSession(
+  db: Db,
+  token: string | undefined,
+  options: { portalLogin: boolean }
+): Promise<(Actor & { expiresAt: Date }) | null> {
   if (!token || !TOKEN_PATTERN.test(token)) return null
   const [row] = await db.query<SessionRow>(
     `select s.id as session_id, s.expires_at, u.id as user_id, u.name, u.email, u.role, u.party_id, u.vendor_id
@@ -58,7 +62,8 @@ export async function resolveSession(db: Db, token: string | undefined): Promise
       where s.id = $1 and s.expires_at > now() and u.status = 'active'`,
     [hashToken(token)]
   )
-  if (!row || !isRoleId(row.role)) return null
+  // A role that may not sign in (e.g. a switched-off portal) also loses sessions it already had.
+  if (!row || !isRoleId(row.role) || !canRoleSignIn(row.role, options.portalLogin)) return null
   return {
     sessionId: row.session_id,
     expiresAt: row.expires_at,

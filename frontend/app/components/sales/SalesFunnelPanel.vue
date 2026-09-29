@@ -20,7 +20,7 @@ import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownLis
  */
 
 const { currentUser } = useCurrentUser()
-const { canView, isRole } = usePermissions()
+const { canView } = usePermissions()
 
 /**
  * Dulu Sales dibatasi ke Lead saja sementara Account Executive memegang Opportunity ke atas. Sejak
@@ -30,7 +30,9 @@ const { canView, isRole } = usePermissions()
 const isLeadOnlyView = computed(() => false)
 
 /** Portfolio scoping: Sales melihat datanya sendiri, role lain (Management/Super Admin) melihat penuh. */
-const isAeScoped = computed(() => isRole('sales'))
+// Penyederhanaan 3-Role: tidak ada lagi role Sales yang dibatasi ke portofolionya sendiri — 'sales' kini
+// alias Admin yang melihat seluruh data. Dipertahankan sebagai flag supaya mudah dihidupkan lagi.
+const isAeScoped = computed(() => false)
 
 /** Sales melihat Lead miliknya sendiri — baik yang ia buat (`ownerId`) maupun yang di-handover kepadanya. */
 const scopedLeads = computed(() => {

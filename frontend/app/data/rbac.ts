@@ -22,47 +22,45 @@ export const RANK: Record<PermissionLevel, number> = { NONE: 0, VIEW: 1, MANAGE:
 export const PERMISSION_LEVELS: PermissionLevel[] = ['NONE', 'VIEW', 'MANAGE', 'APPROVE', 'ADMIN']
 
 /**
- * Peta role lama → role baru (16 → 13 → 7, Penyederhanaan 7-Role). Dipakai untuk (a) memigrasikan
- * `User.role` yang tersimpan dan (b) menerjemahkan array role literal yang masih tersisa di halaman
- * selama masa transisi. Satu hop saja (`resolveRoleId` tidak rekursif) — setiap key WAJIB menunjuk
- * langsung ke salah satu dari 7 role final, bukan ke role antara yang sudah tidak ada.
+ * Peta role lama → role aktif. Dipakai untuk (a) memigrasikan `User.role` yang tersimpan dan (b)
+ * menerjemahkan array role literal yang masih tersisa di halaman (`isRole('operations')`, dst.). Satu hop
+ * saja (`resolveRoleId` tidak rekursif) — setiap key WAJIB menunjuk langsung ke role yang ada.
  *
  * Riwayat penggabungan:
- *  - 16 → 13 (Revisi 9-Modul): sub-domain operasional (`ticketing`/`accommodation`/`transportation`/
- *    `mice`) dan `project-manager` melebur ke `operations`; `account-executive`/`product-planner` ke
- *    `sales`; `viewer` ke `management`; `procurement` ke `vendor-partner`; `supplier` jadi `vendor`.
- *  - 13 → 7 (Penyederhanaan 7-Role): `crm`/`marketing` melebur ke `sales` ("Sales & CRM" — deal dan
- *    customer satu tangan); `bi`/`hr` ke `management`; `vendor-partner`/`inventory` ke `operations`
- *    ("Operations & Project Order" — operasional lapangan satu tangan). `super-admin`, `finance`,
- *    `client`, `vendor` tidak berubah.
+ *  - 16 → 13 (Revisi 9-Modul) dan 13 → 7 (Penyederhanaan 7-Role): sub-domain operasional, sales/CRM,
+ *    management/viewer/BI/HR dilebur ke `operations`, `sales`, `management`.
+ *  - 7 → 3 (Penyederhanaan 3-Role, 29 Sep 2026): `management`, `sales`, `operations` — dan semua id yang
+ *    dulu melebur ke sana — kini satu role `admin` (semua modul kecuali Finance). `super-admin` dan
+ *    `finance` tetap. `supplier` tetap → `vendor` (portal, sedang disembunyikan).
  */
 export const LEGACY_ROLE_ALIAS: Record<string, RoleId> = {
-  'account-executive': 'sales',
-  'product-planner': 'sales',
-  'project-manager': 'operations',
-  ticketing: 'operations',
-  accommodation: 'operations',
-  transportation: 'operations',
-  mice: 'operations',
-  procurement: 'operations',
-  viewer: 'management',
-  supplier: 'vendor',
-  crm: 'sales',
-  marketing: 'sales',
-  bi: 'management',
-  hr: 'management',
-  'vendor-partner': 'operations',
-  inventory: 'operations'
+  management: 'admin',
+  sales: 'admin',
+  operations: 'admin',
+  'account-executive': 'admin',
+  'product-planner': 'admin',
+  'project-manager': 'admin',
+  ticketing: 'admin',
+  accommodation: 'admin',
+  transportation: 'admin',
+  mice: 'admin',
+  procurement: 'admin',
+  viewer: 'admin',
+  crm: 'admin',
+  marketing: 'admin',
+  bi: 'admin',
+  hr: 'admin',
+  'vendor-partner': 'admin',
+  inventory: 'admin',
+  supplier: 'vendor'
 }
 
 export const ROLE_DEFINITIONS: RoleDefinition[] = reactive([
-  { id: 'super-admin', label: 'Super Admin', tone: 'destructive', order: 1, kind: 'internal', isSystem: true, isSuperAdmin: true, canViewFullFinancials: true, description: 'Akses penuh seluruh modul. Sengaja mem-bypass matriks grant sehingga tidak mungkin terkunci dari Administration.' },
-  { id: 'management', label: 'Management', tone: 'purple', order: 2, kind: 'internal', isSystem: true, canViewFullFinancials: true, description: 'Approver komersial lintas modul, pemilik visibilitas penuh, plus HR dan Reporting & BI. Menggantikan role Viewer, Auditor, HR, dan BI lama.' },
-  { id: 'sales', label: 'Sales & CRM', tone: 'primary', order: 3, kind: 'internal', isSystem: true, canViewFullFinancials: false, description: 'Lead, opportunity, quotation, database customer, engagement, dan marketing. Menggabungkan Account Executive, Product Planner, CRM, dan Marketing & Analysis lama — satu tangan untuk deal dan customer.' },
-  { id: 'finance', label: 'Finance & ACC', tone: 'success', order: 4, kind: 'internal', isSystem: true, canViewFullFinancials: true, description: 'General ledger, AR/AP, pembayaran, opex, pajak, dan multi currency.' },
-  { id: 'operations', label: 'Operations & Project Order', tone: 'info', order: 5, kind: 'internal', isSystem: true, canViewFullFinancials: true, description: 'Project order end-to-end, itinerary, booking, vendor & partner, inventory alat, dan change request. Menggabungkan Project Manager, Ticketing, Accommodation, Transportation, MICE, Vendor & Partner Management, dan Inventory lama.' },
-  { id: 'client', label: 'Client', tone: 'warning', order: 6, kind: 'portal', isSystem: true, canViewFullFinancials: false, scopeField: 'clientPartyId', description: 'Portal eksternal klien. Tidak punya akses modul internal apa pun; seluruh data diisolasi per company.' },
-  { id: 'vendor', label: 'Vendor', tone: 'warning', order: 7, kind: 'portal', isSystem: true, canViewFullFinancials: false, scopeField: 'vendorId', description: 'Portal eksternal vendor (dulu bernama Supplier). Seluruh data diisolasi per vendor company.' }
+  { id: 'super-admin', label: 'Super Admin', tone: 'destructive', order: 1, kind: 'internal', isSystem: true, isSuperAdmin: true, canViewFullFinancials: true, description: 'Akses penuh seluruh modul, termasuk Finance. Sengaja mem-bypass matriks grant sehingga tidak mungkin terkunci dari Administration.' },
+  { id: 'admin', label: 'Admin', tone: 'info', order: 2, kind: 'internal', isSystem: true, canViewFullFinancials: true, description: 'Mengelola seluruh operasional — Sales & CRM, Project, Booking, Vendor, HR, Inventory, Marketing, Reporting, dokumen, dan master data — kecuali modul Finance. Menggabungkan Management, Sales, dan Operations lama.' },
+  { id: 'finance', label: 'Finance', tone: 'success', order: 3, kind: 'internal', isSystem: true, canViewFullFinancials: true, description: 'Modul Finance: tagihan customer, kewajiban vendor, pembayaran, rekening, dan arus kas. Melihat modul lain sebagai konteks.' },
+  { id: 'client', label: 'Client', tone: 'warning', order: 4, kind: 'portal', isSystem: true, hidden: true, canViewFullFinancials: false, scopeField: 'clientPartyId', description: 'Portal eksternal klien (sedang dinonaktifkan). Tidak punya akses modul internal; data diisolasi per company.' },
+  { id: 'vendor', label: 'Vendor', tone: 'warning', order: 5, kind: 'portal', isSystem: true, hidden: true, canViewFullFinancials: false, scopeField: 'vendorId', description: 'Portal eksternal vendor (sedang dinonaktifkan). Data diisolasi per vendor company.' }
 ])
 
 /** Snapshot definisi role seed, diambil sebelum mutasi apa pun agar `resetRbacToDefaults()` selalu benar. */
@@ -72,28 +70,21 @@ const SEED_ROLE_DEFINITIONS: RoleDefinition[] = JSON.parse(JSON.stringify(ROLE_D
  * Matriks grant seed. Ditulis sebagai object ringkas lalu di-flatten menjadi baris `RoleModuleGrant` —
  * modul yang tidak disebut otomatis `NONE`, jadi menambah role baru TIDAK memaksa mengisi 13 kolom.
  *
- * Aturan yang dipegang saat menyusun (Penyederhanaan 7-Role): setiap modul bisnis tetap punya minimal
- * satu role non-super-admin ber-level `MANAGE` — role yang melebur (`crm`/`marketing` → `sales`,
- * `bi`/`hr` → `management`, `vendor-partner`/`inventory` → `operations`) mewariskan `MANAGE` modulnya
- * ke role penerus, bukan turun jadi `VIEW`. Diuji otomatis di `app/data/rbac.test.ts`.
+ * Aturan (Penyederhanaan 3-Role): `admin` mewarisi level TERTINGGI yang dulu dipegang management/sales/
+ * operations di setiap modul non-finance, dan `NONE` di `finance-acc` (keputusan eksplisit: Admin tidak
+ * membuka Finance). `finance` tidak berubah: pemilik `finance-acc`, VIEW di modul lain sebagai konteks.
+ * Setiap modul bisnis tetap punya pemilik ber-level `MANAGE`. Diuji di `app/data/rbac.test.ts`.
  */
 const SEED_MODULE_LEVELS: Record<RoleId, Partial<Record<ModuleKey, PermissionLevel>>> = {
   'super-admin': Object.fromEntries(MODULE_KEYS.map(key => [key, 'ADMIN' as PermissionLevel])),
-  management: {
-    sales: 'APPROVE', 'finance-acc': 'APPROVE', crm: 'APPROVE', operations: 'APPROVE',
-    'vendor-partner': 'VIEW', inventory: 'VIEW', marketing: 'VIEW',
-    hr: 'MANAGE', bi: 'MANAGE', administration: 'VIEW', documents: 'MANAGE'
-  },
-  sales: {
-    sales: 'MANAGE', crm: 'MANAGE', marketing: 'MANAGE', 'vendor-partner': 'VIEW', operations: 'VIEW', bi: 'VIEW', documents: 'VIEW'
+  admin: {
+    sales: 'APPROVE', crm: 'APPROVE', operations: 'APPROVE',
+    'vendor-partner': 'MANAGE', inventory: 'MANAGE', marketing: 'MANAGE',
+    hr: 'MANAGE', bi: 'MANAGE', administration: 'MANAGE', documents: 'MANAGE'
   },
   finance: {
     sales: 'VIEW', 'finance-acc': 'MANAGE', crm: 'VIEW', 'vendor-partner': 'VIEW', operations: 'VIEW',
     hr: 'VIEW', inventory: 'VIEW', marketing: 'VIEW', bi: 'VIEW', documents: 'VIEW'
-  },
-  operations: {
-    sales: 'VIEW', 'finance-acc': 'VIEW', crm: 'VIEW', operations: 'MANAGE',
-    'vendor-partner': 'MANAGE', inventory: 'MANAGE', bi: 'VIEW', documents: 'MANAGE'
   },
   client: { 'client-portal': 'MANAGE' },
   vendor: { 'vendor-portal': 'MANAGE' }
@@ -124,35 +115,37 @@ export const ROLE_MENU_GRANTS: RoleMenuGrant[] = reactive([])
  * action flag yang bisa di-assign. `super-admin` sengaja tidak didaftarkan: ia lolos lewat `isSuperAdmin`.
  */
 const SEED_CAPABILITIES: Record<string, RoleId[]> = {
-  'project-order.accept-handover': ['operations'],
-  'project-order.manage-operations': ['operations'],
-  'project-order.manage-travelers': ['operations'],
-  'project-order.log-change': ['operations'],
-  'project-order.advance-step': ['operations', 'management'],
-  'project-order.close': ['operations', 'management'],
-  'project-order.view-margin': ['management', 'finance', 'operations'],
-  [serviceCapabilityKey('flight')]: ['operations'],
-  [serviceCapabilityKey('hotel')]: ['operations'],
-  [serviceCapabilityKey('transportation')]: ['operations'],
-  [serviceCapabilityKey('mice')]: ['operations'],
-  [serviceCapabilityKey('additional')]: ['operations'],
-  'sales.manage-lead': ['sales'],
-  'sales.manage-lead-pipeline': ['sales'],
-  'sales.mark-won': ['sales'],
-  'sales.approve-quotation': ['management'],
-  'crm.manage-party': ['sales'],
-  'crm.manage-follow-up': ['sales'],
+  'project-order.accept-handover': ['admin'],
+  'project-order.manage-operations': ['admin'],
+  'project-order.manage-travelers': ['admin'],
+  'project-order.log-change': ['admin'],
+  'project-order.advance-step': ['admin'],
+  'project-order.close': ['admin'],
+  'project-order.view-margin': ['admin', 'finance'],
+  [serviceCapabilityKey('flight')]: ['admin'],
+  [serviceCapabilityKey('hotel')]: ['admin'],
+  [serviceCapabilityKey('transportation')]: ['admin'],
+  [serviceCapabilityKey('mice')]: ['admin'],
+  [serviceCapabilityKey('additional')]: ['admin'],
+  'sales.manage-lead': ['admin'],
+  'sales.manage-lead-pipeline': ['admin'],
+  'sales.mark-won': ['admin'],
+  'sales.approve-quotation': ['admin'],
+  'crm.manage-party': ['admin'],
+  'crm.manage-follow-up': ['admin'],
   'finance.record-payment': ['finance'],
   'finance.manage-opex': ['finance'],
-  'finance.close-period': ['finance', 'management'],
-  'hr.manage-employee': ['management'],
-  'hr.manage-payroll': ['management'],
-  'hr.manage-performance': ['management'],
-  'inventory.manage-asset': ['operations'],
+  'finance.close-period': ['finance'],
+  'hr.manage-employee': ['admin'],
+  'hr.manage-payroll': ['admin'],
+  'hr.manage-performance': ['admin'],
+  'inventory.manage-asset': ['admin'],
+  // Admin mengelola master data & melihat activity center. User/role tetap khusus Super Admin: siapa pun
+  // yang bisa mengatur role bisa memberi dirinya akses Finance, dan itu sengaja bukan wewenang Admin.
   'admin.manage-users': [],
   'admin.manage-roles': [],
-  'admin.manage-master-data': [],
-  'admin.view-activity-center': []
+  'admin.manage-master-data': ['admin'],
+  'admin.view-activity-center': ['admin']
 }
 
 function buildSeedCapabilityGrants (): RoleCapabilityGrant[] {
@@ -201,6 +194,12 @@ export function getRoleLabel (roleId: RoleId): string {
 
 export function getSortedRoles (): RoleDefinition[] {
   return [...ROLE_DEFINITIONS].sort((a, b) => a.order - b.order)
+}
+
+/** Role yang boleh dipakai sebagai sesi aktif (login / role switcher). Role `hidden` (portal) tidak. */
+export function isRoleSelectable (roleId: RoleId): boolean {
+  const role = getRoleDefinition(resolveRoleId(roleId))
+  return !!role && !role.hidden
 }
 
 export function getModuleGrant (roleId: RoleId, moduleKey: ModuleKey): RoleModuleGrant | undefined {

@@ -54,8 +54,8 @@ describe('driver parity', () => {
 describe('migration files', () => {
   test('are contiguous pairs with CRLF-independent checksums', () => {
     const migrations = loadMigrations()
-    expect(migrations.map(m => m.version)).toEqual([1, 2, 3])
-    expect(migrations.map(m => m.name)).toEqual(['foundation', 'core_references', 'identity'])
+    expect(migrations.map(m => m.version)).toEqual([1, 2, 3, 4])
+    expect(migrations.map(m => m.name)).toEqual(['foundation', 'core_references', 'identity', 'three_roles'])
     const m = migrations[0]!
     expect(checksumOf(m.up.replace(/\n/g, '\r\n'))).toBe(m.checksum)
   })
@@ -82,10 +82,10 @@ describe('migration runner', () => {
 
   test('fresh database: applies every migration once, then is a no-op', async () => {
     const applied = await migrateUp(db)
-    expect(applied.map(m => m.version)).toEqual([1, 2, 3])
+    expect(applied.map(m => m.version)).toEqual([1, 2, 3, 4])
     expect(await migrateUp(db)).toEqual([])
     const status = await migrationStatus(db)
-    expect(status).toMatchObject({ current: 3, pending: [], problems: [] })
+    expect(status).toMatchObject({ current: 4, pending: [], problems: [] })
     expect(await tableNames(db)).toEqual([
       'audit_events', 'booking_refs', 'parties', 'project_members', 'project_services', 'projects',
       'schema_migrations', 'service_orders', 'sessions', 'users', 'vendors'
@@ -93,18 +93,38 @@ describe('migration runner', () => {
   })
 
   test('rolls back step by step and to zero, leaving only the bookkeeping table', async () => {
+    expect((await migrateDown(db)).map(m => m.version)).toEqual([4])
+    expect(await tableNames(db)).toContain('users')
     expect((await migrateDown(db)).map(m => m.version)).toEqual([3])
     expect(await tableNames(db)).not.toContain('users')
     expect((await migrateDown(db, { to: 0 })).map(m => m.version)).toEqual([2, 1])
     expect(await tableNames(db)).toEqual(['schema_migrations'])
-    expect((await migrateUp(db)).map(m => m.version)).toEqual([1, 2, 3])
+    expect((await migrateUp(db)).map(m => m.version)).toEqual([1, 2, 3, 4])
   })
 
   test('migrate --to stops at the requested version', async () => {
     await migrateDown(db, { to: 0 })
     expect((await migrateUp(db, { to: 2 })).map(m => m.version)).toEqual([1, 2])
-    expect((await migrationStatus(db)).pending.map(m => m.version)).toEqual([3])
+    expect((await migrationStatus(db)).pending.map(m => m.version)).toEqual([3, 4])
     await migrateUp(db)
+  })
+
+  test('0004 folds management/sales/operations users into admin, and down maps them back', async () => {
+    const scratch = await makeTestDb()
+    try {
+      await migrateUp(scratch.db, { to: 3 })
+      for (const [id, role] of [['U1', 'management'], ['U2', 'sales'], ['U3', 'operations'], ['U4', 'finance']] as const) {
+        await scratch.db.query("insert into users (id, email, name, role) values ($1, $2, 'X', $3)", [id, id.toLowerCase() + '@x.id', role])
+      }
+      await migrateUp(scratch.db)
+      const roles = async () => (await scratch.db.query<{ id: string; role: string }>('select id, role from users order by id')).map(r => r.role)
+      expect(await roles()).toEqual(['admin', 'admin', 'admin', 'finance'])
+      await expect(scratch.db.query("insert into users (id, email, name, role) values ('U5', 'u5@x.id', 'X', 'sales')")).rejects.toThrow()
+      await migrateDown(scratch.db)
+      expect(await roles()).toEqual(['operations', 'operations', 'operations', 'finance'])
+    } finally {
+      await scratch.cleanup()
+    }
   })
 
   test('refuses to run when an applied migration file was edited (drift)', async () => {

@@ -68,7 +68,8 @@ export interface HealthDto {
 
 // ── Auth ──────────────────────────────────────────────────────────────────────────────────────────────
 
-export type ApiRoleId = 'super-admin' | 'management' | 'sales' | 'finance' | 'operations' | 'client' | 'vendor'
+/** Active roles: super-admin, admin, finance. client/vendor exist but cannot sign in while portals are off. */
+export type ApiRoleId = 'super-admin' | 'admin' | 'finance' | 'client' | 'vendor'
 export type ApiPermissionLevel = 'NONE' | 'VIEW' | 'MANAGE' | 'APPROVE' | 'ADMIN'
 
 export interface MeDto {
