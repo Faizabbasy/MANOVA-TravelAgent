@@ -24,12 +24,16 @@ Status awal semua belum dikerjakan. Centang hanya dengan bukti file/test/route. 
 ## Money, AR/AP, statement/ledger
 
 - [ ] Rekening + opening verified/cutover + directional transfer fee.
+  Progress (Phase 2): rekening, saldo pembuka maker (Finance) / checker (Super Admin), dan cutover **selesai**. Biaya transfer masih diinput manual per transfer; aturan biaya per arah (`transfer_fee_rules`) belum dibuat. Evidence: `backend/src/modules/finance/accounts.ts`, `test/finance-money.test.ts`.
 - [ ] Posted cash movement, allocation, reversal, idempotency, audit, proof metadata.
-- [ ] Account Statement actual-only, filter/drilldown; Account Ledger per bank/account opening/in/out/closing/running balance.
+  Progress (Phase 2): buku kas immutable (trigger DB), reversal sekali dengan alasan, Idempotency-Key, dan audit **selesai**. Alokasi ke invoice masuk Phase 3; bukti transfer menunggu ADR-005.
+- [x] Account Statement actual-only, filter/drilldown; Account Ledger per bank/account opening/in/out/closing/running balance.
+  Evidence (API; UI di Phase 4): `GET /api/v1/finance/statement` (filter tanggal/rekening/project/arah/jenis, total operasional tanpa transfer internal, cursor stabil), `GET /api/v1/finance/accounts/{id}/ledger` (saldo awal/masuk/keluar/akhir + saldo berjalan, dipotong di tanggal cutover). Test rekonsiliasi di `test/finance-money.test.ts`.
 - [ ] Customer invoice/billing schedule + AR outstanding/expected/due/partial receipt.
 - [ ] Vendor invoice/deposit + AP outstanding/expected/due/partial disbursement.
 - [ ] Vendor/Booking/Project finance context dari record yang sama; client/supplier DTO tersanitasi.
-- [ ] Internal transfer dua kaki + fee, company cash reconcile.
+- [x] Internal transfer dua kaki + fee, company cash reconcile.
+  Evidence: `POST /api/v1/finance/transfers` (out + in + fee dalam satu transaksi DB, kas perusahaan hanya turun sebesar biaya), pembatalan seluruh kaki sekaligus. Test di `test/finance-money.test.ts`, lulus di PGlite dan PostgreSQL 17.
 
 ## UI baru
 

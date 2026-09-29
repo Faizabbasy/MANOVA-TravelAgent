@@ -6,6 +6,7 @@ import { BackupError, backupDatabase, restoreDatabase } from '../src/db/backup'
 import { openDb } from '../src/db/client'
 import { migrateUp } from '../src/db/migrator'
 import { rehearseMigrations } from '../src/db/rehearsal'
+import { loadMigrations } from '../src/db/migrator'
 import { seedDemo } from '../src/db/seed-demo'
 
 const work = mkdtempSync(join(tmpdir(), 'manova-backup-'))
@@ -20,7 +21,7 @@ describe('backup and restore (PGlite)', () => {
       backupDir: join(work, 'rehearsal')
     })
     expect(steps).toHaveLength(6)
-    expect(steps.at(-1)).toContain('counts identical, schema v5, checksums verified')
+    expect(steps.at(-1)).toContain(`counts identical, schema v${loadMigrations().length}, checksums verified`)
   }, 60_000)
 
   test('restore refuses a tampered backup', async () => {

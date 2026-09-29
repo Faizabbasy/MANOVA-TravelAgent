@@ -159,3 +159,148 @@ export interface BookingRefDto {
 export function isInternalProject (project: ProjectDto): project is ProjectInternalDto {
   return 'partyId' in project
 }
+
+// ── Finance: accounts, cash book, statement, ledger (Phase 2) ────────────────────────────────────────
+
+export type ApiOpeningStatus = 'unset' | 'pending' | 'verified'
+export type ApiTransactionKind =
+  | 'customer_receipt' | 'vendor_refund' | 'other_income' | 'transfer_in'
+  | 'vendor_payment' | 'refund_settlement' | 'expense' | 'transfer_out' | 'transfer_fee'
+export type ApiExpenseCategory = 'payroll' | 'office' | 'marketing' | 'technology' | 'travel' | 'professional' | 'bank_fee' | 'tax' | 'other'
+
+export interface BankAccountDto {
+  id: string
+  code: string
+  bankName: string
+  holderName: string
+  /** Masked ("•••• 6789") unless the caller may manage bank accounts. */
+  accountNumber: string
+  currency: string
+  isActive: boolean
+  opening: {
+    status: ApiOpeningStatus
+    balanceMinor: MoneyMinor | null
+    date: IsoDate | null
+    note: string | null
+    submittedBy: string | null
+    submittedAt: IsoDateTime | null
+    verifiedBy: string | null
+    verifiedAt: IsoDateTime | null
+  }
+  /** `available: false` until the opening balance is verified — show "Belum tersedia", never Rp0. */
+  balance: { available: boolean; currentMinor: MoneyMinor | null; asOf: IsoDate }
+  provenance: ApiProvenance
+}
+
+export interface CashPositionDto {
+  asOf: IsoDate
+  available: boolean
+  reason: 'NO_ACCOUNTS' | 'OPENING_BALANCE_UNVERIFIED' | null
+  totalMinor: MoneyMinor
+  unverifiedAccountIds: string[]
+  accounts: { id: string; code: string; bankName: string; currency: string; openingStatus: ApiOpeningStatus; currentMinor: MoneyMinor | null }[]
+}
+
+export interface MovementDto {
+  id: string
+  account: { id: string; code: string; bankName: string }
+  direction: 'in' | 'out'
+  amountMinor: MoneyMinor
+  currency: string
+  kind: ApiTransactionKind
+  effectiveDate: IsoDate
+  postedAt: IsoDateTime
+  project: { id: string; name: string | null } | null
+  booking: { type: ApiBookingType; id: string } | null
+  party: { id: string; name: string | null } | null
+  vendor: { id: string; name: string | null } | null
+  counterparty: string | null
+  reference: string | null
+  memo: string | null
+  category: ApiExpenseCategory | null
+  transferId: string | null
+  /** Transfer legs between own accounts; excluded from operational in/out totals. */
+  isInternalTransfer: boolean
+  reversalOfId: string | null
+  reversalReason: string | null
+  reversedById: string | null
+  createdBy: { id: string; name: string }
+}
+
+export interface StatementList {
+  data: MovementDto[]
+  meta: ApiMeta & {
+    pagination: ApiPagination
+    period: { from: IsoDate; to: IsoDate }
+    summary: {
+      inMinor: MoneyMinor
+      outMinor: MoneyMinor
+      netMinor: MoneyMinor
+      internalTransferInMinor: MoneyMinor
+      internalTransferOutMinor: MoneyMinor
+      count: number
+    }
+  }
+}
+
+export type AccountLedgerDto =
+  | { available: false; reason: 'OPENING_BALANCE_UNVERIFIED'; account: { id: string; code: string; bankName: string; currency: string }; period: { from: IsoDate; to: IsoDate } }
+  | {
+      available: true
+      account: { id: string; code: string; bankName: string; currency: string }
+      period: { from: IsoDate; to: IsoDate; requestedFrom: IsoDate }
+      openingDate: IsoDate
+      openingMinor: MoneyMinor
+      inMinor: MoneyMinor
+      outMinor: MoneyMinor
+      closingMinor: MoneyMinor
+      items: (MovementDto & { balanceAfterMinor: MoneyMinor })[]
+    }
+
+export interface TransferDto {
+  id: string
+  fromAccountId: string
+  toAccountId: string
+  amountMinor: MoneyMinor
+  feeMinor: MoneyMinor
+  effectiveDate: IsoDate
+  memo: string | null
+  reversed: boolean
+  createdBy: string
+  createdAt: IsoDateTime
+  legs: MovementDto[]
+}
+
+export interface ManualTransactionInput {
+  bankAccountId: string
+  kind: 'other_income' | 'expense'
+  amountMinor: MoneyMinor
+  effectiveDate: IsoDate
+  category?: ApiExpenseCategory
+  projectId?: string
+  booking?: { type: ApiBookingType; id: string }
+  partyId?: string
+  vendorId?: string
+  counterparty?: string
+  reference?: string
+  memo?: string
+}
+
+export interface TransferInput {
+  fromAccountId: string
+  toAccountId: string
+  amountMinor: MoneyMinor
+  feeMinor?: MoneyMinor
+  effectiveDate: IsoDate
+  memo?: string
+}
+
+export interface StatementQuery extends PageQuery {
+  from?: IsoDate
+  to?: IsoDate
+  accountId?: string
+  projectId?: string
+  direction?: 'in' | 'out'
+  kind?: ApiTransactionKind
+  includeTransfers?: boolean
+}

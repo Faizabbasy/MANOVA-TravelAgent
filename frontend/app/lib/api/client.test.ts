@@ -105,6 +105,38 @@ describe('fetchTransport', () => {
   })
 })
 
+describe('createManovaApi — finance', () => {
+  it('sends an Idempotency-Key on every money-moving command and reuses a caller-supplied one', async () => {
+    const { calls, transport } = fakeTransport(201, { data: {}, meta: { requestId: 'r' } })
+    const api = createManovaApi(createApiClient({ baseURL: '/api/v1', transport }))
+    await api.finance.postTransaction({ bankAccountId: 'BA-001', kind: 'expense', category: 'office', amountMinor: '5000', effectiveDate: '2026-09-29' }, 'key-retry-12345')
+    await api.finance.postTransaction({ bankAccountId: 'BA-001', kind: 'expense', category: 'office', amountMinor: '5000', effectiveDate: '2026-09-29' }, 'key-retry-12345')
+    await api.finance.postTransfer({ fromAccountId: 'BA-001', toAccountId: 'BA-002', amountMinor: '1000', effectiveDate: '2026-09-29' })
+    await api.finance.reverseTransaction('TRX-000001', 'Salah input')
+    expect(calls.map(c => c.headers['idempotency-key'])).toEqual(['key-retry-12345', 'key-retry-12345', expect.any(String), expect.any(String)])
+    expect(calls[2]!.headers['idempotency-key']).not.toBe(calls[3]!.headers['idempotency-key'])
+    expect(calls.map(c => `${c.method} ${c.url}`)).toEqual([
+      'POST /api/v1/finance/transactions',
+      'POST /api/v1/finance/transactions',
+      'POST /api/v1/finance/transfers',
+      'POST /api/v1/finance/transactions/TRX-000001/reverse'
+    ])
+  })
+
+  it('maps reads with their filters', async () => {
+    const { calls, transport } = fakeTransport(200, { data: [], meta: { requestId: 'r', pagination: { limit: 50, nextCursor: null } } })
+    const api = createManovaApi(createApiClient({ baseURL: '/api/v1', transport }))
+    await api.finance.statement({ from: '2026-09-01', to: '2026-09-29', accountId: 'BA-001', includeTransfers: false })
+    await api.finance.accountLedger('BA-001', { from: '2026-09-01' })
+    await api.finance.verifyOpening('BA-001')
+    expect(calls.map(c => `${c.method} ${c.url}`)).toEqual([
+      'GET /api/v1/finance/statement?from=2026-09-01&to=2026-09-29&accountId=BA-001&includeTransfers=false',
+      'GET /api/v1/finance/accounts/BA-001/ledger?from=2026-09-01',
+      'POST /api/v1/finance/accounts/BA-001/opening/verify'
+    ])
+  })
+})
+
 describe('createManovaApi', () => {
   it('maps typed calls to the backend routes, encoding path segments', async () => {
     const { calls, transport } = fakeTransport(200, { data: {}, meta: { requestId: 'r', pagination: { limit: 25, nextCursor: null } } })

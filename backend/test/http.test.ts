@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { createApp } from '../src/app'
+import { loadMigrations } from '../src/db/migrator'
 import { ALLOWED_ORIGIN, DEMO, makeTestApp, TEST_PASSWORD, type TestApp } from './helpers'
 
 let t: TestApp
@@ -22,7 +23,7 @@ describe('health', () => {
       status: 'ok',
       service: 'manova-backend',
       timezone: 'Asia/Jakarta',
-      database: { reachable: true, schemaVersion: 5, latestVersion: 5, pendingMigrations: 0, migrationProblems: 0 }
+      database: { reachable: true, schemaVersion: loadMigrations().length, latestVersion: loadMigrations().length, pendingMigrations: 0, migrationProblems: 0 }
     })
   })
 
@@ -32,7 +33,7 @@ describe('health', () => {
       const res = await bare.call('GET', '/api/v1/health')
       expect(res.status).toBe(503)
       expect(res.json.data.status).toBe('degraded')
-      expect(res.json.data.database).toMatchObject({ reachable: true, schemaVersion: 0, pendingMigrations: 5 })
+      expect(res.json.data.database).toMatchObject({ reachable: true, schemaVersion: 0, pendingMigrations: loadMigrations().length })
     } finally {
       await bare.cleanup()
     }

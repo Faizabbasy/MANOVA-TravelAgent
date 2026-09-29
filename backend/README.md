@@ -66,5 +66,12 @@ All responses: `{ data, meta: { requestId } }` or `{ error: { code, message, fie
 | `GET /api/v1/projects`, `GET /api/v1/projects/:id` | scoped per role; portal roles get a reduced DTO |
 | `GET /api/v1/parties[/:id]`, `GET /api/v1/vendors[/:id]` | internal lists; portals read only their own record |
 | `GET /api/v1/service-orders/:id`, `GET /api/v1/bookings/:type/:id` | typed references (`flight`, `hotel`, `transport`, `mice`) |
+| `GET /api/v1/finance/cash-position` | verified cash per account and company total (unavailable, not zero, until openings are verified) |
+| `GET/POST /api/v1/finance/accounts`, `GET/PATCH /api/v1/finance/accounts/:id` | bank accounts (full number only for account managers) |
+| `POST /api/v1/finance/accounts/:id/opening`, `POST …/opening/verify` | opening balance: finance submits, a different super-admin verifies |
+| `GET /api/v1/finance/accounts/:id/ledger` | period ledger: opening, rows with running balance, closing |
+| `GET /api/v1/finance/statement` | posted movements with filters, operational totals (internal transfers excluded) |
+| `POST /api/v1/finance/transactions`, `POST …/transactions/:id/reverse` | other income / expense; reversal (Idempotency-Key required) |
+| `POST /api/v1/finance/transfers`, `POST …/transfers/:id/reverse`, `GET …/transfers/:id` | transfer + fee between own accounts (Idempotency-Key required) |
 
 Out-of-scope records return 404, exactly like missing ones.

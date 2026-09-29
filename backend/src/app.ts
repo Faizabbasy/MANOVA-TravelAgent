@@ -5,6 +5,7 @@ import { authRoutes } from './auth/routes'
 import { assignRequestId, requestIdOf } from './http/envelope'
 import { AppError, errorBody, type FieldErrors } from './http/errors'
 import { coreRoutes } from './modules/core/routes'
+import { financeRoutes } from './modules/finance/routes'
 import { healthRoutes } from './modules/health/routes'
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS'])
@@ -131,6 +132,7 @@ export function createApp(deps: AppDeps) {
     .use(healthRoutes(deps))
     .use(authRoutes(deps, auth))
     .use(coreRoutes(deps, auth))
+    .use(financeRoutes(deps, auth))
 }
 
 export type App = ReturnType<typeof createApp>

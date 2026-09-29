@@ -7,6 +7,10 @@ import { checksumOf, loadMigrations, migrateDown, migrateUp, migrationStatus, ty
 import { DEMO_CORE, SeedRefusedError, seedDemo } from '../src/db/seed-demo'
 import { makeTestDb } from './helpers'
 
+/** Derived from the migration files so adding a migration does not rewrite these tests. */
+const ALL_VERSIONS = loadMigrations().map(m => m.version)
+const LATEST = ALL_VERSIONS.length
+
 async function tableNames(db: Db): Promise<string[]> {
   const rows = await db.query<{ table_name: string }>(
     `select table_name from information_schema.tables where table_schema = current_schema() order by table_name`
@@ -54,8 +58,8 @@ describe('driver parity', () => {
 describe('migration files', () => {
   test('are contiguous pairs with CRLF-independent checksums', () => {
     const migrations = loadMigrations()
-    expect(migrations.map(m => m.version)).toEqual([1, 2, 3, 4, 5])
-    expect(migrations.map(m => m.name)).toEqual(['foundation', 'core_references', 'identity', 'three_roles', 'commercial_references'])
+    expect(migrations.map(m => m.version)).toEqual(Array.from({ length: LATEST }, (_, i) => i + 1))
+    expect(migrations.map(m => m.name).slice(0, 6)).toEqual(['foundation', 'core_references', 'identity', 'three_roles', 'commercial_references', 'finance_money_core'])
     const m = migrations[0]!
     expect(checksumOf(m.up.replace(/\n/g, '\r\n'))).toBe(m.checksum)
   })
@@ -82,30 +86,30 @@ describe('migration runner', () => {
 
   test('fresh database: applies every migration once, then is a no-op', async () => {
     const applied = await migrateUp(db)
-    expect(applied.map(m => m.version)).toEqual([1, 2, 3, 4, 5])
+    expect(applied.map(m => m.version)).toEqual(ALL_VERSIONS)
     expect(await migrateUp(db)).toEqual([])
     const status = await migrationStatus(db)
-    expect(status).toMatchObject({ current: 5, pending: [], problems: [] })
-    expect(await tableNames(db)).toEqual([
-      'audit_events', 'booking_refs', 'parties', 'project_members', 'project_services', 'projects',
-      'schema_migrations', 'service_orders', 'sessions', 'users', 'vendors'
-    ])
+    expect(status).toMatchObject({ current: LATEST, pending: [], problems: [] })
+    expect(await tableNames(db)).toEqual(expect.arrayContaining([
+      'audit_events', 'bank_accounts', 'booking_refs', 'financial_transactions', 'idempotency_keys', 'parties', 'project_members',
+      'project_services', 'projects', 'schema_migrations', 'service_orders', 'sessions', 'transfers', 'users', 'vendors'
+    ]))
   })
 
   test('rolls back step by step and to zero, leaving only the bookkeeping table', async () => {
-    expect((await migrateDown(db, { steps: 2 })).map(m => m.version)).toEqual([5, 4])
+    expect((await migrateDown(db, { to: 3 })).map(m => m.version)).toEqual(ALL_VERSIONS.filter(v => v > 3).reverse())
     expect(await tableNames(db)).toContain('users')
     expect((await migrateDown(db)).map(m => m.version)).toEqual([3])
     expect(await tableNames(db)).not.toContain('users')
     expect((await migrateDown(db, { to: 0 })).map(m => m.version)).toEqual([2, 1])
     expect(await tableNames(db)).toEqual(['schema_migrations'])
-    expect((await migrateUp(db)).map(m => m.version)).toEqual([1, 2, 3, 4, 5])
+    expect((await migrateUp(db)).map(m => m.version)).toEqual(ALL_VERSIONS)
   })
 
   test('migrate --to stops at the requested version', async () => {
     await migrateDown(db, { to: 0 })
     expect((await migrateUp(db, { to: 2 })).map(m => m.version)).toEqual([1, 2])
-    expect((await migrationStatus(db)).pending.map(m => m.version)).toEqual([3, 4, 5])
+    expect((await migrationStatus(db)).pending.map(m => m.version)).toEqual(ALL_VERSIONS.filter(v => v > 2))
     await migrateUp(db)
   })
 
