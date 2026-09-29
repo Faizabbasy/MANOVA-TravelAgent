@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Wallet, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2 } from 'lucide-vue-next'
+import { FileX, Users, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2 } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getUserById, getVendorById, getLeadById, getQuotationByLead,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
@@ -10,8 +10,7 @@ import {
   getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, createTravelerGroup,
   toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
-  getInvoicesByProject, getPaymentsByInvoice, getProjectOutstandingIdr, getCommittedVendorCostIdr,
-  getCreditNotesByProject, getDebitNotesByProject, getSupplierInvoicesByProject, evaluateFinanceClosureGate, closeProjectFinance,
+  getInvoicesByProject, closeProjectFinance,
   evaluateProjectClosureGate, closeProject, getProjectClosureSummary,
   getTasksByProject, getDocumentsByProject, getActivitiesByProject, getRisksByProject,
   createChangeEntry, approveChangeEntry, rejectChangeEntry,
@@ -32,7 +31,6 @@ import {
   getProjectOrderStepViews, advanceProjectOrder, getProjectMilestones,
   setMilestoneActualDate, updateMilestonePlannedDate, getProjectOrderStep
 } from '~/data/project-order-workflow'
-import { getProjectActualCostIdr, getJournalEntriesByProject, getLedgerAccount } from '~/data/finance-ext'
 import { serviceCapabilityKey } from '~/constants/capabilities'
 import {
   PROJECT_STATUSES, PROJECT_CHARACTERISTICS, PROJECT_ORDER_STATUSES, SERVICE_STATUSES, SERVICE_TYPES,
@@ -43,10 +41,9 @@ import {
   DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatTravelerCount, maskDocumentNumber } from '~/utils/format'
-import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, invoiceAgingDays, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE } from '~/utils/attention'
+import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ProjectStatus, ProjectClosureChecklist, ItineraryItem } from '~/types/project'
 import type { ChangeCategory, ProjectRiskSeverity, ProjectTask, ShiftPeriod } from '~/types/activity'
-import type { Invoice } from '~/types/finance'
 import type { MessageChannel } from '~/types/document-comms'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
@@ -602,59 +599,21 @@ const groups = computed(() => project.value ? getTravelerGroups(project.value.id
 const travelers = computed(() => project.value ? getTravelers(project.value.id) : [])
 const invoices = computed(() => project.value ? getInvoicesByProject(project.value.id) : [])
 
-/**
- * Role-based financial visibility (Section 15, hard rule "User tanpa finance access tidak melihat nilai
- * sensitif") — mengikuti `docs/mockup-data-scenarios.md` bagian 5 secara harfiah, seluruhnya reuse
- * `usePermissions()` existing tanpa mekanisme role-check baru:
- * - `canViewFinancials` (Super Admin/Management/Finance/PM/Viewer, `ROLE_MODULE_ACCESS.finance` VIEW+)
- *   menggerbangi breakdown Budget/Actual/Committed/Variance/invoice+payment penuh (Tier 1).
- * - Role di luar itu (Sales, Operations, Ticketing, Accommodation, Transportation, MICE — seluruhnya
- *   `finance: NONE`) hanya melihat nilai Quotation dan Outstanding ringkas (Tier 0).
- * - Margin dikecualikan khusus untuk Project Manager (docs bagian 5.1: "PM terbatas budget vs actual",
- *   tidak termasuk Margin) — satu-satunya pengecualian sempit tambahan yang dibutuhkan.
- */
-const canViewMargin = computed(() => canViewFinancials.value && can('project-order.view-margin'))
-const projectOutstandingIdr = computed(() => project.value ? getProjectOutstandingIdr(project.value.id) : 0)
-const committedVendorCostIdr = computed(() => project.value ? getCommittedVendorCostIdr(project.value.id) : 0)
-/**
- * Fase 3.2 (Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu) — `project.actualCostIdr`
- * adalah field statis yang tidak pernah diperbarui mutator apa pun (selalu `0` untuk project baru, lihat
- * `createProject`). Diganti selector turunan `getProjectActualCostIdr()` (Σ SupplierInvoice di luar
- * rejected + Σ Opex ber-project), sumber yang persis sama dengan jurnal — sehingga Actual Cost di sini dan
- * total akun 5100/6100 di Buku Besar tidak mungkin berbeda.
- */
-const actualCostIdr = computed(() => (project.value ? getProjectActualCostIdr(project.value.id) : 0))
-const marginIdr = computed(() => project.value ? project.value.quotationAmountIdr - actualCostIdr.value : 0)
-const varianceIdr = computed(() => project.value ? project.value.budgetIdr - actualCostIdr.value : 0)
 
 /** Section 20 — Credit/Debit Note, AP summary (Supplier Invoice), dan financial closure gate untuk project ini. */
 const canManageFinance = computed(() => canManage('finance'))
-const projectCreditNotes = computed(() => project.value ? getCreditNotesByProject(project.value.id) : [])
-const projectDebitNotes = computed(() => project.value ? getDebitNotesByProject(project.value.id) : [])
-const projectSupplierInvoices = computed(() => project.value ? getSupplierInvoicesByProject(project.value.id) : [])
-/** Fase 3.1 — section "Jurnal" tab Finance, reuse `getJournalEntriesByProject()` (sumber sama dengan Buku Besar `/finance/ledger`). */
-const projectJournalEntries = computed(() => (project.value ? getJournalEntriesByProject(project.value.id) : []))
-const financeClosureGate = computed(() => project.value ? evaluateFinanceClosureGate(project.value.id) : { ready: false, blockers: [] })
+/** Blockers computed by the live finance panel from server data (see FinanceProjectPanel). */
+const financePanel = ref<{ blockers: string[] } | null>(null)
 const isFinanceAlreadySettled = computed(() => !!project.value?.closureChecklist?.financeSettled)
 
 function submitCloseFinance () {
   if (!project.value) { return }
-  const result = closeProjectFinance(project.value.id, currentUser.value.id)
+  const serverBlockers = financePanel.value?.blockers ?? ['Data finance project belum termuat.']
+  const result = closeProjectFinance(project.value.id, currentUser.value.id, serverBlockers)
   if (result.success) { showToast('Finance Ditutup', `Finance project ${project.value.name} berhasil ditutup.`, 'success') } else { showToast('Belum Bisa Ditutup', `${result.blockers.length} blocker masih terbuka — lihat daftar di atas.`, 'error') }
 }
 
-function invoiceAgingLabel (invoice: Invoice) {
-  if (invoice.status === 'paid') { return 'Lunas' }
-  if (invoice.status === 'void') { return 'Void' }
-  const days = invoiceAgingDays(invoice)
-  if (days < 0) { return `${Math.abs(days)} hari overdue` }
-  if (days === 0) { return 'Jatuh tempo hari ini' }
-  return `Jatuh tempo dalam ${days} hari`
-}
 
-function paymentsForInvoice (invoiceId: string) {
-  return getPaymentsByInvoice(invoiceId)
-}
 const tasks = computed(() => project.value ? getTasksByProject(project.value.id) : [])
 const documents = computed(() => project.value ? getDocumentsByProject(project.value.id) : [])
 /** Section 21 (D-078) — union `Document` baru + `ProjectDocument` legacy di atas, dipakai tab "Documents" yang diperkaya (category/version/expiry/access level). `documents` legacy TETAP dipakai apa adanya untuk widget Overview "recentDocuments" (tidak diubah). */
@@ -1030,10 +989,10 @@ const summaryMetadata = computed(() => {
     { label: 'Status Internal', value: findStatusOption(PROJECT_STATUSES, project.value.status).label },
     { label: 'Jumlah Traveler', value: formatTravelerCount(project.value.travelerCount) },
     // Angka komersial hanya untuk role ber-`canViewFullFinancials` — dulu tampil ke semua role (FINANCE-DOMAIN-MAPPING R3).
+    // Biaya aktual tidak lagi dari mock: angka biaya/penerimaan sungguhan ada di tab Finance (API).
     ...(canViewFinancials.value
       ? [
           { label: 'Budget', value: formatCurrencyIdr(project.value.budgetIdr) },
-          { label: 'Actual Cost', value: formatCurrencyIdr(actualCostIdr.value) },
           { label: 'Nilai Quotation', value: formatCurrencyIdr(project.value.quotationAmountIdr) }
         ]
       : [])
@@ -1082,6 +1041,8 @@ const summaryMetadata = computed(() => {
 
       <SectionCard>
         <DetailMetadataList :items="summaryMetadata" />
+        <!-- Payment status from the Finance API: label only for Admin, same line for Finance (full figures in the Finance tab). -->
+        <FinancePaymentStatus :subject="{ type: 'project', id: project.id }" class="mt-4 border-t border-border pt-4" />
         <div class="mt-4 pt-4 border-t border-border">
           <p class="text-xs font-medium text-muted-foreground mb-2">
             Peta Lokasi
@@ -2497,254 +2458,14 @@ const summaryMetadata = computed(() => {
         </TabsContent>
 
         <TabsContent v-if="canSeeFinanceTab" value="finance">
-          <div class="space-y-6">
-            <template v-if="canViewFinancials">
-              <SectionCard title="Finance">
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
-                  <StatsCard title="Budget" :value="formatCurrencyIdr(project.budgetIdr)" :icon="Wallet" />
-                  <StatsCard title="Actual Cost" :value="formatCurrencyIdr(actualCostIdr)" :icon="Wallet" :icon-color="actualCostIdr > project.budgetIdr ? 'destructive' : 'success'" />
-                  <StatsCard title="Variance" :value="formatCurrencyIdr(varianceIdr)" :icon="Wallet" :icon-color="varianceIdr >= 0 ? 'success' : 'destructive'" />
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <StatsCard title="Nilai Quotation" :value="formatCurrencyIdr(project.quotationAmountIdr)" :icon="Wallet" icon-color="primary" />
-                  <StatsCard title="Committed Vendor Cost" :value="formatCurrencyIdr(committedVendorCostIdr)" :icon="Wallet" icon-color="warning" />
-                  <StatsCard v-if="canViewMargin" title="Margin" :value="formatCurrencyIdr(marginIdr)" :icon="Wallet" :icon-color="marginIdr >= 0 ? 'success' : 'destructive'" />
-                </div>
-              </SectionCard>
-
-              <SectionCard title="Invoice" :description="`Outstanding: ${formatCurrencyIdr(projectOutstandingIdr)}`">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Invoice</TableHead>
-                      <TableHead>Tipe</TableHead>
-                      <TableHead>Jumlah</TableHead>
-                      <TableHead>Jatuh Tempo</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Aging</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow v-for="invoice in invoices" :key="invoice.id">
-                      <TableCell class="text-foreground">
-                        {{ invoice.label }}
-                      </TableCell>
-                      <TableCell>
-                        <div class="flex flex-col gap-1">
-                          <StatusBadge :label="findStatusOption(INVOICE_TYPES, invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, invoice.invoiceType).tone" />
-                          <span v-if="invoice.currency !== 'IDR'" class="text-xs text-muted-foreground">{{ invoice.currency }}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{{ formatCurrencyIdr(invoice.amountIdr) }}</TableCell>
-                      <TableCell class="text-muted-foreground">
-                        {{ formatDate(invoice.dueAt) }}
-                      </TableCell>
-                      <TableCell>
-                        <StatusBadge
-                          :label="findStatusOption(INVOICE_STATUSES, invoice.status).label"
-                          :tone="findStatusOption(INVOICE_STATUSES, invoice.status).tone"
-                        />
-                      </TableCell>
-                      <TableCell :class="isInvoiceOverdue(invoice) ? 'text-destructive' : 'text-muted-foreground'">
-                        {{ invoiceAgingLabel(invoice) }}
-                      </TableCell>
-                    </TableRow>
-                    <TableEmpty v-if="invoices.length === 0" :colspan="6">
-                      Belum ada invoice.
-                    </TableEmpty>
-                  </TableBody>
-                </Table>
-                <p class="text-xs text-muted-foreground mt-3">
-                  Kelola pembuatan invoice, payment, void, dan Credit Note lengkap dari <NuxtLink to="/finance/invoices" class="text-primary hover:underline">
-                    Finance &gt; Invoices
-                  </NuxtLink>.
-                </p>
-              </SectionCard>
-
-              <SectionCard title="Riwayat Pembayaran">
-                <div v-if="invoices.some(invoice => paymentsForInvoice(invoice.id).length)" class="space-y-4">
-                  <template v-for="invoice in invoices" :key="invoice.id">
-                    <div v-if="paymentsForInvoice(invoice.id).length">
-                      <p class="text-xs font-medium text-muted-foreground mb-2">
-                        {{ invoice.label }}
-                      </p>
-                      <ul class="divide-y divide-border">
-                        <li v-for="payment in paymentsForInvoice(invoice.id)" :key="payment.id" class="py-2 flex items-center justify-between gap-3">
-                          <span class="text-sm text-foreground">{{ formatCurrencyIdr(payment.amountIdr) }}<span v-if="payment.method" class="text-xs text-muted-foreground"> ({{ payment.method }})</span></span>
-                          <span class="text-xs text-muted-foreground">{{ formatDate(payment.receivedAt) }}</span>
-                        </li>
-                      </ul>
-                    </div>
-                  </template>
-                </div>
-                <EmptyState v-else title="Belum ada payment tercatat" />
-              </SectionCard>
-
-              <SectionCard title="Credit / Debit Notes" description="Kelola dari Finance &gt; Credit/Debit Notes.">
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p class="text-xs font-medium text-muted-foreground mb-2">
-                      Credit Notes
-                    </p>
-                    <ul v-if="projectCreditNotes.length" class="divide-y divide-border">
-                      <li v-for="note in projectCreditNotes" :key="note.id" class="py-2">
-                        <div class="flex items-center justify-between gap-2">
-                          <span class="text-sm text-foreground">{{ note.id }} — {{ formatCurrencyIdr(note.amountIdr) }}</span>
-                          <StatusBadge :label="findStatusOption(CREDIT_NOTE_STATUSES, note.status).label" :tone="findStatusOption(CREDIT_NOTE_STATUSES, note.status).tone" />
-                        </div>
-                        <p class="text-xs text-muted-foreground mt-0.5">
-                          {{ note.reason }}
-                        </p>
-                      </li>
-                    </ul>
-                    <p v-else class="text-xs text-muted-foreground">
-                      Belum ada Credit Note.
-                    </p>
-                  </div>
-                  <div>
-                    <p class="text-xs font-medium text-muted-foreground mb-2">
-                      Debit Notes
-                    </p>
-                    <ul v-if="projectDebitNotes.length" class="divide-y divide-border">
-                      <li v-for="note in projectDebitNotes" :key="note.id" class="py-2">
-                        <div class="flex items-center justify-between gap-2">
-                          <span class="text-sm text-foreground">{{ note.id }} — {{ formatCurrencyIdr(note.amountIdr) }}</span>
-                          <StatusBadge :label="findStatusOption(DEBIT_NOTE_STATUSES, note.status).label" :tone="findStatusOption(DEBIT_NOTE_STATUSES, note.status).tone" />
-                        </div>
-                        <p class="text-xs text-muted-foreground mt-0.5">
-                          {{ note.reason }}
-                        </p>
-                      </li>
-                    </ul>
-                    <p v-else class="text-xs text-muted-foreground">
-                      Belum ada Debit Note.
-                    </p>
-                  </div>
-                </div>
-              </SectionCard>
-
-              <SectionCard title="AP Summary (Supplier Invoice)" description="Reconciliation lengkap di Finance &gt; Reconciliation.">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Supplier Invoice</TableHead>
-                      <TableHead>Vendor</TableHead>
-                      <TableHead>Jumlah</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Match Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow v-for="supplierInvoice in projectSupplierInvoices" :key="supplierInvoice.id">
-                      <TableCell class="text-foreground">
-                        {{ supplierInvoice.id }}
-                      </TableCell>
-                      <TableCell class="text-muted-foreground">
-                        {{ getVendorById(supplierInvoice.vendorId)?.name ?? supplierInvoice.vendorId }}
-                      </TableCell>
-                      <TableCell>{{ formatCurrencyIdr(supplierInvoice.amountIdr) }}</TableCell>
-                      <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).tone" /></TableCell>
-                      <TableCell>
-                        <StatusBadge v-if="supplierInvoice.matchStatus" :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).label" :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).tone" />
-                        <span v-else class="text-xs text-muted-foreground">Belum ditriase</span>
-                      </TableCell>
-                    </TableRow>
-                    <TableEmpty v-if="projectSupplierInvoices.length === 0" :colspan="5">
-                      Belum ada Supplier Invoice untuk project ini.
-                    </TableEmpty>
-                  </TableBody>
-                </Table>
-              </SectionCard>
-
-              <SectionCard title="Jurnal" description="Entri jurnal project ini — diturunkan langsung dari invoice, payment, supplier invoice, credit note, dan opex di atas. Reuse tabel yang sama dengan Finance &gt; Buku Besar.">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Tanggal</TableHead>
-                      <TableHead>Keterangan</TableHead>
-                      <TableHead>Akun</TableHead>
-                      <TableHead class="text-right">
-                        Debit
-                      </TableHead>
-                      <TableHead class="text-right">
-                        Kredit
-                      </TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <template v-for="entry in projectJournalEntries" :key="entry.id">
-                      <TableRow v-for="(line, index) in entry.lines" :key="`${entry.id}-${index}`">
-                        <TableCell class="text-sm text-muted-foreground">
-                          {{ index === 0 ? formatDate(entry.date) : '' }}
-                        </TableCell>
-                        <TableCell class="text-sm text-foreground">
-                          {{ index === 0 ? entry.description : '' }}
-                        </TableCell>
-                        <TableCell class="text-sm">
-                          <span class="font-mono text-muted-foreground">{{ line.accountCode }}</span>
-                          <span class="text-foreground ml-1.5">{{ getLedgerAccount(line.accountCode)?.name }}</span>
-                        </TableCell>
-                        <TableCell class="text-right text-sm" :class="line.debitIdr ? 'text-foreground' : 'text-muted-foreground'">
-                          {{ line.debitIdr ? formatCurrencyIdr(line.debitIdr) : '—' }}
-                        </TableCell>
-                        <TableCell class="text-right text-sm" :class="line.creditIdr ? 'text-foreground' : 'text-muted-foreground'">
-                          {{ line.creditIdr ? formatCurrencyIdr(line.creditIdr) : '—' }}
-                        </TableCell>
-                      </TableRow>
-                    </template>
-                    <TableEmpty v-if="projectJournalEntries.length === 0" :colspan="5">
-                      Belum ada entri jurnal untuk project ini.
-                    </TableEmpty>
-                  </TableBody>
-                </Table>
-                <p class="text-xs text-muted-foreground mt-3">
-                  Lihat seluruh jurnal company (lintas project) di <NuxtLink to="/finance/ledger" class="text-primary hover:underline">
-                    Finance &gt; Buku Besar
-                  </NuxtLink>.
-                </p>
-              </SectionCard>
-
-              <SectionCard title="Close Finance" description="Financial closure gate — mengisi Closure Checklist &quot;Finance diselesaikan&quot;.">
-                <template v-if="isFinanceAlreadySettled">
-                  <p class="text-sm text-success flex items-center gap-1.5">
-                    <CheckCircle2 class="h-4 w-4" />Finance project ini sudah ditutup.
-                  </p>
-                </template>
-                <template v-else>
-                  <template v-if="financeClosureGate.ready">
-                    <p class="text-sm text-success mb-3 flex items-center gap-1.5">
-                      <CheckCircle2 class="h-4 w-4" />Tidak ada blocker — siap Close Finance.
-                    </p>
-                  </template>
-                  <template v-else>
-                    <p class="text-sm text-muted-foreground mb-2">
-                      Blocker yang harus diselesaikan sebelum Close Finance:
-                    </p>
-                    <ul class="list-disc list-inside text-sm text-destructive mb-3">
-                      <li v-for="(blocker, index) in financeClosureGate.blockers" :key="index">
-                        {{ blocker }}
-                      </li>
-                    </ul>
-                  </template>
-                  <Button v-if="canManageFinance" size="sm" :disabled="!financeClosureGate.ready" @click="submitCloseFinance">
-                    Close Finance
-                  </Button>
-                </template>
-              </SectionCard>
-            </template>
-
-            <template v-else>
-              <SectionCard title="Finance">
-                <p class="text-xs text-muted-foreground mb-4">
-                  Ringkasan terbatas — detail Budget, Actual Cost, Committed Vendor Cost, dan Margin hanya terlihat oleh role dengan akses modul Finance.
-                </p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <StatsCard title="Nilai Quotation" :value="formatCurrencyIdr(project.quotationAmountIdr)" :icon="Wallet" icon-color="primary" />
-                  <StatsCard title="Outstanding" :value="formatCurrencyIdr(projectOutstandingIdr)" :icon="Wallet" icon-color="warning" />
-                </div>
-              </SectionCard>
-            </template>
-          </div>
+          <!-- Live finance of this project (Phase 4): same API as the Finance screens, no mock figures. -->
+          <FinanceProjectPanel
+            ref="financePanel"
+            :project-id="project.id"
+            :settled="isFinanceAlreadySettled"
+            :can-close="canManageFinance"
+            @close="submitCloseFinance"
+          />
         </TabsContent>
 
         <TabsContent value="tasks">

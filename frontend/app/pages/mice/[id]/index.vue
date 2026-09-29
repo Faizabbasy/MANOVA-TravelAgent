@@ -462,6 +462,9 @@ function submitAddDeliverable () {
         </Table>
       </SectionCard>
 
+      <!-- Finance context from the API (Phase 4): status for everyone, figures for Finance. -->
+      <FinanceContextPanel :subject="{ type: 'booking', bookingType: 'mice', id: event.id }" />
+
       <SectionCard title="BOQ (Bill of Quantities)" description="Catering, AV, staging, equipment, booth, dan vendor package.">
         <template v-if="canManageMice" #actions>
           <Button size="sm" variant="outline" @click="openBoqDialog">

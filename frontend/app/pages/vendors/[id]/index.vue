@@ -228,6 +228,9 @@ function submitQuotation () {
         </TabsList>
 
         <TabsContent value="overview">
+          <!-- Vendor invoices & payments from the Finance API (Phase 4). -->
+          <FinanceContextPanel :subject="{ type: 'vendor', id: vendor.id }" title="Tagihan vendor" />
+
           <SectionCard title="Aktivitas Terbaru">
             <ul v-if="activities.length" class="divide-y divide-border">
               <li v-for="activity in activities.slice(0, 5)" :key="activity.id" class="py-3">

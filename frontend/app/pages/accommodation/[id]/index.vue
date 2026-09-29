@@ -332,6 +332,9 @@ function submitEdit () {
         <EmptyState v-else title="Belum ada traveler ditugaskan" />
       </SectionCard>
 
+      <!-- Finance context from the API (Phase 4): status for everyone, figures for Finance. -->
+      <FinanceContextPanel :subject="{ type: 'booking', bookingType: 'hotel', id: booking.id }" />
+
       <SectionCard title="Financial" description="Cancellation deadline, penalty, dan dampak finansial.">
         <div class="grid gap-3 sm:grid-cols-3 mb-3">
           <div v-if="canViewAccommodationFinancials" class="rounded-lg border border-border p-3">

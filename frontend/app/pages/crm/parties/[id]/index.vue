@@ -241,6 +241,9 @@ function submitActivity () {
         </TabsContent>
 
         <TabsContent value="contacts">
+          <!-- Customer receivables from the Finance API (Phase 4). -->
+          <FinanceContextPanel :subject="{ type: 'party', id: party.id }" title="Tagihan customer" />
+
           <SectionCard title="Contacts">
             <template #actions>
               <Dialog v-if="canManageParty" v-model:open="isContactDialogOpen">

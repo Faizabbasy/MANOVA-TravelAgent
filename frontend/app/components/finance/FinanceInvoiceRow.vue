@@ -27,14 +27,17 @@ const pct = computed(() => {
     <div class="min-w-0 flex-1">
       <div class="flex items-center gap-2">
         <p class="truncate text-sm font-semibold">
-          {{ showParty ? invoice.party.name : invoice.project.name }}
+          {{ showParty ? invoice.party.name : `${INVOICE_TYPE_LABEL[invoice.invoiceType]} · ${invoice.number ?? 'Draft'}` }}
         </p>
         <StatusBadge :label="tag.label" :tone="tag.tone" class="max-sm:hidden" />
       </div>
       <p class="truncate text-xs text-muted-foreground">
         <template v-if="showParty">
-          {{ invoice.project.name }} ·
-        </template>{{ INVOICE_TYPE_LABEL[invoice.invoiceType] }} · {{ invoice.number ?? 'Draft' }}
+          {{ invoice.project.name }} · {{ INVOICE_TYPE_LABEL[invoice.invoiceType] }} · {{ invoice.number ?? 'Draft' }}
+        </template>
+        <template v-else>
+          {{ invoice.issueDate ? `Terbit ${formatBusinessDate(invoice.issueDate, { short: true, today })}` : 'Belum diterbitkan' }}
+        </template>
       </p>
       <p v-if="invoice.status === 'issued' && !settled" class="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-xs sm:hidden">
         <span :class="due.tone === 'destructive' ? 'font-medium text-destructive' : due.tone === 'warning' ? 'font-medium text-warning' : 'text-muted-foreground'">{{ due.label }}</span>

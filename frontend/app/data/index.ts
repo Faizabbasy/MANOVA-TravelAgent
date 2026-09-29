@@ -467,19 +467,17 @@ export interface FinanceClosureGateResult {
  * terisi tapi bukan `matched`. Dipakai `closeProjectFinance` (gate) dan ditampilkan di `/finance` (agregat)
  * dan tab Finance Project Detail.
  */
-export function evaluateFinanceClosureGate (projectId: string): FinanceClosureGateResult {
-  const blockers: string[] = []
-
-  const outstandingInvoiceCount = getInvoicesByProject(projectId).filter(invoice => getInvoiceOutstandingIdr(invoice.id) > 0).length
-  if (outstandingInvoiceCount > 0) { blockers.push(`${outstandingInvoiceCount} invoice masih memiliki outstanding balance.`) }
+/**
+ * Phase 4: invoices, vendor invoices and billing now live in the Finance API, so their blockers are computed
+ * from server data by the caller (`FinanceProjectPanel`) and passed in as `serverBlockers`. Refund requests
+ * are still mock data until Phase 5 and are checked here, so the gate is neither weaker nor stricter.
+ */
+export function evaluateFinanceClosureGate (projectId: string, serverBlockers: string[]): FinanceClosureGateResult {
+  const blockers: string[] = [...serverBlockers]
 
   const nonTerminalRefundCount = getRefundRequestsByProject(projectId)
     .filter(request => request.status === 'requested' || request.status === 'under-review' || request.status === 'approved').length
   if (nonTerminalRefundCount > 0) { blockers.push(`${nonTerminalRefundCount} Refund Request belum selesai (belum processed/rejected).`) }
-
-  const unmatchedSupplierInvoiceCount = getSupplierInvoicesByProject(projectId)
-    .filter(invoice => invoice.matchStatus && invoice.matchStatus !== 'matched').length
-  if (unmatchedSupplierInvoiceCount > 0) { blockers.push(`${unmatchedSupplierInvoiceCount} Supplier Invoice (AP) belum matched.`) }
 
   return { ready: blockers.length === 0, blockers }
 }
@@ -491,8 +489,8 @@ export function evaluateFinanceClosureGate (projectId: string): FinanceClosureGa
  * `ready: true` — bila tidak, mengembalikan blockers tanpa mengubah apa pun (UI wajib menampilkan daftar
  * blocker, bukan membiarkan aksi silent-fail).
  */
-export function closeProjectFinance (projectId: string, actorId: string): { success: boolean; blockers: string[] } {
-  const gate = evaluateFinanceClosureGate(projectId)
+export function closeProjectFinance (projectId: string, actorId: string, serverBlockers: string[]): { success: boolean; blockers: string[] } {
+  const gate = evaluateFinanceClosureGate(projectId, serverBlockers)
   if (!gate.ready) { return { success: false, blockers: gate.blockers } }
   const updated = updateProjectClosureChecklist(projectId, { financeSettled: true })
   if (!updated) { return { success: false, blockers: ['Project tidak ditemukan.'] } }
