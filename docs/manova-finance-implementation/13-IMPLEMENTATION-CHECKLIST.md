@@ -66,6 +66,7 @@ Status awal semua belum dikerjakan. Centang hanya dengan bukti file/test/route. 
 
 - [ ] Permission negative tests untuk role/ID tampering, proof access, audit trace.
 - [ ] Numeric reconciliation dan E2E journeys `10-TESTING-AND-ACCEPTANCE-CRITERIA.md` lulus.
+  Progress (Phase 8): fixture terkontrol `test/finance-acceptance.test.ts` (2 rekening, 2 project, customer A/B, vendor hotel/airline, DP parsial, pelunasan, policy 4 tier, refund H-7, transfer + biaya per arah, reversal) — semua angka dihitung tangan dan cocok di PGlite + PostgreSQL 17: kas = jumlah rekening, ledger berantai, statement tanpa transfer internal/pasangan batal, AR/AP = jumlah baris, cash flow berantai = item, dashboard = ringkasan project = laporan bulanan. Sisa: regresi alur non-finance.
 - [ ] Browser desktop/tablet/mobile, keyboard/accessibility, deep-link redirects.
   Status: desktop 1440 dan mobile 390 + keyboard diuji di Phase 7. Belum: lebar tablet dan screen reader sungguhan.
 - [ ] Data migration/cutover rehearsal, backup/restore, no destructive seed.
