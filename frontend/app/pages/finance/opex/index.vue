@@ -1,12 +1,9 @@
 <script setup lang="ts">
 /**
- * Redirect (Penyederhanaan 7-Role/Menu) — Opex melebur jadi section "Opex" di `/finance/payables`, lihat
- * `app/components/finance/OpexPanel.vue`. Redirect ke anchor `#opex` (section bertumpuk, bukan tab). Route
- * lama dipertahankan sebagai redirect murni.
+ * Redirect: operating expenses are cash postings now (kind "expense"), listed in the account statement
+ * (finance-consumer-matrix.md §C maps the old Opex page to Payables, which links here too).
  */
-definePageMeta({ layout: 'dashboard', middleware: 'auth' })
-const route = useRoute()
-await navigateTo({ path: '/finance/payables', query: route.query, hash: '#opex' })
+definePageMeta({ redirect: '/finance/statement?kind=expense' })
 </script>
 
 <template>

@@ -33,7 +33,10 @@ function signInAgain () {
   <div class="mx-auto w-full max-w-[1400px] space-y-6">
     <PageHeader :title="title" :description="description" :breadcrumb="breadcrumb ?? [{ label: 'Finance', to: '/finance' }, { label: title }]">
       <template v-if="$slots.actions && status === 'ready' && allowed" #actions>
-        <slot name="actions" />
+        <!-- Phones: actions share the full width instead of overflowing the screen -->
+        <div class="flex w-full flex-wrap gap-2 max-sm:[&>*]:flex-1">
+          <slot name="actions" />
+        </div>
       </template>
     </PageHeader>
 

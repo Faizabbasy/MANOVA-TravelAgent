@@ -142,7 +142,7 @@ function resetFilters () { partyId.value = null; projectId.value = null }
         <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
           <AlarmClock class="h-3.5 w-3.5 text-destructive" /> Terlambat
         </p>
-        <FinanceAmount v-if="totals.data.value" :value="totals.data.value.open.overdueMinor" class="mt-1 block text-lg font-semibold text-destructive" />
+        <FinanceAmount v-if="totals.data.value" :value="totals.data.value.open.overdueMinor" class="mt-1 block text-lg font-semibold" :class="totals.data.value.open.overdueMinor !== '0' && 'text-destructive'" />
         <div v-else class="mt-2 h-6 w-28 animate-pulse rounded bg-muted" />
         <p class="text-xs text-muted-foreground">
           {{ totals.data.value?.overdueCount ?? '…' }} invoice

@@ -106,7 +106,7 @@ export const NAV_ITEMS: NavItem[] = [
     children: [
       { key: 'finance.overview', label: 'Ringkasan', to: '/finance', icon: Wallet, moduleKey: 'finance-acc' },
       { key: 'finance.receivables', label: 'Piutang Customer', to: '/finance/receivables', icon: ArrowDownToLine, moduleKey: 'finance-acc' },
-      { key: 'finance.payables', label: 'Hutang & Opex', to: '/finance/payables', icon: ArrowUpFromLine, moduleKey: 'finance-acc' },
+      { key: 'finance.payables', label: 'Utang Vendor', to: '/finance/payables', icon: ArrowUpFromLine, moduleKey: 'finance-acc' },
       { key: 'finance.statement', label: 'Mutasi Rekening', to: '/finance/statement', icon: ArrowLeftRight, moduleKey: 'finance-acc' },
       { key: 'finance.accounts', label: 'Rekening & Saldo', to: '/finance/accounts', icon: Landmark, moduleKey: 'finance-acc' }
     ]
@@ -238,7 +238,6 @@ export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   { key: 'hidden.mice', label: 'MICE', to: '/mice', moduleKey: 'operations' },
 
   // Finance & ACC
-  { key: 'hidden.finance-opex', label: 'Opex', to: '/finance/opex', moduleKey: 'finance-acc' },
 
   // Sales (corong lama, kini tab Pipeline) + Produk & Costing lama
   { key: 'hidden.customer-journey', label: 'Customer Journey', to: '/customer-journey', moduleKey: 'sales' },

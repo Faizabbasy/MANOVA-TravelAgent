@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, ChevronRight, Inbox, Loader2, SearchX, Undo2 } from 'lucide-vue-next'
-import type { MovementDto, StatementList } from '~/types/api'
+import type { ApiTransactionKind, MovementDto, StatementList } from '~/types/api'
 import type { PeriodPreset } from '~/lib/finance/types'
 import { formatBusinessDate, formatBusinessDateLong, startOfMonth, todayJakarta } from '~/lib/finance/dates'
-import { movementSubtitle, movementTitle } from '~/lib/finance/labels'
+import { KIND_LABEL, movementSubtitle, movementTitle } from '~/lib/finance/labels'
 import { cn } from '~/lib/utils'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -24,6 +24,8 @@ const to = ref(today)
 const accountId = ref<string | null>(typeof route.query.accountId === 'string' ? route.query.accountId : null)
 const projectId = ref<string | null>(typeof route.query.projectId === 'string' ? route.query.projectId : null)
 const direction = ref<'all' | 'in' | 'out'>('all')
+/** Deep link filter (e.g. ?kind=expense from Utang Vendor). */
+const kind = ref<ApiTransactionKind | null>(typeof route.query.kind === 'string' && route.query.kind in KIND_LABEL ? route.query.kind as ApiTransactionKind : null)
 const showTransfers = ref(false)
 
 const PAGE = 50
@@ -34,8 +36,9 @@ const statement = useFinanceQuery(() => api.finance.statement({
   projectId: projectId.value ?? undefined,
   direction: direction.value === 'all' ? undefined : direction.value,
   includeTransfers: showTransfers.value,
+  kind: kind.value ?? undefined,
   limit: PAGE
-}), { watch: [from, to, accountId, projectId, direction, showTransfers] })
+}), { watch: [from, to, accountId, projectId, direction, showTransfers, kind] })
 
 /** Extra pages appended by "Muat lebih banyak"; reset whenever the first page reloads. */
 const more = ref<MovementDto[]>([])
@@ -56,6 +59,7 @@ async function loadMore () {
       projectId: projectId.value ?? undefined,
       direction: direction.value === 'all' ? undefined : direction.value,
       includeTransfers: showTransfers.value,
+      kind: kind.value ?? undefined,
       limit: PAGE,
       cursor: nextCursor.value
     })
@@ -69,7 +73,7 @@ async function loadMore () {
 const items = computed(() => [...(statement.data.value?.data ?? []), ...more.value])
 const summary = computed(() => statement.data.value?.meta.summary ?? null)
 const period = computed(() => statement.data.value?.meta.period ?? null)
-const filtered = computed(() => !!accountId.value || !!projectId.value || direction.value !== 'all')
+const filtered = computed(() => !!accountId.value || !!projectId.value || direction.value !== 'all' || !!kind.value)
 
 /** Group rows under a date heading (list is newest first). */
 const groups = computed(() => {
@@ -93,6 +97,7 @@ function resetFilters () {
   accountId.value = null
   projectId.value = null
   direction.value = 'all'
+  kind.value = null
 }
 </script>
 
@@ -124,6 +129,15 @@ function resetFilters () {
         <div class="w-full sm:w-64">
           <FinanceSelect v-model="projectId" :options="lookups.projectOptions.value" clear-label="Semua project" placeholder="Semua project" aria-label="Project" />
         </div>
+        <button
+          v-if="kind"
+          type="button"
+          class="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 px-3 py-1 text-xs font-medium text-primary"
+          :aria-label="`Hapus filter ${KIND_LABEL[kind]}`"
+          @click="kind = null"
+        >
+          Hanya: {{ KIND_LABEL[kind] }} <span aria-hidden="true">×</span>
+        </button>
         <label class="ml-auto flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">
           <Checkbox v-model="showTransfers" />
           Tampilkan transfer antar rekening
