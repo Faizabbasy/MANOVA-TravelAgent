@@ -3,8 +3,9 @@ import type { AppDeps } from './app-deps'
 import { createAuthContext } from './auth/context'
 import { authRoutes } from './auth/routes'
 import { assignRequestId, requestIdOf } from './http/envelope'
-import { AppError, errorBody, type FieldErrors } from './http/errors'
+import { AppError, errorBody, errors, type FieldErrors } from './http/errors'
 import { coreRoutes } from './modules/core/routes'
+import { isFinancePath, mayReachFinanceRoute } from './modules/finance/access'
 import { financeRoutes } from './modules/finance/routes'
 import { arApRoutes } from './modules/finance/routes-ar-ap'
 import { refundRoutes } from './modules/finance/routes-refunds'
@@ -130,6 +131,14 @@ export function createApp(deps: AppDeps) {
         status: set.status,
         durationMs: started === undefined ? undefined : Math.round(performance.now() - started)
       })
+    })
+    // Finance: who may reach the route is decided before the body is validated, so a caller without access
+    // gets 401/403, never a 400 describing the fields. Handlers still check the exact capability.
+    .onTransform({ as: 'global' }, async ({ request }) => {
+      const pathname = new URL(request.url).pathname
+      if (!isFinancePath(pathname)) return
+      const actor = await auth.requireActor(request)
+      if (!mayReachFinanceRoute(actor.role, request.method, pathname)) throw errors.forbidden()
     })
     .use(healthRoutes(deps))
     .use(authRoutes(deps, auth))
