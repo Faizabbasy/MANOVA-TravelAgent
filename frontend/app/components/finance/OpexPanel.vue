@@ -201,8 +201,12 @@ function setStatus (entry: OpexEntry, status: OpexEntry['status']) {
                   {{ entry.description }}
                 </p>
                 <p class="text-xs text-muted-foreground">
-                  <template v-if="entry.vendorName">{{ entry.vendorName }} · </template>
-                  <template v-if="entry.submittedBy">diajukan {{ getUserById(entry.submittedBy)?.name ?? entry.submittedBy }}</template>
+                  <template v-if="entry.vendorName">
+                    {{ entry.vendorName }} ·
+                  </template>
+                  <template v-if="entry.submittedBy">
+                    diajukan {{ getUserById(entry.submittedBy)?.name ?? entry.submittedBy }}
+                  </template>
                 </p>
                 <NuxtLink
                   v-if="entry.projectId"

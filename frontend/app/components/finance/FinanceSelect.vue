@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { Check } from 'lucide-vue-next'
+import { SelectItem as RekaSelectItem, SelectItemIndicator, SelectItemText } from 'reka-ui'
 import { cn } from '~/lib/utils'
 import type { FinanceOption } from '~/lib/finance/types'
 
@@ -32,9 +34,20 @@ const selected = computed({
       <SelectItem v-if="clearLabel" :value="CLEAR">
         <span class="text-muted-foreground">{{ clearLabel }}</span>
       </SelectItem>
-      <SelectItem v-for="option in options" :key="option.value" :value="option.value" :disabled="option.disabled">
-        {{ option.label }}<span v-if="option.hint" class="ml-1.5 text-xs text-muted-foreground">{{ option.hint }}</span>
-      </SelectItem>
+      <!-- Only the label is the item text (shown in the trigger); the hint appears in the list only. -->
+      <RekaSelectItem
+        v-for="option in options"
+        :key="option.value"
+        :value="option.value"
+        :disabled="option.disabled"
+        class="relative flex w-full cursor-default select-none items-center justify-between gap-3 rounded-sm py-2 pl-2 pr-8 text-sm outline-none focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50"
+      >
+        <span class="absolute right-2 flex h-3.5 w-3.5 items-center justify-center">
+          <SelectItemIndicator><Check class="h-4 w-4" /></SelectItemIndicator>
+        </span>
+        <SelectItemText>{{ option.label }}</SelectItemText>
+        <span v-if="option.hint" class="shrink-0 text-xs tabular-nums text-muted-foreground">{{ option.hint }}</span>
+      </RekaSelectItem>
     </SelectContent>
   </Select>
 </template>

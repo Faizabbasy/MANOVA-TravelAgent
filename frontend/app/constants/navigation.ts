@@ -25,6 +25,7 @@ import {
   ArrowDownToLine,
   ArrowUpFromLine,
   Landmark,
+  ArrowLeftRight,
   UserCog,
   Megaphone
 } from 'lucide-vue-next'
@@ -106,7 +107,7 @@ export const NAV_ITEMS: NavItem[] = [
       { key: 'finance.overview', label: 'Ringkasan', to: '/finance', icon: Wallet, moduleKey: 'finance-acc' },
       { key: 'finance.invoices', label: 'Invoice & Piutang', to: '/finance/invoices', icon: ArrowDownToLine, moduleKey: 'finance-acc' },
       { key: 'finance.payables', label: 'Hutang & Opex', to: '/finance/payables', icon: ArrowUpFromLine, moduleKey: 'finance-acc' },
-      { key: 'finance.payments', label: 'Pembayaran & Rekonsiliasi', to: '/finance/payments', icon: Wallet, moduleKey: 'finance-acc' },
+      { key: 'finance.statement', label: 'Mutasi Rekening', to: '/finance/statement', icon: ArrowLeftRight, moduleKey: 'finance-acc' },
       { key: 'finance.accounts', label: 'Rekening & Saldo', to: '/finance/accounts', icon: Landmark, moduleKey: 'finance-acc' }
     ]
   },
@@ -240,7 +241,6 @@ export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   { key: 'hidden.finance-receivables', label: 'Receivables (AR)', to: '/finance/receivables', moduleKey: 'finance-acc' },
   { key: 'hidden.finance-notes', label: 'Credit/Debit Notes', to: '/finance/notes', moduleKey: 'finance-acc' },
   { key: 'hidden.finance-opex', label: 'Opex', to: '/finance/opex', moduleKey: 'finance-acc' },
-  { key: 'hidden.finance-reconciliation', label: 'Reconciliation', to: '/finance/reconciliation', moduleKey: 'finance-acc' },
 
   // Sales (corong lama, kini tab Pipeline) + Produk & Costing lama
   { key: 'hidden.customer-journey', label: 'Customer Journey', to: '/customer-journey', moduleKey: 'sales' },
