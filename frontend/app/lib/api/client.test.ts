@@ -137,6 +137,47 @@ describe('createManovaApi — finance', () => {
   })
 })
 
+describe('createManovaApi — receivables & payables', () => {
+  it('money commands carry idempotency keys; document commands do not need one', async () => {
+    const { calls, transport } = fakeTransport(201, { data: {}, meta: { requestId: 'r' } })
+    const api = createManovaApi(createApiClient({ baseURL: '/api/v1', transport }))
+    await api.finance.postReceipt({ bankAccountId: 'BA-001', amountMinor: '200000000', effectiveDate: '2026-09-29', partyId: 'PTY-005', allocations: [{ invoiceId: 'CINV-00001', amountMinor: '200000000' }] })
+    await api.finance.allocateReceipt('TRX-000002', [{ invoiceId: 'CINV-00002', amountMinor: '6000000' }], 'retry-key-123')
+    await api.finance.postVendorPayment({ bankAccountId: 'BA-001', amountMinor: '5000000', effectiveDate: '2026-09-29', vendorId: 'VND-006' })
+    await api.finance.issueInvoice('CINV-00001', { dueDate: '2026-10-06' })
+    await api.finance.reviewVendorInvoice('VINV-00001', { action: 'approve', matchStatus: 'matched' })
+    expect(calls.map(c => `${c.method} ${c.url}`)).toEqual([
+      'POST /api/v1/finance/receipts',
+      'POST /api/v1/finance/receipts/TRX-000002/allocations',
+      'POST /api/v1/finance/vendor-payments',
+      'POST /api/v1/finance/customer-invoices/CINV-00001/issue',
+      'POST /api/v1/finance/vendor-invoices/VINV-00001/review'
+    ])
+    expect(calls[0]!.headers['idempotency-key']).toEqual(expect.any(String))
+    expect(calls[1]!.headers['idempotency-key']).toBe('retry-key-123')
+    expect(calls[2]!.headers['idempotency-key']).toEqual(expect.any(String))
+    expect(calls[3]!.headers['idempotency-key']).toBeUndefined()
+    expect(calls[3]!.body).toBe('{"dueDate":"2026-10-06"}')
+  })
+
+  it('maps worklists and context summaries', async () => {
+    const { calls, transport } = fakeTransport(200, { data: [], meta: { requestId: 'r', pagination: { limit: 50, nextCursor: null } } })
+    const api = createManovaApi(createApiClient({ baseURL: '/api/v1', transport }))
+    await api.finance.receivables({ settlement: 'overdue', partyId: 'PTY-005' })
+    await api.finance.payables({ view: 'review' })
+    await api.finance.projectSummary('PRJ-201')
+    await api.finance.bookingSummary('flight', 'FLT-1011')
+    await api.finance.deleteInvoiceDraft('CINV-00009')
+    expect(calls.map(c => `${c.method} ${c.url}`)).toEqual([
+      'GET /api/v1/finance/receivables?settlement=overdue&partyId=PTY-005',
+      'GET /api/v1/finance/payables?view=review',
+      'GET /api/v1/projects/PRJ-201/finance-summary',
+      'GET /api/v1/bookings/flight/FLT-1011/finance-summary',
+      'DELETE /api/v1/finance/customer-invoices/CINV-00009'
+    ])
+  })
+})
+
 describe('createManovaApi', () => {
   it('maps typed calls to the backend routes, encoding path segments', async () => {
     const { calls, transport } = fakeTransport(200, { data: {}, meta: { requestId: 'r', pagination: { limit: 25, nextCursor: null } } })

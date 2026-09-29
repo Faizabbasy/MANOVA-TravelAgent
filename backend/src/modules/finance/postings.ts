@@ -33,14 +33,14 @@ function directionOf(kind: TransactionKind): 'in' | 'out' {
   return (IN_KINDS as readonly string[]).includes(kind) ? 'in' : 'out'
 }
 
-function validateEffectiveDate(value: unknown, field = 'effectiveDate'): string {
+export function validateEffectiveDate(value: unknown, field = 'effectiveDate'): string {
   if (typeof value !== 'string' || !isIsoDate(value)) throw errors.validation({ [field]: ['Tanggal harus berformat YYYY-MM-DD.'] })
   if (value > todayBusinessDate()) throw errors.validation({ [field]: ['Uang yang sudah terjadi tidak boleh bertanggal di masa depan.'] })
   return value
 }
 
 /** Locks the account row and checks it can take a posting dated `effectiveDate`. */
-async function lockPostableAccount(tx: Queryable, accountId: string, effectiveDate: string, field = 'bankAccountId'): Promise<AccountRow> {
+export async function lockPostableAccount(tx: Queryable, accountId: string, effectiveDate: string, field = 'bankAccountId'): Promise<AccountRow> {
   if (!ID_PATTERN.test(accountId)) throw errors.validation({ [field]: ['Rekening tidak valid.'] })
   const account = await findAccount(tx, accountId, true)
   if (!account) throw errors.validation({ [field]: ['Rekening tidak ditemukan.'] })
@@ -55,7 +55,7 @@ async function lockPostableAccount(tx: Queryable, accountId: string, effectiveDa
 }
 
 /** Refuses an outflow that would make the account negative on its date or at any later point. */
-async function assertOutflowFits(tx: Queryable, account: AccountRow, date: string, needed: bigint): Promise<void> {
+export async function assertOutflowFits(tx: Queryable, account: AccountRow, date: string, needed: bigint): Promise<void> {
   const headroom = await outflowHeadroom(tx, account, date)
   if (headroom < needed) {
     throw new AppError(422, 'INSUFFICIENT_BALANCE', `Saldo ${account.code} tidak cukup untuk transaksi ini pada tanggal ${date} (atau sesudahnya).`, {
@@ -80,7 +80,7 @@ interface ReferenceIds {
 }
 
 /** Validates optional links; a booking implies its project, and a given project must match it. */
-async function resolveReferences(
+export async function resolveReferences(
   tx: Queryable,
   input: { projectId?: string; booking?: { type: string; id: string }; partyId?: string; vendorId?: string }
 ): Promise<ReferenceIds> {
@@ -117,7 +117,7 @@ async function resolveReferences(
   return { projectId, bookingType, bookingId, partyId: input.partyId ?? null, vendorId: input.vendorId ?? null }
 }
 
-const trimOrNull = (v: string | undefined, max = 500) => {
+export const trimOrNull = (v: string | undefined, max = 500) => {
   const t = v?.trim()
   return t ? t.slice(0, max) : null
 }
@@ -211,7 +211,7 @@ async function insertReversal(tx: Queryable, actor: Actor, original: TxRow, reas
   }
 }
 
-function validateReason(reason: unknown): string {
+export function validateReason(reason: unknown): string {
   const text = typeof reason === 'string' ? reason.trim() : ''
   if (text.length < 5) throw errors.validation({ reason: ['Tuliskan alasan pembatalan (minimal 5 karakter).'] })
   return text.slice(0, 500)

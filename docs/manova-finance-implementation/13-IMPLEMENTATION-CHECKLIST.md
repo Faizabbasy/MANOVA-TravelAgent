@@ -26,12 +26,15 @@ Status awal semua belum dikerjakan. Centang hanya dengan bukti file/test/route. 
 - [ ] Rekening + opening verified/cutover + directional transfer fee.
   Progress (Phase 2): rekening, saldo pembuka maker (Finance) / checker (Super Admin), dan cutover **selesai**. Biaya transfer masih diinput manual per transfer; aturan biaya per arah (`transfer_fee_rules`) belum dibuat. Evidence: `backend/src/modules/finance/accounts.ts`, `test/finance-money.test.ts`.
 - [ ] Posted cash movement, allocation, reversal, idempotency, audit, proof metadata.
-  Progress (Phase 2): buku kas immutable (trigger DB), reversal sekali dengan alasan, Idempotency-Key, dan audit **selesai**. Alokasi ke invoice masuk Phase 3; bukti transfer menunggu ADR-005.
+  Progress (Phase 2–3): buku kas immutable (trigger DB), reversal sekali dengan alasan, Idempotency-Key, audit, dan alokasi parsial + uang muka (Phase 3) **selesai**. Yang tersisa: bukti transfer (menunggu ADR-005).
 - [x] Account Statement actual-only, filter/drilldown; Account Ledger per bank/account opening/in/out/closing/running balance.
   Evidence (API; UI di Phase 4): `GET /api/v1/finance/statement` (filter tanggal/rekening/project/arah/jenis, total operasional tanpa transfer internal, cursor stabil), `GET /api/v1/finance/accounts/{id}/ledger` (saldo awal/masuk/keluar/akhir + saldo berjalan, dipotong di tanggal cutover). Test rekonsiliasi di `test/finance-money.test.ts`.
-- [ ] Customer invoice/billing schedule + AR outstanding/expected/due/partial receipt.
-- [ ] Vendor invoice/deposit + AP outstanding/expected/due/partial disbursement.
+- [x] Customer invoice/billing schedule + AR outstanding/expected/due/partial receipt.
+  Evidence: migrasi `0008`, `backend/src/modules/finance/receivables.ts`, `test/finance-arap.test.ts`. Mencakup: jadwal DP/termin → draft → terbit (dibekukan trigger DB) → penerimaan parsial → uang muka → alokasi belakangan → credit note → void; sisa tagihan satu rumus (`v_customer_invoice_balances`); tanggal perkiraan terpisah dari jatuh tempo.
+- [x] Vendor invoice/deposit + AP outstanding/expected/due/partial disbursement.
+  Evidence: `backend/src/modules/finance/payables.ts`, `test/finance-arap.test.ts`. Mencakup: invoice vendor (nomor unik per vendor, terhubung service order/project) → review → setujui/tolak; persetujuan tidak memindahkan kas; bayar parsial; deposit vendor dialokasikan kemudian; void hanya tanpa pembayaran.
 - [ ] Vendor/Booking/Project finance context dari record yang sama; client/supplier DTO tersanitasi.
+  Progress (Phase 3): `GET /projects|bookings|vendors|parties/{id}/finance-summary` dari record yang sama — lengkap untuk Finance/Super Admin, status tanpa nominal untuk Admin (diuji: tidak ada satu pun field uang). DTO portal client/supplier menunggu aktivasi portal (ADR-006).
 - [x] Internal transfer dua kaki + fee, company cash reconcile.
   Evidence: `POST /api/v1/finance/transfers` (out + in + fee dalam satu transaksi DB, kas perusahaan hanya turun sebesar biaya), pembatalan seluruh kaki sekaligus. Test di `test/finance-money.test.ts`, lulus di PGlite dan PostgreSQL 17.
 

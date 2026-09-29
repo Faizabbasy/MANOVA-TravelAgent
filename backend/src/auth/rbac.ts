@@ -74,6 +74,8 @@ const CAPABILITY_GRANTS = {
   'project-order.advance-step': ['admin'],
   'project-order.close': ['admin'],
   'project-order.view-margin': ['admin', 'finance'],
+  /** ADR-007 #3: payment status without amounts (DP diterima / Lunas / Terlambat) on project, booking, vendor, customer. */
+  'project-order.view-payment-status': ['admin', 'finance'],
   'project-order.manage-service.flight': ['admin'],
   'project-order.manage-service.hotel': ['admin'],
   'project-order.manage-service.transportation': ['admin'],

@@ -1,0 +1,27 @@
+-- Destructive for invoices and allocations: production rollback requires --confirm-backup (scripts/db.ts).
+drop trigger vendor_invoices_delete_void_guard on vendor_invoices;
+drop trigger customer_invoices_delete_void_guard on customer_invoices;
+drop function finance_invoices_delete_and_void_guard();
+drop trigger vendor_invoices_frozen on vendor_invoices;
+drop function vendor_invoices_freeze();
+drop trigger customer_invoice_lines_guard on customer_invoice_lines;
+drop function customer_invoice_lines_draft_only();
+drop trigger customer_invoices_frozen on customer_invoices;
+drop function customer_invoices_freeze();
+drop trigger payment_allocations_guard on payment_allocations;
+drop function payment_allocations_check();
+drop view v_unallocated_payments;
+drop view v_vendor_invoice_balances;
+drop view v_customer_invoice_balances;
+drop view v_active_allocations;
+drop table payment_allocations;
+drop table vendor_invoices;
+drop table credit_notes;
+drop table customer_invoice_lines;
+drop table customer_invoices;
+drop table billing_schedule_items;
+drop sequence finance_credit_note_seq;
+drop sequence finance_vendor_invoice_seq;
+drop sequence finance_billing_schedule_seq;
+drop sequence finance_invoice_number_seq;
+drop sequence finance_customer_invoice_seq;

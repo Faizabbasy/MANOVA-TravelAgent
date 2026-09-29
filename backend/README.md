@@ -73,5 +73,15 @@ All responses: `{ data, meta: { requestId } }` or `{ error: { code, message, fie
 | `GET /api/v1/finance/statement` | posted movements with filters, operational totals (internal transfers excluded) |
 | `POST /api/v1/finance/transactions`, `POST …/transactions/:id/reverse` | other income / expense; reversal (Idempotency-Key required) |
 | `POST /api/v1/finance/transfers`, `POST …/transfers/:id/reverse`, `GET …/transfers/:id` | transfer + fee between own accounts (Idempotency-Key required) |
+| `GET/POST /api/v1/finance/billing-schedule`, `PATCH …/:id`, `POST …/:id/cancel` | planned DP / progress / final billing per project or booking |
+| `GET/POST /api/v1/finance/customer-invoices`, `PATCH/DELETE …/:id` (draft), `POST …/:id/issue`, `…/void`, `…/dispute`, `PATCH …/:id/expectation` | customer invoices; issuing freezes them and moves no money |
+| `POST /api/v1/finance/credit-notes`, `POST …/:id/void` | reduce what a customer owes (never below zero) |
+| `GET /api/v1/finance/receivables` | open / overdue / paid worklist with totals |
+| `POST /api/v1/finance/receipts`, `POST …/receipts/:id/allocations` | money in from a customer, partial allocation, remainder = advance (Idempotency-Key required) |
+| `GET /api/v1/finance/advances` | customer advances / vendor deposits not yet allocated |
+| `POST /api/v1/finance/vendor-invoices`, `PATCH …/:id`, `POST …/:id/review`, `…/void`, `PATCH …/:id/expectation`, `GET …/:id` | vendor invoices: record → review → approve/reject |
+| `GET /api/v1/finance/payables` | approved payables (outstanding / overdue / paid) and the review queue |
+| `POST /api/v1/finance/vendor-payments`, `POST …/vendor-payments/:id/allocations` | money out to a vendor, partial, remainder = deposit (Idempotency-Key required) |
+| `GET /api/v1/{projects,bookings/:type,vendors,parties}/:id/finance-summary` | finance context: full for Finance/Super Admin, payment status without amounts for Admin |
 
 Out-of-scope records return 404, exactly like missing ones.

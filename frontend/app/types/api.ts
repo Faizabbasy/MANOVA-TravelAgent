@@ -307,3 +307,279 @@ export interface StatementQuery extends PageQuery {
   kind?: ApiTransactionKind
   includeTransfers?: boolean
 }
+
+// ── Finance: receivables & payables (Phase 3) ────────────────────────────────────────────────────────
+
+export type ApiInvoiceType = 'dp' | 'progress' | 'final' | 'other'
+/** Derived for issued/approved invoices: open, partially paid, or paid. */
+export type ApiSettlement = 'open' | 'partial' | 'paid'
+
+export interface CustomerInvoiceDto {
+  id: string
+  /** Assigned when issued (INV-YYYY-NNNNN); null for drafts. */
+  number: string | null
+  project: { id: string; name: string }
+  party: { id: string; name: string }
+  booking: { type: ApiBookingType; id: string } | null
+  billingScheduleItemId: string | null
+  invoiceType: ApiInvoiceType
+  status: 'draft' | 'issued' | 'void'
+  settlement: ApiSettlement | null
+  overdue: boolean
+  daysOverdue: number
+  currency: string
+  totalMinor: MoneyMinor
+  paidMinor: MoneyMinor
+  creditedMinor: MoneyMinor
+  outstandingMinor: MoneyMinor
+  issueDate: IsoDate | null
+  dueDate: IsoDate | null
+  expectedDate: IsoDate | null
+  expectedReason: string | null
+  isDisputed: boolean
+  disputeReason: string | null
+  notes: string | null
+  voidReason: string | null
+  createdAt: IsoDateTime
+  issuedAt: IsoDateTime | null
+}
+
+export interface InvoicePaymentDto {
+  transactionId: string
+  amountMinor: MoneyMinor
+  effectiveDate: IsoDate
+  account: { id: string; code: string }
+  reference: string | null
+  /** The payment was reversed; it no longer counts toward the invoice. */
+  reversed: boolean
+}
+
+export interface CustomerInvoiceDetailDto extends CustomerInvoiceDto {
+  billingSnapshot: { partyName: string; projectName: string } | null
+  lines: { position: number; description: string; amountMinor: MoneyMinor }[]
+  payments: InvoicePaymentDto[]
+  creditNotes: { id: string; amountMinor: MoneyMinor; reason: string; status: 'issued' | 'void'; createdAt: IsoDateTime }[]
+}
+
+export interface VendorInvoiceDto {
+  id: string
+  vendor: { id: string; name: string }
+  vendorInvoiceNumber: string
+  serviceOrderId: string | null
+  project: { id: string; name: string | null } | null
+  booking: { type: ApiBookingType; id: string } | null
+  status: 'submitted' | 'under_review' | 'approved' | 'rejected' | 'void'
+  matchStatus: 'matched' | 'unmatched' | 'disputed' | null
+  settlement: ApiSettlement | null
+  overdue: boolean
+  daysOverdue: number
+  currency: string
+  totalMinor: MoneyMinor
+  paidMinor: MoneyMinor
+  outstandingMinor: MoneyMinor
+  invoiceDate: IsoDate
+  dueDate: IsoDate
+  expectedDate: IsoDate | null
+  expectedReason: string | null
+  notes: string | null
+  reviewNote: string | null
+  rejectedReason: string | null
+  voidReason: string | null
+  reviewedBy: string | null
+  reviewedAt: IsoDateTime | null
+  createdAt: IsoDateTime
+}
+
+export interface VendorInvoiceDetailDto extends VendorInvoiceDto {
+  payments: InvoicePaymentDto[]
+}
+
+export interface BillingScheduleItemDto {
+  id: string
+  project: { id: string; name: string }
+  booking: { type: ApiBookingType; id: string } | null
+  label: string
+  invoiceType: ApiInvoiceType
+  amountMinor: MoneyMinor
+  plannedDate: IsoDate
+  status: 'planned' | 'invoiced' | 'cancelled'
+  invoiceId: string | null
+}
+
+export interface ReceivablesList {
+  data: CustomerInvoiceDto[]
+  meta: ApiMeta & { pagination: ApiPagination; summary: { outstandingMinor: MoneyMinor; overdueMinor: MoneyMinor; count: number; asOf: IsoDate } }
+}
+
+export interface PayablesList {
+  data: VendorInvoiceDto[]
+  meta: ApiMeta & {
+    pagination: ApiPagination
+    summary: { outstandingMinor: MoneyMinor; overdueMinor: MoneyMinor; pendingReviewMinor: MoneyMinor; pendingReviewCount: number; count: number; asOf: IsoDate }
+  }
+}
+
+export interface AdvanceDto {
+  transactionId: string
+  kind: 'customer_receipt' | 'vendor_payment'
+  effectiveDate: IsoDate
+  account: { id: string; code: string }
+  party: { id: string; name: string } | null
+  vendor: { id: string; name: string } | null
+  projectId: string | null
+  amountMinor: MoneyMinor
+  unallocatedMinor: MoneyMinor
+}
+
+export type ApiPaymentStatus = 'not_invoiced' | 'awaiting_payment' | 'dp_received' | 'partially_paid' | 'paid' | 'overdue'
+
+/** What Admin receives (ADR-007 #3): status, never amounts. */
+export interface PaymentStatusView {
+  view: 'status'
+  paymentStatus: ApiPaymentStatus
+  label: string
+  hasOverdue: boolean
+  openInvoiceCount: number
+  nextDueDate: IsoDate | null
+}
+
+export interface ReceivableTotals {
+  invoicedMinor: MoneyMinor
+  creditedMinor: MoneyMinor
+  receivedMinor: MoneyMinor
+  outstandingMinor: MoneyMinor
+  overdueMinor: MoneyMinor
+  invoiceCount: number
+  draftCount: number
+}
+
+export interface PayableTotals {
+  approvedMinor: MoneyMinor
+  paidMinor: MoneyMinor
+  outstandingMinor: MoneyMinor
+  overdueMinor: MoneyMinor
+  pendingReviewMinor: MoneyMinor
+  pendingReviewCount: number
+  invoiceCount: number
+}
+
+type FullView<T> = Omit<PaymentStatusView, 'view'> & { view: 'full' } & T
+
+export type ProjectFinanceSummaryDto =
+  | (PaymentStatusView & { projectId: string })
+  | FullView<{
+      projectId: string
+      currency: string
+      contractValueMinor: MoneyMinor | null
+      receivable: ReceivableTotals & { uninvoicedMinor: MoneyMinor | null; scheduledNotInvoicedMinor: MoneyMinor }
+      payable: PayableTotals
+      projectExpensesMinor: MoneyMinor
+      /** Accrual: revenue = invoiced − credit notes; cost = approved vendor invoices + project expenses. */
+      profitability: { revenueMinor: MoneyMinor; costMinor: MoneyMinor; grossProfitMinor: MoneyMinor; marginBasisPoints: number | null }
+      invoices: CustomerInvoiceDto[]
+      vendorInvoices: VendorInvoiceDto[]
+    }>
+
+export type BookingFinanceSummaryDto =
+  | (PaymentStatusView & { booking: { type: ApiBookingType; id: string }; projectId: string })
+  | FullView<{
+      booking: { type: ApiBookingType; id: string }
+      projectId: string
+      sellAmountMinor: MoneyMinor | null
+      departureDate: IsoDate | null
+      receivable: ReceivableTotals
+      payable: PayableTotals
+      invoices: CustomerInvoiceDto[]
+      vendorInvoices: VendorInvoiceDto[]
+    }>
+
+export interface VendorPaymentStatusView {
+  view: 'status'
+  vendorId: string
+  pendingReviewCount: number
+  awaitingPaymentCount: number
+  overdueCount: number
+  nextDueDate: IsoDate | null
+}
+
+export type VendorFinanceSummaryDto =
+  | VendorPaymentStatusView
+  | (Omit<VendorPaymentStatusView, 'view'> & { view: 'full'; payable: PayableTotals; depositUnallocatedMinor: MoneyMinor; invoices: VendorInvoiceDto[] })
+
+export type PartyFinanceSummaryDto =
+  | (PaymentStatusView & { partyId: string })
+  | FullView<{ partyId: string; receivable: ReceivableTotals; advanceUnallocatedMinor: MoneyMinor; invoices: CustomerInvoiceDto[] }>
+
+export interface InvoiceLineInput { description: string; amountMinor: MoneyMinor }
+
+export interface CustomerInvoiceDraftInput {
+  projectId?: string
+  booking?: { type: ApiBookingType; id: string }
+  billingScheduleItemId?: string
+  invoiceType?: ApiInvoiceType
+  lines?: InvoiceLineInput[]
+  dueDate?: IsoDate
+  expectedDate?: IsoDate
+  notes?: string
+}
+
+export interface BillingScheduleInput {
+  projectId: string
+  booking?: { type: ApiBookingType; id: string }
+  label: string
+  invoiceType: ApiInvoiceType
+  amountMinor: MoneyMinor
+  plannedDate: IsoDate
+}
+
+export interface ReceiptInput {
+  bankAccountId: string
+  amountMinor: MoneyMinor
+  effectiveDate: IsoDate
+  partyId: string
+  projectId?: string
+  booking?: { type: ApiBookingType; id: string }
+  counterparty?: string
+  reference?: string
+  memo?: string
+  allocations?: { invoiceId: string; amountMinor: MoneyMinor }[]
+}
+
+export interface VendorInvoiceInput {
+  vendorId: string
+  vendorInvoiceNumber: string
+  serviceOrderId?: string
+  projectId?: string
+  booking?: { type: ApiBookingType; id: string }
+  invoiceDate: IsoDate
+  dueDate: IsoDate
+  expectedDate?: IsoDate
+  totalMinor: MoneyMinor
+  notes?: string
+}
+
+export interface VendorPaymentInput {
+  bankAccountId: string
+  amountMinor: MoneyMinor
+  effectiveDate: IsoDate
+  vendorId: string
+  projectId?: string
+  counterparty?: string
+  reference?: string
+  memo?: string
+  allocations?: { vendorInvoiceId: string; amountMinor: MoneyMinor }[]
+}
+
+export interface ReceiptResult {
+  transactionId: string
+  allocations: { invoiceId: string; amountMinor: MoneyMinor; outstandingMinor: MoneyMinor }[]
+  /** Kept as the customer's advance (uang muka). */
+  unallocatedMinor: MoneyMinor
+}
+
+export interface VendorPaymentResult {
+  transactionId: string
+  allocations: { vendorInvoiceId: string; amountMinor: MoneyMinor; outstandingMinor: MoneyMinor }[]
+  /** Kept as a vendor deposit. */
+  unallocatedMinor: MoneyMinor
+}
