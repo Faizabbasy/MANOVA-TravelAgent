@@ -1,4 +1,4 @@
-import type { Db } from '../../db/client'
+import type { Db, Queryable } from '../../db/client'
 import { ID_PATTERN } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { todayBusinessDate } from './common'
@@ -26,7 +26,7 @@ const STATUS_LABEL: Record<PaymentStatus, string> = {
   cancelled: 'Dibatalkan'
 }
 
-interface InvoiceBalanceRow extends Record<string, any> {
+export interface InvoiceBalanceRow extends Record<string, any> {
   invoice_type: string
   status: string
   due_date: string
@@ -57,7 +57,7 @@ function derivePaymentStatus(invoices: InvoiceBalanceRow[], today: string, moreT
   return 'awaiting_payment'
 }
 
-function statusView(invoices: InvoiceBalanceRow[], today: string, moreToBill: boolean) {
+export function statusView(invoices: InvoiceBalanceRow[], today: string, moreToBill: boolean) {
   const status = derivePaymentStatus(invoices, today, moreToBill)
   const open = invoices.filter(i => i.status === 'issued' && BigInt(i.outstanding_minor) > 0n)
   return {
@@ -91,12 +91,12 @@ function cancellationView (c: Record<string, any> | null, full: boolean) {
   }
 }
 
-function withCancellation<T extends { paymentStatus: PaymentStatus; label: string; hasOverdue: boolean }> (status: T, c: Record<string, any> | null): T {
+export function withCancellation<T extends { paymentStatus: PaymentStatus; label: string; hasOverdue: boolean }> (status: T, c: Record<string, any> | null): T {
   if (!c) return status
   return { ...status, paymentStatus: 'cancelled', label: STATUS_LABEL.cancelled, hasOverdue: false }
 }
 
-const INVOICES_WITH_BALANCE = `
+export const INVOICES_WITH_BALANCE = `
   select i.*, p.name as project_name, pa.name as party_name, b.paid_minor, b.credited_minor,
          -- unpaid balances written off by a cancellation: billed all the same (not "still to bill")
          coalesce((select sum(c.amount_minor) from credit_notes c where c.customer_invoice_id = i.id and c.status = 'issued' and c.effect = 'reduce_receivable' and c.refund_id is not null), 0) as cancel_writeoff_minor,
@@ -106,7 +106,7 @@ const INVOICES_WITH_BALANCE = `
     join parties pa on pa.id = i.party_id
     join v_customer_invoice_balances b on b.invoice_id = i.id`
 
-const VENDOR_INVOICES_WITH_BALANCE = `
+export const VENDOR_INVOICES_WITH_BALANCE = `
   select v.*, ve.name as vendor_name, p.name as project_name, b.paid_minor, (b.total_minor - b.paid_minor) as outstanding_minor
     from vendor_invoices v
     join vendors ve on ve.id = v.vendor_id
@@ -152,17 +152,22 @@ async function projectExpenses(db: Db, where: string, params: unknown[]): Promis
 }
 
 /** Something is still to be billed: planned schedule items, or issued invoices (net of credits) below the contract value. */
-async function projectHasMoreToBill(db: Db, projectId: string): Promise<boolean> {
-  const [row] = await db.query<{ planned: string; contract: string | null; billed: string }>(
-    `select (select count(*) from billing_schedule_items s where s.project_id = p.id and s.status = 'planned') as planned,
+/** The same rule for every project at once (or one project): project id → still something to bill. */
+export async function moreToBillByProject(db: Queryable, projectId: string | null = null): Promise<Map<string, boolean>> {
+  const rows = await db.query<{ id: string; planned: string; contract: string | null; billed: string }>(
+    `select p.id,
+            (select count(*) from billing_schedule_items s where s.project_id = p.id and s.status = 'planned') as planned,
             p.contract_value_minor as contract,
             coalesce((select sum(b.total_minor - b.credited_minor + coalesce((select sum(c.amount_minor) from credit_notes c where c.customer_invoice_id = i.id and c.status = 'issued' and c.effect = 'reduce_receivable' and c.refund_id is not null), 0)) from customer_invoices i join v_customer_invoice_balances b on b.invoice_id = i.id
                        where i.project_id = p.id and i.status = 'issued'), 0) as billed
-       from projects p where p.id = $1`,
-    [projectId]
+       from projects p${projectId ? ' where p.id = $1' : ''}`,
+    projectId ? [projectId] : []
   )
-  if (!row) return false
-  return Number(row.planned) > 0 || (row.contract !== null && BigInt(row.billed) < BigInt(row.contract))
+  return new Map(rows.map(r => [r.id, Number(r.planned) > 0 || (r.contract !== null && BigInt(r.billed) < BigInt(r.contract))]))
+}
+
+async function projectHasMoreToBill(db: Db, projectId: string): Promise<boolean> {
+  return (await moreToBillByProject(db, projectId)).get(projectId) ?? false
 }
 
 export async function projectFinanceSummary(db: Db, projectId: string, full: boolean) {

@@ -15,6 +15,7 @@ import {
   issueInvoice, listInvoices, listReceivables, listSchedule, postReceipt, setInvoiceDispute, setInvoiceExpectation,
   updateInvoiceDraft, updateScheduleItem, voidCreditNote, voidInvoice
 } from './receivables'
+import { financeOverview } from './overview'
 import { bookingFinanceSummary, listAdvances, partyFinanceSummary, projectFinanceSummary, vendorFinanceSummary } from './summaries'
 
 /**
@@ -272,6 +273,11 @@ export function arApRoutes(deps: AppDeps, auth: AuthContext) {
     }, { body: t.Object({ allocations: t.Array(t.Object({ vendorInvoiceId: t.String(), amountMinor: t.String() })) }) })
 
     // ── Finance context for other screens ───────────────────────────────────────────────────────────
+    /** App dashboard: every project's payment status (Admin) plus cash, forecast and AR/AP (Finance). */
+    .get('/finance/overview', async ({ request }) => {
+      const { full } = await summaryAccess(request)
+      return ok(request, await financeOverview(db, full))
+    })
     .get('/projects/:id/finance-summary', async ({ request, params }) => {
       const { actor, full } = await summaryAccess(request)
       const id = assertIdParam(params.id, 'Project')

@@ -550,6 +550,37 @@ export interface AdvanceDto {
 /** 'paid' = everything billed and settled; 'up_to_date' = issued invoices settled but more still to bill; 'cancelled' = a live cancellation case. */
 export type ApiPaymentStatus = 'not_invoiced' | 'awaiting_payment' | 'dp_received' | 'partially_paid' | 'up_to_date' | 'paid' | 'overdue' | 'cancelled'
 
+/** One project on the app dashboard (Phase 7). Admin gets only these fields. */
+export interface OverviewProjectStatus {
+  projectId: string
+  paymentStatus: ApiPaymentStatus
+  label: string
+  hasOverdue: boolean
+  cancelled: boolean
+}
+
+export interface FinanceOverviewStatus {
+  view: 'status'
+  asOf: IsoDate
+  projects: OverviewProjectStatus[]
+}
+
+/** Finance / Super Admin: the same figures as the Finance menus, in one request. */
+export interface FinanceOverviewFull {
+  view: 'full'
+  asOf: IsoDate
+  projects: (OverviewProjectStatus & { costMinor: MoneyMinor; outstandingMinor: MoneyMinor })[]
+  cash: { available: boolean; reason: 'NO_ACCOUNTS' | 'OPENING_BALANCE_UNVERIFIED' | null; totalMinor: MoneyMinor }
+  forecast:
+    | { available: true; periodEnd: IsoDate; closingMinor: MoneyMinor; gap: { date: IsoDate; balanceMinor: MoneyMinor } | null }
+    | { available: false; reason: 'NO_ACCOUNTS' | 'OPENING_BALANCE_UNVERIFIED' }
+  receivables: { outstandingMinor: MoneyMinor; openCount: number; overdueMinor: MoneyMinor; overdueCount: number }
+  payables: { outstandingMinor: MoneyMinor; overdueMinor: MoneyMinor; overdueCount: number; pendingReviewCount: number }
+  overdueInvoices: { id: string; number: string; party: { id: string; name: string }; project: { id: string; name: string }; dueDate: IsoDate; outstandingMinor: MoneyMinor }[]
+}
+
+export type FinanceOverviewDto = FinanceOverviewStatus | FinanceOverviewFull
+
 /** What Admin receives (ADR-007 #3): status, never amounts. */
 export interface PaymentStatusView {
   view: 'status'

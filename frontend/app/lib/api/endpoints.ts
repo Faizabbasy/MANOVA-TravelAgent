@@ -16,6 +16,7 @@ import type {
   CashFlowDto,
   CashFlowQuery,
   CashPositionDto,
+  FinanceOverviewDto,
   CustomerInvoiceDetailDto,
   CustomerInvoiceDraftInput,
   CustomerInvoiceDto,
@@ -179,6 +180,8 @@ export function createManovaApi (client: ApiClient) {
         client.post<VendorPaymentResult>(`/finance/vendor-payments/${seg(transactionId)}/allocations`, { allocations }, { idempotencyKey }),
 
       // ── Finance context for other screens (full for Finance/Super Admin, status-only for Admin) ──
+      /** App dashboard: every project's payment status (Admin) plus cash, forecast and AR/AP (Finance). */
+      overview: () => client.get<FinanceOverviewDto>('/finance/overview'),
       projectSummary: (projectId: string) => client.get<ProjectFinanceSummaryDto>(`/projects/${seg(projectId)}/finance-summary`),
       bookingSummary: (type: ApiBookingType, id: string) => client.get<BookingFinanceSummaryDto>(`/bookings/${seg(type)}/${seg(id)}/finance-summary`),
       vendorSummary: (vendorId: string) => client.get<VendorFinanceSummaryDto>(`/vendors/${seg(vendorId)}/finance-summary`),

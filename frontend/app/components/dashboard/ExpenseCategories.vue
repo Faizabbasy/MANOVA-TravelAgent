@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick } from 'vue'
 import { formatCurrencyIdr } from '~/utils/format'
+import { compactRupiah } from '~/lib/finance/trend'
 
 /**
  * Cost breakdown (Section 06/Dashboard — Finance/Super Admin).
@@ -64,12 +65,27 @@ onMounted(async () => {
       <div class="relative h-36 w-36 shrink-0">
         <svg viewBox="0 0 120 120" class="h-full w-full -rotate-90">
           <defs>
-            <linearGradient v-for="(segment, index) in segments" :id="`ring-grad-${index}`" :key="`grad-${segment.name}`" x1="0" y1="0" x2="1" y2="1">
+            <linearGradient
+              v-for="(segment, index) in segments"
+              :id="`ring-grad-${index}`"
+              :key="`grad-${segment.name}`"
+              x1="0"
+              y1="0"
+              x2="1"
+              y2="1"
+            >
               <stop offset="0%" :stop-color="segment.color" stop-opacity="0.55" />
               <stop offset="100%" :stop-color="segment.color" stop-opacity="1" />
             </linearGradient>
           </defs>
-          <circle cx="60" cy="60" r="50" fill="none" stroke="hsl(var(--muted))" stroke-width="14" />
+          <circle
+            cx="60"
+            cy="60"
+            r="50"
+            fill="none"
+            stroke="hsl(var(--muted))"
+            stroke-width="14"
+          />
           <circle
             v-for="(segment, index) in segments"
             :key="segment.name"
@@ -96,7 +112,9 @@ onMounted(async () => {
         </svg>
         <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
           <span class="text-[10px] uppercase tracking-wide text-muted-foreground">Total</span>
-          <span class="mt-0.5 text-center text-sm font-bold leading-tight text-foreground tabular-nums">{{ formatCurrencyIdr(total) }}</span>
+          <!-- Compact in the ring (a full figure does not fit); the exact amount stays for screen readers and on hover. -->
+          <span class="mt-0.5 text-center text-sm font-bold leading-tight text-foreground tabular-nums" :title="formatCurrencyIdr(total)" aria-hidden="true">Rp {{ compactRupiah(total) }}</span>
+          <span class="sr-only">{{ formatCurrencyIdr(total) }}</span>
         </div>
       </div>
 
