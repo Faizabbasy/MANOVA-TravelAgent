@@ -4,7 +4,7 @@ import { ID_PATTERN } from '../../http/envelope'
 import { AppError, errors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
 import { isIsoDate } from '../../shared/dates'
-import { parseMovementAmount, rule, todayBusinessDate } from './common'
+import { isUniqueViolation, MAX_MOVEMENT_MINOR, parseMovementAmount, rule, todayBusinessDate } from './common'
 import { lockPostableAccount, resolveReferences, trimOrNull, validateEffectiveDate, validateReason } from './postings'
 
 /**
@@ -139,10 +139,14 @@ interface LineInput { description: string; amountMinor: string }
 function validateLines(lines: LineInput[] | undefined): { description: string; amount: bigint }[] {
   if (!Array.isArray(lines) || lines.length === 0) throw errors.validation({ lines: ['Tambahkan minimal satu baris tagihan.'] })
   if (lines.length > 50) throw errors.validation({ lines: ['Maksimal 50 baris.'] })
-  return lines.map((l, i) => {
+  const parsed = lines.map((l, i) => {
     if (!l.description?.trim()) throw errors.validation({ [`lines.${i}.description`]: ['Keterangan wajib diisi.'] })
     return { description: l.description.trim().slice(0, 300), amount: parseMovementAmount(l.amountMinor, `lines.${i}.amountMinor`) }
   })
+  if (parsed.reduce((s, l) => s + l.amount, 0n) > MAX_MOVEMENT_MINOR) {
+    throw errors.validation({ lines: ['Total invoice melebihi batas per dokumen (Rp 1.000.000.000.000.000).'] })
+  }
+  return parsed
 }
 
 async function replaceLines(tx: Queryable, invoiceId: string, lines: { description: string; amount: bigint }[]): Promise<bigint> {
@@ -189,11 +193,18 @@ export async function createInvoiceDraft(tx: Queryable, actor: Actor, input: Inv
   const dueDate = optionalDate(input.dueDate, 'dueDate')
   const expectedDate = optionalDate(input.expectedDate, 'expectedDate')
 
-  const [row] = await tx.query<{ id: string }>(
-    `insert into customer_invoices (project_id, party_id, booking_type, booking_id, billing_schedule_item_id, invoice_type, due_date, expected_date, notes, created_by)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning id`,
-    [project.id, project.party_id, refs.bookingType, refs.bookingId, schedule?.id ?? null, invoiceType, dueDate, expectedDate, trimOrNull(input.notes, 1000), actor.userId]
-  )
+  let row: { id: string } | undefined
+  try {
+    ;[row] = await tx.query<{ id: string }>(
+      `insert into customer_invoices (project_id, party_id, booking_type, booking_id, billing_schedule_item_id, invoice_type, due_date, expected_date, notes, created_by)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning id`,
+      [project.id, project.party_id, refs.bookingType, refs.bookingId, schedule?.id ?? null, invoiceType, dueDate, expectedDate, trimOrNull(input.notes, 1000), actor.userId]
+    )
+  } catch (err) {
+    // Backstop for a concurrent draft on the same schedule item (the check above runs without a unique lock).
+    if (isUniqueViolation(err)) throw new AppError(409, 'CONFLICT', 'Termin ini baru saja dipakai invoice lain. Muat ulang daftar termin.')
+    throw err
+  }
   const total = await replaceLines(tx, row!.id, lines)
   await tx.query('update customer_invoices set total_minor = $2 where id = $1', [row!.id, total.toString()])
   await recordAudit(tx, {
@@ -456,11 +467,11 @@ export async function allocateReceipt(tx: Queryable, actor: Actor, transactionId
        left join v_unallocated_payments u on u.transaction_id = t.id where t.id = $1`, [transactionId]
   )
   if (!t || t.kind !== 'customer_receipt') throw errors.notFound('Penerimaan')
-  if (t.unallocated_minor === null) throw rule('Penerimaan ini sudah dibatalkan.')
   if (!allocations?.length) throw errors.validation({ allocations: ['Pilih minimal satu invoice.'] })
-  // Serialise allocations of the same receipt.
+  // Serialise allocations of the same receipt, THEN read what is left (it may have been reversed meanwhile).
   await tx.query('select pg_advisory_xact_lock(hashtext($1))', [`alloc:${transactionId}`])
   const [fresh] = await tx.query<{ unallocated_minor: string }>('select unallocated_minor from v_unallocated_payments where transaction_id = $1', [transactionId])
+  if (!fresh) throw rule('Penerimaan ini sudah dibatalkan.')
   const result = await allocateToInvoices(tx, actor, { id: t.id, party_id: t.party_id, unallocated: BigInt(fresh!.unallocated_minor) }, allocations)
   const allocated = result.reduce((s, a) => s + BigInt(a.amountMinor), 0n)
   await recordAudit(tx, { action: 'finance.receipt_allocated', actorUserId: actor.userId, entityType: 'financial_transaction', entityId: transactionId, requestId, after: { allocations: result } })
@@ -480,7 +491,10 @@ const INVOICE_SELECT = `
 export function invoiceRowDto(r: Record<string, any>, today = todayBusinessDate()) {
   const outstanding = BigInt(r.outstanding_minor)
   const paid = BigInt(r.paid_minor)
-  const settlement = r.status !== 'issued' ? null : outstanding === 0n ? 'paid' : paid > 0n || BigInt(r.credited_minor) > 0n ? 'partial' : 'open'
+  // 'credited': brought to zero by credit notes without any money received — not "paid".
+  const settlement = r.status !== 'issued' ? null
+    : outstanding === 0n ? (paid === 0n ? 'credited' : 'paid')
+      : paid > 0n || BigInt(r.credited_minor) > 0n ? 'partial' : 'open'
   const overdue = r.status === 'issued' && outstanding > 0n && r.due_date < today
   return {
     id: r.id,
@@ -491,7 +505,7 @@ export function invoiceRowDto(r: Record<string, any>, today = todayBusinessDate(
     billingScheduleItemId: r.billing_schedule_item_id,
     invoiceType: r.invoice_type,
     status: r.status,
-    /** Derived for issued invoices: open / partial / paid. */
+    /** Derived for issued invoices: open / partial / paid / credited (zeroed by credit notes, no money). */
     settlement,
     overdue,
     daysOverdue: overdue ? Math.round((Date.parse(`${today}T00:00:00Z`) - Date.parse(`${r.due_date}T00:00:00Z`)) / 86_400_000) : 0,

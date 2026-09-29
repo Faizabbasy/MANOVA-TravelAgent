@@ -257,10 +257,11 @@ export async function allocateVendorPayment(tx: Queryable, actor: Actor, transac
        left join v_unallocated_payments u on u.transaction_id = t.id where t.id = $1`, [transactionId]
   )
   if (!t || t.kind !== 'vendor_payment') throw errors.notFound('Pembayaran vendor')
-  if (t.unallocated_minor === null) throw rule('Pembayaran ini sudah dibatalkan.')
   if (!allocations?.length) throw errors.validation({ allocations: ['Pilih minimal satu invoice vendor.'] })
+  // Serialise allocations of the same payment, THEN read what is left (it may have been reversed meanwhile).
   await tx.query('select pg_advisory_xact_lock(hashtext($1))', [`alloc:${transactionId}`])
   const [fresh] = await tx.query<{ unallocated_minor: string }>('select unallocated_minor from v_unallocated_payments where transaction_id = $1', [transactionId])
+  if (!fresh) throw rule('Pembayaran ini sudah dibatalkan.')
   const result = await allocateToVendorInvoices(tx, actor, { id: t.id, vendor_id: t.vendor_id, unallocated: BigInt(fresh!.unallocated_minor) }, allocations)
   const allocated = result.reduce((s, a) => s + BigInt(a.amountMinor), 0n)
   await recordAudit(tx, { action: 'finance.vendor_payment_allocated', actorUserId: actor.userId, entityType: 'financial_transaction', entityId: transactionId, requestId, after: { allocations: result } })

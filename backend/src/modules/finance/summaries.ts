@@ -12,13 +12,14 @@ import { vendorInvoiceDto } from './payables'
  *  - status (project-order.view-payment-status: Admin)            — payment status WITHOUT any amount
  */
 
-export type PaymentStatus = 'not_invoiced' | 'awaiting_payment' | 'dp_received' | 'partially_paid' | 'paid' | 'overdue'
+export type PaymentStatus = 'not_invoiced' | 'awaiting_payment' | 'dp_received' | 'partially_paid' | 'up_to_date' | 'paid' | 'overdue'
 
 const STATUS_LABEL: Record<PaymentStatus, string> = {
   not_invoiced: 'Belum ditagih',
   awaiting_payment: 'Menunggu pembayaran',
   dp_received: 'DP diterima',
   partially_paid: 'Dibayar sebagian',
+  up_to_date: 'Tagihan terbit sudah lunas',
   paid: 'Lunas',
   overdue: 'Terlambat'
 }
@@ -33,21 +34,29 @@ interface InvoiceBalanceRow extends Record<string, any> {
   outstanding_minor: string
 }
 
-/** One rule for every screen: overdue beats everything; DP counts once every DP invoice is settled. */
-function derivePaymentStatus(invoices: InvoiceBalanceRow[], today: string): PaymentStatus {
-  const issued = invoices.filter(i => i.status === 'issued')
+/**
+ * One rule for every screen. Overdue beats everything. "Lunas" only when every issued invoice is settled AND
+ * nothing is left to bill (`moreToBill`: planned billing, or invoiced below the contract/sell value) —
+ * Admin sees only this label, so it must not claim "paid" while most of the contract is not invoiced yet.
+ * Invoices zeroed purely by credit notes (no money) are left out: they are neither owed nor paid.
+ */
+function derivePaymentStatus(invoices: InvoiceBalanceRow[], today: string, moreToBill: boolean): PaymentStatus {
+  const issued = invoices.filter(i => i.status === 'issued' && !(BigInt(i.outstanding_minor) === 0n && BigInt(i.paid_minor) === 0n))
   if (!issued.length) return 'not_invoiced'
   const outstanding = (i: InvoiceBalanceRow) => BigInt(i.outstanding_minor)
   if (issued.some(i => outstanding(i) > 0n && i.due_date < today)) return 'overdue'
-  if (issued.every(i => outstanding(i) === 0n)) return 'paid'
   const dp = issued.filter(i => i.invoice_type === 'dp')
+  if (issued.every(i => outstanding(i) === 0n)) {
+    if (!moreToBill) return 'paid'
+    return dp.length ? 'dp_received' : 'up_to_date'
+  }
   if (dp.length && dp.every(i => outstanding(i) === 0n)) return 'dp_received'
   if (issued.some(i => BigInt(i.paid_minor) > 0n || BigInt(i.credited_minor) > 0n)) return 'partially_paid'
   return 'awaiting_payment'
 }
 
-function statusView(invoices: InvoiceBalanceRow[], today: string) {
-  const status = derivePaymentStatus(invoices, today)
+function statusView(invoices: InvoiceBalanceRow[], today: string, moreToBill: boolean) {
+  const status = derivePaymentStatus(invoices, today, moreToBill)
   const open = invoices.filter(i => i.status === 'issued' && BigInt(i.outstanding_minor) > 0n)
   return {
     paymentStatus: status,
@@ -113,6 +122,20 @@ async function projectExpenses(db: Db, where: string, params: unknown[]): Promis
   return BigInt(row!.total)
 }
 
+/** Something is still to be billed: planned schedule items, or issued invoices (net of credits) below the contract value. */
+async function projectHasMoreToBill(db: Db, projectId: string): Promise<boolean> {
+  const [row] = await db.query<{ planned: string; contract: string | null; billed: string }>(
+    `select (select count(*) from billing_schedule_items s where s.project_id = p.id and s.status = 'planned') as planned,
+            p.contract_value_minor as contract,
+            coalesce((select sum(b.total_minor - b.credited_minor) from customer_invoices i join v_customer_invoice_balances b on b.invoice_id = i.id
+                       where i.project_id = p.id and i.status = 'issued'), 0) as billed
+       from projects p where p.id = $1`,
+    [projectId]
+  )
+  if (!row) return false
+  return Number(row.planned) > 0 || (row.contract !== null && BigInt(row.billed) < BigInt(row.contract))
+}
+
 export async function projectFinanceSummary(db: Db, projectId: string, full: boolean) {
   const today = todayBusinessDate()
   const [project] = await db.query<{ id: string; contract_value_minor: string | null; contract_currency: string }>(
@@ -120,7 +143,7 @@ export async function projectFinanceSummary(db: Db, projectId: string, full: boo
   )
   if (!project) throw errors.notFound('Project')
   const invoices = await db.query<InvoiceBalanceRow>(`${INVOICES_WITH_BALANCE} where i.project_id = $1 and i.status <> 'void' order by i.due_date nulls last, i.id`, [projectId])
-  const status = statusView(invoices, today)
+  const status = statusView(invoices, today, await projectHasMoreToBill(db, projectId))
   if (!full) return { projectId, view: 'status' as const, ...status }
 
   const vendorInvoices = await db.query<Record<string, any>>(`${VENDOR_INVOICES_WITH_BALANCE} where v.project_id = $1 and v.status not in ('rejected', 'void') order by v.due_date, v.id`, [projectId])
@@ -164,7 +187,12 @@ export async function bookingFinanceSummary(db: Db, type: string, id: string, fu
   const invoices = await db.query<InvoiceBalanceRow>(
     `${INVOICES_WITH_BALANCE} where i.booking_type = $1 and i.booking_id = $2 and i.status <> 'void' order by i.due_date nulls last, i.id`, [type, id]
   )
-  const status = statusView(invoices, today)
+  const [plannedForBooking] = await db.query<{ n: string }>(
+    "select count(*) as n from billing_schedule_items where booking_type = $1 and booking_id = $2 and status = 'planned'", [type, id]
+  )
+  const billedNet = invoices.filter(i => i.status === 'issued').reduce((s, i) => s + BigInt(i.total_minor) - BigInt(i.credited_minor), 0n)
+  const moreToBill = Number(plannedForBooking!.n) > 0 || (booking.sell_amount_minor !== null && billedNet < BigInt(booking.sell_amount_minor))
+  const status = statusView(invoices, today, moreToBill)
   if (!full) return { booking: { type, id }, projectId: booking.project_id, view: 'status' as const, ...status }
   const vendorInvoices = await db.query<Record<string, any>>(
     `${VENDOR_INVOICES_WITH_BALANCE} where v.booking_type = $1 and v.booking_id = $2 and v.status not in ('rejected', 'void') order by v.due_date, v.id`, [type, id]
@@ -213,7 +241,10 @@ export async function partyFinanceSummary(db: Db, partyId: string, full: boolean
   const today = todayBusinessDate()
   if (!(await db.query('select 1 from parties where id = $1', [partyId])).length) throw errors.notFound('Customer')
   const invoices = await db.query<InvoiceBalanceRow>(`${INVOICES_WITH_BALANCE} where i.party_id = $1 and i.status <> 'void' order by i.due_date desc nulls last, i.id desc`, [partyId])
-  const status = statusView(invoices, today)
+  const projects = await db.query<{ id: string }>('select id from projects where party_id = $1', [partyId])
+  let moreToBill = false
+  for (const p of projects) if (await projectHasMoreToBill(db, p.id)) { moreToBill = true; break }
+  const status = statusView(invoices, today, moreToBill)
   if (!full) return { partyId, view: 'status' as const, ...status }
   const [advance] = await db.query<{ total: string }>(
     'select coalesce(sum(unallocated_minor), 0) as total from v_unallocated_payments where kind = $1 and party_id = $2', ['customer_receipt', partyId]

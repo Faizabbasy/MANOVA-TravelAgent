@@ -93,6 +93,26 @@ Capability baru `project-order.view-payment-status` (Admin + Finance) untuk kepu
 - **Pajak** di luar V1: nominal invoice adalah nilai yang ditagih.
 - **Mock finance lama masih dipakai layar lama.** Angkanya tidak sama dengan server sampai layar dipindah di Phase 4. Ini risiko R2 di dokumen mapping.
 
+## Review independen — temuan & perbaikan
+
+Review independen setelah commit `a84a953` menemukan **4 defect dan 1 penguatan**. Semuanya sudah diperbaiki di migrasi `0009_finance_arap_hardening` dan di kode, masing-masing dengan test regresi.
+
+| # | Temuan | Dampak | Perbaikan |
+|---|---|---|---|
+| 1 | `billing_schedule_item_id` unik untuk semua invoice, termasuk yang void | Termin yang invoicenya di-void tidak bisa ditagih ulang (500) | Unik **parsial** `where status <> 'void'`; bentrok karena balapan → 409 |
+| 2 | Status bayar "Lunas" hanya melihat invoice yang sudah terbit | Admin melihat "Lunas" padahal baru DP yang ditagih dan dibayar | "Lunas" hanya bila tidak ada termin `planned` **dan** yang ditagih (setelah credit note) ≥ nilai kontrak / harga jual booking. Kalau belum: `dp_received` atau `up_to_date` ("Tagihan terbit sudah lunas") |
+| 2b | Invoice yang nol karena credit note terbaca `paid` | Tercatat "lunas" padahal tidak ada uang masuk | Settlement baru `credited`; invoice seperti ini tidak dihitung dalam status project |
+| 3 | Jumlah baris draft bisa melewati batas 1e15 | 500 dari database | Divalidasi di `validateLines` → 400 |
+| 4 | Alokasi berbarengan dengan pembatalan penerimaan/pembayaran | 500 (`fresh` undefined) | Lock diambil dulu, baru saldo sisa dibaca; kalau sudah dibatalkan → 422 |
+| + | Status bisa mundur lewat SQL langsung | Invoice terbit/disetujui bisa jadi bisa diedit lagi | Trigger freeze menolak issued → draft dan approved/rejected/void → submitted/under_review |
+
+Perubahan kontrak API (ditambah, tidak ada yang dihapus): `ApiPaymentStatus` mendapat `up_to_date`, `ApiSettlement` mendapat `credited`. Tipe frontend sudah diperbarui; belum ada layar yang memakainya.
+
+Verifikasi ulang:
+- Backend **152 pass** di PGlite dan PostgreSQL 17.
+- `db:rehearse` lulus sampai skema **v9** (up, rollback ke 0, up lagi, backup/restore).
+- Frontend typecheck bersih, **202 pass**.
+
 ## Berikutnya
 
 **Phase 4 — UI Finance baru:**

@@ -114,7 +114,8 @@ describe('customer: schedule → invoice → partial receipt → advance → set
     secondReceipt = res.json.data.transactionId
     expect(await balance()).toBe('600000000') // posted once
     expect((await get('finance', `/finance/customer-invoices/${dpInvoice}`)).json.data).toMatchObject({ settlement: 'paid', outstandingMinor: '0' })
-    expect((await get('finance', '/projects/PRJ-201/finance-summary')).json.data.paymentStatus).toBe('paid')
+    // DP settled but Pelunasan 70% is still only planned: never 'Lunas'.
+    expect((await get('finance', '/projects/PRJ-201/finance-summary')).json.data).toMatchObject({ paymentStatus: 'dp_received', label: 'DP diterima' })
     const advances = (await get('finance', '/finance/advances?type=customer&partyId=PTY-005')).json.data
     expect(advances).toEqual([expect.objectContaining({ transactionId: secondReceipt, unallocatedMinor: '6000000' })])
   })
@@ -331,5 +332,64 @@ describe('database guards for allocations', () => {
     await expect(t.db.query(`insert into payment_allocations (transaction_id, target_type, target_id, amount_minor, created_by) values ($1, 'customer_invoice', $2, 100, 'USR-008')`, [other.json.data.transactionId, draft.json.data.id]))
       .rejects.toThrow('paying customer')
     await expect(t.db.query('delete from payment_allocations')).rejects.toThrow('immutable')
+  })
+})
+
+describe('review fixes (Phase 3 hardening, migration 0009)', () => {
+  test('a voided invoice releases its billing-schedule item: it can be invoiced again', async () => {
+    const sched = (await post('finance', '/finance/billing-schedule', { projectId: 'PRJ-204', label: 'DP', invoiceType: 'dp', amountMinor: '96000000', plannedDate: addDays(TODAY, 3) })).json.data.id
+    const first = (await post('finance', '/finance/customer-invoices', { billingScheduleItemId: sched, dueDate: addDays(TODAY, 10) })).json.data.id
+    expect((await post('finance', '/finance/customer-invoices', { billingScheduleItemId: sched })).status).toBe(422) // still linked
+    await post('finance', `/finance/customer-invoices/${first}/issue`, {})
+    expect((await post('finance', `/finance/customer-invoices/${first}/void`, { reason: 'Salah nominal' })).json.data.status).toBe('void')
+    const again = await post('finance', '/finance/customer-invoices', { billingScheduleItemId: sched, dueDate: addDays(TODAY, 10) })
+    expect(again.status).toBe(201)
+    expect(again.json.data).toMatchObject({ status: 'draft', totalMinor: '96000000' })
+  })
+
+  test('status is honest: settled DP is not "Lunas" while the contract is not fully billed', async () => {
+    // PRJ-203 contract Rp 165 jt. DP 50 jt invoiced and paid → DP diterima.
+    const dp = (await post('finance', '/finance/customer-invoices', { projectId: 'PRJ-203', invoiceType: 'dp', lines: [{ description: 'DP', amountMinor: '50000000' }], dueDate: addDays(TODAY, 7) })).json.data.id
+    await post('finance', `/finance/customer-invoices/${dp}/issue`, {})
+    await money('finance', '/finance/receipts', { bankAccountId: bank, amountMinor: '50000000', effectiveDate: TODAY, partyId: 'PTY-005', allocations: [{ invoiceId: dp, amountMinor: '50000000' }] })
+    expect((await get('admin', '/projects/PRJ-203/finance-summary')).json.data).toMatchObject({ paymentStatus: 'dp_received', label: 'DP diterima' })
+    // The rest invoiced and paid → Lunas.
+    const fin = (await post('finance', '/finance/customer-invoices', { projectId: 'PRJ-203', invoiceType: 'final', lines: [{ description: 'Pelunasan', amountMinor: '115000000' }], dueDate: addDays(TODAY, 7) })).json.data.id
+    await post('finance', `/finance/customer-invoices/${fin}/issue`, {})
+    expect((await get('admin', '/projects/PRJ-203/finance-summary')).json.data.paymentStatus).toBe('dp_received')
+    await money('finance', '/finance/receipts', { bankAccountId: bank, amountMinor: '115000000', effectiveDate: TODAY, partyId: 'PTY-005', allocations: [{ invoiceId: fin, amountMinor: '115000000' }] })
+    expect((await get('admin', '/projects/PRJ-203/finance-summary')).json.data).toMatchObject({ paymentStatus: 'paid', label: 'Lunas' })
+  })
+
+  test('without a DP: settled invoices below the contract read "Tagihan terbit sudah lunas"; a fully credited invoice is not "paid"', async () => {
+    // PRJ-104 contract Rp 60 jt.
+    const part = (await post('finance', '/finance/customer-invoices', { projectId: 'PRJ-104', invoiceType: 'progress', lines: [{ description: 'Termin 1', amountMinor: '20000000' }], dueDate: addDays(TODAY, 7) })).json.data.id
+    await post('finance', `/finance/customer-invoices/${part}/issue`, {})
+    await money('finance', '/finance/receipts', { bankAccountId: bank, amountMinor: '20000000', effectiveDate: TODAY, partyId: 'PTY-001', allocations: [{ invoiceId: part, amountMinor: '20000000' }] })
+    expect((await get('admin', '/projects/PRJ-104/finance-summary')).json.data).toMatchObject({ paymentStatus: 'up_to_date', label: 'Tagihan terbit sudah lunas' })
+
+    const zeroed = (await post('finance', '/finance/customer-invoices', { projectId: 'PRJ-104', invoiceType: 'other', lines: [{ description: 'Biaya tambahan', amountMinor: '4000000' }], dueDate: addDays(TODAY, 7) })).json.data.id
+    await post('finance', `/finance/customer-invoices/${zeroed}/issue`, {})
+    await post('finance', '/finance/credit-notes', { invoiceId: zeroed, amountMinor: '4000000', reason: 'Dibatalkan, digratiskan' })
+    expect((await get('finance', `/finance/customer-invoices/${zeroed}`)).json.data).toMatchObject({ settlement: 'credited', outstandingMinor: '0', paidMinor: '0' })
+    expect((await get('admin', '/projects/PRJ-104/finance-summary')).json.data.paymentStatus).toBe('up_to_date')
+  })
+
+  test('a draft whose lines add up past the per-document ceiling is a 400, not a 500', async () => {
+    const lines = [{ description: 'A', amountMinor: '600000000000000' }, { description: 'B', amountMinor: '600000000000000' }]
+    const created = await post('finance', '/finance/customer-invoices', { projectId: 'PRJ-102', invoiceType: 'other', lines })
+    expect(created.status).toBe(400)
+    expect(created.json.error.fieldErrors.lines[0]).toContain('batas')
+    const ok = (await post('finance', '/finance/customer-invoices', { projectId: 'PRJ-102', invoiceType: 'other', lines: [lines[0]] })).json.data.id
+    expect((await req('PATCH', 'finance', `/finance/customer-invoices/${ok}`, { lines })).status).toBe(400)
+    await req('DELETE', 'finance', `/finance/customer-invoices/${ok}`)
+  })
+
+  test('status never moves backwards, even via raw SQL', async () => {
+    const [issued] = await t.db.query<{ id: string }>("select id from customer_invoices where status = 'issued' limit 1")
+    await expect(t.db.query("update customer_invoices set status = 'draft' where id = $1", [issued!.id])).rejects.toThrow('cannot return to draft')
+    const [approved] = await t.db.query<{ id: string }>("select id from vendor_invoices where status = 'approved' limit 1")
+    await expect(t.db.query("update vendor_invoices set status = 'submitted' where id = $1", [approved!.id])).rejects.toThrow('cannot return to review')
+    await expect(t.db.query("update vendor_invoices set status = 'under_review' where id = $1", [approved!.id])).rejects.toThrow('cannot return to review')
   })
 })

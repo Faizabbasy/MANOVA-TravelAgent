@@ -311,8 +311,8 @@ export interface StatementQuery extends PageQuery {
 // ── Finance: receivables & payables (Phase 3) ────────────────────────────────────────────────────────
 
 export type ApiInvoiceType = 'dp' | 'progress' | 'final' | 'other'
-/** Derived for issued/approved invoices: open, partially paid, or paid. */
-export type ApiSettlement = 'open' | 'partial' | 'paid'
+/** Derived for issued/approved invoices: open, partially paid, paid, or credited (zeroed by credit notes, no money). */
+export type ApiSettlement = 'open' | 'partial' | 'paid' | 'credited'
 
 export interface CustomerInvoiceDto {
   id: string
@@ -431,7 +431,8 @@ export interface AdvanceDto {
   unallocatedMinor: MoneyMinor
 }
 
-export type ApiPaymentStatus = 'not_invoiced' | 'awaiting_payment' | 'dp_received' | 'partially_paid' | 'paid' | 'overdue'
+/** 'paid' = everything billed and settled; 'up_to_date' = issued invoices settled but more still to bill. */
+export type ApiPaymentStatus = 'not_invoiced' | 'awaiting_payment' | 'dp_received' | 'partially_paid' | 'up_to_date' | 'paid' | 'overdue'
 
 /** What Admin receives (ADR-007 #3): status, never amounts. */
 export interface PaymentStatusView {
