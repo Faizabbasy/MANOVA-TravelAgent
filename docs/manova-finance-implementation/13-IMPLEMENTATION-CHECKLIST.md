@@ -51,10 +51,14 @@ Status awal semua belum dikerjakan. Centang hanya dengan bukti file/test/route. 
 
 ## Cancellation/refund/cashflow
 
-- [ ] Policy master versioned multi-tier, scope/effective date/basis, rule validation.
-- [ ] Booking policy snapshot dan H boundary tests.
-- [ ] Refund mengacu payment asli, credit note/obligation tidak double count.
-- [ ] Settlement posted dari rekening, statement/ledger/booking history diperbarui atomik.
+- [x] Policy master versioned multi-tier, scope/effective date/basis, rule validation.
+  Evidence (Phase 5): `cancellation_policies` + tiers, trigger freeze, validasi tingkat (backend + editor), `test/finance-refunds.test.ts`.
+- [x] Booking policy snapshot dan H boundary tests.
+  Evidence: `cancellation_policy_assignments` (snapshot, pewarisan dari project), test H-30/14/7/1/0 dan "policy v2 tidak mengubah kasus".
+- [x] Refund mengacu payment asli, credit note/obligation tidak double count.
+  Evidence: `source_payments` per kasus; `reduce_receivable` (write-off) vs `refund_liability` (refund) terpisah; test acceptance H-7 DP 20 jt → refund 6 jt.
+- [x] Settlement posted dari rekening, statement/ledger/booking history diperbarui atomik.
+  Evidence: `refund_settlement` + alokasi dalam satu transaksi DB, idempotent; reversal membuka kembali kasus (`phase-reports/phase-5-report.md`).
 - [ ] Cashflow 30d/3m/6m/12m dari current cash + outstanding AR − outstanding AP/refund; account/project filter, overdue, confidence, warnings.
 
 ## Release acceptance
