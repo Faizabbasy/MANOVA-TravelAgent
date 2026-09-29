@@ -690,7 +690,8 @@ interface CancellationPreviewBase {
   tier: PolicyTier | null
   /** False when the refund cannot be computed automatically (see blockers). */
   canCalculate: boolean
-  blockers: { code: 'NO_POLICY' | 'NO_DEPARTURE_DATE' | 'ACTIVE_CASE' | 'OVERLAPPING_CASE'; message: string }[]
+  /** ACTIVE_CASE / OVERLAPPING_CASE carry the live case (so the operational status can follow it). */
+  blockers: { code: 'NO_POLICY' | 'NO_DEPARTURE_DATE' | 'ACTIVE_CASE' | 'OVERLAPPING_CASE'; message: string; caseId?: string }[]
   plannedBillingCount: number
   draftInvoiceCount: number
   writeOffInvoiceCount: number

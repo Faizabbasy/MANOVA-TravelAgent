@@ -276,10 +276,12 @@ export async function newPolicyVersion(tx: Queryable, actor: Actor, id: string, 
   const [draft] = await tx.query<{ id: string }>("select id from cancellation_policies where code = $1 and status = 'draft'", [p.code])
   if (draft) throw rule(`Sudah ada draft versi baru untuk ${p.code} (${draft.id}). Lanjutkan draft itu.`)
   const [max] = await tx.query<{ v: number }>('select max(version) as v from cancellation_policies where code = $1', [p.code])
+  // The new version starts today at the earliest; an end date already passed would make it invalid, so drop it.
+  const from = todayBusinessDate() > p.effective_from ? todayBusinessDate() : p.effective_from
   const [row] = await tx.query<{ id: string }>(
     `insert into cancellation_policies (code, version, name, description, booking_type, effective_from, effective_to, created_by)
      values ($1, $2, $3, $4, $5, $6, $7, $8) returning id`,
-    [p.code, Number(max!.v) + 1, p.name, p.description, p.booking_type, todayBusinessDate() > p.effective_from ? todayBusinessDate() : p.effective_from, p.effective_to, actor.userId]
+    [p.code, Number(max!.v) + 1, p.name, p.description, p.booking_type, from, p.effective_to && p.effective_to >= from ? p.effective_to : null, actor.userId]
   )
   await replaceTiers(tx, row!.id, await tiersOf(tx, id))
   await recordAudit(tx, { action: 'finance.policy_version_started', actorUserId: actor.userId, entityType: 'cancellation_policy', entityId: row!.id, requestId, before: { from: id } })

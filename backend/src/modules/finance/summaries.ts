@@ -98,6 +98,8 @@ function withCancellation<T extends { paymentStatus: PaymentStatus; label: strin
 
 const INVOICES_WITH_BALANCE = `
   select i.*, p.name as project_name, pa.name as party_name, b.paid_minor, b.credited_minor,
+         -- unpaid balances written off by a cancellation: billed all the same (not "still to bill")
+         coalesce((select sum(c.amount_minor) from credit_notes c where c.customer_invoice_id = i.id and c.status = 'issued' and c.effect = 'reduce_receivable' and c.refund_id is not null), 0) as cancel_writeoff_minor,
          (b.total_minor - b.paid_minor - b.credited_minor) as outstanding_minor
     from customer_invoices i
     join projects p on p.id = i.project_id
@@ -154,7 +156,7 @@ async function projectHasMoreToBill(db: Db, projectId: string): Promise<boolean>
   const [row] = await db.query<{ planned: string; contract: string | null; billed: string }>(
     `select (select count(*) from billing_schedule_items s where s.project_id = p.id and s.status = 'planned') as planned,
             p.contract_value_minor as contract,
-            coalesce((select sum(b.total_minor - b.credited_minor) from customer_invoices i join v_customer_invoice_balances b on b.invoice_id = i.id
+            coalesce((select sum(b.total_minor - b.credited_minor + coalesce((select sum(c.amount_minor) from credit_notes c where c.customer_invoice_id = i.id and c.status = 'issued' and c.effect = 'reduce_receivable' and c.refund_id is not null), 0)) from customer_invoices i join v_customer_invoice_balances b on b.invoice_id = i.id
                        where i.project_id = p.id and i.status = 'issued'), 0) as billed
        from projects p where p.id = $1`,
     [projectId]
@@ -191,8 +193,10 @@ export async function projectFinanceSummary(db: Db, projectId: string, full: boo
             coalesce(sum(b.refundable_minor - b.settled_minor) filter (where r.status = 'approved'), 0) as outstanding
        from refunds r join v_refund_balances b on b.refund_id = r.id where r.project_id = $1`, [projectId]
   )
-  const billed = BigInt(receivable.invoicedMinor) - BigInt(receivable.creditedMinor)
-  const revenue = billed - BigInt(refundCredits!.total)
+  // Write-offs from cancellations reduce what is owed, not what was billed; revenue nets them and refunds.
+  const writeOffs = sum(invoices.filter(i => i.status === 'issued'), 'cancel_writeoff_minor')
+  const billed = BigInt(receivable.invoicedMinor) - BigInt(receivable.creditedMinor) + writeOffs
+  const revenue = billed - writeOffs - BigInt(refundCredits!.total)
   const cost = BigInt(payable.approvedMinor) + expenses
   const contract = project.contract_value_minor === null ? null : BigInt(project.contract_value_minor)
   // A cancelled project has nothing left to bill.
@@ -233,7 +237,7 @@ export async function bookingFinanceSummary(db: Db, type: string, id: string, fu
   const [plannedForBooking] = await db.query<{ n: string }>(
     "select count(*) as n from billing_schedule_items where booking_type = $1 and booking_id = $2 and status = 'planned'", [type, id]
   )
-  const billedNet = invoices.filter(i => i.status === 'issued').reduce((s, i) => s + BigInt(i.total_minor) - BigInt(i.credited_minor), 0n)
+  const billedNet = invoices.filter(i => i.status === 'issued').reduce((s, i) => s + BigInt(i.total_minor) - BigInt(i.credited_minor) + BigInt(i.cancel_writeoff_minor), 0n)
   const moreToBill = Number(plannedForBooking!.n) > 0 || (booking.sell_amount_minor !== null && billedNet < BigInt(booking.sell_amount_minor))
   const cancelled = await activeCaseFor(db, { type: type as 'flight', id, projectId: booking.project_id })
   const status = withCancellation(statusView(invoices, today, cancelled ? false : moreToBill), cancelled)

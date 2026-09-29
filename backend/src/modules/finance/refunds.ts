@@ -17,6 +17,8 @@ import { applyTier, daysBetween, effectiveAssignment, type PolicySnapshot, resol
  *     `reduce_receivable` credit notes and planned billing is cancelled — the customer no longer owes them.
  *  3. Approve / reject (finance.approve-refund). Approval does NOT move money: it books the refund as a
  *     `refund_liability` credit note (revenue down, outstanding untouched — never both effects at once).
+ *     Rejecting VOIDS the case — "this cancellation does not stand": its credit notes are voided and the billing
+ *     plan it cancelled is restored. Allowed while no refund money has gone out (also for approved cases).
  *  4. Settle (finance.settle-refund, idempotent): real money out (`refund_settlement`) allocated to the case;
  *     partial allowed. Reversing a settlement reopens the case (allocations of reversed payments stop counting).
  */
@@ -35,9 +37,16 @@ interface SubjectInvoice extends Record<string, unknown> {
   outstanding_minor: string
 }
 
+/**
+ * Invoices/billing a subject covers. A whole-project case leaves out bookings that already have their own live
+ * case (they are settled there), so booking and project cases never count the same money.
+ */
 function invoiceScope(subject: Subject, alias = 'i'): { where: string; params: unknown[] } {
   return subject.type === 'project'
-    ? { where: `${alias}.project_id = $1`, params: [subject.id] }
+    ? {
+        where: `${alias}.project_id = $1 and not (${alias}.booking_id is not null and exists (select 1 from refunds rb where rb.status <> 'rejected' and rb.subject_type = ${alias}.booking_type and rb.subject_id = ${alias}.booking_id))`,
+        params: [subject.id]
+      }
     : { where: `${alias}.booking_type = $1 and ${alias}.booking_id = $2`, params: [subject.type, subject.id] }
 }
 
@@ -64,7 +73,7 @@ interface CaseFigures {
   policy: PolicySnapshot | null
   tier: Tier | null
   canCalculate: boolean
-  blockers: { code: string; message: string }[]
+  blockers: { code: string; message: string; caseId?: string }[]
   invoices: SubjectInvoice[]
   basis: bigint
   otherPaid: bigint
@@ -83,15 +92,12 @@ interface CaseFigures {
 const refundable = (i: SubjectInvoice) => BigInt(i.paid_minor) - BigInt(i.refund_credited_minor)
 
 async function computeCase(q: Queryable, subject: Subject, cancelDate: string, lock: boolean): Promise<CaseFigures> {
-  const blockers: { code: string; message: string }[] = []
+  const blockers: { code: string; message: string; caseId?: string }[] = []
   const [active] = await q.query<{ id: string }>("select id from refunds where subject_type = $1 and subject_id = $2 and status <> 'rejected'", [subject.type, subject.id])
-  if (active) blockers.push({ code: 'ACTIVE_CASE', message: `Sudah ada kasus pembatalan ${active.id} untuk ini.` })
-  if (subject.type === 'project') {
-    const [other] = await q.query<{ id: string }>("select id from refunds where project_id = $1 and subject_type <> 'project' and status <> 'rejected' limit 1", [subject.id])
-    if (other) blockers.push({ code: 'OVERLAPPING_CASE', message: `Project ini sudah punya pembatalan per booking (${other.id}). Selesaikan per booking, atau tolak kasus itu dulu.` })
-  } else {
+  if (active) blockers.push({ code: 'ACTIVE_CASE', message: `Pembatalan ini sudah tercatat (${active.id}).`, caseId: active.id })
+  if (subject.type !== 'project') {
     const [whole] = await q.query<{ id: string }>("select id from refunds where project_id = $1 and subject_type = 'project' and status <> 'rejected'", [subject.projectId])
-    if (whole) blockers.push({ code: 'OVERLAPPING_CASE', message: `Seluruh project sudah dibatalkan (${whole.id}).` })
+    if (whole) blockers.push({ code: 'OVERLAPPING_CASE', message: `Seluruh project sudah dibatalkan (${whole.id}).`, caseId: whole.id })
   }
 
   const { assignment } = await effectiveAssignment(q, subject)
@@ -296,8 +302,8 @@ export async function createCancellation(tx: Queryable, actor: Actor, input: Can
   }
   const s = invoiceScope(subject, 'billing_schedule_items')
   await tx.query(
-    `update billing_schedule_items set status = 'cancelled', updated_at = now() where ${s.where} and status = 'planned'`,
-    s.params
+    `update billing_schedule_items set status = 'cancelled', cancelled_by_refund = $${s.params.length + 1}, updated_at = now() where ${s.where} and status = 'planned'`,
+    [...s.params, caseId]
   )
   await recordAudit(tx, {
     action: 'finance.cancellation_recorded', actorUserId: actor.userId, entityType: 'refund', entityId: caseId, requestId, reason,
@@ -334,6 +340,10 @@ export async function approveRefund(tx: Queryable, actor: Actor, id: string, inp
   } else if (input.refundMinor !== undefined && input.refundMinor !== r.refundable_minor) {
     throw rule('Nominal refund kasus ini mengikuti kebijakan dan tidak bisa diubah. Tolak lalu catat ulang bila perlu.')
   }
+  const dpNow = invoices.filter(i => i.invoice_type === 'dp').reduce((s, i) => s + refundable(i), 0n)
+  if (r.calculation === 'policy' && BigInt(r.policy_refund_minor) > dpNow) {
+    throw new AppError(409, 'PAYMENTS_CHANGED', `DP yang diterima berubah sejak kasus dicatat (sekarang ${dpNow}). Tolak kasus ini lalu catat ulang.`)
+  }
   if (amount > available) {
     throw new AppError(409, 'PAYMENTS_CHANGED', `Uang yang diterima dari customer berubah sejak kasus dicatat; yang bisa di-refund sekarang ${available}. Tolak kasus ini lalu catat ulang.`)
   }
@@ -360,12 +370,31 @@ export async function approveRefund(tx: Queryable, actor: Actor, id: string, inp
   return getRefund(tx, r.id, true)
 }
 
+/**
+ * Voids the case: the cancellation does not stand. Its credit notes (write-offs and refund) are voided, so the
+ * invoices owe again what they owed; the billing plan items it cancelled are planned again. Only while no refund
+ * money is out (reverse the settlements first).
+ */
 export async function rejectRefund(tx: Queryable, actor: Actor, id: string, reasonInput: unknown, requestId: string) {
   const reason = validateReason(reasonInput)
   const r = await lockRefund(tx, id)
-  if (r.status !== 'requested') throw rule('Kasus ini sudah diputuskan.')
+  if (r.status === 'rejected') throw rule('Kasus ini sudah dibatalkan.')
+  const [paid] = await tx.query<{ n: string }>("select count(*) as n from v_active_allocations where target_type = 'refund' and target_id = $1", [r.id])
+  if (Number(paid!.n) > 0) throw rule('Sudah ada refund yang dibayar untuk kasus ini. Batalkan pembayarannya dulu di Mutasi Rekening.')
+  const subject = await resolveSubject(tx, r.subject_type, r.subject_id)
+  await subjectInvoices(tx, subject, true) // lock the invoices whose balance changes
   await tx.query("update refunds set status = 'rejected', reject_reason = $2, decided_by = $3, decided_at = now() where id = $1", [r.id, reason, actor.userId])
-  await recordAudit(tx, { action: 'finance.refund_rejected', actorUserId: actor.userId, entityType: 'refund', entityId: r.id, requestId, reason })
+  const voided = await tx.query<{ id: string }>(
+    "update credit_notes set status = 'void', void_reason = $2, voided_by = $3, voided_at = now() where refund_id = $1 and status = 'issued' returning id",
+    [r.id, `Kasus pembatalan ${r.id} dibatalkan: ${reason}`.slice(0, 500), actor.userId]
+  )
+  const restored = await tx.query<{ id: string }>(
+    "update billing_schedule_items set status = 'planned', cancelled_by_refund = null, updated_at = now() where cancelled_by_refund = $1 and status = 'cancelled' returning id", [r.id]
+  )
+  await recordAudit(tx, {
+    action: 'finance.refund_rejected', actorUserId: actor.userId, entityType: 'refund', entityId: r.id, requestId, reason,
+    before: { status: r.status }, after: { creditNotesVoided: voided.map(v => v.id), billingRestored: restored.map(x => x.id) }
+  })
   return getRefund(tx, r.id, true)
 }
 
@@ -423,7 +452,7 @@ interface RefundRow extends Record<string, any> {
 }
 
 const REFUND_SELECT = `
-  select r.*, p.name as project_name, pa.name as party_name, u.name as requested_by_name, d.name as decided_by_name,
+  select r.*, r.requested_at::text as requested_at_text, p.name as project_name, pa.name as party_name, u.name as requested_by_name, d.name as decided_by_name,
          b.settled_minor, (b.refundable_minor - b.settled_minor) as outstanding_minor
     from refunds r
     join projects p on p.id = r.project_id
@@ -540,7 +569,7 @@ export async function listRefunds(db: Db, filter: { view?: string; projectId?: s
     let at: string, id: string
     try {
       const parsed = JSON.parse(Buffer.from(filter.cursor, 'base64url').toString('utf8'))
-      if (!Array.isArray(parsed) || typeof parsed[0] !== 'string' || !ID_PATTERN.test(parsed[1])) throw new Error()
+      if (!Array.isArray(parsed) || typeof parsed[0] !== 'string' || Number.isNaN(Date.parse(parsed[0].replace(' ', 'T'))) || !ID_PATTERN.test(parsed[1])) throw new Error()
       ;[at, id] = parsed
     } catch {
       throw errors.validation({ cursor: ['Cursor tidak valid.'] })
@@ -560,7 +589,8 @@ export async function listRefunds(db: Db, filter: { view?: string; projectId?: s
     summary: { requestedCount: Number(summary!.requested), toPayCount: Number(summary!.to_pay), ...(full ? { toPayMinor: summary!.to_pay_minor } : {}) },
     pagination: {
       limit: filter.limit,
-      nextCursor: rows.length > filter.limit && last ? Buffer.from(JSON.stringify([(last.requested_at as Date).toISOString(), last.id])).toString('base64url') : null
+      // requested_at as text keeps microseconds (a Date would truncate to ms and skip rows in the same ms).
+      nextCursor: rows.length > filter.limit && last ? Buffer.from(JSON.stringify([last.requested_at_text, last.id])).toString('base64url') : null
     }
   }
 }
@@ -573,4 +603,22 @@ export async function activeCaseFor(q: Queryable, subject: { type: SubjectType; 
     [subject.type, subject.id, subject.projectId]
   )
   return r ?? null
+}
+
+/**
+ * No new billing for something already cancelled: a project with a live whole-project case, or a booking with a
+ * live case of its own (or of its project). The case's figures are a snapshot; money billed afterwards would sit
+ * outside it.
+ */
+export async function assertBillable(q: Queryable, projectId: string, booking: { type: string | null; id: string | null } | null) {
+  const [c] = await q.query<{ id: string; subject_type: string }>(
+    `select id, subject_type from refunds where status <> 'rejected' and project_id = $1
+        and (subject_type = 'project' or (subject_type = $2 and subject_id = $3)) limit 1`,
+    [projectId, booking?.type ?? null, booking?.id ?? null]
+  )
+  if (c) {
+    throw rule(c.subject_type === 'project'
+      ? `Project ini sudah dibatalkan (${c.id}); tagihan baru tidak bisa dibuat. Batalkan kasusnya dulu bila pembatalan keliru.`
+      : `Booking ini sudah dibatalkan (${c.id}); tagihan baru tidak bisa dibuat.`)
+  }
 }

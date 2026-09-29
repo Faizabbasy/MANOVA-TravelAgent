@@ -34,6 +34,9 @@ const preview = useFinanceQuery(
   { watch: [() => props.open, () => form.cancelDate, () => props.subject.id], enabled: () => props.open && !!form.cancelDate }
 )
 const p = computed(() => preview.data.value)
+/** The preview on screen belongs to this subject and date and is not being recomputed. */
+const fresh = computed(() => !!p.value && !preview.pending.value && !preview.error.value &&
+  p.value.cancelDate === form.cancelDate && p.value.subject.id === props.subject.id && p.value.subject.type === props.subject.type)
 const full = computed(() => (p.value?.view === 'full' ? p.value : null))
 const hardBlock = computed(() => p.value?.blockers.find(b => b.code === 'ACTIVE_CASE' || b.code === 'OVERLAPPING_CASE') ?? null)
 const needsManual = computed(() => !!p.value && !p.value.canCalculate && !hardBlock.value)
@@ -69,6 +72,23 @@ const action = useFinanceAction(() => api.finance.createCancellation({
   additionalReason: !useManual.value && form.showException && form.additional ? form.additionalReason.trim() : undefined
 }, idempotencyKey))
 
+/** A case already exists (recorded earlier or by someone else): let the booking/project status follow it. */
+const applying = ref(false)
+async function applyExisting () {
+  const caseId = hardBlock.value?.caseId
+  if (!caseId) { return }
+  applying.value = true
+  try {
+    const refund = (await api.finance.getRefund(caseId)).data
+    emit('recorded', { refund, reason: refund.reason })
+    emit('update:open', false)
+  } catch {
+    showToast('Belum bisa memuat kasus', 'Coba lagi sebentar lagi.', 'error')
+  } finally {
+    applying.value = false
+  }
+}
+
 async function submit () {
   const res = await action.run()
   if (!res) { return }
@@ -80,7 +100,7 @@ async function submit () {
   emit('update:open', false)
 }
 
-const disabled = computed(() => !p.value || !!hardBlock.value || form.reason.trim().length < 5 ||
+const disabled = computed(() => !fresh.value || !!hardBlock.value || form.reason.trim().length < 5 ||
   (form.showException && !!form.additional && form.additionalReason.trim().length < 5))
 </script>
 
@@ -89,14 +109,14 @@ const disabled = computed(() => !p.value || !!hardBlock.value || form.reason.tri
     :open="open"
     :title="`Batalkan ${subject.label}`"
     description="Pratinjau dihitung dari kebijakan pembatalan dan uang yang benar-benar sudah diterima. Tidak ada uang yang keluar sampai refund disetujui dan dibayar Finance."
-    submit-label="Catat pembatalan"
+    :submit-label="hardBlock ? 'Terapkan status Cancelled' : 'Catat pembatalan'"
     tone="destructive"
     size="lg"
-    :pending="action.pending.value"
+    :pending="action.pending.value || applying"
     :error="action.error.value"
-    :submit-disabled="disabled"
+    :submit-disabled="hardBlock ? !hardBlock.caseId : disabled"
     @update:open="emit('update:open', $event)"
-    @submit="submit"
+    @submit="hardBlock ? applyExisting() : submit()"
   >
     <div class="grid gap-4 sm:grid-cols-[12rem_1fr] sm:items-end">
       <FinanceField id="cx-date" label="Tanggal pembatalan" :error="action.fieldError('cancelDate')">
@@ -115,12 +135,20 @@ const disabled = computed(() => !p.value || !!hardBlock.value || form.reason.tri
     <FinanceErrorState v-else-if="preview.error.value && !p" :error="preview.error.value" compact @retry="preview.refresh" />
 
     <template v-else-if="p">
-      <div v-if="hardBlock" class="flex gap-2 rounded-lg border border-destructive/25 bg-destructive/5 px-3 py-2.5 text-sm text-destructive" role="alert">
-        <AlertTriangle class="mt-0.5 h-4 w-4 shrink-0" /> {{ hardBlock.message }}
+      <p v-if="!fresh && !preview.error.value" class="text-xs text-muted-foreground" role="status">
+        Menghitung ulang untuk tanggal {{ formatBusinessDate(form.cancelDate) }}…
+      </p>
+      <div v-if="hardBlock" class="space-y-2 rounded-lg border border-border bg-muted/40 px-3 py-3 text-sm" role="status">
+        <p class="flex gap-2">
+          <AlertTriangle class="mt-0.5 h-4 w-4 shrink-0 text-warning" /> {{ hardBlock.message }}
+        </p>
+        <p class="text-xs text-muted-foreground">
+          Tidak perlu dicatat lagi. Bila status di halaman ini belum "Cancelled", terapkan dari kasus yang sudah ada — refund-nya tetap diurus di kasus itu.
+        </p>
       </div>
 
       <!-- Policy -->
-      <section v-if="p.policy" class="space-y-2">
+      <section v-if="p.policy && !hardBlock" class="space-y-2">
         <p class="flex items-center gap-1.5 text-[13px] font-medium">
           <ShieldCheck class="h-4 w-4 text-primary" /> {{ p.policy.name }} <span class="font-normal text-muted-foreground">({{ p.policy.code }} v{{ p.policy.version }})</span>
         </p>
@@ -244,7 +272,7 @@ const disabled = computed(() => !p.value || !!hardBlock.value || form.reason.tri
         </template>
       </p>
 
-      <FinanceField id="cx-reason" label="Alasan pembatalan" :error="action.fieldError('reason')" hint="Minimal 5 karakter. Tersimpan di jejak audit.">
+      <FinanceField v-if="!hardBlock" id="cx-reason" label="Alasan pembatalan" :error="action.fieldError('reason')" hint="Minimal 5 karakter. Tersimpan di jejak audit.">
         <FinanceTextarea id="cx-reason" v-model="form.reason" :rows="2" maxlength="500" placeholder="mis. Customer membatalkan perjalanan karena perubahan jadwal internal" />
       </FinanceField>
       <label v-if="isFinance && !needsManual && !hardBlock" class="flex cursor-pointer items-center gap-2 text-xs text-muted-foreground">

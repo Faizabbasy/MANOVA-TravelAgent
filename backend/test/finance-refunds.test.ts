@@ -94,11 +94,22 @@ describe('policies: draft → published (frozen) → new version', () => {
     expect((await get('admin', `/finance/policies/${policyId}`)).status).toBe(200)
   })
 
+  test('a new version of an expired policy starts today without the old end date (no 500)', async () => {
+    const old = await post('finance', '/finance/policies', { code: 'OLD', name: 'Lama', effectiveFrom: addDays(TODAY, -200), effectiveTo: addDays(TODAY, -100), tiers: STANDARD_TIERS })
+    await post('finance', `/finance/policies/${old.json.data.id}/publish`)
+    const v2 = await post('finance', `/finance/policies/${old.json.data.id}/new-version`)
+    expect(v2.status).toBe(201)
+    expect(v2.json.data).toMatchObject({ version: 2, effectiveFrom: TODAY, effectiveTo: null })
+  })
+
   test('publishing freezes it, even against raw SQL', async () => {
     expect((await post('finance', `/finance/policies/${policyId}/publish`)).json.data.status).toBe('published')
     expect((await req('PATCH', 'finance', `/finance/policies/${policyId}`, { name: 'Ubah' })).status).toBe(422)
     await expect(t.db.query("update cancellation_policy_tiers set refund_bp = 10000 where policy_id = $1", [policyId])).rejects.toThrow('frozen')
     await expect(t.db.query("update cancellation_policies set name = 'x' where id = $1", [policyId])).rejects.toThrow('new version')
+    const draft = await post('finance', '/finance/policies', { code: 'TMP', name: 'Sementara', effectiveFrom: TODAY, tiers: STANDARD_TIERS })
+    await expect(t.db.query('update cancellation_policy_tiers set policy_id = $2 where policy_id = $1', [policyId, draft.json.data.id])).rejects.toThrow('frozen')
+    await req('DELETE', 'finance', `/finance/policies/${draft.json.data.id}`)
   })
 })
 
@@ -106,6 +117,7 @@ describe('acceptance: H-7, DP posted Rp 20 jt, 70/30 → refund Rp 6 jt', () => 
   let dpInvoice: string
   let caseId: string
   let settlementTx: string
+  let dpReceipt: string
 
   test('setup: DP invoice Rp 30 jt on FLT-1021, only Rp 20 jt received; policy assigned (snapshot v1)', async () => {
     const draft = await post('finance', '/finance/customer-invoices', {
@@ -113,7 +125,8 @@ describe('acceptance: H-7, DP posted Rp 20 jt, 70/30 → refund Rp 6 jt', () => 
     })
     dpInvoice = draft.json.data.id
     await post('finance', `/finance/customer-invoices/${dpInvoice}/issue`, { issueDate: addDays(TODAY, -20), dueDate: addDays(TODAY, -10) })
-    await money('finance', '/finance/receipts', { bankAccountId: bank, amountMinor: '20000000', effectiveDate: addDays(TODAY, -15), partyId: 'PTY-002', allocations: [{ invoiceId: dpInvoice, amountMinor: '20000000' }] })
+    const receipt = await money('finance', '/finance/receipts', { bankAccountId: bank, amountMinor: '20000000', effectiveDate: addDays(TODAY, -15), partyId: 'PTY-002', allocations: [{ invoiceId: dpInvoice, amountMinor: '20000000' }] })
+    dpReceipt = receipt.json.data.transactionId
     const assigned = await req('PUT', 'finance', '/finance/cancellation-policy/flight/FLT-1021', { policyId })
     expect(assigned.status).toBe(200)
     expect(assigned.json.data).toMatchObject({ policyId, version: 1 })
@@ -159,9 +172,14 @@ describe('acceptance: H-7, DP posted Rp 20 jt, 70/30 → refund Rp 6 jt', () => 
     expect((await get('admin', '/bookings/flight/FLT-1021/finance-summary')).json.data).toMatchObject({ paymentStatus: 'cancelled', label: 'Dibatalkan', cancellation: { status: 'requested' } })
   })
 
-  test('a cancelled booking blocks a whole-project cancellation (no double refund)', async () => {
-    const res = await money('finance', '/finance/cancellations', { subjectType: 'project', subjectId: 'PRJ-102', reason: 'Project batal total' })
-    expect(res.status).toBe(409)
+  test('a whole-project cancellation stays possible but leaves the cancelled booking to its own case (no double count)', async () => {
+    const preview = (await post('finance', '/finance/cancellations/preview', { subjectType: 'project', subjectId: 'PRJ-102' })).json.data
+    expect(preview.blockers.map((b: { code: string }) => b.code)).not.toContain('OVERLAPPING_CASE')
+    expect(preview.basisMinor).toBe('0')
+    expect(preview.sourcePayments).toEqual([])
+    // …and a booking cannot be billed again once cancelled.
+    const draft = await post('finance', '/finance/customer-invoices', { projectId: 'PRJ-102', booking: { type: 'flight', id: 'FLT-1021' }, invoiceType: 'final', lines: [{ description: 'x', amountMinor: '1000' }] })
+    expect(draft.status).toBe(422)
   })
 
   test('money cannot go out before approval; Admin cannot approve or pay', async () => {
@@ -180,6 +198,10 @@ describe('acceptance: H-7, DP posted Rp 20 jt, 70/30 → refund Rp 6 jt', () => 
     expect(await balance()).toBe(before)
     const cn = res.json.data.creditNotes[1].id
     expect((await post('finance', `/finance/credit-notes/${cn}/void`, { reason: 'Coba void' })).status).toBe(422)
+    // The refund is based on this payment: it cannot be reversed while the case stands.
+    const rev = await money('finance', `/finance/transactions/${dpReceipt}/reverse`, { reason: 'Transfer ditolak bank' })
+    expect(rev.status).toBe(422)
+    expect(rev.json.error.message).toContain(caseId)
   })
 
   test('settlement moves Rp 6 jt out once; replay does not post twice', async () => {
@@ -199,6 +221,7 @@ describe('acceptance: H-7, DP posted Rp 20 jt, 70/30 → refund Rp 6 jt', () => 
     const moved = (await get('finance', `/finance/transactions/${settlementTx}`)).json.data
     expect(moved).toMatchObject({ kind: 'refund_settlement', direction: 'out', party: { id: 'PTY-002' }, booking: { type: 'flight', id: 'FLT-1021' } })
     expect((await money('finance', `/finance/refunds/${caseId}/settlements`, { ...body, amountMinor: '1' })).status).toBe(422)
+    expect((await post('finance', `/finance/refunds/${caseId}/reject`, { reason: 'Coba batalkan kasus' })).status).toBe(422)
   })
 
   test('reversing the settlement reopens the refund and restores the balance', async () => {
@@ -235,6 +258,26 @@ describe('whole-project cancellation with a 0% tier', () => {
     expect(plans.every((p: { status: string }) => p.status === 'cancelled')).toBe(true)
     const summary = (await get('finance', '/projects/PRJ-104/finance-summary')).json.data
     expect(summary).toMatchObject({ paymentStatus: 'cancelled', receivable: { uninvoicedMinor: '0', scheduledNotInvoicedMinor: '0' }, refunds: { openCount: 0 } })
+  })
+})
+
+describe('voiding a cancellation case undoes it', () => {
+  test('TRN-1034: written-off DP and cancelled plan come back; the booking is billable again', async () => {
+    await req('PUT', 'finance', '/finance/cancellation-policy/project/PRJ-103', { policyId }) // inherited by TRN-1034
+    const plan = (await post('finance', '/finance/billing-schedule', { projectId: 'PRJ-103', booking: { type: 'transport', id: 'TRN-1034' }, label: 'Pelunasan transport', invoiceType: 'final', amountMinor: '5000000', plannedDate: addDays(TODAY, 3) })).json.data.id
+    const inv = (await post('finance', '/finance/customer-invoices', { projectId: 'PRJ-103', booking: { type: 'transport', id: 'TRN-1034' }, invoiceType: 'dp', lines: [{ description: 'DP transport', amountMinor: '10000000' }], dueDate: TODAY })).json.data.id
+    await post('finance', `/finance/customer-invoices/${inv}/issue`, {})
+    const cx = await money('admin', '/finance/cancellations', { subjectType: 'transport', subjectId: 'TRN-1034', reason: 'Salah pilih booking' })
+    expect(cx.json.data).toMatchObject({ status: 'approved', settlement: 'none' }) // 0% tier (after departure), nothing to refund
+    expect((await get('finance', `/finance/customer-invoices/${inv}`)).json.data.outstandingMinor).toBe('0')
+    expect((await get('finance', '/finance/billing-schedule?projectId=PRJ-103')).json.data.find((p: { id: string }) => p.id === plan).status).toBe('cancelled')
+
+    const voided = await post('finance', `/finance/refunds/${cx.json.data.id}/reject`, { reason: 'Pembatalan keliru, booking tetap jalan' })
+    expect(voided.json.data.status).toBe('rejected')
+    expect((await get('finance', `/finance/customer-invoices/${inv}`)).json.data).toMatchObject({ outstandingMinor: '10000000', creditedMinor: '0' })
+    expect((await get('finance', '/finance/billing-schedule?projectId=PRJ-103')).json.data.find((p: { id: string }) => p.id === plan).status).toBe('planned')
+    expect((await get('finance', '/bookings/transport/TRN-1034/finance-summary')).json.data.cancellation).toBeNull()
+    expect((await post('finance', `/finance/refunds/${cx.json.data.id}/reject`, { reason: 'Kedua kali' })).status).toBe(422)
   })
 })
 

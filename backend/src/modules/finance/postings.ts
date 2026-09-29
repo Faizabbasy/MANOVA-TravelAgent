@@ -227,6 +227,19 @@ export async function reverseTransaction(tx: Queryable, actor: Actor, transactio
   const [existing] = await tx.query('select id from financial_transactions where reversal_of_id = $1', [transactionId])
   if (existing) throw new AppError(409, 'ALREADY_REVERSED', `Transaksi ${transactionId} sudah dibatalkan sebelumnya.`)
 
+  if (original.kind === 'customer_receipt') {
+    // Lock the invoices it paid (serialises with refund approval), then refuse if a live cancellation case was
+    // computed from this payment — reversing it would let the company refund money it never received.
+    await tx.query(
+      "select id from customer_invoices where id in (select target_id from payment_allocations where transaction_id = $1 and target_type = 'customer_invoice') order by id for update",
+      [transactionId]
+    )
+    const [c] = await tx.query<{ id: string }>(
+      "select id from refunds where status <> 'rejected' and source_payments @> $1::text::jsonb limit 1",
+      [JSON.stringify([{ transactionId }])]
+    )
+    if (c) throw rule(`Pembayaran ini menjadi dasar kasus pembatalan ${c.id}. Batalkan kasus itu dulu (Refund & Pembatalan), baru pembayarannya bisa dibatalkan.`)
+  }
   const today = todayBusinessDate()
   const account = assertActiveForReversal(await findAccount(tx, original.bank_account_id, true))
   // Undoing money that came in takes it out again, today.

@@ -63,7 +63,7 @@ const tabs = computed(() => [
   { key: 'requested' as Tab, label: 'Perlu diputuskan', count: totals.data.value?.requestedCount },
   { key: 'to_pay' as Tab, label: 'Perlu dibayar', count: totals.data.value?.toPayCount },
   { key: 'settled' as Tab, label: 'Selesai', count: undefined },
-  { key: 'rejected' as Tab, label: 'Ditolak', count: undefined },
+  { key: 'rejected' as Tab, label: 'Dibatalkan', count: undefined },
   { key: 'policies' as Tab, label: 'Kebijakan pembatalan', count: undefined }
 ])
 
@@ -221,7 +221,7 @@ const POLICY_STATUS: Record<CancellationPolicyDto['status'], { label: string; to
       <EmptyState
         v-else-if="!items.length"
         :icon="Undo2"
-        :title="tab === 'requested' ? 'Tidak ada refund yang menunggu keputusan' : tab === 'to_pay' ? 'Tidak ada refund yang perlu dibayar' : tab === 'settled' ? 'Belum ada refund selesai' : 'Tidak ada refund yang ditolak'"
+        :title="tab === 'requested' ? 'Tidak ada refund yang menunggu keputusan' : tab === 'to_pay' ? 'Tidak ada refund yang perlu dibayar' : tab === 'settled' ? 'Belum ada refund selesai' : 'Tidak ada kasus yang dibatalkan'"
       />
       <div v-else :class="list.pending.value && 'opacity-70 transition-opacity'">
         <ul class="divide-y divide-border">

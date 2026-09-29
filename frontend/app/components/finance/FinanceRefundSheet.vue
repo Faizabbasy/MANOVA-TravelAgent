@@ -56,8 +56,11 @@ const reject = useFinanceAction((reason: string) => api.finance.rejectRefund(rf.
 async function submitReject (value: { reason: string }) {
   if (!(await reject.run(value.reason))) { return }
   showReject.value = false
-  showToast('Refund ditolak', 'Pembatalan tetap tercatat; tidak ada refund untuk kasus ini.')
+  showToast('Kasus dibatalkan', 'Sisa tagihan dan rencana tagihan dipulihkan; tidak ada refund.')
 }
+/** A case can be voided while no refund money is out (requested, or approved without settlements). */
+const canVoid = computed(() => !!rf.value && session.can('finance.approve-refund') &&
+  (rf.value.status === 'requested' || (rf.value.status === 'approved' && rf.value.settledMinor === '0')))
 </script>
 
 <template>
@@ -115,7 +118,7 @@ async function submitReject (value: { reason: string }) {
 
       <div v-if="rf" class="flex-1 space-y-6 px-6 py-5">
         <div v-if="rf.status === 'rejected'" class="flex gap-2 rounded-lg bg-muted px-3 py-2.5 text-sm text-muted-foreground">
-          <XCircle class="mt-0.5 h-4 w-4 shrink-0" /> Ditolak: “{{ rf.rejectReason }}”
+          <XCircle class="mt-0.5 h-4 w-4 shrink-0" /> Kasus dibatalkan — tagihan dipulihkan: “{{ rf.rejectReason }}”
         </div>
 
         <section class="space-y-2">
@@ -255,15 +258,18 @@ async function submitReject (value: { reason: string }) {
 
       <div v-if="rf && rf.status === 'requested' && session.can('finance.approve-refund')" class="grid grid-cols-2 gap-2 border-t border-border px-6 py-4">
         <Button variant="outline" class="text-destructive hover:text-destructive" @click="reject.reset(); showReject = true">
-          Tolak
+          Batalkan kasus
         </Button>
         <Button @click="showApprove = true">
           <CheckCircle2 class="mr-2 h-4 w-4" /> Setujui
         </Button>
       </div>
-      <div v-else-if="rf && rf.status === 'approved' && rf.outstandingMinor !== '0' && session.can('finance.settle-refund')" class="border-t border-border px-6 py-4">
-        <Button class="w-full" @click="showSettle = true">
+      <div v-else-if="rf && rf.status === 'approved'" class="space-y-2 border-t border-border px-6 py-4">
+        <Button v-if="rf.outstandingMinor !== '0' && session.can('finance.settle-refund')" class="w-full" @click="showSettle = true">
           <Wallet class="mr-2 h-4 w-4" /> Bayar refund
+        </Button>
+        <Button v-if="canVoid" variant="ghost" size="sm" class="w-full text-muted-foreground" @click="reject.reset(); showReject = true">
+          Batalkan kasus (pembatalan keliru)
         </Button>
       </div>
     </SheetContent>
@@ -292,9 +298,9 @@ async function submitReject (value: { reason: string }) {
 
   <FinanceReasonDialog
     :open="showReject"
-    :title="`Tolak refund ${rf?.id ?? ''}?`"
-    description="Pembatalan tetap tercatat (sisa tagihan tetap dihapus), tapi tidak ada refund. Bila nominalnya yang salah, tolak lalu catat ulang pembatalannya."
-    confirm-label="Tolak refund"
+    :title="`Batalkan kasus ${rf?.id ?? ''}?`"
+    description="Pembatalan dianggap tidak terjadi: sisa tagihan yang dihapus dan rencana tagihan dipulihkan, refund dibatalkan. Bila hanya nominalnya yang keliru, catat ulang pembatalannya setelah ini. Status booking/project di modul operasional tidak berubah otomatis."
+    confirm-label="Batalkan kasus"
     tone="destructive"
     :pending="reject.pending.value"
     :error="reject.error.value"

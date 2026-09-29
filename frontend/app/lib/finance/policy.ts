@@ -6,19 +6,26 @@ import type { ApiSubjectType, PolicyTier, PolicyTierInput } from '~/types/api'
  * thresholds [30, 14, 7, 1] + refunds [100, 50, 30, 0, 0] → H≥30, 14–29, 7–13, 1–6, below 1.
  */
 
+/** One day relative to departure: 7 → "H-7", 0 → "hari keberangkatan", -2 → "H+2". */
+export function dayLabel (h: number): string {
+  if (h === 0) { return 'hari keberangkatan' }
+  return h > 0 ? `H-${h}` : `H+${-h}`
+}
+
 /** Plain-language label: "H-30 atau lebih", "H-14 s/d H-29", "Hari keberangkatan & sesudahnya". */
 export function tierLabel (t: Pick<PolicyTier, 'minDays' | 'maxDays'>): string {
   const min = t.minDays
   const max = t.maxDays
-  if (min !== null && max === null) { return min <= 0 ? `Sejak H${min === 0 ? '' : `+${-min}`} (sesudah berangkat)` : `H-${min} atau lebih` }
+  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
+  if (min !== null && max === null) { return min > 0 ? `H-${min} atau lebih` : `${cap(dayLabel(min))} atau lebih awal` }
   if (min === null && max !== null) {
     if (max === 1) { return 'Hari keberangkatan & sesudahnya' }
-    if (max <= 0) { return `Sesudah H${max === 0 ? '-0' : `+${-max}`}` }
-    return `Kurang dari H-${max} (termasuk hari keberangkatan)`
+    if (max > 1) { return `Kurang dari H-${max} (termasuk hari keberangkatan)` }
+    return `Sesudah ${dayLabel(max)}`
   }
   if (min !== null && max !== null) {
-    if (max - min === 1) { return min === 0 ? 'Hari keberangkatan' : `H-${min}` }
-    return `H-${min} s/d H-${max - 1}`
+    if (max - min === 1) { return cap(dayLabel(min)) }
+    return `${cap(dayLabel(min))} s/d ${dayLabel(max - 1)}`
   }
   return 'Semua waktu'
 }
@@ -52,6 +59,7 @@ export function thresholdProblems (thresholds: number[], refundPercents: number[
     if (!(thresholds[i]! < thresholds[i - 1]!)) { out.push(`Batas hari harus makin kecil ke bawah (baris ${i + 1}).`) }
   }
   if (thresholds.some(t => !Number.isInteger(t))) { out.push('Batas hari harus bilangan bulat.') }
+  if (thresholds.some(t => Math.abs(t) > 3650)) { out.push('Batas hari maksimal 3650 (sekitar 10 tahun) dari keberangkatan.') }
   if (refundPercents.some(p => !(p >= 0 && p <= 100))) { out.push('Persentase refund harus 0–100%.') }
   return out
 }

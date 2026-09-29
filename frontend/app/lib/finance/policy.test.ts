@@ -22,11 +22,15 @@ describe('policy editor helpers', () => {
     expect(tierLabel({ minDays: 14, maxDays: 30 })).toBe('H-14 s/d H-29')
     expect(tierLabel({ minDays: 1, maxDays: 2 })).toBe('H-1')
     expect(tierLabel({ minDays: null, maxDays: 1 })).toBe('Hari keberangkatan & sesudahnya')
+    expect(tierLabel({ minDays: -3, maxDays: 1 })).toBe('H+3 s/d hari keberangkatan')
+    expect(tierLabel({ minDays: null, maxDays: -3 })).toBe('Sesudah H+3')
   })
 
   it('flags thresholds that are not strictly descending and percents out of range', () => {
     expect(thresholdProblems([14, 30], [100, 50, 0])).toHaveLength(1)
     expect(thresholdProblems([30, 14], [100, 150, 0])).toHaveLength(1)
     expect(thresholdProblems([30, 14, 7], [100, 50, 30, 0])).toEqual([])
+    expect(thresholdProblems([4000, 7], [100, 50, 0])).toHaveLength(1)
+    expect(thresholdProblems([7, 7], [100, 50, 0])).toHaveLength(1) // duplicates are not descending
   })
 })

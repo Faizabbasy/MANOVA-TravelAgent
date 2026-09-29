@@ -6,6 +6,7 @@ import { recordAudit } from '../../shared/audit'
 import { isIsoDate } from '../../shared/dates'
 import { isUniqueViolation, MAX_MOVEMENT_MINOR, parseMovementAmount, rule, todayBusinessDate } from './common'
 import { lockPostableAccount, resolveReferences, trimOrNull, validateEffectiveDate, validateReason } from './postings'
+import { assertBillable } from './refunds'
 
 /**
  * Receivables (Phase 3): billing schedule → customer invoice (draft → issued → void) → receipts with
@@ -61,6 +62,7 @@ export async function createScheduleItem(tx: Queryable, actor: Actor, input: Sch
   const plannedDate = requireDate(input.plannedDate, 'plannedDate')
   if (!input.label?.trim()) throw errors.validation({ label: ['Nama termin wajib diisi (contoh "DP 30%").'] })
   const { refs } = await lockProjectRef(tx, input)
+  await assertBillable(tx, refs.projectId!, { type: refs.bookingType, id: refs.bookingId })
   const [row] = await tx.query<{ id: string }>(
     `insert into billing_schedule_items (project_id, booking_type, booking_id, label, invoice_type, amount_minor, planned_date, created_by)
      values ($1, $2, $3, $4, $5, $6, $7, $8) returning id`,
@@ -188,6 +190,7 @@ export async function createInvoiceDraft(tx: Queryable, actor: Actor, input: Inv
     booking: input.booking ?? (schedule?.booking_id ? { type: schedule.booking_type!, id: schedule.booking_id } : undefined)
   }
   const { refs, project } = await lockProjectRef(tx, projectInput)
+  await assertBillable(tx, project.id, { type: refs.bookingType, id: refs.bookingId })
   const invoiceType = requireInvoiceType(input.invoiceType ?? schedule?.invoice_type)
   const lines = validateLines(input.lines ?? (schedule ? [{ description: schedule.label, amountMinor: schedule.amount_minor }] : undefined))
   const dueDate = optionalDate(input.dueDate, 'dueDate')
@@ -255,6 +258,7 @@ export async function deleteInvoiceDraft(tx: Queryable, actor: Actor, id: string
 export async function issueInvoice(tx: Queryable, actor: Actor, id: string, input: { issueDate?: string; dueDate?: string }, requestId: string) {
   const inv = await lockInvoice(tx, id)
   if (inv.status !== 'draft') throw rule('Invoice ini sudah terbit atau dibatalkan.')
+  await assertBillable(tx, inv.project_id, { type: inv.booking_type, id: inv.booking_id })
   const issueDate = input.issueDate === undefined ? todayBusinessDate() : requireDate(input.issueDate, 'issueDate', { notFuture: true })
   const dueDate = input.dueDate !== undefined ? requireDate(input.dueDate, 'dueDate') : inv.due_date
   if (!dueDate) throw errors.validation({ dueDate: ['Tanggal jatuh tempo wajib diisi sebelum invoice diterbitkan.'] })

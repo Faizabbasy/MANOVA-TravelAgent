@@ -5,7 +5,7 @@ import type { BadgeTone } from '~/types/common'
 /** One badge for a refund case: decision first, then payment progress. */
 export function refundTag (r: { status: ApiRefundStatus; settlement: ApiRefundSettlement }): { label: string; tone: BadgeTone } {
   if (r.status === 'requested') { return { label: 'Menunggu persetujuan', tone: 'info' } }
-  if (r.status === 'rejected') { return { label: 'Ditolak', tone: 'neutral' } }
+  if (r.status === 'rejected') { return { label: 'Kasus dibatalkan', tone: 'neutral' } }
   if (r.settlement === 'none') { return { label: 'Tanpa refund', tone: 'neutral' } }
   if (r.settlement === 'settled') { return { label: 'Refund lunas', tone: 'success' } }
   if (r.settlement === 'partial') { return { label: 'Dibayar sebagian', tone: 'warning' } }
