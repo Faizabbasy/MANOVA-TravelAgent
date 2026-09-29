@@ -1,6 +1,7 @@
 import type { Queryable } from '../../db/client'
-import { AppError } from '../../http/errors'
+import { AppError, errors } from '../../http/errors'
 import { businessDateOf } from '../../shared/dates'
+import { parseAmountMinor } from '../../shared/money'
 
 /** Shared rules and row shapes for the Finance money foundation (Phase 2). */
 
@@ -9,6 +10,15 @@ export const OUT_KINDS = ['vendor_payment', 'refund_settlement', 'expense', 'tra
 export const TRANSACTION_KINDS = [...IN_KINDS, ...OUT_KINDS] as const
 export type TransactionKind = (typeof TRANSACTION_KINDS)[number]
 export const TRANSFER_KINDS: readonly TransactionKind[] = ['transfer_in', 'transfer_out', 'transfer_fee']
+
+/** Per-movement ceiling (Rp 1 quadrillion), mirrored by a DB check. Keeps sums far from bigint overflow. */
+export const MAX_MOVEMENT_MINOR = 1_000_000_000_000_000n
+
+export function parseMovementAmount(value: unknown, field = 'amountMinor', options: { allowZero?: boolean } = {}): bigint {
+  const amount = parseAmountMinor(value, field, options)
+  if (amount > MAX_MOVEMENT_MINOR) throw errors.validation({ [field]: ['Nominal melebihi batas per transaksi (Rp 1.000.000.000.000.000).'] })
+  return amount
+}
 
 export const EXPENSE_CATEGORIES = ['payroll', 'office', 'marketing', 'technology', 'travel', 'professional', 'bank_fee', 'tax', 'other'] as const
 
@@ -51,7 +61,7 @@ export async function netMovements(q: Queryable, accountIds?: string[]): Promise
     where = 'where bank_account_id = any($1::text[])'
   }
   const rows = await q.query<{ bank_account_id: string; net: string }>(
-    `select bank_account_id, coalesce(sum(case when direction = 'in' then amount_minor else -amount_minor end), 0)::bigint as net
+    `select bank_account_id, coalesce(sum(case when direction = 'in' then amount_minor else -amount_minor end), 0) as net
        from financial_transactions ${where} group by bank_account_id`,
     params
   )
@@ -62,6 +72,32 @@ export async function netMovements(q: Queryable, accountIds?: string[]): Promise
 export function currentBalance(account: AccountRow, net: bigint | undefined): bigint | null {
   if (account.opening_status !== 'verified' || account.opening_balance_minor === null) return null
   return BigInt(account.opening_balance_minor) + (net ?? 0n)
+}
+
+/**
+ * Room for an outflow dated `date` on this account. The new row lands after everything already posted on
+ * `date`, so it must fit under the end-of-day balance of `date` AND under every later running balance —
+ * otherwise a backdated payment would make some past or later point in the ledger negative.
+ */
+export async function outflowHeadroom(q: Queryable, account: AccountRow, date: string): Promise<bigint> {
+  const opening = BigInt(account.opening_balance_minor ?? '0')
+  const [upTo] = await q.query<{ net: string }>(
+    `select coalesce(sum(case when direction = 'in' then amount_minor else -amount_minor end), 0) as net
+       from financial_transactions where bank_account_id = $1 and effective_date <= $2`,
+    [account.id, date]
+  )
+  let running = opening + BigInt(upTo!.net)
+  let min = running
+  const later = await q.query<{ direction: 'in' | 'out'; amount_minor: string }>(
+    `select direction, amount_minor from financial_transactions
+      where bank_account_id = $1 and effective_date > $2 order by effective_date, length(id), id`,
+    [account.id, date]
+  )
+  for (const row of later) {
+    running += row.direction === 'in' ? BigInt(row.amount_minor) : -BigInt(row.amount_minor)
+    if (running < min) min = running
+  }
+  return min
 }
 
 export function maskAccountNumber(number: string): string {

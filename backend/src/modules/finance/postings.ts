@@ -4,14 +4,13 @@ import { ID_PATTERN } from '../../http/envelope'
 import { AppError, errors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
 import { isIsoDate } from '../../shared/dates'
-import { parseAmountMinor } from '../../shared/money'
 import { findAccount } from './accounts'
 import {
-  currentBalance,
   EXPENSE_CATEGORIES,
   IN_KINDS,
   isUniqueViolation,
-  netMovements,
+  outflowHeadroom,
+  parseMovementAmount,
   rule,
   todayBusinessDate,
   TRANSFER_KINDS,
@@ -55,15 +54,21 @@ async function lockPostableAccount(tx: Queryable, accountId: string, effectiveDa
   return account
 }
 
-async function balanceOf(tx: Queryable, account: AccountRow): Promise<bigint> {
-  const net = (await netMovements(tx, [account.id])).get(account.id)
-  return currentBalance(account, net) ?? 0n
+/** Refuses an outflow that would make the account negative on its date or at any later point. */
+async function assertOutflowFits(tx: Queryable, account: AccountRow, date: string, needed: bigint): Promise<void> {
+  const headroom = await outflowHeadroom(tx, account, date)
+  if (headroom < needed) {
+    throw new AppError(422, 'INSUFFICIENT_BALANCE', `Saldo ${account.code} tidak cukup untuk transaksi ini pada tanggal ${date} (atau sesudahnya).`, {
+      details: { accountId: account.id, date, balanceMinor: headroom.toString(), requiredMinor: needed.toString() }
+    })
+  }
 }
 
-function insufficient(account: AccountRow, balance: bigint, needed: bigint) {
-  return new AppError(422, 'INSUFFICIENT_BALANCE', `Saldo ${account.code} tidak cukup untuk transaksi ini.`, {
-    details: { accountId: account.id, balanceMinor: balance.toString(), requiredMinor: needed.toString() }
-  })
+/** Reversals also move money, so they need an active account (a closed account must be reactivated first). */
+function assertActiveForReversal(account: AccountRow | null): AccountRow {
+  if (!account) throw errors.notFound('Rekening')
+  if (!account.is_active) throw rule(`Rekening ${account.code} nonaktif. Aktifkan kembali rekeningnya sebelum membatalkan transaksi di rekening ini.`)
+  return account
 }
 
 interface ReferenceIds {
@@ -138,7 +143,7 @@ export async function postManualTransaction(tx: Queryable, actor: Actor, input: 
     throw errors.validation({ kind: ['Jenis harus "other_income" (uang masuk lain) atau "expense" (pengeluaran). Pembayaran invoice dicatat dari menu Piutang/Utang.'] })
   }
   const kind = input.kind as ManualKind
-  const amount = parseAmountMinor(input.amountMinor)
+  const amount = parseMovementAmount(input.amountMinor)
   const effectiveDate = validateEffectiveDate(input.effectiveDate)
   let category: string | null = null
   if (kind === 'expense') {
@@ -151,10 +156,7 @@ export async function postManualTransaction(tx: Queryable, actor: Actor, input: 
   const refs = await resolveReferences(tx, input)
   const account = await lockPostableAccount(tx, input.bankAccountId, effectiveDate)
   const direction = directionOf(kind)
-  if (direction === 'out') {
-    const balance = await balanceOf(tx, account)
-    if (balance < amount) throw insufficient(account, balance, amount)
-  }
+  if (direction === 'out') await assertOutflowFits(tx, account, effectiveDate, amount)
 
   const [row] = await tx.query<{ id: string }>(
     `insert into financial_transactions
@@ -226,12 +228,9 @@ export async function reverseTransaction(tx: Queryable, actor: Actor, transactio
   if (existing) throw new AppError(409, 'ALREADY_REVERSED', `Transaksi ${transactionId} sudah dibatalkan sebelumnya.`)
 
   const today = todayBusinessDate()
-  const account = await findAccount(tx, original.bank_account_id, true)
-  if (original.direction === 'in') {
-    const balance = await balanceOf(tx, account!)
-    const amount = BigInt(original.amount_minor)
-    if (balance < amount) throw insufficient(account!, balance, amount)
-  }
+  const account = assertActiveForReversal(await findAccount(tx, original.bank_account_id, true))
+  // Undoing money that came in takes it out again, today.
+  if (original.direction === 'in') await assertOutflowFits(tx, account, today, BigInt(original.amount_minor))
   const reversalId = await insertReversal(tx, actor, original, reason, today)
   await recordAudit(tx, {
     action: 'finance.transaction_reversed', actorUserId: actor.userId, entityType: 'financial_transaction', entityId: transactionId, requestId,
@@ -251,8 +250,8 @@ export interface TransferInput {
 
 /** One transfer = out from A + in to B (+ fee out from A), atomically. Company cash changes only by the fee. */
 export async function postTransfer(tx: Queryable, actor: Actor, input: TransferInput, requestId: string): Promise<{ transferId: string; transactionIds: string[] }> {
-  const amount = parseAmountMinor(input.amountMinor)
-  const fee = input.feeMinor === undefined || input.feeMinor === '' ? 0n : parseAmountMinor(input.feeMinor, 'feeMinor', { allowZero: true })
+  const amount = parseMovementAmount(input.amountMinor)
+  const fee = input.feeMinor === undefined || input.feeMinor === '' ? 0n : parseMovementAmount(input.feeMinor, 'feeMinor', { allowZero: true })
   const effectiveDate = validateEffectiveDate(input.effectiveDate)
   if (input.fromAccountId === input.toAccountId) throw errors.validation({ toAccountId: ['Rekening tujuan harus berbeda dari rekening asal.'] })
 
@@ -264,8 +263,7 @@ export async function postTransfer(tx: Queryable, actor: Actor, input: TransferI
   const to = first.id === input.toAccountId ? first : second
   if (from.currency !== to.currency) throw rule('Transfer hanya antar rekening dengan mata uang yang sama.')
 
-  const balance = await balanceOf(tx, from)
-  if (balance < amount + fee) throw insufficient(from, balance, amount + fee)
+  await assertOutflowFits(tx, from, effectiveDate, amount + fee)
 
   const memo = trimOrNull(input.memo)
   const [transfer] = await tx.query<{ id: string }>(
@@ -308,15 +306,13 @@ export async function reverseTransfer(tx: Queryable, actor: Actor, transferId: s
   if (reversed.length) throw new AppError(409, 'ALREADY_REVERSED', `Transfer ${transferId} sudah dibatalkan sebelumnya.`)
 
   const [firstId, secondId] = [transfer.from_account_id, transfer.to_account_id].sort() as [string, string]
-  await findAccount(tx, firstId, true)
-  await findAccount(tx, secondId, true)
-  // Undoing the incoming leg takes money out of the receiving account again.
-  const to = await findAccount(tx, transfer.to_account_id)
-  const balance = await balanceOf(tx, to!)
-  const amount = BigInt(transfer.amount_minor)
-  if (balance < amount) throw insufficient(to!, balance, amount)
-
+  assertActiveForReversal(await findAccount(tx, firstId, true))
+  assertActiveForReversal(await findAccount(tx, secondId, true))
   const today = todayBusinessDate()
+  // Undoing the incoming leg takes money out of the receiving account again, today.
+  const to = await findAccount(tx, transfer.to_account_id)
+  await assertOutflowFits(tx, to!, today, BigInt(transfer.amount_minor))
+
   const reversalIds: string[] = []
   for (const leg of legs) reversalIds.push(await insertReversal(tx, actor, leg, reason, today))
   await recordAudit(tx, {

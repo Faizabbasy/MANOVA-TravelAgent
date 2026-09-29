@@ -40,7 +40,7 @@ async function openAccount(code: string, openingMinor: string, openingDate = OPE
   expect(created.status).toBe(201)
   const id = created.json.data.id
   expect((await post('finance', `/accounts/${id}/opening`, { amountMinor: openingMinor, openingDate })).status).toBe(200)
-  expect((await post('superAdmin', `/accounts/${id}/opening/verify`, {})).status).toBe(200)
+  expect((await post('superAdmin', `/accounts/${id}/opening/verify`, { balanceMinor: openingMinor, openingDate })).status).toBe(200)
   return id
 }
 
@@ -64,7 +64,7 @@ describe('access (ADR-006: Admin never touches Finance)', () => {
     const created = await post('finance', '/accounts', { code: 'CHK-1', bankName: 'Bank', holderName: 'PT', accountNumber: '9988776655' })
     const id = created.json.data.id
     await post('finance', `/accounts/${id}/opening`, { amountMinor: '1000', openingDate: OPENING_DATE })
-    expect((await post('finance', `/accounts/${id}/opening/verify`, {})).status).toBe(403)
+    expect((await post('finance', `/accounts/${id}/opening/verify`, { balanceMinor: '1000', openingDate: OPENING_DATE })).status).toBe(403)
   })
 })
 
@@ -97,7 +97,7 @@ describe('bank accounts and opening balance', () => {
     const created = await post('superAdmin', '/accounts', { code: 'SELF-1', bankName: 'Bank', holderName: 'PT', accountNumber: '5566778899' })
     const id = created.json.data.id
     await post('superAdmin', `/accounts/${id}/opening`, { amountMinor: '500', openingDate: OPENING_DATE })
-    const self = await post('superAdmin', `/accounts/${id}/opening/verify`, {})
+    const self = await post('superAdmin', `/accounts/${id}/opening/verify`, { balanceMinor: '500', openingDate: OPENING_DATE })
     expect(self.status).toBe(403)
     expect(self.json.error.code).toBe('MAKER_CHECKER_VIOLATION')
   })
@@ -106,15 +106,19 @@ describe('bank accounts and opening balance', () => {
     const created = await post('finance', '/accounts', { code: 'LOCK-1', bankName: 'Bank', holderName: 'PT', accountNumber: '4455667788' })
     const id = created.json.data.id
     expect((await post('finance', `/accounts/${id}/opening`, { amountMinor: '1000', openingDate: addDays(TODAY, 1) })).status).toBe(400)
-    expect((await post('superAdmin', `/accounts/${id}/opening/verify`, {})).status).toBe(422) // nothing submitted yet
+    expect((await post('superAdmin', `/accounts/${id}/opening/verify`, { balanceMinor: '1000', openingDate: OPENING_DATE })).status).toBe(422) // nothing submitted yet
     await post('finance', `/accounts/${id}/opening`, { amountMinor: '1000', openingDate: OPENING_DATE })
     const pending = await post('finance', `/accounts/${id}/opening`, { amountMinor: '2000', openingDate: OPENING_DATE }) // resubmit while pending
     expect(pending.json.data.opening).toMatchObject({ status: 'pending', balanceMinor: '2000' })
-    const verified = await post('superAdmin', `/accounts/${id}/opening/verify`, {})
+    // The checker reviewed 1000 but the maker re-submitted 2000 meanwhile: refused, nothing locked in.
+    const stale = await post('superAdmin', `/accounts/${id}/opening/verify`, { balanceMinor: '1000', openingDate: OPENING_DATE })
+    expect(stale.status).toBe(409)
+    expect(stale.json.error.details).toEqual({ balanceMinor: '2000', openingDate: OPENING_DATE })
+    const verified = await post('superAdmin', `/accounts/${id}/opening/verify`, { balanceMinor: '2000', openingDate: OPENING_DATE })
     expect(verified.json.data.opening.status).toBe('verified')
     expect(verified.json.data.balance).toMatchObject({ available: true, currentMinor: '2000' })
     expect((await post('finance', `/accounts/${id}/opening`, { amountMinor: '3000', openingDate: OPENING_DATE })).status).toBe(409)
-    expect((await post('superAdmin', `/accounts/${id}/opening/verify`, {})).status).toBe(422)
+    expect((await post('superAdmin', `/accounts/${id}/opening/verify`, { balanceMinor: '2000', openingDate: OPENING_DATE })).status).toBe(422)
   })
 
   test('a pending opening blocks postings', async () => {
@@ -169,7 +173,7 @@ describe('cash book postings', () => {
     const res = await post('finance', '/transactions', { bankAccountId: ops, kind: 'expense', category: 'office', amountMinor: '999000000', effectiveDate: TODAY })
     expect(res.status).toBe(422)
     expect(res.json.error.code).toBe('INSUFFICIENT_BALANCE')
-    expect(res.json.error.details).toEqual({ accountId: ops, balanceMinor: '105000000', requiredMinor: '999000000' })
+    expect(res.json.error.details).toEqual({ accountId: ops, date: TODAY, balanceMinor: '105000000', requiredMinor: '999000000' })
   })
 
   test('concurrent expenses can never overdraw the account', async () => {
@@ -349,6 +353,76 @@ describe('statement and account ledger reconcile', () => {
       expect(actions.has(a), a).toBe(true)
     }
     expect(rows.find(r => r.action === 'finance.opening_verified')!.actor_user_id).toBe('USR-010')
+  })
+})
+
+describe('review hardening (Phase 2)', () => {
+  test('a backdated outflow cannot make any past or later point of the ledger negative', async () => {
+    const acc = await openAccount('BACK-1', '0', addDays(TODAY, -20))
+    await post('finance', '/transactions', { bankAccountId: acc, kind: 'other_income', amountMinor: '100', effectiveDate: TODAY })
+    // Balance today is 100, but 10 days ago it was 0.
+    const backdated = await post('finance', '/transactions', { bankAccountId: acc, kind: 'expense', category: 'office', amountMinor: '100', effectiveDate: addDays(TODAY, -10) })
+    expect(backdated.status).toBe(422)
+    expect(backdated.json.error.details).toMatchObject({ date: addDays(TODAY, -10), balanceMinor: '0' })
+    // Later income then a backdated expense that would push a later dip below zero is refused too.
+    await post('finance', '/transactions', { bankAccountId: acc, kind: 'other_income', amountMinor: '50', effectiveDate: addDays(TODAY, -15) })
+    await post('finance', '/transactions', { bankAccountId: acc, kind: 'expense', category: 'office', amountMinor: '40', effectiveDate: addDays(TODAY, -5) })
+    // Points: d-15 → 50, d-5 → 10, today → 110. A 20 expense at d-15 would make d-5 negative.
+    expect((await post('finance', '/transactions', { bankAccountId: acc, kind: 'expense', category: 'office', amountMinor: '20', effectiveDate: addDays(TODAY, -15) })).status).toBe(422)
+    expect((await post('finance', '/transactions', { bankAccountId: acc, kind: 'expense', category: 'office', amountMinor: '10', effectiveDate: addDays(TODAY, -15) })).status).toBe(201)
+    const ledger = (await get('finance', `/accounts/${acc}/ledger?from=${addDays(TODAY, -20)}&to=${TODAY}`)).json.data
+    expect(ledger.items.every((i: { balanceAfterMinor: string }) => BigInt(i.balanceAfterMinor) >= 0n)).toBe(true)
+  })
+
+  test('reversals refuse inactive accounts, so money never lands where cash position does not look', async () => {
+    const a = await openAccount('INACT-A', '100')
+    const b = await openAccount('INACT-B', '0')
+    const transfer = await post('finance', '/transfers', { fromAccountId: a, toAccountId: b, amountMinor: '100', effectiveDate: TODAY })
+    expect((await patch('finance', `/accounts/${a}`, { isActive: false })).status).toBe(200) // balance 0, allowed
+    const rev = await post('finance', `/transfers/${transfer.json.data.transferId}/reverse`, { reason: 'Salah rekening' })
+    expect(rev.status).toBe(422)
+    expect(rev.json.error.message).toContain('nonaktif')
+    const position = (await get('finance', '/cash-position')).json.data
+    expect(position.accounts.find((x: { id: string }) => x.id === a)).toBeUndefined() // inactive and empty: not listed
+    expect(position.accounts.find((x: { id: string }) => x.id === b)).toMatchObject({ isActive: true, currentMinor: '100' })
+  })
+
+  test('amounts above the per-movement ceiling are refused', async () => {
+    const acc = await openAccount('CEIL-1', '0')
+    const res = await post('finance', '/transactions', { bankAccountId: acc, kind: 'other_income', amountMinor: '9000000000000000000', effectiveDate: TODAY })
+    expect(res.status).toBe(400)
+    expect(res.json.error.fieldErrors).toHaveProperty('amountMinor')
+    expect((await get('finance', '/cash-position')).status).toBe(200)
+  })
+
+  test('statement totals leave out a posting and its reversal, but still list both', async () => {
+    const acc = await openAccount('VOID-1', '1000')
+    const exp = await post('finance', '/transactions', { bankAccountId: acc, kind: 'expense', category: 'office', amountMinor: '100', effectiveDate: TODAY })
+    await post('finance', `/transactions/${exp.json.data.transactionId}/reverse`, { reason: 'Salah input' })
+    await post('finance', '/transactions', { bankAccountId: acc, kind: 'expense', category: 'office', amountMinor: '30', effectiveDate: TODAY })
+    const res = await get('finance', `/statement?accountId=${acc}&from=${TODAY}&to=${TODAY}`)
+    expect(res.json.meta.summary).toMatchObject({ inMinor: '0', outMinor: '30', netMinor: '-30', reversedCount: 2, count: 3 })
+    expect(res.json.data).toHaveLength(3)
+  })
+
+  test('the database refuses TRUNCATE and reversal rows that do not mirror their original', async () => {
+    await expect(t.db.exec('truncate financial_transactions cascade')).rejects.toThrow('immutable')
+    await expect(t.db.exec('truncate transfers cascade')).rejects.toThrow('immutable')
+    const acc = await openAccount('TRIG-1', '1000')
+    const exp = await post('finance', '/transactions', { bankAccountId: acc, kind: 'expense', category: 'office', amountMinor: '100', effectiveDate: TODAY })
+    const id = exp.json.data.transactionId
+    // Hand-written reversal for a different amount: rejected by the trigger, not only by the app.
+    await expect(t.db.query(
+      `insert into financial_transactions (bank_account_id, direction, amount_minor, currency, kind, effective_date, category, reversal_of_id, reversal_reason, created_by)
+       values ($1, 'in', 999, 'IDR', 'expense', $2, 'office', $3, 'manual sql', 'USR-008')`, [acc, TODAY, id]
+    )).rejects.toThrow('does not mirror')
+    // A transfer leg whose amount does not match its transfer: rejected.
+    const other = await openAccount('TRIG-2', '0')
+    const tr = await post('finance', '/transfers', { fromAccountId: acc, toAccountId: other, amountMinor: '10', effectiveDate: TODAY })
+    await expect(t.db.query(
+      `insert into financial_transactions (bank_account_id, direction, amount_minor, currency, kind, effective_date, transfer_id, created_by)
+       values ($1, 'in', 500, 'IDR', 'transfer_in', $2, $3, 'USR-008')`, [other, TODAY, tr.json.data.transferId]
+    )).rejects.toThrow('does not match')
   })
 })
 

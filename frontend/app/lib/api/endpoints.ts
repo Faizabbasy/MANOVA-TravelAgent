@@ -68,8 +68,12 @@ export function createManovaApi (client: ApiClient) {
       /** Maker step (Finance). */
       submitOpening: (id: string, input: { amountMinor: string; openingDate: string; note?: string }) =>
         client.post<BankAccountDto>(`/finance/accounts/${seg(id)}/opening`, input),
-      /** Checker step (Super Admin); must be a different person than the maker. */
-      verifyOpening: (id: string) => client.post<BankAccountDto>(`/finance/accounts/${seg(id)}/opening/verify`),
+      /**
+       * Checker step (Super Admin); must be a different person than the maker. Send the exact figure shown to
+       * the checker — the server answers 409 if the maker changed it in the meantime.
+       */
+      verifyOpening: (id: string, reviewed: { balanceMinor: string; openingDate: string }) =>
+        client.post<BankAccountDto>(`/finance/accounts/${seg(id)}/opening/verify`, reviewed),
       accountLedger: (id: string, query: { from?: string; to?: string } = {}) =>
         client.get<AccountLedgerDto>(`/finance/accounts/${seg(id)}/ledger`, { query: { ...query } }),
 

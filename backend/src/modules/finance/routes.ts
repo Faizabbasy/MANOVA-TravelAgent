@@ -102,11 +102,21 @@ export function financeRoutes(deps: AppDeps, auth: AuthContext) {
         })
       }
     )
-    .post('/accounts/:id/opening/verify', async ({ request, params }) => {
-      const actor = await auth.requireCapability(request, 'finance.approve-opening-balance')
-      const id = assertIdParam(params.id, 'Rekening')
-      return ok(request, await verifyOpening(db, actor, id, requestIdOf(request), hasCapability(actor.role, 'finance.manage-bank-accounts')))
-    })
+    .post(
+      '/accounts/:id/opening/verify',
+      async ({ request, params, body }) => {
+        const actor = await auth.requireCapability(request, 'finance.approve-opening-balance')
+        const id = assertIdParam(params.id, 'Rekening')
+        return ok(request, await verifyOpening(db, actor, id, body, requestIdOf(request), hasCapability(actor.role, 'finance.manage-bank-accounts')))
+      },
+      {
+        // The checker confirms the exact figure they reviewed (409 if the maker changed it meanwhile).
+        body: t.Object({
+          balanceMinor: t.String({ error: 'Sertakan nominal saldo pembuka yang Anda periksa.' }),
+          openingDate: t.String({ error: 'Sertakan tanggal saldo pembuka yang Anda periksa.' })
+        })
+      }
+    )
     .get(
       '/accounts/:id/ledger',
       async ({ request, params, query }) => {

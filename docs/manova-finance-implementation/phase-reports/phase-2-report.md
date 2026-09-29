@@ -91,3 +91,24 @@ Test yang memakai nomor versi skema kini membaca daftar file migrasi, jadi migra
 - pembayaran dengan alokasi parsial dan uang muka
 - tampilan piutang/utang
 - ringkasan Finance untuk project/booking/vendor/customer, termasuk varian status-saja untuk Admin
+
+## Review independen dan perbaikannya (setelah commit `9d90884`)
+
+Tujuh temuan nyata. Semuanya diperbaiki (migrasi `0007_finance_hardening` + kode) dan diberi test regresi:
+
+| # | Temuan | Perbaikan |
+|---|---|---|
+| 1 (high) | Pembatalan transaksi bisa memasukkan uang ke rekening **nonaktif**, dan uang itu hilang dari posisi kas | Pembatalan wajib di rekening aktif. Posisi kas juga menampilkan rekening nonaktif yang masih bersaldo. |
+| 2 | Pengeluaran bertanggal mundur bisa membuat saldo **di masa lalu** minus | Cek saldo di tanggal transaksi dan di setiap titik sesudahnya (`outflowHeadroom`) |
+| 3 | `TRUNCATE` melewati imutabilitas buku kas | Trigger penolak TRUNCATE di `financial_transactions` dan `transfers` |
+| 4 | Checker bisa menyetujui saldo pembuka yang **diubah maker setelah checker membukanya** | Verifikasi wajib menyertakan nominal + tanggal yang diperiksa; berbeda → 409 |
+| 5 | Konsistensi pembatalan/kaki transfer hanya dijaga aplikasi | Trigger `before insert`: pembatalan harus cermin persis transaksi aslinya; kaki transfer harus cocok dengan transfernya |
+| 6 | Nominal ekstrem bisa membuat penjumlahan overflow sehingga semua baca error 500 | Batas Rp 1 kuadriliun per transaksi (API + check DB); penjumlahan memakai numeric |
+| 7 | Total statement menghitung pasangan transaksi + pembatalannya sebagai arus nyata | Pasangan dikeluarkan dari total (tetap tampil di daftar) + `reversedCount` |
+
+Catatan untuk UI: buat **satu Idempotency-Key per pengiriman form**, bukan per klik.
+
+**Bukti setelah perbaikan:**
+- Backend **126 pass** di PGlite dan di PostgreSQL 17.
+- Rehearsal PostgreSQL sampai **skema v7** lulus.
+- Frontend 200 pass, typecheck bersih.

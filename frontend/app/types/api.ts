@@ -198,7 +198,8 @@ export interface CashPositionDto {
   reason: 'NO_ACCOUNTS' | 'OPENING_BALANCE_UNVERIFIED' | null
   totalMinor: MoneyMinor
   unverifiedAccountIds: string[]
-  accounts: { id: string; code: string; bankName: string; currency: string; openingStatus: ApiOpeningStatus; currentMinor: MoneyMinor | null }[]
+  /** Active accounts, plus inactive ones that still hold money (cash never silently disappears). */
+  accounts: { id: string; code: string; bankName: string; currency: string; isActive: boolean; openingStatus: ApiOpeningStatus; currentMinor: MoneyMinor | null }[]
 }
 
 export interface MovementDto {
@@ -238,6 +239,8 @@ export interface StatementList {
       netMinor: MoneyMinor
       internalTransferInMinor: MoneyMinor
       internalTransferOutMinor: MoneyMinor
+      /** Reversals and reversed postings: listed, but excluded from the totals above. */
+      reversedCount: number
       count: number
     }
   }

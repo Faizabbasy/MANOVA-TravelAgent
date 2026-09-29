@@ -3,8 +3,7 @@ import type { Db, Queryable } from '../../db/client'
 import { AppError, errors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
 import { isIsoDate } from '../../shared/dates'
-import { parseAmountMinor } from '../../shared/money'
-import { ACCOUNT_COLUMNS, currentBalance, isUniqueViolation, maskAccountNumber, netMovements, rule, todayBusinessDate, type AccountRow } from './common'
+import { ACCOUNT_COLUMNS, currentBalance, isUniqueViolation, maskAccountNumber, netMovements, parseMovementAmount, rule, todayBusinessDate, type AccountRow } from './common'
 
 /**
  * Bank accounts and their opening balance (maker/checker).
@@ -176,7 +175,7 @@ export async function submitOpening(
   input: { amountMinor: string; openingDate: string; note?: string },
   requestId: string
 ): Promise<AccountDto> {
-  const amount = parseAmountMinor(input.amountMinor, 'amountMinor', { allowZero: true })
+  const amount = parseMovementAmount(input.amountMinor, 'amountMinor', { allowZero: true })
   if (!isIsoDate(input.openingDate)) throw errors.validation({ openingDate: ['Tanggal harus berformat YYYY-MM-DD.'] })
   if (input.openingDate > todayBusinessDate()) throw errors.validation({ openingDate: ['Tanggal saldo pembuka tidak boleh di masa depan.'] })
 
@@ -201,8 +200,19 @@ export async function submitOpening(
   })
 }
 
-/** Checker step: a different person than the maker must verify (maker/checker). */
-export async function verifyOpening(db: Db, actor: Actor, id: string, requestId: string, showFullNumber: boolean): Promise<AccountDto> {
+/**
+ * Checker step: a different person than the maker must verify (maker/checker), and must confirm the exact
+ * amount and date they reviewed — if the maker re-submitted in the meantime, verification is refused (409)
+ * instead of silently approving a figure the checker never saw.
+ */
+export async function verifyOpening(
+  db: Db,
+  actor: Actor,
+  id: string,
+  expected: { balanceMinor: string; openingDate: string },
+  requestId: string,
+  showFullNumber: boolean
+): Promise<AccountDto> {
   return db.transaction(async tx => {
     const before = await findAccount(tx, id, true)
     if (!before) throw errors.notFound('Rekening')
@@ -211,6 +221,11 @@ export async function verifyOpening(db: Db, actor: Actor, id: string, requestId:
     }
     if (before.opening_submitted_by === actor.userId) {
       throw new AppError(403, 'MAKER_CHECKER_VIOLATION', 'Saldo pembuka harus diverifikasi oleh orang lain, bukan yang mengajukannya.')
+    }
+    if (before.opening_balance_minor !== expected.balanceMinor || before.opening_date !== expected.openingDate) {
+      throw new AppError(409, 'CONFLICT', 'Saldo pembuka sudah diubah sejak Anda membukanya. Muat ulang dan periksa angkanya lagi sebelum menyetujui.', {
+        details: { balanceMinor: before.opening_balance_minor, openingDate: before.opening_date }
+      })
     }
     const [row] = await tx.query<AccountRow>(
       `update bank_accounts set opening_status = 'verified', opening_verified_by = $2, opening_verified_at = now(), updated_at = now()

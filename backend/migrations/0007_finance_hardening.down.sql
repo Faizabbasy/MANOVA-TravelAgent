@@ -1,0 +1,6 @@
+drop trigger financial_transactions_links on financial_transactions;
+drop function financial_transactions_check_links();
+alter table transfers drop constraint transfers_amount_ceiling;
+alter table financial_transactions drop constraint financial_transactions_amount_ceiling;
+drop trigger transfers_no_truncate on transfers;
+drop trigger financial_transactions_no_truncate on financial_transactions;

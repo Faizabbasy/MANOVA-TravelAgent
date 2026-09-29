@@ -164,15 +164,20 @@ export async function statement(db: Db, filter: StatementFilter) {
   if (filter.includeTransfers === false) where.push(`t.kind not in ('transfer_in', 'transfer_out')`)
 
   const baseWhere = where.join(' and ')
-  const [totals] = await db.query<{ in_minor: string; out_minor: string; transfer_in_minor: string; transfer_out_minor: string; count: string }>(
+  const [totals] = await db.query<{ in_minor: string; out_minor: string; transfer_in_minor: string; transfer_out_minor: string; voided_count: string; count: string }>(
     // Grouped by kind, not only direction: a reversed transfer leg runs the other way but is still internal.
+    // A posting and its reversal cancel out: both stay listed, but neither counts as real in/out flow.
     `select
-       coalesce(sum(case when direction = 'in' and kind not in ('transfer_in', 'transfer_out') then amount_minor end), 0)::bigint as in_minor,
-       coalesce(sum(case when direction = 'out' and kind not in ('transfer_in', 'transfer_out') then amount_minor end), 0)::bigint as out_minor,
-       coalesce(sum(case when direction = 'in' and kind in ('transfer_in', 'transfer_out') then amount_minor end), 0)::bigint as transfer_in_minor,
-       coalesce(sum(case when direction = 'out' and kind in ('transfer_in', 'transfer_out') then amount_minor end), 0)::bigint as transfer_out_minor,
-       count(*)::bigint as count
-     from financial_transactions t where ${baseWhere}`,
+       coalesce(sum(case when not voided and direction = 'in' and kind not in ('transfer_in', 'transfer_out') then amount_minor end), 0) as in_minor,
+       coalesce(sum(case when not voided and direction = 'out' and kind not in ('transfer_in', 'transfer_out') then amount_minor end), 0) as out_minor,
+       coalesce(sum(case when not voided and direction = 'in' and kind in ('transfer_in', 'transfer_out') then amount_minor end), 0) as transfer_in_minor,
+       coalesce(sum(case when not voided and direction = 'out' and kind in ('transfer_in', 'transfer_out') then amount_minor end), 0) as transfer_out_minor,
+       count(*) filter (where voided) as voided_count,
+       count(*) as count
+     from (
+       select t.*, (t.reversal_of_id is not null or exists (select 1 from financial_transactions r where r.reversal_of_id = t.id)) as voided
+         from financial_transactions t where ${baseWhere}
+     ) t`,
     params
   )
 
@@ -194,12 +199,14 @@ export async function statement(db: Db, filter: StatementFilter) {
   return {
     period: range,
     summary: {
-      /** Operational in/out: internal transfers excluded (transfer fees are real outflow and stay in). */
+      /** Operational in/out: internal transfers and reversed pairs excluded (transfer fees are real outflow and stay in). */
       inMinor: totals!.in_minor,
       outMinor: totals!.out_minor,
       netMinor: (BigInt(totals!.in_minor) - BigInt(totals!.out_minor)).toString(),
       internalTransferInMinor: totals!.transfer_in_minor,
       internalTransferOutMinor: totals!.transfer_out_minor,
+      /** Rows that are reversals or have been reversed — listed, but left out of the totals above. */
+      reversedCount: Number(totals!.voided_count),
       count: Number(totals!.count)
     },
     items: items.map(movementDto),
@@ -226,7 +233,7 @@ export async function accountLedger(db: Db, accountId: string, query: { from?: s
   const from = range.from < account.opening_date ? account.opening_date : range.from
 
   const [before] = await db.query<{ net: string }>(
-    `select coalesce(sum(case when direction = 'in' then amount_minor else -amount_minor end), 0)::bigint as net
+    `select coalesce(sum(case when direction = 'in' then amount_minor else -amount_minor end), 0) as net
        from financial_transactions where bank_account_id = $1 and effective_date < $2`,
     [accountId, from]
   )
@@ -256,18 +263,23 @@ export async function accountLedger(db: Db, accountId: string, query: { from?: s
   }
 }
 
-/** Company cash today. Unavailable (not zero) while any active account lacks a verified opening balance. */
+/**
+ * Company cash today. Unavailable (not zero) while any active account lacks a verified opening balance.
+ * Inactive accounts are included whenever they still hold money, so cash can never silently disappear.
+ */
 export async function cashPosition(db: Db) {
-  const accounts = await db.query<AccountRow>(`select ${ACCOUNT_COLUMNS} from bank_accounts where is_active order by code`)
+  const all = await db.query<AccountRow>(`select ${ACCOUNT_COLUMNS} from bank_accounts order by is_active desc, code`)
   const net = await netMovements(db)
   let total = 0n
   const unverified: string[] = []
-  const perAccount = accounts.map(a => {
+  const perAccount = all.flatMap(a => {
     const balance = currentBalance(a, net.get(a.id))
+    if (!a.is_active && (balance === null || balance === 0n)) return []
     if (balance === null) unverified.push(a.id)
     else total += balance
-    return { id: a.id, code: a.code, bankName: a.bank_name, currency: a.currency, openingStatus: a.opening_status, currentMinor: balance?.toString() ?? null }
+    return [{ id: a.id, code: a.code, bankName: a.bank_name, currency: a.currency, isActive: a.is_active, openingStatus: a.opening_status, currentMinor: balance?.toString() ?? null }]
   })
+  const accounts = all.filter(a => a.is_active)
   const available = accounts.length > 0 && unverified.length === 0
   return {
     asOf: todayBusinessDate(),

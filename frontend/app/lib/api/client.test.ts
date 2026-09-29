@@ -128,7 +128,7 @@ describe('createManovaApi — finance', () => {
     const api = createManovaApi(createApiClient({ baseURL: '/api/v1', transport }))
     await api.finance.statement({ from: '2026-09-01', to: '2026-09-29', accountId: 'BA-001', includeTransfers: false })
     await api.finance.accountLedger('BA-001', { from: '2026-09-01' })
-    await api.finance.verifyOpening('BA-001')
+    await api.finance.verifyOpening('BA-001', { balanceMinor: '100000000', openingDate: '2026-09-01' })
     expect(calls.map(c => `${c.method} ${c.url}`)).toEqual([
       'GET /api/v1/finance/statement?from=2026-09-01&to=2026-09-29&accountId=BA-001&includeTransfers=false',
       'GET /api/v1/finance/accounts/BA-001/ledger?from=2026-09-01',
