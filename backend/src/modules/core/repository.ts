@@ -1,4 +1,4 @@
-import type { Actor } from '../../auth/rbac'
+import { ROLE_DEFINITIONS, type Actor } from '../../auth/rbac'
 import type { Db } from '../../db/client'
 import { isPortalActor, projectScopeOf, projectScopeSql } from './scope'
 
@@ -24,6 +24,8 @@ interface ProjectRow extends Record<string, unknown> {
   owner_user_id: string | null
   team_user_ids: string[] | null
   provenance: string
+  contract_value_minor: string | null
+  contract_currency: string
 }
 
 export interface ProjectPortalView {
@@ -41,6 +43,9 @@ export interface ProjectInternalView extends ProjectPortalView {
   ownerUserId: string | null
   teamUserIds: string[]
   provenance: string
+  /** Owned by the Project module. Null when not set, or when the role may not see commercial figures. */
+  contractValueMinor: string | null
+  contractCurrency: string
 }
 
 function projectView(actor: Actor, r: ProjectRow): ProjectPortalView | ProjectInternalView {
@@ -59,13 +64,20 @@ function projectView(actor: Actor, r: ProjectRow): ProjectPortalView | ProjectIn
     partyName: r.party_name,
     ownerUserId: r.owner_user_id,
     teamUserIds: r.team_user_ids ?? [],
-    provenance: r.provenance
+    provenance: r.provenance,
+    contractValueMinor: canSeeCommercials(actor) ? r.contract_value_minor : null,
+    contractCurrency: r.contract_currency
   }
+}
+
+/** Contract value and booking sell price follow the same rule as the UI (`canViewFullFinancials`). */
+function canSeeCommercials(actor: Actor): boolean {
+  return ROLE_DEFINITIONS[actor.role].canViewFullFinancials
 }
 
 const PROJECT_SELECT = `
   select p.id, p.name, p.party_id, pa.name as party_name, p.destination, p.travel_start_date, p.travel_end_date,
-         p.status, p.owner_user_id, p.provenance,
+         p.status, p.owner_user_id, p.provenance, p.contract_value_minor, p.contract_currency,
          (select array_agg(pm.user_id order by pm.user_id) from project_members pm where pm.project_id = p.id) as team_user_ids
     from projects p
     join parties pa on pa.id = p.party_id`
@@ -213,6 +225,8 @@ interface BookingRow extends Record<string, unknown> {
   service_id: string | null
   service_type: string | null
   vendor_id: string | null
+  sell_amount_minor: string | null
+  departure_date: string | null
 }
 
 /** Resolves a typed booking reference (the key finance records will carry) within the actor's scope. */
@@ -225,7 +239,7 @@ export async function getBookingRef(db: Db, actor: Actor, type: BookingType, id:
     vendorFilter = `and ps.vendor_id = $${params.length}`
   }
   const [row] = await db.query<BookingRow>(
-    `select b.booking_type, b.booking_id, b.project_id, b.service_id, ps.service_type, ps.vendor_id
+    `select b.booking_type, b.booking_id, b.project_id, b.service_id, ps.service_type, ps.vendor_id, b.sell_amount_minor, b.departure_date
        from booking_refs b
        join projects p on p.id = b.project_id
        left join project_services ps on ps.id = b.service_id
@@ -235,5 +249,12 @@ export async function getBookingRef(db: Db, actor: Actor, type: BookingType, id:
   if (!row) return null
   const base = { type: row.booking_type, id: row.booking_id, projectId: row.project_id }
   if (isPortalActor(actor)) return base
-  return { ...base, serviceId: row.service_id, serviceType: row.service_type, vendorId: row.vendor_id }
+  return {
+    ...base,
+    serviceId: row.service_id,
+    serviceType: row.service_type,
+    vendorId: row.vendor_id,
+    departureDate: row.departure_date,
+    sellAmountMinor: canSeeCommercials(actor) ? row.sell_amount_minor : null
+  }
 }

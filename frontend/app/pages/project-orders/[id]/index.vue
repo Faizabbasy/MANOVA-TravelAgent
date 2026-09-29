@@ -1029,9 +1029,14 @@ const summaryMetadata = computed(() => {
     { label: 'Account Executive', value: accountExecutive.value?.name ?? '—' },
     { label: 'Status Internal', value: findStatusOption(PROJECT_STATUSES, project.value.status).label },
     { label: 'Jumlah Traveler', value: formatTravelerCount(project.value.travelerCount) },
-    { label: 'Budget', value: formatCurrencyIdr(project.value.budgetIdr) },
-    { label: 'Actual Cost', value: formatCurrencyIdr(actualCostIdr.value) },
-    { label: 'Nilai Quotation', value: formatCurrencyIdr(project.value.quotationAmountIdr) }
+    // Angka komersial hanya untuk role ber-`canViewFullFinancials` — dulu tampil ke semua role (FINANCE-DOMAIN-MAPPING R3).
+    ...(canViewFinancials.value
+      ? [
+          { label: 'Budget', value: formatCurrencyIdr(project.value.budgetIdr) },
+          { label: 'Actual Cost', value: formatCurrencyIdr(actualCostIdr.value) },
+          { label: 'Nilai Quotation', value: formatCurrencyIdr(project.value.quotationAmountIdr) }
+        ]
+      : [])
   ]
 })
 </script>

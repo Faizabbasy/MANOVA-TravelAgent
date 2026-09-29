@@ -33,13 +33,28 @@ const services = [...PROJECT_SERVICES].sort(byId).map(s => ({
 }))
 const serviceProject = new Map(services.map(s => [s.id, s.projectId]))
 
-function bookingRef(bookingType: DemoCoreSeed['bookingRefs'][number]['bookingType'], b: { id: string; projectId: string; serviceId?: string }) {
+/** Earliest calendar date among local (Asia/Jakarta) datetime strings like '2026-08-20T08:00'. */
+const earliestDate = (values: (string | undefined)[]) => values.filter((v): v is string => !!v).map(v => v.slice(0, 10)).sort()[0] ?? null
+/** Whole rupiah as a minor-unit string, or null when the booking has no price yet. */
+const minor = (idr: number | undefined) => (idr === undefined ? null : String(Math.round(idr)))
+
+function bookingRef(
+  bookingType: DemoCoreSeed['bookingRefs'][number]['bookingType'],
+  b: { id: string; projectId: string; serviceId?: string },
+  commercial: { sellAmountMinor: string | null; departureDate: string | null }
+) {
   let serviceId = b.serviceId ?? null
   if (serviceId && serviceProject.get(serviceId) !== b.projectId) {
     warnings.push(`${b.id}: service ${serviceId} belongs to ${serviceProject.get(serviceId) ?? 'no project'}, not ${b.projectId}; link dropped`)
     serviceId = null
   }
-  return { bookingType, bookingId: b.id, projectId: b.projectId, serviceId }
+  return { bookingType, bookingId: b.id, projectId: b.projectId, serviceId, ...commercial }
+}
+
+/** MICE price lives on BOQ lines; same rule as getMiceBoqTotals (sum of line sell prices). */
+function miceSell (event: { boqItems: { sellPriceIdr?: number }[] }) {
+  const priced = event.boqItems.filter(item => item.sellPriceIdr !== undefined)
+  return priced.length ? String(priced.reduce((sum, item) => sum + Math.round(item.sellPriceIdr ?? 0), 0)) : null
 }
 
 const seed: DemoCoreSeed = {
@@ -75,14 +90,16 @@ const seed: DemoCoreSeed = {
     travelEndDate: dateOnly(p.travelEndDate),
     status: p.status,
     ownerUserId: p.ownerId ?? null,
-    teamUserIds: [...new Set<string>(p.teamUserIds ?? [])].sort()
+    teamUserIds: [...new Set<string>(p.teamUserIds ?? [])].sort(),
+    // Project value = accepted quotation amount (the only project-value field in the fixtures).
+    contractValueMinor: minor(p.quotationAmountIdr)
   })),
   projectServices: services,
   bookingRefs: [
-    ...FLIGHT_BOOKINGS.map(b => bookingRef('flight', b)),
-    ...HOTEL_BOOKINGS.map(b => bookingRef('hotel', b)),
-    ...TRANSPORT_BOOKINGS.map(b => bookingRef('transport', b)),
-    ...MICE_EVENTS.map(b => bookingRef('mice', b))
+    ...FLIGHT_BOOKINGS.map(b => bookingRef('flight', b, { sellAmountMinor: minor(b.sellPriceIdr), departureDate: earliestDate(b.segments.map(s => s.departureAt)) })),
+    ...HOTEL_BOOKINGS.map(b => bookingRef('hotel', b, { sellAmountMinor: minor(b.sellPriceIdr), departureDate: earliestDate([b.checkInDate]) })),
+    ...TRANSPORT_BOOKINGS.map(b => bookingRef('transport', b, { sellAmountMinor: minor(b.sellPriceIdr), departureDate: earliestDate(b.legs.map(l => l.scheduledAt)) })),
+    ...MICE_EVENTS.map(b => bookingRef('mice', b, { sellAmountMinor: miceSell(b), departureDate: earliestDate(b.sessions.map(s => s.startAt)) }))
   ].sort((a, b) => a.bookingType.localeCompare(b.bookingType) || a.bookingId.localeCompare(b.bookingId)),
   serviceOrders: [...SERVICE_ORDERS].sort(byId).map(so => {
     const projectId = so.projectId ?? null

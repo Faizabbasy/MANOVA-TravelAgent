@@ -179,7 +179,8 @@
       "ownerUserId": "USR-002",
       "teamUserIds": [
         "USR-002"
-      ]
+      ],
+      "contractValueMinor": "95000000"
     },
     {
       "id": "PRJ-102",
@@ -192,7 +193,8 @@
       "ownerUserId": "USR-002",
       "teamUserIds": [
         "USR-002"
-      ]
+      ],
+      "contractValueMinor": "345000000"
     },
     {
       "id": "PRJ-103",
@@ -205,7 +207,8 @@
       "ownerUserId": "USR-002",
       "teamUserIds": [
         "USR-002"
-      ]
+      ],
+      "contractValueMinor": "1400000000"
     },
     {
       "id": "PRJ-104",
@@ -216,7 +219,8 @@
       "travelEndDate": "2027-02-18",
       "status": "draft",
       "ownerUserId": "USR-002",
-      "teamUserIds": []
+      "teamUserIds": [],
+      "contractValueMinor": "60000000"
     },
     {
       "id": "PRJ-201",
@@ -229,7 +233,8 @@
       "ownerUserId": "USR-002",
       "teamUserIds": [
         "USR-002"
-      ]
+      ],
+      "contractValueMinor": "980000000"
     },
     {
       "id": "PRJ-202",
@@ -242,7 +247,8 @@
       "ownerUserId": "USR-002",
       "teamUserIds": [
         "USR-002"
-      ]
+      ],
+      "contractValueMinor": "460000000"
     },
     {
       "id": "PRJ-203",
@@ -253,7 +259,8 @@
       "travelEndDate": "2026-06-13",
       "status": "completed",
       "ownerUserId": "USR-002",
-      "teamUserIds": []
+      "teamUserIds": [],
+      "contractValueMinor": "165000000"
     },
     {
       "id": "PRJ-204",
@@ -266,7 +273,8 @@
       "ownerUserId": "USR-002",
       "teamUserIds": [
         "USR-002"
-      ]
+      ],
+      "contractValueMinor": "320000000"
     }
   ],
   "projectServices": [
@@ -378,109 +386,145 @@
       "bookingType": "flight",
       "bookingId": "FLT-1011",
       "projectId": "PRJ-101",
-      "serviceId": "SVC-1011"
+      "serviceId": "SVC-1011",
+      "sellAmountMinor": "95000000",
+      "departureDate": "2026-08-20"
     },
     {
       "bookingType": "flight",
       "bookingId": "FLT-1021",
       "projectId": "PRJ-102",
-      "serviceId": "SVC-1021"
+      "serviceId": "SVC-1021",
+      "sellAmountMinor": "72000000",
+      "departureDate": "2026-09-22"
     },
     {
       "bookingType": "flight",
       "bookingId": "FLT-1023",
       "projectId": "PRJ-102",
-      "serviceId": null
+      "serviceId": null,
+      "sellAmountMinor": "12000000",
+      "departureDate": "2026-09-22"
     },
     {
       "bookingType": "flight",
       "bookingId": "FLT-1031",
       "projectId": "PRJ-103",
-      "serviceId": "SVC-1031"
+      "serviceId": "SVC-1031",
+      "sellAmountMinor": "8800000",
+      "departureDate": "2026-08-10"
     },
     {
       "bookingType": "flight",
       "bookingId": "FLT-1032",
       "projectId": "PRJ-103",
-      "serviceId": "SVC-1032"
+      "serviceId": "SVC-1032",
+      "sellAmountMinor": null,
+      "departureDate": "2026-08-10"
     },
     {
       "bookingType": "flight",
       "bookingId": "FLT-1033",
       "projectId": "PRJ-103",
-      "serviceId": null
+      "serviceId": null,
+      "sellAmountMinor": null,
+      "departureDate": "2026-08-14"
     },
     {
       "bookingType": "hotel",
       "bookingId": "HTL-1022",
       "projectId": "PRJ-102",
-      "serviceId": "SVC-1022"
+      "serviceId": "SVC-1022",
+      "sellAmountMinor": "152900000",
+      "departureDate": "2026-09-22"
     },
     {
       "bookingType": "hotel",
       "bookingId": "HTL-1023",
       "projectId": "PRJ-102",
-      "serviceId": "SVC-1023"
+      "serviceId": "SVC-1023",
+      "sellAmountMinor": null,
+      "departureDate": "2026-09-22"
     },
     {
       "bookingType": "hotel",
       "bookingId": "HTL-1033",
       "projectId": "PRJ-103",
-      "serviceId": "SVC-1033"
+      "serviceId": "SVC-1033",
+      "sellAmountMinor": "63000000",
+      "departureDate": "2026-08-10"
     },
     {
       "bookingType": "hotel",
       "bookingId": "HTL-1034",
       "projectId": "PRJ-103",
-      "serviceId": null
+      "serviceId": null,
+      "sellAmountMinor": null,
+      "departureDate": "2026-08-10"
     },
     {
       "bookingType": "hotel",
       "bookingId": "HTL-1035",
       "projectId": "PRJ-103",
-      "serviceId": null
+      "serviceId": null,
+      "sellAmountMinor": "41000000",
+      "departureDate": "2026-08-10"
     },
     {
       "bookingType": "hotel",
       "bookingId": "HTL-1036",
       "projectId": "PRJ-102",
-      "serviceId": null
+      "serviceId": null,
+      "sellAmountMinor": null,
+      "departureDate": "2026-09-22"
     },
     {
       "bookingType": "mice",
       "bookingId": "MICE-1035",
       "projectId": "PRJ-103",
-      "serviceId": "SVC-1035"
+      "serviceId": "SVC-1035",
+      "sellAmountMinor": "282000000",
+      "departureDate": "2026-08-11"
     },
     {
       "bookingType": "transport",
       "bookingId": "TRN-1034",
       "projectId": "PRJ-103",
-      "serviceId": "SVC-1034"
+      "serviceId": "SVC-1034",
+      "sellAmountMinor": "7200000",
+      "departureDate": "2026-08-10"
     },
     {
       "bookingType": "transport",
       "bookingId": "TRN-1035",
       "projectId": "PRJ-103",
-      "serviceId": null
+      "serviceId": null,
+      "sellAmountMinor": "8800000",
+      "departureDate": "2026-08-10"
     },
     {
       "bookingType": "transport",
       "bookingId": "TRN-1036",
       "projectId": "PRJ-103",
-      "serviceId": null
+      "serviceId": null,
+      "sellAmountMinor": "850000",
+      "departureDate": "2026-08-14"
     },
     {
       "bookingType": "transport",
       "bookingId": "TRN-1037",
       "projectId": "PRJ-103",
-      "serviceId": null
+      "serviceId": null,
+      "sellAmountMinor": null,
+      "departureDate": "2026-08-10"
     },
     {
       "bookingType": "transport",
       "bookingId": "TRN-1038",
       "projectId": "PRJ-103",
-      "serviceId": null
+      "serviceId": null,
+      "sellAmountMinor": null,
+      "departureDate": "2026-08-12"
     }
   ],
   "serviceOrders": [

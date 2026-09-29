@@ -58,7 +58,8 @@ describe('internal roles', () => {
   test('internal project view includes party, owner, team and provenance', async () => {
     const res = await get('admin', '/api/v1/projects/PRJ-103')
     expect(res.json.data).toMatchObject({
-      id: 'PRJ-103', partyId: 'PTY-003', partyName: 'PT Sinergi Korporindo', ownerUserId: 'USR-002', teamUserIds: ['USR-002'], provenance: 'demo-fixture'
+      id: 'PRJ-103', partyId: 'PTY-003', partyName: 'PT Sinergi Korporindo', ownerUserId: 'USR-002', teamUserIds: ['USR-002'], provenance: 'demo-fixture',
+      contractValueMinor: '1400000000', contractCurrency: 'IDR'
     })
     expect(res.json.data.bookings).toContainEqual({ type: 'mice', id: 'MICE-1035' })
     expect(res.json.data.bookings).toHaveLength(12) // 3 flight + 3 hotel + 1 MICE + 5 transport
@@ -84,7 +85,10 @@ describe('internal roles', () => {
 
   test('typed booking reference resolves to project, service and vendor', async () => {
     const res = await get('finance', '/api/v1/bookings/flight/FLT-1011')
-    expect(res.json.data).toEqual({ type: 'flight', id: 'FLT-1011', projectId: 'PRJ-101', serviceId: 'SVC-1011', serviceType: 'flight', vendorId: 'VND-001' })
+    expect(res.json.data).toEqual({
+      type: 'flight', id: 'FLT-1011', projectId: 'PRJ-101', serviceId: 'SVC-1011', serviceType: 'flight', vendorId: 'VND-001',
+      departureDate: '2026-08-20', sellAmountMinor: '95000000'
+    })
     expect((await get('finance', '/api/v1/bookings/transport/TRN-1034')).json.data.vendorId).toBe('VND-003')
     const wrongType = await get('finance', '/api/v1/bookings/transportation/TRN-1034')
     expect(wrongType.status).toBe(400)

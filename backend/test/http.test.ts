@@ -22,7 +22,7 @@ describe('health', () => {
       status: 'ok',
       service: 'manova-backend',
       timezone: 'Asia/Jakarta',
-      database: { reachable: true, schemaVersion: 4, latestVersion: 4, pendingMigrations: 0, migrationProblems: 0 }
+      database: { reachable: true, schemaVersion: 5, latestVersion: 5, pendingMigrations: 0, migrationProblems: 0 }
     })
   })
 
@@ -32,7 +32,7 @@ describe('health', () => {
       const res = await bare.call('GET', '/api/v1/health')
       expect(res.status).toBe(503)
       expect(res.json.data.status).toBe('degraded')
-      expect(res.json.data.database).toMatchObject({ reachable: true, schemaVersion: 0, pendingMigrations: 4 })
+      expect(res.json.data.database).toMatchObject({ reachable: true, schemaVersion: 0, pendingMigrations: 5 })
     } finally {
       await bare.cleanup()
     }

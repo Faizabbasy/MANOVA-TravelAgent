@@ -108,6 +108,9 @@ export interface ProjectInternalDto extends ProjectPortalDto {
   ownerUserId: string | null
   teamUserIds: string[]
   provenance: ApiProvenance
+  /** Owned by the Project module (ADR-007). Null when unset or when the role may not see commercial figures. */
+  contractValueMinor: MoneyMinor | null
+  contractCurrency: string
 }
 
 export type ProjectDto = ProjectPortalDto | ProjectInternalDto
@@ -147,6 +150,10 @@ export interface BookingRefDto {
   serviceId?: string | null
   serviceType?: string | null
   vendorId?: string | null
+  /** Owned by the Booking module (ADR-007): first departure / check-in / pickup / session date. */
+  departureDate?: IsoDate | null
+  /** Owned by the Booking module; null when unpriced or when the role may not see commercial figures. */
+  sellAmountMinor?: MoneyMinor | null
 }
 
 export function isInternalProject (project: ProjectDto): project is ProjectInternalDto {

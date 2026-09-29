@@ -25,9 +25,19 @@ export interface DemoCoreSeed {
     status: string
     ownerUserId: string | null
     teamUserIds: string[]
+    /** Owned by the Project module; minor units as a decimal string. */
+    contractValueMinor: string | null
   }[]
   projectServices: { id: string; projectId: string; serviceType: string; vendorId: string | null }[]
-  bookingRefs: { bookingType: 'flight' | 'hotel' | 'transport' | 'mice'; bookingId: string; projectId: string; serviceId: string | null }[]
+  bookingRefs: {
+    bookingType: 'flight' | 'hotel' | 'transport' | 'mice'
+    bookingId: string
+    projectId: string
+    serviceId: string | null
+    /** Owned by the Booking module. */
+    sellAmountMinor: string | null
+    departureDate: string | null
+  }[]
   serviceOrders: { id: string; vendorId: string; projectId: string | null; serviceId: string | null }[]
 }
 
@@ -101,14 +111,14 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
     }
     for (const p of seed.projects) {
       await tx.query(
-        `insert into projects (id, name, party_id, destination, travel_start_date, travel_end_date, status, owner_user_id, provenance)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `insert into projects (id, name, party_id, destination, travel_start_date, travel_end_date, status, owner_user_id, provenance, contract_value_minor)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          on conflict (id) do update set name = excluded.name, party_id = excluded.party_id,
            destination = excluded.destination, travel_start_date = excluded.travel_start_date,
            travel_end_date = excluded.travel_end_date, status = excluded.status,
-           owner_user_id = excluded.owner_user_id, updated_at = now()
+           owner_user_id = excluded.owner_user_id, contract_value_minor = excluded.contract_value_minor, updated_at = now()
          where projects.provenance = 'demo-fixture'`,
-        [p.id, p.name, p.partyId, p.destination, p.travelStartDate, p.travelEndDate, p.status, p.ownerUserId, P]
+        [p.id, p.name, p.partyId, p.destination, p.travelStartDate, p.travelEndDate, p.status, p.ownerUserId, P, p.contractValueMinor]
       )
       for (const userId of p.teamUserIds) {
         await tx.query('insert into project_members (project_id, user_id) values ($1, $2) on conflict do nothing', [p.id, userId])
@@ -125,10 +135,12 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
     }
     for (const b of seed.bookingRefs) {
       await tx.query(
-        `insert into booking_refs (booking_type, booking_id, project_id, service_id, provenance) values ($1, $2, $3, $4, $5)
-         on conflict (booking_type, booking_id) do update set project_id = excluded.project_id, service_id = excluded.service_id
+        `insert into booking_refs (booking_type, booking_id, project_id, service_id, provenance, sell_amount_minor, departure_date)
+         values ($1, $2, $3, $4, $5, $6, $7)
+         on conflict (booking_type, booking_id) do update set project_id = excluded.project_id, service_id = excluded.service_id,
+           sell_amount_minor = excluded.sell_amount_minor, departure_date = excluded.departure_date
          where booking_refs.provenance = 'demo-fixture'`,
-        [b.bookingType, b.bookingId, b.projectId, b.serviceId, P]
+        [b.bookingType, b.bookingId, b.projectId, b.serviceId, P, b.sellAmountMinor, b.departureDate]
       )
     }
     for (const so of seed.serviceOrders) {
