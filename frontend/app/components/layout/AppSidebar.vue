@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, reactive } from 'vue'
+import { computed, reactive, watch } from 'vue'
 import {
   Search,
   ChevronDown,
@@ -14,7 +14,14 @@ import { NAV_ITEMS, type NavItem } from '~/constants/navigation'
 
 const route = useRoute()
 const router = useRouter()
-const { isCollapsed, toggle } = useSidebar()
+const { isCollapsed: collapsedPreference, toggle, isMobileOpen, closeMobile } = useSidebar()
+/**
+ * Phone widths: the sidebar becomes an off-canvas drawer (opened from the header menu button), always shown
+ * expanded, and closes after navigating. Desktop keeps the collapse preference.
+ */
+const isMobile = useIsMobile()
+const isCollapsed = computed(() => collapsedPreference.value && !isMobile.value)
+watch(() => route.fullPath, () => closeMobile())
 const { currentUser } = useCurrentUser()
 const { canViewMenu, isRole } = usePermissions()
 
@@ -109,9 +116,18 @@ function toggleExpanded (item: NavItem) {
 
 <template>
   <TooltipProvider :delay-duration="0">
+    <div
+      v-if="isMobileOpen"
+      class="fixed inset-0 z-40 bg-black/40 md:hidden"
+      aria-hidden="true"
+      @click="closeMobile"
+    />
     <aside
       :class="cn(
         'bg-card border-r border-border flex flex-col h-screen sticky top-0 transition-all duration-300 ease-in-out overflow-hidden',
+        'max-md:fixed max-md:inset-y-0 max-md:left-0 max-md:z-50 max-md:w-72 max-md:shadow-xl',
+        // invisible (not just off-screen) so a closed drawer is also out of the tab order and screen readers
+        isMobileOpen ? 'max-md:translate-x-0' : 'max-md:invisible max-md:-translate-x-full',
         isCollapsed ? 'w-16' : 'w-64'
       )"
     >
@@ -135,10 +151,13 @@ function toggleExpanded (item: NavItem) {
             isCollapsed && 'mx-auto'
           )"
           :title="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
-          @click="toggle"
+          :aria-label="isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'"
+          @click="isMobile ? closeMobile() : toggle()"
         >
-          <PanelLeftClose v-if="!isCollapsed" class="h-5 w-5" />
-          <PanelLeftOpen v-else class="h-5 w-5" />
+          <!-- Icons switch by CSS, not JS, so server and browser render the same markup -->
+          <X class="h-5 w-5 md:hidden" />
+          <PanelLeftClose v-if="!isCollapsed" class="h-5 w-5 max-md:hidden" />
+          <PanelLeftOpen v-else class="h-5 w-5 max-md:hidden" />
         </button>
       </div>
 

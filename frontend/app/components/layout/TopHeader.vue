@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Bell, ChevronRight } from 'lucide-vue-next'
+import { Bell, ChevronRight, Menu } from 'lucide-vue-next'
 import { useRoute } from 'vue-router'
 import { ROLES } from '~/constants/roles'
 import { findStatusOption } from '~/constants/status'
@@ -10,6 +10,7 @@ const notificationPanelRef = ref()
 const unreadCount = computed(() => notificationPanelRef.value?.unreadCount || 0)
 
 const route = useRoute()
+const { openMobile } = useSidebar()
 const { currentUser, currentRole } = useCurrentUser()
 const roleOption = computed(() => findStatusOption(ROLES.value, currentRole.value))
 
@@ -33,8 +34,16 @@ const location = computed(() => {
 </script>
 
 <template>
-  <header class="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b border-border bg-card/95 px-6 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+  <header class="sticky top-0 z-10 flex h-14 items-center justify-between gap-4 border-b border-border bg-card/95 px-4 backdrop-blur supports-[backdrop-filter]:bg-card/80 md:px-6">
     <div class="flex min-w-0 items-center gap-1.5 text-sm">
+      <button
+        type="button"
+        class="-ml-1 mr-1 rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground md:hidden"
+        aria-label="Buka menu"
+        @click="openMobile"
+      >
+        <Menu class="h-5 w-5" />
+      </button>
       <template v-if="location">
         <span v-if="location.module" class="hidden truncate text-muted-foreground sm:inline">{{ location.module }}</span>
         <ChevronRight v-if="location.module" class="hidden h-3.5 w-3.5 shrink-0 text-muted-foreground/60 sm:inline" />

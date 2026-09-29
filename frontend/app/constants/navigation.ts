@@ -11,7 +11,6 @@ import {
   ClipboardList,
   Route,
   FolderKanban,
-  Plane,
   CalendarClock,
   CalendarDays,
   BarChart3,
@@ -25,7 +24,7 @@ import {
   Briefcase,
   ArrowDownToLine,
   ArrowUpFromLine,
-  BookOpen,
+  Landmark,
   UserCog,
   Megaphone
 } from 'lucide-vue-next'
@@ -108,7 +107,7 @@ export const NAV_ITEMS: NavItem[] = [
       { key: 'finance.invoices', label: 'Invoice & Piutang', to: '/finance/invoices', icon: ArrowDownToLine, moduleKey: 'finance-acc' },
       { key: 'finance.payables', label: 'Hutang & Opex', to: '/finance/payables', icon: ArrowUpFromLine, moduleKey: 'finance-acc' },
       { key: 'finance.payments', label: 'Pembayaran & Rekonsiliasi', to: '/finance/payments', icon: Wallet, moduleKey: 'finance-acc' },
-      { key: 'finance.ledger', label: 'Buku Besar', to: '/finance/ledger', icon: BookOpen, moduleKey: 'finance-acc' }
+      { key: 'finance.accounts', label: 'Rekening & Saldo', to: '/finance/accounts', icon: Landmark, moduleKey: 'finance-acc' }
     ]
   },
 
@@ -242,7 +241,6 @@ export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   { key: 'hidden.finance-notes', label: 'Credit/Debit Notes', to: '/finance/notes', moduleKey: 'finance-acc' },
   { key: 'hidden.finance-opex', label: 'Opex', to: '/finance/opex', moduleKey: 'finance-acc' },
   { key: 'hidden.finance-reconciliation', label: 'Reconciliation', to: '/finance/reconciliation', moduleKey: 'finance-acc' },
-  { key: 'hidden.finance-tax', label: 'Tax & Multi Currency', to: '/finance/tax', moduleKey: 'finance-acc' },
 
   // Sales (corong lama, kini tab Pipeline) + Produk & Costing lama
   { key: 'hidden.customer-journey', label: 'Customer Journey', to: '/customer-journey', moduleKey: 'sales' },
