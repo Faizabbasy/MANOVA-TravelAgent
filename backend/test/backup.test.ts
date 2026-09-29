@@ -20,8 +20,8 @@ describe('backup and restore (PGlite)', () => {
       restoreUrl: 'pglite://memory',
       backupDir: join(work, 'rehearsal')
     })
-    expect(steps).toHaveLength(6)
-    expect(steps.at(-1)).toContain(`counts identical, schema v${loadMigrations().length}, checksums verified`)
+    expect(steps).toHaveLength(7)
+    expect(steps.at(-1)).toContain(`cash book immutable, schema v${loadMigrations().length}, checksums verified`)
   }, 60_000)
 
   test('restore refuses a tampered backup', async () => {

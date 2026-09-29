@@ -3,10 +3,13 @@ import { backupDatabase, isDatabaseEmpty, restoreDatabase } from './backup'
 import { openDb, type Db } from './client'
 import { loadMigrations, migrateDown, migrateUp, migrationStatus } from './migrator'
 import { seedDemo } from './seed-demo'
+import { seedFinanceDemo } from './seed-finance-demo'
 
 /**
  * Migration + backup/restore rehearsal on scratch databases (docs/.../03 "Migrasi aman" step 6):
- * fresh → up → seed → down to zero → up again → seed → backup → restore elsewhere → compare.
+ * fresh → up → seed → down to zero → up again → seed → finance demo → backup → restore elsewhere → compare.
+ * The finance comparison is a money fingerprint (row counts, cash per account, AR/AP paid, unallocated money)
+ * plus a check that the cash book is still immutable after restore (triggers travel with the dump).
  * Throws on the first mismatch; returns a step log for the phase report.
  */
 
@@ -28,7 +31,36 @@ async function userTableCount(db: Db): Promise<number> {
   return row?.n ?? -1
 }
 
-const same = (a: Record<string, number>, b: Record<string, number>) => JSON.stringify(a) === JSON.stringify(b)
+const FINANCE_TABLES = [
+  'bank_accounts', 'financial_transactions', 'transfers', 'transfer_fee_rules', 'customer_invoices', 'customer_invoice_lines',
+  'vendor_invoices', 'payment_allocations', 'credit_notes', 'billing_schedule_items', 'cancellation_policies',
+  'cancellation_policy_tiers', 'cancellation_policy_assignments', 'refunds'
+] as const
+
+/** Everything a restore must reproduce exactly: counts and money, as strings (minor units). */
+async function financeFingerprint(db: Db): Promise<Record<string, string>> {
+  const out: Record<string, string> = {}
+  for (const table of FINANCE_TABLES) {
+    const [row] = await db.query<{ n: string }>(`select count(*)::text as n from ${table}`)
+    out[table] = row?.n ?? '-1'
+  }
+  const cash = await db.query<{ code: string; balance: string | null }>(
+    `select a.code, (a.opening_balance_minor + coalesce((select sum(case when t.direction = 'in' then t.amount_minor else -t.amount_minor end)
+        from financial_transactions t where t.bank_account_id = a.id), 0))::text as balance
+       from bank_accounts a order by a.code`
+  )
+  for (const a of cash) out[`cash:${a.code}`] = a.balance ?? 'unset'
+  const [money] = await db.query<Record<string, string>>(
+    `select (select coalesce(sum(paid_minor), 0) from v_customer_invoice_balances)::text as ar_paid,
+            (select coalesce(sum(credited_minor), 0) from v_customer_invoice_balances)::text as ar_credited,
+            (select coalesce(sum(paid_minor), 0) from v_vendor_invoice_balances)::text as ap_paid,
+            (select coalesce(sum(unallocated_minor), 0) from v_unallocated_payments)::text as unallocated,
+            (select coalesce(sum(amount_minor), 0) from financial_transactions)::text as moved`
+  )
+  return { ...out, ...money }
+}
+
+const same = (a: Record<string, number | string>, b: Record<string, number | string>) => JSON.stringify(a) === JSON.stringify(b)
 
 export async function rehearseMigrations(options: {
   appEnv: AppEnv
@@ -63,18 +95,29 @@ export async function rehearseMigrations(options: {
     if (!same(seeded, reseeded)) throw new Error(`Re-applied schema + seed differs: ${JSON.stringify(reseeded)}`)
     log(`re-apply ${up2.length} migration(s) + seed: counts identical`)
 
+    await seedFinanceDemo(db, { appEnv: options.appEnv })
+    const money = await financeFingerprint(db)
+    const beforeBackup = await tableCounts(db) // the finance seed adds audit rows
+    if (Number(money.financial_transactions) === 0) throw new Error('Finance demo seed posted no transactions')
+    log(`finance demo: ${money.financial_transactions} transactions, ${money.customer_invoices} customer + ${money.vendor_invoices} vendor invoices, ${money.refunds} refund(s)`)
+
     const backup = await backupDatabase(db, options.sourceUrl, options.backupDir)
     log(`backup: ${backup.file} (${backup.bytes} bytes, sha256 ${backup.sha256.slice(0, 16)}…)`)
 
     const restored = await restoreDatabase(backup.file, options.restoreUrl)
     try {
       const restoredCounts = await tableCounts(restored)
-      if (!same(seeded, restoredCounts)) throw new Error(`Restored counts differ: ${JSON.stringify(restoredCounts)}`)
+      if (!same(beforeBackup, restoredCounts)) throw new Error(`Restored counts differ: ${JSON.stringify(restoredCounts)}`)
+      const restoredMoney = await financeFingerprint(restored)
+      if (!same(money, restoredMoney)) throw new Error(`Restored finance differs: ${JSON.stringify(restoredMoney)} vs ${JSON.stringify(money)}`)
+      let immutable = false
+      try { await restored.query("update financial_transactions set memo = 'x'") } catch { immutable = true }
+      if (!immutable) throw new Error('Restored cash book accepted an UPDATE (immutability trigger missing)')
       const status = await migrationStatus(restored, undefined, { readOnly: true })
       if (status.current !== total || status.pending.length || status.problems.length) {
         throw new Error(`Restored schema not current: v${status.current}, pending ${status.pending.length}, problems ${status.problems.join('; ')}`)
       }
-      log(`restore into fresh target: counts identical, schema v${status.current}, checksums verified`)
+      log(`restore into fresh target: counts identical, finance fingerprint identical (${Object.keys(money).length} figures), cash book immutable, schema v${status.current}, checksums verified`)
     } finally {
       await restored.close()
     }
