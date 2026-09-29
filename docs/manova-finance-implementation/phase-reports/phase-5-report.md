@@ -94,6 +94,33 @@ Capability baru `project-order.request-cancellation` (Admin + Finance) sudah dis
 - **Uang muka project yang belum dialokasikan** tidak ikut basis. Dialog menampilkannya agar Finance mengalokasikannya dulu bila perlu.
 - **Seed tidak membuat kasus pembatalan.** Status project di modul Project masih mock, dan kasus dari seed akan bertentangan dengan layar lain. Seed hanya menerbitkan kebijakan `STD-DP` dan `HOTEL-FLEX` lalu menetapkannya.
 
+## Review independen & perbaikan (commit `f4094cf`)
+
+| # | Temuan | Perbaikan |
+|---|---|---|
+| 1 | Pembayaran yang menjadi dasar refund bisa di-reverse, sehingga refund melebihi uang yang diterima | Reverse penerimaan ditolak (422, menyebut kasusnya) selama kasus hidup. Saat approve, basis DP dicek ulang (`PAYMENTS_CHANGED`) |
+| 2 | "Tolak" meninggalkan sisa tagihan terhapus dan rencana tagihan batal | "Tolak" menjadi **Batalkan kasus**: credit note kasus di-void, rencana tagihan yang dibatalkan kasus dipulihkan, dan audit tercatat. Boleh untuk kasus *requested*, atau *approved* yang belum ada pembayaran refund |
+| 3 | Booking/project yang sudah dibatalkan masih bisa ditagih | `assertBillable` pada rencana tagihan, draft invoice, dan terbit invoice |
+| 4 | Pembatalan project menghitung ulang invoice booking yang sudah punya kasus sendiri | Basis project mengabaikan invoice booking tersebut. Pembatalan project tetap boleh (tidak ada refund ganda) |
+| 5 | Kasus sudah tercatat, tapi status mock belum ikut | Dialog menampilkan kasus yang ada dan tombol utama **Terapkan status Cancelled** |
+| 6, 7 | Fakta kasus dapat diubah lewat SQL; refund dapat melebihi basis | Migrasi `0012`: trigger membekukan fakta kasus, dan constraint `refundable ≤ basis + pembayaran lain` |
+| 8 | Pratinjau basi (tanggal baru belum dihitung) bisa dikirim | Tombol simpan nonaktif sampai pratinjau cocok dengan tanggal & subjek |
+| 9 | Versi baru dari kebijakan kedaluwarsa → 500 | Versi baru mulai hari ini tanpa tanggal akhir lama |
+| 10 | Tier dapat dipindah ke kebijakan terbit lewat SQL | Trigger tier mengecek kebijakan lama & baru |
+| 11 | Editor kebijakan: batas hari tak terbatas; label sesudah berangkat janggal | Batas ±3650 hari; label "H+3 s/d hari keberangkatan" |
+| 12 | Cursor daftar refund bisa kehilangan presisi waktu | Cursor memakai teks `requested_at` penuh, dengan validasi |
+
+Verifikasi ulang:
+
+| Pemeriksaan | Hasil |
+|---|---|
+| Backend test PGlite / PostgreSQL 17 | **183 pass** / **183 pass** (25 di `finance-refunds`) |
+| `db:rehearse` | lulus sampai skema **v12** |
+| Backend & frontend typecheck | bersih |
+| Frontend vitest | **220 pass** |
+| Lint file yang disentuh | bersih (temuan lint lama di file non-Finance tetap ada, tidak disentuh) |
+| Browser | Admin di PRJ-204 (kasus RF-00001 sudah ada): dialog hanya menawarkan "Terapkan status Cancelled", status menjadi Cancelled. Halaman Refund sebagai Finance: tab "Dibatalkan", tanpa error. |
+
 ## Berikutnya
 
 **Phase 6 — Cash Flow:** proyeksi = kas aktual + sisa piutang − sisa utang − refund disetujui yang belum dibayar, beserta menunya.
