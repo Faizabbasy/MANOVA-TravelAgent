@@ -42,12 +42,12 @@ Status awal semua belum dikerjakan. Centang hanya dengan bukti file/test/route. 
 
 - [x] Semua UI finance mock lama dihapus setelah consumer pindah; import/deep links tidak putus.
   Evidence (Phase 4): 9 panel `components/finance/*Panel.vue` + ringkasan mock dihapus; 7 route lama redirect (`phase-reports/phase-4-report.md`). Mock `data/finance*.ts` tetap untuk consumer non-finance (Phase 5–7).
-- [ ] Sidebar tepat enam menu: Dashboard, Statement, Ledger, Receivable, Payable, Cash Flow.
-  Status: lima menu aktif; Cash Flow ditambahkan bersama proyeksinya di Phase 6 (tidak ada layar palsu).
+- [x] Sidebar tepat enam menu: Dashboard, Statement, Ledger, Receivable, Payable, Cash Flow.
+  Evidence (Phase 6): `constants/navigation.ts` — Ringkasan, Mutasi Rekening, Rekening & Saldo, Piutang Customer, Utang Vendor, Cash Flow; test `navigation.test.ts`.
 - [ ] Enam halaman tersambung API dengan loading/error/empty/filter empty/success dan mobile/keyboard support.
-  Status: lima halaman selesai dan diuji di browser 1440/390px; Cash Flow di Phase 6.
-- [ ] Dashboard cash/inflow/outflow/AR/AP/projected/gap/recent reconcile dengan detail.
-  Status: kas, masuk/keluar, AR/AP, jatuh tempo ≤30 hari, perlu perhatian, aktivitas terbaru — semua dari endpoint yang sama dengan layar detail. Projected/gap di Phase 6.
+  Status: enam halaman tersambung API dan diuji di browser 1440/390px (Cash Flow: `phase-reports/phase-6-report.md`). Audit keyboard/aksesibilitas menyeluruh di Phase 7.
+- [x] Dashboard cash/inflow/outflow/AR/AP/projected/gap/recent reconcile dengan detail.
+  Evidence: Ringkasan Finance memakai endpoint yang sama dengan layar detail; Phase 6 menambah kartu "Perkiraan saldo 30 hari lagi" dan butir saldo minus dari `GET /finance/cash-flow` (sama dengan halaman Cash Flow).
 
 ## Cancellation/refund/cashflow
 
@@ -59,7 +59,8 @@ Status awal semua belum dikerjakan. Centang hanya dengan bukti file/test/route. 
   Evidence: `source_payments` per kasus; `reduce_receivable` (write-off) vs `refund_liability` (refund) terpisah; test acceptance H-7 DP 20 jt → refund 6 jt.
 - [x] Settlement posted dari rekening, statement/ledger/booking history diperbarui atomik.
   Evidence: `refund_settlement` + alokasi dalam satu transaksi DB, idempotent; reversal membuka kembali kasus (`phase-reports/phase-5-report.md`).
-- [ ] Cashflow 30d/3m/6m/12m dari current cash + outstanding AR − outstanding AP/refund; account/project filter, overdue, confidence, warnings.
+- [x] Cashflow 30d/3m/6m/12m dari current cash + outstanding AR − outstanding AP/refund; account/project filter, overdue, confidence, warnings.
+  Evidence (Phase 6): `backend/src/modules/finance/cashflow.ts`, `test/finance-cashflow.test.ts` (34 test, contoh numerik 07, rekonsiliasi baris = rincian), `pages/finance/cash-flow.vue`; `phase-reports/phase-6-report.md`.
 
 ## Release acceptance
 
