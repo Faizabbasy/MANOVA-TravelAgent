@@ -34,7 +34,9 @@ Copy `.env.example` to `.env` to change settings. To use a PostgreSQL server ins
 | `bun run db:seed:demo` | Idempotent demo seed from `src/db/seeds/demo-core.json` |
 | `bun run db:backup [--out dir]` | `pg_dump` (Postgres) or data-dir tarball (PGlite) + `.sha256` |
 | `bun run db:restore <file> --target <url>` | Verify checksum, restore into an **empty** database |
-| `bun run db:rehearse [--source url --restore url]` | fresh → up → seed → down → up → backup → restore → compare |
+| `bun run db:rehearse [--source url --restore url]` | fresh → up → seed → down → up → finance demo → backup → restore → compare counts and a money fingerprint |
+| `bun run db:seed:finance-demo` | Demo accounts, invoices and cash (after `db:seed:demo`; once; refused in production / on real data) |
+| `bun scripts/perf-baseline.ts [scale]` | Builds a throwaway database at volume through the API and times the Finance reads |
 | `bun run seed:extract` | Regenerate the demo seed from `frontend/app/data` fixtures |
 
 ## Layout
@@ -54,7 +56,9 @@ test/                       bun:test suites (unit, persistence, HTTP)
 scripts/                    db CLI, demo-seed extractor
 ```
 
-## API (Phase 1)
+## API
+
+Full release notes, deployment, rollback and curl examples: `docs/manova-finance-implementation/15-RELEASE-AND-CUTOVER.md`.
 
 All responses: `{ data, meta: { requestId } }` or `{ error: { code, message, fieldErrors? }, meta: { requestId } }`.
 
@@ -83,5 +87,15 @@ All responses: `{ data, meta: { requestId } }` or `{ error: { code, message, fie
 | `GET /api/v1/finance/payables` | approved payables (outstanding / overdue / paid) and the review queue |
 | `POST /api/v1/finance/vendor-payments`, `POST …/vendor-payments/:id/allocations` | money out to a vendor, partial, remainder = deposit (Idempotency-Key required) |
 | `GET /api/v1/{projects,bookings/:type,vendors,parties}/:id/finance-summary` | finance context: full for Finance/Super Admin, payment status without amounts for Admin |
+| `GET/POST /api/v1/finance/transfer-fee-rules`, `PATCH …/:id`, `GET /api/v1/finance/transfer-fee-quote` | fee per transfer direction (fixed or %, min/max, period); one active rule per direction and day; an empty fee on a transfer applies it |
+| `GET/POST /api/v1/finance/policies`, `PATCH/DELETE …/:id` (draft), `POST …/:id/publish`, `…/deactivate`, `…/new-version` | cancellation policies with tiers; published versions are frozen |
+| `GET/PUT /api/v1/finance/cancellation-policy/:subjectType/:subjectId` | policy assigned to a project or booking (snapshot) |
+| `POST /api/v1/finance/cancellations/preview`, `POST /api/v1/finance/cancellations` | H-x preview and cancellation case (Admin: status and percentages only) |
+| `GET /api/v1/finance/refunds[/:id]`, `POST …/:id/approve`, `…/reject`, `…/settlements` | refund cases; money moves only at settlement (Idempotency-Key required) |
+| `GET /api/v1/finance/cash-flow` | projection 30d/3m/6m/12m from verified cash + open AR/AP/refunds, per company, account or project |
+| `GET /api/v1/finance/overview`, `GET /api/v1/finance/reports/monthly` | app dashboard and Reports figures (Admin: payment status only) |
+
+Every Finance route answers 401 (no session) or 403 (no finance access) **before** the body is validated
+(`src/modules/finance/access.ts`); handlers then check the exact capability.
 
 Out-of-scope records return 404, exactly like missing ones.
