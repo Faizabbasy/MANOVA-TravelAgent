@@ -213,7 +213,7 @@ async function insertReversal(tx: Queryable, actor: Actor, original: TxRow, reas
 
 export function validateReason(reason: unknown): string {
   const text = typeof reason === 'string' ? reason.trim() : ''
-  if (text.length < 5) throw errors.validation({ reason: ['Tuliskan alasan pembatalan (minimal 5 karakter).'] })
+  if (text.length < 5) throw errors.validation({ reason: ['Tuliskan alasannya (minimal 5 karakter).'] })
   return text.slice(0, 500)
 }
 

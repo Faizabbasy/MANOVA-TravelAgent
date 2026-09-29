@@ -3,6 +3,7 @@ import { Wand2 } from 'lucide-vue-next'
 import { dueInfo } from '~/lib/finance/dates'
 import { formatMoneyMinor } from '~/lib/money'
 import type { AllocationTarget } from '~/lib/finance/types'
+import { suggestAllocation } from '~/lib/finance/allocation'
 
 /**
  * Which open invoices a payment settles. By default it fills oldest-due first as the amount is typed; the
@@ -27,18 +28,7 @@ const auto = ref(true)
 const big = (v: string | undefined) => BigInt(v || '0')
 
 function autoFill () {
-  let left = big(props.amount)
-  const next: Record<string, string> = {}
-  const ordered = props.focusId
-    ? [...props.targets.filter(t => t.id === props.focusId), ...props.targets.filter(t => t.id !== props.focusId)]
-    : props.targets
-  for (const t of ordered) {
-    if (left <= 0n) { break }
-    const take = left < big(t.outstandingMinor) ? left : big(t.outstandingMinor)
-    if (take > 0n) { next[t.id] = take.toString() }
-    left -= take
-  }
-  emit('update:modelValue', next)
+  emit('update:modelValue', suggestAllocation(props.targets, props.amount, props.focusId))
 }
 
 watch(() => [props.amount, props.targets], () => { if (auto.value) { autoFill() } }, { immediate: true })
