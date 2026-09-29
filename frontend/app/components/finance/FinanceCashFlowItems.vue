@@ -3,6 +3,7 @@ import { ArrowDownLeft, ArrowUpRight } from 'lucide-vue-next'
 import type { CashFlowItem } from '~/types/api'
 import { CERTAINTY, SOURCE_LABEL } from '~/lib/finance/cashflow'
 import { formatBusinessDate } from '~/lib/finance/dates'
+import { formatMoneyMinor } from '~/lib/money'
 
 /** The invoices and refunds behind one period (or a warning): who, why this date, how much. */
 defineProps<{ items: CashFlowItem[]; today: string }>()
@@ -14,12 +15,20 @@ const tone: Record<string, string> = {
   destructive: 'bg-destructive/10 text-destructive'
 }
 
+/** Why the item sits where it does — built from where it was placed, not only from its label. */
 function dateNote (item: CashFlowItem, today: string): string {
   if (item.source === 'refund') { return 'Disetujui, belum dibayar — dihitung segera' }
-  const due = `jatuh tempo ${formatBusinessDate(item.dueDate, { short: true, today })}`
-  if (item.certainty === 'overdue') { return `Terlambat, ${due} · dihitung di periode pertama` }
-  if (item.certainty === 'expected') { return `Perkiraan ${formatBusinessDate(item.expectedDate, { short: true, today })} · ${due}` }
-  return `Jatuh tempo ${formatBusinessDate(item.dueDate, { short: true, today })}`
+  const d = (iso: string | null) => formatBusinessDate(iso, { short: true, today })
+  const due = `jatuh tempo ${d(item.dueDate)}`
+  const parts: string[] = []
+  if (item.expectedDate) {
+    parts.push(`Perkiraan ${d(item.expectedDate)}${item.movedToFirstPeriod ? ' (sudah lewat)' : ''}`, due)
+  } else {
+    parts.push(`Jatuh tempo ${d(item.dueDate)}`)
+  }
+  if (item.certainty === 'overdue') { parts.push('terlambat') }
+  if (item.movedToFirstPeriod) { parts.push('dihitung di periode pertama') }
+  return parts.join(' · ')
 }
 </script>
 
@@ -39,6 +48,9 @@ function dateNote (item: CashFlowItem, today: string): string {
           </span>
           <span class="block text-xs text-muted-foreground sm:truncate">
             {{ SOURCE_LABEL[item.source] }} {{ item.reference }}<template v-if="item.project"> · {{ item.project.name }}</template> · {{ dateNote(item, today) }}
+          </span>
+          <span v-if="item.advanceAppliedMinor !== '0'" class="block text-xs text-primary">
+            Sisa tagihan {{ formatMoneyMinor(item.outstandingMinor) }}, dikurangi uang muka {{ formatMoneyMinor(item.advanceAppliedMinor) }} yang sudah diterima
           </span>
         </span>
         <FinanceAmount :value="item.amountMinor" :direction="item.direction" :subdued="!item.counted" class="shrink-0 whitespace-nowrap text-sm font-semibold" />

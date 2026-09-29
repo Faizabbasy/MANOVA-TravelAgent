@@ -1,4 +1,4 @@
-import type { Db } from '../../db/client'
+import type { Db, Queryable } from '../../db/client'
 import { ID_PATTERN } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { isIsoDate } from '../../shared/dates'
@@ -267,7 +267,7 @@ export async function accountLedger(db: Db, accountId: string, query: { from?: s
  * Company cash today. Unavailable (not zero) while any active account lacks a verified opening balance.
  * Inactive accounts are included whenever they still hold money, so cash can never silently disappear.
  */
-export async function cashPosition(db: Db) {
+export async function cashPosition(db: Queryable) {
   const all = await db.query<AccountRow>(`select ${ACCOUNT_COLUMNS} from bank_accounts order by is_active desc, code`)
   const net = await netMovements(db)
   let total = 0n

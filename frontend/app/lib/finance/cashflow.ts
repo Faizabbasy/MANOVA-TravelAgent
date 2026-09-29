@@ -51,8 +51,8 @@ export const EXCLUDED: Record<CashFlowExcludedCode, { title: string; detail: str
   planned_billing: { title: 'Rencana tagihan', detail: 'Masuk ke perkiraan setelah invoice-nya diterbitkan.', to: '/finance/receivables?tab=plan' },
   vendor_invoices_in_review: { title: 'Invoice vendor menunggu review', detail: 'Baru dihitung sebagai utang setelah disetujui.', to: '/finance/payables?tab=review' },
   refunds_awaiting_decision: { title: 'Pembatalan menunggu keputusan', detail: 'Refund baru dihitung sebagai uang keluar setelah disetujui.', to: '/finance/refunds' },
-  customer_advances: { title: 'Uang muka customer belum dialokasikan', detail: 'Sudah ada di saldo. Bila dipakai untuk menutup tagihan, uang masuk yang diperkirakan berkurang sebesar itu.', to: '/finance/receivables' },
-  vendor_deposits: { title: 'Deposit vendor belum dialokasikan', detail: 'Sudah keluar dari saldo. Bila dipakai untuk membayar invoice, uang keluar yang diperkirakan berkurang sebesar itu.', to: '/finance/payables' },
+  customer_advances: { title: 'Sisa uang muka customer', detail: 'Sudah ada di saldo, tapi customer-nya tidak punya tagihan terbuka untuk dikurangi.', to: '/finance/receivables' },
+  vendor_deposits: { title: 'Deposit vendor belum dialokasikan', detail: 'Sudah keluar dari saldo. Tidak dikurangkan dari utang vendor agar perkiraan tetap hati-hati.', to: '/finance/payables' },
   incoming_after_horizon: { title: 'Tagihan setelah periode ini', detail: 'Jatuh tempo atau perkiraan bayarnya di luar rentang yang dipilih.', to: '/finance/receivables' },
   outgoing_after_horizon: { title: 'Utang setelah periode ini', detail: 'Jatuh tempo atau rencana bayarnya di luar rentang yang dipilih.', to: '/finance/payables' }
 }

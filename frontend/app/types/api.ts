@@ -240,8 +240,12 @@ export interface CashFlowItem {
   project: { id: string; name: string | null } | null
   booking: { type: ApiBookingType; id: string } | null
   direction: 'in' | 'out'
-  /** Still outstanding today. */
+  /** What the projection counts: outstanding minus any customer advance applied to it. */
   amountMinor: MoneyMinor
+  /** Still outstanding on the invoice / refund case today. */
+  outstandingMinor: MoneyMinor
+  /** Part covered by the same customer's unallocated advance (already in cash). */
+  advanceAppliedMinor: MoneyMinor
   dueDate: IsoDate | null
   expectedDate: IsoDate | null
   /** Where the projection places it (never before the first period). */
@@ -258,7 +262,8 @@ export interface CashFlowItem {
 export type CashFlowWarning =
   | { code: 'CASH_GAP'; date: IsoDate; balanceMinor: MoneyMinor; lowestDate: IsoDate; lowestMinor: MoneyMinor; contributors: string[] }
   | { code: 'LOW_CASH'; date: IsoDate; balanceMinor: MoneyMinor; floorMinor: MoneyMinor; contributors: string[] }
-  | { code: 'OVERDUE_INCOMING' | 'DISPUTED_INCOMING'; count: number; amountMinor: MoneyMinor }
+  | { code: 'OVERDUE_INCOMING'; count: number; amountMinor: MoneyMinor; inFirstPeriodCount: number }
+  | { code: 'DISPUTED_INCOMING' | 'ADVANCES_NETTED'; count: number; amountMinor: MoneyMinor }
 
 interface CashFlowBase {
   asOf: IsoDate
@@ -298,7 +303,7 @@ export interface CashFlowProjection extends CashFlowBase {
   items: CashFlowItem[]
   unassigned: { count: number; incomingMinor: MoneyMinor; outgoingMinor: MoneyMinor } | null
   warnings: CashFlowWarning[]
-  excluded: { code: CashFlowExcludedCode; direction: 'in' | 'out' | null; count: number; amountMinor: MoneyMinor }[]
+  excluded: { code: CashFlowExcludedCode; direction: 'in' | 'out' | null; count: number; amountMinor: MoneyMinor; undeterminedCount?: number }[]
   assumptions: Record<string, string | boolean>
 }
 

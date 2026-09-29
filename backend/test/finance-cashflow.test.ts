@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { buildPeriods, project, type ForecastItem } from '../src/modules/finance/cashflow'
+import { applyAdvances, buildPeriods, cashFlow, detectWarnings, project, type ForecastItem } from '../src/modules/finance/cashflow'
 import { todayBusinessDate } from '../src/modules/finance/common'
 import { DEMO, makeTestApp, type TestApp } from './helpers'
 
@@ -68,6 +68,33 @@ describe('projection (pure) — acceptance example from 07', () => {
     expect(r.rows[0]!.closingMinor.toString()).toBe(jt(30))
     expect(r.rows[0]!.lowestMinor.toString()).toBe(`-${jt(20)}`)
     expect(r.rows[0]!.lowestDate).toBe('2026-10-05')
+  })
+})
+
+describe('warnings and advance netting (pure)', () => {
+  const out = (key: string, amount: bigint, date: string): ForecastItem => ({ key, direction: 'out', amount, forecastDate: date, certainty: 'confirmed', disputed: false })
+  test('a balance already negative today is a gap from today', () => {
+    const w = detectWarnings(-10n, '2026-09-29', [{ date: '2026-09-30', balance: 10n }], [], null)
+    expect(w).toEqual([{ code: 'CASH_GAP', date: '2026-09-29', balanceMinor: '-10', lowestDate: '2026-09-29', lowestMinor: '-10', contributors: [] }])
+  })
+  test('the floor warning is kept even when it starts on the gap day; a zero floor is ignored', () => {
+    const items = [out('a', 50n, '2026-09-30'), out('b', 80n, '2026-09-30'), out('c', 5n, '2026-10-01')]
+    const days = [{ date: '2026-09-30', balance: -30n }, { date: '2026-10-01', balance: 20n }]
+    const w = detectWarnings(100n, '2026-09-29', days, items, 60n)
+    expect(w.map(x => [x.code, x.date])).toEqual([['CASH_GAP', '2026-09-30'], ['LOW_CASH', '2026-09-30']])
+    expect(w[0]!.contributors).toEqual(['b', 'a'])
+    expect(detectWarnings(100n, '2026-09-29', [{ date: '2026-09-30', balance: 5n }], [], 0n)).toEqual([])
+  })
+  test('advances are applied per customer, earliest first, never above what is owed', () => {
+    const a = { party: 'P1', outstanding: 50n, order: '2026-10-01|a' }
+    const b = { party: 'P1', outstanding: 40n, order: '2026-10-05|b' }
+    const c = { party: 'P2', outstanding: 30n, order: '2026-09-30|c' }
+    const r = applyAdvances([b, c, a], new Map([['P1', 70n], ['P3', 9n]]))
+    expect(r.applied.get(a)).toBe(50n)
+    expect(r.applied.get(b)).toBe(20n)
+    expect(r.applied.has(c)).toBe(false)
+    expect(r.remaining.get('P1')).toBe(0n)
+    expect(r.remaining.get('P3')).toBe(9n)
   })
 })
 
@@ -231,7 +258,7 @@ describe('company projection, step by step', () => {
     const f = await flow()
     expect(itemOf(f, late)).toMatchObject({ certainty: 'overdue', periodIndex: 0, forecastDate: addDays(TODAY, 1), movedToFirstPeriod: true, dueDate: addDays(TODAY, -5) })
     expect(f.rows[0].overdueIncomingMinor).toBe(jt(10))
-    expect(f.warnings).toContainEqual({ code: 'OVERDUE_INCOMING', count: 1, amountMinor: jt(10) })
+    expect(f.warnings).toContainEqual({ code: 'OVERDUE_INCOMING', count: 1, amountMinor: jt(10), inFirstPeriodCount: 1 })
     expect(f.closingMinor).toBe(jt(60))
 
     // Disputed stays in, with its own subtotal; a credit note reduces what is expected.
@@ -341,10 +368,91 @@ describe('company projection, step by step', () => {
     expect(after.assumptions).toMatchObject({ dateRule: 'expected_else_due', noProbabilityWeighting: true })
   })
 
+  test('boundaries: due today is not overdue (first period); due on the last day is in; one day later is out', async () => {
+    const dueToday = await issueInvoice('PRJ-203', jt(1), TODAY)
+    const lastDay = await issueInvoice('PRJ-203', jt(2), addDays(TODAY, 30))
+    const dayAfter = await issueInvoice('PRJ-203', jt(3), addDays(TODAY, 31))
+    const f = await flow()
+    expect(itemOf(f, dueToday)).toMatchObject({ certainty: 'confirmed', periodIndex: 0, forecastDate: addDays(TODAY, 1), movedToFirstPeriod: true })
+    expect(itemOf(f, lastDay)).toMatchObject({ periodIndex: f.rows.length - 1, forecastDate: f.periodEnd, movedToFirstPeriod: false })
+    expect(itemOf(f, dayAfter)).toBeUndefined()
+  })
+
+  test('an expected date already passed moves the invoice to the first period; overdue with a new expected date follows that date', async () => {
+    const notDue = await issueInvoice('PRJ-203', jt(4), addDays(TODAY, 10))
+    expect((await patch('finance', `/finance/customer-invoices/${notDue}/expectation`, { expectedDate: addDays(TODAY, -2), reason: 'Janji bayar kemarin' })).status).toBe(200)
+    const late = await issueInvoice('PRJ-203', jt(5), addDays(TODAY, -3), addDays(TODAY, -15))
+    expect((await patch('finance', `/finance/customer-invoices/${late}/expectation`, { expectedDate: addDays(TODAY, 12), reason: 'Customer minta mundur' })).status).toBe(200)
+    const f = await flow()
+    expect(itemOf(f, notDue)).toMatchObject({ certainty: 'expected', periodIndex: 0, movedToFirstPeriod: true })
+    expect(itemOf(f, late)).toMatchObject({ certainty: 'overdue', forecastDate: addDays(TODAY, 12), movedToFirstPeriod: false, periodIndex: 1 })
+    const w = f.warnings.find((x: Flow) => x.code === 'OVERDUE_INCOMING')
+    expect(w.count - w.inFirstPeriodCount).toBe(1)
+  })
+
+  test('a voided invoice leaves the projection', async () => {
+    const inv = await issueInvoice('PRJ-203', jt(7), addDays(TODAY, 6))
+    expect(itemOf(await flow(), inv)).toBeDefined()
+    expect((await post('finance', `/finance/customer-invoices/${inv}/void`, { reason: 'Salah terbit' })).status).toBe(200)
+    expect(itemOf(await flow(), inv)).toBeUndefined()
+  })
+
+  test('partial refund settlement and its reversal keep the closing; the refund amount follows', async () => {
+    const inv = (await post('finance', '/finance/customer-invoices', { projectId: 'PRJ-102', booking: { type: 'flight', id: 'FLT-1023' }, invoiceType: 'dp', lines: [{ description: 'DP tiket', amountMinor: jt(10) }], dueDate: TODAY })).json.data.id
+    await post('finance', `/finance/customer-invoices/${inv}/issue`, {})
+    await money('finance', '/finance/receipts', { bankAccountId: bank, amountMinor: jt(10), effectiveDate: TODAY, partyId: 'PTY-002', allocations: [{ invoiceId: inv, amountMinor: jt(10) }] })
+    const caseId = (await money('finance', '/finance/cancellations', { subjectType: 'flight', subjectId: 'FLT-1023', reason: 'Tiket batal, refund sebagian', calculation: 'manual' })).json.data.id
+    const pending = (await flow()).excluded.find((e: Flow) => e.code === 'refunds_awaiting_decision')
+    expect(pending).toMatchObject({ undeterminedCount: 1 })
+    expect((await post('finance', `/finance/refunds/${caseId}/approve`, { refundMinor: jt(8) })).status).toBe(200)
+    const before = await flow()
+    const settle = await money('finance', `/finance/refunds/${caseId}/settlements`, { bankAccountId: bank, amountMinor: jt(3), effectiveDate: TODAY })
+    expect(settle.status).toBe(201)
+    const partial = await flow()
+    expect(itemOf(partial, caseId).amountMinor).toBe(jt(5))
+    expect(partial.closingMinor).toBe(before.closingMinor)
+    expect((await money('finance', `/finance/transactions/${settle.json.data.transactionId}/reverse`, { reason: 'Transfer ditolak bank penerima' })).status).toBe(201)
+    const reversed = await flow()
+    expect(itemOf(reversed, caseId).amountMinor).toBe(jt(8))
+    expect(reversed.closingMinor).toBe(before.closingMinor)
+  })
+
+  test('an unallocated customer advance is not counted twice: it reduces that customer\'s expected receipts', async () => {
+    const before = await flow()
+    const rec = await money('finance', '/finance/receipts', { bankAccountId: bank, amountMinor: jt(30), effectiveDate: TODAY, partyId: 'PTY-005' })
+    expect(rec.status).toBe(201)
+    const f = await flow()
+    expect(BigInt(f.openingCashMinor) - BigInt(before.openingCashMinor)).toBe(BigInt(jt(30)))
+    expect(f.closingMinor).toBe(before.closingMinor)
+    const applied = f.items.reduce((s: bigint, x: Flow) => s + BigInt(x.advanceAppliedMinor), 0n)
+    expect(applied).toBe(BigInt(jt(30)))
+    expect(f.warnings).toContainEqual({ code: 'ADVANCES_NETTED', count: expect.any(Number), amountMinor: jt(30) })
+    for (const x of f.items) expect(BigInt(x.amountMinor)).toBe(BigInt(x.outstandingMinor) - BigInt(x.advanceAppliedMinor))
+    // Not booked on a project: a project view does not use it.
+    expect((await flow('horizon=30d&projectId=PRJ-201')).items.every((x: Flow) => x.advanceAppliedMinor === '0')).toBe(true)
+  })
+
   test('3m periods: tomorrow to the end of the third full month', async () => {
     const f = await flow('horizon=3m')
     expect(f.periodStart).toBe(addDays(TODAY, 1))
     expect(f.rows.length === 3 || f.rows.length === 4).toBe(true)
     expect(f.rows.filter((r: Flow) => r.kind === 'month')).toHaveLength(3)
+  })
+})
+
+describe('asOf and unavailable views', () => {
+  test('the business date is Jakarta: 30 Sep 17:30 UTC is already 1 Oct', async () => {
+    const late = await cashFlow(t.db, { horizon: '30d' }, new Date('2026-09-30T17:30:00Z'))
+    expect(late).toMatchObject({ asOf: '2026-10-01', periodStart: '2026-10-02', periodEnd: '2026-10-31' })
+    const early = await cashFlow(t.db, { horizon: '30d' }, new Date('2026-09-30T16:59:59Z'))
+    expect(early).toMatchObject({ asOf: '2026-09-30', periodStart: '2026-10-01' })
+  })
+
+  test('an account waiting for verification: its own view and the company view are unavailable', async () => {
+    const pending = (await post('finance', '/finance/accounts', { code: 'BNI-CF', bankName: 'BNI', holderName: 'PT MANOVA', accountNumber: '7770003333' })).json.data.id
+    await post('finance', `/finance/accounts/${pending}/opening`, { amountMinor: jt(5), openingDate: TODAY })
+    expect(await flow(`horizon=30d&accountId=${pending}`)).toMatchObject({ available: false, reason: 'OPENING_BALANCE_UNVERIFIED', missingAccounts: [{ id: pending, code: 'BNI-CF' }] })
+    expect((await flow()).available).toBe(false)
+    expect((await flow(`horizon=30d&accountId=${bank}`)).available).toBe(true)
   })
 })

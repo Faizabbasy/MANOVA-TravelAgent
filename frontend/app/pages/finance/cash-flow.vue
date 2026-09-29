@@ -39,7 +39,11 @@ const FLOOR_KEY = 'manova-cashflow-floor'
 const floorInput = ref('')
 const floor = ref('')
 onMounted(() => {
-  try { floorInput.value = localStorage.getItem(FLOOR_KEY) ?? ''; floor.value = floorInput.value } catch {}
+  try {
+    const stored = (localStorage.getItem(FLOOR_KEY) ?? '').replace(/\D/g, '').replace(/^0+(?=\d)/, '').slice(0, 16)
+    floorInput.value = stored
+    floor.value = stored
+  } catch {}
 })
 let floorTimer: ReturnType<typeof setTimeout> | undefined
 watch(floorInput, (v) => {
@@ -74,6 +78,20 @@ const gap = computed(() => flow.value?.warnings.find(w => w.code === 'CASH_GAP')
 const lowCash = computed(() => flow.value?.warnings.find(w => w.code === 'LOW_CASH') ?? null)
 const overdueIn = computed(() => flow.value?.warnings.find(w => w.code === 'OVERDUE_INCOMING') ?? null)
 const disputedIn = computed(() => flow.value?.warnings.find(w => w.code === 'DISPUTED_INCOMING') ?? null)
+const advancesNetted = computed(() => flow.value?.warnings.find(w => w.code === 'ADVANCES_NETTED') ?? null)
+const overdueText = computed(() => {
+  const w = overdueIn.value
+  if (!w || w.code !== 'OVERDUE_INCOMING') { return '' }
+  const where = w.inFirstPeriodCount === w.count ? 'di periode pertama' : w.inFirstPeriodCount ? `${w.inFirstPeriodCount} di periode pertama` : 'sesuai tanggal perkiraan barunya'
+  return `${w.count} tagihan terlambat (${formatMoneyMinor(w.amountMinor)}) tetap dihitung, ${where}`
+})
+/** Shown when a refetch failed: the figures on screen still belong to the previous choice. */
+const staleNote = computed(() => {
+  const f = flow.value
+  if (!f) { return '' }
+  const label = HORIZON_OPTIONS.find(h => h.value === f.horizon)?.label ?? f.horizon
+  return `Angka di bawah masih dari pilihan sebelumnya (${label}${f.scope.name ? `, ${f.scope.name}` : ''}).`
+})
 const lowest = computed(() => (flow.value ? lowestRow(flow.value.rows) : null))
 const change = computed(() => (flow.value ? (BigInt(flow.value.closingMinor) - BigInt(flow.value.openingCashMinor)).toString() : null))
 const horizonLong = computed(() => HORIZON_OPTIONS.find(h => h.value === horizon.value)!.long)
@@ -115,13 +133,12 @@ function resetView () { projectId.value = null; accountId.value = null }
     <!-- Controls -->
     <div class="flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
       <div class="-mx-1 overflow-x-auto px-1">
-        <div class="inline-flex min-w-max rounded-lg border border-border bg-card p-0.5 shadow-sm" role="tablist" aria-label="Rentang perkiraan">
+        <div class="inline-flex min-w-max rounded-lg border border-border bg-card p-0.5 shadow-sm" role="group" aria-label="Rentang perkiraan">
           <button
             v-for="h in HORIZON_OPTIONS"
             :key="h.value"
             type="button"
-            role="tab"
-            :aria-selected="horizon === h.value"
+            :aria-pressed="horizon === h.value"
             :class="cn('rounded-md px-3 py-1.5 text-sm font-medium transition-colors', horizon === h.value ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')"
             @click="horizon = h.value"
           >
@@ -182,7 +199,11 @@ function resetView () { projectId.value = null; accountId.value = null }
     </Card>
 
     <template v-else-if="flow">
-      <div :class="cf.pending.value && 'opacity-70 transition-opacity'" class="space-y-4">
+      <FinanceErrorState v-if="cf.error.value" :error="cf.error.value" compact @retry="cf.refresh" />
+      <p v-if="cf.error.value" class="-mt-2 text-xs text-muted-foreground">
+        {{ staleNote }}
+      </p>
+      <div :class="(cf.pending.value || cf.error.value) && 'opacity-70 transition-opacity'" class="space-y-4">
         <!-- Scope notes -->
         <div v-if="flow.scope.type === 'project'" class="flex gap-2 rounded-lg border border-border bg-card px-4 py-3 text-sm">
           <Info class="mt-0.5 h-4 w-4 shrink-0 text-primary" />
@@ -265,6 +286,9 @@ function resetView () { projectId.value = null; accountId.value = null }
               </p>
               <p v-if="gap" class="mt-0.5 text-xs text-muted-foreground">
                 Titik terendah {{ formatMoneyMinor(gap.lowestMinor) }} pada {{ formatBusinessDate(gap.lowestDate, { short: true, today }) }}.
+                <template v-if="lowCash">
+                  Di bawah minimum {{ formatMoneyMinor(lowCash.floorMinor) }} sejak {{ formatBusinessDate(lowCash.date, { short: true, today }) }}.
+                </template>
                 Ini peringatan saja — tidak ada pembayaran atau booking yang dibatalkan otomatis.
               </p>
               <p class="mt-3 text-xs font-medium text-muted-foreground">
@@ -279,10 +303,13 @@ function resetView () { projectId.value = null; accountId.value = null }
           Saldo tetap positif {{ horizonLong }}. Titik terendah {{ formatMoneyMinor(lowest.lowestMinor) }} pada {{ formatBusinessDate(lowest.lowestDate, { short: true, today }) }}.
         </p>
 
-        <div v-if="overdueIn || disputedIn" class="flex flex-wrap gap-2 text-xs">
+        <div v-if="overdueIn || disputedIn || advancesNetted" class="flex flex-wrap gap-2 text-xs">
           <NuxtLink v-if="overdueIn" to="/finance/receivables?tab=overdue" class="inline-flex items-center gap-1.5 rounded-full bg-destructive/10 px-3 py-1 font-medium text-destructive hover:underline">
-            <AlertTriangle class="h-3.5 w-3.5" /> {{ overdueIn.count }} tagihan terlambat ({{ formatMoneyMinor(overdueIn.amountMinor) }}) dianggap masuk di periode pertama
+            <AlertTriangle class="h-3.5 w-3.5" /> {{ overdueText }}
           </NuxtLink>
+          <span v-if="advancesNetted" class="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-3 py-1 font-medium text-primary">
+            <Info class="h-3.5 w-3.5" /> Uang muka {{ formatMoneyMinor(advancesNetted.amountMinor) }} sudah di saldo, jadi mengurangi {{ advancesNetted.count }} tagihan customer yang sama
+          </span>
           <span v-if="disputedIn" class="inline-flex items-center gap-1.5 rounded-full bg-warning/15 px-3 py-1 font-medium text-warning">
             <AlertTriangle class="h-3.5 w-3.5" /> {{ disputedIn.count }} tagihan sengketa ({{ formatMoneyMinor(disputedIn.amountMinor) }}) tetap dihitung
           </span>
@@ -304,7 +331,14 @@ function resetView () { projectId.value = null; accountId.value = null }
           <!-- Phones: one line per period; tap for the detail -->
           <ul class="divide-y divide-border border-t border-border sm:hidden">
             <li v-for="(r, i) in flow.rows" :id="`cf-period-m-${i}`" :key="r.startDate">
-              <button type="button" class="flex w-full items-center gap-3 px-4 py-3 text-left" :class="selected === i && 'bg-primary/5'" :aria-expanded="selected === i" @click="toggle(i)">
+              <button
+                type="button"
+                class="flex w-full items-center gap-3 px-4 py-3 text-left"
+                :class="selected === i && 'bg-primary/5'"
+                :aria-expanded="selected === i"
+                :aria-controls="`cf-detail-m-${i}`"
+                @click="toggle(i)"
+              >
                 <span class="min-w-0 flex-1">
                   <span class="flex flex-wrap items-center gap-2 text-sm font-medium">
                     {{ periodLabel(r, today) }}
@@ -320,7 +354,7 @@ function resetView () { projectId.value = null; accountId.value = null }
                 </span>
                 <ChevronDown class="h-4 w-4 shrink-0 text-muted-foreground transition-transform" :class="selected === i && 'rotate-180'" />
               </button>
-              <div v-if="selected === i" class="bg-muted/20 px-3 pb-3 pt-1">
+              <div v-if="selected === i" :id="`cf-detail-m-${i}`" class="bg-muted/20 px-3 pb-3 pt-1">
                 <p v-if="!itemsOfPeriod(flow, i).length" class="px-1 py-2 text-sm text-muted-foreground">
                   Tidak ada tagihan atau utang yang jatuh di periode ini.
                 </p>
@@ -362,14 +396,12 @@ function resetView () { projectId.value = null; accountId.value = null }
                     :id="`cf-period-${i}`"
                     class="cursor-pointer border-t border-border transition-colors hover:bg-muted/40"
                     :class="selected === i && 'bg-primary/5'"
-                    tabindex="0"
-                    :aria-expanded="selected === i"
                     @click="toggle(i)"
-                    @keydown.enter.prevent="toggle(i)"
-                    @keydown.space.prevent="toggle(i)"
                   >
                     <td class="px-5 py-3">
-                      <span class="font-medium">{{ periodLabel(r, today) }}</span>
+                      <button type="button" class="font-medium focus-visible:underline focus-visible:outline-none" :aria-expanded="selected === i" :aria-controls="`cf-detail-${i}`" @click.stop="toggle(i)">
+                        {{ periodLabel(r, today) }}
+                      </button>
                       <span v-if="rowFlag(r)" class="ml-2 rounded-full px-1.5 py-0.5 text-[11px] font-medium" :class="rowFlag(r)!.tone">{{ rowFlag(r)!.label }}</span>
                     </td>
                     <td class="px-3 py-3 text-right tabular-nums text-muted-foreground">
@@ -388,7 +420,7 @@ function resetView () { projectId.value = null; accountId.value = null }
                       <ChevronDown class="h-4 w-4 transition-transform" :class="selected === i && 'rotate-180'" />
                     </td>
                   </tr>
-                  <tr v-if="selected === i" class="bg-muted/20">
+                  <tr v-if="selected === i" :id="`cf-detail-${i}`" class="bg-muted/20">
                     <td colspan="6" class="px-3 pb-3 pt-1 sm:px-5">
                       <p v-if="!itemsOfPeriod(flow, i).length" class="px-2 py-3 text-sm text-muted-foreground">
                         Tidak ada tagihan atau utang yang jatuh di periode ini.
@@ -430,13 +462,13 @@ function resetView () { projectId.value = null; accountId.value = null }
         </SectionCard>
 
         <!-- What is deliberately left out -->
-        <SectionCard v-if="flow.excluded.length" title="Tidak dihitung dalam perkiraan" description="Uang yang nyata atau direncanakan, tapi sengaja tidak dimasukkan — supaya perkiraan tidak terlalu optimis." flush>
+        <SectionCard v-if="flow.excluded.length" title="Tidak dihitung dalam perkiraan" :description="flow.scope.type === 'account' ? 'Angka untuk seluruh perusahaan. Uang yang nyata atau direncanakan, tapi sengaja tidak dimasukkan.' : 'Uang yang nyata atau direncanakan, tapi sengaja tidak dimasukkan — supaya perkiraan tidak terlalu optimis.'" flush>
           <ul class="divide-y divide-border border-t border-border">
             <li v-for="e in flow.excluded" :key="e.code">
               <NuxtLink :to="EXCLUDED[e.code].to" class="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-muted/40">
                 <span class="min-w-0 flex-1">
                   <span class="block text-sm font-medium">{{ EXCLUDED[e.code].title }} <span class="font-normal text-muted-foreground">· {{ e.count }}</span></span>
-                  <span class="block text-xs text-muted-foreground">{{ EXCLUDED[e.code].detail }}</span>
+                  <span class="block text-xs text-muted-foreground">{{ EXCLUDED[e.code].detail }}<template v-if="e.undeterminedCount"> {{ e.undeterminedCount }} kasus nominalnya belum ditentukan Finance.</template></span>
                 </span>
                 <FinanceAmount :value="e.amountMinor" class="shrink-0 text-sm font-semibold text-muted-foreground" />
                 <ArrowRight class="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
@@ -455,7 +487,8 @@ function resetView () { projectId.value = null; accountId.value = null }
             <li>Saldo akhir periode = saldo awal + uang masuk − uang keluar. Saldo awal periode berikutnya = saldo akhir periode sebelumnya.</li>
             <li>Uang masuk: sisa tagihan customer yang sudah terbit. Uang keluar: sisa invoice vendor yang sudah disetujui, dan refund yang disetujui tapi belum dibayar.</li>
             <li>Tanggal: memakai tanggal perkiraan bayar bila dicatat, selain itu jatuh tempo. Yang sudah lewat dihitung di periode pertama dan diberi label.</li>
-            <li>Pembayaran yang sudah dicatat sudah masuk ke saldo hari ini dan mengurangi sisa tagihannya, jadi tidak dihitung dua kali.</li>
+            <li>Pembayaran yang sudah dicatat sudah masuk ke saldo hari ini dan mengurangi sisa tagihannya, jadi tidak dihitung dua kali. Uang muka customer yang belum dialokasikan juga mengurangi tagihan customer yang sama (mulai dari yang paling awal).</li>
+            <li>Deposit ke vendor tidak dikurangkan dari utang vendor, supaya perkiraan tetap hati-hati.</li>
             <li>Transfer antar rekening tidak mengubah saldo perusahaan; hanya biaya transfernya yang mengurangi.</li>
             <li>Nilai tidak dikalikan peluang. Label "Sesuai jatuh tempo", "Tanggal perkiraan", dan "Terlambat" hanya menjelaskan asal tanggalnya.</li>
             <li>30 hari dibagi per minggu mulai besok. 3/6/12 bulan = sisa bulan ini lalu bulan kalender penuh. Semua tanggal memakai waktu Jakarta.</li>

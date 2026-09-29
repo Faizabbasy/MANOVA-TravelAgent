@@ -337,7 +337,7 @@ function isNeutral (m: MovementDto) { return m.isInternalTransfer || !!m.reversa
               </p>
             </template>
             <p v-else-if="forecast.data.value && !forecast.data.value.available" class="mt-1 text-sm text-muted-foreground">
-              Perkiraan belum tersedia — saldo awal rekening belum lengkap.
+              Perkiraan belum tersedia — {{ forecast.data.value.reason === 'NO_ACCOUNTS' ? 'belum ada rekening' : 'saldo awal rekening belum lengkap' }}.
             </p>
             <p v-else-if="forecast.error.value" class="mt-1 text-sm text-muted-foreground">
               Perkiraan belum bisa dimuat.
