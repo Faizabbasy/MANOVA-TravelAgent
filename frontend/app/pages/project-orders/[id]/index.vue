@@ -226,7 +226,23 @@ const pendingStatus = ref<ProjectStatus | null>(null)
 const statusReason = ref('')
 const statusReasonRequired = computed(() => pendingStatus.value === 'on-hold' || pendingStatus.value === 'cancelled')
 
+/** Phase 5: cancelling the whole project is recorded by Finance first; the project status follows. */
+const financeCancelOpen = ref(false)
+function onFinanceCancelled ({ refund, reason }: { refund: { id: string }; reason: string }) {
+  if (!project.value) { return }
+  const result = updateProjectStatus(project.value.id, 'cancelled', currentUser.value.id, reason)
+  if (!result) {
+    showToast('Status project belum berubah', `Pembatalan sudah tercatat di Finance (${refund.id}), tapi transisi status project tidak diizinkan dari status saat ini.`, 'warning')
+    return
+  }
+  showToast('Status Diperbarui', `Project Order kini berstatus "${findStatusOption(PROJECT_STATUSES, 'cancelled').label}".`, 'success')
+}
+
 function openStatusDialog (status: ProjectStatus) {
+  if (status === 'cancelled') {
+    financeCancelOpen.value = true
+    return
+  }
   pendingStatus.value = status
   statusReason.value = ''
   isStatusDialogOpen.value = true
@@ -1043,6 +1059,7 @@ const summaryMetadata = computed(() => {
         <DetailMetadataList :items="summaryMetadata" />
         <!-- Payment status from the Finance API: label only for Admin, same line for Finance (full figures in the Finance tab). -->
         <FinancePaymentStatus :subject="{ type: 'project', id: project.id }" class="mt-4 border-t border-border pt-4" />
+        <FinanceCancellationDialog v-model:open="financeCancelOpen" :subject="{ type: 'project', id: project.id, label: `project ${project.name}` }" @recorded="onFinanceCancelled" />
         <div class="mt-4 pt-4 border-t border-border">
           <p class="text-xs font-medium text-muted-foreground mb-2">
             Peta Lokasi

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   AlarmClock, ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, CalendarRange, CheckCircle2, ClipboardCheck,
-  FileClock, Landmark, PiggyBank, ShieldAlert, Undo2
+  FileClock, Landmark, PiggyBank, ShieldAlert, Undo2, Wallet
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import type { MovementDto } from '~/types/api'
@@ -47,7 +47,7 @@ const flows = useFinanceQuery(async () => {
 })
 
 const obligations = useFinanceQuery(async () => {
-  const [arOpen, arOverdue, arDue30, arDue7, apAll, apOverdue, apDue30, drafts, plans, advances] = await Promise.all([
+  const [arOpen, arOverdue, arDue30, arDue7, apAll, apOverdue, apDue30, drafts, plans, advances, refunds] = await Promise.all([
     api.finance.receivables({ settlement: 'outstanding', limit: 1 }),
     api.finance.receivables({ settlement: 'overdue', limit: 3 }),
     api.finance.receivables({ settlement: 'outstanding', dueTo: shiftDate(today, 30), limit: 1 }),
@@ -57,7 +57,8 @@ const obligations = useFinanceQuery(async () => {
     api.finance.payables({ view: 'outstanding', dueTo: shiftDate(today, 30), limit: 1 }),
     api.finance.listCustomerInvoices({ status: 'draft', limit: 100 }),
     api.finance.listBillingSchedule({ status: 'planned' }),
-    api.finance.advances({ type: 'customer' })
+    api.finance.advances({ type: 'customer' }),
+    api.finance.refunds({ view: 'open', limit: 1 })
   ])
   return {
     ar: arOpen.meta.summary,
@@ -71,7 +72,8 @@ const obligations = useFinanceQuery(async () => {
     draftCapped: drafts.data.length >= 100,
     latePlans: plans.data.filter(p => p.plannedDate <= today),
     advanceTotal: advances.data.reduce((s, a) => s + BigInt(a.unallocatedMinor), 0n).toString(),
-    advanceCount: advances.data.length
+    advanceCount: advances.data.length,
+    refunds: refunds.meta.summary
   }
 })
 
@@ -112,6 +114,28 @@ const attention = computed<Attention[]>(() => {
       detail: `Paling lama: ${names}${o.arOverdue.summary.count > 2 ? ', dan lainnya' : ''}. Hubungi customer atau catat janji bayarnya.`,
       to: '/finance/receivables?tab=overdue',
       cta: 'Tagih'
+    })
+  }
+  if (o.refunds.toPayCount) {
+    out.push({
+      key: 'refund-pay',
+      icon: Wallet,
+      tone: 'warning',
+      title: `${o.refunds.toPayCount} refund disetujui belum dibayar · ${formatMoneyMinor(o.refunds.toPayMinor)}`,
+      detail: 'Customer menunggu uangnya kembali. Refund baru mengurangi saldo saat dibayar.',
+      to: '/finance/refunds?tab=to_pay',
+      cta: 'Bayar refund'
+    })
+  }
+  if (o.refunds.requestedCount) {
+    out.push({
+      key: 'refund-decide',
+      icon: Undo2,
+      tone: 'info',
+      title: `${o.refunds.requestedCount} pembatalan menunggu keputusan refund`,
+      detail: 'Periksa perhitungan kebijakan, lalu setujui atau tolak.',
+      to: '/finance/refunds',
+      cta: 'Putuskan'
     })
   }
   if (o.apOverdue.summary.count) {

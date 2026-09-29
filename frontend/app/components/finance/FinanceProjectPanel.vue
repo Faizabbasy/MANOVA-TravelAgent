@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { CalendarRange, CheckCircle2, FilePlus2, Lock, ReceiptText } from 'lucide-vue-next'
+import { CalendarRange, CheckCircle2, FilePlus2, Lock, ReceiptText, Undo2 } from 'lucide-vue-next'
 import type { ProjectFinanceSummaryDto } from '~/types/api'
 import { PAYMENT_STATUS_TONE } from '~/lib/finance/labels'
+import { refundTag } from '~/lib/finance/refunds'
 import { todayJakarta } from '~/lib/finance/dates'
 
 /**
@@ -27,8 +28,7 @@ const vendorInvoices = computed(() => (full.value?.vendorInvoices ?? []).filter(
 const marginPct = computed(() => full.value?.profitability.marginBasisPoints == null ? null : (full.value.profitability.marginBasisPoints / 100).toLocaleString('id-ID', { maximumFractionDigits: 1 }))
 
 /**
- * What still blocks closing this project's finance (server figures). Refund requests are still checked by
- * the host page until refunds move to the API (Phase 5).
+ * What still blocks closing this project's finance — all from the server, refunds included (Phase 5).
  */
 const blockers = computed<string[]>(() => {
   const f = full.value
@@ -44,6 +44,7 @@ const blockers = computed<string[]>(() => {
   }
   if (f.payable.pendingReviewCount) { out.push(`${f.payable.pendingReviewCount} invoice vendor belum direview.`) }
   if (BigInt(f.payable.outstandingMinor) > 0n) { out.push('Masih ada utang vendor yang belum dibayar.') }
+  if (f.refunds.openCount) { out.push(`${f.refunds.openCount} kasus refund belum selesai (menunggu keputusan atau belum dibayar).`) }
   return out
 })
 defineExpose({ blockers })
@@ -72,6 +73,34 @@ const showVendorCreate = ref(false)
     </SectionCard>
 
     <template v-else>
+      <!-- Cancellation -->
+      <section v-if="full.cancellation" class="flex flex-col gap-3 rounded-xl border border-border bg-muted/40 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex gap-3">
+          <Undo2 class="mt-0.5 h-5 w-5 shrink-0 text-muted-foreground" />
+          <div>
+            <p class="text-[15px] font-semibold">
+              Project dibatalkan
+            </p>
+            <p class="text-sm text-muted-foreground">
+              Refund <FinanceAmount :value="full.cancellation.refundableMinor" class="font-medium text-foreground" />,
+              sudah dibayar <FinanceAmount :value="full.cancellation.settledMinor" class="font-medium text-foreground" />.
+            </p>
+          </div>
+        </div>
+        <div class="flex items-center gap-2">
+          <StatusBadge v-bind="refundTag(full.cancellation)" />
+          <Button size="sm" variant="outline" as-child>
+            <NuxtLink :to="`/finance/refunds?tab=${full.cancellation.status === 'requested' ? 'requested' : 'to_pay'}`">
+              Buka kasus
+            </NuxtLink>
+          </Button>
+        </div>
+      </section>
+
+      <div class="rounded-xl border border-border bg-card px-5 py-3 shadow-sm">
+        <FinancePolicyLine subject-type="project" :subject-id="projectId" :locked="!!full.cancellation" />
+      </div>
+
       <!-- Receivable summary -->
       <section class="rounded-xl border border-border bg-card p-5 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-3">

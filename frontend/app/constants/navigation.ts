@@ -239,6 +239,9 @@ export const HIDDEN_NAV_ROUTES: RouteGate[] = [
 
   // Finance & ACC
 
+  // Finance — workflow pendukung (bukan menu utama; ditautkan dari Piutang & Ringkasan)
+  { key: 'hidden.finance-refunds', label: 'Refund & Pembatalan', to: '/finance/refunds', moduleKey: 'finance-acc' },
+
   // Sales (corong lama, kini tab Pipeline) + Produk & Costing lama
   { key: 'hidden.customer-journey', label: 'Customer Journey', to: '/customer-journey', moduleKey: 'sales' },
   { key: 'hidden.leads', label: 'Leads', to: '/customer-journey/leads', moduleKey: 'sales' },

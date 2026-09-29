@@ -6,7 +6,7 @@ import { recordAudit } from '../../shared/audit'
 import { isIsoDate } from '../../shared/dates'
 import { isUniqueViolation, parseMovementAmount, rule, todayBusinessDate } from './common'
 import { assertOutflowFits, lockPostableAccount, trimOrNull, validateEffectiveDate, validateReason } from './postings'
-import { applyTier, daysBetween, getAssignment, type PolicySnapshot, resolveSubject, type Subject, type SubjectType, type Tier, tierFor } from './policies'
+import { applyTier, daysBetween, effectiveAssignment, type PolicySnapshot, resolveSubject, type Subject, type SubjectType, type Tier, tierFor } from './policies'
 
 /**
  * Cancellation → refund (Phase 5, docs/.../08).
@@ -94,7 +94,7 @@ async function computeCase(q: Queryable, subject: Subject, cancelDate: string, l
     if (whole) blockers.push({ code: 'OVERLAPPING_CASE', message: `Seluruh project sudah dibatalkan (${whole.id}).` })
   }
 
-  const assignment = await getAssignment(q, subject)
+  const { assignment } = await effectiveAssignment(q, subject)
   const policy = assignment?.snapshot ?? null
   const daysBefore = subject.departureDate ? daysBetween(cancelDate, subject.departureDate) : null
   if (!policy) blockers.push({ code: 'NO_POLICY', message: 'Belum ada kebijakan pembatalan untuk ini, jadi refund tidak bisa dihitung otomatis. Tetapkan kebijakan, atau catat dengan nominal manual (disetujui Finance).' })

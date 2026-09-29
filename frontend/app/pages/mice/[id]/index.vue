@@ -10,6 +10,7 @@ import {
   getProjectById, getUserById, USERS, VENDORS, getProjectServiceById, setServiceVendor,
   createCancellationRecord
 } from '~/data'
+import type { RefundDetailDto, RefundStatusDto } from '~/types/api'
 import { MICE_EVENT_STATUSES, MICE_APPROVAL_STATUSES, MICE_BOQ_CATEGORIES, MICE_CHECKLIST_TASKS, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateTime } from '~/utils/format'
 import type { MiceEventStatus, MiceApprovalStatus, MiceSession, MiceParticipantCategory, MiceBoqItem, MiceStaffAssignment, MiceChecklistTask } from '~/types/mice'
@@ -61,6 +62,11 @@ const cancellationPenalty = ref<number | null>(null)
 const cancellationRefundEligible = ref(true)
 
 function requestStatusChange (newStatus: MiceEventStatus) {
+  // Phase 5: cancelling is recorded by Finance first (policy preview, write-offs, refund case); the booking follows.
+  if (newStatus === 'cancelled') {
+    financeCancelOpen.value = true
+    return
+  }
   if (newStatus === 'cancelled') {
     pendingStatus.value = newStatus
     statusReason.value = ''
@@ -72,6 +78,26 @@ function requestStatusChange (newStatus: MiceEventStatus) {
   if (!event.value) { return }
   updateMiceEventStatus(event.value.id, newStatus, currentUser.value.id)
   showToast('Status Diperbarui', `MICE Event kini berstatus "${findStatusOption(MICE_EVENT_STATUSES, newStatus).label}".`, 'success')
+}
+
+/** Finance recorded the cancellation (one case, server-side); now move the booking itself to "cancelled". */
+const financeCancelOpen = ref(false)
+function onFinanceCancelled ({ refund, reason }: { refund: RefundDetailDto | RefundStatusDto; reason: string }) {
+  if (!event.value) { return }
+  const result = updateMiceEventStatus(event.value.id, 'cancelled', currentUser.value.id, reason)
+  if (!result) {
+    showToast('Status booking belum berubah', `Pembatalan sudah tercatat di Finance (${refund.id}), tapi status booking tidak bisa diubah dari status saat ini.`, 'warning')
+    return
+  }
+  createCancellationRecord({
+    projectId: result.projectId,
+    bookingType: 'mice',
+    bookingId: result.id,
+    reason,
+    cancelledBy: currentUser.value.id,
+    refundEligible: !(refund.status === 'approved' && refund.settlement === 'none')
+  })
+  showToast('Status Diperbarui', `MICE Event kini berstatus "${findStatusOption(MICE_EVENT_STATUSES, 'cancelled').label}".`, 'success')
 }
 
 function submitStatusChange () {
@@ -464,6 +490,7 @@ function submitAddDeliverable () {
 
       <!-- Finance context from the API (Phase 4): status for everyone, figures for Finance. -->
       <FinanceContextPanel :subject="{ type: 'booking', bookingType: 'mice', id: event.id }" />
+      <FinanceCancellationDialog v-model:open="financeCancelOpen" :subject="{ type: 'mice', id: event.id, label: `MICE Event ${event.id}` }" @recorded="onFinanceCancelled" />
 
       <SectionCard title="BOQ (Bill of Quantities)" description="Catering, AV, staging, equipment, booth, dan vendor package.">
         <template v-if="canManageMice" #actions>

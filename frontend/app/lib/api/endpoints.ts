@@ -188,9 +188,12 @@ export function createManovaApi (client: ApiClient) {
       publishPolicy: (id: string) => client.post<CancellationPolicyDto>(`/finance/policies/${seg(id)}/publish`),
       deactivatePolicy: (id: string, reason: string) => client.post<CancellationPolicyDto>(`/finance/policies/${seg(id)}/deactivate`, { reason }),
       newPolicyVersion: (id: string) => client.post<CancellationPolicyDto>(`/finance/policies/${seg(id)}/new-version`),
-      /** The policy snapshot on a project/booking, plus the policies that may be assigned to it today. */
+      /**
+       * The policy that applies to a project/booking (a booking without its own inherits its project's, `inherited`),
+       * plus the policies that may be assigned to it today.
+       */
       subjectPolicy: (type: ApiSubjectType, id: string) =>
-        client.get<{ assignment: PolicyAssignmentDto | null; assignable: CancellationPolicyDto[] }>(`/finance/cancellation-policy/${seg(type)}/${seg(id)}`),
+        client.get<{ assignment: PolicyAssignmentDto | null; inherited: boolean; assignable: CancellationPolicyDto[] }>(`/finance/cancellation-policy/${seg(type)}/${seg(id)}`),
       assignPolicy: (type: ApiSubjectType, id: string, input: { policyId: string; note?: string }) =>
         client.put<PolicyAssignmentDto>(`/finance/cancellation-policy/${seg(type)}/${seg(id)}`, input),
 

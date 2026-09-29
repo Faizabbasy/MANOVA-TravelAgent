@@ -238,6 +238,17 @@ describe('whole-project cancellation with a 0% tier', () => {
   })
 })
 
+describe('a booking inherits its project policy', () => {
+  test('FLT-1031 has no policy of its own; PRJ-103 has STD → the booking preview uses it (marked inherited)', async () => {
+    await req('PUT', 'finance', '/finance/cancellation-policy/project/PRJ-103', { policyId })
+    const res = (await get('admin', '/finance/cancellation-policy/flight/FLT-1031')).json.data
+    expect(res).toMatchObject({ inherited: true, assignment: { policyId } })
+    const preview = (await post('finance', '/finance/cancellations/preview', { subjectType: 'flight', subjectId: 'FLT-1031' })).json.data
+    expect(preview.policy?.id).toBe(policyId)
+    expect(preview.blockers.map((b: { code: string }) => b.code)).not.toContain('NO_POLICY')
+  })
+})
+
 describe('no policy → manual case decided by Finance', () => {
   let caseId: string
   let invoice: string

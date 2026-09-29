@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { AlarmClock, CalendarRange, CheckCircle2, FilePlus2, FileText, Loader2, PiggyBank, Plus, SearchX, Wallet } from 'lucide-vue-next'
+import { AlarmClock, CalendarRange, CheckCircle2, FilePlus2, FileText, Loader2, PiggyBank, Plus, SearchX, Undo2, Wallet } from 'lucide-vue-next'
 import type { AdvanceDto, BillingScheduleItemDto, CustomerInvoiceDto } from '~/types/api'
 import { formatBusinessDate, shiftDate, todayJakarta } from '~/lib/finance/dates'
 import { INVOICE_TYPE_LABEL } from '~/lib/finance/labels'
@@ -123,6 +123,11 @@ function resetFilters () { partyId.value = null; projectId.value = null }
 <template>
   <FinancePage title="Piutang Customer" description="Tagihan ke customer: siapa harus bayar, kapan, dan berapa sisanya.">
     <template #actions>
+      <Button variant="ghost" as-child>
+        <NuxtLink to="/finance/refunds">
+          <Undo2 class="mr-2 h-4 w-4" /> Refund & pembatalan
+        </NuxtLink>
+      </Button>
       <Button v-if="session.can('finance.post-cash')" variant="outline" @click="showReceipt = true">
         <Wallet class="mr-2 h-4 w-4" /> Catat pembayaran
       </Button>

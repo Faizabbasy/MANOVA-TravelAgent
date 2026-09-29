@@ -11,7 +11,7 @@
     "typecheck": "pnpm --dir frontend typecheck",
     "test": "pnpm --dir frontend test",
     "typecheck:backend": "cd backend && bun run typecheck",
-    "test:backend": "cd backend && bun test",
+    "test:backend": "cd backend && bun run test",
     "db:migrate": "cd backend && bun run db:migrate",
     "db:seed:demo": "cd backend && bun run db:seed:demo",
     "db:seed:finance-demo": "cd backend && bun run db:seed:finance-demo"

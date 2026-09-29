@@ -350,6 +350,18 @@ export async function getAssignment(q: Queryable, subject: Subject) {
   return { policyId: a.policy_id, version: a.policy_version, snapshot: a.snapshot, note: a.note, assignedBy: a.assigned_by, assignedAt: a.assigned_at.toISOString() }
 }
 
+/**
+ * The policy that applies to a subject: its own snapshot, or — for a booking without one — the snapshot on its
+ * project when that policy covers this booking type (assign once per project, override per booking).
+ */
+export async function effectiveAssignment(q: Queryable, subject: Subject) {
+  const own = await getAssignment(q, subject)
+  if (own || subject.type === 'project') return { assignment: own, inherited: false }
+  const project = await getAssignment(q, { ...subject, type: 'project', id: subject.projectId, bookingType: null })
+  if (project && (project.snapshot.bookingType === null || project.snapshot.bookingType === subject.type)) return { assignment: project, inherited: true }
+  return { assignment: null, inherited: false }
+}
+
 export async function assignPolicy(tx: Queryable, actor: Actor, subject: Subject, input: { policyId?: string; note?: string }, requestId: string) {
   if (!input.policyId || !ID_PATTERN.test(input.policyId)) throw errors.validation({ policyId: ['Pilih kebijakan.'] })
   const [p] = await tx.query<PolicyRow>('select * from cancellation_policies where id = $1 for share', [input.policyId])

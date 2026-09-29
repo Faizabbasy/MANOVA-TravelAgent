@@ -9,6 +9,7 @@ import {
   VENDORS,
   createCancellationRecord
 } from '~/data'
+import type { RefundDetailDto, RefundStatusDto } from '~/types/api'
 import { TRANSPORT_BOOKING_STATUSES, VEHICLE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateTime } from '~/utils/format'
 import type { TransportBookingStatus, TransportOption, TransportLeg } from '~/types/transportation'
@@ -70,6 +71,11 @@ function statusRequiresReason (status: TransportBookingStatus) {
 }
 
 function requestStatusChange (newStatus: TransportBookingStatus) {
+  // Phase 5: cancelling is recorded by Finance first (policy preview, write-offs, refund case); the booking follows.
+  if (newStatus === 'cancelled') {
+    financeCancelOpen.value = true
+    return
+  }
   if (statusRequiresReason(newStatus)) {
     pendingStatus.value = newStatus
     statusReason.value = ''
@@ -81,6 +87,26 @@ function requestStatusChange (newStatus: TransportBookingStatus) {
   if (!booking.value) { return }
   updateTransportBookingStatus(booking.value.id, newStatus, currentUser.value.id)
   showToast('Status Diperbarui', `Transport Booking kini berstatus "${findStatusOption(TRANSPORT_BOOKING_STATUSES, newStatus).label}".`, 'success')
+}
+
+/** Finance recorded the cancellation (one case, server-side); now move the booking itself to "cancelled". */
+const financeCancelOpen = ref(false)
+function onFinanceCancelled ({ refund, reason }: { refund: RefundDetailDto | RefundStatusDto; reason: string }) {
+  if (!booking.value) { return }
+  const result = updateTransportBookingStatus(booking.value.id, 'cancelled', currentUser.value.id, reason)
+  if (!result) {
+    showToast('Status booking belum berubah', `Pembatalan sudah tercatat di Finance (${refund.id}), tapi status booking tidak bisa diubah dari status saat ini.`, 'warning')
+    return
+  }
+  createCancellationRecord({
+    projectId: result.projectId,
+    bookingType: 'transport',
+    bookingId: result.id,
+    reason,
+    cancelledBy: currentUser.value.id,
+    refundEligible: !(refund.status === 'approved' && refund.settlement === 'none')
+  })
+  showToast('Status Diperbarui', `Transport Booking kini berstatus "${findStatusOption(TRANSPORT_BOOKING_STATUSES, 'cancelled').label}".`, 'success')
 }
 
 function submitStatusChange () {
@@ -363,6 +389,7 @@ function submitEdit () {
 
       <!-- Finance context from the API (Phase 4): status for everyone, figures for Finance. -->
       <FinanceContextPanel :subject="{ type: 'booking', bookingType: 'transport', id: booking.id }" />
+      <FinanceCancellationDialog v-model:open="financeCancelOpen" :subject="{ type: 'transport', id: booking.id, label: `Transport Booking ${booking.id}` }" @recorded="onFinanceCancelled" />
 
       <SectionCard title="Financial" description="Standby/overtime/toll dan dampak finansial.">
         <div class="grid gap-3 sm:grid-cols-3 mb-3">

@@ -2,6 +2,7 @@
 import { ArrowRight, CircleDollarSign } from 'lucide-vue-next'
 import type { ApiBookingType, BookingFinanceSummaryDto, PartyFinanceSummaryDto, VendorFinanceSummaryDto } from '~/types/api'
 import { PAYMENT_STATUS_TONE } from '~/lib/finance/labels'
+import { refundTag } from '~/lib/finance/refunds'
 import { formatBusinessDate, todayJakarta } from '~/lib/finance/dates'
 
 /**
@@ -71,6 +72,19 @@ const selectedVendorInvoice = ref<string | null>(null)
           <StatusBadge :label="paymentStatus.label" :tone="PAYMENT_STATUS_TONE[paymentStatus.paymentStatus]" dot />
           <span v-if="paymentStatus.nextDueDate && paymentStatus.paymentStatus !== 'paid'" class="text-xs text-muted-foreground">Jatuh tempo berikutnya {{ formatBusinessDate(paymentStatus.nextDueDate, { short: true, today }) }}</span>
         </div>
+        <div v-if="subject.type === 'booking' && data && 'cancellation' in data && data.cancellation" class="flex flex-wrap items-center gap-2 rounded-lg bg-muted/50 px-3 py-2 text-sm">
+          <span class="font-medium">Dibatalkan {{ formatBusinessDate(data.cancellation.cancelDate, { short: true, today }) }}</span>
+          <StatusBadge v-bind="refundTag(data.cancellation)" />
+          <NuxtLink v-if="session.can('finance.view-cash')" to="/finance/refunds" class="text-xs font-medium text-primary hover:underline">
+            Buka kasus refund
+          </NuxtLink>
+        </div>
+        <FinancePolicyLine
+          v-if="subject.type === 'booking'"
+          :subject-type="subject.bookingType"
+          :subject-id="subject.id"
+          :locked="!!(data && 'cancellation' in data && data.cancellation)"
+        />
         <dl v-if="vendor" class="grid grid-cols-3 gap-3 text-sm">
           <div>
             <dt class="text-xs text-muted-foreground">

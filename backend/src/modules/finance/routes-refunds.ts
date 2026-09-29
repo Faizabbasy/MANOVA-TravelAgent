@@ -6,7 +6,7 @@ import { assertIdParam, MAX_PAGE_LIMIT, ok, requestIdOf } from '../../http/envel
 import { errors } from '../../http/errors'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import {
-  assignablePolicies, assignPolicy, createPolicy, deactivatePolicy, deletePolicyDraft, getAssignment, getPolicy, listPolicies,
+  assignablePolicies, assignPolicy, createPolicy, deactivatePolicy, deletePolicyDraft, effectiveAssignment, getPolicy, listPolicies,
   newPolicyVersion, parseSubjectType, publishPolicy, resolveSubject, updatePolicyDraft
 } from './policies'
 import { approveRefund, createCancellation, getRefund, listRefunds, previewCancellation, rejectRefund, settleRefund } from './refunds'
@@ -107,7 +107,8 @@ export function refundRoutes(deps: AppDeps, auth: AuthContext) {
     .get('/finance/cancellation-policy/:subjectType/:subjectId', async ({ request, params }) => {
       await policyReader(request)
       const subject = await resolveSubject(db, parseSubjectType(params.subjectType), assertIdParam(params.subjectId, 'Subjek'))
-      return ok(request, { assignment: await getAssignment(db, subject), assignable: await assignablePolicies(db, subject) })
+      const { assignment, inherited } = await effectiveAssignment(db, subject)
+      return ok(request, { assignment, inherited, assignable: await assignablePolicies(db, subject) })
     })
     .put('/finance/cancellation-policy/:subjectType/:subjectId', async ({ request, params, body }) => {
       const actor = await auth.requireCapability(request, 'finance.manage-policy')

@@ -468,16 +468,12 @@ export interface FinanceClosureGateResult {
  * dan tab Finance Project Detail.
  */
 /**
- * Phase 4: invoices, vendor invoices and billing now live in the Finance API, so their blockers are computed
- * from server data by the caller (`FinanceProjectPanel`) and passed in as `serverBlockers`. Refund requests
- * are still mock data until Phase 5 and are checked here, so the gate is neither weaker nor stricter.
+ * Invoices, vendor invoices, billing (Phase 4) and refunds (Phase 5) live in the Finance API, so every
+ * blocker is computed from server data by the caller (`FinanceProjectPanel`) and passed in as `serverBlockers`.
  */
-export function evaluateFinanceClosureGate (projectId: string, serverBlockers: string[]): FinanceClosureGateResult {
+export function evaluateFinanceClosureGate (_projectId: string, serverBlockers: string[]): FinanceClosureGateResult {
   const blockers: string[] = [...serverBlockers]
 
-  const nonTerminalRefundCount = getRefundRequestsByProject(projectId)
-    .filter(request => request.status === 'requested' || request.status === 'under-review' || request.status === 'approved').length
-  if (nonTerminalRefundCount > 0) { blockers.push(`${nonTerminalRefundCount} Refund Request belum selesai (belum processed/rejected).`) }
 
   return { ready: blockers.length === 0, blockers }
 }
