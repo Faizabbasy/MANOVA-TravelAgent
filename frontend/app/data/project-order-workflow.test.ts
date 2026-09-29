@@ -15,6 +15,7 @@ import {
   toggleProjectNotePin
 } from './project-order-workflow'
 import { getProjectById, getProjectStatusTransitions } from './index'
+import { resetProjectFinanceFacts, setProjectFinanceFacts } from './finance-facts'
 import type { Project } from '~/types/project'
 
 function project (id: string): Project {
@@ -88,6 +89,19 @@ describe('Alur 6 step Project Order', () => {
       const gate = evaluateProjectOrderStepGate('PRJ-102', 'done')
       expect(gate.ready).toBe(false)
       expect(gate.blockers.length).toBeGreaterThan(0)
+    })
+
+    it('gerbang DP membaca status Finance dari server, tidak pernah dari invoice mock', () => {
+      resetProjectFinanceFacts()
+      const dpBlockers = () => evaluateProjectOrderStepGate('PRJ-102', 'confirmed').blockers.filter(b => /DP|Down Payment|Finance/.test(b))
+      // Belum termuat: kedua gerbang DP menahan dan menjelaskan alasannya.
+      expect(dpBlockers()).toHaveLength(2)
+      expect(dpBlockers().every(b => b.includes('belum termuat'))).toBe(true)
+      setProjectFinanceFacts([{ projectId: 'PRJ-102', dpInvoiced: true, dpReceived: false }])
+      expect(dpBlockers()).toEqual([expect.stringContaining('Pembayaran DP belum tercatat')])
+      setProjectFinanceFacts([{ projectId: 'PRJ-102', dpInvoiced: true, dpReceived: true }])
+      expect(dpBlockers()).toEqual([])
+      resetProjectFinanceFacts()
     })
 
     it('project tidak dikenal ditolak dengan blocker, bukan melempar error', () => {

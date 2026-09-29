@@ -1728,9 +1728,7 @@ export function getProjectAttentionQueue (projectId: string): AttentionQueueItem
   }
   const missingDocs = getTravelersMissingDocuments(projectId)
   if (missingDocs.length > 0) { items.push({ severity: 'medium', message: `${missingDocs.length} traveler dokumennya belum lengkap`, tab: 'travelers' }) }
-  for (const invoice of getInvoicesByProject(projectId)) {
-    if (isInvoiceOverdue(invoice)) { items.push({ severity: 'high', message: `Invoice ${invoice.id} telah jatuh tempo`, tab: 'finance' }) }
-  }
+  // Overdue customer invoices are added by the page from the server's Finance status (Phase 7), not from mock invoices.
   return items
 }
 

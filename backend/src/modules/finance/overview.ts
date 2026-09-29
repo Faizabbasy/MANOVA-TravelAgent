@@ -39,7 +39,10 @@ export async function financeOverview(db: Db, full: boolean) {
     const rows = byProject.get(projectId) ?? []
     const cancelled = caseByProject.get(projectId) ?? null
     const status = withCancellation(statusView(rows, today, cancelled ? false : moreToBill.get(projectId)!), cancelled)
-    return { projectId, paymentStatus: status.paymentStatus, label: status.label, hasOverdue: status.hasOverdue, cancelled: !!cancelled }
+    return {
+      projectId, paymentStatus: status.paymentStatus, label: status.label, hasOverdue: status.hasOverdue, cancelled: !!cancelled,
+      dpInvoiced: status.dpInvoiced, dpReceived: status.dpReceived
+    }
   })
   if (!full) return { view: 'status' as const, asOf: today, projects }
 

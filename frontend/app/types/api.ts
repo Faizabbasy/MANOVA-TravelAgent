@@ -557,6 +557,8 @@ export interface OverviewProjectStatus {
   label: string
   hasOverdue: boolean
   cancelled: boolean
+  dpInvoiced: boolean
+  dpReceived: boolean
 }
 
 export interface FinanceOverviewStatus {
@@ -589,6 +591,9 @@ export interface PaymentStatusView {
   hasOverdue: boolean
   openInvoiceCount: number
   nextDueDate: IsoDate | null
+  /** Workflow facts (no amounts): a DP invoice is issued / money was received on one. */
+  dpInvoiced: boolean
+  dpReceived: boolean
 }
 
 export interface ReceivableTotals {

@@ -1,22 +1,12 @@
 import { differenceInCalendarDays, parseISO } from 'date-fns'
-import type { Project, ProjectStatus } from '~/types/project'
-import type {
-  ProjectMilestone,
-  ProjectNote,
-  ProjectOrderGateResult,
-  ProjectOrderStepDef,
-  ProjectOrderStepKey,
-  ProjectOrderStepView
-} from '~/types/project-order'
 import { PROJECT_MILESTONES, PROJECT_NOTES } from './project-orders'
 import { areProjectAssetsReturned, getAssetById } from './inventory'
+import { getProjectFinanceFacts } from './finance-facts'
 import {
   getProjectById,
   getProjectServices,
   getItineraryItems,
   getTravelers,
-  getInvoicesByProject,
-  getPaymentsByInvoice,
   getTravelerReadiness,
   getDepartureReadiness,
   getIncidentsByProject,
@@ -27,7 +17,19 @@ import {
   markProjectReady,
   closeProject
 } from './index'
+import type { Project, ProjectStatus } from '~/types/project'
+import type {
+  ProjectMilestone,
+  ProjectNote,
+  ProjectOrderGateResult,
+  ProjectOrderStepDef,
+  ProjectOrderStepKey,
+  ProjectOrderStepView
+} from '~/types/project-order'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
+
+/** DP gates read the server's finance facts (Phase 7); unknown until the Finance status has loaded. */
+const FINANCE_NOT_LOADED = 'Status pembayaran dari Finance belum termuat — muat ulang halaman bila tidak berubah.'
 
 /**
  * Mesin alur 6 step Project Order (Revisi 9-Modul).
@@ -105,17 +107,18 @@ export const PROJECT_ORDER_STEPS: ProjectOrderStepDef[] = [
         id: 'dp-invoice-issued',
         label: 'Invoice DP sudah terbit',
         evaluate: (project) => {
-          const hasDp = getInvoicesByProject(project.id).some(invoice => invoice.invoiceType === 'dp' && invoice.status !== 'void')
-          return hasDp ? undefined : 'Invoice Down Payment belum diterbitkan oleh Finance.'
+          const facts = getProjectFinanceFacts(project.id)
+          if (!facts) { return FINANCE_NOT_LOADED }
+          return facts.dpInvoiced ? undefined : 'Invoice Down Payment belum diterbitkan oleh Finance.'
         }
       },
       {
         id: 'dp-received',
         label: 'Pembayaran DP sudah diterima',
         evaluate: (project) => {
-          const dpInvoices = getInvoicesByProject(project.id).filter(invoice => invoice.invoiceType === 'dp' && invoice.status !== 'void')
-          const paidIdr = dpInvoices.reduce((sum, invoice) => sum + getPaymentsByInvoice(invoice.id).reduce((s, payment) => s + payment.amountIdr, 0), 0)
-          return paidIdr > 0 ? undefined : 'Pembayaran DP belum tercatat — Finance harus memverifikasi penerimaan dana lebih dulu.'
+          const facts = getProjectFinanceFacts(project.id)
+          if (!facts) { return FINANCE_NOT_LOADED }
+          return facts.dpReceived ? undefined : 'Pembayaran DP belum tercatat — Finance harus mencatat penerimaan dana lebih dulu.'
         }
       },
       {

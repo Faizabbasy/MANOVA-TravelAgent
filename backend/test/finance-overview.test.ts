@@ -28,7 +28,10 @@ describe('finance overview', () => {
     expect(JSON.stringify(res.json.data)).not.toMatch(/Minor|cash|forecast/)
     for (const p of res.json.data.projects) {
       const own = (await get('admin', `/projects/${p.projectId}/finance-summary`)).json.data
-      expect(p).toEqual({ projectId: p.projectId, paymentStatus: own.paymentStatus, label: own.label, hasOverdue: own.hasOverdue, cancelled: own.cancellation !== null })
+      expect(p).toEqual({
+        projectId: p.projectId, paymentStatus: own.paymentStatus, label: own.label, hasOverdue: own.hasOverdue,
+        cancelled: own.cancellation !== null, dpInvoiced: own.dpInvoiced, dpReceived: own.dpReceived
+      })
     }
   })
 
@@ -43,6 +46,10 @@ describe('finance overview', () => {
       expect(p.outstandingMinor).toBe(own.receivable.outstandingMinor)
     }
     expect(data.projects.some((p: { paymentStatus: string }) => p.paymentStatus === 'overdue')).toBe(true)
+    // Workflow facts (no amounts): PRJ-202 has a paid DP; a project without invoices has neither.
+    const byId = Object.fromEntries(data.projects.map((p: { projectId: string }) => [p.projectId, p]))
+    expect(byId['PRJ-202']).toMatchObject({ dpInvoiced: true, dpReceived: true })
+    expect(Object.values(byId).some((p: any) => p.paymentStatus === 'not_invoiced' && !p.dpInvoiced && !p.dpReceived)).toBe(true)
   })
 
   test('Finance: totals equal the Finance menus (cash, forecast, receivables, payables)', async () => {

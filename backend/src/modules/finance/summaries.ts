@@ -65,7 +65,10 @@ export function statusView(invoices: InvoiceBalanceRow[], today: string, moreToB
     label: STATUS_LABEL[status],
     hasOverdue: open.some(i => i.due_date < today),
     openInvoiceCount: open.length,
-    nextDueDate: open.map(i => i.due_date).sort()[0] ?? null
+    nextDueDate: open.map(i => i.due_date).sort()[0] ?? null,
+    /** Facts the operational workflow gates on (no amounts): a DP invoice is issued / money was received on one. */
+    dpInvoiced: invoices.some(i => i.status === 'issued' && i.invoice_type === 'dp'),
+    dpReceived: invoices.some(i => i.status === 'issued' && i.invoice_type === 'dp' && BigInt(i.paid_minor) > 0n)
   }
 }
 

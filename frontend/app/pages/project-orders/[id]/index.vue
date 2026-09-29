@@ -10,7 +10,7 @@ import {
   getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, createTravelerGroup,
   toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
-  getInvoicesByProject, closeProjectFinance,
+  closeProjectFinance,
   evaluateProjectClosureGate, closeProject, getProjectClosureSummary,
   getTasksByProject, getDocumentsByProject, getActivitiesByProject, getRisksByProject,
   createChangeEntry, approveChangeEntry, rejectChangeEntry,
@@ -34,10 +34,9 @@ import {
 import { serviceCapabilityKey } from '~/constants/capabilities'
 import {
   PROJECT_STATUSES, PROJECT_CHARACTERISTICS, PROJECT_ORDER_STATUSES, SERVICE_STATUSES, SERVICE_TYPES,
-  INVOICE_STATUSES, INVOICE_TYPES, TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES,
+  TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES,
   CHANGE_CATEGORIES, CHANGE_APPROVAL_STATUSES, RISK_SEVERITIES, RISK_STATUSES, BOOKING_PAYMENT_GATE_STATUSES, SERVICE_ORDER_STATUSES, RFQ_STATUSES, findStatusOption,
   CHANGE_REQUEST_SOURCES, CHANGE_REQUEST_STATUSES, REFUND_REQUEST_STATUSES, REFUND_CREDIT_STATUSES, INCIDENT_SEVERITIES, INCIDENT_STATUSES,
-  CREDIT_NOTE_STATUSES, DEBIT_NOTE_STATUSES, SUPPLIER_INVOICE_MATCH_STATUSES, SUPPLIER_INVOICE_STATUSES,
   DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange, formatDate, formatDayLabel, formatTravelerCount, maskDocumentNumber } from '~/utils/format'
@@ -52,7 +51,7 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { canView, canApprove, canManage, canViewFinancials, can } = usePermissions()
-const { currentRole, currentUser } = useCurrentUser()
+const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 /**
@@ -86,9 +85,11 @@ function canManageServiceType (type: ServiceTypeKey) {
  */
 const refreshKey = ref(0)
 function refreshStep () { refreshKey.value += 1 }
+/** Reading the key makes a computed recompute after mock mutations (the fixtures are not all reactive). */
+function trackRefresh () { return refreshKey.value }
 
 const project = computed(() => {
-  void refreshKey.value
+  trackRefresh()
   return getProjectById(String(route.params.id))
 })
 
@@ -128,7 +129,7 @@ const visibleTabs = computed(() => TABS.filter(tab => tab.value !== 'finance' ||
  * cakupan linear stepper.
  */
 const stepViews = computed(() => {
-  void refreshKey.value
+  trackRefresh()
   return getProjectOrderStepViews(project.value?.id ?? '')
 })
 const currentStepView = computed(() => stepViews.value.find(view => view.state === 'current' || view.state === 'blocked'))
@@ -148,7 +149,7 @@ function onAdvanceStep () {
 
 /** Milestone Timeline Tracking (dulu halaman terpisah) — planned vs actual date per milestone, TIDAK tumpang tindih dengan "Milestone / Task Summary" (StatusBreakdownList status Task, sumber data berbeda). */
 const milestones = computed(() => {
-  void refreshKey.value
+  trackRefresh()
   return getProjectMilestones(project.value?.id ?? '')
 })
 /** Tanggal rencana dikunci begitu Project Order lewat tahap Drafting. */
@@ -491,7 +492,14 @@ const serviceReadinessMatrix = computed(() => project.value ? getServiceReadines
 const departureReadiness = computed(() => project.value ? getDepartureReadiness(project.value.id) : undefined)
 
 /** "Attention/exception queue" — item diklik untuk lompat ke tab terkait. */
-const attentionQueue = computed(() => project.value ? getProjectAttentionQueue(project.value.id) : [])
+const attentionQueue = computed(() => {
+  if (!project.value) { return [] }
+  const items = getProjectAttentionQueue(project.value.id)
+  if (financeOverview.byProject.value.get(project.value.id)?.hasOverdue) {
+    items.push({ severity: 'high', message: 'Ada tagihan customer yang lewat jatuh tempo', tab: 'finance' })
+  }
+  return items
+})
 function goToAttentionTab (tab: ProjectDetailTab) {
   activeTab.value = tab
 }
@@ -514,8 +522,15 @@ function toggleItineraryVisibility (item: { id: string; visibleToClient?: boolea
 const isItineraryFormOpen = ref(false)
 const editingItineraryItemId = ref<string | undefined>()
 const itineraryForm = ref({
-  date: '', time: '', title: '', description: '', location: '',
-  serviceType: '' as ServiceTypeKey | '', groupId: '', timezone: '', visibleToClient: true
+  date: '',
+  time: '',
+  title: '',
+  description: '',
+  location: '',
+  serviceType: '' as ServiceTypeKey | '',
+  groupId: '',
+  timezone: '',
+  visibleToClient: true
 })
 
 function openCreateItineraryItem () {
@@ -613,8 +628,8 @@ function unblockTask (task: ProjectTask) {
 
 const groups = computed(() => project.value ? getTravelerGroups(project.value.id) : [])
 const travelers = computed(() => project.value ? getTravelers(project.value.id) : [])
-const invoices = computed(() => project.value ? getInvoicesByProject(project.value.id) : [])
-
+/** Finance status from the server: overdue flag for attention, DP facts for the workflow gates (no amounts for Admin). */
+const financeOverview = useFinanceOverview()
 
 /** Section 20 — Credit/Debit Note, AP summary (Supplier Invoice), dan financial closure gate untuk project ini. */
 const canManageFinance = computed(() => canManage('finance'))
@@ -628,7 +643,6 @@ function submitCloseFinance () {
   const result = closeProjectFinance(project.value.id, currentUser.value.id, serverBlockers)
   if (result.success) { showToast('Finance Ditutup', `Finance project ${project.value.name} berhasil ditutup.`, 'success') } else { showToast('Belum Bisa Ditutup', `${result.blockers.length} blocker masih terbuka — lihat daftar di atas.`, 'error') }
 }
-
 
 const tasks = computed(() => project.value ? getTasksByProject(project.value.id) : [])
 const documents = computed(() => project.value ? getDocumentsByProject(project.value.id) : [])
@@ -755,7 +769,8 @@ function handleRejectQuotation (quotationId: string) {
 }
 
 const needsAttention = computed(() => project.value
-  ? isProjectNeedingAttention(project.value, { invoices: invoices.value, tasks: tasks.value, activities: activities.value })
+  ? (financeOverview.byProject.value.get(project.value.id)?.hasOverdue ?? false) ||
+    isProjectNeedingAttention(project.value, { invoices: [], tasks: tasks.value, activities: activities.value })
   : false)
 
 /** Ringkasan Overview (Section 10) — breakdown/preview dari data tab lain, bukan detail penuh (hard rule: jangan
