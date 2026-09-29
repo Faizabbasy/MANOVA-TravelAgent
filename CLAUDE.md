@@ -26,6 +26,7 @@ npm run typecheck:backend   # backend tsc
 npm run test:backend        # backend bun test (PGlite; TEST_DATABASE_URL for PostgreSQL)
 npm run db:migrate          # apply backend migrations (also run by backend dev)
 npm run db:seed:demo        # demo references + logins (needs backend/.env with APP_ENV=development; never in production)
+npm run db:seed:finance-demo  # demo accounts, invoices and cash (after db:seed:demo; runs once; rows marked demo-fixture)
 ```
 
 The frontend reaches the backend through the Nuxt proxy at `/api/v1/**` (`frontend/app/composables/useApi.ts`).

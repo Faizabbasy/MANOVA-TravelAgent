@@ -5,6 +5,7 @@
  *   bun run db:rollback [--steps N | --to N] [--confirm-backup <file>]   (production requires a backup file)
  *   bun run db:status
  *   bun run db:seed:demo                                                  (refused in production)
+ *   bun run db:seed:finance-demo                                          (after seed:demo; refused in production)
  *   bun run db:backup [--out <dir>]
  *   bun run db:restore <backup-file> --target <database-url>             (target must be empty)
  *   bun run db:rehearse [--source <url> --restore <url>]                 (scratch databases only)
@@ -17,6 +18,7 @@ import { openDb } from '../src/db/client'
 import { migrateDown, migrateUp, migrationStatus } from '../src/db/migrator'
 import { rehearseMigrations } from '../src/db/rehearsal'
 import { DEFAULT_DEMO_PASSWORD, seedDemo } from '../src/db/seed-demo'
+import { seedFinanceDemo } from '../src/db/seed-finance-demo'
 
 const [command, ...rest] = process.argv.slice(2)
 
@@ -99,6 +101,18 @@ async function main() {
       await db.close()
       return
     }
+    case 'seed:finance-demo': {
+      if (!['development', 'test'].includes(process.env.APP_ENV ?? '')) {
+        fail('db:seed:finance-demo needs APP_ENV=development (or test) set explicitly. It never runs against production.')
+      }
+      const db = await openDb(config.databaseUrl)
+      const result = await seedFinanceDemo(db, { appEnv: config.appEnv })
+      console.log(result.skipped
+        ? 'Finance demo seed skipped: this database already has finance records.'
+        : `Finance demo seed applied: ${JSON.stringify(result)}`)
+      await db.close()
+      return
+    }
     case 'backup': {
       const db = await openDb(config.databaseUrl)
       const result = await backupDatabase(db, config.databaseUrl, resolve(flag('out') ?? DEFAULT_BACKUP_DIR))
@@ -130,7 +144,7 @@ async function main() {
       return
     }
     default:
-      fail(`unknown command "${command ?? ''}". Use migrate | rollback | status | seed:demo | backup | restore | rehearse`)
+      fail(`unknown command "${command ?? ''}". Use migrate | rollback | status | seed:demo | seed:finance-demo | backup | restore | rehearse`)
   }
 }
 

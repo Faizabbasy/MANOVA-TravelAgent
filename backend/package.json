@@ -13,6 +13,7 @@
     "db:rollback": "bun scripts/db.ts rollback",
     "db:status": "bun scripts/db.ts status",
     "db:seed:demo": "bun scripts/db.ts seed:demo",
+    "db:seed:finance-demo": "bun scripts/db.ts seed:finance-demo",
     "db:backup": "bun scripts/db.ts backup",
     "db:restore": "bun scripts/db.ts restore",
     "db:rehearse": "bun scripts/db.ts rehearse",

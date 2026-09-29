@@ -13,6 +13,7 @@
     "typecheck:backend": "cd backend && bun run typecheck",
     "test:backend": "cd backend && bun test",
     "db:migrate": "cd backend && bun run db:migrate",
-    "db:seed:demo": "cd backend && bun run db:seed:demo"
+    "db:seed:demo": "cd backend && bun run db:seed:demo",
+    "db:seed:finance-demo": "cd backend && bun run db:seed:finance-demo"
   }
 }

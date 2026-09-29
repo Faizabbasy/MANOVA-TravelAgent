@@ -11,7 +11,7 @@ bun install
 bun run dev              # migrate + serve with --watch
 bun test                 # PGlite in-memory; TEST_DATABASE_URL=postgres://… for PostgreSQL
 bun run typecheck
-bun run db:migrate | db:rollback | db:status | db:seed:demo | db:backup | db:restore | db:rehearse
+bun run db:migrate | db:rollback | db:status | db:seed:demo | db:seed:finance-demo | db:backup | db:restore | db:rehearse
 ```
 
 ## Rules
