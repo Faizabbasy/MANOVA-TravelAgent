@@ -23,7 +23,8 @@ withDefaults(defineProps<{
   <div class="space-y-3">
     <Breadcrumb v-if="breadcrumb.length" :items="breadcrumb" />
 
-    <div class="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-start sm:justify-between">
+    <!-- Title and actions sit side by side from lg; below that (tablet with the sidebar open) they stack and wrap. -->
+    <div class="flex flex-col gap-3 border-b border-border pb-4 lg:flex-row lg:items-start lg:justify-between">
       <div class="min-w-0">
         <h1 class="text-xl font-semibold tracking-tight text-foreground sm:text-2xl">
           {{ title }}
@@ -32,7 +33,7 @@ withDefaults(defineProps<{
           {{ description }}
         </p>
       </div>
-      <div v-if="$slots.actions" class="flex shrink-0 items-center gap-2">
+      <div v-if="$slots.actions" class="flex flex-wrap items-center gap-2 lg:shrink-0 lg:justify-end">
         <slot name="actions" />
       </div>
     </div>

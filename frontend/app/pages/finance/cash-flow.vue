@@ -366,7 +366,9 @@ function resetView () { projectId.value = null; accountId.value = null }
               <span class="whitespace-nowrap tabular-nums" :class="flow.closingMinor.startsWith('-') && 'text-destructive'">{{ formatMoneyMinor(flow.closingMinor) }}</span>
             </li>
           </ul>
-          <div class="hidden overflow-x-auto border-t border-border sm:block">
+          <!-- relative: the sr-only labels inside rows are absolutely positioned and would otherwise escape this
+               scroll container and widen the whole page (768 px with the sidebar open). -->
+          <div class="relative hidden overflow-x-auto border-t border-border sm:block">
             <table class="w-full min-w-[40rem] whitespace-nowrap text-sm">
               <thead class="bg-muted/40 text-xs text-muted-foreground">
                 <tr>
