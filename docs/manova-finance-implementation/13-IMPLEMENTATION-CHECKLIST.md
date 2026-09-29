@@ -40,10 +40,14 @@ Status awal semua belum dikerjakan. Centang hanya dengan bukti file/test/route. 
 
 ## UI baru
 
-- [ ] Semua UI finance mock lama dihapus setelah consumer pindah; import/deep links tidak putus.
+- [x] Semua UI finance mock lama dihapus setelah consumer pindah; import/deep links tidak putus.
+  Evidence (Phase 4): 9 panel `components/finance/*Panel.vue` + ringkasan mock dihapus; 7 route lama redirect (`phase-reports/phase-4-report.md`). Mock `data/finance*.ts` tetap untuk consumer non-finance (Phase 5–7).
 - [ ] Sidebar tepat enam menu: Dashboard, Statement, Ledger, Receivable, Payable, Cash Flow.
+  Status: lima menu aktif; Cash Flow ditambahkan bersama proyeksinya di Phase 6 (tidak ada layar palsu).
 - [ ] Enam halaman tersambung API dengan loading/error/empty/filter empty/success dan mobile/keyboard support.
+  Status: lima halaman selesai dan diuji di browser 1440/390px; Cash Flow di Phase 6.
 - [ ] Dashboard cash/inflow/outflow/AR/AP/projected/gap/recent reconcile dengan detail.
+  Status: kas, masuk/keluar, AR/AP, jatuh tempo ≤30 hari, perlu perhatian, aktivitas terbaru — semua dari endpoint yang sama dengan layar detail. Projected/gap di Phase 6.
 
 ## Cancellation/refund/cashflow
 
