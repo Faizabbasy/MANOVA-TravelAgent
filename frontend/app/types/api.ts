@@ -375,12 +375,53 @@ export type AccountLedgerDto =
       items: (MovementDto & { balanceAfterMinor: MoneyMinor })[]
     }
 
+/** One direction's fee: a fixed amount, or basis points of the amount (100 = 1%) with optional min/max. */
+export interface TransferFeeRuleShape {
+  feeType: 'fixed' | 'percent'
+  fixedMinor: MoneyMinor | null
+  percentBasisPoints: number | null
+  minMinor: MoneyMinor | null
+  maxMinor: MoneyMinor | null
+}
+
+export interface TransferFeeRuleDto extends TransferFeeRuleShape {
+  id: string
+  fromAccountId: string
+  toAccountId: string
+  effectiveFrom: IsoDate
+  effectiveTo: IsoDate | null
+  isActive: boolean
+  note: string | null
+  createdBy: string
+  createdAt: IsoDateTime
+  updatedAt: IsoDateTime
+}
+
+export type TransferFeeRuleInput = Partial<TransferFeeRuleShape> & {
+  fromAccountId?: string
+  toAccountId?: string
+  effectiveFrom?: IsoDate
+  effectiveTo?: IsoDate | null
+  isActive?: boolean
+  note?: string | null
+}
+
+export interface TransferFeeQuote {
+  feeMinor: MoneyMinor
+  rule: TransferFeeRuleDto | null
+}
+
 export interface TransferDto {
   id: string
   fromAccountId: string
   toAccountId: string
   amountMinor: MoneyMinor
   feeMinor: MoneyMinor
+  /** 'rule' = the direction's fee rule applied · 'manual' = typed in · 'none' = no rule, no fee. */
+  feeSource: 'none' | 'rule' | 'manual'
+  feeRuleId: string | null
+  /** Snapshot of the rule at posting time (plus the fee it quoted), never the rule's current values. */
+  feeRule: (TransferFeeRuleShape & { ruleId: string; effectiveFrom: IsoDate; effectiveTo: IsoDate | null; quotedMinor: MoneyMinor }) | null
   effectiveDate: IsoDate
   memo: string | null
   reversed: boolean

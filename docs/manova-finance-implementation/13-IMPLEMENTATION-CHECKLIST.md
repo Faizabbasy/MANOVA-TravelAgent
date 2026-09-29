@@ -23,8 +23,8 @@ Status awal semua belum dikerjakan. Centang hanya dengan bukti file/test/route. 
 
 ## Money, AR/AP, statement/ledger
 
-- [ ] Rekening + opening verified/cutover + directional transfer fee.
-  Progress (Phase 2): rekening, saldo pembuka maker (Finance) / checker (Super Admin), dan cutover **selesai**. Biaya transfer masih diinput manual per transfer; aturan biaya per arah (`transfer_fee_rules`) belum dibuat. Evidence: `backend/src/modules/finance/accounts.ts`, `test/finance-money.test.ts`.
+- [x] Rekening + opening verified/cutover + directional transfer fee.
+  Evidence: rekening, saldo pembuka maker/checker, cutover (Phase 2, `test/finance-money.test.ts`). Phase 8: `transfer_fee_rules` (migration 0013) — satu aturan aktif per arah per hari (trigger DB), tetap atau persen + min/maks; server memilih aturan dari arah + tanggal, transfer menyimpan snapshot dan asal biaya (`rule`/`manual`/`none`); `GET/POST/PATCH /finance/transfer-fee-rules`, `GET /finance/transfer-fee-quote`; `test/finance-fee-rules.test.ts` (PGlite + PostgreSQL 17).
 - [ ] Posted cash movement, allocation, reversal, idempotency, audit, proof metadata.
   Progress (Phase 2–3): buku kas immutable (trigger DB), reversal sekali dengan alasan, Idempotency-Key, audit, dan alokasi parsial + uang muka (Phase 3) **selesai**. Yang tersisa: bukti transfer (menunggu ADR-005).
 - [x] Account Statement actual-only, filter/drilldown; Account Ledger per bank/account opening/in/out/closing/running balance.

@@ -3,6 +3,8 @@ import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, Undo2 } from 'lucide-vue-n
 import type { MovementDto, TransferDto } from '~/types/api'
 import { CATEGORY_LABEL, KIND_LABEL, movementTitle } from '~/lib/finance/labels'
 import { formatBusinessDateLong, formatInstant } from '~/lib/finance/dates'
+import { describeFee } from '~/lib/finance/fee-rules'
+import { formatMoneyMinor } from '~/lib/money'
 
 /**
  * Detail of one cash movement: where the money went, what it belongs to, who recorded it, and whether it was
@@ -23,6 +25,15 @@ const detail = useFinanceQuery(async () => {
 
 const m = computed<MovementDto | null>(() => (detail.data.value?.movement.id === props.movementId ? detail.data.value.movement : null))
 const transfer = computed(() => (m.value ? detail.data.value?.transfer ?? null : null))
+/** Where the transfer fee came from, in words (the rule snapshot is the one used at posting time). */
+const feeNote = computed(() => {
+  const t = transfer.value
+  if (!t) { return null }
+  if (t.feeSource === 'rule' && t.feeRule) { return `Biaya sesuai aturan saat itu: ${describeFee(t.feeRule)}.` }
+  if (t.feeSource === 'manual' && t.feeRule) { return `Biaya diisi manual ${formatMoneyMinor(t.feeMinor)}; menurut aturan ${formatMoneyMinor(t.feeRule.quotedMinor)}.` }
+  if (t.feeSource === 'none') { return 'Tanpa biaya: belum ada aturan biaya untuk arah ini.' }
+  return null
+})
 const showReverse = ref(false)
 
 const canReverse = computed(() => {
@@ -122,6 +133,9 @@ const rows = computed(() => {
               <FinanceAmount :value="leg.amountMinor" :direction="leg.direction" :muted="!!leg.reversedById" class="text-sm" />
             </li>
           </ul>
+          <p v-if="feeNote" class="mt-3 border-t border-border pt-3 text-xs text-muted-foreground">
+            {{ feeNote }}
+          </p>
         </div>
 
         <dl class="divide-y divide-border text-sm">

@@ -227,6 +227,8 @@ const title = computed(() => account.data.value ? `${account.data.value.bankName
           </template>
         </Card>
       </template>
+
+      <FinanceFeeRules v-if="account.data.value" :account-id="accountId" />
     </template>
 
     <FinanceMovementSheet v-model:movement-id="selectedMovement" />

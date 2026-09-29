@@ -9,6 +9,7 @@ import { createAccount, getAccount, listAccounts, submitOpening, updateAccount, 
 import { postManualTransaction, postTransfer, reverseTransaction, reverseTransfer } from './postings'
 import { accountLedger, cashPosition, getTransaction, getTransfer, statement } from './reads'
 import { cashFlow } from './cashflow'
+import { createFeeRule, listFeeRules, quoteTransferFee, updateFeeRule } from './fee-rules'
 import { monthlyReport } from './reports'
 
 /**
@@ -19,6 +20,21 @@ import { monthlyReport } from './reports'
  */
 
 const bookingRef = t.Object({ type: t.String(), id: t.String() })
+
+/** Shape only; the rules (required fields per fee type, periods) are checked in fee-rules.ts. */
+const feeRuleBody = t.Object({
+  fromAccountId: t.Optional(t.String()),
+  toAccountId: t.Optional(t.String()),
+  feeType: t.Optional(t.String()),
+  fixedMinor: t.Optional(t.Nullable(t.String())),
+  percentBasisPoints: t.Optional(t.Nullable(t.Number())),
+  minMinor: t.Optional(t.Nullable(t.String())),
+  maxMinor: t.Optional(t.Nullable(t.String())),
+  effectiveFrom: t.Optional(t.String()),
+  effectiveTo: t.Optional(t.Nullable(t.String())),
+  isActive: t.Optional(t.Boolean()),
+  note: t.Optional(t.Nullable(t.String({ maxLength: 500 })))
+})
 
 function parseLimit(raw: string | undefined): number {
   if (raw === undefined) return 50
@@ -219,6 +235,48 @@ export function financeRoutes(deps: AppDeps, auth: AuthContext) {
           reverseTransaction(tx, actor, id, body.reason, requestIdOf(request)))
       },
       { body: t.Object({ reason: t.String({ error: 'Alasan pembatalan wajib diisi.' }) }) }
+    )
+
+    // ── Transfer fee rules (one per direction and period) ───────────────────────────────────────────
+    .get(
+      '/transfer-fee-rules',
+      async ({ request, query }) => {
+        await auth.requireCapability(request, 'finance.view-cash')
+        return ok(request, await listFeeRules(db, query))
+      },
+      { query: t.Object({ accountId: t.Optional(t.String()) }) }
+    )
+    .get(
+      '/transfer-fee-quote',
+      async ({ request, query }) => {
+        await auth.requireCapability(request, 'finance.view-cash')
+        return ok(request, await quoteTransferFee(db, query))
+      },
+      {
+        query: t.Object({
+          fromAccountId: t.Optional(t.String()),
+          toAccountId: t.Optional(t.String()),
+          amountMinor: t.Optional(t.String()),
+          effectiveDate: t.Optional(t.String())
+        })
+      }
+    )
+    .post(
+      '/transfer-fee-rules',
+      async ({ request, body, set }) => {
+        const actor = await auth.requireCapability(request, 'finance.manage-bank-accounts')
+        set.status = 201
+        return ok(request, await createFeeRule(db, actor, body, requestIdOf(request)))
+      },
+      { body: feeRuleBody }
+    )
+    .patch(
+      '/transfer-fee-rules/:id',
+      async ({ request, params, body }) => {
+        const actor = await auth.requireCapability(request, 'finance.manage-bank-accounts')
+        return ok(request, await updateFeeRule(db, actor, assertIdParam(params.id, 'Aturan biaya'), body, requestIdOf(request)))
+      },
+      { body: feeRuleBody }
     )
 
     // ── Transfers ───────────────────────────────────────────────────────────────────────────────────

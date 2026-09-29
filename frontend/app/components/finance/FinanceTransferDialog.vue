@@ -3,10 +3,13 @@ import { ArrowRight } from 'lucide-vue-next'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { todayJakarta } from '~/lib/finance/dates'
 import { formatMoneyMinor } from '~/lib/money'
+import type { TransferFeeQuote } from '~/types/api'
 
 /**
  * Move money between two company accounts. One action, two legs (out + in) plus an optional bank fee — company
  * cash only drops by the fee. The preview shows both balances after the transfer before anything is posted.
+ * The fee follows the direction's rule (the server quotes it); leaving the field empty applies that rule, and a
+ * typed fee is kept as the bank's actual charge.
  */
 const props = defineProps<{ open: boolean; fromAccountId?: string | null }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
@@ -32,10 +35,38 @@ const toAccount = computed(() => accounts.value.find(a => a.id === form.to) ?? n
 const minDate = computed(() => [fromAccount.value?.opening.date, toAccount.value?.opening.date].filter((d): d is string => !!d).sort().pop())
 const toOptions = computed(() => lookups.accountOptions.value.filter(o => o.value !== form.from))
 
+// Quote for this direction, amount and date (debounced; stale answers are dropped).
+const quote = ref<TransferFeeQuote | null>(null)
+let quoteSeq = 0
+let quoteTimer: ReturnType<typeof setTimeout> | undefined
+watch(() => [props.open, form.from, form.to, form.amount, form.date] as const, ([open, from, to, amount, date]) => {
+  clearTimeout(quoteTimer)
+  const seq = ++quoteSeq
+  quote.value = null
+  if (!open || !from || !to || !amount || amount === '0' || !date) { return }
+  quoteTimer = setTimeout(async () => {
+    try {
+      const q = await api.finance.quoteTransferFee({ fromAccountId: from, toAccountId: to, amountMinor: amount, effectiveDate: date })
+      if (seq === quoteSeq) { quote.value = q.data }
+    } catch { /* the transfer itself still validates; the hint just stays generic */ }
+  }, 300)
+})
+onBeforeUnmount(() => clearTimeout(quoteTimer))
+
+const feeHint = computed(() => {
+  const q = quote.value
+  if (!q) { return 'Dipotong dari rekening asal.' }
+  if (!q.rule) { return `Belum ada aturan biaya untuk arah ${fromAccount.value?.code} → ${toAccount.value?.code}. Isi bila bank memotong biaya.` }
+  const rule = q.rule.feeType === 'fixed' ? 'biaya tetap' : `${(q.rule.percentBasisPoints! / 100).toLocaleString('id-ID')}%`
+  return `Aturan ${fromAccount.value?.code} → ${toAccount.value?.code} (${rule}): ${formatMoneyMinor(q.feeMinor)}. Kosongkan untuk memakai aturan; isi bila bank memotong berbeda.`
+})
+/** The fee the server will post: the typed one, else the rule's quote. */
+const effectiveFee = computed(() => form.fee !== '' ? form.fee : (quote.value?.feeMinor ?? '0'))
+
 const preview = computed(() => {
   if (!fromAccount.value?.balance.currentMinor || !form.amount) { return null }
   const amount = BigInt(form.amount)
-  const fee = BigInt(form.fee || '0')
+  const fee = BigInt(effectiveFee.value)
   const fromAfter = BigInt(fromAccount.value.balance.currentMinor) - amount - fee
   const toAfter = toAccount.value?.balance.currentMinor ? BigInt(toAccount.value.balance.currentMinor) + amount : null
   return { fromAfter, toAfter, shortfall: fromAfter < 0n }
@@ -83,8 +114,8 @@ async function submit () {
       <FinanceField id="tr-amount" label="Nominal transfer" :error="action.fieldError('amountMinor')">
         <FinanceMoneyInput id="tr-amount" v-model="form.amount" :invalid="!!action.fieldError('amountMinor')" />
       </FinanceField>
-      <FinanceField id="tr-fee" label="Biaya transfer" optional :error="action.fieldError('feeMinor')" hint="Dipotong dari rekening asal.">
-        <FinanceMoneyInput id="tr-fee" v-model="form.fee" />
+      <FinanceField id="tr-fee" label="Biaya transfer" optional :error="action.fieldError('feeMinor')" :hint="feeHint">
+        <FinanceMoneyInput id="tr-fee" v-model="form.fee" :placeholder="quote?.rule ? Number(quote.feeMinor).toLocaleString('id-ID') : '0'" />
       </FinanceField>
       <FinanceField id="tr-date" label="Tanggal transfer" :error="action.fieldError('effectiveDate')">
         <FinanceDateInput id="tr-date" v-model="form.date" :min="minDate" :max="today" />
@@ -116,6 +147,9 @@ async function submit () {
           </dd>
         </div>
       </dl>
+      <p class="mt-2 text-xs text-muted-foreground">
+        {{ `Biaya transfer ${formatMoneyMinor(effectiveFee)}${form.fee === '' && quote?.rule ? ' sesuai aturan' : ''}.` }}
+      </p>
       <p v-if="preview.shortfall" class="mt-2 text-xs font-medium text-destructive" role="alert">
         Saldo {{ fromAccount?.code }} tidak cukup untuk transfer dan biayanya.
       </p>

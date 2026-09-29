@@ -48,6 +48,9 @@ import type {
   StatementList,
   StatementQuery,
   TransferDto,
+  TransferFeeQuote,
+  TransferFeeRuleDto,
+  TransferFeeRuleInput,
   TransferInput,
   VendorDto,
   VendorFinanceSummaryDto,
@@ -121,6 +124,15 @@ export function createManovaApi (client: ApiClient) {
       reverseTransaction: (id: string, reason: string, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<{ reversalId: string }>(`/finance/transactions/${seg(id)}/reverse`, { reason }, { idempotencyKey }),
 
+      listFeeRules: (query: { accountId?: string } = {}) =>
+        client.get<TransferFeeRuleDto[]>('/finance/transfer-fee-rules', { query: { ...query } }),
+      /** The server picks the rule for this direction and date; an empty fee on the transfer applies it. */
+      quoteTransferFee: (query: { fromAccountId: string; toAccountId: string; amountMinor: string; effectiveDate: string }) =>
+        client.get<TransferFeeQuote>('/finance/transfer-fee-quote', { query: { ...query } }),
+      createFeeRule: (input: TransferFeeRuleInput) => client.post<TransferFeeRuleDto>('/finance/transfer-fee-rules', input),
+      /** Direction cannot change; end the rule (effectiveTo) and create a new one instead of rewriting it. */
+      updateFeeRule: (id: string, input: Omit<TransferFeeRuleInput, 'fromAccountId' | 'toAccountId'>) =>
+        client.patch<TransferFeeRuleDto>(`/finance/transfer-fee-rules/${seg(id)}`, input),
       getTransfer: (id: string) => client.get<TransferDto>(`/finance/transfers/${seg(id)}`),
       postTransfer: (input: TransferInput, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<{ transferId: string; transactionIds: string[] }>('/finance/transfers', input, { idempotencyKey }),

@@ -7,7 +7,7 @@ import { cn } from '~/lib/utils'
  */
 defineOptions({ inheritAttrs: false })
 
-const props = defineProps<{ modelValue: string; invalid?: boolean }>()
+const props = defineProps<{ modelValue: string; invalid?: boolean; placeholder?: string }>()
 const emit = defineEmits<{ 'update:modelValue': [value: string] }>()
 
 const MAX_DIGITS = 16 // ceiling is Rp 1.000.000.000.000.000 (server-enforced)
@@ -40,7 +40,7 @@ function onInput (event: Event) {
         'flex h-10 w-full rounded-md border border-input bg-background py-1 pl-10 pr-3 text-right text-[15px] font-medium tabular-nums shadow-sm transition-colors placeholder:text-muted-foreground placeholder:font-normal focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40 disabled:cursor-not-allowed disabled:opacity-50',
         invalid && 'border-destructive focus-visible:ring-destructive/30'
       )"
-      placeholder="0"
+      :placeholder="placeholder ?? '0'"
       @input="onInput"
     >
   </div>

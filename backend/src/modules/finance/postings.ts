@@ -5,6 +5,7 @@ import { AppError, errors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
 import { isIsoDate } from '../../shared/dates'
 import { findAccount } from './accounts'
+import { computeFee, feeSnapshot, findFeeRule } from './fee-rules'
 import {
   EXPENSE_CATEGORIES,
   IN_KINDS,
@@ -264,7 +265,7 @@ export interface TransferInput {
 /** One transfer = out from A + in to B (+ fee out from A), atomically. Company cash changes only by the fee. */
 export async function postTransfer(tx: Queryable, actor: Actor, input: TransferInput, requestId: string): Promise<{ transferId: string; transactionIds: string[] }> {
   const amount = parseMovementAmount(input.amountMinor)
-  const fee = input.feeMinor === undefined || input.feeMinor === '' ? 0n : parseMovementAmount(input.feeMinor, 'feeMinor', { allowZero: true })
+  const typedFee = input.feeMinor === undefined || input.feeMinor === '' ? null : parseMovementAmount(input.feeMinor, 'feeMinor', { allowZero: true })
   const effectiveDate = validateEffectiveDate(input.effectiveDate)
   if (input.fromAccountId === input.toAccountId) throw errors.validation({ toAccountId: ['Rekening tujuan harus berbeda dari rekening asal.'] })
 
@@ -276,13 +277,21 @@ export async function postTransfer(tx: Queryable, actor: Actor, input: TransferI
   const to = first.id === input.toAccountId ? first : second
   if (from.currency !== to.currency) throw rule('Transfer hanya antar rekening dengan mata uang yang sama.')
 
+  // The server picks the rule for this direction and date. Leaving the fee empty applies it; a typed fee
+  // that differs (the bank charged otherwise) is kept as a manual override next to the rule's quote.
+  const feeRule = await findFeeRule(tx, from.id, to.id, effectiveDate)
+  const quoted = feeRule ? computeFee(feeRule, amount) : null
+  const fee = typedFee ?? quoted ?? 0n
+  const feeSource = typedFee === null ? (feeRule ? 'rule' : 'none') : quoted !== null && typedFee === quoted ? 'rule' : 'manual'
+  const snapshot = feeRule ? { ...feeSnapshot(feeRule), quotedMinor: quoted!.toString() } : null
+
   await assertOutflowFits(tx, from, effectiveDate, amount + fee)
 
   const memo = trimOrNull(input.memo)
   const [transfer] = await tx.query<{ id: string }>(
-    `insert into transfers (from_account_id, to_account_id, amount_minor, fee_minor, effective_date, memo, created_by)
-     values ($1, $2, $3, $4, $5, $6, $7) returning id`,
-    [from.id, to.id, amount.toString(), fee.toString(), effectiveDate, memo, actor.userId]
+    `insert into transfers (from_account_id, to_account_id, amount_minor, fee_minor, effective_date, memo, created_by, fee_source, fee_rule_id, fee_snapshot)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::jsonb) returning id`,
+    [from.id, to.id, amount.toString(), fee.toString(), effectiveDate, memo, actor.userId, feeSource, feeRule?.id ?? null, snapshot === null ? null : JSON.stringify(snapshot)]
   )
   const legs: [AccountRow, 'in' | 'out', TransactionKind, bigint, string][] = [
     [from, 'out', 'transfer_out', amount, `Transfer ke ${to.code}`],
@@ -302,7 +311,7 @@ export async function postTransfer(tx: Queryable, actor: Actor, input: TransferI
   }
   await recordAudit(tx, {
     action: 'finance.transfer_posted', actorUserId: actor.userId, entityType: 'transfer', entityId: transfer!.id, requestId,
-    after: { fromAccountId: from.id, toAccountId: to.id, amountMinor: amount.toString(), feeMinor: fee.toString(), effectiveDate }
+    after: { fromAccountId: from.id, toAccountId: to.id, amountMinor: amount.toString(), feeMinor: fee.toString(), feeSource, feeRuleId: feeRule?.id ?? null, quotedFeeMinor: quoted?.toString() ?? null, effectiveDate }
   })
   return { transferId: transfer!.id, transactionIds }
 }

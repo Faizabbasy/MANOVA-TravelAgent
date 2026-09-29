@@ -301,7 +301,10 @@ export async function getTransaction(db: Db, id: string) {
 
 export async function getTransfer(db: Db, id: string) {
   if (!ID_PATTERN.test(id)) throw errors.notFound('Transfer')
-  const [transfer] = await db.query<{ id: string; from_account_id: string; to_account_id: string; amount_minor: string; fee_minor: string; effective_date: string; memo: string | null; created_by: string; created_at: Date }>(
+  const [transfer] = await db.query<{
+    id: string; from_account_id: string; to_account_id: string; amount_minor: string; fee_minor: string; effective_date: string; memo: string | null
+    created_by: string; created_at: Date; fee_source: 'none' | 'rule' | 'manual'; fee_rule_id: string | null; fee_snapshot: Record<string, unknown> | null
+  }>(
     'select * from transfers where id = $1', [id]
   )
   if (!transfer) throw errors.notFound('Transfer')
@@ -312,6 +315,10 @@ export async function getTransfer(db: Db, id: string) {
     toAccountId: transfer.to_account_id,
     amountMinor: transfer.amount_minor,
     feeMinor: transfer.fee_minor,
+    /** 'rule' = the direction's fee rule applied · 'manual' = typed in (differs from the rule, or no rule) · 'none' = no rule, no fee. */
+    feeSource: transfer.fee_source,
+    feeRuleId: transfer.fee_rule_id,
+    feeRule: transfer.fee_snapshot,
     effectiveDate: transfer.effective_date,
     memo: transfer.memo,
     reversed: legs.some(l => l.reversal_of_id !== null),
