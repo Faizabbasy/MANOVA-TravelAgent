@@ -13,6 +13,8 @@ import type {
   CancellationInput,
   CancellationPolicyDto,
   CancellationPreviewDto,
+  CashFlowDto,
+  CashFlowQuery,
   CashPositionDto,
   CustomerInvoiceDetailDto,
   CustomerInvoiceDraftInput,
@@ -88,6 +90,8 @@ export function createManovaApi (client: ApiClient) {
 
     finance: {
       cashPosition: () => client.get<CashPositionDto>('/finance/cash-position'),
+      /** Projection: current cash + outstanding AR − outstanding AP − approved unpaid refunds (Phase 6). */
+      cashFlow: (query: CashFlowQuery = {}) => client.get<CashFlowDto>('/finance/cash-flow', { query: { ...query } }),
 
       listAccounts: () => client.get<BankAccountDto[]>('/finance/accounts'),
       getAccount: (id: string) => client.get<BankAccountDto>(`/finance/accounts/${seg(id)}`),

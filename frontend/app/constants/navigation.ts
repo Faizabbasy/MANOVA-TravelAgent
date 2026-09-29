@@ -24,6 +24,7 @@ import {
   Briefcase,
   ArrowDownToLine,
   ArrowUpFromLine,
+  ChartNoAxesCombined,
   Landmark,
   ArrowLeftRight,
   UserCog,
@@ -108,7 +109,8 @@ export const NAV_ITEMS: NavItem[] = [
       { key: 'finance.statement', label: 'Mutasi Rekening', to: '/finance/statement', icon: ArrowLeftRight, moduleKey: 'finance-acc' },
       { key: 'finance.accounts', label: 'Rekening & Saldo', to: '/finance/accounts', icon: Landmark, moduleKey: 'finance-acc' },
       { key: 'finance.receivables', label: 'Piutang Customer', to: '/finance/receivables', icon: ArrowDownToLine, moduleKey: 'finance-acc' },
-      { key: 'finance.payables', label: 'Utang Vendor', to: '/finance/payables', icon: ArrowUpFromLine, moduleKey: 'finance-acc' }
+      { key: 'finance.payables', label: 'Utang Vendor', to: '/finance/payables', icon: ArrowUpFromLine, moduleKey: 'finance-acc' },
+      { key: 'finance.cash-flow', label: 'Cash Flow', to: '/finance/cash-flow', icon: ChartNoAxesCombined, moduleKey: 'finance-acc' }
     ]
   },
 

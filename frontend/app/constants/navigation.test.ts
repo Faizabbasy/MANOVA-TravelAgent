@@ -96,6 +96,7 @@ describe('Navigasi', () => {
     it('memilih kecocokan paling spesifik, bukan yang pertama ditemukan', () => {
       expect(findNavItemForPath('/finance/receivables')?.key).toBe('finance.receivables')
       expect(findNavItemForPath('/finance/accounts/BA-000001')?.key).toBe('finance.accounts')
+      expect(findNavItemForPath('/finance/cash-flow')?.key).toBe('finance.cash-flow')
       expect(findNavItemForPath('/bookings/exceptions')?.key).toBe('hidden.booking-exceptions')
     })
 

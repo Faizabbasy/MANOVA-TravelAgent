@@ -202,6 +202,116 @@ export interface CashPositionDto {
   accounts: { id: string; code: string; bankName: string; currency: string; isActive: boolean; openingStatus: ApiOpeningStatus; currentMinor: MoneyMinor | null }[]
 }
 
+// ── Cash Flow (Phase 6) ─────────────────────────────────────────────────────────────────────────────────
+
+export type CashFlowHorizon = '30d' | '3m' | '6m' | '12m'
+export type CashFlowCertainty = 'confirmed' | 'expected' | 'overdue'
+export type CashFlowSource = 'customer_invoice' | 'vendor_invoice' | 'refund'
+export type CashFlowExcludedCode = 'draft_invoices' | 'planned_billing' | 'vendor_invoices_in_review' | 'refunds_awaiting_decision'
+  | 'customer_advances' | 'vendor_deposits' | 'incoming_after_horizon' | 'outgoing_after_horizon'
+
+export interface CashFlowScope { type: 'company' | 'account' | 'project'; id: string | null; name: string | null }
+
+export interface CashFlowRow {
+  startDate: IsoDate
+  endDate: IsoDate
+  kind: 'week' | 'rest_of_month' | 'month'
+  openingMinor: MoneyMinor
+  incomingMinor: MoneyMinor
+  outgoingMinor: MoneyMinor
+  closingMinor: MoneyMinor
+  /** Lowest end-of-day balance inside the period, and when (a gap can open and close within a month). */
+  lowestMinor: MoneyMinor
+  lowestDate: IsoDate
+  confirmedIncomingMinor: MoneyMinor
+  expectedIncomingMinor: MoneyMinor
+  overdueIncomingMinor: MoneyMinor
+  confirmedOutgoingMinor: MoneyMinor
+  expectedOutgoingMinor: MoneyMinor
+  overdueOutgoingMinor: MoneyMinor
+}
+
+export interface CashFlowItem {
+  source: CashFlowSource
+  id: string
+  /** Invoice number, vendor invoice number, or refund case id. */
+  reference: string
+  counterparty: string
+  project: { id: string; name: string | null } | null
+  booking: { type: ApiBookingType; id: string } | null
+  direction: 'in' | 'out'
+  /** Still outstanding today. */
+  amountMinor: MoneyMinor
+  dueDate: IsoDate | null
+  expectedDate: IsoDate | null
+  /** Where the projection places it (never before the first period). */
+  forecastDate: IsoDate
+  certainty: CashFlowCertainty
+  disputed: boolean
+  /** Placed in the first period because its date has passed (or, for refunds, because it is owed now). */
+  movedToFirstPeriod: boolean
+  periodIndex: number
+  /** False on an account view: obligations carry no bank account yet, so they are listed but not counted. */
+  counted: boolean
+}
+
+export type CashFlowWarning =
+  | { code: 'CASH_GAP'; date: IsoDate; balanceMinor: MoneyMinor; lowestDate: IsoDate; lowestMinor: MoneyMinor; contributors: string[] }
+  | { code: 'LOW_CASH'; date: IsoDate; balanceMinor: MoneyMinor; floorMinor: MoneyMinor; contributors: string[] }
+  | { code: 'OVERDUE_INCOMING' | 'DISPUTED_INCOMING'; count: number; amountMinor: MoneyMinor }
+
+interface CashFlowBase {
+  asOf: IsoDate
+  timezone: string
+  horizon: CashFlowHorizon
+  periodStart: IsoDate
+  periodEnd: IsoDate
+  scope: CashFlowScope
+}
+
+export interface CashFlowUnavailable extends CashFlowBase {
+  available: false
+  reason: 'NO_ACCOUNTS' | 'OPENING_BALANCE_UNVERIFIED'
+  missingAccounts: { id: string; code: string }[]
+}
+
+export interface CashFlowProjection extends CashFlowBase {
+  available: true
+  /** company_cash / account_cash = verified balance today; zero_net_flow = a project's net flow from zero. */
+  openingBasis: 'company_cash' | 'account_cash' | 'zero_net_flow'
+  openingCashMinor: MoneyMinor
+  closingMinor: MoneyMinor
+  totals: {
+    incomingMinor: MoneyMinor
+    outgoingMinor: MoneyMinor
+    netMinor: MoneyMinor
+    confirmedIncomingMinor: MoneyMinor
+    expectedIncomingMinor: MoneyMinor
+    overdueIncomingMinor: MoneyMinor
+    confirmedOutgoingMinor: MoneyMinor
+    expectedOutgoingMinor: MoneyMinor
+    overdueOutgoingMinor: MoneyMinor
+    disputedIncomingMinor: MoneyMinor
+    refundOutgoingMinor: MoneyMinor
+  }
+  rows: CashFlowRow[]
+  items: CashFlowItem[]
+  unassigned: { count: number; incomingMinor: MoneyMinor; outgoingMinor: MoneyMinor } | null
+  warnings: CashFlowWarning[]
+  excluded: { code: CashFlowExcludedCode; direction: 'in' | 'out' | null; count: number; amountMinor: MoneyMinor }[]
+  assumptions: Record<string, string | boolean>
+}
+
+export type CashFlowDto = CashFlowUnavailable | CashFlowProjection
+
+export interface CashFlowQuery {
+  horizon?: CashFlowHorizon
+  projectId?: string
+  accountId?: string
+  /** Optional low-cash floor (minor units). */
+  minimumCashMinor?: string
+}
+
 export interface MovementDto {
   id: string
   account: { id: string; code: string; bankName: string }

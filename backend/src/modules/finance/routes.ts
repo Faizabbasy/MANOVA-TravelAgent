@@ -8,9 +8,10 @@ import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency
 import { createAccount, getAccount, listAccounts, submitOpening, updateAccount, verifyOpening } from './accounts'
 import { postManualTransaction, postTransfer, reverseTransaction, reverseTransfer } from './postings'
 import { accountLedger, cashPosition, getTransaction, getTransfer, statement } from './reads'
+import { cashFlow } from './cashflow'
 
 /**
- * Finance Phase 2 API — bank accounts, opening balance, the cash book, transfers, statement and ledger.
+ * Finance API — bank accounts, opening balance, the cash book, transfers, statement, ledger and cash flow (Phase 6).
  * Capabilities (ADR-006/007): read = finance.view-cash · accounts = finance.manage-bank-accounts ·
  * opening verification = finance.approve-opening-balance (checker ≠ maker) · postings = finance.post-cash.
  * Every money-moving POST requires an Idempotency-Key header; a replay returns the first result.
@@ -49,6 +50,21 @@ export function financeRoutes(deps: AppDeps, auth: AuthContext) {
       await auth.requireCapability(request, 'finance.view-cash')
       return ok(request, await cashPosition(db))
     })
+    .get(
+      '/cash-flow',
+      async ({ request, query }) => {
+        await auth.requireCapability(request, 'finance.view-cash-flow')
+        return ok(request, await cashFlow(db, query))
+      },
+      {
+        query: t.Object({
+          horizon: t.Optional(t.String()),
+          projectId: t.Optional(t.String()),
+          accountId: t.Optional(t.String()),
+          minimumCashMinor: t.Optional(t.String())
+        })
+      }
+    )
     .get('/accounts', async ({ request }) => {
       const actor = await auth.requireCapability(request, 'finance.view-cash')
       return ok(request, await listAccounts(db, hasCapability(actor.role, 'finance.manage-bank-accounts')))

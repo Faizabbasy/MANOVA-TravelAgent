@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import {
   AlarmClock, ArrowDownLeft, ArrowLeftRight, ArrowRight, ArrowUpRight, CalendarRange, CheckCircle2, ClipboardCheck,
-  FileClock, Landmark, PiggyBank, ShieldAlert, Undo2, Wallet
+  FileClock, Landmark, PiggyBank, ShieldAlert, TrendingDown, TrendingUp, Undo2, Wallet
 } from 'lucide-vue-next'
 import type { Component } from 'vue'
 import type { MovementDto } from '~/types/api'
@@ -37,6 +37,12 @@ const trend = useFinanceQuery(async () => {
   const series = buildBalanceTrend(usable, trendFrom, today)
   return { dates: series.dates, totals: series.totals.map(t => t.toString()) }
 })
+
+/** Projection for the next 30 days (Phase 6) — the same endpoint as the Cash Flow page. */
+const forecast = useFinanceQuery(async () => (await api.finance.cashFlow({ horizon: '30d' })).data,
+  { enabled: () => session.can('finance.view-cash-flow') })
+const projection = computed(() => (forecast.data.value?.available ? forecast.data.value : null))
+const forecastGap = computed(() => projection.value?.warnings.find(w => w.code === 'CASH_GAP') ?? null)
 
 const flows = useFinanceQuery(async () => {
   const [month, recent] = await Promise.all([
@@ -101,6 +107,17 @@ const attention = computed<Attention[]>(() => {
       detail: `${pendingAccounts.value.map(a => a.code).join(', ')} — saldonya belum ikut total kas ${canVerify ? 'sampai Anda memverifikasi saldo awalnya' : 'sampai Super Admin memverifikasi saldo awalnya'}.`,
       to: '/finance/accounts',
       cta: canVerify ? 'Verifikasi' : 'Lihat rekening'
+    })
+  }
+  if (forecastGap.value && forecastGap.value.code === 'CASH_GAP') {
+    out.push({
+      key: 'cash-gap',
+      icon: TrendingDown,
+      tone: 'destructive',
+      title: `Saldo diperkirakan minus mulai ${formatBusinessDate(forecastGap.value.date, { short: true, today })}`,
+      detail: `Perkiraan ${formatMoneyMinor(forecastGap.value.balanceMinor)} karena pembayaran yang jatuh tempo lebih besar dari uang yang masuk. Atur jadwal bayar atau percepat penagihan.`,
+      to: '/finance/cash-flow?horizon=30d',
+      cta: 'Lihat Cash Flow'
     })
   }
   if (!o) { return out }
@@ -300,6 +317,37 @@ function isNeutral (m: MovementDto) { return m.isInternalTransfer || !!m.reversa
 
       <!-- Supporting figures -->
       <section class="grid grid-cols-2 gap-3 lg:col-span-2" aria-label="Ringkasan">
+        <NuxtLink
+          v-if="session.can('finance.view-cash-flow')"
+          to="/finance/cash-flow?horizon=30d"
+          class="col-span-2 flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border bg-card p-4 shadow-sm transition-colors hover:border-primary/40"
+          :class="forecastGap ? 'border-destructive/40' : 'border-border'"
+          data-forecast-card
+        >
+          <div class="min-w-0 flex-1">
+            <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <component :is="forecastGap ? TrendingDown : TrendingUp" class="h-3.5 w-3.5" :class="forecastGap ? 'text-destructive' : 'text-primary'" />
+              Perkiraan saldo 30 hari lagi
+            </p>
+            <template v-if="projection">
+              <FinanceAmount :value="projection.closingMinor" class="mt-1 block text-lg font-semibold sm:text-xl" :class="projection.closingMinor.startsWith('-') && 'text-destructive'" />
+              <p class="mt-0.5 text-xs text-muted-foreground">
+                <span v-if="forecastGap" class="font-medium text-destructive">Minus mulai {{ formatBusinessDate(forecastGap.date, { short: true, today }) }} · </span>
+                +{{ formatMoneyMinor(projection.totals.incomingMinor) }} masuk · −{{ formatMoneyMinor(projection.totals.outgoingMinor) }} keluar
+              </p>
+            </template>
+            <p v-else-if="forecast.data.value && !forecast.data.value.available" class="mt-1 text-sm text-muted-foreground">
+              Perkiraan belum tersedia — saldo awal rekening belum lengkap.
+            </p>
+            <p v-else-if="forecast.error.value" class="mt-1 text-sm text-muted-foreground">
+              Perkiraan belum bisa dimuat.
+            </p>
+            <div v-else class="mt-2 h-6 w-40 animate-pulse rounded bg-muted" />
+          </div>
+          <span class="inline-flex items-center gap-1 text-sm font-medium text-primary">
+            Cash Flow <ArrowRight class="h-3.5 w-3.5" />
+          </span>
+        </NuxtLink>
         <div class="rounded-xl border border-border bg-card p-4 shadow-sm">
           <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
             <ArrowDownLeft class="h-3.5 w-3.5 text-success" /> Uang masuk bulan ini
