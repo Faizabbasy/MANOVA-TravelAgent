@@ -38,3 +38,21 @@ Checkout berubah **selama penyusunan paket**: awalnya 539 entri (`D` untuk berka
 ## Audit consumer sebelum menghapus mock finance
 
 Cari semua import/panggilan `~/data`, `finance-ext`, `INVOICES`, `PAYMENTS`, `CREDIT_NOTES`, `SUPPLIER_INVOICES`, `getInvoiceOutstandingIdr`, `getProjectActualCostIdr`, `evaluateFinanceClosureGate`, `closeProjectFinance`, route `/finance/*`, dan komponen chart dashboard. Bangun matriks **consumer → contract baru → fase migrasi → regression check**. Setelah consumer pindah, UI finance lama boleh dihapus total, termasuk komponen, route, dan fixture finance yang tak dibutuhkan. Pertahankan deep link lama melalui redirect yang masuk akal.
+
+---
+
+## Delta audit Phase 1 — 29 September 2026 (ditambahkan, snapshot di atas tidak diubah)
+
+Audit ulang sebelum eksekusi Phase 1 di checkout Windows `C:\Users\Syafiq Saputra\MANOVA-TravelAgent`.
+
+| Area | Temuan terbaru | Dampak ke rencana |
+|---|---|---|
+| Git | Branch `monorepo`, HEAD **`685d708`** (`docs: add finance implementation spec and pnpm build allowlist`), di atas `a294791` (root scripts + CLAUDE.md) dan `64339d0` (backend scaffold). Root `CLAUDE.md`, `backend/CLAUDE.md`, `package.json`, `frontend/pnpm-workspace.yaml`, `.claude/launch.json` kini **tracked** (bukan lagi perubahan lokal). Satu-satunya untracked: `docs/MANOVA_FINANCE_CLAUDE_CODE_PACKAGE/` — isinya identik dengan `docs/manova-finance-implementation/` kecuali line ending (CRLF); **dibiarkan apa adanya**. | Tidak ada pekerjaan lokal user yang berisiko tertimpa. |
+| Toolchain mesin ini | `bun` dan `pnpm` tidak terpasang; `node_modules` frontend/backend kosong. Dipasang `bun 1.4.2` dan `pnpm 12.6.0` (global via npm). `pnpm install --frozen-lockfile` sukses tanpa mengubah `pnpm-lock.yaml` (v9). PostgreSQL 17 terpasang sebagai service (kredensial tidak diketahui, tidak disentuh); Docker Desktop terpasang tetapi daemon mati. | Keputusan DB memakai PGlite untuk dev/test dan PostgreSQL sebagai target (ADR-002). Verifikasi Postgres memakai cluster PG17 sementara di direktori scratch (port 55432, trust auth), bukan service milik user. |
+| Baseline frontend (sebelum perubahan) | `lint` **gagal** — 138 problem (81 error, 57 warning; terbanyak `object-property-newline` 29, `vue/require-default-prop` 26, `no-void` 22, `import/order` 12, `no-unused-vars` 10). `typecheck` lulus. `test` lulus 10 file / 177 test. `build` lulus. | Kegagalan lint adalah baseline yang sudah ada; Phase 1 tidak memperbaikinya (di luar scope) dan tidak menambah error baru. |
+| Backend | Sesuai snapshot: hanya `GET /` + `test` placeholder yang gagal. | Diganti foundation Phase 1. |
+| Relasi vendor ↔ booking | Booking **tidak** punya `vendorId`; vendor terhubung lewat `ProjectService.vendorId` (via `booking.serviceId`) dan `ServiceOrder.vendorId` (procurement). Vendor demo `VND-006` (`USR-015`) hanya terhubung lewat `SO-002` → PRJ-102. | Bridge memuat `project_services` dan `service_orders`; scope vendor memakai keduanya (ADR-004). |
+| Literal booking | `booking-orchestration.ts` memakai `'transport'`, `ServiceTypeKey` memakai `'transportation'`. | `booking_refs.booking_type` memakai literal orkestrasi. |
+| Identitas mock | Login menerima kredensial apa pun (`localStorage.isAuthenticated`); identitas aktif = `localStorage.manovaCurrentUserId` (default `USR-010` super-admin), role bisa diganti dari Settings. Tidak ada `pmId`; `Project.ownerId`/`teamUserIds` hanya filter "milik saya". | Server punya sesi sendiri; frontend belum dialihkan (prasyarat Phase 4). Scope internal mengikuti mock (ADR-003, keputusan terbuka #3). |
+| HTTP di frontend | Tidak ada `$fetch`/`useFetch`/`runtimeConfig`, tidak ada `frontend/server/`. | API client skeleton + proxy `/api/v1/**` ditambahkan (ADR-001). |
+| Consumer finance | Dipetakan lengkap di `finance-consumer-matrix.md`. Panel `components/finance/*` hanya dipakai halaman finance; `data/finance*.ts` masih dibaca banyak modul non-finance; `ProjectOrderInvoicesCard.vue` orphan. | Penghapusan UI lama aman di Phase 4; data mock baru bisa dihapus per slice setelah consumer pindah. |

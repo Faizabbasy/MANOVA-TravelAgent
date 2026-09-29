@@ -4,14 +4,22 @@ Status awal semua belum dikerjakan. Centang hanya dengan bukti file/test/route. 
 
 ## Phase 1 — baseline/foundation
 
-- [ ] Catat branch/HEAD/status Git dan instruksi lokal; identifikasi perubahan user.
-- [ ] Buat matriks consumer finance mock lintas frontend termasuk `project-orders`, `client`, `vendors`, booking, dashboard, navigation, tests.
-- [ ] Audit ulang package, deployment env, DB/auth yang mungkin baru ditambahkan.
-- [ ] Tulis ADR DB + migration runner + auth + API client + typed booking reference + demo/production cutover.
-- [ ] Backend health, env validation, error envelope, request ID, migration command, test runner.
-- [ ] Core Party/Project/Vendor/Booking reference strategy terbukti lewat test; server authorization dasar.
-- [ ] Frontend typed API client skeleton/runtime config; tidak ada finance UI mock baru.
-- [ ] Catat baseline frontend lint/typecheck/test/build dan backend checks; non-finance smoke.
+- [x] Catat branch/HEAD/status Git dan instruksi lokal; identifikasi perubahan user.
+  Evidence: `01-CURRENT-STATE-ASSESSMENT.md` § "Delta audit Phase 1" (branch `monorepo` @ `685d708`; satu-satunya untracked `docs/MANOVA_FINANCE_CLAUDE_CODE_PACKAGE/` dibiarkan).
+- [x] Buat matriks consumer finance mock lintas frontend termasuk `project-orders`, `client`, `vendors`, booking, dashboard, navigation, tests.
+  Evidence: `finance-consumer-matrix.md` (consumer → kontrak → fase → regression check; peta redirect deep link).
+- [x] Audit ulang package, deployment env, DB/auth yang mungkin baru ditambahkan.
+  Evidence: delta audit (toolchain, PostgreSQL 17 lokal, Docker mati, tidak ada DB/auth/HTTP di repo).
+- [x] Tulis ADR DB + migration runner + auth + API client + typed booking reference + demo/production cutover.
+  Evidence: `adr/ADR-001` … `ADR-004` (Accepted), `adr/ADR-005` proof storage (Proposed, diputuskan awal Phase 2).
+- [x] Backend health, env validation, error envelope, request ID, migration command, test runner.
+  Evidence: `backend/src/{config/env.ts,app.ts,http/*,modules/health/routes.ts}`, `backend/scripts/db.ts`; `bun test` 86/86 pada PGlite dan pada PostgreSQL 17 (lihat laporan Phase 1).
+- [x] Core Party/Project/Vendor/Booking reference strategy terbukti lewat test; server authorization dasar.
+  Evidence: migrasi `0002_core_references`, `0003_identity`; `backend/test/core-scope.test.ts` (scope client/vendor/internal, ID tampering, 404 di luar scope), `http.test.ts` (sesi, CSRF, throttle, audit), `rbac.test.ts`.
+- [x] Frontend typed API client skeleton/runtime config; tidak ada finance UI mock baru.
+  Evidence: `frontend/app/lib/api/*`, `app/lib/money.ts`, `app/types/api.ts`, `app/composables/useApi.ts`, `nuxt.config.ts` (`runtimeConfig`, proxy `/api/v1/**`); 15 test baru. Tidak ada halaman/komponen yang diubah.
+- [x] Catat baseline frontend lint/typecheck/test/build dan backend checks; non-finance smoke.
+  Evidence: `phase-reports/phase-1-report.md` §3 — baseline vs sesudah (lint identik dengan baseline yang sudah gagal 81 error; typecheck, test 192, build lulus), backend typecheck + 86 test × 2 engine + rehearsal Postgres, smoke browser 7 halaman non-finance + proxy/login.
 
 ## Money, AR/AP, statement/ledger
 

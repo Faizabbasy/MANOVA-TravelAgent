@@ -57,6 +57,18 @@ export default defineNuxtConfig({
     '/customer-journey/project-orders': { redirect: { to: '/project-orders', statusCode: 301 } }
   },
 
+  /**
+   * Backend API (backend/, Elysia on :3000). The browser calls `/api/v1/**` on this origin and
+   * `server/routes/api/v1/[...path].ts` proxies it, so the HttpOnly session cookie stays first-party.
+   * `NUXT_API_PROXY_TARGET` / `NUXT_PUBLIC_API_BASE` override these at runtime (see frontend/.env.example).
+   */
+  runtimeConfig: {
+    apiProxyTarget: 'http://localhost:3000',
+    public: {
+      apiBase: '/api/v1'
+    }
+  },
+
   app: {
     head: {
       title: 'MANOVA',

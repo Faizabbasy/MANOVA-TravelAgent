@@ -1,0 +1,500 @@
+{
+  "source": "frontend/app/data/{users,parties,vendors,projects,ticketing,accommodation,transportation,mice,procurement}.ts",
+  "parties": [
+    {
+      "id": "PTY-001",
+      "name": "PT Cipta Distribusi Nusantara",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-002",
+      "name": "PT Alam Raya Group",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-003",
+      "name": "PT Sinergi Korporindo",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-004",
+      "name": "PT Melati Wisata Kreasi",
+      "lifecycleStatus": "prospect",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-005",
+      "name": "PT Java Bhakti Persada",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": "IDR"
+    },
+    {
+      "id": "PTY-006",
+      "name": "Andi Prasetyo",
+      "lifecycleStatus": "client",
+      "partyType": "individual",
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-007",
+      "name": "Sinta Wulandari",
+      "lifecycleStatus": "client",
+      "partyType": "individual",
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-008",
+      "name": "Reza Hartono",
+      "lifecycleStatus": "client",
+      "partyType": "individual",
+      "preferredCurrency": null
+    }
+  ],
+  "vendors": [
+    {
+      "id": "VND-001",
+      "name": "CV Tiket Mitra Nusantara",
+      "serviceType": "flight",
+      "status": "active"
+    },
+    {
+      "id": "VND-002",
+      "name": "Hotel Prima Mitra",
+      "serviceType": "hotel",
+      "status": "active"
+    },
+    {
+      "id": "VND-003",
+      "name": "Trans Wahana Logistik",
+      "serviceType": "transportation",
+      "status": "active"
+    },
+    {
+      "id": "VND-004",
+      "name": "Cendana MICE Organizer",
+      "serviceType": "mice",
+      "status": "active"
+    },
+    {
+      "id": "VND-005",
+      "name": "CV Wisata Kargo Ekspres",
+      "serviceType": "transportation",
+      "status": "pending"
+    },
+    {
+      "id": "VND-006",
+      "name": "PT ABC",
+      "serviceType": "hotel",
+      "status": "active"
+    },
+    {
+      "id": "VND-007",
+      "name": "PT EFG",
+      "serviceType": "mice",
+      "status": "active"
+    }
+  ],
+  "users": [
+    {
+      "id": "USR-001",
+      "email": "rani.kusuma@manova.id",
+      "name": "Rani Kusuma",
+      "role": "sales",
+      "status": "active",
+      "partyId": null,
+      "vendorId": null
+    },
+    {
+      "id": "USR-002",
+      "email": "doni.saputra@manova.id",
+      "name": "Doni Saputra",
+      "role": "operations",
+      "status": "active",
+      "partyId": null,
+      "vendorId": null
+    },
+    {
+      "id": "USR-003",
+      "email": "sari.wijaya@manova.id",
+      "name": "Sari Wijaya",
+      "role": "management",
+      "status": "active",
+      "partyId": null,
+      "vendorId": null
+    },
+    {
+      "id": "USR-008",
+      "email": "budi.santoso@manova.id",
+      "name": "Budi Santoso",
+      "role": "finance",
+      "status": "active",
+      "partyId": null,
+      "vendorId": null
+    },
+    {
+      "id": "USR-010",
+      "email": "admin@manova.id",
+      "name": "Admin MANOVA",
+      "role": "super-admin",
+      "status": "active",
+      "partyId": null,
+      "vendorId": null
+    },
+    {
+      "id": "USR-015",
+      "email": "hasan.alfarizi@pt-abc.example",
+      "name": "Hasan Alfarizi",
+      "role": "vendor",
+      "status": "active",
+      "partyId": null,
+      "vendorId": "VND-006"
+    },
+    {
+      "id": "USR-021",
+      "email": "dimas.pratama@java-bhakti.example",
+      "name": "Dimas Pratama",
+      "role": "client",
+      "status": "active",
+      "partyId": "PTY-005",
+      "vendorId": null
+    }
+  ],
+  "projects": [
+    {
+      "id": "PRJ-101",
+      "name": "Manila Business Trip",
+      "partyId": "PTY-001",
+      "destination": "Manila, Filipina",
+      "travelStartDate": "2026-08-20",
+      "travelEndDate": "2026-08-23",
+      "status": "confirmed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ]
+    },
+    {
+      "id": "PRJ-102",
+      "name": "Abu Dhabi Corporate Gathering",
+      "partyId": "PTY-002",
+      "destination": "Abu Dhabi, Uni Emirat Arab",
+      "travelStartDate": "2026-09-22",
+      "travelEndDate": "2026-09-26",
+      "status": "planning",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ]
+    },
+    {
+      "id": "PRJ-103",
+      "name": "Palu MICE Conference 2026",
+      "partyId": "PTY-003",
+      "destination": "Palu, Indonesia",
+      "travelStartDate": "2026-08-10",
+      "travelEndDate": "2026-08-14",
+      "status": "in-progress",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ]
+    },
+    {
+      "id": "PRJ-104",
+      "name": "Manila Follow-up Training Q1 2027",
+      "partyId": "PTY-001",
+      "destination": "Manila, Filipina",
+      "travelStartDate": "2027-02-16",
+      "travelEndDate": "2027-02-18",
+      "status": "draft",
+      "ownerUserId": "USR-002",
+      "teamUserIds": []
+    },
+    {
+      "id": "PRJ-201",
+      "name": "Korea Incentive Trip 2026",
+      "partyId": "PTY-005",
+      "destination": "Seoul, Korea Selatan",
+      "travelStartDate": "2026-10-12",
+      "travelEndDate": "2026-10-16",
+      "status": "planning",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ]
+    },
+    {
+      "id": "PRJ-202",
+      "name": "Abu Dhabi Business Delegation",
+      "partyId": "PTY-005",
+      "destination": "Abu Dhabi, Uni Emirat Arab",
+      "travelStartDate": "2026-07-25",
+      "travelEndDate": "2026-08-02",
+      "status": "ongoing-trip",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ]
+    },
+    {
+      "id": "PRJ-203",
+      "name": "Manila Corporate Meeting 2026",
+      "partyId": "PTY-005",
+      "destination": "Manila, Filipina",
+      "travelStartDate": "2026-06-10",
+      "travelEndDate": "2026-06-13",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": []
+    },
+    {
+      "id": "PRJ-204",
+      "name": "Singapore Conference 2026",
+      "partyId": "PTY-005",
+      "destination": "Singapura",
+      "travelStartDate": "2026-11-05",
+      "travelEndDate": "2026-11-08",
+      "status": "confirmed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ]
+    }
+  ],
+  "projectServices": [
+    {
+      "id": "SVC-1011",
+      "projectId": "PRJ-101",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-1021",
+      "projectId": "PRJ-102",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-1022",
+      "projectId": "PRJ-102",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-1023",
+      "projectId": "PRJ-102",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-1031",
+      "projectId": "PRJ-103",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-1032",
+      "projectId": "PRJ-103",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-1033",
+      "projectId": "PRJ-103",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-1034",
+      "projectId": "PRJ-103",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-1035",
+      "projectId": "PRJ-103",
+      "serviceType": "mice",
+      "vendorId": "VND-004"
+    },
+    {
+      "id": "SVC-1036",
+      "projectId": "PRJ-103",
+      "serviceType": "additional",
+      "vendorId": null
+    },
+    {
+      "id": "SVC-2011",
+      "projectId": "PRJ-201",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-2012",
+      "projectId": "PRJ-201",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-2021",
+      "projectId": "PRJ-202",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-2022",
+      "projectId": "PRJ-202",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-2031",
+      "projectId": "PRJ-203",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-2041",
+      "projectId": "PRJ-204",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-2042",
+      "projectId": "PRJ-204",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    }
+  ],
+  "bookingRefs": [
+    {
+      "bookingType": "flight",
+      "bookingId": "FLT-1011",
+      "projectId": "PRJ-101",
+      "serviceId": "SVC-1011"
+    },
+    {
+      "bookingType": "flight",
+      "bookingId": "FLT-1021",
+      "projectId": "PRJ-102",
+      "serviceId": "SVC-1021"
+    },
+    {
+      "bookingType": "flight",
+      "bookingId": "FLT-1023",
+      "projectId": "PRJ-102",
+      "serviceId": null
+    },
+    {
+      "bookingType": "flight",
+      "bookingId": "FLT-1031",
+      "projectId": "PRJ-103",
+      "serviceId": "SVC-1031"
+    },
+    {
+      "bookingType": "flight",
+      "bookingId": "FLT-1032",
+      "projectId": "PRJ-103",
+      "serviceId": "SVC-1032"
+    },
+    {
+      "bookingType": "flight",
+      "bookingId": "FLT-1033",
+      "projectId": "PRJ-103",
+      "serviceId": null
+    },
+    {
+      "bookingType": "hotel",
+      "bookingId": "HTL-1022",
+      "projectId": "PRJ-102",
+      "serviceId": "SVC-1022"
+    },
+    {
+      "bookingType": "hotel",
+      "bookingId": "HTL-1023",
+      "projectId": "PRJ-102",
+      "serviceId": "SVC-1023"
+    },
+    {
+      "bookingType": "hotel",
+      "bookingId": "HTL-1033",
+      "projectId": "PRJ-103",
+      "serviceId": "SVC-1033"
+    },
+    {
+      "bookingType": "hotel",
+      "bookingId": "HTL-1034",
+      "projectId": "PRJ-103",
+      "serviceId": null
+    },
+    {
+      "bookingType": "hotel",
+      "bookingId": "HTL-1035",
+      "projectId": "PRJ-103",
+      "serviceId": null
+    },
+    {
+      "bookingType": "hotel",
+      "bookingId": "HTL-1036",
+      "projectId": "PRJ-102",
+      "serviceId": null
+    },
+    {
+      "bookingType": "mice",
+      "bookingId": "MICE-1035",
+      "projectId": "PRJ-103",
+      "serviceId": "SVC-1035"
+    },
+    {
+      "bookingType": "transport",
+      "bookingId": "TRN-1034",
+      "projectId": "PRJ-103",
+      "serviceId": "SVC-1034"
+    },
+    {
+      "bookingType": "transport",
+      "bookingId": "TRN-1035",
+      "projectId": "PRJ-103",
+      "serviceId": null
+    },
+    {
+      "bookingType": "transport",
+      "bookingId": "TRN-1036",
+      "projectId": "PRJ-103",
+      "serviceId": null
+    },
+    {
+      "bookingType": "transport",
+      "bookingId": "TRN-1037",
+      "projectId": "PRJ-103",
+      "serviceId": null
+    },
+    {
+      "bookingType": "transport",
+      "bookingId": "TRN-1038",
+      "projectId": "PRJ-103",
+      "serviceId": null
+    }
+  ],
+  "serviceOrders": [
+    {
+      "id": "SO-001",
+      "vendorId": "VND-003",
+      "projectId": "PRJ-103",
+      "serviceId": null
+    },
+    {
+      "id": "SO-002",
+      "vendorId": "VND-006",
+      "projectId": "PRJ-102",
+      "serviceId": null
+    }
+  ]
+}

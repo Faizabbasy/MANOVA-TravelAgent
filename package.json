@@ -9,6 +9,10 @@
     "build:frontend": "pnpm --dir frontend build",
     "lint": "pnpm --dir frontend lint",
     "typecheck": "pnpm --dir frontend typecheck",
-    "test": "pnpm --dir frontend test"
+    "test": "pnpm --dir frontend test",
+    "typecheck:backend": "cd backend && bun run typecheck",
+    "test:backend": "cd backend && bun test",
+    "db:migrate": "cd backend && bun run db:migrate",
+    "db:seed:demo": "cd backend && bun run db:seed:demo"
   }
 }

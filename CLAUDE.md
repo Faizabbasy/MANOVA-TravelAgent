@@ -22,7 +22,14 @@ npm run dev:backend     # backend only
 npm run lint            # frontend eslint
 npm run typecheck       # frontend vue-tsc
 npm run test            # frontend vitest
+npm run typecheck:backend   # backend tsc
+npm run test:backend        # backend bun test (PGlite; TEST_DATABASE_URL for PostgreSQL)
+npm run db:migrate          # apply backend migrations (also run by backend dev)
+npm run db:seed:demo        # demo references + one login per role (never in production)
 ```
+
+The frontend reaches the backend through the Nuxt proxy at `/api/v1/**` (`frontend/app/composables/useApi.ts`).
+Finance implementation program, ADRs and phase reports: `docs/manova-finance-implementation/`.
 
 ## Rules
 
