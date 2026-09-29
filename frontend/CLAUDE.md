@@ -22,15 +22,17 @@ This is a dashboard application built with Nuxt 4, Vue 3, and TypeScript. It use
 ## Essential Commands
 
 ```bash
-# Development
-npm run dev              # Start dev server on port 8080
-npm run build            # Production build
-npm run generate         # Generate static site
-npm run preview          # Preview production build
-npm install              # Install and run postinstall (nuxt prepare)
+# Development (package manager: pnpm)
+pnpm dev                 # Start dev server on port 8080
+pnpm build               # Production build
+pnpm generate            # Generate static site
+pnpm preview             # Preview production build
+pnpm install             # Install and run postinstall (nuxt prepare)
 
-# Testing
-# Note: No test script configured yet - would use vitest
+# Quality
+pnpm lint                # ESLint
+pnpm typecheck           # vue-tsc
+pnpm test                # Vitest
 ```
 
 ## Project Architecture

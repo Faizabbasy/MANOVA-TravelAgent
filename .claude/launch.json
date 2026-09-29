@@ -2,18 +2,18 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "daffascript-nero (Nuxt 4 + Vue)",
-      "runtimeExecutable": "npm",
+      "name": "frontend (Nuxt 4)",
+      "runtimeExecutable": "pnpm",
       "runtimeArgs": ["run", "dev"],
       "port": 8080,
-      "cwd": "/Users/daffascript/Downloads/daffascript/daffascript-nero"
+      "cwd": "/Users/daffascript/Downloads/MANOVA-TravelAgent/frontend"
     },
     {
-      "name": "daffascript (React + Vite)",
-      "runtimeExecutable": "npm",
+      "name": "backend (Elysia/Bun)",
+      "runtimeExecutable": "bun",
       "runtimeArgs": ["run", "dev"],
-      "port": 8080,
-      "cwd": "/Users/daffascript/Downloads/daffascript"
+      "port": 3000,
+      "cwd": "/Users/daffascript/Downloads/MANOVA-TravelAgent/backend"
     }
   ]
 }

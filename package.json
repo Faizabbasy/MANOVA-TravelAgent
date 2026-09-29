@@ -1,0 +1,14 @@
+{
+  "name": "manova-travelagent",
+  "private": true,
+  "scripts": {
+    "install:all": "pnpm --dir frontend install && (cd backend && bun install)",
+    "dev": "pnpm --dir frontend dev & (cd backend && bun run dev) & wait",
+    "dev:frontend": "pnpm --dir frontend dev",
+    "dev:backend": "cd backend && bun run dev",
+    "build:frontend": "pnpm --dir frontend build",
+    "lint": "pnpm --dir frontend lint",
+    "typecheck": "pnpm --dir frontend typecheck",
+    "test": "pnpm --dir frontend test"
+  }
+}
