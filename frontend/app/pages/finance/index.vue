@@ -68,6 +68,7 @@ const obligations = useFinanceQuery(async () => {
     apOverdue: { summary: apOverdue.meta.summary, items: apOverdue.data },
     apDue30: apDue30.meta.summary.outstandingMinor,
     draftCount: drafts.data.length,
+    draftCapped: drafts.data.length >= 100,
     latePlans: plans.data.filter(p => p.plannedDate <= today),
     advanceTotal: advances.data.reduce((s, a) => s + BigInt(a.unallocatedMinor), 0n).toString(),
     advanceCount: advances.data.length
@@ -163,7 +164,7 @@ const attention = computed<Attention[]>(() => {
       key: 'drafts',
       icon: FileClock,
       tone: 'info',
-      title: `${o.draftCount} draft invoice belum diterbitkan`,
+      title: `${o.draftCapped ? '100+' : o.draftCount} draft invoice belum diterbitkan`,
       detail: 'Draft belum dihitung sebagai tagihan.',
       to: '/finance/receivables?tab=draft',
       cta: 'Periksa'

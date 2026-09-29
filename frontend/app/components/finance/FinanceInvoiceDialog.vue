@@ -65,9 +65,10 @@ const action = useFinanceAction(async () => {
   const body = {
     invoiceType: form.invoiceType,
     lines: form.lines.filter(l => l.description.trim() || l.amount).map(l => ({ description: l.description.trim(), amountMinor: l.amount || '0' })),
-    dueDate: form.dueDate || undefined,
-    expectedDate: form.expectedDate || undefined,
-    notes: form.notes.trim() || undefined
+    // Editing: send empty strings so a cleared field is cleared on the server (undefined = "keep").
+    dueDate: props.invoice ? form.dueDate : (form.dueDate || undefined),
+    expectedDate: props.invoice ? form.expectedDate : (form.expectedDate || undefined),
+    notes: props.invoice ? form.notes.trim() : (form.notes.trim() || undefined)
   }
   if (props.invoice) { return (await api.finance.updateInvoiceDraft(props.invoice.id, body)).data }
   return (await api.finance.createInvoiceDraft({ ...body, projectId: form.projectId! })).data

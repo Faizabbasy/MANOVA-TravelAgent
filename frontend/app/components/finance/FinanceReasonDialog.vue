@@ -50,7 +50,7 @@ watch(() => props.open, (open) => {
   reason.value = ''
   date.value = props.initialDate ?? ''
   amount.value = ''
-})
+}, { immediate: true })
 
 const fieldError = (name: string) => props.error?.fieldError(name) ?? null
 const disabled = computed(() =>

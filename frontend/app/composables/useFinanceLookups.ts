@@ -1,19 +1,7 @@
-import { isInternalProject, type ApiList, type BankAccountDto, type PartyDto, type ProjectDto, type VendorDto } from '~/types/api'
+import { isInternalProject, type BankAccountDto, type PartyDto, type ProjectDto, type VendorDto } from '~/types/api'
 import type { FinanceOption } from '~/lib/finance/types'
 import { formatMoneyMinor } from '~/lib/money'
-
-/** Follows the cursor to the end, so a reference list is never silently cut at one page. */
-async function fetchAll<T> (page: (cursor: string | null) => Promise<ApiList<T>>): Promise<T[]> {
-  const all: T[] = []
-  let cursor: string | null = null
-  for (let guard = 0; guard < 50; guard++) {
-    const res = await page(cursor)
-    all.push(...res.data)
-    cursor = res.meta.pagination.nextCursor
-    if (!cursor) { break }
-  }
-  return all
-}
+import { collectPages as fetchAll } from '~/lib/finance/paging'
 
 /**
  * Reference lists for finance forms (accounts, projects, customers, vendors), loaded from the API when the
@@ -33,7 +21,7 @@ export function useFinanceLookups (active: () => boolean = () => true) {
       fetchAll(cursor => api.core.listVendors({ limit: 100, cursor }))
     ])
     return { projects, parties, vendors }
-  }, lazy)
+  }, { ...lazy, refreshOnMutation: false })
 
   const postableAccounts = computed<BankAccountDto[]>(() =>
     (accounts.data.value ?? []).filter(a => a.isActive && a.opening.status === 'verified'))

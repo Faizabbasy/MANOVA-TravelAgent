@@ -88,7 +88,7 @@ async function submit () {
         <FinanceMoneyInput id="mt-amount" v-model="form.amount" :invalid="!!action.fieldError('amountMinor')" />
       </FinanceField>
       <FinanceField id="mt-date" label="Tanggal" :error="action.fieldError('effectiveDate')">
-        <FinanceDateInput id="mt-date" v-model="form.date" :max="today" />
+        <FinanceDateInput id="mt-date" v-model="form.date" :min="account?.opening.date ?? undefined" :max="today" />
       </FinanceField>
       <FinanceField id="mt-account" :label="isExpense ? 'Dari rekening' : 'Masuk ke rekening'" :error="action.fieldError('bankAccountId')">
         <FinanceSelect id="mt-account" v-model="form.accountId" :options="lookups.accountOptions.value" placeholder="Pilih rekening" />

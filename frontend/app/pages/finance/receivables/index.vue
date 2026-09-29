@@ -48,12 +48,17 @@ const list = useFinanceQuery(async () => {
 const more = ref<CustomerInvoiceDto[]>([])
 const nextCursor = ref<string | null>(null)
 const loadingMore = ref(false)
-watch(() => list.data.value, (v) => { more.value = []; nextCursor.value = v?.next ?? null })
+/** Bumped on every reload/filter change; a "load more" answer from an older generation is dropped. */
+let generation = 0
+watch([tab, ...filterWatch], () => { generation++ })
+watch(() => list.data.value, (v) => { generation++; more.value = []; nextCursor.value = v?.next ?? null })
 async function loadMore () {
   if (!nextCursor.value || loadingMore.value || tab.value === 'draft' || tab.value === 'plan') { return }
   loadingMore.value = true
+  const mine = generation
   try {
     const res = await api.finance.receivables({ ...filter(), settlement: tab.value, limit: PAGE, cursor: nextCursor.value })
+    if (mine !== generation) { return }
     more.value = [...more.value, ...res.data]
     nextCursor.value = res.meta.pagination.nextCursor
   } finally { loadingMore.value = false }

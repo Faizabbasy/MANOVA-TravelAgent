@@ -25,7 +25,7 @@ watch(() => props.open, (open) => {
 })
 
 const action = useFinanceAction(() => api.finance.submitOpening(props.account!.id, {
-  amountMinor: form.amount || '0', openingDate: form.date, note: form.note.trim() || undefined
+  amountMinor: form.amount, openingDate: form.date, note: form.note.trim() || undefined
 }))
 
 async function submit () {
@@ -43,6 +43,7 @@ async function submit () {
     :title="account?.opening.status === 'pending' ? `Ubah pengajuan saldo awal ${account?.code}` : `Isi saldo awal ${account?.code ?? ''}`"
     description="Salin saldo dari rekening koran pada tanggal mulai pencatatan. Semua transaksi sebelum tanggal ini dianggap sudah termasuk di saldo awal."
     submit-label="Ajukan untuk diverifikasi"
+    :submit-disabled="!form.amount || !form.date"
     :pending="action.pending.value"
     :error="action.error.value"
     @update:open="emit('update:open', $event)"

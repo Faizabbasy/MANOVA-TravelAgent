@@ -37,7 +37,11 @@ const blockers = computed<string[]>(() => {
   const open = f.invoices.filter(i => i.status === 'issued' && BigInt(i.outstandingMinor) > 0n).length
   if (open) { out.push(`${open} invoice customer masih punya sisa tagihan.`) }
   if (f.receivable.draftCount) { out.push(`${f.receivable.draftCount} draft invoice belum diterbitkan atau dihapus.`) }
-  if (BigInt(f.receivable.scheduledNotInvoicedMinor) > 0n) { out.push('Masih ada rencana tagihan yang belum ditagih atau dibatalkan.') }
+  if (BigInt(f.receivable.scheduledNotInvoicedMinor) > 0n) {
+    out.push('Masih ada rencana tagihan yang belum ditagih atau dibatalkan.')
+  } else if (f.receivable.uninvoicedMinor !== null && BigInt(f.receivable.uninvoicedMinor) > 0n) {
+    out.push('Nilai kontrak belum seluruhnya ditagih. Tagih sisanya, atau sesuaikan nilai kontrak project bila memang berubah.')
+  }
   if (f.payable.pendingReviewCount) { out.push(`${f.payable.pendingReviewCount} invoice vendor belum direview.`) }
   if (BigInt(f.payable.outstandingMinor) > 0n) { out.push('Masih ada utang vendor yang belum dibayar.') }
   return out
@@ -226,7 +230,8 @@ const showVendorCreate = ref(false)
           <p v-else class="mt-2 text-sm text-muted-foreground">
             Semua tagihan lunas, tidak ada utang vendor atau rencana tagihan yang tersisa.
           </p>
-          <Button v-if="canClose" class="mt-4" size="sm" :disabled="blockers.length > 0" @click="emit('close')">
+          <!-- Never decide on figures that are loading or failed to refresh. -->
+          <Button v-if="canClose" class="mt-4" size="sm" :disabled="blockers.length > 0 || summary.pending.value || !!summary.error.value" @click="emit('close')">
             Tutup finance project
           </Button>
         </template>

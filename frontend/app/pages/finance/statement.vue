@@ -44,13 +44,18 @@ const statement = useFinanceQuery(() => api.finance.statement({
 const more = ref<MovementDto[]>([])
 const nextCursor = ref<string | null>(null)
 const loadingMore = ref(false)
+/** Bumped on every reload/filter change; a "load more" answer from an older generation is dropped. */
+let generation = 0
+watch([from, to, accountId, projectId, direction, showTransfers, kind], () => { generation++ })
 watch(() => statement.data.value, (page: StatementList | null) => {
+  generation++
   more.value = []
   nextCursor.value = page?.meta.pagination.nextCursor ?? null
 })
 async function loadMore () {
   if (!nextCursor.value || loadingMore.value) { return }
   loadingMore.value = true
+  const mine = generation
   try {
     const page = await api.finance.statement({
       from: from.value,
@@ -63,6 +68,7 @@ async function loadMore () {
       limit: PAGE,
       cursor: nextCursor.value
     })
+    if (mine !== generation) { return }
     more.value = [...more.value, ...page.data]
     nextCursor.value = page.meta.pagination.nextCursor
   } finally {

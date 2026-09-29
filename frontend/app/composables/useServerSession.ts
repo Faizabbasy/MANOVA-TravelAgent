@@ -22,7 +22,8 @@ interface SessionState {
   message: string | null
 }
 
-let inflight: Promise<MeDto> | null = null
+/** One in-flight sign-in per user id, so a role switch mid-way never returns the previous user's session. */
+const inflight = new Map<string, Promise<MeDto>>()
 
 export function sessionUnavailableError (message: string, offline: boolean): ApiError {
   return new ApiError(offline ? 0 : 401, offline ? 'NETWORK_ERROR' : 'SESSION_REQUIRED', message)
@@ -74,10 +75,12 @@ export function useServerSession () {
   function ensure (): Promise<MeDto> {
     const userId = currentUser.value.id
     if (state.value.status === 'ready' && state.value.me?.user.id === userId) { return Promise.resolve(state.value.me) }
-    if (!inflight) {
-      inflight = establish(userId).finally(() => { inflight = null })
+    let pendingSession = inflight.get(userId)
+    if (!pendingSession) {
+      pendingSession = establish(userId).finally(() => { inflight.delete(userId) })
+      inflight.set(userId, pendingSession)
     }
-    return inflight
+    return pendingSession
   }
 
   /** Server-computed capability (e.g. `finance.post-cash`). False until the session is ready. */

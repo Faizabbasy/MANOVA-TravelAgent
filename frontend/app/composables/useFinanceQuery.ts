@@ -25,6 +25,8 @@ export interface FinanceQueryOptions {
   watch?: WatchSource[]
   /** Skip loading while false (e.g. a filter not chosen yet). */
   enabled?: () => boolean
+  /** Refetch after any finance mutation (default). Off for master data that finance commands never change. */
+  refreshOnMutation?: boolean
 }
 
 export function useFinanceQuery<T> (fetcher: () => Promise<T>, options: FinanceQueryOptions = {}) {
@@ -38,11 +40,12 @@ export function useFinanceQuery<T> (fetcher: () => Promise<T>, options: FinanceQ
   let sequence = 0
 
   async function refresh () {
-    if (options.enabled && !options.enabled()) { return }
     const mine = ++sequence
-    pending.value = true
     try {
+      // Session first: `enabled` may depend on server capabilities, which exist only once it is ready.
       await session.ensure()
+      if (options.enabled && !options.enabled()) { return }
+      pending.value = true
       const result = await fetcher()
       if (mine !== sequence) { return }
       data.value = result
@@ -58,7 +61,7 @@ export function useFinanceQuery<T> (fetcher: () => Promise<T>, options: FinanceQ
   }
 
   onMounted(refresh)
-  watch([...(options.watch ?? []), version], () => { refresh() }, { deep: true })
+  watch([...(options.watch ?? []), ...(options.refreshOnMutation === false ? [] : [version])], () => { refresh() }, { deep: true })
 
   return { data, error, pending, loaded, refresh }
 }

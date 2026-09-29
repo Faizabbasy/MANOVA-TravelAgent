@@ -146,11 +146,40 @@ Seed dibangun lewat service backend yang sama dengan API, sehingga tidak mungkin
 | Pemeriksaan | Hasil |
 |---|---|
 | Backend `bun test` (PGlite) / PostgreSQL 17 | **158 pass** / **158 pass** |
-| Frontend typecheck / vitest | bersih / **215 pass** (termasuk test alokasi, tren saldo, tanggal & label) |
+| Frontend typecheck / vitest | bersih / **216 pass** (termasuk test alokasi, tren saldo, tanggal & label) |
 | Lint file yang disentuh | tidak ada temuan baru; beberapa temuan lama ikut dibersihkan |
 | Browser, Finance | 5 layar × 1440px/390px tanpa error konsol, tanpa API gagal, tanpa overflow horizontal |
 | Browser, alur ujung ke ujung | verifikasi saldo awal (Super Admin) · pembayaran customer + alokasi · pembayaran vendor · pengeluaran · rencana → draft → terbit · review → setujui → bayar |
 | Browser, Admin | `/finance` ditolak dan dialihkan · project/booking/vendor/customer hanya status/jumlah, tanpa nominal Finance |
+
+## Review independen — temuan & perbaikan
+
+Review independen atas seluruh commit Phase 4 **tidak menemukan cacat berat**:
+
+- Tidak ada perhitungan uang dengan float.
+- Idempotency-Key benar di semua dialog.
+- Admin tidak pernah melihat nominal.
+- Kontrak API cocok dengan backend.
+
+Ada 3 temuan sedang dan 8 ringan; semuanya diperbaiki.
+
+| # | Temuan | Perbaikan |
+|---|---|---|
+| 1 | Dialog perkiraan bayar dibuka dengan tanggal kosong, sehingga menyimpan tanpa mengubah apa pun akan **menghapus** janji bayar | Tanggal lama diisi saat dialog dibuka |
+| 2 | Rencana tagihan di tab Finance project tidak termuat bila halaman dibuka langsung (hak akses dicek sebelum sesi siap) | Syarat `enabled` dievaluasi setelah sesi server siap |
+| 3 | Mengganti customer di form pembayaran menyisakan project dan alokasi milik customer sebelumnya | Direset saat customer/vendor berganti; alokasi hanya ke invoice yang tampil; error project ditampilkan |
+| 4 | Mengosongkan jatuh tempo/perkiraan/catatan saat mengubah draft tidak tersimpan | Field kosong dikirim sebagai `''` (server mengosongkannya) |
+| 5 | "Muat lebih banyak" bisa menempelkan baris dari tab/filter sebelumnya | Penanda generasi; jawaban lama dibuang |
+| 6 | Saldo awal kosong terkirim sebagai Rp0 | Tombol nonaktif sampai nominal diisi (Rp0 tetap bisa diketik) |
+| 7 | Tombol tutup finance bisa memakai data yang sedang dimuat atau gagal dimuat; kontrak yang belum habis ditagih tidak menjadi pengganjal | Tombol nonaktif saat memuat/error; ditambah pengganjal "nilai kontrak belum seluruhnya ditagih" |
+| 8 | Daftar alokasi terpotong di 100 invoice | Mengikuti cursor sampai habis (`lib/finance/paging.ts`, dites); jumlah draft di dashboard ditulis "100+" |
+| 9 | Tanggal uang bisa dipilih sebelum saldo awal rekening | `min` = tanggal saldo awal (transfer: yang terakhir dari dua rekening) |
+| 10 | Ganti role saat sesi sedang dibuat bisa mengembalikan sesi user sebelumnya | Sesi yang sedang dibuat dipisah per user |
+| 11 | Setiap mutasi memuat ulang semua referensi (project/customer/vendor) | Data referensi tidak ikut di-refresh oleh mutasi keuangan |
+
+**Catatan seed:** seed tidak atomik. Kalau terhenti di tengah, jalankan ulang pada database baru (hapus `backend/.data/pglite`, lalu migrasi dan kedua seed).
+
+Setelah perbaikan, database demo lokal direset ke kondisi seed yang bersih. Data lama disimpan sebagai `backend/.data/pglite-before-phase4-reset`; folder ini tidak di-commit dan boleh dihapus.
 
 ## Catatan untuk keputusan berikutnya
 

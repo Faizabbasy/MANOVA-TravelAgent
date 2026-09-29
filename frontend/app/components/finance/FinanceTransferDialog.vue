@@ -28,6 +28,8 @@ watch(() => props.open, (open) => {
 const accounts = computed(() => lookups.postableAccounts.value)
 const fromAccount = computed(() => accounts.value.find(a => a.id === form.from) ?? null)
 const toAccount = computed(() => accounts.value.find(a => a.id === form.to) ?? null)
+/** Both accounts must already have their books open on the transfer date. */
+const minDate = computed(() => [fromAccount.value?.opening.date, toAccount.value?.opening.date].filter((d): d is string => !!d).sort().pop())
 const toOptions = computed(() => lookups.accountOptions.value.filter(o => o.value !== form.from))
 
 const preview = computed(() => {
@@ -85,7 +87,7 @@ async function submit () {
         <FinanceMoneyInput id="tr-fee" v-model="form.fee" />
       </FinanceField>
       <FinanceField id="tr-date" label="Tanggal transfer" :error="action.fieldError('effectiveDate')">
-        <FinanceDateInput id="tr-date" v-model="form.date" :max="today" />
+        <FinanceDateInput id="tr-date" v-model="form.date" :min="minDate" :max="today" />
       </FinanceField>
       <FinanceField id="tr-memo" label="Keterangan" optional>
         <Input id="tr-memo" v-model="form.memo" class="h-10" maxlength="500" placeholder="mis. Top up rekening vendor" />

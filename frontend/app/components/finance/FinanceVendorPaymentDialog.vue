@@ -3,6 +3,7 @@ import { newIdempotencyKey } from '~/lib/api/client'
 import { todayJakarta } from '~/lib/finance/dates'
 import type { AllocationTarget } from '~/lib/finance/types'
 import { formatMoneyMinor } from '~/lib/money'
+import { collectPages } from '~/lib/finance/paging'
 
 /**
  * Money paid to a vendor: from which account, and which approved vendor invoices it settles. Only approved
@@ -31,11 +32,15 @@ watch(() => lookups.accountOptions.value, (options) => {
 }, { immediate: true })
 
 const openInvoices = useFinanceQuery(
-  async () => (await api.finance.payables({ vendorId: form.vendorId!, view: 'outstanding', limit: 100 })).data,
+  async () => {
+    const vendorId = form.vendorId!
+    const list = await collectPages(cursor => api.finance.payables({ vendorId, view: 'outstanding', limit: 100, cursor }))
+    return { vendorId, list }
+  },
   { watch: [() => form.vendorId, () => props.open], enabled: () => props.open && !!form.vendorId }
 )
 
-const targets = computed<AllocationTarget[]>(() => (form.vendorId ? openInvoices.data.value ?? [] : []).map(inv => ({
+const targets = computed<AllocationTarget[]>(() => (form.vendorId && openInvoices.data.value?.vendorId === form.vendorId ? openInvoices.data.value.list : []).map(inv => ({
   id: inv.id,
   title: inv.vendorInvoiceNumber,
   subtitle: inv.project?.name ?? inv.serviceOrderId ?? 'Tanpa project',
@@ -47,6 +52,10 @@ watch(targets, (list) => {
   if (!props.open || form.amount || !props.vendorInvoiceId) { return }
   const focus = list.find(t => t.id === props.vendorInvoiceId)
   if (focus) { form.amount = focus.outstandingMinor }
+})
+
+watch(() => form.vendorId, (next, prev) => {
+  if (props.open && prev !== undefined && next !== prev) { allocations.value = {} }
 })
 
 const account = computed(() => lookups.postableAccounts.value.find(a => a.id === form.accountId) ?? null)
@@ -66,7 +75,9 @@ const action = useFinanceAction(() => api.finance.postVendorPayment({
   vendorId: form.vendorId!,
   reference: form.reference.trim() || undefined,
   memo: form.memo.trim() || undefined,
-  allocations: Object.entries(allocations.value).filter(([, v]) => BigInt(v || '0') > 0n).map(([vendorInvoiceId, amountMinor]) => ({ vendorInvoiceId, amountMinor }))
+  allocations: Object.entries(allocations.value)
+    .filter(([id, v]) => BigInt(v || '0') > 0n && targets.value.some(t => t.id === id))
+    .map(([vendorInvoiceId, amountMinor]) => ({ vendorInvoiceId, amountMinor }))
 }, idempotencyKey))
 
 async function submit () {
@@ -102,7 +113,7 @@ const fieldAlloc = computed(() => Object.entries(action.error.value?.fieldErrors
         <FinanceMoneyInput id="vp-amount" v-model="form.amount" :invalid="!!action.fieldError('amountMinor')" />
       </FinanceField>
       <FinanceField id="vp-date" label="Tanggal uang keluar" :error="action.fieldError('effectiveDate')">
-        <FinanceDateInput id="vp-date" v-model="form.date" :max="today" />
+        <FinanceDateInput id="vp-date" v-model="form.date" :min="account?.opening.date ?? undefined" :max="today" />
       </FinanceField>
       <FinanceField id="vp-account" label="Dari rekening" :error="action.fieldError('bankAccountId')">
         <FinanceSelect id="vp-account" v-model="form.accountId" :options="lookups.accountOptions.value" placeholder="Pilih rekening" />

@@ -4,6 +4,7 @@ import { todayJakarta } from '~/lib/finance/dates'
 import { INVOICE_TYPE_LABEL } from '~/lib/finance/labels'
 import type { AllocationTarget } from '~/lib/finance/types'
 import { formatMoneyMinor } from '~/lib/money'
+import { collectPages } from '~/lib/finance/paging'
 
 /**
  * Money received from a customer: which account it landed in, and which invoices it pays. What is not
@@ -34,11 +35,16 @@ watch(() => lookups.accountOptions.value, (options) => {
 }, { immediate: true })
 
 const openInvoices = useFinanceQuery(
-  async () => (await api.finance.receivables({ partyId: form.partyId!, settlement: 'outstanding', limit: 100 })).data,
+  async () => {
+    const partyId = form.partyId!
+    const list = await collectPages(cursor => api.finance.receivables({ partyId, settlement: 'outstanding', limit: 100, cursor }))
+    return { partyId, list }
+  },
   { watch: [() => form.partyId, () => props.open], enabled: () => props.open && !!form.partyId }
 )
 
-const targets = computed<AllocationTarget[]>(() => (form.partyId ? openInvoices.data.value ?? [] : []).map(inv => ({
+/** Only the invoices of the customer currently chosen (never the previous customer's list while reloading). */
+const targets = computed<AllocationTarget[]>(() => (form.partyId && openInvoices.data.value?.partyId === form.partyId ? openInvoices.data.value.list : []).map(inv => ({
   id: inv.id,
   title: inv.number ?? inv.id,
   subtitle: `${INVOICE_TYPE_LABEL[inv.invoiceType]} · ${inv.project.name}`,
@@ -51,6 +57,13 @@ watch(targets, (list) => {
   if (!props.open || form.amount || !props.invoiceId) { return }
   const focus = list.find(t => t.id === props.invoiceId)
   if (focus) { form.amount = focus.outstandingMinor }
+})
+
+// Another customer: forget allocations and a project that belongs to the previous one.
+watch(() => form.partyId, (next, prev) => {
+  if (!props.open || prev === undefined || next === prev) { return }
+  allocations.value = {}
+  if (form.projectId && !lookups.projectsOfParty(next).some(p => p.value === form.projectId)) { form.projectId = null }
 })
 
 const account = computed(() => lookups.postableAccounts.value.find(a => a.id === form.accountId) ?? null)
@@ -71,7 +84,9 @@ const action = useFinanceAction(() => api.finance.postReceipt({
   projectId: form.projectId ?? undefined,
   reference: form.reference.trim() || undefined,
   memo: form.memo.trim() || undefined,
-  allocations: Object.entries(allocations.value).filter(([, v]) => BigInt(v || '0') > 0n).map(([invoiceId, amountMinor]) => ({ invoiceId, amountMinor }))
+  allocations: Object.entries(allocations.value)
+    .filter(([id, v]) => BigInt(v || '0') > 0n && targets.value.some(t => t.id === id))
+    .map(([invoiceId, amountMinor]) => ({ invoiceId, amountMinor }))
 }, idempotencyKey))
 
 async function submit () {
@@ -107,7 +122,7 @@ const fieldAlloc = computed(() => Object.entries(action.error.value?.fieldErrors
         <FinanceMoneyInput id="rc-amount" v-model="form.amount" :invalid="!!action.fieldError('amountMinor')" />
       </FinanceField>
       <FinanceField id="rc-date" label="Tanggal uang masuk" :error="action.fieldError('effectiveDate')">
-        <FinanceDateInput id="rc-date" v-model="form.date" :max="today" />
+        <FinanceDateInput id="rc-date" v-model="form.date" :min="account?.opening.date ?? undefined" :max="today" />
       </FinanceField>
       <FinanceField id="rc-account" label="Masuk ke rekening" :error="action.fieldError('bankAccountId')">
         <FinanceSelect id="rc-account" v-model="form.accountId" :options="lookups.accountOptions.value" placeholder="Pilih rekening" />
@@ -131,12 +146,12 @@ const fieldAlloc = computed(() => Object.entries(action.error.value?.fieldErrors
       {{ fieldAlloc }}
     </p>
 
-    <details class="group rounded-lg border border-border px-3 py-2 text-sm">
+    <details class="group rounded-lg border border-border px-3 py-2 text-sm" :open="!!action.fieldError('projectId') || !!form.projectId">
       <summary class="cursor-pointer select-none text-[13px] font-medium text-muted-foreground group-open:text-foreground">
         Project & catatan (opsional)
       </summary>
       <div class="mt-3 grid gap-4 pb-1 sm:grid-cols-2">
-        <FinanceField id="rc-project" label="Untuk project" optional hint="Membantu melacak uang muka per project.">
+        <FinanceField id="rc-project" label="Untuk project" optional hint="Membantu melacak uang muka per project." :error="action.fieldError('projectId')">
           <FinanceSelect id="rc-project" v-model="form.projectId" :options="lookups.projectsOfParty(form.partyId)" clear-label="Tanpa project" placeholder="Tanpa project" />
         </FinanceField>
         <FinanceField id="rc-memo" label="Catatan" optional>
