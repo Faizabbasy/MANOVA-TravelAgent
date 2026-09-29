@@ -571,7 +571,7 @@ export interface FinanceOverviewStatus {
 export interface FinanceOverviewFull {
   view: 'full'
   asOf: IsoDate
-  projects: (OverviewProjectStatus & { costMinor: MoneyMinor; outstandingMinor: MoneyMinor })[]
+  projects: (OverviewProjectStatus & { costMinor: MoneyMinor; revenueMinor: MoneyMinor; receivedMinor: MoneyMinor; outstandingMinor: MoneyMinor })[]
   cash: { available: boolean; reason: 'NO_ACCOUNTS' | 'OPENING_BALANCE_UNVERIFIED' | null; totalMinor: MoneyMinor }
   forecast:
     | { available: true; periodEnd: IsoDate; closingMinor: MoneyMinor; gap: { date: IsoDate; balanceMinor: MoneyMinor } | null }
@@ -582,6 +582,24 @@ export interface FinanceOverviewFull {
 }
 
 export type FinanceOverviewDto = FinanceOverviewStatus | FinanceOverviewFull
+
+/** Accrual figures per calendar month (Reports). revenue = invoiced − credited; cost = vendor + expense; net = revenue − cost. */
+export interface MonthlyReportDto {
+  asOf: IsoDate
+  timezone: string
+  basis: 'accrual'
+  months: {
+    month: string
+    invoicedMinor: MoneyMinor
+    creditedMinor: MoneyMinor
+    revenueMinor: MoneyMinor
+    vendorCostMinor: MoneyMinor
+    expenseMinor: MoneyMinor
+    costMinor: MoneyMinor
+    netMinor: MoneyMinor
+  }[]
+  vendors: { vendor: { id: string; name: string }; approvedMinor: MoneyMinor; projectCount: number; invoiceCount: number }[]
+}
 
 /** What Admin receives (ADR-007 #3): status, never amounts. */
 export interface PaymentStatusView {

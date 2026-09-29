@@ -2,17 +2,20 @@
 import { ref, computed } from 'vue'
 import { Handshake, FolderKanban, Building2, Wallet, Receipt, Download, Save, X, Clock } from 'lucide-vue-next'
 import {
-  PROJECTS, LEADS, QUOTATIONS, VENDOR_QUOTATIONS, INVOICES,
-  getProjectById, getLeadById, getProjectServices, getServicesForProjects, getVendorById,
-  getCommittedVendorCostIdr, getInvoiceOutstandingIdr,
+  PROJECTS, LEADS, QUOTATIONS, VENDOR_QUOTATIONS,
+  getProjectServices, getServicesForProjects, getVendorById,
+  getCommittedVendorCostIdr,
   getSavedViewsForUser, createSavedView, deleteSavedView, applySavedView
 } from '~/data'
-import { getProjectActualCostIdr } from '~/data/finance-ext'
+import type { CustomerInvoiceDto } from '~/types/api'
+import { collectPages } from '~/lib/finance/paging'
+import { daysBetween, formatBusinessDate, todayJakarta } from '~/lib/finance/dates'
+import { formatMoneyMinor } from '~/lib/money'
 import {
   PROJECT_STATUSES, PROJECT_CHARACTERISTICS, QUOTATION_APPROVAL_STATUSES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatPercentage, daysUntil } from '~/utils/format'
-import { isUpcomingDeparture, invoiceAgingDays, DEMO_REFERENCE_DATE } from '~/utils/attention'
+import { isUpcomingDeparture, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import type { RoleId } from '~/types/user'
 import type { Project } from '~/types/project'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
@@ -22,7 +25,7 @@ import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownLis
  * (halaman ini sendiri), kini tab dalam satu menu bersama Analytics & Marketing ROI — logika tidak diubah.
  */
 
-const { currentRole, currentUser } = useCurrentUser()
+const { currentUser } = useCurrentUser()
 const { canView, isRole } = usePermissions()
 const { showToast } = useToast()
 
@@ -231,8 +234,10 @@ const topVendorRows = computed(() => {
  * ================================================== */
 const budgetProjects = computed(() => filteredProjects.value.filter(p => p.status !== 'cancelled'))
 const totalBudgetIdr = computed(() => budgetProjects.value.reduce((sum, p) => sum + p.budgetIdr, 0))
-/** Fase 3.2 (Penyederhanaan 7-Role/Menu) — `getProjectActualCostIdr()` turunan, bukan field statis `Project.actualCostIdr` (selalu `0` untuk project baru). */
-const totalActualIdr = computed(() => budgetProjects.value.reduce((sum, p) => sum + getProjectActualCostIdr(p.id), 0))
+/** Actual cost from Finance on the server (Phase 7): approved vendor invoices + project expenses. */
+const financeOverview = useFinanceOverview()
+const actualCostOf = (projectId: string) => Number(financeOverview.full.value?.projects.find(p => p.projectId === projectId)?.costMinor ?? 0)
+const totalActualIdr = computed(() => budgetProjects.value.reduce((sum, p) => sum + actualCostOf(p.id), 0))
 const totalVarianceIdr = computed(() => totalBudgetIdr.value - totalActualIdr.value)
 const totalQuotationIdr = computed(() => budgetProjects.value.reduce((sum, p) => sum + p.quotationAmountIdr, 0))
 const totalMarginIdr = computed(() => totalQuotationIdr.value - totalActualIdr.value)
@@ -241,18 +246,27 @@ const totalMarginIdr = computed(() => totalQuotationIdr.value - totalActualIdr.v
  * Section 6 — Invoice Aging dan Outstanding (Finance/Management/Super Admin/Viewer)
  * Reuse `invoiceAgingDays`/`getInvoiceOutstandingIdr` existing (Section 15) — bukan menghitung ulang.
  * ================================================== */
+const api = useApi()
+const session = useServerSession()
+const today = todayJakarta()
+/** Every unpaid customer invoice from Finance (all pages); filtered to the projects in view. */
+const receivables = useFinanceQuery(
+  () => collectPages<CustomerInvoiceDto>(cursor => api.finance.receivables({ settlement: 'outstanding', limit: 100, cursor: cursor ?? undefined })),
+  { enabled: () => session.can('finance.view-cash') }
+)
 const outstandingInvoiceRows = computed(() =>
-  INVOICES
-    .filter(invoice => filteredProjectIds.value.includes(invoice.projectId) && invoice.status !== 'paid')
+  (receivables.data.value ?? [])
+    .filter(invoice => filteredProjectIds.value.includes(invoice.project.id))
     .map(invoice => ({
       invoice,
-      projectName: getProjectById(invoice.projectId)?.name ?? invoice.projectId,
-      agingDays: invoiceAgingDays(invoice),
-      outstandingIdr: getInvoiceOutstandingIdr(invoice.id)
+      projectName: invoice.project.name,
+      /** Negative = days past due (same convention as before). */
+      agingDays: invoice.dueDate ? daysBetween(today, invoice.dueDate) : 0,
+      outstandingMinor: invoice.outstandingMinor
     }))
     .sort((a, b) => a.agingDays - b.agingDays)
 )
-const totalOutstandingIdr = computed(() => outstandingInvoiceRows.value.reduce((sum, row) => sum + row.outstandingIdr, 0))
+const totalOutstandingMinor = computed(() => outstandingInvoiceRows.value.reduce((sum, row) => sum + BigInt(row.outstandingMinor), 0n).toString())
 const overdueInvoiceCount = computed(() => outstandingInvoiceRows.value.filter(row => row.agingDays < 0).length)
 
 const AGING_BUCKETS = [
@@ -319,7 +333,7 @@ const showSalesPipeline = visibleTo('sales', 'account-executive', 'management', 
 const showProjectPerformance = visibleTo('project-manager', 'management', 'super-admin', 'viewer')
 const showDepartureReadiness = visibleTo('project-manager', 'management', 'super-admin', 'viewer')
 const showVendorSummary = visibleTo('project-manager', 'finance', 'management', 'super-admin', 'viewer')
-const showBudgetMargin = visibleTo('finance', 'management', 'super-admin', 'viewer')
+const showBudgetMargin = visibleTo('finance', 'super-admin') // biaya aktual = data Finance; Admin tidak
 const showInvoiceAging = visibleTo('finance', 'super-admin') // piutang = data Finance; Admin (eks-management) tidak
 /** SLA dan Quotation Performance (Section 22) — sama seperti Sales Pipeline (domain Opportunity/Quotation, dikelola Sales/AE, dipantau Management). */
 const showSlaPerformance = visibleTo('sales', 'account-executive', 'management', 'super-admin', 'viewer')
@@ -592,7 +606,7 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
 
         <!-- Section 5: Budget vs Actual dan Margin -->
         <SectionCard v-if="showBudgetMargin" title="Budget vs Actual dan Margin" description="Agregat lintas project sesuai filter aktif (project berstatus Cancelled dikecualikan).">
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4 mb-6">
             <StatsCard title="Budget" :value="formatCurrencyIdr(totalBudgetIdr)" :icon="Wallet" />
             <StatsCard title="Actual Cost" :value="formatCurrencyIdr(totalActualIdr)" :icon="Wallet" :icon-color="totalActualIdr > totalBudgetIdr ? 'destructive' : 'success'" />
             <StatsCard title="Variance" :value="formatCurrencyIdr(totalVarianceIdr)" :icon="Wallet" :icon-color="totalVarianceIdr >= 0 ? 'success' : 'destructive'" />
@@ -603,15 +617,15 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
             v-if="budgetProjects.length > 0"
             :labels="budgetProjects.map(p => p.name)"
             :budget-idr="budgetProjects.map(p => p.budgetIdr)"
-            :actual-idr="budgetProjects.map(p => getProjectActualCostIdr(p.id))"
+            :actual-idr="budgetProjects.map(p => actualCostOf(p.id))"
           />
           <EmptyState v-else title="Tidak ada project sesuai filter" />
         </SectionCard>
 
         <!-- Section 6: Invoice Aging dan Outstanding -->
-        <SectionCard v-if="showInvoiceAging" title="Invoice Aging dan Outstanding" description="Invoice belum lunas lintas project sesuai filter aktif, diurutkan dari yang paling overdue. Klik baris untuk membuka tab Finance pada Project terkait.">
+        <SectionCard v-if="showInvoiceAging" title="Invoice Aging dan Outstanding" description="Tagihan customer belum lunas dari Finance, lintas project sesuai filter aktif, paling lama terlambat di atas. Klik baris untuk membuka Piutang Customer.">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <StatsCard title="Total Outstanding" :value="formatCurrencyIdr(totalOutstandingIdr)" :icon="Receipt" icon-color="warning" />
+            <StatsCard title="Total Outstanding" :value="formatMoneyMinor(totalOutstandingMinor)" :icon="Receipt" icon-color="warning" />
             <StatsCard title="Invoice Overdue" :value="String(overdueInvoiceCount)" :icon="Receipt" icon-color="destructive" />
           </div>
           <StatusBreakdownList :items="invoiceAgingItems" empty-label="Tidak ada invoice outstanding sesuai filter" class="mb-6" />
@@ -630,17 +644,22 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
                 v-for="row in outstandingInvoiceRows"
                 :key="row.invoice.id"
                 class="cursor-pointer hover:bg-muted/50"
-                @click="navigateTo(`/project-orders/${row.invoice.projectId}?tab=finance`)"
+                @click="navigateTo(`/finance/receivables?projectId=${row.invoice.project.id}`)"
               >
                 <TableCell class="font-medium text-foreground">
-                  {{ row.invoice.label }}
+                  {{ row.invoice.number }}
+                  <p class="text-xs font-normal text-muted-foreground">
+                    {{ row.invoice.party.name }}
+                  </p>
                 </TableCell>
                 <TableCell class="text-muted-foreground">
                   {{ row.projectName }}
                 </TableCell>
-                <TableCell>{{ formatCurrencyIdr(row.outstandingIdr) }}</TableCell>
+                <TableCell class="whitespace-nowrap tabular-nums">
+                  {{ formatMoneyMinor(row.outstandingMinor) }}
+                </TableCell>
                 <TableCell class="text-muted-foreground">
-                  {{ formatDate(row.invoice.dueAt) }}
+                  {{ formatBusinessDate(row.invoice.dueDate) }}
                 </TableCell>
                 <TableCell :class="row.agingDays < 0 ? 'text-destructive' : 'text-muted-foreground'">
                   {{ agingLabel(row.agingDays) }}

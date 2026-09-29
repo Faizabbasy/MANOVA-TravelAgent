@@ -9,6 +9,7 @@ import { createAccount, getAccount, listAccounts, submitOpening, updateAccount, 
 import { postManualTransaction, postTransfer, reverseTransaction, reverseTransfer } from './postings'
 import { accountLedger, cashPosition, getTransaction, getTransfer, statement } from './reads'
 import { cashFlow } from './cashflow'
+import { monthlyReport } from './reports'
 
 /**
  * Finance API — bank accounts, opening balance, the cash book, transfers, statement, ledger and cash flow (Phase 6).
@@ -64,6 +65,14 @@ export function financeRoutes(deps: AppDeps, auth: AuthContext) {
           minimumCashMinor: t.Optional(t.String())
         })
       }
+    )
+    .get(
+      '/reports/monthly',
+      async ({ request, query }) => {
+        await auth.requireCapability(request, 'finance.view-project-finance')
+        return ok(request, await monthlyReport(db, query))
+      },
+      { query: t.Object({ months: t.Optional(t.String()) }) }
     )
     .get('/accounts', async ({ request }) => {
       const actor = await auth.requireCapability(request, 'finance.view-cash')

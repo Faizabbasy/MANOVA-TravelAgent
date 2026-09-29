@@ -11,7 +11,7 @@ import {
  * Finance menus and the per-project summaries — a handful of set-based queries instead of one request per
  * project. Two shapes (ADR-007 #3):
  *  - full   (finance.view-project-finance): cash, 30-day forecast, receivables/payables, overdue invoices,
- *                                            and per project the payment status, actual cost and outstanding
+ *                                            and per project the payment status, revenue, cost, received and outstanding
  *  - status (project-order.view-payment-status, Admin): per project the payment status only — no amount
  */
 
@@ -57,6 +57,12 @@ export async function financeOverview(db: Db, full: boolean) {
      ) x group by project_id`
   )
   const costByProject = new Map(costs.map(c => [c.project_id, c.total]))
+  // Revenue as in a project's profitability: issued invoices − every issued credit note on them.
+  const credits = await db.query<{ project_id: string; total: string }>(
+    `select i.project_id, sum(c.amount_minor) as total from credit_notes c join customer_invoices i on i.id = c.customer_invoice_id
+      where c.status = 'issued' and i.status = 'issued' group by i.project_id`
+  )
+  const creditByProject = new Map(credits.map(c => [c.project_id, BigInt(c.total)]))
 
   const issued = invoices.filter(i => i.status === 'issued')
   const open = issued.filter(i => BigInt(i.outstanding_minor) > 0n)
@@ -75,6 +81,8 @@ export async function financeOverview(db: Db, full: boolean) {
     projects: projects.map(p => ({
       ...p,
       costMinor: costByProject.get(p.projectId) ?? '0',
+      revenueMinor: (sum(issued.filter(i => (i as { project_id: string }).project_id === p.projectId), 'total_minor') - (creditByProject.get(p.projectId) ?? 0n)).toString(),
+      receivedMinor: sum(issued.filter(i => (i as { project_id: string }).project_id === p.projectId), 'paid_minor').toString(),
       outstandingMinor: sum(open.filter(i => (i as { project_id: string }).project_id === p.projectId), 'outstanding_minor').toString()
     })),
     cash: { available: cash.available, reason: cash.reason, totalMinor: cash.totalMinor },

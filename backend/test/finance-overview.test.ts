@@ -80,3 +80,43 @@ describe('finance overview', () => {
     expect(data.forecast).toEqual({ available: true, periodEnd: cf.periodEnd, closingMinor: cf.closingMinor, gap: null })
   })
 })
+
+describe('monthly report (accrual)', () => {
+  test('Admin cannot read it; months are validated', async () => {
+    expect((await get('admin', '/finance/reports/monthly')).status).toBe(403)
+    expect((await get('finance', '/finance/reports/monthly?months=0')).status).toBe(400)
+    expect((await get('finance', '/finance/reports/monthly?months=25')).status).toBe(400)
+  })
+
+  test('months add up to the projects, the vendors and the Statement', async () => {
+    const report = (await get('finance', '/finance/reports/monthly?months=12')).json.data
+    expect(report.months).toHaveLength(12)
+    expect(report.months.at(-1).month).toBe(report.asOf.slice(0, 7))
+    const total = (key: string) => report.months.reduce((s: bigint, m: Record<string, string>) => s + BigInt(m[key]!), 0n)
+    for (const m of report.months) {
+      expect(BigInt(m.revenueMinor)).toBe(BigInt(m.invoicedMinor) - BigInt(m.creditedMinor))
+      expect(BigInt(m.netMinor)).toBe(BigInt(m.revenueMinor) - BigInt(m.costMinor))
+      expect(BigInt(m.costMinor)).toBe(BigInt(m.vendorCostMinor) + BigInt(m.expenseMinor))
+    }
+
+    // Revenue = the projects' revenue (every demo invoice falls inside the 12 months).
+    const overview = (await get('finance', '/finance/overview')).json.data
+    const projectRevenue = overview.projects.reduce((s: bigint, p: { revenueMinor: string }) => s + BigInt(p.revenueMinor), 0n)
+    expect(total('revenueMinor')).toBe(projectRevenue)
+    // Vendor cost = approved vendor invoices per vendor.
+    expect(total('vendorCostMinor')).toBe(report.vendors.reduce((s: bigint, v: { approvedMinor: string }) => s + BigInt(v.approvedMinor), 0n))
+    // Expenses + transfer fees = the Statement's outflow of those kinds (reversed pairs excluded).
+    const from = `${report.months[0].month}-01`
+    const out = async (kind: string) => BigInt((await get('finance', `/finance/statement?from=${from}&to=${report.asOf}&kind=${kind}&limit=1`)).json.meta.summary.outMinor)
+    expect(total('expenseMinor')).toBe(await out('expense') + await out('transfer_fee'))
+  })
+
+  test('per project revenue and received equal the project summary', async () => {
+    const overview = (await get('finance', '/finance/overview')).json.data
+    for (const p of overview.projects) {
+      const own = (await get('finance', `/projects/${p.projectId}/finance-summary`)).json.data
+      expect(p.revenueMinor).toBe(own.profitability.revenueMinor)
+      expect(p.receivedMinor).toBe(own.receivable.receivedMinor)
+    }
+  })
+})
