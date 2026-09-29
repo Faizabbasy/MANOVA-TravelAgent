@@ -10,6 +10,9 @@ import type {
   BillingScheduleItemDto,
   BookingFinanceSummaryDto,
   BookingRefDto,
+  CancellationInput,
+  CancellationPolicyDto,
+  CancellationPreviewDto,
   CashPositionDto,
   CustomerInvoiceDetailDto,
   CustomerInvoiceDraftInput,
@@ -22,13 +25,21 @@ import type {
   PartyDto,
   PartyFinanceSummaryDto,
   PayablesList,
+  PolicyAssignmentDto,
+  PolicyInput,
   ProjectDetailDto,
   ProjectDto,
   ProjectFinanceSummaryDto,
   ReceiptInput,
   ReceiptResult,
   ReceivablesList,
+  RefundDetailDto,
+  RefundList,
+  RefundSettlementInput,
+  RefundSettlementResult,
+  RefundStatusDto,
   ServiceOrderRefDto,
+  ApiSubjectType,
   StatementList,
   StatementQuery,
   TransferDto,
@@ -166,7 +177,37 @@ export function createManovaApi (client: ApiClient) {
       projectSummary: (projectId: string) => client.get<ProjectFinanceSummaryDto>(`/projects/${seg(projectId)}/finance-summary`),
       bookingSummary: (type: ApiBookingType, id: string) => client.get<BookingFinanceSummaryDto>(`/bookings/${seg(type)}/${seg(id)}/finance-summary`),
       vendorSummary: (vendorId: string) => client.get<VendorFinanceSummaryDto>(`/vendors/${seg(vendorId)}/finance-summary`),
-      partySummary: (partyId: string) => client.get<PartyFinanceSummaryDto>(`/parties/${seg(partyId)}/finance-summary`)
+      partySummary: (partyId: string) => client.get<PartyFinanceSummaryDto>(`/parties/${seg(partyId)}/finance-summary`),
+
+      // ── Cancellation policies (Phase 5) ────────────────────────────────────────────────────────────
+      listPolicies: (query: { status?: 'draft' | 'published' | 'inactive' } = {}) => client.get<CancellationPolicyDto[]>('/finance/policies', { query: { ...query } }),
+      getPolicy: (id: string) => client.get<CancellationPolicyDto>(`/finance/policies/${seg(id)}`),
+      createPolicy: (input: PolicyInput) => client.post<CancellationPolicyDto>('/finance/policies', input),
+      updatePolicy: (id: string, input: Omit<PolicyInput, 'code'>) => client.patch<CancellationPolicyDto>(`/finance/policies/${seg(id)}`, input),
+      deletePolicy: (id: string) => client.delete<{ id: string }>(`/finance/policies/${seg(id)}`),
+      publishPolicy: (id: string) => client.post<CancellationPolicyDto>(`/finance/policies/${seg(id)}/publish`),
+      deactivatePolicy: (id: string, reason: string) => client.post<CancellationPolicyDto>(`/finance/policies/${seg(id)}/deactivate`, { reason }),
+      newPolicyVersion: (id: string) => client.post<CancellationPolicyDto>(`/finance/policies/${seg(id)}/new-version`),
+      /** The policy snapshot on a project/booking, plus the policies that may be assigned to it today. */
+      subjectPolicy: (type: ApiSubjectType, id: string) =>
+        client.get<{ assignment: PolicyAssignmentDto | null; assignable: CancellationPolicyDto[] }>(`/finance/cancellation-policy/${seg(type)}/${seg(id)}`),
+      assignPolicy: (type: ApiSubjectType, id: string, input: { policyId: string; note?: string }) =>
+        client.put<PolicyAssignmentDto>(`/finance/cancellation-policy/${seg(type)}/${seg(id)}`, input),
+
+      // ── Cancellations & refunds (Phase 5) ──────────────────────────────────────────────────────────
+      /** No side effects. Admin gets the status view (policy, H-x, tier — no amounts). */
+      previewCancellation: (input: { subjectType: ApiSubjectType; subjectId: string; cancelDate?: string }) =>
+        client.post<CancellationPreviewDto>('/finance/cancellations/preview', input),
+      /** Records the cancellation once (write-offs + refund case). Money moves only at settlement. */
+      createCancellation: (input: CancellationInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<RefundDetailDto | RefundStatusDto>('/finance/cancellations', input, { idempotencyKey }),
+      refunds: (query: PageQuery & { view?: 'open' | 'requested' | 'to_pay' | 'settled' | 'rejected' | 'all'; projectId?: string; partyId?: string } = {}) =>
+        client.request<RefundList>('GET', '/finance/refunds', { query: { ...query } }),
+      getRefund: (id: string) => client.get<RefundDetailDto | RefundStatusDto>(`/finance/refunds/${seg(id)}`),
+      approveRefund: (id: string, input: { refundMinor?: string; note?: string } = {}) => client.post<RefundDetailDto>(`/finance/refunds/${seg(id)}/approve`, input),
+      rejectRefund: (id: string, reason: string) => client.post<RefundDetailDto>(`/finance/refunds/${seg(id)}/reject`, { reason }),
+      settleRefund: (id: string, input: RefundSettlementInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<RefundSettlementResult>(`/finance/refunds/${seg(id)}/settlements`, input, { idempotencyKey })
     }
   }
 }

@@ -3,6 +3,7 @@ import type { Actor, RoleId } from '../auth/rbac'
 import { createAccount, submitOpening, verifyOpening } from '../modules/finance/accounts'
 import { todayBusinessDate } from '../modules/finance/common'
 import { postManualTransaction, postTransfer, reverseTransaction } from '../modules/finance/postings'
+import { assignPolicy, createPolicy, publishPolicy, resolveSubject } from '../modules/finance/policies'
 import { createVendorInvoice, postVendorPayment, reviewVendorInvoice } from '../modules/finance/payables'
 import {
   createInvoiceDraft,
@@ -33,6 +34,8 @@ export interface FinanceSeedResult {
   customerInvoices: number
   vendorInvoices: number
   transactions: number
+  /** Cancellation policies published by this run (0 when they already existed). */
+  policies: number
 }
 
 const REQUEST_ID = 'seed-finance-demo'
@@ -75,11 +78,13 @@ export async function seedFinanceDemo(rawDb: Db, options: { appEnv: AppEnv }): P
     `select (select count(*) from bank_accounts) + (select count(*) from customer_invoices)
           + (select count(*) from vendor_invoices) + (select count(*) from billing_schedule_items) as n`
   )
-  if (Number(existing?.n ?? 0) > 0) return { skipped: true, accounts: 0, customerInvoices: 0, vendorInvoices: 0, transactions: 0 }
-
   const db = demoTagged(rawDb)
   const finance = await loadActor(db, 'USR-008', 'finance')
   const superAdmin = await loadActor(db, 'USR-010', 'super-admin')
+  if (Number(existing?.n ?? 0) > 0) {
+    // Finance records exist (earlier run): only add what later phases introduced, if missing.
+    return { skipped: true, accounts: 0, customerInvoices: 0, vendorInvoices: 0, transactions: 0, policies: await seedPolicies(db, finance) }
+  }
   const T = todayBusinessDate()
   const d = (offset: number) => shiftDays(T, offset)
   const tx = <R>(fn: (q: Queryable) => Promise<R>) => db.transaction(fn)
@@ -183,5 +188,44 @@ export async function seedFinanceDemo(rawDb: Db, options: { appEnv: AppEnv }): P
   const [counts] = await rawDb.query<{ ci: string; vi: string; ft: string }>(
     'select (select count(*) from customer_invoices) as ci, (select count(*) from vendor_invoices) as vi, (select count(*) from financial_transactions) as ft'
   )
-  return { skipped: false, accounts: 3, customerInvoices: Number(counts!.ci), vendorInvoices: Number(counts!.vi), transactions: Number(counts!.ft) }
+  return { skipped: false, accounts: 3, customerInvoices: Number(counts!.ci), vendorInvoices: Number(counts!.vi), transactions: Number(counts!.ft), policies: await seedPolicies(db, finance) }
+}
+
+/**
+ * Phase 5: two published cancellation policies and their snapshot on the demo projects/hotel bookings, so the
+ * cancellation flow can be tried right away. No cancellation case is created: the project module is still
+ * mock data and a server-side "cancelled" project would contradict it on other screens.
+ */
+async function seedPolicies(db: Db, finance: Actor): Promise<number> {
+  const [any] = await db.query('select 1 from cancellation_policies limit 1')
+  if (any) return 0
+  const tx = <R>(fn: (q: Queryable) => Promise<R>) => db.transaction(fn)
+  const from = '2026-01-01'
+  const standard = await tx(q => createPolicy(q, finance, {
+    code: 'STD-DP', name: 'Standar DP perjalanan', description: 'Refund dari DP yang sudah diterima, menurun mendekati keberangkatan.', bookingType: null, effectiveFrom: from,
+    tiers: [
+      { minDays: 30, maxDays: null, refundBp: 10_000 },
+      { minDays: 14, maxDays: 30, refundBp: 5_000 },
+      { minDays: 7, maxDays: 14, refundBp: 3_000 },
+      { minDays: 1, maxDays: 7, refundBp: 0 },
+      { minDays: null, maxDays: 1, refundBp: 0 }
+    ]
+  }, REQUEST_ID))
+  await tx(q => publishPolicy(q, finance, standard.id, REQUEST_ID))
+  const hotel = await tx(q => createPolicy(q, finance, {
+    code: 'HOTEL-FLEX', name: 'Hotel fleksibel', description: 'Mengikuti ketentuan hotel partner: refund penuh s/d H-7.', bookingType: 'hotel', effectiveFrom: from,
+    tiers: [
+      { minDays: 7, maxDays: null, refundBp: 10_000 },
+      { minDays: 3, maxDays: 7, refundBp: 5_000 },
+      { minDays: null, maxDays: 3, refundBp: 0 }
+    ]
+  }, REQUEST_ID))
+  await tx(q => publishPolicy(q, finance, hotel.id, REQUEST_ID))
+  for (const projectId of ['PRJ-101', 'PRJ-102', 'PRJ-103', 'PRJ-201', 'PRJ-202', 'PRJ-204']) {
+    await tx(async q => assignPolicy(q, finance, await resolveSubject(q, 'project', projectId), { policyId: standard.id, note: 'Sesuai kontrak' }, REQUEST_ID))
+  }
+  for (const bookingId of ['HTL-1022', 'HTL-1033', 'HTL-1035']) {
+    await tx(async q => assignPolicy(q, finance, await resolveSubject(q, 'hotel', bookingId), { policyId: hotel.id, note: 'Ketentuan hotel partner' }, REQUEST_ID))
+  }
+  return 2
 }

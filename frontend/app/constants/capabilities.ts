@@ -36,6 +36,8 @@ export const CAPABILITIES: CapabilityDefinition[] = [
   { key: 'project-order.advance-step', label: 'Jalankan transisi step Project Order', group: CAPABILITY_GROUPS.projectOrder, description: 'Tombol "Next Action" pada Status Workflow — tetap tunduk pada gate tiap step.' },
   { key: 'project-order.close', label: 'Tutup (close) Project Order', group: CAPABILITY_GROUPS.projectOrder },
   { key: 'project-order.view-margin', label: 'Lihat margin & internal cost project', group: CAPABILITY_GROUPS.projectOrder },
+  { key: 'project-order.view-payment-status', label: 'Lihat status bayar project/booking (tanpa nominal)', group: CAPABILITY_GROUPS.projectOrder },
+  { key: 'project-order.request-cancellation', label: 'Batalkan booking/project & ajukan refund', group: CAPABILITY_GROUPS.projectOrder, description: 'Nominal refund tetap hanya terlihat oleh Finance; Finance yang menyetujui dan membayar.' },
   { key: serviceCapabilityKey('flight'), label: 'Kelola service: Flight', group: CAPABILITY_GROUPS.projectOrder },
   { key: serviceCapabilityKey('hotel'), label: 'Kelola service: Hotel', group: CAPABILITY_GROUPS.projectOrder },
   { key: serviceCapabilityKey('transportation'), label: 'Kelola service: Transportation', group: CAPABILITY_GROUPS.projectOrder },

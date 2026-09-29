@@ -369,8 +369,9 @@ export async function issueCreditNote(tx: Queryable, actor: Actor, input: { invo
 export async function voidCreditNote(tx: Queryable, actor: Actor, id: string, reasonInput: unknown, requestId: string) {
   const reason = validateReason(reasonInput)
   if (!ID_PATTERN.test(id)) throw errors.notFound('Credit note')
-  const [cn] = await tx.query<{ status: string; customer_invoice_id: string }>('select status, customer_invoice_id from credit_notes where id = $1 for update', [id])
+  const [cn] = await tx.query<{ status: string; customer_invoice_id: string; refund_id: string | null }>('select status, customer_invoice_id, refund_id from credit_notes where id = $1 for update', [id])
   if (!cn) throw errors.notFound('Credit note')
+  if (cn.refund_id) throw rule(`Credit note ini bagian dari kasus pembatalan ${cn.refund_id} dan tidak bisa dibatalkan sendiri.`)
   if (cn.status !== 'issued') throw rule('Credit note ini sudah dibatalkan.')
   await lockInvoice(tx, cn.customer_invoice_id)
   await tx.query("update credit_notes set status = 'void', void_reason = $2, voided_by = $3, voided_at = now() where id = $1", [id, reason, actor.userId])
@@ -538,7 +539,7 @@ export async function getInvoice(db: Db, id: string) {
        from payment_allocations a join financial_transactions t on t.id = a.transaction_id join bank_accounts ba on ba.id = t.bank_account_id
       where a.target_type = 'customer_invoice' and a.target_id = $1 order by t.effective_date, a.id`, [id]
   )
-  const credits = await db.query<Record<string, any>>('select id, amount_minor, reason, status, created_at from credit_notes where customer_invoice_id = $1 order by id', [id])
+  const credits = await db.query<Record<string, any>>('select id, effect, refund_id, amount_minor, reason, status, created_at from credit_notes where customer_invoice_id = $1 order by id', [id])
   return {
     ...invoiceRowDto(row),
     billingSnapshot: row.billing_snapshot,
@@ -547,7 +548,10 @@ export async function getInvoice(db: Db, id: string) {
       transactionId: p.transaction_id, amountMinor: p.amount_minor, effectiveDate: p.effective_date,
       account: { id: p.bank_account_id, code: p.account_code }, reference: p.reference, reversed: p.reversed
     })),
-    creditNotes: credits.map(c => ({ id: c.id, amountMinor: c.amount_minor, reason: c.reason, status: c.status, createdAt: (c.created_at as Date).toISOString() }))
+    creditNotes: credits.map(c => ({
+      id: c.id, effect: c.effect as 'reduce_receivable' | 'refund_liability', refundId: (c.refund_id ?? null) as string | null,
+      amountMinor: c.amount_minor, reason: c.reason, status: c.status, createdAt: (c.created_at as Date).toISOString()
+    }))
   }
 }
 

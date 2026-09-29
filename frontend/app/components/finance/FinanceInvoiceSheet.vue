@@ -249,11 +249,11 @@ function openReason (kind: ReasonKind) {
             <li v-for="cn in inv.creditNotes" :key="cn.id" class="flex items-center justify-between gap-3 px-3 py-2.5">
               <span class="min-w-0">
                 <span class="block truncate" :class="cn.status === 'void' && 'text-muted-foreground line-through'">{{ cn.reason }}</span>
-                <span class="text-xs text-muted-foreground">{{ cn.status === 'void' ? 'Dibatalkan' : cn.id }}</span>
+                <span class="text-xs text-muted-foreground">{{ cn.status === 'void' ? 'Dibatalkan' : cn.effect === 'refund_liability' ? `Refund pembatalan · ${cn.refundId}` : cn.refundId ? `Dihapus karena pembatalan · ${cn.refundId}` : cn.id }}</span>
               </span>
               <span class="flex shrink-0 items-center gap-2">
                 <FinanceAmount :value="cn.amountMinor" direction="out" :muted="cn.status === 'void'" class="font-medium" />
-                <Button v-if="cn.status === 'issued' && canManage" variant="ghost" size="sm" class="h-7 px-2 text-xs" @click="openReason(`voidCredit:${cn.id}`)">
+                <Button v-if="cn.status === 'issued' && canManage && !cn.refundId" variant="ghost" size="sm" class="h-7 px-2 text-xs" @click="openReason(`voidCredit:${cn.id}`)">
                   Batalkan
                 </Button>
               </span>

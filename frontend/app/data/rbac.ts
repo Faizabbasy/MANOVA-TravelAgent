@@ -122,6 +122,8 @@ const SEED_CAPABILITIES: Record<string, RoleId[]> = {
   'project-order.advance-step': ['admin'],
   'project-order.close': ['admin'],
   'project-order.view-margin': ['admin', 'finance'],
+  'project-order.view-payment-status': ['admin', 'finance'],
+  'project-order.request-cancellation': ['admin', 'finance'],
   [serviceCapabilityKey('flight')]: ['admin'],
   [serviceCapabilityKey('hotel')]: ['admin'],
   [serviceCapabilityKey('transportation')]: ['admin'],

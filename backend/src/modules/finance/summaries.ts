@@ -4,6 +4,7 @@ import { errors } from '../../http/errors'
 import { todayBusinessDate } from './common'
 import { invoiceRowDto } from './receivables'
 import { vendorInvoiceDto } from './payables'
+import { activeCaseFor, type RefundSettlementState } from './refunds'
 
 /**
  * Finance context for other screens, computed from the same records as the Finance menus (no copies).
@@ -12,7 +13,7 @@ import { vendorInvoiceDto } from './payables'
  *  - status (project-order.view-payment-status: Admin)            — payment status WITHOUT any amount
  */
 
-export type PaymentStatus = 'not_invoiced' | 'awaiting_payment' | 'dp_received' | 'partially_paid' | 'up_to_date' | 'paid' | 'overdue'
+export type PaymentStatus = 'not_invoiced' | 'awaiting_payment' | 'dp_received' | 'partially_paid' | 'up_to_date' | 'paid' | 'overdue' | 'cancelled'
 
 const STATUS_LABEL: Record<PaymentStatus, string> = {
   not_invoiced: 'Belum ditagih',
@@ -21,7 +22,8 @@ const STATUS_LABEL: Record<PaymentStatus, string> = {
   partially_paid: 'Dibayar sebagian',
   up_to_date: 'Tagihan terbit sudah lunas',
   paid: 'Lunas',
-  overdue: 'Terlambat'
+  overdue: 'Terlambat',
+  cancelled: 'Dibatalkan'
 }
 
 interface InvoiceBalanceRow extends Record<string, any> {
@@ -68,6 +70,31 @@ function statusView(invoices: InvoiceBalanceRow[], today: string, moreToBill: bo
 }
 
 const sum = (rows: Record<string, any>[], key: string) => rows.reduce((s, r) => s + BigInt(r[key] ?? 0), 0n)
+
+/**
+ * A live cancellation case overrides the payment status ("Dibatalkan") everywhere, including for Admin. Full
+ * views add the refund figures; status views only the case state.
+ */
+function cancellationView (c: Record<string, any> | null, full: boolean) {
+  if (!c) return null
+  const settlement: RefundSettlementState = c.status !== 'approved' ? null
+    : BigInt(c.refundable_minor) === 0n ? 'none' : BigInt(c.outstanding_minor) === 0n ? 'settled' : BigInt(c.settled_minor) > 0n ? 'partial' : 'unpaid'
+  const base = { refundId: c.id as string, subjectType: c.subject_type as string, status: c.status as string, settlement, cancelDate: c.cancel_date as string }
+  if (!full) return base
+  return {
+    ...base,
+    refundableMinor: c.refundable_minor as string,
+    settledMinor: c.settled_minor as string,
+    outstandingMinor: c.outstanding_minor as string,
+    retainedMinor: c.retained_minor as string,
+    writtenOffMinor: c.written_off_minor as string
+  }
+}
+
+function withCancellation<T extends { paymentStatus: PaymentStatus; label: string; hasOverdue: boolean }> (status: T, c: Record<string, any> | null): T {
+  if (!c) return status
+  return { ...status, paymentStatus: 'cancelled', label: STATUS_LABEL.cancelled, hasOverdue: false }
+}
 
 const INVOICES_WITH_BALANCE = `
   select i.*, p.name as project_name, pa.name as party_name, b.paid_minor, b.credited_minor,
@@ -143,8 +170,9 @@ export async function projectFinanceSummary(db: Db, projectId: string, full: boo
   )
   if (!project) throw errors.notFound('Project')
   const invoices = await db.query<InvoiceBalanceRow>(`${INVOICES_WITH_BALANCE} where i.project_id = $1 and i.status <> 'void' order by i.due_date nulls last, i.id`, [projectId])
-  const status = statusView(invoices, today, await projectHasMoreToBill(db, projectId))
-  if (!full) return { projectId, view: 'status' as const, ...status }
+  const cancelled = await activeCaseFor(db, { type: 'project', id: projectId, projectId })
+  const status = withCancellation(statusView(invoices, today, cancelled ? false : await projectHasMoreToBill(db, projectId)), cancelled)
+  if (!full) return { projectId, view: 'status' as const, ...status, cancellation: cancellationView(cancelled, false) }
 
   const vendorInvoices = await db.query<Record<string, any>>(`${VENDOR_INVOICES_WITH_BALANCE} where v.project_id = $1 and v.status not in ('rejected', 'void') order by v.due_date, v.id`, [projectId])
   const [schedule] = await db.query<{ total: string }>(
@@ -153,10 +181,22 @@ export async function projectFinanceSummary(db: Db, projectId: string, full: boo
   const receivable = receivableTotals(invoices, today)
   const payable = payableTotals(vendorInvoices, today)
   const expenses = await projectExpenses(db, 't.project_id = $1', [projectId])
-  const revenue = BigInt(receivable.invoicedMinor) - BigInt(receivable.creditedMinor)
+  // Refunds granted on cancellation reduce revenue (refund_liability credit notes), never the receivable.
+  const [refundCredits] = await db.query<{ total: string }>(
+    `select coalesce(sum(c.amount_minor), 0) as total from credit_notes c join customer_invoices i on i.id = c.customer_invoice_id
+      where i.project_id = $1 and c.status = 'issued' and c.effect = 'refund_liability'`, [projectId]
+  )
+  const [refunds] = await db.query<{ open: string; outstanding: string }>(
+    `select count(*) filter (where r.status = 'requested' or (r.status = 'approved' and b.refundable_minor - b.settled_minor > 0)) as open,
+            coalesce(sum(b.refundable_minor - b.settled_minor) filter (where r.status = 'approved'), 0) as outstanding
+       from refunds r join v_refund_balances b on b.refund_id = r.id where r.project_id = $1`, [projectId]
+  )
+  const billed = BigInt(receivable.invoicedMinor) - BigInt(receivable.creditedMinor)
+  const revenue = billed - BigInt(refundCredits!.total)
   const cost = BigInt(payable.approvedMinor) + expenses
   const contract = project.contract_value_minor === null ? null : BigInt(project.contract_value_minor)
-  const uninvoiced = contract === null ? null : contract - revenue > 0n ? contract - revenue : 0n
+  // A cancelled project has nothing left to bill.
+  const uninvoiced = contract === null ? null : cancelled ? 0n : contract - billed > 0n ? contract - billed : 0n
   return {
     projectId,
     view: 'full' as const,
@@ -166,7 +206,10 @@ export async function projectFinanceSummary(db: Db, projectId: string, full: boo
     receivable: { ...receivable, uninvoicedMinor: uninvoiced?.toString() ?? null, scheduledNotInvoicedMinor: schedule!.total },
     payable,
     projectExpensesMinor: expenses.toString(),
-    /** Accrual view: revenue = invoiced − credit notes; cost = approved vendor invoices + project expenses. */
+    cancellation: cancellationView(cancelled, true),
+    /** Every refund case of the project (whole project or per booking): still to decide or to pay. */
+    refunds: { openCount: Number(refunds!.open), outstandingMinor: refunds!.outstanding, refundCreditedMinor: refundCredits!.total },
+    /** Accrual view: revenue = invoiced − credit notes − refunds granted; cost = approved vendor invoices + project expenses. */
     profitability: {
       revenueMinor: revenue.toString(),
       costMinor: cost.toString(),
@@ -192,8 +235,9 @@ export async function bookingFinanceSummary(db: Db, type: string, id: string, fu
   )
   const billedNet = invoices.filter(i => i.status === 'issued').reduce((s, i) => s + BigInt(i.total_minor) - BigInt(i.credited_minor), 0n)
   const moreToBill = Number(plannedForBooking!.n) > 0 || (booking.sell_amount_minor !== null && billedNet < BigInt(booking.sell_amount_minor))
-  const status = statusView(invoices, today, moreToBill)
-  if (!full) return { booking: { type, id }, projectId: booking.project_id, view: 'status' as const, ...status }
+  const cancelled = await activeCaseFor(db, { type: type as 'flight', id, projectId: booking.project_id })
+  const status = withCancellation(statusView(invoices, today, cancelled ? false : moreToBill), cancelled)
+  if (!full) return { booking: { type, id }, projectId: booking.project_id, view: 'status' as const, ...status, cancellation: cancellationView(cancelled, false) }
   const vendorInvoices = await db.query<Record<string, any>>(
     `${VENDOR_INVOICES_WITH_BALANCE} where v.booking_type = $1 and v.booking_id = $2 and v.status not in ('rejected', 'void') order by v.due_date, v.id`, [type, id]
   )
@@ -204,6 +248,7 @@ export async function bookingFinanceSummary(db: Db, type: string, id: string, fu
     ...status,
     sellAmountMinor: booking.sell_amount_minor,
     departureDate: booking.departure_date,
+    cancellation: cancellationView(cancelled, true),
     receivable: receivableTotals(invoices, today),
     payable: payableTotals(vendorInvoices, today),
     invoices: invoices.map(i => invoiceRowDto(i, today)),

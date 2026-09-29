@@ -14,7 +14,7 @@ let finance: string
 beforeAll(async () => {
   t = await makeTestApp()
   const result = await seedFinanceDemo(t.db, { appEnv: 'test' })
-  expect(result).toEqual({ skipped: false, accounts: 3, customerInvoices: 9, vendorInvoices: 5, transactions: 19 })
+  expect(result).toEqual({ skipped: false, accounts: 3, customerInvoices: 9, vendorInvoices: 5, transactions: 19, policies: 2 })
   finance = await t.login(DEMO.finance)
 })
 afterAll(() => t.cleanup())
@@ -68,7 +68,9 @@ describe('finance demo seed', () => {
   })
 
   test('runs once; refused in production', async () => {
-    expect((await seedFinanceDemo(t.db, { appEnv: 'test' })).skipped).toBe(true)
+    expect(await seedFinanceDemo(t.db, { appEnv: 'test' })).toMatchObject({ skipped: true, policies: 0 })
+    expect((await get('/finance/cancellation-policy/project/PRJ-201')).data.assignment).toMatchObject({ version: 1, snapshot: { code: 'STD-DP' } })
+    expect((await get('/finance/cancellation-policy/hotel/HTL-1022')).data.assignment.snapshot.code).toBe('HOTEL-FLEX')
     await expect(seedFinanceDemo(t.db, { appEnv: 'production' })).rejects.toBeInstanceOf(SeedRefusedError)
   })
 })

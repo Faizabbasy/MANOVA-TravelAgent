@@ -108,7 +108,7 @@ async function main() {
       const db = await openDb(config.databaseUrl)
       const result = await seedFinanceDemo(db, { appEnv: config.appEnv })
       console.log(result.skipped
-        ? 'Finance demo seed skipped: this database already has finance records.'
+        ? `Finance demo seed: finance records already exist${result.policies ? `; added ${result.policies} cancellation policies` : ''}.`
         : `Finance demo seed applied: ${JSON.stringify(result)}`)
       await db.close()
       return

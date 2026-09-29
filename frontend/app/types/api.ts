@@ -358,7 +358,8 @@ export interface CustomerInvoiceDetailDto extends CustomerInvoiceDto {
   billingSnapshot: { partyName: string; projectName: string } | null
   lines: { position: number; description: string; amountMinor: MoneyMinor }[]
   payments: InvoicePaymentDto[]
-  creditNotes: { id: string; amountMinor: MoneyMinor; reason: string; status: 'issued' | 'void'; createdAt: IsoDateTime }[]
+  /** `refund_liability` notes (and write-offs with a `refundId`) belong to a cancellation case and cannot be voided on their own. */
+  creditNotes: { id: string; effect: 'reduce_receivable' | 'refund_liability'; refundId: string | null; amountMinor: MoneyMinor; reason: string; status: 'issued' | 'void'; createdAt: IsoDateTime }[]
 }
 
 export interface VendorInvoiceDto {
@@ -431,8 +432,8 @@ export interface AdvanceDto {
   unallocatedMinor: MoneyMinor
 }
 
-/** 'paid' = everything billed and settled; 'up_to_date' = issued invoices settled but more still to bill. */
-export type ApiPaymentStatus = 'not_invoiced' | 'awaiting_payment' | 'dp_received' | 'partially_paid' | 'up_to_date' | 'paid' | 'overdue'
+/** 'paid' = everything billed and settled; 'up_to_date' = issued invoices settled but more still to bill; 'cancelled' = a live cancellation case. */
+export type ApiPaymentStatus = 'not_invoiced' | 'awaiting_payment' | 'dp_received' | 'partially_paid' | 'up_to_date' | 'paid' | 'overdue' | 'cancelled'
 
 /** What Admin receives (ADR-007 #3): status, never amounts. */
 export interface PaymentStatusView {
@@ -464,10 +465,32 @@ export interface PayableTotals {
   invoiceCount: number
 }
 
+/** What can be cancelled: a whole project or one booking. */
+export type ApiSubjectType = 'project' | ApiBookingType
+export type ApiRefundStatus = 'requested' | 'approved' | 'rejected'
+/** Derived for approved cases: nothing to pay / not paid / partly / fully paid. */
+export type ApiRefundSettlement = 'none' | 'unpaid' | 'partial' | 'settled' | null
+
 type FullView<T> = Omit<PaymentStatusView, 'view'> & { view: 'full' } & T
 
+/** Live cancellation of a project/booking (Phase 5). Admin gets the state; Finance also the figures. */
+export interface CancellationStatus {
+  refundId: string
+  subjectType: ApiSubjectType
+  status: ApiRefundStatus
+  settlement: ApiRefundSettlement
+  cancelDate: IsoDate
+}
+export interface CancellationFull extends CancellationStatus {
+  refundableMinor: MoneyMinor
+  settledMinor: MoneyMinor
+  outstandingMinor: MoneyMinor
+  retainedMinor: MoneyMinor
+  writtenOffMinor: MoneyMinor
+}
+
 export type ProjectFinanceSummaryDto =
-  | (PaymentStatusView & { projectId: string })
+  | (PaymentStatusView & { projectId: string; cancellation: CancellationStatus | null })
   | FullView<{
       projectId: string
       currency: string
@@ -475,19 +498,23 @@ export type ProjectFinanceSummaryDto =
       receivable: ReceivableTotals & { uninvoicedMinor: MoneyMinor | null; scheduledNotInvoicedMinor: MoneyMinor }
       payable: PayableTotals
       projectExpensesMinor: MoneyMinor
-      /** Accrual: revenue = invoiced − credit notes; cost = approved vendor invoices + project expenses. */
+      cancellation: CancellationFull | null
+      /** All refund cases of the project (whole project or per booking). */
+      refunds: { openCount: number; outstandingMinor: MoneyMinor; refundCreditedMinor: MoneyMinor }
+      /** Accrual: revenue = invoiced − credit notes − refunds granted; cost = approved vendor invoices + project expenses. */
       profitability: { revenueMinor: MoneyMinor; costMinor: MoneyMinor; grossProfitMinor: MoneyMinor; marginBasisPoints: number | null }
       invoices: CustomerInvoiceDto[]
       vendorInvoices: VendorInvoiceDto[]
     }>
 
 export type BookingFinanceSummaryDto =
-  | (PaymentStatusView & { booking: { type: ApiBookingType; id: string }; projectId: string })
+  | (PaymentStatusView & { booking: { type: ApiBookingType; id: string }; projectId: string; cancellation: CancellationStatus | null })
   | FullView<{
       booking: { type: ApiBookingType; id: string }
       projectId: string
       sellAmountMinor: MoneyMinor | null
       departureDate: IsoDate | null
+      cancellation: CancellationFull | null
       receivable: ReceivableTotals
       payable: PayableTotals
       invoices: CustomerInvoiceDto[]
@@ -584,3 +611,177 @@ export interface VendorPaymentResult {
   /** Kept as a vendor deposit. */
   unallocatedMinor: MoneyMinor
 }
+
+// ── Finance: cancellation policies, cancellations, refunds (Phase 5) ─────────────────────────────────
+
+/** Half-open interval of days before departure: minDays ≤ H < maxDays (null = unbounded). */
+export interface PolicyTier { minDays: number | null; maxDays: number | null; refundBp: number; forfeitBp: number }
+export type PolicyTierInput = Omit<PolicyTier, 'forfeitBp'>
+
+export interface CancellationPolicyDto {
+  id: string
+  code: string
+  version: number
+  name: string
+  description: string | null
+  /** null = every booking type and whole-project cancellations. */
+  bookingType: ApiBookingType | null
+  basis: 'paid_customer_deposit'
+  status: 'draft' | 'published' | 'inactive'
+  effectiveFrom: IsoDate
+  effectiveTo: IsoDate | null
+  tiers: PolicyTier[]
+  createdBy: string
+  createdAt: IsoDateTime
+  publishedBy: string | null
+  publishedAt: IsoDateTime | null
+  deactivatedAt: IsoDateTime | null
+  deactivationReason: string | null
+  usage: { assignments: number; cases: number } | null
+}
+
+export interface PolicyInput {
+  code?: string
+  name?: string
+  description?: string | null
+  bookingType?: ApiBookingType | null
+  effectiveFrom?: IsoDate
+  effectiveTo?: IsoDate | null
+  tiers?: PolicyTierInput[]
+}
+
+export interface PolicySnapshotDto {
+  policyId: string
+  code: string
+  name: string
+  version: number
+  basis: 'paid_customer_deposit'
+  bookingType: ApiBookingType | null
+  effectiveFrom: IsoDate
+  effectiveTo: IsoDate | null
+  tiers: PolicyTier[]
+}
+
+export interface PolicyAssignmentDto {
+  policyId: string
+  version: number
+  snapshot: PolicySnapshotDto
+  note: string | null
+  assignedBy: string
+  assignedAt: IsoDateTime
+}
+
+export interface CancellationSubjectDto {
+  type: ApiSubjectType
+  id: string
+  projectId: string
+  projectName: string
+  partyId: string
+  partyName: string
+  departureDate: IsoDate | null
+}
+
+interface CancellationPreviewBase {
+  subject: CancellationSubjectDto
+  cancelDate: IsoDate
+  /** H: calendar days from the cancel date to departure (Asia/Jakarta); negative after departure. */
+  daysBefore: number | null
+  policy: { id: string; code: string; name: string; version: number; basis: 'paid_customer_deposit'; tiers: PolicyTier[] } | null
+  tier: PolicyTier | null
+  /** False when the refund cannot be computed automatically (see blockers). */
+  canCalculate: boolean
+  blockers: { code: 'NO_POLICY' | 'NO_DEPARTURE_DATE' | 'ACTIVE_CASE' | 'OVERLAPPING_CASE'; message: string }[]
+  plannedBillingCount: number
+  draftInvoiceCount: number
+  writeOffInvoiceCount: number
+}
+
+export type CancellationPreviewDto =
+  | (CancellationPreviewBase & { view: 'status' })
+  | (CancellationPreviewBase & {
+      view: 'full'
+      /** DP actually received on the subject's invoices, minus earlier refunds. */
+      basisMinor: MoneyMinor
+      /** Paid on non-DP invoices — refundable only as an explained exception. */
+      otherPaidMinor: MoneyMinor
+      policyRefundMinor: MoneyMinor
+      retainedMinor: MoneyMinor
+      maxRefundableMinor: MoneyMinor
+      sourcePayments: { transactionId: string; invoiceId: string; invoiceNumber: string | null; invoiceType: ApiInvoiceType; effectiveDate: IsoDate; amountMinor: MoneyMinor }[]
+      writeOffs: { invoiceId: string; number: string | null; outstandingMinor: MoneyMinor }[]
+      writeOffMinor: MoneyMinor
+      unallocatedAdvanceMinor: MoneyMinor
+      vendorOpenCount: number
+      vendorOpenMinor: MoneyMinor
+    })
+
+export interface CancellationInput {
+  subjectType: ApiSubjectType
+  subjectId: string
+  cancelDate?: IsoDate
+  reason: string
+  calculation?: 'policy' | 'manual'
+  additionalRefundMinor?: MoneyMinor
+  additionalReason?: string
+  proposedRefundMinor?: MoneyMinor
+}
+
+interface RefundBase {
+  id: string
+  subject: { type: ApiSubjectType; id: string }
+  project: { id: string; name: string }
+  party: { id: string; name: string }
+  cancelDate: IsoDate
+  departureDate: IsoDate | null
+  daysBefore: number | null
+  calculation: 'policy' | 'manual'
+  policy: { id: string; code: string; name: string; version: number } | null
+  tier: PolicyTier | null
+  status: ApiRefundStatus
+  settlement: ApiRefundSettlement
+  reason: string
+  requestedBy: { id: string; name: string }
+  requestedAt: IsoDateTime
+  decidedBy: { id: string; name: string } | null
+  decidedAt: IsoDateTime | null
+  decisionNote: string | null
+  rejectReason: string | null
+}
+
+export type RefundStatusDto = RefundBase & { view: 'status' }
+
+export interface RefundDto extends RefundBase {
+  view: 'full'
+  basisMinor: MoneyMinor
+  otherPaidMinor: MoneyMinor
+  policyRefundMinor: MoneyMinor
+  additionalRefundMinor: MoneyMinor
+  additionalReason: string | null
+  refundableMinor: MoneyMinor
+  retainedMinor: MoneyMinor
+  writtenOffMinor: MoneyMinor
+  settledMinor: MoneyMinor
+  outstandingMinor: MoneyMinor
+  sourcePayments: { transactionId: string; invoiceId: string; invoiceNumber: string | null; invoiceType: ApiInvoiceType; effectiveDate: IsoDate; amountMinor: MoneyMinor }[]
+}
+
+export interface RefundDetailDto extends RefundDto {
+  settlements: { transactionId: string; effectiveDate: IsoDate; amountMinor: MoneyMinor; reference: string | null; recipient: string | null; account: { id: string; code: string }; reversed: boolean }[]
+  creditNotes: { id: string; effect: 'reduce_receivable' | 'refund_liability'; amountMinor: MoneyMinor; reason: string; status: 'issued' | 'void'; invoice: { id: string; number: string | null } }[]
+}
+
+export interface RefundList {
+  data: RefundDto[]
+  meta: ApiMeta & { pagination: ApiPagination; summary: { requestedCount: number; toPayCount: number; toPayMinor: MoneyMinor } }
+}
+
+export interface RefundSettlementInput {
+  bankAccountId: string
+  amountMinor: MoneyMinor
+  effectiveDate: IsoDate
+  recipient?: string
+  reference?: string
+  memo?: string
+}
+
+export interface RefundSettlementResult { transactionId: string; refundId: string; amountMinor: MoneyMinor; outstandingMinor: MoneyMinor }

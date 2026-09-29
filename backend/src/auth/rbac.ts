@@ -76,6 +76,8 @@ const CAPABILITY_GRANTS = {
   'project-order.view-margin': ['admin', 'finance'],
   /** ADR-007 #3: payment status without amounts (DP diterima / Lunas / Terlambat) on project, booking, vendor, customer. */
   'project-order.view-payment-status': ['admin', 'finance'],
+  /** Phase 5: cancel a booking/project and open its refund case (operations and Finance). Amounts stay Finance-only. */
+  'project-order.request-cancellation': ['admin', 'finance'],
   'project-order.manage-service.flight': ['admin'],
   'project-order.manage-service.hotel': ['admin'],
   'project-order.manage-service.transportation': ['admin'],

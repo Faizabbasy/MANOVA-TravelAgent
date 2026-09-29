@@ -94,7 +94,8 @@ export const PAYMENT_STATUS_TONE: Record<ApiPaymentStatus, BadgeTone> = {
   partially_paid: 'warning',
   up_to_date: 'info',
   paid: 'success',
-  overdue: 'destructive'
+  overdue: 'destructive',
+  cancelled: 'neutral'
 }
 
 export const SETTLEMENT_LABEL: Record<ApiSettlement, string> = {
