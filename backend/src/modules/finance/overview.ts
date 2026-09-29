@@ -32,7 +32,11 @@ export async function financeOverview(db: Db, full: boolean) {
   const caseByProject = new Map(cases.map(c => [c.project_id as string, c]))
 
   const byProject = new Map<string, InvoiceBalanceRow[]>()
-  for (const i of invoices) byProject.set(i.project_id, [...(byProject.get(i.project_id) ?? []), i])
+  for (const i of invoices) {
+    const rows = byProject.get(i.project_id)
+    if (rows) rows.push(i)
+    else byProject.set(i.project_id, [i])
+  }
 
   const projectIds = [...moreToBill.keys()].sort()
   const projects = projectIds.map((projectId) => {
@@ -78,13 +82,16 @@ export async function financeOverview(db: Db, full: boolean) {
   return {
     view: 'full' as const,
     asOf: today,
-    projects: projects.map(p => ({
-      ...p,
-      costMinor: costByProject.get(p.projectId) ?? '0',
-      revenueMinor: (sum(issued.filter(i => (i as { project_id: string }).project_id === p.projectId), 'total_minor') - (creditByProject.get(p.projectId) ?? 0n)).toString(),
-      receivedMinor: sum(issued.filter(i => (i as { project_id: string }).project_id === p.projectId), 'paid_minor').toString(),
-      outstandingMinor: sum(open.filter(i => (i as { project_id: string }).project_id === p.projectId), 'outstanding_minor').toString()
-    })),
+    projects: projects.map((p) => {
+      const projectIssued = (byProject.get(p.projectId) ?? []).filter(i => i.status === 'issued')
+      return {
+        ...p,
+        costMinor: costByProject.get(p.projectId) ?? '0',
+        revenueMinor: (sum(projectIssued, 'total_minor') - (creditByProject.get(p.projectId) ?? 0n)).toString(),
+        receivedMinor: sum(projectIssued, 'paid_minor').toString(),
+        outstandingMinor: sum(projectIssued.filter(i => BigInt(i.outstanding_minor) > 0n), 'outstanding_minor').toString()
+      }
+    }),
     cash: { available: cash.available, reason: cash.reason, totalMinor: cash.totalMinor },
     forecast: forecast.available
       ? { available: true as const, periodEnd: forecast.periodEnd, closingMinor: forecast.closingMinor, gap: gap ? { date: gap.date, balanceMinor: gap.balanceMinor } : null }
