@@ -1,215 +1,81 @@
-HASIL UJI NON-TEKNIS MODUL FINANCE - MANOVA
-===========================================
-Tanggal uji     : 30 September 2026
-Lingkungan      : Lokal / demo (http://localhost:8080), data demo
-Penguji manual  : Syafiq Saputra
-Pemeriksaan     : Claude Code (cek ulang lewat API dan browser Chrome otomatis)
-Akun uji        : Super Admin  admin@manova.id
-                  Admin        doni.saputra@manova.id (kartu login "Admin")
-                               rani.kusuma@manova.id (login email + sandi)
-                  Finance      budi.santoso@manova.id
-                  Sandi semua akun: manova-demo
-
-Keterangan status:
-  OK          = sesuai harapan
-  GAGAL       = penguji menemukan hasil yang tidak sesuai
-  CATATAN     = berjalan, tetapi ada masukan
-  BELUM DIUJI = bagian belum dijalankan
+HASIL UJI MODUL FINANCE - MANOVA
+Tanggal : 30 September 2026
+Tempat  : Lokal / data demo (http://localhost:8080)
+Penguji : Syafiq Saputra (manual), dicek ulang oleh Claude Code
 
 
 RINGKASAN
 ---------
-Bagian                          OK   Gagal   Catatan
-1. Login & hak akses             5     1        -
-2. Ringkasan Finance             3     -        -
-3. Rekening & Saldo              2     -        1
-4. Piutang Customer              2     2        -
-5. Utang Vendor                  3     -        -
-6. Transfer antar rekening       2     -        1
-7. Pembatalan & Refund           3     -        -
-8. Mutasi Rekening               3     -        -
-9. Cash Flow                     3     -        -
-10. Modul non-Finance              BELUM DIUJI
-11. Tampilan & kenyamanan          BELUM DIUJI
+Bagian                     OK   Gagal   Catatan
+1. Login & hak akses        5     1       -
+2. Ringkasan Finance        3     -       -
+3. Rekening & Saldo         2     -       1
+4. Piutang Customer         2     2       -
+5. Utang Vendor             3     -       -
+6. Transfer rekening        2     -       1
+7. Pembatalan & Refund      3     -       -
+8. Mutasi Rekening          3     -       -
+9. Cash Flow                3     -       -
+10. Modul non-Finance      belum diuji
+11. Tampilan               belum diuji
 
-Hasil pemeriksaan ulang: dari 3 temuan GAGAL, belum ada satu pun yang bisa
-direproduksi. Belum ada perubahan kode. Detail di bawah.
-
-
-1. LOGIN & HAK AKSES
---------------------
-1.1 Login pakai tiap akun, nama dan role tampil benar ........... OK
-1.2 Sandi salah ditolak dengan pesan jelas ...................... OK
-1.3 Admin: menu Finance tidak muncul, dan mengetik /finance
-    langsung di address bar harus ditolak ....................... GAGAL
-    Kata penguji   : "tidak ditolak".
-    Pemeriksaan    : TIDAK BISA DIREPRODUKSI.
-      - Di Chrome, 5 cara login Admin dicoba: kartu login Admin;
-        Super Admin -> logout -> Admin; Finance -> logout -> Admin;
-        login email + sandi; pindah ke Finance dari dalam aplikasi.
-        Kelimanya dialihkan ke Beranda dengan pesan "Akses ditolak".
-        Saldo Finance tidak tampil.
-      - Dengan sesi Admin, 15 alamat halaman Finance dicoba satu per
-        satu. Semuanya ditolak.
-      - Server menolak data Finance untuk Admin (kode 403). Satu-
-        satunya pengecualian: status pembayaran project TANPA
-        nominal. Itu memang disengaja.
-    Dugaan         : kartu yang diklik "Admin MANOVA", padahal itu
-                     Super Admin (boleh membuka Finance). Kartu Admin
-                     atas nama Doni Saputra.
-    Perlu dari penguji: screenshot saat gagal (nama + role di sidebar
-                     terlihat) dan urutan klik dari login.
-1.4 Finance: menu Finance terbuka, modul lain hanya lihat ....... OK
-1.5 Super Admin: semua menu terbuka ............................. OK
-1.6 Logout lalu tekan Back, halaman tidak terbuka ............... OK
-    Catatan penguji: sempat kembali ke halaman sebelumnya, lalu
-    langsung dialihkan ke halaman login. Hasil akhir sudah benar.
+Kesimpulan: 3 temuan gagal belum bisa diulang saat dicek.
+Belum ada perubahan kode.
 
 
-2. RINGKASAN FINANCE (login Finance)
-------------------------------------
-2.1 Saldo kas hari ini tampil per rekening ...................... OK
-2.2 Kotak "Perlu perhatian" masuk akal dan link-nya tepat ....... OK
-2.3 Daftar transaksi terakhir muncul ............................ OK
-
-
-3. REKENING & SALDO
--------------------
-3.1 Jumlah saldo semua rekening = total kas di Ringkasan ........ OK
-    Catatan penguji: sistem menampilkan 1.300.847.500, sedangkan
-    kalkulator menampilkan 1,300848e9.
-    Pemeriksaan    : BUKAN MASALAH. "1,300848e9" adalah cara
-    kalkulator menulis angka besar (notasi ilmiah, dibulatkan).
-    Nilainya sama dengan Rp 1.300.847.500.
-3.2 Detail rekening dan riwayat uang masuk/keluar ............... OK
-
-
-4. PIUTANG CUSTOMER
--------------------
-4.1 Buat invoice: piutang muncul sekali, saldo kas BELUM
-    bertambah ................................................... GAGAL
-    Kata penguji   : "saldo kasnya malah bertambah".
-    Pemeriksaan    : TIDAK BISA DIREPRODUKSI.
-      - Satu invoice uji Rp 1.000.000 dibuat untuk project Korea
-        Incentive Trip 2026, diterbitkan, lalu dibatalkan (void).
-        Saldo kas tetap Rp 1.219.841.000 di semua tahap: sebelum,
-        setelah draft, setelah terbit, dan setelah void.
-      - Di Ringkasan ada dua angka yang MEMANG naik saat invoice
-        terbit: "Perkiraan saldo 30 hari lagi" dan "Tagihan
-        customer belum dibayar". Keduanya benar. Angka yang harus
-        tetap adalah angka besar di atas, "Saldo tersedia per ...".
-    Perlu dari penguji: judul kartu yang naik, angka sebelum dan
-                     sesudah, serta screenshot.
-    Sisa pemeriksaan: invoice uji INV-2026-00044 (CINV-00045) ada di
-                     daftar invoice berstatus void. Tidak memengaruhi
-                     saldo.
-4.2 Catat DP sebagian: piutang turun, saldo rekening naik ....... OK
-4.3 Catat pelunasan: status jadi lunas .......................... OK
-4.4 Isi nominal melebihi sisa tagihan ........................... GAGAL
-    Pemeriksaan    : KEMUNGKINAN SALAH INSTRUKSI.
-      - Instruksi awal ("sistem harus menolak") keliru dan sudah
-        diralat. Aturan yang benar:
-          A. Uang masuk lebih besar dari tagihan -> DITERIMA,
-             kelebihannya dicatat sebagai uang muka customer.
-          B. Alokasi ke satu invoice melebihi sisa tagihannya ->
-             DITOLAK ("Melebihi sisa tagihan").
-          C. Total alokasi melebihi uang yang masuk -> DITOLAK
-             ("Alokasi melebihi nominal").
-      - Server sudah menolak kasus B dan C. Layar juga menampilkan
-        pesan merah dan tombol simpan tidak bisa diklik.
-    Perlu dari penguji: tes mana yang gagal (A, B, atau C) dan
-                     screenshot.
-
-
-5. UTANG VENDOR
----------------
-5.1 Invoice vendor disetujui: utang muncul, kas belum turun ..... OK
-5.2 Bayar sebagian: utang dan saldo turun sesuai nominal ........ OK
-5.3 Klik bayar dua kali cepat, tidak tercatat ganda ............. OK
-
-
-6. TRANSFER ANTAR REKENING
---------------------------
-6.1 Transfer A -> B dengan biaya: total kas hanya turun
-    sebesar biaya ............................................... OK
-6.2 Transfer B -> A dengan biaya berbeda ........................ OK
-    Catatan penguji: beberapa bank belum dikenakan biaya transfer.
-    Pemeriksaan    : PENGATURAN DATA, BUKAN BUG.
-      - Saat ini baru ada 1 aturan biaya: BCA-OPS -> MDR-VENDOR,
-        Rp 6.500 (BI-FAST).
-      - Arah lain belum punya aturan. Form transfer menampilkan
-        "Belum ada aturan biaya untuk arah ..." dan biaya bisa
-        diisi manual.
-      - Tindak lanjut: tambah aturan di Rekening & Saldo -> Biaya
-        transfer, sesuai tarif bank yang berlaku.
-
-
-7. PEMBATALAN & REFUND
-----------------------
-7.1 Batal booking/project yang sudah DP: persentase refund
-    sesuai kebijakan ............................................ OK
-7.2 Refund disetujui: saldo kas belum berkurang ................. OK
-7.3 Refund dibayar: saldo berkurang tepat satu kali ............. OK
-
-Penjelasan yang disepakati saat pengujian:
-  - Kebijakan demo "Standar DP perjalanan" (STD-DP):
-      H-30 atau lebih awal  : refund 100%
-      H-14 s/d H-29         : refund 50%
-      H-7  s/d H-13         : refund 30%
-      H-1  s/d H-6          : refund 0%
-      Hari berangkat/sesudah: refund 0%
-    Booking hotel memakai kebijakan "Hotel fleksibel":
-      H-7 atau lebih awal 100%, H-3 s/d H-6 50%, di bawah H-3 0%.
-  - Membatalkan TIDAK mengurangi kas. Kas baru berkurang saat Finance
-    menekan "Bayar refund". Ini disengaja supaya saldo sistem selalu
-    sama dengan saldo bank.
-  - Bagian yang hangus sudah ada di kas sejak DP diterima. Contoh:
-    DP Rp 20 juta, batal H-7 -> refund Rp 6 juta keluar, Rp 14 juta
-    tetap di kas. Tidak ada transaksi tambahan "uang hangus masuk".
-    Rp 14 juta itu tetap terhitung sebagai pendapatan project.
-
-
-8. MUTASI REKENING
-------------------
-8.1 Semua uang masuk/keluar dari bagian 4-7 tercatat, dengan
-    tanggal dan nominal benar ................................... OK
-8.2 Filter dan pencarian bekerja, termasuk pesan "tidak ada data" OK
-8.3 Reversal: transaksi asli tetap terlihat, saldo kembali ...... OK
-
-
-9. CASH FLOW
+TEMUAN GAGAL
 ------------
-9.1 Periode 30 hari, 3, 6, 12 bulan konsisten ................... OK
-9.2 Tagihan yang sudah dibayar tidak terhitung dua kali ......... OK
-9.3 Peringatan muncul bila saldo diperkirakan minus ............. OK
+1.3  Admin bisa membuka /finance lewat address bar
+     Hasil cek : Tidak terulang. 5 cara login Admin dicoba di Chrome,
+                 semuanya ditolak ("Akses ditolak").
+     Dugaan    : Yang diklik kartu "Admin MANOVA" (itu Super Admin).
+                 Kartu Admin atas nama Doni Saputra.
+
+4.1  Saldo kas bertambah saat membuat invoice
+     Hasil cek : Tidak terulang. Invoice uji dibuat, diterbitkan, lalu
+                 dibatalkan; saldo kas tetap Rp 1.219.841.000.
+     Dugaan    : Yang naik kartu "Perkiraan saldo 30 hari lagi" atau
+                 "Tagihan customer belum dibayar". Itu memang benar.
+                 Yang harus tetap adalah angka "Saldo tersedia".
+     Catatan   : Invoice uji INV-2026-00044 tersisa berstatus void.
+
+4.4  Nominal melebihi sisa tagihan
+     Hasil cek : Kemungkinan karena instruksi awal keliru.
+     Aturan    : - Uang masuk > tagihan  -> diterima, sisanya jadi
+                   uang muka customer.
+                 - Alokasi > sisa tagihan -> ditolak.
+                 - Total alokasi > uang masuk -> ditolak.
 
 
-10. MODUL NON-FINANCE ............................. BELUM DIUJI
-11. TAMPILAN & KENYAMANAN .......................... BELUM DIUJI
+CATATAN (BUKAN BUG)
+-------------------
+1.6  Setelah logout lalu Back, sempat kembali sebentar sebelum
+     dialihkan ke login. Hasil akhir sudah benar.
+3.1  "1,300848e9" di kalkulator = 1.300.847.500. Angka sistem benar.
+6.2  Baru ada 1 aturan biaya transfer (BCA-OPS -> MDR-VENDOR,
+     Rp 6.500). Arah lain perlu ditambahkan di Rekening & Saldo ->
+     Biaya transfer; sementara biaya bisa diisi manual.
 
 
-PERTANYAAN LAIN SELAMA PENGUJIAN
---------------------------------
-Apakah sistem sudah punya RAB (Rencana Anggaran Biaya)?
-  Belum ada modul khusus RAB. Fitur yang paling mendekati:
-    - Cost Sheet (Sales -> Produk & Costing): rincian biaya per pax,
-      cadangan, markup, pajak, harga jual, margin. Masih data contoh
-      di browser, belum tersimpan di server.
-    - BOQ untuk event MICE, dan angka "Budget" tunggal di Project
-      Order. Keduanya masih data contoh.
-    - Grafik Budget vs Actual di Dashboard. Masih data contoh.
-  Yang belum ada: RAB per project yang tersimpan permanen dan otomatis
-  dibandingkan dengan pengeluaran nyata di Finance.
-  Menunggu keputusan: RAB yang dimaksud untuk menyusun harga
-  penawaran, atau untuk memantau anggaran vs realisasi project?
+INFO PENTING
+------------
+Refund
+- Cancel tidak mengurangi kas. Kas baru turun saat "Bayar refund".
+- Bagian yang hangus sudah ada di kas sejak DP masuk.
+  Contoh: DP Rp 20 jt, batal H-7 (refund 30%) -> Rp 6 jt keluar,
+  Rp 14 jt tetap di kas.
+- Kebijakan demo STD-DP: H-30+ 100% | H-14..29 50% | H-7..13 30% |
+  di bawah H-7 0%.
+
+RAB
+- Belum ada modul RAB. Yang mendekati: Cost Sheet (Sales -> Produk &
+  Costing), masih data contoh dan belum tersimpan di server.
 
 
 TINDAK LANJUT
 -------------
-1. Penguji mengirim screenshot dan urutan klik untuk 1.3, 4.1, dan
-   4.4. Setelah bisa direproduksi, bug diperbaiki dan diberi tes
-   otomatis.
-2. Finance menyiapkan daftar tarif biaya transfer per arah bank
-   (bagian 6.2) untuk dimasukkan ke aturan.
-3. Menjalankan bagian 10 (modul non-Finance) dan 11 (tampilan).
-4. Memutuskan kebutuhan RAB.
+1. Penguji kirim screenshot + urutan klik untuk 1.3, 4.1, 4.4.
+2. Finance kirim tarif biaya transfer per arah bank.
+3. Uji bagian 10 dan 11.
+4. Putuskan RAB: untuk harga penawaran, atau pantau anggaran vs
+   realisasi project?
