@@ -1,16 +1,16 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { format, addMonths, parseISO } from 'date-fns'
-import { ChevronLeft, ChevronRight, CalendarDays, AlertTriangle, MapPin } from 'lucide-vue-next'
+import { format, addMonths, addDays, addWeeks, startOfWeek, eachDayOfInterval, parseISO } from 'date-fns'
+import { id as localeId } from 'date-fns/locale'
+import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle, CalendarClock, CalendarRange, Plus } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
-import { useScheduleEvents, SCHEDULE_KIND_META, type ScheduleEventKind } from '~/composables/useScheduleEvents'
-import { PLANNING_PINS, getPinsByProject, createPlanningPin, removePlanningPin } from '~/data/geo'
-import { PROJECTS, getProjectById } from '~/data'
+import { useScheduleEvents, SCHEDULE_KIND_META, TONE_DOT, type ScheduleEventKind, type ScheduleEvent } from '~/composables/useScheduleEvents'
+import { PROJECTS, getProjectById, createItineraryItem } from '~/data'
 import { formatDate } from '~/utils/format'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 
-/** Menu Operations > Kalender (Penyederhanaan 7-Role/Menu). Dulu `/operations/calendar`, sempat jadi
- * section di `/bookings` bersama Bookings/Exceptions, sekarang halaman tersendiri lagi — logika tidak diubah. */
+/** Menu Operasional > Kalender. Dulu satu halaman bertab bareng "Perencanaan Peta" (`ProjectPlanningPanel`
+ * sekarang) — dipisah jadi menu sidebar sendiri-sendiri per permintaan, supaya keduanya independen. */
 
 const { canView, can } = usePermissions()
 const { showToast } = useToast()
@@ -20,11 +20,18 @@ const canManage = computed(() => can('project-order.manage-operations'))
 
 const { events } = useScheduleEvents()
 
-const refreshKey = ref(0)
-const innerTab = ref<'calendar' | 'map'>('calendar')
+const isMobile = useIsMobile()
+/** Grid bulan (7 kolom) terlalu sempit di layar HP — default ke tampilan Hari Ini di mobile, tetap "month" di desktop. */
+const viewMode = ref<'day' | 'week' | 'month'>(isMobile.value ? 'day' : 'month')
 const month = ref(DEMO_REFERENCE_DATE.slice(0, 7))
 const selectedDate = ref(DEMO_REFERENCE_DATE)
 const kindFilter = ref<'all' | ScheduleEventKind>('all')
+
+const VIEW_MODES: { value: 'day' | 'week' | 'month'; label: string; icon: typeof CalendarDays }[] = [
+  { value: 'day', label: 'Hari Ini', icon: CalendarClock },
+  { value: 'week', label: 'Minggu Ini', icon: CalendarRange },
+  { value: 'month', label: 'Bulan Ini', icon: CalendarDays }
+]
 
 const filteredEvents = computed(() =>
   (kindFilter.value === 'all' ? events.value : events.value.filter(event => event.kind === kindFilter.value)))
@@ -40,179 +47,540 @@ const kindCounts = computed(() => (Object.keys(SCHEDULE_KIND_META) as ScheduleEv
   count: monthEvents.value.filter(event => event.kind === kind).length
 })))
 
-function shiftMonth (offset: number) {
+const weekStart = computed(() => format(startOfWeek(parseISO(selectedDate.value), { weekStartsOn: 1 }), 'yyyy-MM-dd'))
+
+/** Jadwal seminggu digrup per hari untuk card detail sisi kanan — hanya hari yang benar-benar ada jadwal, urut tanggal lalu jam. */
+const weekDayGroups = computed(() => {
+  const start = parseISO(weekStart.value)
+  return eachDayOfInterval({ start, end: addDays(start, 6) })
+    .map((date) => {
+      const iso = format(date, 'yyyy-MM-dd')
+      return {
+        iso,
+        label: format(date, 'EEEE, d MMM', { locale: localeId }),
+        events: filteredEvents.value
+          .filter(event => event.date === iso)
+          .sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
+      }
+    })
+    .filter(day => day.events.length > 0)
+})
+
+/** Jadwal sebulan digrup per hari untuk card detail sisi kanan — pola sama `weekDayGroups`, hanya hari yang ada jadwal. */
+const monthDayGroups = computed(() => {
+  const byDate = new Map<string, typeof monthEvents.value>()
+  for (const event of monthEvents.value) {
+    if (!byDate.has(event.date)) { byDate.set(event.date, []) }
+    byDate.get(event.date)!.push(event)
+  }
+  return [...byDate.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([date, dayEvents]) => ({
+      iso: date,
+      label: format(parseISO(date), 'EEEE, d MMM', { locale: localeId }),
+      events: dayEvents.sort((a, b) => (a.time ?? '').localeCompare(b.time ?? ''))
+    }))
+})
+
+/** Card detail sisi kanan: Hari -> daftar tunggal tanggal terpilih, Minggu/Bulan -> digrup per hari (hanya hari mode itu, day mode punya card sendiri). */
+const sideDayGroups = computed(() => (viewMode.value === 'week' ? weekDayGroups.value : monthDayGroups.value))
+const sideEventCount = computed(() => sideDayGroups.value.reduce((total, day) => total + day.events.length, 0))
+/** Grup per tanggal (permintaan: "harusnya bisa di collapse") — default terbuka semua, klik header tanggal untuk collapse/expand. Key-nya `day.iso`, di-reset otomatis begitu view/bulan/minggu ganti karena `Set` baru dibuat tiap kali (bukan persist lintas navigasi). */
+const collapsedDays = ref(new Set<string>())
+function toggleDayCollapsed (iso: string) {
+  const next = new Set(collapsedDays.value)
+  if (next.has(iso)) { next.delete(iso) } else { next.add(iso) }
+  collapsedDays.value = next
+}
+const sideTitle = computed(() => (viewMode.value === 'week' ? 'Minggu Ini' : 'Bulan Ini'))
+const sideRangeNoun = computed(() => (viewMode.value === 'week' ? 'minggu' : 'bulan'))
+
+/** Baris meta ke-2 di card list event (padet, satu baris) — `detail` sumbernya beda-beda per kind
+ * (mis. milestone = nama project, maintenance = vendor, itinerary = waktu/lokasi). Nama project ditempel
+ * di belakang kalau `detail` BUKAN nama project itu sendiri (mis. milestone), supaya tidak dobel tampil
+ * seperti sebelumnya (dulu ada baris link terpisah "Nama Project →" di bawah `detail` yang sering sama persis). */
+function eventMetaLine (event: ScheduleEvent): string {
+  const projectName = event.projectId ? getProjectById(event.projectId)?.name : undefined
+  const parts = [event.detail, projectName && projectName !== event.detail ? projectName : undefined]
+  return parts.filter(Boolean).join(' · ')
+}
+
+const rangeLabel = computed(() => {
+  if (viewMode.value === 'day') { return format(parseISO(selectedDate.value), 'd MMMM yyyy', { locale: localeId }) }
+  if (viewMode.value === 'week') {
+    const start = parseISO(weekStart.value)
+    return `${format(start, 'd MMM', { locale: localeId })} – ${format(addDays(start, 6), 'd MMM yyyy', { locale: localeId })}`
+  }
+  return format(parseISO(`${month.value}-01`), 'MMMM yyyy', { locale: localeId })
+})
+
+/** Set mode kalender + loncat anchor ke hari/minggu/bulan berjalan — pola sama shortcut "Today" di Google Calendar. */
+function setViewMode (mode: 'day' | 'week' | 'month') {
+  viewMode.value = mode
+  selectedDate.value = DEMO_REFERENCE_DATE
+  month.value = DEMO_REFERENCE_DATE.slice(0, 7)
+}
+
+function shiftView (offset: number) {
+  if (viewMode.value === 'day') {
+    selectedDate.value = format(addDays(parseISO(selectedDate.value), offset), 'yyyy-MM-dd')
+    return
+  }
+  if (viewMode.value === 'week') {
+    selectedDate.value = format(addWeeks(parseISO(selectedDate.value), offset), 'yyyy-MM-dd')
+    return
+  }
   month.value = format(addMonths(parseISO(`${month.value}-01`), offset), 'yyyy-MM')
 }
 
-/* Map perencanaan */
-const mapProjectId = ref<'all' | string>('all')
-const mapPins = computed(() => {
-  void refreshKey.value
-  return mapProjectId.value === 'all' ? [...PLANNING_PINS] : getPinsByProject(mapProjectId.value)
-})
+/** "Tambah Acara" (menu Kalender, lintas-project) — bikin `ItineraryItem` sama seperti "Tambah Jadwal" di
+ * tab Kalender per-project, hanya ditambah pilih Project dulu karena di sini belum ada project context. */
+const isAddEventOpen = ref(false)
+const addEventForm = ref({ projectId: '', date: '', time: '', title: '', location: '', description: '' })
 
-function onAddPin (payload: { label: string; lat: number; lng: number }) {
-  const scoped = mapProjectId.value === 'all' ? undefined : mapProjectId.value
-  const order = mapPins.value.length + 1
-  createPlanningPin({ ...payload, projectId: scoped, order })
-  refreshKey.value += 1
-  showToast('Pin ditambahkan', `${payload.label} disematkan di peta perencanaan.`, 'success')
+function openAddEvent () {
+  addEventForm.value = { projectId: '', date: selectedDate.value, time: '', title: '', location: '', description: '' }
+  isAddEventOpen.value = true
 }
 
-function onRemovePin (pinId: string) {
-  removePlanningPin(pinId)
-  refreshKey.value += 1
+function submitAddEvent () {
+  if (!addEventForm.value.projectId || !addEventForm.value.date || !addEventForm.value.title.trim()) { return }
+  createItineraryItem({
+    projectId: addEventForm.value.projectId,
+    date: addEventForm.value.date,
+    time: addEventForm.value.time.trim() || undefined,
+    title: addEventForm.value.title.trim(),
+    location: addEventForm.value.location.trim() || undefined,
+    description: addEventForm.value.description.trim() || undefined,
+    visibleToClient: true
+  })
+  isAddEventOpen.value = false
+  showToast('Jadwal Ditambahkan', `"${addEventForm.value.title}" berhasil dicatat di kalender.`, 'success')
+}
+
+/** Klik kotak tanggal di grid Bulan/Minggu buka slide-over kanan berisi SEMUA jadwal tanggal itu sekaligus
+ * (bukan satu-satu per item) — pola sama LeadDetailSheet (`components/sales`), disesuaikan jadi list
+ * ringkas per jadwal, tiap baris link ke project-nya masing-masing. */
+const isDaySheetOpen = ref(false)
+const daySheetDate = ref<string | null>(null)
+const daySheetEvents = computed(() => (daySheetDate.value ? filteredEvents.value.filter(event => event.date === daySheetDate.value) : []))
+function openDaySheet (dateIso: string) {
+  selectedDate.value = dateIso
+  daySheetDate.value = dateIso
+  isDaySheetOpen.value = true
+}
+const daySheetLabel = computed(() => (daySheetDate.value ? format(parseISO(daySheetDate.value), 'EEEE, d MMMM yyyy', { locale: localeId }) : ''))
+
+/** Klik baris jadwal (yang punya `projectId`) langsung ke detail project-nya. Dulu dicoba lewat
+ * `<component :is="event.projectId ? 'NuxtLink' : 'div'">`, tapi resolusi komponen dinamis via string
+ * tidak jalan di sini — diganti `@click` + `navigateTo` yang pasti jalan. */
+function goToProject (projectId?: string) {
+  if (!projectId) { return }
+  isDaySheetOpen.value = false
+  navigateTo(`/project-orders/${projectId}`)
 }
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4">
     <RoleAccessState v-if="!hasAccess" module-label="modul Operations & Scheduling" />
 
     <template v-else>
-      <div
-        v-if="attentionEvents.length"
-        class="rounded-lg border border-destructive/40 bg-destructive/5 px-4 py-3 flex gap-2"
-      >
-        <AlertTriangle class="h-4 w-4 text-destructive shrink-0 mt-0.5" />
-        <div>
-          <p class="text-sm font-medium text-foreground">
-            {{ attentionEvents.length }} jadwal butuh perhatian
+      <!-- Desktop/tablet — tidak diubah. -->
+      <div class="hidden sm:flex flex-wrap items-center justify-between gap-3">
+        <div class="flex flex-wrap items-center gap-3">
+          <div class="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
+            <Button variant="ghost" size="sm" class="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" @click="shiftView(-1)">
+              <ChevronLeft class="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" class="h-8 w-8 p-0 text-muted-foreground hover:text-foreground" @click="shiftView(1)">
+              <ChevronRight class="h-4 w-4" />
+            </Button>
+          </div>
+
+          <div class="flex items-center gap-0.5 rounded-lg bg-muted p-0.5">
+            <button
+              v-for="mode in VIEW_MODES"
+              :key="mode.value"
+              type="button"
+              :class="cn(
+                'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-all',
+                viewMode === mode.value
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              )"
+              @click="setViewMode(mode.value)"
+            >
+              <component :is="mode.icon" class="h-3.5 w-3.5" />
+              {{ mode.label }}
+            </button>
+          </div>
+
+          <p class="hidden text-sm font-semibold capitalize text-foreground sm:block">
+            {{ rangeLabel }}
           </p>
-          <p class="text-xs text-muted-foreground mt-0.5">
-            Milestone terlambat dan maintenance yang sudah melewati jadwalnya ditandai merah di kalender.
+
+          <select v-model="kindFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+            <option value="all">
+              Semua Jenis Jadwal
+            </option>
+            <option v-for="entry in kindCounts" :key="entry.kind" :value="entry.kind">
+              {{ entry.meta.label }} ({{ entry.count }})
+            </option>
+          </select>
+        </div>
+
+        <Sheet v-if="canManage" v-model:open="isAddEventOpen">
+          <SheetTrigger as-child>
+            <Button size="sm" @click="openAddEvent">
+              <Plus class="h-4 w-4 mr-1.5" />Tambah Acara
+            </Button>
+          </SheetTrigger>
+          <SheetContent :side="isMobile ? 'bottom' : 'right'" :class="isMobile ? 'max-h-[85vh] overflow-y-auto rounded-t-2xl' : 'w-full sm:max-w-lg overflow-y-auto'">
+            <SheetHeader>
+              <SheetTitle>Tambah Acara</SheetTitle>
+              <SheetDescription>Jadwal baru untuk salah satu project (itinerary item).</SheetDescription>
+            </SheetHeader>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="event-project">Project</Label>
+                <select id="event-project" v-model="addEventForm.projectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="" disabled>
+                    Pilih project...
+                  </option>
+                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                    {{ project.name }}
+                  </option>
+                </select>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="event-date">Tanggal</Label>
+                  <Input id="event-date" v-model="addEventForm.date" type="date" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="event-time">Waktu (opsional)</Label>
+                  <Input id="event-time" v-model="addEventForm.time" type="time" />
+                </div>
+              </div>
+              <div class="space-y-1.5">
+                <Label for="event-title">Judul</Label>
+                <Input id="event-title" v-model="addEventForm.title" placeholder="mis. Penjemputan Bandara" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="event-location">Lokasi (opsional)</Label>
+                <Input id="event-location" v-model="addEventForm.location" placeholder="mis. Terminal 3, Bandara Soekarno-Hatta" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="event-description">Deskripsi (opsional)</Label>
+                <textarea id="event-description" v-model="addEventForm.description" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+            </div>
+            <SheetFooter class="mt-6 flex-row justify-end gap-2">
+              <Button variant="outline" @click="isAddEventOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!addEventForm.projectId || !addEventForm.date || !addEventForm.title.trim()" @click="submitAddEvent">
+                Simpan
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      </div>
+
+      <!-- Mobile — satu kartu toolbar (nav tanggal + segmented control Hari/Minggu/Bulan + filter jenis
+           jadwal sebagai chip yang bisa discroll), bukan kontrol lepas di background halaman. "Tambah
+           Acara" jadi FAB melayang di atas bottom nav, bukan tombol yang ikut wrap. -->
+      <div class="space-y-3 rounded-2xl border border-border bg-card p-3 shadow-sm sm:hidden">
+        <div class="flex items-center gap-2">
+          <button type="button" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted" @click="shiftView(-1)">
+            <ChevronLeft class="h-4 w-4" />
+          </button>
+          <p class="min-w-0 flex-1 truncate text-center text-sm font-bold capitalize text-foreground">
+            {{ rangeLabel }}
           </p>
+          <button type="button" class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-colors active:bg-muted" @click="shiftView(1)">
+            <ChevronRight class="h-4 w-4" />
+          </button>
+        </div>
+
+        <div class="grid grid-cols-3 gap-1 rounded-xl bg-muted p-1">
+          <button
+            v-for="mode in VIEW_MODES"
+            :key="mode.value"
+            type="button"
+            :class="cn(
+              'flex items-center justify-center gap-1.5 rounded-lg py-1.5 text-xs font-semibold transition-all active:scale-95',
+              viewMode === mode.value
+                ? 'bg-primary text-primary-foreground shadow-sm'
+                : 'text-muted-foreground'
+            )"
+            @click="setViewMode(mode.value)"
+          >
+            <component :is="mode.icon" class="h-3.5 w-3.5" />
+            {{ mode.label }}
+          </button>
+        </div>
+
+        <div class="-mx-1 flex gap-1.5 overflow-x-auto px-1 pb-0.5 no-scrollbar [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <button
+            type="button"
+            class="shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+            :class="kindFilter === 'all' ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'"
+            @click="kindFilter = 'all'"
+          >
+            Semua
+          </button>
+          <button
+            v-for="entry in kindCounts"
+            :key="entry.kind"
+            type="button"
+            class="flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors"
+            :class="kindFilter === entry.kind ? 'border-primary bg-primary/10 text-primary' : 'border-border text-muted-foreground'"
+            @click="kindFilter = entry.kind"
+          >
+            <span class="h-1.5 w-1.5 shrink-0 rounded-full" :class="TONE_DOT[entry.meta.tone] ?? 'bg-muted-foreground'" />
+            {{ entry.meta.label }} ({{ entry.count }})
+          </button>
         </div>
       </div>
 
-      <Tabs v-model="innerTab">
-        <TabsList>
-          <TabsTrigger value="calendar">
-            Kalender Jadwal
-          </TabsTrigger>
-          <TabsTrigger value="map">
-            Perencanaan Peta
-          </TabsTrigger>
-        </TabsList>
+      <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa (di toolbar atas), tidak diubah. -->
+      <button
+        v-if="canManage"
+        type="button"
+        aria-label="Tambah Acara"
+        class="fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] right-4 z-30 flex h-12 items-center gap-2 rounded-full bg-primary pl-4 pr-5 text-sm font-semibold text-primary-foreground shadow-lg shadow-primary/30 transition-transform active:scale-90 sm:hidden"
+        @click="openAddEvent"
+      >
+        <Plus class="h-4 w-4" />Tambah Acara
+      </button>
 
-        <TabsContent value="calendar" class="pt-4 space-y-4">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <div class="flex items-center gap-2">
-              <Button variant="outline" size="sm" @click="shiftMonth(-1)">
-                <ChevronLeft class="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="sm" @click="month = DEMO_REFERENCE_DATE.slice(0, 7)">
-                Hari Ini
-              </Button>
-              <Button variant="outline" size="sm" @click="shiftMonth(1)">
-                <ChevronRight class="h-4 w-4" />
-              </Button>
-            </div>
+      <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
+        <SectionCard class="xl:col-span-8">
+          <Transition name="calendar-fade" mode="out-in">
+            <CalendarDayView
+              v-if="viewMode === 'day'"
+              key="day"
+              :date="selectedDate"
+              :events="filteredEvents"
+            />
+            <CalendarWeekView
+              v-else-if="viewMode === 'week'"
+              key="week"
+              :week-start="weekStart"
+              :events="filteredEvents"
+              :today-iso="DEMO_REFERENCE_DATE"
+              :selected-date="selectedDate"
+              @select="openDaySheet"
+            />
+            <CalendarMonthGrid
+              v-else
+              key="month"
+              :month="month"
+              :events="filteredEvents"
+              :today-iso="DEMO_REFERENCE_DATE"
+              :selected-date="selectedDate"
+              @select="openDaySheet"
+            />
+          </Transition>
 
-            <select v-model="kindFilter" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">
-                Semua Jenis Jadwal
-              </option>
-              <option v-for="entry in kindCounts" :key="entry.kind" :value="entry.kind">
-                {{ entry.meta.label }} ({{ entry.count }})
-              </option>
-            </select>
+          <div class="flex flex-wrap gap-x-1.5 gap-y-1.5 mt-4 pt-4 border-t border-border">
+            <span
+              v-for="entry in kindCounts.filter(item => item.count)"
+              :key="entry.kind"
+              class="flex items-center gap-1.5 rounded-full border border-border bg-muted/40 px-2.5 py-1"
+            >
+              <span :class="cn('h-1.5 w-1.5 rounded-full', TONE_DOT[entry.meta.tone] ?? 'bg-muted-foreground')" />
+              <span class="text-xs text-muted-foreground">{{ entry.meta.label }} ({{ entry.count }})</span>
+            </span>
           </div>
+        </SectionCard>
 
-          <div class="grid grid-cols-1 xl:grid-cols-12 gap-5 items-start">
-            <SectionCard class="xl:col-span-8">
-              <CalendarMonthGrid
-                :month="month"
-                :events="filteredEvents"
-                :today-iso="DEMO_REFERENCE_DATE"
-                :selected-date="selectedDate"
-                @select="value => selectedDate = value"
-              />
-
-              <div class="flex flex-wrap gap-x-4 gap-y-1.5 mt-4 pt-4 border-t border-border">
-                <span v-for="entry in kindCounts.filter(item => item.count)" :key="entry.kind" class="flex items-center gap-1.5">
-                  <span
-                    :class="cn('h-2 w-2 rounded-full', {
-                      'bg-primary': entry.meta.tone === 'primary',
-                      'bg-success': entry.meta.tone === 'success',
-                      'bg-warning': entry.meta.tone === 'warning',
-                      'bg-destructive': entry.meta.tone === 'destructive',
-                      'bg-chart-5': entry.meta.tone === 'info',
-                      'bg-chart-4': entry.meta.tone === 'purple',
-                      'bg-muted-foreground': entry.meta.tone === 'neutral'
-                    })"
-                  />
-                  <span class="text-xs text-muted-foreground">{{ entry.meta.label }} ({{ entry.count }})</span>
-                </span>
+        <div class="xl:col-span-4 space-y-4 xl:sticky xl:top-4 xl:max-h-[calc(100vh-6rem)] xl:overflow-y-auto xl:pr-1">
+        <SectionCard v-if="attentionEvents.length" compact contentClass="max-h-72 overflow-y-auto snap-y snap-mandatory scroll-pb-1.5">
+          <template #header>
+            <div class="flex items-center gap-2">
+              <AlertTriangle class="h-4 w-4 shrink-0 text-destructive" />
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-foreground">
+                  Jadwal Butuh Perhatian
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ attentionEvents.length }} jadwal terlambat/melewati tenggat
+                </p>
               </div>
-            </SectionCard>
+            </div>
+          </template>
+          <!-- `snap-mandatory` + `snap-start` per kartu (bukan fade overlay — sempat dicoba tapi malah
+               nge-wash teks kartu yang utuh karena `sticky` selalu nempel di bawah terlepas posisi scroll)
+               supaya scroll SELALU berhenti pas kartu penuh, tidak pernah berhenti di tengah kartu. -->
+          <ul class="space-y-1.5">
+            <li
+              v-for="event in attentionEvents"
+              :key="event.id"
+              class="snap-start scroll-mt-1.5 rounded-lg border border-destructive/40 bg-destructive/5 px-3 py-2"
+              :class="event.projectId && 'cursor-pointer transition-colors hover:bg-destructive/10'"
+              @click="goToProject(event.projectId)"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" tone="destructive" />
+                <span class="shrink-0 text-[11px] font-medium text-muted-foreground">{{ formatDate(event.date) }}</span>
+              </div>
+              <p class="mt-1.5 line-clamp-2 text-sm font-medium leading-snug text-foreground" :class="event.projectId && 'hover:underline'">
+                {{ event.title }}
+              </p>
+              <p v-if="event.detail" class="mt-0.5 truncate text-xs text-muted-foreground">
+                {{ event.detail }}
+              </p>
+            </li>
+          </ul>
+        </SectionCard>
 
-            <SectionCard class="xl:col-span-4" :title="formatDate(selectedDate)" :description="`${selectedEvents.length} jadwal pada tanggal ini.`">
-              <ul v-if="selectedEvents.length" class="space-y-2.5">
+        <SectionCard
+          v-if="viewMode !== 'day'"
+          compact
+          contentClass="max-h-[calc(100vh-22rem)] overflow-y-auto snap-y snap-mandatory scroll-pb-1.5"
+          :title="sideTitle"
+          :description="`${sideEventCount} jadwal pada ${sideRangeNoun} ini.`"
+        >
+          <div v-if="sideDayGroups.length" class="space-y-3">
+            <div v-for="day in sideDayGroups" :key="day.iso">
+              <button
+                type="button"
+                class="mb-1 flex w-full items-center gap-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground"
+                @click="toggleDayCollapsed(day.iso)"
+              >
+                <ChevronDown class="h-3 w-3 shrink-0 transition-transform" :class="{ '-rotate-90': collapsedDays.has(day.iso) }" />
+                {{ day.label }}
+                <span class="font-normal normal-case text-muted-foreground/70">({{ day.events.length }})</span>
+              </button>
+              <ul v-if="!collapsedDays.has(day.iso)" class="space-y-1.5">
                 <li
-                  v-for="event in selectedEvents"
+                  v-for="event in day.events"
                   :key="event.id"
-                  class="rounded-lg border px-3 py-2.5"
-                  :class="event.isAttention ? 'border-destructive/40 bg-destructive/5' : 'border-border'"
+                  class="snap-start scroll-mt-1.5 rounded-lg border px-3 py-2 transition-colors"
+                  :class="[
+                    event.isAttention ? 'border-destructive/40 bg-destructive/5' : 'border-border',
+                    event.projectId && (event.isAttention ? 'cursor-pointer hover:bg-destructive/10' : 'cursor-pointer hover:border-primary/30 hover:bg-muted/30')
+                  ]"
+                  @click="goToProject(event.projectId)"
                 >
-                  <div class="flex items-start gap-2">
-                    <div class="min-w-0 flex-1">
-                      <p class="text-sm font-medium text-foreground">
-                        {{ event.title }}
-                      </p>
-                      <p v-if="event.detail" class="text-xs text-muted-foreground mt-0.5">
-                        {{ event.detail }}
-                      </p>
-                    </div>
-                    <StatusBadge :label="SCHEDULE_KIND_META[event.kind].label" :tone="event.tone" />
+                  <div class="flex items-center justify-between gap-2">
+                    <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" :tone="event.tone" />
+                    <span v-if="event.time" class="shrink-0 text-[11px] font-medium tabular-nums text-muted-foreground">{{ event.time }}</span>
                   </div>
-                  <NuxtLink
-                    v-if="event.projectId"
-                    :to="`/project-orders/${event.projectId}`"
-                    class="inline-block mt-1.5 text-xs text-primary hover:underline"
-                  >
-                    {{ getProjectById(event.projectId)?.name ?? event.projectId }} →
-                  </NuxtLink>
+                  <p class="mt-1.5 line-clamp-2 text-sm font-medium leading-snug text-foreground" :class="event.projectId && 'hover:underline'">
+                    {{ event.title }}
+                  </p>
+                  <p v-if="eventMetaLine(event)" class="mt-0.5 truncate text-xs text-muted-foreground">
+                    {{ eventMetaLine(event) }}
+                  </p>
                 </li>
               </ul>
-
-              <EmptyState v-else :icon="CalendarDays" title="Tidak ada jadwal" description="Pilih tanggal lain pada kalender." />
-            </SectionCard>
-          </div>
-        </TabsContent>
-
-        <TabsContent value="map" class="pt-4 space-y-4">
-          <div class="flex flex-wrap items-center gap-3">
-            <select v-model="mapProjectId" class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="all">
-                Semua Project
-              </option>
-              <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
-                {{ project.name }}
-              </option>
-            </select>
-            <p class="text-xs text-muted-foreground">
-              Pin yang dibuat saat satu project dipilih otomatis tertaut ke project tersebut.
-            </p>
-          </div>
-
-          <SectionCard>
-            <div class="flex items-center gap-2 mb-3">
-              <MapPin class="h-4 w-4 text-muted-foreground" />
-              <h3 class="text-base font-semibold text-foreground">
-                Perencanaan Lokasi
-              </h3>
             </div>
+          </div>
 
-            <RegionMapPicker
-              :pins="mapPins"
-              :can-manage="canManage"
-              @add="onAddPin"
-              @remove="onRemovePin"
-            />
-          </SectionCard>
-        </TabsContent>
-      </Tabs>
+          <EmptyState v-else :icon="CalendarDays" title="Tidak ada jadwal" :description="`Tidak ada jadwal pada ${sideRangeNoun} ini.`" />
+        </SectionCard>
+
+        <SectionCard v-else compact :title="formatDate(selectedDate)" :description="`${selectedEvents.length} jadwal pada tanggal ini.`">
+          <ul v-if="selectedEvents.length" class="space-y-1.5">
+            <li
+              v-for="event in selectedEvents"
+              :key="event.id"
+              class="rounded-lg border px-3 py-2 transition-colors"
+              :class="[
+                event.isAttention ? 'border-destructive/40 bg-destructive/5' : 'border-border',
+                event.projectId && (event.isAttention ? 'cursor-pointer hover:bg-destructive/10' : 'cursor-pointer hover:border-primary/30 hover:bg-muted/30')
+              ]"
+              @click="goToProject(event.projectId)"
+            >
+              <div class="flex items-center justify-between gap-2">
+                <StatusBadge class="shrink-0" :label="SCHEDULE_KIND_META[event.kind].label" :tone="event.tone" />
+                <span v-if="event.time" class="shrink-0 text-[11px] font-medium tabular-nums text-muted-foreground">{{ event.time }}</span>
+              </div>
+              <p class="mt-1.5 line-clamp-2 text-sm font-medium leading-snug text-foreground" :class="event.projectId && 'hover:underline'">
+                {{ event.title }}
+              </p>
+              <p v-if="eventMetaLine(event)" class="mt-0.5 truncate text-xs text-muted-foreground">
+                {{ eventMetaLine(event) }}
+              </p>
+            </li>
+          </ul>
+
+          <EmptyState v-else :icon="CalendarDays" title="Tidak ada jadwal" description="Pilih tanggal lain pada kalender." />
+        </SectionCard>
+        </div>
+      </div>
+
+      <Sheet v-model:open="isDaySheetOpen">
+        <SheetContent
+          :side="isMobile ? 'bottom' : 'right'"
+          :class="isMobile ? 'max-h-[85vh] overflow-y-auto rounded-t-2xl bg-card p-0' : 'w-full overflow-y-auto bg-card p-0 sm:max-w-sm'"
+        >
+          <div class="border-b border-border bg-gradient-to-br from-primary/10 via-muted/40 to-transparent px-6 py-5">
+            <SheetHeader class="pr-8">
+              <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                  <CalendarDays class="h-5 w-5" />
+                </div>
+                <div class="min-w-0 text-left">
+                  <SheetTitle class="capitalize">
+                    {{ daySheetLabel }}
+                  </SheetTitle>
+                  <SheetDescription>{{ daySheetEvents.length }} jadwal pada tanggal ini.</SheetDescription>
+                </div>
+              </div>
+            </SheetHeader>
+          </div>
+
+          <div class="px-6 py-4">
+            <div v-if="daySheetEvents.length" class="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+              <div
+                v-for="event in daySheetEvents"
+                :key="event.id"
+                :class="[
+                  'flex items-start gap-2 px-3 py-2 transition-colors',
+                  event.isAttention ? 'bg-destructive/5' : '',
+                  event.projectId && 'cursor-pointer hover:bg-muted/40'
+                ]"
+                @click="goToProject(event.projectId)"
+              >
+                <span :class="cn('mt-1 h-1.5 w-1.5 shrink-0 self-start rounded-full', TONE_DOT[event.tone] ?? 'bg-muted-foreground')" />
+                <div class="min-w-0 flex-1 py-0.5">
+                  <div class="flex items-start gap-1.5">
+                    <p class="min-w-0 flex-1 break-words text-xs font-semibold leading-snug text-foreground [overflow-wrap:anywhere]">
+                      <span v-if="event.time" class="tabular-nums font-normal text-muted-foreground">{{ event.time }} · </span>{{ event.title }}
+                    </p>
+                    <AlertTriangle v-if="event.isAttention" class="mt-0.5 h-3 w-3 shrink-0 text-destructive" />
+                  </div>
+                  <p class="mt-0.5 break-words text-[11px] leading-snug text-muted-foreground [overflow-wrap:anywhere]">
+                    {{ SCHEDULE_KIND_META[event.kind].label }}
+                    <template v-if="event.projectId"> · {{ getProjectById(event.projectId)?.name ?? event.projectId }}</template>
+                  </p>
+                  <p v-if="event.detail" class="mt-0.5 break-words text-[11px] leading-snug text-muted-foreground [overflow-wrap:anywhere]">
+                    {{ event.detail }}
+                  </p>
+                </div>
+                <ChevronRight v-if="event.projectId" class="mt-1 h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+              </div>
+            </div>
+            <EmptyState v-else title="Tidak ada jadwal" description="Tidak ada jadwal pada tanggal ini." />
+          </div>
+        </SheetContent>
+      </Sheet>
     </template>
   </div>
 </template>
+
+<style scoped>
+.calendar-fade-enter-active,
+.calendar-fade-leave-active {
+  transition: opacity 0.15s ease;
+}
+.calendar-fade-enter-from,
+.calendar-fade-leave-to {
+  opacity: 0;
+}
+</style>

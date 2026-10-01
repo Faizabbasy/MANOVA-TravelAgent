@@ -191,61 +191,59 @@ function submitCommunication () {
       </SectionCard>
 
       <!-- Escalate dialog -->
-      <Dialog v-model:open="isEscalateOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Eskalasi Incident</DialogTitle>
-            <DialogDescription>Incident akan ditandai "Escalated" dan dicatat sebagai entri Communication Log.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="space-y-1.5">
-              <Label for="escalate-to">Eskalasi Ke</Label>
-              <select id="escalate-to" v-model="escalateTo" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option value="" disabled>
-                  Pilih penerima eskalasi
-                </option>
-                <option v-for="user in escalationCandidates" :key="user.id" :value="user.id">
-                  {{ user.name }} ({{ user.role }})
-                </option>
-              </select>
-            </div>
-            <div class="space-y-1.5">
-              <Label for="escalate-note">Catatan (opsional)</Label>
-              <Input id="escalate-note" v-model="escalateNote" placeholder="mis. Butuh keputusan segera dari Operations" />
-            </div>
+      <ResponsiveFormSheet
+        v-model:open="isEscalateOpen"
+        title="Eskalasi Incident"
+        description="Incident akan ditandai &quot;Escalated&quot; dan dicatat sebagai entri Communication Log."
+        content-class="max-w-md"
+      >
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="escalate-to">Eskalasi Ke</Label>
+            <select id="escalate-to" v-model="escalateTo" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="" disabled>
+                Pilih penerima eskalasi
+              </option>
+              <option v-for="user in escalationCandidates" :key="user.id" :value="user.id">
+                {{ user.name }} ({{ user.role }})
+              </option>
+            </select>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isEscalateOpen = false">
-              Batal
-            </Button>
-            <Button variant="destructive" :disabled="!escalateTo" @click="submitEscalate">
-              Eskalasi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div class="space-y-1.5">
+            <Label for="escalate-note">Catatan (opsional)</Label>
+            <Input id="escalate-note" v-model="escalateNote" placeholder="mis. Butuh keputusan segera dari Operations" />
+          </div>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isEscalateOpen = false">
+            Batal
+          </Button>
+          <Button variant="destructive" :disabled="!escalateTo" @click="submitEscalate">
+            Eskalasi
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
       <!-- Resolve dialog -->
-      <Dialog v-model:open="isResolveOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Selesaikan Incident</DialogTitle>
-            <DialogDescription>Resolution note wajib diisi.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-1.5 py-2">
-            <Label for="resolution-note">Resolution Note</Label>
-            <textarea id="resolution-note" v-model="resolutionNote" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isResolveOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!resolutionNote.trim()" @click="submitResolve">
-              Selesaikan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveFormSheet
+        v-model:open="isResolveOpen"
+        title="Selesaikan Incident"
+        description="Resolution note wajib diisi."
+        content-class="max-w-md"
+      >
+        <div class="space-y-1.5 py-2">
+          <Label for="resolution-note">Resolution Note</Label>
+          <textarea id="resolution-note" v-model="resolutionNote" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isResolveOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!resolutionNote.trim()" @click="submitResolve">
+            Selesaikan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

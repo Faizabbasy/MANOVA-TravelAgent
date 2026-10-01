@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Plus, Trash2, Printer, ClipboardList, AlertTriangle } from 'lucide-vue-next'
+import { FileX, Plus, Trash2, Printer, ClipboardList, AlertTriangle, ArrowLeft } from 'lucide-vue-next'
 import {
   getMiceEventById, getMiceBoqTotals, getMiceScheduleConflicts,
   getMiceEventStatusTransitions, updateMiceEventStatus,
@@ -332,6 +332,9 @@ function submitAddDeliverable () {
     <RoleAccessState v-else-if="!canView('mice')" module-label="modul MICE" />
 
     <template v-else>
+      <NuxtLink v-if="project" :to="`/project-orders/${project.id}?tab=itinerary-services`" class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
+        <ArrowLeft class="h-3.5 w-3.5" />Kembali ke {{ project.name }}
+      </NuxtLink>
       <PageHeader :title="event.venueName ?? `MICE Event ${event.id}`" :breadcrumb="[{ label: 'MICE', to: '/mice' }, { label: event.id }]">
         <template #actions>
           <div class="flex flex-wrap items-center gap-2">
@@ -418,41 +421,85 @@ function submitAddDeliverable () {
             Kelola Sessions
           </Button>
         </template>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Sesi</TableHead>
-              <TableHead>Room</TableHead>
-              <TableHead>Jadwal</TableHead>
-              <TableHead>Kapasitas</TableHead>
-              <TableHead>PIC</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(session, index) in event.sessions" :key="index">
-              <TableCell class="text-foreground">
-                {{ session.sessionTitle }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ session.roomName }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDateTime(session.startAt) }} – {{ formatDateTime(session.endAt) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ session.capacity }} pax
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ userName(session.picUserId) }}
-              </TableCell>
-              <TableCell><StatusBadge :label="session.isConfirmed ? 'Confirmed' : 'Tentatif'" :tone="session.isConfirmed ? 'success' : 'warning'" /></TableCell>
-            </TableRow>
-            <TableEmpty v-if="event.sessions.length === 0" :colspan="6">
-              Belum ada sesi tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView v-if="event.sessions.length" :items="event.sessions" :get-key="(session, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Sesi</TableHead>
+                  <TableHead>Room</TableHead>
+                  <TableHead>Jadwal</TableHead>
+                  <TableHead>Kapasitas</TableHead>
+                  <TableHead>PIC</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(session, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ session.sessionTitle }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ session.roomName }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDateTime(session.startAt) }} – {{ formatDateTime(session.endAt) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ session.capacity }} pax
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ userName(session.picUserId) }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="session.isConfirmed ? 'Confirmed' : 'Tentatif'" :tone="session.isConfirmed ? 'success' : 'warning'" /></TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: session }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ session.sessionTitle }}
+                  </p>
+                  <p class="text-xs text-muted-foreground truncate">
+                    {{ session.roomName }}
+                  </p>
+                </div>
+                <StatusBadge :label="session.isConfirmed ? 'Confirmed' : 'Tentatif'" :tone="session.isConfirmed ? 'success' : 'warning'" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Jadwal
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDateTime(session.startAt) }} – {{ formatDateTime(session.endAt) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Kapasitas
+                  </p>
+                  <p class="text-foreground">
+                    {{ session.capacity }} pax
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    PIC
+                  </p>
+                  <p class="text-foreground">
+                    {{ userName(session.picUserId) }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+        <EmptyState v-else title="Belum ada sesi tercatat" />
       </SectionCard>
 
       <SectionCard title="Participant Categories / Attendance" description="Kategori peserta, target, dan realisasi kehadiran.">
@@ -461,31 +508,59 @@ function submitAddDeliverable () {
             Kelola Peserta
           </Button>
         </template>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Expected</TableHead>
-              <TableHead>Actual (Attendance)</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(category, index) in event.participantCategories" :key="index">
-              <TableCell class="text-foreground">
+        <ResponsiveDataView v-if="event.participantCategories.length" :items="event.participantCategories" :get-key="(category, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Expected</TableHead>
+                  <TableHead>Actual (Attendance)</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(category, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ category.category }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ category.expectedCount }} pax
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ category.actualCount !== undefined ? `${category.actualCount} pax` : '—' }}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: category }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <p class="text-sm font-medium text-foreground">
                 {{ category.category }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ category.expectedCount }} pax
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ category.actualCount !== undefined ? `${category.actualCount} pax` : '—' }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="event.participantCategories.length === 0" :colspan="3">
-              Belum ada kategori peserta tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </p>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Expected
+                  </p>
+                  <p class="text-foreground">
+                    {{ category.expectedCount }} pax
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Actual (Attendance)
+                  </p>
+                  <p class="text-foreground">
+                    {{ category.actualCount !== undefined ? `${category.actualCount} pax` : '—' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+        <EmptyState v-else title="Belum ada kategori peserta tercatat" />
       </SectionCard>
 
       <!-- Finance context from the API (Phase 4): status for everyone, figures for Finance. -->
@@ -498,43 +573,90 @@ function submitAddDeliverable () {
             Kelola BOQ
           </Button>
         </template>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Deskripsi</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Vendor</TableHead>
-              <TableHead v-if="canViewMiceFinancials">
-                Net Cost
-              </TableHead>
-              <TableHead>Sell Price</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(item, index) in event.boqItems" :key="index">
-              <TableCell><StatusBadge :label="findStatusOption(MICE_BOQ_CATEGORIES, item.category).label" :tone="findStatusOption(MICE_BOQ_CATEGORIES, item.category).tone" /></TableCell>
-              <TableCell class="text-foreground">
-                {{ item.description }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ item.quantity }} {{ item.unit }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ vendorName(item.vendorId) }}
-              </TableCell>
-              <TableCell v-if="canViewMiceFinancials" class="text-foreground">
-                {{ item.netCostIdr !== undefined ? formatCurrencyIdr(item.netCostIdr) : '—' }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ item.sellPriceIdr !== undefined ? formatCurrencyIdr(item.sellPriceIdr) : '—' }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="event.boqItems.length === 0" :colspan="canViewMiceFinancials ? 6 : 5">
-              Belum ada baris BOQ tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView v-if="event.boqItems.length" :items="event.boqItems" :get-key="(item, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead v-if="canViewMiceFinancials">
+                    Net Cost
+                  </TableHead>
+                  <TableHead>Sell Price</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(item, index) in items" :key="index">
+                  <TableCell><StatusBadge :label="findStatusOption(MICE_BOQ_CATEGORIES, item.category).label" :tone="findStatusOption(MICE_BOQ_CATEGORIES, item.category).tone" /></TableCell>
+                  <TableCell class="text-foreground">
+                    {{ item.description }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ item.quantity }} {{ item.unit }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ vendorName(item.vendorId) }}
+                  </TableCell>
+                  <TableCell v-if="canViewMiceFinancials" class="text-foreground">
+                    {{ item.netCostIdr !== undefined ? formatCurrencyIdr(item.netCostIdr) : '—' }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ item.sellPriceIdr !== undefined ? formatCurrencyIdr(item.sellPriceIdr) : '—' }}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground min-w-0 truncate">
+                  {{ item.description }}
+                </p>
+                <StatusBadge :label="findStatusOption(MICE_BOQ_CATEGORIES, item.category).label" :tone="findStatusOption(MICE_BOQ_CATEGORIES, item.category).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Qty
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.quantity }} {{ item.unit }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Vendor
+                  </p>
+                  <p class="text-foreground">
+                    {{ vendorName(item.vendorId) }}
+                  </p>
+                </div>
+                <div v-if="canViewMiceFinancials">
+                  <p class="text-muted-foreground">
+                    Net Cost
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.netCostIdr !== undefined ? formatCurrencyIdr(item.netCostIdr) : '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Sell Price
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.sellPriceIdr !== undefined ? formatCurrencyIdr(item.sellPriceIdr) : '—' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+        <EmptyState v-else title="Belum ada baris BOQ tercatat" />
         <div class="grid gap-3 sm:grid-cols-3 mt-4">
           <div v-if="canViewMiceFinancials" class="rounded-lg border border-border p-3">
             <p class="text-xs text-muted-foreground">
@@ -583,14 +705,12 @@ function submitAddDeliverable () {
 
       <SectionCard title="Setup / Teardown / Rehearsal / Permit Checklist">
         <template v-if="canManageMice" #actions>
-          <Dialog v-model:open="isChecklistAddOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet v-model:open="isChecklistAddOpen" title="Tambah Checklist Item" content-class="max-w-sm">
+            <template #trigger>
               <Button size="sm" variant="outline">
                 <Plus class="h-4 w-4 mr-1.5" />Tambah Item
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-sm">
-              <DialogHeader><DialogTitle>Tambah Checklist Item</DialogTitle></DialogHeader>
+            </template>
               <div class="space-y-3 py-2">
                 <div class="space-y-1.5">
                   <Label for="checklist-task">Tipe</Label>
@@ -605,16 +725,15 @@ function submitAddDeliverable () {
                   <Input id="checklist-label" v-model="newChecklistLabel" />
                 </div>
               </div>
-              <DialogFooter>
+              <template #footer>
                 <Button variant="outline" @click="isChecklistAddOpen = false">
                   Batal
                 </Button>
                 <Button :disabled="!newChecklistLabel.trim()" @click="submitAddChecklist">
                   Simpan
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </template>
+          </ResponsiveFormSheet>
         </template>
         <ul v-if="event.checklist.length" class="divide-y divide-border">
           <li v-for="(item, index) in event.checklist" :key="index" class="py-2 flex items-center gap-3">
@@ -628,28 +747,25 @@ function submitAddDeliverable () {
 
       <SectionCard title="Deliverables">
         <template v-if="canManageMice" #actions>
-          <Dialog v-model:open="isDeliverableAddOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet v-model:open="isDeliverableAddOpen" title="Tambah Deliverable" content-class="max-w-sm">
+            <template #trigger>
               <Button size="sm" variant="outline">
                 <Plus class="h-4 w-4 mr-1.5" />Tambah Deliverable
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-sm">
-              <DialogHeader><DialogTitle>Tambah Deliverable</DialogTitle></DialogHeader>
+            </template>
               <div class="space-y-1.5 py-2">
                 <Label for="deliverable-label">Deskripsi</Label>
                 <Input id="deliverable-label" v-model="newDeliverableLabel" placeholder="mis. Laporan attendance" />
               </div>
-              <DialogFooter>
+              <template #footer>
                 <Button variant="outline" @click="isDeliverableAddOpen = false">
                   Batal
                 </Button>
                 <Button :disabled="!newDeliverableLabel.trim()" @click="submitAddDeliverable">
                   Simpan
                 </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </template>
+          </ResponsiveFormSheet>
         </template>
         <ul v-if="event.deliverables.length" class="divide-y divide-border">
           <li v-for="(item, index) in event.deliverables" :key="index" class="py-2 flex items-center gap-3">
@@ -661,12 +777,12 @@ function submitAddDeliverable () {
       </SectionCard>
 
       <!-- Event status change dialog (cancelled — reason wajib) -->
-      <Dialog v-model:open="isStatusDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Cancel MICE Event</DialogTitle>
-            <DialogDescription>Alasan wajib dicatat untuk transisi ini — akan tersimpan sebagai jejak historis di Activity & Changes project terkait.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isStatusDialogOpen"
+        title="Cancel MICE Event"
+        description="Alasan wajib dicatat untuk transisi ini — akan tersimpan sebagai jejak historis di Activity & Changes project terkait."
+        content-class="max-w-md"
+      >
           <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="status-reason">Alasan</Label>
@@ -684,46 +800,45 @@ function submitAddDeliverable () {
               Sebuah Cancellation Record akan otomatis dicatat (Section 19) — dapat ditindaklanjuti dengan Refund Request di modul Changes & Incidents.
             </p>
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isStatusDialogOpen = false">
               Batal
             </Button>
             <Button variant="destructive" :disabled="!statusReason.trim()" @click="submitStatusChange">
               Konfirmasi
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
       <!-- Client approval reject dialog (reason wajib) -->
-      <Dialog v-model:open="isApprovalDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Tolak Rundown/BOQ (Client)</DialogTitle>
-            <DialogDescription>Catatan alasan penolakan client wajib diisi.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isApprovalDialogOpen"
+        title="Tolak Rundown/BOQ (Client)"
+        description="Catatan alasan penolakan client wajib diisi."
+        content-class="max-w-md"
+      >
           <div class="space-y-1.5 py-2">
             <Label for="approval-note">Catatan</Label>
             <Input id="approval-note" v-model="approvalNote" placeholder="mis. Client meminta revisi budget catering" />
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isApprovalDialogOpen = false">
               Batal
             </Button>
             <Button variant="destructive" :disabled="!approvalNote.trim()" @click="submitApprovalChange">
               Konfirmasi
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
       <!-- Edit info dasar dialog -->
-      <Dialog v-model:open="isEditOpen">
-        <DialogScrollContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit MICE Event</DialogTitle>
-            <DialogDescription>Perubahan berlaku langsung — status lifecycle diubah lewat tombol terpisah di header.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isEditOpen"
+        title="Edit MICE Event"
+        description="Perubahan berlaku langsung — status lifecycle diubah lewat tombol terpisah di header."
+        content-class="max-w-lg"
+        scroll
+      >
           <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="edit-brief">Brief</Label>
@@ -763,24 +878,24 @@ function submitAddDeliverable () {
               <textarea v-if="editHasIncident" v-model="editIncidentNote" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Jelaskan insiden operasional" />
             </div>
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isEditOpen = false">
               Batal
             </Button>
             <Button @click="submitEdit">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
       <!-- Sessions dialog -->
-      <Dialog v-model:open="isSessionsOpen">
-        <DialogScrollContent class="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Kelola Sessions</DialogTitle>
-            <DialogDescription>Rooms/sessions dan agenda/rundown per sesi.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isSessionsOpen"
+        title="Kelola Sessions"
+        description="Rooms/sessions dan agenda/rundown per sesi."
+        content-class="max-w-2xl"
+        scroll
+      >
           <div class="space-y-2 py-2">
             <div class="flex items-center justify-between">
               <Label>Sessions</Label>
@@ -813,24 +928,24 @@ function submitAddDeliverable () {
               Belum ada sesi — klik "Tambah".
             </p>
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isSessionsOpen = false">
               Batal
             </Button>
             <Button @click="submitSessions">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
       <!-- Participant categories dialog -->
-      <Dialog v-model:open="isParticipantsOpen">
-        <DialogScrollContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Kelola Participant Categories</DialogTitle>
-            <DialogDescription>Kategori peserta, target (expected), dan realisasi kehadiran (actual/attendance).</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isParticipantsOpen"
+        title="Kelola Participant Categories"
+        description="Kategori peserta, target (expected), dan realisasi kehadiran (actual/attendance)."
+        content-class="max-w-lg"
+        scroll
+      >
           <div class="space-y-2 py-2">
             <div class="flex items-center justify-between">
               <Label>Kategori</Label>
@@ -850,24 +965,24 @@ function submitAddDeliverable () {
               Belum ada kategori — klik "Tambah".
             </p>
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isParticipantsOpen = false">
               Batal
             </Button>
             <Button @click="submitParticipants">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
       <!-- BOQ dialog -->
-      <Dialog v-model:open="isBoqOpen">
-        <DialogScrollContent class="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Kelola BOQ</DialogTitle>
-            <DialogDescription>Catering, AV, staging, equipment, booth, dan vendor package.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isBoqOpen"
+        title="Kelola BOQ"
+        description="Catering, AV, staging, equipment, booth, dan vendor package."
+        content-class="max-w-2xl"
+        scroll
+      >
           <div class="space-y-2 py-2">
             <div class="flex items-center justify-between">
               <Label>Baris BOQ</Label>
@@ -902,23 +1017,23 @@ function submitAddDeliverable () {
               Belum ada baris BOQ — klik "Tambah".
             </p>
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isBoqOpen = false">
               Batal
             </Button>
             <Button @click="submitBoq">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
       <!-- Staffing dialog -->
-      <Dialog v-model:open="isStaffingOpen">
-        <DialogScrollContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Kelola Staffing / PIC</DialogTitle>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isStaffingOpen"
+        title="Kelola Staffing / PIC"
+        content-class="max-w-lg"
+        scroll
+      >
           <div class="space-y-2 py-2">
             <div class="flex items-center justify-between">
               <Label>Penugasan</Label>
@@ -944,16 +1059,15 @@ function submitAddDeliverable () {
               Belum ada penugasan — klik "Tambah".
             </p>
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isStaffingOpen = false">
               Batal
             </Button>
             <Button @click="submitStaffing">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Plus } from 'lucide-vue-next'
+import { FileX, Plus, Eye } from 'lucide-vue-next'
 import {
   getVendorById, getVendorContacts, getVendorQuotations, getVendorActivities, getServicesByVendor,
   createVendorContact, submitVendorQuotation, updateVendor,
@@ -248,332 +248,482 @@ function submitQuotation () {
 
         <TabsContent value="services">
           <SectionCard title="Services" description="Service project yang ditugaskan ke vendor ini (Section 12).">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Detail Service</TableHead>
-                  <TableHead>Booking Reference</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="service in assignedServices" :key="service.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/project-orders/${service.projectId}?tab=itinerary-services`)">
-                  <TableCell class="font-medium text-foreground">
-                    {{ projectName(service.projectId) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ service.label }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ service.bookingReference ?? '—' }}
-                  </TableCell>
-                  <TableCell>
+            <ResponsiveDataView :items="assignedServices" :get-key="service => service.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Detail Service</TableHead>
+                      <TableHead>Booking Reference</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="service in items" :key="service.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/project-orders/${service.projectId}?tab=itinerary-services`)">
+                      <TableCell class="font-medium text-foreground">
+                        {{ projectName(service.projectId) }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ service.label }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ service.bookingReference ?? '—' }}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          :label="findStatusOption(SERVICE_STATUSES, service.status).label"
+                          :tone="findStatusOption(SERVICE_STATUSES, service.status).tone"
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Eye class="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="assignedServices.length === 0" :colspan="5">
+                      Belum ada service yang ditugaskan ke vendor ini.
+                    </TableEmpty>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: service }">
+                <button
+                  type="button"
+                  class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+                  @click="navigateTo(`/project-orders/${service.projectId}?tab=itinerary-services`)"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ projectName(service.projectId) }}
+                    </p>
                     <StatusBadge
                       :label="findStatusOption(SERVICE_STATUSES, service.status).label"
                       :tone="findStatusOption(SERVICE_STATUSES, service.status).tone"
                     />
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="assignedServices.length === 0" :colspan="4">
-                  Belum ada service yang ditugaskan ke vendor ini.
-                </TableEmpty>
-              </TableBody>
-            </Table>
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Detail Service
+                      </p>
+                      <p class="text-foreground">
+                        {{ service.label }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Booking Reference
+                      </p>
+                      <p class="text-foreground">
+                        {{ service.bookingReference ?? '—' }}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="quotations">
           <SectionCard title="Quotations">
             <template #actions>
-              <Dialog v-if="canManageVendor" v-model:open="isQuotationDialogOpen">
-                <DialogTrigger as-child>
-                  <Button size="sm" variant="outline">
-                    <Plus class="h-4 w-4 mr-1.5" />Submit Quotation
+              <ResponsiveFormSheet
+                v-if="canManageVendor"
+                v-model:open="isQuotationDialogOpen"
+                title="Submit Quotation Baru"
+                :description="`Quotation akan diajukan untuk ${vendor.name} — keputusan Accept/Reject dilakukan di tab &quot;Vendors&quot; Project Detail.`"
+                content-class="max-w-md"
+              >
+                <template #trigger>
+                  <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                  <Button size="sm" variant="outline" class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none">
+                    <Plus class="h-4 w-4" />Submit Quotation
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Submit Quotation Baru</DialogTitle>
-                    <DialogDescription>Quotation akan diajukan untuk {{ vendor.name }} — keputusan Accept/Reject dilakukan di tab "Vendors" Project Detail.</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                      <Label for="quotation-project">Project</Label>
-                      <select
-                        id="quotation-project"
-                        v-model="quotationProjectId"
-                        class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-                      >
-                        <option value="" disabled>
-                          Pilih project
-                        </option>
-                        <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
-                          {{ project.name }}
-                        </option>
-                      </select>
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="quotation-service">Service (opsional)</Label>
-                      <select
-                        id="quotation-service"
-                        v-model="quotationServiceId"
-                        :disabled="!quotationProjectId"
-                        class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-50"
-                      >
-                        <option value="">
-                          Belum terhubung ke service spesifik
-                        </option>
-                        <option v-for="service in quotationServiceOptions" :key="service.id" :value="service.id">
-                          {{ service.label }}
-                        </option>
-                      </select>
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="quotation-amount">Nilai Quotation (Rp)</Label>
-                      <CurrencyInput id="quotation-amount" v-model="quotationAmount" placeholder="mis. 45000000" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="quotation-notes">Catatan (opsional)</Label>
-                      <Input id="quotation-notes" v-model="quotationNotes" placeholder="mis. Termasuk sopir dan bahan bakar" />
-                    </div>
+                </template>
+                <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="quotation-project">Project</Label>
+                    <select
+                      id="quotation-project"
+                      v-model="quotationProjectId"
+                      class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                    >
+                      <option value="" disabled>
+                        Pilih project
+                      </option>
+                      <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                        {{ project.name }}
+                      </option>
+                    </select>
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isQuotationDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!quotationProjectId || !quotationAmount" @click="submitQuotation">
-                      Simpan
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  <div class="space-y-1.5">
+                    <Label for="quotation-service">Service (opsional)</Label>
+                    <select
+                      id="quotation-service"
+                      v-model="quotationServiceId"
+                      :disabled="!quotationProjectId"
+                      class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-50"
+                    >
+                      <option value="">
+                        Belum terhubung ke service spesifik
+                      </option>
+                      <option v-for="service in quotationServiceOptions" :key="service.id" :value="service.id">
+                        {{ service.label }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="quotation-amount">Nilai Quotation (Rp)</Label>
+                    <CurrencyInput id="quotation-amount" v-model="quotationAmount" placeholder="mis. 45000000" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="quotation-notes">Catatan (opsional)</Label>
+                    <Input id="quotation-notes" v-model="quotationNotes" placeholder="mis. Termasuk sopir dan bahan bakar" />
+                  </div>
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isQuotationDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!quotationProjectId || !quotationAmount" @click="submitQuotation">
+                    Simpan
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </template>
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Jenis Layanan</TableHead>
-                  <TableHead>Nilai</TableHead>
-                  <TableHead>Diajukan</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="quotation in quotations" :key="quotation.id">
-                  <TableCell class="font-medium text-foreground">
-                    {{ projectName(quotation.projectId) }}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge
-                      :label="findStatusOption(SERVICE_TYPES, quotation.serviceType).label"
-                      :tone="findStatusOption(SERVICE_TYPES, quotation.serviceType).tone"
-                    />
-                  </TableCell>
-                  <TableCell class="text-foreground">
-                    {{ formatCurrencyIdr(quotation.amountIdr) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(quotation.submittedAt) }}
-                  </TableCell>
-                  <TableCell>
+            <ResponsiveDataView :items="quotations" :get-key="quotation => quotation.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Jenis Layanan</TableHead>
+                      <TableHead>Nilai</TableHead>
+                      <TableHead>Diajukan</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="quotation in items" :key="quotation.id">
+                      <TableCell class="font-medium text-foreground">
+                        {{ projectName(quotation.projectId) }}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          :label="findStatusOption(SERVICE_TYPES, quotation.serviceType).label"
+                          :tone="findStatusOption(SERVICE_TYPES, quotation.serviceType).tone"
+                        />
+                      </TableCell>
+                      <TableCell class="text-foreground">
+                        {{ formatCurrencyIdr(quotation.amountIdr) }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ formatDate(quotation.submittedAt) }}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          :label="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).label"
+                          :tone="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).tone"
+                        />
+                      </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="quotations.length === 0" :colspan="5">
+                      Belum ada quotation untuk vendor ini.
+                    </TableEmpty>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: quotation }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ projectName(quotation.projectId) }}
+                    </p>
                     <StatusBadge
                       :label="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).label"
                       :tone="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).tone"
                     />
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="quotations.length === 0" :colspan="5">
-                  Belum ada quotation untuk vendor ini.
-                </TableEmpty>
-              </TableBody>
-            </Table>
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Jenis Layanan
+                      </p>
+                      <p class="text-foreground">
+                        {{ findStatusOption(SERVICE_TYPES, quotation.serviceType).label }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Nilai
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatCurrencyIdr(quotation.amountIdr) }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Diajukan
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatDate(quotation.submittedAt) }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="products">
           <SectionCard title="Products" description="Katalog produk/layanan milik vendor ini (Prompt 19).">
             <template #actions>
-              <Dialog v-if="canManageVendor" v-model:open="isProductDialogOpen">
-                <DialogTrigger as-child>
-                  <Button size="sm" variant="outline">
-                    <Plus class="h-4 w-4 mr-1.5" />Tambah Produk
+              <ResponsiveFormSheet
+                v-if="canManageVendor"
+                v-model:open="isProductDialogOpen"
+                title="Tambah Produk/Layanan Baru"
+                :description="`Produk baru akan tampil di katalog ${vendor.name}.`"
+                content-class="max-w-md"
+              >
+                <template #trigger>
+                  <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                  <Button size="sm" variant="outline" class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none">
+                    <Plus class="h-4 w-4" />Tambah Produk
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Tambah Produk/Layanan Baru</DialogTitle>
-                    <DialogDescription>Produk baru akan tampil di katalog {{ vendor.name }}.</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                      <Label for="vp-name">Nama Produk/Layanan</Label>
-                      <Input id="vp-name" v-model="productName" placeholder="mis. Paket Kamar Deluxe" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vp-category">Kategori</Label>
-                      <select id="vp-category" v-model="productCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                        <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
-                          {{ type.label }}
-                        </option>
-                      </select>
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vp-description">Deskripsi (opsional)</Label>
-                      <Input id="vp-description" v-model="productDescription" placeholder="Deskripsi singkat" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vp-price">Harga per Unit (Rp, opsional)</Label>
-                      <CurrencyInput id="vp-price" v-model="productPrice" placeholder="mis. 1200000" />
-                    </div>
+                </template>
+                <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="vp-name">Nama Produk/Layanan</Label>
+                    <Input id="vp-name" v-model="productName" placeholder="mis. Paket Kamar Deluxe" />
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isProductDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!productName.trim()" @click="submitProduct">
-                      Simpan
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  <div class="space-y-1.5">
+                    <Label for="vp-category">Kategori</Label>
+                    <select id="vp-category" v-model="productCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                      <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+                        {{ type.label }}
+                      </option>
+                    </select>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="vp-description">Deskripsi (opsional)</Label>
+                    <Input id="vp-description" v-model="productDescription" placeholder="Deskripsi singkat" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="vp-price">Harga per Unit (Rp, opsional)</Label>
+                    <CurrencyInput id="vp-price" v-model="productPrice" placeholder="mis. 1200000" />
+                  </div>
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isProductDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!productName.trim()" @click="submitProduct">
+                    Simpan
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </template>
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nama Produk/Layanan</TableHead>
-                  <TableHead>Kategori</TableHead>
-                  <TableHead>Deskripsi</TableHead>
-                  <TableHead>Harga</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="product in products" :key="product.id">
-                  <TableCell class="font-medium text-foreground">
-                    {{ product.name }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, product.category).label" :tone="findStatusOption(SERVICE_TYPES, product.category).tone" /></TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ product.description ?? '—' }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ product.priceIdr ? formatCurrencyIdr(product.priceIdr) : '—' }}
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="products.length === 0" :colspan="4">
-                  Belum ada produk/layanan untuk vendor ini.
-                </TableEmpty>
-              </TableBody>
-            </Table>
+            <ResponsiveDataView :items="products" :get-key="product => product.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama Produk/Layanan</TableHead>
+                      <TableHead>Kategori</TableHead>
+                      <TableHead>Deskripsi</TableHead>
+                      <TableHead>Harga</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="product in items" :key="product.id">
+                      <TableCell class="font-medium text-foreground">
+                        {{ product.name }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, product.category).label" :tone="findStatusOption(SERVICE_TYPES, product.category).tone" /></TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ product.description ?? '—' }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ product.priceIdr ? formatCurrencyIdr(product.priceIdr) : '—' }}
+                      </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="products.length === 0" :colspan="4">
+                      Belum ada produk/layanan untuk vendor ini.
+                    </TableEmpty>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: product }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ product.name }}
+                    </p>
+                    <StatusBadge :label="findStatusOption(SERVICE_TYPES, product.category).label" :tone="findStatusOption(SERVICE_TYPES, product.category).tone" />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Deskripsi
+                      </p>
+                      <p class="text-foreground">
+                        {{ product.description ?? '—' }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Harga
+                      </p>
+                      <p class="text-foreground">
+                        {{ product.priceIdr ? formatCurrencyIdr(product.priceIdr) : '—' }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="documents">
           <SectionCard title="Documents" description="Dokumen vendor (kontrak, sertifikasi, NPWP, dsb.) — preview mock, bukan file upload nyata.">
             <template #actions>
-              <Dialog v-if="canManageVendor" v-model:open="isDocumentDialogOpen">
-                <DialogTrigger as-child>
-                  <Button size="sm" variant="outline">
-                    <Plus class="h-4 w-4 mr-1.5" />Tambah Dokumen
+              <ResponsiveFormSheet
+                v-if="canManageVendor"
+                v-model:open="isDocumentDialogOpen"
+                title="Tambah Dokumen Baru"
+                description="Preview mock — bukan file upload nyata (D-006)."
+                content-class="max-w-md"
+              >
+                <template #trigger>
+                  <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                  <Button size="sm" variant="outline" class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none">
+                    <Plus class="h-4 w-4" />Tambah Dokumen
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Tambah Dokumen Baru</DialogTitle>
-                    <DialogDescription>Preview mock — bukan file upload nyata (D-006).</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                      <Label for="vdoc-name">Nama Dokumen</Label>
-                      <Input id="vdoc-name" v-model="documentName" placeholder="mis. Kontrak Kerjasama 2026.pdf" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vdoc-type">Tipe</Label>
-                      <Input id="vdoc-type" v-model="documentType" placeholder="mis. Kontrak, NPWP, Sertifikasi" />
-                    </div>
+                </template>
+                <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="vdoc-name">Nama Dokumen</Label>
+                    <Input id="vdoc-name" v-model="documentName" placeholder="mis. Kontrak Kerjasama 2026.pdf" />
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isDocumentDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!documentName.trim() || !documentType.trim()" @click="submitDocument">
-                      Simpan
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  <div class="space-y-1.5">
+                    <Label for="vdoc-type">Tipe</Label>
+                    <Input id="vdoc-type" v-model="documentType" placeholder="mis. Kontrak, NPWP, Sertifikasi" />
+                  </div>
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isDocumentDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!documentName.trim() || !documentType.trim()" @click="submitDocument">
+                    Simpan
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </template>
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Nama Dokumen</TableHead>
-                  <TableHead>Tipe</TableHead>
-                  <TableHead>Diunggah</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="document in documents" :key="document.id">
-                  <TableCell class="font-medium text-foreground">
-                    {{ document.name }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="document.type" tone="neutral" /></TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(document.uploadedAt) }}
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="documents.length === 0" :colspan="3">
-                  Belum ada dokumen untuk vendor ini.
-                </TableEmpty>
-              </TableBody>
-            </Table>
+            <ResponsiveDataView :items="documents" :get-key="document => document.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Nama Dokumen</TableHead>
+                      <TableHead>Tipe</TableHead>
+                      <TableHead>Diunggah</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="document in items" :key="document.id">
+                      <TableCell class="font-medium text-foreground">
+                        {{ document.name }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="document.type" tone="neutral" /></TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ formatDate(document.uploadedAt) }}
+                      </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="documents.length === 0" :colspan="3">
+                      Belum ada dokumen untuk vendor ini.
+                    </TableEmpty>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: document }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ document.name }}
+                    </p>
+                    <StatusBadge :label="document.type" tone="neutral" />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Diunggah
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatDate(document.uploadedAt) }}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="contacts">
           <SectionCard title="Contacts">
             <template #actions>
-              <Dialog v-if="canManageVendor" v-model:open="isContactDialogOpen">
-                <DialogTrigger as-child>
-                  <Button size="sm" variant="outline">
-                    <Plus class="h-4 w-4 mr-1.5" />Tambah Contact
+              <ResponsiveFormSheet
+                v-if="canManageVendor"
+                v-model:open="isContactDialogOpen"
+                title="Tambah Contact Baru"
+                :description="`Contact akan ditambahkan untuk ${vendor.name}.`"
+                content-class="max-w-md"
+              >
+                <template #trigger>
+                  <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                  <Button size="sm" variant="outline" class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none">
+                    <Plus class="h-4 w-4" />Tambah Contact
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Tambah Contact Baru</DialogTitle>
-                    <DialogDescription>Contact akan ditambahkan untuk {{ vendor.name }}.</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                      <Label for="vc-name">Nama</Label>
-                      <Input id="vc-name" v-model="contactName" placeholder="Nama contact person" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vc-title">Jabatan</Label>
-                      <Input id="vc-title" v-model="contactTitle" placeholder="mis. Account Manager" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vc-email">Email (opsional)</Label>
-                      <Input id="vc-email" v-model="contactEmail" type="email" placeholder="nama@vendor.com" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="vc-phone">Telepon (opsional)</Label>
-                      <Input id="vc-phone" v-model="contactPhone" placeholder="08xx-xxxx-xxxx" />
-                    </div>
+                </template>
+                <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="vc-name">Nama</Label>
+                    <Input id="vc-name" v-model="contactName" placeholder="Nama contact person" />
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isContactDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
-                      Simpan
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  <div class="space-y-1.5">
+                    <Label for="vc-title">Jabatan</Label>
+                    <Input id="vc-title" v-model="contactTitle" placeholder="mis. Account Manager" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="vc-email">Email (opsional)</Label>
+                    <Input id="vc-email" v-model="contactEmail" type="email" placeholder="nama@vendor.com" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="vc-phone">Telepon (opsional)</Label>
+                    <Input id="vc-phone" v-model="contactPhone" placeholder="08xx-xxxx-xxxx" />
+                  </div>
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isContactDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
+                    Simpan
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </template>
 
             <ul class="divide-y divide-border">
@@ -596,36 +746,35 @@ function submitQuotation () {
       </Tabs>
 
       <!-- Edit kategori/status vendor (Section 17) -->
-      <Dialog v-model:open="isVendorEditOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Edit Kategori/Status Vendor</DialogTitle>
-            <DialogDescription>Kategori sourcing dan lifecycle vendor sebagai partner.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="space-y-1.5">
-              <Label for="edit-vendor-category">Kategori</Label>
-              <Input id="edit-vendor-category" v-model="editCategory" placeholder="mis. Hotel Budget, MICE Full-Service" />
-            </div>
-            <div class="space-y-1.5">
-              <Label for="edit-vendor-status">Status</Label>
-              <select id="edit-vendor-status" v-model="editStatus" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option v-for="option in VENDOR_STATUSES" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
-            </div>
+      <ResponsiveFormSheet
+        v-model:open="isVendorEditOpen"
+        title="Edit Kategori/Status Vendor"
+        description="Kategori sourcing dan lifecycle vendor sebagai partner."
+        content-class="max-w-md"
+      >
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="edit-vendor-category">Kategori</Label>
+            <Input id="edit-vendor-category" v-model="editCategory" placeholder="mis. Hotel Budget, MICE Full-Service" />
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isVendorEditOpen = false">
-              Batal
-            </Button>
-            <Button @click="submitVendorEdit">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <div class="space-y-1.5">
+            <Label for="edit-vendor-status">Status</Label>
+            <select id="edit-vendor-status" v-model="editStatus" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option v-for="option in VENDOR_STATUSES" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isVendorEditOpen = false">
+            Batal
+          </Button>
+          <Button @click="submitVendorEdit">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

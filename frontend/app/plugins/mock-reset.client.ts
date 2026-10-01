@@ -10,7 +10,7 @@ import {
 } from '~/data'
 import { USERS } from '~/data/users'
 import { ROLE_DEFINITIONS, ROLE_MODULE_GRANTS, ROLE_MENU_GRANTS, ROLE_CAPABILITY_GRANTS } from '~/data/rbac'
-import { OPEX_ENTRIES } from '~/data/finance-ext'
+import { OPEX_ENTRIES, PROJECT_EXPENSES } from '~/data/finance-ext'
 import { SUPPLIER_INVOICES } from '~/data/procurement'
 import { captureMockSnapshot } from '~/utils/mock-reset'
 
@@ -62,6 +62,8 @@ export default defineNuxtPlugin(() => {
      */
     SUPPLIER_INVOICES,
     OPEX_ENTRIES,
+    /** `PROJECT_EXPENSES` (pengeluaran project ad-hoc) — mutable lewat `createProjectExpense()`, sama seperti `OPEX_ENTRIES` di atas, ikut jadi sumber `getJournalEntries()`/`getProjectActualCostIdr()`. */
+    PROJECT_EXPENSES,
     /**
      * Sales Order (B2C individual) — `SALES_ORDERS` dimutasi oleh `createSalesOrder()`/`updateSalesOrderStatus()`.
      * Wajib didaftarkan bersama `PARTIES`: tanpa ini, "Reset Demo Data" mengembalikan `PARTIES` (menghapus

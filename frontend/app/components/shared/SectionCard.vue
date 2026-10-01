@@ -1,9 +1,14 @@
 <script setup lang="ts">
+import type { HTMLAttributes } from 'vue'
 import { cn } from '~/lib/utils'
 
 const props = withDefaults(defineProps<{
   title?: string
   description?: string
+  /** Override kelas judul (mis. `font-bold normal-case`) — dipakai halaman yang butuh gaya judul beda dari default `compact`/normal (mis. seragamkan bold di satu tab tertentu tanpa mengubah default global). */
+  titleClass?: HTMLAttributes['class']
+  /** Kelas tambahan untuk `CardContent` (bukan root `Card`, itu sudah otomatis lewat attribute fallthrough) — dipakai kartu yang perlu isinya jadi flex column penuh tinggi (mis. menempelkan tombol ke dasar kartu dengan `mt-auto` saat card lain di grid yang sama membuatnya di-stretch lebih tinggi dari kontennya sendiri). */
+  contentClass?: HTMLAttributes['class']
   /** Bento sizing (Dashboard redesign) — mengatur span kolom pada grid dashboard. */
   size?: 'default' | 'wide' | 'hero' | 'full'
   /**
@@ -16,7 +21,11 @@ const props = withDefaults(defineProps<{
   accent?: boolean
   /** Menghilangkan padding konten — untuk card yang isinya tabel penuh-lebar. */
   flush?: boolean
-}>(), { size: 'default', tone: 'primary', accent: false, flush: false })
+  /** Varian padat opt-in (halaman detail Project) — padding lebih tipis, title jadi label kecil kapital
+   * (pola sama `StatsCard`), aksen tone (kalau `accent` aktif) jadi lebih tipis. Default lama TIDAK berubah
+   * untuk pemakaian existing di halaman lain. */
+  compact?: boolean
+}>(), { size: 'default', tone: 'primary', accent: false, flush: false, compact: false })
 
 const ACCENT_BORDER: Record<string, string> = {
   primary: 'border-l-primary',
@@ -35,26 +44,26 @@ const showAccent = props.accent || props.size === 'hero'
       props.size !== 'default' && 'animate-fade-in',
       (props.size === 'wide' || props.size === 'hero') && 'md:col-span-2 xl:col-span-2',
       props.size === 'full' && 'md:col-span-2 xl:col-span-3',
-      showAccent && `border-l-4 ${ACCENT_BORDER[props.tone]}`
+      showAccent && `${props.compact ? 'border-l-2' : 'border-l-4'} ${ACCENT_BORDER[props.tone]}`
     )"
   >
-    <CardHeader v-if="title || $slots.header" class="flex flex-row items-start justify-between gap-4 space-y-0 pb-4">
+    <CardHeader v-if="title || $slots.header" :class="cn('flex flex-row flex-wrap items-start justify-between gap-3 space-y-0', props.compact ? 'pb-2.5' : 'gap-4 pb-4')">
       <div class="min-w-0">
         <slot name="header">
-          <CardTitle :class="cn('text-[0.9375rem] leading-6', props.size === 'hero' && 'text-lg')">
+          <CardTitle :class="cn(props.compact ? 'text-xs font-semibold uppercase tracking-wide text-muted-foreground' : 'text-[0.9375rem] leading-6', props.size === 'hero' && 'text-lg', props.titleClass)">
             {{ title }}
           </CardTitle>
-          <CardDescription v-if="description" class="mt-1 leading-relaxed">
+          <CardDescription v-if="description" :class="cn('leading-relaxed', props.compact ? 'mt-0.5 text-xs' : 'mt-1')">
             {{ description }}
           </CardDescription>
         </slot>
       </div>
-      <div v-if="$slots.actions" class="flex shrink-0 items-center gap-2">
+      <div v-if="$slots.actions" class="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:shrink-0">
         <slot name="actions" />
       </div>
     </CardHeader>
 
-    <CardContent :class="cn(props.flush ? 'p-0' : 'p-5', (title || $slots.header) && (props.flush ? 'pt-0' : 'pt-0'))">
+    <CardContent :class="cn(props.flush ? 'p-0' : (props.compact ? 'p-4' : 'p-5'), (title || $slots.header) && 'pt-0', props.contentClass)">
       <slot />
     </CardContent>
   </Card>

@@ -6,7 +6,7 @@ import type { PartyActivityType, CompanyType } from '~/types/party'
 import type { SalesOrderStatus } from '~/types/sales-order'
 import type { VendorQuotationStatus, VendorStatus } from '~/types/vendor'
 import type { ChangeCategory, ChangeApprovalStatus, ProjectRiskSeverity, ProjectRiskStatus } from '~/types/activity'
-import type { LeadSource, LeadStage, LeadServiceCategory, LeadUrgency, LeadWorkflowStatus } from '~/types/lead'
+import type { LeadSource, LeadStage, LeadServiceCategory, LeadUrgency, LeadWorkflowStatus, B2cPriceAcceptance, B2cBookingReadiness, B2cQualificationResult } from '~/types/lead'
 import type { FlightBookingStatus, CabinClass } from '~/types/ticketing'
 import type { HotelBookingStatus, MealPlan } from '~/types/accommodation'
 import type { TransportBookingStatus, VehicleType } from '~/types/transportation'
@@ -313,6 +313,26 @@ export const LEAD_URGENCY_LEVELS: StatusOption<LeadUrgency>[] = [
   { value: 'low', label: 'Rendah', tone: 'info', order: 1 },
   { value: 'medium', label: 'Sedang', tone: 'warning', order: 2 },
   { value: 'high', label: 'Tinggi', tone: 'destructive', order: 3 }
+]
+
+/** Group Trip B2C Qualification (`qualifyGroupTripLead`) — lihat `app/types/lead.ts`. */
+export const B2C_PRICE_ACCEPTANCE_OPTIONS: StatusOption<B2cPriceAcceptance>[] = [
+  { value: 'accept', label: 'Accept', tone: 'success', order: 1 },
+  { value: 'need-discussion', label: 'Need Discussion', tone: 'warning', order: 2 },
+  { value: 'not-suitable', label: 'Not Suitable', tone: 'destructive', order: 3 }
+]
+
+export const B2C_BOOKING_READINESS_OPTIONS: StatusOption<B2cBookingReadiness>[] = [
+  { value: 'ready', label: 'Ready to Book', tone: 'success', order: 1 },
+  { value: 'need-follow-up', label: 'Need Follow-up', tone: 'warning', order: 2 },
+  { value: 'still-considering', label: 'Still Considering', tone: 'info', order: 3 }
+]
+
+export const B2C_QUALIFICATION_RESULT_OPTIONS: StatusOption<B2cQualificationResult>[] = [
+  { value: 'qualified', label: 'Qualified', tone: 'success', order: 1 },
+  { value: 'follow-up', label: 'Follow Up', tone: 'warning', order: 2 },
+  { value: 'waitlist', label: 'Waitlist', tone: 'info', order: 3 },
+  { value: 'not-qualified', label: 'Not Qualified', tone: 'destructive', order: 4 }
 ]
 
 /**

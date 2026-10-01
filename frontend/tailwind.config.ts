@@ -22,7 +22,11 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif']
+        sans: ['Plus Jakarta Sans', 'system-ui', 'sans-serif'],
+        /** Khusus komponen "boarding pass" Project Order (lihat `assets/css/tailwind.css`) — jangan
+         * dipakai di luar situ, ini bukan pengganti `font-sans`/`font-mono` default. */
+        'ticket-display': ['"Big Shoulders Display"', 'sans-serif'],
+        'ticket-mono': ['"JetBrains Mono"', 'monospace']
       },
       colors: {
         border: 'hsl(var(--border))',

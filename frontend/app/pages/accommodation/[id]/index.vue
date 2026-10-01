@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Plus, Trash2, Printer } from 'lucide-vue-next'
+import { FileX, Plus, Trash2, Printer, ArrowLeft } from 'lucide-vue-next'
 import {
   getHotelBookingById, getHotelBookingMarginIdr, getHotelBookingStatusTransitions,
   updateHotelBooking, updateHotelBookingStatus, selectHotelOption,
-  getProjectById, getTravelers, getHotelRoomingList, getTravelerGroups, getProjectServiceById, setServiceVendor,
+  getProjectById, getTravelers, getHotelRoomingList, getTravelerGroups, getProjectServiceById, assignServiceVendor,
   VENDORS,
   createCancellationRecord
 } from '~/data'
@@ -191,7 +191,7 @@ function removeOptionRow (index: number) {
 
 function submitEdit () {
   if (!booking.value) { return }
-  if (booking.value.serviceId) { setServiceVendor(booking.value.serviceId, editVendorId.value || undefined) }
+  if (booking.value.serviceId) { assignServiceVendor(booking.value.serviceId, editVendorId.value || undefined, editNetCost.value ?? undefined) }
   updateHotelBooking(booking.value.id, {
     confirmationNumber: editConfirmationNumber.value.trim() || undefined,
     checkInDate: editCheckInDate.value || undefined,
@@ -233,6 +233,9 @@ function submitEdit () {
     <RoleAccessState v-else-if="!canView('accommodation')" module-label="modul Accommodation" />
 
     <template v-else>
+      <NuxtLink v-if="project" :to="`/project-orders/${project.id}?tab=itinerary-services`" class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
+        <ArrowLeft class="h-3.5 w-3.5" />Kembali ke {{ project.name }}
+      </NuxtLink>
       <PageHeader :title="`Hotel Booking ${booking.id}`" :breadcrumb="[{ label: 'Accommodation', to: '/accommodation' }, { label: booking.id }]">
         <template #actions>
           <div class="flex flex-wrap items-center gap-2">
@@ -278,50 +281,94 @@ function submitEdit () {
       </SectionCard>
 
       <SectionCard title="Hotel Options" description="Property, room type, rate plan, meal plan, dan policies per opsi yang dibandingkan.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Property</TableHead>
-              <TableHead>Room Type</TableHead>
-              <TableHead>Rate Plan</TableHead>
-              <TableHead>Meal</TableHead>
-              <TableHead>Rate/Malam</TableHead>
-              <TableHead>Policies</TableHead>
-              <TableHead v-if="canManageAccommodation">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(option, index) in booking.options" :key="index">
-              <TableCell class="text-foreground">
-                {{ option.propertyName }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ option.roomType }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ option.ratePlan }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(MEAL_PLANS, option.mealPlan).label" :tone="findStatusOption(MEAL_PLANS, option.mealPlan).tone" /></TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(option.ratePerNightIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ option.policies ?? '—' }}
-              </TableCell>
-              <TableCell v-if="canManageAccommodation">
+        <ResponsiveDataView :items="booking.options" :get-key="(option, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Property</TableHead>
+                  <TableHead>Room Type</TableHead>
+                  <TableHead>Rate Plan</TableHead>
+                  <TableHead>Meal</TableHead>
+                  <TableHead>Rate/Malam</TableHead>
+                  <TableHead>Policies</TableHead>
+                  <TableHead v-if="canManageAccommodation">
+                    Aksi
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(option, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ option.propertyName }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ option.roomType }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ option.ratePlan }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(MEAL_PLANS, option.mealPlan).label" :tone="findStatusOption(MEAL_PLANS, option.mealPlan).tone" /></TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(option.ratePerNightIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ option.policies ?? '—' }}
+                  </TableCell>
+                  <TableCell v-if="canManageAccommodation">
+                    <StatusBadge v-if="option.isSelected" label="Dipilih" tone="success" />
+                    <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">
+                      Pilih
+                    </Button>
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="booking.options.length === 0" :colspan="canManageAccommodation ? 7 : 6">
+                  Belum ada opsi tercatat.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: option, index }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ option.propertyName }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ option.roomType }} · {{ option.ratePlan }}
+                  </p>
+                </div>
+                <StatusBadge :label="findStatusOption(MEAL_PLANS, option.mealPlan).label" :tone="findStatusOption(MEAL_PLANS, option.mealPlan).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Rate/Malam
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(option.ratePerNightIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Policies
+                  </p>
+                  <p class="text-foreground">
+                    {{ option.policies ?? '—' }}
+                  </p>
+                </div>
+              </div>
+              <div v-if="canManageAccommodation" class="mt-3">
                 <StatusBadge v-if="option.isSelected" label="Dipilih" tone="success" />
                 <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">
                   Pilih
                 </Button>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="booking.options.length === 0" :colspan="canManageAccommodation ? 7 : 6">
-              Belum ada opsi tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard
@@ -409,49 +456,48 @@ function submitEdit () {
       </SectionCard>
 
       <!-- Status change dialog (cancelled/no-show — reason wajib) -->
-      <Dialog v-model:open="isStatusDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{{ pendingStatus ? findStatusOption(HOTEL_BOOKING_STATUSES, pendingStatus).label : '' }} Hotel Booking</DialogTitle>
-            <DialogDescription>Alasan wajib dicatat untuk transisi ini — akan tersimpan sebagai jejak historis di Activity & Changes project terkait.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="space-y-1.5">
-              <Label for="status-reason">Alasan</Label>
-              <Input id="status-reason" v-model="statusReason" placeholder="mis. Traveler membatalkan menginap" />
-            </div>
-            <template v-if="pendingStatus && CANCELLATION_TRIGGER_STATUSES.includes(pendingStatus)">
-              <div class="space-y-1.5 pt-2 border-t border-border">
-                <Label for="status-penalty">Penalty (Rp, opsional)</Label>
-                <CurrencyInput id="status-penalty" v-model="cancellationPenalty" placeholder="0" />
-              </div>
-              <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                <Checkbox v-model="cancellationRefundEligible" />
-                Refund Eligible
-              </label>
-              <p class="text-xs text-muted-foreground">
-                Sebuah Cancellation Record akan otomatis dicatat (Section 19) — dapat ditindaklanjuti dengan Refund Request di modul Changes & Incidents.
-              </p>
-            </template>
+      <ResponsiveFormSheet
+        v-model:open="isStatusDialogOpen"
+        :title="`${pendingStatus ? findStatusOption(HOTEL_BOOKING_STATUSES, pendingStatus).label : ''} Hotel Booking`"
+        description="Alasan wajib dicatat untuk transisi ini — akan tersimpan sebagai jejak historis di Activity & Changes project terkait."
+      >
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="status-reason">Alasan</Label>
+            <Input id="status-reason" v-model="statusReason" placeholder="mis. Traveler membatalkan menginap" />
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isStatusDialogOpen = false">
-              Batal
-            </Button>
-            <Button variant="destructive" :disabled="!statusReason.trim()" @click="submitStatusChange">
-              Konfirmasi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <template v-if="pendingStatus && CANCELLATION_TRIGGER_STATUSES.includes(pendingStatus)">
+            <div class="space-y-1.5 pt-2 border-t border-border">
+              <Label for="status-penalty">Penalty (Rp, opsional)</Label>
+              <CurrencyInput id="status-penalty" v-model="cancellationPenalty" placeholder="0" />
+            </div>
+            <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+              <Checkbox v-model="cancellationRefundEligible" />
+              Refund Eligible
+            </label>
+            <p class="text-xs text-muted-foreground">
+              Sebuah Cancellation Record akan otomatis dicatat (Section 19) — dapat ditindaklanjuti dengan Refund Request di modul Changes & Incidents.
+            </p>
+          </template>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isStatusDialogOpen = false">
+            Batal
+          </Button>
+          <Button variant="destructive" :disabled="!statusReason.trim()" @click="submitStatusChange">
+            Konfirmasi
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
       <!-- Edit dialog -->
-      <Dialog v-model:open="isEditOpen">
-        <DialogScrollContent class="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Hotel Booking</DialogTitle>
-            <DialogDescription>Perubahan berlaku langsung — status lifecycle diubah lewat tombol terpisah di header.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isEditOpen"
+        title="Edit Hotel Booking"
+        description="Perubahan berlaku langsung — status lifecycle diubah lewat tombol terpisah di header."
+        content-class="max-w-2xl"
+        scroll
+      >
           <div class="space-y-4 py-2">
             <div class="grid gap-4 sm:grid-cols-2">
               <div class="space-y-1.5">
@@ -563,16 +609,15 @@ function submitEdit () {
               <textarea id="edit-amendment-note" v-model="editAmendmentNote" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Jelaskan perubahan (mis. upgrade tipe kamar)" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isEditOpen = false">
-              Batal
-            </Button>
-            <Button @click="submitEdit">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isEditOpen = false">
+            Batal
+          </Button>
+          <Button @click="submitEdit">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

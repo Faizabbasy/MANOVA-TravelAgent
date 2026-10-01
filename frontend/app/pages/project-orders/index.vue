@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock, Plus, Users } from 'lucide-vue-next'
+import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock, Plus, Users, MapPin } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import {
-  PROJECTS, getPartyById, getUserById, getProjectOrderStatus,
-  SALES_ORDERS, getSalesOrdersSummary, createSalesOrder
+  PROJECTS, PARTIES, getPartyById, getUserById, getProjectOrderStatus,
+  createProject, getTravelers, getSalesOrderById, getProjectSeatsFilled,
+  ensureProjectServiceForBudget, updateProjectServiceBudget
 } from '~/data'
 import {
   PROJECT_ORDER_STEPS,
@@ -12,17 +13,15 @@ import {
   evaluateProjectOrderStepGate,
   getProjectMilestoneSummary
 } from '~/data/project-order-workflow'
-import { PROJECT_ORDER_STATUSES, PROJECT_CHARACTERISTICS, SALES_ORDER_STATUSES, findStatusOption } from '~/constants/status'
+import { PROJECT_ORDER_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange } from '~/utils/format'
 import type { ProjectOrderStepKey } from '~/types/project-order'
+import type { ServiceTypeKey } from '~/types/project'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Project' })
 
 const { canView, canViewFinancials, canManage } = usePermissions()
-// Keeps the DP workflow gates (evaluated per row) in sync with Finance on the server.
-useFinanceOverview()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 /**
@@ -36,63 +35,120 @@ const canManageOrders = computed(() => canManage('operations'))
 /** Pill-tab: Project Orders (B2B, tabel yang sudah ada, tidak berubah) vs Sales Orders (B2C individual, baru). */
 const activeOrderTab = ref<'project-orders' | 'sales-orders'>('project-orders')
 
-const salesOrderRows = computed(() => SALES_ORDERS.map(order => ({
-  order,
-  customer: getPartyById(order.customerId)
-})))
+/** Tab "Project B2C" — dulu list `SalesOrder` mentah + tombol "Buat Sales Order" berdiri sendiri. Sejak
+ * Group Trip ada (`createProject` dengan `isGroupTrip: true` + `joinLeadToGroupProject`), itulah cara B2C
+ * sebenarnya sekarang — jadi list di sini diganti Project ber-`isGroupTrip`, bukan `SALES_ORDERS` lagi.
+ * Tidak ada tombol "Buat" di tab ini — Group Trip dibuat lewat tombol "Buat Project" di tab Project Orders
+ * (centang "Group Trip"). */
+const groupTripRows = computed(() => PROJECTS.filter(project => project.isGroupTrip).map((project) => {
+  const bookings = getTravelers(project.id)
+    .filter(traveler => traveler.salesOrderId)
+    .map(traveler => getSalesOrderById(traveler.salesOrderId!))
+    .filter((order): order is NonNullable<typeof order> => Boolean(order))
+  return {
+    project,
+    seatsFilled: getProjectSeatsFilled(project.id),
+    pricePerPaxIdr: project.travelerCount > 0 ? Math.round(project.quotationAmountIdr / project.travelerCount) : 0,
+    revenueIdr: bookings.reduce((sum, order) => sum + order.priceIdr, 0)
+  }
+}))
 
 const salesOrderSearch = ref('')
-const filteredSalesOrderRows = computed(() => {
-  if (!salesOrderSearch.value.trim()) { return salesOrderRows.value }
+const filteredGroupTripRows = computed(() => {
+  if (!salesOrderSearch.value.trim()) { return groupTripRows.value }
   const query = salesOrderSearch.value.toLowerCase()
-  return salesOrderRows.value.filter(row =>
-    row.order.destination.toLowerCase().includes(query) ||
-    (row.customer?.name ?? '').toLowerCase().includes(query))
+  return groupTripRows.value.filter(row =>
+    row.project.destination.toLowerCase().includes(query) ||
+    row.project.name.toLowerCase().includes(query))
 })
 
-const salesOrdersSummary = computed(() => getSalesOrdersSummary())
+const salesOrdersSummary = computed(() => ({
+  total: groupTripRows.value.length,
+  seatsFilled: groupTripRows.value.reduce((sum, row) => sum + row.seatsFilled, 0),
+  revenueIdr: groupTripRows.value.reduce((sum, row) => sum + row.revenueIdr, 0),
+  completed: groupTripRows.value.filter(row => row.project.status === 'completed' || Boolean(row.project.closedAt)).length
+}))
 
-/* Buat Sales Order */
-const isCreateSalesOrderOpen = ref(false)
-const newCustomerName = ref('')
-const newDestination = ref('')
-const newTravelStartDate = ref('')
-const newTravelEndDate = ref('')
-const newTravelerCount = ref<number | null>(null)
-const newPriceIdr = ref<number | null>(null)
-const newNote = ref('')
+/** Buat Project untuk customer yang sudah ada (bukan lewat Lead → Won) — hanya Party berstatus 'client'
+ * yang boleh dipilih (customer yang benar-benar sudah pernah Won), konsisten `createProject`. */
+const clientParties = computed(() => PARTIES.filter(party => party.lifecycleStatus === 'client'))
 
-function resetSalesOrderForm () {
-  newCustomerName.value = ''
-  newDestination.value = ''
-  newTravelStartDate.value = ''
-  newTravelEndDate.value = ''
-  newTravelerCount.value = null
-  newPriceIdr.value = null
-  newNote.value = ''
+const isCreateProjectOpen = ref(false)
+const newProjectIsGroupTrip = ref(false)
+const newProjectPartyId = ref('')
+const newProjectName = ref('')
+const newProjectDestination = ref('')
+const newProjectStartDate = ref('')
+const newProjectEndDate = ref('')
+const newProjectTravelerCount = ref<number | null>(null)
+const newProjectServiceScope = ref<ServiceTypeKey[]>([])
+const newProjectAmountIdr = ref<number | null>(null)
+/** Budget per layanan langsung di form "Buat Project" — muncul begitu chip Service Scope dicentang, opsional,
+ * memakai mesin yang sama dengan "Edit Budget" tab Finance (`ensureProjectServiceForBudget`/
+ * `updateProjectServiceBudget`, `app/data/index.ts`) supaya tidak perlu bolak-balik ke halaman lain. */
+const newProjectServiceBudgets = ref<Partial<Record<ServiceTypeKey, number | null>>>({})
+
+function toggleNewProjectServiceScope (type: ServiceTypeKey) {
+  const index = newProjectServiceScope.value.indexOf(type)
+  if (index === -1) { newProjectServiceScope.value.push(type) } else { newProjectServiceScope.value.splice(index, 1) }
 }
 
-function submitSalesOrder () {
-  if (!newCustomerName.value.trim() || !newDestination.value.trim() || !newTravelStartDate.value || !newTravelEndDate.value || !newTravelerCount.value || !newPriceIdr.value) { return }
-  const order = createSalesOrder({
-    customerName: newCustomerName.value.trim(),
-    destination: newDestination.value.trim(),
-    travelStartDate: newTravelStartDate.value,
-    travelEndDate: newTravelEndDate.value,
-    travelerCount: newTravelerCount.value,
-    priceIdr: newPriceIdr.value,
-    note: newNote.value.trim() || undefined
+function resetCreateProjectForm () {
+  newProjectIsGroupTrip.value = false
+  newProjectPartyId.value = ''
+  newProjectName.value = ''
+  newProjectDestination.value = ''
+  newProjectStartDate.value = ''
+  newProjectEndDate.value = ''
+  newProjectTravelerCount.value = null
+  newProjectServiceScope.value = []
+  newProjectAmountIdr.value = null
+  newProjectServiceBudgets.value = {}
+}
+
+const isNewProjectFormValid = computed(() => Boolean(
+  (newProjectIsGroupTrip.value || newProjectPartyId.value) &&
+  newProjectName.value.trim() &&
+  newProjectDestination.value.trim() &&
+  newProjectStartDate.value &&
+  newProjectEndDate.value &&
+  newProjectTravelerCount.value &&
+  newProjectServiceScope.value.length &&
+  newProjectAmountIdr.value
+))
+
+const newProjectServiceBudgetsTotal = computed(() =>
+  newProjectServiceScope.value.reduce((sum, type) => sum + (newProjectServiceBudgets.value[type] ?? 0), 0)
+)
+
+function submitCreateProject () {
+  if (!isNewProjectFormValid.value) { return }
+  const project = createProject({
+    isGroupTrip: newProjectIsGroupTrip.value,
+    partyId: newProjectIsGroupTrip.value ? undefined : newProjectPartyId.value,
+    name: newProjectName.value.trim(),
+    destination: newProjectDestination.value.trim(),
+    travelStartDate: newProjectStartDate.value,
+    travelEndDate: newProjectEndDate.value,
+    travelerCount: newProjectTravelerCount.value!,
+    serviceScope: newProjectServiceScope.value,
+    quotationAmountIdr: newProjectAmountIdr.value!
   })
-  if (!order) { showToast('Gagal Membuat Sales Order', 'Periksa kembali tanggal, jumlah traveler, dan harga.', 'error'); return }
-  resetSalesOrderForm()
-  isCreateSalesOrderOpen.value = false
-  showToast('Sales Order Dibuat', `${order.id} tercatat berstatus "Draft".`, 'success')
+  if (!project) { showToast('Gagal Membuat Project', 'Periksa kembali tanggal dan data yang diisi.', 'error'); return }
+  for (const type of newProjectServiceScope.value) {
+    const amount = newProjectServiceBudgets.value[type]
+    if (!amount) { continue }
+    const label = findStatusOption(SERVICE_TYPES, type).label
+    const service = ensureProjectServiceForBudget(project.id, type, label)
+    updateProjectServiceBudget(service.id, amount)
+  }
+  resetCreateProjectForm()
+  isCreateProjectOpen.value = false
+  showToast('Project Dibuat', `${project.id} tercatat berstatus "Draft".`, 'success')
 }
 
 const searchQuery = ref('')
 const stepFilter = ref<'all' | ProjectOrderStepKey>('all')
-const attentionOnly = ref(false)
-const mineOnly = ref(false)
 
 const rows = computed(() => PROJECTS.map((project) => {
   const stepKey = getProjectOrderStep(project)
@@ -105,7 +161,6 @@ const rows = computed(() => PROJECTS.map((project) => {
     party: getPartyById(project.partyId),
     owner: getUserById(project.ownerId),
     orderStatus: findStatusOption(PROJECT_ORDER_STATUSES, getProjectOrderStatus(project)),
-    characteristic: findStatusOption(PROJECT_CHARACTERISTICS, project.characteristic),
     step,
     gate,
     milestones,
@@ -116,8 +171,6 @@ const rows = computed(() => PROJECTS.map((project) => {
 const filteredRows = computed(() => {
   let result = rows.value
   if (stepFilter.value !== 'all') { result = result.filter(row => row.step.key === stepFilter.value) }
-  if (attentionOnly.value) { result = result.filter(row => row.needsAttention) }
-  if (mineOnly.value) { result = result.filter(row => row.project.ownerId === currentUser.value.id) }
   if (searchQuery.value.trim()) {
     const query = searchQuery.value.toLowerCase()
     result = result.filter(row =>
@@ -169,7 +222,7 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
         )"
         @click="activeOrderTab = 'sales-orders'"
       >
-        Sales Orders
+        Sales Order
       </button>
     </div>
 
@@ -188,14 +241,120 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input v-model="searchQuery" placeholder="Cari nomor, nama, atau customer..." class="pl-9" />
         </div>
-        <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-          <Checkbox v-model="attentionOnly" />
-          Hanya yang butuh perhatian
-        </label>
-        <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-          <Checkbox v-model="mineOnly" />
-          Hanya milik saya
-        </label>
+        <Sheet v-if="canManageOrders" v-model:open="isCreateProjectOpen">
+          <SheetTrigger as-child>
+            <!-- Mobile — floating popup button (fixed di atas bottom nav) biar gampang dijangkau tanpa
+                 scroll ke toolbar; desktop tetap tombol inline biasa, tidak diubah. -->
+            <Button
+              size="sm"
+              class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:ml-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+            >
+              <Plus class="h-4 w-4" />Buat Project
+            </Button>
+          </SheetTrigger>
+          <SheetContent side="right" class="w-full sm:max-w-md overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Buat Project Baru</SheetTitle>
+              <SheetDescription>Untuk customer yang sudah ada — tanpa lewat Lead, status awal "Draft".</SheetDescription>
+            </SheetHeader>
+            <div class="space-y-4 py-4">
+              <label class="flex items-start gap-2 text-sm text-foreground cursor-pointer rounded-lg border border-input px-3 py-2.5">
+                <Checkbox v-model="newProjectIsGroupTrip" class="mt-0.5" />
+                <span>
+                  <span class="block font-medium">Group Trip (B2C) — banyak traveler individual</span>
+                  <span class="block text-xs text-muted-foreground">Project dibuat tanpa customer dulu — tiap Lead yang gabung belakangan jadi Customer sendiri-sendiri.</span>
+                </span>
+              </label>
+
+              <div v-if="!newProjectIsGroupTrip" class="space-y-1.5">
+                <Label for="prj-customer">Customer</Label>
+                <select
+                  id="prj-customer"
+                  v-model="newProjectPartyId"
+                  class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option value="" disabled>
+                    Pilih customer
+                  </option>
+                  <option v-for="party in clientParties" :key="party.id" :value="party.id">
+                    {{ party.name }}
+                  </option>
+                </select>
+                <p v-if="!clientParties.length" class="text-xs text-muted-foreground">
+                  Belum ada customer berstatus Client. Menangkan Lead terlebih dahulu.
+                </p>
+              </div>
+              <p v-else class="text-xs text-muted-foreground">
+                Customer diisi otomatis per-traveler saat Lead bergabung ke Group Trip ini (lewat Qualify Lead individual-travel).
+              </p>
+
+              <div class="space-y-1.5">
+                <Label for="prj-name">Nama Project</Label>
+                <Input id="prj-name" v-model="newProjectName" placeholder="mis. Jakarta Business Trip Q1 2027" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="prj-destination">Destinasi</Label>
+                <Input id="prj-destination" v-model="newProjectDestination" placeholder="mis. Bali" />
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="prj-start">Tanggal Berangkat</Label>
+                  <Input id="prj-start" v-model="newProjectStartDate" type="date" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="prj-end">Tanggal Pulang</Label>
+                  <Input id="prj-end" v-model="newProjectEndDate" type="date" />
+                </div>
+              </div>
+              <div class="grid grid-cols-2 gap-3">
+                <div class="space-y-1.5">
+                  <Label for="prj-travelers">Jumlah Traveler</Label>
+                  <Input id="prj-travelers" v-model.number="newProjectTravelerCount" type="number" min="1" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="prj-amount">Nilai Kontrak (Rp)</Label>
+                  <CurrencyInput id="prj-amount" v-model="newProjectAmountIdr" />
+                </div>
+              </div>
+              <div class="space-y-1.5">
+                <Label>Service Scope</Label>
+                <div class="flex flex-wrap gap-2">
+                  <button
+                    v-for="type in SERVICE_TYPES"
+                    :key="type.value"
+                    type="button"
+                    class="rounded-full border px-3 py-1 text-xs transition-colors"
+                    :class="newProjectServiceScope.includes(type.value) ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground'"
+                    @click="toggleNewProjectServiceScope(type.value)"
+                  >
+                    {{ type.value === 'additional' ? 'Other' : type.label }}
+                  </button>
+                </div>
+              </div>
+              <div v-if="newProjectServiceScope.length" class="space-y-3">
+                <Label>Budget per Layanan (opsional)</Label>
+                <div v-for="type in SERVICE_TYPES.filter(t => newProjectServiceScope.includes(t.value))" :key="type.value" class="space-y-1.5">
+                  <Label :for="`prj-budget-${type.value}`" class="text-xs text-muted-foreground">
+                    {{ type.value === 'additional' ? 'Other' : type.label }}
+                  </Label>
+                  <CurrencyInput :id="`prj-budget-${type.value}`" v-model="newProjectServiceBudgets[type.value]" placeholder="mis. 100000000" />
+                </div>
+                <p v-if="newProjectAmountIdr" class="text-xs text-muted-foreground">
+                  Nilai Kontrak: <span class="font-medium text-foreground">{{ formatCurrencyIdr(newProjectAmountIdr) }}</span>
+                  · Sudah Dialokasikan: <span class="font-medium text-foreground">{{ formatCurrencyIdr(newProjectServiceBudgetsTotal) }}</span>
+                </p>
+              </div>
+            </div>
+            <SheetFooter class="flex-row justify-end gap-2">
+              <Button variant="outline" @click="resetCreateProjectForm(); isCreateProjectOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!isNewProjectFormValid" @click="submitCreateProject">
+                Simpan
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
       </div>
 
       <div class="flex flex-wrap gap-2">
@@ -224,75 +383,126 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
       </div>
 
       <SectionCard>
-        <Table v-if="filteredRows.length">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Step Aktif</TableHead>
-              <TableHead>Jadwal</TableHead>
-              <TableHead>Milestone</TableHead>
-              <TableHead v-if="canViewFinancials" class="text-right">
-                Nilai Kontrak
-              </TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow
-              v-for="row in filteredRows"
-              :key="row.project.id"
-              class="cursor-pointer"
+        <ResponsiveDataView v-if="filteredRows.length" :items="filteredRows" :get-key="row => row.project.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Kondisi</TableHead>
+                  <TableHead>Jadwal</TableHead>
+                  <TableHead>Milestone</TableHead>
+                  <TableHead v-if="canViewFinancials" class="text-right">
+                    Nilai Kontrak
+                  </TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow
+                  v-for="row in items"
+                  :key="row.project.id"
+                  class="cursor-pointer"
+                  @click="$router.push(`/project-orders/${row.project.id}`)"
+                >
+                  <TableCell>
+                    <p class="text-sm font-medium text-foreground">
+                      {{ row.project.name }}
+                    </p>
+                    <p class="text-xs text-muted-foreground font-mono">
+                      {{ row.project.id }} · {{ row.owner?.name ?? '—' }}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <p class="text-sm text-foreground">
+                      {{ row.party?.name ?? '—' }}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <p v-if="!row.gate.ready" class="text-xs text-destructive line-clamp-1" :title="row.gate.blockers.join(' ')">
+                      {{ row.gate.blockers.length }} syarat belum terpenuhi
+                    </p>
+                    <span v-else class="text-xs text-muted-foreground">—</span>
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
+                  </TableCell>
+                  <TableCell>
+                    <span class="text-sm text-foreground">{{ row.milestones.completed }}/{{ row.milestones.total }}</span>
+                    <p v-if="row.milestones.delayed" class="text-xs text-destructive">
+                      {{ row.milestones.delayed }} telat
+                    </p>
+                  </TableCell>
+                  <TableCell v-if="canViewFinancials" class="text-right text-sm font-medium text-foreground">
+                    {{ formatCurrencyIdr(row.project.quotationAmountIdr) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="row.orderStatus.label" :tone="row.orderStatus.tone" />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
               @click="$router.push(`/project-orders/${row.project.id}`)"
             >
-              <TableCell>
-                <p class="text-sm font-medium text-foreground">
-                  {{ row.project.name }}
-                </p>
-                <p class="text-xs text-muted-foreground font-mono">
-                  {{ row.project.id }} · {{ row.owner?.name ?? '—' }}
-                </p>
-              </TableCell>
-              <TableCell>
-                <p class="text-sm text-foreground">
-                  {{ row.party?.name ?? '—' }}
-                </p>
-                <StatusBadge :label="row.characteristic.label" :tone="row.characteristic.tone" />
-              </TableCell>
-              <TableCell>
-                <div class="flex items-center gap-1.5">
-                  <span
-                    :class="cn(
-                      'h-6 w-6 rounded-full flex items-center justify-center text-[11px] font-semibold shrink-0',
-                      row.gate.ready ? 'bg-primary/10 text-primary' : 'bg-destructive/10 text-destructive'
-                    )"
-                  >
-                    {{ row.step.index }}
-                  </span>
-                  <span class="text-sm text-foreground">{{ row.step.label }}</span>
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.project.name }}
+                  </p>
+                  <p class="text-xs text-muted-foreground font-mono">
+                    {{ row.project.id }} · {{ row.owner?.name ?? '—' }}
+                  </p>
                 </div>
-                <p v-if="!row.gate.ready" class="text-xs text-destructive mt-0.5 line-clamp-1" :title="row.gate.blockers.join(' ')">
-                  {{ row.gate.blockers.length }} syarat belum terpenuhi
-                </p>
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground">
-                {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
-              </TableCell>
-              <TableCell>
-                <span class="text-sm text-foreground">{{ row.milestones.completed }}/{{ row.milestones.total }}</span>
-                <p v-if="row.milestones.delayed" class="text-xs text-destructive">
-                  {{ row.milestones.delayed }} telat
-                </p>
-              </TableCell>
-              <TableCell v-if="canViewFinancials" class="text-right text-sm font-medium text-foreground">
-                {{ formatCurrencyIdr(row.project.quotationAmountIdr) }}
-              </TableCell>
-              <TableCell>
                 <StatusBadge :label="row.orderStatus.label" :tone="row.orderStatus.tone" />
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Customer
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.party?.name ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Jadwal
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Milestone
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.milestones.completed }}/{{ row.milestones.total }}
+                    <span v-if="row.milestones.delayed" class="text-destructive">· {{ row.milestones.delayed }} telat</span>
+                  </p>
+                </div>
+                <div v-if="canViewFinancials">
+                  <p class="text-muted-foreground">
+                    Nilai Kontrak
+                  </p>
+                  <p class="text-foreground font-medium">
+                    {{ formatCurrencyIdr(row.project.quotationAmountIdr) }}
+                  </p>
+                </div>
+              </div>
+              <p v-if="!row.gate.ready" class="mt-2 text-xs text-destructive">
+                {{ row.gate.blockers.length }} syarat belum terpenuhi
+              </p>
+            </button>
+          </template>
+        </ResponsiveDataView>
 
         <EmptyState
           v-else
@@ -305,122 +515,147 @@ const stepCounts = computed(() => PROJECT_ORDER_STEPS.map(step => ({
 
     <template v-else-if="activeOrderTab === 'sales-orders'">
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Total Sales Order" :value="String(salesOrdersSummary.total)" :icon="Users" />
-        <StatsCard title="Draft" :value="String(salesOrdersSummary.draft)" :icon="Clock" />
-        <StatsCard title="Dibayar" :value="String(salesOrdersSummary.paid)" :icon="CheckCircle2" icon-color="primary" />
-        <StatsCard title="Selesai" :value="String(salesOrdersSummary.done)" :icon="CheckCircle2" icon-color="success" />
+        <StatsCard title="Total Project B2C" :value="String(salesOrdersSummary.total)" :icon="Users" />
+        <StatsCard title="Total Seat Terisi" :value="String(salesOrdersSummary.seatsFilled)" :icon="CheckCircle2" icon-color="primary" />
+        <StatsCard title="Total Revenue" :value="formatCurrencyIdr(salesOrdersSummary.revenueIdr)" :icon="CheckCircle2" icon-color="success" />
+        <StatsCard title="Selesai" :value="String(salesOrdersSummary.completed)" :icon="CheckCircle2" icon-color="success" />
       </div>
 
       <div class="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 mt-4">
         <div class="relative flex-1 max-w-sm w-full">
           <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input v-model="salesOrderSearch" placeholder="Cari customer atau destinasi..." class="pl-9" />
+          <Input v-model="salesOrderSearch" placeholder="Cari nama project atau destinasi..." class="pl-9" />
         </div>
-        <Dialog v-if="canManageOrders" v-model:open="isCreateSalesOrderOpen">
-          <DialogTrigger as-child>
-            <Button size="sm" class="ml-auto">
-              <Plus class="h-4 w-4 mr-1.5" />Buat Sales Order
-            </Button>
-          </DialogTrigger>
-          <DialogContent class="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Buat Sales Order Baru</DialogTitle>
-              <DialogDescription>Booking individual (B2C) — customer baru otomatis dibuat, status awal "Draft".</DialogDescription>
-            </DialogHeader>
-            <div class="space-y-4 py-2">
-              <div class="space-y-1.5">
-                <Label for="so-customer">Nama Customer</Label>
-                <Input id="so-customer" v-model="newCustomerName" placeholder="mis. Budi Santoso" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="so-destination">Destinasi</Label>
-                <Input id="so-destination" v-model="newDestination" placeholder="mis. Bali" />
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1.5">
-                  <Label for="so-start">Tanggal Berangkat</Label>
-                  <Input id="so-start" v-model="newTravelStartDate" type="date" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="so-end">Tanggal Pulang</Label>
-                  <Input id="so-end" v-model="newTravelEndDate" type="date" />
-                </div>
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1.5">
-                  <Label for="so-travelers">Jumlah Traveler</Label>
-                  <Input id="so-travelers" v-model.number="newTravelerCount" type="number" min="1" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="so-price">Harga (Rp)</Label>
-                  <CurrencyInput id="so-price" v-model="newPriceIdr" />
-                </div>
-              </div>
-              <div class="space-y-1.5">
-                <Label for="so-note">Catatan (opsional)</Label>
-                <Input id="so-note" v-model="newNote" placeholder="Catatan tambahan" />
-              </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" @click="resetSalesOrderForm(); isCreateSalesOrderOpen = false">
-                Batal
-              </Button>
-              <Button :disabled="!newCustomerName.trim() || !newDestination.trim() || !newTravelStartDate || !newTravelEndDate || !newTravelerCount || !newPriceIdr" @click="submitSalesOrder">
-                Simpan
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
+        <p class="text-xs text-muted-foreground ml-auto">
+          Group Trip baru dibuat dari tab "Project Orders" — tombol "Buat Project", centang "Group Trip (B2C)".
+        </p>
       </div>
 
       <SectionCard class="mt-4">
-        <Table v-if="filteredSalesOrderRows.length">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Customer</TableHead>
-              <TableHead>Destinasi</TableHead>
-              <TableHead>Tanggal</TableHead>
-              <TableHead>Traveler</TableHead>
-              <TableHead class="text-right">
-                Harga
-              </TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow
-              v-for="row in filteredSalesOrderRows"
-              :key="row.order.id"
-              class="cursor-pointer"
-              @click="$router.push(`/sales-orders/${row.order.id}`)"
+        <ResponsiveDataView v-if="filteredGroupTripRows.length" :items="filteredGroupTripRows" :get-key="row => row.project.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Tanggal</TableHead>
+                  <TableHead>Seats</TableHead>
+                  <TableHead class="text-right">
+                    Price/pax
+                  </TableHead>
+                  <TableHead class="text-right">
+                    Revenue
+                  </TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow
+                  v-for="row in items"
+                  :key="row.project.id"
+                  class="cursor-pointer"
+                  @click="$router.push(`/project-orders/${row.project.id}`)"
+                >
+                  <TableCell>
+                    <div class="flex items-center gap-3">
+                      <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary">
+                        <img v-if="row.project.photoUrl" :src="row.project.photoUrl" alt="" class="h-full w-full object-cover">
+                        <MapPin v-else class="h-4 w-4" />
+                      </div>
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-foreground">
+                          {{ row.project.name }}
+                        </p>
+                        <p class="text-xs text-muted-foreground">
+                          {{ row.project.destination }}
+                        </p>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ row.seatsFilled }} / {{ row.project.travelerCount }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm text-muted-foreground">
+                    {{ formatCurrencyIdr(row.pricePerPaxIdr) }}
+                  </TableCell>
+                  <TableCell class="text-right text-sm font-medium text-foreground">
+                    {{ formatCurrencyIdr(row.revenueIdr) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(PROJECT_STATUSES, row.project.status).label" :tone="findStatusOption(PROJECT_STATUSES, row.project.status).tone" />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="$router.push(`/project-orders/${row.project.id}`)"
             >
-              <TableCell class="text-sm font-medium text-foreground">
-                {{ row.customer?.name ?? '—' }}
-              </TableCell>
-              <TableCell class="text-sm text-foreground">
-                {{ row.order.destination }}
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground">
-                {{ formatDateRange(row.order.travelStartDate, row.order.travelEndDate) }}
-              </TableCell>
-              <TableCell class="text-sm text-muted-foreground">
-                {{ row.order.travelerCount }}
-              </TableCell>
-              <TableCell class="text-right text-sm font-medium text-foreground">
-                {{ formatCurrencyIdr(row.order.priceIdr) }}
-              </TableCell>
-              <TableCell>
-                <StatusBadge :label="findStatusOption(SALES_ORDER_STATUSES, row.order.status).label" :tone="findStatusOption(SALES_ORDER_STATUSES, row.order.status).tone" />
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+              <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-primary/10 text-primary">
+                  <img v-if="row.project.photoUrl" :src="row.project.photoUrl" alt="" class="h-full w-full object-cover">
+                  <MapPin v-else class="h-4 w-4" />
+                </div>
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.project.name }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ row.project.destination }}
+                  </p>
+                </div>
+                <StatusBadge :label="findStatusOption(PROJECT_STATUSES, row.project.status).label" :tone="findStatusOption(PROJECT_STATUSES, row.project.status).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Tanggal
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDateRange(row.project.travelStartDate, row.project.travelEndDate) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Seats
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.seatsFilled }} / {{ row.project.travelerCount }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Price/pax
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(row.pricePerPaxIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Revenue
+                  </p>
+                  <p class="text-foreground font-medium">
+                    {{ formatCurrencyIdr(row.revenueIdr) }}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
 
         <EmptyState
           v-else
           :icon="Users"
-          title="Belum ada Sales Order"
-          description="Ubah kata kunci atau buat Sales Order baru."
+          title="Belum ada Project B2C"
+          description="Buat Group Trip dulu dari tab Project Orders (tombol Buat Project, centang Group Trip)."
         />
       </SectionCard>
     </template>

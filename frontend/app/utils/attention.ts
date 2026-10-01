@@ -34,6 +34,20 @@ export function isUpcomingDeparture (project: Project, referenceIso = DEMO_REFER
   return days >= 0 && days <= UPCOMING_DEPARTURE_WINDOW_DAYS
 }
 
+/** Kebijakan DP Group Trip B2C (`confirmGroupTripDp`, `app/data/index.ts`) — global, berlaku sama untuk
+ * semua Project B2C (bukan per-project), asumsi aman D-040 sama seperti threshold lain di file ini. */
+export const MINIMUM_DP_PERCENT = 30
+/** Sisa harga (di luar DP) wajib lunas selambatnya H-14 sebelum `travelStartDate`. */
+export const DP_FULL_PAYMENT_DEADLINE_DAYS = 14
+
+/** "Jatuh tempo pelunasan" — cuma tanda peringatan (badge), BUKAN pemicu auto-cancel booking (mockup,
+ * keputusan eksplisit: follow-up manual oleh tim Ops). `outstandingIdr` dihitung caller lewat
+ * `getSalesOrderOutstandingIdr` (`app/data/index.ts`) supaya file ini tidak bergantung ke modul data. */
+export function isDpBalanceOverdue (project: Project, outstandingIdr: number, referenceIso = DEMO_REFERENCE_DATE): boolean {
+  if (outstandingIdr <= 0) { return false }
+  return daysUntil(project.travelStartDate, referenceIso) < DP_FULL_PAYMENT_DEADLINE_DAYS
+}
+
 /** Section 20 — `'void'` (baru, transisi terminal `voidInvoice`) dikecualikan bersama `'paid'`, invoice yang dibatalkan tidak boleh muncul sebagai overdue. */
 export function isInvoiceOverdue (invoice: Invoice, referenceIso = DEMO_REFERENCE_DATE): boolean {
   return invoice.status !== 'paid' && invoice.status !== 'void' && daysUntil(invoice.dueAt, referenceIso) < 0

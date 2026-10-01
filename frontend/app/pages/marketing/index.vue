@@ -8,14 +8,22 @@ import {
   CAMPAIGN_OBJECTIVES,
   PROMO_CODES,
   PROMO_STATUSES,
+  CONTENT_PLATFORMS,
+  CONTENT_SCHEDULE_STATUSES,
+  CONTENT_DEVELOPMENT_STAGES,
   getCampaignPerformance,
   getCampaignSpend,
   getPromoResults,
   getConversionFunnel,
   getChannelAcquisition,
   getCustomerLifetimeValues,
-  getMarketingRoiSummary
+  getMarketingRoiSummary,
+  getContentSchedule,
+  getContentDevelopment,
+  updateContentScheduleStatus,
+  updateContentDevelopmentStage
 } from '~/data/marketing'
+import type { ContentScheduleStatus, ContentDevelopmentStage } from '~/types/marketing'
 import { LEAD_SOURCES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatNumber, formatPercentage, formatDate } from '~/utils/format'
 import type { LeadSource } from '~/types/lead'
@@ -26,8 +34,21 @@ useHead({ title: 'Marketing & Analysis' })
 const { canView } = usePermissions()
 const hasAccess = computed(() => canView('marketing'))
 
-const activeTab = ref<'campaigns' | 'promos' | 'funnel' | 'cac' | 'ltv'>('campaigns')
+const activeTab = ref<'campaigns' | 'promos' | 'funnel' | 'cac' | 'ltv' | 'content-schedule' | 'content-development'>('campaigns')
 const funnelChannel = ref<'all' | LeadSource>('all')
+
+const contentSchedule = computed(() => getContentSchedule())
+const contentDevelopment = computed(() => getContentDevelopment())
+
+function onContentScheduleStatusChange (id: string, event: Event) {
+  const value = (event.target as HTMLSelectElement).value as ContentScheduleStatus
+  updateContentScheduleStatus(id, value)
+}
+
+function onContentDevelopmentStageChange (id: string, event: Event) {
+  const value = (event.target as HTMLSelectElement).value as ContentDevelopmentStage
+  updateContentDevelopmentStage(id, value)
+}
 
 const performance = computed(() => getCampaignPerformance())
 const roi = computed(() => getMarketingRoiSummary())
@@ -89,10 +110,17 @@ const repeatRate = computed(() => (ltvs.value.length
           <TabsTrigger value="ltv">
             Customer LTV
           </TabsTrigger>
+          <TabsTrigger value="content-schedule">
+            Content Schedule
+          </TabsTrigger>
+          <TabsTrigger value="content-development">
+            Content Development
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="campaigns" class="pt-4 space-y-4">
           <SectionCard description="Lead diatribusikan otomatis ke campaign lewat kecocokan channel dan rentang tanggal — bukan angka yang diketik manual.">
+          <div class="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -171,6 +199,7 @@ const repeatRate = computed(() => (ltvs.value.length
                 </TableRow>
               </TableBody>
             </Table>
+          </div>
           </SectionCard>
 
           <SectionCard title="Belanja per Channel">
@@ -319,6 +348,7 @@ const repeatRate = computed(() => (ltvs.value.length
 
         <TabsContent value="cac" class="pt-4">
           <SectionCard description="CAC = belanja campaign pada channel tersebut ÷ jumlah klien baru yang berasal darinya.">
+          <div class="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -381,6 +411,7 @@ const repeatRate = computed(() => (ltvs.value.length
                 </TableRow>
               </TableBody>
             </Table>
+          </div>
           </SectionCard>
         </TabsContent>
 
@@ -398,6 +429,7 @@ const repeatRate = computed(() => (ltvs.value.length
           </div>
 
           <SectionCard description="Revenue dihitung dari invoice yang benar-benar lunas, bukan nilai kontrak yang belum tertagih.">
+          <div class="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -452,6 +484,109 @@ const repeatRate = computed(() => (ltvs.value.length
                 </TableRow>
               </TableBody>
             </Table>
+          </div>
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="content-schedule" class="pt-4 space-y-4">
+          <SectionCard description="Jadwal publikasi konten per platform. Ubah status langsung dari daftar saat konten sudah dipublikasikan.">
+          <div class="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Tanggal Publish</TableHead>
+                  <TableHead>Platform</TableHead>
+                  <TableHead>Judul / Topik</TableHead>
+                  <TableHead>Campaign</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="item in contentSchedule" :key="item.id">
+                  <TableCell class="text-sm text-foreground whitespace-nowrap">
+                    {{ formatDate(item.publishDate) }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(CONTENT_PLATFORMS, item.platform).label"
+                      :tone="findStatusOption(CONTENT_PLATFORMS, item.platform).tone"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <p class="text-sm font-medium text-foreground">
+                      {{ item.title }}
+                    </p>
+                    <p v-if="item.note" class="text-xs text-muted-foreground mt-0.5">
+                      {{ item.note }}
+                    </p>
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground">
+                    {{ item.campaignId ? CAMPAIGNS.find(c => c.id === item.campaignId)?.name : '—' }}
+                  </TableCell>
+                  <TableCell>
+                    <select
+                      :value="item.status"
+                      class="appearance-none px-2 py-1 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                      @change="onContentScheduleStatusChange(item.id, $event)"
+                    >
+                      <option v-for="option in CONTENT_SCHEDULE_STATUSES" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </option>
+                    </select>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
+          </SectionCard>
+        </TabsContent>
+
+        <TabsContent value="content-development" class="pt-4 space-y-4">
+          <SectionCard description="Pipeline pengembangan ide dan draft konten sebelum masuk jadwal publikasi: Ide → Draft → Review → Siap Tayang.">
+          <div class="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Judul / Ide</TableHead>
+                  <TableHead>Platform</TableHead>
+                  <TableHead>Terakhir Diubah</TableHead>
+                  <TableHead>Tahap</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="item in contentDevelopment" :key="item.id">
+                  <TableCell>
+                    <p class="text-sm font-medium text-foreground">
+                      {{ item.title }}
+                    </p>
+                    <p v-if="item.note" class="text-xs text-muted-foreground mt-0.5">
+                      {{ item.note }}
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(CONTENT_PLATFORMS, item.platform).label"
+                      :tone="findStatusOption(CONTENT_PLATFORMS, item.platform).tone"
+                    />
+                  </TableCell>
+                  <TableCell class="text-sm text-muted-foreground whitespace-nowrap">
+                    {{ formatDate(item.updatedAt) }}
+                  </TableCell>
+                  <TableCell>
+                    <select
+                      :value="item.stage"
+                      class="appearance-none px-2 py-1 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                      @change="onContentDevelopmentStageChange(item.id, $event)"
+                    >
+                      <option v-for="option in CONTENT_DEVELOPMENT_STAGES" :key="option.value" :value="option.value">
+                        {{ option.label }}
+                      </option>
+                    </select>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </div>
           </SectionCard>
         </TabsContent>
       </Tabs>

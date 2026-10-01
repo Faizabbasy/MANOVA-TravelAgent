@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Plus, ClipboardList, FileText, CheckCircle2, Clock } from 'lucide-vue-next'
+import { Search, Plus, ClipboardList, FileText, CheckCircle2, Clock, Eye } from 'lucide-vue-next'
 import { RFQS, SERVICE_ORDERS, PROJECTS, getProjectById, getVendorById, createRfq } from '~/data'
 import { RFQ_STATUSES, SERVICE_ORDER_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { ServiceTypeKey } from '~/types/project'
@@ -25,6 +25,15 @@ const openRfqCount = computed(() => RFQS.filter(rfq => !['closed'].includes(rfq.
 const closedRfqCount = computed(() => RFQS.filter(rfq => rfq.status === 'closed').length)
 const activeServiceOrderCount = computed(() => SERVICE_ORDERS.filter(so => !['fulfilled', 'cancelled'].includes(so.status)).length)
 const fulfilledServiceOrderCount = computed(() => SERVICE_ORDERS.filter(so => so.status === 'fulfilled').length)
+
+/** Versi ringkas 4 stat di atas, dipakai strip horizontal-scroll mobile — semua nilainya angka pendek jadi
+ * aman dipadatkan (beda dari kartu bernilai currency/ID panjang yang wajib grid-cols-1 di mobile). */
+const countTiles = computed(() => [
+  { key: 'rfq-active', label: 'RFQ Aktif', value: String(openRfqCount.value), icon: ClipboardList, tone: 'primary' as const },
+  { key: 'rfq-closed', label: 'RFQ Closed', value: String(closedRfqCount.value), icon: CheckCircle2, tone: 'success' as const },
+  { key: 'so-active', label: 'SO Aktif', value: String(activeServiceOrderCount.value), icon: Clock, tone: 'warning' as const },
+  { key: 'so-fulfilled', label: 'SO Fulfilled', value: String(fulfilledServiceOrderCount.value), icon: FileText, tone: 'success' as const }
+])
 
 /* RFQ list */
 const rfqSearch = ref('')
@@ -99,16 +108,17 @@ function submitCreate () {
       :breadcrumb="[{ label: 'Procurement' }]"
     >
       <template v-if="canManageProcurement && activeTab === 'rfq'" #actions>
-        <Dialog v-model:open="isCreateOpen">
-          <DialogTrigger as-child>
+        <ResponsiveFormSheet
+          v-model:open="isCreateOpen"
+          title="RFQ Baru"
+          description="Dibuat sebagai status &quot;Draft&quot; — undang vendor dan lengkapi line item lain di halaman detail."
+          content-class="max-w-lg"
+          scroll
+        >
+          <template #trigger>
             <Button><Plus class="h-4 w-4 mr-1.5" />Buat RFQ</Button>
-          </DialogTrigger>
-          <DialogScrollContent class="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>RFQ Baru</DialogTitle>
-              <DialogDescription>Dibuat sebagai status "Draft" — undang vendor dan lengkapi line item lain di halaman detail.</DialogDescription>
-            </DialogHeader>
-            <div class="space-y-4 py-2">
+          </template>
+          <div class="space-y-4 py-2">
               <div class="space-y-1.5">
                 <Label for="rfq-title">Judul RFQ</Label>
                 <Input id="rfq-title" v-model="newTitle" placeholder="mis. RFQ Akomodasi Tambahan" />
@@ -154,28 +164,40 @@ function submitCreate () {
                 <Label for="rfq-notes">Catatan (opsional)</Label>
                 <Input id="rfq-notes" v-model="newNotes" />
               </div>
-            </div>
-            <DialogFooter>
-              <Button variant="outline" @click="isCreateOpen = false">
-                Batal
-              </Button>
-              <Button :disabled="!newTitle.trim() || !newLineDescription.trim() || !newLineQuantity" @click="submitCreate">
-                Simpan
-              </Button>
-            </DialogFooter>
-          </DialogScrollContent>
-        </Dialog>
+          </div>
+          <template #footer>
+            <Button variant="outline" @click="isCreateOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!newTitle.trim() || !newLineDescription.trim() || !newLineQuantity" @click="submitCreate">
+              Simpan
+            </Button>
+          </template>
+        </ResponsiveFormSheet>
       </template>
     </PageHeader>
 
     <RoleAccessState v-if="!canView('procurement')" module-label="modul Procurement" />
 
     <template v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div class="hidden sm:grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="RFQ Aktif" :value="String(openRfqCount)" :icon="ClipboardList" />
         <StatsCard title="RFQ Closed" :value="String(closedRfqCount)" :icon="CheckCircle2" icon-color="success" />
         <StatsCard title="Service Order Aktif" :value="String(activeServiceOrderCount)" :icon="Clock" icon-color="warning" />
         <StatsCard title="Service Order Fulfilled" :value="String(fulfilledServiceOrderCount)" :icon="FileText" icon-color="success" />
+      </div>
+
+      <!-- Mobile: strip horizontal-scroll, nilai semuanya angka pendek jadi aman dipadatkan (StatsCard size="sm") -->
+      <div class="sm:hidden -mx-1 grid grid-flow-col auto-cols-[minmax(110px,1fr)] gap-2 overflow-x-auto px-1 pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <StatsCard
+          v-for="tile in countTiles"
+          :key="tile.key"
+          size="sm"
+          :title="tile.label"
+          :value="tile.value"
+          :icon="tile.icon"
+          :icon-color="tile.tone"
+        />
       </div>
 
       <Tabs v-model="activeTab">
@@ -189,7 +211,7 @@ function submitCreate () {
         </TabsList>
 
         <TabsContent value="rfq">
-          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
             <div class="relative flex-1 max-w-sm w-full">
               <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input v-model="rfqSearch" placeholder="Cari judul RFQ atau project..." class="pl-9" />
@@ -204,40 +226,89 @@ function submitCreate () {
             </select>
           </div>
           <SectionCard>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Judul RFQ</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Jenis Layanan</TableHead>
-                  <TableHead>Due Date</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in rfqRows" :key="row.rfq.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/procurement/rfq/${row.rfq.id}`)">
-                  <TableCell class="font-medium text-foreground">
-                    {{ row.rfq.title }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.project?.name ?? '—' }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, row.rfq.serviceType).label" :tone="findStatusOption(SERVICE_TYPES, row.rfq.serviceType).tone" /></TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.rfq.dueAt ?? '—' }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(RFQ_STATUSES, row.rfq.status).label" :tone="findStatusOption(RFQ_STATUSES, row.rfq.status).tone" /></TableCell>
-                </TableRow>
-                <TableEmpty v-if="rfqRows.length === 0" :colspan="5">
-                  {{ rfqSearch || rfqStatusFilter !== 'all' ? 'Tidak ada RFQ yang cocok dengan filter.' : 'Belum ada RFQ.' }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
+            <ResponsiveDataView :items="rfqRows" :get-key="row => row.rfq.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Judul RFQ</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Jenis Layanan</TableHead>
+                      <TableHead>Due Date</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in items" :key="row.rfq.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/procurement/rfq/${row.rfq.id}`)">
+                      <TableCell class="font-medium text-foreground">
+                        {{ row.rfq.title }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.project?.name ?? '—' }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(SERVICE_TYPES, row.rfq.serviceType).label" :tone="findStatusOption(SERVICE_TYPES, row.rfq.serviceType).tone" /></TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.rfq.dueAt ?? '—' }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(RFQ_STATUSES, row.rfq.status).label" :tone="findStatusOption(RFQ_STATUSES, row.rfq.status).tone" /></TableCell>
+                      <TableCell>
+                        <Eye class="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="rfqRows.length === 0" :colspan="6">
+                      {{ rfqSearch || rfqStatusFilter !== 'all' ? 'Tidak ada RFQ yang cocok dengan filter.' : 'Belum ada RFQ.' }}
+                    </TableEmpty>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: row }">
+                <button
+                  type="button"
+                  class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+                  @click="navigateTo(`/procurement/rfq/${row.rfq.id}`)"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ row.rfq.title }}
+                    </p>
+                    <StatusBadge :label="findStatusOption(RFQ_STATUSES, row.rfq.status).label" :tone="findStatusOption(RFQ_STATUSES, row.rfq.status).tone" />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Project
+                      </p>
+                      <p class="text-foreground">
+                        {{ row.project?.name ?? '—' }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Jenis Layanan
+                      </p>
+                      <p class="text-foreground">
+                        {{ findStatusOption(SERVICE_TYPES, row.rfq.serviceType).label }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Due Date
+                      </p>
+                      <p class="text-foreground">
+                        {{ row.rfq.dueAt ?? '—' }}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="service-orders">
-          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4">
+          <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 mb-4">
             <div class="relative flex-1 max-w-sm w-full">
               <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input v-model="soSearch" placeholder="Cari vendor atau project..." class="pl-9" />
@@ -252,33 +323,74 @@ function submitCreate () {
             </select>
           </div>
           <SectionCard>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>RFQ Asal</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in soRows" :key="row.so.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/procurement/service-orders/${row.so.id}`)">
-                  <TableCell class="font-medium text-foreground">
-                    {{ row.vendor?.name ?? row.so.vendorId }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.project?.name ?? '—' }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.so.rfqId ?? '— (engagement langsung)' }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).label" :tone="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).tone" /></TableCell>
-                </TableRow>
-                <TableEmpty v-if="soRows.length === 0" :colspan="4">
-                  {{ soSearch || soStatusFilter !== 'all' ? 'Tidak ada Service Order yang cocok dengan filter.' : 'Belum ada Service Order.' }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
+            <ResponsiveDataView :items="soRows" :get-key="row => row.so.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Vendor</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>RFQ Asal</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in items" :key="row.so.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/procurement/service-orders/${row.so.id}`)">
+                      <TableCell class="font-medium text-foreground">
+                        {{ row.vendor?.name ?? row.so.vendorId }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.project?.name ?? '—' }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.so.rfqId ?? '— (engagement langsung)' }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).label" :tone="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).tone" /></TableCell>
+                      <TableCell>
+                        <Eye class="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="soRows.length === 0" :colspan="5">
+                      {{ soSearch || soStatusFilter !== 'all' ? 'Tidak ada Service Order yang cocok dengan filter.' : 'Belum ada Service Order.' }}
+                    </TableEmpty>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: row }">
+                <button
+                  type="button"
+                  class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+                  @click="navigateTo(`/procurement/service-orders/${row.so.id}`)"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ row.vendor?.name ?? row.so.vendorId }}
+                    </p>
+                    <StatusBadge :label="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).label" :tone="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).tone" />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Project
+                      </p>
+                      <p class="text-foreground">
+                        {{ row.project?.name ?? '—' }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        RFQ Asal
+                      </p>
+                      <p class="text-foreground">
+                        {{ row.so.rfqId ?? '— (engagement langsung)' }}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
       </Tabs>

@@ -6,6 +6,7 @@ import BookingCalendarPanel from '~/components/operations/BookingCalendarPanel.v
  * `/bookings`, sebelumnya `/operations/calendar`). Halaman ini murni kalender, tanpa section lain.
  * Isinya dipindah apa adanya ke `app/components/operations/BookingCalendarPanel.vue` — tidak ada
  * logic/data baru di sini, komponennya sudah punya gerbang akses sendiri (`canView('operations')`).
+ * Tab "Perencanaan Peta" yang dulu ada di sini sudah dipisah jadi menu sendiri (`/project-planning`).
  */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Kalender' })
@@ -15,7 +16,7 @@ useHead({ title: 'Kalender' })
   <div class="space-y-8">
     <PageHeader
       title="Kalender"
-      description="Kalender & peta perencanaan booking Flight/Hotel/Transport/MICE."
+      description="Kalender jadwal Flight/Hotel/Transport/MICE lintas project."
       :breadcrumb="[{ label: 'Kalender' }]"
     />
 

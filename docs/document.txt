@@ -1,0 +1,183 @@
+====================================================================
+MANOVA TRAVEL AGENT — KONTEKS PROJECT & PEKERJAAN TERBARU
+Disusun: 30 Agustus 2026 | Branch: client-revision
+====================================================================
+
+1. APA PROJECT INI
+--------------------------------------------------------------------
+Dashboard operasional internal untuk agen travel — mengelola satu
+alur penuh dari lead masuk sampai trip selesai dan invoice lunas.
+Dipakai lintas divisi internal (Sales, Operations, Finance,
+Administration, HR), plus ada portal terbatas untuk Client dan
+Vendor (login terpisah, akses terisolasi per company/vendor).
+
+Alur inti: LEAD -> QUOTATION -> PROJECT ORDER -> BOOKING -> INVOICE
+
+Status build: masih tahap development dengan DATA MOCK/LOKAL —
+belum ada backend/database sungguhan. Semua data hidup sebagai
+array reactive() di app/data/*.ts, reset tiap reload kecuali
+disimpan manual. Cocok untuk demo/pengembangan fitur, belum untuk
+data produksi nyata.
+
+Tech stack: Nuxt 4, Vue 3, TypeScript (non-strict), Tailwind CSS,
+shadcn-nuxt (di atas Reka UI), vee-validate + Zod, Chart.js,
+Leaflet (peta), Vitest (testing).
+
+Ukuran project saat ini: 141 halaman, 177 komponen Vue,
+43 modul data mock, 181 test otomatis (semua hijau).
+
+7 Role RBAC: Super Admin, Management, Sales & CRM, Finance & ACC,
+Operations & Project Order, Client (portal eksternal),
+Vendor (portal eksternal).
+
+
+2. PEKERJAAN YANG DIKERJAKAN DI SESI INI (29-30 Agustus 2026)
+--------------------------------------------------------------------
+
+[1] FIX: Alokasi Budget per Layanan (Project Order > tab Finance)
+    Masalah: fitur "Pengeluaran per Layanan" (budget Flight/Hotel/
+    Transport per project) tidak bisa diisi sama sekali sebelum ada
+    booking pertama — tombol "Edit Budget" membuka form kosong
+    tanpa input, karena baris data (ProjectService) baru dibuat
+    otomatis saat booking pertama masuk, bukan saat project dibuat.
+
+    Perbaikan:
+    - Fungsi baru ensureProjectServiceForBudget() membuat baris
+      placeholder saat tombol "Edit Budget" diklik pertama kali,
+      supaya budget bisa dialokasikan dari awal project.
+    - ensureProjectServiceForBooking() diperbaiki supaya booking
+      sungguhan yang masuk belakangan "menempel" ke baris
+      placeholder yang sama (budget yang sudah diisi tidak hilang/
+      terpisah jadi baris duplikat).
+    - Tambahan ringkasan "Total budget project / Sudah dialokasikan
+      / Belum dialokasikan" di tab Finance.
+    - 2 test regresi baru ditambahkan.
+
+[2] FIX: Bug modal dobel di halaman /services
+    Masalah: klik "Buat Flight/Hotel/Transport/MICE Booking" dari
+    Project Detail membuka SEMUA dialog booking sekaligus (numpuk
+    di layar) karena ke-4 panel booking share query flag yang sama
+    (create=1) tanpa cek anchor/hash mana yang dimaksud.
+
+    Perbaikan: tiap panel sekarang juga mengecek route.hash
+    (#ticketing / #accommodation / #transportation / #mice)
+    sebelum membuka dialognya sendiri — cuma satu yang kebuka
+    sesuai tombol yang diklik.
+
+[3] UI: Modal booking -> Sidebar kanan (Sheet)
+    4 form "Buat Booking Baru" (Flight/Hotel/Transport/MICE) di
+    halaman /services diganti dari popup tengah (Dialog) jadi
+    sidebar kanan (Sheet) — sesuai preferensi client yang
+    non-teknis, biar tidak membingungkan saat ada popup numpuk.
+    Dialog konfirmasi "Booking Aktif Sudah Ada" tetap popup tengah
+    karena sifatnya konfirmasi ya/tidak, bukan form input.
+
+[4] FIX: Peta lokasi error "API KEY REQUIRED"
+    Masalah: provider tile peta (CARTO, basemaps.cartocdn.com)
+    sudah menghentikan akses gratis tanpa API key, jadi peta cuma
+    menampilkan watermark "API KEY REQUIRED" menutupi tile-nya.
+
+    Perbaikan: diganti ke tile OpenStreetMap standar
+    (tile.openstreetmap.org) yang gratis tanpa key. Berlaku di
+    DestinationMap.vue (peta pin lokasi tunggal) dan
+    RegionMapPicker.vue (peta pilih banyak lokasi).
+
+[5] UI: Tombol "Buat Project" di halaman Database Customer
+    Masalah: dari halaman Database Customer (Customer Journey),
+    tab Project tidak punya tombol "Buat Project" — user harus
+    loncat dulu ke halaman terpisah (CRM > Party Detail) padahal
+    data customer-nya sama persis.
+
+    Perbaikan: tombol "Buat Project" (sidebar kanan/Sheet, bukan
+    modal) ditambahkan langsung di tab Project halaman Database
+    Customer, reuse logic createProject yang sama dengan CRM.
+
+[6] RENAME: Menu "Vendor Portal" -> "Katalog"
+    Nama menu sidebar untuk portal eksternal vendor diganti dari
+    "Vendor Portal" jadi "Katalog", termasuk label modul di
+    halaman Roles & Permissions, pesan akses ditolak di 3 panel
+    vendor, dan breadcrumb halaman produk vendor (disederhanakan
+    jadi 1 level: "Katalog", bukan "Katalog > Katalog").
+
+[7] FEATURE: Auto-generate 8 Milestone Standar (Timeline Tracking)
+    Masalah: kartu "Timeline Tracking" (tab Overview, Project
+    Order) selalu kosong ("Belum ada milestone") untuk SEMUA
+    project baru — fungsi createProjectMilestone() ada di kode
+    tapi tidak pernah dipanggil dari UI mana pun. Cuma 4 project
+    demo (PRJ-101, 102, 103, 205) yang punya data milestone,
+    karena di-hardcode manual di file seed.
+
+    Perbaikan: setiap project baru (baik lewat "Buat Project"
+    manual maupun "Mark as Won" dari Lead) sekarang otomatis
+    diisi 8 milestone standar:
+      1. SPK / Handover Diterima      (H-60 dari keberangkatan)
+      2. Finalisasi Itinerary         (H-45)
+      3. Invoice DP Terbit            (H-40)
+      4. Konfirmasi Vendor & Booking  (H-30)
+      5. Dokumen Traveler Lengkap     (H-14)
+      6. Keberangkatan                (= tanggal travel start)
+      7. Trip Selesai                 (= tanggal travel end)
+      8. Laporan Akhir & Review Klien (H+5 dari tanggal pulang)
+    Tanggal yang terhitung mundur ke masa lalu otomatis di-clamp
+    ke "hari ini" (tidak pernah muncul milestone yang direncanakan
+    di masa lalu). 2 test regresi baru ditambahkan.
+
+[8] AUDIT: Perbandingan menu yang diajukan vs fitur yang sudah ada
+    User mengirim dokumen restrukturisasi menu (breakdown per
+    divisi: Sales & Marketing, Operational Chain, Finance &
+    Accounting, Administration, Inquiry Management, CRM, Log
+    Session, Vendor Portal). Dilakukan audit menyeluruh (4 agent
+    riset paralel) membandingkan tiap item dengan kode yang ada.
+
+    Hasil: sebagian besar fitur sebenarnya SUDAH ADA, cuma
+    berbeda nama/lokasi/tersembunyi dari sidebar — bukan perlu
+    dibangun dari nol. Yang benar-benar belum ada sama sekali:
+      - Content Schedule Management & Content Development
+        (modul Marketing)
+      - Scheduling staf/resource (penjadwalan tim)
+      - Booking Center yang auto-generate invoice tamu
+      - Status Rekonsiliasi (Unmatched/Sedang Review/Disputed)
+        di sisi AR/piutang customer (baru ada di AP/supplier,
+        itu pun opsinya beda: Matched/Unmatched/Disputed)
+      - Accounting > Purchases sebagai menu tersendiri
+      - Laporan General Ledger, Cashflow, Balance Sheet, Asset,
+        Tax di dalam modul Reports (sebagian ada tapi di modul
+        Finance masing-masing, bukan di Reports)
+      - Log Session per divisi (cuma ada 1 Audit Trail gabungan)
+      - Kolom "Limit Credit Facility" di Database Customer
+    Sebagian (partial):
+      - Budget Management baru per-project (di tab Finance),
+        belum ada versi lintas-project
+      - Banyak halaman operasional (Ticketing, Accommodation,
+        Transportation, dll) sudah lengkap dibangun tapi
+        disembunyikan dari sidebar sejak penyederhanaan menu
+
+
+3. RIWAYAT SEBELUMNYA (26-28 Agustus 2026, sesi lain)
+--------------------------------------------------------------------
+- Overhaul besar halaman detail Project Order: Booking Timeline
+  konsolidasi (gabung 4 daftar booking jadi 1), Departure
+  Readiness Gate, On-Trip Updates/Shift Notes, Change Requests
+  terstruktur, dokumen ber-kategori/versi/expiry, Ringkasan
+  Komersial (ProjectCommercialHero), Action Required widget,
+  Finance tab diperkaya (AP Summary, Close Finance gate,
+  Credit/Debit Notes, Pengeluaran Project ad-hoc).
+- Task Overview (4 tile ringkasan) + Kanban Board.
+- Dasar fitur "Pengeluaran per Layanan" mulai dibangun (baru
+  dibenerin bug-nya di sesi 29 Agustus, lihat poin [1] di atas).
+- Alur konfirmasi DP (down payment) untuk Group Trip B2C.
+
+
+4. VERIFIKASI
+--------------------------------------------------------------------
+Semua perubahan di sesi ini sudah dicek dengan:
+- Type-check (vue-tsc --noEmit) — lolos tanpa error
+- Test suite penuh (vitest run) — 181 test lulus semua
+- Server dev dicoba jalan (npm run dev) untuk memastikan tidak
+  ada crash SSR di halaman yang diubah
+
+Catatan: perubahan rename "Vendor Portal -> Katalog" (poin [6])
+sempat belum ter-commit di satu titik sesi ini — cek `git status`
+untuk memastikan semua perubahan di atas sudah ter-commit sebelum
+dianggap final.
+====================================================================

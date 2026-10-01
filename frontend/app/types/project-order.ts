@@ -56,6 +56,12 @@ export interface ProjectOrderStepView {
 
 export type ProjectMilestoneStatus = 'not-started' | 'in-progress' | 'completed' | 'delayed' | 'cancelled'
 
+export interface MilestoneDeliverable {
+  id: ID
+  label: string
+  done: boolean
+}
+
 export interface ProjectMilestone {
   id: ID
   projectId: ID
@@ -67,6 +73,10 @@ export interface ProjectMilestone {
   ownerId?: ID
   status: ProjectMilestoneStatus
   note?: string
+  /** Checklist item milestone ini. Progress % diturunkan dari sini, bukan disimpan terpisah. */
+  deliverables?: MilestoneDeliverable[]
+  /** Rencana budget milestone ini, breakdown alternatif dari `Project.budgetIdr`. */
+  budgetIdr?: number
 }
 
 export interface ProjectNote {

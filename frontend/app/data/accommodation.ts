@@ -133,5 +133,27 @@ export const HOTEL_BOOKINGS: HotelBooking[] = reactive([
     checkInDate: '2026-09-22',
     checkOutDate: '2026-09-26',
     createdAt: '2026-08-28'
+  },
+  // PRJ-205 — Open Trip Bromo Ijen (dummy Project B2C), menautkan `serviceId: 'SVC-2052'`
+  // (`app/data/projects.ts`) — netCostIdr/sellPriceIdr mengikuti VQ-012 (`app/data/vendors.ts`).
+  {
+    id: 'HTL-2052',
+    projectId: 'PRJ-205',
+    serviceId: 'SVC-2052',
+    status: 'confirmed',
+    options: [
+      { propertyName: 'Homestay Bromo View', roomType: 'Twin/Triple Basic', ratePlan: 'Group Rate', mealPlan: 'breakfast', ratePerNightIdr: 600_000, policies: 'Non-refundable, khusus rombongan.', isSelected: true }
+    ],
+    travelerIds: ['TRV-2051', 'TRV-2052', 'TRV-2053', 'TRV-2054', 'TRV-2055'],
+    roomsBlocked: 2,
+    checkInDate: '2026-09-18',
+    checkOutDate: '2026-09-19',
+    confirmationNumber: 'HTL-BRM-2026',
+    voucherIssuedAt: '2026-08-18',
+    cancellationDeadline: '2026-09-10',
+    netCostIdr: 12_000_000,
+    sellPriceIdr: 14_000_000,
+    createdAt: '2026-08-18',
+    updatedAt: '2026-08-18'
   }
 ])

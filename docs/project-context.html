@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MANOVA Travel Agent — Project Context</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap');
+
+  :root{
+    --ground:#F6F7FB;
+    --surface:#FFFFFF;
+    --surface-alt:#EEF0F9;
+    --ink:#14162B;
+    --ink-soft:#545977;
+    --ink-faint:#8489AC;
+    --line:#DEE1EE;
+    --accent:#3324E8;
+    --accent-ink:#FFFFFF;
+    --accent-soft:#ECEAFF;
+    --good:#137A4F;
+    --good-soft:#E4F5EC;
+    --warn:#9A6300;
+    --warn-soft:#FBF0DA;
+    --bad:#B02A46;
+    --bad-soft:#FBE6EA;
+    --shadow: 0 1px 2px rgba(20,22,43,.04), 0 8px 24px -12px rgba(20,22,43,.12);
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --ground:#0D0E1A;
+      --surface:#161829;
+      --surface-alt:#1C1F35;
+      --ink:#ECEDF7;
+      --ink-soft:#AFB3D2;
+      --ink-faint:#767AA0;
+      --line:#2A2D4A;
+      --accent:#8A80FF;
+      --accent-ink:#12112B;
+      --accent-soft:#242154;
+      --good:#4FD69C;
+      --good-soft:#123528;
+      --warn:#F2BB4E;
+      --warn-soft:#3A2E10;
+      --bad:#FF7C93;
+      --bad-soft:#3B1722;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+    }
+  }
+  :root[data-theme="dark"]{
+    --ground:#0D0E1A;
+    --surface:#161829;
+    --surface-alt:#1C1F35;
+    --ink:#ECEDF7;
+    --ink-soft:#AFB3D2;
+    --ink-faint:#767AA0;
+    --line:#2A2D4A;
+    --accent:#8A80FF;
+    --accent-ink:#12112B;
+    --accent-soft:#242154;
+    --good:#4FD69C;
+    --good-soft:#123528;
+    --warn:#F2BB4E;
+    --warn-soft:#3A2E10;
+    --bad:#FF7C93;
+    --bad-soft:#3B1722;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 12px 28px -14px rgba(0,0,0,.55);
+  }
+
+  *{box-sizing:border-box;}
+  html,body{ background:var(--ground); }
+  body{
+    margin:0;
+    color:var(--ink);
+    font-family:'Public Sans', ui-sans-serif, system-ui, sans-serif;
+    font-size:15.5px;
+    line-height:1.6;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--accent-soft); color:var(--ink); }
+
+  a{ color:var(--accent); }
+  code, .mono{
+    font-family:'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    font-size:.86em;
+  }
+  h1,h2,h3{
+    font-family:'Zilla Slab', Georgia, serif;
+    font-weight:700;
+    text-wrap:balance;
+    margin:0;
+  }
+
+  /* ---------- shell ---------- */
+  .page{ max-width:920px; margin:0 auto; padding:0 24px 96px; }
+
+  /* ---------- header / manifest strip ---------- */
+  .manifest{
+    padding:56px 0 28px;
+  }
+  .eyebrow{
+    display:flex; align-items:center; gap:10px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12px; letter-spacing:.12em; text-transform:uppercase;
+    color:var(--ink-faint);
+    margin-bottom:18px;
+  }
+  .eyebrow .dot{ width:6px; height:6px; border-radius:50%; background:var(--good); box-shadow:0 0 0 3px var(--good-soft); }
+  h1.title{
+    font-size:clamp(34px,5.5vw,52px);
+    line-height:1.04;
+    letter-spacing:-.01em;
+  }
+  .subtitle{
+    margin-top:14px;
+    max-width:62ch;
+    font-size:17px;
+    color:var(--ink-soft);
+  }
+
+  .route{
+    margin-top:36px;
+    display:flex;
+    align-items:center;
+    border:1px solid var(--line);
+    background:var(--surface);
+    border-radius:14px;
+    padding:18px 22px;
+    box-shadow:var(--shadow);
+    overflow-x:auto;
+  }
+  .route-stop{ flex:0 0 auto; text-align:left; padding:0 6px; }
+  .route-stop .code{ font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--accent); font-weight:500; }
+  .route-stop .label{ font-size:12.5px; color:var(--ink-faint); margin-top:2px; white-space:nowrap; }
+  .route-line{
+    flex:1 1 auto; height:1px; min-width:20px;
+    background:repeating-linear-gradient(to right, var(--line) 0 6px, transparent 6px 11px);
+    margin:0 4px;
+    position:relative;
+  }
+  .route-line::after{
+    content:'→'; position:absolute; right:-3px; top:50%; transform:translateY(-50%);
+    color:var(--ink-faint); font-size:13px; background:var(--surface);
+  }
+
+  .stat-strip{
+    margin-top:28px;
+    display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+    background:var(--line);
+    border:1px solid var(--line);
+    border-radius:14px;
+    overflow:hidden;
+  }
+  .stat{ background:var(--surface); padding:16px 18px; }
+  .stat .n{ font-family:'Zilla Slab',serif; font-weight:700; font-size:26px; font-variant-numeric:tabular-nums; }
+  .stat .l{ font-size:12px; color:var(--ink-faint); margin-top:2px; }
+
+  /* ---------- toc ---------- */
+  .toc{
+    margin-top:40px;
+    display:flex; flex-wrap:wrap; gap:8px 18px;
+    padding:16px 0;
+    border-top:1px solid var(--line);
+    border-bottom:1px solid var(--line);
+  }
+  .toc a{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    text-decoration:none;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  .toc a:hover{ color:var(--accent); }
+  .toc a::before{ content:'—'; color:var(--line); }
+
+  /* ---------- sections ---------- */
+  section{ padding:52px 0; border-bottom:1px solid var(--line); }
+  section:last-of-type{ border-bottom:none; }
+  .sec-head{ display:flex; align-items:baseline; gap:14px; margin-bottom:22px; flex-wrap:wrap; }
+  .sec-num{ font-family:'IBM Plex Mono',monospace; color:var(--accent); font-size:13px; }
+  h2.sec-title{ font-size:26px; }
+  .sec-note{ color:var(--ink-faint); font-size:13.5px; margin-left:auto; }
+
+  p{ color:var(--ink-soft); max-width:70ch; }
+  p.lead{ color:var(--ink); font-size:16.5px; }
+
+  /* ---------- stack chips ---------- */
+  .chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:18px; }
+  .chip{
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px;
+    padding:6px 11px; border-radius:8px;
+    background:var(--surface-alt); border:1px solid var(--line); color:var(--ink-soft);
+  }
+
+  /* ---------- module grid ---------- */
+  .division{ margin-top:30px; }
+  .division:first-child{ margin-top:0; }
+  .division-head{
+    display:flex; align-items:center; gap:10px;
+    margin-bottom:12px;
+  }
+  .division-head .swatch{ width:9px; height:9px; border-radius:2px; }
+  .division-head h3{ font-size:16px; font-weight:600; font-family:'Public Sans',sans-serif; }
+  .division-head .who{ font-size:12.5px; color:var(--ink-faint); }
+
+  .mod-grid{
+    display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:10px;
+  }
+  .mod{
+    border:1px solid var(--line); background:var(--surface); border-radius:10px;
+    padding:13px 14px;
+  }
+  .mod .name{ font-weight:600; font-size:13.5px; }
+  .mod .desc{ font-size:12.5px; color:var(--ink-faint); margin-top:4px; line-height:1.5; }
+
+  /* ---------- roles table ---------- */
+  table{ width:100%; border-collapse:collapse; margin-top:8px; }
+  thead th{
+    text-align:left; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase;
+    color:var(--ink-faint); font-weight:600; padding:0 12px 10px; border-bottom:1px solid var(--line);
+  }
+  tbody td{ padding:12px; border-bottom:1px solid var(--line); font-size:13.5px; vertical-align:top; }
+  tbody tr:last-child td{ border-bottom:none; }
+  td.role-name{ font-weight:600; white-space:nowrap; }
+  .role-tag{
+    display:inline-block; font-family:'IBM Plex Mono',monospace; font-size:10.5px;
+    padding:2px 7px; border-radius:6px; background:var(--surface-alt); color:var(--ink-faint);
+    margin-top:4px;
+  }
+  .table-wrap{ overflow-x:auto; }
+
+  /* ---------- architecture flow ---------- */
+  .flow{
+    display:flex; align-items:center; flex-wrap:wrap; gap:0;
+    margin:22px 0 8px;
+  }
+  .flow-node{
+    font-family:'IBM Plex Mono',monospace; font-size:12.5px;
+    background:var(--accent-soft); color:var(--accent); border-radius:8px;
+    padding:7px 12px; font-weight:500;
+  }
+  .flow-arrow{ color:var(--ink-faint); padding:0 8px; font-size:14px; }
+
+  .note-box{
+    margin-top:18px; padding:16px 18px; border-radius:10px;
+    background:var(--warn-soft); border:1px solid color-mix(in srgb, var(--warn) 30%, transparent);
+    font-size:13.5px; color:var(--ink);
+  }
+  .note-box b{ color:var(--warn); }
+
+  /* ---------- changelog ---------- */
+  .clog{ margin-top:8px; }
+  .clog-day{ display:flex; gap:20px; padding:18px 0; border-top:1px solid var(--line); }
+  .clog-day:first-child{ border-top:none; }
+  .clog-date{
+    flex:0 0 92px; font-family:'IBM Plex Mono',monospace; font-size:12.5px; color:var(--ink-faint); padding-top:2px;
+  }
+  .clog-items{ flex:1; display:flex; flex-direction:column; gap:8px; }
+  .clog-items li{ list-style:none; font-size:13.8px; color:var(--ink); }
+  .clog-items li b{ font-weight:600; }
+  .clog-items ul{ margin:0; padding:0; display:flex; flex-direction:column; gap:8px; }
+
+  /* ---------- status list (gaps) ---------- */
+  .status-list{ display:flex; flex-direction:column; gap:1px; margin-top:8px; background:var(--line); border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+  .status-row{ display:flex; align-items:flex-start; gap:12px; background:var(--surface); padding:13px 16px; }
+  .pill{
+    flex:0 0 auto; font-family:'IBM Plex Mono',monospace; font-size:10.5px; font-weight:500;
+    padding:3px 8px; border-radius:20px; text-transform:uppercase; letter-spacing:.03em;
+    margin-top:1px;
+  }
+  .pill.missing{ background:var(--bad-soft); color:var(--bad); }
+  .pill.partial{ background:var(--warn-soft); color:var(--warn); }
+  .status-row .txt{ font-size:13.5px; color:var(--ink); }
+  .status-row .txt span{ color:var(--ink-faint); }
+
+  footer{
+    padding:40px 0 0;
+    color:var(--ink-faint); font-size:12.5px;
+    display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px;
+  }
+
+  @media (max-width:640px){
+    .stat-strip{ grid-template-columns:repeat(2,1fr); }
+    .mod-grid{ grid-template-columns:1fr 1fr; }
+  }
+
+  @media (prefers-reduced-motion:no-preference){
+    .fade-in{ animation:fadeIn .5s ease-out both; }
+  }
+  @keyframes fadeIn{ from{opacity:0; transform:translateY(6px);} to{opacity:1; transform:translateY(0);} }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <header class="manifest fade-in">
+    <div class="eyebrow"><span class="dot"></span> Internal build · mock data, no backend</div>
+    <h1 class="title">MANOVA Travel Agent</h1>
+    <p class="subtitle">Dashboard operasional internal untuk agen travel — mengelola satu alur penuh dari lead masuk sampai trip selesai dan invoice lunas, lintas divisi Sales, Operations, Finance, Admin, dan HR, plus portal terbatas untuk Client dan Vendor.</p>
+
+    <div class="route">
+      <div class="route-stop"><div class="code">LEAD</div><div class="label">masuk dari CRM</div></div>
+      <div class="route-line"></div>
+      <div class="route-stop"><div class="code">QUOTATION</div><div class="label">disetujui client</div></div>
+      <div class="route-line"></div>
+      <div class="route-stop"><div class="code">PROJECT ORDER</div><div class="label">drafting → done</div></div>
+      <div class="route-line"></div>
+      <div class="route-stop"><div class="code">BOOKING</div><div class="label">flight/hotel/transport/mice</div></div>
+      <div class="route-line"></div>
+      <div class="route-stop"><div class="code">INVOICE</div><div class="label">AR/AP lunas</div></div>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat"><div class="n">141</div><div class="l">Halaman (pages)</div></div>
+      <div class="stat"><div class="n">177</div><div class="l">Komponen Vue</div></div>
+      <div class="stat"><div class="n">43</div><div class="l">Modul data mock</div></div>
+      <div class="stat"><div class="n">181</div><div class="l">Test otomatis, hijau</div></div>
+    </div>
+
+    <nav class="toc">
+      <a href="#stack">Tech Stack</a>
+      <a href="#arsitektur">Arsitektur Data</a>
+      <a href="#modul">Peta Modul</a>
+      <a href="#roles">Role &amp; Akses</a>
+      <a href="#progres">Progres Terakhir</a>
+      <a href="#gap">Yang Belum Ada</a>
+    </nav>
+  </header>
+
+  <section id="stack">
+    <div class="sec-head">
+      <span class="sec-num">01</span>
+      <h2 class="sec-title">Tech Stack</h2>
+    </div>
+    <p class="lead">Nuxt 4 + Vue 3 + TypeScript (non-strict), dengan komponen UI dari shadcn-nuxt di atas Reka UI (Vue port Radix UI) dan Tailwind CSS untuk styling.</p>
+    <div class="chips">
+      <span class="chip">Nuxt 4</span>
+      <span class="chip">Vue 3</span>
+      <span class="chip">TypeScript</span>
+      <span class="chip">Tailwind CSS</span>
+      <span class="chip">shadcn-nuxt</span>
+      <span class="chip">Reka UI</span>
+      <span class="chip">vee-validate + Zod</span>
+      <span class="chip">Chart.js</span>
+      <span class="chip">Leaflet (peta)</span>
+      <span class="chip">Vitest</span>
+      <span class="chip">VueUse</span>
+      <span class="chip">lucide-vue-next</span>
+    </div>
+  </section>
+
+  <section id="arsitektur">
+    <div class="sec-head">
+      <span class="sec-num">02</span>
+      <h2 class="sec-title">Arsitektur Data</h2>
+      <span class="sec-note">status build saat ini</span>
+    </div>
+    <p class="lead">Belum ada backend/database sungguhan. Seluruh data hidup sebagai array <code>reactive()</code> lokal di <code>app/data/*.ts</code>, dimutasi langsung lewat fungsi yang diexport dari sana — bukan lewat API call.</p>
+    <div class="flow">
+      <span class="flow-node">Lead</span><span class="flow-arrow">→</span>
+      <span class="flow-node">Quotation</span><span class="flow-arrow">→</span>
+      <span class="flow-node">Project</span><span class="flow-arrow">→</span>
+      <span class="flow-node">ProjectService</span><span class="flow-arrow">→</span>
+      <span class="flow-node">Booking</span><span class="flow-arrow">→</span>
+      <span class="flow-node">Invoice</span>
+    </div>
+    <p>Entitas intinya <b style="color:var(--ink)">Project</b> — dibuat dari Lead yang <i>Won</i> (<code>markLeadWon</code>) atau manual dari Party existing (<code>createProject</code>). Tiap Project punya <code>serviceScope</code> (Flight/Hotel/Transport/MICE), yang masing-masing terwakili sebagai baris <code>ProjectService</code> — tempat budget, vendor, dan status booking dilacak per layanan.</p>
+    <div class="note-box"><b>Catatan penting:</b> data reset tiap reload kecuali sengaja disimpan — cocok untuk demo &amp; development, belum untuk data produksi sungguhan.</div>
+  </section>
+
+  <section id="modul">
+    <div class="sec-head">
+      <span class="sec-num">03</span>
+      <h2 class="sec-title">Peta Modul</h2>
+      <span class="sec-note">dikelompokkan per divisi pengguna</span>
+    </div>
+
+    <div class="division">
+      <div class="division-head"><span class="swatch" style="background:var(--accent)"></span><h3>Sales &amp; CRM</h3><span class="who">Sales, AE, Marketing</span></div>
+      <div class="mod-grid">
+        <div class="mod"><div class="name">Sales Pipeline</div><div class="desc">Leads → Quotation, funnel &amp; lead source recap</div></div>
+        <div class="mod"><div class="name">Database Customer</div><div class="desc">Party CRM — Prospect/Client, riwayat &amp; preferensi</div></div>
+        <div class="mod"><div class="name">CRM Engagement</div><div class="desc">Follow-up otomatis, Loyalty Program, Review &amp; Feedback</div></div>
+        <div class="mod"><div class="name">Product Planning</div><div class="desc">Template produk &amp; Cost Sheet untuk pricing</div></div>
+        <div class="mod"><div class="name">Marketing &amp; Analysis</div><div class="desc">Campaign, promo A/B, funnel konversi, CAC/LTV</div></div>
+      </div>
+    </div>
+
+    <div class="division">
+      <div class="division-head"><span class="swatch" style="background:var(--good)"></span><h3>Operations &amp; Project Order</h3><span class="who">PM, reservation, operational team</span></div>
+      <div class="mod-grid">
+        <div class="mod"><div class="name">Project Orders</div><div class="desc">Inti aplikasi — 6 step Drafting→Done, Timeline Tracking, Finance, Documents, Tasks</div></div>
+        <div class="mod"><div class="name">Ticketing / Accommodation / Transportation / MICE</div><div class="desc">Booking per tipe layanan, quick-create dari Project</div></div>
+        <div class="mod"><div class="name">Booking Timeline &amp; Calendar</div><div class="desc">Konsolidasi seluruh booking lintas tipe satu project</div></div>
+        <div class="mod"><div class="name">Changes &amp; Incidents</div><div class="desc">Change request, cancellation, refund, incident log</div></div>
+        <div class="mod"><div class="name">Vendor &amp; Partner</div><div class="desc">Data vendor, RFQ, Service Order, Rating &amp; Performance</div></div>
+        <div class="mod"><div class="name">Inventory</div><div class="desc">Aset perusahaan (kamera, kendaraan, alat produksi)</div></div>
+      </div>
+    </div>
+
+    <div class="division">
+      <div class="division-head"><span class="swatch" style="background:#B0862B"></span><h3>Finance &amp; Accounting</h3><span class="who">Finance &amp; ACC</span></div>
+      <div class="mod-grid">
+        <div class="mod"><div class="name">Receivables / Payables</div><div class="desc">AR &amp; AP, status rekonsiliasi supplier invoice</div></div>
+        <div class="mod"><div class="name">Payments &amp; Ledger</div><div class="desc">Riwayat pembayaran, General Ledger, neraca saldo</div></div>
+        <div class="mod"><div class="name">Opex &amp; Tax</div><div class="desc">Pengeluaran operasional, pajak &amp; multi currency</div></div>
+        <div class="mod"><div class="name">Credit / Debit Notes</div><div class="desc">Koreksi billing tanpa mengubah invoice asli</div></div>
+      </div>
+    </div>
+
+    <div class="division">
+      <div class="division-head"><span class="swatch" style="background:var(--bad)"></span><h3>Administration &amp; HR</h3><span class="who">Super Admin</span></div>
+      <div class="mod-grid">
+        <div class="mod"><div class="name">Users &amp; Roles</div><div class="desc">Manajemen user, Roles &amp; Permission matrix</div></div>
+        <div class="mod"><div class="name">Master Data</div><div class="desc">Referensi lintas modul — destinasi, vendor category, dst</div></div>
+        <div class="mod"><div class="name">Audit Trail</div><div class="desc">Log aktivitas sistem, Activity Center</div></div>
+        <div class="mod"><div class="name">HR</div><div class="desc">Modul karyawan, terpisah dari Users/Roles Admin</div></div>
+      </div>
+    </div>
+
+    <div class="division">
+      <div class="division-head"><span class="swatch" style="background:var(--ink-faint)"></span><h3>Portal Eksternal</h3><span class="who">Client &amp; Vendor (login terbatas)</span></div>
+      <div class="mod-grid">
+        <div class="mod"><div class="name">Client Portal</div><div class="desc">Travel Request, My Trips, Billing, Documents &amp; Support</div></div>
+        <div class="mod"><div class="name">Katalog (Vendor Portal)</div><div class="desc">Produk/komoditas vendor, Orders, RFQ Inbox — di-rename dari "Vendor Portal"</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="roles">
+    <div class="sec-head">
+      <span class="sec-num">04</span>
+      <h2 class="sec-title">Role &amp; Akses</h2>
+      <span class="sec-note">7-role model, RBAC per modul</span>
+    </div>
+    <p class="lead">Disederhanakan dari role yang lebih granular ke 7 role — tiap role lama melebur ke penerusnya tanpa kehilangan hak <code>MANAGE</code> atas modulnya.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Role</th><th>Cakupan</th></tr></thead>
+        <tbody>
+          <tr><td class="role-name">Super Admin</td><td>Akses penuh seluruh modul, tidak bisa terkunci dari Administration.</td></tr>
+          <tr><td class="role-name">Management</td><td>Approver komersial lintas modul + HR + Reporting &amp; BI. Gabungan Viewer/Auditor/HR/BI lama.</td></tr>
+          <tr><td class="role-name">Sales &amp; CRM</td><td>Lead, quotation, database customer, engagement, marketing. Satu tangan untuk deal &amp; customer.</td></tr>
+          <tr><td class="role-name">Finance &amp; ACC</td><td>General ledger, AR/AP, pembayaran, opex, pajak, multi currency.</td></tr>
+          <tr><td class="role-name">Operations &amp; Project Order</td><td>Project end-to-end, booking, vendor &amp; partner, inventory, change request.</td></tr>
+          <tr><td class="role-name">Client<span class="role-tag">portal</span></td><td>Eksternal — akses terisolasi per company, tanpa modul internal.</td></tr>
+          <tr><td class="role-name">Vendor<span class="role-tag">portal</span></td><td>Eksternal — akses terisolasi per vendor company (dulu "Supplier").</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="progres">
+    <div class="sec-head">
+      <span class="sec-num">05</span>
+      <h2 class="sec-title">Progres Terakhir</h2>
+      <span class="sec-note">26–30 Agustus 2026</span>
+    </div>
+    <div class="clog">
+      <div class="clog-day">
+        <div class="clog-date">26–28 AGU</div>
+        <div class="clog-items">
+          <ul>
+            <li>Overhaul besar halaman detail Project Order: Booking Timeline konsolidasi, Departure Readiness Gate, Change Requests terstruktur, dokumen ber-kategori, Ringkasan Komersial.</li>
+            <li>Task Overview + Kanban Board, dan dasar fitur "Pengeluaran per Layanan" (budget per tipe layanan) mulai dibangun.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="clog-day">
+        <div class="clog-date">29 AGU</div>
+        <div class="clog-items">
+          <ul>
+            <li>Perbaiki alokasi budget per layanan — sebelumnya tidak bisa diisi sebelum ada booking.</li>
+            <li>Perbaiki bug modal dobel di halaman /services + konversi ke sidebar kanan.</li>
+            <li>Ganti tile peta (CARTO minta API key → OpenStreetMap gratis).</li>
+            <li>Tombol "Buat Project" ditambahkan langsung di Database Customer.</li>
+          </ul>
+        </div>
+      </div>
+      <div class="clog-day">
+        <div class="clog-date">30 AGU</div>
+        <div class="clog-items">
+          <ul>
+            <li>Rename menu "Vendor Portal" → "Katalog".</li>
+            <li>Timeline Tracking: project baru otomatis terisi 8 milestone standar (dihitung mundur dari tanggal keberangkatan), sebelumnya kosong tanpa cara mengisi.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="gap">
+    <div class="sec-head">
+      <span class="sec-num">06</span>
+      <h2 class="sec-title">Yang Belum Ada</h2>
+      <span class="sec-note">hasil audit terhadap dokumen restrukturisasi menu</span>
+    </div>
+    <p class="lead">Dari perbandingan struktur menu yang diajukan vs kode saat ini — sebagian besar sebenarnya sudah ada (cuma beda nama/lokasi), tapi ini yang betul-betul belum dibangun sama sekali:</p>
+    <div class="status-list">
+      <div class="status-row"><span class="pill missing">Belum ada</span><span class="txt">Content Schedule Management &amp; Content Development <span>— modul Marketing</span></span></div>
+      <div class="status-row"><span class="pill missing">Belum ada</span><span class="txt">Scheduling staf/resource <span>— belum ada modul penjadwalan tim</span></span></div>
+      <div class="status-row"><span class="pill missing">Belum ada</span><span class="txt">Booking Center auto-generate invoice tamu <span>— booking &amp; invoicing masih terpisah</span></span></div>
+      <div class="status-row"><span class="pill missing">Belum ada</span><span class="txt">Status Rekonsiliasi di sisi AR/piutang customer <span>— baru ada di AP/supplier</span></span></div>
+      <div class="status-row"><span class="pill missing">Belum ada</span><span class="txt">Accounting &gt; Purchases sebagai menu tersendiri</span></div>
+      <div class="status-row"><span class="pill missing">Belum ada</span><span class="txt">Laporan General Ledger, Cashflow, Balance Sheet, Asset, Tax <span>— di dalam modul Reports</span></span></div>
+      <div class="status-row"><span class="pill missing">Belum ada</span><span class="txt">Log Session per divisi <span>— cuma ada satu Audit Trail gabungan</span></span></div>
+      <div class="status-row"><span class="pill missing">Belum ada</span><span class="txt">Kolom "Limit Credit Facility" <span>— di Database Customer</span></span></div>
+      <div class="status-row"><span class="pill partial">Sebagian</span><span class="txt">Budget Management lintas-project <span>— baru ada per-project di tab Finance</span></span></div>
+      <div class="status-row"><span class="pill partial">Sebagian</span><span class="txt">Banyak halaman operasional (Ticketing, Accommodation, dst) sudah dibangun lengkap tapi disembunyikan dari sidebar</span></div>
+    </div>
+  </section>
+
+  <footer>
+    <span>MANOVA Travel Agent — internal build context</span>
+    <span class="mono">client-revision branch · disusun 30 Agu 2026</span>
+  </footer>
+
+</div>
+</body>
+</html>

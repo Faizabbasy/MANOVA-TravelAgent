@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Plus } from 'lucide-vue-next'
+import { Search, Plus, Eye } from 'lucide-vue-next'
 import { MICE_EVENTS, PROJECTS, VENDORS, getProjectById, createMiceEvent, setServiceVendor } from '~/data'
 import { MICE_EVENT_STATUSES, MICE_APPROVAL_STATUSES, findStatusOption } from '~/constants/status'
 
@@ -54,7 +54,10 @@ function openCreateDialog () {
   isCreateOpen.value = true
 }
 
-watch(() => route.query.create, (value) => { if (value === '1') { openCreateDialog() } }, { immediate: true })
+// Quick-create dari Project Detail selalu menyertakan anchor tab (`#mice`) — cek juga hash-nya, bukan cuma
+// `create=1`, supaya panel lain (Flight/Hotel/Transport) yang sama-sama mount di /services tidak ikut
+// membuka dialog-nya sendiri saat query ini muncul (dulu ke-4 panel share flag yang sama).
+watch(() => route.query.create, (value) => { if (value === '1' && route.hash === '#mice') { openCreateDialog() } }, { immediate: true })
 
 function submitCreate () {
   if (!newProjectId.value) { return }
@@ -72,18 +75,18 @@ function submitCreate () {
 <template>
   <div class="space-y-6">
     <div v-if="canManageMice" class="flex justify-end">
-      <Dialog v-model:open="isCreateOpen">
-        <DialogTrigger as-child>
+      <Sheet v-model:open="isCreateOpen">
+        <SheetTrigger as-child>
           <Button @click="openCreateDialog">
             <Plus class="h-4 w-4 mr-1.5" />Buat MICE Event
           </Button>
-        </DialogTrigger>
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>MICE Event Baru</DialogTitle>
-            <DialogDescription>Dibuat sebagai status "Planning" — lengkapi sessions/BOQ/staffing/checklist di halaman detail.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </SheetTrigger>
+        <SheetContent side="right" class="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>MICE Event Baru</SheetTitle>
+            <SheetDescription>Dibuat sebagai status "Planning" — lengkapi sessions/BOQ/staffing/checklist di halaman detail.</SheetDescription>
+          </SheetHeader>
+          <div class="space-y-4 py-4">
             <div class="space-y-1.5">
               <Label for="mice-project">Project</Label>
               <select id="mice-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -111,16 +114,16 @@ function submitCreate () {
               </select>
             </div>
           </div>
-          <DialogFooter>
+          <SheetFooter class="flex-row justify-end gap-2">
             <Button variant="outline" @click="isCreateOpen = false">
               Batal
             </Button>
             <Button :disabled="!newProjectId" @click="submitCreate">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </div>
 
     <RoleAccessState v-if="!canView('mice')" module-label="modul Service Operations" />
@@ -150,39 +153,96 @@ function submitCreate () {
       </div>
 
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Venue</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Sessions</TableHead>
-              <TableHead>Peserta Diharapkan</TableHead>
-              <TableHead>Client Approval</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.event.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/mice/${row.event.id}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ row.event.venueName ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.project?.name ?? row.event.projectId }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.event.sessions.length }} sesi
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.event.participantCategories.reduce((sum, c) => sum + c.expectedCount, 0) }} pax
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(MICE_APPROVAL_STATUSES, row.event.clientApprovalStatus).label" :tone="findStatusOption(MICE_APPROVAL_STATUSES, row.event.clientApprovalStatus).tone" /></TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(MICE_EVENT_STATUSES, row.event.status).label" :tone="findStatusOption(MICE_EVENT_STATUSES, row.event.status).tone" /></TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
-              {{ searchQuery || statusFilter !== 'all' || projectFilter !== 'all' ? 'Tidak ada MICE Event yang cocok dengan filter.' : 'Belum ada MICE Event.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView v-if="rows.length" :items="rows" :get-key="row => row.event.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Venue</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Sessions</TableHead>
+                  <TableHead>Peserta Diharapkan</TableHead>
+                  <TableHead>Client Approval</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.event.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/mice/${row.event.id}`)">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.event.venueName ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? row.event.projectId }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.event.sessions.length }} sesi
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.event.participantCategories.reduce((sum, c) => sum + c.expectedCount, 0) }} pax
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(MICE_APPROVAL_STATUSES, row.event.clientApprovalStatus).label" :tone="findStatusOption(MICE_APPROVAL_STATUSES, row.event.clientApprovalStatus).tone" /></TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(MICE_EVENT_STATUSES, row.event.status).label" :tone="findStatusOption(MICE_EVENT_STATUSES, row.event.status).tone" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="navigateTo(`/mice/${row.event.id}`)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.event.venueName ?? '—' }}
+                  </p>
+                  <p class="text-xs text-muted-foreground truncate">
+                    {{ row.project?.name ?? row.event.projectId }}
+                  </p>
+                </div>
+                <StatusBadge :label="findStatusOption(MICE_EVENT_STATUSES, row.event.status).label" :tone="findStatusOption(MICE_EVENT_STATUSES, row.event.status).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Sessions
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.event.sessions.length }} sesi
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Peserta Diharapkan
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.event.participantCategories.reduce((sum, c) => sum + c.expectedCount, 0) }} pax
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Client Approval
+                  </p>
+                  <p class="text-foreground">
+                    <StatusBadge :label="findStatusOption(MICE_APPROVAL_STATUSES, row.event.clientApprovalStatus).label" :tone="findStatusOption(MICE_APPROVAL_STATUSES, row.event.clientApprovalStatus).tone" />
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState
+          v-else
+          title="Tidak ada MICE Event"
+          :description="searchQuery || statusFilter !== 'all' || projectFilter !== 'all' ? 'Tidak ada MICE Event yang cocok dengan filter.' : 'Belum ada MICE Event.'"
+        />
       </SectionCard>
     </template>
   </div>

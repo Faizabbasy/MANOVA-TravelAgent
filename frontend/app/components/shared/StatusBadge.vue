@@ -7,7 +7,14 @@ const props = withDefaults(defineProps<{
   tone?: BadgeTone
   /** `dot` menambah titik warna kecil — membantu membedakan status saat beberapa badge berdempetan. */
   dot?: boolean
-}>(), { dot: false })
+  /** `md` — pill lebih besar & rounded-full (mis. tabel "Booking Timeline" yang butuh badge lebih menonjol). Default `sm` tidak berubah dari sebelumnya. */
+  size?: 'sm' | 'md'
+}>(), { dot: false, size: 'sm' })
+
+const sizeClasses: Record<'sm' | 'md', string> = {
+  sm: 'rounded-md px-2 py-0.5 text-xs',
+  md: 'rounded-full px-3 py-1 text-xs'
+}
 
 /**
  * Refinement UI: sebelumnya memakai `Badge variant="secondary"` dengan `font-semibold` dan tanpa border,
@@ -39,7 +46,8 @@ const dotClasses: Record<BadgeTone, string> = {
 <template>
   <span
     :class="cn(
-      'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border px-2 py-0.5 text-xs font-medium leading-5',
+      'inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border font-medium leading-5',
+      sizeClasses[props.size],
       toneClasses[props.tone ?? 'neutral']
     )"
   >

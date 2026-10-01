@@ -517,62 +517,126 @@ function submitChangeRequest () {
         <TabsContent value="travelers">
           <SectionCard title="Traveler / Participant">
             <template #actions>
-              <Button size="sm" variant="outline" @click="openTravelerDialog(null)">
-                <Plus class="h-4 w-4 mr-1.5" />Tambah Traveler
+              <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+              <Button
+                size="sm"
+                variant="outline"
+                class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+                @click="openTravelerDialog(null)"
+              >
+                <Plus class="h-4 w-4" />Tambah Traveler
               </Button>
             </template>
-            <div class="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>Paspor</TableHead>
-                    <TableHead>Visa</TableHead>
-                    <TableHead>Kontak Darurat</TableHead>
-                    <TableHead>Catatan</TableHead>
-                    <TableHead>Status Dokumen</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="traveler in travelers" :key="traveler.id">
-                    <TableCell class="font-medium text-foreground">
+            <ResponsiveDataView v-if="travelers.length" :items="travelers" :get-key="traveler => traveler.id">
+              <template #desktop="{ items }">
+                <div class="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nama</TableHead>
+                        <TableHead>Paspor</TableHead>
+                        <TableHead>Visa</TableHead>
+                        <TableHead>Kontak Darurat</TableHead>
+                        <TableHead>Catatan</TableHead>
+                        <TableHead>Status Dokumen</TableHead>
+                        <TableHead />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="traveler in items" :key="traveler.id">
+                        <TableCell class="font-medium text-foreground">
+                          {{ traveler.name }}
+                        </TableCell>
+                        <TableCell class="text-muted-foreground">
+                          {{ traveler.passportNumber || '—' }}<template v-if="traveler.passportExpiryDate">
+                            (exp. {{ formatDate(traveler.passportExpiryDate) }})
+                          </template>
+                        </TableCell>
+                        <TableCell class="text-muted-foreground">
+                          {{ traveler.visaNumber || '—' }}<template v-if="traveler.visaExpiryDate">
+                            (exp. {{ formatDate(traveler.visaExpiryDate) }})
+                          </template>
+                        </TableCell>
+                        <TableCell class="text-muted-foreground">
+                          {{ traveler.emergencyContactName || '—' }}
+                        </TableCell>
+                        <TableCell class="text-muted-foreground text-xs">
+                          {{ [traveler.dietaryRestrictions, traveler.accessibilityNeeds, traveler.specialRequest].filter(Boolean).join(' · ') || '—' }}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge
+                            :label="isTravelerDocumentMissing(traveler, project.travelStartDate) ? 'Dokumen Belum Lengkap' : 'Dokumen Lengkap'"
+                            :tone="isTravelerDocumentMissing(traveler, project.travelStartDate) ? 'warning' : 'success'"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button size="sm" variant="ghost" @click="openTravelerDialog(traveler)">
+                            Edit
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </template>
+
+              <template #mobile-card="{ item: traveler }">
+                <button type="button" class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted" @click="openTravelerDialog(traveler)">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
                       {{ traveler.name }}
-                    </TableCell>
-                    <TableCell class="text-muted-foreground">
-                      {{ traveler.passportNumber || '—' }}<template v-if="traveler.passportExpiryDate">
-                        (exp. {{ formatDate(traveler.passportExpiryDate) }})
-                      </template>
-                    </TableCell>
-                    <TableCell class="text-muted-foreground">
-                      {{ traveler.visaNumber || '—' }}<template v-if="traveler.visaExpiryDate">
-                        (exp. {{ formatDate(traveler.visaExpiryDate) }})
-                      </template>
-                    </TableCell>
-                    <TableCell class="text-muted-foreground">
-                      {{ traveler.emergencyContactName || '—' }}
-                    </TableCell>
-                    <TableCell class="text-muted-foreground text-xs">
-                      {{ [traveler.dietaryRestrictions, traveler.accessibilityNeeds, traveler.specialRequest].filter(Boolean).join(' · ') || '—' }}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        :label="isTravelerDocumentMissing(traveler, project.travelStartDate) ? 'Dokumen Belum Lengkap' : 'Dokumen Lengkap'"
-                        :tone="isTravelerDocumentMissing(traveler, project.travelStartDate) ? 'warning' : 'success'"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="ghost" @click="openTravelerDialog(traveler)">
-                        Edit
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                  <TableEmpty v-if="travelers.length === 0" :colspan="7">
-                    Belum ada traveler tercatat. Tambahkan data traveler Anda.
-                  </TableEmpty>
-                </TableBody>
-              </Table>
-            </div>
+                    </p>
+                    <StatusBadge
+                      :label="isTravelerDocumentMissing(traveler, project.travelStartDate) ? 'Dokumen Belum Lengkap' : 'Dokumen Lengkap'"
+                      :tone="isTravelerDocumentMissing(traveler, project.travelStartDate) ? 'warning' : 'success'"
+                    />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Paspor
+                      </p>
+                      <p class="text-foreground">
+                        {{ traveler.passportNumber || '—' }}<template v-if="traveler.passportExpiryDate">
+                          (exp. {{ formatDate(traveler.passportExpiryDate) }})
+                        </template>
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Visa
+                      </p>
+                      <p class="text-foreground">
+                        {{ traveler.visaNumber || '—' }}<template v-if="traveler.visaExpiryDate">
+                          (exp. {{ formatDate(traveler.visaExpiryDate) }})
+                        </template>
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Kontak Darurat
+                      </p>
+                      <p class="text-foreground">
+                        {{ traveler.emergencyContactName || '—' }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Catatan
+                      </p>
+                      <p class="text-foreground">
+                        {{ [traveler.dietaryRestrictions, traveler.accessibilityNeeds, traveler.specialRequest].filter(Boolean).join(' · ') || '—' }}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
+
+            <p v-else class="text-sm text-muted-foreground">
+              Belum ada traveler tercatat. Tambahkan data traveler Anda.
+            </p>
+
             <div class="mt-4 pt-4 border-t border-border">
               <NuxtLink to="/client/project-orders#participants" class="text-sm text-primary hover:underline">
                 Kelola VIP, rooming, replace, dan bulk action lintas project →
@@ -580,17 +644,18 @@ function submitChangeRequest () {
             </div>
           </SectionCard>
 
-          <Dialog v-model:open="isTravelerDialogOpen">
-            <DialogScrollContent class="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>{{ editingTraveler ? 'Edit Traveler' : 'Tambah Traveler' }}</DialogTitle>
-                <DialogDescription>Lengkapi data traveler untuk keperluan dokumen perjalanan.</DialogDescription>
-              </DialogHeader>
+          <ResponsiveFormSheet
+            v-model:open="isTravelerDialogOpen"
+            :title="editingTraveler ? 'Edit Traveler' : 'Tambah Traveler'"
+            description="Lengkapi data traveler untuk keperluan dokumen perjalanan."
+            content-class="max-w-lg"
+            scroll
+          >
               <div class="space-y-4 py-2">
                 <div class="space-y-1.5">
                   <Label for="trv-name">Nama Lengkap</Label><Input id="trv-name" v-model="travelerName" />
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div class="space-y-1.5">
                     <Label for="trv-passport">Nomor Paspor</Label><Input id="trv-passport" v-model="travelerPassportNumber" />
                   </div>
@@ -623,16 +688,15 @@ function submitChangeRequest () {
                   <Label for="trv-special">Permintaan Khusus Lainnya</Label><Input id="trv-special" v-model="travelerSpecialRequest" />
                 </div>
               </div>
-              <DialogFooter>
+              <template #footer>
                 <Button variant="outline" @click="isTravelerDialogOpen = false">
                   Batal
                 </Button>
                 <Button :disabled="!travelerName.trim()" @click="submitTraveler">
                   Simpan
                 </Button>
-              </DialogFooter>
-            </DialogScrollContent>
-          </Dialog>
+              </template>
+          </ResponsiveFormSheet>
         </TabsContent>
 
         <TabsContent value="documents">
@@ -682,42 +746,87 @@ function submitChangeRequest () {
                 Buka Finance & Billing lengkap →
               </NuxtLink>
             </template>
-            <div class="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Invoice</TableHead>
-                    <TableHead>Tipe</TableHead>
-                    <TableHead>Jumlah</TableHead>
-                    <TableHead>Jatuh Tempo</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="invoice in invoices" :key="invoice.id">
-                    <TableCell class="font-medium text-foreground">
+            <ResponsiveDataView v-if="invoices.length" :items="invoices" :get-key="invoice => invoice.id">
+              <template #desktop="{ items }">
+                <div class="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Invoice</TableHead>
+                        <TableHead>Tipe</TableHead>
+                        <TableHead>Jumlah</TableHead>
+                        <TableHead>Jatuh Tempo</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="invoice in items" :key="invoice.id">
+                        <TableCell class="font-medium text-foreground">
+                          {{ invoice.label }}
+                        </TableCell>
+                        <TableCell>
+                          <div class="flex flex-col gap-1">
+                            <StatusBadge :label="findStatusOption(INVOICE_TYPES, invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, invoice.invoiceType).tone" />
+                            <span v-if="invoice.currency !== 'IDR'" class="text-xs text-muted-foreground">{{ invoice.currency }}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell>{{ formatCurrencyIdr(invoice.amountIdr) }}</TableCell>
+                        <TableCell :class="isInvoiceOverdue(invoice) ? 'text-destructive' : 'text-muted-foreground'">
+                          {{ formatDate(invoice.dueAt) }}<template v-if="isInvoiceOverdue(invoice)">
+                            ({{ invoiceAgingDays(invoice) * -1 }} hari overdue)
+                          </template>
+                        </TableCell>
+                        <TableCell><StatusBadge :label="findStatusOption(INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(INVOICE_STATUSES, invoice.status).tone" /></TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </template>
+
+              <template #mobile-card="{ item: invoice }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
                       {{ invoice.label }}
-                    </TableCell>
-                    <TableCell>
+                    </p>
+                    <StatusBadge :label="findStatusOption(INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(INVOICE_STATUSES, invoice.status).tone" />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Tipe
+                      </p>
                       <div class="flex flex-col gap-1">
                         <StatusBadge :label="findStatusOption(INVOICE_TYPES, invoice.invoiceType).label" :tone="findStatusOption(INVOICE_TYPES, invoice.invoiceType).tone" />
-                        <span v-if="invoice.currency !== 'IDR'" class="text-xs text-muted-foreground">{{ invoice.currency }}</span>
+                        <span v-if="invoice.currency !== 'IDR'" class="text-muted-foreground">{{ invoice.currency }}</span>
                       </div>
-                    </TableCell>
-                    <TableCell>{{ formatCurrencyIdr(invoice.amountIdr) }}</TableCell>
-                    <TableCell :class="isInvoiceOverdue(invoice) ? 'text-destructive' : 'text-muted-foreground'">
-                      {{ formatDate(invoice.dueAt) }}<template v-if="isInvoiceOverdue(invoice)">
-                        ({{ invoiceAgingDays(invoice) * -1 }} hari overdue)
-                      </template>
-                    </TableCell>
-                    <TableCell><StatusBadge :label="findStatusOption(INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(INVOICE_STATUSES, invoice.status).tone" /></TableCell>
-                  </TableRow>
-                  <TableEmpty v-if="invoices.length === 0" :colspan="5">
-                    Belum ada invoice untuk Project Order ini.
-                  </TableEmpty>
-                </TableBody>
-              </Table>
-            </div>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Jumlah
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatCurrencyIdr(invoice.amountIdr) }}
+                      </p>
+                    </div>
+                    <div class="col-span-2">
+                      <p class="text-muted-foreground">
+                        Jatuh Tempo
+                      </p>
+                      <p :class="isInvoiceOverdue(invoice) ? 'text-destructive' : 'text-foreground'">
+                        {{ formatDate(invoice.dueAt) }}<template v-if="isInvoiceOverdue(invoice)">
+                          ({{ invoiceAgingDays(invoice) * -1 }} hari overdue)
+                        </template>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
+
+            <p v-else class="text-sm text-muted-foreground">
+              Belum ada invoice untuk Project Order ini.
+            </p>
           </SectionCard>
 
           <SectionCard v-for="invoice in invoices.filter(inv => getPaymentsByInvoice(inv.id).length > 0)" :key="invoice.id" :title="`Riwayat Pembayaran — ${invoice.label}`">
@@ -733,45 +842,48 @@ function submitChangeRequest () {
         <TabsContent value="changes">
           <SectionCard title="Change Request">
             <template #actions>
-              <div class="flex items-center gap-3">
+              <div class="flex flex-wrap items-center gap-3">
                 <NuxtLink to="/client/project-orders#change-requests" class="text-xs text-primary hover:underline">
                   Kelola lengkap →
                 </NuxtLink>
-                <Dialog v-model:open="isChangeDialogOpen">
-                  <DialogTrigger as-child>
-                    <Button size="sm" variant="outline">
-                      <Plus class="h-4 w-4 mr-1.5" />Ajukan Perubahan
+                <ResponsiveFormSheet
+                  v-model:open="isChangeDialogOpen"
+                  title="Ajukan Permintaan Perubahan"
+                  description="Sampaikan perubahan yang Anda butuhkan untuk Project Order ini."
+                >
+                  <template #trigger>
+                    <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+                    >
+                      <Plus class="h-4 w-4" />Ajukan Perubahan
                     </Button>
-                  </DialogTrigger>
-                  <DialogContent class="max-w-md">
-                    <DialogHeader>
-                      <DialogTitle>Ajukan Permintaan Perubahan</DialogTitle>
-                      <DialogDescription>Sampaikan perubahan yang Anda butuhkan untuk Project Order ini.</DialogDescription>
-                    </DialogHeader>
-                    <div class="space-y-4 py-2">
-                      <div class="space-y-1.5">
-                        <Label for="change-category">Kategori</Label>
-                        <select id="change-category" v-model="changeCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                          <option v-for="cat in CHANGE_CATEGORIES.filter(c => CLIENT_CHANGE_CATEGORIES.includes(c.value))" :key="cat.value" :value="cat.value">
-                            {{ cat.label }}
-                          </option>
-                        </select>
-                      </div>
-                      <div class="space-y-1.5">
-                        <Label for="change-reason">Detail Permintaan</Label>
-                        <textarea id="change-reason" v-model="changeReason" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Jumlah peserta bertambah menjadi 25 orang" />
-                      </div>
+                  </template>
+                  <div class="space-y-4 py-2">
+                    <div class="space-y-1.5">
+                      <Label for="change-category">Kategori</Label>
+                      <select id="change-category" v-model="changeCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option v-for="cat in CHANGE_CATEGORIES.filter(c => CLIENT_CHANGE_CATEGORIES.includes(c.value))" :key="cat.value" :value="cat.value">
+                          {{ cat.label }}
+                        </option>
+                      </select>
                     </div>
-                    <DialogFooter>
-                      <Button variant="outline" @click="isChangeDialogOpen = false">
-                        Batal
-                      </Button>
-                      <Button :disabled="!changeReason.trim()" @click="submitChangeRequest">
-                        Kirim
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
+                    <div class="space-y-1.5">
+                      <Label for="change-reason">Detail Permintaan</Label>
+                      <textarea id="change-reason" v-model="changeReason" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Jumlah peserta bertambah menjadi 25 orang" />
+                    </div>
+                  </div>
+                  <template #footer>
+                    <Button variant="outline" @click="isChangeDialogOpen = false">
+                      Batal
+                    </Button>
+                    <Button :disabled="!changeReason.trim()" @click="submitChangeRequest">
+                      Kirim
+                    </Button>
+                  </template>
+                </ResponsiveFormSheet>
               </div>
             </template>
             <ul v-if="projectChangeRequests.length" class="divide-y divide-border">
@@ -855,77 +967,134 @@ function submitChangeRequest () {
         <TabsContent value="commodity">
           <SectionCard title="Kebutuhan Komoditas" description="Kebutuhan komoditas yang Anda ajukan untuk project ini — terpisah dari katalog komoditas milik Vendor.">
             <template #actions>
-              <Button size="sm" variant="outline" @click="openCreateRequirement">
-                <Plus class="h-4 w-4 mr-1.5" />Tambah Kebutuhan
+              <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+              <Button
+                size="sm"
+                variant="outline"
+                class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+                @click="openCreateRequirement"
+              >
+                <Plus class="h-4 w-4" />Tambah Kebutuhan
               </Button>
             </template>
-            <div class="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Judul</TableHead>
-                    <TableHead>Kategori</TableHead>
-                    <TableHead>Qty</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Aksi</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="requirement in requirements" :key="requirement.id">
-                    <TableCell class="font-medium text-foreground">
+            <ResponsiveDataView v-if="requirements.length" :items="requirements" :get-key="requirement => requirement.id">
+              <template #desktop="{ items }">
+                <div class="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Judul</TableHead>
+                        <TableHead>Kategori</TableHead>
+                        <TableHead>Qty</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Aksi</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="requirement in items" :key="requirement.id">
+                        <TableCell class="font-medium text-foreground">
+                          {{ requirement.title }}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge :label="findStatusOption(SERVICE_TYPES, requirement.category).label" :tone="findStatusOption(SERVICE_TYPES, requirement.category).tone" />
+                        </TableCell>
+                        <TableCell class="text-muted-foreground">
+                          {{ requirement.quantity }}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge :label="findStatusOption(COMMODITY_REQUIREMENT_STATUSES, requirement.status).label" :tone="findStatusOption(COMMODITY_REQUIREMENT_STATUSES, requirement.status).tone" />
+                        </TableCell>
+                        <TableCell>
+                          <div class="flex items-center gap-2">
+                            <Button size="sm" variant="ghost" @click="viewingRequirement = requirement">
+                              Detail
+                            </Button>
+                            <Button
+                              v-if="['open', 'matching', 'selection-in-progress'].includes(requirement.status)"
+                              size="sm"
+                              @click="router.push(`/client/catalog/${requirement.id}`)"
+                            >
+                              Cari Komoditas
+                            </Button>
+                            <Button v-if="isCommodityRequirementEditable(requirement.status)" size="sm" variant="outline" @click="openEditRequirement(requirement)">
+                              Edit
+                            </Button>
+                            <Button v-if="isCommodityRequirementDeletable(requirement.status)" size="sm" variant="destructive" @click="requestDeleteRequirement(requirement)">
+                              Hapus
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </template>
+
+              <template #mobile-card="{ item: requirement }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
                       {{ requirement.title }}
-                    </TableCell>
-                    <TableCell>
+                    </p>
+                    <StatusBadge :label="findStatusOption(COMMODITY_REQUIREMENT_STATUSES, requirement.status).label" :tone="findStatusOption(COMMODITY_REQUIREMENT_STATUSES, requirement.status).tone" />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Kategori
+                      </p>
                       <StatusBadge :label="findStatusOption(SERVICE_TYPES, requirement.category).label" :tone="findStatusOption(SERVICE_TYPES, requirement.category).tone" />
-                    </TableCell>
-                    <TableCell class="text-muted-foreground">
-                      {{ requirement.quantity }}
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge :label="findStatusOption(COMMODITY_REQUIREMENT_STATUSES, requirement.status).label" :tone="findStatusOption(COMMODITY_REQUIREMENT_STATUSES, requirement.status).tone" />
-                    </TableCell>
-                    <TableCell>
-                      <div class="flex items-center gap-2">
-                        <Button size="sm" variant="ghost" @click="viewingRequirement = requirement">
-                          Detail
-                        </Button>
-                        <Button
-                          v-if="['open', 'matching', 'selection-in-progress'].includes(requirement.status)"
-                          size="sm"
-                          @click="router.push(`/client/catalog/${requirement.id}`)"
-                        >
-                          Cari Komoditas
-                        </Button>
-                        <Button v-if="isCommodityRequirementEditable(requirement.status)" size="sm" variant="outline" @click="openEditRequirement(requirement)">
-                          Edit
-                        </Button>
-                        <Button v-if="isCommodityRequirementDeletable(requirement.status)" size="sm" variant="destructive" @click="requestDeleteRequirement(requirement)">
-                          Hapus
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                  <TableEmpty v-if="requirements.length === 0" :colspan="5">
-                    Belum ada kebutuhan komoditas. Klik "Tambah Kebutuhan" untuk mengajukan.
-                  </TableEmpty>
-                </TableBody>
-              </Table>
-            </div>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Qty
+                      </p>
+                      <p class="text-foreground">
+                        {{ requirement.quantity }}
+                      </p>
+                    </div>
+                  </div>
+                  <div class="mt-3 flex flex-wrap items-center gap-2">
+                    <Button size="sm" variant="ghost" @click="viewingRequirement = requirement">
+                      Detail
+                    </Button>
+                    <Button
+                      v-if="['open', 'matching', 'selection-in-progress'].includes(requirement.status)"
+                      size="sm"
+                      @click="router.push(`/client/catalog/${requirement.id}`)"
+                    >
+                      Cari Komoditas
+                    </Button>
+                    <Button v-if="isCommodityRequirementEditable(requirement.status)" size="sm" variant="outline" @click="openEditRequirement(requirement)">
+                      Edit
+                    </Button>
+                    <Button v-if="isCommodityRequirementDeletable(requirement.status)" size="sm" variant="destructive" @click="requestDeleteRequirement(requirement)">
+                      Hapus
+                    </Button>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
+
+            <p v-else class="text-sm text-muted-foreground">
+              Belum ada kebutuhan komoditas. Klik "Tambah Kebutuhan" untuk mengajukan.
+            </p>
           </SectionCard>
 
           <!-- ── Create/Edit Requirement Dialog ────────────────────────── -->
-          <Dialog v-model:open="isRequirementDialogOpen">
-            <DialogScrollContent class="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>{{ editingRequirement ? 'Edit Kebutuhan Komoditas' : 'Tambah Kebutuhan Komoditas' }}</DialogTitle>
-                <DialogDescription>Kebutuhan ini akan dicocokkan dengan komoditas yang tersedia dari Vendor.</DialogDescription>
-              </DialogHeader>
+          <ResponsiveFormSheet
+            v-model:open="isRequirementDialogOpen"
+            :title="editingRequirement ? 'Edit Kebutuhan Komoditas' : 'Tambah Kebutuhan Komoditas'"
+            description="Kebutuhan ini akan dicocokkan dengan komoditas yang tersedia dari Vendor."
+            content-class="max-w-lg"
+            scroll
+          >
               <div class="space-y-4 py-2">
                 <div class="space-y-1.5">
                   <Label for="req-title">Judul Kebutuhan</Label>
                   <Input id="req-title" v-model="reqTitle" placeholder="mis. Kamar untuk 20 peserta" />
                 </div>
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div class="space-y-1.5">
                     <Label for="req-category">Kategori</Label>
                     <select id="req-category" v-model="reqCategory" :disabled="!!editingRequirement" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
@@ -941,7 +1110,7 @@ function submitChangeRequest () {
                 </div>
 
                 <!-- Category-specific fields -->
-                <div v-if="reqCategory === 'flight'" class="grid grid-cols-2 gap-4">
+                <div v-if="reqCategory === 'flight'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div class="space-y-1.5">
                     <Label for="req-flight-origin">Asal</Label><Input id="req-flight-origin" v-model="reqFlightOrigin" />
                   </div>
@@ -952,7 +1121,7 @@ function submitChangeRequest () {
                     <Label for="req-flight-date">Tanggal Keberangkatan</Label><Input id="req-flight-date" v-model="reqFlightDepartureDate" type="date" />
                   </div>
                 </div>
-                <div v-else-if="reqCategory === 'hotel'" class="grid grid-cols-2 gap-4">
+                <div v-else-if="reqCategory === 'hotel'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div class="space-y-1.5">
                     <Label for="req-hotel-checkin">Check-in</Label><Input id="req-hotel-checkin" v-model="reqHotelCheckIn" type="date" />
                   </div>
@@ -963,7 +1132,7 @@ function submitChangeRequest () {
                     <Label for="req-hotel-rooms">Jumlah Kamar</Label><Input id="req-hotel-rooms" v-model.number="reqHotelRoomCount" type="number" />
                   </div>
                 </div>
-                <div v-else-if="reqCategory === 'transportation'" class="grid grid-cols-2 gap-4">
+                <div v-else-if="reqCategory === 'transportation'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div class="space-y-1.5">
                     <Label for="req-transport-vehicle">Jenis Kendaraan</Label><Input id="req-transport-vehicle" v-model="reqTransportVehicleType" />
                   </div>
@@ -974,7 +1143,7 @@ function submitChangeRequest () {
                     <Label for="req-transport-route">Rute</Label><Input id="req-transport-route" v-model="reqTransportRoute" placeholder="mis. Bandara - Hotel" />
                   </div>
                 </div>
-                <div v-else-if="reqCategory === 'mice'" class="grid grid-cols-2 gap-4">
+                <div v-else-if="reqCategory === 'mice'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div class="space-y-1.5">
                     <Label for="req-mice-type">Jenis Event</Label><Input id="req-mice-type" v-model="reqMiceEventType" placeholder="mis. Annual Meeting" />
                   </div>
@@ -991,16 +1160,15 @@ function submitChangeRequest () {
                   <textarea id="req-notes" v-model="reqNotes" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
                 </div>
               </div>
-              <DialogFooter>
+              <template #footer>
                 <Button variant="outline" @click="isRequirementDialogOpen = false">
                   Batal
                 </Button>
                 <Button :disabled="!reqTitle.trim() || !reqQuantity" @click="submitRequirement">
                   Simpan
                 </Button>
-              </DialogFooter>
-            </DialogScrollContent>
-          </Dialog>
+              </template>
+          </ResponsiveFormSheet>
 
           <!-- ── Requirement Detail Dialog (read-only) ─────────────────── -->
           <Dialog :open="viewingRequirement !== null" @update:open="val => { if (!val) viewingRequirement = null }">

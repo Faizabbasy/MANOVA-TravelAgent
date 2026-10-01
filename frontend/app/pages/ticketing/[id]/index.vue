@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Plus, Trash2, Printer } from 'lucide-vue-next'
+import { FileX, Plus, Trash2, Printer, ArrowLeft } from 'lucide-vue-next'
 import {
   getFlightBookingById, getFlightBookingMarginIdr, getFlightBookingStatusTransitions,
   updateFlightBooking, updateFlightBookingStatus, selectFlightOption,
-  getProjectById, getTravelers, getProjectServiceById, setServiceVendor,
+  getProjectById, getTravelers, getProjectServiceById, assignServiceVendor,
   VENDORS,
   createCancellationRecord
 } from '~/data'
@@ -190,7 +190,7 @@ function submitEdit () {
     showToast('Segment Belum Lengkap', 'Asal, Tujuan, dan Tanggal/Waktu Keberangkatan wajib diisi untuk setiap segment yang ditambahkan.', 'error')
     return
   }
-  if (booking.value.serviceId) { setServiceVendor(booking.value.serviceId, editVendorId.value || undefined) }
+  if (booking.value.serviceId) { assignServiceVendor(booking.value.serviceId, editVendorId.value || undefined, editNetCost.value ?? undefined) }
   updateFlightBooking(booking.value.id, {
     pnr: editPnr.value.trim() || undefined,
     ticketingDeadline: editTicketingDeadline.value || undefined,
@@ -228,6 +228,9 @@ function submitEdit () {
     <RoleAccessState v-else-if="!canView('ticketing')" module-label="modul Ticketing" />
 
     <template v-else>
+      <NuxtLink v-if="project" :to="`/project-orders/${project.id}?tab=itinerary-services`" class="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary">
+        <ArrowLeft class="h-3.5 w-3.5" />Kembali ke {{ project.name }}
+      </NuxtLink>
       <PageHeader :title="`Flight Booking ${booking.id}`" :breadcrumb="[{ label: 'Ticketing', to: '/ticketing' }, { label: booking.id }]">
         <template #actions>
           <div class="flex flex-wrap items-center gap-2">
@@ -269,78 +272,163 @@ function submitEdit () {
       </SectionCard>
 
       <SectionCard title="Flight Options" description="Fare, cabin, baggage, dan ancillary per opsi maskapai yang dibandingkan.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Maskapai</TableHead>
-              <TableHead>Cabin</TableHead>
-              <TableHead>Fare</TableHead>
-              <TableHead>Bagasi</TableHead>
-              <TableHead>Ancillary</TableHead>
-              <TableHead v-if="canManageTicketing">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(option, index) in booking.options" :key="index">
-              <TableCell class="text-foreground">
-                {{ option.airline }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(CABIN_CLASSES, option.cabinClass).label" :tone="findStatusOption(CABIN_CLASSES, option.cabinClass).tone" /></TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(option.fareIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ option.baggageAllowance ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ option.ancillaries ?? '—' }}
-              </TableCell>
-              <TableCell v-if="canManageTicketing">
+        <ResponsiveDataView v-if="booking.options.length" :items="booking.options" :get-key="(option, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Maskapai</TableHead>
+                  <TableHead>Cabin</TableHead>
+                  <TableHead>Fare</TableHead>
+                  <TableHead>Bagasi</TableHead>
+                  <TableHead>Ancillary</TableHead>
+                  <TableHead v-if="canManageTicketing">
+                    Aksi
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(option, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ option.airline }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(CABIN_CLASSES, option.cabinClass).label" :tone="findStatusOption(CABIN_CLASSES, option.cabinClass).tone" /></TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(option.fareIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ option.baggageAllowance ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ option.ancillaries ?? '—' }}
+                  </TableCell>
+                  <TableCell v-if="canManageTicketing">
+                    <StatusBadge v-if="option.isSelected" label="Dipilih" tone="success" />
+                    <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">
+                      Pilih
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: option, index }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
+                  {{ option.airline }}
+                </p>
+                <StatusBadge :label="findStatusOption(CABIN_CLASSES, option.cabinClass).label" :tone="findStatusOption(CABIN_CLASSES, option.cabinClass).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Fare
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(option.fareIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Bagasi
+                  </p>
+                  <p class="text-foreground">
+                    {{ option.baggageAllowance ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Ancillary
+                  </p>
+                  <p class="text-foreground">
+                    {{ option.ancillaries ?? '—' }}
+                  </p>
+                </div>
+              </div>
+              <div v-if="canManageTicketing" class="mt-3">
                 <StatusBadge v-if="option.isSelected" label="Dipilih" tone="success" />
                 <Button v-else size="sm" variant="ghost" @click="submitSelectOption(index)">
                   Pilih
                 </Button>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="booking.options.length === 0" :colspan="canManageTicketing ? 6 : 5">
-              Belum ada opsi tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState v-else title="Belum ada opsi tercatat." />
       </SectionCard>
 
       <SectionCard title="Segments">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Rute</TableHead>
-              <TableHead>Nomor Penerbangan</TableHead>
-              <TableHead>Keberangkatan</TableHead>
-              <TableHead>Kedatangan</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(segment, index) in booking.segments" :key="index">
-              <TableCell class="text-foreground">
-                {{ segment.origin }} → {{ segment.destination }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ segment.flightNumber ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDateTime(segment.departureAt) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ segment.arrivalAt ? formatDateTime(segment.arrivalAt) : '—' }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="booking.segments.length === 0" :colspan="4">
-              Belum ada segmen tercatat.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView v-if="booking.segments.length" :items="booking.segments" :get-key="(segment, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rute</TableHead>
+                  <TableHead>Nomor Penerbangan</TableHead>
+                  <TableHead>Keberangkatan</TableHead>
+                  <TableHead>Kedatangan</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(segment, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ segment.origin }} → {{ segment.destination }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ segment.flightNumber ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDateTime(segment.departureAt) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ segment.arrivalAt ? formatDateTime(segment.arrivalAt) : '—' }}
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: segment }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
+                  {{ segment.origin }} → {{ segment.destination }}
+                </p>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Nomor Penerbangan
+                  </p>
+                  <p class="text-foreground">
+                    {{ segment.flightNumber ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Keberangkatan
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDateTime(segment.departureAt) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Kedatangan
+                  </p>
+                  <p class="text-foreground">
+                    {{ segment.arrivalAt ? formatDateTime(segment.arrivalAt) : '—' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState v-else title="Belum ada segmen tercatat." />
       </SectionCard>
 
       <SectionCard title="Traveler Assignment / Name List" :description="`${booking.travelerIds.length} traveler ditugaskan pada booking ini`">
@@ -395,49 +483,48 @@ function submitEdit () {
       </SectionCard>
 
       <!-- Status change dialog (cancelled/refunded — reason wajib) -->
-      <Dialog v-model:open="isStatusDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{{ pendingStatus ? findStatusOption(FLIGHT_BOOKING_STATUSES, pendingStatus).label : '' }} Flight Booking</DialogTitle>
-            <DialogDescription>Alasan wajib dicatat untuk transisi ini — akan tersimpan sebagai jejak historis di Activity & Changes project terkait.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="space-y-1.5">
-              <Label for="status-reason">Alasan</Label>
-              <Input id="status-reason" v-model="statusReason" placeholder="mis. Traveler membatalkan perjalanan" />
-            </div>
-            <template v-if="pendingStatus && CANCELLATION_TRIGGER_STATUSES.includes(pendingStatus)">
-              <div class="space-y-1.5 pt-2 border-t border-border">
-                <Label for="status-penalty">Penalty (Rp, opsional)</Label>
-                <CurrencyInput id="status-penalty" v-model="cancellationPenalty" placeholder="0" />
-              </div>
-              <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                <Checkbox v-model="cancellationRefundEligible" />
-                Refund Eligible
-              </label>
-              <p class="text-xs text-muted-foreground">
-                Sebuah Cancellation Record akan otomatis dicatat (Section 19) — dapat ditindaklanjuti dengan Refund Request di modul Changes & Incidents.
-              </p>
-            </template>
+      <ResponsiveFormSheet
+        v-model:open="isStatusDialogOpen"
+        :title="`${pendingStatus ? findStatusOption(FLIGHT_BOOKING_STATUSES, pendingStatus).label : ''} Flight Booking`"
+        description="Alasan wajib dicatat untuk transisi ini — akan tersimpan sebagai jejak historis di Activity & Changes project terkait."
+      >
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="status-reason">Alasan</Label>
+            <Input id="status-reason" v-model="statusReason" placeholder="mis. Traveler membatalkan perjalanan" />
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isStatusDialogOpen = false">
-              Batal
-            </Button>
-            <Button variant="destructive" :disabled="!statusReason.trim()" @click="submitStatusChange">
-              Konfirmasi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <template v-if="pendingStatus && CANCELLATION_TRIGGER_STATUSES.includes(pendingStatus)">
+            <div class="space-y-1.5 pt-2 border-t border-border">
+              <Label for="status-penalty">Penalty (Rp, opsional)</Label>
+              <CurrencyInput id="status-penalty" v-model="cancellationPenalty" placeholder="0" />
+            </div>
+            <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
+              <Checkbox v-model="cancellationRefundEligible" />
+              Refund Eligible
+            </label>
+            <p class="text-xs text-muted-foreground">
+              Sebuah Cancellation Record akan otomatis dicatat (Section 19) — dapat ditindaklanjuti dengan Refund Request di modul Changes & Incidents.
+            </p>
+          </template>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isStatusDialogOpen = false">
+            Batal
+          </Button>
+          <Button variant="destructive" :disabled="!statusReason.trim()" @click="submitStatusChange">
+            Konfirmasi
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
       <!-- Edit dialog -->
-      <Dialog v-model:open="isEditOpen">
-        <DialogScrollContent class="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Edit Flight Booking</DialogTitle>
-            <DialogDescription>Perubahan berlaku langsung — status lifecycle diubah lewat tombol terpisah di header.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isEditOpen"
+        title="Edit Flight Booking"
+        description="Perubahan berlaku langsung — status lifecycle diubah lewat tombol terpisah di header."
+        content-class="max-w-2xl"
+        scroll
+      >
           <div class="space-y-4 py-2">
             <div class="grid gap-4 sm:grid-cols-2">
               <div class="space-y-1.5">
@@ -539,16 +626,15 @@ function submitEdit () {
               <textarea v-if="editHasScheduleChange" v-model="editScheduleChangeNote" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Jelaskan perubahan jadwal/gangguan" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isEditOpen = false">
-              Batal
-            </Button>
-            <Button @click="submitEdit">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isEditOpen = false">
+            Batal
+          </Button>
+          <Button @click="submitEdit">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

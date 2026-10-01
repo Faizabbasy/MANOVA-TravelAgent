@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { Users, Building2, Activity } from 'lucide-vue-next'
+import { TrendingUp, Wallet, Users, Building2, Target, Activity } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
+import { PROJECTS, getPartyById, getVendorById, getInvoicesByProject, getPaymentsByInvoice, getSupplierInvoicesByProject } from '~/data'
+import { getRevenueByPeriod, getOpexTotalIdr, getProjectActualCostIdr } from '~/data/finance-ext'
 import { getMarketingRoiSummary, getCampaignPerformance, getChannelAcquisition } from '~/data/marketing'
 import { getInventorySummary } from '~/data/inventory'
 import { getProductivitySummary } from '~/data/hr'
-import { formatCurrencyIdr, formatPercentage } from '~/utils/format'
+import { formatCurrencyIdr, formatPercentage, formatNumber } from '~/utils/format'
 
 /** Tab "Analytics & Marketing ROI" — Menu Reporting & BI > Reports (Penyederhanaan 7-Role/Menu). Dulu
  * `/reports/analytics`, kini tab dalam satu menu bersama Operasional — logika tidak diubah. */
@@ -21,12 +23,66 @@ const hasAccess = computed(() => canView('bi'))
  * menghitung ulang. Ini yang menjamin laporan BI tidak pernah bercerita berbeda dari modul sumbernya —
  * masalah klasik pada dashboard yang menyalin logika perhitungan.
  */
+const revenue = computed(() => getRevenueByPeriod())
 const roi = computed(() => getMarketingRoiSummary())
 const campaigns = computed(() => getCampaignPerformance())
 const channels = computed(() => getChannelAcquisition().filter(row => row.spendIdr > 0))
 const inventory = computed(() => getInventorySummary())
 const productivity = computed(() => getProductivitySummary())
 
+const latestPeriod = computed(() => revenue.value.at(-1))
+const maxRevenue = computed(() => Math.max(1, ...revenue.value.map(row => row.revenueIdr)))
+
+/**
+ * Cost per trip — biaya nyata per project, dibandingkan nilai kontraknya. `costIdr` memakai
+ * `getProjectActualCostIdr()` (Fase 3.2 — sumber sama dengan Buku Besar, bukan lagi tambalan
+ * `Math.max(project.actualCostIdr, vendorCostIdr)` — field statis `actualCostIdr` selalu `0` untuk project
+ * baru sehingga sebelumnya cost per trip project baru selalu tampil 0/margin 100%).
+ */
+const costPerTrip = computed(() => PROJECTS.map((project) => {
+  const invoices = getInvoicesByProject(project.id)
+  const collectedIdr = invoices.reduce((sum, invoice) =>
+    sum + getPaymentsByInvoice(invoice.id).reduce((total, payment) => total + payment.amountIdr, 0), 0)
+  const costIdr = getProjectActualCostIdr(project.id)
+  const marginIdr = project.quotationAmountIdr - costIdr
+
+  return {
+    project,
+    partyName: getPartyById(project.partyId)?.name ?? '—',
+    costIdr,
+    collectedIdr,
+    costPerTravelerIdr: project.travelerCount ? Math.round(costIdr / project.travelerCount) : 0,
+    marginIdr,
+    marginPercent: project.quotationAmountIdr ? (marginIdr / project.quotationAmountIdr) * 100 : 0
+  }
+}).sort((a, b) => b.marginPercent - a.marginPercent))
+
+const averageMargin = computed(() => (costPerTrip.value.length
+  ? costPerTrip.value.reduce((sum, row) => sum + row.marginPercent, 0) / costPerTrip.value.length
+  : 0))
+
+/** Performa vendor — nilai belanja dan jumlah project yang ia layani. */
+const vendorPerformance = computed(() => {
+  const totals = new Map<string, { amountIdr: number; projects: Set<string> }>()
+  for (const project of PROJECTS) {
+    for (const invoice of getSupplierInvoicesByProject(project.id)) {
+      const entry = totals.get(invoice.vendorId) ?? { amountIdr: 0, projects: new Set<string>() }
+      entry.amountIdr += invoice.amountIdr
+      entry.projects.add(project.id)
+      totals.set(invoice.vendorId, entry)
+    }
+  }
+  return [...totals.entries()]
+    .map(([vendorId, entry]) => ({
+      vendorId,
+      vendorName: getVendorById(vendorId)?.name ?? vendorId,
+      amountIdr: entry.amountIdr,
+      projectCount: entry.projects.size
+    }))
+    .sort((a, b) => b.amountIdr - a.amountIdr)
+})
+
+const maxVendorSpend = computed(() => Math.max(1, ...vendorPerformance.value.map(row => row.amountIdr)))
 const maxCampaignRoas = computed(() => Math.max(1, ...campaigns.value.map(row => row.roas ?? 0)))
 </script>
 
@@ -35,18 +91,180 @@ const maxCampaignRoas = computed(() => Math.max(1, ...campaigns.value.map(row =>
     <RoleAccessState v-if="!hasAccess" module-label="modul Reporting & BI" />
 
     <template v-else>
-      <ReportsFinanceSection />
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatsCard
+          v-if="latestPeriod"
+          title="Revenue Periode Terakhir"
+          :value="formatCurrencyIdr(latestPeriod.revenueIdr)"
+          :icon="TrendingUp"
+          icon-color="primary"
+        />
+        <StatsCard
+          v-if="latestPeriod"
+          title="Laba Bersih"
+          :value="formatCurrencyIdr(latestPeriod.netProfitIdr)"
+          :icon="Wallet"
+          :icon-color="latestPeriod.netProfitIdr >= 0 ? 'success' : 'destructive'"
+        />
+        <StatsCard
+          title="Marketing ROI"
+          :value="roi.roiPercent !== null ? formatPercentage(roi.roiPercent, 0) : '—'"
+          :icon="Target"
+          :icon-color="(roi.roiPercent ?? 0) > 0 ? 'success' : 'destructive'"
+        />
+        <StatsCard
+          title="Margin Rata-rata Trip"
+          :value="formatPercentage(averageMargin, 1)"
+          :icon="Activity"
+          :icon-color="averageMargin >= 20 ? 'success' : 'warning'"
+        />
+      </div>
+
+      <SectionCard title="Revenue & Profitabilitas per Periode">
+        <ul class="space-y-3">
+          <li v-for="row in revenue" :key="row.period">
+            <div class="flex items-center gap-3">
+              <span class="w-20 shrink-0 text-sm font-medium text-foreground">{{ row.period }}</span>
+              <span class="flex-1 h-6 rounded-lg bg-muted overflow-hidden relative">
+                <span class="block h-full bg-primary/70" :style="{ width: `${(row.revenueIdr / maxRevenue) * 100}%` }" />
+                <span
+                  class="absolute inset-y-0 block bg-destructive/60"
+                  :style="{ left: '0%', width: `${((row.directCostIdr + row.opexIdr) / maxRevenue) * 100}%`, height: '30%', top: '70%' }"
+                />
+              </span>
+              <span class="w-40 shrink-0 text-right text-sm text-foreground">{{ formatCurrencyIdr(row.revenueIdr) }}</span>
+              <span
+                class="w-40 shrink-0 text-right text-sm font-semibold"
+                :class="row.netProfitIdr >= 0 ? 'text-success' : 'text-destructive'"
+              >{{ formatCurrencyIdr(row.netProfitIdr) }}</span>
+            </div>
+            <p class="ml-24 text-xs text-muted-foreground mt-0.5">
+              Biaya langsung {{ formatCurrencyIdr(row.directCostIdr) }} · Opex {{ formatCurrencyIdr(row.opexIdr) }} ·
+              Diterima {{ formatCurrencyIdr(row.collectedIdr) }}
+            </p>
+          </li>
+        </ul>
+        <p class="text-xs text-muted-foreground mt-3">
+          Batang atas = pendapatan, batang bawah = total biaya (langsung + opex). Angka opex bersumber dari
+          modul Finance &amp; ACC, bukan dihitung ulang di sini.
+        </p>
+      </SectionCard>
+
+      <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
+        <SectionCard title="Cost per Trip" description="Biaya nyata per project dan per traveler, beserta marginnya.">
+          <ResponsiveDataView :items="costPerTrip" :get-key="row => row.project.id">
+            <template #desktop="{ items }">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Project</TableHead>
+                    <TableHead class="text-right">
+                      Biaya
+                    </TableHead>
+                    <TableHead class="text-right">
+                      Per Traveler
+                    </TableHead>
+                    <TableHead class="text-right">
+                      Margin
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in items" :key="row.project.id">
+                    <TableCell>
+                      <NuxtLink :to="`/project-orders/${row.project.id}`" class="text-sm font-medium text-foreground hover:text-primary">
+                        {{ row.project.name }}
+                      </NuxtLink>
+                      <p class="text-xs text-muted-foreground">
+                        {{ row.partyName }} · {{ row.project.travelerCount }} pax
+                      </p>
+                    </TableCell>
+                    <TableCell class="text-right text-sm text-foreground">
+                      {{ formatCurrencyIdr(row.costIdr) }}
+                    </TableCell>
+                    <TableCell class="text-right text-sm text-muted-foreground">
+                      {{ formatCurrencyIdr(row.costPerTravelerIdr) }}
+                    </TableCell>
+                    <TableCell class="text-right">
+                      <span
+                        class="text-sm font-semibold"
+                        :class="row.marginPercent >= 20 ? 'text-success' : row.marginPercent >= 0 ? 'text-warning' : 'text-destructive'"
+                      >{{ formatPercentage(row.marginPercent, 1) }}</span>
+                      <p class="text-xs text-muted-foreground">
+                        {{ formatCurrencyIdr(row.marginIdr) }}
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </template>
+
+            <template #mobile-card="{ item: row }">
+              <NuxtLink :to="`/project-orders/${row.project.id}`" class="block rounded-xl border border-border bg-card p-4">
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ row.project.name }}
+                    </p>
+                    <p class="text-xs text-muted-foreground">
+                      {{ row.partyName }} · {{ row.project.travelerCount }} pax
+                    </p>
+                  </div>
+                  <span
+                    class="shrink-0 text-sm font-semibold"
+                    :class="row.marginPercent >= 20 ? 'text-success' : row.marginPercent >= 0 ? 'text-warning' : 'text-destructive'"
+                  >{{ formatPercentage(row.marginPercent, 1) }}</span>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Biaya
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(row.costIdr) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Per Traveler
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(row.costPerTravelerIdr) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Margin
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(row.marginIdr) }}
+                    </p>
+                  </div>
+                </div>
+              </NuxtLink>
+            </template>
+          </ResponsiveDataView>
+        </SectionCard>
+
+        <SectionCard title="Vendor Performance" description="Konsentrasi belanja dan cakupan project per vendor.">
+          <ul class="space-y-2.5">
+            <li v-for="row in vendorPerformance.slice(0, 8)" :key="row.vendorId" class="flex items-center gap-3">
+              <NuxtLink :to="`/vendors/${row.vendorId}`" class="w-40 shrink-0 text-sm text-foreground hover:text-primary truncate" :title="row.vendorName">
+                {{ row.vendorName }}
+              </NuxtLink>
+              <span class="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+                <span class="block h-full rounded-full bg-warning" :style="{ width: `${(row.amountIdr / maxVendorSpend) * 100}%` }" />
+              </span>
+              <span class="w-36 shrink-0 text-right text-sm text-foreground">{{ formatCurrencyIdr(row.amountIdr) }}</span>
+              <span class="w-20 shrink-0 text-right text-xs text-muted-foreground">{{ row.projectCount }} project</span>
+            </li>
+          </ul>
+          <EmptyState v-if="!vendorPerformance.length" title="Belum ada belanja vendor tercatat" />
+        </SectionCard>
+      </div>
 
       <SectionCard title="Marketing ROI" description="Satu perhitungan bersama dengan modul Marketing — bukan angka paralel.">
-        <div class="grid grid-cols-2 lg:grid-cols-6 gap-3 mb-4">
-          <div class="rounded-lg bg-muted/40 px-3 py-2.5">
-            <p class="text-xs text-muted-foreground">
-              ROI
-            </p>
-            <p class="text-sm font-semibold mt-0.5" :class="(roi.roiPercent ?? 0) > 0 ? 'text-success' : 'text-destructive'">
-              {{ roi.roiPercent !== null ? formatPercentage(roi.roiPercent, 0) : '—' }}
-            </p>
-          </div>
+        <div class="grid grid-cols-2 lg:grid-cols-5 gap-3 mb-4">
           <div class="rounded-lg bg-muted/40 px-3 py-2.5">
             <p class="text-xs text-muted-foreground">
               Total Belanja
@@ -111,38 +329,71 @@ const maxCampaignRoas = computed(() => Math.max(1, ...campaigns.value.map(row =>
 
       <div class="grid grid-cols-1 xl:grid-cols-2 gap-5 items-start">
         <SectionCard title="Akuisisi per Channel">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Channel</TableHead>
-                <TableHead class="text-center">
-                  Lead
-                </TableHead>
-                <TableHead class="text-right">
-                  Belanja
-                </TableHead>
-                <TableHead class="text-right">
-                  CAC
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="row in channels" :key="row.channel">
-                <TableCell class="text-sm text-foreground">
-                  {{ row.channelLabel }}
-                </TableCell>
-                <TableCell class="text-center text-sm text-foreground">
-                  {{ row.leads }}
-                </TableCell>
-                <TableCell class="text-right text-sm text-muted-foreground">
-                  {{ formatCurrencyIdr(row.spendIdr) }}
-                </TableCell>
-                <TableCell class="text-right text-sm font-medium text-foreground">
-                  {{ row.cacIdr ? formatCurrencyIdr(row.cacIdr) : '—' }}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+          <ResponsiveDataView :items="channels" :get-key="row => row.channel">
+            <template #desktop="{ items }">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Channel</TableHead>
+                    <TableHead class="text-center">
+                      Lead
+                    </TableHead>
+                    <TableHead class="text-right">
+                      Belanja
+                    </TableHead>
+                    <TableHead class="text-right">
+                      CAC
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in items" :key="row.channel">
+                    <TableCell class="text-sm text-foreground">
+                      {{ row.channelLabel }}
+                    </TableCell>
+                    <TableCell class="text-center text-sm text-foreground">
+                      {{ row.leads }}
+                    </TableCell>
+                    <TableCell class="text-right text-sm text-muted-foreground">
+                      {{ formatCurrencyIdr(row.spendIdr) }}
+                    </TableCell>
+                    <TableCell class="text-right text-sm font-medium text-foreground">
+                      {{ row.cacIdr ? formatCurrencyIdr(row.cacIdr) : '—' }}
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </template>
+
+            <template #mobile-card="{ item: row }">
+              <div class="rounded-xl border border-border bg-card p-4">
+                <div class="flex items-start justify-between gap-2">
+                  <p class="text-sm font-medium text-foreground">
+                    {{ row.channelLabel }}
+                  </p>
+                  <span class="text-sm font-medium text-foreground">{{ row.cacIdr ? formatCurrencyIdr(row.cacIdr) : '—' }}</span>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Lead
+                    </p>
+                    <p class="text-foreground">
+                      {{ row.leads }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Belanja
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(row.spendIdr) }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </template>
+          </ResponsiveDataView>
         </SectionCard>
 
         <SectionCard title="Operasional & Sumber Daya">

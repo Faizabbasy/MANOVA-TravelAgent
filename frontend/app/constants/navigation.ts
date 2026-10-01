@@ -20,7 +20,6 @@ import {
   Truck,
   Send,
   GitPullRequest,
-  MessageSquare,
   Briefcase,
   ArrowDownToLine,
   ArrowUpFromLine,
@@ -28,7 +27,11 @@ import {
   Landmark,
   ArrowLeftRight,
   UserCog,
-  Megaphone
+  Settings,
+  Milestone,
+  ListChecks,
+  NotebookText,
+  Map as MapIcon
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
 
@@ -69,8 +72,9 @@ export interface NavItem {
  * tergerbang RBAC walau sudah tidak ada di `NAV_ITEMS`.
  *
  * Urutan sidebar sengaja menaruh poros bisnis di atas: Dashboard → Operations & Scheduling (Project Order)
- * → Finance & ACC (pencatatan jurnal) → Sales → CRM → Vendor & Partner → HR/Inventory/Marketing →
- * Reporting & BI → Documents → Administration → Vendor Portal → Client Portal.
+ * → Milestones/Tugas/Dokumen/Kalender/Catatan-Aktivitas (agregasi lintas-project) → Finance & ACC
+ * (pencatatan jurnal) → Sales → CRM → Vendor & Partner → HR/Inventory/Marketing → Reporting & BI →
+ * Administration → Vendor Portal → Client Portal.
  *
  * Modul HR/Inventory/Marketing belum punya halaman sendiri — entri navigasinya tetap flat tanpa anak
  * sampai halamannya dibangun, supaya tidak ada menu yang mengarah ke 404.
@@ -81,21 +85,31 @@ export const NAV_ITEMS: NavItem[] = [
   { key: 'dashboard', label: 'Dashboard', to: '/', icon: LayoutDashboard },
 
   /* ---------- Operations & Scheduling (poros: Project Order) ---------- */
+  { key: 'operations', label: 'Project', to: '/project-orders', icon: Route, moduleKey: 'operations' },
+
+  /* ---------- Operasional — Milestones/Tugas/Dokumen/Kalender/Perencanaan Project/Catatan-Aktivitas
+   * diindukkan ke satu grup beranak (bukan item top-level terpisah). Semuanya agregasi data lintas-project
+   * yang sudah ada (milestone, task, document, schedule, geo pin, activity/shift note) — tidak ada entity
+   * baru, cuma sudut pandang global dengan drill-down ke tab terkait di detail Project Order.
+   * "Perencanaan Project" dulu tab dalam halaman Kalender ("Perencanaan Peta") — dipisah jadi menu sendiri
+   * per permintaan, isinya tetap sama (`ProjectPlanningPanel.vue`). Key anak diprefix `operasional.` (pola
+   * sama grup lain, dijaga test navigasi) — semuanya baru ditambahkan sesi ini juga, jadi rename key di
+   * sini tidak mencabut RoleMenuGrant lama manapun. ---------- */
   {
-    key: 'operations',
-    label: 'Operations & Scheduling',
-    to: '/project-orders',
-    icon: Route,
+    key: 'operasional',
+    label: 'Operasional',
+    to: '/milestones',
+    icon: ClipboardList,
     moduleKey: 'operations',
     children: [
-      { key: 'operations.project-orders', label: 'Project', to: '/project-orders', icon: FolderKanban, moduleKey: 'operations' },
-      { key: 'operations.bookings', label: 'Daftar Booking', to: '/bookings', icon: CalendarClock, moduleKey: 'operations' },
-      { key: 'operations.changes', label: 'Change & Incident', to: '/changes', icon: GitPullRequest, moduleKey: 'operations' }
+      { key: 'operasional.milestones', label: 'Milestones', to: '/milestones', icon: Milestone, moduleKey: 'operations' },
+      { key: 'operasional.tasks', label: 'Tugas', to: '/tasks', icon: ListChecks, moduleKey: 'operations' },
+      { key: 'operasional.documents', label: 'Dokumen', to: '/documents', icon: FileText, moduleKey: 'documents' },
+      { key: 'operasional.calendar', label: 'Kalender', to: '/calendar', icon: CalendarDays, moduleKey: 'operations' },
+      { key: 'operasional.project-planning', label: 'Perencanaan Project', to: '/project-planning', icon: MapIcon, moduleKey: 'operations' },
+      { key: 'operasional.notes-activity', label: 'Catatan/Aktivitas', to: '/notes-activity', icon: NotebookText, moduleKey: 'operations' }
     ]
   },
-
-  /* ---------- Kalender — sejajar dengan grup lain, bukan anak Operations & Scheduling ---------- */
-  { key: 'calendar', label: 'Kalender', to: '/calendar', icon: CalendarDays, moduleKey: 'operations' },
 
   /* ---------- Finance & ACC (poros: pencatatan jurnal) ---------- */
   {
@@ -115,28 +129,17 @@ export const NAV_ITEMS: NavItem[] = [
   },
 
   /* ---------- Sales — "Sales mengurus deal" (seluruh corong Lead→Opportunity→Quotation) ---------- */
-  {
-    key: 'sales',
-    label: 'Sales',
-    to: '/sales/pipeline',
-    icon: TrendingUp,
-    moduleKey: 'sales',
-    children: [
-      { key: 'sales.pipeline', label: 'Pipeline', to: '/sales/pipeline', icon: Target, moduleKey: 'sales' },
-      { key: 'sales.product-planning', label: 'Produk & Costing', to: '/product-planning', icon: Package, moduleKey: 'sales' }
-    ]
-  },
+  { key: 'sales', label: 'Leads', to: '/sales/pipeline', icon: TrendingUp, moduleKey: 'sales' },
 
   /* ---------- CRM — "CRM mengurus customer" (data pelanggan, bukan corong deal) ---------- */
   {
     key: 'crm',
-    label: 'CRM',
+    label: 'Customer',
     to: '/customer-journey/customers',
     icon: Heart,
     moduleKey: 'crm',
     children: [
-      { key: 'crm.customers', label: 'Database Customer', to: '/customer-journey/customers', icon: Users, moduleKey: 'crm' },
-      { key: 'crm.engagement', label: 'Engagement', to: '/crm/engagement', icon: MessageSquare, moduleKey: 'crm' }
+      { key: 'crm.customers', label: 'Database Customer', to: '/customer-journey/customers', icon: Users, moduleKey: 'crm' }
     ]
   },
 
@@ -153,23 +156,19 @@ export const NAV_ITEMS: NavItem[] = [
     ]
   },
 
-  /* ---------- Human Resource / Inventory / Marketing (tetap top-level, belum bertab) ---------- */
-  { key: 'hr', label: 'Human Resource', to: '/hr', icon: UserCog, moduleKey: 'hr', isNew: true },
+  /* ---------- Human Resource / Inventory (tetap top-level, belum bertab) ---------- */
+  { key: 'hr', label: 'Karyawan', to: '/hr', icon: UserCog, moduleKey: 'hr', isNew: true },
   { key: 'inventory', label: 'Inventory', to: '/inventory', icon: Package, moduleKey: 'inventory', isNew: true },
-  { key: 'marketing', label: 'Marketing & Analysis', to: '/marketing', icon: Megaphone, moduleKey: 'marketing', isNew: true },
 
-  /* ---------- Reporting & BI — entri tunggal, tab Operasional/Analytics ada di dalam halaman ---------- */
-  { key: 'bi', label: 'Reporting & BI', to: '/reports', icon: BarChart3, moduleKey: 'bi' },
-
-  /* ---------- Documents & Communication — entri tunggal, tab Documents/Messages/Notifications di dalam halaman ---------- */
-  { key: 'documents', label: 'Documents & Communication', to: '/documents', icon: FileText, moduleKey: 'documents' },
+  /* Reporting & BI, Marketing & Analysis, Leader Dashboard — di-hold sementara (diminta hilang dulu dari sidebar).
+   * Route tetap hidup, tetap tergerbang RBAC lewat HIDDEN_NAV_ROUTES di bawah. */
 
   /* ---------- Administration ---------- */
   {
     key: 'administration',
-    label: 'Administration',
+    label: 'Setting',
     to: '/admin',
-    icon: ShieldCheck,
+    icon: Settings,
     moduleKey: 'administration',
     children: [
       { key: 'administration.overview', label: 'Ringkasan & Organisasi', to: '/admin', icon: ShieldCheck, moduleKey: 'administration' },
@@ -187,10 +186,13 @@ export const NAV_ITEMS: NavItem[] = [
    */
   {
     key: 'vendor-portal',
-    label: 'Vendor Portal',
+    label: 'Katalog',
     to: '/supplier',
     icon: Truck,
     moduleKey: 'vendor-portal',
+    /** Portal eksternal — hanya berguna untuk login vendor itu sendiri, bukan menu yang perlu dilihat
+     * Super Admin/staf lain walau modul-nya ter-grant penuh ke mereka. */
+    roles: ['vendor'],
     children: [
       { key: 'vendor-portal.home', label: 'Dashboard', to: '/supplier', icon: Truck, moduleKey: 'vendor-portal' },
       { key: 'vendor-portal.products', label: 'Katalog', to: '/supplier/products', icon: Package, moduleKey: 'vendor-portal' },
@@ -203,13 +205,15 @@ export const NAV_ITEMS: NavItem[] = [
    * Sistem: Client Portal — dulu 7 grup beranak 18 entri; tiap grup kini SATU halaman bertab (detail
    * konsolidasi di `docs`/plan), jadi flat tanpa anak lagi.
    */
-  { key: 'client-portal.dashboard', label: 'Dashboard', to: '/client', icon: LayoutDashboard, moduleKey: 'client-portal' },
-  { key: 'client-portal.requests', label: 'Request & Approval', to: '/client/travel-requests', icon: Send, moduleKey: 'client-portal' },
-  { key: 'client-portal.trips', label: 'My Trips', to: '/client/project-orders', icon: FolderKanban, moduleKey: 'client-portal' },
-  { key: 'client-portal.documents', label: 'Documents & Support', to: '/client/documents', icon: FileText, moduleKey: 'client-portal' },
-  { key: 'client-portal.billing', label: 'Billing', to: '/client/billing', icon: Wallet, moduleKey: 'client-portal' },
-  { key: 'client-portal.reports', label: 'Reports & Feedback', to: '/client/reports', icon: BarChart3, moduleKey: 'client-portal' },
-  { key: 'client-portal.company-profile', label: 'Company Profile', to: '/client/company-profile', icon: Briefcase, moduleKey: 'client-portal' }
+  /** Portal eksternal — hanya berguna untuk login client itu sendiri, bukan menu yang perlu dilihat Super
+   * Admin/staf lain walau modul-nya ter-grant penuh ke mereka (sama seperti Vendor Portal di atas). */
+  { key: 'client-portal.dashboard', label: 'Dashboard', to: '/client', icon: LayoutDashboard, moduleKey: 'client-portal', roles: ['client'] },
+  { key: 'client-portal.requests', label: 'Request & Approval', to: '/client/travel-requests', icon: Send, moduleKey: 'client-portal', roles: ['client'] },
+  { key: 'client-portal.trips', label: 'My Trips', to: '/client/project-orders', icon: FolderKanban, moduleKey: 'client-portal', roles: ['client'] },
+  { key: 'client-portal.documents', label: 'Documents & Support', to: '/client/documents', icon: FileText, moduleKey: 'client-portal', roles: ['client'] },
+  { key: 'client-portal.billing', label: 'Billing', to: '/client/billing', icon: Wallet, moduleKey: 'client-portal', roles: ['client'] },
+  { key: 'client-portal.reports', label: 'Reports & Feedback', to: '/client/reports', icon: BarChart3, moduleKey: 'client-portal', roles: ['client'] },
+  { key: 'client-portal.company-profile', label: 'Company Profile', to: '/client/company-profile', icon: Briefcase, moduleKey: 'client-portal', roles: ['client'] }
 ]
 
 /** Bentuk minimal yang dibutuhkan gerbang RBAC — dipakai bareng oleh `NavItem` dan `HIDDEN_NAV_ROUTES`. */
@@ -231,6 +235,8 @@ interface RouteGate {
 export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   // Operations
   { key: 'hidden.projects-legacy', label: 'Project Workspace (lama)', to: '/projects', moduleKey: 'operations' },
+  { key: 'hidden.operations-bookings', label: 'Daftar Booking', to: '/bookings', moduleKey: 'operations' },
+  { key: 'hidden.operations-changes', label: 'Change & Incident', to: '/changes', moduleKey: 'operations' },
   { key: 'hidden.operations-calendar', label: 'Booking Calendar & Map', to: '/operations/calendar', moduleKey: 'operations' },
   { key: 'hidden.services', label: 'Service Operations', to: '/services', moduleKey: 'operations' },
   { key: 'hidden.booking-exceptions', label: 'Booking Exceptions', to: '/bookings/exceptions', moduleKey: 'operations' },
@@ -250,9 +256,16 @@ export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   { key: 'hidden.lead-sources', label: 'Lead Source Recap', to: '/customer-journey/lead-sources', moduleKey: 'sales' },
   { key: 'hidden.opportunities', label: 'Opportunities', to: '/crm/opportunities', moduleKey: 'sales' },
   { key: 'hidden.quotations-internal', label: 'Quotations (internal)', to: '/crm/quotations', moduleKey: 'sales' },
+  /** Halaman detail Lead (`/crm/leads/[id]`, dan child `/quotation-preview`) — TIDAK deprecated, satu-satunya tempat
+   * membangun Quotation dan menjalankan Commercial Approval setelah Lead B2B di-qualify. Tanpa entri spesifik ini,
+   * `findNavItemForPath` jatuh ke entri terpanjang berikutnya yang cocok (`hidden.crm-hub`, `/crm`) sehingga header
+   * salah menampilkan "CRM Hub (lama)" — padahal path `/crm/leads/*` tidak terkait section CRM Hub lama itu sama sekali. */
+  { key: 'hidden.crm-lead-detail', label: 'Quotation & Approval', to: '/crm/leads', moduleKey: 'sales' },
+  { key: 'hidden.product-planning', label: 'Produk & Costing', to: '/product-planning', moduleKey: 'sales' },
   { key: 'hidden.cost-sheets', label: 'Cost Sheets', to: '/product-planning/cost-sheets', moduleKey: 'sales' },
 
   // CRM
+  { key: 'hidden.engagement', label: 'Engagement', to: '/crm/engagement', moduleKey: 'crm' },
   { key: 'hidden.prospects', label: 'Prospects', to: '/crm/prospects', moduleKey: 'crm' },
   { key: 'hidden.clients', label: 'Clients', to: '/crm/clients', moduleKey: 'crm' },
   { key: 'hidden.follow-ups', label: 'Follow-up Otomatis', to: '/crm/follow-ups', moduleKey: 'crm' },
@@ -264,8 +277,15 @@ export const HIDDEN_NAV_ROUTES: RouteGate[] = [
   { key: 'hidden.procurement-performance', label: 'Rating & Performance', to: '/procurement/performance', moduleKey: 'vendor-partner' },
 
   // Reporting & BI / Administration
+  { key: 'hidden.bi', label: 'Reporting & BI', to: '/reports', moduleKey: 'bi' },
   { key: 'hidden.reports-analytics', label: 'Analytics & Marketing ROI', to: '/reports/analytics', moduleKey: 'bi' },
+  { key: 'hidden.leader-dashboard', label: 'Leader Dashboard', to: '/leader-dashboard', moduleKey: 'bi' },
+
+  // Marketing & Analysis
+  { key: 'hidden.marketing', label: 'Marketing & Analysis', to: '/marketing', moduleKey: 'marketing' },
+
   { key: 'hidden.activity-center', label: 'Activity Center', to: '/activity-center', moduleKey: 'administration' },
+  { key: 'hidden.session-log', label: 'Log Session', to: '/admin/session-log', moduleKey: 'administration' },
   { key: 'hidden.admin-roles', label: 'Roles & Permissions', to: '/admin/roles', moduleKey: 'administration' },
   { key: 'hidden.admin-organization', label: 'Organization Profile', to: '/admin/organization', moduleKey: 'administration' },
 

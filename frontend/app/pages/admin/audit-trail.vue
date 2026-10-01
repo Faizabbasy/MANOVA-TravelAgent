@@ -16,7 +16,7 @@ useHead({ title: 'Audit & Activity' })
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6 sm:space-y-8">
     <PageHeader
       title="Audit & Activity"
       description="Log aktivitas project dan log sistem lintas-modul — dalam satu menu."

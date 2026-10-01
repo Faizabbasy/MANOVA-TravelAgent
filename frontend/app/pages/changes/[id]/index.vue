@@ -206,26 +206,25 @@ function handleImplemented () {
       </SectionCard>
 
       <!-- Reject dialog -->
-      <Dialog v-model:open="isRejectDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Tolak Change Request</DialogTitle>
-            <DialogDescription>Alasan wajib dicatat — akan tersimpan sebagai jejak historis di Activity & Changes project terkait.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-1.5 py-2">
-            <Label for="reject-reason">Alasan</Label>
-            <Input id="reject-reason" v-model="rejectionReason" placeholder="mis. Di luar scope kontrak awal" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isRejectDialogOpen = false">
-              Batal
-            </Button>
-            <Button variant="destructive" :disabled="!rejectionReason.trim()" @click="submitReject">
-              Konfirmasi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveFormSheet
+        v-model:open="isRejectDialogOpen"
+        title="Tolak Change Request"
+        description="Alasan wajib dicatat — akan tersimpan sebagai jejak historis di Activity & Changes project terkait."
+        content-class="max-w-md"
+      >
+        <div class="space-y-1.5 py-2">
+          <Label for="reject-reason">Alasan</Label>
+          <Input id="reject-reason" v-model="rejectionReason" placeholder="mis. Di luar scope kontrak awal" />
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isRejectDialogOpen = false">
+            Batal
+          </Button>
+          <Button variant="destructive" :disabled="!rejectionReason.trim()" @click="submitReject">
+            Konfirmasi
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

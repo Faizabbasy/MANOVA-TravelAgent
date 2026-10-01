@@ -99,35 +99,73 @@ function submitInvoice () {
       </SectionCard>
 
       <SectionCard title="Line Items">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Deskripsi</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Unit</TableHead>
-              <TableHead>Sell Price</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(item, index) in serviceOrder.lineItems" :key="index">
-              <TableCell class="text-foreground">
+        <ResponsiveDataView :items="serviceOrder.lineItems" :get-key="(item, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Unit</TableHead>
+                  <TableHead>Sell Price</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(item, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ item.description }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ item.quantity }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ item.unit }}
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ index === 0 && serviceOrder.sellPriceIdr !== undefined ? formatCurrencyIdr(serviceOrder.sellPriceIdr) : '—' }}
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="serviceOrder.lineItems.length === 0" :colspan="4">
+                  Belum ada line item.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item, index }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <p class="text-sm font-medium text-foreground">
                 {{ item.description }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ item.quantity }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ item.unit }}
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ index === 0 && serviceOrder.sellPriceIdr !== undefined ? formatCurrencyIdr(serviceOrder.sellPriceIdr) : '—' }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="serviceOrder.lineItems.length === 0" :colspan="4">
-              Belum ada line item.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </p>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Qty
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.quantity }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Unit
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.unit }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Sell Price
+                  </p>
+                  <p class="text-foreground">
+                    {{ index === 0 && serviceOrder.sellPriceIdr !== undefined ? formatCurrencyIdr(serviceOrder.sellPriceIdr) : '—' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
         <p class="mt-2 text-xs text-muted-foreground">
           Internal cost/margin MANOVA tidak ditampilkan di Supplier Portal — hanya sell price (nilai yang disepakati dengan company Anda).
         </p>
@@ -165,33 +203,66 @@ function submitInvoice () {
           Invoice hanya dapat diajukan setelah Service Order berstatus "Fulfilled".
         </p>
 
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Jumlah</TableHead>
-              <TableHead>Diajukan</TableHead>
-              <TableHead>Catatan</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="invoice in invoices" :key="invoice.id">
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(invoice.amountIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDate(invoice.submittedAt) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ invoice.note ?? '—' }}{{ invoice.reviewNote ? ` — Review: ${invoice.reviewNote}` : '' }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).tone" /></TableCell>
-            </TableRow>
-            <TableEmpty v-if="invoices.length === 0" :colspan="4">
-              Belum ada invoice diajukan.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="invoices" :get-key="invoice => invoice.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Jumlah</TableHead>
+                  <TableHead>Diajukan</TableHead>
+                  <TableHead>Catatan</TableHead>
+                  <TableHead>Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="invoice in items" :key="invoice.id">
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(invoice.amountIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(invoice.submittedAt) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ invoice.note ?? '—' }}{{ invoice.reviewNote ? ` — Review: ${invoice.reviewNote}` : '' }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).tone" /></TableCell>
+                </TableRow>
+                <TableEmpty v-if="invoices.length === 0" :colspan="4">
+                  Belum ada invoice diajukan.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: invoice }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
+                  {{ formatCurrencyIdr(invoice.amountIdr) }}
+                </p>
+                <StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Diajukan
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(invoice.submittedAt) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Catatan
+                  </p>
+                  <p class="text-foreground">
+                    {{ invoice.note ?? '—' }}{{ invoice.reviewNote ? ` — Review: ${invoice.reviewNote}` : '' }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

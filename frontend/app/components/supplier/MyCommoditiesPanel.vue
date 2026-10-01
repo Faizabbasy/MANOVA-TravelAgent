@@ -80,16 +80,16 @@ function submitCreate () {
 <template>
   <div class="space-y-6">
     <div v-if="canManageOwn" class="flex justify-end">
-      <Dialog v-model:open="isCreateOpen">
-        <DialogTrigger as-child>
+      <ResponsiveFormSheet
+        v-model:open="isCreateOpen"
+        title="Buat Commodity Product Baru"
+        description="Komoditas baru dibuat sebagai Draft — publikasikan setelah availability diatur."
+        content-class="max-w-md"
+      >
+        <template #trigger>
           <Button><Plus class="h-4 w-4 mr-1.5" />Buat Komoditas</Button>
-        </DialogTrigger>
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Buat Commodity Product Baru</DialogTitle>
-            <DialogDescription>Komoditas baru dibuat sebagai Draft — publikasikan setelah availability diatur.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </template>
+        <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="commodity-name">Nama Komoditas</Label>
               <Input id="commodity-name" v-model="newName" placeholder="mis. Kamar Deluxe Bali Resort" />
@@ -117,20 +117,19 @@ function submitCreate () {
                 Tidak pernah ditampilkan ke Client — hanya untuk referensi Anda sendiri.
               </p>
             </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isCreateOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!newName.trim() || !newSellPrice" @click="submitCreate">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isCreateOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!newName.trim() || !newSellPrice" @click="submitCreate">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </div>
 
-    <RoleAccessState v-if="!canView('supplier-portal') || !vendor" module-label="Vendor Portal" />
+    <RoleAccessState v-if="!canView('supplier-portal') || !vendor" module-label="Katalog" />
 
     <template v-else>
       <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -152,48 +151,95 @@ function submitCreate () {
       </div>
 
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama Komoditas</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Harga Jual</TableHead>
-              <TableHead>Variant</TableHead>
-              <TableHead>Availability</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow
-              v-for="row in rows"
-              :key="row.product.id"
-              class="cursor-pointer hover:bg-muted/50"
-              @click="navigateTo(`/supplier/commodities/${row.product.id}`)"
-            >
-              <TableCell class="font-medium text-foreground">
-                {{ row.product.name }}
-              </TableCell>
-              <TableCell>
-                <StatusBadge :label="findStatusOption(SERVICE_TYPES, row.product.category).label" :tone="findStatusOption(SERVICE_TYPES, row.product.category).tone" />
-              </TableCell>
-              <TableCell>
+        <ResponsiveDataView :items="rows" :get-key="row => row.product.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama Komoditas</TableHead>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Harga Jual</TableHead>
+                  <TableHead>Variant</TableHead>
+                  <TableHead>Availability</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow
+                  v-for="row in items"
+                  :key="row.product.id"
+                  class="cursor-pointer hover:bg-muted/50"
+                  @click="navigateTo(`/supplier/commodities/${row.product.id}`)"
+                >
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.product.name }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(SERVICE_TYPES, row.product.category).label" :tone="findStatusOption(SERVICE_TYPES, row.product.category).tone" />
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="findStatusOption(COMMODITY_PRODUCT_STATUSES, row.product.status).label" :tone="findStatusOption(COMMODITY_PRODUCT_STATUSES, row.product.status).tone" />
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(row.product.sellPriceIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.variantCount }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.totalAvailable }}
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="rows.length === 0" :colspan="6">
+                  {{ searchQuery || statusFilter !== 'all' ? 'Tidak ada komoditas yang cocok dengan filter.' : 'Belum ada komoditas. Klik "Buat Komoditas" untuk memulai.' }}
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button type="button" class="w-full text-left rounded-xl border border-border bg-card p-4" @click="navigateTo(`/supplier/commodities/${row.product.id}`)">
+              <div class="flex items-start justify-between gap-2">
+                <p class="font-medium text-foreground">
+                  {{ row.product.name }}
+                </p>
                 <StatusBadge :label="findStatusOption(COMMODITY_PRODUCT_STATUSES, row.product.status).label" :tone="findStatusOption(COMMODITY_PRODUCT_STATUSES, row.product.status).tone" />
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(row.product.sellPriceIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.variantCount }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.totalAvailable }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
-              {{ searchQuery || statusFilter !== 'all' ? 'Tidak ada komoditas yang cocok dengan filter.' : 'Belum ada komoditas. Klik "Buat Komoditas" untuk memulai.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Kategori
+                  </p>
+                  <StatusBadge :label="findStatusOption(SERVICE_TYPES, row.product.category).label" :tone="findStatusOption(SERVICE_TYPES, row.product.category).tone" />
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Harga Jual
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(row.product.sellPriceIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Variant
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.variantCount }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Availability
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.totalAvailable }}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

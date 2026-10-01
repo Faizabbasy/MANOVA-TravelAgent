@@ -30,13 +30,21 @@ export type ServiceStatus =
 /** Tab identifiers for the Project Detail workspace (docs/mockup-information-architecture.md bagian 4). */
 export type ProjectDetailTab =
   | 'overview'
+  | 'milestone'
   | 'itinerary-services'
+  | 'calendar'
   | 'travelers'
   | 'vendors'
   | 'finance'
+  | 'expenses'
   | 'tasks'
   | 'documents'
+  | 'discussion'
   | 'activity-changes'
+  /** Group Trip B2C (`Project.isGroupTrip`) — tab tambahan, tab value lama di atas tetap dipakai (direlabel) untuk sisanya. */
+  | 'bookings'
+  | 'reservations'
+  | 'payments'
 
 /**
  * "Project Order Status" (Section 09 — roadmap Section 00–24 baru, D-066) — 10 nilai literal Wajib
@@ -89,6 +97,11 @@ export interface Project {
   id: ID
   name: string
   partyId: ID
+  /** Group Trip B2C (`createProject`/`joinLeadToGroupProject`, `app/data/index.ts`) — Project dibuat lebih
+   * dulu tanpa customer nyata (`partyId` menunjuk Party placeholder sistem), banyak Lead individual berbeda
+   * bisa "gabung" belakangan sebagai `Traveler` masing-masing, tiap gabung otomatis jadi Customer sendiri.
+   * `false`/kosong = Project B2B biasa, `partyId` adalah customer sungguhan. */
+  isGroupTrip?: boolean
   /** Lead asal (Won) — referensi, bukan duplikasi. */
   leadId?: ID
   /** Quotation yang di-Won-kan, referensi (docs/route-and-role-matrix.md bagian 2.2 item 6). */
@@ -146,6 +159,8 @@ export interface Project {
   emergencyContactPhone?: string
   /** Default meeting point pra-keberangkatan (mis. titik kumpul bandara) — dipakai Trip Center bila hari berjalan belum punya `ItineraryItem.location` sendiri. */
   meetingPoint?: string
+  /** Foto cover trip — hanya dipakai Group Trip B2C (`isGroupTrip`), tampil di header Project Detail dan list "Sales Order". Project B2B tetap pakai icon polos. Mock upload (data URL lokal), bukan file storage nyata (D-006). */
+  photoUrl?: string
 }
 
 export interface ProjectService {
@@ -157,6 +172,8 @@ export interface ProjectService {
   vendorId?: ID
   /** Booking/reference mock (Section 12) — nomor referensi/PNR/konfirmasi, bukan hasil integrasi API nyata (D-006). */
   bookingReference?: string
+  /** Alokasi budget untuk baris layanan ini (tab Finance, "Pengeluaran per Layanan") — input manual per baris, dijumlahkan per `type` di `getServiceTypeSpendBreakdown` (`app/data/finance-ext.ts`). Opsional — belum tentu seluruh layanan sudah dialokasikan. */
+  budgetIdr?: number
 }
 
 /** Daily itinerary (Section 12 lama) — jadwal harian per project, tab "Itinerary & Services". */
@@ -176,6 +193,12 @@ export interface ItineraryItem {
   visibleToClient?: boolean
   /** Meeting point/lokasi hari ini (Repair Phase Section 5 — Trip Center, Master Prompt bagian 10). Opsional, teks bebas mis. "Lobi Hotel, pukul 08:00". */
   location?: string
+  /** Vendor terkait item ini (mis. supir/guide/venue lokal untuk agenda tsb) — opsional, murni pencatatan
+   * mock (bukan booking/invoice sungguhan, beda dari `ProjectService.vendorId` yang punya alur booking
+   * penuh). Referensi ke `Vendor` yang sudah ada, bukan entitas vendor baru. */
+  vendorId?: ID
+  /** Nominal yang perlu dibayar ke vendor untuk item ini (Rupiah) — hanya bermakna bila `vendorId` terisi. */
+  vendorAmountIdr?: number
 }
 
 export interface TravelerGroup {
@@ -191,6 +214,12 @@ export interface Traveler {
   id: ID
   projectId: ID
   groupId?: ID
+  /** Link balik ke customer/billing asal roster row ini — diisi hanya untuk traveler yang bergabung lewat
+   * "Group Trip" B2C (`joinLeadToGroupProject`, `app/data/index.ts`); traveler yang ditambah manual (roster
+   * B2B biasa) tidak punya ini. */
+  partyId?: ID
+  leadId?: ID
+  salesOrderId?: ID
   name: string
   passportNumber?: string
   passportExpiryDate?: string

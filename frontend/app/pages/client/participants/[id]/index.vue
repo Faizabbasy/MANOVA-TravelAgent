@@ -235,46 +235,41 @@ function addRoommate (roommateId: string) {
                   </Button>
                 </div>
               </div>
-              <Dialog v-model:open="isCreateRoomOpen">
-                <DialogTrigger as-child>
+              <ResponsiveFormSheet v-model:open="isCreateRoomOpen" title="Buat Kamar Baru" content-class="max-w-sm">
+                <template #trigger>
                   <Button size="sm">
                     Buat Kamar Baru
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-sm">
-                  <DialogHeader>
-                    <DialogTitle>Buat Kamar Baru</DialogTitle>
-                  </DialogHeader>
-                  <div class="space-y-4 py-2">
-                    <div class="space-y-1.5">
-                      <Label for="room-label">Label Kamar</Label>
-                      <Input id="room-label" v-model="newRoomLabel" placeholder="mis. Room 301" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="room-type">Tipe Kamar</Label>
-                      <select id="room-type" v-model="newRoomType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                        <option value="single">
-                          Single
-                        </option>
-                        <option value="twin">
-                          Twin
-                        </option>
-                        <option value="suite">
-                          Suite
-                        </option>
-                      </select>
-                    </div>
+                </template>
+                <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="room-label">Label Kamar</Label>
+                    <Input id="room-label" v-model="newRoomLabel" placeholder="mis. Room 301" />
                   </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isCreateRoomOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!newRoomLabel.trim()" @click="submitCreateRoom">
-                      Simpan
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                  <div class="space-y-1.5">
+                    <Label for="room-type">Tipe Kamar</Label>
+                    <select id="room-type" v-model="newRoomType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                      <option value="single">
+                        Single
+                      </option>
+                      <option value="twin">
+                        Twin
+                      </option>
+                      <option value="suite">
+                        Suite
+                      </option>
+                    </select>
+                  </div>
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isCreateRoomOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!newRoomLabel.trim()" @click="submitCreateRoom">
+                    Simpan
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </template>
           </template>
         </SectionCard>
@@ -282,112 +277,95 @@ function addRoommate (roommateId: string) {
 
       <SectionCard v-if="!traveler.cancelled" title="Aksi Lain">
         <div class="flex flex-wrap gap-2">
-          <Dialog v-model:open="isReplaceDialogOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet v-model:open="isReplaceDialogOpen" title="Ganti Peserta" :description="`${traveler.name} akan ditandai cancelled dan digantikan peserta baru.`" content-class="max-w-sm">
+            <template #trigger>
               <Button size="sm" variant="outline">
                 Replace
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Ganti Peserta</DialogTitle>
-                <DialogDescription>{{ traveler.name }} akan ditandai cancelled dan digantikan peserta baru.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="replace-name">Nama Peserta Pengganti</Label>
-                <Input id="replace-name" v-model="replaceName" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isReplaceDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!replaceName.trim()" @click="submitReplace">
-                  Ganti
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          <Dialog v-model:open="isCancelDialogOpen">
-            <DialogTrigger as-child>
+            </template>
+            <div class="space-y-1.5 py-2">
+              <Label for="replace-name">Nama Peserta Pengganti</Label>
+              <Input id="replace-name" v-model="replaceName" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isReplaceDialogOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!replaceName.trim()" @click="submitReplace">
+                Ganti
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
+          <ResponsiveFormSheet v-model:open="isCancelDialogOpen" title="Batalkan Peserta?" description="Alasan wajib diisi." content-class="max-w-sm">
+            <template #trigger>
               <Button size="sm" variant="destructive">
                 Cancel
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Batalkan Peserta?</DialogTitle>
-                <DialogDescription>Alasan wajib diisi.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="cancel-reason">Alasan</Label>
-                <Input id="cancel-reason" v-model="cancelReason" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isCancelDialogOpen = false">
-                  Batal
-                </Button>
-                <Button variant="destructive" :disabled="!cancelReason.trim()" @click="submitCancel">
-                  Batalkan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </template>
+            <div class="space-y-1.5 py-2">
+              <Label for="cancel-reason">Alasan</Label>
+              <Input id="cancel-reason" v-model="cancelReason" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isCancelDialogOpen = false">
+                Batal
+              </Button>
+              <Button variant="destructive" :disabled="!cancelReason.trim()" @click="submitCancel">
+                Batalkan
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </div>
       </SectionCard>
 
       <!-- Edit Dialog -->
-      <Dialog v-model:open="isEditDialogOpen">
-        <DialogScrollContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Edit Peserta</DialogTitle>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+      <ResponsiveFormSheet v-model:open="isEditDialogOpen" title="Edit Peserta" content-class="max-w-lg" scroll>
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="edit-name">Nama Lengkap</Label><Input id="edit-name" v-model="form.name" />
+          </div>
+          <div class="grid grid-cols-2 gap-4">
             <div class="space-y-1.5">
-              <Label for="edit-name">Nama Lengkap</Label><Input id="edit-name" v-model="form.name" />
-            </div>
-            <div class="grid grid-cols-2 gap-4">
-              <div class="space-y-1.5">
-                <Label for="edit-passport">Nomor Paspor</Label><Input id="edit-passport" v-model="form.passportNumber" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="edit-passport-exp">Masa Berlaku Paspor</Label><Input id="edit-passport-exp" v-model="form.passportExpiryDate" type="date" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="edit-id">Nomor ID/KTP</Label><Input id="edit-id" v-model="form.idNumber" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="edit-visa">Nomor Visa</Label><Input id="edit-visa" v-model="form.visaNumber" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="edit-visa-exp">Masa Berlaku Visa</Label><Input id="edit-visa-exp" v-model="form.visaExpiryDate" type="date" />
-              </div>
+              <Label for="edit-passport">Nomor Paspor</Label><Input id="edit-passport" v-model="form.passportNumber" />
             </div>
             <div class="space-y-1.5">
-              <Label for="edit-emergency-name">Nama Kontak Darurat</Label><Input id="edit-emergency-name" v-model="form.emergencyContactName" />
+              <Label for="edit-passport-exp">Masa Berlaku Paspor</Label><Input id="edit-passport-exp" v-model="form.passportExpiryDate" type="date" />
             </div>
             <div class="space-y-1.5">
-              <Label for="edit-emergency-phone">Telepon Kontak Darurat</Label><Input id="edit-emergency-phone" v-model="form.emergencyContactPhone" />
+              <Label for="edit-id">Nomor ID/KTP</Label><Input id="edit-id" v-model="form.idNumber" />
             </div>
             <div class="space-y-1.5">
-              <Label for="edit-dietary">Dietary Restriction</Label><Input id="edit-dietary" v-model="form.dietaryRestrictions" />
+              <Label for="edit-visa">Nomor Visa</Label><Input id="edit-visa" v-model="form.visaNumber" />
             </div>
             <div class="space-y-1.5">
-              <Label for="edit-accessibility">Accessibility Needs</Label><Input id="edit-accessibility" v-model="form.accessibilityNeeds" />
-            </div>
-            <div class="space-y-1.5">
-              <Label for="edit-special">Permintaan Khusus Lainnya</Label><Input id="edit-special" v-model="form.specialRequest" />
+              <Label for="edit-visa-exp">Masa Berlaku Visa</Label><Input id="edit-visa-exp" v-model="form.visaExpiryDate" type="date" />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isEditDialogOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!form.name.trim()" @click="submitEdit">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+          <div class="space-y-1.5">
+            <Label for="edit-emergency-name">Nama Kontak Darurat</Label><Input id="edit-emergency-name" v-model="form.emergencyContactName" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="edit-emergency-phone">Telepon Kontak Darurat</Label><Input id="edit-emergency-phone" v-model="form.emergencyContactPhone" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="edit-dietary">Dietary Restriction</Label><Input id="edit-dietary" v-model="form.dietaryRestrictions" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="edit-accessibility">Accessibility Needs</Label><Input id="edit-accessibility" v-model="form.accessibilityNeeds" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="edit-special">Permintaan Khusus Lainnya</Label><Input id="edit-special" v-model="form.specialRequest" />
+          </div>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isEditDialogOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!form.name.trim()" @click="submitEdit">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

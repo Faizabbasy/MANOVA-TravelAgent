@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Eye } from 'lucide-vue-next'
 import { getServiceOrdersByVendor, getProjectById } from '~/data'
 import { SERVICE_ORDER_STATUSES, findStatusOption } from '~/constants/status'
 
@@ -21,33 +22,70 @@ const rows = computed(() => {
 
     <template v-else>
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project</TableHead>
-              <TableHead>RFQ Asal</TableHead>
-              <TableHead>Line Items</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.so.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/supplier/service-orders/${row.so.id}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ row.project?.name ?? '— (engagement langsung)' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.so.rfqId ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.so.lineItems.length }} item
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).label" :tone="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).tone" /></TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="4">
-              Belum ada Service Order untuk company Anda.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="rows" :get-key="row => row.so.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Project</TableHead>
+                  <TableHead>RFQ Asal</TableHead>
+                  <TableHead>Line Items</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.so.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/supplier/service-orders/${row.so.id}`)">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.project?.name ?? '— (engagement langsung)' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.so.rfqId ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.so.lineItems.length }} item
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).label" :tone="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).tone" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="rows.length === 0" :colspan="5">
+                  Belum ada Service Order untuk company Anda.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button type="button" class="w-full text-left rounded-xl border border-border bg-card p-4" @click="navigateTo(`/supplier/service-orders/${row.so.id}`)">
+              <div class="flex items-start justify-between gap-2">
+                <p class="font-medium text-foreground">
+                  {{ row.project?.name ?? '— (engagement langsung)' }}
+                </p>
+                <StatusBadge :label="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).label" :tone="findStatusOption(SERVICE_ORDER_STATUSES, row.so.status).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    RFQ Asal
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.so.rfqId ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Line Items
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.so.lineItems.length }} item
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

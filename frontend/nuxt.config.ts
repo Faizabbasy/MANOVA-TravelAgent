@@ -51,7 +51,6 @@ export default defineNuxtConfig({
    * di dokumen lama akan jatuh ke halaman 404.
    */
   routeRules: {
-    '/tasks': { redirect: { to: '/project-orders', statusCode: 301 } },
     '/expenses': { redirect: { to: '/finance/statement?kind=expense', statusCode: 301 } },
     '/projects/create': { redirect: { to: '/project-orders', statusCode: 301 } },
     '/customer-journey/project-orders': { redirect: { to: '/project-orders', statusCode: 301 } }
@@ -76,7 +75,13 @@ export default defineNuxtConfig({
       meta: [
         { charset: 'utf-8' },
         { name: 'viewport', content: 'width=device-width, initial-scale=1' },
-        { name: 'description', content: 'MANOVA — mockup pengelolaan operasional project travel agent (CRM, Project, Operations, Vendor, Finance).' }
+        { name: 'description', content: 'MANOVA — mockup pengelolaan operasional project travel agent (CRM, Project, Operations, Vendor, Finance).' },
+        /** Opt keluar dari "Force Dark Mode"/auto-dark browser (Chrome dkk) — app ini TIDAK punya dark mode
+         * (lihat komentar `color-scheme: light` di `assets/css/tailwind.css`). Deklarasi di CSS `body` saja
+         * kadang tidak cukup untuk sinyal document-level yang dicek browser; meta tag ini pola resmi yang
+         * direkomendasikan supaya browser tidak meng-invert warna sheet/dialog (portal ke luar `body`) di
+         * device/browser dengan dark mode dipaksa aktif. */
+        { name: 'color-scheme', content: 'light' }
       ],
       link: [
         {

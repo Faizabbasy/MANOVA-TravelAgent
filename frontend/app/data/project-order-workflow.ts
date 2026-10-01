@@ -1,5 +1,6 @@
-import { differenceInCalendarDays, parseISO } from 'date-fns'
+import { differenceInCalendarDays, parseISO, addDays, formatISO } from 'date-fns'
 import { PROJECT_MILESTONES, PROJECT_NOTES } from './project-orders'
+import { MILESTONE_TEMPLATES } from './master-data'
 import { areProjectAssetsReturned, getAssetById } from './inventory'
 import { getProjectFinanceFacts } from './finance-facts'
 import {
@@ -19,6 +20,7 @@ import {
 } from './index'
 import type { Project, ProjectStatus } from '~/types/project'
 import type {
+  MilestoneDeliverable,
   ProjectMilestone,
   ProjectNote,
   ProjectOrderGateResult,
@@ -480,6 +482,14 @@ export function updateMilestonePlannedDate (milestoneId: string, plannedDate: st
   return milestone
 }
 
+/** Catatan bebas per milestone (mis. alasan delay/early completion) — tab "Timeline Tracking". Kosongkan (string kosong) untuk menghapus catatan. */
+export function updateMilestoneNote (milestoneId: string, note: string): ProjectMilestone | undefined {
+  const milestone = PROJECT_MILESTONES.find(item => item.id === milestoneId)
+  if (!milestone) { return undefined }
+  milestone.note = note.trim() || undefined
+  return milestone
+}
+
 export function createProjectMilestone (input: Omit<ProjectMilestone, 'id' | 'status'> & { status?: ProjectMilestone['status'] }): ProjectMilestone {
   const milestone: ProjectMilestone = {
     ...input,
@@ -488,6 +498,97 @@ export function createProjectMilestone (input: Omit<ProjectMilestone, 'id' | 'st
   }
   PROJECT_MILESTONES.push(milestone)
   return milestone
+}
+
+/**
+ * Terapkan Milestone Template ke sebuah project — MENGGANTI SELURUH milestone project ini (destruktif,
+ * termasuk yang sudah selesai/ada catatan/budget/deliverables), bukan menambahkan. Keputusan desain
+ * dikonfirmasi user (lihat docs/superpowers/specs/2026-09-08-milestone-template-design.md) — UI pemanggil
+ * WAJIB menampilkan peringatan sebelum memanggil fungsi ini.
+ */
+export function applyMilestoneTemplate (projectId: string, templateId: string, baseDate: string): ProjectMilestone[] {
+  const template = MILESTONE_TEMPLATES.find(item => item.id === templateId)
+  if (!template) { return [] }
+
+  const remaining = PROJECT_MILESTONES.filter(milestone => milestone.projectId !== projectId)
+  PROJECT_MILESTONES.length = 0
+  PROJECT_MILESTONES.push(...remaining)
+
+  return template.items.map(item => createProjectMilestone({
+    projectId,
+    name: item.label,
+    plannedDate: formatISO(addDays(parseISO(baseDate), item.offsetDays), { representation: 'date' })
+  }))
+}
+
+/**
+ * Progress % SENGAJA tidak disimpan sebagai field — diturunkan dari checklist `deliverables` supaya
+ * angka progress dan checklist tidak pernah nggak sinkron. Tanpa deliverables, progress ditentukan dari `status`.
+ */
+export function getMilestoneProgressPercent (milestone: ProjectMilestone): number {
+  if (milestone.deliverables && milestone.deliverables.length > 0) {
+    const done = milestone.deliverables.filter(item => item.done).length
+    return Math.round((done / milestone.deliverables.length) * 100)
+  }
+  return milestone.status === 'completed' ? 100 : 0
+}
+
+export function addMilestoneDeliverable (milestoneId: string, label: string): ProjectMilestone | undefined {
+  const milestone = PROJECT_MILESTONES.find(item => item.id === milestoneId)
+  if (!milestone || !label.trim()) { return undefined }
+  const deliverable: MilestoneDeliverable = {
+    id: `PMD-${milestoneId}-${(milestone.deliverables?.length ?? 0) + 1}`,
+    label: label.trim(),
+    done: false
+  }
+  milestone.deliverables = [...(milestone.deliverables ?? []), deliverable]
+  return milestone
+}
+
+export function toggleMilestoneDeliverable (milestoneId: string, deliverableId: string): ProjectMilestone | undefined {
+  const milestone = PROJECT_MILESTONES.find(item => item.id === milestoneId)
+  const deliverable = milestone?.deliverables?.find(item => item.id === deliverableId)
+  if (!deliverable) { return undefined }
+  deliverable.done = !deliverable.done
+  return milestone
+}
+
+export function removeMilestoneDeliverable (milestoneId: string, deliverableId: string): ProjectMilestone | undefined {
+  const milestone = PROJECT_MILESTONES.find(item => item.id === milestoneId)
+  if (!milestone?.deliverables) { return undefined }
+  milestone.deliverables = milestone.deliverables.filter(item => item.id !== deliverableId)
+  return milestone
+}
+
+export function updateMilestoneBudget (milestoneId: string, budgetIdr: number | undefined): ProjectMilestone | undefined {
+  const milestone = PROJECT_MILESTONES.find(item => item.id === milestoneId)
+  if (!milestone) { return undefined }
+  milestone.budgetIdr = budgetIdr && budgetIdr > 0 ? budgetIdr : undefined
+  return milestone
+}
+
+export interface MilestoneBudgetSummary {
+  totalProjectBudgetIdr: number
+  allocatedToMilestonesIdr: number
+  unallocatedIdr: number
+  /** 0-100. `undefined` bila project belum punya total budget untuk dibagi. */
+  allocationPercent?: number
+}
+
+/** Breakdown alternatif dari `Project.budgetIdr` yang sama — paralel dengan breakdown per-layanan, bukan angka tambahan. */
+export function getProjectMilestoneBudgetSummary (projectId: string): MilestoneBudgetSummary {
+  const project = getProjectById(projectId)
+  const totalProjectBudgetIdr = project?.budgetIdr ?? 0
+  const allocatedToMilestonesIdr = getProjectMilestones(projectId)
+    .reduce((sum, milestone) => sum + (milestone.budgetIdr ?? 0), 0)
+  return {
+    totalProjectBudgetIdr,
+    allocatedToMilestonesIdr,
+    unallocatedIdr: Math.max(totalProjectBudgetIdr - allocatedToMilestonesIdr, 0),
+    allocationPercent: totalProjectBudgetIdr > 0
+      ? Math.round((allocatedToMilestonesIdr / totalProjectBudgetIdr) * 100)
+      : undefined
+  }
 }
 
 /* ------------------------------------------------------------------ *

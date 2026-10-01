@@ -1,21 +1,18 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Handshake, FolderKanban, Building2, Wallet, Receipt, Download, Save, X, Clock } from 'lucide-vue-next'
+import { Handshake, FolderKanban, Building2, Wallet, Receipt, Download, Save, X, Clock, Eye } from 'lucide-vue-next'
 import {
-  PROJECTS, LEADS, QUOTATIONS, VENDOR_QUOTATIONS,
-  getProjectServices, getServicesForProjects, getVendorById,
-  getCommittedVendorCostIdr,
+  PROJECTS, LEADS, QUOTATIONS, VENDOR_QUOTATIONS, INVOICES,
+  getProjectById, getLeadById, getProjectServices, getServicesForProjects, getVendorById,
+  getCommittedVendorCostIdr, getInvoiceOutstandingIdr,
   getSavedViewsForUser, createSavedView, deleteSavedView, applySavedView
 } from '~/data'
-import type { CustomerInvoiceDto } from '~/types/api'
-import { collectPages } from '~/lib/finance/paging'
-import { daysBetween, formatBusinessDate, todayJakarta } from '~/lib/finance/dates'
-import { formatMoneyMinor } from '~/lib/money'
+import { getProjectActualCostIdr } from '~/data/finance-ext'
 import {
   PROJECT_STATUSES, PROJECT_CHARACTERISTICS, QUOTATION_APPROVAL_STATUSES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES
 } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatPercentage, daysUntil } from '~/utils/format'
-import { isUpcomingDeparture, DEMO_REFERENCE_DATE } from '~/utils/attention'
+import { isUpcomingDeparture, invoiceAgingDays, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import type { RoleId } from '~/types/user'
 import type { Project } from '~/types/project'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
@@ -25,7 +22,7 @@ import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownLis
  * (halaman ini sendiri), kini tab dalam satu menu bersama Analytics & Marketing ROI — logika tidak diubah.
  */
 
-const { currentUser } = useCurrentUser()
+const { currentRole, currentUser } = useCurrentUser()
 const { canView, isRole } = usePermissions()
 const { showToast } = useToast()
 
@@ -234,10 +231,8 @@ const topVendorRows = computed(() => {
  * ================================================== */
 const budgetProjects = computed(() => filteredProjects.value.filter(p => p.status !== 'cancelled'))
 const totalBudgetIdr = computed(() => budgetProjects.value.reduce((sum, p) => sum + p.budgetIdr, 0))
-/** Actual cost from Finance on the server (Phase 7): approved vendor invoices + project expenses. */
-const financeOverview = useFinanceOverview()
-const actualCostOf = (projectId: string) => Number(financeOverview.full.value?.projects.find(p => p.projectId === projectId)?.costMinor ?? 0)
-const totalActualIdr = computed(() => budgetProjects.value.reduce((sum, p) => sum + actualCostOf(p.id), 0))
+/** Fase 3.2 (Penyederhanaan 7-Role/Menu) — `getProjectActualCostIdr()` turunan, bukan field statis `Project.actualCostIdr` (selalu `0` untuk project baru). */
+const totalActualIdr = computed(() => budgetProjects.value.reduce((sum, p) => sum + getProjectActualCostIdr(p.id), 0))
 const totalVarianceIdr = computed(() => totalBudgetIdr.value - totalActualIdr.value)
 const totalQuotationIdr = computed(() => budgetProjects.value.reduce((sum, p) => sum + p.quotationAmountIdr, 0))
 const totalMarginIdr = computed(() => totalQuotationIdr.value - totalActualIdr.value)
@@ -246,27 +241,18 @@ const totalMarginIdr = computed(() => totalQuotationIdr.value - totalActualIdr.v
  * Section 6 — Invoice Aging dan Outstanding (Finance/Management/Super Admin/Viewer)
  * Reuse `invoiceAgingDays`/`getInvoiceOutstandingIdr` existing (Section 15) — bukan menghitung ulang.
  * ================================================== */
-const api = useApi()
-const session = useServerSession()
-const today = todayJakarta()
-/** Every unpaid customer invoice from Finance (all pages); filtered to the projects in view. */
-const receivables = useFinanceQuery(
-  () => collectPages<CustomerInvoiceDto>(cursor => api.finance.receivables({ settlement: 'outstanding', limit: 100, cursor: cursor ?? undefined })),
-  { enabled: () => session.can('finance.view-cash') }
-)
 const outstandingInvoiceRows = computed(() =>
-  (receivables.data.value ?? [])
-    .filter(invoice => filteredProjectIds.value.includes(invoice.project.id))
+  INVOICES
+    .filter(invoice => filteredProjectIds.value.includes(invoice.projectId) && invoice.status !== 'paid')
     .map(invoice => ({
       invoice,
-      projectName: invoice.project.name,
-      /** Negative = days past due (same convention as before). */
-      agingDays: invoice.dueDate ? daysBetween(today, invoice.dueDate) : 0,
-      outstandingMinor: invoice.outstandingMinor
+      projectName: getProjectById(invoice.projectId)?.name ?? invoice.projectId,
+      agingDays: invoiceAgingDays(invoice),
+      outstandingIdr: getInvoiceOutstandingIdr(invoice.id)
     }))
     .sort((a, b) => a.agingDays - b.agingDays)
 )
-const totalOutstandingMinor = computed(() => outstandingInvoiceRows.value.reduce((sum, row) => sum + BigInt(row.outstandingMinor), 0n).toString())
+const totalOutstandingIdr = computed(() => outstandingInvoiceRows.value.reduce((sum, row) => sum + row.outstandingIdr, 0))
 const overdueInvoiceCount = computed(() => outstandingInvoiceRows.value.filter(row => row.agingDays < 0).length)
 
 const AGING_BUCKETS = [
@@ -333,8 +319,8 @@ const showSalesPipeline = visibleTo('sales', 'account-executive', 'management', 
 const showProjectPerformance = visibleTo('project-manager', 'management', 'super-admin', 'viewer')
 const showDepartureReadiness = visibleTo('project-manager', 'management', 'super-admin', 'viewer')
 const showVendorSummary = visibleTo('project-manager', 'finance', 'management', 'super-admin', 'viewer')
-const showBudgetMargin = visibleTo('finance', 'super-admin') // biaya aktual = data Finance; Admin tidak
-const showInvoiceAging = visibleTo('finance', 'super-admin') // piutang = data Finance; Admin (eks-management) tidak
+const showBudgetMargin = visibleTo('finance', 'management', 'super-admin', 'viewer')
+const showInvoiceAging = visibleTo('finance', 'management', 'super-admin', 'viewer')
 /** SLA dan Quotation Performance (Section 22) — sama seperti Sales Pipeline (domain Opportunity/Quotation, dikelola Sales/AE, dipantau Management). */
 const showSlaPerformance = visibleTo('sales', 'account-executive', 'management', 'super-admin', 'viewer')
 </script>
@@ -342,18 +328,18 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
 <template>
   <div class="space-y-6">
     <div class="flex justify-end">
-      <Dialog v-model:open="isExportOpen">
-        <DialogTrigger as-child>
+      <ResponsiveFormSheet
+        v-model:open="isExportOpen"
+        title="Export Report"
+        description="Mock export — tidak ada file yang benar-benar dihasilkan, murni simulasi (D-006)."
+        content-class="max-w-sm"
+      >
+        <template #trigger>
           <Button size="sm" variant="outline">
             <Download class="h-4 w-4 mr-1.5" />Export
           </Button>
-        </DialogTrigger>
-        <DialogContent class="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Export Report</DialogTitle>
-            <DialogDescription>Mock export — tidak ada file yang benar-benar dihasilkan, murni simulasi (D-006).</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </template>
+        <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="export-section">Bagian</Label>
               <select id="export-section" v-model="exportSectionKey" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -374,16 +360,15 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
               </select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isExportOpen = false">
-              Batal
-            </Button>
-            <Button @click="submitExport">
-              Export
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isExportOpen = false">
+            Batal
+          </Button>
+          <Button @click="submitExport">
+            Export
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </div>
 
     <RoleAccessState v-if="!canView('reports')" module-label="modul Reporting & BI" />
@@ -394,31 +379,30 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
       <template v-else>
         <SectionCard title="Filter" description="Berlaku untuk seluruh section berbasis Project di bawah (Sales Pipeline dan SLA/Quotation Performance tidak terpengaruh).">
           <template #actions>
-            <Dialog v-model:open="isSaveViewOpen">
-              <DialogTrigger as-child>
+            <ResponsiveFormSheet
+              v-model:open="isSaveViewOpen"
+              title="Simpan Saved View"
+              description="Menyimpan kombinasi filter aktif saat ini (mock, tersimpan per user login, bukan localStorage)."
+              content-class="max-w-sm"
+            >
+              <template #trigger>
                 <Button size="sm" variant="outline">
                   <Save class="h-4 w-4 mr-1.5" />Simpan View
                 </Button>
-              </DialogTrigger>
-              <DialogContent class="max-w-sm">
-                <DialogHeader>
-                  <DialogTitle>Simpan Saved View</DialogTitle>
-                  <DialogDescription>Menyimpan kombinasi filter aktif saat ini (mock, tersimpan per user login, bukan localStorage).</DialogDescription>
-                </DialogHeader>
-                <div class="space-y-1.5 py-2">
-                  <Label for="reports-view-label">Nama View</Label>
-                  <Input id="reports-view-label" v-model="newViewLabel" placeholder="mis. Project In Progress Kuartal Ini" />
-                </div>
-                <DialogFooter>
-                  <Button variant="outline" @click="isSaveViewOpen = false">
-                    Batal
-                  </Button>
-                  <Button :disabled="!newViewLabel.trim()" @click="submitSaveView">
-                    Simpan
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+              </template>
+              <div class="space-y-1.5 py-2">
+                <Label for="reports-view-label">Nama View</Label>
+                <Input id="reports-view-label" v-model="newViewLabel" placeholder="mis. Project In Progress Kuartal Ini" />
+              </div>
+              <template #footer>
+                <Button variant="outline" @click="isSaveViewOpen = false">
+                  Batal
+                </Button>
+                <Button :disabled="!newViewLabel.trim()" @click="submitSaveView">
+                  Simpan
+                </Button>
+              </template>
+            </ResponsiveFormSheet>
           </template>
 
           <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -579,26 +563,67 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
               <p class="text-xs font-medium text-muted-foreground mb-3">
                 Top Vendor (Committed Cost)
               </p>
-              <Table v-if="topVendorRows.length">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Vendor</TableHead>
-                    <TableHead>Committed Cost</TableHead>
-                    <TableHead>Penugasan</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="row in topVendorRows" :key="row.vendorId" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/vendors/${row.vendorId}`)">
-                    <TableCell class="font-medium text-foreground">
-                      {{ row.vendor?.name ?? row.vendorId }}
-                    </TableCell>
-                    <TableCell>{{ formatCurrencyIdr(row.committedIdr) }}</TableCell>
-                    <TableCell class="text-muted-foreground">
-                      {{ row.assignments }}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+              <ResponsiveDataView v-if="topVendorRows.length" :items="topVendorRows" :get-key="row => row.vendorId">
+                <template #desktop="{ items }">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Vendor</TableHead>
+                        <TableHead>Committed Cost</TableHead>
+                        <TableHead>Penugasan</TableHead>
+                        <TableHead />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="row in items" :key="row.vendorId" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/vendors/${row.vendorId}`)">
+                        <TableCell class="font-medium text-foreground">
+                          {{ row.vendor?.name ?? row.vendorId }}
+                        </TableCell>
+                        <TableCell>{{ formatCurrencyIdr(row.committedIdr) }}</TableCell>
+                        <TableCell class="text-muted-foreground">
+                          {{ row.assignments }}
+                        </TableCell>
+                        <TableCell>
+                          <Eye class="h-4 w-4 text-muted-foreground" />
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </template>
+
+                <template #mobile-card="{ item: row }">
+                  <button
+                    type="button"
+                    class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+                    @click="navigateTo(`/vendors/${row.vendorId}`)"
+                  >
+                    <div class="flex items-start justify-between gap-2">
+                      <p class="text-sm font-medium text-foreground truncate">
+                        {{ row.vendor?.name ?? row.vendorId }}
+                      </p>
+                      <Eye class="h-4 w-4 shrink-0 text-muted-foreground" />
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p class="text-muted-foreground">
+                          Committed Cost
+                        </p>
+                        <p class="text-foreground">
+                          {{ formatCurrencyIdr(row.committedIdr) }}
+                        </p>
+                      </div>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Penugasan
+                        </p>
+                        <p class="text-foreground">
+                          {{ row.assignments }}
+                        </p>
+                      </div>
+                    </div>
+                  </button>
+                </template>
+              </ResponsiveDataView>
               <EmptyState v-else title="Belum ada quotation vendor yang diterima" />
             </div>
           </div>
@@ -606,7 +631,7 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
 
         <!-- Section 5: Budget vs Actual dan Margin -->
         <SectionCard v-if="showBudgetMargin" title="Budget vs Actual dan Margin" description="Agregat lintas project sesuai filter aktif (project berstatus Cancelled dikecualikan).">
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5 gap-4 mb-6">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
             <StatsCard title="Budget" :value="formatCurrencyIdr(totalBudgetIdr)" :icon="Wallet" />
             <StatsCard title="Actual Cost" :value="formatCurrencyIdr(totalActualIdr)" :icon="Wallet" :icon-color="totalActualIdr > totalBudgetIdr ? 'destructive' : 'success'" />
             <StatsCard title="Variance" :value="formatCurrencyIdr(totalVarianceIdr)" :icon="Wallet" :icon-color="totalVarianceIdr >= 0 ? 'success' : 'destructive'" />
@@ -617,56 +642,105 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
             v-if="budgetProjects.length > 0"
             :labels="budgetProjects.map(p => p.name)"
             :budget-idr="budgetProjects.map(p => p.budgetIdr)"
-            :actual-idr="budgetProjects.map(p => actualCostOf(p.id))"
+            :actual-idr="budgetProjects.map(p => getProjectActualCostIdr(p.id))"
           />
           <EmptyState v-else title="Tidak ada project sesuai filter" />
         </SectionCard>
 
         <!-- Section 6: Invoice Aging dan Outstanding -->
-        <SectionCard v-if="showInvoiceAging" title="Invoice Aging dan Outstanding" description="Tagihan customer belum lunas dari Finance, lintas project sesuai filter aktif, paling lama terlambat di atas. Klik baris untuk membuka Piutang Customer.">
+        <SectionCard v-if="showInvoiceAging" title="Invoice Aging dan Outstanding" description="Invoice belum lunas lintas project sesuai filter aktif, diurutkan dari yang paling overdue. Klik baris untuk membuka tab Finance pada Project terkait.">
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
-            <StatsCard title="Total Outstanding" :value="formatMoneyMinor(totalOutstandingMinor)" :icon="Receipt" icon-color="warning" />
+            <StatsCard title="Total Outstanding" :value="formatCurrencyIdr(totalOutstandingIdr)" :icon="Receipt" icon-color="warning" />
             <StatsCard title="Invoice Overdue" :value="String(overdueInvoiceCount)" :icon="Receipt" icon-color="destructive" />
           </div>
           <StatusBreakdownList :items="invoiceAgingItems" empty-label="Tidak ada invoice outstanding sesuai filter" class="mb-6" />
-          <Table v-if="outstandingInvoiceRows.length">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Invoice</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Outstanding</TableHead>
-                <TableHead>Jatuh Tempo</TableHead>
-                <TableHead>Aging</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow
-                v-for="row in outstandingInvoiceRows"
-                :key="row.invoice.id"
-                class="cursor-pointer hover:bg-muted/50"
-                @click="navigateTo(`/finance/receivables?projectId=${row.invoice.project.id}`)"
+          <ResponsiveDataView v-if="outstandingInvoiceRows.length" :items="outstandingInvoiceRows" :get-key="row => row.invoice.id">
+            <template #desktop="{ items }">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Invoice</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Outstanding</TableHead>
+                    <TableHead>Jatuh Tempo</TableHead>
+                    <TableHead>Aging</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow
+                    v-for="row in items"
+                    :key="row.invoice.id"
+                    class="cursor-pointer hover:bg-muted/50"
+                    @click="navigateTo(`/project-orders/${row.invoice.projectId}?tab=finance`)"
+                  >
+                    <TableCell class="font-medium text-foreground">
+                      {{ row.invoice.label }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.projectName }}
+                    </TableCell>
+                    <TableCell>{{ formatCurrencyIdr(row.outstandingIdr) }}</TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ formatDate(row.invoice.dueAt) }}
+                    </TableCell>
+                    <TableCell :class="row.agingDays < 0 ? 'text-destructive' : 'text-muted-foreground'">
+                      {{ agingLabel(row.agingDays) }}
+                    </TableCell>
+                    <TableCell>
+                      <Eye class="h-4 w-4 text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </template>
+
+            <template #mobile-card="{ item: row }">
+              <button
+                type="button"
+                class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+                @click="navigateTo(`/project-orders/${row.invoice.projectId}?tab=finance`)"
               >
-                <TableCell class="font-medium text-foreground">
-                  {{ row.invoice.number }}
-                  <p class="text-xs font-normal text-muted-foreground">
-                    {{ row.invoice.party.name }}
-                  </p>
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.projectName }}
-                </TableCell>
-                <TableCell class="whitespace-nowrap tabular-nums">
-                  {{ formatMoneyMinor(row.outstandingMinor) }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ formatBusinessDate(row.invoice.dueDate) }}
-                </TableCell>
-                <TableCell :class="row.agingDays < 0 ? 'text-destructive' : 'text-muted-foreground'">
-                  {{ agingLabel(row.agingDays) }}
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ row.invoice.label }}
+                    </p>
+                    <p class="text-xs text-muted-foreground truncate">
+                      {{ row.projectName }}
+                    </p>
+                  </div>
+                  <Eye class="h-4 w-4 shrink-0 text-muted-foreground" />
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Outstanding
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(row.outstandingIdr) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Jatuh Tempo
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatDate(row.invoice.dueAt) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Aging
+                    </p>
+                    <p :class="row.agingDays < 0 ? 'text-destructive' : 'text-foreground'">
+                      {{ agingLabel(row.agingDays) }}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </template>
+          </ResponsiveDataView>
           <EmptyState v-else title="Tidak ada invoice outstanding sesuai filter" />
         </SectionCard>
 
@@ -692,43 +766,100 @@ const showSlaPerformance = visibleTo('sales', 'account-executive', 'management',
             "Approval cycle time" (Wajib literal Section 22) tidak dapat dihitung — Quotation tidak menyimpan timestamp <code>approvedAt</code>
             (hanya <code>approvedBy</code>/<code>approvalNote</code>), lihat known issues.
           </p>
-          <Table v-if="opportunityQuotationCycle.length">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Lead</TableHead>
-                <TableHead>Quotation</TableHead>
-                <TableHead>Lead Qualified</TableHead>
-                <TableHead>Quotation Dibuat</TableHead>
-                <TableHead>Cycle Time</TableHead>
-                <TableHead>SLA</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow
-                v-for="row in opportunityQuotationCycle"
-                :key="row.quotation.id"
-                class="cursor-pointer hover:bg-muted/50"
+          <ResponsiveDataView v-if="opportunityQuotationCycle.length" :items="opportunityQuotationCycle" :get-key="row => row.quotation.id">
+            <template #desktop="{ items }">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Lead</TableHead>
+                    <TableHead>Quotation</TableHead>
+                    <TableHead>Lead Qualified</TableHead>
+                    <TableHead>Quotation Dibuat</TableHead>
+                    <TableHead>Cycle Time</TableHead>
+                    <TableHead>SLA</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow
+                    v-for="row in items"
+                    :key="row.quotation.id"
+                    class="cursor-pointer hover:bg-muted/50"
+                    @click="navigateTo(`/crm/leads/${row.lead.id}`)"
+                  >
+                    <TableCell class="font-medium text-foreground">
+                      {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.quotation.id }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ formatDate(row.lead.qualifiedAt) }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ formatDate(row.quotation.createdAt) }}
+                    </TableCell>
+                    <TableCell>{{ row.cycleDays }} hari</TableCell>
+                    <TableCell>
+                      <StatusBadge :label="row.withinSla ? 'Dalam SLA' : 'Melebihi SLA'" :tone="row.withinSla ? 'success' : 'destructive'" />
+                    </TableCell>
+                    <TableCell>
+                      <Eye class="h-4 w-4 text-muted-foreground" />
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </template>
+
+            <template #mobile-card="{ item: row }">
+              <button
+                type="button"
+                class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
                 @click="navigateTo(`/crm/leads/${row.lead.id}`)"
               >
-                <TableCell class="font-medium text-foreground">
-                  {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.quotation.id }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ formatDate(row.lead.qualifiedAt) }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ formatDate(row.quotation.createdAt) }}
-                </TableCell>
-                <TableCell>{{ row.cycleDays }} hari</TableCell>
-                <TableCell>
+                <div class="flex items-start justify-between gap-2">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
+                  </p>
                   <StatusBadge :label="row.withinSla ? 'Dalam SLA' : 'Melebihi SLA'" :tone="row.withinSla ? 'success' : 'destructive'" />
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
+                </div>
+                <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                  <div>
+                    <p class="text-muted-foreground">
+                      Quotation
+                    </p>
+                    <p class="text-foreground">
+                      {{ row.quotation.id }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Cycle Time
+                    </p>
+                    <p class="text-foreground">
+                      {{ row.cycleDays }} hari
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Lead Qualified
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatDate(row.lead.qualifiedAt) }}
+                    </p>
+                  </div>
+                  <div>
+                    <p class="text-muted-foreground">
+                      Quotation Dibuat
+                    </p>
+                    <p class="text-foreground">
+                      {{ formatDate(row.quotation.createdAt) }}
+                    </p>
+                  </div>
+                </div>
+              </button>
+            </template>
+          </ResponsiveDataView>
           <EmptyState v-else title="Belum ada Lead dengan Quotation untuk dihitung cycle time-nya" />
         </SectionCard>
       </template>

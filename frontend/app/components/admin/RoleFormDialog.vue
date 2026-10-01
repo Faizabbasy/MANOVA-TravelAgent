@@ -71,6 +71,11 @@ watch(() => props.open, (isOpen) => {
 
 const isValid = computed(() => label.value.trim().length > 0)
 
+const openModel = computed({
+  get: () => props.open,
+  set: value => emit('update:open', value)
+})
+
 function submit () {
   if (!isValid.value) { return }
   emit('submit', {
@@ -85,16 +90,11 @@ function submit () {
 </script>
 
 <template>
-  <Dialog :open="open" @update:open="value => emit('update:open', value)">
-    <DialogContent class="max-w-md">
-      <DialogHeader>
-        <DialogTitle>{{ title }}</DialogTitle>
-        <DialogDescription>
-          Role baru dimulai tanpa akses apa pun kecuali disalin dari role lain. Atur permission modul, menu,
-          dan action flag setelah role dibuat.
-        </DialogDescription>
-      </DialogHeader>
-
+  <ResponsiveFormSheet
+    v-model:open="openModel"
+    :title="title"
+    description="Role baru dimulai tanpa akses apa pun kecuali disalin dari role lain. Atur permission modul, menu, dan action flag setelah role dibuat."
+  >
       <div class="space-y-4">
         <div class="space-y-1.5">
           <Label>Nama Role</Label>
@@ -154,14 +154,13 @@ function submit () {
         </label>
       </div>
 
-      <DialogFooter>
+      <template #footer>
         <Button variant="outline" @click="emit('update:open', false)">
           Batal
         </Button>
         <Button :disabled="!isValid" @click="submit">
           {{ mode === 'edit' ? 'Simpan' : 'Buat Role' }}
         </Button>
-      </DialogFooter>
-    </DialogContent>
-  </Dialog>
+      </template>
+  </ResponsiveFormSheet>
 </template>

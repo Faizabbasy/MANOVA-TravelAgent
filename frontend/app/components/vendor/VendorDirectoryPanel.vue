@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { Search, Plus } from 'lucide-vue-next'
-import { VENDORS, getServicesByVendor, createVendor } from '~/data'
+import { Search, Plus, Eye } from 'lucide-vue-next'
+import { VENDORS, getServicesByVendor, createVendor, getUserByVendorId } from '~/data'
 import { SERVICE_TYPES, VENDOR_STATUSES, findStatusOption } from '~/constants/status'
 import type { ServiceTypeKey } from '~/types/project'
 
@@ -10,6 +10,7 @@ import type { ServiceTypeKey } from '~/types/project'
 
 const { canView, canManage } = usePermissions()
 const canManageVendor = computed(() => canManage('vendor'))
+const { showToast } = useToast()
 
 const searchQuery = ref('')
 const serviceTypeFilter = ref('all')
@@ -54,24 +55,51 @@ function submitCreate () {
     contactPhone: newContactPhone.value.trim() || undefined,
     category: newCategory.value.trim() || undefined
   })
+  const vendorUser = getUserByVendorId(vendor.id)
   resetCreateForm()
   isCreateOpen.value = false
+  if (vendorUser) {
+    showToast('Vendor ditambahkan', `Akun Vendor Portal otomatis dibuat (${vendorUser.email}) — switch ke akun ini di Settings > Demo Role Switcher.`, 'success')
+  }
   navigateTo(`/vendors/${vendor.id}`)
 }
 </script>
 
 <template>
   <div class="space-y-6">
-    <div v-if="canManageVendor" class="flex justify-end">
-      <Dialog v-model:open="isCreateOpen">
-        <DialogTrigger as-child>
-          <Button><Plus class="h-4 w-4 mr-1.5" />Tambah Vendor</Button>
-        </DialogTrigger>
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Tambah Vendor Baru</DialogTitle>
-            <DialogDescription>Vendor baru akan tersedia untuk ditugaskan ke service project.</DialogDescription>
-          </DialogHeader>
+    <RoleAccessState v-if="!canView('vendor')" module-label="modul Vendor & Partner" />
+
+    <template v-else>
+      <div class="flex flex-col sm:flex-row sm:items-center gap-3">
+        <div class="relative flex-1 max-w-sm w-full">
+          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input v-model="searchQuery" placeholder="Cari nama vendor..." class="pl-9" />
+        </div>
+
+        <!-- Select + tombol sejajar horizontal di satu baris (mobile maupun desktop), bukan ditumpuk. -->
+        <div class="flex items-center gap-3">
+          <select
+            v-model="serviceTypeFilter"
+            class="min-w-0 flex-1 appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer sm:flex-initial"
+          >
+            <option value="all">
+              Semua Jenis Layanan
+            </option>
+            <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+              {{ type.label }}
+            </option>
+          </select>
+
+          <ResponsiveFormSheet
+            v-if="canManageVendor"
+            v-model:open="isCreateOpen"
+            title="Tambah Vendor Baru"
+            description="Vendor baru akan tersedia untuk ditugaskan ke service project."
+            content-class="max-w-md"
+          >
+            <template #trigger>
+              <Button class="shrink-0 sm:ml-auto"><Plus class="h-4 w-4 mr-1.5" />Tambah Vendor</Button>
+            </template>
           <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="vendor-name">Nama Vendor</Label>
@@ -102,83 +130,119 @@ function submitCreate () {
               <Input id="vendor-contact-phone" v-model="newContactPhone" placeholder="08xx-xxxx-xxxx" />
             </div>
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isCreateOpen = false">
               Batal
             </Button>
             <Button :disabled="!newName.trim() || !newContactName.trim()" @click="submitCreate">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-
-    <RoleAccessState v-if="!canView('vendor')" module-label="modul Vendor & Partner" />
-
-    <template v-else>
-      <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        <div class="relative flex-1 max-w-sm w-full">
-          <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input v-model="searchQuery" placeholder="Cari nama vendor..." class="pl-9" />
+          </template>
+        </ResponsiveFormSheet>
         </div>
-        <select
-          v-model="serviceTypeFilter"
-          class="appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-        >
-          <option value="all">
-            Semua Jenis Layanan
-          </option>
-          <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
-            {{ type.label }}
-          </option>
-        </select>
       </div>
 
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Vendor</TableHead>
-              <TableHead>Jenis Layanan</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Kontak</TableHead>
-              <TableHead>Penugasan Aktif</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.vendor.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/vendors/${row.vendor.id}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ row.vendor.name }}
-              </TableCell>
-              <TableCell>
-                <StatusBadge
-                  :label="findStatusOption(SERVICE_TYPES, row.vendor.serviceType).label"
-                  :tone="findStatusOption(SERVICE_TYPES, row.vendor.serviceType).tone"
-                />
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.vendor.category ?? '—' }}
-              </TableCell>
-              <TableCell>
+        <ResponsiveDataView :items="rows" :get-key="row => row.vendor.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Vendor</TableHead>
+                  <TableHead>Jenis Layanan</TableHead>
+                  <TableHead>Kategori</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Kontak</TableHead>
+                  <TableHead>Penugasan Aktif</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.vendor.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/vendors/${row.vendor.id}`)">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.vendor.name }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(SERVICE_TYPES, row.vendor.serviceType).label"
+                      :tone="findStatusOption(SERVICE_TYPES, row.vendor.serviceType).tone"
+                    />
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.vendor.category ?? '—' }}
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge
+                      :label="findStatusOption(VENDOR_STATUSES, row.vendor.status ?? 'active').label"
+                      :tone="findStatusOption(VENDOR_STATUSES, row.vendor.status ?? 'active').tone"
+                    />
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.vendor.contactName }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.activeAssignmentCount }} service
+                  </TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="rows.length === 0" :colspan="7">
+                  {{ searchQuery || serviceTypeFilter !== 'all' ? 'Tidak ada vendor yang cocok dengan filter.' : 'Belum ada vendor.' }}
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="navigateTo(`/vendors/${row.vendor.id}`)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.vendor.name }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ row.vendor.contactName }}
+                  </p>
+                </div>
                 <StatusBadge
                   :label="findStatusOption(VENDOR_STATUSES, row.vendor.status ?? 'active').label"
                   :tone="findStatusOption(VENDOR_STATUSES, row.vendor.status ?? 'active').tone"
                 />
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.vendor.contactName }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.activeAssignmentCount }} service
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
-              {{ searchQuery || serviceTypeFilter !== 'all' ? 'Tidak ada vendor yang cocok dengan filter.' : 'Belum ada vendor.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Jenis Layanan
+                  </p>
+                  <p class="text-foreground">
+                    {{ findStatusOption(SERVICE_TYPES, row.vendor.serviceType).label }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Kategori
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.vendor.category ?? '—' }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Penugasan Aktif
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.activeAssignmentCount }} service
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

@@ -27,6 +27,12 @@ export type LeadServiceCategory = 'corporate-travel' | 'group-travel' | 'individ
 /** Tingkat urgensi (Prompt 20) — field opsional form Qualification. */
 export type LeadUrgency = 'low' | 'medium' | 'high'
 
+/** Group Trip B2C Qualification (`qualifyGroupTripLead`, `app/data/index.ts`) — field khusus Lead
+ * `serviceCategory: 'individual-travel'` yang memilih Project B2C existing, bukan booking standalone. */
+export type B2cPriceAcceptance = 'accept' | 'need-discussion' | 'not-suitable'
+export type B2cBookingReadiness = 'ready' | 'need-follow-up' | 'still-considering'
+export type B2cQualificationResult = 'qualified' | 'follow-up' | 'waitlist' | 'not-qualified'
+
 /**
  * Status workflow AE-facing — DIRIVASI (bukan field tersimpan) lewat `getLeadWorkflowStatus`
  * (`app/data/index.ts`) dari kombinasi `Lead.stage` + `Quotation.approvalStatus` + `Lead.projectId`/
@@ -71,7 +77,9 @@ export interface Lead {
   title?: string
   /** B2B — terisi begitu Quotation dibuat untuk Lead ini (`createQuotation`). */
   quotationId?: ID
-  /** B2B — terisi begitu "Mark as Won" berhasil (`markLeadWon`), menandakan Project sudah dibuat. */
+  /** B2B — terisi begitu "Mark as Won" berhasil (`markLeadWon`), menandakan Project sudah dibuat. JUGA
+   * dipakai Group Trip B2C (`qualifyGroupTripLead`) — terisi begitu Lead benar-benar Qualified (Awaiting
+   * DP), bukan sekadar memilih Project di dropdown (lihat `groupTripProjectId` di bawah untuk itu). */
   projectId?: ID
   /** B2C — terisi begitu Lead individual-travel di-qualify sekaligus jadi Sales Order (`qualifyLeadAndCreateSalesOrder`). */
   salesOrderId?: ID
@@ -96,6 +104,18 @@ export interface Lead {
   decisionMaker?: string
   urgency?: LeadUrgency
   specialRequestNote?: string
+
+  /** Group Trip B2C — Project B2C yang dipilih di form, terisi begitu dropdown dipilih, LEPAS dari hasil
+   * qualification (beda dari `projectId` di bawah, yang baru terisi begitu benar-benar Qualified/won).
+   * Dipakai Project detail untuk bucket "Linked/Qualified Leads" (superset — termasuk waitlist/follow-up). */
+  groupTripProjectId?: ID
+  b2cAdultCount?: number
+  b2cChildCount?: number
+  b2cInfantCount?: number
+  b2cPriceAcceptance?: B2cPriceAcceptance
+  b2cBookingReadiness?: B2cBookingReadiness
+  b2cQualificationResult?: B2cQualificationResult
+  b2cNextFollowUpDate?: string
 }
 
 /**

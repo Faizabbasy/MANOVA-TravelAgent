@@ -112,18 +112,25 @@ function handleDownload (document: Document) {
 <template>
   <div class="space-y-6">
     <div v-if="canView('client-portal')" class="flex justify-end">
-      <Dialog v-model:open="isUploadOpen">
-        <DialogTrigger as-child>
-          <Button size="sm" :disabled="projects.length === 0" @click="openUpload">
-            <Plus class="h-4 w-4 mr-1.5" />Upload Document
+      <ResponsiveFormSheet
+        v-model:open="isUploadOpen"
+        title="Upload Document Baru"
+        description="Mock upload — tidak ada file storage nyata, hanya metadata tercatat (D-006)."
+        content-class="max-w-lg"
+        scroll
+      >
+        <template #trigger>
+          <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+          <Button
+            size="sm"
+            :disabled="projects.length === 0"
+            class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+            @click="openUpload"
+          >
+            <Plus class="h-4 w-4" />Upload Document
           </Button>
-        </DialogTrigger>
-        <DialogScrollContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Upload Document Baru</DialogTitle>
-            <DialogDescription>Mock upload — tidak ada file storage nyata, hanya metadata tercatat (D-006).</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </template>
+        <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="doc-project">Project Order</Label>
               <select id="doc-project" v-model="uploadProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -136,7 +143,7 @@ function handleDownload (document: Document) {
               <Label for="doc-name">Nama Dokumen</Label>
               <Input id="doc-name" v-model="uploadName" placeholder="mis. Scan_Paspor_Peserta.pdf" />
             </div>
-            <div class="grid grid-cols-2 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label for="doc-category">Kategori</Label>
                 <select id="doc-category" v-model="uploadCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -151,16 +158,15 @@ function handleDownload (document: Document) {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isUploadOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!uploadProjectId || !uploadName.trim()" @click="submitUpload">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isUploadOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!uploadProjectId || !uploadName.trim()" @click="submitUpload">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </div>
 
     <RoleAccessState v-if="!canView('client-portal')" module-label="Client Portal" />
@@ -190,76 +196,153 @@ function handleDownload (document: Document) {
           </select>
         </div>
 
-        <div class="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Document</TableHead>
-                <TableHead>Related Entity</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead>Version</TableHead>
-                <TableHead>Verification</TableHead>
-                <TableHead>Expiry</TableHead>
-                <TableHead>Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="doc in rows" :key="doc.id">
-                <TableCell class="font-medium text-foreground max-w-[220px] truncate">
-                  {{ doc.name }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ findStatusOption(DOCUMENT_ENTITY_TYPES, doc.entityType).label }} · {{ doc.entityId }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ projectName(doc.projectId) }}
-                </TableCell>
-                <TableCell><StatusBadge :label="findStatusOption(CLIENT_DOCUMENT_CATEGORIES, getClientDocumentCategory(doc)).label" :tone="findStatusOption(CLIENT_DOCUMENT_CATEGORIES, getClientDocumentCategory(doc)).tone" /></TableCell>
-                <TableCell class="text-muted-foreground">
-                  v{{ doc.version }}
-                </TableCell>
-                <TableCell>
-                  <StatusBadge v-if="doc.verified" label="Terverifikasi" tone="success" />
-                  <span v-else class="text-xs text-muted-foreground">Belum diverifikasi</span>
-                </TableCell>
-                <TableCell>
+        <ResponsiveDataView v-if="rows.length" :items="rows" :get-key="doc => doc.id">
+          <template #desktop="{ items }">
+            <div class="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Document</TableHead>
+                    <TableHead>Related Entity</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Category</TableHead>
+                    <TableHead>Version</TableHead>
+                    <TableHead>Verification</TableHead>
+                    <TableHead>Expiry</TableHead>
+                    <TableHead>Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="doc in items" :key="doc.id">
+                    <TableCell class="font-medium text-foreground max-w-[220px] truncate">
+                      {{ doc.name }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ findStatusOption(DOCUMENT_ENTITY_TYPES, doc.entityType).label }} · {{ doc.entityId }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ projectName(doc.projectId) }}
+                    </TableCell>
+                    <TableCell><StatusBadge :label="findStatusOption(CLIENT_DOCUMENT_CATEGORIES, getClientDocumentCategory(doc)).label" :tone="findStatusOption(CLIENT_DOCUMENT_CATEGORIES, getClientDocumentCategory(doc)).tone" /></TableCell>
+                    <TableCell class="text-muted-foreground">
+                      v{{ doc.version }}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge v-if="doc.verified" label="Terverifikasi" tone="success" />
+                      <span v-else class="text-xs text-muted-foreground">Belum diverifikasi</span>
+                    </TableCell>
+                    <TableCell>
+                      <template v-if="doc.expiresAt">
+                        <StatusBadge
+                          :label="isDocumentExpired(doc.expiresAt) ? `Expired ${formatDate(doc.expiresAt)}` : isDocumentExpiringSoon(doc.expiresAt) ? `Segera: ${formatDate(doc.expiresAt)}` : formatDate(doc.expiresAt)"
+                          :tone="isDocumentExpired(doc.expiresAt) ? 'destructive' : isDocumentExpiringSoon(doc.expiresAt) ? 'warning' : 'neutral'"
+                        />
+                      </template>
+                      <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
+                    </TableCell>
+                    <TableCell>
+                      <div class="flex items-center gap-2">
+                        <NuxtLink v-if="doc.sourceType === 'generated' && doc.previewRoute" :to="doc.previewRoute" target="_blank" class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          Preview <ExternalLink class="h-3 w-3" />
+                        </NuxtLink>
+                        <button v-else class="text-xs text-primary hover:underline" @click="handleDownload(doc)">
+                          Download
+                        </button>
+                        <button class="text-xs text-muted-foreground hover:underline" @click="openDetail(doc)">
+                          Detail
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </template>
+
+          <template #mobile-card="{ item: doc }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ doc.name }}
+                  </p>
+                  <p class="text-xs text-muted-foreground">
+                    {{ findStatusOption(DOCUMENT_ENTITY_TYPES, doc.entityType).label }} · {{ doc.entityId }}
+                  </p>
+                </div>
+                <StatusBadge :label="findStatusOption(CLIENT_DOCUMENT_CATEGORIES, getClientDocumentCategory(doc)).label" :tone="findStatusOption(CLIENT_DOCUMENT_CATEGORIES, getClientDocumentCategory(doc)).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Project
+                  </p>
+                  <p class="text-foreground">
+                    {{ projectName(doc.projectId) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Version
+                  </p>
+                  <p class="text-foreground">
+                    v{{ doc.version }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Verification
+                  </p>
+                  <p class="text-foreground">
+                    <StatusBadge v-if="doc.verified" label="Terverifikasi" tone="success" />
+                    <span v-else>Belum diverifikasi</span>
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Expiry
+                  </p>
                   <template v-if="doc.expiresAt">
                     <StatusBadge
                       :label="isDocumentExpired(doc.expiresAt) ? `Expired ${formatDate(doc.expiresAt)}` : isDocumentExpiringSoon(doc.expiresAt) ? `Segera: ${formatDate(doc.expiresAt)}` : formatDate(doc.expiresAt)"
                       :tone="isDocumentExpired(doc.expiresAt) ? 'destructive' : isDocumentExpiringSoon(doc.expiresAt) ? 'warning' : 'neutral'"
                     />
                   </template>
-                  <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
-                </TableCell>
-                <TableCell>
-                  <div class="flex items-center gap-2">
-                    <NuxtLink v-if="doc.sourceType === 'generated' && doc.previewRoute" :to="doc.previewRoute" target="_blank" class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                      Preview <ExternalLink class="h-3 w-3" />
-                    </NuxtLink>
-                    <button v-else class="text-xs text-primary hover:underline" @click="handleDownload(doc)">
-                      Download
-                    </button>
-                    <button class="text-xs text-muted-foreground hover:underline" @click="openDetail(doc)">
-                      Detail
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-              <TableEmpty v-if="rows.length === 0" :colspan="8">
-                <EmptyState :icon="FileText" :title="documents.length ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'" :description="documents.length ? 'Coba ubah kata kunci pencarian atau filter.' : 'Dokumen akan tampil di sini setelah tim kami membagikannya atau Anda mengunggah.'" />
-              </TableEmpty>
-            </TableBody>
-          </Table>
-        </div>
+                  <p v-else class="text-foreground">
+                    Tidak ada
+                  </p>
+                </div>
+              </div>
+              <div class="mt-3 flex items-center gap-3 border-t border-border pt-3">
+                <NuxtLink v-if="doc.sourceType === 'generated' && doc.previewRoute" :to="doc.previewRoute" target="_blank" class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                  Preview <ExternalLink class="h-3 w-3" />
+                </NuxtLink>
+                <button v-else class="text-xs text-primary hover:underline" @click="handleDownload(doc)">
+                  Download
+                </button>
+                <button class="text-xs text-muted-foreground hover:underline" @click="openDetail(doc)">
+                  Detail
+                </button>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState
+          v-else
+          :icon="FileText"
+          :title="documents.length ? 'Tidak ada dokumen yang cocok' : 'Belum ada dokumen'"
+          :description="documents.length ? 'Coba ubah kata kunci pencarian atau filter.' : 'Dokumen akan tampil di sini setelah tim kami membagikannya atau Anda mengunggah.'"
+        />
       </SectionCard>
 
-      <Dialog v-model:open="isDetailOpen">
-        <DialogScrollContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{{ activeDocument?.name }}</DialogTitle>
-            <DialogDescription>Version history, komentar, dan replace version.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isDetailOpen"
+        :title="activeDocument?.name ?? ''"
+        description="Version history, komentar, dan replace version."
+        content-class="max-w-lg"
+        scroll
+      >
           <div v-if="activeDocument" class="space-y-4 py-2">
             <div>
               <p class="text-xs font-medium text-muted-foreground mb-2">
@@ -300,13 +383,12 @@ function handleDownload (document: Document) {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isDetailOpen = false">
-              Tutup
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isDetailOpen = false">
+            Tutup
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

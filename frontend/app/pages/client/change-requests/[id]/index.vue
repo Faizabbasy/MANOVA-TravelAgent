@@ -111,31 +111,25 @@ const activityHistory = computed(() => (request.value ? getChangeRequestActivity
       >
         <template #actions>
           <StatusBadge :label="findStatusOption(CHANGE_REQUEST_STATUSES, request.status).label" :tone="findStatusOption(CHANGE_REQUEST_STATUSES, request.status).tone" />
-          <Dialog v-model:open="isCancelOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet v-model:open="isCancelOpen" title="Batalkan Change Request" description="Alasan wajib diisi." content-class="max-w-md">
+            <template #trigger>
               <Button v-if="canCancel" size="sm" variant="ghost">
                 Batalkan
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Batalkan Change Request</DialogTitle>
-                <DialogDescription>Alasan wajib diisi.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="cr-cancel-reason">Alasan</Label>
-                <Input id="cr-cancel-reason" v-model="cancelReason" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isCancelOpen = false">
-                  Tutup
-                </Button>
-                <Button variant="destructive" :disabled="!cancelReason.trim()" @click="submitCancel">
-                  Batalkan Permintaan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </template>
+            <div class="space-y-1.5 py-2">
+              <Label for="cr-cancel-reason">Alasan</Label>
+              <Input id="cr-cancel-reason" v-model="cancelReason" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isCancelOpen = false">
+                Tutup
+              </Button>
+              <Button variant="destructive" :disabled="!cancelReason.trim()" @click="submitCancel">
+                Batalkan Permintaan
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </template>
       </PageHeader>
 
@@ -218,31 +212,25 @@ const activityHistory = computed(() => (request.value ? getChangeRequestActivity
           <Button @click="handleApprove">
             Approve
           </Button>
-          <Dialog v-model:open="isRejectOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet v-model:open="isRejectOpen" title="Reject Impact" description="Alasan wajib diisi." content-class="max-w-md">
+            <template #trigger>
               <Button variant="outline">
                 Reject
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Reject Impact</DialogTitle>
-                <DialogDescription>Alasan wajib diisi.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="cr-reject-reason">Alasan</Label>
-                <Input id="cr-reject-reason" v-model="rejectReason" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isRejectOpen = false">
-                  Batal
-                </Button>
-                <Button variant="destructive" :disabled="!rejectReason.trim()" @click="submitReject">
-                  Reject
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </template>
+            <div class="space-y-1.5 py-2">
+              <Label for="cr-reject-reason">Alasan</Label>
+              <Input id="cr-reject-reason" v-model="rejectReason" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isRejectOpen = false">
+                Batal
+              </Button>
+              <Button variant="destructive" :disabled="!rejectReason.trim()" @click="submitReject">
+                Reject
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </div>
       </SectionCard>
 

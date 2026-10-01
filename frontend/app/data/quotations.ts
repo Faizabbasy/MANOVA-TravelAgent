@@ -54,5 +54,9 @@ export const QUOTATIONS: Quotation[] = reactive([
     inclusions: 'Tiket pesawat PP Jakarta-Surabaya, hotel bintang 4 (2 malam), transportasi bandara-hotel PP.',
     exclusions: 'Pengeluaran pribadi, asuransi perjalanan, aktivitas di luar itinerary.',
     termsAndConditions: 'Harga berlaku sampai tanggal validity. DP 30% tidak dapat dikembalikan setelah konfirmasi booking.'
-  }
+  },
+  // QUO-011/012 — Demo Client Presentation: quotation hero yang sudah `approved`, pasangan Lead Won
+  // LED-029 (B2B, PRJ-501)/LED-031 (B2C, PRJ-502) — siap didemokan live seluruh 6-step Project Order.
+  { id: 'QUO-011', leadId: 'LED-029', amountIdr: 210_000_000, createdAt: '2026-06-25', accepted: true, version: 1, approvalStatus: 'approved', approvedBy: 'USR-003' },
+  { id: 'QUO-012', leadId: 'LED-031', amountIdr: 40_000_000, createdAt: '2026-06-28', accepted: true, version: 1, approvalStatus: 'approved', approvedBy: 'USR-003' }
 ])

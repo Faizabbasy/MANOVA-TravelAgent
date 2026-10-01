@@ -158,6 +158,8 @@ export const DOCUMENTS: ProjectDocument[] = [
  */
 export const TASKS: ProjectTask[] = reactive([
   { id: 'TSK-1011', projectId: 'PRJ-101', title: 'Konfirmasi manifest penumpang', status: 'done', assignedTo: 'USR-002' },
+  { id: 'TSK-1012', projectId: 'PRJ-101', title: 'Kirim briefing pra-keberangkatan ke seluruh traveler', status: 'in-progress', dueAt: '2026-08-15', assignedTo: 'USR-002' },
+  { id: 'TSK-1013', projectId: 'PRJ-101', title: 'Siapkan dokumen asuransi perjalanan', status: 'not-started', dueAt: '2026-08-17', assignedTo: 'USR-002' },
 
   // isBlocked/blockedReason (Section 12 baru, Wajib "blocker") — dibackfill pada 1 task per skenario yang paling wajar diblokir oleh faktor eksternal (bukan seluruh task, agar tetap merepresentasikan kondisi realistis campuran blocked/tidak).
   { id: 'TSK-1021', projectId: 'PRJ-102', title: 'Reschedule hotel booking', status: 'in-progress', assignedTo: 'USR-002', isBlocked: true, blockedReason: 'Menunggu konfirmasi ketersediaan kamar Suite dari hotel' },
@@ -170,15 +172,26 @@ export const TASKS: ProjectTask[] = reactive([
   { id: 'TSK-1032', projectId: 'PRJ-103', title: 'Konfirmasi venue MICE hari ke-2', status: 'pending-confirmation', isMilestone: true, assignedTo: 'USR-002' },
   { id: 'TSK-1033', projectId: 'PRJ-103', title: 'Kirim rundown acara ke client', status: 'not-started', dependsOnTaskId: 'TSK-1032' },
   { id: 'TSK-1034', projectId: 'PRJ-103', title: 'Rekonsiliasi actual cost transportation', status: 'overdue', dueAt: '2026-07-25', assignedTo: 'USR-002' },
-  { id: 'TSK-1035', projectId: 'PRJ-103', title: 'Verifikasi ulang manifest VIP sebelum keberangkatan', status: 'in-progress', dueAt: '2026-08-05', isMilestone: true }
+  { id: 'TSK-1035', projectId: 'PRJ-103', title: 'Verifikasi ulang manifest VIP sebelum keberangkatan', status: 'in-progress', dueAt: '2026-08-05', isMilestone: true },
+
+  // PRJ-205 — Open Trip Bromo Ijen (dummy Project B2C), masih tahap planning menuju keberangkatan 18 Sep 2026.
+  // dueAt disusun relatif terhadap DEMO_REFERENCE_DATE (2026-07-29, `app/utils/attention.ts`) supaya widget
+  // "Task Due Soon" (H+14) dan status `overdue` konsisten — bukan tanggal acak.
+  { id: 'TSK-2051', projectId: 'PRJ-205', title: 'Konfirmasi jeep & guide sunrise Bromo', status: 'in-progress', assignedTo: 'USR-002', dueAt: '2026-08-05', isMilestone: true },
+  { id: 'TSK-2052', projectId: 'PRJ-205', title: 'Booking hotel basecamp Paltuding, Ijen', status: 'not-started', dueAt: '2026-08-01', isBlocked: true, blockedReason: 'Menunggu konfirmasi ketersediaan kamar dari homestay basecamp Ijen' },
+  { id: 'TSK-2053', projectId: 'PRJ-205', title: 'Kirim briefing & checklist perlengkapan trekking ke peserta', status: 'pending-confirmation', dueAt: '2026-08-10', dependsOnTaskId: 'TSK-2051' },
+  { id: 'TSK-2054', projectId: 'PRJ-205', title: 'Follow-up pelunasan sisa pembayaran peserta Awaiting DP', status: 'overdue', dueAt: '2026-07-22', assignedTo: 'USR-002' },
+  { id: 'TSK-2055', projectId: 'PRJ-205', title: 'Verifikasi dokumen & kesehatan peserta sebelum trekking', status: 'done', assignedTo: 'USR-002' }
 ])
 
 /**
  * Project Risk (Section 09 — roadmap Section 00–24 baru, Wajib "risks"). Diseed pada `PRJ-103` (project
- * `complex`, MICE 60 pax — skenario paling wajar untuk risk tracking nyata), tidak dipaksakan ke seluruh
- * project demo lain.
+ * `complex`, MICE 60 pax — skenario paling wajar untuk risk tracking nyata) dan satu risk ringan pada
+ * `PRJ-101` (supaya Departure Readiness Gate/Alasan Belum Siap punya contoh isi selain "tidak ada blocker"),
+ * tidak dipaksakan ke seluruh project demo lain.
  */
 export const PROJECT_RISKS: ProjectRisk[] = reactive([
+  { id: 'RSK-1011', projectId: 'PRJ-101', title: 'Cuaca musim hujan berpotensi mengganggu jadwal penerbangan', description: 'Pantau prakiraan cuaca H-3 keberangkatan, siapkan kontinjensi reschedule bila diperlukan.', severity: 'low', status: 'open', raisedBy: 'USR-002', createdAt: '2026-08-05' },
   { id: 'RSK-1031', projectId: 'PRJ-103', title: 'Ketersediaan venue MICE hari ke-2 belum terkonfirmasi final', description: 'Venue alternatif perlu disiapkan bila konfirmasi tidak turun H-7.', severity: 'high', status: 'open', raisedBy: 'USR-002', createdAt: '2026-07-20' },
   { id: 'RSK-1032', projectId: 'PRJ-103', title: 'Cuaca ekstrem berpotensi mengganggu sesi outdoor', description: 'Rencana cadangan indoor perlu disiapkan tim Operations.', severity: 'medium', status: 'mitigated', raisedBy: 'USR-002', createdAt: '2026-07-18' }
 ])

@@ -1,23 +1,28 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, type ComputedRef } from 'vue'
+import { format, parseISO } from 'date-fns'
+import { id as localeId } from 'date-fns/locale'
+import { CalendarDate, type DateValue } from '@internationalized/date'
 import {
   FolderKanban, Handshake, PlaneTakeoff, AlertTriangle, Receipt, Users, Save, X,
-  Wallet, PieChart, ListChecks, CheckCircle2, CalendarClock, History, Activity, ShieldCheck, Package, Building2
+  Wallet, PieChart, ListChecks, CheckCircle2, CalendarClock, History, Activity, ShieldCheck, Package, Building2,
+  TrendingUp, TrendingDown, Clock, SlidersHorizontal, ArrowDownToLine, ArrowUpFromLine, CalendarRange
 } from 'lucide-vue-next'
+import type { HeroMetric, HeroSecondaryMetric } from '~/components/dashboard/DashboardHeroPanel.vue'
+import type { CashFlowSideMetric } from '~/components/dashboard/DashboardCashFlowSection.vue'
 import {
   PROJECTS, LEADS, QUOTATIONS, PARTIES, USERS,
-  getPartyById, getLeadById, getProjectById, getTasksByProject, getActivitiesByProject,
+  getPartyById, getLeadById, getProjectById, getInvoicesByProject, getTasksByProject, getActivitiesByProject,
   getServicesForProjects, getUpcomingTasks, getRecentChanges, getUpcomingFollowUps,
   getSavedViewsForUser, createSavedView, deleteSavedView, applySavedView
 } from '~/data'
-import { formatBusinessDate, todayJakarta } from '~/lib/finance/dates'
-import { formatMoneyMinor } from '~/lib/money'
+import { getProjectActualCostIdr, getRevenueByPeriod, getOpexTotalIdr, getOpexPeriods, OPEX_ENTRIES, getPayables } from '~/data/finance-ext'
 import {
   PROJECT_STATUSES, QUOTATION_APPROVAL_STATUSES, PROJECT_CHARACTERISTICS, SERVICE_STATUSES, findStatusOption
 } from '~/constants/status'
-import { formatCurrencyIdr, formatDateRange, formatDateTime, formatDayLabel, daysUntil } from '~/utils/format'
+import { formatCurrencyIdr, formatPercentage, formatDateRange, formatDateTime, formatDayLabel, daysUntil } from '~/utils/format'
 import {
-  isUpcomingDeparture, isBudgetOverrun, hasUnreviewedChange,
+  isUpcomingDeparture, isBudgetOverrun, isInvoiceOverdue, hasUnreviewedChange,
   isProjectNeedingAttention, DEMO_REFERENCE_DATE
 } from '~/utils/attention'
 import { ROLES } from '~/constants/roles'
@@ -34,8 +39,7 @@ const { showToast } = useToast()
 
 const roleLabel = computed(() => ROLES.value.find(role => role.value === currentRole.value)?.label ?? currentRole.value)
 const firstName = computed(() => currentUser.value.name.split(' ')[0])
-/** Today's real date (Jakarta). Operational demo widgets still count from DEMO_REFERENCE_DATE until they move to the server. */
-const dateLabel = computed(() => formatDayLabel(todayJakarta()))
+const dateLabel = computed(() => formatDayLabel(DEMO_REFERENCE_DATE))
 
 /**
  * Section 22 (D-079) — SSR loading-skeleton fix. Sebelumnya `isLoading` hanya berubah ke `false` lewat
@@ -68,6 +72,59 @@ const clientFilter = ref<'all' | string>('all')
 const ownerFilter = ref<'all' | string>('all')
 const periodFilter = ref<'all' | '30' | '60' | '90'>('all')
 
+/**
+ * Filter periode financial (Pemasukan Bersih/Profit/Monthly Cash Flow) — terpisah dari box Filter di atas
+ * (yang menyaring Project). Preset "Custom" tidak langsung mengubah state, hanya membuka sheet tanggal —
+ * baru diterapkan saat user menekan "Terapkan" (`applyCustomPeriod`), supaya widget tidak berkedip ke
+ * rentang kosong saat baru satu dari dua tanggal terisi.
+ */
+type FinancialPeriodPreset = 'this-month' | 'this-year' | 'all-time' | 'custom'
+const FINANCIAL_PERIOD_OPTIONS: { value: FinancialPeriodPreset; label: string }[] = [
+  { value: 'this-month', label: 'Bulan Ini' },
+  { value: 'this-year', label: 'Tahun Ini' },
+  { value: 'all-time', label: 'Semua Waktu' },
+  { value: 'custom', label: 'Custom' }
+]
+const financialPeriodPreset = ref<FinancialPeriodPreset>('this-month')
+const isCustomPeriodOpen = ref(false)
+const customStartDate = ref('')
+const customEndDate = ref('')
+
+function selectFinancialPeriod (value: FinancialPeriodPreset) {
+  if (value === 'custom') {
+    isCustomPeriodOpen.value = true
+    return
+  }
+  financialPeriodPreset.value = value
+}
+
+function applyCustomPeriod () {
+  if (!customStartDate.value || !customEndDate.value) { return }
+  financialPeriodPreset.value = 'custom'
+  isCustomPeriodOpen.value = false
+}
+
+function isoToCalendarDate (iso: string): CalendarDate {
+  const [year, month, day] = iso.split('-').map(Number)
+  return new CalendarDate(year, month, day)
+}
+function calendarDateToIso (date: DateValue): string {
+  return `${String(date.year).padStart(4, '0')}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`
+}
+
+/** Jembatan string ISO (`customStartDate`/`customEndDate`, dipakai logic filter) <-> `DateRange` yang
+ * dipakai `RangeCalendar` (kalender klik-langsung, bukan native `&lt;input type="date"&gt;`). */
+const customCalendarRange = computed({
+  get: () => ({
+    start: customStartDate.value ? isoToCalendarDate(customStartDate.value) : undefined,
+    end: customEndDate.value ? isoToCalendarDate(customEndDate.value) : undefined
+  }),
+  set: (value) => {
+    customStartDate.value = value?.start ? calendarDateToIso(value.start) : ''
+    customEndDate.value = value?.end ? calendarDateToIso(value.end) : ''
+  }
+})
+
 const showFilters = visibleTo('management', 'project-manager', 'operations', 'ticketing', 'accommodation', 'transportation', 'mice', 'finance', 'super-admin', 'viewer')
 /**
  * Dulu disembunyikan untuk Project Manager (yang hanya melihat project miliknya sendiri). Sejak
@@ -94,6 +151,18 @@ const ownerOptions = computed(() => {
 const mySavedViews = computed(() => getSavedViewsForUser(currentUser.value.id, 'dashboard'))
 const isSaveViewOpen = ref(false)
 const newViewLabel = ref('')
+
+/** Filter bar mobile — 5 Select sejajar di desktop tidak muat di layar sempit (wrap jadi beberapa baris
+ * berantakan). Di mobile disembunyikan di belakang satu tombol "Filter" yang buka bottom Sheet, badge
+ * menunjukkan jumlah filter aktif supaya kelihatan tanpa perlu buka sheet-nya dulu. */
+const isMobileFilterOpen = ref(false)
+const activeFilterCount = computed(() => [
+  statusFilter.value !== 'all',
+  typeFilter.value !== 'all',
+  clientFilter.value !== 'all',
+  ownerFilter.value !== 'all',
+  periodFilter.value !== 'all'
+].filter(Boolean).length)
 
 function submitSaveView () {
   const label = newViewLabel.value.trim()
@@ -131,11 +200,28 @@ function removeView (id: string, label: string) {
   showToast('Saved View Dihapus', `"${label}" telah dihapus.`, 'info')
 }
 
+/**
+ * Filter periode dashboard (Bulan Ini/Tahun Ini/Semua Waktu/Custom) — GLOBAL, dipakai baik oleh data
+ * finance (`currentFinancialPeriods`, per bulan invoice/opex) maupun widget berbasis Project di sini
+ * (per `travelStartDate`, konsisten dengan filter "Periode Keberangkatan" yang sudah ada). Beda sumber
+ * tanggal karena beda domain — revenue tercatat per bulan buku, project tercatat per tanggal keberangkatan
+ * — tapi preset & rentang yang dipilih user SAMA untuk keduanya.
+ */
+function isWithinDashboardPeriod (dateIso: string | undefined): boolean {
+  if (!dateIso) { return false }
+  if (financialPeriodPreset.value === 'all-time') { return true }
+  if (financialPeriodPreset.value === 'this-month') { return dateIso.slice(0, 7) === referenceYearMonth }
+  if (financialPeriodPreset.value === 'this-year') { return dateIso.slice(0, 4) === referenceYear }
+  if (!customStartDate.value || !customEndDate.value) { return true }
+  return dateIso >= customStartDate.value && dateIso <= customEndDate.value
+}
+
 function matchesCommonFilters (project: Project): boolean {
   if (statusFilter.value !== 'all' && project.status !== statusFilter.value) { return false }
   if (typeFilter.value !== 'all' && project.characteristic !== typeFilter.value) { return false }
   if (clientFilter.value !== 'all' && project.partyId !== clientFilter.value) { return false }
   if (periodFilter.value !== 'all' && daysUntil(project.travelStartDate, DEMO_REFERENCE_DATE) > Number(periodFilter.value)) { return false }
+  if (!isWithinDashboardPeriod(project.travelStartDate)) { return false }
   return true
 }
 
@@ -151,17 +237,9 @@ const myProjectsAll = computed(() => PROJECTS.filter(project =>
 ))
 const myProjectIds = computed(() => myProjectsAll.value.map(p => p.id))
 
-/**
- * Finance from the server (Phase 7): payment status per project for Admin, plus cash/forecast/AR/AP and cost
- * per project for Finance and Super Admin. Overdue invoices come from here, never from the old mock invoices.
- */
-const overview = useFinanceOverview()
-const financeFull = overview.full
-const hasOverdueInvoice = (projectId: string) => overview.byProject.value.get(projectId)?.hasOverdue ?? false
-
 function attentionOf (projects: Project[]) {
-  return projects.filter(project => hasOverdueInvoice(project.id) || isProjectNeedingAttention(project, {
-    invoices: [],
+  return projects.filter(project => isProjectNeedingAttention(project, {
+    invoices: getInvoicesByProject(project.id),
     tasks: getTasksByProject(project.id),
     activities: getActivitiesByProject(project.id)
   }))
@@ -172,7 +250,7 @@ function attentionReasons (projectId: string): string[] {
   const reasons: string[] = []
   if (project.status === 'on-hold') { reasons.push('Status On Hold') }
   if (isBudgetOverrun(project)) { reasons.push('Actual cost melebihi budget') }
-  if (hasOverdueInvoice(projectId)) { reasons.push('Ada tagihan customer terlambat') }
+  if (getInvoicesByProject(projectId).some(invoice => isInvoiceOverdue(invoice))) { reasons.push('Ada invoice overdue') }
   if (getTasksByProject(projectId).some(task => task.status === 'overdue')) { reasons.push('Ada task overdue') }
   if (hasUnreviewedChange(getActivitiesByProject(projectId))) { reasons.push('Ada perubahan belum direview') }
   return reasons
@@ -187,6 +265,18 @@ const activeProjects = computed(() => filteredProjects.value.filter(p => !['comp
 const openLeads = computed(() => LEADS.filter(lead => lead.quotationId && !lead.projectId))
 const upcomingDepartures = computed(() => filteredProjects.value.filter(project => isUpcomingDeparture(project)))
 const attentionProjects = computed(() => attentionOf(filteredProjects.value))
+const outstandingInvoices = computed(() =>
+  filteredProjectIds.value.flatMap(id => getInvoicesByProject(id)).filter(invoice => invoice.status !== 'paid')
+)
+const outstandingTotal = computed(() => outstandingInvoices.value.reduce((sum, invoice) => sum + invoice.amountIdr, 0))
+const outstandingOverdueCount = computed(() => outstandingInvoices.value.filter(invoice => isInvoiceOverdue(invoice)).length)
+/** Keliling ring mini di header Outstanding Invoices — motif "bulet" yang sama dengan Cost Breakdown, dalam skala kecil. */
+const OUTSTANDING_RING_CIRCUMFERENCE = 2 * Math.PI * 15
+const outstandingOverdueRingOffset = computed(() => {
+  if (!outstandingInvoices.value.length) { return OUTSTANDING_RING_CIRCUMFERENCE }
+  const share = outstandingOverdueCount.value / outstandingInvoices.value.length
+  return OUTSTANDING_RING_CIRCUMFERENCE * (1 - share)
+})
 const recentActivityItems = computed(() =>
   filteredProjectIds.value
     .flatMap(id => getActivitiesByProject(id))
@@ -248,15 +338,16 @@ const projectsByStatus = computed<StatusBreakdownItem[]>(() => {
 /** Budget vs Actual — Management/Finance/Super Admin/Viewer. */
 const budgetChartProjects = computed(() => filteredProjects.value.filter(p => p.status !== 'cancelled'))
 
-/** Actual cost per project from Finance: approved vendor invoices + project expenses (Finance/Super Admin). */
-const costByProject = computed(() => new Map((financeFull.value?.projects ?? []).map(p => [p.projectId, Number(p.costMinor)])))
-const actualCostOf = (projectId: string) => costByProject.value.get(projectId) ?? 0
-
-/** Cost Breakdown — per project (biaya per jenis layanan belum dicatat terpisah). */
+/**
+ * Cost Breakdown — Finance/Super Admin. Actual cost hanya tersedia sebagai agregat per Project (belum ada
+ * field cost per jenis layanan di fixture), sehingga breakdown di sini per-project — bukan per kategori
+ * layanan. Lihat docs/mockup-section-reports/section-06-dashboard.md bagian Known Issues. Nilainya
+ * `getProjectActualCostIdr()` (Fase 3.2, Penyederhanaan 7-Role/Menu) — bukan field statis
+ * `Project.actualCostIdr` yang tidak pernah diperbarui mutator apa pun.
+ */
 const costBreakdownItems = computed(() =>
   [...budgetChartProjects.value]
-    .map(p => ({ name: p.name, valueIdr: actualCostOf(p.id) }))
-    .filter(p => p.valueIdr > 0)
+    .map(p => ({ name: p.name, valueIdr: getProjectActualCostIdr(p.id) }))
     .sort((a, b) => b.valueIdr - a.valueIdr)
 )
 
@@ -348,6 +439,16 @@ const kpiCards = computed(() => [
     visible: visibleTo('management', 'super-admin', 'viewer').value
   },
   {
+    key: 'outstanding',
+    title: 'Outstanding Invoices',
+    value: formatCurrencyIdr(outstandingTotal.value),
+    icon: Receipt,
+    color: 'amber' as const,
+    /** Finance sengaja dikecualikan — card ini dihapus dari Dashboard Finance (sudah ada versinya di
+     * Monthly Cash Flow section), permintaan eksplisit. */
+    visible: visibleTo('management', 'super-admin', 'viewer').value
+  },
+  {
     key: 'total-users',
     title: 'Total User Demo',
     value: String(USERS.length),
@@ -358,9 +459,204 @@ const kpiCards = computed(() => [
 ])
 
 /* ==================================================
- * Keuangan (Phase 7) — ringkasan dari server untuk Finance & Super Admin: angka yang sama dengan menu Finance.
+ * Financial hero panel — Pemasukan Bersih & Profit (sumber sama dengan `ReportsAnalyticsPanel`).
+ * Satu papan "ledger terminal" (`DashboardHeroPanel`) tersendiri di atas KPI row biasa, dengan sparkline
+ * dari histori 6 periode terakhir asli (bukan dekorasi) — lihat komentar desain di komponen itu sendiri.
  * ================================================== */
-const showFinancialSummary = visibleTo('finance', 'super-admin')
+const revenuePeriods = computed(() => getRevenueByPeriod())
+const showFinancialSummary = visibleTo('finance', 'management', 'super-admin', 'viewer')
+
+/**
+ * Periode acuan "sekarang" untuk preset Bulan Ini/Tahun Ini — `DEMO_REFERENCE_DATE` (fixture ini tidak
+ * pakai `Date.now()` beneran), konsisten dengan seluruh perhitungan "hari ini" lain di codebase.
+ */
+const referenceYearMonth = DEMO_REFERENCE_DATE.slice(0, 7)
+const referenceYear = DEMO_REFERENCE_DATE.slice(0, 4)
+
+/**
+ * Baris `revenuePeriods` yang masuk rentang preset aktif — dipakai bersama oleh hero panel (dijumlah jadi
+ * satu angka) dan chart Monthly Cash Flow (satu bar per baris). Fallback ke data terakhir/seluruhnya kalau
+ * preset tidak match apa pun (mis. fixture belum py sampai bulan acuan) supaya widget tidak kosong.
+ */
+const currentFinancialPeriods = computed(() => {
+  const all = revenuePeriods.value
+  if (!all.length) { return [] }
+  if (financialPeriodPreset.value === 'this-month') {
+    const rows = all.filter(row => row.period === referenceYearMonth)
+    return rows.length ? rows : all.slice(-1)
+  }
+  if (financialPeriodPreset.value === 'this-year') {
+    const rows = all.filter(row => row.period.startsWith(referenceYear))
+    return rows.length ? rows : all
+  }
+  if (financialPeriodPreset.value === 'custom' && customStartDate.value && customEndDate.value) {
+    const start = customStartDate.value.slice(0, 7)
+    const end = customEndDate.value.slice(0, 7)
+    return all.filter(row => row.period >= start && row.period <= end)
+  }
+  return all
+})
+
+/** Rentang pembanding untuk trend naik/turun — hanya bermakna untuk Bulan Ini (vs bulan sebelumnya) dan
+ * Tahun Ini (vs tahun sebelumnya). Semua Waktu & Custom tidak punya "periode sebelumnya" yang jelas,
+ * jadi trend disembunyikan (`periodTrend` return `undefined` kalau baris pembanding kosong). */
+const previousFinancialPeriods = computed(() => {
+  const all = revenuePeriods.value
+  if (financialPeriodPreset.value === 'this-month') {
+    const idx = all.findIndex(row => row.period === referenceYearMonth)
+    if (idx > 0) { return [all[idx - 1]] }
+    return all.length > 1 ? [all[all.length - 2]] : []
+  }
+  if (financialPeriodPreset.value === 'this-year') {
+    const previousYear = String(Number(referenceYear) - 1)
+    return all.filter(row => row.period.startsWith(previousYear))
+  }
+  return []
+})
+
+function sumRevenuePeriods (rows: typeof revenuePeriods.value) {
+  return rows.reduce((acc, row) => ({
+    revenueIdr: acc.revenueIdr + row.revenueIdr,
+    directCostIdr: acc.directCostIdr + row.directCostIdr,
+    opexIdr: acc.opexIdr + row.opexIdr,
+    netProfitIdr: acc.netProfitIdr + row.netProfitIdr
+  }), { revenueIdr: 0, directCostIdr: 0, opexIdr: 0, netProfitIdr: 0 })
+}
+
+const financialAggregate = computed(() => sumRevenuePeriods(currentFinancialPeriods.value))
+const previousFinancialAggregate = computed(() => (
+  previousFinancialPeriods.value.length ? sumRevenuePeriods(previousFinancialPeriods.value) : undefined
+))
+
+function periodTrend (currentIdr: number, previousIdr: number | undefined): { direction: 'up' | 'down'; percentLabel: string } | undefined {
+  if (previousIdr === undefined || previousIdr === 0) { return undefined }
+  const deltaPercent = ((currentIdr - previousIdr) / Math.abs(previousIdr)) * 100
+  return {
+    direction: deltaPercent >= 0 ? 'up' : 'down',
+    percentLabel: formatPercentage(Math.abs(deltaPercent), 1)
+  }
+}
+
+const financialPeriodLabel = computed(() => {
+  if (financialPeriodPreset.value === 'this-year') { return `Tahun ${referenceYear}` }
+  if (financialPeriodPreset.value === 'all-time') { return 'Semua Waktu' }
+  if (financialPeriodPreset.value === 'custom') {
+    if (!customStartDate.value || !customEndDate.value) { return undefined }
+    const start = format(parseISO(customStartDate.value), 'd MMM yyyy', { locale: localeId })
+    const end = format(parseISO(customEndDate.value), 'd MMM yyyy', { locale: localeId })
+    return `${start} – ${end}`
+  }
+  const period = currentFinancialPeriods.value[0]?.period
+  return period ? format(parseISO(`${period}-01`), 'MMMM yyyy', { locale: localeId }) : undefined
+})
+
+/** Dua kartu hero desktop (tidak berubah) — Pemasukan Bersih & Profit sejajar. Di mobile, `metrics[0]`
+ * (Pemasukan Bersih) dipakai sebagai kartu hero tunggal oleh `DashboardHeroPanel` sendiri. Sparkline tetap
+ * dari 6 bulan terakhir ASLI (bukan mengikuti rentang filter) supaya bentuk tren tetap informatif walau
+ * preset-nya "Bulan Ini" (yang datanya sendiri cuma 1 titik). */
+const heroMetrics = computed<HeroMetric[]>(() => {
+  if (!showFinancialSummary.value || !currentFinancialPeriods.value.length) { return [] }
+  const agg = financialAggregate.value
+  const previousAgg = previousFinancialAggregate.value
+  const history = revenuePeriods.value.slice(-6)
+  const profitPositive = agg.netProfitIdr >= 0
+  return [
+    {
+      key: 'net-revenue',
+      label: 'Pemasukan Bersih',
+      valueIdr: agg.revenueIdr,
+      icon: TrendingUp,
+      series: history.map(row => row.revenueIdr),
+      trend: periodTrend(agg.revenueIdr, previousAgg?.revenueIdr),
+      accent: 'blue'
+    },
+    {
+      key: 'net-profit',
+      label: 'Profit',
+      valueIdr: agg.netProfitIdr,
+      icon: Wallet,
+      series: history.map(row => row.netProfitIdr),
+      trend: periodTrend(agg.netProfitIdr, previousAgg?.netProfitIdr),
+      accent: profitPositive ? 'emerald' : 'rose'
+    }
+  ]
+})
+
+/** Payables (Hutang) — total outstanding Supplier Invoice belum lunas, sumber sama dengan `PayablesPanel`
+ * (`getPayables`), bukan angka baru. Tidak ada histori bulanan di data model sehingga tidak ada trend. */
+const payablesTotal = computed(() => getPayables().reduce((sum, row) => sum + row.outstandingIdr, 0))
+
+/** Grid 2x2 di bawah hero: Profit/Pengeluaran dari agregat periode terfilter (dengan trend), Piutang/Hutang
+ * dari total outstanding saat ini (snapshot, tanpa trend histori bulanan — tidak ikut filter periode). */
+const heroSecondaryMetrics = computed<HeroSecondaryMetric[]>(() => {
+  if (!showFinancialSummary.value || !currentFinancialPeriods.value.length) { return [] }
+  const agg = financialAggregate.value
+  const previousAgg = previousFinancialAggregate.value
+  const expenseIdr = agg.directCostIdr + agg.opexIdr
+  const previousExpenseIdr = previousAgg ? previousAgg.directCostIdr + previousAgg.opexIdr : undefined
+  /** Merah hanya saat benar-benar rugi — supaya warna panel tetap jujur, bukan selalu hijau apa pun angkanya. */
+  const profitPositive = agg.netProfitIdr >= 0
+  return [
+    {
+      key: 'net-profit',
+      label: 'Profit',
+      valueIdr: agg.netProfitIdr,
+      icon: TrendingUp,
+      trend: periodTrend(agg.netProfitIdr, previousAgg?.netProfitIdr),
+      accent: profitPositive ? 'emerald' : 'rose'
+    },
+    {
+      key: 'expense',
+      label: 'Pengeluaran',
+      valueIdr: expenseIdr,
+      icon: TrendingDown,
+      trend: periodTrend(expenseIdr, previousExpenseIdr),
+      accent: 'rose'
+    },
+    {
+      key: 'receivable',
+      label: 'Piutang',
+      valueIdr: outstandingTotal.value,
+      icon: ArrowDownToLine,
+      accent: 'amber'
+    },
+    {
+      key: 'payable',
+      label: 'Hutang',
+      valueIdr: payablesTotal.value,
+      icon: ArrowUpFromLine,
+      accent: 'violet'
+    }
+  ]
+})
+
+/* ==================================================
+ * Monthly Cash Flow — section baru (permintaan eksplisit, referensi eksternal). Chart dari periode ASLI
+ * yang sama dengan `heroMetrics`, disaring rentang yang sama (`currentFinancialPeriods`) — Income =
+ * revenueIdr, Expense = directCostIdr + opexIdr per periode. 4 kartu di sampingnya menampilkan ringkasan
+ * Opex periode berjalan (sumber sama dengan `OpexPanel` — "Total Opex Periode"/"Sudah Dibayar"/"Menunggu
+ * Persetujuan") + Outstanding Invoices yang sudah ada — TIDAK ikut filter periode (snapshot saat ini).
+ * ================================================== */
+const cashFlowLabels = computed(() => currentFinancialPeriods.value.map(row => format(parseISO(`${row.period}-01`), 'MMM yy', { locale: localeId })))
+const cashFlowIncome = computed(() => currentFinancialPeriods.value.map(row => row.revenueIdr))
+const cashFlowExpense = computed(() => currentFinancialPeriods.value.map(row => row.directCostIdr + row.opexIdr))
+
+const cashFlowSideMetrics = computed<CashFlowSideMetric[]>(() => {
+  if (!showFinancialSummary.value || !currentFinancialPeriods.value.length) { return [] }
+  /** Periode Opex terbaru YANG BENAR-BENAR ADA datanya (`OPEX_ENTRIES`), bukan periode revenue terfilter —
+   * periode invoice bisa lebih baru (mis. 2026-08) padahal fixture Opex cuma sampai 2026-07, jadi kalau
+   * ikut periode invoice, 3 card ini selalu Rp0. */
+  const period = getOpexPeriods()[0]
+  const periodOpexEntries = OPEX_ENTRIES.filter(entry => entry.period === period)
+  const paidIdr = periodOpexEntries.filter(entry => entry.status === 'paid').reduce((sum, entry) => sum + entry.amountIdr, 0)
+  const pendingIdr = periodOpexEntries.filter(entry => entry.status === 'submitted' || entry.status === 'draft').reduce((sum, entry) => sum + entry.amountIdr, 0)
+  return [
+    { key: 'cf-opex-total', label: 'Total Opex Periode', value: getOpexTotalIdr(period), icon: TrendingDown, accent: 'rose', isCurrency: true },
+    { key: 'cf-opex-paid', label: 'Sudah Dibayar', value: paidIdr, icon: CheckCircle2, accent: 'emerald', isCurrency: true },
+    { key: 'cf-opex-pending', label: 'Menunggu Persetujuan', value: pendingIdr, icon: Clock, accent: 'violet', isCurrency: true },
+    { key: 'cf-outstanding', label: 'Outstanding Invoices', value: outstandingTotal.value, icon: Receipt, accent: 'amber', isCurrency: true }
+  ]
+})
 
 /* ==================================================
  * Ringkasan Administrasi — dulu cuma 3 angka sejajar dengan sisa ruang kosong besar di bawahnya (widget ini
@@ -411,10 +707,9 @@ onMounted(async () => {
  * ================================================== */
 const showPipeline = visibleTo('sales', 'account-executive', 'management', 'super-admin', 'viewer')
 const showProjectsByStatus = visibleTo('management', 'super-admin', 'viewer')
-/** Actual cost is finance data: Finance/Super Admin only (Admin sees payment status, never amounts). */
-const showBudgetVsActual = visibleTo('finance', 'super-admin')
+const showBudgetVsActual = visibleTo('management', 'finance', 'super-admin', 'viewer')
 const showCostBreakdown = visibleTo('finance', 'super-admin')
-const showOutstanding = visibleTo('finance', 'super-admin')
+const showOutstanding = visibleTo('finance', 'management', 'super-admin', 'viewer')
 const showAttentionGlobal = visibleTo('management', 'super-admin', 'viewer')
 const showRecentActivity = visibleTo('management', 'super-admin', 'viewer')
 const showQuotationsPending = visibleTo('sales', 'account-executive', 'super-admin')
@@ -470,8 +765,14 @@ function tierOf (key: string): 'default' | 'wide' | 'full' {
 const visibleKpiCards = computed(() => kpiCards.value.filter(card => card.visible))
 
 function kpiSubtitle (key: string): string | undefined {
+  if (key === 'outstanding') { return `${outstandingInvoices.value.length} invoice belum lunas` }
   if (key === 'attention') { return 'Perlu tindak lanjut segera' }
+  if (key === 'open-opportunities') { return 'Quotation berjalan, belum jadi Project Order' }
   return undefined
+}
+
+const KPI_HERO_CTA: Record<string, { label: string; to: string }> = {
+  'open-opportunities': { label: 'Lihat pipeline', to: '/sales/pipeline#quotations' }
 }
 </script>
 
@@ -487,15 +788,82 @@ function kpiSubtitle (key: string): string | undefined {
     <LoadingState v-if="isLoading" message="Memuat ringkasan dashboard..." :rows="4" />
 
     <template v-else>
-      <DashboardFinanceSummary
-        v-if="showFinancialSummary"
-        :data="financeFull"
-        :loading="!overview.loaded.value"
-        :error="overview.error.value?.message ?? null"
+      <!-- Filter periode dashboard (global) — beda dari box Filter Project di bawah (Status/Tipe/Client/
+           Owner/Periode Keberangkatan). Ngefilter SEMUA widget: hero Pemasukan Bersih/Profit, Monthly Cash
+           Flow, KPI cards, dan seluruh widget berbasis Project (per tanggal keberangkatan). -->
+      <div v-if="showFilters" class="mb-3 flex flex-wrap items-center gap-2">
+        <div class="inline-flex items-center gap-0.5 rounded-lg border border-border bg-card p-0.5">
+          <button
+            v-for="option in FINANCIAL_PERIOD_OPTIONS"
+            :key="option.value"
+            type="button"
+            class="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
+            :class="financialPeriodPreset === option.value ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground'"
+            @click="selectFinancialPeriod(option.value)"
+          >
+            <CalendarRange v-if="option.value === 'custom'" class="h-3.5 w-3.5" />
+            {{ option.label }}
+          </button>
+        </div>
+        <span v-if="financialPeriodPreset === 'custom' && financialPeriodLabel" class="text-xs text-muted-foreground">
+          {{ financialPeriodLabel }}
+        </span>
+      </div>
+
+      <ResponsiveFormSheet
+        v-model:open="isCustomPeriodOpen"
+        title="Pilih Rentang Tanggal"
+        description="Custom period untuk seluruh widget dashboard — finance per bulan buku, project per tanggal keberangkatan."
+        content-class="max-w-sm"
+      >
+        <div class="space-y-2 py-2">
+          <p class="text-center text-xs text-muted-foreground">
+            Klik tanggal mulai, lalu tanggal selesai.
+          </p>
+          <RangeCalendar v-model="customCalendarRange" class="mx-auto w-fit" />
+          <p v-if="customStartDate && customEndDate" class="text-center text-sm font-medium text-foreground">
+            {{ format(parseISO(customStartDate), 'd MMM yyyy', { locale: localeId }) }} – {{ format(parseISO(customEndDate), 'd MMM yyyy', { locale: localeId }) }}
+          </p>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isCustomPeriodOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!customStartDate || !customEndDate" @click="applyCustomPeriod">
+            Terapkan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
+
+      <DashboardHeroPanel
+        v-if="heroMetrics.length"
+        :metrics="heroMetrics"
+        :secondary-metrics="heroSecondaryMetrics"
+        :period-label="financialPeriodLabel"
+        class="mb-4"
+      />
+
+      <DashboardCashFlowSection
+        v-if="cashFlowSideMetrics.length"
+        :labels="cashFlowLabels"
+        :income="cashFlowIncome"
+        :expense="cashFlowExpense"
+        :side-metrics="cashFlowSideMetrics"
         class="mb-6"
       />
 
-      <div v-if="visibleKpiCards.length" class="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4 mb-6">
+      <DashboardKpiHero
+        v-if="visibleKpiCards.length === 1 && !heroMetrics.length"
+        class="mb-6"
+        :label="visibleKpiCards[0].title"
+        :value="Number(visibleKpiCards[0].value)"
+        :icon="visibleKpiCards[0].icon"
+        :color="visibleKpiCards[0].color"
+        :subtitle="kpiSubtitle(visibleKpiCards[0].key)"
+        :cta-label="KPI_HERO_CTA[visibleKpiCards[0].key]?.label"
+        :cta-to="KPI_HERO_CTA[visibleKpiCards[0].key]?.to"
+      />
+      <div v-else-if="visibleKpiCards.length" class="grid grid-cols-[repeat(auto-fit,minmax(11rem,1fr))] gap-4 mb-6">
         <DashboardStat
           v-for="card in visibleKpiCards"
           :key="card.key"
@@ -508,7 +876,11 @@ function kpiSubtitle (key: string): string | undefined {
       </div>
 
       <div v-if="showFilters" class="rounded-2xl border border-border bg-card shadow-sm p-4 mb-6">
-        <div class="flex flex-wrap items-center gap-2">
+        <!-- Dialog "Simpan View" dibungkus di luar, dipakai bareng oleh trigger desktop & mobile
+             (satu state `isSaveViewOpen`, satu DialogContent) supaya tidak dobel ke-teleport saat dibuka. -->
+        <Dialog v-model:open="isSaveViewOpen">
+        <!-- Desktop — tidak diubah. -->
+        <div class="hidden sm:flex flex-wrap items-center gap-2">
           <span class="text-xs font-semibold text-muted-foreground mr-1">Filter</span>
 
           <Select v-model="statusFilter">
@@ -587,32 +959,156 @@ function kpiSubtitle (key: string): string | undefined {
             </SelectContent>
           </Select>
 
-          <Dialog v-model:open="isSaveViewOpen">
-            <DialogTrigger as-child>
-              <Button size="sm" variant="outline" class="ml-auto">
-                <Save class="h-3.5 w-3.5 mr-1.5" />Simpan View
-              </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-sm">
-              <DialogHeader>
-                <DialogTitle>Simpan Saved View</DialogTitle>
-                <DialogDescription>Menyimpan kombinasi filter aktif saat ini (mock, tersimpan per user login, bukan localStorage).</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="dashboard-view-label">Nama View</Label>
-                <Input id="dashboard-view-label" v-model="newViewLabel" placeholder="mis. Project Confirmed Bulan Ini" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isSaveViewOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!newViewLabel.trim()" @click="submitSaveView">
-                  Simpan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+          <DialogTrigger as-child>
+            <Button size="sm" variant="outline" class="ml-auto">
+              <Save class="h-3.5 w-3.5 mr-1.5" />Simpan View
+            </Button>
+          </DialogTrigger>
         </div>
+
+        <!-- Mobile — 5 Select disembunyikan di belakang satu tombol "Filter" (bottom Sheet), bukan
+             wrap jadi beberapa baris dropdown yang berantakan. -->
+        <div class="flex items-center gap-2 sm:hidden">
+          <Sheet v-model:open="isMobileFilterOpen">
+            <SheetTrigger as-child>
+              <Button variant="outline" size="sm" class="flex-1 justify-start">
+                <SlidersHorizontal class="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                Filter
+                <span v-if="activeFilterCount" class="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                  {{ activeFilterCount }}
+                </span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="bottom" class="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+              <SheetHeader class="text-left">
+                <SheetTitle>Filter Dashboard</SheetTitle>
+              </SheetHeader>
+              <div class="space-y-3 py-4">
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Status</Label>
+                  <Select v-model="statusFilter">
+                    <SelectTrigger class="h-10 w-full text-sm">
+                      <SelectValue placeholder="Status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        Semua Status
+                      </SelectItem>
+                      <SelectItem v-for="status in PROJECT_STATUSES" :key="status.value" :value="status.value">
+                        {{ status.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Tipe Project</Label>
+                  <Select v-model="typeFilter">
+                    <SelectTrigger class="h-10 w-full text-sm">
+                      <SelectValue placeholder="Tipe Project" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        Semua Tipe
+                      </SelectItem>
+                      <SelectItem v-for="type in PROJECT_CHARACTERISTICS" :key="type.value" :value="type.value">
+                        {{ type.label }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Client</Label>
+                  <Select v-model="clientFilter">
+                    <SelectTrigger class="h-10 w-full text-sm">
+                      <SelectValue placeholder="Client" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        Semua Client
+                      </SelectItem>
+                      <SelectItem v-for="party in clientOptions" :key="party.id" :value="party.id">
+                        {{ party.name }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div v-if="showOwnerFilter" class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Owner</Label>
+                  <Select v-model="ownerFilter">
+                    <SelectTrigger class="h-10 w-full text-sm">
+                      <SelectValue placeholder="Owner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        Semua Owner
+                      </SelectItem>
+                      <SelectItem v-for="user in ownerOptions" :key="user.id" :value="user.id">
+                        {{ user.name }}
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div class="space-y-1.5">
+                  <Label class="text-xs text-muted-foreground">Periode Keberangkatan</Label>
+                  <Select v-model="periodFilter">
+                    <SelectTrigger class="h-10 w-full text-sm">
+                      <SelectValue placeholder="Periode Keberangkatan" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">
+                        Semua Periode
+                      </SelectItem>
+                      <SelectItem value="30">
+                        30 Hari ke Depan
+                      </SelectItem>
+                      <SelectItem value="60">
+                        60 Hari ke Depan
+                      </SelectItem>
+                      <SelectItem value="90">
+                        90 Hari ke Depan
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <SheetFooter class="flex-row gap-2">
+                <Button variant="outline" class="flex-1" @click="isMobileFilterOpen = false">
+                  Terapkan
+                </Button>
+              </SheetFooter>
+            </SheetContent>
+          </Sheet>
+
+          <DialogTrigger as-child>
+            <Button size="sm" variant="outline">
+              <Save class="h-3.5 w-3.5" />
+            </Button>
+          </DialogTrigger>
+        </div>
+
+        <DialogContent class="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Simpan Saved View</DialogTitle>
+            <DialogDescription>Menyimpan kombinasi filter aktif saat ini (mock, tersimpan per user login, bukan localStorage).</DialogDescription>
+          </DialogHeader>
+          <div class="space-y-1.5 py-2">
+            <Label for="dashboard-view-label">Nama View</Label>
+            <Input id="dashboard-view-label" v-model="newViewLabel" placeholder="mis. Project Confirmed Bulan Ini" />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" @click="isSaveViewOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!newViewLabel.trim()" @click="submitSaveView">
+              Simpan
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+        </Dialog>
 
         <div v-if="mySavedViews.length" class="flex items-center flex-wrap gap-2 mt-3 pt-3 border-t border-border">
           <span class="text-xs text-muted-foreground">Saved:</span>
@@ -692,7 +1188,7 @@ function kpiSubtitle (key: string): string | undefined {
             <BudgetChart
               :labels="budgetChartProjects.map(p => p.name)"
               :budget-idr="budgetChartProjects.map(p => p.budgetIdr)"
-              :actual-idr="budgetChartProjects.map(p => actualCostOf(p.id))"
+              :actual-idr="budgetChartProjects.map(p => getProjectActualCostIdr(p.id))"
               :height-class="tierOf('budget-vs-actual') === 'default' ? 'h-[220px]' : 'h-[260px]'"
             />
           </template>
@@ -702,13 +1198,13 @@ function kpiSubtitle (key: string): string | undefined {
         <DashboardPanel
           v-if="showCostBreakdown"
           title="Cost Breakdown"
-          description="Biaya aktual per project dari Finance: invoice vendor yang disetujui + pengeluaran project."
+          description="Actual cost per project (belum tersedia breakdown per jenis layanan)."
           :icon="PieChart"
           color="cyan"
           :size="tierOf('cost-breakdown')"
         >
           <ExpenseCategories v-if="costBreakdownItems.length > 0" :items="costBreakdownItems" />
-          <EmptyState v-else title="Belum ada biaya tercatat" description="Biaya muncul setelah invoice vendor disetujui atau pengeluaran project dicatat." />
+          <EmptyState v-else title="Tidak ada project sesuai filter" />
         </DashboardPanel>
 
         <DashboardPanel v-if="showActionNeeded" title="Perlu Ditindak" :icon="ListChecks" color="amber" :size="tierOf('action-needed')">
@@ -875,48 +1371,62 @@ function kpiSubtitle (key: string): string | undefined {
           <EmptyState v-if="myRecentChanges.length === 0" title="Tidak ada perubahan terbaru pada project Anda" />
         </DashboardPanel>
 
-        <DashboardPanel
-          v-if="showOutstanding"
-          title="Tagihan Terlambat"
-          description="Tagihan customer yang lewat jatuh tempo, paling lama di atas."
-          :icon="Receipt"
-          color="amber"
-          :size="tierOf('outstanding')"
-        >
-          <div v-if="!financeFull && !overview.error.value" class="space-y-2">
-            <div v-for="i in 3" :key="i" class="h-10 animate-pulse rounded-lg bg-muted" />
+        <DashboardPanel v-if="showOutstanding" title="Outstanding Invoices" :icon="Receipt" color="amber" :size="tierOf('outstanding')">
+          <div v-if="outstandingInvoices.length" class="mb-4 flex items-center gap-3 pb-4 border-b border-border">
+            <div class="relative h-10 w-10 shrink-0">
+              <svg viewBox="0 0 36 36" class="h-full w-full -rotate-90">
+                <circle cx="18" cy="18" r="15" fill="none" stroke="hsl(var(--muted))" stroke-width="4" />
+                <circle
+                  cx="18"
+                  cy="18"
+                  r="15"
+                  fill="none"
+                  stroke="hsl(var(--destructive))"
+                  stroke-width="4"
+                  stroke-linecap="round"
+                  :stroke-dasharray="OUTSTANDING_RING_CIRCUMFERENCE"
+                  :stroke-dashoffset="outstandingOverdueRingOffset"
+                  class="transition-[stroke-dashoffset] duration-700 ease-out"
+                />
+              </svg>
+            </div>
+            <div class="min-w-0">
+              <p class="text-sm font-semibold text-foreground tabular-nums">
+                {{ formatCurrencyIdr(outstandingTotal) }}
+              </p>
+              <p class="text-xs text-muted-foreground">
+                {{ outstandingInvoices.length }} invoice
+                <template v-if="outstandingOverdueCount"> · <span class="text-destructive font-medium">{{ outstandingOverdueCount }} overdue</span></template>
+              </p>
+            </div>
           </div>
-          <p v-else-if="!financeFull" class="text-sm text-muted-foreground">
-            Belum bisa dimuat: {{ overview.error.value?.message }}
-          </p>
-          <template v-else>
-            <ul v-if="financeFull.overdueInvoices.length" class="-mx-1 divide-y divide-border">
-              <li v-for="invoice in financeFull.overdueInvoices" :key="invoice.id">
-                <NuxtLink :to="`/finance/receivables?tab=overdue&partyId=${invoice.party.id}`" class="flex items-center gap-3 border-l-2 border-destructive py-3 pl-3 pr-1 transition-colors hover:bg-muted/40">
-                  <div class="min-w-0 flex-1">
-                    <p class="truncate text-sm font-medium text-foreground">
-                      {{ invoice.party.name }}
-                    </p>
-                    <p class="mt-0.5 truncate text-xs text-muted-foreground">
-                      {{ invoice.number }} · {{ invoice.project.name }}
-                    </p>
-                  </div>
-                  <div class="shrink-0 text-right">
-                    <p class="text-sm font-semibold tabular-nums text-foreground">
-                      {{ formatMoneyMinor(invoice.outstandingMinor) }}
-                    </p>
-                    <p class="mt-0.5 text-[11px] font-medium text-destructive">
-                      Jatuh tempo {{ formatBusinessDate(invoice.dueDate, { short: true, today: financeFull.asOf }) }}
-                    </p>
-                  </div>
-                </NuxtLink>
-              </li>
-            </ul>
-            <EmptyState v-else title="Tidak ada tagihan terlambat" description="Semua tagihan customer yang jatuh tempo sudah dibayar." />
-            <NuxtLink v-if="financeFull.receivables.overdueCount > financeFull.overdueInvoices.length" to="/finance/receivables?tab=overdue" class="mt-3 inline-flex text-xs font-semibold text-primary hover:underline">
-              Lihat semua {{ financeFull.receivables.overdueCount }} tagihan terlambat →
-            </NuxtLink>
-          </template>
+
+          <ul class="-mx-1 divide-y divide-border">
+            <li
+              v-for="invoice in outstandingInvoices"
+              :key="invoice.id"
+              class="flex items-center gap-3 border-l-2 py-3 pl-3 pr-1 first:pt-0 last:pb-0"
+              :class="isInvoiceOverdue(invoice) ? 'border-destructive' : 'border-transparent'"
+            >
+              <div class="min-w-0 flex-1">
+                <p class="text-sm font-medium text-foreground truncate">
+                  {{ invoice.label }}
+                </p>
+                <p class="text-xs text-muted-foreground mt-0.5 truncate">
+                  {{ getProjectById(invoice.projectId)?.name }}
+                </p>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="text-sm font-semibold text-foreground tabular-nums">
+                  {{ formatCurrencyIdr(invoice.amountIdr) }}
+                </p>
+                <p v-if="isInvoiceOverdue(invoice)" class="mt-0.5 text-[11px] font-semibold uppercase tracking-wide text-destructive">
+                  Overdue
+                </p>
+              </div>
+            </li>
+          </ul>
+          <EmptyState v-if="outstandingInvoices.length === 0" title="Tidak ada invoice outstanding" />
         </DashboardPanel>
 
         <DashboardPanel v-if="showRecentActivity" title="Recent Activity" :icon="Activity" color="blue" :size="tierOf('recent-activity')">

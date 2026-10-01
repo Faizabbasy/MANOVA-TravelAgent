@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Plus, FileText, Bell, AlertTriangle, CheckCheck, X, ExternalLink } from 'lucide-vue-next'
+import { Search, Plus, FileText, Bell, AlertTriangle, CheckCheck, X, ExternalLink, List, LayoutGrid, Eye, Download, MoreVertical, SlidersHorizontal } from 'lucide-vue-next'
 import {
   PROJECTS, USERS,
   getProjectById, getUserById,
@@ -16,7 +16,8 @@ import {
 } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import { isDocumentExpired, isDocumentExpiringSoon } from '~/utils/attention'
-import type { DocumentEntityType, DocumentAccessLevel, MessageChannel } from '~/types/document-comms'
+import type { DocumentEntityType, DocumentAccessLevel, MessageChannel, Document as AppDocument } from '~/types/document-comms'
+import type { BadgeTone } from '~/types/common'
 
 /**
  * Documents & Communication (Section 21 — roadmap Section 00–24 baru, D-078). Modul konsolidasi-style baru
@@ -37,6 +38,51 @@ const { canView, canManage } = usePermissions()
 const { showToast } = useToast()
 const canManageDocuments = computed(() => canManage('documents'))
 
+/** Icon badge tint per kategori dokumen (kartu grid) — pola sama `documentCategoryTone`/`TONE_ICON_BG` di
+ * tab Documents per-project (`project-orders/[id]/index.vue`), disalin ke sini supaya kartu grid halaman
+ * global ini konsisten visualnya, bukan tabel polos seperti sebelumnya. */
+const TONE_ICON_BG: Record<BadgeTone, string> = {
+  neutral: 'bg-muted text-muted-foreground',
+  primary: 'bg-primary/10 text-primary',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  destructive: 'bg-destructive/10 text-destructive',
+  info: 'bg-chart-5/10 text-chart-5',
+  purple: 'bg-purple-500/10 text-purple-500'
+}
+const DOCUMENT_CATEGORY_TONE_MAP: Record<string, BadgeTone> = {
+  legacy: 'neutral',
+  finance: 'success',
+  invoice: 'success',
+  contract: 'purple',
+  quotation: 'primary',
+  'travel-document': 'info'
+}
+const DOCUMENT_CATEGORY_TONE_FALLBACK: BadgeTone[] = ['primary', 'success', 'warning', 'destructive', 'info', 'purple']
+function documentCategoryTone (category: string): BadgeTone {
+  const key = category.trim().toLowerCase()
+  if (DOCUMENT_CATEGORY_TONE_MAP[key]) { return DOCUMENT_CATEGORY_TONE_MAP[key] }
+  let hash = 0
+  for (let i = 0; i < key.length; i++) { hash = (hash * 31 + key.charCodeAt(i)) >>> 0 }
+  return DOCUMENT_CATEGORY_TONE_FALLBACK[hash % DOCUMENT_CATEGORY_TONE_FALLBACK.length]
+}
+function documentUploaderName (document: AppDocument) {
+  return document.uploadedBy ? (getUserById(document.uploadedBy)?.name ?? document.uploadedBy) : '—'
+}
+function handleDownloadDocument (document: { name: string }) {
+  showToast('Download (Mock)', `${document.name} — simulasi unduhan, tidak ada file nyata (D-006).`, 'info')
+}
+function handlePreviewDocument (document: { name: string; sourceType?: string; previewRoute?: string }) {
+  if (document.sourceType === 'generated' && document.previewRoute) {
+    void navigateTo(document.previewRoute, { open: { target: '_blank' } })
+    return
+  }
+  showToast('Preview (Mock)', `${document.name} — pratinjau belum tersedia untuk dokumen upload manual (D-006).`, 'info')
+}
+function handleDocumentMenu (document: { name: string }) {
+  showToast('Menu (Mock)', `Aksi lain untuk "${document.name}" — kelola versi/hapus lengkap dari sini.`, 'info')
+}
+
 type DocTab = 'documents' | 'messages' | 'notifications'
 const activeTab = computed<DocTab>({
   get: () => {
@@ -51,6 +97,7 @@ function entityLabel (entityType: DocumentEntityType, entityId: string): string 
 }
 
 /* --- Documents tab --- */
+const docViewMode = ref<'list' | 'grid'>('grid')
 const docSearch = ref('')
 const docCategoryFilter = ref('all')
 const docAccessFilter = ref<'all' | DocumentAccessLevel>('all')
@@ -73,8 +120,36 @@ const documentRows = computed(() => {
   return result.sort((a, b) => (b.item.uploadedAt ?? b.item.generatedAt ?? '').localeCompare(a.item.uploadedAt ?? a.item.generatedAt ?? ''))
 })
 
+/** Saat filter Category = "Semua", dokumen ditampilkan dikelompokkan per category (turun ke bawah) supaya
+ * tetap mudah dipindai — bukan satu daftar rata tanpa konteks category. Kalau satu category sudah dipilih
+ * di filter, tidak perlu dikelompokkan lagi (isinya cuma 1 grup). */
+const documentGroups = computed(() => {
+  if (docCategoryFilter.value !== 'all') {
+    return [{ category: null as string | null, rows: documentRows.value }]
+  }
+  const groups = new Map<string, typeof documentRows.value>()
+  for (const row of documentRows.value) {
+    if (!groups.has(row.item.category)) { groups.set(row.item.category, []) }
+    groups.get(row.item.category)!.push(row)
+  }
+  return [...groups.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([category, rows]) => ({ category, rows }))
+})
+
 const expiredCount = computed(() => DOCUMENT_RECORDS.filter(item => isDocumentExpired(item.expiresAt)).length)
 const expiringSoonCount = computed(() => DOCUMENT_RECORDS.filter(item => isDocumentExpiringSoon(item.expiresAt)).length)
+
+/** Filter tab Documents di mobile — 4 select (Category/Access/Entity/Expiry) disembunyikan di belakang
+ * satu tombol "Filter" (bottom Sheet) supaya tidak numpuk sendiri-sendiri di layar sempit, pola sama
+ * Dashboard. Badge menunjukkan jumlah filter aktif tanpa perlu buka sheet-nya dulu. */
+const isMobileDocFilterOpen = ref(false)
+const activeDocFilterCount = computed(() => [
+  docCategoryFilter.value !== 'all',
+  docAccessFilter.value !== 'all',
+  docEntityFilter.value !== 'all',
+  docExpiryFilter.value !== 'all'
+].filter(Boolean).length)
 
 const isUploadOpen = ref(false)
 const newDocEntityType = ref<DocumentEntityType>('project')
@@ -182,17 +257,22 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
       :breadcrumb="[{ label: 'Documents & Communication' }]"
     >
       <template v-if="canManageDocuments && activeTab === 'documents'" #actions>
-        <Dialog v-model:open="isUploadOpen">
-          <DialogTrigger as-child>
-            <Button size="sm">
-              <Plus class="h-4 w-4 mr-1.5" />Upload Document
+        <ResponsiveFormSheet
+          v-model:open="isUploadOpen"
+          title="Upload Document Baru"
+          description="Mock upload — tidak ada file storage nyata, hanya metadata tercatat (D-006)."
+          content-class="max-w-lg"
+          scroll
+        >
+          <template #trigger>
+            <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+            <Button
+              size="sm"
+              class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+            >
+              <Plus class="h-4 w-4" />Upload Document
             </Button>
-          </DialogTrigger>
-          <DialogScrollContent class="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Upload Document Baru</DialogTitle>
-              <DialogDescription>Mock upload — tidak ada file storage nyata, hanya metadata tercatat (D-006).</DialogDescription>
-            </DialogHeader>
+          </template>
             <div class="space-y-4 py-2">
               <div class="grid grid-cols-2 gap-3">
                 <div class="space-y-1.5">
@@ -242,30 +322,34 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                 <Input id="doc-expiry" v-model="newDocExpiresAt" type="date" />
               </div>
             </div>
-            <DialogFooter>
+          <template #footer>
               <Button variant="outline" @click="isUploadOpen = false">
                 Batal
               </Button>
               <Button :disabled="!newDocEntityId.trim() || !newDocName.trim() || !newDocCategory.trim()" @click="submitUpload">
                 Simpan
               </Button>
-            </DialogFooter>
-          </DialogScrollContent>
-        </Dialog>
+          </template>
+        </ResponsiveFormSheet>
       </template>
 
       <template v-else-if="canManageDocuments && activeTab === 'messages'" #actions>
-        <Dialog v-model:open="isComposeOpen">
-          <DialogTrigger as-child>
-            <Button size="sm">
-              <Plus class="h-4 w-4 mr-1.5" />New Message
+        <ResponsiveFormSheet
+          v-model:open="isComposeOpen"
+          title="Kirim Pesan Baru"
+          description="Internal note, client message, atau supplier message — delivery status simulasi mock, tanpa integrasi email/WhatsApp nyata."
+          content-class="max-w-lg"
+          scroll
+        >
+          <template #trigger>
+            <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+            <Button
+              size="sm"
+              class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+            >
+              <Plus class="h-4 w-4" />New Message
             </Button>
-          </DialogTrigger>
-          <DialogScrollContent class="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Kirim Pesan Baru</DialogTitle>
-              <DialogDescription>Internal note, client message, atau supplier message — delivery status simulasi mock, tanpa integrasi email/WhatsApp nyata.</DialogDescription>
-            </DialogHeader>
+          </template>
             <div class="space-y-4 py-2">
               <div class="grid grid-cols-2 gap-3">
                 <div class="space-y-1.5">
@@ -332,16 +416,15 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                 </div>
               </div>
             </div>
-            <DialogFooter>
+          <template #footer>
               <Button variant="outline" @click="isComposeOpen = false">
                 Batal
               </Button>
               <Button :disabled="!newMsgEntityId.trim() || !newMsgBody.trim()" @click="submitCompose">
                 Kirim
               </Button>
-            </DialogFooter>
-          </DialogScrollContent>
-        </Dialog>
+          </template>
+        </ResponsiveFormSheet>
       </template>
 
       <template v-else-if="activeTab === 'notifications' && unreadCount > 0" #actions>
@@ -354,7 +437,16 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
     <RoleAccessState v-if="!canView('documents')" module-label="modul Documents & Communication" />
 
     <template v-else>
-      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <!-- Mobile — 4 StatsCard ditumpuk 1 kolom bikin daftar dokumen kedorong jauh ke bawah; grid 2 kolom
+           ringkas jauh lebih compact. Desktop tidak berubah. -->
+      <div class="grid grid-cols-2 gap-2.5 sm:hidden">
+        <StatsCard size="sm" title="Total Docs" :value="String(DOCUMENT_RECORDS.length)" :icon="FileText" />
+        <StatsCard size="sm" title="Expired" :value="String(expiredCount)" :icon="AlertTriangle" icon-color="destructive" />
+        <StatsCard size="sm" title="Segera Expired" :value="String(expiringSoonCount)" :icon="AlertTriangle" icon-color="warning" />
+        <StatsCard size="sm" title="Belum Dibaca" :value="String(unreadCount)" :icon="Bell" icon-color="warning" />
+      </div>
+
+      <div class="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Total Documents" :value="String(DOCUMENT_RECORDS.length)" :icon="FileText" />
         <StatsCard title="Expired" :value="String(expiredCount)" :icon="AlertTriangle" icon-color="destructive" />
         <StatsCard title="Akan Kedaluwarsa" :value="String(expiringSoonCount)" :icon="AlertTriangle" icon-color="warning" />
@@ -375,7 +467,8 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
         </TabsList>
 
         <TabsContent value="documents">
-          <div class="flex flex-col sm:flex-row items-start sm:items-center gap-3 mb-4 flex-wrap">
+          <!-- Desktop/tablet — tidak diubah. -->
+          <div class="hidden sm:flex flex-row items-center gap-3 mb-4 flex-wrap">
             <div class="relative flex-1 max-w-sm w-full">
               <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input v-model="docSearch" placeholder="Cari nama dokumen, entity, atau project..." class="pl-9" />
@@ -415,60 +508,256 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                 Akan Kedaluwarsa
               </option>
             </select>
+            <div class="relative flex items-center gap-1 rounded-lg border border-border p-0.5 ml-auto">
+              <div
+                class="absolute inset-y-0.5 left-0.5 h-8 w-8 rounded-md bg-success transition-transform duration-300 ease-in-out"
+                :class="docViewMode === 'grid' ? 'translate-x-[calc(100%+0.25rem)]' : 'translate-x-0'"
+              />
+              <button
+                type="button"
+                class="relative z-10 flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-300"
+                :class="docViewMode === 'list' ? 'text-success-foreground' : 'text-muted-foreground hover:text-foreground'"
+                @click="docViewMode = 'list'"
+              >
+                <List class="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                class="relative z-10 flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-300"
+                :class="docViewMode === 'grid' ? 'text-success-foreground' : 'text-muted-foreground hover:text-foreground'"
+                @click="docViewMode = 'grid'"
+              >
+                <LayoutGrid class="h-4 w-4" />
+              </button>
+            </div>
           </div>
-          <SectionCard description="Dokumen 'uploaded' murni metadata mock; dokumen 'generated' menautkan ke halaman preview existing (tidak menduplikasi generator dokumen).">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Document</TableHead>
-                  <TableHead>Entity</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Version</TableHead>
-                  <TableHead>Access Level</TableHead>
-                  <TableHead>Expiry</TableHead>
-                  <TableHead>Source</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in documentRows" :key="row.item.id">
-                  <TableCell class="font-medium text-foreground max-w-[220px] truncate">
-                    {{ row.item.name }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ entityLabel(row.item.entityType, row.item.entityId) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.project?.name ?? '—' }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.item.category }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    v{{ row.item.version }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).tone" /></TableCell>
-                  <TableCell>
-                    <template v-if="row.item.expiresAt">
-                      <StatusBadge
-                        :label="isDocumentExpired(row.item.expiresAt) ? `Expired ${formatDate(row.item.expiresAt)}` : isDocumentExpiringSoon(row.item.expiresAt) ? `Segera: ${formatDate(row.item.expiresAt)}` : formatDate(row.item.expiresAt)"
-                        :tone="isDocumentExpired(row.item.expiresAt) ? 'destructive' : isDocumentExpiringSoon(row.item.expiresAt) ? 'warning' : 'neutral'"
-                      />
-                    </template>
-                    <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
-                  </TableCell>
-                  <TableCell>
-                    <NuxtLink v-if="row.item.sourceType === 'generated' && row.item.previewRoute" :to="row.item.previewRoute" target="_blank" class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                      Preview <ExternalLink class="h-3 w-3" />
-                    </NuxtLink>
-                    <span v-else class="text-xs text-muted-foreground">Uploaded</span>
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="documentRows.length === 0" :colspan="8">
-                  {{ docSearch || docCategoryFilter !== 'all' || docAccessFilter !== 'all' || docEntityFilter !== 'all' || docExpiryFilter !== 'all' ? 'Tidak ada dokumen yang cocok dengan filter.' : 'Belum ada dokumen tercatat.' }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
+
+          <!-- Mobile — search + tombol Filter (bottom Sheet) + toggle list/grid dalam satu baris ringkas. -->
+          <div class="space-y-2.5 mb-4 sm:hidden">
+            <div class="relative">
+              <Search class="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input v-model="docSearch" placeholder="Cari dokumen..." class="pl-9" />
+            </div>
+            <div class="flex items-center gap-2">
+              <Sheet v-model:open="isMobileDocFilterOpen">
+                <SheetTrigger as-child>
+                  <Button variant="outline" size="sm" class="flex-1 justify-start">
+                    <SlidersHorizontal class="h-3.5 w-3.5 mr-1.5 shrink-0" />
+                    Filter
+                    <span v-if="activeDocFilterCount" class="ml-auto rounded-full bg-primary/10 px-1.5 py-0.5 text-[11px] font-semibold text-primary">
+                      {{ activeDocFilterCount }}
+                    </span>
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="bottom" class="max-h-[85vh] overflow-y-auto rounded-t-2xl">
+                  <SheetHeader class="text-left">
+                    <SheetTitle>Filter Dokumen</SheetTitle>
+                  </SheetHeader>
+                  <div class="space-y-3 py-4">
+                    <div class="space-y-1.5">
+                      <Label class="text-xs text-muted-foreground">Category</Label>
+                      <select v-model="docCategoryFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="all">
+                          Semua Category
+                        </option>
+                        <option v-for="category in documentCategories" :key="category" :value="category">
+                          {{ category }}
+                        </option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label class="text-xs text-muted-foreground">Access Level</Label>
+                      <select v-model="docAccessFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="all">
+                          Semua Access Level
+                        </option>
+                        <option v-for="option in DOCUMENT_ACCESS_LEVELS" :key="option.value" :value="option.value">
+                          {{ option.label }}
+                        </option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label class="text-xs text-muted-foreground">Entity Type</Label>
+                      <select v-model="docEntityFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="all">
+                          Semua Entity Type
+                        </option>
+                        <option v-for="option in DOCUMENT_ENTITY_TYPES" :key="option.value" :value="option.value">
+                          {{ option.label }}
+                        </option>
+                      </select>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label class="text-xs text-muted-foreground">Status Expiry</Label>
+                      <select v-model="docExpiryFilter" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option value="all">
+                          Semua Status Expiry
+                        </option>
+                        <option value="expired">
+                          Expired
+                        </option>
+                        <option value="expiring-soon">
+                          Akan Kedaluwarsa
+                        </option>
+                      </select>
+                    </div>
+                  </div>
+                  <SheetFooter class="flex-row gap-2">
+                    <Button variant="outline" class="flex-1" @click="isMobileDocFilterOpen = false">
+                      Terapkan
+                    </Button>
+                  </SheetFooter>
+                </SheetContent>
+              </Sheet>
+
+              <div class="relative flex items-center gap-1 rounded-lg border border-border p-0.5">
+                <div
+                  class="absolute inset-y-0.5 left-0.5 h-8 w-8 rounded-md bg-success transition-transform duration-300 ease-in-out"
+                  :class="docViewMode === 'grid' ? 'translate-x-[calc(100%+0.25rem)]' : 'translate-x-0'"
+                />
+                <button
+                  type="button"
+                  class="relative z-10 flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-300"
+                  :class="docViewMode === 'list' ? 'text-success-foreground' : 'text-muted-foreground'"
+                  @click="docViewMode = 'list'"
+                >
+                  <List class="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  class="relative z-10 flex h-8 w-8 items-center justify-center rounded-md transition-colors duration-300"
+                  :class="docViewMode === 'grid' ? 'text-success-foreground' : 'text-muted-foreground'"
+                  @click="docViewMode = 'grid'"
+                >
+                  <LayoutGrid class="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          </div>
+          <SectionCard v-if="docViewMode === 'list'" description="Dokumen 'uploaded' murni metadata mock; dokumen 'generated' menautkan ke halaman preview existing (tidak menduplikasi generator dokumen).">
+            <div v-if="documentRows.length > 0" class="space-y-5">
+              <div v-for="group in documentGroups" :key="group.category ?? '_all'">
+                <p v-if="group.category" class="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {{ group.category }} <span class="font-normal normal-case text-muted-foreground/70">({{ group.rows.length }})</span>
+                </p>
+                <div class="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Document</TableHead>
+                      <TableHead>Entity</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead v-if="!group.category">
+                        Category
+                      </TableHead>
+                      <TableHead>Version</TableHead>
+                      <TableHead>Access Level</TableHead>
+                      <TableHead>Expiry</TableHead>
+                      <TableHead>Source</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in group.rows" :key="row.item.id">
+                      <TableCell class="font-medium text-foreground max-w-[220px] truncate">
+                        {{ row.item.name }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ entityLabel(row.item.entityType, row.item.entityId) }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.project?.name ?? '—' }}
+                      </TableCell>
+                      <TableCell v-if="!group.category" class="text-muted-foreground">
+                        {{ row.item.category }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        v{{ row.item.version }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).tone" /></TableCell>
+                      <TableCell>
+                        <template v-if="row.item.expiresAt">
+                          <StatusBadge
+                            :label="isDocumentExpired(row.item.expiresAt) ? `Expired ${formatDate(row.item.expiresAt)}` : isDocumentExpiringSoon(row.item.expiresAt) ? `Segera: ${formatDate(row.item.expiresAt)}` : formatDate(row.item.expiresAt)"
+                            :tone="isDocumentExpired(row.item.expiresAt) ? 'destructive' : isDocumentExpiringSoon(row.item.expiresAt) ? 'warning' : 'neutral'"
+                          />
+                        </template>
+                        <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
+                      </TableCell>
+                      <TableCell>
+                        <NuxtLink v-if="row.item.sourceType === 'generated' && row.item.previewRoute" :to="row.item.previewRoute" target="_blank" class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                          Preview <ExternalLink class="h-3 w-3" />
+                        </NuxtLink>
+                        <span v-else class="text-xs text-muted-foreground">Uploaded</span>
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+                </div>
+              </div>
+            </div>
+            <p v-else class="text-sm text-muted-foreground text-center py-6">
+              {{ docSearch || docCategoryFilter !== 'all' || docAccessFilter !== 'all' || docEntityFilter !== 'all' || docExpiryFilter !== 'all' ? 'Tidak ada dokumen yang cocok dengan filter.' : 'Belum ada dokumen tercatat.' }}
+            </p>
+          </SectionCard>
+
+          <SectionCard v-else description="Dokumen 'uploaded' murni metadata mock; dokumen 'generated' menautkan ke halaman preview existing (tidak menduplikasi generator dokumen).">
+            <div v-if="documentRows.length > 0" class="space-y-5">
+              <div v-for="group in documentGroups" :key="group.category ?? '_all'">
+                <p v-if="group.category" class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  {{ group.category }} <span class="font-normal normal-case text-muted-foreground/70">({{ group.rows.length }})</span>
+                </p>
+                <div class="grid grid-cols-2 gap-2.5 sm:flex sm:overflow-x-auto sm:pb-1">
+                  <div
+                    v-for="row in group.rows"
+                    :key="row.item.id"
+                    class="group relative flex flex-col overflow-hidden rounded-lg border border-border bg-card p-2 transition-all duration-200 hover:border-primary/40 hover:bg-muted/30 hover:shadow-sm sm:w-40 sm:shrink-0"
+                  >
+                    <div class="flex items-start justify-between gap-1">
+                      <div class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md" :class="TONE_ICON_BG[documentCategoryTone(row.item.category)]">
+                        <FileText class="h-3.5 w-3.5" />
+                      </div>
+                      <button type="button" class="flex h-5 w-5 shrink-0 items-center justify-center rounded text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground group-hover:opacity-100" title="Lainnya" @click="handleDocumentMenu(row.item)">
+                        <MoreVertical class="h-3 w-3" />
+                      </button>
+                    </div>
+
+                    <p class="mt-1.5 truncate text-[11px] font-semibold leading-tight text-foreground" :title="row.item.name">
+                      {{ row.item.name }}
+                    </p>
+                    <p class="mt-0.5 truncate text-[10px] text-muted-foreground">
+                      {{ row.item.category }} · v{{ row.item.version }}
+                    </p>
+                    <p class="mt-0.5 truncate text-[10px] text-muted-foreground" :title="row.project?.name ?? 'Tidak terkait project'">
+                      {{ row.project?.name ?? '—' }}
+                    </p>
+                    <StatusBadge
+                      v-if="row.item.expiresAt && (isDocumentExpired(row.item.expiresAt) || isDocumentExpiringSoon(row.item.expiresAt))"
+                      class="mt-1 w-fit"
+                      :label="isDocumentExpired(row.item.expiresAt) ? 'Expired' : 'Segera'"
+                      :tone="isDocumentExpired(row.item.expiresAt) ? 'destructive' : 'warning'"
+                      dot
+                    />
+
+                    <div class="mt-1.5 flex items-center justify-between gap-1 border-t border-border/70 pt-1.5">
+                      <p class="truncate text-[10px] text-muted-foreground" :title="documentUploaderName(row.item)">
+                        {{ documentUploaderName(row.item) }}
+                      </p>
+                      <div class="flex shrink-0 items-center gap-0.5">
+                        <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Lihat" @click="handlePreviewDocument(row.item)">
+                          <Eye class="h-3.5 w-3.5" />
+                        </button>
+                        <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Download" @click="handleDownloadDocument(row.item)">
+                          <Download class="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <p v-else class="text-sm text-muted-foreground text-center py-6">
+              {{ docSearch || docCategoryFilter !== 'all' || docAccessFilter !== 'all' || docEntityFilter !== 'all' || docExpiryFilter !== 'all' ? 'Tidak ada dokumen yang cocok dengan filter.' : 'Belum ada dokumen tercatat.' }}
+            </p>
           </SectionCard>
         </TabsContent>
 
@@ -489,43 +778,69 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
             <StatusBadge v-if="failedDeliveryCount > 0" :label="`${failedDeliveryCount} Gagal Terkirim`" tone="destructive" />
           </div>
           <SectionCard description="Delivery status Email/WhatsApp bersifat simulasi mock (D-006) — tidak ada integrasi channel komunikasi nyata.">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Entity</TableHead>
-                  <TableHead>Project</TableHead>
-                  <TableHead>Channel</TableHead>
-                  <TableHead>Sender</TableHead>
-                  <TableHead>Pesan</TableHead>
-                  <TableHead>Sent At</TableHead>
-                  <TableHead>Delivery Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in messageRows" :key="row.item.id">
-                  <TableCell class="text-muted-foreground">
-                    {{ entityLabel(row.item.entityType, row.item.entityId) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.project?.name ?? '—' }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(MESSAGE_CHANNELS, row.item.channel).label" :tone="findStatusOption(MESSAGE_CHANNELS, row.item.channel).tone" /></TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ row.sender?.name ?? row.item.senderId }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground max-w-[280px] truncate">
+            <ResponsiveDataView v-if="messageRows.length" :items="messageRows" :get-key="row => row.item.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Entity</TableHead>
+                      <TableHead>Project</TableHead>
+                      <TableHead>Channel</TableHead>
+                      <TableHead>Sender</TableHead>
+                      <TableHead>Pesan</TableHead>
+                      <TableHead>Sent At</TableHead>
+                      <TableHead>Delivery Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in items" :key="row.item.id">
+                      <TableCell class="text-muted-foreground">
+                        {{ entityLabel(row.item.entityType, row.item.entityId) }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.project?.name ?? '—' }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(MESSAGE_CHANNELS, row.item.channel).label" :tone="findStatusOption(MESSAGE_CHANNELS, row.item.channel).tone" /></TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ row.sender?.name ?? row.item.senderId }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground max-w-[280px] truncate">
+                        {{ row.item.body }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ formatDate(row.item.sentAt) }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).label" :tone="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).tone" /></TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </template>
+              <template #mobile-card="{ item: row }">
+                <div class="rounded-xl border border-border bg-card p-4">
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
+                      {{ entityLabel(row.item.entityType, row.item.entityId) }}
+                    </p>
+                    <StatusBadge :label="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).label" :tone="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).tone" />
+                  </div>
+                  <p class="mt-1 text-xs text-muted-foreground">
+                    {{ row.project?.name ?? '—' }} · {{ row.sender?.name ?? row.item.senderId }}
+                  </p>
+                  <p class="mt-2 text-xs text-muted-foreground">
                     {{ row.item.body }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(row.item.sentAt) }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).label" :tone="findStatusOption(MESSAGE_DELIVERY_STATUSES, row.item.deliveryStatus).tone" /></TableCell>
-                </TableRow>
-                <TableEmpty v-if="messageRows.length === 0" :colspan="7">
-                  {{ msgSearch || msgChannelFilter !== 'all' ? 'Tidak ada pesan yang cocok dengan filter.' : 'Belum ada pesan tercatat.' }}
-                </TableEmpty>
-              </TableBody>
-            </Table>
+                  </p>
+                  <div class="mt-2 flex items-center justify-between gap-2 text-xs">
+                    <StatusBadge :label="findStatusOption(MESSAGE_CHANNELS, row.item.channel).label" :tone="findStatusOption(MESSAGE_CHANNELS, row.item.channel).tone" />
+                    <span class="text-muted-foreground">{{ formatDate(row.item.sentAt) }}</span>
+                  </div>
+                </div>
+              </template>
+            </ResponsiveDataView>
+            <EmptyState
+              v-else
+              title="Tidak ada pesan"
+              :description="msgSearch || msgChannelFilter !== 'all' ? 'Tidak ada pesan yang cocok dengan filter.' : 'Belum ada pesan tercatat.'"
+            />
           </SectionCard>
         </TabsContent>
 

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Plus } from 'lucide-vue-next'
+import { Search, Plus, Eye } from 'lucide-vue-next'
 import { FLIGHT_BOOKINGS, PROJECTS, VENDORS, getProjectById, createFlightBooking, setServiceVendor, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
 import { FLIGHT_BOOKING_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
@@ -64,7 +64,10 @@ function openCreateDialog () {
   isCreateOpen.value = true
 }
 
-watch(() => route.query.create, (value) => { if (value === '1') { openCreateDialog() } }, { immediate: true })
+// Quick-create dari Project Detail selalu menyertakan anchor tab (`#ticketing`) — cek juga hash-nya, bukan
+// cuma `create=1`, supaya panel lain (Hotel/Transport/MICE) yang sama-sama mount di /services tidak ikut
+// membuka dialog-nya sendiri saat query ini muncul (dulu ke-4 panel share flag yang sama).
+watch(() => route.query.create, (value) => { if (value === '1' && route.hash === '#ticketing') { openCreateDialog() } }, { immediate: true })
 
 /** "Duplicate booking prevention" (Section 18, Wajib) — cek booking Flight aktif lain untuk project+service yang sama sebelum membuat. */
 const isDuplicateConfirmOpen = ref(false)
@@ -109,18 +112,18 @@ function cancelDuplicateCreate () {
 <template>
   <div class="space-y-6">
     <div v-if="canManageTicketing" class="flex justify-end">
-      <Dialog v-model:open="isCreateOpen">
-        <DialogTrigger as-child>
+      <Sheet v-model:open="isCreateOpen">
+        <SheetTrigger as-child>
           <Button @click="openCreateDialog">
             <Plus class="h-4 w-4 mr-1.5" />Buat Flight Booking
           </Button>
-        </DialogTrigger>
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Flight Booking Baru</DialogTitle>
-            <DialogDescription>Dibuat sebagai status "Requested" — lengkapi options/segments/traveler assignment di halaman detail.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </SheetTrigger>
+        <SheetContent side="right" class="w-full sm:max-w-md overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle>Flight Booking Baru</SheetTitle>
+            <SheetDescription>Dibuat sebagai status "Requested" — lengkapi options/segments/traveler assignment di halaman detail.</SheetDescription>
+          </SheetHeader>
+          <div class="space-y-4 py-4">
             <div class="space-y-1.5">
               <Label for="flt-project">Project</Label>
               <select id="flt-project" v-model="newProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
@@ -148,16 +151,16 @@ function cancelDuplicateCreate () {
               <Input id="flt-deadline" v-model="newTicketingDeadline" type="date" />
             </div>
           </div>
-          <DialogFooter>
+          <SheetFooter class="flex-row justify-end gap-2">
             <Button variant="outline" @click="isCreateOpen = false">
               Batal
             </Button>
             <Button :disabled="!newProjectId" @click="submitCreate">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       <!-- Duplicate booking prevention (Section 18, Wajib) — konfirmasi eksplisit wajib sebelum melanjutkan. -->
       <Dialog v-model:open="isDuplicateConfirmOpen">
@@ -208,41 +211,98 @@ function cancelDuplicateCreate () {
       </div>
 
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>PNR</TableHead>
-              <TableHead>Project</TableHead>
-              <TableHead>Rute</TableHead>
-              <TableHead>Traveler</TableHead>
-              <TableHead>Deadline</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.booking.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/ticketing/${row.booking.id}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ row.booking.pnr ?? '—' }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.project?.name ?? row.booking.projectId }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ routeLabel(row.booking) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.booking.travelerIds.length }} pax
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.booking.ticketingDeadline ? formatDate(row.booking.ticketingDeadline) : '—' }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).tone" /></TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
-              {{ searchQuery || statusFilter !== 'all' || projectFilter !== 'all' ? 'Tidak ada Flight Booking yang cocok dengan filter.' : 'Belum ada Flight Booking.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView v-if="rows.length" :items="rows" :get-key="row => row.booking.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>PNR</TableHead>
+                  <TableHead>Project</TableHead>
+                  <TableHead>Rute</TableHead>
+                  <TableHead>Traveler</TableHead>
+                  <TableHead>Deadline</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.booking.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/ticketing/${row.booking.id}`)">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.booking.pnr ?? '—' }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.project?.name ?? row.booking.projectId }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ routeLabel(row.booking) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.booking.travelerIds.length }} pax
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.booking.ticketingDeadline ? formatDate(row.booking.ticketingDeadline) : '—' }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).tone" /></TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="navigateTo(`/ticketing/${row.booking.id}`)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ row.booking.pnr ?? '—' }}
+                  </p>
+                  <p class="text-xs text-muted-foreground truncate">
+                    {{ row.project?.name ?? row.booking.projectId }}
+                  </p>
+                </div>
+                <StatusBadge :label="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).label" :tone="findStatusOption(FLIGHT_BOOKING_STATUSES, row.booking.status).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Rute
+                  </p>
+                  <p class="text-foreground">
+                    {{ routeLabel(row.booking) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Traveler
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.booking.travelerIds.length }} pax
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Deadline
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.booking.ticketingDeadline ? formatDate(row.booking.ticketingDeadline) : '—' }}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState
+          v-else
+          title="Tidak ada Flight Booking"
+          :description="searchQuery || statusFilter !== 'all' || projectFilter !== 'all' ? 'Tidak ada Flight Booking yang cocok dengan filter.' : 'Belum ada Flight Booking.'"
+        />
       </SectionCard>
     </template>
   </div>

@@ -146,66 +146,54 @@ function submitDispute () {
 
       <SectionCard v-if="canUploadProof || canDispute" title="Aksi">
         <div class="flex flex-wrap gap-2">
-          <Dialog v-if="canUploadProof" v-model:open="isProofOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet v-if="canUploadProof" v-model:open="isProofOpen" title="Upload Payment Proof" description="Mock upload — tidak ada file storage nyata, hanya metadata tercatat." content-class="max-w-md" scroll>
+            <template #trigger>
               <Button size="sm" @click="openProofDialog">
                 Upload Payment Proof
               </Button>
-            </DialogTrigger>
-            <DialogScrollContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Upload Payment Proof</DialogTitle>
-                <DialogDescription>Mock upload — tidak ada file storage nyata, hanya metadata tercatat.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-4 py-2">
-                <div class="space-y-1.5">
-                  <Label for="proof-reference">Nomor Referensi Transfer</Label>
-                  <Input id="proof-reference" v-model="proofReference" placeholder="mis. TRF20260801XYZ" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="proof-amount">Jumlah Ditransfer (IDR)</Label>
-                  <CurrencyInput id="proof-amount" v-model="proofAmount" min="1" :max="outstanding" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="proof-note">Catatan (opsional)</Label>
-                  <Input id="proof-note" v-model="proofNote" />
-                </div>
+            </template>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="proof-reference">Nomor Referensi Transfer</Label>
+                <Input id="proof-reference" v-model="proofReference" placeholder="mis. TRF20260801XYZ" />
               </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isProofOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!proofReference.trim() || proofAmount <= 0" @click="submitProof">
-                  Kirim Konfirmasi Pembayaran
-                </Button>
-              </DialogFooter>
-            </DialogScrollContent>
-          </Dialog>
-          <Dialog v-if="canDispute" v-model:open="isDisputeOpen">
-            <DialogTrigger as-child>
+              <div class="space-y-1.5">
+                <Label for="proof-amount">Jumlah Ditransfer (IDR)</Label>
+                <CurrencyInput id="proof-amount" v-model="proofAmount" min="1" :max="outstanding" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="proof-note">Catatan (opsional)</Label>
+                <Input id="proof-note" v-model="proofNote" />
+              </div>
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isProofOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!proofReference.trim() || proofAmount <= 0" @click="submitProof">
+                Kirim Konfirmasi Pembayaran
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
+          <ResponsiveFormSheet v-if="canDispute" v-model:open="isDisputeOpen" title="Raise Dispute" description="Alasan wajib diisi." content-class="max-w-md">
+            <template #trigger>
               <Button size="sm" variant="outline">
                 Raise Dispute
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Raise Dispute</DialogTitle>
-                <DialogDescription>Alasan wajib diisi.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="dispute-reason">Alasan</Label>
-                <Input id="dispute-reason" v-model="disputeReason" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isDisputeOpen = false">
-                  Batal
-                </Button>
-                <Button variant="destructive" :disabled="!disputeReason.trim()" @click="submitDispute">
-                  Ajukan Dispute
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </template>
+            <div class="space-y-1.5 py-2">
+              <Label for="dispute-reason">Alasan</Label>
+              <Input id="dispute-reason" v-model="disputeReason" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isDisputeOpen = false">
+                Batal
+              </Button>
+              <Button variant="destructive" :disabled="!disputeReason.trim()" @click="submitDispute">
+                Ajukan Dispute
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </div>
       </SectionCard>
 

@@ -108,94 +108,166 @@ function submitAdjust () {
       </SectionCard>
 
       <SectionCard title="Peringkat Customer">
-        <Table v-if="accounts.length">
-          <TableHeader>
-            <TableRow>
-              <TableHead>Customer</TableHead>
-              <TableHead>Tier</TableHead>
-              <TableHead class="text-right">
-                Total Belanja
-              </TableHead>
-              <TableHead class="text-right">
-                Poin
-              </TableHead>
-              <TableHead>Menuju Tier Berikutnya</TableHead>
-              <TableHead>Aktivitas Terakhir</TableHead>
-              <TableHead v-if="canManage" class="text-right">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="account in accounts" :key="account.partyId">
-              <TableCell>
-                <NuxtLink :to="`/crm/parties/${account.partyId}`" class="text-sm font-medium text-foreground hover:text-primary">
-                  {{ account.partyName }}
-                </NuxtLink>
-                <p class="text-xs text-muted-foreground">
-                  {{ account.projectCount }} project
-                </p>
-              </TableCell>
-              <TableCell>
-                <StatusBadge :label="account.tier.label" :tone="TIER_TONE[account.tier.key]" />
-              </TableCell>
-              <TableCell class="text-right text-sm text-foreground">
-                {{ formatCurrencyIdr(account.totalSpendIdr) }}
-              </TableCell>
-              <TableCell class="text-right">
-                <p class="text-sm font-semibold text-foreground">
-                  {{ formatNumber(account.totalPoints) }}
-                </p>
-                <p v-if="account.adjustmentPoints" class="text-xs text-muted-foreground">
-                  termasuk {{ account.adjustmentPoints > 0 ? '+' : '' }}{{ account.adjustmentPoints }} manual
-                </p>
-              </TableCell>
-              <TableCell>
-                <template v-if="account.nextTier">
+        <ResponsiveDataView v-if="accounts.length" :items="accounts" :get-key="account => account.partyId">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Tier</TableHead>
+                  <TableHead class="text-right">
+                    Total Belanja
+                  </TableHead>
+                  <TableHead class="text-right">
+                    Poin
+                  </TableHead>
+                  <TableHead>Menuju Tier Berikutnya</TableHead>
+                  <TableHead>Aktivitas Terakhir</TableHead>
+                  <TableHead v-if="canManage" class="text-right">
+                    Aksi
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="account in items" :key="account.partyId">
+                  <TableCell>
+                    <NuxtLink :to="`/crm/parties/${account.partyId}`" class="text-sm font-medium text-foreground hover:text-primary">
+                      {{ account.partyName }}
+                    </NuxtLink>
+                    <p class="text-xs text-muted-foreground">
+                      {{ account.projectCount }} project
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <StatusBadge :label="account.tier.label" :tone="TIER_TONE[account.tier.key]" />
+                  </TableCell>
+                  <TableCell class="text-right text-sm text-foreground">
+                    {{ formatCurrencyIdr(account.totalSpendIdr) }}
+                  </TableCell>
+                  <TableCell class="text-right">
+                    <p class="text-sm font-semibold text-foreground">
+                      {{ formatNumber(account.totalPoints) }}
+                    </p>
+                    <p v-if="account.adjustmentPoints" class="text-xs text-muted-foreground">
+                      termasuk {{ account.adjustmentPoints > 0 ? '+' : '' }}{{ account.adjustmentPoints }} manual
+                    </p>
+                  </TableCell>
+                  <TableCell>
+                    <template v-if="account.nextTier">
+                      <p class="text-xs text-muted-foreground">
+                        {{ formatCurrencyIdr(account.spendToNextTierIdr) }} lagi ke {{ account.nextTier.label }}
+                      </p>
+                      <div class="mt-1 h-1.5 w-28 rounded-full bg-muted overflow-hidden">
+                        <div
+                          class="h-full bg-primary"
+                          :style="{ width: `${Math.min(100, (account.totalSpendIdr / account.nextTier.minSpendIdr) * 100)}%` }"
+                        />
+                      </div>
+                    </template>
+                    <span v-else class="text-xs text-muted-foreground">Tier tertinggi</span>
+                  </TableCell>
+                  <TableCell>
+                    <span
+                      :class="cn(
+                        'text-sm',
+                        (account.daysSinceLastProject ?? 0) > 90 ? 'text-warning font-medium' : 'text-muted-foreground'
+                      )"
+                    >
+                      {{ account.lastProjectAt ? `${account.daysSinceLastProject} hari lalu` : '—' }}
+                    </span>
+                  </TableCell>
+                  <TableCell v-if="canManage" class="text-right">
+                    <Button variant="outline" size="sm" @click="openAdjust(account.partyId)">
+                      <Plus class="h-3.5 w-3.5 mr-1" />
+                      Sesuaikan Poin
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: account }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <NuxtLink :to="`/crm/parties/${account.partyId}`" class="text-sm font-medium text-foreground hover:text-primary truncate block">
+                    {{ account.partyName }}
+                  </NuxtLink>
                   <p class="text-xs text-muted-foreground">
-                    {{ formatCurrencyIdr(account.spendToNextTierIdr) }} lagi ke {{ account.nextTier.label }}
+                    {{ account.projectCount }} project
                   </p>
-                  <div class="mt-1 h-1.5 w-28 rounded-full bg-muted overflow-hidden">
-                    <div
-                      class="h-full bg-primary"
-                      :style="{ width: `${Math.min(100, (account.totalSpendIdr / account.nextTier.minSpendIdr) * 100)}%` }"
-                    />
-                  </div>
-                </template>
-                <span v-else class="text-xs text-muted-foreground">Tier tertinggi</span>
-              </TableCell>
-              <TableCell>
-                <span
-                  :class="cn(
-                    'text-sm',
-                    (account.daysSinceLastProject ?? 0) > 90 ? 'text-warning font-medium' : 'text-muted-foreground'
-                  )"
-                >
-                  {{ account.lastProjectAt ? `${account.daysSinceLastProject} hari lalu` : '—' }}
-                </span>
-              </TableCell>
-              <TableCell v-if="canManage" class="text-right">
-                <Button variant="outline" size="sm" @click="openAdjust(account.partyId)">
-                  <Plus class="h-3.5 w-3.5 mr-1" />
-                  Sesuaikan Poin
-                </Button>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
+                </div>
+                <StatusBadge :label="account.tier.label" :tone="TIER_TONE[account.tier.key]" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Total Belanja
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatCurrencyIdr(account.totalSpendIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Poin
+                  </p>
+                  <p class="font-semibold text-foreground">
+                    {{ formatNumber(account.totalPoints) }}
+                  </p>
+                  <p v-if="account.adjustmentPoints" class="text-muted-foreground">
+                    termasuk {{ account.adjustmentPoints > 0 ? '+' : '' }}{{ account.adjustmentPoints }} manual
+                  </p>
+                </div>
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Menuju Tier Berikutnya
+                  </p>
+                  <template v-if="account.nextTier">
+                    <p class="text-foreground">
+                      {{ formatCurrencyIdr(account.spendToNextTierIdr) }} lagi ke {{ account.nextTier.label }}
+                    </p>
+                    <div class="mt-1 h-1.5 w-28 rounded-full bg-muted overflow-hidden">
+                      <div
+                        class="h-full bg-primary"
+                        :style="{ width: `${Math.min(100, (account.totalSpendIdr / account.nextTier.minSpendIdr) * 100)}%` }"
+                      />
+                    </div>
+                  </template>
+                  <span v-else class="text-foreground">Tier tertinggi</span>
+                </div>
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Aktivitas Terakhir
+                  </p>
+                  <span
+                    :class="cn(
+                      (account.daysSinceLastProject ?? 0) > 90 ? 'text-warning font-medium' : 'text-foreground'
+                    )"
+                  >
+                    {{ account.lastProjectAt ? `${account.daysSinceLastProject} hari lalu` : '—' }}
+                  </span>
+                </div>
+              </div>
+              <Button v-if="canManage" variant="outline" size="sm" class="mt-3 w-full" @click="openAdjust(account.partyId)">
+                <Plus class="h-3.5 w-3.5 mr-1" />
+                Sesuaikan Poin
+              </Button>
+            </div>
+          </template>
+        </ResponsiveDataView>
 
         <EmptyState v-else :icon="Award" title="Belum ada member loyalty" description="Customer masuk program setelah invoice pertamanya lunas." />
       </SectionCard>
 
-      <Dialog :open="Boolean(adjustTargetId)" @update:open="value => { if (!value) adjustTargetId = undefined }">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Sesuaikan Poin — {{ adjustTarget?.partyName }}</DialogTitle>
-            <DialogDescription>
-              Gunakan nilai positif untuk bonus dan negatif untuk penukaran. Alasan wajib diisi agar jejaknya jelas.
-            </DialogDescription>
-          </DialogHeader>
-
+      <ResponsiveFormSheet
+        :open="Boolean(adjustTargetId)"
+        @update:open="value => { if (!value) adjustTargetId = undefined }"
+        :title="`Sesuaikan Poin — ${adjustTarget?.partyName}`"
+        description="Gunakan nilai positif untuk bonus dan negatif untuk penukaran. Alasan wajib diisi agar jejaknya jelas."
+        content-class="max-w-md"
+      >
           <div class="space-y-3">
             <div class="space-y-1.5">
               <Label>Jumlah Poin</Label>
@@ -226,16 +298,15 @@ function submitAdjust () {
             </div>
           </div>
 
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="adjustTargetId = undefined">
               Batal
             </Button>
             <Button :disabled="!adjustPoints || !adjustReason.trim()" @click="submitAdjust">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

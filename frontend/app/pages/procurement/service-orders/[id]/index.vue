@@ -163,31 +163,61 @@ function submitRejectInvoice () {
       </SectionCard>
 
       <SectionCard title="Line Items">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Deskripsi</TableHead>
-              <TableHead>Qty</TableHead>
-              <TableHead>Unit</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="(item, index) in serviceOrder.lineItems" :key="index">
-              <TableCell class="text-foreground">
+        <ResponsiveDataView :items="serviceOrder.lineItems" :get-key="(item, index) => index">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Deskripsi</TableHead>
+                  <TableHead>Qty</TableHead>
+                  <TableHead>Unit</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="(item, index) in items" :key="index">
+                  <TableCell class="text-foreground">
+                    {{ item.description }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ item.quantity }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ item.unit }}
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="serviceOrder.lineItems.length === 0" :colspan="3">
+                  Belum ada line item.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <p class="text-sm font-medium text-foreground">
                 {{ item.description }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ item.quantity }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ item.unit }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="serviceOrder.lineItems.length === 0" :colspan="3">
-              Belum ada line item.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </p>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Qty
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.quantity }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Unit
+                  </p>
+                  <p class="text-foreground">
+                    {{ item.unit }}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
         <div class="grid gap-3 sm:grid-cols-2 mt-4">
           <div v-if="canViewProcurementFinancials" class="rounded-lg border border-border p-3">
             <p class="text-xs text-muted-foreground">
@@ -226,116 +256,157 @@ function submitRejectInvoice () {
       </SectionCard>
 
       <SectionCard title="Supplier Invoice" description="Invoice yang diajukan supplier terhadap Service Order ini (preview/mock).">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Jumlah</TableHead>
-              <TableHead>Diajukan</TableHead>
-              <TableHead>Catatan</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead v-if="canManageProcurement">
-                Aksi
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="invoice in invoices" :key="invoice.id">
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(invoice.amountIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDate(invoice.submittedAt) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ invoice.note ?? '—' }}{{ invoice.reviewNote ? ` — Review: ${invoice.reviewNote}` : '' }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).tone" /></TableCell>
-              <TableCell v-if="canManageProcurement">
-                <div v-if="invoice.status === 'submitted' || invoice.status === 'under-review'" class="flex flex-wrap gap-1.5">
-                  <Button v-if="invoice.status === 'submitted'" size="sm" variant="outline" @click="reviewInvoice(invoice.id, 'under-review')">
-                    Review
-                  </Button>
-                  <Button size="sm" variant="outline" @click="reviewInvoice(invoice.id, 'approved')">
-                    Approve
-                  </Button>
-                  <Button size="sm" variant="destructive" @click="openRejectInvoice(invoice.id)">
-                    Reject
-                  </Button>
+        <ResponsiveDataView :items="invoices" :get-key="invoice => invoice.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Jumlah</TableHead>
+                  <TableHead>Diajukan</TableHead>
+                  <TableHead>Catatan</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead v-if="canManageProcurement">
+                    Aksi
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="invoice in items" :key="invoice.id">
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(invoice.amountIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(invoice.submittedAt) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ invoice.note ?? '—' }}{{ invoice.reviewNote ? ` — Review: ${invoice.reviewNote}` : '' }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).tone" /></TableCell>
+                  <TableCell v-if="canManageProcurement">
+                    <div v-if="invoice.status === 'submitted' || invoice.status === 'under-review'" class="flex flex-wrap gap-1.5">
+                      <Button v-if="invoice.status === 'submitted'" size="sm" variant="outline" @click="reviewInvoice(invoice.id, 'under-review')">
+                        Review
+                      </Button>
+                      <Button size="sm" variant="outline" @click="reviewInvoice(invoice.id, 'approved')">
+                        Approve
+                      </Button>
+                      <Button size="sm" variant="destructive" @click="openRejectInvoice(invoice.id)">
+                        Reject
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="invoices.length === 0" :colspan="canManageProcurement ? 5 : 4">
+                  Belum ada invoice diajukan.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: invoice }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground">
+                  {{ formatCurrencyIdr(invoice.amountIdr) }}
+                </p>
+                <StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Diajukan
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(invoice.submittedAt) }}
+                  </p>
                 </div>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="invoices.length === 0" :colspan="canManageProcurement ? 5 : 4">
-              Belum ada invoice diajukan.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+                <div>
+                  <p class="text-muted-foreground">
+                    Catatan
+                  </p>
+                  <p class="text-foreground">
+                    {{ invoice.note ?? '—' }}{{ invoice.reviewNote ? ` — Review: ${invoice.reviewNote}` : '' }}
+                  </p>
+                </div>
+              </div>
+              <div v-if="canManageProcurement && (invoice.status === 'submitted' || invoice.status === 'under-review')" class="mt-3 flex flex-wrap gap-1.5">
+                <Button v-if="invoice.status === 'submitted'" size="sm" variant="outline" @click="reviewInvoice(invoice.id, 'under-review')">
+                  Review
+                </Button>
+                <Button size="sm" variant="outline" @click="reviewInvoice(invoice.id, 'approved')">
+                  Approve
+                </Button>
+                <Button size="sm" variant="destructive" @click="openRejectInvoice(invoice.id)">
+                  Reject
+                </Button>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <!-- Cancel dialog -->
-      <Dialog v-model:open="isCancelDialogOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Cancel Service Order</DialogTitle>
-            <DialogDescription>Alasan wajib dicatat — akan tersimpan sebagai jejak historis di Activity & Changes project terkait (bila terhubung).</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-1.5 py-2">
-            <Label for="cancel-reason">Alasan</Label>
-            <Input id="cancel-reason" v-model="cancelReason" placeholder="mis. Kebutuhan dibatalkan klien" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isCancelDialogOpen = false">
-              Batal
-            </Button>
-            <Button variant="destructive" :disabled="!cancelReason.trim()" @click="submitCancel">
-              Konfirmasi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveFormSheet
+        v-model:open="isCancelDialogOpen"
+        title="Cancel Service Order"
+        description="Alasan wajib dicatat — akan tersimpan sebagai jejak historis di Activity & Changes project terkait (bila terhubung)."
+        content-class="max-w-md"
+      >
+        <div class="space-y-1.5 py-2">
+          <Label for="cancel-reason">Alasan</Label>
+          <Input id="cancel-reason" v-model="cancelReason" placeholder="mis. Kebutuhan dibatalkan klien" />
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isCancelDialogOpen = false">
+            Batal
+          </Button>
+          <Button variant="destructive" :disabled="!cancelReason.trim()" @click="submitCancel">
+            Konfirmasi
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
       <!-- Amend dialog -->
-      <Dialog v-model:open="isAmendOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Amend Service Order</DialogTitle>
-            <DialogDescription>Alasan amandemen wajib diisi — tercatat di riwayat amendment.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-1.5 py-2">
-            <Label for="amend-reason">Alasan</Label>
-            <Input id="amend-reason" v-model="amendReason" placeholder="mis. Penambahan jumlah kamar" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isAmendOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!amendReason.trim()" @click="submitAmend">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveFormSheet
+        v-model:open="isAmendOpen"
+        title="Amend Service Order"
+        description="Alasan amandemen wajib diisi — tercatat di riwayat amendment."
+        content-class="max-w-md"
+      >
+        <div class="space-y-1.5 py-2">
+          <Label for="amend-reason">Alasan</Label>
+          <Input id="amend-reason" v-model="amendReason" placeholder="mis. Penambahan jumlah kamar" />
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isAmendOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!amendReason.trim()" @click="submitAmend">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
 
       <!-- Reject invoice dialog -->
-      <Dialog v-model:open="isRejectInvoiceOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Tolak Invoice</DialogTitle>
-            <DialogDescription>Catatan alasan penolakan wajib diisi.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-1.5 py-2">
-            <Label for="reject-invoice-note">Catatan</Label>
-            <Input id="reject-invoice-note" v-model="rejectInvoiceNote" placeholder="mis. Jumlah tidak sesuai kontrak" />
-          </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isRejectInvoiceOpen = false">
-              Batal
-            </Button>
-            <Button variant="destructive" :disabled="!rejectInvoiceNote.trim()" @click="submitRejectInvoice">
-              Konfirmasi
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ResponsiveFormSheet
+        v-model:open="isRejectInvoiceOpen"
+        title="Tolak Invoice"
+        description="Catatan alasan penolakan wajib diisi."
+        content-class="max-w-md"
+      >
+        <div class="space-y-1.5 py-2">
+          <Label for="reject-invoice-note">Catatan</Label>
+          <Input id="reject-invoice-note" v-model="rejectInvoiceNote" placeholder="mis. Jumlah tidak sesuai kontrak" />
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isRejectInvoiceOpen = false">
+            Batal
+          </Button>
+          <Button variant="destructive" :disabled="!rejectInvoiceNote.trim()" @click="submitRejectInvoice">
+            Konfirmasi
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

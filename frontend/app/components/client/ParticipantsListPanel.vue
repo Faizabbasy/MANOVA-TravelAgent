@@ -161,120 +161,161 @@ function submitExport () {
           </Button>
         </div>
 
-        <div class="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead />
-                <TableHead>Nama</TableHead>
-                <TableHead>Project</TableHead>
-                <TableHead>Paspor</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="row in filteredRows" :key="row.traveler.id">
-                <TableCell>
-                  <Checkbox :model-value="selectedIds.includes(row.traveler.id)" @update:model-value="toggleSelect(row.traveler.id)" />
-                </TableCell>
-                <TableCell class="font-medium text-foreground">
-                  <NuxtLink :to="`/client/participants/${row.traveler.id}`" class="hover:underline">
-                    {{ row.traveler.name }}
-                  </NuxtLink>
-                  <Star v-if="row.traveler.isVip" class="h-3.5 w-3.5 inline ml-1.5 text-warning fill-warning" />
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.project.name }}
-                </TableCell>
-                <TableCell class="text-muted-foreground">
-                  {{ row.traveler.passportNumber || '—' }}
-                  <AlertTriangle v-if="isPassportExpiringSoon(row.traveler.passportExpiryDate)" class="h-3.5 w-3.5 inline ml-1 text-warning" />
-                </TableCell>
-                <TableCell>
-                  <StatusBadge :label="participantStatusLabel(row).label" :tone="participantStatusLabel(row).tone" />
-                </TableCell>
-                <TableCell>
-                  <NuxtLink :to="`/client/participants/${row.traveler.id}`">
-                    <Button size="sm" variant="ghost">
-                      Detail
-                    </Button>
-                  </NuxtLink>
-                </TableCell>
-              </TableRow>
-              <TableEmpty v-if="filteredRows.length === 0" :colspan="6">
-                <EmptyState :icon="Users" :title="rows.length ? 'Tidak ada peserta yang cocok' : 'Belum ada peserta'" :description="rows.length ? 'Coba ubah kata kunci pencarian atau filter.' : 'Tambahkan peserta ke Project Order Anda.'" />
-              </TableEmpty>
-            </TableBody>
-          </Table>
-        </div>
+        <ResponsiveDataView v-if="filteredRows.length" :items="filteredRows" :get-key="row => row.traveler.id">
+          <template #desktop="{ items }">
+            <div class="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead />
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Project</TableHead>
+                    <TableHead>Paspor</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="row in items" :key="row.traveler.id">
+                    <TableCell>
+                      <Checkbox :model-value="selectedIds.includes(row.traveler.id)" @update:model-value="toggleSelect(row.traveler.id)" />
+                    </TableCell>
+                    <TableCell class="font-medium text-foreground">
+                      <NuxtLink :to="`/client/participants/${row.traveler.id}`" class="hover:underline">
+                        {{ row.traveler.name }}
+                      </NuxtLink>
+                      <Star v-if="row.traveler.isVip" class="h-3.5 w-3.5 inline ml-1.5 text-warning fill-warning" />
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.project.name }}
+                    </TableCell>
+                    <TableCell class="text-muted-foreground">
+                      {{ row.traveler.passportNumber || '—' }}
+                      <AlertTriangle v-if="isPassportExpiringSoon(row.traveler.passportExpiryDate)" class="h-3.5 w-3.5 inline ml-1 text-warning" />
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge :label="participantStatusLabel(row).label" :tone="participantStatusLabel(row).tone" />
+                    </TableCell>
+                    <TableCell>
+                      <NuxtLink :to="`/client/participants/${row.traveler.id}`">
+                        <Button size="sm" variant="ghost">
+                          Detail
+                        </Button>
+                      </NuxtLink>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="flex items-start gap-2 min-w-0">
+                  <Checkbox class="mt-0.5" :model-value="selectedIds.includes(row.traveler.id)" @update:model-value="toggleSelect(row.traveler.id)" />
+                  <div class="min-w-0">
+                    <NuxtLink :to="`/client/participants/${row.traveler.id}`" class="text-sm font-medium text-foreground hover:underline">
+                      {{ row.traveler.name }}
+                      <Star v-if="row.traveler.isVip" class="h-3.5 w-3.5 inline ml-1 text-warning fill-warning" />
+                    </NuxtLink>
+                    <p class="text-xs text-muted-foreground">
+                      {{ row.project.name }}
+                    </p>
+                  </div>
+                </div>
+                <StatusBadge :label="participantStatusLabel(row).label" :tone="participantStatusLabel(row).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Paspor
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.traveler.passportNumber || '—' }}
+                    <AlertTriangle v-if="isPassportExpiringSoon(row.traveler.passportExpiryDate)" class="h-3.5 w-3.5 inline ml-1 text-warning" />
+                  </p>
+                </div>
+              </div>
+              <NuxtLink :to="`/client/participants/${row.traveler.id}`" class="mt-3 inline-block text-xs text-primary hover:underline">
+                Detail →
+              </NuxtLink>
+            </div>
+          </template>
+        </ResponsiveDataView>
+
+        <EmptyState
+          v-else
+          :icon="Users"
+          :title="rows.length ? 'Tidak ada peserta yang cocok' : 'Belum ada peserta'"
+          :description="rows.length ? 'Coba ubah kata kunci pencarian atau filter.' : 'Tambahkan peserta ke Project Order Anda.'"
+        />
       </SectionCard>
     </template>
 
     <!-- Add Dialog -->
-    <Dialog v-model:open="isAddDialogOpen">
-      <DialogContent class="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Tambah Peserta</DialogTitle>
-          <DialogDescription>Pilih Project Order dan nama peserta. Lengkapi detail lainnya dari halaman Detail setelah tersimpan.</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-4 py-2">
-          <div class="space-y-1.5">
-            <Label for="add-project">Project Order</Label>
-            <select id="add-project" v-model="addProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-              <option value="">
-                Pilih project...
-              </option>
-              <option v-for="project in projects" :key="project.id" :value="project.id">
-                {{ project.name }}
-              </option>
-            </select>
-          </div>
-          <div class="space-y-1.5">
-            <Label for="add-name">Nama Lengkap</Label>
-            <Input id="add-name" v-model="addName" />
-          </div>
+    <ResponsiveFormSheet
+      v-model:open="isAddDialogOpen"
+      title="Tambah Peserta"
+      description="Pilih Project Order dan nama peserta. Lengkapi detail lainnya dari halaman Detail setelah tersimpan."
+      content-class="max-w-md"
+    >
+      <div class="space-y-4 py-2">
+        <div class="space-y-1.5">
+          <Label for="add-project">Project Order</Label>
+          <select id="add-project" v-model="addProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+            <option value="">
+              Pilih project...
+            </option>
+            <option v-for="project in projects" :key="project.id" :value="project.id">
+              {{ project.name }}
+            </option>
+          </select>
         </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isAddDialogOpen = false">
-            Batal
-          </Button>
-          <Button :disabled="!addProjectId || !addName.trim()" @click="submitAdd">
-            Simpan
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div class="space-y-1.5">
+          <Label for="add-name">Nama Lengkap</Label>
+          <Input id="add-name" v-model="addName" />
+        </div>
+      </div>
+      <template #footer>
+        <Button variant="outline" @click="isAddDialogOpen = false">
+          Batal
+        </Button>
+        <Button :disabled="!addProjectId || !addName.trim()" @click="submitAdd">
+          Simpan
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
 
     <!-- Bulk Cancel Dialog -->
-    <Dialog v-model:open="isBulkCancelDialogOpen">
-      <DialogContent class="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Batalkan {{ selectedIds.length }} Peserta?</DialogTitle>
-          <DialogDescription>Alasan wajib diisi.</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-1.5 py-2">
-          <Label for="bulk-cancel-reason">Alasan</Label>
-          <Input id="bulk-cancel-reason" v-model="bulkCancelReason" />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isBulkCancelDialogOpen = false">
-            Batal
-          </Button>
-          <Button variant="destructive" :disabled="!bulkCancelReason.trim()" @click="submitBulkCancel">
-            Batalkan
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveFormSheet
+      v-model:open="isBulkCancelDialogOpen"
+      :title="`Batalkan ${selectedIds.length} Peserta?`"
+      description="Alasan wajib diisi."
+      content-class="max-w-md"
+    >
+      <div class="space-y-1.5 py-2">
+        <Label for="bulk-cancel-reason">Alasan</Label>
+        <Input id="bulk-cancel-reason" v-model="bulkCancelReason" />
+      </div>
+      <template #footer>
+        <Button variant="outline" @click="isBulkCancelDialogOpen = false">
+          Batal
+        </Button>
+        <Button variant="destructive" :disabled="!bulkCancelReason.trim()" @click="submitBulkCancel">
+          Batalkan
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
 
     <!-- Import Dialog (Bulk import simulation, Wajib) -->
-    <Dialog v-model:open="isImportDialogOpen">
-      <DialogScrollContent class="max-w-lg">
-        <DialogHeader>
-          <DialogTitle>Bulk Import Peserta (Mock)</DialogTitle>
-          <DialogDescription>Simulasi parsing file — bukan upload file sungguhan (mock, D-006). Baris dengan error tidak akan diimpor.</DialogDescription>
-        </DialogHeader>
+    <ResponsiveFormSheet
+      v-model:open="isImportDialogOpen"
+      title="Bulk Import Peserta (Mock)"
+      description="Simulasi parsing file — bukan upload file sungguhan (mock, D-006). Baris dengan error tidak akan diimpor."
+      content-class="max-w-lg"
+      scroll
+    >
         <div class="space-y-4 py-2">
           <div class="space-y-1.5">
             <Label for="import-project">Project Order</Label>
@@ -306,44 +347,42 @@ function submitExport () {
             </ul>
           </div>
         </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isImportDialogOpen = false">
-            Batal
-          </Button>
-          <Button :disabled="importPreviewRows.length === 0" @click="submitImport">
-            Import Baris Valid
-          </Button>
-        </DialogFooter>
-      </DialogScrollContent>
-    </Dialog>
+      <template #footer>
+        <Button variant="outline" @click="isImportDialogOpen = false">
+          Batal
+        </Button>
+        <Button :disabled="importPreviewRows.length === 0" @click="submitImport">
+          Import Baris Valid
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
 
     <!-- Export Dialog (mock, Wajib) -->
-    <Dialog v-model:open="isExportDialogOpen">
-      <DialogContent class="max-w-sm">
-        <DialogHeader>
-          <DialogTitle>Export Peserta (Mock)</DialogTitle>
-          <DialogDescription>Simulasi export — tidak ada file yang benar-benar dihasilkan (D-006).</DialogDescription>
-        </DialogHeader>
-        <div class="space-y-1.5 py-2">
-          <Label for="export-format">Format</Label>
-          <select id="export-format" v-model="exportFormat" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-            <option value="csv">
-              CSV
-            </option>
-            <option value="pdf">
-              PDF
-            </option>
-          </select>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" @click="isExportDialogOpen = false">
-            Batal
-          </Button>
-          <Button @click="submitExport">
-            Export
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ResponsiveFormSheet
+      v-model:open="isExportDialogOpen"
+      title="Export Peserta (Mock)"
+      description="Simulasi export — tidak ada file yang benar-benar dihasilkan (D-006)."
+      content-class="max-w-sm"
+    >
+      <div class="space-y-1.5 py-2">
+        <Label for="export-format">Format</Label>
+        <select id="export-format" v-model="exportFormat" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+          <option value="csv">
+            CSV
+          </option>
+          <option value="pdf">
+            PDF
+          </option>
+        </select>
+      </div>
+      <template #footer>
+        <Button variant="outline" @click="isExportDialogOpen = false">
+          Batal
+        </Button>
+        <Button @click="submitExport">
+          Export
+        </Button>
+      </template>
+    </ResponsiveFormSheet>
   </div>
 </template>

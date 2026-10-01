@@ -1,23 +1,117 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX } from 'lucide-vue-next'
+import { FileX, Plus, Eye } from 'lucide-vue-next'
 import {
   getPartyById, getContactsByParty, getLeadsByParty, getProjectsByParty, getPartyActivities,
-  getDocumentsByParty, getUserById, getQuotationByLead
+  getDocumentsByParty, getUserById, getQuotationByLead, createProject,
+  ensureProjectServiceForBudget, updateProjectServiceBudget,
+  getPartyCreditFacility, updatePartyCreditLimit
 } from '~/data'
-import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, findStatusOption } from '~/constants/status'
+import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
 import type { StatusOption } from '~/types/common'
 import type { PartyLifecycleStatus } from '~/types/party'
+import type { ServiceTypeKey } from '~/types/project'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
-const { canView } = usePermissions()
+const { canView, canManage } = usePermissions()
+const { showToast } = useToast()
 /** Sales dibatasi ke Lead saja pada Customer Journey (docs Prompt 19-10) — narrow exception. */
 const hasAccess = computed(() => canView('crm'))
+
+/** "Buat Project" langsung di tab Project halaman ini (Database Customer) — sebelumnya user harus loncat
+ * dulu ke Party Detail (CRM) cuma untuk tombol ini, padahal entitasnya sama. Mirror persis flow "Buat
+ * Project" di `crm/parties/[id]` (`createProject`, sama gate `canManage('operations')`), disatukan di sini
+ * supaya tidak ada dua tempat berbeda untuk aksi yang sama pada customer yang sama. */
+const canManageProject = computed(() => canManage('operations'))
+/** Limit Credit Facility — keputusan Finance/Management, bukan self-service client (beda dari Company Profile lain yang diedit client di Client Portal). */
+const canManageCredit = computed(() => canManage('finance'))
+const creditFacility = computed(() => (party.value ? getPartyCreditFacility(party.value.id) : undefined))
+const isEditCreditOpen = ref(false)
+const editCreditLimitIdr = ref<number | null>(null)
+
+function openEditCreditLimit () {
+  editCreditLimitIdr.value = party.value?.creditLimitIdr ?? null
+  isEditCreditOpen.value = true
+}
+
+function submitEditCreditLimit () {
+  if (!party.value) { return }
+  updatePartyCreditLimit(party.value.id, editCreditLimitIdr.value ?? undefined)
+  isEditCreditOpen.value = false
+  showToast('Credit Limit Diperbarui', `Plafon piutang ${party.value.name} berhasil diubah.`, 'success')
+}
+const isCreateProjectOpen = ref(false)
+const newProjectName = ref('')
+const newProjectDestination = ref('')
+const newProjectStartDate = ref('')
+const newProjectEndDate = ref('')
+const newProjectTravelerCount = ref<number | null>(null)
+const newProjectServiceScope = ref<ServiceTypeKey[]>([])
+const newProjectAmountIdr = ref<number | null>(null)
+/** Budget per layanan langsung di form "Buat Project" — muncul begitu chip Service Scope dicentang, opsional,
+ * memakai mesin yang sama dengan "Edit Budget" tab Finance (`ensureProjectServiceForBudget`/
+ * `updateProjectServiceBudget`, `app/data/index.ts`) supaya tidak perlu bolak-balik ke halaman lain. */
+const newProjectServiceBudgets = ref<Partial<Record<ServiceTypeKey, number | null>>>({})
+
+function toggleNewProjectServiceScope (type: ServiceTypeKey) {
+  const index = newProjectServiceScope.value.indexOf(type)
+  if (index === -1) { newProjectServiceScope.value.push(type) } else { newProjectServiceScope.value.splice(index, 1) }
+}
+
+function resetCreateProjectForm () {
+  newProjectName.value = ''
+  newProjectDestination.value = ''
+  newProjectStartDate.value = ''
+  newProjectEndDate.value = ''
+  newProjectTravelerCount.value = null
+  newProjectServiceScope.value = []
+  newProjectAmountIdr.value = null
+  newProjectServiceBudgets.value = {}
+}
+
+const isNewProjectFormValid = computed(() => Boolean(
+  newProjectName.value.trim() &&
+  newProjectDestination.value.trim() &&
+  newProjectStartDate.value &&
+  newProjectEndDate.value &&
+  newProjectTravelerCount.value &&
+  newProjectServiceScope.value.length &&
+  newProjectAmountIdr.value
+))
+
+const newProjectServiceBudgetsTotal = computed(() =>
+  newProjectServiceScope.value.reduce((sum, type) => sum + (newProjectServiceBudgets.value[type] ?? 0), 0)
+)
+
+function submitCreateProject () {
+  if (!party.value || !isNewProjectFormValid.value) { return }
+  const project = createProject({
+    partyId: party.value.id,
+    name: newProjectName.value.trim(),
+    destination: newProjectDestination.value.trim(),
+    travelStartDate: newProjectStartDate.value,
+    travelEndDate: newProjectEndDate.value,
+    travelerCount: newProjectTravelerCount.value!,
+    serviceScope: newProjectServiceScope.value,
+    quotationAmountIdr: newProjectAmountIdr.value!
+  })
+  if (!project) { showToast('Gagal Membuat Project', 'Periksa kembali tanggal dan data yang diisi.', 'error'); return }
+  for (const type of newProjectServiceScope.value) {
+    const amount = newProjectServiceBudgets.value[type]
+    if (!amount) { continue }
+    const label = findStatusOption(SERVICE_TYPES, type).label
+    const service = ensureProjectServiceForBudget(project.id, type, label)
+    updateProjectServiceBudget(service.id, amount)
+  }
+  resetCreateProjectForm()
+  isCreateProjectOpen.value = false
+  showToast('Project Dibuat', `${project.id} tercatat berstatus "Draft".`, 'success')
+}
 
 const LIFECYCLE_STATUSES: StatusOption<PartyLifecycleStatus>[] = [
   { value: 'prospect', label: 'Prospect', tone: 'warning', order: 1 },
@@ -110,6 +204,51 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
               </NuxtLink> untuk tab Overview/Contacts/Leads/Activities standar.
             </p>
           </SectionCard>
+
+          <SectionCard title="Credit Facility" description="Plafon piutang B2B — berapa banyak invoice belum lunas boleh menggantung sebelum Finance perlu menahan Project Order/Invoice baru.">
+            <template #actions>
+              <Button v-if="canManageCredit" size="sm" variant="outline" @click="openEditCreditLimit">
+                {{ creditFacility?.limitIdr ? 'Edit Limit' : 'Set Limit' }}
+              </Button>
+            </template>
+            <div v-if="creditFacility && creditFacility.limitIdr > 0" class="space-y-3">
+              <div class="flex flex-wrap items-center gap-x-8 gap-y-3">
+                <div>
+                  <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Limit
+                  </p>
+                  <p class="mt-1 text-lg font-bold text-foreground">
+                    {{ formatCurrencyIdr(creditFacility.limitIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    Terpakai (Outstanding)
+                  </p>
+                  <p class="mt-1 text-lg font-bold" :class="creditFacility.isOverLimit ? 'text-destructive' : 'text-foreground'">
+                    {{ formatCurrencyIdr(creditFacility.usedIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+                    {{ creditFacility.remainingIdr < 0 ? 'Over Limit' : 'Sisa' }}
+                  </p>
+                  <p class="mt-1 text-lg font-bold" :class="creditFacility.remainingIdr < 0 ? 'text-destructive' : 'text-success'">
+                    {{ formatCurrencyIdr(Math.abs(creditFacility.remainingIdr)) }}
+                  </p>
+                </div>
+              </div>
+              <div class="h-2 w-full max-w-md overflow-hidden rounded-full bg-muted">
+                <div class="h-full rounded-full" :class="creditFacility.isOverLimit ? 'bg-destructive' : 'bg-primary'" :style="{ width: `${Math.min(100, creditFacility.percentUsed)}%` }" />
+              </div>
+              <p v-if="creditFacility.isOverLimit" class="text-xs text-destructive">
+                Outstanding sudah melebihi limit — pertimbangkan menahan Project Order/Invoice baru sampai company ini melunasi sebagian.
+              </p>
+            </div>
+            <p v-else class="text-sm text-muted-foreground">
+              Belum ada limit diset untuk company ini.
+            </p>
+          </SectionCard>
         </TabsContent>
 
         <TabsContent value="contacts">
@@ -134,65 +273,238 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
 
         <TabsContent value="leads">
           <SectionCard title="Leads">
-            <Table v-if="leadDealRows.length">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Lead</TableHead>
-                  <TableHead>Status Quotation</TableHead>
-                  <TableHead>Account Executive</TableHead>
-                  <TableHead>Nilai Quotation</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="row in leadDealRows" :key="row.lead.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/crm/leads/${row.lead.id}`)">
-                  <TableCell class="font-medium text-foreground">
-                    {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
-                  </TableCell>
-                  <TableCell>
+            <ResponsiveDataView v-if="leadDealRows.length" :items="leadDealRows" :get-key="row => row.lead.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Lead</TableHead>
+                      <TableHead>Status Quotation</TableHead>
+                      <TableHead>Account Executive</TableHead>
+                      <TableHead>Nilai Quotation</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="row in items" :key="row.lead.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/crm/leads/${row.lead.id}`)">
+                      <TableCell class="font-medium text-foreground">
+                        {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          v-if="row.quotation"
+                          :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').label"
+                          :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').tone"
+                        />
+                        <span v-else class="text-muted-foreground">—</span>
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ getUserById(row.lead.handedOverTo ?? row.lead.ownerId)?.name ?? '—' }}
+                      </TableCell>
+                      <TableCell>{{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}</TableCell>
+                      <TableCell>
+                        <Eye class="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: row }">
+                <button
+                  type="button"
+                  class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+                  @click="navigateTo(`/crm/leads/${row.lead.id}`)"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground">
+                      {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
+                    </p>
                     <StatusBadge
                       v-if="row.quotation"
                       :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').label"
                       :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').tone"
                     />
-                    <span v-else class="text-muted-foreground">—</span>
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ getUserById(row.lead.handedOverTo ?? row.lead.ownerId)?.name ?? '—' }}
-                  </TableCell>
-                  <TableCell>{{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}</TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Account Executive
+                      </p>
+                      <p class="text-foreground">
+                        {{ getUserById(row.lead.handedOverTo ?? row.lead.ownerId)?.name ?? '—' }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Nilai Quotation
+                      </p>
+                      <p class="text-foreground">
+                        {{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
             <EmptyState v-else title="Belum ada lead" />
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="project-orders">
           <SectionCard title="Project Orders">
-            <Table v-if="projectOrders.length">
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Project Order</TableHead>
-                  <TableHead>Destinasi</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="project in projectOrders" :key="project.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/project-orders/${project.id}`)">
-                  <TableCell class="font-medium text-foreground">
-                    {{ project.name }}<span class="block text-xs text-muted-foreground font-normal">{{ project.id }}</span>
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ project.destination }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(PROJECT_STATUSES, project.status).label" :tone="findStatusOption(PROJECT_STATUSES, project.status).tone" /></TableCell>
-                </TableRow>
-              </TableBody>
-            </Table>
+            <template #actions>
+              <Sheet v-if="canManageProject" v-model:open="isCreateProjectOpen">
+                <SheetTrigger as-child>
+                  <Button size="sm" variant="outline">
+                    <Plus class="h-4 w-4 mr-1.5" />Buat Project
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" class="w-full sm:max-w-md overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>Buat Project Baru</SheetTitle>
+                    <SheetDescription>Untuk: {{ party?.name }} — tanpa lewat Lead, status awal "Draft".</SheetDescription>
+                  </SheetHeader>
+                  <div class="space-y-4 py-4">
+                    <div class="space-y-1.5">
+                      <Label for="cust-prj-name">Nama Project</Label>
+                      <Input id="cust-prj-name" v-model="newProjectName" placeholder="mis. Jakarta Business Trip Q1 2027" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="cust-prj-destination">Destinasi</Label>
+                      <Input id="cust-prj-destination" v-model="newProjectDestination" placeholder="mis. Bali" />
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label for="cust-prj-start">Tanggal Berangkat</Label>
+                        <Input id="cust-prj-start" v-model="newProjectStartDate" type="date" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="cust-prj-end">Tanggal Pulang</Label>
+                        <Input id="cust-prj-end" v-model="newProjectEndDate" type="date" />
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label for="cust-prj-travelers">Jumlah Traveler</Label>
+                        <Input id="cust-prj-travelers" v-model.number="newProjectTravelerCount" type="number" min="1" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="cust-prj-amount">Nilai Kontrak (Rp)</Label>
+                        <CurrencyInput id="cust-prj-amount" v-model="newProjectAmountIdr" />
+                      </div>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label>Service Scope</Label>
+                      <div class="flex flex-wrap gap-2">
+                        <button
+                          v-for="type in SERVICE_TYPES"
+                          :key="type.value"
+                          type="button"
+                          class="rounded-full border px-3 py-1 text-xs transition-colors"
+                          :class="newProjectServiceScope.includes(type.value) ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground'"
+                          @click="toggleNewProjectServiceScope(type.value)"
+                        >
+                          {{ type.value === 'additional' ? 'Other' : type.label }}
+                        </button>
+                      </div>
+                    </div>
+                    <div v-if="newProjectServiceScope.length" class="space-y-3">
+                      <Label>Budget per Layanan (opsional)</Label>
+                      <div v-for="type in SERVICE_TYPES.filter(t => newProjectServiceScope.includes(t.value))" :key="type.value" class="space-y-1.5">
+                        <Label :for="`cust-prj-budget-${type.value}`" class="text-xs text-muted-foreground">
+                          {{ type.value === 'additional' ? 'Other' : type.label }}
+                        </Label>
+                        <CurrencyInput :id="`cust-prj-budget-${type.value}`" v-model="newProjectServiceBudgets[type.value]" placeholder="mis. 100000000" />
+                      </div>
+                      <p v-if="newProjectAmountIdr" class="text-xs text-muted-foreground">
+                        Nilai Kontrak: <span class="font-medium text-foreground">{{ formatCurrencyIdr(newProjectAmountIdr) }}</span>
+                        · Sudah Dialokasikan: <span class="font-medium text-foreground">{{ formatCurrencyIdr(newProjectServiceBudgetsTotal) }}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <SheetFooter class="flex-row justify-end gap-2">
+                    <Button variant="outline" @click="resetCreateProjectForm(); isCreateProjectOpen = false">
+                      Batal
+                    </Button>
+                    <Button :disabled="!isNewProjectFormValid" @click="submitCreateProject">
+                      Simpan
+                    </Button>
+                  </SheetFooter>
+                </SheetContent>
+              </Sheet>
+            </template>
+
+            <ResponsiveDataView v-if="projectOrders.length" :items="projectOrders" :get-key="project => project.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Project Order</TableHead>
+                      <TableHead>Destinasi</TableHead>
+                      <TableHead>Tanggal</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow v-for="project in items" :key="project.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/project-orders/${project.id}`)">
+                      <TableCell class="font-medium text-foreground">
+                        {{ project.name }}<span class="block text-xs text-muted-foreground font-normal">{{ project.id }}</span>
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ project.destination }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
+                      </TableCell>
+                      <TableCell><StatusBadge :label="findStatusOption(PROJECT_STATUSES, project.status).label" :tone="findStatusOption(PROJECT_STATUSES, project.status).tone" /></TableCell>
+                      <TableCell>
+                        <Eye class="h-4 w-4 text-muted-foreground" />
+                      </TableCell>
+                    </TableRow>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: project }">
+                <button
+                  type="button"
+                  class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+                  @click="navigateTo(`/project-orders/${project.id}`)"
+                >
+                  <div class="flex items-start justify-between gap-2">
+                    <div class="min-w-0">
+                      <p class="text-sm font-medium text-foreground truncate">
+                        {{ project.name }}
+                      </p>
+                      <p class="text-xs text-muted-foreground">
+                        {{ project.id }}
+                      </p>
+                    </div>
+                    <StatusBadge :label="findStatusOption(PROJECT_STATUSES, project.status).label" :tone="findStatusOption(PROJECT_STATUSES, project.status).tone" />
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Destinasi
+                      </p>
+                      <p class="text-foreground">
+                        {{ project.destination }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Tanggal
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatDateRange(project.travelStartDate, project.travelEndDate) }}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
             <EmptyState v-else title="Belum ada Project Order" description="Company ini belum memiliki Project Order (belum ada Lead yang Won)." />
           </SectionCard>
         </TabsContent>
@@ -227,6 +539,32 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
           </SectionCard>
         </TabsContent>
       </Tabs>
+
+      <Sheet v-if="canManageCredit" v-model:open="isEditCreditOpen">
+        <SheetContent side="right" class="w-full sm:max-w-sm">
+          <SheetHeader>
+            <SheetTitle>{{ creditFacility?.limitIdr ? 'Edit' : 'Set' }} Credit Limit</SheetTitle>
+            <SheetDescription>Plafon piutang untuk {{ party?.name }}. Kosongkan untuk menghapus limit (tidak ada batas).</SheetDescription>
+          </SheetHeader>
+          <div class="space-y-4 py-4">
+            <div class="space-y-1.5">
+              <Label for="cust-credit-limit">Credit Limit (IDR)</Label>
+              <CurrencyInput id="cust-credit-limit" v-model="editCreditLimitIdr" placeholder="mis. 500000000" />
+            </div>
+            <p v-if="creditFacility" class="text-xs text-muted-foreground">
+              Outstanding saat ini: <span class="font-medium text-foreground">{{ formatCurrencyIdr(creditFacility.usedIdr) }}</span>
+            </p>
+          </div>
+          <SheetFooter class="flex-row justify-end gap-2">
+            <Button variant="outline" @click="isEditCreditOpen = false">
+              Batal
+            </Button>
+            <Button @click="submitEditCreditLimit">
+              Simpan
+            </Button>
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
     </template>
   </div>
 </template>

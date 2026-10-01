@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { Eye } from 'lucide-vue-next'
 import { getVendorById, getServicesByVendor, getVendorQuotations, getProjectById } from '~/data'
 import { SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -21,76 +22,163 @@ function projectLabel (projectId: string) {
 
 <template>
   <div class="space-y-6">
-    <RoleAccessState v-if="!canView('supplier-portal') || !vendor" module-label="Vendor Portal" />
+    <RoleAccessState v-if="!canView('supplier-portal') || !vendor" module-label="Katalog" />
 
     <template v-else>
       <SectionCard title="Active Assignments" description="Service yang ditugaskan ke company Anda pada Project Order terkait.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project Order</TableHead>
-              <TableHead>Layanan</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Booking Reference</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="service in assignments" :key="service.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/supplier/orders/${service.id}`)">
-              <TableCell class="text-muted-foreground">
-                {{ projectLabel(service.projectId) }}
-              </TableCell>
-              <TableCell class="font-medium text-foreground">
-                {{ service.label }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(SERVICE_STATUSES, service.status).label" :tone="findStatusOption(SERVICE_STATUSES, service.status).tone" /></TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ service.bookingReference ?? '—' }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="assignments.length === 0" :colspan="4">
-              Belum ada assignment.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+        <ResponsiveDataView :items="assignments" :get-key="service => service.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Project Order</TableHead>
+                  <TableHead>Layanan</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Booking Reference</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="service in items" :key="service.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/supplier/orders/${service.id}`)">
+                  <TableCell class="text-muted-foreground">
+                    {{ projectLabel(service.projectId) }}
+                  </TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ service.label }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(SERVICE_STATUSES, service.status).label" :tone="findStatusOption(SERVICE_STATUSES, service.status).tone" /></TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ service.bookingReference ?? '—' }}
+                  </TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="assignments.length === 0" :colspan="5">
+                  Belum ada assignment.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: service }">
+            <button type="button" class="w-full text-left rounded-xl border border-border bg-card p-4" @click="navigateTo(`/supplier/orders/${service.id}`)">
+              <div class="flex items-start justify-between gap-2">
+                <p class="font-medium text-foreground">
+                  {{ service.label }}
+                </p>
+                <StatusBadge :label="findStatusOption(SERVICE_STATUSES, service.status).label" :tone="findStatusOption(SERVICE_STATUSES, service.status).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Project Order
+                  </p>
+                  <p class="text-foreground">
+                    {{ projectLabel(service.projectId) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Booking Reference
+                  </p>
+                  <p class="text-foreground">
+                    {{ service.bookingReference ?? '—' }}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <SectionCard title="Quotation" description="Quotation yang pernah diajukan untuk company Anda.">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Project Order</TableHead>
-              <TableHead>Jumlah</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Diajukan</TableHead>
-              <TableHead>Catatan</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow
-              v-for="quotation in quotations"
-              :key="quotation.id"
-              :class="quotation.serviceId ? 'cursor-pointer hover:bg-muted/50' : ''"
+        <ResponsiveDataView :items="quotations" :get-key="quotation => quotation.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Project Order</TableHead>
+                  <TableHead>Jumlah</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Diajukan</TableHead>
+                  <TableHead>Catatan</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow
+                  v-for="quotation in items"
+                  :key="quotation.id"
+                  :class="quotation.serviceId ? 'cursor-pointer hover:bg-muted/50' : ''"
+                  @click="quotation.serviceId && navigateTo(`/supplier/orders/${quotation.serviceId}`)"
+                >
+                  <TableCell class="text-muted-foreground">
+                    {{ projectLabel(quotation.projectId) }}
+                  </TableCell>
+                  <TableCell class="font-medium text-foreground">
+                    {{ formatCurrencyIdr(quotation.amountIdr) }}
+                  </TableCell>
+                  <TableCell><StatusBadge :label="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).label" :tone="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).tone" /></TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ formatDate(quotation.submittedAt) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ quotation.notes ?? '—' }}
+                  </TableCell>
+                  <TableCell>
+                    <Eye v-if="quotation.serviceId" class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="quotations.length === 0" :colspan="6">
+                  Belum ada quotation.
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: quotation }">
+            <component
+              :is="quotation.serviceId ? 'button' : 'div'"
+              :type="quotation.serviceId ? 'button' : undefined"
+              class="w-full text-left rounded-xl border border-border bg-card p-4"
               @click="quotation.serviceId && navigateTo(`/supplier/orders/${quotation.serviceId}`)"
             >
-              <TableCell class="text-muted-foreground">
-                {{ projectLabel(quotation.projectId) }}
-              </TableCell>
-              <TableCell class="font-medium text-foreground">
-                {{ formatCurrencyIdr(quotation.amountIdr) }}
-              </TableCell>
-              <TableCell><StatusBadge :label="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).label" :tone="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).tone" /></TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ formatDate(quotation.submittedAt) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ quotation.notes ?? '—' }}
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="quotations.length === 0" :colspan="5">
-              Belum ada quotation.
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              <div class="flex items-start justify-between gap-2">
+                <p class="font-medium text-foreground">
+                  {{ formatCurrencyIdr(quotation.amountIdr) }}
+                </p>
+                <StatusBadge :label="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).label" :tone="findStatusOption(VENDOR_QUOTATION_STATUSES, quotation.status).tone" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Project Order
+                  </p>
+                  <p class="text-foreground">
+                    {{ projectLabel(quotation.projectId) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Diajukan
+                  </p>
+                  <p class="text-foreground">
+                    {{ formatDate(quotation.submittedAt) }}
+                  </p>
+                </div>
+                <div class="col-span-2">
+                  <p class="text-muted-foreground">
+                    Catatan
+                  </p>
+                  <p class="text-foreground">
+                    {{ quotation.notes ?? '—' }}
+                  </p>
+                </div>
+              </div>
+            </component>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

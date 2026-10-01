@@ -66,7 +66,7 @@ const summaryMetadata = computed(() => {
         : 'Belum ditentukan'
     },
     { label: 'Estimasi Traveler', value: lead.value.travelerEstimate ? `${lead.value.travelerEstimate} pax` : '—' },
-    { label: 'Expected Close', value: lead.value.expectedCloseDate ? formatDate(lead.value.expectedCloseDate) : '—' },
+    { label: 'Do Date', value: lead.value.expectedCloseDate ? formatDate(lead.value.expectedCloseDate) : '—' },
     { label: 'Qualified', value: lead.value.qualifiedAt ? formatDate(lead.value.qualifiedAt) : '—' }
   ]
 })
@@ -401,31 +401,29 @@ function submitActivity () {
               >
                 Duplicate Quotation
               </Button>
-              <Dialog v-model:open="isReviseDialogOpen">
-                <DialogTrigger as-child>
+              <ResponsiveFormSheet
+                v-model:open="isReviseDialogOpen"
+                title="Revisi Quotation (Versi Baru)"
+                description="Nilai lama akan tersimpan sebagai versi sebelumnya; status approval direset ke Draft."
+              >
+                <template #trigger>
                   <Button size="sm" variant="outline" @click="openReviseDialog">
                     Create New Version
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Revisi Quotation (Versi Baru)</DialogTitle>
-                    <DialogDescription>Nilai lama akan tersimpan sebagai versi sebelumnya; status approval direset ke Draft.</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-1.5 py-2">
-                    <Label for="revise-amount">Nilai Quotation Baru (Rp)</Label>
-                    <CurrencyInput id="revise-amount" v-model="revisedAmount" />
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isReviseDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button :disabled="!revisedAmount || revisedAmount <= 0" @click="submitRevise">
-                      Simpan Revisi
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                </template>
+                <div class="space-y-1.5 py-2">
+                  <Label for="revise-amount">Nilai Quotation Baru (Rp)</Label>
+                  <CurrencyInput id="revise-amount" v-model="revisedAmount" />
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isReviseDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button :disabled="!revisedAmount || revisedAmount <= 0" @click="submitRevise">
+                    Simpan Revisi
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </template>
           </div>
         </template>
@@ -535,39 +533,39 @@ function submitActivity () {
           </div>
         </div>
         <EmptyState v-else :icon="FileX" title="Belum ada quotation" description="Buat quotation untuk melanjutkan Lead ini ke commercial approval.">
-          <Dialog v-if="canManageLeadPipeline" v-model:open="isProposalDialogOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet
+            v-if="canManageLeadPipeline"
+            v-model:open="isProposalDialogOpen"
+            title="Buat Quotation"
+            description="Masukkan nilai quotation awal untuk Lead ini."
+          >
+            <template #trigger>
               <Button size="sm" @click="openProposalDialog">
                 Buat Quotation
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Buat Quotation</DialogTitle>
-                <DialogDescription>Masukkan nilai quotation awal untuk Lead ini.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-1.5 py-2">
-                <Label for="proposal-amount">Nilai Quotation (Rp)</Label>
-                <CurrencyInput id="proposal-amount" v-model="proposalQuotationAmount" placeholder="mis. 100000000" />
-              </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isProposalDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!proposalQuotationAmount || proposalQuotationAmount <= 0" @click="submitProposal">
-                  Simpan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </template>
+            <div class="space-y-1.5 py-2">
+              <Label for="proposal-amount">Nilai Quotation (Rp)</Label>
+              <CurrencyInput id="proposal-amount" v-model="proposalQuotationAmount" placeholder="mis. 100000000" />
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isProposalDialogOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!proposalQuotationAmount || proposalQuotationAmount <= 0" @click="submitProposal">
+                Simpan
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </EmptyState>
 
-        <Dialog v-model:open="isEditQuotationDialogOpen">
-          <DialogScrollContent class="max-w-lg">
-            <DialogHeader>
-              <DialogTitle>Edit Quotation</DialogTitle>
-              <DialogDescription>Melengkapi detail komersial selagi quotation masih Draft.</DialogDescription>
-            </DialogHeader>
+        <ResponsiveFormSheet
+          v-model:open="isEditQuotationDialogOpen"
+          title="Edit Quotation"
+          description="Melengkapi detail komersial selagi quotation masih Draft."
+          content-class="max-w-lg"
+          scroll
+        >
             <div class="space-y-4 py-2">
               <div class="space-y-1.5">
                 <Label for="edit-quo-amount">Nilai Quotation (Rp)</Label>
@@ -653,16 +651,15 @@ function submitActivity () {
                 <textarea id="edit-quo-terms" v-model="editQuotationTerms" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Harga berlaku selama masa validity, DP tidak dapat dikembalikan" />
               </div>
             </div>
-            <DialogFooter>
+            <template #footer>
               <Button variant="outline" @click="isEditQuotationDialogOpen = false">
                 Batal
               </Button>
               <Button :disabled="!editQuotationAmount || editQuotationAmount <= 0" @click="submitEditQuotation">
                 Simpan
               </Button>
-            </DialogFooter>
-          </DialogScrollContent>
-        </Dialog>
+            </template>
+        </ResponsiveFormSheet>
       </SectionCard>
 
       <!-- Commercial Approval & Mark as Won -->
@@ -691,27 +688,25 @@ function submitActivity () {
           </p>
 
           <div v-if="canManageLeadPipeline && (quotation.approvalStatus ?? 'draft') === 'draft'">
-            <Dialog v-model:open="isSubmitApprovalDialogOpen">
-              <DialogTrigger as-child>
+            <ResponsiveFormSheet
+              v-model:open="isSubmitApprovalDialogOpen"
+              title="Submit Quotation for Approval"
+              :description="`Quotation ${formatCurrencyIdr(quotation.amountIdr)} akan diajukan ke Management untuk commercial approval.`"
+            >
+              <template #trigger>
                 <Button size="sm">
                   Submit for Approval
                 </Button>
-              </DialogTrigger>
-              <DialogContent class="max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Submit Quotation for Approval</DialogTitle>
-                  <DialogDescription>Quotation {{ formatCurrencyIdr(quotation.amountIdr) }} akan diajukan ke Management untuk commercial approval.</DialogDescription>
-                </DialogHeader>
-                <DialogFooter>
-                  <Button variant="outline" @click="isSubmitApprovalDialogOpen = false">
-                    Batal
-                  </Button>
-                  <Button @click="submitForCommercialApproval">
-                    Submit
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
+              </template>
+              <template #footer>
+                <Button variant="outline" @click="isSubmitApprovalDialogOpen = false">
+                  Batal
+                </Button>
+                <Button @click="submitForCommercialApproval">
+                  Submit
+                </Button>
+              </template>
+            </ResponsiveFormSheet>
           </div>
 
           <div v-else-if="quotation.approvalStatus === 'submitted'">
@@ -727,59 +722,52 @@ function submitActivity () {
               Menunggu commercial approval dari Management/Super Admin.
             </p>
             <div v-if="canApproveCommercial" class="flex flex-wrap gap-2">
-              <Dialog v-model:open="isApproveCommercialDialogOpen">
-                <DialogTrigger as-child>
+              <ResponsiveFormSheet
+                v-model:open="isApproveCommercialDialogOpen"
+                title="Approve Commercial Terms"
+                :description="`Meninjau nilai quotation ${formatCurrencyIdr(quotation.amountIdr)}, discount, estimated margin, payment terms, service scope, kompleksitas project, dan commercial risk. Setelah disetujui, AE dapat langsung Mark as Won.`"
+              >
+                <template #trigger>
                   <Button size="sm">
                     Approve Commercial
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Approve Commercial Terms</DialogTitle>
-                    <DialogDescription>
-                      Meninjau nilai quotation {{ formatCurrencyIdr(quotation.amountIdr) }}, discount, estimated margin, payment terms, service scope,
-                      kompleksitas project, dan commercial risk. Setelah disetujui, AE dapat langsung Mark as Won.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-1.5 py-2">
-                    <Label for="approve-commercial-note">Catatan (opsional)</Label>
-                    <Input id="approve-commercial-note" v-model="commercialNoteInput" placeholder="mis. Disetujui sesuai standar margin" />
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isApproveCommercialDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button @click="submitApproveCommercial">
-                      Approve
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
-              <Dialog v-model:open="isRejectCommercialDialogOpen">
-                <DialogTrigger as-child>
+                </template>
+                <div class="space-y-1.5 py-2">
+                  <Label for="approve-commercial-note">Catatan (opsional)</Label>
+                  <Input id="approve-commercial-note" v-model="commercialNoteInput" placeholder="mis. Disetujui sesuai standar margin" />
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isApproveCommercialDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button @click="submitApproveCommercial">
+                    Approve
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
+              <ResponsiveFormSheet
+                v-model:open="isRejectCommercialDialogOpen"
+                title="Reject Commercial Terms"
+                description="AE perlu merevisi quotation sebelum submit ulang."
+              >
+                <template #trigger>
                   <Button size="sm" variant="outline">
                     Reject Commercial
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Reject Commercial Terms</DialogTitle>
-                    <DialogDescription>AE perlu merevisi quotation sebelum submit ulang.</DialogDescription>
-                  </DialogHeader>
-                  <div class="space-y-1.5 py-2">
-                    <Label for="reject-commercial-note">Catatan</Label>
-                    <Input id="reject-commercial-note" v-model="commercialNoteInput" placeholder="mis. Margin terlalu rendah, revisi harga" />
-                  </div>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isRejectCommercialDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button variant="destructive" :disabled="!commercialNoteInput.trim()" @click="submitRejectCommercial">
-                      Reject
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                </template>
+                <div class="space-y-1.5 py-2">
+                  <Label for="reject-commercial-note">Catatan</Label>
+                  <Input id="reject-commercial-note" v-model="commercialNoteInput" placeholder="mis. Margin terlalu rendah, revisi harga" />
+                </div>
+                <template #footer>
+                  <Button variant="outline" @click="isRejectCommercialDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button variant="destructive" :disabled="!commercialNoteInput.trim()" @click="submitRejectCommercial">
+                    Reject
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </div>
           </div>
 
@@ -808,33 +796,28 @@ function submitActivity () {
             </div>
 
             <div v-if="canManageLeadPipeline" class="pt-4 mt-4 border-t border-border">
-              <Dialog v-model:open="isMarkAsWonDialogOpen">
-                <DialogTrigger as-child>
+              <ResponsiveFormSheet v-model:open="isMarkAsWonDialogOpen" title="Mark as Won">
+                <template #trigger>
                   <Button size="sm">
                     Mark as Won
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Mark as Won</DialogTitle>
-                    <DialogDescription>
-                      Project baru akan otomatis dibuat dari Lead ini (destinasi {{ lead.destination }},
-                      {{ lead.travelerEstimate }} pax<template v-if="party?.lifecycleStatus === 'prospect'">
-                        , dan {{ party?.name }} akan berubah status menjadi Active Client
-                      </template>).
-                      Aksi ini tidak dapat dibatalkan pada mockup ini.
-                    </DialogDescription>
-                  </DialogHeader>
-                  <DialogFooter>
-                    <Button variant="outline" @click="isMarkAsWonDialogOpen = false">
-                      Batal
-                    </Button>
-                    <Button @click="submitMarkAsWon">
-                      Mark as Won
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                </template>
+                <p class="text-sm text-muted-foreground">
+                  Project baru akan otomatis dibuat dari Lead ini (destinasi {{ lead.destination }},
+                  {{ lead.travelerEstimate }} pax<template v-if="party?.lifecycleStatus === 'prospect'">
+                    , dan {{ party?.name }} akan berubah status menjadi Active Client
+                  </template>).
+                  Aksi ini tidak dapat dibatalkan pada mockup ini.
+                </p>
+                <template #footer>
+                  <Button variant="outline" @click="isMarkAsWonDialogOpen = false">
+                    Batal
+                  </Button>
+                  <Button @click="submitMarkAsWon">
+                    Mark as Won
+                  </Button>
+                </template>
+              </ResponsiveFormSheet>
             </div>
           </div>
         </template>
@@ -843,49 +826,47 @@ function submitActivity () {
       <!-- Activity / Follow-up -->
       <SectionCard title="Activity / Follow-up">
         <template v-if="canManageLeadPipeline" #actions>
-          <Dialog v-model:open="isActivityDialogOpen">
-            <DialogTrigger as-child>
+          <ResponsiveFormSheet
+            v-model:open="isActivityDialogOpen"
+            title="Catat Activity Baru"
+            description="Activity akan dicatat untuk Lead ini dan tampil juga di Party Detail."
+          >
+            <template #trigger>
               <Button size="sm" variant="outline">
                 <Plus class="h-4 w-4 mr-1.5" />Catat Activity
               </Button>
-            </DialogTrigger>
-            <DialogContent class="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Catat Activity Baru</DialogTitle>
-                <DialogDescription>Activity akan dicatat untuk Lead ini dan tampil juga di Party Detail.</DialogDescription>
-              </DialogHeader>
-              <div class="space-y-4 py-2">
-                <div class="space-y-1.5">
-                  <Label for="lead-activity-type">Jenis Activity</Label>
-                  <select
-                    id="lead-activity-type"
-                    v-model="activityType"
-                    class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-                  >
-                    <option v-for="type in PARTY_ACTIVITY_TYPES" :key="type.value" :value="type.value">
-                      {{ type.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="lead-activity-message">Catatan</Label>
-                  <Input id="lead-activity-message" v-model="activityMessage" placeholder="mis. Follow-up keputusan quotation" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="lead-activity-due">Jadwal Follow-up Mendatang (opsional)</Label>
-                  <Input id="lead-activity-due" v-model="activityDueAt" type="date" />
-                </div>
+            </template>
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="lead-activity-type">Jenis Activity</Label>
+                <select
+                  id="lead-activity-type"
+                  v-model="activityType"
+                  class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                >
+                  <option v-for="type in PARTY_ACTIVITY_TYPES" :key="type.value" :value="type.value">
+                    {{ type.label }}
+                  </option>
+                </select>
               </div>
-              <DialogFooter>
-                <Button variant="outline" @click="isActivityDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!activityMessage.trim()" @click="submitActivity">
-                  Simpan
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              <div class="space-y-1.5">
+                <Label for="lead-activity-message">Catatan</Label>
+                <Input id="lead-activity-message" v-model="activityMessage" placeholder="mis. Follow-up keputusan quotation" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="lead-activity-due">Jadwal Follow-up Mendatang (opsional)</Label>
+                <Input id="lead-activity-due" v-model="activityDueAt" type="date" />
+              </div>
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isActivityDialogOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!activityMessage.trim()" @click="submitActivity">
+                Simpan
+              </Button>
+            </template>
+          </ResponsiveFormSheet>
         </template>
 
         <ul class="divide-y divide-border">

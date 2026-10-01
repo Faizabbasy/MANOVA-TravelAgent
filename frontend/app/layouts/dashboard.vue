@@ -1,3 +1,7 @@
+<script setup lang="ts">
+const isMobile = useIsMobile()
+</script>
+
 <template>
   <div class="min-h-screen flex w-full bg-background">
     <!-- Keyboard users reach the page without tabbing through the whole sidebar first. -->
@@ -10,10 +14,16 @@
     <AppSidebar />
     <div class="flex-1 flex flex-col min-w-0">
       <TopHeader />
-      <main id="konten" tabindex="-1" class="flex-1 overflow-auto p-4 md:p-6 outline-none">
+      <main
+        id="konten"
+        tabindex="-1"
+        class="flex-1 overflow-auto p-4 md:p-6 outline-none"
+        :class="isMobile ? 'pb-[calc(5rem+env(safe-area-inset-bottom))]' : ''"
+      >
         <slot />
       </main>
     </div>
+    <MobileBottomNav v-if="isMobile" />
     <ToastContainer />
   </div>
 </template>

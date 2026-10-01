@@ -61,14 +61,16 @@ const location = computed(() => {
       <Popover>
         <PopoverTrigger as-child>
           <button
-            class="relative rounded-lg p-2 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            class="relative rounded-full p-2 text-muted-foreground transition-all duration-200 hover:bg-muted hover:text-foreground active:scale-90"
             aria-label="Notifikasi"
           >
             <Bell class="h-[18px] w-[18px]" />
             <span
               v-if="unreadCount > 0"
-              class="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-destructive ring-2 ring-card"
-            />
+              class="absolute right-0.5 top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-destructive px-1 text-[10px] font-semibold leading-none text-destructive-foreground ring-2 ring-card"
+            >
+              {{ unreadCount > 9 ? '9+' : unreadCount }}
+            </span>
           </button>
         </PopoverTrigger>
         <PopoverContent class="w-auto p-0" align="end">

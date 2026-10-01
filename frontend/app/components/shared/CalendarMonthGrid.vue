@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, eachDayOfInterval, format, isSameMonth, parseISO } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
 import { cn } from '~/lib/utils'
-import type { ScheduleEvent } from '~/composables/useScheduleEvents'
+import { TONE_DOT, type ScheduleEvent } from '~/composables/useScheduleEvents'
 
 const props = withDefaults(defineProps<{
   /** Bulan yang ditampilkan, format `YYYY-MM`. */
@@ -39,16 +39,6 @@ const days = computed(() => {
 
 const WEEKDAYS = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
 
-const TONE_DOT: Record<string, string> = {
-  neutral: 'bg-muted-foreground',
-  primary: 'bg-primary',
-  success: 'bg-success',
-  warning: 'bg-warning',
-  destructive: 'bg-destructive',
-  info: 'bg-chart-5',
-  purple: 'bg-chart-4'
-}
-
 const monthLabel = computed(() => format(parseISO(`${props.month}-01`), 'MMMM yyyy', { locale: localeId }))
 </script>
 
@@ -58,11 +48,11 @@ const monthLabel = computed(() => format(parseISO(`${props.month}-01`), 'MMMM yy
       {{ monthLabel }}
     </p>
 
-    <div class="grid grid-cols-7 gap-px rounded-lg overflow-hidden border border-border bg-border">
+    <div class="grid grid-cols-7 gap-px rounded-xl overflow-hidden border border-border bg-border shadow-sm">
       <div
         v-for="weekday in WEEKDAYS"
         :key="weekday"
-        class="bg-muted/60 px-2 py-1.5 text-center text-xs font-medium text-muted-foreground"
+        class="bg-muted/60 px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
       >
         {{ weekday }}
       </div>
@@ -72,16 +62,17 @@ const monthLabel = computed(() => format(parseISO(`${props.month}-01`), 'MMMM yy
         :key="day.iso"
         type="button"
         :class="cn(
-          'bg-card min-h-[92px] p-1.5 text-left align-top transition-colors hover:bg-muted/40',
+          'group relative bg-card min-h-[92px] p-1.5 text-left align-top transition-colors hover:bg-muted/40',
           !day.isCurrentMonth && 'bg-muted/20',
+          day.iso === props.todayIso && 'bg-primary/[0.04]',
           props.selectedDate === day.iso && 'ring-2 ring-inset ring-primary'
         )"
         @click="emit('select', day.iso)"
       >
         <span
           :class="cn(
-            'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs',
-            day.iso === props.todayIso ? 'bg-primary text-primary-foreground font-semibold' : day.isCurrentMonth ? 'text-foreground' : 'text-muted-foreground'
+            'inline-flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-xs transition-colors',
+            day.iso === props.todayIso ? 'bg-primary text-primary-foreground font-semibold shadow-sm' : day.isCurrentMonth ? 'text-foreground group-hover:bg-muted' : 'text-muted-foreground'
           )"
         >
           {{ day.dayNumber }}
@@ -96,7 +87,7 @@ const monthLabel = computed(() => format(parseISO(`${props.month}-01`), 'MMMM yy
             <span :class="cn('h-1.5 w-1.5 rounded-full shrink-0', TONE_DOT[event.tone] ?? 'bg-muted-foreground')" />
             <span class="text-[11px] text-foreground truncate leading-tight" :title="event.title">{{ event.title }}</span>
           </li>
-          <li v-if="day.events.length > props.maxPerDay" class="text-[11px] text-muted-foreground pl-2.5">
+          <li v-if="day.events.length > props.maxPerDay" class="text-[11px] font-medium text-muted-foreground pl-2.5">
             +{{ day.events.length - props.maxPerDay }} lainnya
           </li>
         </ul>

@@ -26,6 +26,7 @@ import { COMMODITY_REQUIREMENTS } from './requirements'
 import { COMMODITY_SELECTIONS } from './selections'
 import { COMMODITY_ORDERS } from './commodity-orders'
 import { TRAVEL_REQUESTS, TRAVEL_REQUEST_ATTACHMENTS, TRAVEL_REQUEST_ACTIVITIES } from './travel-requests'
+import { createProjectMilestone } from './project-order-workflow'
 import { CLIENT_APPROVALS } from './client-approvals'
 import { ITINERARY_VERSIONS, ITINERARY_COMMENTS } from './itinerary-versions'
 import { RESERVATIONS } from './reservations'
@@ -35,18 +36,19 @@ import { QUOTATION_ATTACHMENTS, QUOTATION_COMMENTS } from './quotation-extras'
 import {
   MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
   AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
-  NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES, ORGANIZATION_PROFILE
+  NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES, ORGANIZATION_PROFILE,
+  MILESTONE_TEMPLATES
 } from './master-data'
-import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE } from '~/utils/attention'
+import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT } from '~/utils/attention'
 import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
 import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES, PROJECT_STATUSES, SUPPORT_TICKET_CATEGORIES, INVOICE_STATUSES } from '~/constants/status'
-import type { Project, ProjectStatus, ServiceTypeKey, ServiceStatus, ProjectService, Traveler, TravelerGroup, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
+import type { Project, ProjectStatus, ProjectCharacteristic, ServiceTypeKey, ServiceStatus, ProjectService, Traveler, TravelerGroup, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType, CompanyType, SensitiveCompanyProfileFields } from '~/types/party'
 import type { Quotation, QuotationAttachment, QuotationComment } from '~/types/quotation'
 import type { Vendor, VendorContact, VendorQuotation, VendorProduct, VendorDocument } from '~/types/vendor'
 import type { SalesOrder, SalesOrderStatus } from '~/types/sales-order'
 import type { ActivityEntry, ChangeCategory, ProjectTask, ProjectRisk, ProjectRiskSeverity, ShiftNote, ShiftPeriod, SystemEvent } from '~/types/activity'
-import type { Lead, LeadActivity, LeadWorkflowStatus } from '~/types/lead'
+import type { Lead, LeadActivity, LeadWorkflowStatus, B2cPriceAcceptance, B2cBookingReadiness } from '~/types/lead'
 import type { ProductTemplate, ProductTemplateStatus, ProductServiceAlternative, CostSheet, CostSheetLineItem } from '~/types/product'
 import type { FlightBooking, FlightBookingStatus, FlightSegment } from '~/types/ticketing'
 import type { HotelBooking, HotelBookingStatus } from '~/types/accommodation'
@@ -55,8 +57,9 @@ import type { MiceEvent, MiceEventStatus, MiceApprovalStatus } from '~/types/mic
 import type { RFQ, RFQStatus, RFQLineItem, RFQResponse, RFQResponseLineItem, RFQClarificationMessage, ServiceOrder, ServiceOrderStatus, ServiceOrderLineItem, SupplierInvoice, SupplierInvoiceStatus, SupplierInvoiceMatchStatus } from '~/types/procurement'
 import type { BookingDomain, BookingOrchestrationRecord, BookingAttempt, BookingAttemptOutcome, BookingPaymentGateStatus, BookingTimelineEntry, BookingTimelineDependencyView } from '~/types/booking-orchestration'
 import type { ChangeRequest, ChangeRequestSource, ChangeRequestStatus, ChangeRequestType, AffectedEntityRef, CancellationRecord, RefundRequest, RefundRequestStatus, Incident, IncidentSeverity, IncidentStatus, IncidentCommunicationEntry, ChangeRequestDraft, ChangeRequestComment, ChangeRequestAttachment } from '~/types/change-incident'
-import type { Invoice, InvoiceCurrency, InvoiceType, ExchangeRateSnapshot, Payment, CreditNote, DebitNote } from '~/types/finance'
+import type { Invoice, InvoiceCurrency, InvoiceType, InvoiceMilestone, InvoiceStatus, ExchangeRateSnapshot, Payment, CreditNote, DebitNote } from '~/types/finance'
 import type { Document, DocumentEntityType, DocumentAccessLevel, Message, MessageChannel, Notification, NotificationType, NotificationCategory, UnifiedTimelineEntry, DocumentComment, ClientDocumentCategory } from '~/types/document-comms'
+import type { ProjectOrderStepKey } from '~/types/project-order'
 import type { SavedView, SavedViewPage } from '~/types/reporting'
 import type { OrganizationProfile, MasterDataCategoryKey } from '~/types/master-data'
 import type { User } from '~/types/user'
@@ -97,6 +100,7 @@ export {
   MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
   AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
   NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES, ORGANIZATION_PROFILE,
+  MILESTONE_TEMPLATES,
   TRAVEL_REQUESTS, TRAVEL_REQUEST_ATTACHMENTS, TRAVEL_REQUEST_ACTIVITIES,
   CLIENT_APPROVALS,
   ITINERARY_VERSIONS, ITINERARY_COMMENTS,
@@ -110,6 +114,7 @@ export {
 
 export const getUserById = (id: string) => USERS.find(user => user.id === id)
 export const getUserByClientPartyId = (partyId: string) => USERS.find(user => user.role === 'client' && user.clientPartyId === partyId)
+export const getUserByVendorId = (vendorId: string) => USERS.find(user => user.role === 'vendor' && user.vendorId === vendorId)
 export const getPartyById = (id: string) => PARTIES.find(party => party.id === id)
 export const getContactsByParty = (partyId: string) => CONTACTS.filter(contact => contact.partyId === partyId)
 /** Lead ber-deal (qualified, `partyId` terisi) milik satu Party — pengganti `getOpportunitiesByParty` lama. */
@@ -187,6 +192,25 @@ export function createTravelerGroup (input: { projectId: string; name: string; p
 }
 export const getTravelers = (projectId: string) => TRAVELERS.filter(traveler => traveler.projectId === projectId)
 export const getTravelersByGroup = (groupId: string) => TRAVELERS.filter(traveler => traveler.groupId === groupId)
+/** Kapasitas Group Trip B2C — "seat terisi" (Confirmed Participants) dihitung dari baris `Traveler` aktif,
+ * yang di bawah desain baru (`qualifyGroupTripLead` + DP confirm di `updateSalesOrderStatus`) HANYA dibuat
+ * setelah DP dikonfirmasi. `travelerCount` di `Project` sendiri murni kapasitas deklaratif. */
+export const getProjectSeatsFilled = (projectId: string) => getTravelers(projectId).filter(traveler => !traveler.cancelled).length
+export const getSalesOrdersByProject = (projectId: string) => SALES_ORDERS.filter(order => order.projectId === projectId)
+/** Booking Awaiting DP (`SalesOrder.status === 'draft'`, sudah terhubung ke Project ini) — pax-nya IKUT
+ * menahan seat supaya tidak overbooking sebelum DP masuk (keputusan eksplisit, beda dari "cuma Confirmed
+ * yang mengurangi kuota" yang berlaku di `getProjectSeatsFilled`). */
+export const getProjectSeatsPending = (projectId: string) =>
+  getSalesOrdersByProject(projectId).filter(order => order.status === 'draft').reduce((sum, order) => sum + order.travelerCount, 0)
+export const getProjectSeatsAvailable = (projectId: string) => {
+  const project = getProjectById(projectId)
+  return project ? Math.max(0, project.travelerCount - getProjectSeatsFilled(projectId) - getProjectSeatsPending(projectId)) : 0
+}
+/** Group Trip yang masih bisa menerima Lead baru — dipakai dropdown "Project B2C" di `SalesLeadsPanel.vue`. */
+export const getOpenGroupProjects = () => PROJECTS.filter(project => project.isGroupTrip && getProjectSeatsAvailable(project.id) > 0)
+/** Lead yang pernah memilih Project B2C ini di form (superset — termasuk Waitlist/Follow-up, bukan cuma
+ * yang sudah Qualified) — dipakai bucket "Linked/Qualified Leads" di tab Bookings Project detail. */
+export const getLeadsLinkedToGroupProject = (projectId: string) => LEADS.filter(lead => lead.groupTripProjectId === projectId)
 /** Repair Phase Section 4 — Core Project (Participants lintas-project, `/client/participants/[id]`) — belum ada getter tunggal sebelumnya (konsumen lama selalu melalui `getTravelers(projectId)` per-project). */
 export const getTravelerById = (id: string) => TRAVELERS.find(traveler => traveler.id === id)
 export const getRoomAssignments = (projectId: string) => ROOM_ASSIGNMENTS.filter(room => room.projectId === projectId)
@@ -231,11 +255,43 @@ export function getInvoiceOutstandingIdr (invoiceId: string): number {
   return Math.max(invoice.amountIdr - paid - credited, 0)
 }
 
+/** Σ Payment yang ditujukan (via `Payment.milestoneId`) ke satu milestone spesifik dalam sebuah invoice bertermin. */
+export function getInvoiceMilestonePaidIdr (invoiceId: string, milestoneId: string): number {
+  return getPaymentsByInvoice(invoiceId)
+    .filter(payment => payment.milestoneId === milestoneId)
+    .reduce((sum, payment) => sum + payment.amountIdr, 0)
+}
+
+/** Sisa tagihan satu milestone (bukan seluruh invoice) — dipakai Record Payment saat invoice bertermin, supaya pembayaran milestone tertentu di-clamp ke sisa milestone itu sendiri, bukan sisa invoice keseluruhan. */
+export function getInvoiceMilestoneOutstandingIdr (invoiceId: string, milestoneId: string): number {
+  const invoice = INVOICES.find(item => item.id === invoiceId)
+  const milestone = invoice?.milestones?.find(item => item.id === milestoneId)
+  if (!invoice || !milestone || invoice.status === 'void') { return 0 }
+  return Math.max(milestone.amountIdr - getInvoiceMilestonePaidIdr(invoiceId, milestoneId), 0)
+}
+
+/** Status satu milestone (`paid`/`partially-paid`/`unpaid`), reuse `InvoiceStatus` supaya bisa langsung dipetakan ke `StatusBadge` via `findStatusOption(INVOICE_STATUSES, ...)` sama seperti status invoice-level. */
+export function getInvoiceMilestoneStatus (invoiceId: string, milestoneId: string): InvoiceStatus {
+  const outstanding = getInvoiceMilestoneOutstandingIdr(invoiceId, milestoneId)
+  if (outstanding <= 0) { return 'paid' }
+  const paid = getInvoiceMilestonePaidIdr(invoiceId, milestoneId)
+  return paid > 0 ? 'partially-paid' : 'unpaid'
+}
+
 /** Total outstanding satu project — dipakai tampilan "ringkas" (Sales/role tanpa akses modul Finance) dan Finance tab penuh. */
 export function getProjectOutstandingIdr (projectId: string): number {
   return getInvoicesByProject(projectId)
     .filter(invoice => invoice.status !== 'paid')
     .reduce((sum, invoice) => sum + getInvoiceOutstandingIdr(invoice.id), 0)
+}
+
+/** Total yang BENAR-BENAR sudah diterima dari client untuk satu project — Σ Payment atas seluruh Invoice
+ * project ini, B2B maupun B2C sama-sama lewat Invoice+Payment (B2C: `confirmGroupTripDp`) jadi rumus yang
+ * sama berlaku untuk keduanya. Dipakai membandingkan progres terkumpul terhadap `quotationAmountIdr`
+ * (Finance tab) — beda dari `getProjectOutstandingIdr` yang cuma menghitung sisa invoice yang SUDAH terbit. */
+export function getProjectCollectedIdr (projectId: string): number {
+  const invoiceIds = new Set(getInvoicesByProject(projectId).map(invoice => invoice.id))
+  return PAYMENTS.filter(payment => invoiceIds.has(payment.invoiceId)).reduce((sum, payment) => sum + payment.amountIdr, 0)
 }
 
 /** Committed vendor cost (Section 15) — total quotation vendor yang sudah `accepted` (Section 13), bukan data paralel dari `PROJECT_SERVICES`/`VENDOR_QUOTATIONS`. */
@@ -260,14 +316,41 @@ export interface CreateInvoiceInput {
   invoiceType: InvoiceType
   dueAt: string
   exchangeRateSnapshot?: ExchangeRateSnapshot
+  /** Breakdown termin (Project Detail, tombol "+ Buat Invoice") — total `percent` harus 100 (toleransi 0.01 untuk rounding). */
+  milestones?: { label: string, percent: number }[]
+  notes?: string
 }
 
-/** Membuat Invoice baru berstatus `unpaid`. `exchangeRateSnapshot` hanya disimpan bila `currency !== 'IDR'`. */
+/**
+ * Membuat Invoice baru berstatus `unpaid`. `exchangeRateSnapshot` hanya disimpan bila `currency !== 'IDR'`.
+ * `milestones` opsional (Project Detail) — tiap `amountIdr` = `Math.round(percent% * amountIdr)`, sisa
+ * pembulatan diserap milestone terakhir supaya `sum(milestones.amountIdr) === invoice.amountIdr` persis.
+ * Diblokir kalau total `percent` bukan 100 (±0.01) — mencegah invoice bertermin dengan porsi tidak lengkap.
+ */
 export function createInvoice (input: CreateInvoiceInput): Invoice | undefined {
   const project = getProjectById(input.projectId)
   if (!project || !input.label.trim() || input.amountIdr <= 0 || !input.dueAt) { return undefined }
+  if (input.milestones && input.milestones.length > 0) {
+    const totalPercent = input.milestones.reduce((sum, milestone) => sum + milestone.percent, 0)
+    if (Math.abs(totalPercent - 100) > 0.01 || input.milestones.some(milestone => !milestone.label.trim() || milestone.percent <= 0)) { return undefined }
+  }
+
+  const invoiceId = nextSequentialId('INV-', INVOICES)
+  const milestones: InvoiceMilestone[] | undefined = input.milestones && input.milestones.length > 0
+    ? input.milestones.map((milestone, index) => ({
+        id: `${invoiceId}-M${index + 1}`,
+        label: milestone.label.trim(),
+        percent: milestone.percent,
+        amountIdr: Math.round(input.amountIdr * milestone.percent / 100)
+      }))
+    : undefined
+  if (milestones && milestones.length > 0) {
+    const roundedTotal = milestones.reduce((sum, milestone) => sum + milestone.amountIdr, 0)
+    milestones[milestones.length - 1].amountIdr += input.amountIdr - roundedTotal
+  }
+
   const invoice: Invoice = {
-    id: nextSequentialId('INV-', INVOICES),
+    id: invoiceId,
     projectId: input.projectId,
     label: input.label.trim(),
     amountIdr: input.amountIdr,
@@ -276,7 +359,9 @@ export function createInvoice (input: CreateInvoiceInput): Invoice | undefined {
     status: 'unpaid',
     currency: input.currency,
     invoiceType: input.invoiceType,
-    exchangeRateSnapshot: input.currency !== 'IDR' ? input.exchangeRateSnapshot : undefined
+    exchangeRateSnapshot: input.currency !== 'IDR' ? input.exchangeRateSnapshot : undefined,
+    milestones,
+    notes: input.notes?.trim() || undefined
   }
   INVOICES.push(invoice)
   ACTIVITIES.push({
@@ -320,28 +405,38 @@ export interface RecordPaymentInput {
   amountIdr: number
   recordedBy: string
   method?: string
+  /** Menargetkan satu `InvoiceMilestone` (invoice bertermin) — bila diisi, jumlah di-clamp ke sisa milestone itu, bukan sisa invoice keseluruhan. */
+  milestoneId?: string
+  reference?: string
+  /** Tanggal pembayaran dari form (Project Detail) — default `DEMO_REFERENCE_DATE` bila tidak diisi, sama seperti field tanggal lain di app ini (mis. `ProjectExpense.incurredAt`). */
+  receivedAt?: string
 }
 
 /**
  * Record Payment — mock ledger update murni (D-006, bukan payment gateway nyata). Recompute `Invoice.status`
  * lewat `getInvoiceOutstandingIdr` existing (TIDAK menduplikasi math outstanding) — `unpaid`/`partially-paid`
  * → `paid` otomatis begitu outstanding mencapai 0. Diblokir untuk invoice `paid`/`void` (tidak ada yang perlu
- * dibayar lagi) atau jumlah invalid.
+ * dibayar lagi) atau jumlah invalid. `milestoneId` (invoice bertermin) meng-clamp ke sisa milestone tsb saja —
+ * status invoice keseluruhan tetap dihitung agregat seperti biasa lewat `getInvoiceOutstandingIdr`.
  */
 export function recordPayment (input: RecordPaymentInput): Payment | undefined {
   const invoice = INVOICES.find(item => item.id === input.invoiceId)
   if (!invoice || input.amountIdr <= 0) { return undefined }
   if (invoice.status === 'paid' || invoice.status === 'void') { return undefined }
-  const outstandingBefore = getInvoiceOutstandingIdr(input.invoiceId)
+  const outstandingBefore = input.milestoneId
+    ? getInvoiceMilestoneOutstandingIdr(input.invoiceId, input.milestoneId)
+    : getInvoiceOutstandingIdr(input.invoiceId)
   if (outstandingBefore <= 0) { return undefined }
 
   const payment: Payment = {
     id: nextSequentialId('PAY-', PAYMENTS),
     invoiceId: input.invoiceId,
     amountIdr: Math.min(input.amountIdr, outstandingBefore),
-    receivedAt: DEMO_REFERENCE_DATE,
+    receivedAt: input.receivedAt || DEMO_REFERENCE_DATE,
     method: input.method,
-    recordedBy: input.recordedBy
+    recordedBy: input.recordedBy,
+    milestoneId: input.milestoneId,
+    reference: input.reference?.trim() || undefined
   }
   PAYMENTS.push(payment)
   invoice.status = getInvoiceOutstandingIdr(input.invoiceId) <= 0 ? 'paid' : 'partially-paid'
@@ -803,8 +898,9 @@ export function removeProjectTeamMember (projectId: string, userId: string): Pro
 
 /** Tasks/Milestones/Dependencies (Wajib) — Tasks tab sebelumnya read-only murni, tidak ada create/edit sama sekali. */
 export interface CreateProjectTaskInput {
-  projectId: string
+  projectId?: string
   title: string
+  status?: ProjectTask['status']
   dueAt?: string
   isMilestone?: boolean
   dependsOnTaskId?: string
@@ -1032,12 +1128,241 @@ export function createSalesOrder (input: CreateSalesOrderInput): SalesOrder | un
   return getSalesOrderById(order.id)
 }
 
+/**
+ * Generic status transition — dipakai order standalone (tanpa Project B2C) untuk seluruh transisi, DAN
+ * booking Group Trip B2C (`order.projectId` terisi) untuk transisi SELAIN `paid`. Transisi ke `paid` untuk
+ * order ber-project SENGAJA ditolak di sini (return `undefined`) — HARUS lewat `confirmGroupTripDp` supaya
+ * gerbang minimum DP tidak bisa dilewati lewat halaman status generik (`/sales-orders/[id]`).
+ */
 export function updateSalesOrderStatus (id: string, status: SalesOrderStatus): SalesOrder | undefined {
   const order = SALES_ORDERS.find(item => item.id === id)
   if (!order) { return undefined }
+  if (status === 'paid' && order.projectId) { return undefined }
   if (!getSalesOrderStatusTransitions(order.status).includes(status)) { return undefined }
   order.status = status
   return order
+}
+
+export type ConfirmGroupTripDpOutcome = 'confirmed' | 'below-minimum'
+export interface ConfirmGroupTripDpResult {
+  outcome: ConfirmGroupTripDpOutcome
+  order?: SalesOrder
+  /** Selalu diisi (baik sukses maupun `below-minimum`) — dipakai UI menampilkan besaran minimum DP. */
+  minimumDpIdr: number
+}
+
+/**
+ * Konfirmasi DP booking Group Trip B2C — SATU-SATUNYA jalur sah menuju status `paid` untuk order ber-project
+ * (lihat `updateSalesOrderStatus` di atas). Mendukung DP SEBAGIAN (`dpAmountIdr` boleh kurang dari
+ * `order.priceIdr`, selama >= `MINIMUM_DP_PERCENT` dari harga) — beda dari versi lama yang menganggap lunas
+ * penuh begitu dikonfirmasi. Efek saat sukses: (1) Participant dibuat — dipindah dari `updateSalesOrderStatus`
+ * lama, idempotent (guard `alreadyCreated`) sama seperti sebelumnya; (2) Invoice tipe `dp` senilai harga
+ * PENUH dibuat lalu di-`recordPayment` sebesar `dpAmountIdr` — `recordPayment` sudah otomatis menghasilkan
+ * status `partially-paid` kalau belum lunas penuh (tidak ada logic tambahan yang perlu ditulis di sini).
+ */
+export function confirmGroupTripDp (orderId: string, dpAmountIdr: number, actorId: string): ConfirmGroupTripDpResult | undefined {
+  const order = SALES_ORDERS.find(item => item.id === orderId)
+  if (!order || order.status !== 'draft' || !order.projectId || !(dpAmountIdr > 0)) { return undefined }
+
+  const minimumDpIdr = Math.ceil(order.priceIdr * (MINIMUM_DP_PERCENT / 100))
+  if (dpAmountIdr < minimumDpIdr) { return { outcome: 'below-minimum', minimumDpIdr } }
+
+  order.status = 'paid'
+  const projectId = order.projectId
+
+  const alreadyCreated = getTravelers(projectId).some(traveler => traveler.salesOrderId === order.id)
+  if (!alreadyCreated) {
+    const lead = LEADS.find(item => item.salesOrderId === order.id)
+    for (let i = 0; i < order.travelerCount; i++) {
+      createTraveler({
+        projectId,
+        partyId: order.customerId,
+        leadId: lead?.id,
+        salesOrderId: order.id,
+        name: order.travelerCount > 1 ? `${lead?.name ?? 'Traveler'} (Pax ${i + 1})` : (lead?.name ?? 'Traveler')
+      })
+    }
+  }
+
+  const invoiceAlreadyCreated = INVOICES.some(invoice => invoice.salesOrderId === order.id)
+  if (!invoiceAlreadyCreated) {
+    const customer = getPartyById(order.customerId)
+    const invoice = createInvoice({
+      projectId,
+      label: `DP Booking Group Trip — ${customer?.name ?? order.customerId} — ${order.destination} (${order.id})`,
+      amountIdr: order.priceIdr,
+      currency: 'IDR',
+      invoiceType: 'dp',
+      dueAt: DEMO_REFERENCE_DATE
+    })
+    if (invoice) {
+      invoice.salesOrderId = order.id
+      recordPayment({ invoiceId: invoice.id, amountIdr: dpAmountIdr, recordedBy: actorId, method: 'Transfer' })
+    }
+  }
+
+  return { outcome: 'confirmed', order, minimumDpIdr }
+}
+
+/** Sisa tagihan satu booking Group Trip B2C (beda dari `getProjectOutstandingIdr` yang per-project — satu
+ * project bisa punya banyak booking/Traveler group). Dipakai kolom "Outstanding" tab Bookings dan catatan
+ * saldo di tab Travelers. */
+export function getSalesOrderOutstandingIdr (orderId: string): number {
+  return INVOICES.filter(invoice => invoice.salesOrderId === orderId).reduce((sum, invoice) => sum + getInvoiceOutstandingIdr(invoice.id), 0)
+}
+
+export interface CreateProjectInput {
+  /** Wajib kecuali `isGroupTrip: true` (partyId dipakai Party placeholder sistem, lihat `getOrCreateGroupTripPlaceholderParty`). */
+  partyId?: string
+  isGroupTrip?: boolean
+  name: string
+  destination: string
+  travelStartDate: string
+  travelEndDate: string
+  travelerCount: number
+  serviceScope: ServiceTypeKey[]
+  quotationAmountIdr: number
+  characteristic?: ProjectCharacteristic
+}
+
+const GROUP_TRIP_PLACEHOLDER_PARTY_NAME = 'MANOVA Group Trip (Internal)'
+
+/** Party nominal untuk Project Group Trip B2C — Project jenis ini dibuat SEBELUM ada customer nyata, tapi
+ * `Project.partyId` tetap wajib (dipakai invoicing/report lama). Satu Party dibuat sekali lalu dipakai ulang
+ * untuk seluruh Group Trip; `partyType: 'individual'` supaya konsisten dikecualikan dari Database Customer
+ * (`customer-journey/customers`, filter `partyType !== 'individual'`) — bukan customer sungguhan. */
+function getOrCreateGroupTripPlaceholderParty (): Party {
+  let party = PARTIES.find(p => p.name === GROUP_TRIP_PLACEHOLDER_PARTY_NAME)
+  if (!party) {
+    party = {
+      id: nextSequentialId('PTY-', PARTIES),
+      name: GROUP_TRIP_PLACEHOLDER_PARTY_NAME,
+      partyType: 'individual',
+      lifecycleStatus: 'client',
+      createdAt: DEMO_REFERENCE_DATE
+    }
+    PARTIES.push(party)
+  }
+  return party
+}
+
+/** "Buat Project" manual — untuk customer (Party) yang sudah ada, TANPA lewat Lead/Quotation (beda dari
+ * `markLeadWon`, dipakai mis. repeat business langsung). `leadId`/`sourceQuotationId` sengaja dikosongkan —
+ * keduanya opsional di `Project`. `isGroupTrip: true` = Group Trip B2C (lihat `joinLeadToGroupProject`),
+ * `partyId` diabaikan dan diganti Party placeholder sistem. */
+export function createProject (input: CreateProjectInput): Project | undefined {
+  const party = input.isGroupTrip ? getOrCreateGroupTripPlaceholderParty() : getPartyById(input.partyId ?? '')
+  if (!party) { return undefined }
+  if (!input.name.trim() || !input.destination.trim()) { return undefined }
+  if (!input.travelStartDate || !input.travelEndDate || input.travelStartDate > input.travelEndDate) { return undefined }
+  if (!(input.travelerCount > 0) || !input.serviceScope.length) { return undefined }
+
+  const project: Project = {
+    id: nextSequentialId('PRJ-', PROJECTS),
+    name: input.name.trim(),
+    partyId: party.id,
+    isGroupTrip: input.isGroupTrip || undefined,
+    destination: input.destination.trim(),
+    destinationGeo: resolveDestinationGeo(input.destination.trim()),
+    travelStartDate: input.travelStartDate,
+    travelEndDate: input.travelEndDate,
+    characteristic: input.characteristic ?? 'normal',
+    serviceScope: input.serviceScope,
+    travelerCount: input.travelerCount,
+    ownerId: DEFAULT_PROJECT_OWNER_ID,
+    teamUserIds: [party.accountOwnerId ?? DEFAULT_PROJECT_OWNER_ID],
+    status: 'draft',
+    quotationAmountIdr: input.quotationAmountIdr,
+    budgetIdr: input.quotationAmountIdr,
+    actualCostIdr: 0
+  }
+  PROJECTS.push(project)
+  seedDefaultProjectMilestones(project)
+  return project
+}
+
+/**
+ * 8 milestone standar Timeline Tracking (tab Overview, `ProjectOrderTimelineTracking.vue`) — sebelum ini,
+ * `createProjectMilestone` (`app/data/project-order-workflow.ts`) tidak pernah dipanggil dari alur pembuatan
+ * project mana pun, jadi project baru (di luar data seed demo PRJ-101/102/103/205) selalu tampil "Belum ada
+ * milestone" tanpa cara mengisinya. Tanggal rencana dihitung mundur dari `travelStartDate`/`travelEndDate`
+ * (bukan angka presisi bisnis nyata, sekadar jadwal default yang masuk akal — tetap bisa diedit manual
+ * selama project masih di step Drafting, lihat `plannedDatesLocked` di halaman Project Order). Diclamp ke
+ * `DEMO_REFERENCE_DATE` supaya project dengan keberangkatan dekat tidak menghasilkan milestone "direncanakan"
+ * di masa lalu.
+ */
+function seedDefaultProjectMilestones (project: Project): void {
+  const notBeforeToday = (iso: string) => (iso < DEMO_REFERENCE_DATE ? DEMO_REFERENCE_DATE : iso)
+  const beforeDeparture = (days: number) => notBeforeToday(formatISO(addDays(parseISO(project.travelStartDate), -days), { representation: 'date' }))
+  const afterReturn = (days: number) => formatISO(addDays(parseISO(project.travelEndDate), days), { representation: 'date' })
+
+  const defaults: { stepKey: ProjectOrderStepKey; name: string; plannedDate: string }[] = [
+    { stepKey: 'drafting', name: 'SPK / Handover Diterima', plannedDate: beforeDeparture(60) },
+    { stepKey: 'drafting', name: 'Finalisasi Itinerary', plannedDate: beforeDeparture(45) },
+    { stepKey: 'confirmed', name: 'Invoice DP Terbit', plannedDate: beforeDeparture(40) },
+    { stepKey: 'confirmed', name: 'Konfirmasi Vendor & Booking', plannedDate: beforeDeparture(30) },
+    { stepKey: 'start', name: 'Dokumen Traveler Lengkap', plannedDate: beforeDeparture(14) },
+    { stepKey: 'departure', name: 'Keberangkatan', plannedDate: notBeforeToday(project.travelStartDate) },
+    { stepKey: 'on-progress', name: 'Trip Selesai', plannedDate: notBeforeToday(project.travelEndDate) },
+    { stepKey: 'done', name: 'Laporan Akhir & Review Klien', plannedDate: afterReturn(5) }
+  ]
+  for (const item of defaults) { createProjectMilestone({ projectId: project.id, ...item }) }
+}
+
+/** Foto cover Group Trip B2C (`Project.photoUrl`) — mock upload, tersimpan sebagai data URL lokal (D-006). */
+export function updateProjectPhoto (projectId: string, photoUrl: string): Project | undefined {
+  const project = getProjectById(projectId)
+  if (!project) { return undefined }
+  project.photoUrl = photoUrl
+  return project
+}
+
+/**
+ * Kontak lapangan (tour leader/emergency contact/meeting point) — field ini sudah lama ada di `Project`
+ * dan dipakai gate step "Start" (`project-order-workflow.ts`, gate "field-contacts") serta ditampilkan di
+ * Client Trip Center, tapi sebelumnya tidak ada mutator/form mana pun untuk mengisinya — cuma bisa lewat
+ * fixture data. Satu fungsi aditif, pola sama `updateProjectPhoto`.
+ */
+/**
+ * Destinasi/jadwal keberangkatan — sebelumnya tidak ada mutator untuk mengubah `destination`/
+ * `travelStartDate`/`travelEndDate` setelah Project dibuat sama sekali (hanya bisa lewat fixture data).
+ * Penting terutama karena gate step "Departure"/"On Progress" (`project-order-workflow.ts`) membandingkan
+ * `travelStartDate`/`travelEndDate` terhadap `DEMO_REFERENCE_DATE` (2026-07-29, BUKAN tanggal hari ini
+ * sungguhan) — Project baru yang dibuat dengan tanggal travel setelah 29 Juli 2026 tidak akan pernah lolos
+ * gate tsb sampai tanggalnya diubah ke sebelum 29 Juli 2026. `destinationGeo` di-resolve ulang bila
+ * `destination` berubah, pola sama `createProject`/`markLeadWon`.
+ */
+export function updateProjectSchedule (projectId: string, input: {
+  destination?: string
+  travelStartDate?: string
+  travelEndDate?: string
+}): Project | undefined {
+  const project = getProjectById(projectId)
+  if (!project) { return undefined }
+  if (input.destination?.trim()) {
+    project.destination = input.destination.trim()
+    project.destinationGeo = resolveDestinationGeo(project.destination)
+  }
+  if (input.travelStartDate) { project.travelStartDate = input.travelStartDate }
+  if (input.travelEndDate) { project.travelEndDate = input.travelEndDate }
+  return project
+}
+
+export function updateProjectFieldContacts (projectId: string, input: {
+  tourLeaderName?: string
+  tourLeaderPhone?: string
+  emergencyContactName?: string
+  emergencyContactPhone?: string
+  meetingPoint?: string
+}): Project | undefined {
+  const project = getProjectById(projectId)
+  if (!project) { return undefined }
+  project.tourLeaderName = input.tourLeaderName?.trim() || undefined
+  project.tourLeaderPhone = input.tourLeaderPhone?.trim() || undefined
+  project.emergencyContactName = input.emergencyContactName?.trim() || undefined
+  project.emergencyContactPhone = input.emergencyContactPhone?.trim() || undefined
+  project.meetingPoint = input.meetingPoint?.trim() || undefined
+  return project
 }
 
 export function createContact (input: { partyId: string; name: string; title: string; email?: string; phone?: string }): ContactPerson {
@@ -1326,6 +1651,7 @@ export function markLeadWon (leadId: string, approverId: string): Project | unde
     actualCostIdr: 0
   }
   PROJECTS.push(project)
+  seedDefaultProjectMilestones(project)
 
   lead.projectId = project.id
 
@@ -1363,6 +1689,9 @@ export function markLeadWon (leadId: string, approverId: string): Project | unde
 export interface CreateTravelerInput {
   projectId: string
   groupId?: string
+  partyId?: string
+  leadId?: string
+  salesOrderId?: string
   name: string
   passportNumber?: string
   passportExpiryDate?: string
@@ -1588,6 +1917,7 @@ export function updateServiceStatus (serviceId: string, newStatus: ServiceStatus
   if (!service) { return undefined }
   const previousStatus = service.status
   service.status = newStatus
+  ensureSupplierInvoiceForConfirmedService(service)
   if (newStatus === 'changed' && previousStatus !== 'changed') {
     ACTIVITIES.push({
       id: nextSequentialId('ACT-', ACTIVITIES),
@@ -1603,13 +1933,70 @@ export function updateServiceStatus (serviceId: string, newStatus: ServiceStatus
 
 export const getProjectServiceById = (id: string) => PROJECT_SERVICES.find(service => service.id === id)
 
+/** Placeholder row untuk alokasi budget upfront (split budget project ke layanan sebelum ada booking apa pun)
+ * — reuse baris existing kalau tipe ini sudah punya minimal 1 ProjectService (termasuk placeholder lama),
+ * else bikin baris baru status 'not-started' (sama pola `ensureProjectServiceForBooking`, TIDAK ada struktur
+ * budget paralel di Project). */
+export function ensureProjectServiceForBudget (projectId: string, type: ServiceTypeKey, label: string): ProjectService {
+  const existing = PROJECT_SERVICES.find(service => service.projectId === projectId && service.type === type)
+  if (existing) { return existing }
+  const service: ProjectService = {
+    id: nextSequentialId('SVC-', PROJECT_SERVICES),
+    projectId,
+    type,
+    label,
+    status: 'not-started'
+  }
+  PROJECT_SERVICES.push(service)
+  return service
+}
+
+/** "Pengeluaran per Layanan" (tab Finance) — alokasi budget manual per baris `ProjectService`, dijumlahkan per tipe di `getServiceTypeSpendBreakdown` (`app/data/finance-ext.ts`). Pola mutasi sama persis `updateServiceStatus`. */
+export function updateProjectServiceBudget (serviceId: string, budgetIdr: number) {
+  const service = PROJECT_SERVICES.find(item => item.id === serviceId)
+  if (!service) { return undefined }
+  service.budgetIdr = budgetIdr
+  return service
+}
+
 /** Assign vendor ke ProjectService langsung dari form booking (docs — vendor sync), tanpa lewat alur RFQ/Quotation. */
 export function setServiceVendor (serviceId: string, vendorId: string | undefined): ProjectService | undefined {
   const service = PROJECT_SERVICES.find(item => item.id === serviceId)
   if (!service) { return undefined }
   service.vendorId = vendorId
-  if (vendorId) { ensureServiceOrderForVendorAssignment(service, vendorId) }
+  if (vendorId) {
+    ensureServiceOrderForVendorAssignment(service, vendorId)
+    ensureSupplierInvoiceForConfirmedService(service)
+  }
   return service
+}
+
+/**
+ * Assign vendor + nominal (opsional) dalam satu langkah — reuse dari form Edit booking (Ticketing/
+ * Accommodation/Transportation, field "Net Cost") dan dialog "Tugaskan Vendor" (tab Vendors Project
+ * Detail). Kalau `amountIdr` diisi, jalur `submitVendorQuotation` → `acceptVendorQuotation` dipakai
+ * (quotation langsung diterima) — ini yang men-set service jadi Confirmed dan memberi
+ * `ensureSupplierInvoiceForConfirmedService` nominal yang benar sejak awal, bukan cuma `setServiceVendor`
+ * polos yang menghasilkan invoice Rp 0 karena tidak ada quotation untuk dijadikan sumber nominal.
+ */
+export function assignServiceVendor (serviceId: string, vendorId: string | undefined, amountIdr?: number): void {
+  const service = PROJECT_SERVICES.find(item => item.id === serviceId)
+  if (!service || !vendorId) {
+    setServiceVendor(serviceId, vendorId)
+    return
+  }
+  if (amountIdr && amountIdr > 0) {
+    const quotation = submitVendorQuotation({
+      vendorId,
+      projectId: service.projectId,
+      serviceId: service.id,
+      serviceType: service.type,
+      amountIdr
+    })
+    acceptVendorQuotation(quotation.id)
+  } else {
+    setServiceVendor(serviceId, vendorId)
+  }
 }
 
 /**
@@ -1753,7 +2140,9 @@ export const getFlightBookingsByProject = (projectId: string) => FLIGHT_BOOKINGS
   .filter(booking => booking.projectId === projectId)
   .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
 /** Auto-link booking ↔ ProjectService (docs/superpowers/specs/2026-08-05-project-service-booking-sync-design.md).
- * Reuse baris existing kalau `existingServiceId` valid, else bikin baris baru dan kembalikan id-nya. */
+ * Reuse baris existing kalau `existingServiceId` valid; kalau tidak, reuse placeholder tipe sama yang belum
+ * pernah dibooking (mis. dibuat lewat `ensureProjectServiceForBudget` untuk alokasi budget upfront) supaya
+ * budget yang sudah diisi tidak terpisah dari booking sungguhan; else baru bikin baris baru. */
 function ensureProjectServiceForBooking (params: { projectId: string; existingServiceId?: string; type: ServiceTypeKey; label: string; status: ServiceStatus }): string {
   if (params.existingServiceId) {
     const existing = PROJECT_SERVICES.find(s => s.id === params.existingServiceId)
@@ -1761,6 +2150,12 @@ function ensureProjectServiceForBooking (params: { projectId: string; existingSe
       existing.status = params.status
       return existing.id
     }
+  }
+  const reusable = PROJECT_SERVICES.find(s => s.projectId === params.projectId && s.type === params.type && !s.bookingReference && s.status === 'not-started')
+  if (reusable) {
+    reusable.status = params.status
+    reusable.label = params.label
+    return reusable.id
   }
   const service: ProjectService = {
     id: nextSequentialId('SVC-', PROJECT_SERVICES),
@@ -1865,7 +2260,10 @@ export function updateFlightBookingStatus (bookingId: string, newStatus: FlightB
   syncBookingPaymentGateOnStatusChange('flight', booking.id, booking.projectId, newStatus)
   if (booking.serviceId) {
     const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
-    if (service) { service.status = mapFlightStatusToServiceStatus(newStatus) }
+    if (service) {
+      service.status = mapFlightStatusToServiceStatus(newStatus)
+      ensureSupplierInvoiceForConfirmedService(service)
+    }
   }
 
   const actor = getUserById(actorId)
@@ -1994,7 +2392,10 @@ export function updateHotelBookingStatus (bookingId: string, newStatus: HotelBoo
   syncBookingPaymentGateOnStatusChange('hotel', booking.id, booking.projectId, newStatus)
   if (booking.serviceId) {
     const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
-    if (service) { service.status = mapHotelStatusToServiceStatus(newStatus) }
+    if (service) {
+      service.status = mapHotelStatusToServiceStatus(newStatus)
+      ensureSupplierInvoiceForConfirmedService(service)
+    }
   }
 
   const actor = getUserById(actorId)
@@ -2118,7 +2519,10 @@ export function updateTransportBookingStatus (bookingId: string, newStatus: Tran
   syncBookingPaymentGateOnStatusChange('transport', booking.id, booking.projectId, newStatus)
   if (booking.serviceId) {
     const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
-    if (service) { service.status = mapTransportStatusToServiceStatus(newStatus) }
+    if (service) {
+      service.status = mapTransportStatusToServiceStatus(newStatus)
+      ensureSupplierInvoiceForConfirmedService(service)
+    }
   }
 
   const actor = getUserById(actorId)
@@ -2265,7 +2669,10 @@ export function updateMiceEventStatus (eventId: string, newStatus: MiceEventStat
   syncBookingPaymentGateOnStatusChange('mice', event.id, event.projectId, newStatus)
   if (event.serviceId) {
     const service = PROJECT_SERVICES.find(s => s.id === event.serviceId)
-    if (service) { service.status = mapMiceStatusToServiceStatus(newStatus) }
+    if (service) {
+      service.status = mapMiceStatusToServiceStatus(newStatus)
+      ensureSupplierInvoiceForConfirmedService(service)
+    }
   }
 
   const actor = getUserById(actorId)
@@ -2678,7 +3085,27 @@ export function flagBookingOrchestrationDuplicate (bookingType: BookingDomain, b
 export function createVendor (input: { name: string; serviceType: ServiceTypeKey; contactName: string; contactPhone?: string; category?: string }): Vendor {
   const vendor: Vendor = { id: nextSequentialId('VND-', VENDORS), status: 'active', ...input }
   VENDORS.push(vendor)
+  ensureVendorLoginAccount(vendor)
   return vendor
+}
+
+/** Auto-provision akun login Vendor Portal (role `vendor`) begitu vendor baru dibuat — mirror
+ * `ensureClientLoginAccount`, idempotent by `vendorId` supaya aman dipanggil ulang. Beda dari Client (yang
+ * baru login setelah Lead Won), Vendor tidak punya "titik aktivasi" terpisah dari pembuatannya sendiri,
+ * jadi dipicu langsung di `createVendor`. */
+function ensureVendorLoginAccount (vendor: Vendor): User {
+  const existing = getUserByVendorId(vendor.id)
+  if (existing) { return existing }
+  const vendorUser: User = {
+    id: nextSequentialId('USR-', USERS),
+    name: vendor.contactName,
+    email: `${slugifyForEmail(vendor.contactName)}@${slugifyForEmail(vendor.name)}.demo`,
+    role: 'vendor',
+    status: 'active',
+    vendorId: vendor.id
+  }
+  USERS.push(vendorUser)
+  return vendorUser
 }
 
 /** `category`/`status`/`documents` (Section 17, aditif) — edit master data vendor, dipakai Vendor Detail. */
@@ -2940,6 +3367,14 @@ export interface LeadQualificationInput {
   specialRequestNote?: string
   qualificationNotes?: string
   expectedCloseDate?: string
+  groupTripProjectId?: Lead['groupTripProjectId']
+  b2cAdultCount?: number
+  b2cChildCount?: number
+  b2cInfantCount?: number
+  b2cPriceAcceptance?: Lead['b2cPriceAcceptance']
+  b2cBookingReadiness?: Lead['b2cBookingReadiness']
+  b2cQualificationResult?: Lead['b2cQualificationResult']
+  b2cNextFollowUpDate?: string
 }
 
 export function updateLeadQualification (leadId: string, patch: LeadQualificationInput): Lead | undefined {
@@ -2964,7 +3399,8 @@ export function getLeadMissingQualification (leadId: string): string[] {
   if (!lead.travelStartDate || !lead.travelEndDate) { missing.push('Periode perjalanan belum diisi') }
   if (!lead.travelerEstimate) { missing.push('Estimasi traveler belum diisi') }
   if (!lead.serviceScope || lead.serviceScope.length === 0) { missing.push('Service scope belum dipilih') }
-  if (!lead.handedOverTo) { missing.push('Account Executive belum dipilih') }
+  /** Individual Travel (B2C) tidak menentukan AE saat qualify — assignment dilakukan role lain di detail Project (`Project.teamUserIds`/`ownerId`), bukan di tahap Lead. */
+  if (lead.serviceCategory !== 'individual-travel' && !lead.handedOverTo) { missing.push('Account Executive belum dipilih') }
   if (!lead.requirementSummary) { missing.push('Ringkasan kebutuhan belum diisi') }
   return missing
 }
@@ -3039,7 +3475,10 @@ export function qualifyLeadAndCreateSalesOrder (leadId: string, input: { priceId
   if (!(input.priceIdr > 0)) { return undefined }
   const travelerCount = input.travelerCount ?? lead.travelerEstimate
   if (!lead.destination || !lead.travelStartDate || !lead.travelEndDate || !travelerCount) { return undefined }
-  const accountExecutiveId = lead.handedOverTo!
+  /** Individual Travel (B2C) boleh tidak punya `handedOverTo` (AE ditentukan belakangan di detail Project,
+   * bukan di tahap Lead — lihat `getLeadMissingQualification`) — fallback ke `lead.ownerId`, pola sama
+   * `qualifyGroupTripLead`/baris 1338/1425/3297 di file ini. */
+  const accountExecutiveId = lead.handedOverTo ?? lead.ownerId
 
   let party = PARTIES.find(p => p.partyType === 'individual' && p.name.toLowerCase() === lead.name.toLowerCase())
   if (!party) {
@@ -3085,6 +3524,65 @@ export function qualifyLeadAndCreateSalesOrder (leadId: string, input: { priceId
   // Re-fetch lewat `getSalesOrderById` — pola sama `createSalesOrder`, supaya identitas hasil return sama
   // dengan Proxy `reactive()` yang didapat caller lain (perlu untuk reference-equality check, mis. di test).
   return getSalesOrderById(order.id)
+}
+
+export interface QualifyGroupTripInput {
+  adultCount: number
+  childCount: number
+  infantCount: number
+  priceAcceptance: B2cPriceAcceptance
+  bookingReadiness: B2cBookingReadiness
+  priceIdr: number
+}
+
+export type QualifyGroupTripOutcome =
+  | { outcome: 'qualified'; order: SalesOrder }
+  | { outcome: 'waitlist' }
+
+/**
+ * Qualify Lead individual-travel (B2C) ke Project Group Trip yang SUDAH ADA (`lead.groupTripProjectId`,
+ * dipilih di form sebelum submit) — bukan bikin Project baru per Lead, dan bukan langsung bikin Participant.
+ * Sengaja TIDAK reimplementasi bagian "Lead → Customer + billing" — itu 100% lewat
+ * `qualifyLeadAndCreateSalesOrder` yang tidak berubah (dedup Party by name, `lifecycleStatus: 'client'`,
+ * SalesOrder berstatus `draft` = Awaiting DP). Fungsi ini menambah: (1) guard kapasitas — kalau pax diminta
+ * melebihi seat tersisa (Confirmed + Awaiting DP lain), hasilnya di-downgrade paksa jadi Waitlist, TIDAK ada
+ * SalesOrder/Party yang dibuat; (2) link `order.projectId`/`lead.projectId` begitu benar-benar Qualified.
+ * Participant (Traveler) BARU dibuat nanti saat DP dikonfirmasi (`updateSalesOrderStatus` → `'paid'`).
+ */
+export function qualifyGroupTripLead (leadId: string, input: QualifyGroupTripInput): QualifyGroupTripOutcome | undefined {
+  const lead = getLeadById(leadId)
+  if (!lead || !lead.groupTripProjectId) { return undefined }
+  const project = getProjectById(lead.groupTripProjectId)
+  if (!project || !project.isGroupTrip) { return undefined }
+
+  const requestedPax = input.adultCount + input.childCount + input.infantCount
+  if (requestedPax <= 0) { return undefined }
+
+  updateLeadQualification(leadId, {
+    b2cAdultCount: input.adultCount,
+    b2cChildCount: input.childCount,
+    b2cInfantCount: input.infantCount,
+    b2cPriceAcceptance: input.priceAcceptance,
+    b2cBookingReadiness: input.bookingReadiness
+  })
+
+  if (requestedPax > getProjectSeatsAvailable(project.id)) {
+    updateLeadQualification(leadId, { b2cQualificationResult: 'waitlist' })
+    return { outcome: 'waitlist' }
+  }
+
+  const order = qualifyLeadAndCreateSalesOrder(leadId, { priceIdr: input.priceIdr, travelerCount: requestedPax })
+  if (!order) { return undefined }
+  order.projectId = project.id
+  lead.projectId = project.id
+  updateLeadQualification(leadId, { b2cQualificationResult: 'qualified' })
+  createLeadActivity({
+    leadId,
+    type: 'note',
+    message: `Booking dibuat untuk Group Project ${project.id} (${project.name}), status Awaiting DP`,
+    ownerId: lead.handedOverTo ?? lead.ownerId
+  })
+  return { outcome: 'qualified', order }
 }
 
 /** Vendor Product catalog (Prompt 19 — area Supplier/External Partners). */
@@ -3537,6 +4035,52 @@ function ensureServiceOrderForVendorAssignment (service: ProjectService, vendorI
   })
 }
 
+/**
+ * Auto-generate Supplier Invoice begitu sebuah ProjectService sudah Confirmed DAN sudah punya vendor —
+ * dipanggil dari titik mana pun yang bisa membuat kombinasi ini jadi benar (booking status → confirmed,
+ * ATAU assign vendor ke service yang sudah confirmed). Idempotent (tidak duplikat kalau sudah ada invoice
+ * non-rejected untuk Service Order ini). Invoice langsung 'approved' (bukan 'submitted') karena ini
+ * system-generated dari keputusan PM sendiri (confirm booking + pilih vendor), bukan pengajuan mandiri
+ * vendor lewat Supplier Portal yang butuh review — tombol "Bayar" di card AP Summary bisa langsung aktif.
+ */
+function ensureSupplierInvoiceForConfirmedService (service: ProjectService): void {
+  if (service.status !== 'confirmed' || !service.vendorId) { return }
+  ensureServiceOrderForVendorAssignment(service, service.vendorId)
+  const serviceOrder = getServiceOrderByService(service.id)
+  if (!serviceOrder) { return }
+  if (getSupplierInvoicesByServiceOrder(serviceOrder.id).some(inv => inv.status !== 'rejected')) { return }
+
+  if (serviceOrder.status !== 'fulfilled') {
+    serviceOrder.status = 'fulfilled'
+    serviceOrder.fulfilledAt = DEMO_REFERENCE_DATE
+    serviceOrder.updatedAt = DEMO_REFERENCE_DATE
+  }
+
+  const acceptedQuotation = getQuotationsForService(service.id).find(q => q.vendorId === service.vendorId && q.status === 'accepted')
+  const invoice: SupplierInvoice = {
+    id: nextSequentialId('SINV-', SUPPLIER_INVOICES),
+    serviceOrderId: serviceOrder.id,
+    vendorId: service.vendorId,
+    amountIdr: acceptedQuotation?.amountIdr ?? 0,
+    submittedAt: DEMO_REFERENCE_DATE,
+    status: 'approved',
+    note: 'Dibuat otomatis begitu booking dikonfirmasi dan vendor ditugaskan.'
+  }
+  SUPPLIER_INVOICES.push(invoice)
+
+  if (service.projectId) {
+    const vendor = getVendorById(service.vendorId)
+    ACTIVITIES.push({
+      id: nextSequentialId('ACT-', ACTIVITIES),
+      projectId: service.projectId,
+      message: `Supplier Invoice ${invoice.id} (${vendor?.name ?? service.vendorId}) otomatis dibuat untuk layanan "${service.label}" (booking Confirmed).`,
+      isChange: false,
+      reviewed: true,
+      createdAt: DEMO_REFERENCE_DATE
+    })
+  }
+}
+
 export interface CreateServiceOrderInput {
   rfqId?: string
   vendorId: string
@@ -3690,6 +4234,72 @@ export function paySupplierInvoice (id: string, actorId: string): SupplierInvoic
       createdAt: DEMO_REFERENCE_DATE
     })
   }
+  return invoice
+}
+
+export interface RecordVendorPaymentInput {
+  serviceId: string
+  vendorId: string
+  amountIdr: number
+  note?: string
+}
+
+/**
+ * Jalur cepat internal (PM/Ops, tab "Vendors" detail Project) — mencatat vendor untuk satu `ProjectService`
+ * SUDAH DIBAYAR LANGSUNG oleh staf Manova (mis. beli tiket flight dan bayar cash/transfer di tempat),
+ * BUKAN lewat pengajuan mandiri vendor di Supplier Portal (`submitSupplierInvoice` → `reviewSupplierInvoice`
+ * → `paySupplierInvoice`, tiga langkah terpisah yang mengasumsikan vendor sendiri yang mengajukan invoice).
+ * Service Order dibuat kalau belum ada (idempotent, reuse `ensureServiceOrderForVendorAssignment`) lalu
+ * langsung ditandai `fulfilled`, Supplier Invoice langsung dibuat berstatus `paid` — melewati gerbang
+ * transisi berlapis yang didesain untuk workflow vendor self-service, karena staf internal di sini sudah
+ * mengonfirmasi sendiri bahwa pembayaran ini nyata terjadi. Efeknya: `getProjectActualCostIdr()` dan
+ * `getJournalEntries()` (Dr 5100/Cr 1100) langsung mencerminkan pembayaran ini tanpa langkah tambahan.
+ */
+export function recordVendorPaymentDirect (input: RecordVendorPaymentInput, actorId: string): SupplierInvoice | undefined {
+  const service = PROJECT_SERVICES.find(item => item.id === input.serviceId)
+  if (!service || !(input.amountIdr > 0)) { return undefined }
+
+  service.vendorId = input.vendorId
+  if (service.status !== 'confirmed' && service.status !== 'changed') { updateServiceStatus(service.id, 'confirmed') }
+
+  ensureServiceOrderForVendorAssignment(service, input.vendorId)
+  const serviceOrder = getServiceOrderByService(service.id)
+  if (!serviceOrder) { return undefined }
+  /** Guard dobel-bayar — sejalan dengan tombol UI yang disembunyikan begitu sudah ada invoice `paid` untuk layanan ini. */
+  if (getSupplierInvoicesByServiceOrder(serviceOrder.id).some(inv => inv.status === 'paid')) { return undefined }
+  if (serviceOrder.status !== 'fulfilled') {
+    serviceOrder.status = 'fulfilled'
+    serviceOrder.fulfilledAt = DEMO_REFERENCE_DATE
+    serviceOrder.updatedAt = DEMO_REFERENCE_DATE
+  }
+
+  const actor = getUserById(actorId)
+  const invoice: SupplierInvoice = {
+    id: nextSequentialId('SINV-', SUPPLIER_INVOICES),
+    serviceOrderId: serviceOrder.id,
+    vendorId: input.vendorId,
+    amountIdr: input.amountIdr,
+    submittedAt: DEMO_REFERENCE_DATE,
+    status: 'paid',
+    note: input.note?.trim() || 'Dicatat langsung oleh staf internal (bukan pengajuan mandiri vendor).',
+    reviewedAt: DEMO_REFERENCE_DATE,
+    reviewedBy: actorId,
+    paidAt: DEMO_REFERENCE_DATE
+  }
+  SUPPLIER_INVOICES.push(invoice)
+
+  if (service.projectId) {
+    const vendor = getVendorById(input.vendorId)
+    ACTIVITIES.push({
+      id: nextSequentialId('ACT-', ACTIVITIES),
+      projectId: service.projectId,
+      message: `Pembayaran vendor ${vendor?.name ?? input.vendorId} untuk layanan "${service.label}" sebesar ${formatCurrencyIdr(input.amountIdr)} dicatat lunas oleh ${actor?.name ?? actorId}.`,
+      isChange: false,
+      reviewed: true,
+      createdAt: DEMO_REFERENCE_DATE
+    })
+  }
+
   return invoice
 }
 
@@ -4472,7 +5082,8 @@ const MASTER_DATA_REGISTRY: Record<MasterDataCategoryKey, { list: MasterDataReco
   'numbering-scheme': { list: NUMBERING_SCHEMES as unknown as MasterDataRecordShape[], prefix: 'NUM-', label: 'Numbering Scheme' },
   'document-template': { list: DOCUMENT_TEMPLATES as unknown as MasterDataRecordShape[], prefix: 'DTPL-', label: 'Document Template' },
   'readiness-gate': { list: READINESS_GATE_CONFIGS as unknown as MasterDataRecordShape[], prefix: 'RGC-', label: 'Readiness Gate' },
-  'assignment-rule': { list: ASSIGNMENT_RULES as unknown as MasterDataRecordShape[], prefix: 'ASR-', label: 'Assignment Rule' }
+  'assignment-rule': { list: ASSIGNMENT_RULES as unknown as MasterDataRecordShape[], prefix: 'ASR-', label: 'Assignment Rule' },
+  'milestone-template': { list: MILESTONE_TEMPLATES as unknown as MasterDataRecordShape[], prefix: 'MTPL-', label: 'Milestone Template' }
 }
 
 export function getMasterDataCategoryMeta (key: MasterDataCategoryKey) {
@@ -6460,6 +7071,38 @@ export function getClientFinanceSummary (partyId: string): ClientFinanceSummary 
   return { totalProjectValueIdr, totalInvoicedIdr, totalPaidIdr, outstandingIdr, overdueIdr, nextDueDate: nextDue?.dueAt }
 }
 
+export interface PartyCreditFacility {
+  limitIdr: number
+  usedIdr: number
+  remainingIdr: number
+  /** 0 kalau `limitIdr` 0 (belum diset Finance) — dipakai UI progress bar, di-cap 999 supaya bar tidak meledak saat over-limit jauh. */
+  percentUsed: number
+  isOverLimit: boolean
+}
+
+/**
+ * Limit Credit Facility (Database Customer) — "terpakai" reuse `getClientFinanceSummary().outstandingIdr`
+ * apa adanya (total invoice belum lunas lintas seluruh Project Order company), bukan hitungan baru. Party
+ * tanpa `creditLimitIdr` (default lama, individual/B2C atau company yang belum diberi plafon oleh Finance)
+ * mengembalikan `limitIdr: 0` — UI menampilkan "Belum diset", bukan 0% yang menyesatkan.
+ */
+export function getPartyCreditFacility (partyId: string): PartyCreditFacility {
+  const party = getPartyById(partyId)
+  const limitIdr = party?.creditLimitIdr ?? 0
+  const usedIdr = getClientFinanceSummary(partyId).outstandingIdr
+  const remainingIdr = limitIdr - usedIdr
+  const percentUsed = limitIdr > 0 ? Math.min(999, Math.round((usedIdr / limitIdr) * 100)) : 0
+  return { limitIdr, usedIdr, remainingIdr, percentUsed, isOverLimit: limitIdr > 0 && usedIdr > limitIdr }
+}
+
+/** Finance/Management saja (gate di halaman, bukan di sini) — plafon piutang company, lihat `Party.creditLimitIdr`. */
+export function updatePartyCreditLimit (partyId: string, creditLimitIdr: number | undefined): Party | undefined {
+  const party = getPartyById(partyId)
+  if (!party) { return undefined }
+  party.creditLimitIdr = creditLimitIdr && creditLimitIdr > 0 ? creditLimitIdr : undefined
+  return party
+}
+
 /* ---------------------------------------------------------------------------
  * Messages & Activities — reuse penuh `Message`/`sendMessage`/`getUnifiedActivityTimeline` (Section 21).
  * ------------------------------------------------------------------------ */
@@ -6467,6 +7110,12 @@ export function getClientFinanceSummary (partyId: string): ClientFinanceSummary 
 /** "Client-visible" — TIDAK PERNAH `internal-note` (Wajib "Jangan tampilkan internal chat Manova"). */
 export const getClientProjectMessages = (projectId: string) => MESSAGE_RECORDS
   .filter(item => item.projectId === projectId && item.channel !== 'internal-note')
+  .sort((a, b) => a.sentAt.localeCompare(b.sentAt))
+
+/** Kebalikan `getClientProjectMessages` — HANYA `internal-note`, dipakai tab "Diskusi" (chat tim internal per
+ * project, dengan mention + attachment mock) di Project Detail. Client/supplier TIDAK PERNAH melihat ini. */
+export const getInternalProjectMessages = (projectId: string) => MESSAGE_RECORDS
+  .filter(item => item.projectId === projectId && item.channel === 'internal-note')
   .sort((a, b) => a.sentAt.localeCompare(b.sentAt))
 
 export function isMessageUnread (message: Message, userId: string): boolean {

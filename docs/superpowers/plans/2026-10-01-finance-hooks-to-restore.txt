@@ -1,0 +1,43 @@
+== frontend/app/pages/project-orders/[id]/index.vue
+<FinanceCancellationDialog
+<FinancePaymentStatus
+<FinanceProjectPanel
+useFinanceOverview
+== frontend/app/pages/project-orders/index.vue
+useFinanceOverview
+== frontend/app/pages/index.vue
+<DashboardFinanceSummary
+useFinanceOverview
+== frontend/app/pages/accommodation/[id]/index.vue
+<FinanceCancellationDialog
+<FinanceContextPanel
+== frontend/app/pages/mice/[id]/index.vue
+<FinanceCancellationDialog
+<FinanceContextPanel
+== frontend/app/pages/ticketing/[id]/index.vue
+<FinanceCancellationDialog
+<FinanceContextPanel
+== frontend/app/pages/transportation/[id]/index.vue
+<FinanceCancellationDialog
+<FinanceContextPanel
+== frontend/app/pages/vendors/[id]/index.vue
+<FinanceContextPanel
+== frontend/app/pages/crm/parties/[id]/index.vue
+<FinanceContextPanel
+useFinanceOverview
+== frontend/app/pages/changes/index.vue
+<FinanceRefundCaseList
+api.finance.refundStatuses
+useFinanceQuery
+== frontend/app/pages/changes/cancellations/[id]/index.vue
+<FinanceContextPanel
+== frontend/app/pages/changes/refunds/[id]/index.vue
+== frontend/app/components/reports/ReportsAnalyticsPanel.vue
+== frontend/app/components/reports/ReportsOperationalPanel.vue
+api.finance.receivables
+session.can('finance.view-cash')
+useFinanceOverview
+useFinanceQuery
+useServerSession
+== frontend/app/pages/admin/master-data.vue
+== frontend/app/components/admin/UsersDirectoryPanel.vue

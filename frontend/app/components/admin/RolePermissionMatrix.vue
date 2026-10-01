@@ -67,44 +67,72 @@ const grantedCount = computed(() => rows.value.filter(row => row.level !== 'NONE
       <p class="text-xs font-medium text-muted-foreground">
         {{ section.label }}
       </p>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>Modul</TableHead>
-            <TableHead class="w-[44%]">
-              Cakupan
-            </TableHead>
-            <TableHead class="w-[160px] text-right">
-              Level Akses
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow v-for="row in section.items" :key="row.key">
-            <TableCell>
-              <div class="flex items-center gap-2">
+      <ResponsiveDataView :items="section.items" :get-key="row => row.key">
+        <template #desktop="{ items }">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Modul</TableHead>
+                <TableHead class="w-[44%]">
+                  Cakupan
+                </TableHead>
+                <TableHead class="w-[160px] text-right">
+                  Level Akses
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              <TableRow v-for="row in items" :key="row.key">
+                <TableCell>
+                  <div class="flex items-center gap-2">
+                    <component :is="row.icon" class="h-4 w-4 text-muted-foreground shrink-0" />
+                    <span class="text-sm font-medium text-foreground">{{ row.label }}</span>
+                  </div>
+                </TableCell>
+                <TableCell class="text-xs text-muted-foreground">
+                  {{ row.description }}
+                </TableCell>
+                <TableCell class="text-right">
+                  <select
+                    :value="row.level"
+                    :disabled="isLocked"
+                    class="appearance-none px-2.5 py-1.5 text-xs font-medium rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                    @change="emit('change', { moduleKey: row.key, level: ($event.target as HTMLSelectElement).value as PermissionLevel })"
+                  >
+                    <option v-for="level in PERMISSION_LEVELS" :key="level" :value="level">
+                      {{ level }}
+                    </option>
+                  </select>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </template>
+
+        <template #mobile-card="{ item: row }">
+          <div class="rounded-xl border border-border bg-card p-4">
+            <div class="flex items-start justify-between gap-2">
+              <div class="flex min-w-0 items-center gap-2">
                 <component :is="row.icon" class="h-4 w-4 text-muted-foreground shrink-0" />
-                <span class="text-sm font-medium text-foreground">{{ row.label }}</span>
+                <span class="truncate text-sm font-medium text-foreground">{{ row.label }}</span>
               </div>
-            </TableCell>
-            <TableCell class="text-xs text-muted-foreground">
-              {{ row.description }}
-            </TableCell>
-            <TableCell class="text-right">
               <select
                 :value="row.level"
                 :disabled="isLocked"
-                class="appearance-none px-2.5 py-1.5 text-xs font-medium rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                class="shrink-0 appearance-none px-2.5 py-1.5 text-xs font-medium rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                 @change="emit('change', { moduleKey: row.key, level: ($event.target as HTMLSelectElement).value as PermissionLevel })"
               >
                 <option v-for="level in PERMISSION_LEVELS" :key="level" :value="level">
                   {{ level }}
                 </option>
               </select>
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+            </div>
+            <p class="mt-3 text-xs text-muted-foreground">
+              {{ row.description }}
+            </p>
+          </div>
+        </template>
+      </ResponsiveDataView>
     </div>
   </div>
 </template>

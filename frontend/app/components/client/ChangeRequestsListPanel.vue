@@ -114,59 +114,65 @@ function handleSubmitDraft (draft: ChangeRequestDraft) {
 <template>
   <div class="space-y-6">
     <div v-if="canView('client-portal')" class="flex justify-end">
-      <Dialog v-model:open="isFormOpen">
-        <DialogTrigger as-child>
-          <Button size="sm" :disabled="projects.length === 0" @click="openCreateForm">
-            <Plus class="h-4 w-4 mr-1.5" />Ajukan Perubahan
+      <ResponsiveFormSheet
+        v-model:open="isFormOpen"
+        :title="editingDraft ? 'Edit Draft' : 'Ajukan Permintaan Perubahan'"
+        description="Simpan sebagai draft untuk dilanjutkan nanti, atau ajukan langsung ke tim kami."
+        content-class="max-w-lg"
+        scroll
+      >
+        <template #trigger>
+          <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+          <Button
+            size="sm"
+            :disabled="projects.length === 0"
+            class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+            @click="openCreateForm"
+          >
+            <Plus class="h-4 w-4" />Ajukan Perubahan
           </Button>
-        </DialogTrigger>
-        <DialogScrollContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{{ editingDraft ? 'Edit Draft' : 'Ajukan Permintaan Perubahan' }}</DialogTitle>
-            <DialogDescription>Simpan sebagai draft untuk dilanjutkan nanti, atau ajukan langsung ke tim kami.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
-            <div class="space-y-1.5">
-              <Label for="cr-project">Project Order</Label>
-              <select id="cr-project" v-model="formProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option v-for="project in projects" :key="project.id" :value="project.id">
-                  {{ project.name }}
-                </option>
-              </select>
-            </div>
-            <div class="space-y-1.5">
-              <Label for="cr-type">Jenis Perubahan</Label>
-              <select id="cr-type" v-model="formChangeType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option value="">
-                  Lainnya
-                </option>
-                <option v-for="option in CHANGE_REQUEST_TYPES" :key="option.value" :value="option.value">
-                  {{ option.label }}
-                </option>
-              </select>
-            </div>
-            <div class="space-y-1.5">
-              <Label for="cr-before">Kondisi Saat Ini</Label>
-              <textarea id="cr-before" v-model="formBeforeSummary" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. 45 peserta, hotel Deluxe Room Block A" />
-            </div>
-            <div class="space-y-1.5">
-              <Label for="cr-after">Perubahan yang Diminta</Label>
-              <textarea id="cr-after" v-model="formAfterSummary" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Tambah 5 peserta menjadi 50 peserta" />
-            </div>
+        </template>
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="cr-project">Project Order</Label>
+            <select id="cr-project" v-model="formProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option v-for="project in projects" :key="project.id" :value="project.id">
+                {{ project.name }}
+              </option>
+            </select>
           </div>
-          <DialogFooter class="flex-col sm:flex-row gap-2">
-            <Button variant="outline" @click="isFormOpen = false">
-              Batal
-            </Button>
-            <Button variant="secondary" :disabled="!isFormValid" @click="handleSaveDraft">
-              Simpan sebagai Draft
-            </Button>
-            <Button :disabled="!isFormValid" @click="handleSubmitNow">
-              Ajukan Sekarang
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+          <div class="space-y-1.5">
+            <Label for="cr-type">Jenis Perubahan</Label>
+            <select id="cr-type" v-model="formChangeType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="">
+                Lainnya
+              </option>
+              <option v-for="option in CHANGE_REQUEST_TYPES" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <Label for="cr-before">Kondisi Saat Ini</Label>
+            <textarea id="cr-before" v-model="formBeforeSummary" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. 45 peserta, hotel Deluxe Room Block A" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="cr-after">Perubahan yang Diminta</Label>
+            <textarea id="cr-after" v-model="formAfterSummary" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Tambah 5 peserta menjadi 50 peserta" />
+          </div>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isFormOpen = false">
+            Batal
+          </Button>
+          <Button variant="secondary" :disabled="!isFormValid" @click="handleSaveDraft">
+            Simpan sebagai Draft
+          </Button>
+          <Button :disabled="!isFormValid" @click="handleSubmitNow">
+            Ajukan Sekarang
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </div>
 
     <RoleAccessState v-if="!canView('client-portal')" module-label="Client Portal" />

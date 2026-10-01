@@ -2,23 +2,26 @@
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus, MessageCircle } from 'lucide-vue-next'
+import { buildWhatsAppLink } from '~/data/crm-engagement'
 import {
   getPartyById, getContactsByParty, getLeadsByParty, getPartyActivities, getProjectsByParty,
-  getQuotationByLead, createContact, createPartyActivity, getFeedbackByProject,
-  getUserByClientPartyId, isManovaClient
+  getQuotationByLead, createContact, createPartyActivity, createProject, getInvoicesByProject, getFeedbackByProject,
+  getUserByClientPartyId, isManovaClient, ensureProjectServiceForBudget, updateProjectServiceBudget
 } from '~/data'
-import { buildWhatsAppLink, getLoyaltyAccount } from '~/data/crm-engagement'
+import { getLoyaltyAccount } from '~/data/crm-engagement'
 import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
-import { daysUntil, formatCurrencyIdr, formatDate, formatDateRange, formatNumber } from '~/utils/format'
-import { PAYMENT_STATUS_TONE } from '~/lib/finance/labels'
+import { formatCurrencyIdr, formatDate, formatDateRange, formatNumber } from '~/utils/format'
+import { daysUntil } from '~/utils/format'
 import type { PartyDetailTab, PartyActivityType } from '~/types/party'
+import type { ServiceTypeKey } from '~/types/project'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
-const { currentUser } = useCurrentUser()
-const { canView, can } = usePermissions()
+const { currentRole, currentUser } = useCurrentUser()
+const { canView, can, canManage } = usePermissions()
+const { showToast } = useToast()
 
 /** Hyperlink WhatsApp (revisi.md #9) — nomor dinormalkan ke format internasional oleh `buildWhatsAppLink`. */
 function whatsAppLink (phone: string | undefined, name: string): string | undefined {
@@ -41,8 +44,82 @@ const projects = computed(() => (party.value ? getProjectsByParty(party.value.id
 const linkedClientUser = computed(() => (party.value ? getUserByClientPartyId(party.value.id) : undefined))
 const isPartyManovaClient = computed(() => (party.value ? isManovaClient(party.value.id) : false))
 
-/** Tab "Projects" kondisional — hanya tampil bila Client dan minimal 1 project (docs IA bagian 3.2/5). */
-const showProjectsTab = computed(() => party.value?.lifecycleStatus === 'client' && projects.value.length > 0)
+/** Tab "Projects" kondisional — tampil untuk seluruh Client (dulu mensyaratkan minimal 1 project; kini juga
+ * tampil saat kosong supaya tombol "Buat Project" di tab ini terjangkau untuk Client baru/belum punya project). */
+const showProjectsTab = computed(() => party.value?.lifecycleStatus === 'client')
+
+/** Buat Project untuk party ini — mirror flow "Buat Project" di `/project-orders`, customer terkunci ke
+ * party halaman ini (bukan dropdown). Digerbangi `canManage('operations')` (modul yang sama, bukan
+ * `canManageParty`/CRM) karena membuat Project adalah aksi modul Operations. */
+const canManageProject = computed(() => canManage('operations'))
+
+const isCreateProjectOpen = ref(false)
+const newProjectName = ref('')
+const newProjectDestination = ref('')
+const newProjectStartDate = ref('')
+const newProjectEndDate = ref('')
+const newProjectTravelerCount = ref<number | null>(null)
+const newProjectServiceScope = ref<ServiceTypeKey[]>([])
+const newProjectAmountIdr = ref<number | null>(null)
+/** Budget per layanan langsung di form "Buat Project" — muncul begitu chip Service Scope dicentang, opsional,
+ * memakai mesin yang sama dengan "Edit Budget" tab Finance (`ensureProjectServiceForBudget`/
+ * `updateProjectServiceBudget`, `app/data/index.ts`) supaya tidak perlu bolak-balik ke halaman lain. */
+const newProjectServiceBudgets = ref<Partial<Record<ServiceTypeKey, number | null>>>({})
+
+function toggleNewProjectServiceScope (type: ServiceTypeKey) {
+  const index = newProjectServiceScope.value.indexOf(type)
+  if (index === -1) { newProjectServiceScope.value.push(type) } else { newProjectServiceScope.value.splice(index, 1) }
+}
+
+function resetCreateProjectForm () {
+  newProjectName.value = ''
+  newProjectDestination.value = ''
+  newProjectStartDate.value = ''
+  newProjectEndDate.value = ''
+  newProjectTravelerCount.value = null
+  newProjectServiceScope.value = []
+  newProjectAmountIdr.value = null
+  newProjectServiceBudgets.value = {}
+}
+
+const isNewProjectFormValid = computed(() => Boolean(
+  newProjectName.value.trim() &&
+  newProjectDestination.value.trim() &&
+  newProjectStartDate.value &&
+  newProjectEndDate.value &&
+  newProjectTravelerCount.value &&
+  newProjectServiceScope.value.length &&
+  newProjectAmountIdr.value
+))
+
+const newProjectServiceBudgetsTotal = computed(() =>
+  newProjectServiceScope.value.reduce((sum, type) => sum + (newProjectServiceBudgets.value[type] ?? 0), 0)
+)
+
+function submitCreateProject () {
+  if (!party.value || !isNewProjectFormValid.value) { return }
+  const project = createProject({
+    partyId: party.value.id,
+    name: newProjectName.value.trim(),
+    destination: newProjectDestination.value.trim(),
+    travelStartDate: newProjectStartDate.value,
+    travelEndDate: newProjectEndDate.value,
+    travelerCount: newProjectTravelerCount.value!,
+    serviceScope: newProjectServiceScope.value,
+    quotationAmountIdr: newProjectAmountIdr.value!
+  })
+  if (!project) { showToast('Gagal Membuat Project', 'Periksa kembali tanggal dan data yang diisi.', 'error'); return }
+  for (const type of newProjectServiceScope.value) {
+    const amount = newProjectServiceBudgets.value[type]
+    if (!amount) { continue }
+    const label = findStatusOption(SERVICE_TYPES, type).label
+    const service = ensureProjectServiceForBudget(project.id, type, label)
+    updateProjectServiceBudget(service.id, amount)
+  }
+  resetCreateProjectForm()
+  isCreateProjectOpen.value = false
+  showToast('Project Dibuat', `${project.id} tercatat berstatus "Draft".`, 'success')
+}
 
 const activeTab = computed<PartyDetailTab>({
   get: () => (route.query.tab as PartyDetailTab) || 'overview',
@@ -66,13 +143,11 @@ const TABS = computed(() => {
  * feedback yang sudah tercatat — bukan profil terpisah yang harus diisi ulang dan berpotensi basi.
  * Satu-satunya field tersimpan adalah `Party.travelPreferences` (catatan bebas) yang memang sudah ada.
  */
-/** Payment status per trip from Finance on the server (one request for all projects; no amounts for Admin). */
-const financeOverview = useFinanceOverview()
 const travelHistory = computed(() => [...projects.value]
   .sort((a, b) => b.travelStartDate.localeCompare(a.travelStartDate))
   .map(project => ({
     project,
-    payment: financeOverview.byProject.value.get(project.id) ?? null,
+    invoicedIdr: getInvoicesByProject(project.id).reduce((sum, invoice) => sum + invoice.amountIdr, 0),
     feedback: getFeedbackByProject(project.id)
   })))
 
@@ -242,22 +317,25 @@ function submitActivity () {
         </TabsContent>
 
         <TabsContent value="contacts">
-          <!-- Customer receivables from the Finance API (Phase 4). -->
-          <FinanceContextPanel :subject="{ type: 'party', id: party.id }" title="Tagihan customer" />
-
           <SectionCard title="Contacts">
             <template #actions>
-              <Dialog v-if="canManageParty" v-model:open="isContactDialogOpen">
-                <DialogTrigger as-child>
-                  <Button size="sm" variant="outline">
-                    <Plus class="h-4 w-4 mr-1.5" />Tambah Contact
+              <ResponsiveFormSheet
+                v-if="canManageParty"
+                v-model:open="isContactDialogOpen"
+                title="Tambah Contact Baru"
+                :description="`Contact akan ditambahkan untuk ${party.name}.`"
+                content-class="max-w-md"
+              >
+                <template #trigger>
+                  <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                  <Button
+                    size="sm"
+                    class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+                    variant="outline"
+                  >
+                    <Plus class="h-4 w-4" />Tambah Contact
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Tambah Contact Baru</DialogTitle>
-                    <DialogDescription>Contact akan ditambahkan untuk {{ party.name }}.</DialogDescription>
-                  </DialogHeader>
+                </template>
                   <div class="space-y-4 py-2">
                     <div class="space-y-1.5">
                       <Label for="contact-name">Nama</Label>
@@ -276,16 +354,15 @@ function submitActivity () {
                       <Input id="contact-phone" v-model="contactPhone" placeholder="08xx-xxxx-xxxx" />
                     </div>
                   </div>
-                  <DialogFooter>
+                <template #footer>
                     <Button variant="outline" @click="isContactDialogOpen = false">
                       Batal
                     </Button>
                     <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
                       Simpan
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                </template>
+              </ResponsiveFormSheet>
             </template>
 
             <ul class="divide-y divide-border">
@@ -319,62 +396,110 @@ function submitActivity () {
 
         <TabsContent value="leads">
           <SectionCard title="Leads">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Lead</TableHead>
-                  <TableHead>Status Quotation</TableHead>
-                  <TableHead>Nilai Quotation</TableHead>
-                  <TableHead>Dibuat</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow
-                  v-for="row in leadDealRows"
-                  :key="row.lead.id"
-                  class="cursor-pointer hover:bg-muted/50"
+            <ResponsiveDataView :items="leadDealRows" :get-key="row => row.lead.id">
+              <template #desktop="{ items }">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Lead</TableHead>
+                      <TableHead>Status Quotation</TableHead>
+                      <TableHead>Nilai Quotation</TableHead>
+                      <TableHead>Dibuat</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    <TableRow
+                      v-for="row in items"
+                      :key="row.lead.id"
+                      class="cursor-pointer hover:bg-muted/50"
+                      @click="navigateTo(`/crm/leads/${row.lead.id}`)"
+                    >
+                      <TableCell class="font-medium text-foreground">
+                        {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
+                      </TableCell>
+                      <TableCell>
+                        <StatusBadge
+                          v-if="row.quotation"
+                          :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').label"
+                          :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').tone"
+                        />
+                        <span v-else class="text-muted-foreground">—</span>
+                      </TableCell>
+                      <TableCell>
+                        {{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}
+                      </TableCell>
+                      <TableCell class="text-muted-foreground">
+                        {{ formatDate(row.lead.createdAt) }}
+                      </TableCell>
+                    </TableRow>
+                    <TableEmpty v-if="leadDealRows.length === 0" :colspan="4">
+                      Belum ada lead untuk party ini.
+                    </TableEmpty>
+                  </TableBody>
+                </Table>
+              </template>
+
+              <template #mobile-card="{ item: row }">
+                <button
+                  type="button"
+                  class="w-full rounded-xl border border-border bg-card p-4 text-left"
                   @click="navigateTo(`/crm/leads/${row.lead.id}`)"
                 >
-                  <TableCell class="font-medium text-foreground">
-                    {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
-                  </TableCell>
-                  <TableCell>
+                  <div class="flex items-start justify-between gap-2">
+                    <p class="text-sm font-medium text-foreground truncate">
+                      {{ row.lead.title ?? row.lead.companyName ?? row.lead.name }}
+                    </p>
                     <StatusBadge
                       v-if="row.quotation"
                       :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').label"
                       :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, row.quotation.approvalStatus ?? 'draft').tone"
                     />
-                    <span v-else class="text-muted-foreground">—</span>
-                  </TableCell>
-                  <TableCell>
-                    {{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(row.lead.createdAt) }}
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="leadDealRows.length === 0" :colspan="4">
-                  Belum ada lead untuk party ini.
-                </TableEmpty>
-              </TableBody>
-            </Table>
+                    <span v-else class="text-xs text-muted-foreground">—</span>
+                  </div>
+                  <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <p class="text-muted-foreground">
+                        Nilai Quotation
+                      </p>
+                      <p class="text-foreground">
+                        {{ row.quotation ? formatCurrencyIdr(row.quotation.amountIdr) : '—' }}
+                      </p>
+                    </div>
+                    <div>
+                      <p class="text-muted-foreground">
+                        Dibuat
+                      </p>
+                      <p class="text-foreground">
+                        {{ formatDate(row.lead.createdAt) }}
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </template>
+            </ResponsiveDataView>
           </SectionCard>
         </TabsContent>
 
         <TabsContent value="activities">
           <SectionCard title="Activities">
             <template #actions>
-              <Dialog v-if="canManageParty" v-model:open="isActivityDialogOpen">
-                <DialogTrigger as-child>
-                  <Button size="sm" variant="outline">
-                    <Plus class="h-4 w-4 mr-1.5" />Catat Activity
+              <ResponsiveFormSheet
+                v-if="canManageParty"
+                v-model:open="isActivityDialogOpen"
+                title="Catat Activity Baru"
+                :description="`Activity akan dicatat untuk ${party.name}, dimiliki oleh ${currentUser.name}.`"
+                content-class="max-w-md"
+              >
+                <template #trigger>
+                  <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                  <Button
+                    size="sm"
+                    class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+                    variant="outline"
+                  >
+                    <Plus class="h-4 w-4" />Catat Activity
                   </Button>
-                </DialogTrigger>
-                <DialogContent class="max-w-md">
-                  <DialogHeader>
-                    <DialogTitle>Catat Activity Baru</DialogTitle>
-                    <DialogDescription>Activity akan dicatat untuk {{ party.name }}, dimiliki oleh {{ currentUser.name }}.</DialogDescription>
-                  </DialogHeader>
+                </template>
                   <div class="space-y-4 py-2">
                     <div class="space-y-1.5">
                       <Label for="activity-type">Jenis Activity</Label>
@@ -397,16 +522,15 @@ function submitActivity () {
                       <Input id="activity-due" v-model="activityDueAt" type="date" />
                     </div>
                   </div>
-                  <DialogFooter>
+                <template #footer>
                     <Button variant="outline" @click="isActivityDialogOpen = false">
                       Batal
                     </Button>
                     <Button :disabled="!activityMessage.trim()" @click="submitActivity">
                       Simpan
                     </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+                </template>
+              </ResponsiveFormSheet>
             </template>
 
             <ul class="divide-y divide-border">
@@ -433,6 +557,93 @@ function submitActivity () {
 
         <TabsContent v-if="showProjectsTab" value="projects">
           <SectionCard title="Projects">
+            <template #actions>
+              <Sheet v-if="canManageProject" v-model:open="isCreateProjectOpen">
+                <SheetTrigger as-child>
+                  <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+                  <Button
+                    size="sm"
+                    class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+                    variant="outline"
+                  >
+                    <Plus class="h-4 w-4" />Buat Project
+                  </Button>
+                </SheetTrigger>
+                <SheetContent side="right" class="w-full sm:max-w-md overflow-y-auto">
+                  <SheetHeader>
+                    <SheetTitle>Buat Project Baru</SheetTitle>
+                    <SheetDescription>Untuk: {{ party.name }} — tanpa lewat Lead, status awal "Draft".</SheetDescription>
+                  </SheetHeader>
+                  <div class="space-y-4 py-4">
+                    <div class="space-y-1.5">
+                      <Label for="party-prj-name">Nama Project</Label>
+                      <Input id="party-prj-name" v-model="newProjectName" placeholder="mis. Jakarta Business Trip Q1 2027" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="party-prj-destination">Destinasi</Label>
+                      <Input id="party-prj-destination" v-model="newProjectDestination" placeholder="mis. Bali" />
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label for="party-prj-start">Tanggal Berangkat</Label>
+                        <Input id="party-prj-start" v-model="newProjectStartDate" type="date" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="party-prj-end">Tanggal Pulang</Label>
+                        <Input id="party-prj-end" v-model="newProjectEndDate" type="date" />
+                      </div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div class="space-y-1.5">
+                        <Label for="party-prj-travelers">Jumlah Traveler</Label>
+                        <Input id="party-prj-travelers" v-model.number="newProjectTravelerCount" type="number" min="1" />
+                      </div>
+                      <div class="space-y-1.5">
+                        <Label for="party-prj-amount">Nilai Kontrak (Rp)</Label>
+                        <CurrencyInput id="party-prj-amount" v-model="newProjectAmountIdr" />
+                      </div>
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label>Service Scope</Label>
+                      <div class="flex flex-wrap gap-2">
+                        <button
+                          v-for="type in SERVICE_TYPES"
+                          :key="type.value"
+                          type="button"
+                          class="rounded-full border px-3 py-1 text-xs transition-colors"
+                          :class="newProjectServiceScope.includes(type.value) ? 'border-primary bg-primary/10 text-primary' : 'border-input text-muted-foreground'"
+                          @click="toggleNewProjectServiceScope(type.value)"
+                        >
+                          {{ type.value === 'additional' ? 'Other' : type.label }}
+                        </button>
+                      </div>
+                    </div>
+                    <div v-if="newProjectServiceScope.length" class="space-y-3">
+                      <Label>Budget per Layanan (opsional)</Label>
+                      <div v-for="type in SERVICE_TYPES.filter(t => newProjectServiceScope.includes(t.value))" :key="type.value" class="space-y-1.5">
+                        <Label :for="`party-prj-budget-${type.value}`" class="text-xs text-muted-foreground">
+                          {{ type.value === 'additional' ? 'Other' : type.label }}
+                        </Label>
+                        <CurrencyInput :id="`party-prj-budget-${type.value}`" v-model="newProjectServiceBudgets[type.value]" placeholder="mis. 100000000" />
+                      </div>
+                      <p v-if="newProjectAmountIdr" class="text-xs text-muted-foreground">
+                        Nilai Kontrak: <span class="font-medium text-foreground">{{ formatCurrencyIdr(newProjectAmountIdr) }}</span>
+                        · Sudah Dialokasikan: <span class="font-medium text-foreground">{{ formatCurrencyIdr(newProjectServiceBudgetsTotal) }}</span>
+                      </p>
+                    </div>
+                  </div>
+                  <SheetFooter class="flex-row justify-end gap-2">
+                    <Button variant="outline" @click="resetCreateProjectForm(); isCreateProjectOpen = false">
+                      Batal
+                    </Button>
+                    <Button :disabled="!isNewProjectFormValid" @click="submitCreateProject">
+                      Simpan
+                    </Button>
+                  </SheetFooter>
+                </SheetContent>
+              </Sheet>
+            </template>
+
             <ul class="divide-y divide-border">
               <li v-for="project in projects" :key="project.id" class="py-3 flex items-center justify-between gap-3">
                 <div class="min-w-0">
@@ -565,8 +776,10 @@ function submitActivity () {
                         · {{ row.project.travelerCount }} pax
                       </p>
                     </div>
-                    <div class="flex shrink-0 flex-col items-end gap-1 text-right">
-                      <StatusBadge v-if="row.payment" :label="row.payment.label" :tone="PAYMENT_STATUS_TONE[row.payment.paymentStatus]" />
+                    <div class="text-right shrink-0">
+                      <p class="text-sm font-medium text-foreground">
+                        {{ formatCurrencyIdr(row.invoicedIdr) }}
+                      </p>
                       <StatusBadge
                         :label="findStatusOption(PROJECT_STATUSES, row.project.status).label"
                         :tone="findStatusOption(PROJECT_STATUSES, row.project.status).tone"

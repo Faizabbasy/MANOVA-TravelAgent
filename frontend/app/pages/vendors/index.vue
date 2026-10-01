@@ -14,7 +14,7 @@ useHead({ title: 'Data Vendor' })
 </script>
 
 <template>
-  <div class="space-y-8">
+  <div class="space-y-6 sm:space-y-8">
     <PageHeader
       title="Data Vendor"
       description="Direktori vendor dan rating/performance procurement — dalam satu menu."
@@ -22,16 +22,13 @@ useHead({ title: 'Data Vendor' })
     />
 
     <section id="directory" class="space-y-4 scroll-mt-20">
-      <h2 class="text-lg font-semibold text-foreground">
-        Direktori
-      </h2>
       <VendorDirectoryPanel />
     </section>
 
     <Separator />
 
     <section id="performance" class="space-y-4 scroll-mt-20">
-      <h2 class="text-lg font-semibold text-foreground">
+      <h2 class="text-base font-semibold text-foreground sm:text-lg">
         Rating & Performance
       </h2>
       <VendorPerformancePanel />

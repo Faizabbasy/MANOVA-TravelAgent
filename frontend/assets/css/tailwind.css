@@ -1,4 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap');
+/** Project Order "boarding pass" hero (`ProjectBoardingPassHero.vue`/`ProjectOrderStepper.vue`) — scoped
+ * to those two components via `font-ticket-display`/`font-ticket-mono` (`tailwind.config.ts`), TIDAK
+ * menggantikan `font-sans`/`font-mono` default supaya tidak memengaruhi halaman lain. */
+@import url('https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=JetBrains+Mono:wght@500;600&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,6 +10,10 @@
 
 @layer base {
   :root {
+    /** Sama alasan `color-scheme: light` di `body` di bawah — di `:root` juga karena ini yang dicek browser
+     * untuk sinyal document-level "app tidak dark-mode-aware", supaya sheet/dialog (portal ke luar `body`)
+     * tidak ikut di-invert oleh Force Dark Mode browser/OS pada device yang mengaktifkannya. */
+    color-scheme: light;
     --background: 220 14% 96%;
     --foreground: 224 71% 4%;
 
@@ -113,6 +121,10 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
     font-weight: 500; /* Default to Medium instead of Regular */
+    /** App tidak punya dark mode aktif (`.dark` di atas tidak pernah di-apply) — tanpa ini, browser pakai
+     * color-scheme OS untuk chrome native yang tidak di-style Tailwind (kalender `input[type=date]`,
+     * resize handle `textarea`), jadi hitam sendiri di OS/browser dark mode meski halaman tetap terang. */
+    color-scheme: light;
   }
 
   /*
@@ -138,6 +150,16 @@
 
   .card-shadow-lg {
     box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+    width: 0;
+    height: 0;
   }
 }
 

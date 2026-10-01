@@ -48,52 +48,90 @@ function assignSelected () {
       </Button>
     </div>
 
-    <Table v-if="members.length">
-      <TableHeader>
-        <TableRow>
-          <TableHead>User</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead v-if="canManage" class="w-[220px] text-right">
-            Pindahkan ke Role Lain
-          </TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        <TableRow v-for="user in members" :key="user.id">
-          <TableCell>
-            <p class="text-sm font-medium text-foreground">
-              {{ user.name }}
-            </p>
-            <p class="text-xs text-muted-foreground">
-              {{ user.email }}
-            </p>
-          </TableCell>
-          <TableCell>
+    <ResponsiveDataView v-if="members.length" :items="members" :get-key="user => user.id">
+      <template #desktop="{ items }">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>User</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead v-if="canManage" class="w-[220px] text-right">
+                Pindahkan ke Role Lain
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="user in items" :key="user.id">
+              <TableCell>
+                <p class="text-sm font-medium text-foreground">
+                  {{ user.name }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  {{ user.email }}
+                </p>
+              </TableCell>
+              <TableCell>
+                <StatusBadge
+                  :label="user.status === 'active' ? 'Aktif' : 'Suspended'"
+                  :tone="user.status === 'active' ? 'success' : 'destructive'"
+                />
+              </TableCell>
+              <TableCell v-if="canManage" class="text-right">
+                <div class="flex items-center justify-end gap-1.5">
+                  <ArrowRightLeft class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                  <select
+                    value=""
+                    class="appearance-none px-2.5 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+                    @change="emit('assign', { userId: user.id, roleId: ($event.target as HTMLSelectElement).value })"
+                  >
+                    <option value="" disabled>
+                      Pilih role...
+                    </option>
+                    <option v-for="other in otherRoles" :key="other.id" :value="other.id">
+                      {{ other.label }}
+                    </option>
+                  </select>
+                </div>
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </template>
+
+      <template #mobile-card="{ item: user }">
+        <div class="rounded-xl border border-border bg-card p-4">
+          <div class="flex items-start justify-between gap-2">
+            <div class="min-w-0">
+              <p class="text-sm font-medium text-foreground truncate">
+                {{ user.name }}
+              </p>
+              <p class="text-xs text-muted-foreground truncate">
+                {{ user.email }}
+              </p>
+            </div>
             <StatusBadge
               :label="user.status === 'active' ? 'Aktif' : 'Suspended'"
               :tone="user.status === 'active' ? 'success' : 'destructive'"
             />
-          </TableCell>
-          <TableCell v-if="canManage" class="text-right">
-            <div class="flex items-center justify-end gap-1.5">
-              <ArrowRightLeft class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-              <select
-                value=""
-                class="appearance-none px-2.5 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-                @change="emit('assign', { userId: user.id, roleId: ($event.target as HTMLSelectElement).value })"
-              >
-                <option value="" disabled>
-                  Pilih role...
-                </option>
-                <option v-for="other in otherRoles" :key="other.id" :value="other.id">
-                  {{ other.label }}
-                </option>
-              </select>
-            </div>
-          </TableCell>
-        </TableRow>
-      </TableBody>
-    </Table>
+          </div>
+          <div v-if="canManage" class="mt-3 flex items-center gap-1.5 text-xs">
+            <ArrowRightLeft class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <select
+              value=""
+              class="flex-1 appearance-none px-2.5 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
+              @change="emit('assign', { userId: user.id, roleId: ($event.target as HTMLSelectElement).value })"
+            >
+              <option value="" disabled>
+                Pilih role...
+              </option>
+              <option v-for="other in otherRoles" :key="other.id" :value="other.id">
+                {{ other.label }}
+              </option>
+            </select>
+          </div>
+        </div>
+      </template>
+    </ResponsiveDataView>
 
     <EmptyState
       v-else

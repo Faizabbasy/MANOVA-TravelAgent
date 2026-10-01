@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, reactive, computed, watch } from 'vue'
-import { Plus, Pencil, Ban, RotateCcw, Layers, MapPin, Building2, FolderKanban, Plane, BedDouble, Coins, Percent, CalendarClock, ShieldAlert, Hash, FileText, Gauge, Route } from 'lucide-vue-next'
+import { Plus, Pencil, Ban, RotateCcw, Layers, MapPin, Building2, FolderKanban, Plane, BedDouble, Coins, Percent, CalendarClock, ShieldAlert, Hash, FileText, Gauge, Route, LayoutTemplate, Trash2 } from 'lucide-vue-next'
 import {
-  MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES,
-  AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS,
+  MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES, MILESTONE_TEMPLATES,
+  AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
   NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES,
   createMasterDataRecord, updateMasterDataRecord, deactivateMasterDataRecord, reactivateMasterDataRecord, getMasterDataUsageCount
 } from '~/data'
@@ -56,13 +56,13 @@ const GROUPS: GroupDef[] = [
     label: 'Operational Reference',
     icon: Route,
     categories: [
-      { key: 'project-type', label: 'Tipe / Karakteristik Project', description: 'Kategori karakteristik project (Normal, High-Change, Complex).', list: MASTER_PROJECT_TYPES, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'text' }] },
       { key: 'service-type', label: 'Tipe Layanan Operasional', description: 'Jenis layanan yang dikelola per project.', list: MASTER_SERVICE_TYPES, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'text' }] },
       { key: 'destination', label: 'Destinasi', description: 'Daftar destinasi yang tersedia untuk project.', list: MASTER_DESTINATIONS, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'text' }] },
       { key: 'vendor-category', label: 'Kategori Vendor', description: 'Jenis layanan yang disediakan vendor.', list: MASTER_VENDOR_CATEGORIES, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'text' }] },
       { key: 'airport', label: 'Airport', description: 'Referensi bandara. TIDAK ditautkan sebagai foreign key ke FlightBooking (LOCKED) — murni referensi admin.', list: AIRPORTS, fields: [{ key: 'iataCode', label: 'Kode IATA', type: 'text', placeholder: 'mis. CGK' }, { key: 'name', label: 'Nama Airport', type: 'text' }, { key: 'city', label: 'Kota', type: 'text' }] },
       { key: 'airline', label: 'Airline', description: 'Referensi maskapai. TIDAK ditautkan sebagai foreign key ke FlightBooking (LOCKED) — murni referensi admin.', list: AIRLINES, fields: [{ key: 'iataCode', label: 'Kode IATA', type: 'text', placeholder: 'mis. GA' }, { key: 'name', label: 'Nama Airline', type: 'text' }] },
-      { key: 'hotel', label: 'Hotel', description: 'Referensi hotel. TIDAK ditautkan sebagai foreign key ke HotelBooking (LOCKED) — murni referensi admin.', list: MASTER_HOTELS, fields: [{ key: 'name', label: 'Nama Hotel', type: 'text' }, { key: 'city', label: 'Kota', type: 'text' }, { key: 'starRating', label: 'Star Rating', type: 'number' }] }
+      { key: 'hotel', label: 'Hotel', description: 'Referensi hotel. TIDAK ditautkan sebagai foreign key ke HotelBooking (LOCKED) — murni referensi admin.', list: MASTER_HOTELS, fields: [{ key: 'name', label: 'Nama Hotel', type: 'text' }, { key: 'city', label: 'Kota', type: 'text' }, { key: 'starRating', label: 'Star Rating', type: 'number' }] },
+      { key: 'milestone-template', label: 'Milestone Template', description: 'Template milestone standar (nama + offset hari dari tanggal acuan) — bisa diterapkan sekaligus ke Timeline Tracking sebuah Project Order.', list: MILESTONE_TEMPLATES, fields: [{ key: 'label', label: 'Nama', type: 'text' }, { key: 'description', label: 'Deskripsi', type: 'text' }] }
     ]
   },
   {
@@ -72,8 +72,8 @@ const GROUPS: GroupDef[] = [
     categories: [
       { key: 'currency', label: 'Currencies', description: 'Berelasi konseptual dengan Invoice.currency (Section 20) — tidak memutasi type Invoice.', list: MASTER_CURRENCIES, fields: [{ key: 'code', label: 'Kode', type: 'text', placeholder: 'mis. USD' }, { key: 'name', label: 'Nama', type: 'text' }, { key: 'symbol', label: 'Simbol', type: 'text' }] },
       { key: 'tax-rule', label: 'Tax Rules', description: 'Aturan pajak referensi.', list: TAX_RULES, fields: [{ key: 'name', label: 'Nama', type: 'text' }, { key: 'ratePercent', label: 'Rate (%)', type: 'number' }, { key: 'appliesTo', label: 'Berlaku Untuk', type: 'text' }] },
-      { key: 'payment-term', label: 'Payment Terms', description: 'Termin pembayaran referensi.', list: PAYMENT_TERMS, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'daysDue', label: 'Jatuh Tempo (hari)', type: 'number' }] }
-      // Cancellation rules moved to Finance › Refund & Pembatalan › Kebijakan (versioned, used for refunds) in Phase 5.
+      { key: 'payment-term', label: 'Payment Terms', description: 'Termin pembayaran referensi.', list: PAYMENT_TERMS, fields: [{ key: 'label', label: 'Label', type: 'text' }, { key: 'daysDue', label: 'Jatuh Tempo (hari)', type: 'number' }] },
+      { key: 'cancellation-rule', label: 'Cancellation Rules', description: 'Konfigurasi/referensi SAJA — TIDAK menyentuh transition guard CancellationRecord (LOCKED, Section 13-19).', list: CANCELLATION_RULES, fields: [{ key: 'name', label: 'Nama', type: 'text' }, { key: 'daysBeforeDeparture', label: 'Hari Sebelum Keberangkatan', type: 'number' }, { key: 'penaltyPercent', label: 'Penalty (%)', type: 'number' }, { key: 'appliesToBookingType', label: 'Berlaku Untuk Tipe Booking', type: 'text', placeholder: 'mis. flight' }] }
     ]
   },
   {
@@ -104,7 +104,8 @@ const CATEGORY_ICONS: Record<MasterDataCategoryKey, any> = {
   'numbering-scheme': Hash,
   'document-template': FileText,
   'readiness-gate': Gauge,
-  'assignment-rule': Route
+  'assignment-rule': Route,
+  'milestone-template': LayoutTemplate
 }
 
 const activeGroupId = ref(GROUPS[0].id)
@@ -138,11 +139,30 @@ const formMode = ref<'create' | 'edit'>('create')
 const editingId = ref<string | null>(null)
 const formValues = reactive<Record<string, any>>({})
 
+/** Item milestone template — TERPISAH dari `formValues` generik karena bukan flat field (array of {id, label, offsetDays}). */
+const formItems = ref<{ id: string; label: string; offsetDays: number }[]>([])
+const newItemLabel = ref('')
+const newItemOffset = ref<number | null>(0)
+let itemSeq = 0
+
+function addTemplateItem () {
+  if (!newItemLabel.value.trim()) { return }
+  itemSeq += 1
+  formItems.value.push({ id: `TPLITEM-${Date.now()}-${itemSeq}`, label: newItemLabel.value.trim(), offsetDays: newItemOffset.value ?? 0 })
+  newItemLabel.value = ''
+  newItemOffset.value = 0
+}
+
+function removeTemplateItem (id: string) {
+  formItems.value = formItems.value.filter(item => item.id !== id)
+}
+
 function openCreate () {
   formMode.value = 'create'
   editingId.value = null
   for (const key in formValues) { delete formValues[key] }
   for (const field of activeCategory.value.fields) { formValues[field.key] = field.type === 'number' ? null : '' }
+  formItems.value = []
   isFormOpen.value = true
 }
 
@@ -151,6 +171,9 @@ function openEdit (item: Record<string, any>) {
   editingId.value = item.id
   for (const key in formValues) { delete formValues[key] }
   for (const field of activeCategory.value.fields) { formValues[field.key] = item[field.key] ?? (field.type === 'number' ? null : '') }
+  formItems.value = activeCategoryKey.value === 'milestone-template'
+    ? ((item.items as { id: string; label: string; offsetDays: number }[] | undefined) ?? []).map(templateItem => ({ ...templateItem }))
+    : []
   isFormOpen.value = true
 }
 
@@ -195,6 +218,9 @@ function submitForm () {
   for (const field of activeCategory.value.fields) {
     payload[field.key] = field.type === 'number' ? formValues[field.key] : String(formValues[field.key]).trim()
   }
+  if (activeCategoryKey.value === 'milestone-template') {
+    payload.items = formItems.value
+  }
 
   if (formMode.value === 'create') {
     createMasterDataRecord(activeCategoryKey.value, payload, currentUser.value.id)
@@ -229,7 +255,7 @@ function reactivateItem (item: Record<string, any>) {
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div class="space-y-4 sm:space-y-6">
     <PageHeader
       title="Master Data"
       description="Kelola konfigurasi referensi lintas modul. Perubahan tercatat di Audit Trail; record historis yang sudah memakai nilai lama tidak terpengaruh."
@@ -239,12 +265,12 @@ function reactivateItem (item: Record<string, any>) {
     <RoleAccessState v-if="!canView('administration')" module-label="modul Administration" />
 
     <template v-else>
-      <!-- Group tabs -->
-      <div class="flex flex-wrap gap-2">
+      <!-- Group tabs — 3 item saja, dibiarkan scroll horizontal di layar sempit alih-alih wrap acak. -->
+      <div class="flex gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:flex-wrap sm:overflow-visible">
         <button
           v-for="group in GROUPS"
           :key="group.id"
-          class="flex items-center gap-2 px-3.5 py-2 rounded-xl border text-sm font-medium transition-colors"
+          class="flex shrink-0 items-center gap-2 px-3 py-1.5 rounded-xl border text-sm font-medium transition-colors sm:px-3.5 sm:py-2"
           :class="group.id === activeGroupId ? 'border-primary/40 bg-primary/5 text-primary' : 'border-border hover:bg-muted text-foreground'"
           @click="activeGroupId = group.id"
         >
@@ -254,16 +280,16 @@ function reactivateItem (item: Record<string, any>) {
       </div>
 
       <!-- Category sub-tabs (chips) -->
-      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
         <button
           v-for="category in activeGroup.categories"
           :key="category.key"
-          class="flex flex-col items-start gap-1 p-3 rounded-xl border transition-colors text-left"
+          class="flex flex-col items-start gap-1 p-2.5 rounded-xl border transition-colors text-left sm:p-3"
           :class="category.key === activeCategoryKey ? 'border-primary/40 bg-primary/5' : 'border-border hover:bg-muted'"
           @click="activeCategoryKey = category.key"
         >
           <component :is="CATEGORY_ICONS[category.key]" class="h-5 w-5 text-muted-foreground mb-0.5" />
-          <span class="text-sm font-medium text-foreground leading-tight">{{ category.label }}</span>
+          <span class="text-sm font-medium text-foreground leading-tight line-clamp-2">{{ category.label }}</span>
           <span class="text-xs text-muted-foreground">{{ totalActive(category.list) }} aktif / {{ category.list.length }} total</span>
         </button>
       </div>
@@ -271,7 +297,7 @@ function reactivateItem (item: Record<string, any>) {
       <!-- Active category detail -->
       <SectionCard :title="activeCategory.label" :description="activeCategory.description">
         <template #actions>
-          <div class="flex items-center gap-2">
+          <div class="flex flex-wrap items-center gap-2">
             <select
               v-model="activeFilter"
               class="appearance-none px-3 py-1.5 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
@@ -298,70 +324,118 @@ function reactivateItem (item: Record<string, any>) {
           description="Tidak ada item yang cocok dengan filter saat ini."
         />
 
-        <div v-else class="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>ID</TableHead>
-                <TableHead v-for="field in activeCategory.fields" :key="field.key">
-                  {{ field.label }}
-                </TableHead>
-                <TableHead class="text-center">
-                  Status
-                </TableHead>
-                <TableHead v-if="canEdit" class="text-right">
-                  Aksi
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              <TableRow v-for="item in displayedItems" :key="item.id">
-                <TableCell class="font-mono text-xs text-muted-foreground">
-                  {{ item.id }}
-                </TableCell>
-                <TableCell v-for="field in activeCategory.fields" :key="field.key" class="text-sm text-foreground max-w-[240px]">
-                  <span v-if="field.type === 'textarea'" class="line-clamp-2 text-muted-foreground">{{ item[field.key] || '—' }}</span>
-                  <span v-else>{{ item[field.key] ?? '—' }}</span>
-                </TableCell>
-                <TableCell class="text-center">
-                  <StatusBadge :label="item.isActive ? 'Aktif' : 'Non-aktif'" :tone="item.isActive ? 'success' : 'neutral'" />
-                </TableCell>
-                <TableCell v-if="canEdit" class="text-right">
-                  <div class="flex items-center justify-end gap-1">
-                    <button class="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground" title="Edit" @click="openEdit(item)">
-                      <Pencil class="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      v-if="item.isActive"
-                      class="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive"
-                      title="Nonaktifkan"
-                      @click="requestDeactivate(item)"
-                    >
-                      <Ban class="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      v-else
-                      class="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-success"
-                      title="Aktifkan Kembali"
-                      @click="reactivateItem(item)"
-                    >
-                      <RotateCcw class="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
+        <ResponsiveDataView v-else :items="displayedItems" :get-key="item => item.id">
+          <template #desktop="{ items }">
+            <div class="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>ID</TableHead>
+                    <TableHead v-for="field in activeCategory.fields" :key="field.key">
+                      {{ field.label }}
+                    </TableHead>
+                    <TableHead class="text-center">
+                      Status
+                    </TableHead>
+                    <TableHead v-if="canEdit" class="text-right">
+                      Aksi
+                    </TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  <TableRow v-for="item in items" :key="item.id">
+                    <TableCell class="font-mono text-xs text-muted-foreground">
+                      {{ item.id }}
+                    </TableCell>
+                    <TableCell v-for="field in activeCategory.fields" :key="field.key" class="text-sm text-foreground max-w-[240px]">
+                      <span v-if="field.type === 'textarea'" class="line-clamp-2 text-muted-foreground">{{ item[field.key] || '—' }}</span>
+                      <span v-else>{{ item[field.key] ?? '—' }}</span>
+                    </TableCell>
+                    <TableCell class="text-center">
+                      <StatusBadge :label="item.isActive ? 'Aktif' : 'Non-aktif'" :tone="item.isActive ? 'success' : 'neutral'" />
+                    </TableCell>
+                    <TableCell v-if="canEdit" class="text-right">
+                      <div class="flex items-center justify-end gap-1">
+                        <button class="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground" title="Edit" @click="openEdit(item)">
+                          <Pencil class="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          v-if="item.isActive"
+                          class="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-destructive"
+                          title="Nonaktifkan"
+                          @click="requestDeactivate(item)"
+                        >
+                          <Ban class="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          v-else
+                          class="p-1.5 rounded-md hover:bg-muted text-muted-foreground hover:text-success"
+                          title="Aktifkan Kembali"
+                          @click="reactivateItem(item)"
+                        >
+                          <RotateCcw class="h-3.5 w-3.5" />
+                        </button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                </TableBody>
+              </Table>
+            </div>
+          </template>
+
+          <template #mobile-card="{ item }">
+            <div class="rounded-xl border border-border bg-card p-4">
+              <div class="flex items-start justify-between gap-2">
+                <div class="min-w-0">
+                  <p class="text-sm font-medium text-foreground truncate">
+                    {{ itemDisplayName(item) }}
+                  </p>
+                  <p class="text-xs text-muted-foreground font-mono">
+                    {{ item.id }}
+                  </p>
+                </div>
+                <StatusBadge :label="item.isActive ? 'Aktif' : 'Non-aktif'" :tone="item.isActive ? 'success' : 'neutral'" />
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div v-for="field in activeCategory.fields" :key="field.key">
+                  <p class="text-muted-foreground">
+                    {{ field.label }}
+                  </p>
+                  <p class="text-foreground line-clamp-2">
+                    {{ item[field.key] || '—' }}
+                  </p>
+                </div>
+              </div>
+              <div v-if="canEdit" class="mt-3 flex items-center gap-3 border-t border-border pt-3">
+                <button class="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground" @click="openEdit(item)">
+                  <Pencil class="h-3.5 w-3.5" />Edit
+                </button>
+                <button
+                  v-if="item.isActive"
+                  class="flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+                  @click="requestDeactivate(item)"
+                >
+                  <Ban class="h-3.5 w-3.5" />Nonaktifkan
+                </button>
+                <button
+                  v-else
+                  class="flex items-center gap-1 text-xs text-muted-foreground hover:text-success"
+                  @click="reactivateItem(item)"
+                >
+                  <RotateCcw class="h-3.5 w-3.5" />Aktifkan
+                </button>
+              </div>
+            </div>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
 
       <!-- Create/Edit dialog (generik, field dari CategoryDef) -->
-      <Dialog v-model:open="isFormOpen">
-        <DialogContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>{{ formMode === 'create' ? 'Tambah' : 'Edit' }} {{ activeCategory.label }}</DialogTitle>
-            <DialogDescription>Mock CRUD — perubahan tersimpan di state aplikasi dan tercatat di Audit Trail.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isFormOpen"
+        :title="`${formMode === 'create' ? 'Tambah' : 'Edit'} ${activeCategory.label}`"
+        description="Mock CRUD — perubahan tersimpan di state aplikasi dan tercatat di Audit Trail."
+      >
           <div class="space-y-4 py-2">
             <div v-for="field in activeCategory.fields" :key="field.key" class="space-y-1.5">
               <Label :for="`md-field-${field.key}`">{{ field.label }}</Label>
@@ -381,17 +455,39 @@ function reactivateItem (item: Record<string, any>) {
                 :placeholder="field.placeholder"
               />
             </div>
+
+            <div v-if="activeCategoryKey === 'milestone-template'" class="space-y-2">
+              <Label>Item Milestone</Label>
+              <div v-if="formItems.length" class="space-y-1.5">
+                <div v-for="item in formItems" :key="item.id" class="flex items-center gap-2 rounded-lg border border-border px-2.5 py-1.5">
+                  <span class="min-w-0 flex-1 truncate text-sm text-foreground">{{ item.label }}</span>
+                  <span class="shrink-0 text-xs text-muted-foreground">H{{ item.offsetDays >= 0 ? '+' : '' }}{{ item.offsetDays }}</span>
+                  <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive" title="Hapus" @click="removeTemplateItem(item.id)">
+                    <Trash2 class="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </div>
+              <p v-else class="text-xs text-muted-foreground">
+                Belum ada item milestone.
+              </p>
+              <div class="flex gap-2">
+                <Input v-model="newItemLabel" type="text" placeholder="Nama milestone" class="flex-1" @keyup.enter="addTemplateItem" />
+                <Input v-model.number="newItemOffset" type="number" placeholder="Offset hari" class="w-28" @keyup.enter="addTemplateItem" />
+                <Button size="sm" variant="outline" class="shrink-0" @click="addTemplateItem">
+                  Tambah
+                </Button>
+              </div>
+            </div>
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isFormOpen = false">
               Batal
             </Button>
             <Button :disabled="!isFormValid" @click="submitForm">
               Simpan
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
       <!-- Usage warning confirm dialog -->
       <Dialog v-model:open="isUsageDialogOpen">

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
-import { Search, Plus } from 'lucide-vue-next'
+import { Search, Plus, Eye } from 'lucide-vue-next'
 import { COST_SHEETS, PRODUCT_TEMPLATES, LEADS, getCostSheetBreakdown, getLeadById, createCostSheet } from '~/data'
 import { formatCurrencyIdr } from '~/utils/format'
 
@@ -103,18 +103,23 @@ function submitCreate () {
 <template>
   <div class="space-y-6">
     <div v-if="canManageCostSheet" class="flex justify-end">
-      <Dialog v-model:open="isCreateOpen">
-        <DialogTrigger as-child>
-          <Button @click="openCreateDialog">
-            <Plus class="h-4 w-4 mr-1.5" />Buat Cost Sheet
+      <ResponsiveFormSheet
+        v-model:open="isCreateOpen"
+        title="Cost Sheet Baru"
+        description="Dapat dibuat lepas (referensi katalog) atau langsung terhubung ke satu Lead untuk kolaborasi dengan Account Executive."
+        content-class="max-w-md"
+        scroll
+      >
+        <template #trigger>
+          <!-- Mobile — floating popup button (fixed di atas bottom nav); desktop tombol inline biasa, tidak diubah. -->
+          <Button
+            class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+            @click="openCreateDialog"
+          >
+            <Plus class="h-4 w-4" />Buat Cost Sheet
           </Button>
-        </DialogTrigger>
-        <DialogScrollContent class="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Cost Sheet Baru</DialogTitle>
-            <DialogDescription>Dapat dibuat lepas (referensi katalog) atau langsung terhubung ke satu Lead untuk kolaborasi dengan Account Executive.</DialogDescription>
-          </DialogHeader>
-          <div class="space-y-4 py-2">
+        </template>
+        <div class="space-y-4 py-2">
             <div class="space-y-1.5">
               <Label for="cs-name">Nama / Label Skenario</Label>
               <Input id="cs-name" v-model="newName" placeholder="mis. Palu MICE 2027 — Economy Scenario" />
@@ -145,7 +150,7 @@ function submitCreate () {
               <Label for="cs-pax">Traveler Count</Label>
               <Input id="cs-pax" v-model.number="newTravelerCount" type="number" placeholder="mis. 25" />
             </div>
-            <div class="grid grid-cols-3 gap-3">
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div class="space-y-1.5">
                 <Label for="cs-markup">Markup (%)</Label>
                 <Input id="cs-markup" v-model.number="newMarkupPercent" type="number" placeholder="0" />
@@ -160,16 +165,15 @@ function submitCreate () {
               </div>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" @click="isCreateOpen = false">
-              Batal
-            </Button>
-            <Button :disabled="!newName.trim() || !newTravelerCount" @click="submitCreate">
-              Simpan
-            </Button>
-          </DialogFooter>
-        </DialogScrollContent>
-      </Dialog>
+        <template #footer>
+          <Button variant="outline" @click="isCreateOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!newName.trim() || !newTravelerCount" @click="submitCreate">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </div>
 
     <RoleAccessState v-if="!canView('product-planning')" module-label="modul Product Planning" />
@@ -202,46 +206,106 @@ function submitCreate () {
       </div>
 
       <SectionCard>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Nama Cost Sheet</TableHead>
-              <TableHead>Lead</TableHead>
-              <TableHead>Traveler</TableHead>
-              <TableHead>Total Sell</TableHead>
-              <TableHead>Versi</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            <TableRow v-for="row in rows" :key="row.sheet.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/product-planning/cost-sheets/${row.sheet.id}`)">
-              <TableCell class="font-medium text-foreground">
-                {{ row.sheet.name }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ leadLabel(row.sheet.leadId) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                {{ row.sheet.travelerCount }} pax
-              </TableCell>
-              <TableCell class="text-foreground">
-                {{ formatCurrencyIdr(row.breakdown.totalSellIdr) }}
-              </TableCell>
-              <TableCell class="text-muted-foreground">
-                v{{ row.sheet.version }}
-              </TableCell>
-              <TableCell>
-                <div class="flex items-center gap-1.5">
+        <ResponsiveDataView :items="rows" :get-key="row => row.sheet.id">
+          <template #desktop="{ items }">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama Cost Sheet</TableHead>
+                  <TableHead>Lead</TableHead>
+                  <TableHead>Traveler</TableHead>
+                  <TableHead>Total Sell</TableHead>
+                  <TableHead>Versi</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead />
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                <TableRow v-for="row in items" :key="row.sheet.id" class="cursor-pointer hover:bg-muted/50" @click="navigateTo(`/product-planning/cost-sheets/${row.sheet.id}`)">
+                  <TableCell class="font-medium text-foreground">
+                    {{ row.sheet.name }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ leadLabel(row.sheet.leadId) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    {{ row.sheet.travelerCount }} pax
+                  </TableCell>
+                  <TableCell class="text-foreground">
+                    {{ formatCurrencyIdr(row.breakdown.totalSellIdr) }}
+                  </TableCell>
+                  <TableCell class="text-muted-foreground">
+                    v{{ row.sheet.version }}
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex items-center gap-1.5">
+                      <StatusBadge :label="row.sheet.status === 'final' ? 'Final' : 'Draft'" :tone="row.sheet.status === 'final' ? 'success' : 'neutral'" />
+                      <StatusBadge v-if="row.sheet.appliedToQuotationId" label="Applied" tone="info" />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Eye class="h-4 w-4 text-muted-foreground" />
+                  </TableCell>
+                </TableRow>
+                <TableEmpty v-if="items.length === 0" :colspan="7">
+                  {{ searchQuery || statusFilter !== 'all' || leadFilter !== 'all' ? 'Tidak ada Cost Sheet yang cocok dengan filter.' : 'Belum ada Cost Sheet.' }}
+                </TableEmpty>
+              </TableBody>
+            </Table>
+          </template>
+
+          <template #mobile-card="{ item: row }">
+            <button
+              type="button"
+              class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted"
+              @click="navigateTo(`/product-planning/cost-sheets/${row.sheet.id}`)"
+            >
+              <div class="flex items-start justify-between gap-2">
+                <p class="text-sm font-medium text-foreground truncate">
+                  {{ row.sheet.name }}
+                </p>
+                <div class="flex shrink-0 items-center gap-1.5">
                   <StatusBadge :label="row.sheet.status === 'final' ? 'Final' : 'Draft'" :tone="row.sheet.status === 'final' ? 'success' : 'neutral'" />
                   <StatusBadge v-if="row.sheet.appliedToQuotationId" label="Applied" tone="info" />
                 </div>
-              </TableCell>
-            </TableRow>
-            <TableEmpty v-if="rows.length === 0" :colspan="6">
-              {{ searchQuery || statusFilter !== 'all' || leadFilter !== 'all' ? 'Tidak ada Cost Sheet yang cocok dengan filter.' : 'Belum ada Cost Sheet.' }}
-            </TableEmpty>
-          </TableBody>
-        </Table>
+              </div>
+              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                <div>
+                  <p class="text-muted-foreground">
+                    Lead
+                  </p>
+                  <p class="text-foreground">
+                    {{ leadLabel(row.sheet.leadId) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Traveler
+                  </p>
+                  <p class="text-foreground">
+                    {{ row.sheet.travelerCount }} pax
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Total Sell
+                  </p>
+                  <p class="text-foreground font-medium">
+                    {{ formatCurrencyIdr(row.breakdown.totalSellIdr) }}
+                  </p>
+                </div>
+                <div>
+                  <p class="text-muted-foreground">
+                    Versi
+                  </p>
+                  <p class="text-foreground">
+                    v{{ row.sheet.version }}
+                  </p>
+                </div>
+              </div>
+            </button>
+          </template>
+        </ResponsiveDataView>
       </SectionCard>
     </template>
   </div>

@@ -189,6 +189,52 @@ export const SERVICE_ORDERS: ServiceOrder[] = reactive([
     acknowledgedAt: '2026-07-05',
     createdAt: '2026-07-01',
     updatedAt: '2026-07-19'
+  },
+  /**
+   * SO-101F/SO-205T/SO-205H — MENAUTKAN `serviceId` ke `ProjectService` (`app/data/projects.ts`), berbeda dari
+   * SO-001/SO-002 di atas yang sengaja tidak menaut (lihat komentar `RFQS`). Dibuat khusus supaya "Pengeluaran
+   * per Layanan" (tab Finance Project Order, `getServiceTypeSpendBreakdown`) punya data nyata untuk didemokan
+   * — traceability SupplierInvoice→tipe layanan lewat `ServiceOrder.serviceId` sebelumnya nol data sama sekali.
+   */
+  {
+    id: 'SO-101F',
+    vendorId: 'VND-001',
+    projectId: 'PRJ-101',
+    serviceId: 'SVC-1011',
+    lineItems: [{ description: 'Tiket pesawat rombongan Jakarta–Manila (6 pax)', quantity: 6, unit: 'tiket' }],
+    status: 'fulfilled',
+    netCostIdr: 90_000_000,
+    sellPriceIdr: 92_000_000,
+    acknowledgedAt: '2026-06-18',
+    fulfilledAt: '2026-06-20',
+    createdAt: '2026-06-16',
+    updatedAt: '2026-06-20'
+  },
+  {
+    id: 'SO-205T',
+    vendorId: 'VND-003',
+    projectId: 'PRJ-205',
+    serviceId: 'SVC-2051',
+    lineItems: [{ description: 'Bus pariwisata 4D3N (rombongan)', quantity: 1, unit: 'unit/4 hari' }],
+    status: 'acknowledged',
+    netCostIdr: 8_000_000,
+    sellPriceIdr: 9_600_000,
+    acknowledgedAt: '2026-08-15',
+    createdAt: '2026-08-14',
+    updatedAt: '2026-08-15'
+  },
+  {
+    id: 'SO-205H',
+    vendorId: 'VND-002',
+    projectId: 'PRJ-205',
+    serviceId: 'SVC-2052',
+    lineItems: [{ description: 'Homestay Bromo View — 2 kamar/1 malam', quantity: 2, unit: 'kamar/1 malam' }],
+    status: 'acknowledged',
+    netCostIdr: 12_000_000,
+    sellPriceIdr: 14_000_000,
+    acknowledgedAt: '2026-08-19',
+    createdAt: '2026-08-18',
+    updatedAt: '2026-08-19'
   }
 ])
 
@@ -213,5 +259,9 @@ export const SUPPLIER_INVOICES: SupplierInvoice[] = reactive([
   { id: 'SINV-001', serviceOrderId: 'SO-001', vendorId: 'VND-003', amountIdr: 4_200_000, submittedAt: '2026-08-11', status: 'approved', note: 'Invoice final airport transfer VIP.', reviewedAt: '2026-08-12', reviewedBy: 'USR-002', matchStatus: 'matched', paymentScheduleDate: '2026-08-20' },
   { id: 'SINV-002', serviceOrderId: 'SO-001', vendorId: 'VND-003', amountIdr: 450_000, submittedAt: '2026-08-12', status: 'under-review', note: 'Biaya tol tambahan rute bandara alternatif.', matchStatus: 'unmatched' },
   { id: 'SINV-003', serviceOrderId: 'SO-002', vendorId: 'VND-006', amountIdr: 11_000_000, submittedAt: '2026-07-08', status: 'rejected', note: 'Invoice awal sebelum amendment.', reviewedAt: '2026-07-19', reviewedBy: 'USR-002', reviewNote: 'Jumlah belum sesuai amendment upgrade Suite (SOA-001) — mohon submit ulang dengan nominal terbaru.' },
-  { id: 'SINV-004', serviceOrderId: 'SO-002', vendorId: 'VND-006', amountIdr: 12_000_000, submittedAt: '2026-07-20', status: 'submitted', note: 'Submission ulang mengikuti amendment SOA-001.', matchStatus: 'disputed' }
+  { id: 'SINV-004', serviceOrderId: 'SO-002', vendorId: 'VND-006', amountIdr: 12_000_000, submittedAt: '2026-07-20', status: 'submitted', note: 'Submission ulang mengikuti amendment SOA-001.', matchStatus: 'disputed' },
+  /** SINV-101F/SINV-205T/SINV-205H — pasangan SO-101F/SO-205T/SO-205H di atas, `approved` supaya ikut terhitung `getProjectActualCostIdr`/`getServiceTypeSpendBreakdown`. */
+  { id: 'SINV-101F', serviceOrderId: 'SO-101F', vendorId: 'VND-001', amountIdr: 90_000_000, submittedAt: '2026-06-20', status: 'approved', note: 'Invoice final tiket pesawat rombongan Jakarta–Manila.', reviewedAt: '2026-06-21', reviewedBy: 'USR-002', matchStatus: 'matched', paymentScheduleDate: '2026-07-01' },
+  { id: 'SINV-205T', serviceOrderId: 'SO-205T', vendorId: 'VND-003', amountIdr: 8_000_000, submittedAt: '2026-08-15', status: 'approved', note: 'Invoice bus pariwisata 4D3N.', reviewedAt: '2026-08-16', reviewedBy: 'USR-002', matchStatus: 'matched', paymentScheduleDate: '2026-09-04' },
+  { id: 'SINV-205H', serviceOrderId: 'SO-205H', vendorId: 'VND-002', amountIdr: 12_000_000, submittedAt: '2026-08-19', status: 'approved', note: 'Invoice homestay Bromo View.', reviewedAt: '2026-08-20', reviewedBy: 'USR-002', matchStatus: 'matched', paymentScheduleDate: '2026-09-04' }
 ])

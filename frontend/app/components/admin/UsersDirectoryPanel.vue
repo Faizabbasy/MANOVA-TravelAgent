@@ -8,7 +8,7 @@ import type { User, RoleId, ModuleKey } from '~/types/user'
 /** Modul yang dapat diakses role tertentu (ringkas) — diturunkan dari RBAC reaktif (`app/data/rbac.ts`). */
 import { ROLES, ROLE_MODULE_ACCESS } from '~/constants/roles'
 import { BUSINESS_MODULES } from '~/constants/modules'
-import { assignUserRole, isRoleSelectable } from '~/data/rbac'
+import { assignUserRole } from '~/data/rbac'
 
 /** Tab "Users" — Menu Administration > Users & Roles (Penyederhanaan 7-Role/Menu). Dulu `/admin/users`,
  * kini tab dalam satu menu bersama Roles and Permissions — logika tidak diubah, termasuk sub-tab
@@ -189,77 +189,147 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
             <!-- User table -->
             <SectionCard>
               <EmptyState v-if="filteredUsers.length === 0" title="Tidak ada user ditemukan" description="Coba ubah filter atau kata kunci pencarian." />
-              <Table v-else>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Status Akun</TableHead>
-                    <TableHead>Status Demo</TableHead>
-                    <TableHead />
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow
-                    v-for="user in filteredUsers"
-                    :key="user.id"
-                    class="cursor-pointer hover:bg-muted/50"
+              <ResponsiveDataView v-else :items="filteredUsers" :get-key="user => user.id">
+                <template #desktop="{ items }">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nama</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Status Akun</TableHead>
+                        <TableHead>Status Demo</TableHead>
+                        <TableHead />
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow
+                        v-for="user in items"
+                        :key="user.id"
+                        class="cursor-pointer hover:bg-muted/50"
+                        @click="openDetail(user)"
+                      >
+                        <TableCell class="font-medium text-foreground">
+                          {{ user.name }}
+                        </TableCell>
+                        <TableCell class="text-muted-foreground">
+                          {{ user.email }}
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge
+                            :label="getRoleLabel(user.role)"
+                            :tone="getRoleTone(user.role)"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge
+                            :label="user.status === 'suspended' ? 'Suspended' : 'Aktif'"
+                            :tone="user.status === 'suspended' ? 'destructive' : 'success'"
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge
+                            v-if="user.id === currentUser.id"
+                            label="Login Aktif"
+                            tone="success"
+                          />
+                          <span v-else class="text-xs text-muted-foreground">—</span>
+                        </TableCell>
+                        <TableCell class="text-right">
+                          <div class="flex items-center justify-end gap-2">
+                            <button
+                              v-if="canManageUsers && user.status === 'active'"
+                              class="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                              @click.stop="openSuspendDialog(user)"
+                            >
+                              Suspend
+                            </button>
+                            <button
+                              v-else-if="canManageUsers && user.status === 'suspended'"
+                              class="text-xs text-muted-foreground hover:text-success transition-colors"
+                              @click.stop="doReactivate(user)"
+                            >
+                              Aktifkan
+                            </button>
+                            <button
+                              class="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                              @click.stop="openDetail(user)"
+                            >
+                              Detail
+                            </button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </template>
+
+                <template #mobile-card="{ item: user }">
+                  <div
+                    class="rounded-xl border border-border bg-card p-4 active:bg-muted/50"
                     @click="openDetail(user)"
                   >
-                    <TableCell class="font-medium text-foreground">
-                      {{ user.name }}
-                    </TableCell>
-                    <TableCell class="text-muted-foreground">
-                      {{ user.email }}
-                    </TableCell>
-                    <TableCell>
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-foreground truncate">
+                          {{ user.name }}
+                        </p>
+                        <p class="text-xs text-muted-foreground truncate">
+                          {{ user.email }}
+                        </p>
+                      </div>
                       <StatusBadge
                         :label="getRoleLabel(user.role)"
                         :tone="getRoleTone(user.role)"
                       />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        :label="user.status === 'suspended' ? 'Suspended' : 'Aktif'"
-                        :tone="user.status === 'suspended' ? 'destructive' : 'success'"
-                      />
-                    </TableCell>
-                    <TableCell>
-                      <StatusBadge
-                        v-if="user.id === currentUser.id"
-                        label="Login Aktif"
-                        tone="success"
-                      />
-                      <span v-else class="text-xs text-muted-foreground">—</span>
-                    </TableCell>
-                    <TableCell class="text-right">
-                      <div class="flex items-center justify-end gap-2">
-                        <button
-                          v-if="canManageUsers && user.status === 'active'"
-                          class="text-xs text-muted-foreground hover:text-destructive transition-colors"
-                          @click.stop="openSuspendDialog(user)"
-                        >
-                          Suspend
-                        </button>
-                        <button
-                          v-else-if="canManageUsers && user.status === 'suspended'"
-                          class="text-xs text-muted-foreground hover:text-success transition-colors"
-                          @click.stop="doReactivate(user)"
-                        >
-                          Aktifkan
-                        </button>
-                        <button
-                          class="text-xs text-muted-foreground hover:text-foreground transition-colors"
-                          @click.stop="openDetail(user)"
-                        >
-                          Detail
-                        </button>
+                    </div>
+                    <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
+                      <div>
+                        <p class="text-muted-foreground">
+                          Status Akun
+                        </p>
+                        <StatusBadge
+                          :label="user.status === 'suspended' ? 'Suspended' : 'Aktif'"
+                          :tone="user.status === 'suspended' ? 'destructive' : 'success'"
+                        />
                       </div>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+                      <div>
+                        <p class="text-muted-foreground">
+                          Status Demo
+                        </p>
+                        <StatusBadge
+                          v-if="user.id === currentUser.id"
+                          label="Login Aktif"
+                          tone="success"
+                        />
+                        <span v-else class="text-foreground">—</span>
+                      </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-3 border-t border-border pt-3">
+                      <button
+                        v-if="canManageUsers && user.status === 'active'"
+                        class="text-xs text-muted-foreground hover:text-destructive transition-colors"
+                        @click.stop="openSuspendDialog(user)"
+                      >
+                        Suspend
+                      </button>
+                      <button
+                        v-else-if="canManageUsers && user.status === 'suspended'"
+                        class="text-xs text-muted-foreground hover:text-success transition-colors"
+                        @click.stop="doReactivate(user)"
+                      >
+                        Aktifkan
+                      </button>
+                      <button
+                        class="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                        @click.stop="openDetail(user)"
+                      >
+                        Detail
+                      </button>
+                    </div>
+                  </div>
+                </template>
+              </ResponsiveDataView>
             </SectionCard>
           </div>
         </TabsContent>
@@ -277,34 +347,59 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
                 </div>
               </template>
               <EmptyState v-if="accessReviewUsers.length === 0" title="Tidak ada user aktif" description="Coba ubah kata kunci pencarian." />
-              <Table v-else>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Nama</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead v-if="canManageUsers" class="text-right">
-                      Aksi
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  <TableRow v-for="user in accessReviewUsers" :key="user.id">
-                    <TableCell class="font-medium text-foreground">
-                      {{ user.name }}
-                    </TableCell>
-                    <TableCell class="text-muted-foreground">
-                      {{ user.email }}
-                    </TableCell>
-                    <TableCell><StatusBadge :label="getRoleLabel(user.role)" :tone="getRoleTone(user.role)" /></TableCell>
-                    <TableCell v-if="canManageUsers" class="text-right">
+              <ResponsiveDataView v-else :items="accessReviewUsers" :get-key="user => user.id">
+                <template #desktop="{ items }">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Nama</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead v-if="canManageUsers" class="text-right">
+                          Aksi
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="user in items" :key="user.id">
+                        <TableCell class="font-medium text-foreground">
+                          {{ user.name }}
+                        </TableCell>
+                        <TableCell class="text-muted-foreground">
+                          {{ user.email }}
+                        </TableCell>
+                        <TableCell><StatusBadge :label="getRoleLabel(user.role)" :tone="getRoleTone(user.role)" /></TableCell>
+                        <TableCell v-if="canManageUsers" class="text-right">
+                          <button class="text-xs text-muted-foreground hover:text-destructive transition-colors" @click="openSuspendDialog(user)">
+                            Suspend
+                          </button>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </template>
+
+                <template #mobile-card="{ item: user }">
+                  <div class="rounded-xl border border-border bg-card p-4">
+                    <div class="flex items-start justify-between gap-2">
+                      <div class="min-w-0">
+                        <p class="text-sm font-medium text-foreground truncate">
+                          {{ user.name }}
+                        </p>
+                        <p class="text-xs text-muted-foreground truncate">
+                          {{ user.email }}
+                        </p>
+                      </div>
+                      <StatusBadge :label="getRoleLabel(user.role)" :tone="getRoleTone(user.role)" />
+                    </div>
+                    <div v-if="canManageUsers" class="mt-3 flex justify-end">
                       <button class="text-xs text-muted-foreground hover:text-destructive transition-colors" @click="openSuspendDialog(user)">
                         Suspend
                       </button>
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+                    </div>
+                  </div>
+                </template>
+              </ResponsiveDataView>
             </SectionCard>
 
             <SectionCard
@@ -333,35 +428,34 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
       </Tabs>
 
       <!-- Suspend Dialog -->
-      <Dialog v-model:open="isSuspendOpen">
-        <DialogContent class="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Suspend {{ suspendTarget?.name }}</DialogTitle>
-            <DialogDescription>User tidak akan bisa dipilih sebagai user aktif demo sampai diaktifkan kembali. Alasan wajib diisi.</DialogDescription>
-          </DialogHeader>
+      <ResponsiveFormSheet
+        v-model:open="isSuspendOpen"
+        :title="`Suspend ${suspendTarget?.name ?? ''}`"
+        content-class="max-w-sm"
+        description="User tidak akan bisa dipilih sebagai user aktif demo sampai diaktifkan kembali. Alasan wajib diisi."
+      >
           <div class="space-y-1.5 py-2">
             <Label for="suspend-reason">Alasan Suspend</Label>
             <Input id="suspend-reason" v-model="suspendReason" placeholder="mis. Cuti panjang, vendor tidak aktif, dst." />
           </div>
-          <DialogFooter>
+          <template #footer>
             <Button variant="outline" @click="isSuspendOpen = false">
               Batal
             </Button>
             <Button variant="destructive" :disabled="!suspendReason.trim()" @click="submitSuspend">
               <UserX class="h-4 w-4 mr-1.5" />Suspend
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
 
       <!-- Detail Dialog -->
-      <Dialog :open="isDetailOpen" @update:open="v => { if (!v) closeDetail() }">
-        <DialogContent class="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>{{ selectedUser?.name }}</DialogTitle>
-            <DialogDescription>{{ selectedUser?.email }} · ID: {{ selectedUser?.id }}</DialogDescription>
-          </DialogHeader>
-
+      <ResponsiveFormSheet
+        :open="isDetailOpen"
+        content-class="max-w-lg"
+        :title="selectedUser?.name ?? ''"
+        :description="selectedUser ? `${selectedUser.email} · ID: ${selectedUser.id}` : ''"
+        @update:open="v => { if (!v) closeDetail() }"
+      >
           <div v-if="selectedUser" class="space-y-4">
             <!-- Role badge -->
             <div class="flex items-center gap-2">
@@ -416,12 +510,12 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
             </div>
           </div>
 
-          <DialogFooter class="gap-2">
+          <template #footer>
             <Button variant="outline" @click="closeDetail">
               Tutup
             </Button>
             <Button
-              v-if="selectedUser && selectedUser.id !== currentUser.id && isRoleSelectable(selectedUser.role)"
+              v-if="selectedUser && selectedUser.id !== currentUser.id"
               variant="default"
               @click="switchToUser(selectedUser!.id)"
             >
@@ -429,20 +523,13 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
               Beralih ke User Ini
             </Button>
             <span
-              v-else-if="selectedUser && selectedUser.id === currentUser.id"
+              v-else
               class="text-xs text-muted-foreground self-center"
             >
               Ini adalah user aktif saat ini
             </span>
-            <span
-              v-else
-              class="text-xs text-muted-foreground self-center"
-            >
-              Role portal sedang dinonaktifkan
-            </span>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>
