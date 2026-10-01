@@ -30,7 +30,8 @@ import {
   confirmGroupTripDp, getSalesOrderOutstandingIdr,
   VENDORS, createFlightBooking, createHotelBooking, createTransportBooking, createMiceEvent, setServiceVendor,
   acceptProjectHandover, returnProjectHandover, setBookingPaymentGateStatus, updateProjectFieldContacts, updateProjectSchedule,
-  paySupplierInvoice
+  paySupplierInvoice,
+  getProjectStatusTransitions, updateProjectStatus
 } from '~/data'
 import type { TravelerImportPreviewRow, AttentionQueueItem } from '~/data'
 import type { SalesOrder } from '~/types/sales-order'
@@ -55,6 +56,8 @@ import {
   DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES, SALES_ORDER_STATUSES
 } from '~/constants/status'
 import { formatCurrencyIdr, formatCurrencyIdrCompact, formatDateRange, formatDate, formatDateLong, formatDateTime, formatDayLabel, formatDayBadge, formatTravelerCount, maskDocumentNumber, daysUntil } from '~/utils/format'
+import { heroFigures } from '~/lib/finance/project-hero'
+import { todayJakarta } from '~/lib/finance/dates'
 import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, isInvoiceDueSoon, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT, isDpBalanceOverdue, PASSPORT_EXPIRY_WARNING_DAYS } from '~/utils/attention'
 import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ItineraryItem, ProjectService } from '~/types/project'
 import type { ChangeCategory, ProjectTask } from '~/types/activity'
@@ -120,6 +123,18 @@ const project = computed(() => {
 })
 
 useHead({ title: computed(() => project.value ? project.value.name : 'Project Tidak Ditemukan') })
+
+/**
+ * Money for this project comes only from the server summary: full figures for Finance/Super Admin, a status
+ * label for Admin. Null while loading or when the server cannot answer (offline, project not seeded there).
+ */
+const financeApi = useApi()
+const financeSummary = useFinanceQuery(
+  async () => (await financeApi.finance.projectSummary(String(route.params.id))).data,
+  { watch: [() => route.params.id] }
+)
+const financeSummaryLoading = computed(() => !financeSummary.loaded.value && !financeSummary.error.value)
+const commercialHero = computed(() => heroFigures(financeSummary.data.value, todayJakarta()))
 
 /** Foto cover Group Trip B2C (`Project.photoUrl`) — mock upload lokal (data URL), tampil di header sini dan di list "Sales Order" (`/project-orders`). Project B2B tidak menampilkan uploader ini, tetap icon polos. */
 const photoInputRef = ref<HTMLInputElement | null>(null)
@@ -336,6 +351,24 @@ function onAdvanceStep () {
  * `canManageProjectOrder` yang sudah ada (PM/Super Admin, `project-order.accept-handover`).
  */
 const canAcceptHandover = computed(() => Boolean(project.value && !project.value.handoverAcceptedAt && canManageProjectOrder.value))
+
+/**
+ * Cancelling the whole project is recorded by Finance first (server preview: policy, H-x, refund vs retained);
+ * only then does the (still client-side) project status follow, with the same reason. No money moves here.
+ */
+const financeCancelOpen = ref(false)
+const canCancelProject = computed(() => Boolean(project.value && can('project-order.request-cancellation') &&
+  getProjectStatusTransitions(project.value.status).includes('cancelled')))
+function onFinanceCancelled ({ refund, reason }: { refund: { id: string }; reason: string }) {
+  if (!project.value) { return }
+  const result = updateProjectStatus(project.value.id, 'cancelled', currentUser.value.id, reason)
+  refreshStep()
+  if (!result) {
+    showToast('Status project belum berubah', `Pembatalan sudah tercatat di Finance (${refund.id}), tapi transisi status project tidak diizinkan dari status saat ini.`, 'warning')
+    return
+  }
+  showToast('Project dibatalkan', `Kasus ${refund.id} tercatat. Refund diurus tim Finance.`, 'success')
+}
 
 function onAcceptHandover () {
   if (!project.value) { return }
@@ -2391,7 +2424,10 @@ const tripDurationDays = computed(() => {
           </button>
         </div>
 
-        <div v-if="canAcceptHandover || (canAdvanceStep && currentStepView)" class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
+        <div v-if="canAcceptHandover || (canAdvanceStep && currentStepView) || canCancelProject" class="mt-4 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
+          <Button v-if="canCancelProject" size="sm" variant="ghost" class="mr-auto text-destructive hover:text-destructive" @click="financeCancelOpen = true">
+            Batalkan Project
+          </Button>
           <Button v-if="canAcceptHandover" size="sm" variant="outline" @click="onAcceptHandover">
             Terima Handover
           </Button>
@@ -2416,6 +2452,7 @@ const tripDurationDays = computed(() => {
           </template>
         </div>
       </SectionCard>
+      <FinanceCancellationDialog v-model:open="financeCancelOpen" :subject="{ type: 'project', id: project.id, label: `project ${project.name}` }" @recorded="onFinanceCancelled" />
 
       <ResponsiveFormSheet
         v-model:open="isScheduleDialogOpen"
@@ -2467,16 +2504,9 @@ const tripDurationDays = computed(() => {
               </SectionCard>
 
               <!-- Stat ringkas (padat, angka besar + label kecil) — teaser, detail lengkap tetap di card di bawahnya.
-                   1 kolom di mobile: judul StatsCard ("Budget Terpakai"/"H- Keberangkatan") ke-truncate parah
-                   di lebar 2-kolom pada layar sempit. -->
-              <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
-                <StatsCard
-                  title="Budget Terpakai"
-                  :value="`${budgetUsedPercent}%`"
-                  :icon="Wallet"
-                  :icon-color="budgetUsedPercent > 100 ? 'destructive' : 'primary'"
-                  :footer-progress="{ label: `${formatCurrencyIdr(actualCostIdr)} / ${formatCurrencyIdr(project.budgetIdr)}`, percent: budgetUsedPercent }"
-                />
+                   1 kolom di mobile: judul StatsCard ("H- Keberangkatan") ke-truncate parah di lebar 2-kolom pada
+                   layar sempit. "Budget Terpakai" disembunyikan: budget project belum dikelola server. -->
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <StatsCard title="H- Keberangkatan" :value="departureReadiness ? String(departureReadiness.daysUntilDeparture) : '—'" :icon="CalendarRange" subtitle="Hari lagi" />
                 <StatsCard
                   title="Task Selesai"
@@ -2577,27 +2607,8 @@ const tripDurationDays = computed(() => {
 
               <!-- Ringkasan Komersial — separuh lebar (bukan edge-to-edge), ditaruh di bawah 4 stat card di atas. Kolom di-stretch (bukan items-start lagi) supaya "Action Required" saat kosong ikut setinggi Ringkasan Komersial, bukan terlihat terpotong pendek sendirian. -->
               <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <ProjectCommercialHero
-                  v-if="canViewFinancials"
-                  :quotation-amount-idr="project.quotationAmountIdr"
-                  :invoice-issued-idr="invoiceIssuedIdr"
-                  :paid-idr="collectedIdr"
-                  :outstanding-idr="projectOutstandingIdr"
-                  :next-payment="nextPaymentForHero"
-                  :has-any-invoice="invoices.length > 0"
-                />
-                <div v-else class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <StatsCard
-                    title="Nilai Quotation"
-                    :value="formatCurrencyIdrCompact(project.quotationAmountIdr)"
-                    :full-value="formatCurrencyIdr(project.quotationAmountIdr)"
-                    :subtitle="`Terkumpul ${formatCurrencyIdr(collectedIdr)} dari client${quotationGapIdr > 0 ? ' · Kurang ' + formatCurrencyIdr(quotationGapIdr) : ' · Lunas'}`"
-                    :progress-percent="quotationCollectionPercent"
-                    :icon="FileText"
-                    :icon-color="quotationGapIdr > 0 ? 'warning' : 'success'"
-                  />
-                  <StatsCard title="Outstanding" :value="formatCurrencyIdrCompact(projectOutstandingIdr)" :full-value="formatCurrencyIdr(projectOutstandingIdr)" :icon="Wallet" icon-color="warning" />
-                </div>
+                <div v-if="financeSummaryLoading" class="h-64 animate-pulse rounded-xl bg-muted" role="status" aria-label="Memuat ringkasan komersial" />
+                <ProjectCommercialHero v-else :figures="commercialHero" />
 
                 <SectionCard
                   v-if="attentionQueue.length > 0"
