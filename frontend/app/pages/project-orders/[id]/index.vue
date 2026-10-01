@@ -41,7 +41,6 @@ import {
   addMilestoneDeliverable, removeMilestoneDeliverable,
   createProjectMilestone, applyMilestoneTemplate
 } from '~/data/project-order-workflow'
-import { getProjectExpenses, createProjectExpense, PROJECT_EXPENSE_CATEGORIES } from '~/data/finance-ext'
 import { getEmployeeByUserId } from '~/data/hr'
 import { serviceCapabilityKey } from '~/constants/capabilities'
 import {
@@ -58,7 +57,6 @@ import { todayJakarta } from '~/lib/finance/dates'
 import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT, isDpBalanceOverdue, PASSPORT_EXPIRY_WARNING_DAYS } from '~/utils/attention'
 import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ItineraryItem, ProjectService } from '~/types/project'
 import type { ChangeCategory, ProjectTask } from '~/types/activity'
-import type { ProjectExpenseCategoryKey } from '~/types/finance-ext'
 import type { MessageChannel, Document as AppDocument } from '~/types/document-comms'
 import type { BadgeTone } from '~/types/common'
 import type { ProjectMilestone } from '~/types/project-order'
@@ -68,7 +66,7 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
-const { canView, canApprove, canManage, canViewFinancials, can } = usePermissions()
+const { canView, canApprove, canManage, can } = usePermissions()
 const { currentRole, currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
@@ -1065,38 +1063,6 @@ function submitCloseFinance () {
   const serverBlockers = financePanel.value?.blockers ?? ['Data finance project belum termuat.']
   const result = closeProjectFinance(project.value.id, currentUser.value.id, serverBlockers)
   if (result.success) { showToast('Finance Ditutup', `Finance project ${project.value.name} berhasil ditutup.`, 'success') } else { showToast('Belum Bisa Ditutup', `${result.blockers.length} blocker masih terbuka — lihat daftar di panel Finance.`, 'error') }
-}
-
-/** Pengeluaran Project (ad-hoc, langsung tercatat) — lihat `ProjectExpense`, `app/types/finance-ext.ts`. */
-const projectExpenses = computed(() => (project.value ? getProjectExpenses(project.value.id) : []))
-const projectExpensesTotalIdr = computed(() => projectExpenses.value.reduce((sum, expense) => sum + expense.amountIdr, 0))
-const isExpenseDialogOpen = ref(false)
-const expenseCategory = ref<ProjectExpenseCategoryKey | ''>('')
-const expenseDescription = ref('')
-const expenseAmountIdr = ref<number | null>(null)
-const expenseIncurredAt = ref('')
-
-function openCreateExpense () {
-  expenseCategory.value = ''
-  expenseDescription.value = ''
-  expenseAmountIdr.value = null
-  expenseIncurredAt.value = DEMO_REFERENCE_DATE
-  isExpenseDialogOpen.value = true
-}
-
-function submitExpense () {
-  if (!project.value || !expenseCategory.value || !expenseDescription.value.trim() || !expenseAmountIdr.value || !expenseIncurredAt.value) { return }
-  const expense = createProjectExpense({
-    projectId: project.value.id,
-    category: expenseCategory.value,
-    description: expenseDescription.value.trim(),
-    amountIdr: expenseAmountIdr.value,
-    incurredAt: expenseIncurredAt.value,
-    recordedBy: currentUser.value.id
-  })
-  if (!expense) { return }
-  isExpenseDialogOpen.value = false
-  showToast('Pengeluaran Dicatat', `${expense.description} — ${formatCurrencyIdr(expense.amountIdr)} berhasil ditambahkan ke Actual Cost.`, 'success')
 }
 
 function paymentsForInvoice (invoiceId: string) {
@@ -4353,91 +4319,9 @@ const tripDurationDays = computed(() => {
           </div>
         </TabsContent>
 
-        <TabsContent value="expenses">
-          <div class="space-y-4">
-            <template v-if="canViewFinancials">
-              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Pengeluaran Project" description="Pengeluaran ad-hoc (transport, konsumsi, perlengkapan, dll) yang langsung tercatat dan ikut Actual Cost — tanpa approval berlapis.">
-                <template v-if="canManageFinance" #actions>
-                  <Button size="sm" variant="outline" @click="openCreateExpense">
-                    + Catat Pengeluaran
-                  </Button>
-                </template>
-                <ul v-if="projectExpenses.length" class="divide-y divide-border">
-                  <li v-for="expense in projectExpenses" :key="expense.id" class="flex items-center justify-between gap-3 py-2.5">
-                    <div class="min-w-0 flex-1">
-                      <div class="flex items-center gap-2">
-                        <StatusBadge :label="findStatusOption(PROJECT_EXPENSE_CATEGORIES, expense.category).label" :tone="findStatusOption(PROJECT_EXPENSE_CATEGORIES, expense.category).tone" />
-                        <span class="text-xs text-muted-foreground">{{ formatDate(expense.incurredAt) }}</span>
-                      </div>
-                      <p class="mt-0.5 truncate text-sm text-foreground">
-                        <span class="font-ticket-mono text-xs text-muted-foreground">{{ expense.id }}</span> {{ expense.description }}
-                      </p>
-                      <p class="text-xs text-muted-foreground">
-                        Dicatat oleh {{ getUserById(expense.recordedBy)?.name ?? expense.recordedBy }}
-                      </p>
-                    </div>
-                    <span class="shrink-0 text-sm font-semibold tabular-nums text-foreground">{{ formatCurrencyIdr(expense.amountIdr) }}</span>
-                  </li>
-                </ul>
-                <div v-if="projectExpenses.length" class="mt-3 flex items-center justify-end gap-3 border-t border-border pt-3">
-                  <span class="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total Actual Expense</span>
-                  <span class="text-sm font-semibold tabular-nums text-success">{{ formatCurrencyIdr(projectExpensesTotalIdr) }}</span>
-                </div>
-                <EmptyState v-else :icon="Wallet" title="Belum ada pengeluaran project tercatat" />
-              </SectionCard>
-            </template>
-            <template v-else>
-              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Pengeluaran">
-                <p class="text-xs text-muted-foreground">
-                  Detail pengeluaran ad-hoc hanya terlihat oleh role dengan akses modul Finance.
-                </p>
-              </SectionCard>
-            </template>
-          </div>
-
-          <Sheet v-model:open="isExpenseDialogOpen">
-            <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle>Catat Pengeluaran</SheetTitle>
-                <SheetDescription>Langsung tercatat dan ikut Actual Cost project — tanpa alur approval.</SheetDescription>
-              </SheetHeader>
-              <div class="space-y-4 py-2">
-                <div class="space-y-1.5">
-                  <Label for="expense-category">Kategori</Label>
-                  <select id="expense-category" v-model="expenseCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="" disabled>
-                      Pilih kategori
-                    </option>
-                    <option v-for="option in PROJECT_EXPENSE_CATEGORIES" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="expense-description">Keterangan</Label>
-                  <Input id="expense-description" v-model="expenseDescription" placeholder="mis. Taksi bandara ke hotel untuk rombongan" />
-                </div>
-                <div class="grid grid-cols-2 gap-3">
-                  <div class="space-y-1.5">
-                    <Label for="expense-amount">Nominal (Rp)</Label>
-                    <CurrencyInput id="expense-amount" v-model="expenseAmountIdr" placeholder="mis. 500000" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="expense-date">Tanggal</Label>
-                    <Input id="expense-date" v-model="expenseIncurredAt" type="date" />
-                  </div>
-                </div>
-              </div>
-              <SheetFooter class="mt-6 flex-row justify-end gap-2">
-                <Button variant="outline" @click="isExpenseDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!expenseCategory || !expenseDescription.trim() || !expenseAmountIdr || !expenseIncurredAt" @click="submitExpense">
-                  Simpan
-                </Button>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
+        <TabsContent v-if="canSeeFinanceTab" value="expenses">
+          <!-- Field costs posted on the server (Finance / Super Admin); the tab is hidden from Admin. -->
+          <FinanceProjectExpenses :project-id="project.id" />
         </TabsContent>
 
         <TabsContent value="tasks">

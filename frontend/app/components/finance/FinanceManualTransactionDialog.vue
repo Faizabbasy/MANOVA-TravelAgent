@@ -8,8 +8,9 @@ import { formatMoneyMinor } from '~/lib/money'
 /**
  * Money in or out that is not an invoice payment: operating expenses (rent, salaries, ads…) and other income
  * (commissions, interest). Expenses may be linked to a project so they count in its profitability.
+ * From a project's Pengeluaran tab the project is fixed (`projectId`) and the categories are narrowed.
  */
-const props = defineProps<{ open: boolean; kind: 'expense' | 'other_income' }>()
+const props = defineProps<{ open: boolean; kind: 'expense' | 'other_income'; projectId?: string; categories?: ApiExpenseCategory[] }>()
 const emit = defineEmits<{ 'update:open': [value: boolean] }>()
 
 const api = useApi()
@@ -33,13 +34,13 @@ watch(() => props.open, (open) => {
   if (!open) { return }
   action.reset()
   idempotencyKey = newIdempotencyKey()
-  Object.assign(form, { accountId: lookups.accountOptions.value[0]?.value ?? null, amount: '', date: today, category: null, counterparty: '', projectId: null, reference: '', memo: '' })
+  Object.assign(form, { accountId: lookups.accountOptions.value[0]?.value ?? null, amount: '', date: today, category: null, counterparty: '', projectId: props.projectId ?? null, reference: '', memo: '' })
 })
 watch(() => lookups.accountOptions.value, (options) => {
   if (props.open && !form.accountId && options.length) { form.accountId = options[0]!.value }
 }, { immediate: true })
 
-const categoryOptions = (Object.keys(CATEGORY_LABEL) as ApiExpenseCategory[]).map(c => ({ value: c, label: CATEGORY_LABEL[c] }))
+const categoryOptions = computed(() => (props.categories ?? (Object.keys(CATEGORY_LABEL) as ApiExpenseCategory[])).map(c => ({ value: c, label: CATEGORY_LABEL[c] })))
 const account = computed(() => lookups.postableAccounts.value.find(a => a.id === form.accountId) ?? null)
 const balanceAfter = computed(() => {
   if (!account.value?.balance.currentMinor || !form.amount) { return null }
@@ -97,7 +98,7 @@ async function submit () {
         <Input id="mt-counterparty" v-model="form.counterparty" class="h-10" maxlength="200" :placeholder="isExpense ? 'mis. PT Graha Perkantoran' : 'mis. Korean Air'" />
       </FinanceField>
       <FinanceField
-        v-if="isExpense"
+        v-if="isExpense && !projectId"
         id="mt-project"
         label="Untuk project"
         optional

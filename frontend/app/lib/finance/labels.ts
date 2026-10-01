@@ -37,8 +37,16 @@ export const CATEGORY_LABEL: Record<ApiExpenseCategory, string> = {
   professional: 'Jasa profesional',
   bank_fee: 'Biaya bank',
   tax: 'Pajak',
+  transportation: 'Transportasi',
+  meals: 'Konsumsi',
+  supplies: 'Perlengkapan',
+  accommodation: 'Akomodasi',
+  emergency: 'Darurat',
   other: 'Lainnya'
 }
+
+/** Categories offered when recording a cost from a project's Pengeluaran tab. */
+export const PROJECT_EXPENSE_CATEGORIES: ApiExpenseCategory[] = ['transportation', 'meals', 'supplies', 'accommodation', 'emergency', 'other']
 
 export const INVOICE_TYPE_LABEL: Record<ApiInvoiceType, string> = {
   dp: 'DP',

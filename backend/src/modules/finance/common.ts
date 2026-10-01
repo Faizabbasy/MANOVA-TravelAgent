@@ -20,7 +20,12 @@ export function parseMovementAmount(value: unknown, field = 'amountMinor', optio
   return amount
 }
 
-export const EXPENSE_CATEGORIES = ['payroll', 'office', 'marketing', 'technology', 'travel', 'professional', 'bank_fee', 'tax', 'other'] as const
+export const EXPENSE_CATEGORIES = [
+  'payroll', 'office', 'marketing', 'technology', 'travel', 'professional', 'bank_fee', 'tax',
+  // Field costs of one project (V2 Pengeluaran tab); posted with a projectId.
+  'transportation', 'meals', 'supplies', 'accommodation', 'emergency',
+  'other'
+] as const
 
 /** Today's business date in Asia/Jakarta — actual cash cannot be dated after this. */
 export function todayBusinessDate(): string {

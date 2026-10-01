@@ -166,7 +166,11 @@ export type ApiOpeningStatus = 'unset' | 'pending' | 'verified'
 export type ApiTransactionKind =
   | 'customer_receipt' | 'vendor_refund' | 'other_income' | 'transfer_in'
   | 'vendor_payment' | 'refund_settlement' | 'expense' | 'transfer_out' | 'transfer_fee'
-export type ApiExpenseCategory = 'payroll' | 'office' | 'marketing' | 'technology' | 'travel' | 'professional' | 'bank_fee' | 'tax' | 'other'
+export type ApiExpenseCategory =
+  | 'payroll' | 'office' | 'marketing' | 'technology' | 'travel' | 'professional' | 'bank_fee' | 'tax'
+  // Field costs of one project (Pengeluaran tab)
+  | 'transportation' | 'meals' | 'supplies' | 'accommodation' | 'emergency'
+  | 'other'
 
 export interface BankAccountDto {
   id: string

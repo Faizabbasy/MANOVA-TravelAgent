@@ -443,3 +443,31 @@ describe('account maintenance', () => {
     expect(res.status).toBe(422)
   })
 })
+
+describe('project expenses (Pengeluaran tab: Finance and Super Admin only)', () => {
+  const PROJECT_CATEGORIES = ['transportation', 'meals', 'supplies', 'accommodation', 'emergency']
+
+  test('each project category posts against the project and shows in its statement', async () => {
+    const id = await openAccount('PRJ-EXP', '10000000')
+    for (const category of PROJECT_CATEGORIES) {
+      const res = await post('finance', '/transactions', { bankAccountId: id, kind: 'expense', category, amountMinor: '25000', effectiveDate: TODAY, projectId: 'PRJ-201', memo: `Uji ${category}` })
+      expect(res.status, category).toBe(201)
+    }
+    const list = await get('finance', '/statement?projectId=PRJ-201&kind=expense&limit=50')
+    const mine = list.json.data.filter((m: { memo: string | null }) => m.memo?.startsWith('Uji '))
+    expect(mine.map((m: { category: string }) => m.category).sort()).toEqual([...PROJECT_CATEGORIES].sort())
+    expect(await balanceOf(id)).toBe(String(10000000 - 25000 * PROJECT_CATEGORIES.length))
+  })
+
+  test('an unknown category is still refused', async () => {
+    const id = await openAccount('PRJ-EXP-2', '100000')
+    expect((await post('finance', '/transactions', { bankAccountId: id, kind: 'expense', category: 'snacks', amountMinor: '1000', effectiveDate: TODAY, projectId: 'PRJ-201' })).status).toBe(400)
+  })
+
+  test('super admin can post a project expense; admin can neither post nor read them', async () => {
+    const id = await openAccount('PRJ-EXP-3', '100000')
+    expect((await post('superAdmin', '/transactions', { bankAccountId: id, kind: 'expense', category: 'supplies', amountMinor: '1000', effectiveDate: TODAY, projectId: 'PRJ-201' })).status).toBe(201)
+    expect((await post('admin', '/transactions', { bankAccountId: id, kind: 'expense', category: 'meals', amountMinor: '1000', effectiveDate: TODAY, projectId: 'PRJ-201' })).status).toBe(403)
+    expect((await get('admin', '/statement?projectId=PRJ-201&kind=expense')).status).toBe(403)
+  })
+})
