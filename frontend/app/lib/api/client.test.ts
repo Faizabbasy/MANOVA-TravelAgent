@@ -177,6 +177,18 @@ describe('createManovaApi — receivables & payables', () => {
     ])
   })
 
+  it('group trip: sales order summary and DP confirmation (with idempotency key)', async () => {
+    const { calls, transport } = fakeTransport(200, { data: {}, meta: { requestId: 'r' } })
+    const api = createManovaApi(createApiClient({ baseURL: '/api/v1', transport }))
+    await api.finance.salesOrderSummary('SLO-006')
+    await api.finance.confirmGroupTripDp('SLO-006', { bankAccountId: 'BA-1', dpAmountMinor: '2100000', effectiveDate: '2026-10-01', dueDate: '2026-10-20' }, 'key-dp-123456')
+    expect(calls.map(c => `${c.method} ${c.url}`)).toEqual([
+      'GET /api/v1/sales-orders/SLO-006/finance-summary',
+      'POST /api/v1/finance/sales-orders/SLO-006/confirm-dp'
+    ])
+    expect(calls[1]!.headers['idempotency-key']).toBe('key-dp-123456')
+  })
+
   it('monthly report takes a month count or a date range', async () => {
     const { calls, transport } = fakeTransport(200, { data: {}, meta: { requestId: 'r' } })
     const api = createManovaApi(createApiClient({ baseURL: '/api/v1', transport }))

@@ -1131,8 +1131,8 @@ export function createSalesOrder (input: CreateSalesOrderInput): SalesOrder | un
 /**
  * Generic status transition — dipakai order standalone (tanpa Project B2C) untuk seluruh transisi, DAN
  * booking Group Trip B2C (`order.projectId` terisi) untuk transisi SELAIN `paid`. Transisi ke `paid` untuk
- * order ber-project SENGAJA ditolak di sini (return `undefined`) — HARUS lewat `confirmGroupTripDp` supaya
- * gerbang minimum DP tidak bisa dilewati lewat halaman status generik (`/sales-orders/[id]`).
+ * order ber-project SENGAJA ditolak di sini (return `undefined`) — HARUS lewat konfirmasi DP di Finance (server)
+ * lalu `markGroupTripOrderPaid`, supaya gerbang minimum DP tidak bisa dilewati lewat halaman status generik.
  */
 export function updateSalesOrderStatus (id: string, status: SalesOrderStatus): SalesOrder | undefined {
   const order = SALES_ORDERS.find(item => item.id === id)
@@ -1143,30 +1143,16 @@ export function updateSalesOrderStatus (id: string, status: SalesOrderStatus): S
   return order
 }
 
-export type ConfirmGroupTripDpOutcome = 'confirmed' | 'below-minimum'
-export interface ConfirmGroupTripDpResult {
-  outcome: ConfirmGroupTripDpOutcome
-  order?: SalesOrder
-  /** Selalu diisi (baik sukses maupun `below-minimum`) — dipakai UI menampilkan besaran minimum DP. */
-  minimumDpIdr: number
-}
-
 /**
- * Konfirmasi DP booking Group Trip B2C — SATU-SATUNYA jalur sah menuju status `paid` untuk order ber-project
- * (lihat `updateSalesOrderStatus` di atas). Mendukung DP SEBAGIAN (`dpAmountIdr` boleh kurang dari
- * `order.priceIdr`, selama >= `MINIMUM_DP_PERCENT` dari harga) — beda dari versi lama yang menganggap lunas
- * penuh begitu dikonfirmasi. Efek saat sukses: (1) Participant dibuat — dipindah dari `updateSalesOrderStatus`
- * lama, idempotent (guard `alreadyCreated`) sama seperti sebelumnya; (2) Invoice tipe `dp` senilai harga
- * PENUH dibuat lalu di-`recordPayment` sebesar `dpAmountIdr` — `recordPayment` sudah otomatis menghasilkan
- * status `partially-paid` kalau belum lunas penuh (tidak ada logic tambahan yang perlu ditulis di sini).
+ * Group Trip B2C — the operational side of a confirmed DP. The money (participant invoice + DP received) is
+ * recorded by Finance on the server (`POST /finance/sales-orders/:id/confirm-dp`); after it succeeds the
+ * client-side booking follows: the order becomes `paid` and its travelers are created (one per pax,
+ * idempotent). The only valid path to `paid` for an order that belongs to a project (see
+ * `updateSalesOrderStatus`). No invoice or payment is created here.
  */
-export function confirmGroupTripDp (orderId: string, dpAmountIdr: number, actorId: string): ConfirmGroupTripDpResult | undefined {
+export function markGroupTripOrderPaid (orderId: string): SalesOrder | undefined {
   const order = SALES_ORDERS.find(item => item.id === orderId)
-  if (!order || order.status !== 'draft' || !order.projectId || !(dpAmountIdr > 0)) { return undefined }
-
-  const minimumDpIdr = Math.ceil(order.priceIdr * (MINIMUM_DP_PERCENT / 100))
-  if (dpAmountIdr < minimumDpIdr) { return { outcome: 'below-minimum', minimumDpIdr } }
-
+  if (!order || order.status !== 'draft' || !order.projectId) { return undefined }
   order.status = 'paid'
   const projectId = order.projectId
 
@@ -1183,32 +1169,7 @@ export function confirmGroupTripDp (orderId: string, dpAmountIdr: number, actorI
       })
     }
   }
-
-  const invoiceAlreadyCreated = INVOICES.some(invoice => invoice.salesOrderId === order.id)
-  if (!invoiceAlreadyCreated) {
-    const customer = getPartyById(order.customerId)
-    const invoice = createInvoice({
-      projectId,
-      label: `DP Booking Group Trip — ${customer?.name ?? order.customerId} — ${order.destination} (${order.id})`,
-      amountIdr: order.priceIdr,
-      currency: 'IDR',
-      invoiceType: 'dp',
-      dueAt: DEMO_REFERENCE_DATE
-    })
-    if (invoice) {
-      invoice.salesOrderId = order.id
-      recordPayment({ invoiceId: invoice.id, amountIdr: dpAmountIdr, recordedBy: actorId, method: 'Transfer' })
-    }
-  }
-
-  return { outcome: 'confirmed', order, minimumDpIdr }
-}
-
-/** Sisa tagihan satu booking Group Trip B2C (beda dari `getProjectOutstandingIdr` yang per-project — satu
- * project bisa punya banyak booking/Traveler group). Dipakai kolom "Outstanding" tab Bookings dan catatan
- * saldo di tab Travelers. */
-export function getSalesOrderOutstandingIdr (orderId: string): number {
-  return INVOICES.filter(invoice => invoice.salesOrderId === orderId).reduce((sum, invoice) => sum + getInvoiceOutstandingIdr(invoice.id), 0)
+  return order
 }
 
 export interface CreateProjectInput {

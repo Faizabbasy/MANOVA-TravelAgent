@@ -9,11 +9,10 @@ import {
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
   getProjectServices, getItineraryItems, updateServiceStatus, updateItineraryItem, createItineraryItem, removeItineraryItem,
   getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation, assignServiceVendor,
-  getServiceOrderByService,
   getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, createTravelerGroup,
   toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
-  getInvoicesByProject, getPaymentsByInvoice, closeProjectFinance,
+  closeProjectFinance,
   getTasksByProject, getActivitiesByProject,
   createChangeEntry, approveChangeEntry, rejectChangeEntry,
   addProjectTeamMember, removeProjectTeamMember,
@@ -25,7 +24,7 @@ import {
   getDocumentsForProject, createDocument, MESSAGE_RECORDS, sendMessage, getInternalProjectMessages, getUnifiedActivityTimeline, updateProjectPhoto,
   USERS,
   getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject,
-  confirmGroupTripDp, getSalesOrderOutstandingIdr,
+  markGroupTripOrderPaid,
   VENDORS, createFlightBooking, createHotelBooking, createTransportBooking, createMiceEvent, setServiceVendor,
   acceptProjectHandover, returnProjectHandover, setBookingPaymentGateStatus, updateProjectFieldContacts, updateProjectSchedule,
   getProjectStatusTransitions, updateProjectStatus
@@ -52,10 +51,11 @@ import {
 import { formatCurrencyIdr, formatCurrencyIdrCompact, formatDateRange, formatDate, formatDateLong, formatDateTime, formatDayLabel, formatDayBadge, formatTravelerCount, maskDocumentNumber, daysUntil } from '~/utils/format'
 import { heroFigures } from '~/lib/finance/project-hero'
 import { vendorPaymentState } from '~/lib/finance/vendor-payment-state'
+import { groupTripOrderFigures } from '~/lib/finance/group-trip'
 import { setProjectFinanceFacts } from '~/data/finance-facts'
 import { formatMoneyMinor } from '~/lib/money'
 import { todayJakarta } from '~/lib/finance/dates'
-import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT, isDpBalanceOverdue, PASSPORT_EXPIRY_WARNING_DAYS } from '~/utils/attention'
+import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, isDpBalanceOverdue, PASSPORT_EXPIRY_WARNING_DAYS } from '~/utils/attention'
 import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ItineraryItem, ProjectService } from '~/types/project'
 import type { ChangeCategory, ProjectTask } from '~/types/activity'
 import type { MessageChannel, Document as AppDocument } from '~/types/document-comms'
@@ -255,37 +255,69 @@ const bookingFunnelStages = computed(() => {
   }))
 })
 
-/** Dialog "Konfirmasi DP" — mendukung DP sebagian, lihat `confirmGroupTripDp` (`app/data/index.ts`). */
-const isConfirmDpDialogOpen = ref(false)
-const confirmDpOrder = ref<SalesOrder | null>(null)
-const confirmDpAmountIdr = ref<number | null>(null)
-const confirmDpMinimumError = ref<string>('')
-
-function openConfirmDp (order: SalesOrder) {
-  confirmDpOrder.value = order
-  confirmDpAmountIdr.value = null
-  confirmDpMinimumError.value = ''
-  isConfirmDpDialogOpen.value = true
+/**
+ * Group Trip money per participant booking, from the server: one summary per sales order (figures for
+ * Finance/Super Admin, a label for Admin). An order the server does not know yet gives `unavailable`.
+ */
+const orderSummaries = useFinanceQuery(async () => {
+  const entries = await Promise.all(projectOrders.value.map(async (order) => {
+    try {
+      return [order.id, (await financeApi.finance.salesOrderSummary(order.id)).data] as const
+    } catch {
+      return [order.id, null] as const
+    }
+  }))
+  return new Map(entries)
+}, { watch: [() => projectOrders.value.map(order => order.id).join(',')], enabled: () => !!project.value?.isGroupTrip })
+function orderFigures (orderId: string) {
+  return groupTripOrderFigures(orderSummaries.data.value?.get(orderId) ?? null)
 }
-
-const confirmDpMinimumIdr = computed(() => (confirmDpOrder.value ? Math.ceil(confirmDpOrder.value.priceIdr * (MINIMUM_DP_PERCENT / 100)) : 0))
-
-function submitConfirmDp () {
-  const order = confirmDpOrder.value
-  if (!order || !confirmDpAmountIdr.value) { return }
-  const result = confirmGroupTripDp(order.id, confirmDpAmountIdr.value, currentUser.value.id)
-  if (!result) { return }
-  if (result.outcome === 'below-minimum') {
-    confirmDpMinimumError.value = `Minimal DP ${formatCurrencyIdr(result.minimumDpIdr)} (${MINIMUM_DP_PERCENT}% dari harga) — nominal yang diinput kurang dari itu.`
-    return
+/** What is still owed on a participant booking (Finance view only); null when nothing is due or unknown. */
+function orderOutstandingMinor (orderId: string): string | null {
+  const figures = orderFigures(orderId)
+  return figures.kind === 'full' && figures.outstandingMinor !== '0' && figures.receivedMinor !== '0' ? figures.outstandingMinor : null
+}
+const PAYMENT_LABEL_TONE: Record<string, BadgeTone> = { Lunas: 'success', 'DP diterima': 'warning', 'Belum dibayar': 'warning', 'Menunggu DP': 'neutral' }
+/** Tab Payments (Group Trip): one row per participant booking with its server figures. */
+const paymentRows = computed(() => projectOrders.value.map((order) => {
+  const figures = orderFigures(order.id)
+  return {
+    order,
+    customerName: getPartyById(order.customerId)?.name ?? order.customerId,
+    figures,
+    tone: figures.kind === 'unavailable' ? 'neutral' as BadgeTone : (PAYMENT_LABEL_TONE[figures.label] ?? 'neutral')
   }
-  isConfirmDpDialogOpen.value = false
-  const outstanding = getSalesOrderOutstandingIdr(order.id)
-  showToast(
-    'DP Dikonfirmasi',
-    `${order.id} sekarang Confirmed, participant otomatis dibuat.${outstanding > 0 ? ` Sisa tagihan ${formatCurrencyIdr(outstanding)}.` : ' Lunas.'}`,
-    'success'
-  )
+}))
+function orderStatusLabel (orderId: string): string {
+  const figures = orderFigures(orderId)
+  return figures.kind === 'unavailable' ? '' : figures.label
+}
+/** Server says this order can still have its DP confirmed (no invoice yet). */
+function orderCanConfirm (orderId: string): boolean {
+  const figures = orderFigures(orderId)
+  return figures.kind === 'full' && figures.canConfirm
+}
+/** Confirming a DP records money, so it is a Finance action (Finance, Super Admin). */
+const canConfirmDp = computed(() => session.can('finance.post-cash'))
+
+const confirmDpOpen = ref(false)
+const confirmDpOrder = ref<{ id: string; customerName: string; travelerCount: number; priceMinor: string } | null>(null)
+function openConfirmDp (order: SalesOrder) {
+  const figures = orderFigures(order.id)
+  confirmDpOrder.value = {
+    id: order.id,
+    customerName: getPartyById(order.customerId)?.name ?? order.customerId,
+    travelerCount: order.travelerCount,
+    priceMinor: figures.kind === 'full' ? figures.priceMinor : String(order.priceIdr)
+  }
+  confirmDpOpen.value = true
+}
+/** The server recorded the DP; the client-side booking follows (status paid + travelers). */
+function onDpConfirmed () {
+  if (!confirmDpOrder.value) { return }
+  markGroupTripOrderPaid(confirmDpOrder.value.id)
+  refreshStep()
+  orderSummaries.refresh()
 }
 
 const groupTripReservations = computed(() => (project.value ? getClientReservations(project.value.id) : []))
@@ -1056,7 +1088,6 @@ function unblockTask (task: ProjectTask) {
 
 const groups = computed(() => project.value ? getTravelerGroups(project.value.id) : [])
 const travelers = computed(() => project.value ? getTravelers(project.value.id) : [])
-const invoices = computed(() => project.value ? getInvoicesByProject(project.value.id) : [])
 
 /** Finance tab: same gate as the Finance menu (Admin never sees project money). */
 const canSeeFinanceTab = computed(() => canView('finance-acc'))
@@ -1072,10 +1103,6 @@ function submitCloseFinance () {
   const serverBlockers = financePanel.value?.blockers ?? ['Data finance project belum termuat.']
   const result = closeProjectFinance(project.value.id, currentUser.value.id, serverBlockers)
   if (result.success) { showToast('Finance Ditutup', `Finance project ${project.value.name} berhasil ditutup.`, 'success') } else { showToast('Belum Bisa Ditutup', `${result.blockers.length} blocker masih terbuka — lihat daftar di panel Finance.`, 'error') }
-}
-
-function paymentsForInvoice (invoiceId: string) {
-  return getPaymentsByInvoice(invoiceId)
 }
 
 const tasks = computed(() => project.value ? getTasksByProject(project.value.id) : [])
@@ -3373,9 +3400,10 @@ const tripDurationDays = computed(() => {
                       </p>
                     </div>
                     <span class="shrink-0 text-sm tabular-nums text-foreground">{{ formatCurrencyIdr(row.order.priceIdr) }}</span>
-                    <Button size="sm" class="shrink-0" @click="openConfirmDp(row.order)">
+                    <Button v-if="canConfirmDp && orderCanConfirm(row.order.id)" size="sm" class="shrink-0" @click="openConfirmDp(row.order)">
                       Konfirmasi DP
                     </Button>
+                    <span v-else-if="!canConfirmDp" class="shrink-0 text-xs text-muted-foreground">DP dikonfirmasi tim Finance</span>
                   </li>
                 </ul>
                 <EmptyState v-else title="Belum ada booking Awaiting DP" />
@@ -3393,13 +3421,19 @@ const tripDurationDays = computed(() => {
                       </p>
                     </div>
                     <span class="shrink-0 text-sm tabular-nums text-foreground">{{ formatCurrencyIdr(row.order.priceIdr) }}</span>
+                    <!-- Payment state from Finance on the server: remaining amount for Finance, the label for Admin. -->
                     <StatusBadge
-                      v-if="getSalesOrderOutstandingIdr(row.order.id) > 0"
+                      v-if="orderOutstandingMinor(row.order.id)"
                       class="shrink-0"
-                      :label="`${formatCurrencyIdr(getSalesOrderOutstandingIdr(row.order.id))} belum lunas`"
-                      :tone="isDpBalanceOverdue(project, getSalesOrderOutstandingIdr(row.order.id)) ? 'destructive' : 'warning'"
+                      :label="`${formatMoneyMinor(orderOutstandingMinor(row.order.id)!)} belum lunas`"
+                      :tone="isDpBalanceOverdue(project, Number(orderOutstandingMinor(row.order.id))) ? 'destructive' : 'warning'"
                     />
-                    <StatusBadge v-else label="Lunas" tone="success" class="shrink-0" />
+                    <StatusBadge
+                      v-else-if="orderFigures(row.order.id).kind !== 'unavailable'"
+                      class="shrink-0"
+                      :label="orderFigures(row.order.id).kind === 'full' ? 'Lunas' : orderStatusLabel(row.order.id)"
+                      :tone="orderFigures(row.order.id).kind === 'full' ? 'success' : 'neutral'"
+                    />
                     <StatusBadge :label="row.statusOption.label" :tone="row.statusOption.tone" class="shrink-0" />
                   </li>
                 </ul>
@@ -3422,28 +3456,7 @@ const tripDurationDays = computed(() => {
             </SectionCard>
           </div>
 
-          <ResponsiveFormSheet
-            v-model:open="isConfirmDpDialogOpen"
-            title="Konfirmasi DP"
-            content-class="max-w-md"
-            :description="`${confirmDpOrder?.travelerCount ?? ''} pax · Harga ${confirmDpOrder ? formatCurrencyIdr(confirmDpOrder.priceIdr) : '—'} · Minimal DP ${formatCurrencyIdr(confirmDpMinimumIdr)} (${MINIMUM_DP_PERCENT}%). Boleh DP sebagian — sisanya tercatat sebagai outstanding.`"
-          >
-            <div class="space-y-1.5 py-2">
-              <Label for="confirm-dp-amount">Nominal DP Diterima (Rp)</Label>
-              <CurrencyInput id="confirm-dp-amount" v-model="confirmDpAmountIdr" placeholder="mis. 4000000" />
-              <p v-if="confirmDpMinimumError" class="text-xs text-destructive">
-                {{ confirmDpMinimumError }}
-              </p>
-            </div>
-            <template #footer>
-              <Button variant="outline" @click="isConfirmDpDialogOpen = false">
-                Batal
-              </Button>
-              <Button :disabled="!confirmDpAmountIdr" @click="submitConfirmDp">
-                Konfirmasi
-              </Button>
-            </template>
-          </ResponsiveFormSheet>
+          <FinanceGroupTripDpDialog v-model:open="confirmDpOpen" :order="confirmDpOrder" @confirmed="onDpConfirmed" />
         </TabsContent>
 
         <TabsContent v-if="project.isGroupTrip" value="reservations">
@@ -3468,23 +3481,27 @@ const tripDurationDays = computed(() => {
         </TabsContent>
 
         <TabsContent v-if="project.isGroupTrip" value="payments">
-          <SectionCard compact title="Payments" description="Riwayat pembayaran dari seluruh invoice project ini.">
-            <div v-if="invoices.some(invoice => paymentsForInvoice(invoice.id).length)" class="space-y-4">
-              <template v-for="invoice in invoices" :key="invoice.id">
-                <div v-if="paymentsForInvoice(invoice.id).length">
-                  <p class="text-xs font-medium text-muted-foreground mb-2">
-                    {{ invoice.label }}
+          <!-- Per participant booking, from Finance on the server (Admin sees the status only). -->
+          <SectionCard compact title="Payments" description="Status pembayaran tiap booking peserta. Invoice dan uang masuk dicatat tim Finance.">
+            <ul v-if="paymentRows.length" class="divide-y divide-border">
+              <li v-for="row in paymentRows" :key="row.order.id" class="flex flex-wrap items-center gap-3 py-2.5">
+                <div class="min-w-0 flex-1">
+                  <p class="truncate text-sm font-medium text-foreground">
+                    {{ row.customerName }}
                   </p>
-                  <ul class="divide-y divide-border">
-                    <li v-for="payment in paymentsForInvoice(invoice.id)" :key="payment.id" class="py-2 flex items-center justify-between gap-3">
-                      <span class="text-sm text-foreground">{{ formatCurrencyIdr(payment.amountIdr) }}<span v-if="payment.method" class="text-xs text-muted-foreground"> ({{ payment.method }})</span></span>
-                      <span class="text-xs text-muted-foreground">{{ formatDate(payment.receivedAt) }}</span>
-                    </li>
-                  </ul>
+                  <p class="text-xs text-muted-foreground">
+                    {{ row.order.id }} · {{ row.order.travelerCount }} pax
+                  </p>
                 </div>
-              </template>
-            </div>
-            <EmptyState v-else title="Belum ada payment tercatat" />
+                <div v-if="row.figures.kind === 'full'" class="shrink-0 text-right text-xs text-muted-foreground">
+                  <p>Diterima <FinanceAmount :value="row.figures.receivedMinor" class="font-medium text-foreground" /></p>
+                  <p>Sisa <FinanceAmount :value="row.figures.outstandingMinor" class="font-medium text-foreground" /></p>
+                </div>
+                <StatusBadge v-if="row.figures.kind !== 'unavailable'" class="shrink-0" :label="row.figures.label" :tone="row.tone" />
+                <span v-else class="shrink-0 text-xs text-muted-foreground">Data keuangan belum tersedia</span>
+              </li>
+            </ul>
+            <EmptyState v-else title="Belum ada booking peserta" />
           </SectionCard>
         </TabsContent>
 
@@ -3737,8 +3754,8 @@ const tripDurationDays = computed(() => {
                             <p v-if="companionSummary(traveler)" class="text-xs font-normal text-muted-foreground">
                               {{ companionSummary(traveler) }}
                             </p>
-                            <p v-if="traveler.salesOrderId && getSalesOrderOutstandingIdr(traveler.salesOrderId) > 0" class="text-xs font-normal text-warning">
-                              Sisa tagihan booking: {{ formatCurrencyIdr(getSalesOrderOutstandingIdr(traveler.salesOrderId)) }} (saldo bersama per booking, bukan per-pax)
+                            <p v-if="traveler.salesOrderId && orderOutstandingMinor(traveler.salesOrderId)" class="text-xs font-normal text-warning">
+                              Sisa tagihan booking: {{ formatMoneyMinor(orderOutstandingMinor(traveler.salesOrderId)!) }} (saldo bersama per booking, bukan per-pax)
                             </p>
                           </TableCell>
                           <TableCell class="font-ticket-mono text-muted-foreground text-xs">
@@ -3837,8 +3854,8 @@ const tripDurationDays = computed(() => {
                         </div>
                       </div>
 
-                      <p v-if="traveler.salesOrderId && getSalesOrderOutstandingIdr(traveler.salesOrderId) > 0" class="mt-1.5 text-xs text-warning">
-                        Sisa tagihan booking: {{ formatCurrencyIdr(getSalesOrderOutstandingIdr(traveler.salesOrderId)) }}
+                      <p v-if="traveler.salesOrderId && orderOutstandingMinor(traveler.salesOrderId)" class="mt-1.5 text-xs text-warning">
+                        Sisa tagihan booking: {{ formatMoneyMinor(orderOutstandingMinor(traveler.salesOrderId)!) }}
                       </p>
 
                       <div class="mt-2.5 flex flex-wrap items-center gap-1.5">

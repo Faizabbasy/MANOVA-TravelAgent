@@ -9,6 +9,9 @@ import type {
   BillingScheduleInput,
   BillingScheduleItemDto,
   BookingFinanceSummaryDto,
+  GroupTripDpInput,
+  GroupTripDpResult,
+  SalesOrderFinanceSummaryDto,
   BookingRefDto,
   IsoDate,
   CancellationInput,
@@ -201,6 +204,11 @@ export function createManovaApi (client: ApiClient) {
       monthlyReport: (query: { months?: string; from?: IsoDate; to?: IsoDate } = {}) => client.get<MonthlyReportDto>('/finance/reports/monthly', { query: { ...query } }),
       projectSummary: (projectId: string) => client.get<ProjectFinanceSummaryDto>(`/projects/${seg(projectId)}/finance-summary`),
       bookingSummary: (type: ApiBookingType, id: string) => client.get<BookingFinanceSummaryDto>(`/bookings/${seg(type)}/${seg(id)}/finance-summary`),
+      /** Group Trip participant booking: figures for Finance, a label for Admin. */
+      salesOrderSummary: (salesOrderId: string) => client.get<SalesOrderFinanceSummaryDto>(`/sales-orders/${seg(salesOrderId)}/finance-summary`),
+      /** Issues the participant's DP invoice and records the DP received, in one idempotent request. */
+      confirmGroupTripDp: (salesOrderId: string, input: GroupTripDpInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<GroupTripDpResult>(`/finance/sales-orders/${seg(salesOrderId)}/confirm-dp`, input, { idempotencyKey }),
       vendorSummary: (vendorId: string) => client.get<VendorFinanceSummaryDto>(`/vendors/${seg(vendorId)}/finance-summary`),
       partySummary: (partyId: string) => client.get<PartyFinanceSummaryDto>(`/parties/${seg(partyId)}/finance-summary`),
 

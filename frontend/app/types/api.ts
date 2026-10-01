@@ -723,6 +723,25 @@ export type ProjectFinanceSummaryDto =
       vendorInvoices: VendorInvoiceDto[]
     }>
 
+/** Group Trip participant booking (sales order): figures for Finance/Super Admin, a label for Admin. */
+export type SalesOrderPaymentStatus = 'not_invoiced' | 'invoiced' | 'dp_received' | 'paid'
+export type SalesOrderFinanceSummaryDto =
+  | { view: 'status'; salesOrderId: string; paymentStatus: SalesOrderPaymentStatus; label: string }
+  | {
+      view: 'full'
+      salesOrderId: string
+      paymentStatus: SalesOrderPaymentStatus
+      label: string
+      priceMinor: MoneyMinor
+      invoicedMinor: MoneyMinor
+      receivedMinor: MoneyMinor
+      outstandingMinor: MoneyMinor
+      invoiceId: string | null
+    }
+
+export interface GroupTripDpInput { bankAccountId: string; dpAmountMinor: MoneyMinor; effectiveDate: IsoDate; dueDate: IsoDate }
+export interface GroupTripDpResult { invoiceId: string; invoiceNumber: string; transactionId: string; outstandingMinor: MoneyMinor; minimumDpMinor: MoneyMinor }
+
 export type BookingFinanceSummaryDto =
   | (PaymentStatusView & { booking: { type: ApiBookingType; id: string }; projectId: string; cancellation: CancellationStatus | null })
   | FullView<{
