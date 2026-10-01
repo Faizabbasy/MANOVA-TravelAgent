@@ -17,6 +17,7 @@ import {
 } from './receivables'
 import { financeOverview } from './overview'
 import { confirmGroupTripDp, salesOrderFinanceSummary } from './group-trip'
+import { issueDebitNote } from './debit-notes'
 import { bookingFinanceSummary, listAdvances, partyFinanceSummary, projectFinanceSummary, vendorFinanceSummary } from './summaries'
 
 /**
@@ -134,6 +135,18 @@ export function arApRoutes(deps: AppDeps, auth: AuthContext) {
       await inTx(tx => voidInvoice(tx, actor, id, body.reason, requestIdOf(request)))
       return ok(request, await getInvoice(db, id))
     }, { body: t.Object({ reason: t.String({ error: 'Alasan wajib diisi.' }) }) })
+    .post('/finance/customer-invoices/:id/debit-notes', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, 'finance.manage-receivables')
+      const id = assertIdParam(params.id, 'Invoice')
+      const note = await inTx(tx => issueDebitNote(tx, actor, id, body, requestIdOf(request)))
+      set.status = 201
+      return ok(request, await getInvoice(db, note.id))
+    }, {
+      body: t.Object({
+        amountMinor: t.String({ error: 'Nominal wajib diisi.' }), reason: t.String({ error: 'Alasan wajib diisi.' }),
+        dueDate: t.String({ error: 'Jatuh tempo wajib diisi.' })
+      })
+    })
     .patch('/finance/customer-invoices/:id/expectation', async ({ request, params, body }) => {
       const actor = await auth.requireCapability(request, 'finance.manage-receivables')
       const id = assertIdParam(params.id, 'Invoice')

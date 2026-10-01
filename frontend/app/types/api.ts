@@ -470,7 +470,8 @@ export interface StatementQuery extends PageQuery {
 
 // ── Finance: receivables & payables (Phase 3) ────────────────────────────────────────────────────────
 
-export type ApiInvoiceType = 'dp' | 'progress' | 'final' | 'other'
+/** `debit_note` is issued from an invoice (extra charge), never created as a normal draft. */
+export type ApiInvoiceType = 'dp' | 'progress' | 'final' | 'other' | 'debit_note'
 /** Derived for issued/approved invoices: open, partially paid, paid, or credited (zeroed by credit notes, no money). */
 export type ApiSettlement = 'open' | 'partial' | 'paid' | 'credited'
 
@@ -484,6 +485,8 @@ export interface CustomerInvoiceDto {
   billingScheduleItemId: string | null
   /** Group Trip participant booking billed by this invoice (customer = the participant). */
   salesOrderId: string | null
+  /** For a debit note: the issued invoice it adds a charge to. */
+  adjustsInvoiceId: string | null
   invoiceType: ApiInvoiceType
   status: 'draft' | 'issued' | 'void'
   settlement: ApiSettlement | null

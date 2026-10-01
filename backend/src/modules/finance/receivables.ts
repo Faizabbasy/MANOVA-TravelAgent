@@ -233,7 +233,7 @@ export async function createInvoiceDraft(tx: Queryable, actor: Actor, input: Inv
   return { id: row!.id }
 }
 
-async function lockInvoice(tx: Queryable, id: string) {
+export async function lockInvoice(tx: Queryable, id: string) {
   if (!ID_PATTERN.test(id)) throw errors.notFound('Invoice')
   const [inv] = await tx.query<Record<string, any>>('select * from customer_invoices where id = $1 for update', [id])
   if (!inv) throw errors.notFound('Invoice')
@@ -531,6 +531,8 @@ export function invoiceRowDto(r: Record<string, any>, today = todayBusinessDate(
     billingScheduleItemId: r.billing_schedule_item_id,
     /** Group Trip participant booking this invoice bills (its customer is the participant). */
     salesOrderId: r.sales_order_id ?? null,
+    /** For a debit note: the issued invoice it adds a charge to. */
+    adjustsInvoiceId: r.adjusts_invoice_id ?? null,
     invoiceType: r.invoice_type,
     status: r.status,
     /** Derived for issued invoices: open / partial / paid / credited (zeroed by credit notes, no money). */

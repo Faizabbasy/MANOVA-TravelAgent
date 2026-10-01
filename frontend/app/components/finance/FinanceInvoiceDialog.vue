@@ -2,7 +2,7 @@
 import { Plus, Trash2 } from 'lucide-vue-next'
 import type { ApiInvoiceType, CustomerInvoiceDetailDto } from '~/types/api'
 import { todayJakarta } from '~/lib/finance/dates'
-import { INVOICE_TYPE_LABEL } from '~/lib/finance/labels'
+import { DRAFT_INVOICE_TYPES, INVOICE_TYPE_LABEL } from '~/lib/finance/labels'
 
 /**
  * Create or edit a customer invoice DRAFT. A draft is not a receivable and moves no money; issuing it (from the
@@ -43,7 +43,7 @@ watch(() => props.open, (open) => {
   form.notes = inv?.notes ?? ''
 })
 
-const typeOptions = (Object.keys(INVOICE_TYPE_LABEL) as ApiInvoiceType[]).map(t => ({ value: t, label: INVOICE_TYPE_LABEL[t] }))
+const typeOptions = DRAFT_INVOICE_TYPES.map(t => ({ value: t, label: INVOICE_TYPE_LABEL[t] }))
 const total = computed(() => form.lines.reduce((s, l) => s + BigInt(l.amount || '0'), 0n))
 
 /** Commercial context of the project (Finance sees the full summary). */

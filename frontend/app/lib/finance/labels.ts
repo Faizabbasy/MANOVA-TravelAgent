@@ -52,8 +52,12 @@ export const INVOICE_TYPE_LABEL: Record<ApiInvoiceType, string> = {
   dp: 'DP',
   progress: 'Termin',
   final: 'Pelunasan',
-  other: 'Lainnya'
+  other: 'Lainnya',
+  debit_note: 'Debit note'
 }
+
+/** Types offered when drafting an invoice or a billing plan; debit notes are issued from an invoice instead. */
+export const DRAFT_INVOICE_TYPES: ApiInvoiceType[] = ['dp', 'progress', 'final', 'other']
 
 interface Tag { label: string; tone: BadgeTone }
 

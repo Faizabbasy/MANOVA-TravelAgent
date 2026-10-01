@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { ApiInvoiceType } from '~/types/api'
 import { todayJakarta } from '~/lib/finance/dates'
-import { INVOICE_TYPE_LABEL } from '~/lib/finance/labels'
+import { DRAFT_INVOICE_TYPES, INVOICE_TYPE_LABEL } from '~/lib/finance/labels'
 
 /**
  * Plan a billing term for a project (e.g. "DP 30%" on a date). A plan is not a receivable; it becomes one when
@@ -22,7 +22,7 @@ watch(() => props.open, (open) => {
   Object.assign(form, { projectId: props.projectId ?? null, label: '', invoiceType: 'dp', amount: '', plannedDate: today })
 })
 
-const typeOptions = (Object.keys(INVOICE_TYPE_LABEL) as ApiInvoiceType[]).map(t => ({ value: t, label: INVOICE_TYPE_LABEL[t] }))
+const typeOptions = DRAFT_INVOICE_TYPES.map(t => ({ value: t, label: INVOICE_TYPE_LABEL[t] }))
 
 const action = useFinanceAction(() => api.finance.createScheduleItem({
   projectId: form.projectId!, label: form.label.trim(), invoiceType: form.invoiceType, amountMinor: form.amount, plannedDate: form.plannedDate
