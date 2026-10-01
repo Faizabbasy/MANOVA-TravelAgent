@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { accountDto } from '../src/modules/finance/accounts'
 import { todayBusinessDate } from '../src/modules/finance/common'
+import { migrateDown } from '../src/db/migrator'
 import { DEMO, makeTestApp, type TestApp } from './helpers'
 
 /**
@@ -462,6 +463,22 @@ describe('project expenses (Pengeluaran tab: Finance and Super Admin only)', () 
   test('an unknown category is still refused', async () => {
     const id = await openAccount('PRJ-EXP-2', '100000')
     expect((await post('finance', '/transactions', { bankAccountId: id, kind: 'expense', category: 'snacks', amountMinor: '1000', effectiveDate: TODAY, projectId: 'PRJ-201' })).status).toBe(400)
+  })
+
+  test('rolling back 0014 while project-category expenses exist is refused with a clear message (rows are immutable)', async () => {
+    const scratch = await makeTestApp()
+    try {
+      const login = await scratch.login(DEMO.finance)
+      const superAdmin = await scratch.login(DEMO.superAdmin)
+      const call = (cookie: string, path: string, body: unknown) => scratch.call('POST', `/api/v1/finance${path}`, { cookie, body, headers: { 'idempotency-key': newKey() } })
+      const acc = (await call(login, '/accounts', { code: 'RB-1', bankName: 'B', holderName: 'H', accountNumber: '1234567' })).json.data.id
+      await call(login, `/accounts/${acc}/opening`, { amountMinor: '100000', openingDate: OPENING_DATE })
+      await call(superAdmin, `/accounts/${acc}/opening/verify`, { balanceMinor: '100000', openingDate: OPENING_DATE })
+      expect((await call(login, '/transactions', { bankAccountId: acc, kind: 'expense', category: 'meals', amountMinor: '1000', effectiveDate: TODAY, projectId: 'PRJ-201' })).status).toBe(201)
+      await expect(migrateDown(scratch.db, { to: 13 })).rejects.toThrow('project expense categories are in use')
+    } finally {
+      await scratch.cleanup()
+    }
   })
 
   test('super admin can post a project expense; admin can neither post nor read them', async () => {

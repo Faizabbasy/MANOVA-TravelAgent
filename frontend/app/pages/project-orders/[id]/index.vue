@@ -272,10 +272,10 @@ const orderSummaries = useFinanceQuery(async () => {
 function orderFigures (orderId: string) {
   return groupTripOrderFigures(orderSummaries.data.value?.get(orderId) ?? null)
 }
-/** What is still owed on a participant booking (Finance view only); null when nothing is due or unknown. */
+/** What is still owed on an invoiced participant booking (Finance view only); null when settled, not invoiced or unknown. */
 function orderOutstandingMinor (orderId: string): string | null {
   const figures = orderFigures(orderId)
-  return figures.kind === 'full' && figures.outstandingMinor !== '0' && figures.receivedMinor !== '0' ? figures.outstandingMinor : null
+  return figures.kind === 'full' && figures.invoiced && figures.outstandingMinor !== '0' ? figures.outstandingMinor : null
 }
 const PAYMENT_LABEL_TONE: Record<string, BadgeTone> = { Lunas: 'success', 'DP diterima': 'warning', 'Belum dibayar': 'warning', 'Menunggu DP': 'neutral' }
 /** Tab Payments (Group Trip): one row per participant booking with its server figures. */
@@ -3431,8 +3431,8 @@ const tripDurationDays = computed(() => {
                     <StatusBadge
                       v-else-if="orderFigures(row.order.id).kind !== 'unavailable'"
                       class="shrink-0"
-                      :label="orderFigures(row.order.id).kind === 'full' ? 'Lunas' : orderStatusLabel(row.order.id)"
-                      :tone="orderFigures(row.order.id).kind === 'full' ? 'success' : 'neutral'"
+                      :label="orderStatusLabel(row.order.id)"
+                      :tone="PAYMENT_LABEL_TONE[orderStatusLabel(row.order.id)] ?? 'neutral'"
                     />
                     <StatusBadge :label="row.statusOption.label" :tone="row.statusOption.tone" class="shrink-0" />
                   </li>

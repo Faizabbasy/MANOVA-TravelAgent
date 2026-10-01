@@ -8,3 +8,7 @@ alter table customer_invoices add constraint customer_invoices_debit_note_origin
   check ((invoice_type = 'debit_note') = (adjusts_invoice_id is not null));
 create index customer_invoices_adjusts on customer_invoices (adjusts_invoice_id) where adjusts_invoice_id is not null;
 create sequence finance_debit_note_number_seq;
+-- A participant booking keeps one live base invoice; its debit notes carry the same sales_order_id.
+drop index customer_invoices_one_per_sales_order;
+create unique index customer_invoices_one_per_sales_order on customer_invoices (sales_order_id)
+  where sales_order_id is not null and status <> 'void' and invoice_type <> 'debit_note';

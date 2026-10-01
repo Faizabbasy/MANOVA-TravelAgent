@@ -27,7 +27,7 @@ describe('groupTripOrderFigures (Bookings / Payments tabs)', () => {
   })
 
   it('Finance: an order with no invoice yet can be confirmed', () => {
-    expect(groupTripOrderFigures(full({}))).toEqual({ kind: 'full', label: 'Menunggu DP', priceMinor: '7000000', receivedMinor: '0', outstandingMinor: '7000000', canConfirm: true })
+    expect(groupTripOrderFigures(full({}))).toEqual({ kind: 'full', label: 'Menunggu DP', priceMinor: '7000000', receivedMinor: '0', outstandingMinor: '7000000', invoiced: false, canConfirm: true })
   })
 
   it('Finance: once invoiced (DP received or paid) it cannot be confirmed again', () => {
@@ -35,6 +35,17 @@ describe('groupTripOrderFigures (Bookings / Payments tabs)', () => {
       .toMatchObject({ kind: 'full', canConfirm: false, outstandingMinor: '4900000' })
     expect(groupTripOrderFigures(full({ paymentStatus: 'paid', invoiceId: 'CINV-1', receivedMinor: '7000000', outstandingMinor: '0' })))
       .toMatchObject({ kind: 'full', canConfirm: false })
+  })
+})
+
+describe('groupTripOrderFigures: which balance to show', () => {
+  it('an issued invoice with nothing received yet is invoiced, not paid (label from the server)', () => {
+    const f = groupTripOrderFigures(full({ paymentStatus: 'invoiced', invoiceId: 'CINV-1', invoicedMinor: '7000000', outstandingMinor: '7000000', label: 'Belum dibayar' }))
+    expect(f).toMatchObject({ kind: 'full', invoiced: true, label: 'Belum dibayar', outstandingMinor: '7000000' })
+  })
+
+  it('no invoice yet: not invoiced', () => {
+    expect(groupTripOrderFigures(full({}))).toMatchObject({ invoiced: false })
   })
 })
 

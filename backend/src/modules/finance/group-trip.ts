@@ -4,7 +4,7 @@ import { ID_PATTERN } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { parseMovementAmount, rule } from './common'
 import { validateEffectiveDate } from './postings'
-import { createInvoiceDraft, invoiceOutstanding, issueInvoice, postReceipt } from './receivables'
+import { createInvoiceDraft, issueInvoice, postReceipt } from './receivables'
 
 /**
  * Group Trip B2C — DP per participant booking (sales order). Confirming the DP issues one invoice for the full
@@ -72,21 +72,27 @@ export async function confirmGroupTripDp (tx: Queryable, actor: Actor, id: strin
 /** Finance/Super Admin get the figures; Admin the status label only (server-decided, never amounts). */
 export async function salesOrderFinanceSummary (db: Db, id: string, full: boolean) {
   const so = await readSalesOrder(db, id)
-  const [inv] = await db.query<{ id: string; total_minor: string }>(
-    "select id, total_minor from customer_invoices where sales_order_id = $1 and status = 'issued'", [so.id])
-  const outstanding = inv ? await invoiceOutstanding(db, inv.id) : BigInt(so.price_minor)
-  const received = inv ? BigInt(inv.total_minor) - outstanding : 0n
-  const paymentStatus: SalesOrderPaymentStatus = !inv ? 'not_invoiced' : outstanding === 0n ? 'paid' : received > 0n ? 'dp_received' : 'invoiced'
+  // The base DP invoice plus any debit notes on it (same sales_order_id), issued ones only.
+  const rows = await db.query<{ id: string; invoice_type: string; total_minor: string; paid_minor: string; credited_minor: string }>(
+    `select i.id, i.invoice_type, b.total_minor, b.paid_minor, b.credited_minor
+       from customer_invoices i join v_customer_invoice_balances b on b.invoice_id = i.id
+      where i.sales_order_id = $1 and i.status = 'issued'`, [so.id])
+  const base = rows.find(r => r.invoice_type !== 'debit_note')
+  const sum = (key: 'total_minor' | 'paid_minor' | 'credited_minor') => rows.reduce((s, r) => s + BigInt(r[key]), 0n)
+  const invoiced = sum('total_minor')
+  const received = sum('paid_minor')
+  const outstanding = base ? invoiced - received - sum('credited_minor') : BigInt(so.price_minor)
+  const paymentStatus: SalesOrderPaymentStatus = !base ? 'not_invoiced' : outstanding === 0n ? 'paid' : received > 0n ? 'dp_received' : 'invoiced'
   const label = PAYMENT_LABEL[paymentStatus]
   if (!full) return { view: 'status' as const, salesOrderId: so.id, paymentStatus, label }
   return {
     view: 'full' as const,
     salesOrderId: so.id,
     priceMinor: so.price_minor,
-    invoicedMinor: inv?.total_minor ?? '0',
+    invoicedMinor: invoiced.toString(),
     receivedMinor: received.toString(),
     outstandingMinor: outstanding.toString(),
-    invoiceId: inv?.id ?? null,
+    invoiceId: base?.id ?? null,
     paymentStatus,
     label
   }

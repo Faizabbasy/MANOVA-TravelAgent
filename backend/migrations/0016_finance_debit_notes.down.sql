@@ -6,6 +6,9 @@ begin
   end if;
 end
 $$;
+drop index if exists customer_invoices_one_per_sales_order;
+create unique index customer_invoices_one_per_sales_order on customer_invoices (sales_order_id)
+  where sales_order_id is not null and status <> 'void';
 drop sequence if exists finance_debit_note_number_seq;
 drop index if exists customer_invoices_adjusts;
 alter table customer_invoices drop constraint if exists customer_invoices_debit_note_origin;

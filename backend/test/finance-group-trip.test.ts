@@ -89,6 +89,18 @@ describe('group trip DP per participant', () => {
     expect((await get('finance', `/sales-orders/${SLO.id}/finance-summary`)).json.data).toMatchObject({ outstandingMinor: '0', paymentStatus: 'paid', label: 'Lunas' })
   })
 
+  test('a debit note on a participant invoice is billed to the participant and counts in the order balance', async () => {
+    const s = (await get('finance', `/sales-orders/${SLO.id}/finance-summary`)).json.data
+    const dn = await req('POST', 'finance', `/finance/customer-invoices/${s.invoiceId}/debit-notes`, { amountMinor: '500000', reason: 'Tambahan kamar', dueDate: TODAY })
+    expect(dn.status).toBe(201)
+    expect(dn.json.data).toMatchObject({ invoiceType: 'debit_note', salesOrderId: SLO.id, party: { id: SLO.partyId } })
+    const after = (await get('finance', `/sales-orders/${SLO.id}/finance-summary`)).json.data
+    expect(BigInt(after.invoicedMinor)).toBe(SLO.price + 500000n)
+    expect(BigInt(after.outstandingMinor)).toBe(500000n)
+    expect(after.paymentStatus).toBe('dp_received')
+    expect(after.invoiceId).toBe(s.invoiceId) // the base invoice stays the order's invoice
+  })
+
   test('a receipt for the project from a party that is neither the organiser nor a participant is refused', async () => {
     const r = await req('POST', 'finance', '/finance/receipts', { bankAccountId: bank, amountMinor: '1000', effectiveDate: TODAY, partyId: 'PTY-005', projectId: SLO.projectId }, `gt-x-${Date.now()}`)
     expect(r.status).toBe(400)

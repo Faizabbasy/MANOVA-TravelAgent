@@ -7,7 +7,16 @@ import type { SalesOrderFinanceSummaryDto } from '~/types/api'
 export type GroupTripOrderFigures =
   | { kind: 'unavailable' }
   | { kind: 'status'; label: string; canConfirm: false }
-  | { kind: 'full'; label: string; priceMinor: string; receivedMinor: string; outstandingMinor: string; canConfirm: boolean }
+  | {
+      kind: 'full'
+      label: string
+      priceMinor: string
+      receivedMinor: string
+      outstandingMinor: string
+      /** A DP invoice exists for this booking (the balance is a real bill, not the list price). */
+      invoiced: boolean
+      canConfirm: boolean
+    }
 
 export function groupTripOrderFigures (s: SalesOrderFinanceSummaryDto | null): GroupTripOrderFigures {
   if (!s) { return { kind: 'unavailable' } }
@@ -18,6 +27,7 @@ export function groupTripOrderFigures (s: SalesOrderFinanceSummaryDto | null): G
     priceMinor: s.priceMinor,
     receivedMinor: s.receivedMinor,
     outstandingMinor: s.outstandingMinor,
+    invoiced: s.paymentStatus !== 'not_invoiced',
     canConfirm: s.paymentStatus === 'not_invoiced'
   }
 }
