@@ -8,8 +8,8 @@ import {
   getProjectById, getPartyById, getContactsByParty, getUserById, getVendorById, getLeadById,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
   getProjectServices, getItineraryItems, updateServiceStatus, updateItineraryItem, createItineraryItem, removeItineraryItem,
-  getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation, recordVendorPaymentDirect, assignServiceVendor,
-  getServiceOrderByService, getSupplierInvoicesByServiceOrder,
+  getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation, assignServiceVendor,
+  getServiceOrderByService,
   getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, createTravelerGroup,
   toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
@@ -21,14 +21,13 @@ import {
   toggleTaskBlocked, getServiceReadinessMatrix, getDepartureReadiness, getProjectAttentionQueue,
   getBookingTimeline,
   getServiceOrdersByProject, getRfqsByProject,
-  getChangeRequestsByProject, getCancellationRecordsByProject, getRefundRequestsByProject, getIncidentsByProject,
+  getChangeRequestsByProject, getCancellationRecordsByProject, getIncidentsByProject,
   getDocumentsForProject, createDocument, MESSAGE_RECORDS, sendMessage, getInternalProjectMessages, getUnifiedActivityTimeline, updateProjectPhoto,
   USERS,
   getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject,
   confirmGroupTripDp, getSalesOrderOutstandingIdr,
   VENDORS, createFlightBooking, createHotelBooking, createTransportBooking, createMiceEvent, setServiceVendor,
   acceptProjectHandover, returnProjectHandover, setBookingPaymentGateStatus, updateProjectFieldContacts, updateProjectSchedule,
-  paySupplierInvoice,
   getProjectStatusTransitions, updateProjectStatus
 } from '~/data'
 import type { TravelerImportPreviewRow, AttentionQueueItem } from '~/data'
@@ -47,11 +46,13 @@ import {
   PROJECT_STATUSES, SERVICE_STATUSES, SERVICE_TYPES,
   TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES,
   CHANGE_CATEGORIES, CHANGE_APPROVAL_STATUSES, BOOKING_PAYMENT_GATE_STATUSES, SERVICE_ORDER_STATUSES, RFQ_STATUSES, findStatusOption,
-  CHANGE_REQUEST_SOURCES, CHANGE_REQUEST_STATUSES, REFUND_REQUEST_STATUSES, REFUND_CREDIT_STATUSES, INCIDENT_SEVERITIES, INCIDENT_STATUSES,
+  CHANGE_REQUEST_SOURCES, CHANGE_REQUEST_STATUSES, INCIDENT_SEVERITIES, INCIDENT_STATUSES,
   DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES, SALES_ORDER_STATUSES
 } from '~/constants/status'
 import { formatCurrencyIdr, formatCurrencyIdrCompact, formatDateRange, formatDate, formatDateLong, formatDateTime, formatDayLabel, formatDayBadge, formatTravelerCount, maskDocumentNumber, daysUntil } from '~/utils/format'
 import { heroFigures } from '~/lib/finance/project-hero'
+import { vendorPaymentState } from '~/lib/finance/vendor-payment-state'
+import { setProjectFinanceFacts } from '~/data/finance-facts'
 import { formatMoneyMinor } from '~/lib/money'
 import { todayJakarta } from '~/lib/finance/dates'
 import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT, isDpBalanceOverdue, PASSPORT_EXPIRY_WARNING_DAYS } from '~/utils/attention'
@@ -123,11 +124,18 @@ useHead({ title: computed(() => project.value ? project.value.name : 'Project Ti
  * label for Admin. Null while loading or when the server cannot answer (offline, project not seeded there).
  */
 const financeApi = useApi()
+const session = useServerSession()
 const financeSummary = useFinanceQuery(
   async () => (await financeApi.finance.projectSummary(String(route.params.id))).data,
   { watch: [() => route.params.id] }
 )
 const financeSummaryLoading = computed(() => !financeSummary.loaded.value && !financeSummary.error.value)
+// The workflow gates "Invoice DP terbit" / "DP diterima" read these server facts (no amounts, every role).
+watch(() => financeSummary.data.value, (s) => {
+  if (!s) { return }
+  setProjectFinanceFacts([{ projectId: s.projectId, dpInvoiced: s.dpInvoiced, dpReceived: s.dpReceived }])
+  refreshStep()
+}, { immediate: true })
 const commercialHero = computed(() => heroFigures(financeSummary.data.value, todayJakarta()))
 
 /** Foto cover Group Trip B2C (`Project.photoUrl`) — mock upload lokal (data URL), tampil di header sini dan di list "Sales Order" (`/project-orders`). Project B2B tidak menampilkan uploader ini, tetap icon polos. */
@@ -713,13 +721,6 @@ function markBookingPaymentCleared (entry: BookingTimelineEntry) {
   refreshStep()
   showToast('Payment Gate Diperbarui', `${BOOKING_DOMAIN_LABEL_MAP[entry.bookingType]} Booking ${entry.bookingId} kini "Lunas".`, 'success')
 }
-
-/** "Bayar" langsung dari card Supplier Invoice (AP Summary) — sebelumnya harus pindah ke Finance > Payables. */
-function onPaySupplierInvoice (invoiceId: string) {
-  paySupplierInvoice(invoiceId, currentUser.value.id)
-  refreshStep()
-  showToast('Supplier Invoice Dibayar', 'Invoice ditandai lunas dan masuk ke Actual Cost.', 'success')
-}
 const BOOKING_DOMAIN_LABEL_MAP: Record<string, string> = { flight: 'Flight', hotel: 'Hotel', transport: 'Transport', mice: 'MICE' }
 const BOOKING_DOMAIN_TONE_MAP: Record<string, string> = { flight: 'info', hotel: 'purple', transport: 'warning', mice: 'primary' }
 /** Path modul create-booking (Section 13-16) per tipe layanan — dipakai tombol "Buat Booking" quick-create per sub-section. */
@@ -915,7 +916,15 @@ const cakupanLayananChecklist = computed(() => project.value
   : [])
 
 /** "Attention/exception queue" — item diklik untuk lompat ke tab terkait. */
-const attentionQueue = computed(() => project.value ? getProjectAttentionQueue(project.value.id) : [])
+const attentionQueue = computed(() => {
+  if (!project.value) { return [] }
+  const items = getProjectAttentionQueue(project.value.id)
+  // Overdue customer invoices come from the server summary (label-level fact, also sent to Admin).
+  if (financeSummary.data.value?.hasOverdue) {
+    items.push({ severity: 'high', message: 'Ada tagihan customer yang lewat jatuh tempo', tab: canSeeFinanceTabs() ? 'finance' : 'overview' })
+  }
+  return items
+})
 function goToAttentionTab (tab: ProjectDetailTab) {
   activeTab.value = tab
 }
@@ -1389,7 +1398,6 @@ function handleRejectChange (entryId: string) {
  */
 const projectChangeRequests = computed(() => (project.value ? getChangeRequestsByProject(project.value.id) : []))
 const projectCancellations = computed(() => (project.value ? getCancellationRecordsByProject(project.value.id) : []))
-const projectRefunds = computed(() => (project.value ? getRefundRequestsByProject(project.value.id) : []))
 const projectIncidents = computed(() => (project.value ? getIncidentsByProject(project.value.id) : []))
 
 /**
@@ -1419,13 +1427,20 @@ function handleRejectQuotation (quotationId: string) {
   showToast('Quotation Ditolak', 'Quotation vendor ditandai ditolak.', 'info')
 }
 
-/** "Catat Sudah Dibayar ke Vendor" — jalur cepat internal, lihat `recordVendorPaymentDirect` (`app/data/index.ts`).
- * Tombol disembunyikan begitu sudah ada Supplier Invoice `paid` untuk layanan ini, supaya tidak dobel bayar. */
-function isVendorAlreadyPaid (service: ProjectService) {
-  if (!service.vendorId) { return false }
-  const serviceOrder = getServiceOrderByService(service.id)
-  if (!serviceOrder) { return false }
-  return getSupplierInvoicesByServiceOrder(serviceOrder.id).some(invoice => invoice.status === 'paid')
+/**
+ * Paying a vendor is a Finance action on the server (Utang Vendor): the state comes from the approved vendor
+ * invoices in the project summary, and "Bayar Vendor" opens the same payment dialog as the Finance menu.
+ * Admin gets no figures, so neither the badge nor the button shows for Admin.
+ */
+const canPayVendors = computed(() => session.can('finance.post-cash'))
+function vendorPaymentStateOf (service: ProjectService) {
+  return vendorPaymentState(projectFinanceFull.value?.vendorInvoices ?? [], service.vendorId)
+}
+const vendorPaymentOpen = ref(false)
+const vendorPaymentVendorId = ref<string | null>(null)
+function openVendorPayment (service: ProjectService) {
+  vendorPaymentVendorId.value = service.vendorId ?? null
+  vendorPaymentOpen.value = true
 }
 
 /**
@@ -1462,7 +1477,7 @@ function submitAssignVendor () {
   assignServiceVendor(service.id, assignVendorId.value, assignVendorAmountIdr.value ?? undefined)
 
   if (assignVendorAmountIdr.value && assignVendorAmountIdr.value > 0) {
-    showToast('Vendor Ditugaskan', `${vendorName} ditugaskan untuk "${service.label}" — layanan langsung Confirmed dan Supplier Invoice terbentuk senilai ${formatCurrencyIdr(assignVendorAmountIdr.value)}.`, 'success')
+    showToast('Vendor Ditugaskan', `${vendorName} ditugaskan untuk "${service.label}" dengan quotation ${formatCurrencyIdr(assignVendorAmountIdr.value)} — layanan langsung Confirmed. Tagihan vendor dicatat Finance di Utang Vendor.`, 'success')
   } else {
     showToast('Vendor Ditugaskan', `${vendorName} ditugaskan untuk "${service.label}".`, 'success')
   }
@@ -1470,35 +1485,9 @@ function submitAssignVendor () {
   isAssignVendorDialogOpen.value = false
 }
 
-const isVendorPaymentDialogOpen = ref(false)
-const vendorPaymentService = ref<ProjectService | null>(null)
-const vendorPaymentAmountIdr = ref<number | null>(null)
-const vendorPaymentNote = ref('')
-
-function openRecordVendorPayment (service: ProjectService) {
-  vendorPaymentService.value = service
-  const acceptedQuotation = quotationsForService(service.id).find(quotation => quotation.status === 'accepted')
-  vendorPaymentAmountIdr.value = acceptedQuotation?.amountIdr ?? null
-  vendorPaymentNote.value = ''
-  isVendorPaymentDialogOpen.value = true
-}
-
-function submitVendorPayment () {
-  const service = vendorPaymentService.value
-  if (!service || !service.vendorId || !vendorPaymentAmountIdr.value) { return }
-  const invoice = recordVendorPaymentDirect({
-    serviceId: service.id,
-    vendorId: service.vendorId,
-    amountIdr: vendorPaymentAmountIdr.value,
-    note: vendorPaymentNote.value.trim() || undefined
-  }, currentUser.value.id)
-  if (!invoice) { return }
-  isVendorPaymentDialogOpen.value = false
-  showToast('Pembayaran Vendor Dicatat', `${formatCurrencyIdr(invoice.amountIdr)} untuk "${service.label}" langsung ditambahkan ke Actual Cost.`, 'success')
-}
-
 const needsAttention = computed(() => project.value
-  ? isProjectNeedingAttention(project.value, { invoices: invoices.value, tasks: tasks.value, activities: activities.value })
+  ? (financeSummary.data.value?.hasOverdue ?? false) ||
+    isProjectNeedingAttention(project.value, { invoices: [], tasks: tasks.value, activities: activities.value })
   : false)
 
 /** Scroll ke card "Riwayat Aktivitas" (pola sama `taskBoardRef`/`attentionQueueSidebarRef`) — dipanggil dari tombol "Lihat Semua" (card "Aktivitas Terbaru") dan "Lihat Activity & Changes" (card "Attention / Exception Queue"), supaya posisi scroll ikut lompat ke section-nya, bukan cuma pindah tab lalu diam di posisi scroll lama. */
@@ -4098,9 +4087,10 @@ const tripDurationDays = computed(() => {
                       :label="findStatusOption(SERVICE_STATUSES, row.service.status).label"
                       :tone="findStatusOption(SERVICE_STATUSES, row.service.status).tone"
                     />
-                    <StatusBadge v-if="isVendorAlreadyPaid(row.service)" label="Sudah Dibayar" tone="success" />
-                    <Button v-else-if="row.service.vendorId && canManageServiceType(row.service.type)" size="sm" variant="outline" @click="openRecordVendorPayment(row.service)">
-                      Catat Sudah Dibayar
+                    <!-- Vendor payment state from the server's approved vendor invoices (Finance view only). -->
+                    <StatusBadge v-if="vendorPaymentStateOf(row.service) === 'paid'" label="Sudah Dibayar" tone="success" />
+                    <Button v-else-if="vendorPaymentStateOf(row.service) === 'open' && canPayVendors" size="sm" variant="outline" @click="openVendorPayment(row.service)">
+                      Bayar Vendor
                     </Button>
                     <Button v-else-if="!row.service.vendorId && canManageServiceType(row.service.type)" size="sm" variant="outline" @click="openAssignVendorDialog(row.service)">
                       Tugaskan Vendor
@@ -4237,34 +4227,7 @@ const tripDurationDays = computed(() => {
             </template>
           </ResponsiveFormSheet>
 
-          <Sheet v-model:open="isVendorPaymentDialogOpen">
-            <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle>Catat Sudah Dibayar ke Vendor</SheetTitle>
-                <SheetDescription>
-                  Untuk layanan "{{ vendorPaymentService?.label }}" — {{ vendorPaymentService?.vendorId ? getVendorById(vendorPaymentService.vendorId)?.name : '' }}. Langsung tercatat lunas dan masuk Actual Cost, tanpa lewat pengajuan invoice mandiri vendor.
-                </SheetDescription>
-              </SheetHeader>
-              <div class="space-y-4 py-2">
-                <div class="space-y-1.5">
-                  <Label for="vendor-payment-amount">Nominal Dibayar (Rp)</Label>
-                  <CurrencyInput id="vendor-payment-amount" v-model="vendorPaymentAmountIdr" placeholder="mis. 8500000" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="vendor-payment-note">Catatan (opsional)</Label>
-                  <Input id="vendor-payment-note" v-model="vendorPaymentNote" placeholder="mis. Dibayar transfer langsung oleh Ops" />
-                </div>
-              </div>
-              <SheetFooter class="mt-6 flex-row justify-end gap-2">
-                <Button variant="outline" @click="isVendorPaymentDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!vendorPaymentAmountIdr" @click="submitVendorPayment">
-                  Simpan
-                </Button>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
+          <FinanceVendorPaymentDialog v-model:open="vendorPaymentOpen" :vendor-id="vendorPaymentVendorId" />
         </TabsContent>
 
         <TabsContent v-if="canSeeFinanceTab" value="finance">
@@ -5195,24 +5158,8 @@ const tripDurationDays = computed(() => {
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Refund Requests">
-                <ul v-if="projectRefunds.length" class="divide-y divide-border">
-                  <li v-for="item in projectRefunds" :key="item.id" class="py-3">
-                    <NuxtLink :to="`/changes/refunds/${item.id}`" class="flex items-center justify-between gap-3 group">
-                      <div class="min-w-0">
-                        <p class="font-ticket-mono text-sm font-medium text-foreground group-hover:underline">
-                          {{ item.id }} ({{ item.type === 'full' ? 'Full' : 'Partial' }})
-                        </p>
-                        <p class="text-xs text-muted-foreground">
-                          {{ formatCurrencyIdr(item.amountIdr) }} · Credit: {{ findStatusOption(REFUND_CREDIT_STATUSES, item.creditStatus).label }}
-                        </p>
-                      </div>
-                      <StatusBadge :label="findStatusOption(REFUND_REQUEST_STATUSES, item.status).label" :tone="findStatusOption(REFUND_REQUEST_STATUSES, item.status).tone" />
-                    </NuxtLink>
-                  </li>
-                </ul>
-                <EmptyState v-else title="Belum ada Refund Request" />
-              </SectionCard>
+              <!-- Refund cases from the server (status only for Admin; Finance opens the case). -->
+              <FinanceRefundCaseList :project-id="project.id" />
 
               <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Incidents">
                 <ul v-if="projectIncidents.length" class="divide-y divide-border">

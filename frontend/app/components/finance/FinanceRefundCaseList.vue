@@ -6,12 +6,16 @@ import { refundTag, subjectLabel } from '~/lib/finance/refunds'
 /**
  * Refund cases from cancellations, as operations sees them (Changes screen): who, what was cancelled, when, and
  * where the refund stands — never amounts (the server sends Admin the status view). Finance opens the case in
- * Finance › Refund & Pembatalan.
+ * Finance › Refund & Pembatalan. With `projectId`, only the cases of that project (Project Detail).
  */
+const props = defineProps<{ projectId?: string }>()
 const api = useApi()
 const session = useServerSession()
 const today = todayJakarta()
-const cases = useFinanceQuery(async () => (await api.finance.refundStatuses({ view: 'all', limit: 100 })).data)
+const cases = useFinanceQuery(
+  async () => (await api.finance.refundStatuses({ view: 'all', limit: 100, projectId: props.projectId })).data,
+  { watch: [() => props.projectId] }
+)
 const isFinance = computed(() => session.can('finance.view-cash'))
 const hidden = computed(() => ['offline', 'signed-out'].includes(session.state.value.status) || !!cases.error.value?.isForbidden)
 </script>
