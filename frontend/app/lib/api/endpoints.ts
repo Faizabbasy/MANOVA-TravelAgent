@@ -10,6 +10,7 @@ import type {
   BillingScheduleItemDto,
   BookingFinanceSummaryDto,
   BookingRefDto,
+  IsoDate,
   CancellationInput,
   CancellationPolicyDto,
   CancellationPreviewDto,
@@ -196,7 +197,8 @@ export function createManovaApi (client: ApiClient) {
       /** App dashboard: every project's payment status (Admin) plus cash, forecast and AR/AP (Finance). */
       overview: () => client.get<FinanceOverviewDto>('/finance/overview'),
       /** Reports: accrual revenue/cost/net per month and vendor spend (Finance, Super Admin). */
-      monthlyReport: (query: { months?: string } = {}) => client.get<MonthlyReportDto>('/finance/reports/monthly', { query: { ...query } }),
+      /** Either the last `months` (default 6) or every calendar month a `from`–`to` range touches (max 24). */
+      monthlyReport: (query: { months?: string; from?: IsoDate; to?: IsoDate } = {}) => client.get<MonthlyReportDto>('/finance/reports/monthly', { query: { ...query } }),
       projectSummary: (projectId: string) => client.get<ProjectFinanceSummaryDto>(`/projects/${seg(projectId)}/finance-summary`),
       bookingSummary: (type: ApiBookingType, id: string) => client.get<BookingFinanceSummaryDto>(`/bookings/${seg(type)}/${seg(id)}/finance-summary`),
       vendorSummary: (vendorId: string) => client.get<VendorFinanceSummaryDto>(`/vendors/${seg(vendorId)}/finance-summary`),

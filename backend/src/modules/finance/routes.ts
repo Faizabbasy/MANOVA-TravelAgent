@@ -88,7 +88,7 @@ export function financeRoutes(deps: AppDeps, auth: AuthContext) {
         await auth.requireCapability(request, 'finance.view-project-finance')
         return ok(request, await monthlyReport(db, query))
       },
-      { query: t.Object({ months: t.Optional(t.String()) }) }
+      { query: t.Object({ months: t.Optional(t.String()), from: t.Optional(t.String()), to: t.Optional(t.String()) }) }
     )
     .get('/accounts', async ({ request }) => {
       const actor = await auth.requireCapability(request, 'finance.view-cash')

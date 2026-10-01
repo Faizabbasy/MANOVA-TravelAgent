@@ -1,6 +1,7 @@
 import type { Db } from '../../db/client'
 import { BUSINESS_TIMEZONE } from '../../config/env'
 import { errors } from '../../http/errors'
+import { isIsoDate } from '../../shared/dates'
 import { todayBusinessDate } from './common'
 
 /**
@@ -28,11 +29,44 @@ function monthsBack(today: string, count: number): string[] {
   return out
 }
 
-export async function monthlyReport(db: Db, query: { months?: string }) {
+/** Calendar months touched by [from, to], inclusive ('2026-07-15'..'2026-09-10' → 07, 08, 09). */
+function monthsBetween(from: string, to: string): string[] {
+  const out: string[] = []
+  let y = Number(from.slice(0, 4))
+  let m = Number(from.slice(5, 7))
+  const end = to.slice(0, 7)
+  for (let month = from.slice(0, 7); month <= end; month = `${y}-${String(m).padStart(2, '0')}`) {
+    out.push(month)
+    m += 1
+    if (m === 13) { m = 1; y += 1 }
+  }
+  return out
+}
+
+function rangeDate(value: string | undefined, field: string): string {
+  if (value === undefined || !isIsoDate(value)) throw errors.validation({ [field]: ['Tanggal harus berformat YYYY-MM-DD.'] })
+  return value
+}
+
+/** Months to report: the last `months` (default 6) up to today, or every calendar month a from/to range touches. */
+function reportMonths(query: { months?: string; from?: string; to?: string }, today: string): string[] {
+  if (query.from !== undefined || query.to !== undefined) {
+    if (query.months !== undefined) throw errors.validation({ months: ['Pakai months ATAU from/to, bukan keduanya.'] })
+    const from = rangeDate(query.from, 'from')
+    const to = rangeDate(query.to, 'to')
+    if (from > to) throw errors.validation({ to: ['Tanggal akhir sebelum tanggal awal.'] })
+    const months = monthsBetween(from, to)
+    if (months.length > 24) throw errors.validation({ from: ['Rentang maksimal 24 bulan.'] })
+    return months
+  }
   const count = query.months === undefined ? 6 : Number(query.months)
   if (!Number.isInteger(count) || count < 1 || count > 24) throw errors.validation({ months: ['Jumlah bulan 1–24.'] })
+  return monthsBack(today, count)
+}
+
+export async function monthlyReport(db: Db, query: { months?: string; from?: string; to?: string }) {
   const today = todayBusinessDate()
-  const months = monthsBack(today, count)
+  const months = reportMonths(query, today)
   const from = `${months[0]}-01`
 
   const bucket = async (sql: string, params: unknown[] = [from]) => new Map(

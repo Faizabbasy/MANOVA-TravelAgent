@@ -176,6 +176,17 @@ describe('createManovaApi — receivables & payables', () => {
       'DELETE /api/v1/finance/customer-invoices/CINV-00009'
     ])
   })
+
+  it('monthly report takes a month count or a date range', async () => {
+    const { calls, transport } = fakeTransport(200, { data: {}, meta: { requestId: 'r' } })
+    const api = createManovaApi(createApiClient({ baseURL: '/api/v1', transport }))
+    await api.finance.monthlyReport({ months: '6' })
+    await api.finance.monthlyReport({ from: '2026-07-01', to: '2026-09-30' })
+    expect(calls.map(c => `${c.method} ${c.url}`)).toEqual([
+      'GET /api/v1/finance/reports/monthly?months=6',
+      'GET /api/v1/finance/reports/monthly?from=2026-07-01&to=2026-09-30'
+    ])
+  })
 })
 
 describe('createManovaApi', () => {

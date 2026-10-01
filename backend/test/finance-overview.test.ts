@@ -88,6 +88,31 @@ describe('monthly report (accrual)', () => {
     expect((await get('finance', '/finance/reports/monthly?months=25')).status).toBe(400)
   })
 
+  test('from/to returns exactly the calendar months the range touches', async () => {
+    const r = await get('finance', '/finance/reports/monthly?from=2026-07-15&to=2026-09-10')
+    expect(r.status).toBe(200)
+    expect(r.json.data.months.map((m: { month: string }) => m.month)).toEqual(['2026-07', '2026-08', '2026-09'])
+    const year = await get('finance', '/finance/reports/monthly?from=2025-11-01&to=2026-02-28')
+    expect(year.json.data.months.map((m: { month: string }) => m.month)).toEqual(['2025-11', '2025-12', '2026-01', '2026-02'])
+  })
+
+  test('a range matches the same months of the months= report', async () => {
+    const byCount = (await get('finance', '/finance/reports/monthly?months=3')).json.data
+    const from = `${byCount.months[0].month}-01`
+    const byRange = (await get('finance', `/finance/reports/monthly?from=${from}&to=${byCount.asOf}`)).json.data
+    expect(byRange.months).toEqual(byCount.months)
+  })
+
+  test('range is validated: order, mixing with months, 24-month cap, format; 401 without a session', async () => {
+    expect((await get('finance', '/finance/reports/monthly?from=2026-09-01&to=2026-08-01')).status).toBe(400)
+    expect((await get('finance', '/finance/reports/monthly?months=3&from=2026-09-01&to=2026-09-30')).status).toBe(400)
+    expect((await get('finance', '/finance/reports/monthly?from=2024-01-01&to=2026-09-30')).status).toBe(400)
+    expect((await get('finance', '/finance/reports/monthly?from=2026-09-01')).status).toBe(400)
+    expect((await get('finance', '/finance/reports/monthly?from=2026-13-01&to=2026-12-31')).status).toBe(400)
+    expect((await get('admin', '/finance/reports/monthly?from=2026-09-01&to=2026-09-30')).status).toBe(403)
+    expect((await t.call('GET', '/api/v1/finance/reports/monthly?from=2026-09-01&to=2026-09-30')).status).toBe(401)
+  })
+
   test('months add up to the projects, the vendors and the Statement', async () => {
     const report = (await get('finance', '/finance/reports/monthly?months=12')).json.data
     expect(report.months).toHaveLength(12)
