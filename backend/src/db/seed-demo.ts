@@ -39,6 +39,8 @@ export interface DemoCoreSeed {
     departureDate: string | null
   }[]
   serviceOrders: { id: string; vendorId: string; projectId: string | null; serviceId: string | null }[]
+  /** Group Trip participant bookings (owned by Sales); each is billed to its own customer. */
+  salesOrders: { id: string; projectId: string; partyId: string; priceMinor: string; travelerCount: number }[]
 }
 
 export const DEMO_CORE = demoCore as DemoCoreSeed
@@ -56,6 +58,7 @@ export interface SeedResult {
   projectServices: number
   bookingRefs: number
   serviceOrders: number
+  salesOrders: number
 }
 
 export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: string; seed?: DemoCoreSeed }): Promise<SeedResult> {
@@ -152,6 +155,15 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
         [so.id, so.vendorId, so.projectId, so.serviceId, P]
       )
     }
+    for (const so of seed.salesOrders ?? []) {
+      await tx.query(
+        `insert into sales_order_refs (id, project_id, party_id, price_minor, traveler_count, provenance) values ($1, $2, $3, $4, $5, $6)
+         on conflict (id) do update set project_id = excluded.project_id, party_id = excluded.party_id,
+           price_minor = excluded.price_minor, traveler_count = excluded.traveler_count
+         where sales_order_refs.provenance = 'demo-fixture'`,
+        [so.id, so.projectId, so.partyId, so.priceMinor, so.travelerCount, P]
+      )
+    }
     await tx.query(
       `insert into audit_events (action, entity_type, details) values ('seed.demo_applied', 'database', $1::text::jsonb)`,
       [JSON.stringify({ source: seed.source, users: seed.users.length, projects: seed.projects.length })]
@@ -165,6 +177,7 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
     projects: seed.projects.length,
     projectServices: seed.projectServices.length,
     bookingRefs: seed.bookingRefs.length,
-    serviceOrders: seed.serviceOrders.length
+    serviceOrders: seed.serviceOrders.length,
+    salesOrders: (seed.salesOrders ?? []).length
   }
 }

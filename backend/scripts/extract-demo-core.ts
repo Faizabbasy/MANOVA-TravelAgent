@@ -15,6 +15,7 @@ import { MICE_EVENTS } from '../../frontend/app/data/mice'
 import { PARTIES } from '../../frontend/app/data/parties'
 import { SERVICE_ORDERS } from '../../frontend/app/data/procurement'
 import { PROJECT_SERVICES, PROJECTS } from '../../frontend/app/data/projects'
+import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
 import { FLIGHT_BOOKINGS } from '../../frontend/app/data/ticketing'
 import { TRANSPORT_BOOKINGS } from '../../frontend/app/data/transportation'
 import { USERS } from '../../frontend/app/data/users'
@@ -58,7 +59,7 @@ function miceSell (event: { boqItems: { sellPriceIdr?: number }[] }) {
 }
 
 const seed: DemoCoreSeed = {
-  source: 'frontend/app/data/{users,parties,vendors,projects,ticketing,accommodation,transportation,mice,procurement}.ts',
+  source: 'frontend/app/data/{users,parties,vendors,projects,ticketing,accommodation,transportation,mice,procurement,sales-orders}.ts',
   parties: [...PARTIES].sort(byId).map(p => ({
     id: p.id,
     name: p.name,
@@ -109,7 +110,15 @@ const seed: DemoCoreSeed = {
       serviceId = null
     }
     return { id: so.id, vendorId: so.vendorId, projectId, serviceId }
-  })
+  }),
+  /** Group Trip participant bookings only (standalone B2C orders have no project). */
+  salesOrders: [...SALES_ORDERS].filter(o => o.projectId).sort(byId).map(o => ({
+    id: o.id,
+    projectId: o.projectId!,
+    partyId: o.customerId,
+    priceMinor: String(Math.round(o.priceIdr)),
+    travelerCount: o.travelerCount
+  }))
 }
 
 const out = resolve(import.meta.dir, '../src/db/seeds/demo-core.json')
@@ -117,6 +126,6 @@ writeFileSync(out, JSON.stringify(seed, null, 2) + '\n')
 console.log(`Wrote ${out}`)
 console.log(
   `parties=${seed.parties.length} vendors=${seed.vendors.length} users=${seed.users.length} projects=${seed.projects.length} ` +
-  `services=${seed.projectServices.length} bookingRefs=${seed.bookingRefs.length} serviceOrders=${seed.serviceOrders.length}`
+  `services=${seed.projectServices.length} bookingRefs=${seed.bookingRefs.length} serviceOrders=${seed.serviceOrders.length} salesOrders=${seed.salesOrders.length}`
 )
 for (const w of warnings) console.warn(`warning: ${w}`)

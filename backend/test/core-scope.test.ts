@@ -19,7 +19,7 @@ beforeAll(async () => {
 afterAll(() => t.cleanup())
 
 const get = (who: string, path: string) => t.call('GET', path, { cookie: cookies[who] })
-const ALL_PROJECTS = ['PRJ-101', 'PRJ-102', 'PRJ-103', 'PRJ-104', 'PRJ-201', 'PRJ-202', 'PRJ-203', 'PRJ-204']
+const ALL_PROJECTS = ['PRJ-101', 'PRJ-102', 'PRJ-103', 'PRJ-104', 'PRJ-201', 'PRJ-202', 'PRJ-203', 'PRJ-204', 'PRJ-205', 'PRJ-501', 'PRJ-502']
 
 describe('unauthenticated', () => {
   test('every core endpoint returns 401', async () => {
@@ -51,7 +51,7 @@ describe('internal roles', () => {
       cursor = res.json.meta.pagination.nextCursor
       pages++
     } while (cursor && pages < 10)
-    expect(pages).toBe(3)
+    expect(pages).toBe(Math.ceil(ALL_PROJECTS.length / 3))
     expect(seen).toEqual(ALL_PROJECTS)
   })
 
@@ -96,7 +96,7 @@ describe('internal roles', () => {
   })
 
   test('parties, vendors and service orders are readable', async () => {
-    expect((await get('finance', '/api/v1/parties?limit=100')).json.data).toHaveLength(8)
+    expect((await get('finance', '/api/v1/parties?limit=100')).json.data).toHaveLength(18)
     expect((await get('admin', '/api/v1/vendors?limit=100')).json.data).toHaveLength(7)
     expect((await get('finance', '/api/v1/service-orders/SO-002')).json.data).toEqual({
       id: 'SO-002', vendorId: 'VND-006', vendorName: 'PT ABC', projectId: 'PRJ-102', serviceId: null

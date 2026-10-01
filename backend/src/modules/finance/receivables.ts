@@ -167,6 +167,8 @@ export interface InvoiceDraftInput {
   projectId?: string
   booking?: { type: string; id: string }
   billingScheduleItemId?: string
+  /** Group Trip: bill one participant booking; project and customer come from the sales order. */
+  salesOrderId?: string
   invoiceType?: string
   lines?: LineInput[]
   dueDate?: string
@@ -185,12 +187,22 @@ export async function createInvoiceDraft(tx: Queryable, actor: Actor, input: Inv
     if (linked) throw rule(`Termin ini sudah punya invoice ${linked.id}.`)
     if (input.projectId && input.projectId !== schedule.project_id) throw errors.validation({ projectId: ['Project berbeda dengan project termin.'] })
   }
+  let salesOrder: { id: string; project_id: string; party_id: string } | undefined
+  if (input.salesOrderId) {
+    if (input.billingScheduleItemId) throw errors.validation({ salesOrderId: ['Invoice peserta tidak memakai termin project.'] })
+    if (!ID_PATTERN.test(input.salesOrderId)) throw errors.validation({ salesOrderId: ['Sales order tidak valid.'] })
+    ;[salesOrder] = await tx.query<NonNullable<typeof salesOrder>>('select id, project_id, party_id from sales_order_refs where id = $1', [input.salesOrderId])
+    if (!salesOrder) throw errors.validation({ salesOrderId: ['Sales order tidak ditemukan.'] })
+    if (input.projectId && input.projectId !== salesOrder.project_id) throw errors.validation({ projectId: ['Project berbeda dengan project sales order.'] })
+  }
   const projectInput = {
-    projectId: input.projectId ?? schedule?.project_id,
+    projectId: input.projectId ?? schedule?.project_id ?? salesOrder?.project_id,
     booking: input.booking ?? (schedule?.booking_id ? { type: schedule.booking_type!, id: schedule.booking_id } : undefined)
   }
   const { refs, project } = await lockProjectRef(tx, projectInput)
   await assertBillable(tx, project.id, { type: refs.bookingType, id: refs.bookingId })
+  // A participant booking is billed to its own customer; everything else to the project's customer.
+  const partyId = salesOrder?.party_id ?? project.party_id
   const invoiceType = requireInvoiceType(input.invoiceType ?? schedule?.invoice_type)
   const lines = validateLines(input.lines ?? (schedule ? [{ description: schedule.label, amountMinor: schedule.amount_minor }] : undefined))
   const dueDate = optionalDate(input.dueDate, 'dueDate')
@@ -199,20 +211,24 @@ export async function createInvoiceDraft(tx: Queryable, actor: Actor, input: Inv
   let row: { id: string } | undefined
   try {
     ;[row] = await tx.query<{ id: string }>(
-      `insert into customer_invoices (project_id, party_id, booking_type, booking_id, billing_schedule_item_id, invoice_type, due_date, expected_date, notes, created_by)
-       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) returning id`,
-      [project.id, project.party_id, refs.bookingType, refs.bookingId, schedule?.id ?? null, invoiceType, dueDate, expectedDate, trimOrNull(input.notes, 1000), actor.userId]
+      `insert into customer_invoices (project_id, party_id, booking_type, booking_id, billing_schedule_item_id, sales_order_id, invoice_type, due_date, expected_date, notes, created_by)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) returning id`,
+      [project.id, partyId, refs.bookingType, refs.bookingId, schedule?.id ?? null, salesOrder?.id ?? null, invoiceType, dueDate, expectedDate, trimOrNull(input.notes, 1000), actor.userId]
     )
   } catch (err) {
-    // Backstop for a concurrent draft on the same schedule item (the check above runs without a unique lock).
-    if (isUniqueViolation(err)) throw new AppError(409, 'CONFLICT', 'Termin ini baru saja dipakai invoice lain. Muat ulang daftar termin.')
+    // Backstop for a concurrent draft on the same schedule item / sales order (checks above run without a unique lock).
+    if (isUniqueViolation(err)) {
+      throw salesOrder
+        ? new AppError(422, 'RULE_VIOLATION', 'Sales order ini sudah punya invoice.')
+        : new AppError(409, 'CONFLICT', 'Termin ini baru saja dipakai invoice lain. Muat ulang daftar termin.')
+    }
     throw err
   }
   const total = await replaceLines(tx, row!.id, lines)
   await tx.query('update customer_invoices set total_minor = $2 where id = $1', [row!.id, total.toString()])
   await recordAudit(tx, {
     action: 'finance.invoice_drafted', actorUserId: actor.userId, entityType: 'customer_invoice', entityId: row!.id, requestId,
-    after: { projectId: project.id, partyId: project.party_id, invoiceType, totalMinor: total.toString() }
+    after: { projectId: project.id, partyId, salesOrderId: salesOrder?.id ?? null, invoiceType, totalMinor: total.toString() }
   })
   return { id: row!.id }
 }
@@ -340,7 +356,7 @@ export async function setInvoiceDispute(tx: Queryable, actor: Actor, id: string,
 
 // ── Credit notes ─────────────────────────────────────────────────────────────────────────────────────
 
-async function invoiceOutstanding(q: Queryable, id: string): Promise<bigint> {
+export async function invoiceOutstanding(q: Queryable, id: string): Promise<bigint> {
   const [b] = await q.query<{ total_minor: string; paid_minor: string; credited_minor: string }>(
     'select total_minor, paid_minor, credited_minor from v_customer_invoice_balances where invoice_id = $1', [id]
   )
@@ -444,8 +460,13 @@ export async function postReceipt(tx: Queryable, actor: Actor, input: ReceiptInp
   if (!input.partyId) throw errors.validation({ partyId: ['Pilih customer yang membayar.'] })
   const refs = await resolveReferences(tx, { projectId: input.projectId, booking: input.booking, partyId: input.partyId })
   if (refs.projectId) {
-    const [p] = await tx.query<{ party_id: string }>('select party_id from projects where id = $1', [refs.projectId])
-    if (p!.party_id !== input.partyId) throw errors.validation({ projectId: ['Project ini milik customer lain.'] })
+    // The payer is the project's customer or, on a Group Trip, one of its participants.
+    const [ok] = await tx.query(
+      `select 1 from projects where id = $1 and party_id = $2
+       union all select 1 from sales_order_refs where project_id = $1 and party_id = $2 limit 1`,
+      [refs.projectId, input.partyId]
+    )
+    if (!ok) throw errors.validation({ projectId: ['Project ini milik customer lain.'] })
   }
   const account = await lockPostableAccount(tx, input.bankAccountId, effectiveDate)
   const [row] = await tx.query<{ id: string }>(
@@ -508,6 +529,8 @@ export function invoiceRowDto(r: Record<string, any>, today = todayBusinessDate(
     party: { id: r.party_id, name: r.party_name },
     booking: r.booking_id ? { type: r.booking_type, id: r.booking_id } : null,
     billingScheduleItemId: r.billing_schedule_item_id,
+    /** Group Trip participant booking this invoice bills (its customer is the participant). */
+    salesOrderId: r.sales_order_id ?? null,
     invoiceType: r.invoice_type,
     status: r.status,
     /** Derived for issued invoices: open / partial / paid / credited (zeroed by credit notes, no money). */

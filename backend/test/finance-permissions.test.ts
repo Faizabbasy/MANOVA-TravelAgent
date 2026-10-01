@@ -36,6 +36,7 @@ const ADMIN_SHARED = [
   'GET /api/v1/bookings/:type/:id/finance-summary',
   'GET /api/v1/vendors/:id/finance-summary',
   'GET /api/v1/parties/:id/finance-summary',
+  'GET /api/v1/sales-orders/:id/finance-summary',
   'GET /api/v1/finance/policies',
   'GET /api/v1/finance/policies/:id',
   'GET /api/v1/finance/cancellation-policy/:subjectType/:subjectId',
@@ -97,6 +98,7 @@ describe('every Finance route', () => {
       await req('GET', 'admin', '/bookings/flight/FLT-1021/finance-summary'),
       await req('GET', 'admin', '/vendors/VND-002/finance-summary'),
       await req('GET', 'admin', '/parties/PTY-002/finance-summary'),
+      await req('GET', 'admin', '/sales-orders/SLO-006/finance-summary'),
       await req('GET', 'admin', '/finance/refunds'),
       await req('POST', 'admin', '/finance/cancellations/preview', { subjectType: 'project', subjectId: 'PRJ-102' })
     ]

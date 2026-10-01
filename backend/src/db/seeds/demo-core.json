@@ -1,5 +1,5 @@
 {
-  "source": "frontend/app/data/{users,parties,vendors,projects,ticketing,accommodation,transportation,mice,procurement}.ts",
+  "source": "frontend/app/data/{users,parties,vendors,projects,ticketing,accommodation,transportation,mice,procurement,sales-orders}.ts",
   "parties": [
     {
       "id": "PTY-001",
@@ -53,6 +53,76 @@
     {
       "id": "PTY-008",
       "name": "Reza Hartono",
+      "lifecycleStatus": "client",
+      "partyType": "individual",
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-009",
+      "name": "MANOVA Group Trip (Internal)",
+      "lifecycleStatus": "client",
+      "partyType": "individual",
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-010",
+      "name": "Yulia Kartika",
+      "lifecycleStatus": "client",
+      "partyType": "individual",
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-011",
+      "name": "Bima Nugraha",
+      "lifecycleStatus": "client",
+      "partyType": "individual",
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-012",
+      "name": "Dewi Anjani",
+      "lifecycleStatus": "client",
+      "partyType": "individual",
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-013",
+      "name": "Fajar Nugroho",
+      "lifecycleStatus": "client",
+      "partyType": "individual",
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-014",
+      "name": "Sari Wulandari",
+      "lifecycleStatus": "client",
+      "partyType": "individual",
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-015",
+      "name": "PT Cakra Baja Industri",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": "IDR"
+    },
+    {
+      "id": "PTY-016",
+      "name": "Wahyu Pramesti",
+      "lifecycleStatus": "client",
+      "partyType": "individual",
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-017",
+      "name": "Fajar Ramadhani",
+      "lifecycleStatus": "client",
+      "partyType": "individual",
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-018",
+      "name": "Nadia Kirana",
       "lifecycleStatus": "client",
       "partyType": "individual",
       "preferredCurrency": null
@@ -275,6 +345,48 @@
         "USR-002"
       ],
       "contractValueMinor": "320000000"
+    },
+    {
+      "id": "PRJ-205",
+      "name": "Open Trip Bromo Ijen 4D3N",
+      "partyId": "PTY-009",
+      "destination": "Bromo & Ijen, Indonesia",
+      "travelStartDate": "2026-09-18",
+      "travelEndDate": "2026-09-21",
+      "status": "planning",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "70000000"
+    },
+    {
+      "id": "PRJ-501",
+      "name": "Kuala Lumpur Manufacturing Delegation 2026",
+      "partyId": "PTY-015",
+      "destination": "Kuala Lumpur, Malaysia",
+      "travelStartDate": "2026-07-08",
+      "travelEndDate": "2026-07-11",
+      "status": "draft",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "210000000"
+    },
+    {
+      "id": "PRJ-502",
+      "name": "Labuan Bajo Komodo Explorer 4D3N",
+      "partyId": "PTY-009",
+      "destination": "Labuan Bajo & Pulau Komodo, Indonesia",
+      "travelStartDate": "2026-07-09",
+      "travelEndDate": "2026-07-12",
+      "status": "draft",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "40000000"
     }
   ],
   "projectServices": [
@@ -379,6 +491,48 @@
       "projectId": "PRJ-204",
       "serviceType": "hotel",
       "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-2051",
+      "projectId": "PRJ-205",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-2052",
+      "projectId": "PRJ-205",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-2053",
+      "projectId": "PRJ-205",
+      "serviceType": "hotel",
+      "vendorId": null
+    },
+    {
+      "id": "SVC-5011",
+      "projectId": "PRJ-501",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-5012",
+      "projectId": "PRJ-501",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-5021",
+      "projectId": "PRJ-502",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-5022",
+      "projectId": "PRJ-502",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
     }
   ],
   "bookingRefs": [
@@ -479,6 +633,14 @@
       "departureDate": "2026-09-22"
     },
     {
+      "bookingType": "hotel",
+      "bookingId": "HTL-2052",
+      "projectId": "PRJ-205",
+      "serviceId": "SVC-2052",
+      "sellAmountMinor": "14000000",
+      "departureDate": "2026-09-18"
+    },
+    {
       "bookingType": "mice",
       "bookingId": "MICE-1035",
       "projectId": "PRJ-103",
@@ -525,6 +687,14 @@
       "serviceId": null,
       "sellAmountMinor": null,
       "departureDate": "2026-08-12"
+    },
+    {
+      "bookingType": "transport",
+      "bookingId": "TRN-2051",
+      "projectId": "PRJ-205",
+      "serviceId": "SVC-2051",
+      "sellAmountMinor": "9600000",
+      "departureDate": "2026-09-18"
     }
   ],
   "serviceOrders": [
@@ -539,6 +709,82 @@
       "vendorId": "VND-006",
       "projectId": "PRJ-102",
       "serviceId": null
+    },
+    {
+      "id": "SO-101F",
+      "vendorId": "VND-001",
+      "projectId": "PRJ-101",
+      "serviceId": "SVC-1011"
+    },
+    {
+      "id": "SO-205H",
+      "vendorId": "VND-002",
+      "projectId": "PRJ-205",
+      "serviceId": "SVC-2052"
+    },
+    {
+      "id": "SO-205T",
+      "vendorId": "VND-003",
+      "projectId": "PRJ-205",
+      "serviceId": "SVC-2051"
+    }
+  ],
+  "salesOrders": [
+    {
+      "id": "SLO-006",
+      "projectId": "PRJ-205",
+      "partyId": "PTY-010",
+      "priceMinor": "7000000",
+      "travelerCount": 2
+    },
+    {
+      "id": "SLO-007",
+      "projectId": "PRJ-205",
+      "partyId": "PTY-011",
+      "priceMinor": "3500000",
+      "travelerCount": 1
+    },
+    {
+      "id": "SLO-008",
+      "projectId": "PRJ-205",
+      "partyId": "PTY-012",
+      "priceMinor": "7000000",
+      "travelerCount": 2
+    },
+    {
+      "id": "SLO-009",
+      "projectId": "PRJ-205",
+      "partyId": "PTY-013",
+      "priceMinor": "10500000",
+      "travelerCount": 3
+    },
+    {
+      "id": "SLO-010",
+      "projectId": "PRJ-205",
+      "partyId": "PTY-014",
+      "priceMinor": "3500000",
+      "travelerCount": 1
+    },
+    {
+      "id": "SLO-011",
+      "projectId": "PRJ-502",
+      "partyId": "PTY-016",
+      "priceMinor": "14000000",
+      "travelerCount": 2
+    },
+    {
+      "id": "SLO-012",
+      "projectId": "PRJ-502",
+      "partyId": "PTY-017",
+      "priceMinor": "19500000",
+      "travelerCount": 3
+    },
+    {
+      "id": "SLO-013",
+      "projectId": "PRJ-502",
+      "partyId": "PTY-018",
+      "priceMinor": "6500000",
+      "travelerCount": 1
     }
   ]
 }

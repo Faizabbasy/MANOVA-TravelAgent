@@ -482,6 +482,8 @@ export interface CustomerInvoiceDto {
   party: { id: string; name: string }
   booking: { type: ApiBookingType; id: string } | null
   billingScheduleItemId: string | null
+  /** Group Trip participant booking billed by this invoice (customer = the participant). */
+  salesOrderId: string | null
   invoiceType: ApiInvoiceType
   status: 'draft' | 'issued' | 'void'
   settlement: ApiSettlement | null

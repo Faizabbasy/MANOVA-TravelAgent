@@ -16,6 +16,7 @@ import {
   updateInvoiceDraft, updateScheduleItem, voidCreditNote, voidInvoice
 } from './receivables'
 import { financeOverview } from './overview'
+import { confirmGroupTripDp, salesOrderFinanceSummary } from './group-trip'
 import { bookingFinanceSummary, listAdvances, partyFinanceSummary, projectFinanceSummary, vendorFinanceSummary } from './summaries'
 
 /**
@@ -283,6 +284,24 @@ export function arApRoutes(deps: AppDeps, auth: AuthContext) {
       const id = assertIdParam(params.id, 'Project')
       if (!(await getProject(db, actor, id))) throw errors.notFound('Project') // same row scope as the project itself
       return ok(request, await projectFinanceSummary(db, id, full))
+    })
+    .get('/sales-orders/:id/finance-summary', async ({ request, params }) => {
+      const { full } = await summaryAccess(request)
+      const id = assertIdParam(params.id, 'Sales order')
+      return ok(request, await salesOrderFinanceSummary(db, id, full))
+    })
+    .post('/finance/sales-orders/:id/confirm-dp', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, 'finance.post-cash')
+      if (!hasCapability(actor.role, 'finance.manage-receivables')) throw errors.forbidden()
+      const id = assertIdParam(params.id, 'Sales order')
+      set.status = 201
+      return idempotent(request, set, actor, `POST /finance/sales-orders/${id}/confirm-dp`, body,
+        tx => confirmGroupTripDp(tx, actor, id, body, requestIdOf(request)))
+    }, {
+      body: t.Object({
+        bankAccountId: t.String({ error: 'Pilih rekening.' }), dpAmountMinor: t.String({ error: 'Nominal DP wajib diisi.' }),
+        effectiveDate: t.String({ error: 'Tanggal terima wajib diisi.' }), dueDate: t.String({ error: 'Jatuh tempo pelunasan wajib diisi.' })
+      })
     })
     .get('/bookings/:type/:id/finance-summary', async ({ request, params }) => {
       const { actor, full } = await summaryAccess(request)
