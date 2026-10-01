@@ -72,3 +72,23 @@ Tanpa consumer UI di luar finance: `getReceivables`, `getJournalEntries`, `LEDGE
 | `app/data/rbac.test.ts` :37-52, :138, :254-275 | level modul `finance`, alias `finance → finance-acc`, clone role finance, `finance.opex` (bukan nav key aktif) | Pertahankan alias; perbarui menu key |
 
 Tidak ada test yang memakai `INVOICES`/`PAYMENTS`/`finance-ext` secara langsung.
+
+## E. Setelah UI V2 digabung (branch `feat/v2-ui-on-monorepo`, 1 Okt 2026)
+
+UI `V2-client-revision` (Project Detail, Dashboard, menu Operasional, mobile) memakai backend monorepo.
+Semua angka dan aksi keuangan dari server; data operasional tetap client-side (Lingkup 1).
+
+| Layar V2 | Sumber server | Catatan |
+|---|---|---|
+| Project Detail › hero "Ringkasan Komersial" | `GET /projects/:id/finance-summary` (`lib/finance/project-hero.ts`) | Admin: label status saja. |
+| Project Detail › tab Finance | `FinanceProjectPanel` + Financial Snapshot dari ringkasan | Tab disembunyikan dari Admin; budget per layanan/milestone disembunyikan. |
+| Project Detail › tab Pengeluaran | `GET /finance/statement?projectId&kind=expense`, `POST /finance/transactions` | Kategori project (migrasi 0014); hanya `finance.post-cash`. |
+| Project Detail › tab Vendors | `vendorInvoices` di ringkasan + `FinanceVendorPaymentDialog` | `lib/finance/vendor-payment-state.ts`. |
+| Project Detail › Group Trip (Bookings/Payments/Travelers) | `GET /sales-orders/:id/finance-summary`, `POST /finance/sales-orders/:id/confirm-dp` | Migrasi 0015; DP minimal 30%; klien hanya `markGroupTripOrderPaid`. |
+| Invoice panel › Debit note | `POST /finance/customer-invoices/:id/debit-notes` | Migrasi 0016; nomor `DN-YYYY-#####`. |
+| Dashboard V2 (hero, Cash Flow, filter periode) | `GET /finance/reports/monthly?from&to`, `GET /finance/overview` | `lib/finance/dashboard-finance.ts`; rentang Custom dibatasi 24 bulan. |
+| Leader Dashboard | `monthlyReport({ months: '1' })`, `overview` | Kartu uang hanya Finance/Super Admin. |
+
+Penjaga: `app/no-mock-finance.test.ts` gagal bila halaman/komponen/composable/layout memanggil helper uang
+client-side. Pengecualian eksplisit (sudah ada sebelum merge): portal client & vendor (dimatikan, ADR-006) dan
+detail service order pengadaan.

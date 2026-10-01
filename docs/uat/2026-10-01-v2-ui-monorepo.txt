@@ -1,0 +1,42 @@
+CEK BROWSER — UI V2 DI ATAS BACKEND MONOREPO
+Tanggal : 1 Oktober 2026
+Branch  : feat/v2-ui-on-monorepo (worktree, server terpisah: backend :3100, frontend production build :8180)
+Data    : database PGlite baru milik worktree, seed demo + finance demo (11 project, 8 sales order)
+Alat    : Chrome otomatis (Playwright), 3 ukuran layar
+
+HASIL
+-----
+Admin (Doni Saputra)
+  OK  Tab Finance dan Pengeluaran tidak muncul di Project Detail
+  OK  Hero "Ringkasan Komersial" hanya menampilkan status pembayaran, tanpa nominal
+  OK  /project-orders/PRJ-201?tab=finance dialihkan ke Overview
+  OK  Dashboard tanpa kartu Pemasukan Bersih / Profit
+  OK  /finance ditolak (kembali ke Beranda)
+
+Finance (Budi Santoso)
+  OK  Hero menampilkan Nilai Kontrak dan angka rupiah dari server
+  OK  Tab Finance: Financial Snapshot + panel Finance server
+  OK  Tab Pengeluaran: tombol Catat Pengeluaran
+  OK  Tab Milestone tanpa kartu budget
+  OK  Dashboard: hero Pemasukan Bersih; filter Bulan Ini / Tahun Ini / Semua Waktu berjalan tanpa error
+  OK  Group Trip PRJ-205: Konfirmasi DP Rp 2.100.000 (diklik dua kali) tercatat SATU kali di server
+      (SLO-007: dp_received, diterima 2.100.000)
+
+Tampilan
+  OK  Tablet 768 px dan HP 390 px: Dashboard, Project Detail, tab Bookings Group Trip tanpa geser samping
+  OK  Tidak ada error JavaScript di halaman
+
+Build & tes
+  OK  Production build frontend sukses
+  OK  Backend 284/284, frontend 627/627 (termasuk tes penjaga mock), typecheck bersih
+
+CATATAN
+-------
+- Booking Group Trip yang di data contoh V2 sudah berstatus "Confirmed" tidak punya invoice di server,
+  jadi di tab Payments statusnya "Menunggu DP". Ini data demo; booking baru yang DP-nya dikonfirmasi lewat
+  Finance tampil benar.
+- Status booking (paid, traveler) masih data frontend (Lingkup 1): setelah halaman di-refresh, booking yang
+  sudah dikonfirmasi kembali tampil di "Awaiting DP", tapi tombol Konfirmasi DP tidak muncul lagi karena
+  server tahu DP-nya sudah tercatat.
+- Detail service order pengadaan dan portal client/vendor (disembunyikan) masih memakai angka mock yang
+  sudah ada sebelum merge — di luar lingkup ini.
