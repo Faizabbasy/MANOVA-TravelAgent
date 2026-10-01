@@ -3,19 +3,17 @@ import { ref, computed, nextTick, watch, type Component } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import type { SortableEvent } from 'vue-draggable-plus'
 import { VueDraggable } from 'vue-draggable-plus'
-import { FileX, Wallet, Users, User, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2, MapPin, CalendarRange, CreditCard, FileText, PieChart, Eye, EyeOff, LayoutGrid, List, Download, MessageSquare, FileClock, Settings2, ImagePlus, Plane, Hotel, Bus, PartyPopper, Package, Gauge, Clock, ChevronRight, ChevronLeft, ListChecks, CircleDashed, Check, MoreVertical, FolderOpen, Kanban, MoreHorizontal, Calculator, Info, GripVertical, Paperclip, X, Flag, CalendarDays } from 'lucide-vue-next'
+import { FileX, Wallet, Users, User, Truck, Search, UserPlus, Upload, Pencil, Trash2, Printer, AlertTriangle, Plus, CheckCircle2, MapPin, CalendarRange, CreditCard, FileText, PieChart, Eye, EyeOff, LayoutGrid, List, Download, MessageSquare, FileClock, Settings2, ImagePlus, Plane, Hotel, Bus, PartyPopper, Package, Gauge, Clock, ChevronRight, ChevronLeft, ListChecks, CircleDashed, Check, MoreVertical, FolderOpen, Kanban, MoreHorizontal, Info, GripVertical, Paperclip, X, Flag, CalendarDays } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getContactsByParty, getUserById, getVendorById, getLeadById,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
-  getProjectServices, getItineraryItems, updateServiceStatus, updateProjectServiceBudget, ensureProjectServiceForBudget, updateItineraryItem, createItineraryItem, removeItineraryItem,
+  getProjectServices, getItineraryItems, updateServiceStatus, updateItineraryItem, createItineraryItem, removeItineraryItem,
   getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation, recordVendorPaymentDirect, assignServiceVendor,
   getServiceOrderByService, getSupplierInvoicesByServiceOrder,
   getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, createTravelerGroup,
   toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
-  getInvoicesByProject, getPaymentsByInvoice, getProjectOutstandingIdr, getProjectCollectedIdr, getInvoiceOutstandingIdr,
-  getInvoiceMilestoneOutstandingIdr, getInvoiceMilestoneStatus, createInvoice, recordPayment,
-  getCreditNotesByProject, getDebitNotesByProject, getSupplierInvoicesByProject, evaluateFinanceClosureGate, closeProjectFinance,
+  getInvoicesByProject, getPaymentsByInvoice, closeProjectFinance,
   getTasksByProject, getActivitiesByProject,
   createChangeEntry, approveChangeEntry, rejectChangeEntry,
   addProjectTeamMember, removeProjectTeamMember,
@@ -40,28 +38,26 @@ import {
   getProjectOrderStepViews, advanceProjectOrder, getProjectMilestones,
   setMilestoneActualDate, updateMilestonePlannedDate, updateMilestoneNote, getProjectOrderStep,
   getProjectMilestoneSummary, getMilestoneProgressPercent, toggleMilestoneDeliverable,
-  addMilestoneDeliverable, removeMilestoneDeliverable, updateMilestoneBudget, getProjectMilestoneBudgetSummary,
+  addMilestoneDeliverable, removeMilestoneDeliverable,
   createProjectMilestone, applyMilestoneTemplate
 } from '~/data/project-order-workflow'
-import { getProjectActualCostIdr, getProjectExpenses, createProjectExpense, PROJECT_EXPENSE_CATEGORIES, getServiceTypeSpendBreakdown } from '~/data/finance-ext'
+import { getProjectExpenses, createProjectExpense, PROJECT_EXPENSE_CATEGORIES } from '~/data/finance-ext'
 import { getEmployeeByUserId } from '~/data/hr'
 import { serviceCapabilityKey } from '~/constants/capabilities'
-import { INVOICE_MILESTONE_TEMPLATES } from '~/constants/invoice-milestones'
 import {
   PROJECT_STATUSES, SERVICE_STATUSES, SERVICE_TYPES,
-  INVOICE_STATUSES, INVOICE_TYPES, TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES,
+  TASK_STATUSES, ROOM_TYPES, VENDOR_QUOTATION_STATUSES,
   CHANGE_CATEGORIES, CHANGE_APPROVAL_STATUSES, BOOKING_PAYMENT_GATE_STATUSES, SERVICE_ORDER_STATUSES, RFQ_STATUSES, findStatusOption,
   CHANGE_REQUEST_SOURCES, CHANGE_REQUEST_STATUSES, REFUND_REQUEST_STATUSES, REFUND_CREDIT_STATUSES, INCIDENT_SEVERITIES, INCIDENT_STATUSES,
-  CREDIT_NOTE_STATUSES, DEBIT_NOTE_STATUSES, SUPPLIER_INVOICE_MATCH_STATUSES, SUPPLIER_INVOICE_STATUSES,
   DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES, SALES_ORDER_STATUSES
 } from '~/constants/status'
 import { formatCurrencyIdr, formatCurrencyIdrCompact, formatDateRange, formatDate, formatDateLong, formatDateTime, formatDayLabel, formatDayBadge, formatTravelerCount, maskDocumentNumber, daysUntil } from '~/utils/format'
 import { heroFigures } from '~/lib/finance/project-hero'
+import { formatMoneyMinor } from '~/lib/money'
 import { todayJakarta } from '~/lib/finance/dates'
-import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isInvoiceOverdue, isInvoiceDueSoon, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT, isDpBalanceOverdue, PASSPORT_EXPIRY_WARNING_DAYS } from '~/utils/attention'
+import { isProjectNeedingAttention, isUpcomingDeparture, isTravelerDocumentMissing, isDocumentExpired, isDocumentExpiringSoon, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT, isDpBalanceOverdue, PASSPORT_EXPIRY_WARNING_DAYS } from '~/utils/attention'
 import type { ProjectDetailTab, Traveler, ServiceTypeKey, ServiceStatus, ItineraryItem, ProjectService } from '~/types/project'
 import type { ChangeCategory, ProjectTask } from '~/types/activity'
-import type { Invoice, InvoiceMilestone, InvoiceType } from '~/types/finance'
 import type { ProjectExpenseCategoryKey } from '~/types/finance-ext'
 import type { MessageChannel, Document as AppDocument } from '~/types/document-comms'
 import type { BadgeTone } from '~/types/common'
@@ -153,8 +149,15 @@ function handlePhotoSelected (event: Event) {
   ;(event.target as HTMLInputElement).value = ''
 }
 
+/** Tabs holding project money (Finance, Pengeluaran) follow the Finance menu gate: never shown to Admin. */
+const FINANCE_ONLY_TABS: ProjectDetailTab[] = ['finance', 'expenses']
+const canSeeFinanceTabs = () => canView('finance-acc')
+
 const activeTab = computed<ProjectDetailTab>({
-  get: () => (route.query.tab as ProjectDetailTab) || 'overview',
+  get: () => {
+    const tab = (route.query.tab as ProjectDetailTab) || 'overview'
+    return FINANCE_ONLY_TABS.includes(tab) && !canSeeFinanceTabs() ? 'overview' : tab
+  },
   set: value => router.replace({ query: { ...route.query, tab: value } })
 })
 
@@ -162,7 +165,8 @@ const activeTab = computed<ProjectDetailTab>({
  * reuse tab value yang sama (cuma label beda: travelers→Participants, tasks→Operations, finance→Financial),
  * 3 tab benar-benar baru (bookings/reservations/payments). Vendors/Documents/Activity & Changes sengaja
  * tidak tampil untuk Group Trip (di luar 8 tab yang diminta). */
-const TABS = computed<{ value: ProjectDetailTab; label: string }[]>(() => (project.value?.isGroupTrip
+const TABS = computed<{ value: ProjectDetailTab; label: string }[]>(() => ALL_TABS.value.filter(tab => !FINANCE_ONLY_TABS.includes(tab.value) || canSeeFinanceTabs()))
+const ALL_TABS = computed<{ value: ProjectDetailTab; label: string }[]>(() => (project.value?.isGroupTrip
   ? [
       { value: 'overview', label: 'Overview' },
       { value: 'milestone', label: 'Milestone' },
@@ -478,10 +482,6 @@ const milestoneSummary = computed(() => {
   void refreshKey.value
   return getProjectMilestoneSummary(project.value?.id ?? '')
 })
-const milestoneBudgetSummary = computed(() => {
-  void refreshKey.value
-  return getProjectMilestoneBudgetSummary(project.value?.id ?? '')
-})
 const milestoneOverallProgressPercent = computed(() => {
   const list = milestones.value
   if (list.length === 0) { return 0 }
@@ -547,12 +547,6 @@ function onAddMilestoneDeliverable (payload: { milestoneId: string; label: strin
 function onRemoveMilestoneDeliverable (payload: { milestoneId: string; deliverableId: string }) {
   removeMilestoneDeliverable(payload.milestoneId, payload.deliverableId)
   refreshStep()
-}
-
-function onUpdateMilestoneBudget (payload: { milestoneId: string; budgetIdr?: number }) {
-  updateMilestoneBudget(payload.milestoneId, payload.budgetIdr)
-  refreshStep()
-  showToast('Budget Disimpan', 'Budget milestone berhasil diperbarui.', 'success')
 }
 
 function onAddMilestone (payload: { name: string; plannedDate: string; ownerId?: string; budgetIdr?: number }) {
@@ -692,10 +686,6 @@ const visibleServiceTypes = computed(() => {
 
 function servicesByType (type: ServiceTypeKey) {
   return services.value.filter(service => service.type === type)
-}
-
-function serviceLabelById (serviceId: string) {
-  return services.value.find(service => service.id === serviceId)?.label ?? serviceId
 }
 
 /** Booking asli yang ter-link ke ProjectService ini, kalau ada (docs/superpowers/specs/2026-08-05-project-service-booking-sync-design.md). */
@@ -850,30 +840,7 @@ const TONE_ICON_BG: Record<BadgeTone, string> = {
   info: 'bg-chart-5/10 text-chart-5',
   purple: 'bg-chart-4/10 text-chart-4'
 }
-/** Warna fill solid (bukan tint /10) — dipakai progress bar "Pengeluaran per Layanan" supaya tiap tipe
- * layanan punya warna bar yang senada dengan warna icon-nya sendiri. */
-const TONE_BAR_BG: Record<BadgeTone, string> = {
-  neutral: 'bg-muted-foreground',
-  primary: 'bg-primary',
-  success: 'bg-success',
-  warning: 'bg-warning',
-  destructive: 'bg-destructive',
-  info: 'bg-chart-5',
-  purple: 'bg-chart-4'
-}
-/** Ring status "Ringkasan Budget Project" — 3 state (success/destructive/primary), lihat `allocationRingTone`. */
-const ALLOCATION_RING_CLASS: Record<'success' | 'destructive' | 'primary', string> = {
-  success: 'border-success/30 bg-success/10 text-success',
-  destructive: 'border-destructive/30 bg-destructive/10 text-destructive',
-  primary: 'border-primary/30 bg-primary/10 text-primary'
-}
-/** Class teks polos per tone — dipisah dari `ALLOCATION_RING_CLASS` (bukan interpolasi string `text-${tone}`
- * di template) supaya class Tailwind-nya tetap literal dan pasti ke-scan JIT. */
-const ALLOCATION_TEXT_CLASS: Record<'success' | 'destructive' | 'primary', string> = {
-  success: 'text-success',
-  destructive: 'text-destructive',
-  primary: 'text-primary'
-}
+
 /**
  * Warna icon dokumen (tab Documents) — dipetakan dari `category` (bukan access level, yang di data mock
  * mayoritas "internal" sehingga kalau dipakai bikin semua baris keliatan abu-abu monoton). Kategori yang
@@ -1084,144 +1051,20 @@ const groups = computed(() => project.value ? getTravelerGroups(project.value.id
 const travelers = computed(() => project.value ? getTravelers(project.value.id) : [])
 const invoices = computed(() => project.value ? getInvoicesByProject(project.value.id) : [])
 
-/**
- * Role-based financial visibility (Section 15, hard rule "User tanpa finance access tidak melihat nilai
- * sensitif") — mengikuti `docs/mockup-data-scenarios.md` bagian 5 secara harfiah, seluruhnya reuse
- * `usePermissions()` existing tanpa mekanisme role-check baru:
- * - `canViewFinancials` (Super Admin/Management/Finance/PM/Viewer, `ROLE_MODULE_ACCESS.finance` VIEW+)
- *   menggerbangi breakdown Budget/Actual/Committed/Variance/invoice+payment penuh (Tier 1).
- * - Role di luar itu (Sales, Operations, Ticketing, Accommodation, Transportation, MICE — seluruhnya
- *   `finance: NONE`) hanya melihat nilai Quotation dan Outstanding ringkas (Tier 0).
- * - Margin dikecualikan khusus untuk Project Manager (docs bagian 5.1: "PM terbatas budget vs actual",
- *   tidak termasuk Margin) — satu-satunya pengecualian sempit tambahan yang dibutuhkan.
- */
-const canViewMargin = computed(() => canViewFinancials.value && can('project-order.view-margin'))
-const projectOutstandingIdr = computed(() => project.value ? getProjectOutstandingIdr(project.value.id) : 0)
-/**
- * Fase 3.2 (Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu) — `project.actualCostIdr`
- * adalah field statis yang tidak pernah diperbarui mutator apa pun (selalu `0` untuk project baru, lihat
- * `createProject`). Diganti selector turunan `getProjectActualCostIdr()` (Σ SupplierInvoice di luar
- * rejected + Σ Opex ber-project), sumber yang persis sama dengan jurnal — sehingga Actual Cost di sini dan
- * total akun 5100/6100 di Buku Besar tidak mungkin berbeda.
- */
-const actualCostIdr = computed(() => (project.value ? getProjectActualCostIdr(project.value.id) : 0))
-const marginIdr = computed(() => project.value ? project.value.quotationAmountIdr - actualCostIdr.value : 0)
-/** Stat ringkas tab Overview — sumber sama persis dengan card Budget tab Finance, dibulatkan untuk tampilan angka besar. */
-const budgetUsedPercent = computed(() => project.value && project.value.budgetIdr > 0 ? Math.round((actualCostIdr.value / project.value.budgetIdr) * 100) : 0)
-
-/** Progres pendapatan terkumpul dari client (B2B & B2C, keduanya lewat Invoice+Payment) dibanding Nilai
- * Quotation — beda dari `projectOutstandingIdr` yang cuma menghitung invoice yang sudah terbit. */
-const collectedIdr = computed(() => (project.value ? getProjectCollectedIdr(project.value.id) : 0))
-const quotationGapIdr = computed(() => project.value ? Math.max(project.value.quotationAmountIdr - collectedIdr.value, 0) : 0)
-const quotationCollectionPercent = computed(() => project.value && project.value.quotationAmountIdr > 0 ? Math.min(100, Math.round((collectedIdr.value / project.value.quotationAmountIdr) * 100)) : 0)
-
-/** Total invoice diterbitkan (di luar void) — dipakai ProjectCommercialHero (Overview). Pola sama getClientFinanceSummary (app/data/index.ts). */
-const invoiceIssuedIdr = computed(() => invoices.value.filter(invoice => invoice.status !== 'void').reduce((sum, invoice) => sum + invoice.amountIdr, 0))
-
-/** Invoice belum lunas berikutnya (jatuh tempo terdekat) — logic identik getClientFinanceSummary, discope per-project lewat `invoices` yang sudah ada. */
-const nextUnpaidInvoice = computed(() => invoices.value
-  .filter(invoice => invoice.status !== 'paid' && invoice.status !== 'void' && getInvoiceOutstandingIdr(invoice.id) > 0)
-  .sort((a, b) => a.dueAt.localeCompare(b.dueAt))[0])
-
-const nextPaymentForHero = computed(() => {
-  const invoice = nextUnpaidInvoice.value
-  if (!invoice) { return null }
-  const tone = isInvoiceOverdue(invoice) ? 'overdue' : isInvoiceDueSoon(invoice) ? 'due-soon' : 'scheduled'
-  return { invoiceLabel: invoice.label, amountIdr: getInvoiceOutstandingIdr(invoice.id), dueAt: invoice.dueAt, tone }
-})
-
-/** Section 20 — Credit/Debit Note, AP summary (Supplier Invoice), dan financial closure gate untuk project ini. */
+/** Finance tab: same gate as the Finance menu (Admin never sees project money). */
+const canSeeFinanceTab = computed(() => canView('finance-acc'))
 const canManageFinance = computed(() => canManage('finance'))
-const projectCreditNotes = computed(() => project.value ? getCreditNotesByProject(project.value.id) : [])
-const projectDebitNotes = computed(() => project.value ? getDebitNotesByProject(project.value.id) : [])
-const projectSupplierInvoices = computed(() => project.value ? getSupplierInvoicesByProject(project.value.id) : [])
-const financeClosureGate = computed(() => project.value ? evaluateFinanceClosureGate(project.value.id) : { ready: false, blockers: [] })
+/** Full server summary (Finance/Super Admin), or null for the status view / while loading. */
+const projectFinanceFull = computed(() => (financeSummary.data.value?.view === 'full' ? financeSummary.data.value : null))
+/** Blockers computed by the live finance panel from server data (see FinanceProjectPanel). */
+const financePanel = ref<{ blockers: string[] } | null>(null)
 const isFinanceAlreadySettled = computed(() => !!project.value?.closureChecklist?.financeSettled)
-
-/**
- * "Pengeluaran per Layanan" (Financial Snapshot, tab Finance) — breakdown budget/actual per tipe layanan,
- * reuse `visibleServiceTypes`/`servicesByType` yang sudah ada (tab Itinerary & Services) untuk grouping,
- * bukan selector baru. Angka budget/actual dari `getServiceTypeSpendBreakdown` (`app/data/finance-ext.ts`).
- */
-const serviceTypeSpendRows = computed(() => {
-  if (!project.value) { return [] }
-  const breakdown = getServiceTypeSpendBreakdown(project.value.id)
-  return visibleServiceTypes.value.map((type) => {
-    const row = breakdown.find(item => item.type === type.value)
-    const budgetIdr = row?.budgetIdr ?? 0
-    const actualIdr = row?.actualIdr ?? 0
-    return {
-      type: type.value,
-      label: type.label,
-      budgetIdr,
-      actualIdr,
-      hasBudget: budgetIdr > 0,
-      percent: budgetIdr > 0 ? Math.min(100, Math.round((actualIdr / budgetIdr) * 100)) : 0,
-      remainingIdr: budgetIdr - actualIdr
-    }
-  })
-})
-
-/** Ringkasan alokasi budget project ke seluruh layanan — "Total budget project" vs "sudah dialokasikan" (sum
- * budget seluruh baris `serviceTypeSpendRows`) vs sisa yang belum dipecah ke layanan mana pun. */
-const serviceBudgetAllocationSummary = computed(() => {
-  const totalIdr = project.value?.budgetIdr ?? 0
-  const allocatedIdr = serviceTypeSpendRows.value.reduce((sum, row) => sum + row.budgetIdr, 0)
-  return { totalIdr, allocatedIdr, unallocatedIdr: totalIdr - allocatedIdr }
-})
-/** % dialokasikan dari total budget project — bisa >100 kalau over-alokasi, dipakai teks "Tingkat Alokasi"
- * (bar visual sendiri diclamp ke 100 lewat `Math.min` di template, angka teksnya TIDAK diclamp supaya
- * over-alokasi tetap kelihatan jelas berapa persen). */
-const serviceBudgetAllocationPercent = computed(() => {
-  const { totalIdr, allocatedIdr } = serviceBudgetAllocationSummary.value
-  return totalIdr > 0 ? Math.round((allocatedIdr / totalIdr) * 100) : 0
-})
-/** Tone kartu "Ringkasan Budget Project" — destructive kalau over-alokasi, success kalau pas 100%, primary
- * kalau masih sebagian (belum ada tone "warning" di sini karena "belum full" bukan kondisi bermasalah). */
-const allocationRingTone = computed<'success' | 'destructive' | 'primary'>(() => {
-  if (serviceBudgetAllocationSummary.value.unallocatedIdr < 0) { return 'destructive' }
-  if (serviceBudgetAllocationSummary.value.totalIdr > 0 && serviceBudgetAllocationSummary.value.unallocatedIdr === 0) { return 'success' }
-  return 'primary'
-})
-const ALLOCATION_RING_ICON = { success: Check, destructive: AlertTriangle, primary: PieChart } as const
-const ALLOCATION_STATUS_LABEL = { success: 'Fully allocated', destructive: 'Over-alokasi', primary: 'Sebagian dialokasikan' } as const
-
-/** Tone kartu "Ringkasan Budget per Milestone" (tab Finance) — breakdown alternatif dari `project.budgetIdr`
- * yang sama, pola tone sama seperti alokasi per-layanan di atas. */
-const milestoneAllocationTone = computed<'success' | 'destructive' | 'primary'>(() => {
-  const summary = milestoneBudgetSummary.value
-  if (summary.allocatedToMilestonesIdr > summary.totalProjectBudgetIdr && summary.totalProjectBudgetIdr > 0) { return 'destructive' }
-  if (summary.totalProjectBudgetIdr > 0 && summary.unallocatedIdr === 0) { return 'success' }
-  return 'primary'
-})
-
-/** Edit alokasi budget per layanan — Sheet berisi seluruh baris `ProjectService` dari satu tipe (bisa lebih dari 1, mis. 2 hotel), satu `CurrencyInput` per baris, pola sama Sheet "Catat Pengeluaran". */
-const isServiceBudgetDialogOpen = ref(false)
-const serviceBudgetTypeLabel = ref('')
-const serviceBudgetForm = ref<Record<string, number | null>>({})
-function openEditServiceBudget (type: ServiceTypeKey, label: string) {
-  if (!project.value) { return }
-  // Belum ada booking untuk tipe ini sama sekali (kondisi normal tepat setelah project dibuat) — bikin baris
-  // placeholder dulu supaya budget bisa dialokasikan di awal, sebelum booking pertama masuk.
-  if (!servicesByType(type).length) { ensureProjectServiceForBudget(project.value.id, type, label) }
-  serviceBudgetTypeLabel.value = label
-  const form: Record<string, number | null> = {}
-  for (const service of servicesByType(type)) { form[service.id] = service.budgetIdr ?? null }
-  serviceBudgetForm.value = form
-  isServiceBudgetDialogOpen.value = true
-}
-function submitServiceBudget () {
-  for (const [serviceId, budgetIdr] of Object.entries(serviceBudgetForm.value)) {
-    updateProjectServiceBudget(serviceId, budgetIdr ?? 0)
-  }
-  isServiceBudgetDialogOpen.value = false
-  showToast('Budget Layanan Disimpan', `Alokasi budget ${serviceBudgetTypeLabel.value} berhasil diperbarui.`, 'success')
-}
 
 function submitCloseFinance () {
   if (!project.value) { return }
-  const result = closeProjectFinance(project.value.id, currentUser.value.id)
-  if (result.success) { showToast('Finance Ditutup', `Finance project ${project.value.name} berhasil ditutup.`, 'success') } else { showToast('Belum Bisa Ditutup', `${result.blockers.length} blocker masih terbuka — lihat daftar di atas.`, 'error') }
+  const serverBlockers = financePanel.value?.blockers ?? ['Data finance project belum termuat.']
+  const result = closeProjectFinance(project.value.id, currentUser.value.id, serverBlockers)
+  if (result.success) { showToast('Finance Ditutup', `Finance project ${project.value.name} berhasil ditutup.`, 'success') } else { showToast('Belum Bisa Ditutup', `${result.blockers.length} blocker masih terbuka — lihat daftar di panel Finance.`, 'error') }
 }
 
 /** Pengeluaran Project (ad-hoc, langsung tercatat) — lihat `ProjectExpense`, `app/types/finance-ext.ts`. */
@@ -1260,123 +1103,6 @@ function paymentsForInvoice (invoiceId: string) {
   return getPaymentsByInvoice(invoiceId)
 }
 
-/**
- * "+ Buat Invoice" (tab Finance, `ProjectInvoicesPanel`) — invoice langsung dari Project Detail, tanpa perlu
- * pindah ke modul Finance. Opsional bertermin (`milestones`) lewat template preset (`INVOICE_MILESTONE_TEMPLATES`)
- * yang tetap bisa diedit/ditambah/dihapus baris sebelum simpan — total persen wajib 100% (divalidasi juga di
- * `createInvoice`, `app/data/index.ts`, sebagai garis pertahanan kedua).
- */
-const isCreateInvoiceOpen = ref(false)
-const createInvoiceAmountIdr = ref<number | null>(null)
-const createInvoiceLabel = ref('')
-const createInvoiceType = ref<InvoiceType>('progress')
-const createInvoiceDueAt = ref('')
-const createInvoiceNotes = ref('')
-const createInvoiceTemplateKey = ref('')
-const createInvoiceMilestones = ref<{ label: string, percent: number }[]>([])
-
-const createInvoiceMilestonesTotalPercent = computed(() => createInvoiceMilestones.value.reduce((sum, milestone) => sum + (Number(milestone.percent) || 0), 0))
-const createInvoiceMilestonesValid = computed(() => createInvoiceMilestones.value.length === 0 || Math.abs(createInvoiceMilestonesTotalPercent.value - 100) < 0.01)
-
-function openCreateInvoice () {
-  if (!project.value) { return }
-  createInvoiceAmountIdr.value = Math.max(project.value.quotationAmountIdr - invoiceIssuedIdr.value, 0)
-  createInvoiceLabel.value = `Invoice ${project.value.name}`
-  createInvoiceType.value = 'progress'
-  createInvoiceDueAt.value = ''
-  createInvoiceNotes.value = ''
-  createInvoiceTemplateKey.value = ''
-  createInvoiceMilestones.value = []
-  isCreateInvoiceOpen.value = true
-}
-
-function applyInvoiceMilestoneTemplate (key: string) {
-  createInvoiceTemplateKey.value = key
-  const template = INVOICE_MILESTONE_TEMPLATES.find(item => item.key === key)
-  createInvoiceMilestones.value = template ? template.milestones.map(milestone => ({ ...milestone })) : []
-}
-
-function addInvoiceMilestoneRow () {
-  createInvoiceMilestones.value.push({ label: '', percent: 0 })
-}
-
-function removeInvoiceMilestoneRow (index: number) {
-  createInvoiceMilestones.value.splice(index, 1)
-}
-
-function submitCreateInvoice () {
-  if (!project.value || !createInvoiceLabel.value.trim() || !createInvoiceAmountIdr.value || !createInvoiceDueAt.value || !createInvoiceMilestonesValid.value) { return }
-  const invoice = createInvoice({
-    projectId: project.value.id,
-    label: createInvoiceLabel.value.trim(),
-    amountIdr: createInvoiceAmountIdr.value,
-    currency: 'IDR',
-    invoiceType: createInvoiceType.value,
-    dueAt: createInvoiceDueAt.value,
-    notes: createInvoiceNotes.value.trim() || undefined,
-    milestones: createInvoiceMilestones.value.length > 0
-      ? createInvoiceMilestones.value.map(milestone => ({ label: milestone.label, percent: Number(milestone.percent) || 0 }))
-      : undefined
-  })
-  if (!invoice) {
-    showToast('Gagal Membuat Invoice', 'Periksa kembali label, jumlah, jatuh tempo, dan total persen milestone (harus 100%).', 'error')
-    return
-  }
-  isCreateInvoiceOpen.value = false
-  showToast('Invoice Dibuat', `${invoice.id} tercatat berstatus "Belum Dibayar".`, 'success')
-}
-
-/** "Record Payment" (tab Finance, `ProjectInvoicesPanel`) — dibuka dari kartu invoice, opsional menargetkan satu milestone spesifik (invoice bertermin). */
-const isRecordPaymentOpen = ref(false)
-const recordPaymentInvoice = ref<Invoice | null>(null)
-const recordPaymentMilestoneId = ref('')
-const recordPaymentAmountIdr = ref<number | null>(null)
-const recordPaymentPayFull = ref(false)
-const recordPaymentMethod = ref('bank-transfer')
-const recordPaymentDate = ref('')
-const recordPaymentReference = ref('')
-
-const recordPaymentOutstandingIdr = computed(() => {
-  if (!recordPaymentInvoice.value) { return 0 }
-  return recordPaymentMilestoneId.value
-    ? getInvoiceMilestoneOutstandingIdr(recordPaymentInvoice.value.id, recordPaymentMilestoneId.value)
-    : getInvoiceOutstandingIdr(recordPaymentInvoice.value.id)
-})
-
-function openRecordPayment (invoice: Invoice, milestone?: InvoiceMilestone) {
-  recordPaymentInvoice.value = invoice
-  const firstUnpaidMilestone = invoice.milestones?.find(item => getInvoiceMilestoneOutstandingIdr(invoice.id, item.id) > 0)
-  recordPaymentMilestoneId.value = milestone?.id ?? firstUnpaidMilestone?.id ?? ''
-  recordPaymentPayFull.value = false
-  recordPaymentAmountIdr.value = null
-  recordPaymentMethod.value = 'bank-transfer'
-  recordPaymentDate.value = DEMO_REFERENCE_DATE
-  recordPaymentReference.value = ''
-  isRecordPaymentOpen.value = true
-}
-
-watch([recordPaymentPayFull, recordPaymentMilestoneId], () => {
-  if (recordPaymentPayFull.value) { recordPaymentAmountIdr.value = recordPaymentOutstandingIdr.value }
-})
-
-function submitRecordPayment () {
-  if (!recordPaymentInvoice.value || !recordPaymentAmountIdr.value || recordPaymentAmountIdr.value <= 0 || !recordPaymentDate.value) { return }
-  const payment = recordPayment({
-    invoiceId: recordPaymentInvoice.value.id,
-    amountIdr: recordPaymentAmountIdr.value,
-    recordedBy: currentUser.value.id,
-    method: recordPaymentMethod.value || undefined,
-    milestoneId: recordPaymentMilestoneId.value || undefined,
-    reference: recordPaymentReference.value.trim() || undefined,
-    receivedAt: recordPaymentDate.value
-  })
-  isRecordPaymentOpen.value = false
-  if (payment) {
-    showToast('Payment Dicatat', `${payment.id} sebesar ${formatCurrencyIdr(payment.amountIdr)} tercatat.`, 'success')
-  } else {
-    showToast('Gagal Mencatat Payment', 'Invoice/milestone tidak eligible menerima payment (sudah lunas/void) atau jumlah tidak valid.', 'error')
-  }
-}
 const tasks = computed(() => project.value ? getTasksByProject(project.value.id) : [])
 /** Stat ringkas tab Overview — 'done' adalah key status task yang sudah completed (`TASK_STATUSES`). */
 const tasksDoneCount = computed(() => tasks.value.filter(task => task.status === 'done').length)
@@ -2872,29 +2598,16 @@ const tripDurationDays = computed(() => {
             <StatsCard size="sm" title="Selesai" :value="String(milestoneSummary.completed)" :icon="CheckCircle2" icon-color="success" />
             <StatsCard size="sm" title="Delay" :value="String(milestoneSummary.delayed)" :icon="AlertTriangle" :icon-color="milestoneSummary.delayed > 0 ? 'destructive' : 'primary'" />
           </div>
+          <!-- "Total Budget Milestone" disembunyikan: budget project belum dikelola server. -->
           <div class="mb-4 grid grid-cols-1 gap-3 sm:hidden">
             <StatsCard title="Progress Keseluruhan" :value="`${milestoneOverallProgressPercent}%`" :icon="Gauge" :progress-percent="milestoneOverallProgressPercent" />
-            <StatsCard
-              title="Total Budget Milestone"
-              :value="formatCurrencyIdrCompact(milestoneBudgetSummary.allocatedToMilestonesIdr)"
-              :full-value="formatCurrencyIdr(milestoneBudgetSummary.allocatedToMilestonesIdr)"
-              :icon="Wallet"
-              :subtitle="milestoneBudgetSummary.allocationPercent !== undefined ? `${milestoneBudgetSummary.allocationPercent}% dari budget project` : undefined"
-            />
           </div>
 
-          <div class="mb-4 hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-5">
+          <div class="mb-4 hidden gap-3 sm:grid sm:grid-cols-2 lg:grid-cols-4">
             <StatsCard title="Total Milestone" :value="String(milestoneSummary.total)" :icon="ListChecks" />
             <StatsCard title="Selesai" :value="String(milestoneSummary.completed)" :icon="CheckCircle2" icon-color="success" />
             <StatsCard title="Delay" :value="String(milestoneSummary.delayed)" :icon="AlertTriangle" :icon-color="milestoneSummary.delayed > 0 ? 'destructive' : 'primary'" />
             <StatsCard title="Progress Keseluruhan" :value="`${milestoneOverallProgressPercent}%`" :icon="Gauge" :progress-percent="milestoneOverallProgressPercent" />
-            <StatsCard
-              title="Total Budget Milestone"
-              :value="formatCurrencyIdrCompact(milestoneBudgetSummary.allocatedToMilestonesIdr)"
-              :full-value="formatCurrencyIdr(milestoneBudgetSummary.allocatedToMilestonesIdr)"
-              :icon="Wallet"
-              :subtitle="milestoneBudgetSummary.allocationPercent !== undefined ? `${milestoneBudgetSummary.allocationPercent}% dari budget project` : undefined"
-            />
           </div>
 
           <ProjectOrderTimelineTracking
@@ -2902,13 +2615,13 @@ const tripDurationDays = computed(() => {
             :milestones="milestones"
             :can-manage="canManageOperations"
             :planned-dates-locked="plannedDatesLocked"
+            hide-budget
             @mark-actual="onMarkMilestoneActual"
             @update-planned="onUpdateMilestonePlanned"
             @update-note="onUpdateMilestoneNote"
             @toggle-deliverable="onToggleMilestoneDeliverable"
             @add-deliverable="onAddMilestoneDeliverable"
             @remove-deliverable="onRemoveMilestoneDeliverable"
-            @update-budget="onUpdateMilestoneBudget"
             @add-milestone="onAddMilestone"
             @apply-template="onApplyMilestoneTemplate"
           />
@@ -4588,764 +4301,56 @@ const tripDurationDays = computed(() => {
           </Sheet>
         </TabsContent>
 
-        <TabsContent value="finance">
+        <TabsContent v-if="canSeeFinanceTab" value="finance">
+          <!-- Live finance of this project: same API as the Finance screens, no mock figures (V2 layout). -->
           <div class="space-y-4">
-            <template v-if="canViewFinancials">
-              <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-                <div class="min-w-0 space-y-4">
-                  <div>
-                    <p class="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Financial Snapshot
-                    </p>
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      <StatsCard
-                        title="Project Value"
-                        :value="formatCurrencyIdr(project.quotationAmountIdr)"
-                        :subtitle="`Terkumpul ${formatCurrencyIdr(collectedIdr)} dari client${quotationGapIdr > 0 ? ' · Kurang ' + formatCurrencyIdr(quotationGapIdr) : ' · Lunas'}`"
-                        :progress-percent="quotationCollectionPercent"
-                        :icon="FileText"
-                        :icon-color="quotationGapIdr > 0 ? 'warning' : 'success'"
-                      />
-                      <StatsCard
-                        title="Actual Cost"
-                        :value="formatCurrencyIdr(actualCostIdr)"
-                        subtitle="Biaya aktual saat ini"
-                        :progress-percent="project.budgetIdr > 0 ? (actualCostIdr / project.budgetIdr) * 100 : 0"
-                        :icon="CreditCard"
-                        :icon-color="actualCostIdr > project.budgetIdr ? 'destructive' : 'success'"
-                      />
-                      <StatsCard
-                        v-if="canViewMargin"
-                        title="Project Margin"
-                        :value="formatCurrencyIdr(marginIdr)"
-                        subtitle="Perkiraan margin proyek"
-                        :progress-percent="project.quotationAmountIdr > 0 ? (marginIdr / project.quotationAmountIdr) * 100 : 0"
-                        :icon="PieChart"
-                        :icon-color="marginIdr >= 0 ? 'success' : 'destructive'"
-                      />
-                    </div>
-                  </div>
-
-                  <SectionCard v-if="serviceTypeSpendRows.length" compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Pengeluaran per Layanan" description="Alokasi budget dan actual cost per tipe layanan — dipecah dari Project Value/Actual Cost di atas.">
-                    <div class="space-y-3">
-                      <!-- Ringkasan Budget Project -->
-                      <div class="rounded-xl border border-border bg-card p-4">
-                        <div class="flex items-center gap-2.5">
-                          <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                            <Calculator class="h-4 w-4" />
-                          </div>
-                          <p class="text-xs font-semibold uppercase tracking-wide text-foreground">
-                            Ringkasan Budget Project
-                          </p>
-                        </div>
-
-                        <div class="mt-3 flex flex-wrap items-center gap-x-8 gap-y-3">
-                          <div>
-                            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                              Total Budget Project
-                            </p>
-                            <p class="mt-1 text-xl font-bold leading-tight text-foreground">
-                              {{ formatCurrencyIdr(serviceBudgetAllocationSummary.totalIdr) }}
-                            </p>
-                            <p class="mt-0.5 text-xs text-muted-foreground">
-                              Total budget
-                            </p>
-                          </div>
-                          <div>
-                            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                              Sudah Dialokasikan
-                            </p>
-                            <p class="mt-1 text-xl font-bold leading-tight text-success">
-                              {{ formatCurrencyIdr(serviceBudgetAllocationSummary.allocatedIdr) }}
-                            </p>
-                            <p class="mt-0.5 flex items-center gap-1 text-xs text-success">
-                              <CheckCircle2 class="h-3 w-3 shrink-0" />{{ serviceBudgetAllocationPercent }}% dari total budget
-                            </p>
-                          </div>
-                          <div>
-                            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                              Belum Dialokasikan
-                            </p>
-                            <p class="mt-1 text-xl font-bold leading-tight text-foreground">
-                              {{ formatCurrencyIdr(Math.max(0, serviceBudgetAllocationSummary.unallocatedIdr)) }}
-                            </p>
-                            <p class="mt-0.5 text-xs text-muted-foreground">
-                              {{ Math.max(0, 100 - serviceBudgetAllocationPercent) }}% dari total budget
-                            </p>
-                          </div>
-                          <div>
-                            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                              Tingkat Alokasi
-                            </p>
-                            <p class="mt-1 text-xl font-bold leading-tight" :class="ALLOCATION_TEXT_CLASS[allocationRingTone]">
-                              {{ serviceBudgetAllocationPercent }}%
-                            </p>
-                            <p class="mt-0.5 text-xs" :class="ALLOCATION_TEXT_CLASS[allocationRingTone]">
-                              {{ ALLOCATION_STATUS_LABEL[allocationRingTone] }}
-                            </p>
-                          </div>
-
-                          <div class="ml-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-4" :class="ALLOCATION_RING_CLASS[allocationRingTone]">
-                            <component :is="ALLOCATION_RING_ICON[allocationRingTone]" class="h-5 w-5" />
-                          </div>
-                        </div>
-
-                        <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-                          <div class="h-full rounded-full transition-all" :class="TONE_BAR_BG[allocationRingTone]" :style="{ width: `${Math.min(100, serviceBudgetAllocationPercent)}%` }" />
-                        </div>
-                        <div class="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-                          <span class="flex items-center gap-1.5">
-                            <span class="h-2 w-2 shrink-0 rounded-full bg-success" />
-                            Teralokasikan: <span class="font-medium text-foreground">{{ formatCurrencyIdr(serviceBudgetAllocationSummary.allocatedIdr) }}</span>
-                          </span>
-                          <span class="flex items-center gap-1.5">
-                            <span class="h-2 w-2 shrink-0 rounded-full border border-muted-foreground/40" />
-                            {{ serviceBudgetAllocationSummary.unallocatedIdr < 0 ? 'Over' : 'Sisa' }}: <span class="font-medium text-foreground">{{ formatCurrencyIdr(Math.abs(serviceBudgetAllocationSummary.unallocatedIdr)) }}</span>
-                          </span>
-                        </div>
-                      </div>
-
-                      <!-- Baris per layanan -->
-                      <div class="space-y-2">
-                        <div v-for="row in serviceTypeSpendRows" :key="row.type" class="flex flex-col gap-3 rounded-lg border border-border p-3 sm:flex-row sm:items-center">
-                          <div class="flex min-w-0 items-center gap-2.5 sm:w-52 sm:shrink-0">
-                            <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" :class="TONE_ICON_BG[findStatusOption(SERVICE_TYPES, row.type).tone]">
-                              <component :is="SERVICE_TYPE_ICON[row.type]" class="h-4 w-4" />
-                            </div>
-                            <div class="min-w-0">
-                              <p class="text-sm font-semibold text-foreground">
-                                {{ row.label }}
-                              </p>
-                              <p class="text-xs text-muted-foreground">
-                                Budget: <span class="font-medium text-foreground">{{ row.hasBudget ? formatCurrencyIdr(row.budgetIdr) : 'Belum dialokasikan' }}</span>
-                              </p>
-                              <p class="text-xs text-muted-foreground">
-                                Actual: <span class="font-medium text-foreground">{{ formatCurrencyIdr(row.actualIdr) }}</span>
-                              </p>
-                            </div>
-                          </div>
-
-                          <div v-if="row.hasBudget" class="min-w-0 flex-1">
-                            <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                              Alokasi
-                            </p>
-                            <p class="mt-0.5 text-xl font-bold leading-tight text-foreground">
-                              {{ row.percent }}%
-                            </p>
-                            <div class="mt-1.5 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-muted">
-                              <div
-                                class="h-full rounded-full transition-all"
-                                :class="row.remainingIdr < 0 ? 'bg-destructive' : TONE_BAR_BG[findStatusOption(SERVICE_TYPES, row.type).tone]"
-                                :style="{ width: `${row.percent}%` }"
-                              />
-                            </div>
-                            <p class="mt-1 text-xs text-muted-foreground">
-                              {{ formatCurrencyIdr(row.actualIdr) }} dari {{ formatCurrencyIdr(row.budgetIdr) }}
-                            </p>
-                          </div>
-                          <p v-else class="flex-1 text-xs text-muted-foreground">
-                            Belum ada alokasi budget untuk layanan ini.
-                          </p>
-
-                          <div class="flex shrink-0 items-center gap-3">
-                            <div v-if="row.hasBudget">
-                              <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                                {{ row.remainingIdr < 0 ? 'Over Budget' : 'Sisa Alokasi' }}
-                              </p>
-                              <span class="mt-0.5 inline-block rounded-full px-2.5 py-1 text-sm font-semibold" :class="row.remainingIdr < 0 ? 'bg-destructive/10 text-destructive' : 'bg-success/10 text-success'">
-                                {{ formatCurrencyIdr(Math.abs(row.remainingIdr)) }}
-                              </span>
-                            </div>
-                            <Button v-if="canManageFinance" size="sm" variant="outline" @click="openEditServiceBudget(row.type, row.label)">
-                              Edit Budget
-                            </Button>
-                            <ChevronRight class="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-                          </div>
-                        </div>
-                      </div>
-
-                      <p class="flex items-start gap-1.5 text-[11px] text-muted-foreground">
-                        <Info class="mt-0.5 h-3 w-3 shrink-0" />
-                        Total actual di sini bisa berbeda dari "Actual Cost" di atas — Actual Cost project juga menghitung pengeluaran ad-hoc/Opex yang tidak terhubung ke layanan spesifik.
-                      </p>
-                    </div>
-                  </SectionCard>
-
-                  <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Ringkasan Budget per Milestone" description="Breakdown alternatif dari Total Budget Project yang sama — lihat detail per milestone di tab Milestone.">
-                    <div class="rounded-xl border border-border bg-card p-4">
-                      <div class="flex items-center gap-2.5">
-                        <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-                          <Wallet class="h-4 w-4" />
-                        </div>
-                        <p class="text-xs font-semibold uppercase tracking-wide text-foreground">
-                          Ringkasan Budget per Milestone
-                        </p>
-                      </div>
-
-                      <div class="mt-3 flex flex-wrap items-center gap-x-8 gap-y-3">
-                        <div>
-                          <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Total Budget Project
-                          </p>
-                          <p class="mt-1 text-xl font-bold leading-tight text-foreground">
-                            {{ formatCurrencyIdr(milestoneBudgetSummary.totalProjectBudgetIdr) }}
-                          </p>
-                        </div>
-                        <div>
-                          <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Sudah Dialokasikan ke Milestone
-                          </p>
-                          <p class="mt-1 text-xl font-bold leading-tight text-success">
-                            {{ formatCurrencyIdr(milestoneBudgetSummary.allocatedToMilestonesIdr) }}
-                          </p>
-                        </div>
-                        <div>
-                          <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Belum Dialokasikan
-                          </p>
-                          <p class="mt-1 text-xl font-bold leading-tight text-foreground">
-                            {{ formatCurrencyIdr(Math.max(0, milestoneBudgetSummary.unallocatedIdr)) }}
-                          </p>
-                        </div>
-                        <div>
-                          <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                            Tingkat Alokasi
-                          </p>
-                          <p class="mt-1 text-xl font-bold leading-tight" :class="ALLOCATION_TEXT_CLASS[milestoneAllocationTone]">
-                            {{ milestoneBudgetSummary.allocationPercent ?? 0 }}%
-                          </p>
-                        </div>
-
-                        <div class="ml-auto flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-4" :class="ALLOCATION_RING_CLASS[milestoneAllocationTone]">
-                          <component :is="ALLOCATION_RING_ICON[milestoneAllocationTone]" class="h-5 w-5" />
-                        </div>
-                      </div>
-
-                      <div class="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
-                        <div class="h-full rounded-full transition-all" :class="TONE_BAR_BG[milestoneAllocationTone]" :style="{ width: `${Math.min(100, milestoneBudgetSummary.allocationPercent ?? 0)}%` }" />
-                      </div>
-                    </div>
-                  </SectionCard>
-                </div>
-
-                <div class="space-y-4">
-                  <!-- Spacer transparan — samain classes-nya persis sama label "Financial Snapshot" (bukan pixel tebakan) supaya kartu ini rata sejajar sama baris StatsCard di kolom kiri. -->
-                  <p class="mb-3 hidden text-[11px] font-semibold uppercase tracking-wide text-transparent select-none xl:block" aria-hidden="true">
-                    .
-                  </p>
-                  <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Close Finance" description="Financial closure gate — menandai project ini &quot;Finance diselesaikan&quot; sebelum Project Closure.">
-                    <p v-if="isFinanceAlreadySettled" class="mb-3 flex items-center gap-1.5 text-sm text-success">
-                      <CheckCircle2 class="h-4 w-4 shrink-0" />Finance project ini sudah ditutup.
-                    </p>
-
-                    <div class="flex flex-col items-center gap-2 text-center">
-                      <div class="relative flex h-24 w-24 shrink-0 items-center justify-center">
-                        <svg viewBox="0 0 96 96" class="h-24 w-24 -rotate-90">
-                          <circle
-                            cx="48"
-                            cy="48"
-                            r="40"
-                            fill="none"
-                            stroke="hsl(var(--muted))"
-                            stroke-width="9"
-                          />
-                          <circle
-                            cx="48"
-                            cy="48"
-                            r="40"
-                            fill="none"
-                            :stroke="quotationGapIdr <= 0 ? 'hsl(var(--success))' : 'hsl(var(--primary))'"
-                            stroke-width="9"
-                            stroke-linecap="round"
-                            class="transition-all duration-500"
-                            :stroke-dasharray="2 * Math.PI * 40"
-                            :stroke-dashoffset="2 * Math.PI * 40 * (1 - quotationCollectionPercent / 100)"
-                          />
-                        </svg>
-                        <div class="absolute inset-0 flex flex-col items-center justify-center">
-                          <CheckCircle2 v-if="quotationGapIdr <= 0" class="h-8 w-8 text-success" />
-                          <p v-else class="text-xl font-bold leading-none text-primary">
-                            {{ quotationCollectionPercent }}%
-                          </p>
-                        </div>
-                      </div>
-                      <p class="text-xs text-muted-foreground">
-                        Sudah dibayar
-                      </p>
-                      <span class="inline-block rounded-full px-2.5 py-0.5 text-[11px] font-medium" :class="quotationGapIdr <= 0 ? 'bg-success/10 text-success' : 'bg-primary/10 text-primary'">
-                        Client Payment
-                      </span>
-                    </div>
-
-                    <p class="mt-4 text-xl font-bold leading-tight text-foreground">
-                      {{ formatCurrencyIdr(collectedIdr) }}
-                    </p>
-                    <p class="text-xs text-muted-foreground">
-                      dari {{ formatCurrencyIdr(project.quotationAmountIdr) }}
-                    </p>
-                    <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-muted">
-                      <div class="h-full rounded-full transition-all" :class="quotationGapIdr <= 0 ? 'bg-success' : 'bg-primary'" :style="{ width: `${quotationCollectionPercent}%` }" />
-                    </div>
-
-                    <div class="mt-4 space-y-3 border-t border-border pt-3">
-                      <div class="flex items-center justify-between gap-2">
-                        <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span class="h-2 w-2 shrink-0 rounded-full" :class="quotationGapIdr <= 0 ? 'bg-success' : 'bg-primary'" />Sudah Dibayar
-                        </p>
-                        <div class="text-right">
-                          <p class="text-sm font-semibold text-foreground">
-                            {{ formatCurrencyIdr(collectedIdr) }}
-                          </p>
-                          <p class="text-[11px] text-muted-foreground">
-                            {{ quotationCollectionPercent }}% dari total
-                          </p>
-                        </div>
-                      </div>
-                      <div class="flex items-center justify-between gap-2">
-                        <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span class="h-2 w-2 shrink-0 rounded-full border border-muted-foreground/40" />Sisa Tagihan
-                        </p>
-                        <div class="text-right">
-                          <p class="text-sm font-semibold text-foreground">
-                            {{ formatCurrencyIdr(quotationGapIdr) }}
-                          </p>
-                          <p class="text-[11px] text-muted-foreground">
-                            {{ 100 - quotationCollectionPercent }}% dari total
-                          </p>
-                        </div>
-                      </div>
-                      <div class="flex items-center justify-between gap-2">
-                        <p class="flex items-center gap-1.5 text-xs text-muted-foreground">
-                          <span class="h-2 w-2 shrink-0 rounded-full bg-border" />Total Kontrak
-                        </p>
-                        <div class="text-right">
-                          <p class="text-sm font-semibold text-foreground">
-                            {{ formatCurrencyIdr(project.quotationAmountIdr) }}
-                          </p>
-                          <p class="text-[11px] text-muted-foreground">
-                            100%
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </SectionCard>
-
-                  <div v-if="!isFinanceAlreadySettled" class="rounded-xl border p-4" :class="financeClosureGate.ready ? 'border-success/30 bg-success/5' : 'border-destructive/30 bg-destructive/5'">
-                    <template v-if="financeClosureGate.ready">
-                      <p class="flex items-center gap-1.5 text-sm font-medium text-success">
-                        <CheckCircle2 class="h-4 w-4 shrink-0" />Tidak ada blocker — siap Close Finance.
-                      </p>
-                    </template>
-                    <template v-else>
-                      <div class="flex items-center justify-between gap-2">
-                        <p class="text-xs font-medium text-destructive">
-                          Blocker sebelum Close Finance
-                        </p>
-                        <span class="shrink-0 rounded-full bg-destructive/10 px-2 py-0.5 text-[10px] font-semibold text-destructive">
-                          0 / {{ financeClosureGate.blockers.length }} selesai
-                        </span>
-                      </div>
-                      <ul class="mt-2 list-disc list-inside space-y-1 text-xs text-destructive">
-                        <li v-for="(blocker, index) in financeClosureGate.blockers" :key="index">
-                          {{ blocker }}
-                        </li>
-                      </ul>
-                    </template>
-                    <Button v-if="canManageFinance" size="sm" class="mt-3 w-full" :disabled="!financeClosureGate.ready" @click="submitCloseFinance">
-                      Close Finance
-                    </Button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-stretch">
-                <ProjectInvoicesPanel
-                  :invoices="invoices"
-                  :can-manage-finance="canManageFinance"
-                  @create-invoice="openCreateInvoice"
-                  @record-payment="openRecordPayment"
-                  @download-pdf="(invoice) => showToast('PDF (Mock)', `${invoice.id} — simulasi unduhan PDF, tidak ada file nyata (D-006).`, 'info')"
-                />
-
-                <!-- Rincian Harga + Credit/Debit Notes ditumpuk satu kolom (bukan grid 2 kolom terpisah) supaya mengisi tinggi kolom kanan sejajar dengan Invoice & Pembayaran yang biasanya lebih tinggi, tidak menyisakan space kosong di bawah Rincian Harga. -->
-                <div class="space-y-4">
-                  <ProjectPricingBreakdownCard
-                    :quotation-amount-idr="project.quotationAmountIdr"
-                    :invoice-issued-idr="invoiceIssuedIdr"
-                    :collected-idr="collectedIdr"
-                    :outstanding-idr="projectOutstandingIdr"
-                  />
-
-                  <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Credit / Debit Notes" description="Kelola dari Finance &gt; Credit/Debit Notes.">
-                    <template #actions>
-                      <NuxtLink to="/finance/invoices#notes">
-                        <Button size="sm">
-                          <Plus class="h-3.5 w-3.5 mr-1" />Add Note
-                        </Button>
-                      </NuxtLink>
-                    </template>
-                    <div class="space-y-3">
-                      <div>
-                        <p class="text-xs font-medium text-muted-foreground mb-1.5">
-                          Credit Notes
-                        </p>
-                        <ul v-if="projectCreditNotes.length" class="divide-y divide-border">
-                          <li v-for="note in projectCreditNotes" :key="note.id" class="py-1.5">
-                            <div class="flex items-center justify-between gap-2">
-                              <span class="text-sm text-foreground"><span class="font-ticket-mono font-medium">{{ note.id }}</span> — {{ formatCurrencyIdr(note.amountIdr) }}</span>
-                              <StatusBadge :label="findStatusOption(CREDIT_NOTE_STATUSES, note.status).label" :tone="findStatusOption(CREDIT_NOTE_STATUSES, note.status).tone" />
-                            </div>
-                            <p class="text-xs text-muted-foreground mt-0.5">
-                              {{ note.reason }}
-                            </p>
-                          </li>
-                        </ul>
-                        <p v-else class="text-xs text-muted-foreground">
-                          Belum ada Credit Note.
-                        </p>
-                      </div>
-                      <div class="border-t border-border pt-3">
-                        <p class="text-xs font-medium text-muted-foreground mb-1.5">
-                          Debit Notes
-                        </p>
-                        <ul v-if="projectDebitNotes.length" class="divide-y divide-border">
-                          <li v-for="note in projectDebitNotes" :key="note.id" class="py-1.5">
-                            <div class="flex items-center justify-between gap-2">
-                              <span class="text-sm text-foreground"><span class="font-ticket-mono font-medium">{{ note.id }}</span> — {{ formatCurrencyIdr(note.amountIdr) }}</span>
-                              <StatusBadge :label="findStatusOption(DEBIT_NOTE_STATUSES, note.status).label" :tone="findStatusOption(DEBIT_NOTE_STATUSES, note.status).tone" />
-                            </div>
-                            <p class="text-xs text-muted-foreground mt-0.5">
-                              {{ note.reason }}
-                            </p>
-                          </li>
-                        </ul>
-                        <p v-else class="text-xs text-muted-foreground">
-                          Belum ada Debit Note.
-                        </p>
-                      </div>
-                    </div>
-                  </SectionCard>
-                </div>
-              </div>
-
-              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Supplier Invoice (AP Summary)" description="Reconciliation lengkap di Finance &gt; Reconciliation.">
-                <ResponsiveDataView v-if="projectSupplierInvoices.length" :items="projectSupplierInvoices" :get-key="supplierInvoice => supplierInvoice.id">
-                  <template #desktop="{ items }">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>Supplier Invoice</TableHead>
-                          <TableHead>Vendor</TableHead>
-                          <TableHead>Jumlah</TableHead>
-                          <TableHead>Status</TableHead>
-                          <TableHead>Match Status</TableHead>
-                          <TableHead class="text-right">Aksi</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        <TableRow v-for="supplierInvoice in items" :key="supplierInvoice.id">
-                          <TableCell class="font-ticket-mono text-foreground">
-                            {{ supplierInvoice.id }}
-                          </TableCell>
-                          <TableCell class="text-muted-foreground">
-                            {{ getVendorById(supplierInvoice.vendorId)?.name ?? supplierInvoice.vendorId }}
-                          </TableCell>
-                          <TableCell>{{ formatCurrencyIdr(supplierInvoice.amountIdr) }}</TableCell>
-                          <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).tone" /></TableCell>
-                          <TableCell>
-                            <StatusBadge v-if="supplierInvoice.matchStatus" :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).label" :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).tone" />
-                            <span v-else class="text-xs text-muted-foreground">Belum ditriase</span>
-                          </TableCell>
-                          <TableCell class="text-right">
-                            <Button v-if="canManageFinance && supplierInvoice.status === 'approved'" size="sm" variant="outline" @click="onPaySupplierInvoice(supplierInvoice.id)">
-                              Bayar
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      </TableBody>
-                    </Table>
-                  </template>
-
-                  <template #mobile-card="{ item: supplierInvoice }">
-                    <div class="rounded-xl border border-border bg-card p-4">
-                      <div class="flex items-start justify-between gap-2">
-                        <div class="min-w-0">
-                          <p class="font-ticket-mono text-sm font-medium text-foreground">
-                            {{ supplierInvoice.id }}
-                          </p>
-                          <p class="text-xs text-muted-foreground">
-                            {{ getVendorById(supplierInvoice.vendorId)?.name ?? supplierInvoice.vendorId }}
-                          </p>
-                        </div>
-                        <StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, supplierInvoice.status).tone" />
-                      </div>
-                      <div class="mt-2 flex items-center justify-between gap-2 text-xs">
-                        <span class="text-foreground">{{ formatCurrencyIdr(supplierInvoice.amountIdr) }}</span>
-                        <StatusBadge v-if="supplierInvoice.matchStatus" :label="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).label" :tone="findStatusOption(SUPPLIER_INVOICE_MATCH_STATUSES, supplierInvoice.matchStatus).tone" />
-                        <span v-else class="text-muted-foreground">Belum ditriase</span>
-                      </div>
-                      <Button v-if="canManageFinance && supplierInvoice.status === 'approved'" size="sm" variant="outline" class="mt-2 w-full" @click="onPaySupplierInvoice(supplierInvoice.id)">
-                        Bayar
-                      </Button>
-                    </div>
-                  </template>
-                </ResponsiveDataView>
-                <EmptyState
-                  v-else
+            <div v-if="projectFinanceFull">
+              <p class="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Financial Snapshot
+              </p>
+              <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <StatsCard
+                  title="Project Value"
+                  :value="projectFinanceFull.contractValueMinor === null ? '—' : formatMoneyMinor(projectFinanceFull.contractValueMinor)"
+                  :subtitle="`Terkumpul ${formatMoneyMinor(projectFinanceFull.receivable.receivedMinor)} dari client · sisa ${formatMoneyMinor(projectFinanceFull.receivable.outstandingMinor)}`"
+                  :progress-percent="commercialHero.kind === 'full' ? commercialHero.percent.paid : 0"
                   :icon="FileText"
-                  title="Belum ada Supplier Invoice untuk project ini."
-                  description="Invoice dari vendor akan muncul di sini untuk proses reconciliation."
+                  :icon-color="projectFinanceFull.receivable.outstandingMinor === '0' ? 'success' : 'warning'"
                 />
-              </SectionCard>
-            </template>
+                <StatsCard
+                  title="Actual Cost"
+                  :value="formatMoneyMinor(projectFinanceFull.profitability.costMinor)"
+                  subtitle="Invoice vendor disetujui + pengeluaran project"
+                  :icon="CreditCard"
+                  icon-color="primary"
+                />
+                <StatsCard
+                  title="Project Margin"
+                  :value="formatMoneyMinor(projectFinanceFull.profitability.grossProfitMinor)"
+                  :subtitle="projectFinanceFull.profitability.marginBasisPoints === null ? 'Belum ada pendapatan' : `Margin ${(projectFinanceFull.profitability.marginBasisPoints / 100).toLocaleString('id-ID')}% dari pendapatan`"
+                  :icon="PieChart"
+                  :icon-color="projectFinanceFull.profitability.grossProfitMinor.startsWith('-') ? 'destructive' : 'success'"
+                />
+              </div>
+            </div>
 
-            <template v-else>
-              <SectionCard compact titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Finance">
-                <p class="text-xs text-muted-foreground mb-4">
-                  Ringkasan terbatas — detail Budget, Actual Cost, Committed Vendor Cost, dan Margin hanya terlihat oleh role dengan akses modul Finance.
-                </p>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <StatsCard
-                    title="Nilai Quotation"
-                    :value="formatCurrencyIdrCompact(project.quotationAmountIdr)"
-                    :full-value="formatCurrencyIdr(project.quotationAmountIdr)"
-                    :subtitle="`Terkumpul ${formatCurrencyIdr(collectedIdr)} dari client${quotationGapIdr > 0 ? ' · Kurang ' + formatCurrencyIdr(quotationGapIdr) : ' · Lunas'}`"
-                    :progress-percent="quotationCollectionPercent"
-                    :icon="FileText"
-                    :icon-color="quotationGapIdr > 0 ? 'warning' : 'success'"
-                  />
-                  <StatsCard title="Outstanding" :value="formatCurrencyIdrCompact(projectOutstandingIdr)" :full-value="formatCurrencyIdr(projectOutstandingIdr)" :icon="Wallet" icon-color="warning" />
-                </div>
-              </SectionCard>
-            </template>
+            <div class="grid grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_340px] xl:items-start">
+              <FinanceProjectPanel
+                ref="financePanel"
+                :project-id="project.id"
+                :settled="isFinanceAlreadySettled"
+                :can-close="canManageFinance"
+                @close="submitCloseFinance"
+              />
+              <ProjectPricingBreakdownCard
+                v-if="commercialHero.kind === 'full'"
+                :quotation-amount-idr="commercialHero.contractMinor === null ? 0 : Number(commercialHero.contractMinor)"
+                :invoice-issued-idr="Number(commercialHero.invoicedMinor)"
+                :collected-idr="Number(commercialHero.receivedMinor)"
+                :outstanding-idr="Number(commercialHero.outstandingMinor)"
+              />
+            </div>
           </div>
-
-          <Sheet v-model:open="isExpenseDialogOpen">
-            <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle>Catat Pengeluaran</SheetTitle>
-                <SheetDescription>Langsung tercatat dan ikut Actual Cost project — tanpa alur approval.</SheetDescription>
-              </SheetHeader>
-              <div class="space-y-4 py-2">
-                <div class="space-y-1.5">
-                  <Label for="expense-category">Kategori</Label>
-                  <select id="expense-category" v-model="expenseCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="" disabled>
-                      Pilih kategori
-                    </option>
-                    <option v-for="option in PROJECT_EXPENSE_CATEGORIES" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="expense-description">Keterangan</Label>
-                  <Input id="expense-description" v-model="expenseDescription" placeholder="mis. Taksi bandara ke hotel untuk rombongan" />
-                </div>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div class="space-y-1.5">
-                    <Label for="expense-amount">Nominal (Rp)</Label>
-                    <CurrencyInput id="expense-amount" v-model="expenseAmountIdr" placeholder="mis. 500000" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="expense-date">Tanggal</Label>
-                    <Input id="expense-date" v-model="expenseIncurredAt" type="date" />
-                  </div>
-                </div>
-              </div>
-              <SheetFooter class="mt-6 flex-row justify-end gap-2">
-                <Button variant="outline" @click="isExpenseDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!expenseCategory || !expenseDescription.trim() || !expenseAmountIdr || !expenseIncurredAt" @click="submitExpense">
-                  Simpan
-                </Button>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
-
-          <Sheet v-model:open="isServiceBudgetDialogOpen">
-            <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle>Edit Budget {{ serviceBudgetTypeLabel }}</SheetTitle>
-                <SheetDescription>Alokasi budget per baris layanan — dijumlahkan sebagai budget tipe ini di "Pengeluaran per Layanan".</SheetDescription>
-              </SheetHeader>
-              <div class="space-y-4 py-2">
-                <div v-for="(_, serviceId) in serviceBudgetForm" :key="serviceId" class="space-y-1.5">
-                  <Label :for="`svc-budget-${serviceId}`">{{ serviceLabelById(serviceId) }}</Label>
-                  <CurrencyInput :id="`svc-budget-${serviceId}`" v-model="serviceBudgetForm[serviceId]" placeholder="mis. 10000000" />
-                </div>
-              </div>
-              <SheetFooter class="mt-6 flex-row justify-end gap-2">
-                <Button variant="outline" @click="isServiceBudgetDialogOpen = false">
-                  Batal
-                </Button>
-                <Button @click="submitServiceBudget">
-                  Simpan
-                </Button>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
-
-          <Sheet v-model:open="isCreateInvoiceOpen">
-            <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle>Buat Invoice</SheetTitle>
-                <SheetDescription>Terbitkan invoice langsung untuk project ini — bisa dipecah per termin (DP/Termin/Final) atau satu invoice penuh.</SheetDescription>
-              </SheetHeader>
-              <div class="space-y-4 py-2">
-                <div class="space-y-1.5">
-                  <Label for="inv-label">Label Invoice</Label>
-                  <Input id="inv-label" v-model="createInvoiceLabel" placeholder="mis. Invoice Tour Bali 5D4N" />
-                </div>
-                <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <div class="space-y-1.5">
-                    <Label for="inv-amount">Nilai Invoice (Rp)</Label>
-                    <CurrencyInput id="inv-amount" v-model="createInvoiceAmountIdr" placeholder="mis. 95000000" />
-                    <p class="text-[11px] text-muted-foreground">
-                      Default sisa nilai kontrak yang belum ditagih.
-                    </p>
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="inv-due">Jatuh Tempo</Label>
-                    <Input id="inv-due" v-model="createInvoiceDueAt" type="date" />
-                  </div>
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="inv-type">Tipe Invoice</Label>
-                  <select id="inv-type" v-model="createInvoiceType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="option in INVOICE_TYPES" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </option>
-                  </select>
-                </div>
-
-                <div class="space-y-1.5 border-t border-border pt-4">
-                  <Label for="inv-template">Template Milestone (opsional)</Label>
-                  <select id="inv-template" :value="createInvoiceTemplateKey" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer" @change="applyInvoiceMilestoneTemplate(($event.target as HTMLSelectElement).value)">
-                    <option value="">
-                      Tanpa milestone (satu invoice utuh)
-                    </option>
-                    <option v-for="template in INVOICE_MILESTONE_TEMPLATES" :key="template.key" :value="template.key">
-                      {{ template.label }}
-                    </option>
-                  </select>
-                  <p class="text-[11px] text-muted-foreground">
-                    Bisa diedit/ditambah/dihapus di bawah — total wajib 100%.
-                  </p>
-                </div>
-
-                <div v-if="createInvoiceMilestones.length" class="space-y-2">
-                  <div v-for="(milestone, index) in createInvoiceMilestones" :key="index" class="flex items-center gap-2">
-                    <Input v-model="milestone.label" placeholder="mis. Termin 1" class="flex-1" />
-                    <div class="relative w-24 shrink-0">
-                      <input v-model.number="milestone.percent" type="number" min="0" max="100" class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 pr-6 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring">
-                      <span class="pointer-events-none absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                    </div>
-                    <span class="w-28 shrink-0 truncate text-right text-xs text-muted-foreground">
-                      {{ formatCurrencyIdr(Math.round((createInvoiceAmountIdr ?? 0) * (milestone.percent || 0) / 100)) }}
-                    </span>
-                    <button type="button" class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-destructive" @click="removeInvoiceMilestoneRow(index)">
-                      <Trash2 class="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <div class="flex items-center justify-between">
-                    <button type="button" class="text-xs font-medium text-primary hover:underline" @click="addInvoiceMilestoneRow">
-                      + Tambah Milestone
-                    </button>
-                    <span class="text-xs font-semibold" :class="createInvoiceMilestonesValid ? 'text-success' : 'text-destructive'">
-                      Total: {{ createInvoiceMilestonesTotalPercent }}%
-                    </span>
-                  </div>
-                </div>
-                <button v-else type="button" class="text-xs font-medium text-primary hover:underline" @click="addInvoiceMilestoneRow">
-                  + Tambah Milestone
-                </button>
-
-                <div class="space-y-1.5 border-t border-border pt-4">
-                  <Label for="inv-notes">Catatan (opsional)</Label>
-                  <textarea id="inv-notes" v-model="createInvoiceNotes" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Rujukan kontrak/PO" />
-                </div>
-              </div>
-              <SheetFooter class="mt-6 flex-row justify-end gap-2">
-                <Button variant="outline" @click="isCreateInvoiceOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!createInvoiceLabel.trim() || !createInvoiceAmountIdr || !createInvoiceDueAt || !createInvoiceMilestonesValid" @click="submitCreateInvoice">
-                  Buat Invoice
-                </Button>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
-
-          <Sheet v-model:open="isRecordPaymentOpen">
-            <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
-              <SheetHeader>
-                <SheetTitle>Record Payment</SheetTitle>
-                <SheetDescription>Catat pembayaran untuk invoice {{ recordPaymentInvoice?.id }} — mock ledger update, bukan payment gateway nyata.</SheetDescription>
-              </SheetHeader>
-              <div class="space-y-4 py-2">
-                <div class="rounded-lg border border-border bg-muted/40 p-3">
-                  <div class="flex items-center justify-between">
-                    <span class="text-xs text-muted-foreground">Outstanding Balance</span>
-                    <span class="text-sm font-semibold tabular-nums text-foreground">{{ formatCurrencyIdr(recordPaymentOutstandingIdr) }}</span>
-                  </div>
-                </div>
-
-                <div v-if="recordPaymentInvoice?.milestones?.length" class="space-y-1.5">
-                  <Label for="pay-milestone">Milestone</Label>
-                  <select id="pay-milestone" v-model="recordPaymentMilestoneId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="milestone in recordPaymentInvoice.milestones" :key="milestone.id" :value="milestone.id" :disabled="getInvoiceMilestoneOutstandingIdr(recordPaymentInvoice.id, milestone.id) <= 0">
-                      {{ milestone.label }} — {{ formatCurrencyIdr(milestone.amountIdr) }}
-                    </option>
-                  </select>
-                  <p class="text-[11px] text-muted-foreground">
-                    Outstanding milestone ini: {{ formatCurrencyIdr(recordPaymentOutstandingIdr) }}
-                  </p>
-                </div>
-
-                <div class="space-y-1.5">
-                  <Label for="pay-amount">Amount (IDR)</Label>
-                  <CurrencyInput id="pay-amount" v-model="recordPaymentAmountIdr" :disabled="recordPaymentPayFull" placeholder="Rp 0" />
-                </div>
-                <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
-                  <Checkbox v-model="recordPaymentPayFull" />
-                  Bayar penuh sisa outstanding ({{ formatCurrencyIdr(recordPaymentOutstandingIdr) }})
-                </label>
-
-                <div class="space-y-1.5">
-                  <Label for="pay-method">Payment Method</Label>
-                  <select id="pay-method" v-model="recordPaymentMethod" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="bank-transfer">
-                      Bank Transfer
-                    </option>
-                    <option value="credit-card">
-                      Credit Card
-                    </option>
-                    <option value="cash">
-                      Cash
-                    </option>
-                  </select>
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="pay-date">Payment Date</Label>
-                  <Input id="pay-date" v-model="recordPaymentDate" type="date" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="pay-reference">Reference/Notes (opsional)</Label>
-                  <textarea id="pay-reference" v-model="recordPaymentReference" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Transfer ID, nomor kuitansi, atau catatan lain" />
-                </div>
-              </div>
-              <SheetFooter class="mt-6 flex-row justify-end gap-2">
-                <Button variant="outline" @click="isRecordPaymentOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!recordPaymentAmountIdr || recordPaymentAmountIdr <= 0 || !recordPaymentDate" @click="submitRecordPayment">
-                  Record Payment
-                </Button>
-              </SheetFooter>
-            </SheetContent>
-          </Sheet>
         </TabsContent>
 
         <TabsContent value="expenses">

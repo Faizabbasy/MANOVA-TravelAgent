@@ -15,6 +15,8 @@ const props = defineProps<{
   canManage: boolean
   /** Tanggal rencana hanya boleh diubah sebelum Project Order dikonfirmasi. */
   plannedDatesLocked: boolean
+  /** Hide every budget field (project budgets are not managed by the server yet). */
+  hideBudget?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -268,7 +270,7 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
                 <template v-if="isLate(row)">
                   · <span class="font-medium text-destructive">{{ delayLabel(row.delay) }}</span>
                 </template>
-                <template v-if="row.milestone.budgetIdr">
+                <template v-if="row.milestone.budgetIdr && !hideBudget">
                   · {{ formatCurrencyIdr(row.milestone.budgetIdr) }}
                 </template>
               </p>
@@ -375,7 +377,7 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
             </div>
 
             <div class="flex items-center justify-between gap-3 rounded-lg border border-border bg-card px-3 py-2">
-              <div class="min-w-0">
+              <div v-if="!hideBudget" class="min-w-0">
                 <p class="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
                   Budget Milestone
                 </p>
@@ -452,7 +454,7 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
               </option>
             </select>
           </div>
-          <div class="space-y-1.5">
+          <div v-if="!hideBudget" class="space-y-1.5">
             <Label for="new-milestone-budget">Budget (Rp, opsional)</Label>
             <CurrencyInput id="new-milestone-budget" v-model="newBudget" placeholder="mis. 5000000" />
           </div>
@@ -510,11 +512,11 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
       <SheetContent side="right" class="w-full sm:max-w-lg overflow-y-auto">
         <SheetHeader>
           <SheetTitle>Kelola Milestone{{ manageMilestone ? `: ${manageMilestone.name}` : '' }}</SheetTitle>
-          <SheetDescription>Atur budget dan checklist deliverables milestone ini.</SheetDescription>
+          <SheetDescription>{{ hideBudget ? 'Atur checklist deliverables milestone ini.' : 'Atur budget dan checklist deliverables milestone ini.' }}</SheetDescription>
         </SheetHeader>
 
         <div class="space-y-5 py-2">
-          <div class="space-y-1.5">
+          <div v-if="!hideBudget" class="space-y-1.5">
             <Label for="milestone-budget">
               <Wallet class="mr-1 inline h-3.5 w-3.5" />Budget (Rp)
             </Label>
@@ -561,7 +563,7 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
           <Button variant="outline" @click="isManageOpen = false">
             Tutup
           </Button>
-          <Button @click="saveBudget">
+          <Button v-if="!hideBudget" @click="saveBudget">
             Simpan Budget
           </Button>
         </SheetFooter>
