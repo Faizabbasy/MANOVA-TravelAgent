@@ -5,13 +5,14 @@ import { FileX, Plus, MessageCircle } from 'lucide-vue-next'
 import { buildWhatsAppLink } from '~/data/crm-engagement'
 import {
   getPartyById, getContactsByParty, getLeadsByParty, getPartyActivities, getProjectsByParty,
-  getQuotationByLead, createContact, createPartyActivity, createProject, getInvoicesByProject, getFeedbackByProject,
+  getQuotationByLead, createContact, createPartyActivity, createProject, getFeedbackByProject,
   getUserByClientPartyId, isManovaClient, ensureProjectServiceForBudget, updateProjectServiceBudget
 } from '~/data'
 import { getLoyaltyAccount } from '~/data/crm-engagement'
 import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatNumber } from '~/utils/format'
 import { daysUntil } from '~/utils/format'
+import { PAYMENT_STATUS_TONE } from '~/lib/finance/labels'
 import type { PartyDetailTab, PartyActivityType } from '~/types/party'
 import type { ServiceTypeKey } from '~/types/project'
 
@@ -19,7 +20,7 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
-const { currentRole, currentUser } = useCurrentUser()
+const { currentUser } = useCurrentUser()
 const { canView, can, canManage } = usePermissions()
 const { showToast } = useToast()
 
@@ -143,11 +144,13 @@ const TABS = computed(() => {
  * feedback yang sudah tercatat — bukan profil terpisah yang harus diisi ulang dan berpotensi basi.
  * Satu-satunya field tersimpan adalah `Party.travelPreferences` (catatan bebas) yang memang sudah ada.
  */
+/** Payment status per trip from Finance on the server (one request for all projects; no amounts for Admin). */
+const financeOverview = useFinanceOverview()
 const travelHistory = computed(() => [...projects.value]
   .sort((a, b) => b.travelStartDate.localeCompare(a.travelStartDate))
   .map(project => ({
     project,
-    invoicedIdr: getInvoicesByProject(project.id).reduce((sum, invoice) => sum + invoice.amountIdr, 0),
+    payment: financeOverview.byProject.value.get(project.id) ?? null,
     feedback: getFeedbackByProject(project.id)
   })))
 
@@ -317,6 +320,9 @@ function submitActivity () {
         </TabsContent>
 
         <TabsContent value="contacts">
+          <!-- Customer receivables from the Finance API. -->
+          <FinanceContextPanel :subject="{ type: 'party', id: party.id }" title="Tagihan customer" />
+
           <SectionCard title="Contacts">
             <template #actions>
               <ResponsiveFormSheet
@@ -776,10 +782,8 @@ function submitActivity () {
                         · {{ row.project.travelerCount }} pax
                       </p>
                     </div>
-                    <div class="text-right shrink-0">
-                      <p class="text-sm font-medium text-foreground">
-                        {{ formatCurrencyIdr(row.invoicedIdr) }}
-                      </p>
+                    <div class="flex shrink-0 flex-col items-end gap-1 text-right">
+                      <StatusBadge v-if="row.payment" :label="row.payment.label" :tone="PAYMENT_STATUS_TONE[row.payment.paymentStatus]" />
                       <StatusBadge
                         :label="findStatusOption(PROJECT_STATUSES, row.project.status).label"
                         :tone="findStatusOption(PROJECT_STATUSES, row.project.status).tone"

@@ -22,6 +22,8 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Project' })
 
 const { canView, canViewFinancials, canManage } = usePermissions()
+// Keeps the DP workflow gates (evaluated per row) in sync with Finance on the server.
+useFinanceOverview()
 const { showToast } = useToast()
 
 /**
