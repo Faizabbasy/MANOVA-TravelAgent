@@ -189,6 +189,14 @@ describe('createManovaApi — receivables & payables', () => {
     expect(calls[1]!.headers['idempotency-key']).toBe('key-dp-123456')
   })
 
+  it('debit note is issued from an invoice', async () => {
+    const { calls, transport } = fakeTransport(200, { data: {}, meta: { requestId: 'r' } })
+    const api = createManovaApi(createApiClient({ baseURL: '/api/v1', transport }))
+    await api.finance.issueDebitNote('CINV-00001', { amountMinor: '250000', reason: 'Tambahan kamar', dueDate: '2026-10-20' })
+    expect(calls.map(c => `${c.method} ${c.url}`)).toEqual(['POST /api/v1/finance/customer-invoices/CINV-00001/debit-notes'])
+    expect(calls[0]!.body).toBe('{"amountMinor":"250000","reason":"Tambahan kamar","dueDate":"2026-10-20"}')
+  })
+
   it('monthly report takes a month count or a date range', async () => {
     const { calls, transport } = fakeTransport(200, { data: {}, meta: { requestId: 'r' } })
     const api = createManovaApi(createApiClient({ baseURL: '/api/v1', transport }))

@@ -39,7 +39,9 @@ const showEdit = ref(false)
 const showPayment = ref(false)
 const showIssue = ref(false)
 const showDelete = ref(false)
-type ReasonKind = 'void' | 'dispute' | 'undispute' | 'expect' | 'credit' | `voidCredit:${string}`
+type ReasonKind = 'void' | 'dispute' | 'undispute' | 'expect' | 'credit' | 'debit' | `voidCredit:${string}`
+/** Extra charges go on the original invoice, not on a debit note. */
+const canDebit = computed(() => inv.value?.status === 'issued' && inv.value.invoiceType !== 'debit_note')
 const reasonKind = ref<ReasonKind | null>(null)
 
 const issueForm = reactive({ issueDate: today, dueDate: '' })
@@ -81,6 +83,17 @@ const reasonConfig = computed(() => {
   if (k === 'credit') {
     return { title: 'Terbitkan credit note', description: `Mengurangi sisa tagihan tanpa uang keluar (mis. diskon atau kompensasi). Maksimal sisa tagihan: ${formatMoneyMinor(i.outstandingMinor)}.`, confirm: 'Terbitkan credit note', amountLabel: 'Nominal pengurang' }
   }
+  if (k === 'debit') {
+    return {
+      title: 'Terbitkan debit note',
+      description: `Tagihan tambahan untuk ${i.party.name} atas invoice ${i.number ?? ''} (mis. tambahan kamar atau biaya admin). Terbit sebagai invoice baru bernomor DN-…; tidak ada uang yang bergerak.`,
+      confirm: 'Terbitkan debit note',
+      amountLabel: 'Nominal tambahan',
+      dateLabel: 'Jatuh tempo',
+      initialDate: shiftDate(today, 14),
+      dateMin: today
+    }
+  }
   return { title: 'Batalkan credit note?', description: 'Sisa tagihan invoice bertambah kembali sebesar credit note ini.', confirm: 'Batalkan credit note', tone: 'destructive' as const }
 })
 
@@ -91,6 +104,7 @@ const reasonAction = useFinanceAction((value: { reason: string; date: string | n
   if (k === 'dispute' || k === 'undispute') { return api.finance.setInvoiceDispute(i.id, k === 'dispute', value.reason) }
   if (k === 'expect') { return api.finance.setInvoiceExpectation(i.id, value.date, value.reason) }
   if (k === 'credit') { return api.finance.issueCreditNote({ invoiceId: i.id, amountMinor: value.amount, reason: value.reason }) }
+  if (k === 'debit') { return api.finance.issueDebitNote(i.id, { amountMinor: value.amount, reason: value.reason, dueDate: value.date ?? '' }) }
   return api.finance.voidCreditNote(k.slice('voidCredit:'.length), value.reason)
 })
 async function confirmReason (value: { reason: string; date: string | null; amount: string }) {
@@ -293,6 +307,9 @@ function openReason (kind: ReasonKind) {
             <Button v-if="isOpenIssued" variant="outline" size="sm" @click="openReason('credit')">
               Credit note
             </Button>
+            <Button v-if="canDebit" variant="outline" size="sm" @click="openReason('debit')">
+              Debit note
+            </Button>
             <Button v-if="isOpenIssued" variant="outline" size="sm" @click="openReason(inv.isDisputed ? 'undispute' : 'dispute')">
               <Scale class="mr-1.5 h-4 w-4" /> {{ inv.isDisputed ? 'Selesaikan sengketa' : 'Tandai sengketa' }}
             </Button>
@@ -358,6 +375,7 @@ function openReason (kind: ReasonKind) {
     :date-label="reasonConfig.dateLabel"
     :date-optional="reasonConfig.dateOptional"
     :initial-date="reasonConfig.initialDate ?? null"
+    :date-min="reasonConfig.dateMin"
     :amount-label="reasonConfig.amountLabel"
     :pending="reasonAction.pending.value"
     :error="reasonAction.error.value"

@@ -76,7 +76,7 @@ const disabled = computed(() =>
     <FinanceField v-if="amountLabel" id="reason-amount" :label="amountLabel" :hint="amountHint" :error="fieldError('amountMinor')">
       <FinanceMoneyInput id="reason-amount" v-model="amount" :invalid="!!fieldError('amountMinor')" />
     </FinanceField>
-    <FinanceField v-if="dateLabel" id="reason-date" :label="dateLabel" :optional="dateOptional" :error="fieldError('expectedDate') ?? fieldError('date')">
+    <FinanceField v-if="dateLabel" id="reason-date" :label="dateLabel" :optional="dateOptional" :error="fieldError('expectedDate') ?? fieldError('dueDate') ?? fieldError('date')">
       <FinanceDateInput id="reason-date" v-model="date" :min="dateMin" :max="dateMax" />
     </FinanceField>
     <FinanceField id="reason-text" :label="reasonLabel" :error="fieldError('reason')" hint="Minimal 5 karakter. Tersimpan di jejak audit.">

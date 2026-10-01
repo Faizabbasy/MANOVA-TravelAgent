@@ -14,6 +14,7 @@ import type {
   SalesOrderFinanceSummaryDto,
   BookingRefDto,
   IsoDate,
+  MoneyMinor,
   CancellationInput,
   CancellationPolicyDto,
   CancellationPreviewDto,
@@ -165,6 +166,9 @@ export function createManovaApi (client: ApiClient) {
         client.request<{ data: CustomerInvoiceDetailDto; meta: { requestId: string; warnings: { code: string; message: string }[] } }>(
           'POST', `/finance/customer-invoices/${seg(id)}/issue`, { body: input }),
       voidInvoice: (id: string, reason: string) => client.post<CustomerInvoiceDetailDto>(`/finance/customer-invoices/${seg(id)}/void`, { reason }),
+      /** Extra charge on an issued invoice: a DN-numbered invoice for the same customer and project. */
+      issueDebitNote: (id: string, input: { amountMinor: MoneyMinor; reason: string; dueDate: IsoDate }) =>
+        client.post<CustomerInvoiceDetailDto>(`/finance/customer-invoices/${seg(id)}/debit-notes`, input),
       setInvoiceExpectation: (id: string, expectedDate: string | null, reason: string) =>
         client.patch<CustomerInvoiceDetailDto>(`/finance/customer-invoices/${seg(id)}/expectation`, { expectedDate, reason }),
       setInvoiceDispute: (id: string, disputed: boolean, reason: string) =>
