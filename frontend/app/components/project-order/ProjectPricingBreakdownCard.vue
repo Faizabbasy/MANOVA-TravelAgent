@@ -4,12 +4,10 @@ import { Calculator } from 'lucide-vue-next'
 import { formatCurrencyIdr } from '~/utils/format'
 
 /**
- * Tab Finance (Project Detail) — pengganti card "Riwayat Pembayaran" terpisah (fungsinya sudah pindah ke
- * baris milestone `ProjectInvoicesPanel`). Gaya visual mengikuti referensi client (grup baris berlabel →
- * subtotal → Grand Total), tapi kontennya dipetakan ke angka yang benar-benar ada di Manova — Nilai Kontrak
- * → Ditagih → Dibayar → Outstanding — bukan Equipment/PPN/Ocean Freight (tidak ada model pajak/logistik di
- * app ini). Presentational-only, seluruh angka sudah computed di halaman induk (sama sumbernya dengan
- * Payment Progress banner di `ProjectInvoicesPanel`, jadi selalu konsisten satu sama lain).
+ * Tab Finance (Project Detail) — rincian Nilai Kontrak → Ditagih → Dibayar → Outstanding. Gaya visual
+ * mengikuti referensi client (grup baris berlabel → subtotal → Grand Total). Presentational-only: seluruh
+ * angka datang dari ringkasan project di server (`heroFigures`), sumber yang sama dengan hero Overview dan
+ * panel Finance, jadi selalu konsisten satu sama lain.
  */
 const props = defineProps<{
   quotationAmountIdr: number

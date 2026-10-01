@@ -20,7 +20,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, BarController, PointEle
 /**
  * Monthly Cash Flow — Income vs Expense per periode sebagai grouped bar, dioverlay garis "Net" (Income −
  * Expense) supaya tren untung/rugi bulanan terbaca sekali lihat tanpa menghitung manual. Data SAMA dengan
- * `DashboardHeroPanel`/`getRevenueByPeriod()`.
+ * `DashboardHeroPanel` (laporan bulanan Finance di server).
  *
  * Interaksi custom (bukan default Chart.js):
  * - "Spotlight" band di belakang grup bar yang di-hover (plugin lokal `hoverBandPlugin`).

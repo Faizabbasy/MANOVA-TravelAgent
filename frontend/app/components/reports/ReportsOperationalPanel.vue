@@ -241,8 +241,7 @@ const totalQuotationIdr = computed(() => budgetProjects.value.reduce((sum, p) =>
 const totalMarginIdr = computed(() => totalQuotationIdr.value - totalActualIdr.value)
 
 /* ==================================================
- * Section 6 — Invoice Aging dan Outstanding (Finance/Management/Super Admin/Viewer)
- * Reuse `invoiceAgingDays`/`getInvoiceOutstandingIdr` existing (Section 15) — bukan menghitung ulang.
+ * Section 6 — Invoice Aging dan Outstanding (Finance/Super Admin), dari piutang customer di server.
  * ================================================== */
 const api = useApi()
 const session = useServerSession()

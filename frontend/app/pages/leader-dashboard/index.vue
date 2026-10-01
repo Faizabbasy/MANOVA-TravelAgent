@@ -2,38 +2,35 @@
 import { computed } from 'vue'
 import { TrendingUp, Wallet, FolderKanban, Receipt } from 'lucide-vue-next'
 import ReportsAnalyticsPanel from '~/components/reports/ReportsAnalyticsPanel.vue'
-import { PROJECTS, getProjectOutstandingIdr } from '~/data'
-import { getRevenueByPeriod } from '~/data/finance-ext'
+import { PROJECTS } from '~/data'
 import { PROJECT_STATUSES } from '~/constants/status'
-import { formatCurrencyIdr } from '~/utils/format'
+import { formatMoneyMinor } from '~/lib/money'
 import type { StatusBreakdownItem } from '~/components/shared/StatusBreakdownList.vue'
 
 /**
- * Leader Dashboard — ringkasan tingkat eksekutif untuk Management/Super Admin, terpisah dari Dashboard
- * utama (`/`, operasional harian lintas-role). Sengaja TIDAK menduplikasi data/kalkulasi — komposisi ulang
- * dari selector yang SUDAH ADA (`getRevenueByPeriod` sumber sama dengan hero panel Dashboard utama,
- * `getProjectOutstandingIdr` sumber sama dengan Outstanding Invoices) ditambah embed penuh
+ * Leader Dashboard — ringkasan tingkat eksekutif, terpisah dari Dashboard utama (`/`). Angka keuangan dari
+ * server: pemasukan & profit bulan berjalan (laporan bulanan akrual) dan total piutang (ringkasan Finance) —
+ * hanya untuk Finance/Super Admin; Admin melihat pipeline project dan analytics saja. Embed penuh
  * `ReportsAnalyticsPanel` (Reporting & BI, TIDAK disalin ulang isinya). Sengaja TIDAK ditambahkan ke
- * `NAV_ITEMS` (sidebar sedang disederhanakan) — route ini tetap hidup dan tergerbang RBAC lewat
- * `HIDDEN_NAV_ROUTES`.
+ * `NAV_ITEMS` — route ini tetap hidup dan tergerbang RBAC lewat `HIDDEN_NAV_ROUTES`.
  */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Leader Dashboard' })
 
-/**
- * `canView('bi')` — Reporting & BI, bukan `canView('management')` ('management' adalah ROLE id, bukan
- * modul; lihat `SEED_MODULE_LEVELS['management']`, `app/data/rbac.ts`, role Management diberi grant MANAGE
- * atas modul `bi`). Konsisten dengan gate `ReportsAnalyticsPanel` yang di-embed di bawah, dan Super Admin
- * selalu bypass lewat `isSuperAdmin`.
- */
+/** `canView('bi')` — Reporting & BI, konsisten dengan gate `ReportsAnalyticsPanel` yang di-embed di bawah. */
 const { canView } = usePermissions()
 const hasAccess = computed(() => canView('bi'))
 
-const revenuePeriods = computed(() => getRevenueByPeriod())
-const latestPeriod = computed(() => revenuePeriods.value.at(-1))
+const api = useApi()
+const session = useServerSession()
+const canSeeMoney = computed(() => session.can('finance.view-project-finance'))
+const overview = useFinanceOverview()
+const thisMonth = useFinanceQuery(
+  async () => (await api.finance.monthlyReport({ months: '1' })).data.months[0] ?? null,
+  { enabled: () => canSeeMoney.value }
+)
 
 const activeProjects = computed(() => PROJECTS.filter(project => !['completed', 'cancelled'].includes(project.status)))
-const totalOutstandingIdr = computed(() => PROJECTS.reduce((sum, project) => sum + getProjectOutstandingIdr(project.id), 0))
 
 const projectPipeline = computed<StatusBreakdownItem[]>(() => {
   const byStatus = new Map<string, number>()
@@ -51,7 +48,7 @@ const projectPipeline = computed<StatusBreakdownItem[]>(() => {
   <div class="space-y-6">
     <PageHeader
       title="Leader Dashboard"
-      description="Ringkasan tingkat eksekutif — revenue, project pipeline, cash flow, dan Analytics & Marketing ROI dalam satu halaman."
+      description="Ringkasan tingkat eksekutif — revenue, project pipeline, dan Analytics & Marketing ROI dalam satu halaman."
       :breadcrumb="[{ label: 'Leader Dashboard' }]"
     />
 
@@ -59,10 +56,23 @@ const projectPipeline = computed<StatusBreakdownItem[]>(() => {
 
     <template v-else>
       <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatsCard title="Pemasukan Bersih (Periode Terbaru)" :value="formatCurrencyIdr(latestPeriod?.revenueIdr ?? 0)" :icon="TrendingUp" icon-color="primary" />
-        <StatsCard title="Profit Bersih (Periode Terbaru)" :value="formatCurrencyIdr(latestPeriod?.netProfitIdr ?? 0)" :icon="Wallet" :icon-color="(latestPeriod?.netProfitIdr ?? 0) >= 0 ? 'success' : 'destructive'" />
+        <template v-if="canSeeMoney">
+          <StatsCard title="Pemasukan Bersih (Bulan Ini)" :value="thisMonth.data.value ? formatMoneyMinor(thisMonth.data.value.revenueMinor) : '—'" :icon="TrendingUp" icon-color="primary" />
+          <StatsCard
+            title="Profit Bersih (Bulan Ini)"
+            :value="thisMonth.data.value ? formatMoneyMinor(thisMonth.data.value.netMinor) : '—'"
+            :icon="Wallet"
+            :icon-color="thisMonth.data.value?.netMinor.startsWith('-') ? 'destructive' : 'success'"
+          />
+        </template>
         <StatsCard title="Project Aktif" :value="String(activeProjects.length)" :icon="FolderKanban" icon-color="primary" />
-        <StatsCard title="Total Outstanding Invoice" :value="formatCurrencyIdr(totalOutstandingIdr)" :icon="Receipt" :icon-color="totalOutstandingIdr > 0 ? 'warning' : 'success'" />
+        <StatsCard
+          v-if="canSeeMoney"
+          title="Total Outstanding Invoice"
+          :value="overview.full.value ? formatMoneyMinor(overview.full.value.receivables.outstandingMinor) : '—'"
+          :icon="Receipt"
+          :icon-color="overview.full.value?.receivables.outstandingMinor === '0' ? 'success' : 'warning'"
+        />
       </div>
 
       <SectionCard title="Project Pipeline" description="Seluruh Project Order dikelompokkan per status — sumber sama dengan Dashboard utama.">
