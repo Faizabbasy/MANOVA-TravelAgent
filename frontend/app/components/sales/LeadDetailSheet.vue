@@ -68,7 +68,7 @@ const overviewDetailRows = computed(() => {
     { icon: UserCheck, label: 'Account Executive Tujuan', value: lead.handedOverTo ? ownerName(lead.handedOverTo) : 'Belum ditentukan' },
     { icon: Phone, label: 'Telepon', value: lead.phone || '—' },
     { icon: Mail, label: 'Email', value: lead.email || '—' },
-    { icon: CalendarClock, label: 'Do Date', value: lead.expectedCloseDate ? formatDate(lead.expectedCloseDate) : '—' },
+    { icon: CalendarClock, label: 'Due Date', value: lead.expectedCloseDate ? formatDate(lead.expectedCloseDate) : '—' },
     { icon: Calendar, label: 'Dibuat', value: formatDate(lead.createdAt) }
   ]
 })
@@ -919,7 +919,7 @@ function submitActivity () {
                   </select>
                 </div>
                 <div class="space-y-1.5">
-                  <Label for="qual-expected-close">Do Date</Label>
+                  <Label for="qual-expected-close">Due Date</Label>
                   <Input id="qual-expected-close" v-model="qualExpectedCloseDate" type="date" />
                   <p class="text-xs text-muted-foreground">
                     Ekspektasi tanggal Lead ini perlu di-follow-up berikutnya.
