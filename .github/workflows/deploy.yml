@@ -1,0 +1,85 @@
+name: CI/CD
+
+# Monorepo pipeline: backend (Bun) and frontend (Nuxt/pnpm) are checked in parallel.
+# A push to `production` that passes both is deployed to the server over SSH.
+# The server pulls the exact commit itself (see deploy/README.md), so no build artifacts are uploaded.
+
+on:
+  push:
+    branches: [production]
+  pull_request:
+    branches: [production]
+  workflow_dispatch:
+
+concurrency:
+  group: manova-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (typecheck + test)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test
+
+  frontend:
+    name: Frontend (typecheck + test + build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm test
+      - run: pnpm build
+
+  deploy:
+    name: Deploy to server
+    needs: [backend, frontend]
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Trigger deploy over SSH
+        env:
+          VPS_HOST: ${{ secrets.VPS_HOST }}
+          VPS_USER: ${{ secrets.VPS_USER }}
+          VPS_SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          VPS_KNOWN_HOSTS: ${{ secrets.VPS_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          if [ -z "$VPS_HOST" ] || [ -z "$VPS_USER" ] || [ -z "$VPS_SSH_KEY" ] || [ -z "$VPS_KNOWN_HOSTS" ]; then
+            echo "::error::Secrets VPS_HOST, VPS_USER, VPS_SSH_KEY dan VPS_KNOWN_HOSTS belum di-set (lihat deploy/README.md)."
+            exit 1
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$VPS_SSH_KEY" > ~/.ssh/manova_deploy
+          chmod 600 ~/.ssh/manova_deploy
+          printf '%s\n' "$VPS_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # The key is locked on the server to deploy/ci-entry.sh; the only argument it accepts is a commit SHA.
+          ssh -i ~/.ssh/manova_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes \
+              -o ServerAliveInterval=30 "$VPS_USER@$VPS_HOST" "$GITHUB_SHA"

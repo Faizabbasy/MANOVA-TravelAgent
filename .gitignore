@@ -26,3 +26,6 @@ logs
 # Local git worktrees and plan-execution scratch
 .worktrees/
 .superpowers/
+
+# Server runtime (deploy/server-deploy.sh)
+.runtime
