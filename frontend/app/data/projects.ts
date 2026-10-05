@@ -1,5 +1,6 @@
 import { reactive } from 'vue'
 import { resolveDestinationGeo } from './geo'
+import { HISTORY_PROJECTS, HISTORY_SERVICES } from './projects-history'
 import type { Project, ProjectService, TravelerGroup, Traveler, RoomAssignment, ItineraryItem } from '~/types/project'
 
 /**
@@ -291,7 +292,9 @@ export const PROJECTS: Project[] = reactive([
     emergencyContactName: 'Manova 24/7 Operations',
     emergencyContactPhone: '+62 21 5000 1188',
     meetingPoint: 'Bandara Komodo, Labuan Bajo — titik kumpul peserta'
-  }
+  },
+  // Riwayat 1 tahun (projects-history.ts)
+  ...HISTORY_PROJECTS
 ])
 
 /** Backfill `destinationGeo` seed — data historis di atas dibuat langsung sebagai literal (bukan lewat `approveOpportunityWon`), jadi diresolusi sekali di sini agar peta destinasi langsung terisi. */
@@ -355,7 +358,9 @@ export const PROJECT_SERVICES: ProjectService[] = reactive([
   { id: 'SVC-5012', projectId: 'PRJ-501', type: 'hotel', label: 'Hotel Kuala Lumpur (8 pax)', status: 'completed', vendorId: 'VND-002', bookingReference: 'HTL-KUL-5501', budgetIdr: 90_000_000 },
 
   { id: 'SVC-5021', projectId: 'PRJ-502', type: 'transportation', label: 'Speedboat & Guide Komodo-Padar-Pink Beach', status: 'completed', vendorId: 'VND-003', bookingReference: 'BOAT-LBJ-5021', budgetIdr: 16_000_000 },
-  { id: 'SVC-5022', projectId: 'PRJ-502', type: 'hotel', label: 'Hotel Labuan Bajo (6 pax)', status: 'completed', vendorId: 'VND-002', bookingReference: 'HTL-LBJ-5022', budgetIdr: 14_000_000 }
+  { id: 'SVC-5022', projectId: 'PRJ-502', type: 'hotel', label: 'Hotel Labuan Bajo (6 pax)', status: 'completed', vendorId: 'VND-002', bookingReference: 'HTL-LBJ-5022', budgetIdr: 14_000_000 },
+  // Riwayat 1 tahun (projects-history.ts)
+  ...HISTORY_SERVICES
 ])
 
 /** Daily itinerary (Section 12) — jadwal harian per project, `groupId` merujuk `TravelerGroup` (Section 11) yang sudah ada. */

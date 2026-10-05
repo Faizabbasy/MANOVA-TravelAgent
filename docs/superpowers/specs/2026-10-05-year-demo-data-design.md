@@ -1,6 +1,6 @@
 # Data demo "perusahaan berjalan 1 tahun" — desain
 
-Tanggal: 5 Oktober 2026 · Branch: `production` · Status: disetujui (brainstorming), menunggu review spec
+Tanggal: 5 Oktober 2026 · Branch: `production` · Status: diimplementasikan
 
 ## Tujuan
 
@@ -13,7 +13,7 @@ dan satu cerita yang nyambung. Dipasang di lokal dulu; server staging menyusul (
 | Topik | Keputusan |
 |---|---|
 | Data lama | 11 project (PRJ-101..104, 201..205, 501, 502), 18 party, 7 vendor tetap, ID tidak berubah |
-| Skala | ±40 project baru (±4/bulan), total ±51 project, omzet ±Rp 30 M/tahun |
+| Skala | ±40 project baru (±4/bulan), total 51 project, omzet ±Rp 37 M/tahun (hasil seed) |
 | Pendekatan | A: tabel project histori di frontend + seed finance tahunan terpisah |
 | Seed lama | `db:seed:finance-demo` dan test-nya **tidak diubah** |
 | Tanggal | Kalender tetap: rekening dibuka 1 Sep 2025, keberangkatan Nov 2025 – Okt 2026. Transaksi bertanggal setelah hari ini dilewati |
@@ -59,13 +59,13 @@ dan satu cerita yang nyambung. Dipasang di lokal dulu; server staging menyusul (
   - Invoice DP 30–50%, terbit H-60 s/d H-45 dari keberangkatan, jatuh tempo +7 hari.
   - Invoice pelunasan terbit H-21, jatuh tempo H-14.
   - Perilaku bayar (deterministik per project): ±80% tepat waktu, ±15% telat 1–30 hari, 3 project masih
-    menunggak sampai hari ini (muncul "Terlambat").
+    menunggak sampai hari ini (PRJ-335, PRJ-337 belum bayar; PRJ-329 baru bayar 50% pelunasan). PRJ-340 pelunasan jatuh tempo 5 Okt 2026, belum dibayar.
   - Tagihan vendor per layanan, total 75–80% kontrak, tanggal H-30, disetujui, dibayar H-10 dari Mandiri.
 - **Biaya operasional bulanan mulai Sep 2025 (BCA, tanggal 25):** gaji Rp 180 jt, sewa Rp 35 jt, listrik/internet Rp 8 jt,
   marketing Rp 15 jt (Rp 30 jt di Okt, Jan, Mei sebelum musim ramai).
-- **Transfer BCA → Mandiri** tiap tanggal 5 sesuai kebutuhan bayar vendor bulan itu, dengan biaya transfer
-  (aturan biaya transfer BCA→Mandiri dibuat di awal).
-- **Hasil yang dituju:** omzet ±Rp 30 M, laba kotor ±Rp 6–7 M, saldo semua rekening positif setiap hari.
+- **Transfer BCA → Mandiri** otomatis di hari pembayaran vendor bila saldo Mandiri kurang (kelipatan Rp 250 jt), biaya transfer Rp 6.500 diisi langsung (tanpa aturan biaya).
+- **Tambahan:** THR Rp 180 jt (10 Mar 2026), PPh Badan Rp 95 jt (28 Apr 2026), komisi maskapai Rp 2,5–7 jt tiap tanggal 15.
+- **Hasil seed (dicek 5 Okt 2026):** omzet ±Rp 36,9 M, laba kotor ±Rp 9 M, biaya operasional ±Rp 3,5 M, laba bersih ±Rp 5,5 M, saldo semua rekening positif setiap hari.
 - **11 project lama:** keadaan meniru demo sekarang dengan tanggal absolut Sep–Okt 2026 — PRJ-203 lunas,
   PRJ-202 DP lunas + pelunasan sebagian & telat, PRJ-103 DP lunas + progress terbuka, PRJ-201 DP terbit
   belum dibayar, PRJ-101 telat, PRJ-102 draft, PRJ-204 uang muka belum dialokasikan, PRJ-205 Group Trip
@@ -100,8 +100,8 @@ dan satu cerita yang nyambung. Dipasang di lokal dulu; server staging menyusul (
   - seed selesai tanpa error dan hasilnya sama bila dijalankan di dua database baru;
   - tidak ada saldo rekening negatif di akhir setiap hari;
   - tiap bulan Sep 2025 – Sep 2026 punya pengeluaran, dan tiap bulan Okt 2025 – Sep 2026 punya pendapatan (laporan bulanan);
-  - ada tepat 3 project histori + PRJ-101 + PRJ-202 dengan piutang telat;
-  - omzet setahun di rentang Rp 25–35 M;
+  - PRJ-329, PRJ-335, PRJ-337, PRJ-101, PRJ-202 muncul sebagai piutang telat;
+  - omzet setahun di rentang Rp 30–40 M;
   - menjalankan ulang tidak menambah data; ditolak di production.
 - **Disesuaikan**: `core-scope.test.ts` (daftar/jumlah project, halaman, parties 30) dan `db.test.ts`
   (daftar ID project) agar ikut `DEMO_CORE`, bukan daftar 11 ID tertulis.

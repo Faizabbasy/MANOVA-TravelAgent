@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { HISTORY_MILESTONES } from './projects-history'
 import type { ProjectMilestone, ProjectNote } from '~/types/project-order'
 
 /**
@@ -66,7 +67,9 @@ export const PROJECT_MILESTONES: ProjectMilestone[] = reactive([
   { id: 'PMS-205-5', projectId: 'PRJ-205', stepKey: 'start', name: 'Dokumen Traveler Lengkap', plannedDate: '2026-09-05', ownerId: 'USR-002', status: 'not-started' },
   { id: 'PMS-205-6', projectId: 'PRJ-205', stepKey: 'departure', name: 'Keberangkatan', plannedDate: '2026-09-18', ownerId: 'USR-002', status: 'not-started' },
   { id: 'PMS-205-7', projectId: 'PRJ-205', stepKey: 'on-progress', name: 'Trip Selesai', plannedDate: '2026-09-21', ownerId: 'USR-002', status: 'not-started' },
-  { id: 'PMS-205-8', projectId: 'PRJ-205', stepKey: 'done', name: 'Laporan Akhir & Review Peserta', plannedDate: '2026-09-28', ownerId: 'USR-002', status: 'not-started' }
+  { id: 'PMS-205-8', projectId: 'PRJ-205', stepKey: 'done', name: 'Laporan Akhir & Review Peserta', plannedDate: '2026-09-28', ownerId: 'USR-002', status: 'not-started' },
+  // Riwayat 1 tahun (projects-history.ts)
+  ...HISTORY_MILESTONES
 ])
 
 export const PROJECT_NOTES: ProjectNote[] = reactive([

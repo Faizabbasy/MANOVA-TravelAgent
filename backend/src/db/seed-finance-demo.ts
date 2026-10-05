@@ -41,14 +41,14 @@ export interface FinanceSeedResult {
 const REQUEST_ID = 'seed-finance-demo'
 const jt = (millions: number) => String(Math.round(millions * 1_000_000))
 
-function shiftDays(iso: string, days: number): string {
+export function shiftDays(iso: string, days: number): string {
   const d = new Date(`${iso}T00:00:00Z`)
   d.setUTCDate(d.getUTCDate() + days)
   return d.toISOString().slice(0, 10)
 }
 
 /** A Db whose every transaction is tagged demo-fixture (read by the provenance column defaults). */
-function demoTagged(db: Db): Db {
+export function demoTagged(db: Db): Db {
   return {
     ...db,
     query: (text, params) => db.query(text, params),
@@ -60,7 +60,7 @@ function demoTagged(db: Db): Db {
   }
 }
 
-async function loadActor(db: Db, id: string, role: RoleId): Promise<Actor> {
+export async function loadActor(db: Db, id: string, role: RoleId): Promise<Actor> {
   const [u] = await db.query<{ id: string; name: string; email: string; role: string }>('select id, name, email, role from users where id = $1', [id])
   if (!u || u.role !== role) throw new SeedRefusedError(`Demo user ${id} (${role}) is missing — run \`bun run db:seed:demo\` first.`)
   return { userId: u.id, name: u.name, email: u.email, role, partyId: null, vendorId: null, sessionId: REQUEST_ID }
@@ -196,7 +196,7 @@ export async function seedFinanceDemo(rawDb: Db, options: { appEnv: AppEnv }): P
  * cancellation flow can be tried right away. No cancellation case is created: the project module is still
  * mock data and a server-side "cancelled" project would contradict it on other screens.
  */
-async function seedPolicies(db: Db, finance: Actor): Promise<number> {
+export async function seedPolicies(db: Db, finance: Actor): Promise<number> {
   const [any] = await db.query('select 1 from cancellation_policies limit 1')
   if (any) return 0
   const tx = <R>(fn: (q: Queryable) => Promise<R>) => db.transaction(fn)

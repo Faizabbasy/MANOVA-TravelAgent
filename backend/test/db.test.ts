@@ -225,7 +225,7 @@ describe('demo seed', () => {
     expect(await count('booking_refs')).toBe(DEMO_CORE.bookingRefs.length)
     expect(await count('service_orders')).toBe(DEMO_CORE.serviceOrders.length)
     const ids = (await db.query<{ id: string }>('select id from projects order by id')).map(r => r.id)
-    expect(ids).toEqual(['PRJ-101', 'PRJ-102', 'PRJ-103', 'PRJ-104', 'PRJ-201', 'PRJ-202', 'PRJ-203', 'PRJ-204', 'PRJ-205', 'PRJ-501', 'PRJ-502'])
+    expect(ids).toEqual(DEMO_CORE.projects.map(p => p.id).sort())
     expect(await count('sales_order_refs')).toBe(DEMO_CORE.salesOrders.length)
     const [client] = await db.query('select role, party_id, provenance from users where id = $1', ['USR-021'])
     expect(client).toEqual({ role: 'client', party_id: 'PTY-005', provenance: 'demo-fixture' })

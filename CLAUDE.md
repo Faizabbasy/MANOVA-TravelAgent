@@ -27,6 +27,7 @@ npm run test:backend        # backend bun test (PGlite; TEST_DATABASE_URL for Po
 npm run db:migrate          # apply backend migrations (also run by backend dev)
 npm run db:seed:demo        # demo references + logins (needs backend/.env with APP_ENV=development; never in production)
 npm run db:seed:finance-demo  # demo accounts, invoices and cash (after db:seed:demo; runs once; rows marked demo-fixture)
+npm run db:seed:year-demo     # instead of finance-demo: 1 year of history (Sep 2025 – Okt 2026, PRJ-301…340); needs an empty finance DB — locally: stop backend, delete backend/.data/pglite, migrate, seed:demo, seed:year-demo
 ```
 
 The frontend reaches the backend through the Nuxt proxy at `/api/v1/**` (`frontend/app/composables/useApi.ts`).

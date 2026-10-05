@@ -126,6 +126,90 @@
       "lifecycleStatus": "client",
       "partyType": "individual",
       "preferredCurrency": null
+    },
+    {
+      "id": "PTY-019",
+      "name": "PT Nusantara Digital Solusi",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-020",
+      "name": "PT Garuda Agro Lestari",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-021",
+      "name": "PT Mitra Farmasi Sejahtera",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-022",
+      "name": "Yayasan Al-Hikmah Travel Ibadah",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-023",
+      "name": "PT Bank Perkasa Nasional",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-024",
+      "name": "PT Sentosa Retail Indonesia",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-025",
+      "name": "PT Insan Teknologi Global",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-026",
+      "name": "PT Prima Energi Mandiri",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-027",
+      "name": "PT Otomotif Jaya Dealerindo",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-028",
+      "name": "PT Asuransi Amanah Bersama",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-029",
+      "name": "PT Kosmetika Cantik Nusantara",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
+    },
+    {
+      "id": "PTY-030",
+      "name": "PT Logistik Samudra Raya",
+      "lifecycleStatus": "client",
+      "partyType": null,
+      "preferredCurrency": null
     }
   ],
   "vendors": [
@@ -361,6 +445,566 @@
       "contractValueMinor": "70000000"
     },
     {
+      "id": "PRJ-301",
+      "name": "Tokyo Sales Kick-off 2025",
+      "partyId": "PTY-019",
+      "destination": "Tokyo, Jepang",
+      "travelStartDate": "2025-11-10",
+      "travelEndDate": "2025-11-15",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "280000000"
+    },
+    {
+      "id": "PRJ-302",
+      "name": "Bali Annual Gathering 2025",
+      "partyId": "PTY-020",
+      "destination": "Bali, Indonesia",
+      "travelStartDate": "2025-11-20",
+      "travelEndDate": "2025-11-23",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "820000000"
+    },
+    {
+      "id": "PRJ-303",
+      "name": "Singapore Fintech Summit",
+      "partyId": "PTY-003",
+      "destination": "Singapura",
+      "travelStartDate": "2025-11-26",
+      "travelEndDate": "2025-11-29",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "165000000"
+    },
+    {
+      "id": "PRJ-304",
+      "name": "Korea Winter Incentive",
+      "partyId": "PTY-021",
+      "destination": "Seoul, Korea Selatan",
+      "travelStartDate": "2025-12-05",
+      "travelEndDate": "2025-12-10",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1150000000"
+    },
+    {
+      "id": "PRJ-305",
+      "name": "Umroh Akhir Tahun 1447 H",
+      "partyId": "PTY-022",
+      "destination": "Makkah & Madinah, Arab Saudi",
+      "travelStartDate": "2025-12-08",
+      "travelEndDate": "2025-12-17",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1350000000"
+    },
+    {
+      "id": "PRJ-306",
+      "name": "Istanbul Leadership Retreat",
+      "partyId": "PTY-023",
+      "destination": "Istanbul, Turki",
+      "travelStartDate": "2025-12-12",
+      "travelEndDate": "2025-12-18",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "960000000"
+    },
+    {
+      "id": "PRJ-307",
+      "name": "Dubai Year-End Expo",
+      "partyId": "PTY-002",
+      "destination": "Dubai, Uni Emirat Arab",
+      "travelStartDate": "2025-12-14",
+      "travelEndDate": "2025-12-18",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "310000000"
+    },
+    {
+      "id": "PRJ-308",
+      "name": "Bali Family Holiday Program",
+      "partyId": "PTY-024",
+      "destination": "Bali, Indonesia",
+      "travelStartDate": "2025-12-22",
+      "travelEndDate": "2025-12-27",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "780000000"
+    },
+    {
+      "id": "PRJ-309",
+      "name": "Tokyo Christmas Incentive",
+      "partyId": "PTY-019",
+      "destination": "Tokyo, Jepang",
+      "travelStartDate": "2025-12-20",
+      "travelEndDate": "2025-12-26",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1080000000"
+    },
+    {
+      "id": "PRJ-310",
+      "name": "Singapore Partner Meeting",
+      "partyId": "PTY-025",
+      "destination": "Singapura",
+      "travelStartDate": "2026-01-14",
+      "travelEndDate": "2026-01-16",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "95000000"
+    },
+    {
+      "id": "PRJ-311",
+      "name": "Annual Conference 2026",
+      "partyId": "PTY-026",
+      "destination": "Jakarta, Indonesia",
+      "travelStartDate": "2026-01-27",
+      "travelEndDate": "2026-01-29",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1450000000"
+    },
+    {
+      "id": "PRJ-312",
+      "name": "Umroh Rajab 1447 H",
+      "partyId": "PTY-022",
+      "destination": "Makkah & Madinah, Arab Saudi",
+      "travelStartDate": "2026-02-02",
+      "travelEndDate": "2026-02-11",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1200000000"
+    },
+    {
+      "id": "PRJ-313",
+      "name": "Osaka Dealer Incentive",
+      "partyId": "PTY-027",
+      "destination": "Osaka, Jepang",
+      "travelStartDate": "2026-02-09",
+      "travelEndDate": "2026-02-14",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1250000000"
+    },
+    {
+      "id": "PRJ-314",
+      "name": "Umroh Karyawan Berprestasi",
+      "partyId": "PTY-028",
+      "destination": "Makkah & Madinah, Arab Saudi",
+      "travelStartDate": "2026-02-16",
+      "travelEndDate": "2026-02-25",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "930000000"
+    },
+    {
+      "id": "PRJ-315",
+      "name": "Singapore Distributor Visit",
+      "partyId": "PTY-029",
+      "destination": "Singapura",
+      "travelStartDate": "2026-02-18",
+      "travelEndDate": "2026-02-20",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "70000000"
+    },
+    {
+      "id": "PRJ-316",
+      "name": "Bali Sales Conference",
+      "partyId": "PTY-030",
+      "destination": "Bali, Indonesia",
+      "travelStartDate": "2026-02-24",
+      "travelEndDate": "2026-02-27",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1600000000"
+    },
+    {
+      "id": "PRJ-317",
+      "name": "Umroh Sya'ban 1447 H",
+      "partyId": "PTY-024",
+      "destination": "Makkah & Madinah, Arab Saudi",
+      "travelStartDate": "2026-03-02",
+      "travelEndDate": "2026-03-11",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1400000000"
+    },
+    {
+      "id": "PRJ-318",
+      "name": "Seoul Tech Expo Delegation",
+      "partyId": "PTY-003",
+      "destination": "Seoul, Korea Selatan",
+      "travelStartDate": "2026-03-09",
+      "travelEndDate": "2026-03-13",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "420000000"
+    },
+    {
+      "id": "PRJ-319",
+      "name": "Paris & Swiss Top Achiever Trip",
+      "partyId": "PTY-021",
+      "destination": "Paris, Prancis",
+      "travelStartDate": "2026-03-14",
+      "travelEndDate": "2026-03-22",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1500000000"
+    },
+    {
+      "id": "PRJ-320",
+      "name": "Dubai Investment Forum",
+      "partyId": "PTY-025",
+      "destination": "Dubai, Uni Emirat Arab",
+      "travelStartDate": "2026-03-23",
+      "travelEndDate": "2026-03-26",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "290000000"
+    },
+    {
+      "id": "PRJ-321",
+      "name": "Bali Regional Meeting",
+      "partyId": "PTY-020",
+      "destination": "Bali, Indonesia",
+      "travelStartDate": "2026-03-27",
+      "travelEndDate": "2026-03-29",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "640000000"
+    },
+    {
+      "id": "PRJ-322",
+      "name": "Tokyo Sakura Incentive",
+      "partyId": "PTY-026",
+      "destination": "Tokyo, Jepang",
+      "travelStartDate": "2026-04-02",
+      "travelEndDate": "2026-04-08",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1150000000"
+    },
+    {
+      "id": "PRJ-323",
+      "name": "Singapore Board Meeting",
+      "partyId": "PTY-002",
+      "destination": "Singapura",
+      "travelStartDate": "2026-04-20",
+      "travelEndDate": "2026-04-22",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "120000000"
+    },
+    {
+      "id": "PRJ-324",
+      "name": "Istanbul Product Launch",
+      "partyId": "PTY-029",
+      "destination": "Istanbul, Turki",
+      "travelStartDate": "2026-05-06",
+      "travelEndDate": "2026-05-11",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1700000000"
+    },
+    {
+      "id": "PRJ-325",
+      "name": "Bali Wellness Retreat",
+      "partyId": "PTY-028",
+      "destination": "Bali, Indonesia",
+      "travelStartDate": "2026-05-14",
+      "travelEndDate": "2026-05-17",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "520000000"
+    },
+    {
+      "id": "PRJ-326",
+      "name": "Seoul Buyer Visit",
+      "partyId": "PTY-030",
+      "destination": "Seoul, Korea Selatan",
+      "travelStartDate": "2026-05-25",
+      "travelEndDate": "2026-05-29",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "230000000"
+    },
+    {
+      "id": "PRJ-327",
+      "name": "Umroh Libur Sekolah 1447 H",
+      "partyId": "PTY-022",
+      "destination": "Makkah & Madinah, Arab Saudi",
+      "travelStartDate": "2026-06-08",
+      "travelEndDate": "2026-06-17",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1450000000"
+    },
+    {
+      "id": "PRJ-328",
+      "name": "Japan Family Gathering",
+      "partyId": "PTY-027",
+      "destination": "Osaka, Jepang",
+      "travelStartDate": "2026-06-12",
+      "travelEndDate": "2026-06-18",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1650000000"
+    },
+    {
+      "id": "PRJ-329",
+      "name": "London Banking Study Visit",
+      "partyId": "PTY-023",
+      "destination": "London, Inggris",
+      "travelStartDate": "2026-06-15",
+      "travelEndDate": "2026-06-21",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "980000000"
+    },
+    {
+      "id": "PRJ-330",
+      "name": "Singapore Kids Holiday Program",
+      "partyId": "PTY-024",
+      "destination": "Singapura",
+      "travelStartDate": "2026-06-22",
+      "travelEndDate": "2026-06-26",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "600000000"
+    },
+    {
+      "id": "PRJ-331",
+      "name": "Bali Leadership Summit",
+      "partyId": "PTY-019",
+      "destination": "Bali, Indonesia",
+      "travelStartDate": "2026-06-24",
+      "travelEndDate": "2026-06-27",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1250000000"
+    },
+    {
+      "id": "PRJ-332",
+      "name": "Korea Summer Incentive",
+      "partyId": "PTY-025",
+      "destination": "Seoul, Korea Selatan",
+      "travelStartDate": "2026-07-01",
+      "travelEndDate": "2026-07-06",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1200000000"
+    },
+    {
+      "id": "PRJ-333",
+      "name": "Turkey Cappadocia Tour",
+      "partyId": "PTY-026",
+      "destination": "Istanbul, Turki",
+      "travelStartDate": "2026-07-06",
+      "travelEndDate": "2026-07-14",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1300000000"
+    },
+    {
+      "id": "PRJ-334",
+      "name": "Umroh Muharram 1448 H",
+      "partyId": "PTY-028",
+      "destination": "Makkah & Madinah, Arab Saudi",
+      "travelStartDate": "2026-07-13",
+      "travelEndDate": "2026-07-22",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1250000000"
+    },
+    {
+      "id": "PRJ-335",
+      "name": "Dubai Retail Expo",
+      "partyId": "PTY-029",
+      "destination": "Dubai, Uni Emirat Arab",
+      "travelStartDate": "2026-07-16",
+      "travelEndDate": "2026-07-20",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "340000000"
+    },
+    {
+      "id": "PRJ-336",
+      "name": "Amsterdam Logistics Conference",
+      "partyId": "PTY-030",
+      "destination": "Amsterdam, Belanda",
+      "travelStartDate": "2026-07-20",
+      "travelEndDate": "2026-07-25",
+      "status": "completed",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "380000000"
+    },
+    {
+      "id": "PRJ-337",
+      "name": "Bali Partner Gathering",
+      "partyId": "PTY-021",
+      "destination": "Bali, Indonesia",
+      "travelStartDate": "2026-08-11",
+      "travelEndDate": "2026-08-14",
+      "status": "in-progress",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "900000000"
+    },
+    {
+      "id": "PRJ-338",
+      "name": "Tokyo Agri Expo Delegation",
+      "partyId": "PTY-020",
+      "destination": "Tokyo, Jepang",
+      "travelStartDate": "2026-08-24",
+      "travelEndDate": "2026-08-28",
+      "status": "in-progress",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "450000000"
+    },
+    {
+      "id": "PRJ-339",
+      "name": "Singapore Tech Week",
+      "partyId": "PTY-027",
+      "destination": "Singapura",
+      "travelStartDate": "2026-09-14",
+      "travelEndDate": "2026-09-17",
+      "status": "in-progress",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "260000000"
+    },
+    {
+      "id": "PRJ-340",
+      "name": "Umroh Rabiul Awal 1448 H",
+      "partyId": "PTY-022",
+      "destination": "Makkah & Madinah, Arab Saudi",
+      "travelStartDate": "2026-10-19",
+      "travelEndDate": "2026-10-28",
+      "status": "in-progress",
+      "ownerUserId": "USR-002",
+      "teamUserIds": [
+        "USR-002"
+      ],
+      "contractValueMinor": "1400000000"
+    },
+    {
       "id": "PRJ-501",
       "name": "Kuala Lumpur Manufacturing Delegation 2026",
       "partyId": "PTY-015",
@@ -509,6 +1153,648 @@
       "projectId": "PRJ-205",
       "serviceType": "hotel",
       "vendorId": null
+    },
+    {
+      "id": "SVC-3011",
+      "projectId": "PRJ-301",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3012",
+      "projectId": "PRJ-301",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3021",
+      "projectId": "PRJ-302",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3022",
+      "projectId": "PRJ-302",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3023",
+      "projectId": "PRJ-302",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3031",
+      "projectId": "PRJ-303",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3032",
+      "projectId": "PRJ-303",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3041",
+      "projectId": "PRJ-304",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3042",
+      "projectId": "PRJ-304",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3043",
+      "projectId": "PRJ-304",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3051",
+      "projectId": "PRJ-305",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3052",
+      "projectId": "PRJ-305",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3053",
+      "projectId": "PRJ-305",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3061",
+      "projectId": "PRJ-306",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3062",
+      "projectId": "PRJ-306",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3063",
+      "projectId": "PRJ-306",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3071",
+      "projectId": "PRJ-307",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3072",
+      "projectId": "PRJ-307",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3081",
+      "projectId": "PRJ-308",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3082",
+      "projectId": "PRJ-308",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3083",
+      "projectId": "PRJ-308",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3091",
+      "projectId": "PRJ-309",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3092",
+      "projectId": "PRJ-309",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3093",
+      "projectId": "PRJ-309",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3101",
+      "projectId": "PRJ-310",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3102",
+      "projectId": "PRJ-310",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3111",
+      "projectId": "PRJ-311",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3112",
+      "projectId": "PRJ-311",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3113",
+      "projectId": "PRJ-311",
+      "serviceType": "mice",
+      "vendorId": "VND-004"
+    },
+    {
+      "id": "SVC-3121",
+      "projectId": "PRJ-312",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3122",
+      "projectId": "PRJ-312",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3123",
+      "projectId": "PRJ-312",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3131",
+      "projectId": "PRJ-313",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3132",
+      "projectId": "PRJ-313",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3133",
+      "projectId": "PRJ-313",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3141",
+      "projectId": "PRJ-314",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3142",
+      "projectId": "PRJ-314",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3143",
+      "projectId": "PRJ-314",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3151",
+      "projectId": "PRJ-315",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3152",
+      "projectId": "PRJ-315",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3161",
+      "projectId": "PRJ-316",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3162",
+      "projectId": "PRJ-316",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3163",
+      "projectId": "PRJ-316",
+      "serviceType": "mice",
+      "vendorId": "VND-004"
+    },
+    {
+      "id": "SVC-3171",
+      "projectId": "PRJ-317",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3172",
+      "projectId": "PRJ-317",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3173",
+      "projectId": "PRJ-317",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3181",
+      "projectId": "PRJ-318",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3182",
+      "projectId": "PRJ-318",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3191",
+      "projectId": "PRJ-319",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3192",
+      "projectId": "PRJ-319",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3193",
+      "projectId": "PRJ-319",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3201",
+      "projectId": "PRJ-320",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3202",
+      "projectId": "PRJ-320",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3211",
+      "projectId": "PRJ-321",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3212",
+      "projectId": "PRJ-321",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3213",
+      "projectId": "PRJ-321",
+      "serviceType": "mice",
+      "vendorId": "VND-004"
+    },
+    {
+      "id": "SVC-3221",
+      "projectId": "PRJ-322",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3222",
+      "projectId": "PRJ-322",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3223",
+      "projectId": "PRJ-322",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3231",
+      "projectId": "PRJ-323",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3232",
+      "projectId": "PRJ-323",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3241",
+      "projectId": "PRJ-324",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3242",
+      "projectId": "PRJ-324",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3243",
+      "projectId": "PRJ-324",
+      "serviceType": "mice",
+      "vendorId": "VND-004"
+    },
+    {
+      "id": "SVC-3251",
+      "projectId": "PRJ-325",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3252",
+      "projectId": "PRJ-325",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3253",
+      "projectId": "PRJ-325",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3261",
+      "projectId": "PRJ-326",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3262",
+      "projectId": "PRJ-326",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3271",
+      "projectId": "PRJ-327",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3272",
+      "projectId": "PRJ-327",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3273",
+      "projectId": "PRJ-327",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3281",
+      "projectId": "PRJ-328",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3282",
+      "projectId": "PRJ-328",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3283",
+      "projectId": "PRJ-328",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3291",
+      "projectId": "PRJ-329",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3292",
+      "projectId": "PRJ-329",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3293",
+      "projectId": "PRJ-329",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3301",
+      "projectId": "PRJ-330",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3302",
+      "projectId": "PRJ-330",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3303",
+      "projectId": "PRJ-330",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3311",
+      "projectId": "PRJ-331",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3312",
+      "projectId": "PRJ-331",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3313",
+      "projectId": "PRJ-331",
+      "serviceType": "mice",
+      "vendorId": "VND-004"
+    },
+    {
+      "id": "SVC-3321",
+      "projectId": "PRJ-332",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3322",
+      "projectId": "PRJ-332",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3323",
+      "projectId": "PRJ-332",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3331",
+      "projectId": "PRJ-333",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3332",
+      "projectId": "PRJ-333",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3333",
+      "projectId": "PRJ-333",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3341",
+      "projectId": "PRJ-334",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3342",
+      "projectId": "PRJ-334",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3343",
+      "projectId": "PRJ-334",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3351",
+      "projectId": "PRJ-335",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3352",
+      "projectId": "PRJ-335",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3361",
+      "projectId": "PRJ-336",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3362",
+      "projectId": "PRJ-336",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3371",
+      "projectId": "PRJ-337",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3372",
+      "projectId": "PRJ-337",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3373",
+      "projectId": "PRJ-337",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
+    },
+    {
+      "id": "SVC-3381",
+      "projectId": "PRJ-338",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3382",
+      "projectId": "PRJ-338",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3391",
+      "projectId": "PRJ-339",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3392",
+      "projectId": "PRJ-339",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3401",
+      "projectId": "PRJ-340",
+      "serviceType": "flight",
+      "vendorId": "VND-001"
+    },
+    {
+      "id": "SVC-3402",
+      "projectId": "PRJ-340",
+      "serviceType": "hotel",
+      "vendorId": "VND-002"
+    },
+    {
+      "id": "SVC-3403",
+      "projectId": "PRJ-340",
+      "serviceType": "transportation",
+      "vendorId": "VND-003"
     },
     {
       "id": "SVC-5011",

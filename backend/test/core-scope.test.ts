@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { DEMO, makeTestApp, type TestApp } from './helpers'
+import { DEMO_CORE } from '../src/db/seed-demo'
 
 /**
  * Server-side scope is the security boundary: these tests act as each role, including ID tampering in the
@@ -15,11 +16,12 @@ beforeAll(async () => {
   // A vendor that actually owns services (VND-001 flights) — the demo vendor VND-006 only holds a service order.
   await t.addUser({ id: 'USR-T-V1', email: 'vendor.one@tiket.example', role: 'vendor', vendorId: 'VND-001' })
   for (const [key, email] of Object.entries({ ...DEMO, vendorOne: 'vendor.one@tiket.example' })) cookies[key] = await t.login(email)
-})
+}, 30_000)
 afterAll(() => t.cleanup())
 
 const get = (who: string, path: string) => t.call('GET', path, { cookie: cookies[who] })
-const ALL_PROJECTS = ['PRJ-101', 'PRJ-102', 'PRJ-103', 'PRJ-104', 'PRJ-201', 'PRJ-202', 'PRJ-203', 'PRJ-204', 'PRJ-205', 'PRJ-501', 'PRJ-502']
+// Follows demo-core.json (11 original demo projects + the 1-year history PRJ-301 … PRJ-340).
+const ALL_PROJECTS = DEMO_CORE.projects.map(p => p.id).sort()
 
 describe('unauthenticated', () => {
   test('every core endpoint returns 401', async () => {
@@ -45,13 +47,13 @@ describe('internal roles', () => {
     let cursor: string | null = null
     let pages = 0
     do {
-      const res = await get('finance', `/api/v1/projects?limit=3${cursor ? `&cursor=${cursor}` : ''}`)
-      expect(res.json.meta.pagination.limit).toBe(3)
+      const res = await get('finance', `/api/v1/projects?limit=10${cursor ? `&cursor=${cursor}` : ''}`)
+      expect(res.json.meta.pagination.limit).toBe(10)
       seen.push(...res.json.data.map((p: { id: string }) => p.id))
       cursor = res.json.meta.pagination.nextCursor
       pages++
-    } while (cursor && pages < 10)
-    expect(pages).toBe(Math.ceil(ALL_PROJECTS.length / 3))
+    } while (cursor && pages < 20)
+    expect(pages).toBe(Math.ceil(ALL_PROJECTS.length / 10))
     expect(seen).toEqual(ALL_PROJECTS)
   })
 
@@ -96,7 +98,7 @@ describe('internal roles', () => {
   })
 
   test('parties, vendors and service orders are readable', async () => {
-    expect((await get('finance', '/api/v1/parties?limit=100')).json.data).toHaveLength(18)
+    expect((await get('finance', '/api/v1/parties?limit=100')).json.data).toHaveLength(DEMO_CORE.parties.length)
     expect((await get('admin', '/api/v1/vendors?limit=100')).json.data).toHaveLength(7)
     expect((await get('finance', '/api/v1/service-orders/SO-002')).json.data).toEqual({
       id: 'SO-002', vendorId: 'VND-006', vendorName: 'PT ABC', projectId: 'PRJ-102', serviceId: null

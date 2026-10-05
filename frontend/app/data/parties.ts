@@ -1,4 +1,5 @@
 import { reactive } from 'vue'
+import { HISTORY_PARTIES } from './projects-history'
 import type { Party, ContactPerson, PartyActivity } from '~/types/party'
 
 /**
@@ -101,7 +102,9 @@ export const PARTIES: Party[] = reactive([
   },
   { id: 'PTY-016', name: 'Wahyu Pramesti', lifecycleStatus: 'client', createdAt: '2026-07-02', partyType: 'individual', phone: '0815-6002-1001', city: 'Jakarta' },
   { id: 'PTY-017', name: 'Fajar Ramadhani', lifecycleStatus: 'client', createdAt: '2026-07-02', partyType: 'individual', phone: '0815-6002-1002', city: 'Bandung' },
-  { id: 'PTY-018', name: 'Nadia Kirana', lifecycleStatus: 'client', createdAt: '2026-07-03', partyType: 'individual', phone: '0815-6002-1003', city: 'Surabaya' }
+  { id: 'PTY-018', name: 'Nadia Kirana', lifecycleStatus: 'client', createdAt: '2026-07-03', partyType: 'individual', phone: '0815-6002-1003', city: 'Surabaya' },
+  // Customer riwayat 1 tahun (projects-history.ts)
+  ...HISTORY_PARTIES
 ])
 
 export const CONTACTS: ContactPerson[] = reactive([
