@@ -52,7 +52,13 @@ if [ ! -d "$REPO/.git" ]; then
 else
   echo "already there"
 fi
-mkdir -p "$REPO/.runtime"
+# The default branch has no backend/ folder; put the checkout on `production` so backend/.env has a home.
+if [ ! -d "$REPO/backend" ]; then
+  git -C "$REPO" fetch --quiet origin "+refs/heads/production:refs/remotes/origin/production"
+  git -C "$REPO" checkout --quiet --force --detach origin/production
+  echo "checked out origin/production"
+fi
+mkdir -p "$REPO/.runtime" "$REPO/backend"
 
 # ---- database + backend/.env -----------------------------------------------------------------------------
 step "database $DB and backend/.env"
