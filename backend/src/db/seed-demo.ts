@@ -13,7 +13,8 @@ import demoCore from './seeds/demo-core.json'
 
 export interface DemoCoreSeed {
   source: string
-  parties: { id: string; name: string; lifecycleStatus: 'prospect' | 'client'; partyType: 'company' | 'individual' | null; preferredCurrency: string | null }[]
+  parties: ({ id: string; name: string; lifecycleStatus: 'prospect' | 'client'; partyType: 'company' | 'individual' | null; preferredCurrency: string | null; poRequired?: boolean; accountOwnerUserId?: string | null } &
+    Partial<Record<keyof typeof PARTY_PROFILE_COLUMNS, string | null>>)[]
   vendors: { id: string; name: string; serviceType: string; status: string }[]
   users: { id: string; email: string; name: string; role: RoleId; status: 'active' | 'suspended'; partyId: string | null; vendorId: string | null }[]
   projects: {
@@ -53,7 +54,32 @@ export interface DemoCoreSeed {
   serviceOrders: { id: string; vendorId: string; projectId: string | null; serviceId: string | null }[]
   /** Group Trip participant bookings (owned by Sales); each is billed to its own customer. */
   salesOrders: { id: string; projectId: string; partyId: string; priceMinor: string; travelerCount: number }[]
+  /** CRM (S1): contact persons and the activity log per customer. */
+  partyContacts?: { id: string; partyId: string; name: string; title: string; email: string | null; phone: string | null }[]
+  partyActivities?: { id: string; partyId: string; leadId: string | null; type: string; message: string; ownerUserId: string; activityDate: string; dueAt: string | null }[]
 }
+
+/** Seed key → `parties` column for the customer profile (S1). `creditLimitMinor` is Finance's figure (ADR-007). */
+export const PARTY_PROFILE_COLUMNS = {
+  industry: 'industry',
+  companyType: 'company_type',
+  size: 'size',
+  address: 'address',
+  city: 'city',
+  province: 'province',
+  country: 'country',
+  postalCode: 'postal_code',
+  phone: 'phone',
+  email: 'email',
+  website: 'website',
+  registrationNumber: 'registration_number',
+  npwp: 'npwp',
+  billingName: 'billing_name',
+  billingAddress: 'billing_address',
+  paymentTerm: 'payment_term',
+  travelPreferences: 'travel_preferences',
+  creditLimitMinor: 'credit_limit_minor'
+} as const
 
 export const DEMO_CORE = demoCore as DemoCoreSeed
 export const DEFAULT_DEMO_PASSWORD = 'manova-demo'
@@ -94,14 +120,18 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
   const P = 'demo-fixture'
 
   await db.transaction(async tx => {
+    const profileColumns = Object.values(PARTY_PROFILE_COLUMNS)
     for (const p of seed.parties) {
+      const profile = Object.keys(PARTY_PROFILE_COLUMNS).map(k => (p as Record<string, unknown>)[k] ?? null)
+      const base = 6
       await tx.query(
-        `insert into parties (id, name, lifecycle_status, party_type, preferred_currency, provenance)
-         values ($1, $2, $3, $4, $5, $6)
+        `insert into parties (id, name, lifecycle_status, party_type, preferred_currency, provenance, po_required, ${profileColumns.join(', ')})
+         values ($1, $2, $3, $4, $5, $6, $7, ${profileColumns.map((_, i) => `$${base + 2 + i}`).join(', ')})
          on conflict (id) do update set name = excluded.name, lifecycle_status = excluded.lifecycle_status,
-           party_type = excluded.party_type, preferred_currency = excluded.preferred_currency, updated_at = now()
+           party_type = excluded.party_type, preferred_currency = excluded.preferred_currency, po_required = excluded.po_required,
+           ${profileColumns.map(c => `${c} = excluded.${c}`).join(', ')}, updated_at = now()
          where parties.provenance = 'demo-fixture'`,
-        [p.id, p.name, p.lifecycleStatus, p.partyType, p.preferredCurrency, P]
+        [p.id, p.name, p.lifecycleStatus, p.partyType, p.preferredCurrency, P, p.poRequired ?? false, ...profile]
       )
     }
     for (const v of seed.vendors) {
@@ -122,6 +152,13 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
            password_hash = excluded.password_hash, updated_at = now()
          where users.provenance = 'demo-fixture'`,
         [u.id, u.email, u.name, u.role, u.partyId, u.vendorId, u.status, passwordHash, P]
+      )
+    }
+    // Account owners reference users, so they are set once the users exist.
+    for (const p of seed.parties) {
+      await tx.query(
+        "update parties set account_owner_user_id = $2 where id = $1 and provenance = 'demo-fixture'",
+        [p.id, p.accountOwnerUserId ?? null]
       )
     }
     for (const p of seed.projects) {
@@ -187,6 +224,25 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
            price_minor = excluded.price_minor, traveler_count = excluded.traveler_count
          where sales_order_refs.provenance = 'demo-fixture'`,
         [so.id, so.projectId, so.partyId, so.priceMinor, so.travelerCount, P]
+      )
+    }
+    for (const c of seed.partyContacts ?? []) {
+      await tx.query(
+        `insert into party_contacts (id, party_id, name, title, email, phone, provenance) values ($1, $2, $3, $4, $5, $6, $7)
+         on conflict (id) do update set party_id = excluded.party_id, name = excluded.name, title = excluded.title,
+           email = excluded.email, phone = excluded.phone
+         where party_contacts.provenance = 'demo-fixture'`,
+        [c.id, c.partyId, c.name, c.title, c.email, c.phone, P]
+      )
+    }
+    for (const a of seed.partyActivities ?? []) {
+      await tx.query(
+        `insert into party_activities (id, party_id, lead_id, type, message, owner_user_id, activity_date, due_at, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+         on conflict (id) do update set party_id = excluded.party_id, lead_id = excluded.lead_id, type = excluded.type,
+           message = excluded.message, owner_user_id = excluded.owner_user_id, activity_date = excluded.activity_date, due_at = excluded.due_at
+         where party_activities.provenance = 'demo-fixture'`,
+        [a.id, a.partyId, a.leadId, a.type, a.message, a.ownerUserId, a.activityDate, a.dueAt, P]
       )
     }
     // New IDs created through the API must continue after the fixtures (PRJ-341 …).

@@ -258,7 +258,7 @@ describe('demo seed', () => {
       )
       const fixture = DEMO_CORE.projects.find(x => x.id === 'PRJ-103')!
       expect(p).toEqual({ characteristic: fixture.characteristic!, service_scope: fixture.serviceScope!, traveler_count: fixture.travelerCount! })
-      const seq = await db.query<{ prefix: string; last_value: number }>('select prefix, last_value from id_sequences order by prefix')
+      const seq = await db.query<{ prefix: string; last_value: number }>("select prefix, last_value from id_sequences where prefix in ('PRJ-', 'PTY-') order by prefix")
       const maxOf = (ids: string[], prefix: string) => Math.max(...ids.filter(id => id.startsWith(prefix)).map(id => Number(id.slice(prefix.length))))
       expect(seq).toEqual([
         { prefix: 'PRJ-', last_value: maxOf(DEMO_CORE.projects.map(x => x.id), 'PRJ-') },
@@ -270,6 +270,27 @@ describe('demo seed', () => {
     }
   })
 
+  test('customer profile, contacts and activities follow the seed', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [p] = await db.query<{ city: string | null; credit_limit_minor: string | null; account_owner_user_id: string | null }>(
+        "select city, credit_limit_minor, account_owner_user_id from parties where id = 'PTY-001'"
+      )
+      const fixture = DEMO_CORE.parties.find(x => x.id === 'PTY-001')!
+      expect(p).toEqual({ city: fixture.city ?? null, credit_limit_minor: fixture.creditLimitMinor ?? null, account_owner_user_id: fixture.accountOwnerUserId ?? null })
+      const [counts] = await db.query<{ contacts: string; activities: string }>(
+        'select (select count(*) from party_contacts) as contacts, (select count(*) from party_activities) as activities'
+      )
+      expect(counts).toEqual({ contacts: String(DEMO_CORE.partyContacts!.length), activities: String(DEMO_CORE.partyActivities!.length) })
+      const seq = await db.query<{ prefix: string }>("select prefix from id_sequences where prefix in ('CP-', 'PACT-') order by prefix")
+      expect(seq.map(s => s.prefix)).toEqual(['CP-', 'PACT-'])
+      expect(await nextId(db, 'CP-')).toMatch(/^CP-\d{3,}$/)
+    } finally {
+      await cleanup()
+    }
+  })
   test('carries operational reference values only — no finance records (invoices, payments, balances)', () => {
     const keys = new Set<string>()
     const walk = (v: unknown): void => {
@@ -277,9 +298,10 @@ describe('demo seed', () => {
       else if (v && typeof v === 'object') for (const [k, child] of Object.entries(v)) { keys.add(k); walk(child) }
     }
     walk(DEMO_CORE)
-    expect([...keys].filter(k => /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
+    // `paymentTerm` is a CRM billing term ("30 hari"), not a payment record.
+    expect([...keys].filter(k => k !== 'paymentTerm' && /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
     // The only money-like values are owned by Project/Booking/Sales (ADR-007): contract value, booking sell price
     // and the price of a Group Trip participant booking.
-    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['contractValueMinor', 'priceMinor', 'sellAmountMinor'])
+    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['contractValueMinor', 'creditLimitMinor', 'priceMinor', 'sellAmountMinor'])
   })
 })

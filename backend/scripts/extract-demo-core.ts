@@ -12,7 +12,7 @@ import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { HOTEL_BOOKINGS } from '../../frontend/app/data/accommodation'
 import { MICE_EVENTS } from '../../frontend/app/data/mice'
-import { PARTIES } from '../../frontend/app/data/parties'
+import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from '../../frontend/app/data/parties'
 import { SERVICE_ORDERS } from '../../frontend/app/data/procurement'
 import { PROJECT_SERVICES, PROJECTS } from '../../frontend/app/data/projects'
 import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
@@ -25,6 +25,7 @@ import type { DemoCoreSeed } from '../src/db/seed-demo'
 const byId = <T extends { id: string }>(a: T, b: T) => a.id.localeCompare(b.id)
 const dateOnly = (value?: string) => (value ? value.slice(0, 10) : null)
 const warnings: string[] = []
+const USER_IDS = new Set(USERS.map(u => u.id))
 
 const services = [...PROJECT_SERVICES].sort(byId).map(s => ({
   id: s.id,
@@ -65,7 +66,28 @@ const seed: DemoCoreSeed = {
     name: p.name,
     lifecycleStatus: p.lifecycleStatus,
     partyType: p.partyType ?? null,
-    preferredCurrency: p.preferredCurrency ?? null
+    preferredCurrency: p.preferredCurrency ?? null,
+    industry: p.industry ?? null,
+    companyType: p.companyType ?? null,
+    size: p.size ?? null,
+    address: p.address ?? null,
+    city: p.city ?? null,
+    province: p.province ?? null,
+    country: p.country ?? null,
+    postalCode: p.postalCode ?? null,
+    phone: p.phone ?? null,
+    email: p.email ?? null,
+    website: p.website ?? null,
+    accountOwnerUserId: p.accountOwnerId ?? null,
+    registrationNumber: p.registrationNumber ?? null,
+    npwp: p.npwp ?? null,
+    billingName: p.billingName ?? null,
+    billingAddress: p.billingAddress ?? null,
+    paymentTerm: p.paymentTerm ?? null,
+    poRequired: p.poRequired ?? false,
+    travelPreferences: p.travelPreferences ?? null,
+    // Finance-owned (ADR-007); the only money figure on a customer.
+    creditLimitMinor: minor(p.creditLimitIdr)
   })),
   vendors: [...VENDORS].sort(byId).map(v => ({
     id: v.id,
@@ -123,6 +145,21 @@ const seed: DemoCoreSeed = {
     return { id: so.id, vendorId: so.vendorId, projectId, serviceId }
   }),
   /** Group Trip participant bookings only (standalone B2C orders have no project). */
+  partyContacts: [...CONTACTS].sort(byId).map(c => ({ id: c.id, partyId: c.partyId, name: c.name, title: c.title, email: c.email ?? null, phone: c.phone ?? null })),
+  partyActivities: [...PARTY_ACTIVITIES].sort(byId).filter((a) => {
+    if (USER_IDS.has(a.ownerId)) { return true }
+    warnings.push(`activity ${a.id}: owner ${a.ownerId} is not a seeded user — skipped`)
+    return false
+  }).map(a => ({
+    id: a.id,
+    partyId: a.partyId,
+    leadId: a.leadId ?? null,
+    type: a.type,
+    message: a.message,
+    ownerUserId: a.ownerId,
+    activityDate: dateOnly(a.createdAt)!,
+    dueAt: dateOnly(a.dueAt)
+  })),
   salesOrders: [...SALES_ORDERS].filter(o => o.projectId).sort(byId).map(o => ({
     id: o.id,
     projectId: o.projectId!,
