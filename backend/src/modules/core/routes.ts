@@ -1,12 +1,13 @@
 import { Elysia, t } from 'elysia'
 import type { AppDeps } from '../../app-deps'
-import type { AuthContext } from '../../auth/context'
+import type { AuthContext, SessionActor } from '../../auth/context'
 import { assertIdParam, ID_PATTERN, ok, okList, paginate, parsePageQuery, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { businessDateOf } from '../../shared/dates'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import { projectFinanceSummary } from '../finance/summaries'
 import { createActivity, createContact, createParty, setCreditLimit, updateParty } from './party-writes'
+import { acceptHandover, addMember, closeFinance, closeProject, markReady, removeMember, returnHandover, transition } from './project-workflow'
 import { createProject, setContractValue, updateProject } from './project-writes'
 import {
   BOOKING_TYPES,
@@ -37,6 +38,12 @@ const pageQuery = {
 
 export function coreRoutes(deps: AppDeps, auth: AuthContext) {
   const { db } = deps
+
+  async function visibleProject(actor: SessionActor, raw: string): Promise<string> {
+    const id = assertIdParam(raw, 'Project')
+    if (!(await getProject(db, actor, id))) throw errors.notFound('Project')
+    return id
+  }
 
   return new Elysia({ prefix: '/api/v1' })
     .get(
@@ -86,6 +93,55 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       await db.transaction(tx => setContractValue(tx, actor, id, body, billed, requestIdOf(request)))
       return ok(request, await getProject(db, actor, id))
     }, { body: t.Object({ contractValueMinor: t.Optional(t.String()), reason: t.Optional(t.String()) }) })
+    .post('/projects/:id/handover/accept', async ({ request, params }) => {
+      const actor = await auth.requireCapability(request, 'project-order.accept-handover')
+      const id = await visibleProject(actor, params.id)
+      await db.transaction(tx => acceptHandover(tx, actor, id, requestIdOf(request)))
+      return ok(request, await getProject(db, actor, id))
+    })
+    .post('/projects/:id/handover/return', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'project-order.accept-handover')
+      const id = await visibleProject(actor, params.id)
+      await db.transaction(tx => returnHandover(tx, actor, id, (body as Record<string, unknown>)?.reason, requestIdOf(request)))
+      return ok(request, await getProject(db, actor, id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/projects/:id/transition', async ({ request, params, body }) => {
+      const b = (body ?? {}) as Record<string, unknown>
+      const actor = await auth.requireCapability(request, b.to === 'cancelled' ? 'project-order.request-cancellation' : 'project-order.advance-step')
+      const id = await visibleProject(actor, params.id)
+      await db.transaction(tx => transition(tx, actor, id, b.to, b.reason, requestIdOf(request)))
+      return ok(request, await getProject(db, actor, id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/projects/:id/ready', async ({ request, params }) => {
+      const actor = await auth.requireCapability(request, 'project-order.advance-step')
+      const id = await visibleProject(actor, params.id)
+      await markReady(db, actor, id, requestIdOf(request))
+      return ok(request, await getProject(db, actor, id))
+    })
+    .post('/projects/:id/finance-close', async ({ request, params }) => {
+      const actor = await auth.requireCapability(request, 'project-order.close')
+      const id = await visibleProject(actor, params.id)
+      await closeFinance(db, actor, id, requestIdOf(request))
+      return ok(request, await getProject(db, actor, id))
+    })
+    .post('/projects/:id/close', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'project-order.close')
+      const id = await visibleProject(actor, params.id)
+      await db.transaction(tx => closeProject(tx, actor, id, (body ?? {}) as Record<string, unknown>, requestIdOf(request)))
+      return ok(request, await getProject(db, actor, id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .put('/projects/:id/members/:userId', async ({ request, params }) => {
+      const actor = await auth.requireCapability(request, 'project-order.accept-handover')
+      const id = await visibleProject(actor, params.id)
+      await db.transaction(tx => addMember(tx, actor, id, assertIdParam(params.userId, 'User'), requestIdOf(request)))
+      return ok(request, await getProject(db, actor, id))
+    })
+    .delete('/projects/:id/members/:userId', async ({ request, params }) => {
+      const actor = await auth.requireCapability(request, 'project-order.accept-handover')
+      const id = await visibleProject(actor, params.id)
+      await db.transaction(tx => removeMember(tx, actor, id, assertIdParam(params.userId, 'User'), requestIdOf(request)))
+      return ok(request, await getProject(db, actor, id))
+    })
     .get(
       '/parties',
       async ({ request, query }) => {

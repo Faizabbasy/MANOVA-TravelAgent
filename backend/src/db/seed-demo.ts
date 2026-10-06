@@ -40,6 +40,15 @@ export interface DemoCoreSeed {
     emergencyContactName?: string | null
     emergencyContactPhone?: string | null
     meetingPoint?: string | null
+    /** Project Order workflow (S3b), dates as YYYY-MM-DD. */
+    handoverAcceptedAt?: string | null
+    handoverAcceptedBy?: string | null
+    readyAt?: string | null
+    financeSettledAt?: string | null
+    closedAt?: string | null
+    closedBy?: string | null
+    finalNote?: string | null
+    clientFeedback?: string | null
   }[]
   projectServices: { id: string; projectId: string; serviceType: string; vendorId: string | null }[]
   bookingRefs: {
@@ -188,6 +197,13 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
       for (const userId of p.teamUserIds) {
         await tx.query('insert into project_members (project_id, user_id) values ($1, $2) on conflict do nothing', [p.id, userId])
       }
+      await tx.query(
+        `update projects set handover_accepted_at = $2::date, handover_accepted_by = $3, ready_at = $4::date, finance_settled_at = $5::date,
+           closed_at = $6::date, closed_by = $7, final_note = $8, client_feedback = $9
+         where id = $1 and provenance = 'demo-fixture'`,
+        [p.id, p.handoverAcceptedAt ?? null, p.handoverAcceptedBy ?? null, p.readyAt ?? null, p.financeSettledAt ?? null,
+          p.closedAt ?? null, p.closedBy ?? null, p.finalNote ?? null, p.clientFeedback ?? null]
+      )
     }
     for (const s of seed.projectServices) {
       await tx.query(

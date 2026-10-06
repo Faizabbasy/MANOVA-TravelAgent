@@ -346,3 +346,19 @@ export async function listAdvances(db: Db, filter: { type?: string; partyId?: st
     unallocatedMinor: r.unallocated_minor
   }))
 }
+
+/** What still blocks closing a project's finance (same list as the Finance panel in the UI). */
+export async function projectFinanceBlockers(db: Db, projectId: string): Promise<string[]> {
+  const f = await projectFinanceSummary(db, projectId, true)
+  if (f.view !== 'full') return []
+  const out: string[] = []
+  const open = f.invoices.filter(i => i.status === 'issued' && BigInt(i.outstandingMinor) > 0n).length
+  if (open) out.push(`${open} invoice customer masih punya sisa tagihan.`)
+  if (f.receivable.draftCount) out.push(`${f.receivable.draftCount} draft invoice belum diterbitkan atau dihapus.`)
+  if (BigInt(f.receivable.scheduledNotInvoicedMinor) > 0n) out.push('Masih ada rencana tagihan yang belum ditagih atau dibatalkan.')
+  else if (f.receivable.uninvoicedMinor !== null && BigInt(f.receivable.uninvoicedMinor) > 0n) out.push('Nilai kontrak belum seluruhnya ditagih.')
+  if (f.payable.pendingReviewCount) out.push(`${f.payable.pendingReviewCount} invoice vendor belum direview.`)
+  if (BigInt(f.payable.outstandingMinor) > 0n) out.push('Masih ada utang vendor yang belum dibayar.')
+  if (f.refunds.openCount) out.push(`${f.refunds.openCount} kasus refund belum selesai.`)
+  return out
+}

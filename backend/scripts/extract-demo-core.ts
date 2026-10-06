@@ -26,6 +26,13 @@ const byId = <T extends { id: string }>(a: T, b: T) => a.id.localeCompare(b.id)
 const dateOnly = (value?: string) => (value ? value.slice(0, 10) : null)
 const warnings: string[] = []
 const USER_IDS = new Set(USERS.map(u => u.id))
+/** A user reference kept only when that user is seeded (FK); otherwise null with a warning. */
+const seededUser = (id: string | undefined, what: string): string | null => {
+  if (!id) { return null }
+  if (USER_IDS.has(id)) { return id }
+  warnings.push(`${what}: ${id} is not a seeded user — dropped`)
+  return null
+}
 
 const services = [...PROJECT_SERVICES].sort(byId).map(s => ({
   id: s.id,
@@ -126,7 +133,15 @@ const seed: DemoCoreSeed = {
     tourLeaderPhone: p.tourLeaderPhone ?? null,
     emergencyContactName: p.emergencyContactName ?? null,
     emergencyContactPhone: p.emergencyContactPhone ?? null,
-    meetingPoint: p.meetingPoint ?? null
+    meetingPoint: p.meetingPoint ?? null,
+    handoverAcceptedAt: dateOnly(p.handoverAcceptedAt),
+    handoverAcceptedBy: seededUser(p.handoverAcceptedBy, `project ${p.id} handoverAcceptedBy`),
+    readyAt: dateOnly(p.readyAt),
+    financeSettledAt: p.closureChecklist?.financeSettled ? (dateOnly(p.closedAt) ?? dateOnly(p.travelEndDate)) : null,
+    closedAt: dateOnly(p.closedAt),
+    closedBy: seededUser(p.closedBy, `project ${p.id} closedBy`),
+    finalNote: p.closureChecklist?.finalNote ?? null,
+    clientFeedback: p.closureChecklist?.clientFeedback ?? null
   })),
   projectServices: services,
   bookingRefs: [

@@ -37,6 +37,17 @@ interface ProjectRow extends Record<string, unknown> {
   emergency_contact_name: string | null
   emergency_contact_phone: string | null
   meeting_point: string | null
+  handover_accepted_at: string | null
+  handover_accepted_by: string | null
+  handover_returned_at: string | null
+  handover_return_reason: string | null
+  ready_at: string | null
+  finance_settled_at: string | null
+  finance_settled_by: string | null
+  closed_at: string | null
+  closed_by: string | null
+  final_note: string | null
+  client_feedback: string | null
 }
 
 export interface ProjectPortalView {
@@ -68,6 +79,17 @@ export interface ProjectInternalView extends ProjectPortalView {
   emergencyContactName: string | null
   emergencyContactPhone: string | null
   meetingPoint: string | null
+  handoverAcceptedAt: string | null
+  handoverAcceptedBy: string | null
+  handoverReturnedAt: string | null
+  handoverReturnReason: string | null
+  readyAt: string | null
+  financeSettledAt: string | null
+  financeSettledBy: string | null
+  closedAt: string | null
+  closedBy: string | null
+  finalNote: string | null
+  clientFeedback: string | null
 }
 
 function projectView(actor: Actor, r: ProjectRow): ProjectPortalView | ProjectInternalView {
@@ -99,7 +121,18 @@ function projectView(actor: Actor, r: ProjectRow): ProjectPortalView | ProjectIn
     tourLeaderPhone: r.tour_leader_phone,
     emergencyContactName: r.emergency_contact_name,
     emergencyContactPhone: r.emergency_contact_phone,
-    meetingPoint: r.meeting_point
+    meetingPoint: r.meeting_point,
+    handoverAcceptedAt: r.handover_accepted_at,
+    handoverAcceptedBy: r.handover_accepted_by,
+    handoverReturnedAt: r.handover_returned_at,
+    handoverReturnReason: r.handover_return_reason,
+    readyAt: r.ready_at,
+    financeSettledAt: r.finance_settled_at,
+    financeSettledBy: r.finance_settled_by,
+    closedAt: r.closed_at,
+    closedBy: r.closed_by,
+    finalNote: r.final_note,
+    clientFeedback: r.client_feedback
   }
 }
 
@@ -113,6 +146,8 @@ const PROJECT_SELECT = `
          p.status, p.owner_user_id, p.provenance, p.contract_value_minor, p.contract_currency,
          p.characteristic, p.service_scope, p.traveler_count, p.is_group_trip, p.lead_id, p.source_quotation_id,
          p.tour_leader_name, p.tour_leader_phone, p.emergency_contact_name, p.emergency_contact_phone, p.meeting_point,
+         to_char(p.handover_accepted_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as handover_accepted_at, to_char(p.handover_returned_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as handover_returned_at, to_char(p.ready_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as ready_at, to_char(p.finance_settled_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as finance_settled_at, to_char(p.closed_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as closed_at,
+         p.handover_accepted_by, p.handover_return_reason, p.finance_settled_by, p.closed_by, p.final_note, p.client_feedback,
          (select array_agg(pm.user_id order by pm.user_id) from project_members pm where pm.project_id = p.id) as team_user_ids
     from projects p
     join parties pa on pa.id = p.party_id`
