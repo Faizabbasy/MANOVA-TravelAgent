@@ -12,10 +12,8 @@ import {
   getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, createTravelerGroup,
   toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
-  closeProjectFinance,
   getTasksByProject, getActivitiesByProject,
   createChangeEntry, approveChangeEntry, rejectChangeEntry,
-  addProjectTeamMember, removeProjectTeamMember,
   createProjectTask, updateProjectTask,
   toggleTaskBlocked, getServiceReadinessMatrix, getDepartureReadiness, getProjectAttentionQueue,
   getBookingTimeline,
@@ -26,16 +24,19 @@ import {
   getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject,
   markGroupTripOrderPaid,
   VENDORS, createFlightBooking, createHotelBooking, createTransportBooking, createMiceEvent, setServiceVendor,
-  acceptProjectHandover, returnProjectHandover, setBookingPaymentGateStatus,
-  getProjectStatusTransitions, updateProjectStatus
+  setBookingPaymentGateStatus,
+  getProjectStatusTransitions
 } from '~/data'
-import { patchProjectOnServer } from '~/data/projects-sync'
+import {
+  acceptHandoverOnServer, addTeamMemberOnServer, advanceProjectOrderOnServer, closeFinanceOnServer, patchProjectOnServer,
+  reloadProjectFromServer, removeTeamMemberOnServer
+} from '~/data/projects-sync'
 import { isApiError } from '~/lib/api/errors'
 import type { TravelerImportPreviewRow, AttentionQueueItem } from '~/data'
 import type { SalesOrder } from '~/types/sales-order'
 import type { BookingTimelineEntry } from '~/types/booking-orchestration'
 import {
-  getProjectOrderStepViews, advanceProjectOrder, getProjectMilestones,
+  getProjectOrderStepViews, getProjectMilestones,
   setMilestoneActualDate, updateMilestonePlannedDate, updateMilestoneNote, getProjectOrderStep,
   getProjectMilestoneSummary, getMilestoneProgressPercent, toggleMilestoneDeliverable,
   addMilestoneDeliverable, removeMilestoneDeliverable,
@@ -377,10 +378,29 @@ function toggleCurrentStepGate () {
   toggleStepGateByKey(currentStepView.value.def.key)
 }
 
-function onAdvanceStep () {
+const isWorkflowPending = ref(false)
+
+/** Runs one server command for the Project Order; on error the server message is shown and the project reloaded. */
+async function runWorkflow<T> (title: string, action: () => Promise<T>): Promise<T | undefined> {
+  if (!project.value || isWorkflowPending.value) { return undefined }
+  isWorkflowPending.value = true
+  try {
+    return await action()
+  } catch (error) {
+    showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    await reloadProjectFromServer(financeApi, project.value.id).catch(() => undefined)
+    return undefined
+  } finally {
+    isWorkflowPending.value = false
+    refreshStep()
+  }
+}
+
+async function onAdvanceStep () {
   if (!project.value) { return }
-  const result = advanceProjectOrder(project.value.id, currentUser.value.id)
-  refreshStep()
+  const id = project.value.id
+  const result = await runWorkflow('Belum dapat dilanjutkan', () => advanceProjectOrderOnServer(financeApi, id))
+  if (!result) { return }
   if (result.success) {
     showToast('Berhasil', `Project Order lanjut dari step "${currentStepView.value?.def.label ?? ''}".`, 'success')
   } else {
@@ -403,25 +423,24 @@ const canAcceptHandover = computed(() => Boolean(project.value && !project.value
 const financeCancelOpen = ref(false)
 const canCancelProject = computed(() => Boolean(project.value && can('project-order.request-cancellation') &&
   getProjectStatusTransitions(project.value.status).includes('cancelled')))
-function onFinanceCancelled ({ refund, reason }: { refund: { id: string }; reason: string }) {
+async function onFinanceCancelled ({ refund }: { refund: { id: string }; reason: string }) {
   if (!project.value) { return }
-  const result = updateProjectStatus(project.value.id, 'cancelled', currentUser.value.id, reason)
+  // S3b: the server cancels the project together with the Finance case; reload to show the result.
+  const updated = await reloadProjectFromServer(financeApi, project.value.id).catch(() => undefined)
   refreshStep()
-  if (!result) {
+  if (updated?.status !== 'cancelled') {
     showToast('Status project belum berubah', `Pembatalan sudah tercatat di Finance (${refund.id}), tapi transisi status project tidak diizinkan dari status saat ini.`, 'warning')
     return
   }
   showToast('Project dibatalkan', `Kasus ${refund.id} tercatat. Refund diurus tim Finance.`, 'success')
 }
 
-function onAcceptHandover () {
+async function onAcceptHandover () {
   if (!project.value) { return }
-  const updated = acceptProjectHandover(project.value.id, currentUser.value.id)
-  refreshStep()
+  const id = project.value.id
+  const updated = await runWorkflow('Gagal', () => acceptHandoverOnServer(financeApi, id))
   if (updated) {
     showToast('Handover Diterima', 'Project Order sekarang bisa dilanjutkan ke tahap Drafting.', 'success')
-  } else {
-    showToast('Gagal', 'Handover tidak dapat diterima dari status project saat ini.', 'error')
   }
 }
 
@@ -653,16 +672,19 @@ const isTeamDialogOpen = ref(false)
 const teamMemberToAdd = ref('')
 const teamOptions = computed(() => USERS.filter(user => !project.value?.teamUserIds.includes(user.id) && user.id !== project.value?.ownerId))
 
-function submitAddTeamMember () {
+async function submitAddTeamMember () {
   if (!project.value || !teamMemberToAdd.value) { return }
-  addProjectTeamMember(project.value.id, teamMemberToAdd.value)
+  const id = project.value.id
+  const userId = teamMemberToAdd.value
+  if (!(await runWorkflow('Anggota Tim Gagal Ditambah', () => addTeamMemberOnServer(financeApi, id, userId)))) { return }
   teamMemberToAdd.value = ''
   isTeamDialogOpen.value = false
 }
 
-function submitRemoveTeamMember (userId: string) {
+async function submitRemoveTeamMember (userId: string) {
   if (!project.value) { return }
-  removeProjectTeamMember(project.value.id, userId)
+  const id = project.value.id
+  await runWorkflow('Anggota Tim Gagal Dihapus', () => removeTeamMemberOnServer(financeApi, id, userId))
 }
 
 /* Tasks / Milestones / Dependencies */
@@ -1118,11 +1140,13 @@ const projectFinanceFull = computed(() => (financeSummary.data.value?.view === '
 const financePanel = ref<{ blockers: string[] } | null>(null)
 const isFinanceAlreadySettled = computed(() => !!project.value?.closureChecklist?.financeSettled)
 
-function submitCloseFinance () {
+async function submitCloseFinance () {
   if (!project.value) { return }
-  const serverBlockers = financePanel.value?.blockers ?? ['Data finance project belum termuat.']
-  const result = closeProjectFinance(project.value.id, currentUser.value.id, serverBlockers)
-  if (result.success) { showToast('Finance Ditutup', `Finance project ${project.value.name} berhasil ditutup.`, 'success') } else { showToast('Belum Bisa Ditutup', `${result.blockers.length} blocker masih terbuka — lihat daftar di panel Finance.`, 'error') }
+  const { id, name } = project.value
+  // The server recomputes the finance blockers (S3b); its message lists whatever is still open.
+  if (await runWorkflow('Belum Bisa Ditutup', () => closeFinanceOnServer(financeApi, id))) {
+    showToast('Finance Ditutup', `Finance project ${name} berhasil ditutup.`, 'success')
+  }
 }
 
 const tasks = computed(() => project.value ? getTasksByProject(project.value.id) : [])

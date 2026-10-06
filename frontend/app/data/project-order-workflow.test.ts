@@ -4,7 +4,6 @@ import {
   getProjectOrderStep,
   getProjectOrderStepViews,
   evaluateProjectOrderStepGate,
-  advanceProjectOrder,
   getProjectOrderLateralTransitions,
   getProjectMilestones,
   getMilestoneDelayDays,
@@ -15,10 +14,10 @@ import {
   toggleProjectNotePin,
   applyMilestoneTemplate
 } from './project-order-workflow'
-import { getProjectById, getProjectStatusTransitions, createMasterDataRecord } from './index'
-import { registerNewServerProject } from './projects-sync'
+import { advanceProjectOrderOnServer, registerNewServerProject } from './projects-sync'
 import { serverProjectDto } from './projects-sync.test-utils'
 import { resetProjectFinanceFacts, setProjectFinanceFacts } from './finance-facts'
+import { getProjectById, getProjectStatusTransitions, createMasterDataRecord } from './index'
 import type { Project } from '~/types/project'
 
 /** Project baru seperti hasil `POST /projects` (S3a): dibuat lewat jalur server-merge yang sama dengan UI. */
@@ -201,23 +200,43 @@ describe('Alur 6 step Project Order', () => {
     })
   })
 
-  describe('advanceProjectOrder', () => {
-    it('menolak maju dan mengembalikan blocker saat gerbang belum terpenuhi', () => {
-      const before = project('PRJ-102').status
-      const result = advanceProjectOrder('PRJ-102', 'USR-010')
+  describe('advanceProjectOrderOnServer', () => {
+    const ready = () => ({ ready: true, blockers: [] }) as never
 
+    it('gate lokal belum lolos: server tidak dipanggil, status tetap', async () => {
+      let calls = 0
+      const api = { core: { transitionProject: () => { calls++; return Promise.reject(new Error('x')) } } }
+      const before = project('PRJ-102').status
+      const result = await advanceProjectOrderOnServer(api as never, 'PRJ-102')
       expect(result.success).toBe(false)
       expect(result.blockers.length).toBeGreaterThan(0)
+      expect(calls).toBe(0)
       expect(project('PRJ-102').status).toBe(before)
     })
 
-    it('menolak menutup Project Order tanpa final note', () => {
-      const result = advanceProjectOrder('PRJ-101', 'USR-010', { finalNote: '   ' })
-      expect(result.success).toBe(false)
+    it('step Drafting dari draft memanggil transition planning lalu confirmed dan menerapkan jawaban server', async () => {
+      const created = createProject({ partyId: 'PTY-001', name: 'Uji Alur', destination: 'Bali', travelStartDate: '2027-03-20', travelEndDate: '2027-03-23', travelerCount: 1, serviceScope: ['flight'], quotationAmountIdr: 1 })
+      const sent: string[] = []
+      const api = { core: { transitionProject: (id: string, to: string) => { sent.push(to); return Promise.resolve({ data: serverProjectDto({ id, status: to as never, handoverAcceptedAt: '2026-07-01' }) }) } } }
+      const result = await advanceProjectOrderOnServer(api as never, created.id, {}, ready)
+      expect(sent).toEqual(['planning', 'confirmed'])
+      expect(result.success).toBe(true)
+      expect(project(created.id).status).toBe('confirmed')
     })
 
-    it('tidak melempar error untuk project yang tidak ada', () => {
-      expect(advanceProjectOrder('PRJ-TIDAK-ADA', 'USR-010').success).toBe(false)
+    it('step Done tanpa catatan akhir ditolak tanpa memanggil server', async () => {
+      const created = createProject({ partyId: 'PTY-001', name: 'Uji Tutup', destination: 'Bali', travelStartDate: '2026-05-01', travelEndDate: '2026-05-03', travelerCount: 1, serviceScope: ['flight'], quotationAmountIdr: 1 })
+      created.status = 'completed'
+      let calls = 0
+      const api = { core: { closeProject: () => { calls++; return Promise.reject(new Error('x')) } } }
+      const result = await advanceProjectOrderOnServer(api as never, created.id, { finalNote: '   ' }, ready)
+      expect(result.success).toBe(false)
+      expect(result.blockers[0]).toContain('Catatan akhir')
+      expect(calls).toBe(0)
+    })
+
+    it('tidak melempar error untuk project yang tidak ada', async () => {
+      expect((await advanceProjectOrderOnServer({ core: {} } as never, 'PRJ-TIDAK-ADA')).success).toBe(false)
     })
   })
 

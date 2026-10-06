@@ -41,7 +41,7 @@ import {
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT } from '~/utils/attention'
 import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
 import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES, PROJECT_STATUSES, SUPPORT_TICKET_CATEGORIES, INVOICE_STATUSES } from '~/constants/status'
-import type { Project, ProjectStatus, ProjectCharacteristic, ServiceTypeKey, ServiceStatus, ProjectService, Traveler, TravelerGroup, ProjectOrderStatus, ProjectClosureChecklist, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
+import type { Project, ProjectStatus, ProjectCharacteristic, ServiceTypeKey, ServiceStatus, ProjectService, Traveler, TravelerGroup, ProjectOrderStatus, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType, CompanyType, SensitiveCompanyProfileFields } from '~/types/party'
 import type { Quotation, QuotationAttachment, QuotationComment } from '~/types/quotation'
 import type { Vendor, VendorContact, VendorQuotation, VendorProduct, VendorDocument } from '~/types/vendor'
@@ -568,32 +568,7 @@ export interface FinanceClosureGateResult {
 export function evaluateFinanceClosureGate (_projectId: string, serverBlockers: string[]): FinanceClosureGateResult {
   const blockers: string[] = [...serverBlockers]
 
-
   return { ready: blockers.length === 0, blockers }
-}
-
-/**
- * "Close Finance" action (Section 20, Wajib) — mengisi `ProjectClosureChecklist.financeSettled` (shell inert
- * sejak Section 09/D-066) dengan logic gate NYATA untuk pertama kalinya, MEREUSE `updateProjectClosureChecklist`
- * existing (bukan menulis ulang shape-nya). HANYA berhasil bila `evaluateFinanceClosureGate` mengembalikan
- * `ready: true` — bila tidak, mengembalikan blockers tanpa mengubah apa pun (UI wajib menampilkan daftar
- * blocker, bukan membiarkan aksi silent-fail).
- */
-export function closeProjectFinance (projectId: string, actorId: string, serverBlockers: string[]): { success: boolean; blockers: string[] } {
-  const gate = evaluateFinanceClosureGate(projectId, serverBlockers)
-  if (!gate.ready) { return { success: false, blockers: gate.blockers } }
-  const updated = updateProjectClosureChecklist(projectId, { financeSettled: true })
-  if (!updated) { return { success: false, blockers: ['Project tidak ditemukan.'] } }
-  const actor = getUserById(actorId)
-  ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
-    projectId,
-    message: `Finance ditutup (Close Finance) oleh ${actor?.name ?? actorId} — seluruh outstanding invoice, Refund Request, dan AP matching sudah selesai.`,
-    isChange: false,
-    reviewed: true,
-    createdAt: DEMO_REFERENCE_DATE
-  })
-  return { success: true, blockers: [] }
 }
 
 export const getActivitiesByProject = (projectId: string) => ACTIVITIES.filter(activity => activity.projectId === projectId)
@@ -615,56 +590,6 @@ export function getProjectOrderStatus (project: Project): ProjectOrderStatus {
   if (project.status === 'confirmed') { return project.readyAt ? 'ready' : 'confirmed' }
   if (project.status === 'in-progress' || project.status === 'ongoing-trip') { return 'in-progress' }
   return 'created'
-}
-
-/**
- * "PM Accept/Return Handover dengan reason" (Wajib) — dipanggil hanya dari UI yang sudah memfilter role PM
- * (`project-manager`)/Super Admin. Guard: hanya dari `status === 'draft'` dan belum pernah di-accept.
- * Acceptance section ("PM dapat menerima handover dan memulai planning TANPA KEHILANGAN DATA KOMERSIAL")
- * terpenuhi otomatis — `quotationAmountIdr`/`budgetIdr`/`sourceQuotationId` sudah terisi penuh sejak
- * `markLeadWon`, mutator ini TIDAK menyentuhnya sama sekali.
- */
-export function acceptProjectHandover (projectId: string, pmId: string): Project | undefined {
-  const project = getProjectById(projectId)
-  if (!project || project.status !== 'draft' || project.handoverAcceptedAt) { return undefined }
-  project.handoverAcceptedAt = DEMO_REFERENCE_DATE
-  project.handoverAcceptedBy = pmId
-  const pm = getUserById(pmId)
-  ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
-    projectId,
-    message: `Handover diterima oleh ${pm?.name ?? pmId} — Project Order memasuki tahap Planning.`,
-    isChange: false,
-    reviewed: true,
-    createdAt: DEMO_REFERENCE_DATE
-  })
-  return project
-}
-
-/** Return Handover — TIDAK mengubah `project.status` (tetap Handover Pending), murni mencatat alasan yang harus ditindaklanjuti AE/Sales (mock, D-006). */
-export function returnProjectHandover (projectId: string, reason: string, actorId: string): Project | undefined {
-  const project = getProjectById(projectId)
-  if (!project || project.status !== 'draft' || project.handoverAcceptedAt || !reason.trim()) { return undefined }
-  project.handoverReturnedAt = DEMO_REFERENCE_DATE
-  project.handoverReturnReason = reason
-  const actor = getUserById(actorId)
-  ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
-    projectId,
-    message: `Handover dikembalikan oleh ${actor?.name ?? actorId}. Alasan: ${reason}`,
-    isChange: false,
-    reviewed: true,
-    createdAt: DEMO_REFERENCE_DATE
-  })
-  return project
-}
-
-/** PM menandai Project Order siap keberangkatan — hanya dari status `confirmed`. */
-export function markProjectReady (projectId: string): Project | undefined {
-  const project = getProjectById(projectId)
-  if (!project || project.status !== 'confirmed' || project.readyAt) { return undefined }
-  project.readyAt = DEMO_REFERENCE_DATE
-  return project
 }
 
 /**
@@ -693,44 +618,6 @@ const PROJECT_STATUS_TRANSITIONS: Record<Project['status'], Project['status'][]>
 
 export function getProjectStatusTransitions (currentStatus: Project['status']): Project['status'][] {
   return PROJECT_STATUS_TRANSITIONS[currentStatus] ?? []
-}
-
-export function updateProjectStatus (projectId: string, newStatus: Project['status'], actorId: string, reason?: string): Project | undefined {
-  const project = getProjectById(projectId)
-  if (!project) { return undefined }
-  if (!getProjectStatusTransitions(project.status).includes(newStatus)) { return undefined }
-  const requiresReason = newStatus === 'on-hold' || newStatus === 'cancelled'
-  if (requiresReason && !reason?.trim()) { return undefined }
-  const fromLabel = project.status
-  project.status = newStatus
-  const actor = getUserById(actorId)
-  ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
-    projectId,
-    message: `Status Project Order diubah dari "${fromLabel}" menjadi "${newStatus}" oleh ${actor?.name ?? actorId}.${reason ? ` Alasan: ${reason}` : ''}`,
-    isChange: false,
-    reviewed: true,
-    createdAt: DEMO_REFERENCE_DATE
-  })
-  return project
-}
-
-/** Closure checklist SHELL (Wajib "Closure checklist shell untuk dipenuhi section akhir") — toggle murni, tidak menggerbangi transisi status apa pun (disengaja, lihat `ProjectClosureChecklist`). */
-export function updateProjectClosureChecklist (projectId: string, patch: Partial<ProjectClosureChecklist>): Project | undefined {
-  const project = getProjectById(projectId)
-  if (!project) { return undefined }
-  project.closureChecklist = {
-    financeSettled: false,
-    documentsArchived: false,
-    feedbackCollected: false,
-    assetsReturned: false,
-    servicesCompleted: false,
-    unresolvedIssuesHandled: false,
-    documentsComplete: false,
-    ...project.closureChecklist,
-    ...patch
-  }
-  return project
 }
 
 export interface ProjectClosureGateResult {
@@ -793,55 +680,6 @@ export function evaluateProjectClosureGate (projectId: string): ProjectClosureGa
   return { ready: blockers.length === 0, blockers }
 }
 
-/**
- * "Close Project" action (Section 24, Wajib literal: "services completed, finance finalized, unresolved
- * issues handled, documents complete, client feedback/final note, closure summary"). Gerbang: HANYA
- * berhasil bila `evaluateProjectClosureGate` mengembalikan `ready: true` DAN `finalNote` diisi (Wajib
- * "client feedback/final note" — minimal salah satu narrative field terisi, `finalNote` wajib karena
- * `clientFeedback` bisa jujur kosong bila client tidak memberi feedback tertulis). Menyetel
- * `Project.closedAt`/`closedBy` (dipakai `getProjectOrderStatus()`, D-066, LOCOKED — TIDAK diubah) dan
- * mengisi 3 field derivasi baru + narrative di `closureChecklist` sebagai SNAPSHOT hasil gate saat itu
- * (bukan sumber kebenaran independen — re-run `evaluateProjectClosureGate` tetap yang dipercaya bila
- * dicek ulang). Role gate (Management/PM) diterapkan di level UI (`canCloseProject`, pola narrow-role-
- * exception sama `canManageProjectOrder`), BUKAN di sini — konsisten dengan `closeProjectFinance`/
- * `updateProjectStatus` yang juga tidak melakukan role-check sendiri di data layer.
- */
-export function closeProject (projectId: string, actorId: string, finalNote: string, clientFeedback?: string): { success: boolean; blockers: string[] } {
-  const project = getProjectById(projectId)
-  if (!project) { return { success: false, blockers: ['Project tidak ditemukan.'] } }
-  if (project.closedAt) { return { success: false, blockers: ['Project ini sudah ditutup sebelumnya.'] } }
-  if (!finalNote.trim()) { return { success: false, blockers: ['Final note wajib diisi sebelum menutup project.'] } }
-
-  const gate = evaluateProjectClosureGate(projectId)
-  if (!gate.ready) { return { success: false, blockers: gate.blockers } }
-
-  project.closedAt = DEMO_REFERENCE_DATE
-  project.closedBy = actorId
-  project.closureChecklist = {
-    financeSettled: true,
-    documentsArchived: project.closureChecklist?.documentsArchived ?? false,
-    feedbackCollected: project.closureChecklist?.feedbackCollected ?? false,
-    assetsReturned: project.closureChecklist?.assetsReturned ?? false,
-    ...project.closureChecklist,
-    servicesCompleted: true,
-    unresolvedIssuesHandled: true,
-    documentsComplete: true,
-    finalNote: finalNote.trim(),
-    clientFeedback: clientFeedback?.trim() || undefined
-  }
-
-  const actor = getUserById(actorId)
-  ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
-    projectId,
-    message: `Project Order ditutup (Close Project) oleh ${actor?.name ?? actorId}. Final note: "${finalNote.trim()}".${clientFeedback?.trim() ? ` Client feedback: "${clientFeedback.trim()}".` : ''}`,
-    isChange: false,
-    reviewed: true,
-    createdAt: DEMO_REFERENCE_DATE
-  })
-  return { success: true, blockers: [] }
-}
-
 export interface ProjectClosureSummary {
   totalServices: number
   totalBookings: number
@@ -878,21 +716,6 @@ export function getProjectClosureSummary (projectId: string): ProjectClosureSumm
     changeRequestsTotal: changeRequests.length,
     changeRequestsImplemented: changeRequests.filter(c => c.status === 'implemented').length
   }
-}
-
-/** Team assignment (Wajib "Team assignment dan role responsibilities") — `teamUserIds` sudah ada sejak Foundation, sebelumnya tidak ada mutator untuk mengelolanya. */
-export function addProjectTeamMember (projectId: string, userId: string): Project | undefined {
-  const project = getProjectById(projectId)
-  if (!project || project.teamUserIds.includes(userId)) { return undefined }
-  project.teamUserIds.push(userId)
-  return project
-}
-
-export function removeProjectTeamMember (projectId: string, userId: string): Project | undefined {
-  const project = getProjectById(projectId)
-  if (!project) { return undefined }
-  project.teamUserIds = project.teamUserIds.filter(id => id !== userId)
-  return project
 }
 
 /** Tasks/Milestones/Dependencies (Wajib) — Tasks tab sebelumnya read-only murni, tidak ada create/edit sama sekali. */

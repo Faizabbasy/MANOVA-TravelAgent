@@ -13,10 +13,7 @@ import {
   getIncidentsByProject,
   getChangeRequestsByProject,
   evaluateProjectClosureGate,
-  getProjectStatusTransitions,
-  updateProjectStatus,
-  markProjectReady,
-  closeProject
+  getProjectStatusTransitions
 } from './index'
 import type { Project, ProjectStatus } from '~/types/project'
 import type {
@@ -356,56 +353,6 @@ export interface AdvanceProjectOrderOptions {
   /** Wajib saat menutup Project Order pada step Done. */
   finalNote?: string
   clientFeedback?: string
-}
-
-/**
- * Menjalankan satu langkah maju. Gerbang dievaluasi ULANG di sini (bukan sekadar percaya tombol di UI
- * sudah disabled), sehingga aksi tetap aman bila datanya berubah sejak halaman ter-render.
- */
-export function advanceProjectOrder (projectId: string, actorId: string, options: AdvanceProjectOrderOptions = {}): AdvanceProjectOrderResult {
-  const project = getProjectById(projectId)
-  if (!project) { return { success: false, blockers: ['Project Order tidak ditemukan.'] } }
-
-  const stepKey = getProjectOrderStep(project)
-  const step = getProjectOrderStepDef(stepKey)
-  if (!step) { return { success: false, blockers: ['Step tidak dikenal.'] } }
-
-  const gate = evaluateProjectOrderStepGate(projectId, stepKey)
-  if (!gate.ready) { return { success: false, blockers: gate.blockers, stepKey } }
-
-  if (step.sideEffect === 'closeProject') {
-    const finalNote = options.finalNote?.trim()
-    if (!finalNote) { return { success: false, blockers: ['Final note wajib diisi sebelum menutup Project Order.'], stepKey } }
-    const result = closeProject(projectId, actorId, finalNote, options.clientFeedback)
-    return { success: result.success, blockers: result.blockers, stepKey }
-  }
-
-  if (step.sideEffect === 'markReady') {
-    const updated = markProjectReady(projectId)
-    return updated
-      ? { success: true, blockers: [], stepKey }
-      : { success: false, blockers: ['Project Order tidak dapat ditandai siap dari status saat ini.'], stepKey }
-  }
-
-  if (!step.targetStatus) { return { success: false, blockers: ['Step ini tidak punya aksi lanjut.'], stepKey } }
-
-  /**
-   * Step Drafting mencakup dua status (`draft` dan `planning`), sedangkan `PROJECT_STATUS_TRANSITIONS`
-   * hanya mengizinkan satu lompatan per panggilan. Rantai perantaranya dijalankan otomatis agar dari sisi
-   * pengguna tetap satu klik.
-   */
-  const chain: ProjectStatus[] = []
-  if (project.status === 'draft' && step.targetStatus === 'confirmed') { chain.push('planning') }
-  chain.push(step.targetStatus)
-
-  for (const status of chain) {
-    if (!getProjectStatusTransitions(project.status).includes(status)) {
-      return { success: false, blockers: [`Transisi ke "${status}" tidak diizinkan dari status "${project.status}".`], stepKey }
-    }
-    updateProjectStatus(projectId, status, actorId)
-  }
-
-  return { success: true, blockers: [], stepKey }
 }
 
 /** Transisi lateral yang tersedia (On Hold / Cancel) — di luar alur maju 6 step. */

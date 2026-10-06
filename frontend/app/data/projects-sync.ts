@@ -1,8 +1,10 @@
 import { PROJECTS } from './projects'
 import { resolveDestinationGeo } from './geo'
+import { evaluateProjectOrderStepGate, getProjectOrderStep, getProjectOrderStepDef, type AdvanceProjectOrderOptions, type AdvanceProjectOrderResult } from './project-order-workflow'
 import { upsertServerParty } from './parties-sync'
 import { applyLeadWon, prepareLeadWon, seedDefaultProjectMilestones, type CreateProjectInput } from './index'
-import type { Project } from '~/types/project'
+import type { Project, ProjectStatus } from '~/types/project'
+import type { ProjectOrderGateResult, ProjectOrderStepKey } from '~/types/project-order'
 import { isInternalProject, type ProjectDto, type ProjectInternalDto, type ProjectPatchInput } from '~/types/api'
 import type { ManovaApi } from '~/lib/api/endpoints'
 import { newIdempotencyKey } from '~/lib/api/client'
@@ -194,3 +196,55 @@ export async function patchProjectOnServer (api: Pick<ManovaApi, 'core'>, projec
   if (!project) { throw new Error('Jawaban server tidak berisi data project.') }
   return project
 }
+
+/**
+ * One step forward in the Project Order (S3b). Gates whose data is still local (travelers, itinerary,
+ * incidents, bookings …) are checked here first and block without calling the server; the server then enforces
+ * its own rules (transition map, handover, DP received before Ready, finance closed before Close). Server errors
+ * are thrown for the page to show.
+ */
+export async function advanceProjectOrderOnServer (
+  api: Pick<ManovaApi, 'core'>,
+  projectId: string,
+  options: AdvanceProjectOrderOptions = {},
+  gateOf: (projectId: string, stepKey: ProjectOrderStepKey) => ProjectOrderGateResult = evaluateProjectOrderStepGate
+): Promise<AdvanceProjectOrderResult> {
+  const project = PROJECTS.find(p => p.id === projectId)
+  if (!project) { return { success: false, blockers: ['Project Order tidak ditemukan.'] } }
+  const stepKey = getProjectOrderStep(project)
+  const step = getProjectOrderStepDef(stepKey)
+  if (!step) { return { success: false, blockers: ['Step tidak dikenal.'] } }
+  const gate = gateOf(projectId, stepKey)
+  if (!gate.ready) { return { success: false, blockers: gate.blockers, stepKey } }
+
+  if (step.sideEffect === 'closeProject') {
+    const finalNote = options.finalNote?.trim()
+    if (!finalNote) { return { success: false, blockers: ['Catatan akhir wajib diisi sebelum menutup Project Order.'], stepKey } }
+    upsertServerProject((await api.core.closeProject(projectId, { finalNote, clientFeedback: options.clientFeedback?.trim() || undefined })).data)
+    return { success: true, blockers: [], stepKey }
+  }
+  if (step.sideEffect === 'markReady') {
+    upsertServerProject((await api.core.markProjectReady(projectId)).data)
+    return { success: true, blockers: [], stepKey }
+  }
+  if (!step.targetStatus) { return { success: false, blockers: ['Step ini tidak punya aksi lanjut.'], stepKey } }
+  // Drafting covers draft and planning; the server moves one status per call, so the chain runs here.
+  const chain: ProjectStatus[] = project.status === 'draft' && step.targetStatus === 'confirmed' ? ['planning', step.targetStatus] : [step.targetStatus]
+  for (const status of chain) {
+    if (project.status === status) { continue }
+    upsertServerProject((await api.core.transitionProject(projectId, status)).data)
+  }
+  return { success: true, blockers: [], stepKey }
+}
+
+/** Reloads one project from the server (after an error, or after Finance recorded a cancellation). */
+export async function reloadProjectFromServer (api: Pick<ManovaApi, 'core'>, projectId: string): Promise<Project | undefined> {
+  return upsertServerProject((await api.core.getProject(projectId)).data)
+}
+
+const applyProject = async (call: Promise<{ data: ProjectDto }>) => upsertServerProject((await call).data)
+
+export const acceptHandoverOnServer = (api: Pick<ManovaApi, 'core'>, projectId: string) => applyProject(api.core.acceptHandover(projectId))
+export const closeFinanceOnServer = (api: Pick<ManovaApi, 'core'>, projectId: string) => applyProject(api.core.closeProjectFinance(projectId))
+export const addTeamMemberOnServer = (api: Pick<ManovaApi, 'core'>, projectId: string, userId: string) => applyProject(api.core.addProjectMember(projectId, userId))
+export const removeTeamMemberOnServer = (api: Pick<ManovaApi, 'core'>, projectId: string, userId: string) => applyProject(api.core.removeProjectMember(projectId, userId))
