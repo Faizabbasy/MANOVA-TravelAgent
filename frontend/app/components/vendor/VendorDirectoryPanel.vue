@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search, Plus, Eye } from 'lucide-vue-next'
-import { VENDORS, getServicesByVendor, createVendor, getUserByVendorId } from '~/data'
+import { VENDORS, getServicesByVendor, getUserByVendorId, ensureVendorLoginAccount } from '~/data'
+import { createVendorOnServer } from '~/data/vendors-sync'
+import { newIdempotencyKey } from '~/lib/api/client'
+import { isApiError } from '~/lib/api/errors'
 import { SERVICE_TYPES, VENDOR_STATUSES, findStatusOption } from '~/constants/status'
 import type { ServiceTypeKey } from '~/types/project'
 
@@ -38,7 +41,13 @@ const newContactName = ref('')
 const newContactPhone = ref('')
 const newCategory = ref('')
 
+const api = useApi()
+const isCreating = ref(false)
+/** One Idempotency-Key per filled form: a double click does not create two vendors. */
+let createKey = newIdempotencyKey()
+
 function resetCreateForm () {
+  createKey = newIdempotencyKey()
   newName.value = ''
   newServiceType.value = 'flight'
   newContactName.value = ''
@@ -46,15 +55,26 @@ function resetCreateForm () {
   newCategory.value = ''
 }
 
-function submitCreate () {
-  if (!newName.value.trim() || !newContactName.value.trim()) { return }
-  const vendor = createVendor({
-    name: newName.value.trim(),
-    serviceType: newServiceType.value,
-    contactName: newContactName.value.trim(),
-    contactPhone: newContactPhone.value.trim() || undefined,
-    category: newCategory.value.trim() || undefined
-  })
+async function submitCreate () {
+  if (!newName.value.trim() || !newContactName.value.trim() || isCreating.value) { return }
+  isCreating.value = true
+  let vendor
+  try {
+    vendor = await createVendorOnServer(api, {
+      name: newName.value.trim(),
+      serviceType: newServiceType.value,
+      contactName: newContactName.value.trim(),
+      contactPhone: newContactPhone.value.trim() || undefined,
+      category: newCategory.value.trim() || undefined
+    }, createKey)
+  } catch (error) {
+    showToast('Gagal Menambah Vendor', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isCreating.value = false
+  }
+  // The vendor portal login stays a local demo account (portals are off, ADR-006).
+  ensureVendorLoginAccount(vendor)
   const vendorUser = getUserByVendorId(vendor.id)
   resetCreateForm()
   isCreateOpen.value = false
@@ -134,7 +154,7 @@ function submitCreate () {
             <Button variant="outline" @click="isCreateOpen = false">
               Batal
             </Button>
-            <Button :disabled="!newName.trim() || !newContactName.trim()" @click="submitCreate">
+            <Button :disabled="!newName.trim() || !newContactName.trim() || isCreating" @click="submitCreate">
               Simpan
             </Button>
           </template>

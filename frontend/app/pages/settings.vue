@@ -6,6 +6,7 @@ import { resetMockState, hasMockSnapshot } from '~/utils/mock-reset'
 import { getVendorById } from '~/data'
 import { useCustomersSync } from '~/data/parties-sync'
 import { useProjectsSync } from '~/data/projects-sync'
+import { useVendorsSync } from '~/data/vendors-sync'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { User } from '~/types/user'
 
@@ -45,6 +46,7 @@ function submitRbacReset () {
 const isResetDialogOpen = ref(false)
 const projectsSync = useProjectsSync()
 const customersSync = useCustomersSync()
+const vendorsSync = useVendorsSync()
 
 function submitReset () {
   const success = resetMockState()
@@ -56,6 +58,7 @@ function submitReset () {
   // Project dan customer milik server: reset hanya mengembalikan field lokal, keduanya dimuat ulang dari server.
   projectsSync.load(true)
   customersSync.load(true)
+  vendorsSync.load(true)
   showToast('Demo Data Direset', 'Seluruh data mock dikembalikan ke kondisi seed awal.', 'success')
 }
 </script>

@@ -44,7 +44,7 @@ import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATU
 import type { Project, ProjectStatus, ProjectCharacteristic, ServiceTypeKey, ServiceStatus, ProjectService, Traveler, TravelerGroup, ProjectOrderStatus, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType, CompanyType, SensitiveCompanyProfileFields } from '~/types/party'
 import type { Quotation, QuotationAttachment, QuotationComment } from '~/types/quotation'
-import type { Vendor, VendorContact, VendorQuotation, VendorProduct, VendorDocument } from '~/types/vendor'
+import type { Vendor, VendorQuotation, VendorProduct } from '~/types/vendor'
 import type { SalesOrder, SalesOrderStatus } from '~/types/sales-order'
 import type { ActivityEntry, ChangeCategory, ProjectTask, ProjectRisk, ProjectRiskSeverity, ShiftNote, ShiftPeriod, SystemEvent } from '~/types/activity'
 import type { Lead, LeadActivity, LeadWorkflowStatus, B2cPriceAcceptance, B2cBookingReadiness } from '~/types/lead'
@@ -2754,7 +2754,7 @@ export function flagBookingOrchestrationDuplicate (bookingType: BookingDomain, b
   return record
 }
 
-/**
+/*
  * Vendor Management (Section 13 lama/Prompt 13 — penomoran berbeda dari "Section 13 — Ticketing" roadmap
  * baru di atas, lihat `docs/mockup-implementation-state.md` bagian 0 soal skema penomoran ganda) —
  * create-mock master data vendor, melanjutkan pola `reactive()`
@@ -2762,18 +2762,12 @@ export function flagBookingOrchestrationDuplicate (bookingType: BookingDomain, b
  * `VIEW` seluruh role lain — tidak ada rank `APPROVE` yang membocorkan akses seperti CRM/Project, jadi
  * TIDAK perlu pengecualian sempit tambahan seperti `canManageParty`/`canManageTravelers`).
  */
-export function createVendor (input: { name: string; serviceType: ServiceTypeKey; contactName: string; contactPhone?: string; category?: string }): Vendor {
-  const vendor: Vendor = { id: nextSequentialId('VND-', VENDORS), status: 'active', ...input }
-  VENDORS.push(vendor)
-  ensureVendorLoginAccount(vendor)
-  return vendor
-}
 
 /** Auto-provision akun login Vendor Portal (role `vendor`) begitu vendor baru dibuat — mirror
  * `ensureClientLoginAccount`, idempotent by `vendorId` supaya aman dipanggil ulang. Beda dari Client (yang
  * baru login setelah Lead Won), Vendor tidak punya "titik aktivasi" terpisah dari pembuatannya sendiri,
- * jadi dipicu langsung di `createVendor`. */
-function ensureVendorLoginAccount (vendor: Vendor): User {
+ * jadi dipanggil tepat setelah vendor dibuat di server (S2) — akun portal tetap demo lokal (ADR-006). */
+export function ensureVendorLoginAccount (vendor: Vendor): User {
   const existing = getUserByVendorId(vendor.id)
   if (existing) { return existing }
   const vendorUser: User = {
@@ -2786,26 +2780,6 @@ function ensureVendorLoginAccount (vendor: Vendor): User {
   }
   USERS.push(vendorUser)
   return vendorUser
-}
-
-/** `category`/`status`/`documents` (Section 17, aditif) — edit master data vendor, dipakai Vendor Detail. */
-export function updateVendor (id: string, patch: Partial<Pick<Vendor, 'name' | 'category' | 'status' | 'contactName' | 'contactPhone'>>): Vendor | undefined {
-  const vendor = getVendorById(id)
-  if (!vendor) { return undefined }
-  Object.assign(vendor, patch)
-  return vendor
-}
-
-export function createVendorDocument (input: { vendorId: string; name: string; type: string }): VendorDocument {
-  const document: VendorDocument = { id: nextSequentialId('VDOC-', VENDOR_DOCUMENTS), uploadedAt: DEMO_REFERENCE_DATE, ...input }
-  VENDOR_DOCUMENTS.push(document)
-  return document
-}
-
-export function createVendorContact (input: { vendorId: string; name: string; title: string; email?: string; phone?: string }): VendorContact {
-  const contact: VendorContact = { id: nextSequentialId('VCT-', VENDOR_CONTACTS), ...input }
-  VENDOR_CONTACTS.push(contact)
-  return contact
 }
 
 /** Submit quotation baru (mock) — status awal selalu `submitted`, keputusan Accept/Reject terjadi di tab "Vendors" Project Detail. */

@@ -4,11 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus, Eye } from 'lucide-vue-next'
 import {
   getVendorById, getVendorContacts, getVendorQuotations, getVendorActivities, getServicesByVendor,
-  createVendorContact, submitVendorQuotation, updateVendor,
+  submitVendorQuotation,
   getProjectById, PROJECTS, getProjectServices,
-  getVendorProducts, createVendorProduct,
-  getVendorDocuments, createVendorDocument
+  getVendorProducts,
+  getVendorDocuments
 } from '~/data'
+import { createVendorContactOnServer, createVendorDocumentOnServer, createVendorProductOnServer, updateVendorOnServer } from '~/data/vendors-sync'
+import { isApiError } from '~/lib/api/errors'
 import { SERVICE_TYPES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES, VENDOR_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import type { VendorDetailTab } from '~/types/vendor'
@@ -19,6 +21,7 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { canView, canManage } = usePermissions()
+const { showToast } = useToast()
 const canManageVendor = computed(() => canManage('vendor'))
 
 const vendor = computed(() => getVendorById(String(route.params.id)))
@@ -71,9 +74,27 @@ function openVendorEdit () {
   editStatus.value = vendor.value.status ?? 'active'
   isVendorEditOpen.value = true
 }
-function submitVendorEdit () {
+const vendorApi = useApi()
+const isSavingVendor = ref(false)
+
+/** Runs one vendor write on the server; on error the server message is shown and the dialog stays open. */
+async function saveVendor<T> (title: string, action: () => Promise<T>): Promise<T | undefined> {
+  if (isSavingVendor.value) { return undefined }
+  isSavingVendor.value = true
+  try {
+    return await action()
+  } catch (error) {
+    showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return undefined
+  } finally {
+    isSavingVendor.value = false
+  }
+}
+
+async function submitVendorEdit () {
   if (!vendor.value) { return }
-  updateVendor(vendor.value.id, { category: editCategory.value.trim() || undefined, status: editStatus.value })
+  const id = vendor.value.id
+  if (!(await saveVendor('Vendor Gagal Disimpan', () => updateVendorOnServer(vendorApi, id, { category: editCategory.value.trim() || null, status: editStatus.value })))) { return }
   isVendorEditOpen.value = false
 }
 
@@ -81,9 +102,10 @@ function submitVendorEdit () {
 const isDocumentDialogOpen = ref(false)
 const documentName = ref('')
 const documentType = ref('')
-function submitDocument () {
+async function submitDocument () {
   if (!vendor.value || !documentName.value.trim() || !documentType.value.trim()) { return }
-  createVendorDocument({ vendorId: vendor.value.id, name: documentName.value.trim(), type: documentType.value.trim() })
+  const id = vendor.value.id
+  if (!(await saveVendor('Dokumen Gagal Disimpan', () => createVendorDocumentOnServer(vendorApi, id, { name: documentName.value.trim(), type: documentType.value.trim() })))) { return }
   documentName.value = ''
   documentType.value = ''
   isDocumentDialogOpen.value = false
@@ -107,15 +129,15 @@ const productCategory = ref<ServiceTypeKey>('hotel')
 const productDescription = ref('')
 const productPrice = ref<number | null>(null)
 
-function submitProduct () {
+async function submitProduct () {
   if (!vendor.value || !productName.value.trim()) { return }
-  createVendorProduct({
-    vendorId: vendor.value.id,
+  const id = vendor.value.id
+  if (!(await saveVendor('Produk Gagal Disimpan', () => createVendorProductOnServer(vendorApi, id, {
     name: productName.value.trim(),
     category: productCategory.value,
     description: productDescription.value.trim() || undefined,
     priceIdr: productPrice.value ?? undefined
-  })
+  })))) { return }
   productName.value = ''
   productCategory.value = 'hotel'
   productDescription.value = ''
@@ -123,15 +145,15 @@ function submitProduct () {
   isProductDialogOpen.value = false
 }
 
-function submitContact () {
+async function submitContact () {
   if (!vendor.value || !contactName.value.trim() || !contactTitle.value.trim()) { return }
-  createVendorContact({
-    vendorId: vendor.value.id,
+  const id = vendor.value.id
+  if (!(await saveVendor('Kontak Gagal Disimpan', () => createVendorContactOnServer(vendorApi, id, {
     name: contactName.value.trim(),
     title: contactTitle.value.trim(),
     email: contactEmail.value.trim() || undefined,
     phone: contactPhone.value.trim() || undefined
-  })
+  })))) { return }
   contactName.value = ''
   contactTitle.value = ''
   contactEmail.value = ''

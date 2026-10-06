@@ -67,7 +67,12 @@ import type {
   TransferFeeRuleDto,
   TransferFeeRuleInput,
   TransferInput,
+  VendorContactDto,
+  VendorCreateInput,
+  VendorDocumentDto,
   VendorDto,
+  VendorPatchInput,
+  VendorProductDto,
   VendorFinanceSummaryDto,
   VendorInvoiceDetailDto,
   VendorInvoiceInput,
@@ -126,6 +131,17 @@ export function createManovaApi (client: ApiClient) {
       createActivity: (partyId: string, input: ActivityCreateInput) => client.post<PartyActivityDto>(`/parties/${seg(partyId)}/activities`, input),
       listVendors: (query: PageQuery = {}) => client.getList<VendorDto>('/vendors', { query: { ...query } }),
       getVendor: (id: string) => client.get<VendorDto>(`/vendors/${seg(id)}`),
+      createVendor: (input: VendorCreateInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<VendorDto>('/vendors', input, { idempotencyKey }),
+      updateVendor: (id: string, input: VendorPatchInput) => client.patch<VendorDto>(`/vendors/${seg(id)}`, input),
+      createVendorContact: (id: string, input: { name: string; title: string; email?: string; phone?: string }) =>
+        client.post<VendorContactDto>(`/vendors/${seg(id)}/contacts`, input),
+      createVendorProduct: (id: string, input: { name: string; category: VendorDto['serviceType']; description?: string; priceMinor?: string }) =>
+        client.post<VendorProductDto>(`/vendors/${seg(id)}/products`, input),
+      createVendorDocument: (id: string, input: { name: string; type: string }) => client.post<VendorDocumentDto>(`/vendors/${seg(id)}/documents`, input),
+      listVendorContacts: () => client.get<VendorContactDto[]>('/vendor-contacts'),
+      listVendorProducts: () => client.get<VendorProductDto[]>('/vendor-products'),
+      listVendorDocuments: () => client.get<VendorDocumentDto[]>('/vendor-documents'),
       getServiceOrder: (id: string) => client.get<ServiceOrderRefDto>(`/service-orders/${seg(id)}`),
       getBookingRef: (type: ApiBookingType, id: string) => client.get<BookingRefDto>(`/bookings/${seg(type)}/${seg(id)}`)
     },

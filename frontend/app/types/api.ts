@@ -271,7 +271,47 @@ export interface VendorDto {
   name: string
   serviceType: 'flight' | 'hotel' | 'transportation' | 'mice' | 'additional'
   status: 'active' | 'inactive' | 'pending'
+  contactName: string | null
+  contactPhone: string | null
+  category: string | null
   provenance?: ApiProvenance
+}
+
+export interface VendorCreateInput {
+  name: string
+  serviceType: VendorDto['serviceType']
+  contactName: string
+  contactPhone?: string
+  category?: string
+  status?: VendorDto['status']
+}
+
+export type VendorPatchInput = Partial<Pick<VendorDto, 'name' | 'status' | 'contactName' | 'contactPhone' | 'category'>>
+
+export interface VendorContactDto {
+  id: string
+  vendorId: string
+  name: string
+  title: string
+  email: string | null
+  phone: string | null
+}
+
+export interface VendorProductDto {
+  id: string
+  vendorId: string
+  name: string
+  category: VendorDto['serviceType']
+  description: string | null
+  priceMinor: MoneyMinor | null
+}
+
+export interface VendorDocumentDto {
+  id: string
+  vendorId: string
+  name: string
+  type: string
+  uploadedAt: IsoDate
 }
 
 export interface ServiceOrderRefDto {

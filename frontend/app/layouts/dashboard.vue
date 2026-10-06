@@ -1,22 +1,28 @@
 <script setup lang="ts">
 import { useCustomersSync } from '~/data/parties-sync'
 import { useProjectsSync } from '~/data/projects-sync'
+import { useVendorsSync } from '~/data/vendors-sync'
 
 const isMobile = useIsMobile()
-/** Project (S3a) dan customer (S1) milik server: dimuat sekali per user yang login ke array lokal. */
+/** Project (S3a/S3b), customer (S1), dan vendor (S2) milik server: dimuat sekali per user yang login ke array lokal. */
 const projectsSync = useProjectsSync()
 const customersSync = useCustomersSync()
+const vendorsSync = useVendorsSync()
 const { currentUser } = useCurrentUser()
-const loadServerData = (force = false) => { projectsSync.load(force); customersSync.load(force) }
+const loadServerData = (force = false) => { projectsSync.load(force); customersSync.load(force); vendorsSync.load(force) }
 onMounted(() => { loadServerData() })
 watch(() => currentUser.value.id, () => { loadServerData() })
 
 const unsyncedLabel = computed(() => {
   const failed = (s: { status: string }) => s.status === 'offline' || s.status === 'error'
-  const parts = [failed(projectsSync.state.value) ? 'project' : null, failed(customersSync.state.value) ? 'customer' : null].filter(Boolean)
-  return parts.length ? parts.join(' dan ') : null
+  const parts = [
+    failed(projectsSync.state.value) ? 'project' : null,
+    failed(customersSync.state.value) ? 'customer' : null,
+    failed(vendorsSync.state.value) ? 'vendor' : null
+  ].filter(Boolean)
+  return parts.length ? parts.join(', ') : null
 })
-const unsyncedMessage = computed(() => projectsSync.state.value.message ?? customersSync.state.value.message)
+const unsyncedMessage = computed(() => projectsSync.state.value.message ?? customersSync.state.value.message ?? vendorsSync.state.value.message)
 </script>
 
 <template>
