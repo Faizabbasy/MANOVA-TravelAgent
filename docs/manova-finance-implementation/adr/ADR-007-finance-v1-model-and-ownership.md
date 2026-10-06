@@ -44,3 +44,11 @@ Finance hanya **membaca** kolom-kolom ini; yang menulisnya adalah modul pemilikn
 - Profitabilitas dan "sisa belum ditagih" bisa dihitung di server tanpa membaca mock.
 - Perubahan nilai kontrak atau harga booking menjadi tanggung jawab modul pemiliknya. Finance tidak pernah menyalin atau mengubahnya.
 - Kebocoran Budget/Actual/Nilai Quotation di kartu ringkasan project (R3) ditutup di commit yang sama dengan ADR ini.
+
+## Update 2026-10-06 — Limit kredit customer (S1)
+
+Limit kredit customer adalah angka milik Finance: disimpan di `parties.credit_limit_minor` (bigint minor unit),
+diubah hanya lewat `PUT /api/v1/parties/:id/credit-limit` dengan capability `finance.edit-credit-limit`
+(Finance, Super Admin) dan alasan wajib yang diaudit. Admin melihat nilainya tetapi tidak mengubahnya. Seed demo
+membawanya sebagai `creditLimitMinor` (kunci uang keempat yang diizinkan `db.test.ts`). Spec:
+`docs/superpowers/specs/2026-10-06-customer-backend-design.md`.

@@ -1,6 +1,6 @@
 # Backend Customer (S1) — desain
 
-Tanggal: 6 Oktober 2026 · Branch: `production` · Status: disetujui (brainstorming)
+Tanggal: 6 Oktober 2026 · Branch: `production` · Status: diimplementasikan
 
 Tahap kedua program "backend untuk halaman lain" (tahap pertama: `2026-10-06-project-core-backend-design.md`,
 S0 + S3a). Memakai fondasi tulis S0 (`id_sequences`, `withIdempotency`, `recordAudit`, capability) dan pola

@@ -45,3 +45,11 @@ format sama: `PRJ-503` dst.) dan baris ber-provenance `manual`. Frontend mengisi
 setelah sesi siap (`app/data/projects-sync.ts`). Status/alur Project Order, tim, layanan, milestone, traveler,
 dan itinerary **masih** modul frontend sampai tahapnya pindah. Spec:
 `docs/superpowers/specs/2026-10-06-project-core-backend-design.md`.
+
+## Update 2026-10-06 — Customer write API (S1)
+
+Customer (profil, kontak, aktivitas CRM) kini ditulis lewat API (`POST/PATCH /api/v1/parties`, kontak dan
+aktivitas per customer); semua pembuatan customer di UI internal (tambah customer, qualify B2B/B2C, gabung Group
+Trip) lewat server dengan ID `PTY-` dari `id_sequences`. Saat project dibuat dari lead yang di-Won, server
+menaikkan customer `prospect` → `client`. Lead, quotation, dan sales order masih modul frontend (S6); portal
+client tetap mock (ADR-006).
