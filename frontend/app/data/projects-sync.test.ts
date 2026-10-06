@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { PROJECTS } from './projects'
 import { getProjectMilestones } from './project-order-workflow'
-import { mergeServerProjects, registerNewServerProject, upsertServerProject } from './projects-sync'
+import { loadServerProjects, mergeServerProjects, registerNewServerProject, upsertServerProject } from './projects-sync'
 import { serverProjectDto } from './projects-sync.test-utils'
 
 const original = PROJECTS.map(p => ({ ...p }))
@@ -35,5 +35,26 @@ describe('projects-sync', () => {
     expect(PROJECTS.map(p => p.id)).toEqual(['PRJ-101', 'PRJ-960'])
     mergeServerProjects([{ id: 'PRJ-101', name: 'x', destination: null, travelStartDate: null, travelEndDate: null, status: 'draft' }])
     expect(PROJECTS.map(p => p.id)).toEqual(['PRJ-101', 'PRJ-960'])
+  })
+})
+
+describe('loadServerProjects', () => {
+  it('mengambil semua halaman lalu menggabungkan', async () => {
+    const pages = [
+      { data: [serverProjectDto({ id: 'PRJ-101' })], meta: { pagination: { nextCursor: 'PRJ-101' } } },
+      { data: [serverProjectDto({ id: 'PRJ-970' })], meta: { pagination: { nextCursor: null } } }
+    ]
+    const cursors: (string | undefined)[] = []
+    const api = { core: { listProjects: async (q: { cursor?: string }) => { cursors.push(q.cursor); return pages.shift()! } } }
+    expect(await loadServerProjects(api as never)).toBe(2)
+    expect(cursors).toEqual([undefined, 'PRJ-101'])
+    expect(PROJECTS.map(p => p.id)).toEqual(['PRJ-101', 'PRJ-970'])
+  })
+
+  it('server mati: array lokal tidak disentuh dan error diteruskan', async () => {
+    const ids = PROJECTS.map(p => p.id)
+    const api = { core: { listProjects: async () => { throw new Error('down') } } }
+    await expect(loadServerProjects(api as never)).rejects.toThrow('down')
+    expect(PROJECTS.map(p => p.id)).toEqual(ids)
   })
 })

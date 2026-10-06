@@ -3,6 +3,8 @@ import { resolveDestinationGeo } from './geo'
 import { seedDefaultProjectMilestones } from './index'
 import type { Project } from '~/types/project'
 import { isInternalProject, type ProjectDto, type ProjectInternalDto } from '~/types/api'
+import type { ManovaApi } from '~/lib/api/endpoints'
+import { isApiError } from '~/lib/api/errors'
 
 /**
  * Server → `PROJECTS` (S3a, spec 2026-10-06-project-core-backend). The server owns the project header
@@ -71,4 +73,53 @@ export function mergeServerProjects (list: ProjectDto[]): void {
     if (!keep.has(PROJECTS[i]!.id)) { PROJECTS.splice(i, 1) }
   }
   for (const dto of internal) { upsertServerProject(dto) }
+}
+
+/** Every page of `GET /projects`, merged only after the last page arrived (a failure leaves the array as is). */
+export async function loadServerProjects (api: Pick<ManovaApi, 'core'>): Promise<number> {
+  const all: ProjectDto[] = []
+  let cursor: string | undefined
+  for (let page = 0; page < 200; page++) {
+    const res = await api.core.listProjects({ limit: 100, ...(cursor ? { cursor } : {}) })
+    all.push(...res.data)
+    const next = res.meta.pagination?.nextCursor ?? null
+    if (!next) { break }
+    cursor = next
+  }
+  mergeServerProjects(all)
+  return all.length
+}
+
+export interface ProjectsSyncState {
+  status: 'idle' | 'loading' | 'ready' | 'offline' | 'error'
+  userId: string | null
+  message: string | null
+}
+
+/** Loads the projects once per signed-in user; the dashboard layout calls it, "Reset Demo Data" forces it. */
+export function useProjectsSync () {
+  const api = useApi()
+  const session = useServerSession()
+  const { currentUser } = useCurrentUser()
+  const state = useState<ProjectsSyncState>('manova-projects-sync', () => ({ status: 'idle', userId: null, message: null }))
+
+  async function load (force = false) {
+    const userId = currentUser.value.id
+    if (!force && state.value.userId === userId && (state.value.status === 'ready' || state.value.status === 'loading')) { return }
+    state.value = { status: 'loading', userId, message: null }
+    try {
+      await session.ensure()
+      await loadServerProjects(api)
+      state.value = { status: 'ready', userId, message: null }
+    } catch (error) {
+      const offline = isApiError(error) && (error.status === 0 || error.status >= 500)
+      state.value = {
+        status: offline ? 'offline' : 'error',
+        userId,
+        message: isApiError(error) ? error.message : 'Daftar project belum bisa dimuat dari server.'
+      }
+    }
+  }
+
+  return { state, load }
 }
