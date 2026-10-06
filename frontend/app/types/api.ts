@@ -101,6 +101,9 @@ export interface ProjectPortalDto {
   status: ApiProjectStatus
 }
 
+export type ApiProjectCharacteristic = 'normal' | 'high-change' | 'complex'
+export type ApiServiceType = 'flight' | 'hotel' | 'transportation' | 'mice' | 'additional'
+
 /** What internal roles receive. */
 export interface ProjectInternalDto extends ProjectPortalDto {
   partyId: string
@@ -111,11 +114,57 @@ export interface ProjectInternalDto extends ProjectPortalDto {
   /** Owned by the Project module (ADR-007). Null when unset or when the role may not see commercial figures. */
   contractValueMinor: MoneyMinor | null
   contractCurrency: string
+  characteristic: ApiProjectCharacteristic
+  serviceScope: ApiServiceType[]
+  travelerCount: number
+  isGroupTrip: boolean
+  leadId: string | null
+  sourceQuotationId: string | null
+  tourLeaderName: string | null
+  tourLeaderPhone: string | null
+  emergencyContactName: string | null
+  emergencyContactPhone: string | null
+  meetingPoint: string | null
 }
 
 export type ProjectDto = ProjectPortalDto | ProjectInternalDto
 
 export type ProjectDetailDto = ProjectDto & { bookings: { type: ApiBookingType; id: string }[] }
+
+export interface ProjectCreateInput {
+  name: string
+  partyId?: string
+  isGroupTrip?: boolean
+  destination: string
+  travelStartDate: IsoDate
+  travelEndDate: IsoDate
+  characteristic?: ApiProjectCharacteristic
+  serviceScope: ApiServiceType[]
+  travelerCount: number
+  contractValueMinor: MoneyMinor
+  leadId?: string
+  sourceQuotationId?: string
+}
+
+export interface ProjectPatchInput {
+  name?: string
+  destination?: string
+  travelStartDate?: IsoDate
+  travelEndDate?: IsoDate
+  characteristic?: ApiProjectCharacteristic
+  serviceScope?: ApiServiceType[]
+  travelerCount?: number
+  tourLeaderName?: string | null
+  tourLeaderPhone?: string | null
+  emergencyContactName?: string | null
+  emergencyContactPhone?: string | null
+  meetingPoint?: string | null
+}
+
+export interface ContractValueInput {
+  contractValueMinor: MoneyMinor
+  reason: string
+}
 
 export interface PartyDto {
   id: string

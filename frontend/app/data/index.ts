@@ -1252,7 +1252,7 @@ export function createProject (input: CreateProjectInput): Project | undefined {
  * `DEMO_REFERENCE_DATE` supaya project dengan keberangkatan dekat tidak menghasilkan milestone "direncanakan"
  * di masa lalu.
  */
-function seedDefaultProjectMilestones (project: Project): void {
+export function seedDefaultProjectMilestones (project: Project): void {
   const notBeforeToday = (iso: string) => (iso < DEMO_REFERENCE_DATE ? DEMO_REFERENCE_DATE : iso)
   const beforeDeparture = (days: number) => notBeforeToday(formatISO(addDays(parseISO(project.travelStartDate), -days), { representation: 'date' }))
   const afterReturn = (days: number) => formatISO(addDays(parseISO(project.travelEndDate), days), { representation: 'date' })

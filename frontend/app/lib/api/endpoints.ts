@@ -36,7 +36,10 @@ import type {
   PayablesList,
   PolicyAssignmentDto,
   PolicyInput,
+  ContractValueInput,
+  ProjectCreateInput,
   ProjectDetailDto,
+  ProjectPatchInput,
   ProjectDto,
   ProjectFinanceSummaryDto,
   ReceiptInput,
@@ -90,6 +93,10 @@ export function createManovaApi (client: ApiClient) {
       listProjects: (query: PageQuery & { status?: ApiProjectStatus; partyId?: string } = {}) =>
         client.getList<ProjectDto>('/projects', { query: { ...query } }),
       getProject: (id: string) => client.get<ProjectDetailDto>(`/projects/${seg(id)}`),
+      createProject: (input: ProjectCreateInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<ProjectDetailDto>('/projects', input, { idempotencyKey }),
+      updateProject: (id: string, input: ProjectPatchInput) => client.patch<ProjectDetailDto>(`/projects/${seg(id)}`, input),
+      setContractValue: (id: string, input: ContractValueInput) => client.put<ProjectDetailDto>(`/projects/${seg(id)}/contract-value`, input),
       listParties: (query: PageQuery = {}) => client.getList<PartyDto>('/parties', { query: { ...query } }),
       getParty: (id: string) => client.get<PartyDto>(`/parties/${seg(id)}`),
       listVendors: (query: PageQuery = {}) => client.getList<VendorDto>('/vendors', { query: { ...query } }),
