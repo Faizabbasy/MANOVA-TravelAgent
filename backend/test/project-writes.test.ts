@@ -117,3 +117,36 @@ describe('PATCH /projects/:id', () => {
     expect((await t.call('PATCH', '/api/v1/projects/PRJ-999', { cookie: c.admin, body: { name: 'X' } })).status).toBe(404)
   })
 })
+
+describe('PUT /projects/:id/contract-value and finance', () => {
+  test('a new project is billable at once; contract value cannot drop below what is billed', async () => {
+    const created = await post('admin', valid({ name: 'Integrasi Finance', contractValueMinor: '200000000' }))
+    const id = created.json.data.id as string
+    const draft = await t.call('POST', '/api/v1/finance/customer-invoices', {
+      cookie: c.finance, body: { projectId: id, invoiceType: 'dp', lines: [{ description: 'DP 50%', amountMinor: '100000000' }], dueDate: '2027-02-01' }
+    })
+    expect(draft.status).toBe(201)
+    const issued = await t.call('POST', `/api/v1/finance/customer-invoices/${draft.json.data.id}/issue`, { cookie: c.finance, body: { dueDate: '2027-02-01' } })
+    expect(issued.status).toBe(200)
+    const summary = await t.call('GET', `/api/v1/projects/${id}/finance-summary`, { cookie: c.finance })
+    expect(summary.json.data).toMatchObject({ contractValueMinor: '200000000', receivable: { invoicedMinor: '100000000', uninvoicedMinor: '100000000' } })
+
+    const tooLow = await t.call('PUT', `/api/v1/projects/${id}/contract-value`, { cookie: c.finance, body: { contractValueMinor: '90000000', reason: 'Diskon' } })
+    expect(tooLow.status).toBe(422)
+    expect(tooLow.json.error.message).toContain('Rp')
+
+    const ok = await t.call('PUT', `/api/v1/projects/${id}/contract-value`, { cookie: c.finance, body: { contractValueMinor: '150000000', reason: 'Peserta berkurang' } })
+    expect(ok.status).toBe(200)
+    expect(ok.json.data.contractValueMinor).toBe('150000000')
+    const [audit] = await t.db.query<{ reason: string; before: Record<string, string>; after: Record<string, string> }>(
+      "select reason, before, after from audit_events where action = 'project.contract_value_changed' and entity_id = $1", [id]
+    )
+    expect(audit).toEqual({ reason: 'Peserta berkurang', before: { contractValueMinor: '200000000' }, after: { contractValueMinor: '150000000' } })
+  })
+
+  test('reason is required; admin cannot change it; super-admin can', async () => {
+    expect((await t.call('PUT', '/api/v1/projects/PRJ-104/contract-value', { cookie: c.finance, body: { contractValueMinor: '1000' } })).status).toBe(400)
+    expect((await t.call('PUT', '/api/v1/projects/PRJ-104/contract-value', { cookie: c.admin, body: { contractValueMinor: '1000', reason: 'x' } })).status).toBe(403)
+    expect((await t.call('PUT', '/api/v1/projects/PRJ-104/contract-value', { cookie: c.superAdmin, body: { contractValueMinor: '125000000', reason: 'Revisi kontrak' } })).status).toBe(200)
+  })
+})

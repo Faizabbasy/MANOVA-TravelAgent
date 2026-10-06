@@ -4,7 +4,8 @@ import type { AuthContext } from '../../auth/context'
 import { assertIdParam, ID_PATTERN, ok, okList, paginate, parsePageQuery, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
-import { createProject, updateProject } from './project-writes'
+import { projectFinanceSummary } from '../finance/summaries'
+import { createProject, setContractValue, updateProject } from './project-writes'
 import {
   BOOKING_TYPES,
   getBookingRef,
@@ -71,6 +72,16 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       await db.transaction(tx => updateProject(tx, actor, id, body as Parameters<typeof updateProject>[3], requestIdOf(request)))
       return ok(request, await getProject(db, actor, id))
     }, { body: t.Record(t.String(), t.Unknown()) })
+    .put('/projects/:id/contract-value', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'finance.edit-contract-value')
+      const id = assertIdParam(params.id, 'Project')
+      if (!(await getProject(db, actor, id))) throw errors.notFound('Project')
+      // "Sudah ditagih" as the project finance summary shows it: issued invoices − credit notes.
+      const summary = await projectFinanceSummary(db, id, true)
+      const billed = summary.view === 'full' ? BigInt(summary.receivable.invoicedMinor) - BigInt(summary.receivable.creditedMinor) : 0n
+      await db.transaction(tx => setContractValue(tx, actor, id, body, billed, requestIdOf(request)))
+      return ok(request, await getProject(db, actor, id))
+    }, { body: t.Object({ contractValueMinor: t.Optional(t.String()), reason: t.Optional(t.String()) }) })
     .get(
       '/parties',
       async ({ request, query }) => {

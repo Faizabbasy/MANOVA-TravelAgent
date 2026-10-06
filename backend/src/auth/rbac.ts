@@ -114,7 +114,9 @@ const CAPABILITY_GRANTS = {
   'finance.approve-refund': ['finance'],
   'finance.settle-refund': ['finance'],
   'finance.manage-policy': ['finance'],
-  'finance.view-project-finance': ['finance']
+  'finance.view-project-finance': ['finance'],
+  /** Contract value after creation (ADR-007: owned by Project, corrected by Finance with a reason). */
+  'finance.edit-contract-value': ['finance']
 } satisfies Record<string, GrantedTo>
 
 export type CapabilityKey = keyof typeof CAPABILITY_GRANTS

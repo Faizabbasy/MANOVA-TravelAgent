@@ -220,3 +220,32 @@ export async function updateProject(tx: Queryable, actor: Actor, id: string, inp
   await tx.query(`update projects set ${sets.join(', ')}, updated_at = now() where id = $1`, params)
   await recordAudit(tx, { action: 'project.updated', actorUserId: actor.userId, entityType: 'project', entityId: id, requestId, before, after })
 }
+
+const formatRp = (minor: bigint) => `Rp ${minor.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.')}`
+
+export async function setContractValue(
+  tx: Queryable, actor: Actor, id: string, input: { contractValueMinor?: string; reason?: string }, billedMinor: bigint, requestId: string
+): Promise<void> {
+  const problems: FieldErrors = {}
+  let value: bigint | null = null
+  try {
+    value = parseAmountMinor(input.contractValueMinor, 'contractValueMinor', { allowZero: true })
+  } catch {
+    problems.contractValueMinor = ['Nilai kontrak harus angka rupiah ≥ 0.']
+  }
+  const reason = typeof input.reason === 'string' ? input.reason.trim() : ''
+  if (!reason) problems.reason = ['Alasan perubahan wajib diisi.']
+  else if (reason.length > 500) problems.reason = ['Maksimal 500 karakter.']
+  if (Object.keys(problems).length) throw errors.validation(problems)
+
+  const [current] = await tx.query<{ contract_value_minor: string | null }>('select contract_value_minor from projects where id = $1 for update', [id])
+  if (!current) throw errors.notFound('Project')
+  if (value! < billedMinor) {
+    throw rule(`Nilai kontrak tidak boleh di bawah yang sudah ditagih (${formatRp(billedMinor)}). Terbitkan credit note dulu bila tagihan memang turun.`)
+  }
+  await tx.query('update projects set contract_value_minor = $2, updated_at = now() where id = $1', [id, value!.toString()])
+  await recordAudit(tx, {
+    action: 'project.contract_value_changed', actorUserId: actor.userId, entityType: 'project', entityId: id, requestId, reason,
+    before: { contractValueMinor: current.contract_value_minor }, after: { contractValueMinor: value!.toString() }
+  })
+}
