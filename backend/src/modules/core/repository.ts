@@ -380,6 +380,53 @@ export async function getBookingRef(db: Db, actor: Actor, type: BookingType, id:
   }
 }
 
+interface ServiceRow extends Record<string, unknown> {
+  id: string
+  project_id: string
+  service_type: string
+  label: string
+  status: string
+  vendor_id: string | null
+  booking_reference: string | null
+  budget_minor: string | null
+  has_bookings: boolean
+  provenance: string
+}
+
+const SERVICE_SELECT = `
+  select ps.id, ps.project_id, ps.service_type, ps.label, ps.status, ps.vendor_id, ps.booking_reference, ps.budget_minor, ps.provenance,
+         exists (select 1 from booking_refs b where b.service_id = ps.id) as has_bookings
+    from project_services ps join projects p on p.id = ps.project_id`
+
+const serviceView = (actor: Actor, r: ServiceRow) => ({
+  id: r.id,
+  projectId: r.project_id,
+  type: r.service_type,
+  label: r.label,
+  status: r.status,
+  vendorId: r.vendor_id,
+  bookingReference: r.booking_reference,
+  budgetMinor: canSeeCommercials(actor) ? r.budget_minor : null,
+  hasBookings: r.has_bookings,
+  provenance: r.provenance
+})
+export type ServiceView = ReturnType<typeof serviceView>
+
+/** Services in the actor's project scope (S4a); a vendor sees only its own services. Clients are refused by the route. */
+export async function listProjectServices(db: Db, actor: Actor, filter: { projectId?: string; id?: string }) {
+  const params: unknown[] = []
+  const where = [projectScopeSql(projectScopeOf(actor), params)]
+  if (actor.role === 'vendor') { params.push(actor.vendorId); where.push(`ps.vendor_id = $${params.length}`) }
+  if (filter.projectId) { params.push(filter.projectId); where.push(`ps.project_id = $${params.length}`) }
+  if (filter.id) { params.push(filter.id); where.push(`ps.id = $${params.length}`) }
+  const rows = await db.query<ServiceRow>(`${SERVICE_SELECT} where ${where.join(' and ')} order by ps.project_id, ps.id`, params)
+  return rows.map(r => serviceView(actor, r))
+}
+
+export async function getProjectService(db: Db, actor: Actor, id: string) {
+  return (await listProjectServices(db, actor, { id }))[0] ?? null
+}
+
 const contactView = (r: { id: string; party_id: string; name: string; title: string; email: string | null; phone: string | null }) => ({
   id: r.id, partyId: r.party_id, name: r.name, title: r.title, email: r.email, phone: r.phone
 })

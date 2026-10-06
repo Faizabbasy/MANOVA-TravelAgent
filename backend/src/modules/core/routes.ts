@@ -1,6 +1,7 @@
 import { Elysia, t } from 'elysia'
 import type { AppDeps } from '../../app-deps'
 import type { AuthContext, SessionActor } from '../../auth/context'
+import { hasCapability, type CapabilityKey } from '../../auth/rbac'
 import { assertIdParam, ID_PATTERN, ok, okList, paginate, parsePageQuery, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { businessDateOf } from '../../shared/dates'
@@ -10,11 +11,15 @@ import { createActivity, createContact, createParty, setCreditLimit, updateParty
 import { createVendor, createVendorContact, createVendorDocument, createVendorProduct, updateVendor } from './vendor-writes'
 import { acceptHandover, addMember, closeFinance, closeProject, markReady, removeMember, returnHandover, transition } from './project-workflow'
 import { createProject, setContractValue, updateProject } from './project-writes'
+import { SERVICE_TYPES } from './booking-rules'
+import { createService, updateService } from './service-writes'
 import {
   BOOKING_TYPES,
   getBookingRef,
   getParty,
   getProject,
+  getProjectService,
+  listProjectServices,
   getServiceOrder,
   getVendor,
   listActivities,
@@ -53,6 +58,13 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
     const id = assertIdParam(raw, 'Project')
     if (!(await getProject(db, actor, id))) throw errors.notFound('Project')
     return id
+  }
+
+  const serviceCapability = (type: string) => `project-order.manage-service.${type}` as CapabilityKey
+
+  /** Writes to a service or booking need the capability of its service type; portals never write. */
+  function requireServiceCapability(actor: SessionActor, type: string) {
+    if (isPortalActor(actor) || !(SERVICE_TYPES as readonly string[]).includes(type) || !hasCapability(actor.role, serviceCapability(type))) throw errors.forbidden()
   }
 
   return new Elysia({ prefix: '/api/v1' })
@@ -296,6 +308,35 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       if (isPortalActor(actor) || !canListVendors(actor)) throw errors.forbidden()
       return ok(request, await listVendorDocuments(db))
     })
+    .get('/project-services', async ({ request, query }) => {
+      const actor = await auth.requireActor(request)
+      if (actor.role === 'client') throw errors.forbidden()
+      if (query.projectId && !ID_PATTERN.test(query.projectId)) throw errors.validation({ projectId: ['ID project tidak valid.'] })
+      return ok(request, await listProjectServices(db, actor, { projectId: query.projectId }))
+    }, { query: t.Object({ projectId: t.Optional(t.String()) }) })
+    .post('/projects/:id/services', async ({ request, params, body, set }) => {
+      const actor = await auth.requireActor(request)
+      const b = body as Record<string, unknown>
+      // A known type needs its own capability; an unknown type is a validation error for anyone who may add services.
+      if ((SERVICE_TYPES as readonly unknown[]).includes(b.type)) requireServiceCapability(actor, b.type as string)
+      else if (isPortalActor(actor) || !SERVICE_TYPES.some(s => hasCapability(actor.role, serviceCapability(s)))) throw errors.forbidden()
+      const projectId = await visibleProject(actor, params.id)
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: `POST /projects/${projectId}/services`, key, body }, tx =>
+        createService(tx, actor, projectId, b, requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await getProjectService(db, actor, result.data.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .patch('/project-services/:id', async ({ request, params, body }) => {
+      const actor = await auth.requireActor(request)
+      const id = assertIdParam(params.id, 'Layanan')
+      const current = isPortalActor(actor) ? null : await getProjectService(db, actor, id)
+      if (!current) throw errors.notFound('Layanan')
+      requireServiceCapability(actor, current.type)
+      await db.transaction(tx => updateService(tx, actor, id, body as Record<string, unknown>, requestIdOf(request)))
+      return ok(request, await getProjectService(db, actor, id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
     .get('/service-orders/:id', async ({ request, params }) => {
       const actor = await auth.requireActor(request)
       if (!isPortalActor(actor) && !canListVendors(actor)) throw errors.forbidden()
