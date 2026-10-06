@@ -19,7 +19,6 @@ import { CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS, CHAN
 import { DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS, DOCUMENT_COMMENTS } from './document-comms'
 import { TRIP_ANNOUNCEMENTS } from './trip-center'
 import { SAVED_VIEWS } from './reporting'
-import { resolveDestinationGeo } from './geo'
 import { COMMODITY_PRODUCTS, COMMODITY_VARIANTS } from './commodities'
 import { AVAILABILITY_SLOTS } from './availability'
 import { COMMODITY_REQUIREMENTS } from './requirements'
@@ -1219,54 +1218,6 @@ export function updateProjectPhoto (projectId: string, photoUrl: string): Projec
   const project = getProjectById(projectId)
   if (!project) { return undefined }
   project.photoUrl = photoUrl
-  return project
-}
-
-/**
- * Kontak lapangan (tour leader/emergency contact/meeting point) — field ini sudah lama ada di `Project`
- * dan dipakai gate step "Start" (`project-order-workflow.ts`, gate "field-contacts") serta ditampilkan di
- * Client Trip Center, tapi sebelumnya tidak ada mutator/form mana pun untuk mengisinya — cuma bisa lewat
- * fixture data. Satu fungsi aditif, pola sama `updateProjectPhoto`.
- */
-/**
- * Destinasi/jadwal keberangkatan — sebelumnya tidak ada mutator untuk mengubah `destination`/
- * `travelStartDate`/`travelEndDate` setelah Project dibuat sama sekali (hanya bisa lewat fixture data).
- * Penting terutama karena gate step "Departure"/"On Progress" (`project-order-workflow.ts`) membandingkan
- * `travelStartDate`/`travelEndDate` terhadap `DEMO_REFERENCE_DATE` (2026-07-29, BUKAN tanggal hari ini
- * sungguhan) — Project baru yang dibuat dengan tanggal travel setelah 29 Juli 2026 tidak akan pernah lolos
- * gate tsb sampai tanggalnya diubah ke sebelum 29 Juli 2026. `destinationGeo` di-resolve ulang bila
- * `destination` berubah, pola sama `createProject`/`markLeadWon`.
- */
-export function updateProjectSchedule (projectId: string, input: {
-  destination?: string
-  travelStartDate?: string
-  travelEndDate?: string
-}): Project | undefined {
-  const project = getProjectById(projectId)
-  if (!project) { return undefined }
-  if (input.destination?.trim()) {
-    project.destination = input.destination.trim()
-    project.destinationGeo = resolveDestinationGeo(project.destination)
-  }
-  if (input.travelStartDate) { project.travelStartDate = input.travelStartDate }
-  if (input.travelEndDate) { project.travelEndDate = input.travelEndDate }
-  return project
-}
-
-export function updateProjectFieldContacts (projectId: string, input: {
-  tourLeaderName?: string
-  tourLeaderPhone?: string
-  emergencyContactName?: string
-  emergencyContactPhone?: string
-  meetingPoint?: string
-}): Project | undefined {
-  const project = getProjectById(projectId)
-  if (!project) { return undefined }
-  project.tourLeaderName = input.tourLeaderName?.trim() || undefined
-  project.tourLeaderPhone = input.tourLeaderPhone?.trim() || undefined
-  project.emergencyContactName = input.emergencyContactName?.trim() || undefined
-  project.emergencyContactPhone = input.emergencyContactPhone?.trim() || undefined
-  project.meetingPoint = input.meetingPoint?.trim() || undefined
   return project
 }
 

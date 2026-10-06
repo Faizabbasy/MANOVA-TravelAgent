@@ -26,9 +26,11 @@ import {
   getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject,
   markGroupTripOrderPaid,
   VENDORS, createFlightBooking, createHotelBooking, createTransportBooking, createMiceEvent, setServiceVendor,
-  acceptProjectHandover, returnProjectHandover, setBookingPaymentGateStatus, updateProjectFieldContacts, updateProjectSchedule,
+  acceptProjectHandover, returnProjectHandover, setBookingPaymentGateStatus,
   getProjectStatusTransitions, updateProjectStatus
 } from '~/data'
+import { patchProjectOnServer } from '~/data/projects-sync'
+import { isApiError } from '~/lib/api/errors'
 import type { TravelerImportPreviewRow, AttentionQueueItem } from '~/data'
 import type { SalesOrder } from '~/types/sales-order'
 import type { BookingTimelineEntry } from '~/types/booking-orchestration'
@@ -464,27 +466,45 @@ function openScheduleDialog () {
   isScheduleDialogOpen.value = true
 }
 
-function submitSchedule () {
-  if (!project.value || !editTravelStartDate.value || !editTravelEndDate.value) { return }
-  updateProjectSchedule(project.value.id, {
-    destination: editDestination.value,
-    travelStartDate: editTravelStartDate.value,
-    travelEndDate: editTravelEndDate.value
-  })
+const isSavingHeader = ref(false)
+
+async function submitSchedule () {
+  if (!project.value || !editTravelStartDate.value || !editTravelEndDate.value || isSavingHeader.value) { return }
+  isSavingHeader.value = true
+  try {
+    await patchProjectOnServer(financeApi, project.value.id, {
+      destination: editDestination.value.trim() || undefined,
+      travelStartDate: editTravelStartDate.value,
+      travelEndDate: editTravelEndDate.value
+    })
+  } catch (error) {
+    showToast('Jadwal Gagal Disimpan', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isSavingHeader.value = false
+  }
   refreshStep()
   isScheduleDialogOpen.value = false
   showToast('Jadwal Diperbarui', 'Destinasi dan tanggal travel berhasil disimpan.', 'success')
 }
 
-function submitFieldContacts () {
-  if (!project.value) { return }
-  updateProjectFieldContacts(project.value.id, {
-    tourLeaderName: editTourLeaderName.value,
-    tourLeaderPhone: editTourLeaderPhone.value,
-    emergencyContactName: editEmergencyContactName.value,
-    emergencyContactPhone: editEmergencyContactPhone.value,
-    meetingPoint: editMeetingPoint.value
-  })
+async function submitFieldContacts () {
+  if (!project.value || isSavingHeader.value) { return }
+  isSavingHeader.value = true
+  try {
+    await patchProjectOnServer(financeApi, project.value.id, {
+      tourLeaderName: editTourLeaderName.value.trim() || null,
+      tourLeaderPhone: editTourLeaderPhone.value.trim() || null,
+      emergencyContactName: editEmergencyContactName.value.trim() || null,
+      emergencyContactPhone: editEmergencyContactPhone.value.trim() || null,
+      meetingPoint: editMeetingPoint.value.trim() || null
+    })
+  } catch (error) {
+    showToast('Kontak Lapangan Gagal Disimpan', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isSavingHeader.value = false
+  }
   refreshStep()
   isFieldContactsDialogOpen.value = false
   showToast('Kontak Lapangan Disimpan', 'Tour leader dan kontak darurat berhasil diperbarui.', 'success')
@@ -2187,7 +2207,7 @@ const tripDurationDays = computed(() => {
           <Button variant="outline" @click="isScheduleDialogOpen = false">
             Batal
           </Button>
-          <Button @click="submitSchedule">
+          <Button :disabled="isSavingHeader" @click="submitSchedule">
             Simpan
           </Button>
         </template>
@@ -2307,7 +2327,7 @@ const tripDurationDays = computed(() => {
                   <Button variant="outline" @click="isFieldContactsDialogOpen = false">
                     Batal
                   </Button>
-                  <Button @click="submitFieldContacts">
+                  <Button :disabled="isSavingHeader" @click="submitFieldContacts">
                     Simpan
                   </Button>
                 </template>

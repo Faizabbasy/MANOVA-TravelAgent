@@ -2,7 +2,7 @@ import { PROJECTS } from './projects'
 import { resolveDestinationGeo } from './geo'
 import { applyLeadWon, prepareLeadWon, seedDefaultProjectMilestones, type CreateProjectInput } from './index'
 import type { Project } from '~/types/project'
-import { isInternalProject, type ProjectDto, type ProjectInternalDto } from '~/types/api'
+import { isInternalProject, type ProjectDto, type ProjectInternalDto, type ProjectPatchInput } from '~/types/api'
 import type { ManovaApi } from '~/lib/api/endpoints'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
@@ -157,5 +157,17 @@ export async function markLeadWonOnServer (api: Pick<ManovaApi, 'core'>, leadId:
   const res = await api.core.createProject(toServerInput(prepared.input), idempotencyKey)
   const project = registerNewServerProject(res.data)
   applyLeadWon(leadId, project, approverId)
+  return project
+}
+
+/**
+ * Edit the project header on the server (schedule, destination, field contacts …) and apply the answer to the
+ * same object. Step gates read these fields: "Departure"/"On Progress" compare the travel dates with
+ * `DEMO_REFERENCE_DATE`, and "Start" needs the field contacts (`project-order-workflow.ts`).
+ */
+export async function patchProjectOnServer (api: Pick<ManovaApi, 'core'>, projectId: string, input: ProjectPatchInput): Promise<Project> {
+  const res = await api.core.updateProject(projectId, input)
+  const project = upsertServerProject(res.data)
+  if (!project) { throw new Error('Jawaban server tidak berisi data project.') }
   return project
 }

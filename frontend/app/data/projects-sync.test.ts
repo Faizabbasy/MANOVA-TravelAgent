@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { PROJECTS } from './projects'
 import { getProjectMilestones } from './project-order-workflow'
-import { createProjectOnServer, loadServerProjects, mergeServerProjects, registerNewServerProject, upsertServerProject } from './projects-sync'
+import { createProjectOnServer, loadServerProjects, mergeServerProjects, patchProjectOnServer, registerNewServerProject, upsertServerProject } from './projects-sync'
 import { serverProjectDto } from './projects-sync.test-utils'
 
 const original = PROJECTS.map(p => ({ ...p }))
@@ -79,5 +79,15 @@ describe('createProjectOnServer', () => {
       partyId: 'PTY-999', name: 'X', destination: 'Y', travelStartDate: '2027-01-10', travelEndDate: '2027-01-12', travelerCount: 1, serviceScope: ['hotel'], quotationAmountIdr: 1
     }, 'key-abc-67890')).rejects.toThrow('422')
     expect(PROJECTS.length).toBe(count)
+  })
+})
+
+describe('patchProjectOnServer', () => {
+  it('mengirim patch dan menerapkan jawaban server ke objek yang sama', async () => {
+    const before = PROJECTS.find(p => p.id === 'PRJ-101')!
+    const api = { core: { updateProject: async (id: string, input: Record<string, unknown>) => ({ data: serverProjectDto({ id, destination: input.destination as string, meetingPoint: 'Terminal 3' }) }) } }
+    const project = await patchProjectOnServer(api as never, 'PRJ-101', { destination: 'Cebu, Filipina', meetingPoint: 'Terminal 3' })
+    expect(project).toBe(before)
+    expect(before).toMatchObject({ destination: 'Cebu, Filipina', meetingPoint: 'Terminal 3' })
   })
 })
