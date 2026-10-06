@@ -396,8 +396,32 @@ async function runWorkflow<T> (title: string, action: () => Promise<T>): Promise
   }
 }
 
+/** Step Done closes the Project Order: it needs a final note, so it opens the close dialog instead of advancing directly. */
+const isCloseDialogOpen = ref(false)
+const closeFinalNote = ref('')
+const closeClientFeedback = ref('')
+
+async function submitCloseProject () {
+  if (!project.value || !closeFinalNote.value.trim()) { return }
+  const id = project.value.id
+  const result = await runWorkflow('Project Belum Bisa Ditutup', () => advanceProjectOrderOnServer(financeApi, id, { finalNote: closeFinalNote.value, clientFeedback: closeClientFeedback.value }))
+  if (!result) { return }
+  if (!result.success) {
+    showToast('Project Belum Bisa Ditutup', result.blockers[0] ?? 'Syarat penutupan belum terpenuhi.', 'error')
+    return
+  }
+  isCloseDialogOpen.value = false
+  closeFinalNote.value = ''
+  closeClientFeedback.value = ''
+  showToast('Project Ditutup', 'Project Order selesai dan ditutup.', 'success')
+}
+
 async function onAdvanceStep () {
   if (!project.value) { return }
+  if (currentStepView.value?.def.key === 'done') {
+    isCloseDialogOpen.value = true
+    return
+  }
   const id = project.value.id
   const result = await runWorkflow('Belum dapat dilanjutkan', () => advanceProjectOrderOnServer(financeApi, id))
   if (!result) { return }
@@ -2233,6 +2257,38 @@ const tripDurationDays = computed(() => {
           </Button>
           <Button :disabled="isSavingHeader" @click="submitSchedule">
             Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
+
+      <ResponsiveFormSheet
+        v-model:open="isCloseDialogOpen"
+        title="Tutup Project Order"
+        description="Project ditutup setelah trip selesai dan finance project ditutup. Catatan akhir tersimpan di server."
+      >
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="close-final-note">Catatan akhir</Label>
+            <textarea
+              id="close-final-note"
+              v-model="closeFinalNote"
+              rows="3"
+              maxlength="2000"
+              class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              placeholder="Ringkasan pelaksanaan, kendala, dan tindak lanjut"
+            />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="close-client-feedback">Feedback klien (opsional)</Label>
+            <textarea id="close-client-feedback" v-model="closeClientFeedback" rows="2" maxlength="2000" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isCloseDialogOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!closeFinalNote.trim() || isWorkflowPending" @click="submitCloseProject">
+            Tutup Project
           </Button>
         </template>
       </ResponsiveFormSheet>
