@@ -14,6 +14,7 @@ import { HOTEL_BOOKINGS } from '../../frontend/app/data/accommodation'
 import { MICE_EVENTS } from '../../frontend/app/data/mice'
 import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from '../../frontend/app/data/parties'
 import { SERVICE_ORDERS } from '../../frontend/app/data/procurement'
+import { CORE_BOOKING_KEYS, departureDateOf, miceTotals } from '../src/modules/core/booking-rules'
 import { PROJECT_SERVICES, PROJECTS } from '../../frontend/app/data/projects'
 import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
 import { FLIGHT_BOOKINGS } from '../../frontend/app/data/ticketing'
@@ -38,32 +39,45 @@ const services = [...PROJECT_SERVICES].sort(byId).map(s => ({
   id: s.id,
   projectId: s.projectId,
   serviceType: s.type,
-  vendorId: s.vendorId ?? null
+  vendorId: s.vendorId ?? null,
+  label: s.label,
+  status: s.status,
+  bookingReference: s.bookingReference ?? null,
+  budgetMinor: s.budgetIdr === undefined ? null : String(Math.round(s.budgetIdr))
 }))
 const serviceProject = new Map(services.map(s => [s.id, s.projectId]))
 
-/** Earliest calendar date among local (Asia/Jakarta) datetime strings like '2026-08-20T08:00'. */
-const earliestDate = (values: (string | undefined)[]) => values.filter((v): v is string => !!v).map(v => v.slice(0, 10)).sort()[0] ?? null
 /** Whole rupiah as a minor-unit string, or null when the booking has no price yet. */
 const minor = (idr: number | undefined) => (idr === undefined ? null : String(Math.round(idr)))
 
+/** The UI-owned part of a booking: everything except its core columns (same split as the API, S4a). */
+const detailsOf = (b: object) => Object.fromEntries(Object.entries(b).filter(([k]) => !(CORE_BOOKING_KEYS as readonly string[]).includes(k)))
+
 function bookingRef(
   bookingType: DemoCoreSeed['bookingRefs'][number]['bookingType'],
-  b: { id: string; projectId: string; serviceId?: string },
-  commercial: { sellAmountMinor: string | null; departureDate: string | null }
+  b: { id: string; projectId: string; serviceId?: string; status: string; statusReason?: string; netCostIdr?: number; sellPriceIdr?: number; pnr?: string; confirmationNumber?: string }
 ) {
   let serviceId = b.serviceId ?? null
   if (serviceId && serviceProject.get(serviceId) !== b.projectId) {
     warnings.push(`${b.id}: service ${serviceId} belongs to ${serviceProject.get(serviceId) ?? 'no project'}, not ${b.projectId}; link dropped`)
     serviceId = null
   }
-  return { bookingType, bookingId: b.id, projectId: b.projectId, serviceId, ...commercial }
-}
-
-/** MICE price lives on BOQ lines; same rule as getMiceBoqTotals (sum of line sell prices). */
-function miceSell (event: { boqItems: { sellPriceIdr?: number }[] }) {
-  const priced = event.boqItems.filter(item => item.sellPriceIdr !== undefined)
-  return priced.length ? String(priced.reduce((sum, item) => sum + Math.round(item.sellPriceIdr ?? 0), 0)) : null
+  const details = detailsOf(b)
+  // Same derivations as the booking API: MICE prices from the BOQ, departure date from the details.
+  const totals = bookingType === 'mice' ? miceTotals(details) : { sellMinor: minor(b.sellPriceIdr), netMinor: minor(b.netCostIdr) }
+  return {
+    bookingType,
+    bookingId: b.id,
+    projectId: b.projectId,
+    serviceId,
+    sellAmountMinor: totals.sellMinor,
+    departureDate: departureDateOf(bookingType, details),
+    status: b.status,
+    reference: b.pnr ?? b.confirmationNumber ?? null,
+    statusReason: b.statusReason ?? null,
+    netCostMinor: totals.netMinor,
+    details
+  }
 }
 
 const seed: DemoCoreSeed = {
@@ -151,10 +165,10 @@ const seed: DemoCoreSeed = {
   })),
   projectServices: services,
   bookingRefs: [
-    ...FLIGHT_BOOKINGS.map(b => bookingRef('flight', b, { sellAmountMinor: minor(b.sellPriceIdr), departureDate: earliestDate(b.segments.map(s => s.departureAt)) })),
-    ...HOTEL_BOOKINGS.map(b => bookingRef('hotel', b, { sellAmountMinor: minor(b.sellPriceIdr), departureDate: earliestDate([b.checkInDate]) })),
-    ...TRANSPORT_BOOKINGS.map(b => bookingRef('transport', b, { sellAmountMinor: minor(b.sellPriceIdr), departureDate: earliestDate(b.legs.map(l => l.scheduledAt)) })),
-    ...MICE_EVENTS.map(b => bookingRef('mice', b, { sellAmountMinor: miceSell(b), departureDate: earliestDate(b.sessions.map(s => s.startAt)) }))
+    ...FLIGHT_BOOKINGS.map(b => bookingRef('flight', b)),
+    ...HOTEL_BOOKINGS.map(b => bookingRef('hotel', b)),
+    ...TRANSPORT_BOOKINGS.map(b => bookingRef('transport', b)),
+    ...MICE_EVENTS.map(b => bookingRef('mice', b))
   ].sort((a, b) => a.bookingType.localeCompare(b.bookingType) || a.bookingId.localeCompare(b.bookingId)),
   serviceOrders: [...SERVICE_ORDERS].sort(byId).map(so => {
     const projectId = so.projectId ?? null

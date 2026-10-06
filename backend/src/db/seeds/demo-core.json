@@ -2936,787 +2936,1311 @@
       "id": "SVC-1011",
       "projectId": "PRJ-101",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Flight Manila",
+      "status": "confirmed",
+      "bookingReference": "PNR-MNL8201",
+      "budgetMinor": "85000000"
     },
     {
       "id": "SVC-1021",
       "projectId": "PRJ-102",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Flight Abu Dhabi",
+      "status": "confirmed",
+      "bookingReference": "PNR-AUH9221",
+      "budgetMinor": null
     },
     {
       "id": "SVC-1022",
       "projectId": "PRJ-102",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Room Block A (18 pax)",
+      "status": "changed",
+      "bookingReference": "HTL-AUH-A104",
+      "budgetMinor": null
     },
     {
       "id": "SVC-1023",
       "projectId": "PRJ-102",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Room Block B (3 pax, digabung ke Block A)",
+      "status": "cancelled",
+      "bookingReference": null,
+      "budgetMinor": null
     },
     {
       "id": "SVC-1031",
       "projectId": "PRJ-103",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Flight Batch 1",
+      "status": "confirmed",
+      "bookingReference": "PNR-PLW1031A",
+      "budgetMinor": null
     },
     {
       "id": "SVC-1032",
       "projectId": "PRJ-103",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Flight Batch 2 (Grup VIP)",
+      "status": "pending-confirmation",
+      "bookingReference": null,
+      "budgetMinor": null
     },
     {
       "id": "SVC-1033",
       "projectId": "PRJ-103",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Palu",
+      "status": "confirmed",
+      "bookingReference": "HTL-PLW-2200",
+      "budgetMinor": null
     },
     {
       "id": "SVC-1034",
       "projectId": "PRJ-103",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Ground Transportation",
+      "status": "pending-confirmation",
+      "bookingReference": null,
+      "budgetMinor": null
     },
     {
       "id": "SVC-1035",
       "projectId": "PRJ-103",
       "serviceType": "mice",
-      "vendorId": "VND-004"
+      "vendorId": "VND-004",
+      "label": "Venue & Rundown Acara",
+      "status": "confirmed",
+      "bookingReference": "MICE-PLW-VEN01",
+      "budgetMinor": null
     },
     {
       "id": "SVC-1036",
       "projectId": "PRJ-103",
       "serviceType": "additional",
-      "vendorId": null
+      "vendorId": null,
+      "label": "Asuransi Perjalanan Grup",
+      "status": "confirmed",
+      "bookingReference": "INS-PLW-2026",
+      "budgetMinor": null
     },
     {
       "id": "SVC-2011",
       "projectId": "PRJ-201",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Flight Jakarta–Seoul",
+      "status": "pending-confirmation",
+      "bookingReference": null,
+      "budgetMinor": null
     },
     {
       "id": "SVC-2012",
       "projectId": "PRJ-201",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Seoul (45 pax)",
+      "status": "confirmed",
+      "bookingReference": "HTL-SEL-4501",
+      "budgetMinor": null
     },
     {
       "id": "SVC-2021",
       "projectId": "PRJ-202",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Flight Jakarta–Abu Dhabi",
+      "status": "confirmed",
+      "bookingReference": "PNR-AUH5502",
+      "budgetMinor": null
     },
     {
       "id": "SVC-2022",
       "projectId": "PRJ-202",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Abu Dhabi (24 pax)",
+      "status": "confirmed",
+      "bookingReference": "HTL-AUH-2202",
+      "budgetMinor": null
     },
     {
       "id": "SVC-2031",
       "projectId": "PRJ-203",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Flight Jakarta–Manila",
+      "status": "completed",
+      "bookingReference": "PNR-MNL7701",
+      "budgetMinor": null
     },
     {
       "id": "SVC-2041",
       "projectId": "PRJ-204",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Flight Jakarta–Singapura",
+      "status": "confirmed",
+      "bookingReference": "PNR-SIN9901",
+      "budgetMinor": null
     },
     {
       "id": "SVC-2042",
       "projectId": "PRJ-204",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Singapura (15 pax)",
+      "status": "changed",
+      "bookingReference": null,
+      "budgetMinor": null
     },
     {
       "id": "SVC-2051",
       "projectId": "PRJ-205",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus Pariwisata Bromo Ijen",
+      "status": "confirmed",
+      "bookingReference": null,
+      "budgetMinor": "10000000"
     },
     {
       "id": "SVC-2052",
       "projectId": "PRJ-205",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Homestay Bromo View",
+      "status": "confirmed",
+      "bookingReference": "HTL-BRM-2026",
+      "budgetMinor": "15000000"
     },
     {
       "id": "SVC-2053",
       "projectId": "PRJ-205",
       "serviceType": "hotel",
-      "vendorId": null
+      "vendorId": null,
+      "label": "Basecamp Paltuding, Ijen",
+      "status": "pending-confirmation",
+      "bookingReference": null,
+      "budgetMinor": "10000000"
     },
     {
       "id": "SVC-3011",
       "projectId": "PRJ-301",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "131040000"
     },
     {
       "id": "SVC-3012",
       "projectId": "PRJ-301",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "87360000"
     },
     {
       "id": "SVC-3021",
       "projectId": "PRJ-302",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "287820000"
     },
     {
       "id": "SVC-3022",
       "projectId": "PRJ-302",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "255840000"
     },
     {
       "id": "SVC-3023",
       "projectId": "PRJ-302",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "95940000"
     },
     {
       "id": "SVC-3031",
       "projectId": "PRJ-303",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "77220000"
     },
     {
       "id": "SVC-3032",
       "projectId": "PRJ-303",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "51480000"
     },
     {
       "id": "SVC-3041",
       "projectId": "PRJ-304",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "403650000"
     },
     {
       "id": "SVC-3042",
       "projectId": "PRJ-304",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "358800000"
     },
     {
       "id": "SVC-3043",
       "projectId": "PRJ-304",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "134550000"
     },
     {
       "id": "SVC-3051",
       "projectId": "PRJ-305",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat umroh",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "473850000"
     },
     {
       "id": "SVC-3052",
       "projectId": "PRJ-305",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Makkah & Madinah",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "421200000"
     },
     {
       "id": "SVC-3053",
       "projectId": "PRJ-305",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus & handling Saudi",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "157950000"
     },
     {
       "id": "SVC-3061",
       "projectId": "PRJ-306",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "336960000"
     },
     {
       "id": "SVC-3062",
       "projectId": "PRJ-306",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "299520000"
     },
     {
       "id": "SVC-3063",
       "projectId": "PRJ-306",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "112320000"
     },
     {
       "id": "SVC-3071",
       "projectId": "PRJ-307",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "145080000"
     },
     {
       "id": "SVC-3072",
       "projectId": "PRJ-307",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "96720000"
     },
     {
       "id": "SVC-3081",
       "projectId": "PRJ-308",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "273780000"
     },
     {
       "id": "SVC-3082",
       "projectId": "PRJ-308",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "243360000"
     },
     {
       "id": "SVC-3083",
       "projectId": "PRJ-308",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "91260000"
     },
     {
       "id": "SVC-3091",
       "projectId": "PRJ-309",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "379080000"
     },
     {
       "id": "SVC-3092",
       "projectId": "PRJ-309",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "336960000"
     },
     {
       "id": "SVC-3093",
       "projectId": "PRJ-309",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "126360000"
     },
     {
       "id": "SVC-3101",
       "projectId": "PRJ-310",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "44460000"
     },
     {
       "id": "SVC-3102",
       "projectId": "PRJ-310",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "29640000"
     },
     {
       "id": "SVC-3111",
       "projectId": "PRJ-311",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat peserta",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "339300000"
     },
     {
       "id": "SVC-3112",
       "projectId": "PRJ-311",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel peserta",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "339300000"
     },
     {
       "id": "SVC-3113",
       "projectId": "PRJ-311",
       "serviceType": "mice",
-      "vendorId": "VND-004"
+      "vendorId": "VND-004",
+      "label": "Venue, produksi & rundown",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "452400000"
     },
     {
       "id": "SVC-3121",
       "projectId": "PRJ-312",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat umroh",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "421200000"
     },
     {
       "id": "SVC-3122",
       "projectId": "PRJ-312",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Makkah & Madinah",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "374400000"
     },
     {
       "id": "SVC-3123",
       "projectId": "PRJ-312",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus & handling Saudi",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "140400000"
     },
     {
       "id": "SVC-3131",
       "projectId": "PRJ-313",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "438750000"
     },
     {
       "id": "SVC-3132",
       "projectId": "PRJ-313",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "390000000"
     },
     {
       "id": "SVC-3133",
       "projectId": "PRJ-313",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "146250000"
     },
     {
       "id": "SVC-3141",
       "projectId": "PRJ-314",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat umroh",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "326430000"
     },
     {
       "id": "SVC-3142",
       "projectId": "PRJ-314",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Makkah & Madinah",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "290160000"
     },
     {
       "id": "SVC-3143",
       "projectId": "PRJ-314",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus & handling Saudi",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "108810000"
     },
     {
       "id": "SVC-3151",
       "projectId": "PRJ-315",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "32760000"
     },
     {
       "id": "SVC-3152",
       "projectId": "PRJ-315",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "21840000"
     },
     {
       "id": "SVC-3161",
       "projectId": "PRJ-316",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat peserta",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "374400000"
     },
     {
       "id": "SVC-3162",
       "projectId": "PRJ-316",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel peserta",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "374400000"
     },
     {
       "id": "SVC-3163",
       "projectId": "PRJ-316",
       "serviceType": "mice",
-      "vendorId": "VND-004"
+      "vendorId": "VND-004",
+      "label": "Venue, produksi & rundown",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "499200000"
     },
     {
       "id": "SVC-3171",
       "projectId": "PRJ-317",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat umroh",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "491400000"
     },
     {
       "id": "SVC-3172",
       "projectId": "PRJ-317",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Makkah & Madinah",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "436800000"
     },
     {
       "id": "SVC-3173",
       "projectId": "PRJ-317",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus & handling Saudi",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "163800000"
     },
     {
       "id": "SVC-3181",
       "projectId": "PRJ-318",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "196560000"
     },
     {
       "id": "SVC-3182",
       "projectId": "PRJ-318",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "131040000"
     },
     {
       "id": "SVC-3191",
       "projectId": "PRJ-319",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "526500000"
     },
     {
       "id": "SVC-3192",
       "projectId": "PRJ-319",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "468000000"
     },
     {
       "id": "SVC-3193",
       "projectId": "PRJ-319",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "175500000"
     },
     {
       "id": "SVC-3201",
       "projectId": "PRJ-320",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "135720000"
     },
     {
       "id": "SVC-3202",
       "projectId": "PRJ-320",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "90480000"
     },
     {
       "id": "SVC-3211",
       "projectId": "PRJ-321",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat peserta",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "149760000"
     },
     {
       "id": "SVC-3212",
       "projectId": "PRJ-321",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel peserta",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "149760000"
     },
     {
       "id": "SVC-3213",
       "projectId": "PRJ-321",
       "serviceType": "mice",
-      "vendorId": "VND-004"
+      "vendorId": "VND-004",
+      "label": "Venue, produksi & rundown",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "199680000"
     },
     {
       "id": "SVC-3221",
       "projectId": "PRJ-322",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "403650000"
     },
     {
       "id": "SVC-3222",
       "projectId": "PRJ-322",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "358800000"
     },
     {
       "id": "SVC-3223",
       "projectId": "PRJ-322",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "134550000"
     },
     {
       "id": "SVC-3231",
       "projectId": "PRJ-323",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "56160000"
     },
     {
       "id": "SVC-3232",
       "projectId": "PRJ-323",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "37440000"
     },
     {
       "id": "SVC-3241",
       "projectId": "PRJ-324",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat peserta",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "397800000"
     },
     {
       "id": "SVC-3242",
       "projectId": "PRJ-324",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel peserta",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "397800000"
     },
     {
       "id": "SVC-3243",
       "projectId": "PRJ-324",
       "serviceType": "mice",
-      "vendorId": "VND-004"
+      "vendorId": "VND-004",
+      "label": "Venue, produksi & rundown",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "530400000"
     },
     {
       "id": "SVC-3251",
       "projectId": "PRJ-325",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "182520000"
     },
     {
       "id": "SVC-3252",
       "projectId": "PRJ-325",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "162240000"
     },
     {
       "id": "SVC-3253",
       "projectId": "PRJ-325",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "60840000"
     },
     {
       "id": "SVC-3261",
       "projectId": "PRJ-326",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "107640000"
     },
     {
       "id": "SVC-3262",
       "projectId": "PRJ-326",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "71760000"
     },
     {
       "id": "SVC-3271",
       "projectId": "PRJ-327",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat umroh",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "508950000"
     },
     {
       "id": "SVC-3272",
       "projectId": "PRJ-327",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Makkah & Madinah",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "452400000"
     },
     {
       "id": "SVC-3273",
       "projectId": "PRJ-327",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus & handling Saudi",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "169650000"
     },
     {
       "id": "SVC-3281",
       "projectId": "PRJ-328",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "579150000"
     },
     {
       "id": "SVC-3282",
       "projectId": "PRJ-328",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "514800000"
     },
     {
       "id": "SVC-3283",
       "projectId": "PRJ-328",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "193050000"
     },
     {
       "id": "SVC-3291",
       "projectId": "PRJ-329",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "343980000"
     },
     {
       "id": "SVC-3292",
       "projectId": "PRJ-329",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "305760000"
     },
     {
       "id": "SVC-3293",
       "projectId": "PRJ-329",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "114660000"
     },
     {
       "id": "SVC-3301",
       "projectId": "PRJ-330",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "210600000"
     },
     {
       "id": "SVC-3302",
       "projectId": "PRJ-330",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "187200000"
     },
     {
       "id": "SVC-3303",
       "projectId": "PRJ-330",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "70200000"
     },
     {
       "id": "SVC-3311",
       "projectId": "PRJ-331",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat peserta",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "292500000"
     },
     {
       "id": "SVC-3312",
       "projectId": "PRJ-331",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel peserta",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "292500000"
     },
     {
       "id": "SVC-3313",
       "projectId": "PRJ-331",
       "serviceType": "mice",
-      "vendorId": "VND-004"
+      "vendorId": "VND-004",
+      "label": "Venue, produksi & rundown",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "390000000"
     },
     {
       "id": "SVC-3321",
       "projectId": "PRJ-332",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "421200000"
     },
     {
       "id": "SVC-3322",
       "projectId": "PRJ-332",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "374400000"
     },
     {
       "id": "SVC-3323",
       "projectId": "PRJ-332",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "140400000"
     },
     {
       "id": "SVC-3331",
       "projectId": "PRJ-333",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "456300000"
     },
     {
       "id": "SVC-3332",
       "projectId": "PRJ-333",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "405600000"
     },
     {
       "id": "SVC-3333",
       "projectId": "PRJ-333",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "152100000"
     },
     {
       "id": "SVC-3341",
       "projectId": "PRJ-334",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat umroh",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "438750000"
     },
     {
       "id": "SVC-3342",
       "projectId": "PRJ-334",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Makkah & Madinah",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "390000000"
     },
     {
       "id": "SVC-3343",
       "projectId": "PRJ-334",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus & handling Saudi",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "146250000"
     },
     {
       "id": "SVC-3351",
       "projectId": "PRJ-335",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "159120000"
     },
     {
       "id": "SVC-3352",
       "projectId": "PRJ-335",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "106080000"
     },
     {
       "id": "SVC-3361",
       "projectId": "PRJ-336",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "177840000"
     },
     {
       "id": "SVC-3362",
       "projectId": "PRJ-336",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "completed",
+      "bookingReference": null,
+      "budgetMinor": "118560000"
     },
     {
       "id": "SVC-3371",
       "projectId": "PRJ-337",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat grup",
+      "status": "confirmed",
+      "bookingReference": null,
+      "budgetMinor": "315900000"
     },
     {
       "id": "SVC-3372",
       "projectId": "PRJ-337",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel & resort",
+      "status": "confirmed",
+      "bookingReference": null,
+      "budgetMinor": "280800000"
     },
     {
       "id": "SVC-3373",
       "projectId": "PRJ-337",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus pariwisata & tour",
+      "status": "confirmed",
+      "bookingReference": null,
+      "budgetMinor": "105300000"
     },
     {
       "id": "SVC-3381",
       "projectId": "PRJ-338",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "confirmed",
+      "bookingReference": null,
+      "budgetMinor": "210600000"
     },
     {
       "id": "SVC-3382",
       "projectId": "PRJ-338",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "confirmed",
+      "bookingReference": null,
+      "budgetMinor": "140400000"
     },
     {
       "id": "SVC-3391",
       "projectId": "PRJ-339",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat",
+      "status": "confirmed",
+      "bookingReference": null,
+      "budgetMinor": "121680000"
     },
     {
       "id": "SVC-3392",
       "projectId": "PRJ-339",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel bisnis",
+      "status": "confirmed",
+      "bookingReference": null,
+      "budgetMinor": "81120000"
     },
     {
       "id": "SVC-3401",
       "projectId": "PRJ-340",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Tiket pesawat umroh",
+      "status": "confirmed",
+      "bookingReference": null,
+      "budgetMinor": "491400000"
     },
     {
       "id": "SVC-3402",
       "projectId": "PRJ-340",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Makkah & Madinah",
+      "status": "confirmed",
+      "bookingReference": null,
+      "budgetMinor": "436800000"
     },
     {
       "id": "SVC-3403",
       "projectId": "PRJ-340",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Bus & handling Saudi",
+      "status": "confirmed",
+      "bookingReference": null,
+      "budgetMinor": "163800000"
     },
     {
       "id": "SVC-5011",
       "projectId": "PRJ-501",
       "serviceType": "flight",
-      "vendorId": "VND-001"
+      "vendorId": "VND-001",
+      "label": "Flight Jakarta–Kuala Lumpur",
+      "status": "completed",
+      "bookingReference": "PNR-KUL5501",
+      "budgetMinor": "80000000"
     },
     {
       "id": "SVC-5012",
       "projectId": "PRJ-501",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Kuala Lumpur (8 pax)",
+      "status": "completed",
+      "bookingReference": "HTL-KUL-5501",
+      "budgetMinor": "90000000"
     },
     {
       "id": "SVC-5021",
       "projectId": "PRJ-502",
       "serviceType": "transportation",
-      "vendorId": "VND-003"
+      "vendorId": "VND-003",
+      "label": "Speedboat & Guide Komodo-Padar-Pink Beach",
+      "status": "completed",
+      "bookingReference": "BOAT-LBJ-5021",
+      "budgetMinor": "16000000"
     },
     {
       "id": "SVC-5022",
       "projectId": "PRJ-502",
       "serviceType": "hotel",
-      "vendorId": "VND-002"
+      "vendorId": "VND-002",
+      "label": "Hotel Labuan Bajo (6 pax)",
+      "status": "completed",
+      "bookingReference": "HTL-LBJ-5022",
+      "budgetMinor": "14000000"
     }
   ],
   "bookingRefs": [
@@ -3726,7 +4250,54 @@
       "projectId": "PRJ-101",
       "serviceId": "SVC-1011",
       "sellAmountMinor": "95000000",
-      "departureDate": "2026-08-20"
+      "departureDate": "2026-08-20",
+      "status": "issued",
+      "reference": "MNL8201",
+      "statusReason": null,
+      "netCostMinor": "75000000",
+      "details": {
+        "options": [
+          {
+            "airline": "Budget Wings Air",
+            "cabinClass": "economy",
+            "fareIdr": 10500000,
+            "baggageAllowance": "10kg",
+            "isSelected": false
+          },
+          {
+            "airline": "Garuda Nusantara",
+            "cabinClass": "economy",
+            "fareIdr": 12500000,
+            "baggageAllowance": "20kg",
+            "ancillaries": "Pemilihan kursi, bagasi tambahan 10kg",
+            "isSelected": true
+          }
+        ],
+        "segments": [
+          {
+            "origin": "CGK Jakarta",
+            "destination": "MNL Manila",
+            "flightNumber": "GN-812",
+            "departureAt": "2026-08-20T08:00"
+          },
+          {
+            "origin": "MNL Manila",
+            "destination": "CGK Jakarta",
+            "flightNumber": "GN-815",
+            "departureAt": "2026-08-23T15:00"
+          }
+        ],
+        "travelerIds": [
+          "TRV-1011",
+          "TRV-1012",
+          "TRV-1013",
+          "TRV-1014",
+          "TRV-1015",
+          "TRV-1016"
+        ],
+        "ticketingDeadline": "2026-08-05",
+        "fareRules": "Non-refundable setelah issued. Reschedule dikenakan biaya admin Rp500.000/pax."
+      }
     },
     {
       "bookingType": "flight",
@@ -3734,7 +4305,56 @@
       "projectId": "PRJ-102",
       "serviceId": "SVC-1021",
       "sellAmountMinor": "72000000",
-      "departureDate": "2026-09-22"
+      "departureDate": "2026-09-22",
+      "status": "reissued",
+      "reference": "AUH9221",
+      "statusReason": null,
+      "netCostMinor": "58800000",
+      "details": {
+        "options": [
+          {
+            "airline": "Gulf Horizon",
+            "cabinClass": "economy",
+            "fareIdr": 9500000,
+            "baggageAllowance": "20kg",
+            "isSelected": false
+          },
+          {
+            "airline": "Emirates Skyline",
+            "cabinClass": "economy",
+            "fareIdr": 9800000,
+            "baggageAllowance": "25kg",
+            "ancillaries": "Direct flight, meal included",
+            "isSelected": true
+          }
+        ],
+        "segments": [
+          {
+            "origin": "CGK Jakarta",
+            "destination": "AUH Abu Dhabi",
+            "flightNumber": "ES-241",
+            "departureAt": "2026-09-22T10:00"
+          },
+          {
+            "origin": "AUH Abu Dhabi",
+            "destination": "CGK Jakarta",
+            "flightNumber": "ES-248",
+            "departureAt": "2026-09-26T14:00"
+          }
+        ],
+        "travelerIds": [
+          "TRV-1021",
+          "TRV-1022",
+          "TRV-1023",
+          "TRV-1024",
+          "TRV-1025",
+          "TRV-1026"
+        ],
+        "ticketingDeadline": "2026-09-10",
+        "fareRules": "Reissue gratis 1x untuk perubahan tanggal dari klien; reissue berikutnya dikenakan selisih fare.",
+        "hasScheduleChange": true,
+        "scheduleChangeNote": "Tanggal keberangkatan berubah dari 15–19 Sep menjadi 22–26 Sep 2026 (lihat CHG-1021, tab Activity & Changes) — tiket lama di-reissue menyesuaikan jadwal baru."
+      }
     },
     {
       "bookingType": "flight",
@@ -3742,7 +4362,35 @@
       "projectId": "PRJ-102",
       "serviceId": null,
       "sellAmountMinor": "12000000",
-      "departureDate": "2026-09-22"
+      "departureDate": "2026-09-22",
+      "status": "refunded",
+      "reference": "AUH9245",
+      "statusReason": "Traveler mengundurkan diri karena keperluan mendesak — tiket dibatalkan dan diproses refund.",
+      "netCostMinor": "9800000",
+      "details": {
+        "options": [
+          {
+            "airline": "Emirates Skyline",
+            "cabinClass": "economy",
+            "fareIdr": 9800000,
+            "baggageAllowance": "25kg",
+            "isSelected": true
+          }
+        ],
+        "segments": [
+          {
+            "origin": "CGK Jakarta",
+            "destination": "AUH Abu Dhabi",
+            "flightNumber": "ES-241",
+            "departureAt": "2026-09-22T10:00"
+          }
+        ],
+        "travelerIds": [
+          "TRV-1024"
+        ],
+        "ticketingDeadline": "2026-09-10",
+        "fareRules": "Refundable dengan potongan biaya admin 15%."
+      }
     },
     {
       "bookingType": "flight",
@@ -3750,7 +4398,43 @@
       "projectId": "PRJ-103",
       "serviceId": "SVC-1031",
       "sellAmountMinor": "8800000",
-      "departureDate": "2026-08-10"
+      "departureDate": "2026-08-10",
+      "status": "issued",
+      "reference": "PLW1031A",
+      "statusReason": null,
+      "netCostMinor": "6800000",
+      "details": {
+        "options": [
+          {
+            "airline": "Nusantara Air",
+            "cabinClass": "economy",
+            "fareIdr": 3200000,
+            "baggageAllowance": "15kg",
+            "isSelected": false
+          },
+          {
+            "airline": "Garuda Nusantara",
+            "cabinClass": "economy",
+            "fareIdr": 3400000,
+            "baggageAllowance": "20kg",
+            "isSelected": true
+          }
+        ],
+        "segments": [
+          {
+            "origin": "CGK Jakarta",
+            "destination": "PLW Palu",
+            "flightNumber": "GN-511",
+            "departureAt": "2026-08-10T07:00"
+          }
+        ],
+        "travelerIds": [
+          "TRV-1032",
+          "TRV-1033"
+        ],
+        "ticketingDeadline": "2026-07-25",
+        "fareRules": "Group rate — perubahan nama peserta dikenakan biaya admin per pax."
+      }
     },
     {
       "bookingType": "flight",
@@ -3758,7 +4442,43 @@
       "projectId": "PRJ-103",
       "serviceId": "SVC-1032",
       "sellAmountMinor": null,
-      "departureDate": "2026-08-10"
+      "departureDate": "2026-08-10",
+      "status": "hold",
+      "reference": null,
+      "statusReason": null,
+      "netCostMinor": null,
+      "details": {
+        "options": [
+          {
+            "airline": "Garuda Nusantara",
+            "cabinClass": "economy",
+            "fareIdr": 3400000,
+            "baggageAllowance": "20kg",
+            "isSelected": false
+          },
+          {
+            "airline": "Garuda Nusantara",
+            "cabinClass": "premium-economy",
+            "fareIdr": 4200000,
+            "baggageAllowance": "25kg",
+            "ancillaries": "Extra legroom, prioritas boarding",
+            "isSelected": false
+          }
+        ],
+        "segments": [
+          {
+            "origin": "CGK Jakarta",
+            "destination": "PLW Palu",
+            "flightNumber": "GN-513",
+            "departureAt": "2026-08-10T15:00"
+          }
+        ],
+        "travelerIds": [
+          "TRV-1031",
+          "TRV-1036"
+        ],
+        "ticketingDeadline": "2026-08-01"
+      }
     },
     {
       "bookingType": "flight",
@@ -3766,7 +4486,39 @@
       "projectId": "PRJ-103",
       "serviceId": null,
       "sellAmountMinor": null,
-      "departureDate": "2026-08-14"
+      "departureDate": "2026-08-14",
+      "status": "requested",
+      "reference": null,
+      "statusReason": null,
+      "netCostMinor": null,
+      "details": {
+        "options": [
+          {
+            "airline": "Nusantara Air",
+            "cabinClass": "economy",
+            "fareIdr": 3100000,
+            "baggageAllowance": "15kg",
+            "isSelected": false
+          },
+          {
+            "airline": "Garuda Nusantara",
+            "cabinClass": "economy",
+            "fareIdr": 3600000,
+            "baggageAllowance": "20kg",
+            "ancillaries": "Jadwal fleksibel, dapat direschedule 1x gratis",
+            "isSelected": false
+          }
+        ],
+        "segments": [
+          {
+            "origin": "PLW Palu",
+            "destination": "CGK Jakarta",
+            "departureAt": "2026-08-14T16:00"
+          }
+        ],
+        "travelerIds": [],
+        "ticketingDeadline": "2026-08-05"
+      }
     },
     {
       "bookingType": "hotel",
@@ -3774,7 +4526,47 @@
       "projectId": "PRJ-102",
       "serviceId": "SVC-1022",
       "sellAmountMinor": "152900000",
-      "departureDate": "2026-09-22"
+      "departureDate": "2026-09-22",
+      "status": "amended",
+      "reference": "AUH-A104",
+      "statusReason": null,
+      "netCostMinor": "129600000",
+      "details": {
+        "options": [
+          {
+            "propertyName": "Hotel Prima Mitra — Deluxe Wing",
+            "roomType": "Twin Deluxe",
+            "ratePlan": "Standard Corporate Rate",
+            "mealPlan": "breakfast",
+            "ratePerNightIdr": 1125000,
+            "policies": "Free cancellation H-3, kamar non-smoking.",
+            "isSelected": false
+          },
+          {
+            "propertyName": "Hotel Prima Mitra — Corniche Suite Wing",
+            "roomType": "Suite",
+            "ratePlan": "Corporate Suite Upgrade",
+            "mealPlan": "breakfast",
+            "ratePerNightIdr": 1800000,
+            "policies": "Non-refundable, upgrade fasilitas ballroom.",
+            "isSelected": true
+          }
+        ],
+        "travelerIds": [
+          "TRV-1021",
+          "TRV-1022",
+          "TRV-1023",
+          "TRV-1024",
+          "TRV-1025",
+          "TRV-1026"
+        ],
+        "roomsBlocked": 9,
+        "checkInDate": "2026-09-22",
+        "checkOutDate": "2026-09-26",
+        "voucherIssuedAt": "2026-06-25",
+        "cancellationDeadline": "2026-09-10",
+        "amendmentNote": "Upgrade tipe kamar dari Twin Deluxe ke Suite untuk seluruh Room Block A pasca komplain unit AC bermasalah (lihat ITIN-1026, tab Itinerary & Services)."
+      }
     },
     {
       "bookingType": "hotel",
@@ -3782,7 +4574,32 @@
       "projectId": "PRJ-102",
       "serviceId": "SVC-1023",
       "sellAmountMinor": null,
-      "departureDate": "2026-09-22"
+      "departureDate": "2026-09-22",
+      "status": "cancelled",
+      "reference": null,
+      "statusReason": "Room Block B digabungkan ke Room Block A (HTL-1022) karena okupansi 3 pax terpisah tidak efisien — pembatalan dilakukan setelah deadline sehingga dikenakan penalti 15% dari estimasi biaya.",
+      "netCostMinor": null,
+      "details": {
+        "options": [
+          {
+            "propertyName": "Hotel Prima Mitra — Deluxe Wing",
+            "roomType": "Twin Deluxe",
+            "ratePlan": "Standard Corporate Rate",
+            "mealPlan": "breakfast",
+            "ratePerNightIdr": 1125000,
+            "isSelected": true
+          }
+        ],
+        "travelerIds": [
+          "TRV-1025",
+          "TRV-1026"
+        ],
+        "roomsBlocked": 2,
+        "checkInDate": "2026-09-22",
+        "checkOutDate": "2026-09-26",
+        "cancellationDeadline": "2026-09-10",
+        "cancellationPenaltyIdr": 2025000
+      }
     },
     {
       "bookingType": "hotel",
@@ -3790,7 +4607,35 @@
       "projectId": "PRJ-103",
       "serviceId": "SVC-1033",
       "sellAmountMinor": "63000000",
-      "departureDate": "2026-08-10"
+      "departureDate": "2026-08-10",
+      "status": "confirmed",
+      "reference": "PLW-2200",
+      "statusReason": null,
+      "netCostMinor": "54000000",
+      "details": {
+        "groupId": "GRP-001",
+        "options": [
+          {
+            "propertyName": "Hotel Prima Mitra — Convention Center Wing",
+            "roomType": "Twin Standard",
+            "ratePlan": "Group Convention Rate",
+            "mealPlan": "full-board",
+            "ratePerNightIdr": 1350000,
+            "policies": "Deposit 50% saat konfirmasi, pelunasan H-7 sebelum check-in.",
+            "isSelected": true
+          }
+        ],
+        "travelerIds": [
+          "TRV-1032",
+          "TRV-1033"
+        ],
+        "roomsBlocked": 5,
+        "checkInDate": "2026-08-10",
+        "checkOutDate": "2026-08-14",
+        "earlyCheckInRequested": true,
+        "voucherIssuedAt": "2026-06-20",
+        "cancellationDeadline": "2026-07-25"
+      }
     },
     {
       "bookingType": "hotel",
@@ -3798,7 +4643,42 @@
       "projectId": "PRJ-103",
       "serviceId": null,
       "sellAmountMinor": null,
-      "departureDate": "2026-08-10"
+      "departureDate": "2026-08-10",
+      "status": "quoted",
+      "reference": null,
+      "statusReason": null,
+      "netCostMinor": null,
+      "details": {
+        "groupId": "GRP-002",
+        "options": [
+          {
+            "propertyName": "Hotel Prima Mitra — Standard Wing",
+            "roomType": "Twin Standard",
+            "ratePlan": "Group Rate Bintang 3",
+            "mealPlan": "breakfast",
+            "ratePerNightIdr": 900000,
+            "policies": "Free cancellation H-5.",
+            "isSelected": false
+          },
+          {
+            "propertyName": "Hotel Prima Mitra — Convention Center Wing",
+            "roomType": "Twin Deluxe",
+            "ratePlan": "Group Rate Bintang 4",
+            "mealPlan": "full-board",
+            "ratePerNightIdr": 1350000,
+            "policies": "Dekat venue acara, hemat waktu transportasi.",
+            "isSelected": true
+          }
+        ],
+        "travelerIds": [
+          "TRV-1034",
+          "TRV-1035"
+        ],
+        "roomsBlocked": 13,
+        "checkInDate": "2026-08-10",
+        "checkOutDate": "2026-08-14",
+        "cancellationDeadline": "2026-07-20"
+      }
     },
     {
       "bookingType": "hotel",
@@ -3806,7 +4686,35 @@
       "projectId": "PRJ-103",
       "serviceId": null,
       "sellAmountMinor": "41000000",
-      "departureDate": "2026-08-10"
+      "departureDate": "2026-08-10",
+      "status": "confirmed",
+      "reference": "PLW-2200-VIP",
+      "statusReason": null,
+      "netCostMinor": "35200000",
+      "details": {
+        "groupId": "GRP-003",
+        "options": [
+          {
+            "propertyName": "Hotel Prima Mitra — VIP Suite Wing",
+            "roomType": "Suite VIP (Aksesibilitas)",
+            "ratePlan": "VIP Group Rate",
+            "mealPlan": "full-board",
+            "ratePerNightIdr": 2200000,
+            "policies": "Kamar lantai dasar dengan akses kursi roda, sesuai kebutuhan traveler.",
+            "isSelected": true
+          }
+        ],
+        "travelerIds": [
+          "TRV-1031",
+          "TRV-1036"
+        ],
+        "roomsBlocked": 2,
+        "checkInDate": "2026-08-10",
+        "checkOutDate": "2026-08-14",
+        "lateCheckOutRequested": true,
+        "voucherIssuedAt": "2026-06-22",
+        "cancellationDeadline": "2026-07-25"
+      }
     },
     {
       "bookingType": "hotel",
@@ -3814,7 +4722,17 @@
       "projectId": "PRJ-102",
       "serviceId": null,
       "sellAmountMinor": null,
-      "departureDate": "2026-09-22"
+      "departureDate": "2026-09-22",
+      "status": "requested",
+      "reference": null,
+      "statusReason": null,
+      "netCostMinor": null,
+      "details": {
+        "options": [],
+        "travelerIds": [],
+        "checkInDate": "2026-09-22",
+        "checkOutDate": "2026-09-26"
+      }
     },
     {
       "bookingType": "hotel",
@@ -3822,7 +4740,36 @@
       "projectId": "PRJ-205",
       "serviceId": "SVC-2052",
       "sellAmountMinor": "14000000",
-      "departureDate": "2026-09-18"
+      "departureDate": "2026-09-18",
+      "status": "confirmed",
+      "reference": "HTL-BRM-2026",
+      "statusReason": null,
+      "netCostMinor": "12000000",
+      "details": {
+        "options": [
+          {
+            "propertyName": "Homestay Bromo View",
+            "roomType": "Twin/Triple Basic",
+            "ratePlan": "Group Rate",
+            "mealPlan": "breakfast",
+            "ratePerNightIdr": 600000,
+            "policies": "Non-refundable, khusus rombongan.",
+            "isSelected": true
+          }
+        ],
+        "travelerIds": [
+          "TRV-2051",
+          "TRV-2052",
+          "TRV-2053",
+          "TRV-2054",
+          "TRV-2055"
+        ],
+        "roomsBlocked": 2,
+        "checkInDate": "2026-09-18",
+        "checkOutDate": "2026-09-19",
+        "voucherIssuedAt": "2026-08-18",
+        "cancellationDeadline": "2026-09-10"
+      }
     },
     {
       "bookingType": "mice",
@@ -3830,7 +4777,174 @@
       "projectId": "PRJ-103",
       "serviceId": "SVC-1035",
       "sellAmountMinor": "282000000",
-      "departureDate": "2026-08-11"
+      "departureDate": "2026-08-11",
+      "status": "in-progress",
+      "reference": null,
+      "statusReason": null,
+      "netCostMinor": "235500000",
+      "details": {
+        "brief": "MICE Conference tahunan seluruh cabang — sesi pleno, panel diskusi, dan penghargaan tahunan. Tujuan: konsolidasi strategi 2027 dan apresiasi tim regional.",
+        "venueName": "Hotel Prima Mitra — Convention Center Wing",
+        "venueAddress": "Jl. Trans Sulawesi, Palu, Sulawesi Tengah",
+        "clientApprovalStatus": "approved",
+        "sessions": [
+          {
+            "roomName": "Ballroom Utama",
+            "sessionTitle": "MICE Conference — Hari 1: Opening & Keynote",
+            "startAt": "2026-08-11T08:00",
+            "endAt": "2026-08-11T17:00",
+            "capacity": 150,
+            "picUserId": "USR-002",
+            "isConfirmed": true
+          },
+          {
+            "roomName": "Ballroom Utama (opsi alternatif — venue belum final)",
+            "sessionTitle": "MICE Conference — Hari 2: Panel & Closing",
+            "startAt": "2026-08-12T08:00",
+            "endAt": "2026-08-12T17:00",
+            "capacity": 100,
+            "picUserId": "USR-002",
+            "isConfirmed": false
+          }
+        ],
+        "participantCategories": [
+          {
+            "category": "Delegate (Rombongan Traveling)",
+            "expectedCount": 60,
+            "actualCount": 60
+          },
+          {
+            "category": "VIP / Partner",
+            "expectedCount": 10,
+            "actualCount": 10
+          },
+          {
+            "category": "Local Guest / Undangan",
+            "expectedCount": 40,
+            "actualCount": 35
+          },
+          {
+            "category": "Staff / Crew",
+            "expectedCount": 15,
+            "actualCount": 15
+          }
+        ],
+        "boqItems": [
+          {
+            "category": "staging",
+            "description": "Panggung utama, backdrop, dan dekorasi",
+            "quantity": 1,
+            "unit": "paket",
+            "vendorId": "VND-004",
+            "netCostIdr": 45000000,
+            "sellPriceIdr": 55000000
+          },
+          {
+            "category": "av",
+            "description": "Sound system, LED screen, lighting (2 hari)",
+            "quantity": 2,
+            "unit": "hari",
+            "vendorId": "VND-004",
+            "netCostIdr": 60000000,
+            "sellPriceIdr": 72000000
+          },
+          {
+            "category": "catering",
+            "description": "Coffee break + lunch (125 pax x 2 hari)",
+            "quantity": 250,
+            "unit": "paket pax",
+            "vendorId": "VND-004",
+            "netCostIdr": 87500000,
+            "sellPriceIdr": 100000000
+          },
+          {
+            "category": "equipment",
+            "description": "Sewa kursi, meja, dan AC portable tambahan",
+            "quantity": 1,
+            "unit": "paket",
+            "vendorId": "VND-004",
+            "netCostIdr": 15000000,
+            "sellPriceIdr": 18000000
+          },
+          {
+            "category": "booth",
+            "description": "Booth sponsor dan registrasi (4 unit)",
+            "quantity": 4,
+            "unit": "unit",
+            "vendorId": "VND-004",
+            "netCostIdr": 20000000,
+            "sellPriceIdr": 25000000
+          },
+          {
+            "category": "other",
+            "description": "Dokumentasi foto dan video profesional",
+            "quantity": 1,
+            "unit": "paket",
+            "vendorId": "VND-007",
+            "netCostIdr": 8000000,
+            "sellPriceIdr": 12000000
+          }
+        ],
+        "staffAssignments": [
+          {
+            "userId": "USR-002",
+            "roleLabel": "Event Coordinator / PIC Utama"
+          },
+          {
+            "userId": "USR-002",
+            "roleLabel": "Project Manager — Pengawasan Umum"
+          },
+          {
+            "userId": "USR-002",
+            "roleLabel": "Liaison Vendor dan Logistik"
+          }
+        ],
+        "checklist": [
+          {
+            "task": "permit",
+            "label": "Izin keramaian dan venue dari pihak berwenang setempat",
+            "isDone": true
+          },
+          {
+            "task": "setup",
+            "label": "Setup panggung, AV, dan booth Hari 1",
+            "isDone": true
+          },
+          {
+            "task": "rehearsal",
+            "label": "Gladi bersih MC dan pembicara kunci",
+            "isDone": true
+          },
+          {
+            "task": "setup",
+            "label": "Setup ulang venue untuk Hari 2 (menunggu konfirmasi venue alternatif)",
+            "isDone": false
+          },
+          {
+            "task": "teardown",
+            "label": "Teardown panggung dan booth pasca-acara",
+            "isDone": false
+          }
+        ],
+        "deliverables": [
+          {
+            "label": "Dokumentasi foto dan video acara",
+            "isDelivered": false
+          },
+          {
+            "label": "Laporan attendance dan feedback peserta",
+            "isDelivered": false
+          },
+          {
+            "label": "E-certificate peserta",
+            "isDelivered": false
+          }
+        ],
+        "hasChangeOrder": true,
+        "changeOrderNote": "Venue Hari 2 berpotensi pindah ke opsi alternatif berkapasitas lebih kecil (100 pax) menunggu konfirmasi final H-7 (lihat RSK-1031, tab Overview) — rundown terbaru belum dikirim ke client (TSK-1033, tab Tasks).",
+        "hasIncident": true,
+        "incidentNote": "Keterlambatan pengiriman unit AV cadangan H-1, diatasi dengan unit sewaan darurat dari vendor lokal — tidak mengganggu jadwal Hari 1."
+      }
     },
     {
       "bookingType": "transport",
@@ -3838,7 +4952,63 @@
       "projectId": "PRJ-103",
       "serviceId": "SVC-1034",
       "sellAmountMinor": "7200000",
-      "departureDate": "2026-08-10"
+      "departureDate": "2026-08-10",
+      "status": "assigned",
+      "reference": null,
+      "statusReason": null,
+      "netCostMinor": "5950000",
+      "details": {
+        "groupId": "GRP-001",
+        "transferType": "multi-day-charter",
+        "options": [
+          {
+            "vehicleType": "van",
+            "capacity": 10,
+            "luggageCapacity": "10 koper sedang",
+            "rateUnit": "per-day",
+            "ratePerUnitIdr": 950000,
+            "isSelected": false
+          },
+          {
+            "vehicleType": "minibus",
+            "capacity": 15,
+            "luggageCapacity": "15 koper besar",
+            "accessibilityFeatures": "Pintu masuk rendah, dapat memuat 1 kursi roda lipat",
+            "rateUnit": "per-day",
+            "ratePerUnitIdr": 1350000,
+            "isSelected": true
+          }
+        ],
+        "legs": [
+          {
+            "pickupLocation": "Bandara Mutiara SIS Al-Jufri, Palu",
+            "dropoffLocation": "Hotel Prima Mitra Convention Center Wing",
+            "scheduledAt": "2026-08-10T08:00",
+            "label": "Airport Transfer — Kedatangan"
+          },
+          {
+            "pickupLocation": "Hotel Prima Mitra Convention Center Wing",
+            "dropoffLocation": "Venue MICE Conference",
+            "scheduledAt": "2026-08-11T07:30",
+            "label": "Hotel ke Venue — Hari 1"
+          },
+          {
+            "pickupLocation": "Hotel Prima Mitra Convention Center Wing",
+            "dropoffLocation": "Bandara Mutiara SIS Al-Jufri, Palu",
+            "scheduledAt": "2026-08-14T13:00",
+            "label": "Airport Transfer — Kepulangan"
+          }
+        ],
+        "travelerIds": [
+          "TRV-1032",
+          "TRV-1033"
+        ],
+        "assignedVehiclePlateNumber": "DN 1234 AB",
+        "driverName": "Herman Wijaya",
+        "driverPhone": "0852-6600-1001",
+        "standbyHours": 4,
+        "tollFeeIdr": 150000
+      }
     },
     {
       "bookingType": "transport",
@@ -3846,7 +5016,49 @@
       "projectId": "PRJ-103",
       "serviceId": null,
       "sellAmountMinor": "8800000",
-      "departureDate": "2026-08-10"
+      "departureDate": "2026-08-10",
+      "status": "confirmed",
+      "reference": null,
+      "statusReason": null,
+      "netCostMinor": "7300000",
+      "details": {
+        "groupId": "GRP-002",
+        "transferType": "multi-day-charter",
+        "options": [
+          {
+            "vehicleType": "bus",
+            "capacity": 40,
+            "luggageCapacity": "30 koper besar",
+            "rateUnit": "per-day",
+            "ratePerUnitIdr": 1800000,
+            "isSelected": true
+          }
+        ],
+        "legs": [
+          {
+            "pickupLocation": "Bandara Mutiara SIS Al-Jufri, Palu",
+            "dropoffLocation": "Hotel Prima Mitra Standard Wing",
+            "scheduledAt": "2026-08-10T15:00",
+            "label": "Airport Transfer — Kedatangan"
+          },
+          {
+            "pickupLocation": "Hotel Prima Mitra Standard Wing",
+            "dropoffLocation": "Rute City Tour",
+            "scheduledAt": "2026-08-13T08:00",
+            "label": "City Tour & Free Program"
+          }
+        ],
+        "travelerIds": [
+          "TRV-1034",
+          "TRV-1035"
+        ],
+        "assignedVehiclePlateNumber": "DN 5678 CD",
+        "driverName": "Slamet Riyadi",
+        "driverPhone": "0852-6600-1002",
+        "tollFeeIdr": 100000,
+        "hasChange": true,
+        "changeNote": "Jadwal City Tour dimajukan dari 10:00 menjadi 08:00 mengikuti penyesuaian agenda MICE Conference Hari 1."
+      }
     },
     {
       "bookingType": "transport",
@@ -3854,7 +5066,43 @@
       "projectId": "PRJ-103",
       "serviceId": null,
       "sellAmountMinor": "850000",
-      "departureDate": "2026-08-14"
+      "departureDate": "2026-08-14",
+      "status": "completed",
+      "reference": null,
+      "statusReason": null,
+      "netCostMinor": "650000",
+      "details": {
+        "groupId": "GRP-003",
+        "transferType": "point-to-point",
+        "options": [
+          {
+            "vehicleType": "van",
+            "capacity": 6,
+            "luggageCapacity": "6 koper",
+            "accessibilityFeatures": "Ramp kursi roda, sabuk pengaman khusus",
+            "rateUnit": "per-trip",
+            "ratePerUnitIdr": 650000,
+            "isSelected": true
+          }
+        ],
+        "legs": [
+          {
+            "pickupLocation": "Hotel Prima Mitra VIP Suite Wing",
+            "dropoffLocation": "Bandara Mutiara SIS Al-Jufri, Palu",
+            "scheduledAt": "2026-08-14T13:30",
+            "label": "Airport Transfer — Kepulangan VIP"
+          }
+        ],
+        "travelerIds": [
+          "TRV-1031",
+          "TRV-1036"
+        ],
+        "assignedVehiclePlateNumber": "DN 9012 EF",
+        "driverName": "Yanto Pratama",
+        "driverPhone": "0852-6600-1003",
+        "hasIncident": true,
+        "incidentNote": "Unit awal mengalami kendala AC saat pre-check — diganti unit cadangan (DN 9012 EF) 30 menit sebelum jadwal, tidak ada keterlambatan keberangkatan."
+      }
     },
     {
       "bookingType": "transport",
@@ -3862,7 +5110,35 @@
       "projectId": "PRJ-103",
       "serviceId": null,
       "sellAmountMinor": null,
-      "departureDate": "2026-08-10"
+      "departureDate": "2026-08-10",
+      "status": "cancelled",
+      "reference": null,
+      "statusReason": "Peserta memutuskan menggunakan kendaraan pribadi — transfer bandara dibatalkan sebelum eksekusi, tidak ada penggantian unit.",
+      "netCostMinor": null,
+      "details": {
+        "transferType": "airport-pickup",
+        "options": [
+          {
+            "vehicleType": "sedan",
+            "capacity": 3,
+            "luggageCapacity": "2 koper",
+            "rateUnit": "per-trip",
+            "ratePerUnitIdr": 350000,
+            "isSelected": false
+          }
+        ],
+        "legs": [
+          {
+            "pickupLocation": "Bandara Mutiara SIS Al-Jufri, Palu",
+            "dropoffLocation": "Hotel Prima Mitra Convention Center Wing",
+            "scheduledAt": "2026-08-10T09:00",
+            "label": "Airport Transfer — Individual"
+          }
+        ],
+        "travelerIds": [
+          "TRV-1035"
+        ]
+      }
     },
     {
       "bookingType": "transport",
@@ -3870,7 +5146,39 @@
       "projectId": "PRJ-103",
       "serviceId": null,
       "sellAmountMinor": null,
-      "departureDate": "2026-08-12"
+      "departureDate": "2026-08-12",
+      "status": "quoted",
+      "reference": null,
+      "statusReason": null,
+      "netCostMinor": null,
+      "details": {
+        "transferType": "full-day-charter",
+        "options": [
+          {
+            "vehicleType": "minibus",
+            "capacity": 15,
+            "rateUnit": "per-day",
+            "ratePerUnitIdr": 1350000,
+            "isSelected": false
+          },
+          {
+            "vehicleType": "bus",
+            "capacity": 40,
+            "rateUnit": "per-day",
+            "ratePerUnitIdr": 1800000,
+            "isSelected": false
+          }
+        ],
+        "legs": [
+          {
+            "pickupLocation": "Hotel Prima Mitra Convention Center Wing",
+            "dropoffLocation": "Venue Alternatif MICE (opsional)",
+            "scheduledAt": "2026-08-12T09:00",
+            "label": "Overflow Day Charter (tentatif)"
+          }
+        ],
+        "travelerIds": []
+      }
     },
     {
       "bookingType": "transport",
@@ -3878,7 +5186,62 @@
       "projectId": "PRJ-205",
       "serviceId": "SVC-2051",
       "sellAmountMinor": "9600000",
-      "departureDate": "2026-09-18"
+      "departureDate": "2026-09-18",
+      "status": "confirmed",
+      "reference": null,
+      "statusReason": null,
+      "netCostMinor": "8000000",
+      "details": {
+        "transferType": "multi-day-charter",
+        "options": [
+          {
+            "vehicleType": "bus",
+            "capacity": 20,
+            "luggageCapacity": "20 tas carrier",
+            "rateUnit": "per-day",
+            "ratePerUnitIdr": 2000000,
+            "isSelected": true
+          }
+        ],
+        "legs": [
+          {
+            "pickupLocation": "Stasiun Probolinggo",
+            "dropoffLocation": "Homestay Bromo View",
+            "scheduledAt": "2026-09-18T07:00",
+            "label": "Penjemputan Peserta"
+          },
+          {
+            "pickupLocation": "Homestay Bromo View",
+            "dropoffLocation": "Kawah Bromo — Penanjakan 1",
+            "scheduledAt": "2026-09-19T03:00",
+            "label": "Sunrise Tour Jeep"
+          },
+          {
+            "pickupLocation": "Homestay Bromo View",
+            "dropoffLocation": "Basecamp Paltuding, Ijen",
+            "scheduledAt": "2026-09-19T13:00",
+            "label": "Transfer Bromo → Ijen"
+          },
+          {
+            "pickupLocation": "Basecamp Paltuding, Ijen",
+            "dropoffLocation": "Stasiun Probolinggo",
+            "scheduledAt": "2026-09-21T08:00",
+            "label": "Kepulangan Peserta"
+          }
+        ],
+        "travelerIds": [
+          "TRV-2051",
+          "TRV-2052",
+          "TRV-2053",
+          "TRV-2054",
+          "TRV-2055"
+        ],
+        "assignedVehiclePlateNumber": "N 7788 XZ",
+        "driverName": "Wahyu Setiadi",
+        "driverPhone": "0852-3300-1010",
+        "standbyHours": 3,
+        "tollFeeIdr": 0
+      }
     }
   ],
   "serviceOrders": [

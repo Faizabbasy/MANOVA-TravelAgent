@@ -336,17 +336,44 @@ describe('demo seed', () => {
     }
   })
 
+  test('seed fills services and bookings from the fixtures (S4a)', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [svc] = await db.query<{ label: string; status: string; booking_reference: string | null }>("select label, status, booking_reference from project_services where id = 'SVC-1011'")
+      const fx = DEMO_CORE.projectServices.find(s => s.id === 'SVC-1011')!
+      expect(fx.label).toBeTruthy()
+      expect(svc).toEqual({ label: fx.label!, status: fx.status!, booking_reference: fx.bookingReference ?? null })
+      const [b] = await db.query<{ status: string; reference: string | null; details: Record<string, unknown> }>("select status, reference, details from booking_refs where booking_type = 'flight' and booking_id = 'FLT-1011'")
+      const fb = DEMO_CORE.bookingRefs.find(x => x.bookingId === 'FLT-1011')!
+      expect(fb.status).toBeTruthy()
+      expect(b!.status).toBe(fb.status!)
+      expect(b!.reference).toBe(fb.reference ?? null)
+      expect(Array.isArray(b!.details.segments)).toBe(true)
+      expect('status' in b!.details).toBe(false)
+      const [mice] = await db.query<{ sell_amount_minor: string | null }>("select sell_amount_minor from booking_refs where booking_type = 'mice' limit 1")
+      expect(mice!.sell_amount_minor).toBe(DEMO_CORE.bookingRefs.find(x => x.bookingType === 'mice')!.sellAmountMinor)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('carries operational reference values only — no finance records (invoices, payments, balances)', () => {
     const keys = new Set<string>()
-    const walk = (v: unknown): void => {
-      if (Array.isArray(v)) v.forEach(walk)
-      else if (v && typeof v === 'object') for (const [k, child] of Object.entries(v)) { keys.add(k); walk(child) }
+    const detailKeys = new Set<string>()
+    const walk = (v: unknown, into: Set<string>): void => {
+      if (Array.isArray(v)) v.forEach(x => walk(x, into))
+      // S4a: a booking's `details` is its UI-owned working document (option prices, BOQ lines, penalties) —
+      // checked below for finance records only, not for prices.
+      else if (v && typeof v === 'object') for (const [k, child] of Object.entries(v)) { into.add(k); walk(child, k === 'details' ? detailKeys : into) }
     }
-    walk(DEMO_CORE)
-    // `paymentTerm` is a CRM billing term ("30 hari"), not a payment record.
-    expect([...keys].filter(k => k !== 'paymentTerm' && /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
-    // The only money-like values are owned by Project/Booking/Sales (ADR-007): contract value, booking sell price
-    // and the price of a Group Trip participant booking.
-    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['contractValueMinor', 'creditLimitMinor', 'priceMinor', 'sellAmountMinor'])
+    walk(DEMO_CORE, keys)
+    expect([...detailKeys].filter(k => /invoice|payment|receipt|transaction|outstanding|balance|paid/i.test(k))).toEqual([])
+    // `paymentTerm` is a CRM billing term ("30 hari"), not a payment record; `netCostMinor` is the booking's net cost (Booking module, S4a).
+    expect([...keys].filter(k => k !== 'paymentTerm' && k !== 'netCostMinor' && /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
+    // The only money-like values are owned by Project/Booking/Sales (ADR-007): contract value, service budget,
+    // booking sell price and net cost, and the price of a Group Trip participant booking.
+    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['budgetMinor', 'contractValueMinor', 'creditLimitMinor', 'netCostMinor', 'priceMinor', 'sellAmountMinor'])
   })
 })

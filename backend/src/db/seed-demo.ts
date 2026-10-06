@@ -50,7 +50,8 @@ export interface DemoCoreSeed {
     finalNote?: string | null
     clientFeedback?: string | null
   }[]
-  projectServices: { id: string; projectId: string; serviceType: string; vendorId: string | null }[]
+  /** S4a: label, status, booking reference and budget per service line. */
+  projectServices: { id: string; projectId: string; serviceType: string; vendorId: string | null; label?: string; status?: string; bookingReference?: string | null; budgetMinor?: string | null }[]
   bookingRefs: {
     bookingType: 'flight' | 'hotel' | 'transport' | 'mice'
     bookingId: string
@@ -59,6 +60,12 @@ export interface DemoCoreSeed {
     /** Owned by the Booking module. */
     sellAmountMinor: string | null
     departureDate: string | null
+    /** S4a: the full booking — core columns plus the UI-owned `details`. */
+    status?: string
+    reference?: string | null
+    statusReason?: string | null
+    netCostMinor?: string | null
+    details?: Record<string, unknown>
   }[]
   serviceOrders: { id: string; vendorId: string; projectId: string | null; serviceId: string | null }[]
   /** Group Trip participant bookings (owned by Sales); each is billed to its own customer. */
@@ -212,21 +219,28 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
     }
     for (const s of seed.projectServices) {
       await tx.query(
-        `insert into project_services (id, project_id, service_type, vendor_id, provenance) values ($1, $2, $3, $4, $5)
+        `insert into project_services (id, project_id, service_type, vendor_id, provenance, label, status, booking_reference, budget_minor)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
          on conflict (id) do update set project_id = excluded.project_id, service_type = excluded.service_type,
-           vendor_id = excluded.vendor_id
+           vendor_id = excluded.vendor_id, label = excluded.label, status = excluded.status,
+           booking_reference = excluded.booking_reference, budget_minor = excluded.budget_minor
          where project_services.provenance = 'demo-fixture'`,
-        [s.id, s.projectId, s.serviceType, s.vendorId, P]
+        // A missing label gets its type's name from the insert trigger (0022).
+        [s.id, s.projectId, s.serviceType, s.vendorId, P, s.label ?? null, s.status ?? 'not-started', s.bookingReference ?? null, s.budgetMinor ?? null]
       )
     }
     for (const b of seed.bookingRefs) {
       await tx.query(
-        `insert into booking_refs (booking_type, booking_id, project_id, service_id, provenance, sell_amount_minor, departure_date)
-         values ($1, $2, $3, $4, $5, $6, $7)
+        `insert into booking_refs (booking_type, booking_id, project_id, service_id, provenance, sell_amount_minor, departure_date,
+           status, reference, status_reason, net_cost_minor, details)
+         values ($1, $2, $3, $4, $5, $6, $7, coalesce($8, case when $1 = 'mice' then 'planning' else 'requested' end), $9, $10, $11, $12::text::jsonb)
          on conflict (booking_type, booking_id) do update set project_id = excluded.project_id, service_id = excluded.service_id,
-           sell_amount_minor = excluded.sell_amount_minor, departure_date = excluded.departure_date
+           sell_amount_minor = excluded.sell_amount_minor, departure_date = excluded.departure_date, status = excluded.status,
+           reference = excluded.reference, status_reason = excluded.status_reason, net_cost_minor = excluded.net_cost_minor,
+           details = excluded.details
          where booking_refs.provenance = 'demo-fixture'`,
-        [b.bookingType, b.bookingId, b.projectId, b.serviceId, P, b.sellAmountMinor, b.departureDate]
+        [b.bookingType, b.bookingId, b.projectId, b.serviceId, P, b.sellAmountMinor, b.departureDate,
+          b.status ?? null, b.reference ?? null, b.statusReason ?? null, b.netCostMinor ?? null, JSON.stringify(b.details ?? {})]
       )
     }
     for (const so of seed.serviceOrders) {
