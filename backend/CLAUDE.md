@@ -32,3 +32,7 @@ bun run db:migrate | db:rollback | db:status | db:seed:demo | db:seed:finance-de
   touching SQL, on PostgreSQL too.
 - When an API response shape changes, update `frontend/app/types/api.ts` and `frontend/app/lib/api/endpoints.ts`
   in the same change.
+- Write endpoints (S0 pattern, first used by `POST/PATCH /projects`): `auth.requireCapability`, validate into
+  `errors.validation` with Indonesian messages, change + `recordAudit` in one transaction, `withIdempotency`
+  for creates (`Idempotency-Key` required), IDs from `nextId(q, prefix)` (`src/shared/ids.ts`, legacy text
+  format), respond with the same view as the GET (scope + ADR-007 money rules). Seeds call `syncIdSequences`.

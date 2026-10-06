@@ -36,3 +36,12 @@ cd backend
 bun run seed:extract    # regenerasi demo-core.json setelah fixture frontend berubah (review diff-nya)
 bun run db:seed:demo    # upsert idempotent
 ```
+
+## Update 2026-10-06 — Project header write API (S3a)
+
+Header project kini ditulis lewat API (`POST /api/v1/projects`, `PATCH /api/v1/projects/:id`, dan
+`PUT /api/v1/projects/:id/contract-value` khusus Finance/Super Admin). ID baru dibuat server (`id_sequences`,
+format sama: `PRJ-503` dst.) dan baris ber-provenance `manual`. Frontend mengisi array `PROJECTS` dari server
+setelah sesi siap (`app/data/projects-sync.ts`). Status/alur Project Order, tim, layanan, milestone, traveler,
+dan itinerary **masih** modul frontend sampai tahapnya pindah. Spec:
+`docs/superpowers/specs/2026-10-06-project-core-backend-design.md`.
