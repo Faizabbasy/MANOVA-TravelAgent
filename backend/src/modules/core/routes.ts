@@ -3,9 +3,10 @@ import type { AppDeps } from '../../app-deps'
 import type { AuthContext } from '../../auth/context'
 import { assertIdParam, ID_PATTERN, ok, okList, paginate, parsePageQuery, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
+import { businessDateOf } from '../../shared/dates'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import { projectFinanceSummary } from '../finance/summaries'
-import { createParty, setCreditLimit, updateParty } from './party-writes'
+import { createActivity, createContact, createParty, setCreditLimit, updateParty } from './party-writes'
 import { createProject, setContractValue, updateProject } from './project-writes'
 import {
   BOOKING_TYPES,
@@ -14,6 +15,8 @@ import {
   getProject,
   getServiceOrder,
   getVendor,
+  listActivities,
+  listContacts,
   listParties,
   listProjects,
   listVendors,
@@ -123,6 +126,40 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       if (!(await getParty(db, actor, id))) throw errors.notFound('Customer')
       await db.transaction(tx => setCreditLimit(tx, actor, id, body as Parameters<typeof setCreditLimit>[3], requestIdOf(request)))
       return ok(request, await getParty(db, actor, id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .get('/parties/:id/contacts', async ({ request, params }) => {
+      const actor = await auth.requireActor(request)
+      if (isPortalActor(actor) || !canListParties(actor)) throw errors.notFound('Customer')
+      const id = assertIdParam(params.id, 'Customer')
+      if (!(await getParty(db, actor, id))) throw errors.notFound('Customer')
+      return ok(request, await listContacts(db, id))
+    })
+    .post('/parties/:id/contacts', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, 'crm.manage-party')
+      const id = assertIdParam(params.id, 'Customer')
+      if (!(await getParty(db, actor, id))) throw errors.notFound('Customer')
+      const created = await db.transaction(tx => createContact(tx, actor, id, body as Record<string, unknown>, requestIdOf(request)))
+      set.status = 201
+      return ok(request, (await listContacts(db, id)).find(x => x.id === created.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .get('/party-contacts', async ({ request }) => {
+      const actor = await auth.requireActor(request)
+      if (isPortalActor(actor) || !canListParties(actor)) throw errors.forbidden()
+      return ok(request, await listContacts(db))
+    })
+    .get('/party-activities', async ({ request, query }) => {
+      const actor = await auth.requireActor(request)
+      if (isPortalActor(actor) || !canListParties(actor)) throw errors.forbidden()
+      for (const k of ['partyId', 'leadId'] as const) if (query[k] && !ID_PATTERN.test(query[k]!)) throw errors.validation({ [k]: ['ID tidak valid.'] })
+      return ok(request, await listActivities(db, { partyId: query.partyId, leadId: query.leadId }))
+    }, { query: t.Object({ partyId: t.Optional(t.String()), leadId: t.Optional(t.String()) }) })
+    .post('/parties/:id/activities', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, 'crm.log-activity')
+      const id = assertIdParam(params.id, 'Customer')
+      if (!(await getParty(db, actor, id))) throw errors.notFound('Customer')
+      const created = await db.transaction(tx => createActivity(tx, actor, id, body as Record<string, unknown>, businessDateOf(new Date()), requestIdOf(request)))
+      set.status = 201
+      return ok(request, (await listActivities(db, { partyId: id })).find(x => x.id === created.id))
     }, { body: t.Record(t.String(), t.Unknown()) })
     .get(
       '/vendors',

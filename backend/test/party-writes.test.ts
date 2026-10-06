@@ -86,3 +86,48 @@ describe('PUT /parties/:id/credit-limit', () => {
     expect(res.json.data.creditLimitMinor ?? null).toBeNull()
   })
 })
+
+describe('contacts and activities', () => {
+  test('admin adds a contact; list shows it; client of another company gets 404', async () => {
+    const res = await t.call('POST', '/api/v1/parties/PTY-002/contacts', { cookie: c.admin, body: { name: 'Rina', title: 'Travel Manager', email: 'rina@alam.example' } })
+    expect(res.status).toBe(201)
+    expect(res.json.data).toMatchObject({ id: expect.stringMatching(/^CP-\d+$/), partyId: 'PTY-002', name: 'Rina', title: 'Travel Manager' })
+    const list = await t.call('GET', '/api/v1/parties/PTY-002/contacts', { cookie: c.finance })
+    expect(list.json.data.map((x: { name: string }) => x.name)).toContain('Rina')
+    expect((await t.call('GET', '/api/v1/parties/PTY-002/contacts', { cookie: c.client })).status).toBe(404)
+    expect((await t.call('POST', '/api/v1/parties/PTY-002/contacts', { cookie: c.admin, body: { name: '', title: '' } })).status).toBe(400)
+    expect((await t.call('POST', '/api/v1/parties/PTY-002/contacts', { cookie: c.finance, body: { name: 'X', title: 'Y' } })).status).toBe(403)
+    const all = await t.call('GET', '/api/v1/party-contacts', { cookie: c.finance })
+    expect(all.json.data.length).toBeGreaterThan(1)
+    expect((await t.call('GET', '/api/v1/party-contacts', { cookie: c.client })).status).toBe(403)
+  })
+
+  test('admin and finance log activities (owner = caller); list by lead', async () => {
+    const a = await t.call('POST', '/api/v1/parties/PTY-002/activities', { cookie: c.admin, body: { type: 'call', message: 'Konfirmasi jadwal', leadId: 'LED-900' } })
+    expect(a.status).toBe(201)
+    expect(a.json.data).toMatchObject({ id: expect.stringMatching(/^PACT-\d+$/), type: 'call', leadId: 'LED-900', activityDate: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/) })
+    const f = await t.call('POST', '/api/v1/parties/PTY-002/activities', { cookie: c.finance, body: { type: 'note', message: 'Tagihan dikirim' } })
+    expect(f.status).toBe(201)
+    expect(f.json.data.ownerUserId).not.toBe(a.json.data.ownerUserId)
+    const byLead = await t.call('GET', '/api/v1/party-activities?leadId=LED-900', { cookie: c.finance })
+    expect(byLead.json.data.map((x: { id: string }) => x.id)).toEqual([a.json.data.id])
+    expect((await t.call('POST', '/api/v1/parties/PTY-002/activities', { cookie: c.admin, body: { type: 'gossip', message: 'x' } })).status).toBe(400)
+  })
+})
+
+describe('won lead promotes the customer', () => {
+  test('a project created from a lead turns a prospect into a client; finance can bill it', async () => {
+    const party = await post('admin', { name: 'PT Prospek Baru', partyType: 'company' })
+    const id = party.json.data.id as string
+    const project = await t.call('POST', '/api/v1/projects', {
+      cookie: c.admin, headers: { 'idempotency-key': key() },
+      body: { name: 'Trip Prospek', partyId: id, leadId: 'LED-901', destination: 'Bali', travelStartDate: '2027-05-01', travelEndDate: '2027-05-04', serviceScope: ['hotel'], travelerCount: 5, contractValueMinor: '100000000' }
+    })
+    expect(project.status).toBe(201)
+    expect((await t.call('GET', `/api/v1/parties/${id}`, { cookie: c.admin })).json.data.lifecycleStatus).toBe('client')
+    const [audit] = await t.db.query<{ n: string }>("select count(*) as n from audit_events where action = 'party.promoted_to_client' and entity_id = $1", [id])
+    expect(audit!.n).toBe('1')
+    const draft = await t.call('POST', '/api/v1/finance/customer-invoices', { cookie: c.finance, body: { projectId: project.json.data.id, invoiceType: 'dp', lines: [{ description: 'DP', amountMinor: '30000000' }], dueDate: '2027-04-01' } })
+    expect(draft.status).toBe(201)
+  })
+})

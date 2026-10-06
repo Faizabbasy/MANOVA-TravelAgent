@@ -2,6 +2,7 @@ import { ROLE_DEFINITIONS, type Actor } from '../../auth/rbac'
 import type { Queryable } from '../../db/client'
 import { AppError, errors, type FieldErrors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
+import { isIsoDate } from '../../shared/dates'
 import { nextId } from '../../shared/ids'
 import { parseAmountMinor } from '../../shared/money'
 
@@ -127,4 +128,40 @@ export async function setCreditLimit(tx: Queryable, actor: Actor, id: string, in
     action: 'party.credit_limit_changed', actorUserId: actor.userId, entityType: 'party', entityId: id, requestId, reason,
     before: { creditLimitMinor: current.credit_limit_minor }, after: { creditLimitMinor: value?.toString() ?? null }
   })
+}
+
+const ACTIVITY_TYPES = ['call', 'meeting', 'email', 'note', 'follow-up'] as const
+
+export async function createContact(tx: Queryable, actor: Actor, partyId: string, input: Record<string, unknown>, requestId: string): Promise<{ id: string }> {
+  const problems: FieldErrors = {}
+  const name = typeof input.name === 'string' ? input.name.trim() : ''
+  const title = typeof input.title === 'string' ? input.title.trim() : ''
+  if (!name) problems.name = ['Nama kontak wajib diisi.']
+  if (!title) problems.title = ['Jabatan wajib diisi.']
+  const email = cleanText(input.email, 'email', problems, 200)
+  if (email && !EMAIL.test(email)) problems.email = ['Format email tidak valid.']
+  const phone = cleanText(input.phone, 'phone', problems, 50)
+  if (Object.keys(problems).length) throw errors.validation(problems)
+  const id = await nextId(tx, 'CP-')
+  await tx.query('insert into party_contacts (id, party_id, name, title, email, phone) values ($1, $2, $3, $4, $5, $6)', [id, partyId, name, title, email ?? null, phone ?? null])
+  await recordAudit(tx, { action: 'party.contact_created', actorUserId: actor.userId, entityType: 'party', entityId: partyId, requestId, after: { contactId: id, name, title } })
+  return { id }
+}
+
+export async function createActivity(tx: Queryable, actor: Actor, partyId: string, input: Record<string, unknown>, today: string, requestId: string): Promise<{ id: string }> {
+  const problems: FieldErrors = {}
+  if (!(ACTIVITY_TYPES as readonly unknown[]).includes(input.type)) problems.type = ['Jenis aktivitas tidak dikenal.']
+  const message = typeof input.message === 'string' ? input.message.trim() : ''
+  if (!message) problems.message = ['Isi aktivitas wajib diisi.']
+  else if (message.length > 2000) problems.message = ['Maksimal 2000 karakter.']
+  const leadId = cleanText(input.leadId, 'leadId', problems, 64)
+  const dueAt = input.dueAt === undefined || input.dueAt === null ? null : (typeof input.dueAt === 'string' && isIsoDate(input.dueAt) ? input.dueAt : (problems.dueAt = ['Tanggal harus YYYY-MM-DD.'], null))
+  if (Object.keys(problems).length) throw errors.validation(problems)
+  const id = await nextId(tx, 'PACT-')
+  await tx.query(
+    'insert into party_activities (id, party_id, lead_id, type, message, owner_user_id, activity_date, due_at) values ($1, $2, $3, $4, $5, $6, $7, $8)',
+    [id, partyId, leadId ?? null, input.type, message, actor.userId, today, dueAt]
+  )
+  await recordAudit(tx, { action: 'party.activity_created', actorUserId: actor.userId, entityType: 'party', entityId: partyId, requestId, after: { activityId: id, type: input.type } })
+  return { id }
 }

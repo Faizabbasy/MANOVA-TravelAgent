@@ -153,6 +153,13 @@ export async function createProject(tx: Queryable, actor: Actor, input: ProjectC
   if (input.leadId) {
     const [won] = await tx.query<{ id: string }>('select id from projects where lead_id = $1', [input.leadId])
     if (won) throw new AppError(409, 'CONFLICT', `Lead ini sudah menjadi project ${won.id}. Buka project itu, jangan membuat yang baru.`)
+    // A won lead turns its prospect into a client (S1: the server owns the customer lifecycle).
+    const promoted = await tx.query<{ id: string }>(
+      "update parties set lifecycle_status = 'client', updated_at = now() where id = $1 and lifecycle_status = 'prospect' returning id", [partyId]
+    )
+    if (promoted.length) {
+      await recordAudit(tx, { action: 'party.promoted_to_client', actorUserId: actor.userId, entityType: 'party', entityId: partyId, requestId, details: { leadId: input.leadId } })
+    }
   }
   const id = await nextId(tx, 'PRJ-')
   await tx.query(

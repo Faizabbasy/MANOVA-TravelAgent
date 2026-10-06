@@ -338,3 +338,29 @@ export async function getBookingRef(db: Db, actor: Actor, type: BookingType, id:
     sellAmountMinor: canSeeCommercials(actor) ? row.sell_amount_minor : null
   }
 }
+
+const contactView = (r: { id: string; party_id: string; name: string; title: string; email: string | null; phone: string | null }) => ({
+  id: r.id, partyId: r.party_id, name: r.name, title: r.title, email: r.email, phone: r.phone
+})
+
+/** Contacts of one customer, or of every customer (internal CRM lists). Scope is checked by the route. */
+export async function listContacts(db: Db, partyId?: string) {
+  const rows = await db.query<{ id: string; party_id: string; name: string; title: string; email: string | null; phone: string | null }>(
+    'select id, party_id, name, title, email, phone from party_contacts where ($1::text is null or party_id = $1) order by id',
+    [partyId ?? null]
+  )
+  return rows.map(contactView)
+}
+
+/** CRM activity log, filtered by customer and/or lead. Scope is checked by the route. */
+export async function listActivities(db: Db, filter: { partyId?: string; leadId?: string }) {
+  const rows = await db.query<{ id: string; party_id: string; lead_id: string | null; type: string; message: string; owner_user_id: string; activity_date: string; due_at: string | null }>(
+    `select id, party_id, lead_id, type, message, owner_user_id, activity_date, due_at from party_activities
+      where ($1::text is null or party_id = $1) and ($2::text is null or lead_id = $2) order by activity_date, id`,
+    [filter.partyId ?? null, filter.leadId ?? null]
+  )
+  return rows.map(r => ({
+    id: r.id, partyId: r.party_id, leadId: r.lead_id, type: r.type, message: r.message,
+    ownerUserId: r.owner_user_id, activityDate: r.activity_date, dueAt: r.due_at
+  }))
+}
