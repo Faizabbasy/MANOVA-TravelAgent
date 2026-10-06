@@ -279,6 +279,9 @@ interface VendorRow extends Record<string, unknown> {
   service_type: string
   status: string
   provenance: string
+  contact_name: string | null
+  contact_phone: string | null
+  category: string | null
 }
 
 const vendorView = (actor: Actor, r: VendorRow) => ({
@@ -286,12 +289,15 @@ const vendorView = (actor: Actor, r: VendorRow) => ({
   name: r.name,
   serviceType: r.service_type,
   status: r.status,
+  contactName: r.contact_name,
+  contactPhone: r.contact_phone,
+  category: r.category,
   ...(isPortalActor(actor) ? {} : { provenance: r.provenance })
 })
 
 export async function listVendors(db: Db, actor: Actor, page: { after: string | null; limit: number }) {
   const rows = await db.query<VendorRow>(
-    `select id, name, service_type, status, provenance from vendors
+    `select id, name, service_type, status, provenance, contact_name, contact_phone, category from vendors
       where ($1::text is null or id > $1) order by id limit $2`,
     [page.after, page.limit + 1]
   )
@@ -302,7 +308,7 @@ export async function listVendors(db: Db, actor: Actor, page: { after: string | 
 export async function getVendor(db: Db, actor: Actor, id: string) {
   if (actor.role === 'client') return null
   if (actor.role === 'vendor' && actor.vendorId !== id) return null
-  const [row] = await db.query<VendorRow>('select id, name, service_type, status, provenance from vendors where id = $1', [id])
+  const [row] = await db.query<VendorRow>('select id, name, service_type, status, provenance, contact_name, contact_phone, category from vendors where id = $1', [id])
   return row ? vendorView(actor, row) : null
 }
 
@@ -398,4 +404,26 @@ export async function listActivities(db: Db, filter: { partyId?: string; leadId?
     id: r.id, partyId: r.party_id, leadId: r.lead_id, type: r.type, message: r.message,
     ownerUserId: r.owner_user_id, activityDate: r.activity_date, dueAt: r.due_at
   }))
+}
+
+/** Vendor contact persons, catalog and document records (S2). Internal lists; scope is checked by the route. */
+export async function listVendorContacts(db: Db, vendorId?: string) {
+  const rows = await db.query<{ id: string; vendor_id: string; name: string; title: string; email: string | null; phone: string | null }>(
+    'select id, vendor_id, name, title, email, phone from vendor_contacts where ($1::text is null or vendor_id = $1) order by id', [vendorId ?? null]
+  )
+  return rows.map(r => ({ id: r.id, vendorId: r.vendor_id, name: r.name, title: r.title, email: r.email, phone: r.phone }))
+}
+
+export async function listVendorProducts(db: Db, vendorId?: string) {
+  const rows = await db.query<{ id: string; vendor_id: string; name: string; category: string; description: string | null; price_minor: string | null }>(
+    'select id, vendor_id, name, category, description, price_minor from vendor_products where ($1::text is null or vendor_id = $1) order by id', [vendorId ?? null]
+  )
+  return rows.map(r => ({ id: r.id, vendorId: r.vendor_id, name: r.name, category: r.category, description: r.description, priceMinor: r.price_minor }))
+}
+
+export async function listVendorDocuments(db: Db, vendorId?: string) {
+  const rows = await db.query<{ id: string; vendor_id: string; name: string; type: string; uploaded_on: string }>(
+    'select id, vendor_id, name, type, uploaded_on from vendor_documents where ($1::text is null or vendor_id = $1) order by id', [vendorId ?? null]
+  )
+  return rows.map(r => ({ id: r.id, vendorId: r.vendor_id, name: r.name, type: r.type, uploadedAt: r.uploaded_on }))
 }

@@ -5,9 +5,9 @@ import type { Queryable } from '../db/client'
  * deep links and finance references look the same as before. One counter per prefix in `id_sequences`;
  * the upsert takes a row lock, so concurrent creates never get the same number.
  */
-export type IdPrefix = 'PRJ-' | 'PTY-' | 'CP-' | 'PACT-'
+export type IdPrefix = 'PRJ-' | 'PTY-' | 'CP-' | 'PACT-' | 'VND-' | 'VCT-' | 'VPR-' | 'VDOC-'
 
-const SOURCES: Record<IdPrefix, string> = { 'PRJ-': 'projects', 'PTY-': 'parties', 'CP-': 'party_contacts', 'PACT-': 'party_activities' }
+const SOURCES: Record<IdPrefix, string> = { 'PRJ-': 'projects', 'PTY-': 'parties', 'CP-': 'party_contacts', 'PACT-': 'party_activities', 'VND-': 'vendors', 'VCT-': 'vendor_contacts', 'VPR-': 'vendor_products', 'VDOC-': 'vendor_documents' }
 
 export async function nextId(q: Queryable, prefix: IdPrefix, width = 3): Promise<string> {
   const [row] = await q.query<{ last_value: number }>(

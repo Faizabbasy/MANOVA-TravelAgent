@@ -291,6 +291,24 @@ describe('demo seed', () => {
       await cleanup()
     }
   })
+  test('vendor profile, contacts, products and documents follow the seed', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [v] = await db.query<{ contact_name: string | null; category: string | null }>("select contact_name, category from vendors where id = 'VND-002'")
+      const fixture = DEMO_CORE.vendors.find(x => x.id === 'VND-002')!
+      expect(v).toEqual({ contact_name: fixture.contactName ?? null, category: fixture.category ?? null })
+      const [counts] = await db.query<{ c: string; p: string; d: string }>(
+        'select (select count(*) from vendor_contacts) as c, (select count(*) from vendor_products) as p, (select count(*) from vendor_documents) as d'
+      )
+      expect(counts).toEqual({ c: String(DEMO_CORE.vendorContacts!.length), p: String(DEMO_CORE.vendorProducts!.length), d: String(DEMO_CORE.vendorDocuments!.length) })
+      expect(await nextId(db, 'VND-')).toBe(`VND-${String(Math.max(...DEMO_CORE.vendors.map(x => Number(x.id.slice(4)))) + 1).padStart(3, '0')}`)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('carries operational reference values only — no finance records (invoices, payments, balances)', () => {
     const keys = new Set<string>()
     const walk = (v: unknown): void => {

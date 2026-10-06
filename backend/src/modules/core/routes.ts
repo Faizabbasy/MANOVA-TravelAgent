@@ -7,6 +7,7 @@ import { businessDateOf } from '../../shared/dates'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import { projectFinanceSummary } from '../finance/summaries'
 import { createActivity, createContact, createParty, setCreditLimit, updateParty } from './party-writes'
+import { createVendor, createVendorContact, createVendorDocument, createVendorProduct, updateVendor } from './vendor-writes'
 import { acceptHandover, addMember, closeFinance, closeProject, markReady, removeMember, returnHandover, transition } from './project-workflow'
 import { createProject, setContractValue, updateProject } from './project-writes'
 import {
@@ -19,6 +20,9 @@ import {
   listActivities,
   listContacts,
   listParties,
+  listVendorContacts,
+  listVendorDocuments,
+  listVendorProducts,
   listProjects,
   listVendors,
   PROJECT_STATUSES,
@@ -38,6 +42,12 @@ const pageQuery = {
 
 export function coreRoutes(deps: AppDeps, auth: AuthContext) {
   const { db } = deps
+
+  async function visibleVendor(actor: SessionActor, raw: string): Promise<string> {
+    const id = assertIdParam(raw, 'Vendor')
+    if (isPortalActor(actor) || !(await getVendor(db, actor, id))) throw errors.notFound('Vendor')
+    return id
+  }
 
   async function visibleProject(actor: SessionActor, raw: string): Promise<string> {
     const id = assertIdParam(raw, 'Project')
@@ -234,6 +244,57 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       const vendor = await getVendor(db, actor, assertIdParam(params.id, 'Vendor'))
       if (!vendor) throw errors.notFound('Vendor')
       return ok(request, vendor)
+    })
+    .post('/vendors', async ({ request, body, set }) => {
+      const actor = await auth.requireCapability(request, 'vendor.manage-vendor')
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /vendors', key, body }, tx =>
+        createVendor(tx, actor, body as Record<string, unknown>, requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await getVendor(db, actor, result.data.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .patch('/vendors/:id', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'vendor.manage-vendor')
+      const id = await visibleVendor(actor, params.id)
+      await db.transaction(tx => updateVendor(tx, actor, id, body as Record<string, unknown>, requestIdOf(request)))
+      return ok(request, await getVendor(db, actor, id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .post('/vendors/:id/contacts', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, 'vendor.manage-vendor')
+      const id = await visibleVendor(actor, params.id)
+      const created = await db.transaction(tx => createVendorContact(tx, actor, id, body as Record<string, unknown>, requestIdOf(request)))
+      set.status = 201
+      return ok(request, (await listVendorContacts(db, id)).find(x => x.id === created.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .post('/vendors/:id/products', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, 'vendor.manage-vendor')
+      const id = await visibleVendor(actor, params.id)
+      const created = await db.transaction(tx => createVendorProduct(tx, actor, id, body as Record<string, unknown>, requestIdOf(request)))
+      set.status = 201
+      return ok(request, (await listVendorProducts(db, id)).find(x => x.id === created.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .post('/vendors/:id/documents', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, 'vendor.manage-vendor')
+      const id = await visibleVendor(actor, params.id)
+      const created = await db.transaction(tx => createVendorDocument(tx, actor, id, body as Record<string, unknown>, businessDateOf(new Date()), requestIdOf(request)))
+      set.status = 201
+      return ok(request, (await listVendorDocuments(db, id)).find(x => x.id === created.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .get('/vendor-contacts', async ({ request }) => {
+      const actor = await auth.requireActor(request)
+      if (isPortalActor(actor) || !canListVendors(actor)) throw errors.forbidden()
+      return ok(request, await listVendorContacts(db))
+    })
+    .get('/vendor-products', async ({ request }) => {
+      const actor = await auth.requireActor(request)
+      if (isPortalActor(actor) || !canListVendors(actor)) throw errors.forbidden()
+      return ok(request, await listVendorProducts(db))
+    })
+    .get('/vendor-documents', async ({ request }) => {
+      const actor = await auth.requireActor(request)
+      if (isPortalActor(actor) || !canListVendors(actor)) throw errors.forbidden()
+      return ok(request, await listVendorDocuments(db))
     })
     .get('/service-orders/:id', async ({ request, params }) => {
       const actor = await auth.requireActor(request)

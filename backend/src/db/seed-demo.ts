@@ -15,7 +15,7 @@ export interface DemoCoreSeed {
   source: string
   parties: ({ id: string; name: string; lifecycleStatus: 'prospect' | 'client'; partyType: 'company' | 'individual' | null; preferredCurrency: string | null; poRequired?: boolean; accountOwnerUserId?: string | null } &
     Partial<Record<keyof typeof PARTY_PROFILE_COLUMNS, string | null>>)[]
-  vendors: { id: string; name: string; serviceType: string; status: string }[]
+  vendors: { id: string; name: string; serviceType: string; status: string; contactName?: string | null; contactPhone?: string | null; category?: string | null }[]
   users: { id: string; email: string; name: string; role: RoleId; status: 'active' | 'suspended'; partyId: string | null; vendorId: string | null }[]
   projects: {
     id: string
@@ -66,6 +66,10 @@ export interface DemoCoreSeed {
   /** CRM (S1): contact persons and the activity log per customer. */
   partyContacts?: { id: string; partyId: string; name: string; title: string; email: string | null; phone: string | null }[]
   partyActivities?: { id: string; partyId: string; leadId: string | null; type: string; message: string; ownerUserId: string; activityDate: string; dueAt: string | null }[]
+  /** Vendor (S2): contact persons, catalog and document records (metadata only). */
+  vendorContacts?: { id: string; vendorId: string; name: string; title: string; email: string | null; phone: string | null }[]
+  vendorProducts?: { id: string; vendorId: string; name: string; category: string; description: string | null; priceMinor: string | null }[]
+  vendorDocuments?: { id: string; vendorId: string; name: string; type: string; uploadedOn: string }[]
 }
 
 /** Seed key → `parties` column for the customer profile (S1). `creditLimitMinor` is Finance's figure (ADR-007). */
@@ -145,11 +149,12 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
     }
     for (const v of seed.vendors) {
       await tx.query(
-        `insert into vendors (id, name, service_type, status, provenance) values ($1, $2, $3, $4, $5)
+        `insert into vendors (id, name, service_type, status, provenance, contact_name, contact_phone, category) values ($1, $2, $3, $4, $5, $6, $7, $8)
          on conflict (id) do update set name = excluded.name, service_type = excluded.service_type,
-           status = excluded.status, updated_at = now()
+           status = excluded.status, contact_name = excluded.contact_name, contact_phone = excluded.contact_phone,
+           category = excluded.category, updated_at = now()
          where vendors.provenance = 'demo-fixture'`,
-        [v.id, v.name, v.serviceType, v.status, P]
+        [v.id, v.name, v.serviceType, v.status, P, v.contactName ?? null, v.contactPhone ?? null, v.category ?? null]
       )
     }
     for (const u of seed.users) {
@@ -259,6 +264,31 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
            message = excluded.message, owner_user_id = excluded.owner_user_id, activity_date = excluded.activity_date, due_at = excluded.due_at
          where party_activities.provenance = 'demo-fixture'`,
         [a.id, a.partyId, a.leadId, a.type, a.message, a.ownerUserId, a.activityDate, a.dueAt, P]
+      )
+    }
+    for (const c of seed.vendorContacts ?? []) {
+      await tx.query(
+        `insert into vendor_contacts (id, vendor_id, name, title, email, phone, provenance) values ($1, $2, $3, $4, $5, $6, $7)
+         on conflict (id) do update set vendor_id = excluded.vendor_id, name = excluded.name, title = excluded.title, email = excluded.email, phone = excluded.phone
+         where vendor_contacts.provenance = 'demo-fixture'`,
+        [c.id, c.vendorId, c.name, c.title, c.email, c.phone, P]
+      )
+    }
+    for (const p of seed.vendorProducts ?? []) {
+      await tx.query(
+        `insert into vendor_products (id, vendor_id, name, category, description, price_minor, provenance) values ($1, $2, $3, $4, $5, $6, $7)
+         on conflict (id) do update set vendor_id = excluded.vendor_id, name = excluded.name, category = excluded.category,
+           description = excluded.description, price_minor = excluded.price_minor
+         where vendor_products.provenance = 'demo-fixture'`,
+        [p.id, p.vendorId, p.name, p.category, p.description, p.priceMinor, P]
+      )
+    }
+    for (const d of seed.vendorDocuments ?? []) {
+      await tx.query(
+        `insert into vendor_documents (id, vendor_id, name, type, uploaded_on, provenance) values ($1, $2, $3, $4, $5, $6)
+         on conflict (id) do update set vendor_id = excluded.vendor_id, name = excluded.name, type = excluded.type, uploaded_on = excluded.uploaded_on
+         where vendor_documents.provenance = 'demo-fixture'`,
+        [d.id, d.vendorId, d.name, d.type, d.uploadedOn, P]
       )
     }
     // New IDs created through the API must continue after the fixtures (PRJ-341 …).

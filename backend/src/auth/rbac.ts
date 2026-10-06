@@ -90,6 +90,7 @@ const CAPABILITY_GRANTS = {
   'crm.manage-party': ['admin'],
   'crm.manage-follow-up': ['admin'],
   'crm.log-activity': ['admin', 'finance'],
+  'vendor.manage-vendor': ['admin'],
   'finance.record-payment': ['finance'],
   'finance.manage-opex': ['finance'],
   'finance.close-period': ['finance'],

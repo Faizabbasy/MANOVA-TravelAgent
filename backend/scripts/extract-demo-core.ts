@@ -19,7 +19,7 @@ import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
 import { FLIGHT_BOOKINGS } from '../../frontend/app/data/ticketing'
 import { TRANSPORT_BOOKINGS } from '../../frontend/app/data/transportation'
 import { USERS } from '../../frontend/app/data/users'
-import { VENDORS } from '../../frontend/app/data/vendors'
+import { VENDOR_CONTACTS, VENDOR_DOCUMENTS, VENDOR_PRODUCTS, VENDORS } from '../../frontend/app/data/vendors'
 import type { DemoCoreSeed } from '../src/db/seed-demo'
 
 const byId = <T extends { id: string }>(a: T, b: T) => a.id.localeCompare(b.id)
@@ -100,8 +100,14 @@ const seed: DemoCoreSeed = {
     id: v.id,
     name: v.name,
     serviceType: v.serviceType,
-    status: v.status ?? 'active'
+    status: v.status ?? 'active',
+    contactName: v.contactName ?? null,
+    contactPhone: v.contactPhone ?? null,
+    category: v.category ?? null
   })),
+  vendorContacts: [...VENDOR_CONTACTS].sort(byId).map(c => ({ id: c.id, vendorId: c.vendorId, name: c.name, title: c.title, email: c.email ?? null, phone: c.phone ?? null })),
+  vendorProducts: [...VENDOR_PRODUCTS].sort(byId).map(p => ({ id: p.id, vendorId: p.vendorId, name: p.name, category: p.category, description: p.description ?? null, priceMinor: minor(p.priceIdr) })),
+  vendorDocuments: [...VENDOR_DOCUMENTS].sort(byId).map(d => ({ id: d.id, vendorId: d.vendorId, name: d.name, type: d.type, uploadedOn: dateOnly(d.uploadedAt)! })),
   users: [...USERS].sort(byId).map(u => ({
     id: u.id,
     email: u.email.toLowerCase(),

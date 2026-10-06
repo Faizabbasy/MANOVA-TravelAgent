@@ -817,43 +817,193 @@
       "id": "VND-001",
       "name": "CV Tiket Mitra Nusantara",
       "serviceType": "flight",
-      "status": "active"
+      "status": "active",
+      "contactName": "Yusuf Maulana",
+      "contactPhone": null,
+      "category": "Flight Consolidator"
     },
     {
       "id": "VND-002",
       "name": "Hotel Prima Mitra",
       "serviceType": "hotel",
-      "status": "active"
+      "status": "active",
+      "contactName": "Rina Kartika",
+      "contactPhone": null,
+      "category": "Hotel Full-Service"
     },
     {
       "id": "VND-003",
       "name": "Trans Wahana Logistik",
       "serviceType": "transportation",
-      "status": "active"
+      "status": "active",
+      "contactName": "Bimo Saputro",
+      "contactPhone": null,
+      "category": "Ground Transportation"
     },
     {
       "id": "VND-004",
       "name": "Cendana MICE Organizer",
       "serviceType": "mice",
-      "status": "active"
+      "status": "active",
+      "contactName": "Wulan Permatasari",
+      "contactPhone": null,
+      "category": "MICE Full-Service"
     },
     {
       "id": "VND-005",
       "name": "CV Wisata Kargo Ekspres",
       "serviceType": "transportation",
-      "status": "pending"
+      "status": "pending",
+      "contactName": "Agus Salim",
+      "contactPhone": null,
+      "category": "Ground Transportation"
     },
     {
       "id": "VND-006",
       "name": "PT ABC",
       "serviceType": "hotel",
-      "status": "active"
+      "status": "active",
+      "contactName": "Hasan Alfarizi",
+      "contactPhone": null,
+      "category": "Hotel Budget"
     },
     {
       "id": "VND-007",
       "name": "PT EFG",
       "serviceType": "mice",
-      "status": "active"
+      "status": "active",
+      "contactName": "Ika Puspitasari",
+      "contactPhone": null,
+      "category": "MICE Vendor Package"
+    }
+  ],
+  "vendorContacts": [
+    {
+      "id": "VCT-001",
+      "vendorId": "VND-001",
+      "name": "Yusuf Maulana",
+      "title": "Account Manager",
+      "email": null,
+      "phone": "0821-1000-0001"
+    },
+    {
+      "id": "VCT-002",
+      "vendorId": "VND-002",
+      "name": "Rina Kartika",
+      "title": "Sales Manager",
+      "email": null,
+      "phone": "0821-1000-0002"
+    },
+    {
+      "id": "VCT-003",
+      "vendorId": "VND-003",
+      "name": "Bimo Saputro",
+      "title": "Operations Manager",
+      "email": null,
+      "phone": "0821-1000-0003"
+    },
+    {
+      "id": "VCT-004",
+      "vendorId": "VND-004",
+      "name": "Wulan Permatasari",
+      "title": "Event Coordinator",
+      "email": null,
+      "phone": "0821-1000-0004"
+    },
+    {
+      "id": "VCT-005",
+      "vendorId": "VND-005",
+      "name": "Agus Salim",
+      "title": "Account Manager",
+      "email": null,
+      "phone": "0821-1000-0005"
+    },
+    {
+      "id": "VCT-006",
+      "vendorId": "VND-006",
+      "name": "Hasan Alfarizi",
+      "title": "Partnership Manager",
+      "email": null,
+      "phone": "0821-1000-0006"
+    },
+    {
+      "id": "VCT-007",
+      "vendorId": "VND-007",
+      "name": "Ika Puspitasari",
+      "title": "Partnership Manager",
+      "email": null,
+      "phone": "0821-1000-0007"
+    }
+  ],
+  "vendorProducts": [
+    {
+      "id": "VPR-001",
+      "vendorId": "VND-006",
+      "name": "Paket Kamar Deluxe (per malam)",
+      "category": "hotel",
+      "description": "Kamar deluxe kapasitas 2 pax, termasuk sarapan.",
+      "priceMinor": "1200000"
+    },
+    {
+      "id": "VPR-002",
+      "vendorId": "VND-006",
+      "name": "Paket Meeting Room Half-Day",
+      "category": "hotel",
+      "description": "Ruang meeting kapasitas 20 pax, coffee break 1x.",
+      "priceMinor": "3500000"
+    },
+    {
+      "id": "VPR-003",
+      "vendorId": "VND-007",
+      "name": "Paket Venue Konferensi (per hari)",
+      "category": "mice",
+      "description": "Venue kapasitas 100 pax lengkap sound system.",
+      "priceMinor": "25000000"
+    },
+    {
+      "id": "VPR-004",
+      "vendorId": "VND-007",
+      "name": "Paket Event Organizer Full-Service",
+      "category": "mice",
+      "description": "Koordinasi acara end-to-end, termasuk rundown dan dokumentasi.",
+      "priceMinor": "45000000"
+    }
+  ],
+  "vendorDocuments": [
+    {
+      "id": "VDOC-001",
+      "vendorId": "VND-002",
+      "name": "Kontrak Kerjasama Hotel Prima Mitra 2026.pdf",
+      "type": "Kontrak",
+      "uploadedOn": "2026-05-02"
+    },
+    {
+      "id": "VDOC-002",
+      "vendorId": "VND-003",
+      "name": "NPWP Trans Wahana Logistik.pdf",
+      "type": "NPWP",
+      "uploadedOn": "2026-04-18"
+    },
+    {
+      "id": "VDOC-003",
+      "vendorId": "VND-006",
+      "name": "Kontrak Kerjasama PT ABC 2026.pdf",
+      "type": "Kontrak",
+      "uploadedOn": "2026-06-01"
+    },
+    {
+      "id": "VDOC-004",
+      "vendorId": "VND-006",
+      "name": "Sertifikat Standar Layanan PT ABC.pdf",
+      "type": "Sertifikasi",
+      "uploadedOn": "2026-06-01"
+    },
+    {
+      "id": "VDOC-005",
+      "vendorId": "VND-007",
+      "name": "Kontrak Kerjasama PT EFG 2026.pdf",
+      "type": "Kontrak",
+      "uploadedOn": "2026-06-05"
     }
   ],
   "users": [
