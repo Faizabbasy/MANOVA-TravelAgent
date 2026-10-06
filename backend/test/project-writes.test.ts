@@ -63,6 +63,9 @@ describe('POST /projects', () => {
     const res = await post('admin', valid({ partyId: 'PTY-999' }))
     expect(res.status).toBe(422)
     expect(res.json.error.message).toContain('Customer belum tersimpan di server')
+    // Saving a customer to the server arrives with the Customer stage (S1); the message must not ask for it now.
+    expect(res.json.error.message).toContain('baru ada di data lokal')
+    expect(res.json.error.message).not.toContain('Simpan customer ini dulu')
   })
 
   test('group trip uses the placeholder party, created when missing', async () => {
@@ -148,5 +151,15 @@ describe('PUT /projects/:id/contract-value and finance', () => {
     expect((await t.call('PUT', '/api/v1/projects/PRJ-104/contract-value', { cookie: c.finance, body: { contractValueMinor: '1000' } })).status).toBe(400)
     expect((await t.call('PUT', '/api/v1/projects/PRJ-104/contract-value', { cookie: c.admin, body: { contractValueMinor: '1000', reason: 'x' } })).status).toBe(403)
     expect((await t.call('PUT', '/api/v1/projects/PRJ-104/contract-value', { cookie: c.superAdmin, body: { contractValueMinor: '125000000', reason: 'Revisi kontrak' } })).status).toBe(200)
+  })
+})
+
+describe('one project per won lead', () => {
+  test('a second project for the same lead is refused, even with a new idempotency key', async () => {
+    const first = await post('admin', valid({ name: 'Won Pertama', leadId: 'LED-777' }))
+    expect(first.status).toBe(201)
+    const second = await post('admin', valid({ name: 'Won Kedua', leadId: 'LED-777' }))
+    expect(second.status).toBe(409)
+    expect(second.json.error.message).toContain(first.json.data.id)
   })
 })

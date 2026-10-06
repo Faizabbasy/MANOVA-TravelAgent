@@ -33,8 +33,9 @@ function serverFields (dto: ProjectInternalDto, local?: Project): Partial<Projec
     serviceScope: [...dto.serviceScope],
     travelerCount: dto.travelerCount,
     ownerId: dto.ownerUserId ?? local?.ownerId ?? DEFAULT_OWNER_ID,
-    teamUserIds: dto.teamUserIds.length ? [...dto.teamUserIds] : local?.teamUserIds ?? [],
-    status: dto.status,
+    // Status workflow and team still live in the frontend (S3a): the server value only seeds a new object.
+    teamUserIds: local ? local.teamUserIds : [...dto.teamUserIds],
+    status: local ? local.status : dto.status,
     quotationAmountIdr: dto.contractValueMinor !== null ? Number(dto.contractValueMinor) : local?.quotationAmountIdr ?? 0,
     tourLeaderName: dto.tourLeaderName ?? undefined,
     tourLeaderPhone: dto.tourLeaderPhone ?? undefined,

@@ -1478,6 +1478,9 @@ export function prepareLeadWon (leadId: string):
   | { input: CreateProjectInput & { leadId: string; sourceQuotationId: string } }
   | undefined {
   const lead = getLeadById(leadId)
+  // `lead.projectId` is local state (lost on reload); the server project carries `leadId` and survives it.
+  const won = PROJECTS.find(p => p.leadId === leadId)
+  if (won) { return { existing: won } }
   if (!lead || !lead.partyId) { return undefined }
   if (lead.projectId) {
     const existing = getProjectById(lead.projectId)

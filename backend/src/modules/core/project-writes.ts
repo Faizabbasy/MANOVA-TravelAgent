@@ -146,10 +146,14 @@ export async function createProject(tx: Queryable, actor: Actor, input: ProjectC
     partyId = await groupTripPartyId(tx)
   } else {
     const [party] = await tx.query<{ id: string }>('select id from parties where id = $1', [input.partyId])
-    if (!party) throw rule('Customer belum tersimpan di server. Simpan customer ini dulu, lalu buat project lagi.')
+    if (!party) throw rule('Customer belum tersimpan di server: customer ini baru ada di data lokal. Project saat ini hanya bisa dibuat untuk customer yang sudah ada di server; penyimpanan customer baru ke server menyusul.')
     partyId = party.id
   }
 
+  if (input.leadId) {
+    const [won] = await tx.query<{ id: string }>('select id from projects where lead_id = $1', [input.leadId])
+    if (won) throw new AppError(409, 'CONFLICT', `Lead ini sudah menjadi project ${won.id}. Buka project itu, jangan membuat yang baru.`)
+  }
   const id = await nextId(tx, 'PRJ-')
   await tx.query(
     `insert into projects (id, name, party_id, destination, travel_start_date, travel_end_date, status, owner_user_id,
