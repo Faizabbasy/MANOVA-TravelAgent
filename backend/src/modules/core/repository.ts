@@ -162,6 +162,27 @@ interface PartyRow extends Record<string, unknown> {
   party_type: string | null
   preferred_currency: string | null
   provenance: string
+  industry: string | null
+  company_type: string | null
+  size: string | null
+  address: string | null
+  city: string | null
+  province: string | null
+  country: string | null
+  postal_code: string | null
+  phone: string | null
+  email: string | null
+  website: string | null
+  account_owner_user_id: string | null
+  registration_number: string | null
+  npwp: string | null
+  billing_name: string | null
+  billing_address: string | null
+  payment_term: string | null
+  po_required: boolean
+  travel_preferences: string | null
+  credit_limit_minor: string | null
+  created_on: string
 }
 
 const partyView = (actor: Actor, r: PartyRow) => ({
@@ -170,26 +191,50 @@ const partyView = (actor: Actor, r: PartyRow) => ({
   lifecycleStatus: r.lifecycle_status,
   partyType: r.party_type,
   preferredCurrency: r.preferred_currency,
+  industry: r.industry,
+  companyType: r.company_type,
+  size: r.size,
+  address: r.address,
+  city: r.city,
+  province: r.province,
+  country: r.country,
+  postalCode: r.postal_code,
+  phone: r.phone,
+  email: r.email,
+  website: r.website,
+  accountOwnerUserId: r.account_owner_user_id,
+  registrationNumber: r.registration_number,
+  npwp: r.npwp,
+  billingName: r.billing_name,
+  billingAddress: r.billing_address,
+  paymentTerm: r.payment_term,
+  poRequired: r.po_required,
+  travelPreferences: r.travel_preferences,
+  /** Finance-owned (ADR-007): only for roles that see commercial figures. */
+  creditLimitMinor: canSeeCommercials(actor) ? r.credit_limit_minor : null,
+  createdAt: r.created_on,
   ...(isPortalActor(actor) ? {} : { provenance: r.provenance })
 })
 
+const PARTY_SELECT = `
+  select id, name, lifecycle_status, party_type, preferred_currency, provenance, industry, company_type, size, address,
+         city, province, country, postal_code, phone, email, website, account_owner_user_id, registration_number, npwp,
+         billing_name, billing_address, payment_term, po_required, travel_preferences, credit_limit_minor,
+         to_char(created_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as created_on
+    from parties`
+
 export async function listParties(db: Db, actor: Actor, page: { after: string | null; limit: number }) {
   const rows = await db.query<PartyRow>(
-    `select id, name, lifecycle_status, party_type, preferred_currency, provenance from parties
-      where ($1::text is null or id > $1) order by id limit $2`,
+    `${PARTY_SELECT} where ($1::text is null or id > $1) order by id limit $2`,
     [page.after, page.limit + 1]
   )
   return rows.map(r => partyView(actor, r))
 }
 
-/** Clients may read only their own party; vendors none. Callers enforce the internal module check. */
 export async function getParty(db: Db, actor: Actor, id: string) {
   if (actor.role === 'vendor') return null
   if (actor.role === 'client' && actor.partyId !== id) return null
-  const [row] = await db.query<PartyRow>(
-    'select id, name, lifecycle_status, party_type, preferred_currency, provenance from parties where id = $1',
-    [id]
-  )
+  const [row] = await db.query<PartyRow>(`${PARTY_SELECT} where id = $1`, [id])
   return row ? partyView(actor, row) : null
 }
 

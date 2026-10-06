@@ -5,6 +5,7 @@ import { assertIdParam, ID_PATTERN, ok, okList, paginate, parsePageQuery, reques
 import { errors } from '../../http/errors'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import { projectFinanceSummary } from '../finance/summaries'
+import { createParty, setCreditLimit, updateParty } from './party-writes'
 import { createProject, setContractValue, updateProject } from './project-writes'
 import {
   BOOKING_TYPES,
@@ -100,6 +101,29 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       if (!party) throw errors.notFound('Customer')
       return ok(request, party)
     })
+    .post('/parties', async ({ request, body, set }) => {
+      const actor = await auth.requireCapability(request, 'crm.manage-party')
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /parties', key, body }, tx =>
+        createParty(tx, actor, body as Parameters<typeof createParty>[2], requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await getParty(db, actor, result.data.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .patch('/parties/:id', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'crm.manage-party')
+      const id = assertIdParam(params.id, 'Customer')
+      if (!(await getParty(db, actor, id))) throw errors.notFound('Customer')
+      await db.transaction(tx => updateParty(tx, actor, id, body as Parameters<typeof updateParty>[3], requestIdOf(request)))
+      return ok(request, await getParty(db, actor, id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .put('/parties/:id/credit-limit', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'finance.edit-credit-limit')
+      const id = assertIdParam(params.id, 'Customer')
+      if (!(await getParty(db, actor, id))) throw errors.notFound('Customer')
+      await db.transaction(tx => setCreditLimit(tx, actor, id, body as Parameters<typeof setCreditLimit>[3], requestIdOf(request)))
+      return ok(request, await getParty(db, actor, id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
     .get(
       '/vendors',
       async ({ request, query }) => {

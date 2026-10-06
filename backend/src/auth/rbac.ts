@@ -89,6 +89,7 @@ const CAPABILITY_GRANTS = {
   'sales.approve-quotation': ['admin'],
   'crm.manage-party': ['admin'],
   'crm.manage-follow-up': ['admin'],
+  'crm.log-activity': ['admin', 'finance'],
   'finance.record-payment': ['finance'],
   'finance.manage-opex': ['finance'],
   'finance.close-period': ['finance'],
@@ -116,7 +117,9 @@ const CAPABILITY_GRANTS = {
   'finance.manage-policy': ['finance'],
   'finance.view-project-finance': ['finance'],
   /** Contract value after creation (ADR-007: owned by Project, corrected by Finance with a reason). */
-  'finance.edit-contract-value': ['finance']
+  'finance.edit-contract-value': ['finance'],
+  /** Customer credit limit (ADR-007: Finance owns money figures). */
+  'finance.edit-credit-limit': ['finance']
 } satisfies Record<string, GrantedTo>
 
 export type CapabilityKey = keyof typeof CAPABILITY_GRANTS
