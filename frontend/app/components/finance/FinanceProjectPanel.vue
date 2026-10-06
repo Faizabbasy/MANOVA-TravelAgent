@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CalendarRange, CheckCircle2, FilePlus2, Lock, ReceiptText, Undo2 } from 'lucide-vue-next'
+import { CalendarRange, CheckCircle2, FilePlus2, Lock, Pencil, ReceiptText, Undo2 } from 'lucide-vue-next'
 import type { ProjectFinanceSummaryDto } from '~/types/api'
 import { PAYMENT_STATUS_TONE } from '~/lib/finance/labels'
 import { refundTag } from '~/lib/finance/refunds'
@@ -53,6 +53,9 @@ const selectedInvoice = ref<string | null>(null)
 const selectedVendorInvoice = ref<string | null>(null)
 const showCreate = ref(false)
 const showSchedule = ref(false)
+const showContractValue = ref(false)
+/** "Sudah ditagih" net of credit notes — the floor the server enforces for a new contract value. */
+const billedMinor = computed(() => full.value ? (BigInt(full.value.receivable.invoicedMinor) - BigInt(full.value.receivable.creditedMinor)).toString() : '0')
 const showVendorCreate = ref(false)
 </script>
 
@@ -124,7 +127,19 @@ const showVendorCreate = ref(false)
             <dt class="text-xs text-muted-foreground">
               Nilai kontrak
             </dt>
-            <dd><FinanceAmount :value="full.contractValueMinor" unavailable-label="Belum diisi" class="font-semibold" /></dd>
+            <dd class="flex items-center gap-1.5">
+              <FinanceAmount :value="full.contractValueMinor" unavailable-label="Belum diisi" class="font-semibold" />
+              <Button
+                v-if="session.can('finance.edit-contract-value')"
+                size="icon"
+                variant="ghost"
+                class="h-6 w-6"
+                aria-label="Ubah nilai kontrak"
+                @click="showContractValue = true"
+              >
+                <Pencil class="h-3.5 w-3.5" />
+              </Button>
+            </dd>
           </div>
           <div>
             <dt class="text-xs text-muted-foreground">
@@ -272,5 +287,12 @@ const showVendorCreate = ref(false)
     <FinanceInvoiceDialog v-model:open="showCreate" :project-id="projectId" @saved="inv => selectedInvoice = inv.id" />
     <FinanceScheduleDialog v-model:open="showSchedule" :project-id="projectId" />
     <FinanceVendorInvoiceDialog v-model:open="showVendorCreate" :project-id="projectId" @saved="inv => selectedVendorInvoice = inv.id" />
+    <FinanceContractValueDialog
+      v-if="full"
+      v-model:open="showContractValue"
+      :project-id="projectId"
+      :current-minor="full.contractValueMinor"
+      :billed-minor="billedMinor"
+    />
   </div>
 </template>
