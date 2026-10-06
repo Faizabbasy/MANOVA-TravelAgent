@@ -5,9 +5,18 @@ import type { Queryable } from '../db/client'
  * deep links and finance references look the same as before. One counter per prefix in `id_sequences`;
  * the upsert takes a row lock, so concurrent creates never get the same number.
  */
-export type IdPrefix = 'PRJ-' | 'PTY-' | 'CP-' | 'PACT-' | 'VND-' | 'VCT-' | 'VPR-' | 'VDOC-'
+export type IdPrefix = 'PRJ-' | 'PTY-' | 'CP-' | 'PACT-' | 'VND-' | 'VCT-' | 'VPR-' | 'VDOC-' | 'SVC-' | 'FLT-' | 'HTL-' | 'TRN-' | 'MICE-'
 
-const SOURCES: Record<IdPrefix, string> = { 'PRJ-': 'projects', 'PTY-': 'parties', 'CP-': 'party_contacts', 'PACT-': 'party_activities', 'VND-': 'vendors', 'VCT-': 'vendor_contacts', 'VPR-': 'vendor_products', 'VDOC-': 'vendor_documents' }
+/** Where each prefix's IDs live: table, ID column and an optional fixed filter (bookings share one table). */
+const SOURCES: Record<IdPrefix, { table: string; column?: string; where?: string }> = {
+  'PRJ-': { table: 'projects' }, 'PTY-': { table: 'parties' }, 'CP-': { table: 'party_contacts' }, 'PACT-': { table: 'party_activities' },
+  'VND-': { table: 'vendors' }, 'VCT-': { table: 'vendor_contacts' }, 'VPR-': { table: 'vendor_products' }, 'VDOC-': { table: 'vendor_documents' },
+  'SVC-': { table: 'project_services' },
+  'FLT-': { table: 'booking_refs', column: 'booking_id', where: "booking_type = 'flight'" },
+  'HTL-': { table: 'booking_refs', column: 'booking_id', where: "booking_type = 'hotel'" },
+  'TRN-': { table: 'booking_refs', column: 'booking_id', where: "booking_type = 'transport'" },
+  'MICE-': { table: 'booking_refs', column: 'booking_id', where: "booking_type = 'mice'" }
+}
 
 export async function nextId(q: Queryable, prefix: IdPrefix, width = 3): Promise<string> {
   const [row] = await q.query<{ last_value: number }>(
@@ -21,10 +30,12 @@ export async function nextId(q: Queryable, prefix: IdPrefix, width = 3): Promise
 
 /** Raises every counter to at least the highest ID already present (after a seed or an import). */
 export async function syncIdSequences(q: Queryable): Promise<void> {
-  for (const [prefix, table] of Object.entries(SOURCES)) {
+  for (const [prefix, source] of Object.entries(SOURCES)) {
+    const column = source.column ?? 'id'
     await q.query(
       `insert into id_sequences (prefix, last_value)
-       select $1, coalesce(max(substring(id from '^' || $2 || '([0-9]+)$')::integer), 0) from ${table}
+       select $1, coalesce(max(substring(${column} from '^' || $2 || '([0-9]+)$')::integer), 0) from ${source.table}
+       ${source.where ? `where ${source.where}` : ''}
        on conflict (prefix) do update set last_value = greatest(id_sequences.last_value, excluded.last_value)`,
       [prefix, prefix]
     )

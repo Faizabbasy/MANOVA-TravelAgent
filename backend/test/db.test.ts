@@ -309,6 +309,33 @@ describe('demo seed', () => {
     }
   })
 
+  test('services and bookings carry label, status and details after 0022', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [svc] = await db.query<{ label: string; status: string }>("select label, status from project_services where id = 'SVC-1011'")
+      expect(svc!.label).not.toBe('')
+      expect(svc!.status).toMatch(/^(not-started|sourcing|quoted|pending-confirmation|confirmed|changed|completed|cancelled)$/)
+      const [b] = await db.query<{ status: string; details: unknown }>("select status, details from booking_refs where booking_type = 'flight' and booking_id = 'FLT-1011'")
+      expect(typeof b!.status).toBe('string')
+      expect(typeof b!.details).toBe('object')
+      await expect(db.query("update booking_refs set status = 'issued' where booking_type = 'hotel' and booking_id = 'HTL-1033'")).rejects.toThrow()
+      // Inserts that leave label/status out get the default of their type.
+      await db.query("insert into booking_refs (booking_type, booking_id, project_id) values ('mice', 'MICE-T9', 'PRJ-101')")
+      const [m] = await db.query<{ status: string }>("select status from booking_refs where booking_id = 'MICE-T9'")
+      expect(m!.status).toBe('planning')
+      await db.query("insert into project_services (id, project_id, service_type) values ('SVC-T9', 'PRJ-101', 'transportation')")
+      const [s] = await db.query<{ label: string }>("select label from project_services where id = 'SVC-T9'")
+      expect(s!.label).toBe('Transportation')
+      const seqs = await db.query<{ prefix: string; last_value: number }>("select prefix, last_value from id_sequences where prefix in ('SVC-','FLT-','HTL-','TRN-','MICE-') order by prefix")
+      expect(seqs.map(x => x.prefix)).toEqual(['FLT-', 'HTL-', 'MICE-', 'SVC-', 'TRN-'])
+      expect(seqs.every(x => x.last_value > 0)).toBe(true)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('carries operational reference values only — no finance records (invoices, payments, balances)', () => {
     const keys = new Set<string>()
     const walk = (v: unknown): void => {
