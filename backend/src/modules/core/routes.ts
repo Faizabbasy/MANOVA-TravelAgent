@@ -11,14 +11,17 @@ import { createActivity, createContact, createParty, setCreditLimit, updateParty
 import { createVendor, createVendorContact, createVendorDocument, createVendorProduct, updateVendor } from './vendor-writes'
 import { acceptHandover, addMember, closeFinance, closeProject, markReady, removeMember, returnHandover, transition } from './project-workflow'
 import { createProject, setContractValue, updateProject } from './project-writes'
-import { SERVICE_TYPES } from './booking-rules'
+import { SERVICE_TYPES, serviceTypeOf } from './booking-rules'
+import { changeBookingStatus, createBooking, updateBooking } from './booking-writes'
 import { createService, updateService } from './service-writes'
 import {
   BOOKING_TYPES,
   getBookingRef,
   getParty,
   getProject,
+  getBooking,
   getProjectService,
+  listBookings,
   listProjectServices,
   getServiceOrder,
   getVendor,
@@ -65,6 +68,19 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
   /** Writes to a service or booking need the capability of its service type; portals never write. */
   function requireServiceCapability(actor: SessionActor, type: string) {
     if (isPortalActor(actor) || !(SERVICE_TYPES as readonly string[]).includes(type) || !hasCapability(actor.role, serviceCapability(type))) throw errors.forbidden()
+  }
+
+  function bookingType(raw: string): BookingType {
+    if (!(BOOKING_TYPES as readonly string[]).includes(raw)) throw errors.validation({ type: [`Tipe booking harus salah satu dari: ${BOOKING_TYPES.join(', ')}.`] })
+    return raw as BookingType
+  }
+
+  async function writableBooking(actor: SessionActor, rawType: string, rawId: string) {
+    const type = bookingType(rawType)
+    requireServiceCapability(actor, serviceTypeOf(type))
+    const id = assertIdParam(rawId, 'Booking')
+    if (!(await getBooking(db, actor, type, id))) throw errors.notFound('Booking')
+    return { type, id }
   }
 
   return new Elysia({ prefix: '/api/v1' })
@@ -344,6 +360,39 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       if (!serviceOrder) throw errors.notFound('Service order')
       return ok(request, serviceOrder)
     })
+    .get('/bookings', async ({ request, query }) => {
+      const actor = await auth.requireActor(request)
+      if (actor.role === 'client') throw errors.forbidden()
+      if (query.projectId && !ID_PATTERN.test(query.projectId)) throw errors.validation({ projectId: ['ID project tidak valid.'] })
+      return ok(request, await listBookings(db, actor, { projectId: query.projectId, type: query.type ? bookingType(query.type) : undefined }))
+    }, { query: t.Object({ projectId: t.Optional(t.String()), type: t.Optional(t.String()) }) })
+    .post('/bookings/:type', async ({ request, params, body, set }) => {
+      const actor = await auth.requireActor(request)
+      const type = bookingType(params.type)
+      requireServiceCapability(actor, serviceTypeOf(type))
+      const b = body as Record<string, unknown>
+      if (typeof b.projectId !== 'string' || !b.projectId) throw errors.validation({ projectId: ['Project wajib diisi.'] })
+      const projectId = await visibleProject(actor, b.projectId)
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: `POST /bookings/${type}`, key, body }, tx =>
+        createBooking(tx, actor, type, projectId, b, requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await getBooking(db, actor, type, result.data.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .patch('/bookings/:type/:id', async ({ request, params, body }) => {
+      const actor = await auth.requireActor(request)
+      const { type, id } = await writableBooking(actor, params.type, params.id)
+      await db.transaction(tx => updateBooking(tx, actor, type, id, body as Record<string, unknown>, requestIdOf(request)))
+      return ok(request, await getBooking(db, actor, type, id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .post('/bookings/:type/:id/status', async ({ request, params, body }) => {
+      const actor = await auth.requireActor(request)
+      const { type, id } = await writableBooking(actor, params.type, params.id)
+      const b = (body ?? {}) as Record<string, unknown>
+      await db.transaction(tx => changeBookingStatus(tx, actor, type, id, b.to, b.reason, requestIdOf(request)))
+      return ok(request, await getBooking(db, actor, type, id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
     .get('/bookings/:type/:id', async ({ request, params }) => {
       const actor = await auth.requireActor(request)
       if (!(BOOKING_TYPES as readonly string[]).includes(params.type)) {

@@ -380,6 +380,64 @@ export async function getBookingRef(db: Db, actor: Actor, type: BookingType, id:
   }
 }
 
+interface BookingFullRow extends BookingRow {
+  status: string
+  status_reason: string | null
+  reference: string | null
+  net_cost_minor: string | null
+  details: Record<string, unknown>
+  created_at: string
+  updated_at: string
+}
+
+/** Full bookings in the actor's scope (S4a; vendors: only on their own services). Clients are refused by the route. */
+export async function listBookings(db: Db, actor: Actor, filter: { projectId?: string; type?: BookingType; id?: string }) {
+  const params: unknown[] = []
+  const where = [projectScopeSql(projectScopeOf(actor), params)]
+  if (actor.role === 'vendor') { params.push(actor.vendorId); where.push(`ps.vendor_id = $${params.length}`) }
+  if (filter.projectId) { params.push(filter.projectId); where.push(`b.project_id = $${params.length}`) }
+  if (filter.type) { params.push(filter.type); where.push(`b.booking_type = $${params.length}`) }
+  if (filter.id) { params.push(filter.id); where.push(`b.booking_id = $${params.length}`) }
+  const rows = await db.query<BookingFullRow>(
+    `select b.booking_type, b.booking_id, b.project_id, b.service_id, ps.service_type, ps.vendor_id, b.sell_amount_minor, b.departure_date,
+            b.status, b.status_reason, b.reference, b.net_cost_minor, b.details,
+            to_char(b.created_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as created_at,
+            to_char(b.updated_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as updated_at
+       from booking_refs b
+       join projects p on p.id = b.project_id
+       left join project_services ps on ps.id = b.service_id
+      where ${where.join(' and ')}
+      order by b.project_id, b.booking_type, b.booking_id`,
+    params
+  )
+  const commercial = canSeeCommercials(actor)
+  return rows.map(r => {
+    if (isPortalActor(actor)) return { type: r.booking_type, id: r.booking_id, projectId: r.project_id, status: r.status }
+    return {
+      type: r.booking_type,
+      id: r.booking_id,
+      projectId: r.project_id,
+      serviceId: r.service_id,
+      serviceType: r.service_type,
+      vendorId: r.vendor_id,
+      status: r.status,
+      statusReason: r.status_reason,
+      reference: r.reference,
+      sellAmountMinor: commercial ? r.sell_amount_minor : null,
+      netCostMinor: commercial ? r.net_cost_minor : null,
+      departureDate: r.departure_date,
+      details: r.details,
+      createdAt: r.created_at,
+      updatedAt: r.updated_at
+    }
+  })
+}
+export type BookingView = Awaited<ReturnType<typeof listBookings>>[number]
+
+export async function getBooking(db: Db, actor: Actor, type: BookingType, id: string) {
+  return (await listBookings(db, actor, { type, id }))[0] ?? null
+}
+
 interface ServiceRow extends Record<string, unknown> {
   id: string
   project_id: string

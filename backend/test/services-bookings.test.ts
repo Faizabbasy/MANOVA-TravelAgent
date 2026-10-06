@@ -69,3 +69,94 @@ describe('project services', () => {
     expect((await call('PATCH', `/project-services/${free}`, 'admin', { vendorId: 'VND-005' })).json.data.vendorId).toBe('VND-005')
   })
 })
+
+describe('bookings', () => {
+  const flight = { departureAt: '2026-11-02T07:00' }
+  test('create reuses an empty service or makes one; derived departure; idempotent; validation', async () => {
+    const empty = (await call('POST', '/projects/PRJ-104/services', 'admin', { type: 'hotel', label: 'Hotel Bali' }, key())).json.data.id
+    const k = key()
+    const body = { projectId: 'PRJ-104', reference: 'CONF-9', sellAmountMinor: '7000000', netCostMinor: '6000000', details: { checkInDate: '2026-11-03', options: [], travelerIds: [], status: 'completed', id: 'HTL-X' } }
+    const res = await call('POST', '/bookings/hotel', 'admin', body, k)
+    expect(res.status).toBe(201)
+    const id = res.json.data.id as string
+    expect(id).toMatch(/^HTL-\d+$/)
+    expect(res.json.data.details).toEqual({ checkInDate: '2026-11-03', options: [], travelerIds: [] })
+    expect(res.json.data).toMatchObject({ type: 'hotel', projectId: 'PRJ-104', serviceId: empty, status: 'requested', reference: 'CONF-9', sellAmountMinor: '7000000', netCostMinor: '6000000', departureDate: '2026-11-03' })
+    const svc = (await call('GET', '/project-services?projectId=PRJ-104', 'admin')).json.data.find((s: { id: string }) => s.id === empty)
+    expect(svc).toMatchObject({ status: 'pending-confirmation', bookingReference: 'CONF-9', hasBookings: true })
+    expect((await call('POST', '/bookings/hotel', 'admin', body, k)).json.data.id).toBe(id)
+
+    const made = await call('POST', '/bookings/flight', 'admin', { projectId: 'PRJ-104', label: 'Flight Bali', details: { segments: [flight] } }, key())
+    expect(made.status).toBe(201)
+    const madeService = made.json.data.serviceId as string
+    expect(made.json.data).toMatchObject({ status: 'requested', departureDate: '2026-11-02', sellAmountMinor: null })
+    const newSvc = (await call('GET', '/project-services?projectId=PRJ-104', 'admin')).json.data.find((s: { id: string }) => s.id === madeService)
+    expect(newSvc).toMatchObject({ type: 'flight', label: 'Flight Bali', status: 'pending-confirmation' })
+
+    // A service of another project or another type is refused (no cross-project link).
+    expect((await call('POST', '/bookings/flight', 'admin', { projectId: 'PRJ-104', serviceId: 'SVC-1011', details: {} }, key())).status).toBe(400)
+    expect((await call('POST', '/bookings/flight', 'admin', { projectId: 'PRJ-104', serviceId: empty, details: {} }, key())).status).toBe(400)
+    const bad = await call('POST', '/bookings/mice', 'admin', { projectId: 'PRJ-104', sellAmountMinor: '5', details: [] }, key())
+    expect(bad.status).toBe(400)
+    expect(Object.keys(bad.json.error.fieldErrors).sort()).toEqual(['details', 'sellAmountMinor'])
+    expect((await call('POST', '/bookings/kapal', 'admin', { projectId: 'PRJ-104', details: {} }, key())).status).toBe(400)
+    expect((await call('POST', '/bookings/flight', 'finance', { projectId: 'PRJ-104', details: {} }, key())).status).toBe(403)
+    expect((await call('POST', '/bookings/flight', 'admin', { projectId: 'PRJ-104', details: {} })).status).toBe(400) // no key
+    expect((await t.call('POST', '/api/v1/bookings/flight', { body: { projectId: 'PRJ-104', details: {} }, headers: { 'idempotency-key': key() } })).status).toBe(401)
+  })
+
+  test('MICE price comes from the BOQ; finance sees net cost; clients are refused', async () => {
+    const res = await call('POST', '/bookings/mice', 'admin', { projectId: 'PRJ-202', details: { sessions: [{ startAt: '2026-12-01T09:00' }], boqItems: [{ description: 'Sound', sellPriceIdr: 3000000, netCostIdr: 2000000 }] } }, key())
+    const id = res.json.data.id as string
+    expect(res.json.data).toMatchObject({ status: 'planning', sellAmountMinor: '3000000', netCostMinor: '2000000', departureDate: '2026-12-01' })
+    const list = await call('GET', '/bookings?projectId=PRJ-202&type=mice', 'finance')
+    expect(list.json.data.find((b: { id: string }) => b.id === id)).toMatchObject({ netCostMinor: '2000000' })
+    expect((await call('GET', '/bookings', 'client')).status).toBe(403)
+  })
+
+  test('patch: details, prices, reference; locked fields; not below what is billed (also when cleared)', async () => {
+    const id = (await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-203', sellAmountMinor: '4000000', details: { legs: [{ pickupLocation: 'A', dropoffLocation: 'B', scheduledAt: '2026-10-20T08:00' }] } }, key())).json.data.id
+    const res = await call('PATCH', `/bookings/transport/${id}`, 'admin', { details: { legs: [{ pickupLocation: 'A', dropoffLocation: 'C', scheduledAt: '2026-10-19T08:00' }], driverName: 'Udin' }, reference: 'TRF-1' })
+    expect(res.status).toBe(200)
+    expect(res.json.data).toMatchObject({ departureDate: '2026-10-19', reference: 'TRF-1', details: { driverName: 'Udin' } })
+    for (const body of [{ projectId: 'PRJ-101' }, { serviceId: 'SVC-1011' }, { status: 'confirmed' }, { type: 'hotel' }]) {
+      expect((await call('PATCH', `/bookings/transport/${id}`, 'admin', body)).status, JSON.stringify(body)).toBe(400)
+    }
+    const inv = await call('POST', '/finance/customer-invoices', 'finance', { projectId: 'PRJ-203', booking: { type: 'transport', id }, invoiceType: 'dp', lines: [{ description: 'DP bus', amountMinor: '3000000' }], dueDate: '2026-10-30' }, key())
+    expect(inv.status).toBe(201)
+    expect((await call('POST', `/finance/customer-invoices/${inv.json.data.id}/issue`, 'finance', {}, key())).status).toBe(200)
+    const low = await call('PATCH', `/bookings/transport/${id}`, 'admin', { sellAmountMinor: '2500000' })
+    expect(low.status).toBe(422)
+    expect(low.json.error.message).toContain('3.000.000')
+    expect((await call('PATCH', `/bookings/transport/${id}`, 'admin', { sellAmountMinor: null })).status).toBe(422)
+    expect((await call('PATCH', `/bookings/transport/${id}`, 'admin', { sellAmountMinor: '3000000' })).status).toBe(200)
+    expect((await call('PATCH', `/bookings/transport/${id}`, 'admin', { sellAmountMinor: '5000000' })).status).toBe(200)
+  })
+
+  test('status: valid transitions, reason, service follows, locked after terminal; cancel refused with finance records', async () => {
+    const created = (await call('POST', '/bookings/flight', 'admin', { projectId: 'PRJ-204', details: { segments: [flight] } }, key())).json.data
+    const id = created.id as string
+    const svcId = created.serviceId as string
+    expect((await call('POST', `/bookings/flight/${id}/status`, 'admin', { to: 'issued' })).status).toBe(422)
+    const held = await call('POST', `/bookings/flight/${id}/status`, 'admin', { to: 'confirmed' })
+    expect(held.json.data.status).toBe('confirmed')
+    const svc = (await call('GET', '/project-services?projectId=PRJ-204', 'admin')).json.data.find((s: { id: string }) => s.id === svcId)
+    expect(svc.status).toBe('confirmed')
+    expect((await call('POST', `/bookings/flight/${id}/status`, 'admin', { to: 'cancelled' })).status).toBe(400) // reason
+    expect((await call('POST', `/bookings/flight/${id}/status`, 'finance', { to: 'issued' })).status).toBe(403)
+    const [audit] = await t.db.query<{ n: string }>("select count(*) as n from audit_events where action = 'booking.status_changed' and entity_id = $1", [id])
+    expect(audit!.n).toBe('1')
+
+    // With a vendor invoice on it, cancelling goes through Finance.
+    await call('PATCH', `/project-services/${svcId}`, 'admin', { vendorId: 'VND-001' })
+    expect((await call('POST', '/finance/vendor-invoices', 'finance', { vendorId: 'VND-001', vendorInvoiceNumber: 'S4A-3', booking: { type: 'flight', id }, invoiceDate: '2026-02-01', dueDate: '2026-03-01', totalMinor: '1000' }, key())).status).toBe(201)
+    const refused = await call('POST', `/bookings/flight/${id}/status`, 'admin', { to: 'cancelled', reason: 'Customer batal' })
+    expect(refused.status).toBe(422)
+    expect(refused.json.error.message).toContain('lewat Finance')
+
+    // A booking without finance records cancels directly; a cancelled hotel is locked for edits.
+    const hotel = (await call('POST', '/bookings/hotel', 'admin', { projectId: 'PRJ-204', details: {} }, key())).json.data.id
+    expect((await call('POST', `/bookings/hotel/${hotel}/status`, 'admin', { to: 'cancelled', reason: 'Ganti hotel' })).json.data).toMatchObject({ status: 'cancelled', statusReason: 'Ganti hotel' })
+    expect((await call('PATCH', `/bookings/hotel/${hotel}`, 'admin', { reference: 'X' })).status).toBe(422)
+  })
+})

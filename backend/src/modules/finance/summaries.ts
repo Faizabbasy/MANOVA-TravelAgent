@@ -233,6 +233,15 @@ export async function projectFinanceSummary(db: Db, projectId: string, full: boo
   }
 }
 
+/** "Sudah ditagih": issued invoices minus credit notes; cancellation write-offs still count as billed. */
+const billedNetOf = (invoices: InvoiceBalanceRow[]) =>
+  invoices.filter(i => i.status === 'issued').reduce((s, i) => s + BigInt(i.total_minor) - BigInt(i.credited_minor) + BigInt(i.cancel_writeoff_minor), 0n)
+
+/** What one booking has billed so far (S4a: its sell price may not drop below this). */
+export async function bookingBilledNetMinor(q: Queryable, type: string, id: string): Promise<bigint> {
+  return billedNetOf(await q.query<InvoiceBalanceRow>(`${INVOICES_WITH_BALANCE} where i.booking_type = $1 and i.booking_id = $2 and i.status = 'issued'`, [type, id]))
+}
+
 export async function bookingFinanceSummary(db: Db, type: string, id: string, full: boolean) {
   const today = todayBusinessDate()
   const [booking] = await db.query<{ project_id: string; sell_amount_minor: string | null; departure_date: string | null }>(
@@ -245,7 +254,7 @@ export async function bookingFinanceSummary(db: Db, type: string, id: string, fu
   const [plannedForBooking] = await db.query<{ n: string }>(
     "select count(*) as n from billing_schedule_items where booking_type = $1 and booking_id = $2 and status = 'planned'", [type, id]
   )
-  const billedNet = invoices.filter(i => i.status === 'issued').reduce((s, i) => s + BigInt(i.total_minor) - BigInt(i.credited_minor) + BigInt(i.cancel_writeoff_minor), 0n)
+  const billedNet = billedNetOf(invoices)
   const moreToBill = Number(plannedForBooking!.n) > 0 || (booking.sell_amount_minor !== null && billedNet < BigInt(booking.sell_amount_minor))
   const cancelled = await activeCaseFor(db, { type: type as 'flight', id, projectId: booking.project_id })
   const status = withCancellation(statusView(invoices, today, cancelled ? false : moreToBill), cancelled)
