@@ -71,3 +71,8 @@ ditulis lewat API (`POST/PATCH /api/v1/vendors`, `POST /vendors/:id/contacts|pro
 vendor tidak bisa diubah setelah dibuat. Dokumen hanya metadata (belum ada penyimpanan file). Vendor baru langsung
 bisa ditagih Finance. Akun login Vendor Portal, produk dari portal supplier, quotation, aktivitas, dan service
 order vendor tetap lokal (procurement S5, portal ADR-006).
+
+**Cutover S1/S2 di server yang sudah berjalan:** deploy hanya menjalankan `db:migrate`; seed demo cuma di deploy
+pertama. Setelah deploy yang membawa migrasi 0019–0021, jalankan sekali `bun run db:seed:demo` di server
+(upsert idempoten) **sebelum** ada yang menambah kontak/produk/dokumen. Tanpa itu, kontak/produk/dokumen demo
+hilang dari UI, dan ID `VCT-`/`VPR-`/`VDOC-` baru bisa bertabrakan dengan fixture (fixture lalu dilewati seed).
