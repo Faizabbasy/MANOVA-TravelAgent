@@ -6938,12 +6938,6 @@ export function getPartyCreditFacility (partyId: string): PartyCreditFacility {
 }
 
 /** Finance/Management saja (gate di halaman, bukan di sini) — plafon piutang company, lihat `Party.creditLimitIdr`. */
-export function updatePartyCreditLimit (partyId: string, creditLimitIdr: number | undefined): Party | undefined {
-  const party = getPartyById(partyId)
-  if (!party) { return undefined }
-  party.creditLimitIdr = creditLimitIdr && creditLimitIdr > 0 ? creditLimitIdr : undefined
-  return party
-}
 
 /* ---------------------------------------------------------------------------
  * Messages & Activities — reuse penuh `Message`/`sendMessage`/`getUnifiedActivityTimeline` (Section 21).

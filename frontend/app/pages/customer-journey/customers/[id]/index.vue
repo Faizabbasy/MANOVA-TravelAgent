@@ -6,8 +6,9 @@ import {
   getPartyById, getContactsByParty, getLeadsByParty, getProjectsByParty, getPartyActivities,
   getDocumentsByParty, getUserById, getQuotationByLead,
   ensureProjectServiceForBudget, updateProjectServiceBudget,
-  getPartyCreditFacility, updatePartyCreditLimit
+  getPartyCreditFacility
 } from '~/data'
+import { setCreditLimitOnServer } from '~/data/parties-sync'
 import { createProjectOnServer } from '~/data/projects-sync'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
@@ -31,20 +32,32 @@ const hasAccess = computed(() => canView('crm'))
  * Project" di `crm/parties/[id]` (`createProject`, sama gate `canManage('operations')`), disatukan di sini
  * supaya tidak ada dua tempat berbeda untuk aksi yang sama pada customer yang sama. */
 const canManageProject = computed(() => canManage('operations'))
-/** Limit Credit Facility — keputusan Finance/Management, bukan self-service client (beda dari Company Profile lain yang diedit client di Client Portal). */
-const canManageCredit = computed(() => canManage('finance'))
+/** Limit kredit milik Finance (S1, ADR-007): tombol hanya untuk `finance.edit-credit-limit` dari server; Admin melihat nilainya. */
+const session = useServerSession()
+const canManageCredit = computed(() => session.can('finance.edit-credit-limit'))
 const creditFacility = computed(() => (party.value ? getPartyCreditFacility(party.value.id) : undefined))
 const isEditCreditOpen = ref(false)
 const editCreditLimitIdr = ref<number | null>(null)
+const editCreditReason = ref('')
+const isSavingCredit = ref(false)
 
 function openEditCreditLimit () {
   editCreditLimitIdr.value = party.value?.creditLimitIdr ?? null
+  editCreditReason.value = ''
   isEditCreditOpen.value = true
 }
 
-function submitEditCreditLimit () {
-  if (!party.value) { return }
-  updatePartyCreditLimit(party.value.id, editCreditLimitIdr.value ?? undefined)
+async function submitEditCreditLimit () {
+  if (!party.value || !editCreditReason.value.trim() || isSavingCredit.value) { return }
+  isSavingCredit.value = true
+  try {
+    await setCreditLimitOnServer(api, party.value.id, editCreditLimitIdr.value && editCreditLimitIdr.value > 0 ? editCreditLimitIdr.value : null, editCreditReason.value)
+  } catch (error) {
+    showToast('Credit Limit Gagal Disimpan', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isSavingCredit.value = false
+  }
   isEditCreditOpen.value = false
   showToast('Credit Limit Diperbarui', `Plafon piutang ${party.value.name} berhasil diubah.`, 'success')
 }
@@ -568,6 +581,13 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
               <Label for="cust-credit-limit">Credit Limit (IDR)</Label>
               <CurrencyInput id="cust-credit-limit" v-model="editCreditLimitIdr" placeholder="mis. 500000000" />
             </div>
+            <div class="space-y-1.5">
+              <Label for="cust-credit-reason">Alasan perubahan</Label>
+              <Input id="cust-credit-reason" v-model="editCreditReason" maxlength="500" placeholder="mis. Review tahunan" />
+              <p class="text-xs text-muted-foreground">
+                Wajib, tercatat di audit trail.
+              </p>
+            </div>
             <p v-if="creditFacility" class="text-xs text-muted-foreground">
               Outstanding saat ini: <span class="font-medium text-foreground">{{ formatCurrencyIdr(creditFacility.usedIdr) }}</span>
             </p>
@@ -576,7 +596,7 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
             <Button variant="outline" @click="isEditCreditOpen = false">
               Batal
             </Button>
-            <Button @click="submitEditCreditLimit">
+            <Button :disabled="!editCreditReason.trim() || isSavingCredit" @click="submitEditCreditLimit">
               Simpan
             </Button>
           </SheetFooter>

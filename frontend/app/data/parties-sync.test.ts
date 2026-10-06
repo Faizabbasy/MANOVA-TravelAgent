@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from './parties'
-import { applyServerActivityId, ensureCustomerForLead, makeActivitySink, mergeServerActivities, mergeServerContacts, mergeServerParties, upsertServerParty } from './parties-sync'
+import { applyServerActivityId, ensureCustomerForLead, setCreditLimitOnServer, makeActivitySink, mergeServerActivities, mergeServerContacts, mergeServerParties, upsertServerParty } from './parties-sync'
 import { serverPartyDto } from './parties-sync.test-utils'
 import { createPartyActivity, LEADS, setPartyActivitySink } from './index'
 
@@ -73,5 +73,23 @@ describe('ensureCustomerForLead', () => {
     expect(created.id).toBe('PTY-060')
     await expect(ensureCustomerForLead({ core: { createParty: () => Promise.reject(new Error('down')) } } as never, LEADS.find(l => l.companyName && l.id !== lead.id && !PARTIES.some(p => p.name.toLowerCase() === l.companyName!.toLowerCase()))!.id, 'company')).rejects.toThrow('down')
     expect(lead.stage).toBe(before.stage)
+  })
+})
+
+describe('setCreditLimitOnServer', () => {
+  it('mengirim nominal sebagai minor string beserta alasan, lalu menerapkan jawaban server', async () => {
+    const sent: unknown[] = []
+    const api = { core: { setCreditLimit: (id: string, input: unknown) => { sent.push({ id, input }); return Promise.resolve({ data: serverPartyDto({ id: 'PTY-001', creditLimitMinor: '500000000' }) }) } } }
+    const party = await setCreditLimitOnServer(api as never, 'PTY-001', 500_000_000, 'Review tahunan')
+    expect(sent).toEqual([{ id: 'PTY-001', input: { creditLimitMinor: '500000000', reason: 'Review tahunan' } }])
+    expect(party.creditLimitIdr).toBe(500_000_000)
+  })
+
+  it('kosong = tanpa batas: dikirim null dan limit lokal dihapus', async () => {
+    const sent: unknown[] = []
+    const api = { core: { setCreditLimit: (_id: string, input: unknown) => { sent.push(input); return Promise.resolve({ data: serverPartyDto({ id: 'PTY-001', creditLimitMinor: null }) }) } } }
+    const party = await setCreditLimitOnServer(api as never, 'PTY-001', null, 'Tanpa batas')
+    expect(sent).toEqual([{ creditLimitMinor: null, reason: 'Tanpa batas' }])
+    expect(party.creditLimitIdr).toBeUndefined()
   })
 })

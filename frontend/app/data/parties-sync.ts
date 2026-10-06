@@ -202,3 +202,12 @@ export async function createContactOnServer (api: Pick<ManovaApi, 'core'>, party
   CONTACTS.push(contactFromServer(res.data))
   return CONTACTS[CONTACTS.length - 1]!
 }
+
+/** Finance sets (or clears, with `null`) a customer's credit limit with a reason; the answer updates `PARTIES`. */
+export async function setCreditLimitOnServer (api: Pick<ManovaApi, 'core'>, partyId: string, limitIdr: number | null, reason: string): Promise<Party> {
+  const res = await api.core.setCreditLimit(partyId, {
+    creditLimitMinor: limitIdr === null ? null : String(Math.round(limitIdr)),
+    reason: reason.trim()
+  })
+  return upsertServerParty(res.data)
+}
