@@ -1227,9 +1227,14 @@ export function createContact (input: { partyId: string; name: string; title: st
   return contact
 }
 
+/** Sends each new CRM activity to the server (S1). Installed by `useCustomersSync` once the session is ready; null in tests and offline. */
+let partyActivitySink: ((activity: PartyActivity) => void) | null = null
+export function setPartyActivitySink (sink: ((activity: PartyActivity) => void) | null): void { partyActivitySink = sink }
+
 export function createPartyActivity (input: { partyId: string; leadId?: string; type: PartyActivityType; message: string; ownerId: string; dueAt?: string }): PartyActivity {
   const activity: PartyActivity = { id: nextSequentialId('PACT-', PARTY_ACTIVITIES), createdAt: DEMO_REFERENCE_DATE, ...input }
   PARTY_ACTIVITIES.push(activity)
+  partyActivitySink?.(PARTY_ACTIVITIES[PARTY_ACTIVITIES.length - 1]!)
   return activity
 }
 

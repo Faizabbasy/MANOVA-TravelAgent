@@ -1,7 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from './parties'
-import { mergeServerActivities, mergeServerContacts, mergeServerParties, upsertServerParty } from './parties-sync'
+import { applyServerActivityId, makeActivitySink, mergeServerActivities, mergeServerContacts, mergeServerParties, upsertServerParty } from './parties-sync'
 import { serverPartyDto } from './parties-sync.test-utils'
+import { createPartyActivity, setPartyActivitySink } from './index'
 
 const snap = <T>(a: T[]) => a.map(x => ({ ...x }))
 const p0 = snap(PARTIES); const c0 = snap(CONTACTS); const a0 = snap(PARTY_ACTIVITIES)
@@ -32,5 +33,26 @@ describe('parties-sync', () => {
     expect(CONTACTS.map(x => x.id)).toEqual(['CP-900'])
     mergeServerActivities([{ id: 'PACT-900', partyId: 'PTY-001', leadId: null, type: 'call', message: 'm', ownerUserId: 'USR-001', activityDate: '2026-10-01', dueAt: null }])
     expect(PARTY_ACTIVITIES[0]).toMatchObject({ id: 'PACT-900', ownerId: 'USR-001', createdAt: '2026-10-01' })
+  })
+})
+
+describe('sink aktivitas', () => {
+  it('createPartyActivity memanggil sink; sukses mengganti id lokal dengan id server', async () => {
+    const sent: string[] = []
+    setPartyActivitySink((a) => { sent.push(a.message) })
+    const activity = createPartyActivity({ partyId: 'PTY-001', type: 'note', message: 'Halo', ownerId: 'USR-001' })
+    expect(sent).toEqual(['Halo'])
+    setPartyActivitySink(null)
+    await applyServerActivityId(activity.id, 'PACT-777')
+    expect(PARTY_ACTIVITIES.some(a => a.id === 'PACT-777' && a.message === 'Halo')).toBe(true)
+  })
+
+  it('sink gagal: aktivitas tetap ada dan notifikasi dipanggil', async () => {
+    const warned: string[] = []
+    const sink = makeActivitySink({ core: { createActivity: () => Promise.reject(new Error('down')) } } as never, msg => warned.push(msg))
+    const activity = createPartyActivity({ partyId: 'PTY-001', type: 'call', message: 'Tes', ownerId: 'USR-001' })
+    await sink(activity)
+    expect(PARTY_ACTIVITIES.some(a => a.id === activity.id)).toBe(true)
+    expect(warned).toHaveLength(1)
   })
 })

@@ -4,6 +4,7 @@ import { ROLES } from '~/constants/roles'
 import { resetRbacToDefaults } from '~/data/rbac'
 import { resetMockState, hasMockSnapshot } from '~/utils/mock-reset'
 import { getVendorById } from '~/data'
+import { useCustomersSync } from '~/data/parties-sync'
 import { useProjectsSync } from '~/data/projects-sync'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { User } from '~/types/user'
@@ -43,6 +44,7 @@ function submitRbacReset () {
 /** State reset / seed scenario (Section 01) — mengembalikan seluruh mock data ke kondisi seed awal. */
 const isResetDialogOpen = ref(false)
 const projectsSync = useProjectsSync()
+const customersSync = useCustomersSync()
 
 function submitReset () {
   const success = resetMockState()
@@ -51,8 +53,9 @@ function submitReset () {
     showToast('Reset Gagal', 'Snapshot data seed belum tersedia. Muat ulang halaman lalu coba lagi.', 'error')
     return
   }
-  // Project milik server: reset hanya mengembalikan field lokal, daftar project dimuat ulang dari server.
+  // Project dan customer milik server: reset hanya mengembalikan field lokal, keduanya dimuat ulang dari server.
   projectsSync.load(true)
+  customersSync.load(true)
   showToast('Demo Data Direset', 'Seluruh data mock dikembalikan ke kondisi seed awal.', 'success')
 }
 </script>

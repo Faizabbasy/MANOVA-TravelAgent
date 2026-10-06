@@ -1,12 +1,22 @@
 <script setup lang="ts">
+import { useCustomersSync } from '~/data/parties-sync'
 import { useProjectsSync } from '~/data/projects-sync'
 
 const isMobile = useIsMobile()
-/** Project milik server (S3a): dimuat sekali per user yang login, menimpa header di array `PROJECTS`. */
+/** Project (S3a) dan customer (S1) milik server: dimuat sekali per user yang login ke array lokal. */
 const projectsSync = useProjectsSync()
+const customersSync = useCustomersSync()
 const { currentUser } = useCurrentUser()
-onMounted(() => { projectsSync.load() })
-watch(() => currentUser.value.id, () => { projectsSync.load() })
+const loadServerData = (force = false) => { projectsSync.load(force); customersSync.load(force) }
+onMounted(() => { loadServerData() })
+watch(() => currentUser.value.id, () => { loadServerData() })
+
+const unsyncedLabel = computed(() => {
+  const failed = (s: { status: string }) => s.status === 'offline' || s.status === 'error'
+  const parts = [failed(projectsSync.state.value) ? 'project' : null, failed(customersSync.state.value) ? 'customer' : null].filter(Boolean)
+  return parts.length ? parts.join(' dan ') : null
+})
+const unsyncedMessage = computed(() => projectsSync.state.value.message ?? customersSync.state.value.message)
 </script>
 
 <template>
@@ -28,12 +38,12 @@ watch(() => currentUser.value.id, () => { projectsSync.load() })
         :class="isMobile ? 'pb-[calc(5rem+env(safe-area-inset-bottom))]' : ''"
       >
         <div
-          v-if="projectsSync.state.value.status === 'offline' || projectsSync.state.value.status === 'error'"
+          v-if="unsyncedLabel"
           role="status"
           class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-900 dark:border-amber-700 dark:bg-amber-950 dark:text-amber-100"
         >
-          <span>Daftar project belum tersinkron dengan server — yang tampil data lokal. {{ projectsSync.state.value.message }}</span>
-          <Button size="sm" variant="outline" @click="projectsSync.load(true)">
+          <span>Daftar {{ unsyncedLabel }} belum tersinkron dengan server — yang tampil data lokal. {{ unsyncedMessage }}</span>
+          <Button size="sm" variant="outline" @click="loadServerData(true)">
             Coba lagi
           </Button>
         </div>

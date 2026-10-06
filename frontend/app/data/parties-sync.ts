@@ -1,6 +1,9 @@
 import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from './parties'
+import { setPartyActivitySink } from './index'
 import type { ContactPerson, Party, PartyActivity } from '~/types/party'
 import type { PartyActivityDto, PartyContactDto, PartyDto } from '~/types/api'
+import type { ManovaApi } from '~/lib/api/endpoints'
+import { isApiError } from '~/lib/api/errors'
 
 /**
  * Server → `PARTIES` / `CONTACTS` / `PARTY_ACTIVITIES` (S1, spec 2026-10-06-customer-backend). The server owns
@@ -85,4 +88,84 @@ export function mergeServerContacts (list: PartyContactDto[]): void {
 
 export function mergeServerActivities (list: PartyActivityDto[]): void {
   PARTY_ACTIVITIES.splice(0, PARTY_ACTIVITIES.length, ...list.map(activityFromServer))
+}
+
+/** A locally logged activity got its server ID: keep the row, swap the ID. */
+export function applyServerActivityId (localId: string, serverId: string): void {
+  const row = PARTY_ACTIVITIES.find(a => a.id === localId)
+  if (row) { row.id = serverId }
+}
+
+/**
+ * The sink `createPartyActivity` calls for every new activity: it is already on screen, the server copy is
+ * written in the background. A failure keeps the local row and warns the user (it disappears after a reload).
+ */
+export function makeActivitySink (api: Pick<ManovaApi, 'core'>, warn: (message: string) => void) {
+  return async (activity: PartyActivity): Promise<void> => {
+    try {
+      const res = await api.core.createActivity(activity.partyId, {
+        type: activity.type,
+        message: activity.message,
+        ...(activity.leadId ? { leadId: activity.leadId } : {}),
+        ...(activity.dueAt ? { dueAt: activity.dueAt } : {})
+      })
+      applyServerActivityId(activity.id, res.data.id)
+    } catch {
+      warn('Aktivitas belum tersimpan ke server dan akan hilang setelah halaman dimuat ulang.')
+    }
+  }
+}
+
+/** Every customer, contact and activity; the local arrays change only after all three arrived. */
+export async function loadServerCustomers (api: Pick<ManovaApi, 'core'>): Promise<void> {
+  const parties: PartyDto[] = []
+  let cursor: string | undefined
+  for (let page = 0; page < 200; page++) {
+    const res = await api.core.listParties({ limit: 100, ...(cursor ? { cursor } : {}) })
+    parties.push(...res.data)
+    const next = res.meta.pagination?.nextCursor ?? null
+    if (!next) { break }
+    cursor = next
+  }
+  const [contacts, activities] = await Promise.all([api.core.listAllContacts(), api.core.listActivities({})])
+  mergeServerParties(parties)
+  mergeServerContacts(contacts.data)
+  mergeServerActivities(activities.data)
+}
+
+export interface CustomersSyncState {
+  status: 'idle' | 'loading' | 'ready' | 'offline' | 'error'
+  userId: string | null
+  message: string | null
+}
+
+/** Loads customers once per signed-in user and installs the activity sink (dashboard layout, "Reset Demo Data"). */
+export function useCustomersSync () {
+  const api = useApi()
+  const session = useServerSession()
+  const { currentUser } = useCurrentUser()
+  const { showToast } = useToast()
+  const state = useState<CustomersSyncState>('manova-customers-sync', () => ({ status: 'idle', userId: null, message: null }))
+
+  async function load (force = false) {
+    const userId = currentUser.value.id
+    if (!force && state.value.userId === userId && (state.value.status === 'ready' || state.value.status === 'loading')) { return }
+    state.value = { status: 'loading', userId, message: null }
+    try {
+      await session.ensure()
+      await loadServerCustomers(api)
+      setPartyActivitySink(makeActivitySink(api, message => showToast('Aktivitas', message, 'warning')))
+      state.value = { status: 'ready', userId, message: null }
+    } catch (error) {
+      setPartyActivitySink(null)
+      const offline = isApiError(error) && (error.status === 0 || error.status >= 500)
+      state.value = {
+        status: offline ? 'offline' : 'error',
+        userId,
+        message: isApiError(error) ? error.message : 'Daftar customer belum bisa dimuat dari server.'
+      }
+    }
+  }
+
+  return { state, load }
 }
