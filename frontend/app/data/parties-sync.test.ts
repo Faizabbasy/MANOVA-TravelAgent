@@ -1,8 +1,8 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from './parties'
-import { applyServerActivityId, makeActivitySink, mergeServerActivities, mergeServerContacts, mergeServerParties, upsertServerParty } from './parties-sync'
+import { applyServerActivityId, ensureCustomerForLead, makeActivitySink, mergeServerActivities, mergeServerContacts, mergeServerParties, upsertServerParty } from './parties-sync'
 import { serverPartyDto } from './parties-sync.test-utils'
-import { createPartyActivity, setPartyActivitySink } from './index'
+import { createPartyActivity, LEADS, setPartyActivitySink } from './index'
 
 const snap = <T>(a: T[]) => a.map(x => ({ ...x }))
 const p0 = snap(PARTIES); const c0 = snap(CONTACTS); const a0 = snap(PARTY_ACTIVITIES)
@@ -54,5 +54,24 @@ describe('sink aktivitas', () => {
     await sink(activity)
     expect(PARTY_ACTIVITIES.some(a => a.id === activity.id)).toBe(true)
     expect(warned).toHaveLength(1)
+  })
+})
+
+describe('ensureCustomerForLead', () => {
+  it('memakai party yang sudah ada (nama sama) tanpa memanggil API', async () => {
+    const lead = LEADS.find(l => l.companyName && PARTIES.some(p => p.name.toLowerCase() === l.companyName!.toLowerCase()))!
+    let calls = 0
+    const party = await ensureCustomerForLead({ core: { createParty: () => { calls++; return Promise.reject(new Error('x')) } } } as never, lead.id, 'company')
+    expect(party.name.toLowerCase()).toBe(lead.companyName!.toLowerCase())
+    expect(calls).toBe(0)
+  })
+
+  it('membuat party di server bila belum ada; error diteruskan tanpa mengubah lead', async () => {
+    const lead = LEADS.find(l => l.companyName && !PARTIES.some(p => p.name.toLowerCase() === l.companyName!.toLowerCase()))!
+    const before = { ...lead }
+    const created = await ensureCustomerForLead({ core: { createParty: (input: { name: string }) => Promise.resolve({ data: serverPartyDto({ id: 'PTY-060', name: input.name, lifecycleStatus: 'prospect' }) }) } } as never, lead.id, 'company')
+    expect(created.id).toBe('PTY-060')
+    await expect(ensureCustomerForLead({ core: { createParty: () => Promise.reject(new Error('down')) } } as never, LEADS.find(l => l.companyName && l.id !== lead.id && !PARTIES.some(p => p.name.toLowerCase() === l.companyName!.toLowerCase()))!.id, 'company')).rejects.toThrow('down')
+    expect(lead.stage).toBe(before.stage)
   })
 })

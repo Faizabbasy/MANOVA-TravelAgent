@@ -2,7 +2,10 @@
 import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus, Eye, SlidersHorizontal } from 'lucide-vue-next'
-import { PARTIES, getUserById, getLeadsByParty, getProjectsByParty, getPartiesByAccountOwner, createParty, isManovaClient, getPartyCreditFacility } from '~/data'
+import { PARTIES, getUserById, getLeadsByParty, getProjectsByParty, getPartiesByAccountOwner, isManovaClient, getPartyCreditFacility } from '~/data'
+import { createPartyOnServer } from '~/data/parties-sync'
+import { newIdempotencyKey } from '~/lib/api/client'
+import { isApiError } from '~/lib/api/errors'
 import { findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr } from '~/utils/format'
 import type { StatusOption } from '~/types/common'
@@ -86,9 +89,25 @@ const isCreateOpen = ref(false)
 const newName = ref('')
 const newIndustry = ref('')
 
-function submitCreate () {
-  if (!newName.value.trim()) { return }
-  const party = createParty({ name: newName.value.trim(), industry: newIndustry.value.trim() || undefined })
+const api = useApi()
+const { showToast } = useToast()
+const isCreating = ref(false)
+/** Satu Idempotency-Key per pengisian form: klik ganda tidak membuat dua customer. */
+let createKey = newIdempotencyKey()
+
+async function submitCreate () {
+  if (!newName.value.trim() || isCreating.value) { return }
+  isCreating.value = true
+  let party
+  try {
+    party = await createPartyOnServer(api, { name: newName.value.trim(), partyType: 'company', industry: newIndustry.value.trim() || null }, createKey)
+  } catch (error) {
+    showToast('Gagal Menambah Customer', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isCreating.value = false
+  }
+  createKey = newIdempotencyKey()
   newName.value = ''
   newIndustry.value = ''
   isCreateOpen.value = false
@@ -178,7 +197,7 @@ function submitCreate () {
                 <Button variant="outline" @click="isCreateOpen = false">
                   Batal
                 </Button>
-                <Button :disabled="!newName.trim()" @click="submitCreate">
+                <Button :disabled="!newName.trim() || isCreating" @click="submitCreate">
                   Simpan
                 </Button>
             </template>

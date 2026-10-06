@@ -5,12 +5,13 @@ import { FileX, Plus, MessageCircle } from 'lucide-vue-next'
 import { buildWhatsAppLink } from '~/data/crm-engagement'
 import {
   getPartyById, getContactsByParty, getLeadsByParty, getPartyActivities, getProjectsByParty,
-  getQuotationByLead, createContact, createPartyActivity, getFeedbackByProject,
+  getQuotationByLead, createPartyActivity, getFeedbackByProject,
   getUserByClientPartyId, isManovaClient, ensureProjectServiceForBudget, updateProjectServiceBudget
 } from '~/data'
 import { createProjectOnServer } from '~/data/projects-sync'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
+import { createContactOnServer } from '~/data/parties-sync'
 import { getLoyaltyAccount } from '~/data/crm-engagement'
 import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatNumber } from '~/utils/format'
@@ -218,15 +219,24 @@ const contactTitle = ref('')
 const contactEmail = ref('')
 const contactPhone = ref('')
 
-function submitContact () {
-  if (!party.value || !contactName.value.trim() || !contactTitle.value.trim()) { return }
-  createContact({
-    partyId: party.value.id,
-    name: contactName.value.trim(),
-    title: contactTitle.value.trim(),
-    email: contactEmail.value.trim() || undefined,
-    phone: contactPhone.value.trim() || undefined
-  })
+const isSavingContact = ref(false)
+
+async function submitContact () {
+  if (!party.value || !contactName.value.trim() || !contactTitle.value.trim() || isSavingContact.value) { return }
+  isSavingContact.value = true
+  try {
+    await createContactOnServer(api, party.value.id, {
+      name: contactName.value.trim(),
+      title: contactTitle.value.trim(),
+      email: contactEmail.value.trim() || undefined,
+      phone: contactPhone.value.trim() || undefined
+    })
+  } catch (error) {
+    showToast('Kontak Gagal Disimpan', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isSavingContact.value = false
+  }
   contactName.value = ''
   contactTitle.value = ''
   contactEmail.value = ''
@@ -381,7 +391,7 @@ function submitActivity () {
                     <Button variant="outline" @click="isContactDialogOpen = false">
                       Batal
                     </Button>
-                    <Button :disabled="!contactName.trim() || !contactTitle.trim()" @click="submitContact">
+                    <Button :disabled="!contactName.trim() || !contactTitle.trim() || isSavingContact" @click="submitContact">
                       Simpan
                     </Button>
                 </template>

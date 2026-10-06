@@ -13,6 +13,7 @@ import {
   sendQuotationToClient, withdrawQuotationSubmission,
   getCostSheetsByLead, getCostSheetBreakdown, getUserByClientPartyId
 } from '~/data'
+import { ensureCustomerForLead } from '~/data/parties-sync'
 import { markLeadWonOnServer } from '~/data/projects-sync'
 import { isApiError } from '~/lib/api/errors'
 import {
@@ -321,19 +322,39 @@ function openQualifyDialog () {
  * persis (Dialog kecil isi harga → `qualifyLeadAndCreateSalesOrder` langsung, booking standalone). Lead B2C
  * DENGAN Project dipilih dipisah ke `doQualifyGroupTrip` (tombol beda, tidak lewat Dialog ini).
  */
-function doQualify () {
+const isQualifying = ref(false)
+
+/** S1: the customer is created (or found) on the server first, then the lead is qualified locally. */
+async function withCustomer (kind: 'company' | 'individual') {
+  if (!selectedLead.value || isQualifying.value) { return undefined }
+  isQualifying.value = true
+  try {
+    return await ensureCustomerForLead(wonApi, selectedLead.value.id, kind)
+  } catch (error) {
+    showToast('Qualify Gagal', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return undefined
+  } finally {
+    isQualifying.value = false
+  }
+}
+
+async function doQualify () {
   if (!selectedLead.value || qualificationMissing.value.length > 0) { return }
   saveQualificationDraft()
 
   if (isIndividualTravel.value) {
     if (!qualifySalesOrderPriceIdr.value || qualifySalesOrderPriceIdr.value <= 0) { return }
-    const order = qualifyLeadAndCreateSalesOrder(selectedLead.value.id, { priceIdr: qualifySalesOrderPriceIdr.value })
+    const customer = await withCustomer('individual')
+    if (!customer || !selectedLead.value) { return }
+    const order = qualifyLeadAndCreateSalesOrder(selectedLead.value.id, { priceIdr: qualifySalesOrderPriceIdr.value, partyId: customer.id })
     isQualifyDialogOpen.value = false
     if (order) { navigateTo(`/sales-orders/${order.id}`) }
     return
   }
 
-  const qualified = qualifyLeadForQuotation(selectedLead.value.id)
+  const customer = await withCustomer('company')
+  if (!customer || !selectedLead.value) { return }
+  const qualified = qualifyLeadForQuotation(selectedLead.value.id, customer.id)
   isQualifyDialogOpen.value = false
   /** Dulu navigateTo halaman terpisah `/crm/leads/[id]` — sekarang cukup pindah tab dalam sheet yang sama, tidak membingungkan user dengan pindah layar. */
   if (qualified) { drawerTab.value = 'quotation' }
@@ -341,7 +362,7 @@ function doQualify () {
 
 /** Group Trip B2C — Lead dengan `qualGroupTripProjectId` terisi. Dispatch berdasarkan Qualification Result
  * yang dipilih user, bukan lewat Dialog "Qualify" biasa (hasilnya sudah eksplisit di dropdown). */
-function doQualifyGroupTrip () {
+async function doQualifyGroupTrip () {
   if (!selectedLead.value || !qualGroupTripProjectId.value) { return }
   saveQualificationDraft()
 
@@ -365,7 +386,14 @@ function doQualifyGroupTrip () {
 
   // 'qualified' atau 'waitlist' (pilihan manual) — qualifyGroupTripLead yang final-kan; bisa di-downgrade
   // paksa jadi waitlist kalau ternyata seat sudah tidak cukup saat submit.
+  // A customer is only needed when the seats are there; a waitlist creates none.
+  const requestedPax = (qualAdultCount.value ?? 0) + (qualChildCount.value ?? 0) + (qualInfantCount.value ?? 0)
+  const needsCustomer = requestedPax > 0 && requestedPax <= getProjectSeatsAvailable(qualGroupTripProjectId.value)
+  const customer = needsCustomer ? await withCustomer('individual') : undefined
+  if (needsCustomer && !customer) { return }
+  if (!selectedLead.value) { return }
   const result = qualifyGroupTripLead(selectedLead.value.id, {
+    partyId: customer?.id,
     adultCount: qualAdultCount.value ?? 0,
     childCount: qualChildCount.value ?? 0,
     infantCount: qualInfantCount.value ?? 0,

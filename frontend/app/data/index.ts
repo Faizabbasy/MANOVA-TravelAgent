@@ -1520,7 +1520,7 @@ export function applyLeadWon (leadId: string, project: Project, approverId: stri
   const accountExecutiveId = lead.handedOverTo ?? lead.ownerId
   project.budgetIdr = project.quotationAmountIdr
   if (party) {
-    if (party.lifecycleStatus === 'prospect') { party.lifecycleStatus = 'client' }
+    // prospect → client happens on the server with the project (S1); the party is reloaded afterwards.
     party.accountOwnerId = accountExecutiveId
     ensureClientLoginAccount(lead, accountExecutiveId)
   }
@@ -3284,22 +3284,13 @@ export function markLeadUnqualified (leadId: string, note?: string): Lead | unde
  * TIDAK langsung membuat Quotation — itu aksi eksplisit AE berikutnya (`createQuotation`) di halaman detail
  * Lead. Lead individual-travel memakai `qualifyLeadAndCreateSalesOrder` sebagai gantinya.
  */
-export function qualifyLeadForQuotation (leadId: string): Lead | undefined {
+export function qualifyLeadForQuotation (leadId: string, partyId: string): Lead | undefined {
   const lead = getLeadById(leadId)
   if (!lead || lead.quotationId || lead.projectId || lead.salesOrderId || getLeadMissingQualification(leadId).length > 0) { return undefined }
   const accountExecutiveId = lead.handedOverTo!
-
-  let party = lead.companyName ? PARTIES.find(p => p.name.toLowerCase() === lead.companyName!.toLowerCase()) : undefined
-  if (!party) {
-    party = {
-      id: nextSequentialId('PTY-', PARTIES),
-      name: lead.companyName || lead.name,
-      lifecycleStatus: 'prospect',
-      createdAt: DEMO_REFERENCE_DATE,
-      accountOwnerId: accountExecutiveId
-    }
-    PARTIES.push(party)
-  }
+  // S1: the customer already exists on the server (`ensureCustomerForLead`, app/data/parties-sync.ts).
+  const party = getPartyById(partyId)
+  if (!party) { return undefined }
 
   lead.stage = 'qualified'
   lead.partyId = party.id
@@ -3326,7 +3317,7 @@ export function qualifyLeadForQuotation (leadId: string): Lead | undefined {
  * yang sama dengan `qualifyLeadForQuotation` — BEDA dari `createSalesOrder` standalone (dialog manual tanpa
  * Lead) yang selalu bikin Party baru, karena di sini Lead-nya sendiri mungkin sudah pernah tercatat.
  */
-export function qualifyLeadAndCreateSalesOrder (leadId: string, input: { priceIdr: number; travelerCount?: number }): SalesOrder | undefined {
+export function qualifyLeadAndCreateSalesOrder (leadId: string, input: { priceIdr: number; travelerCount?: number; partyId: string }): SalesOrder | undefined {
   const lead = getLeadById(leadId)
   if (!lead || lead.quotationId || lead.projectId || lead.salesOrderId || getLeadMissingQualification(leadId).length > 0) { return undefined }
   if (!(input.priceIdr > 0)) { return undefined }
@@ -3337,18 +3328,9 @@ export function qualifyLeadAndCreateSalesOrder (leadId: string, input: { priceId
    * `qualifyGroupTripLead`/baris 1338/1425/3297 di file ini. */
   const accountExecutiveId = lead.handedOverTo ?? lead.ownerId
 
-  let party = PARTIES.find(p => p.partyType === 'individual' && p.name.toLowerCase() === lead.name.toLowerCase())
-  if (!party) {
-    party = {
-      id: nextSequentialId('PTY-', PARTIES),
-      name: lead.name,
-      partyType: 'individual',
-      lifecycleStatus: 'client',
-      createdAt: DEMO_REFERENCE_DATE,
-      accountOwnerId: accountExecutiveId
-    }
-    PARTIES.push(party)
-  }
+  // S1: the individual customer already exists on the server (`ensureCustomerForLead`).
+  const party = getPartyById(input.partyId)
+  if (!party) { return undefined }
 
   const order: SalesOrder = {
     id: nextSequentialId('SLO-', SALES_ORDERS),
@@ -3390,6 +3372,8 @@ export interface QualifyGroupTripInput {
   priceAcceptance: B2cPriceAcceptance
   bookingReadiness: B2cBookingReadiness
   priceIdr: number
+  /** Customer on the server; only needed when seats are available (a waitlist creates no customer). */
+  partyId?: string
 }
 
 export type QualifyGroupTripOutcome =
@@ -3428,7 +3412,8 @@ export function qualifyGroupTripLead (leadId: string, input: QualifyGroupTripInp
     return { outcome: 'waitlist' }
   }
 
-  const order = qualifyLeadAndCreateSalesOrder(leadId, { priceIdr: input.priceIdr, travelerCount: requestedPax })
+  if (!input.partyId) { return undefined }
+  const order = qualifyLeadAndCreateSalesOrder(leadId, { priceIdr: input.priceIdr, travelerCount: requestedPax, partyId: input.partyId })
   if (!order) { return undefined }
   order.projectId = project.id
   lead.projectId = project.id

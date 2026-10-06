@@ -1,5 +1,6 @@
 import { PROJECTS } from './projects'
 import { resolveDestinationGeo } from './geo'
+import { upsertServerParty } from './parties-sync'
 import { applyLeadWon, prepareLeadWon, seedDefaultProjectMilestones, type CreateProjectInput } from './index'
 import type { Project } from '~/types/project'
 import { isInternalProject, type ProjectDto, type ProjectInternalDto, type ProjectPatchInput } from '~/types/api'
@@ -158,6 +159,12 @@ export async function markLeadWonOnServer (api: Pick<ManovaApi, 'core'>, leadId:
   const res = await api.core.createProject(toServerInput(prepared.input), idempotencyKey)
   const project = registerNewServerProject(res.data)
   applyLeadWon(leadId, project, approverId)
+  // The server turned a prospect into a client with the project (S1): reload that customer.
+  try {
+    upsertServerParty((await api.core.getParty(project.partyId)).data)
+  } catch {
+    // The next customer sync brings it.
+  }
   return project
 }
 
