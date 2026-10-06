@@ -62,3 +62,12 @@ kini ditulis lewat API (`/api/v1/projects/:id/handover/*`, `/transition`, `/read
 diterima sebelum Ready, hambatan Finance sebelum tutup finance); gate berbasis data lokal (traveler, itinerary,
 insiden, booking) tetap di UI. Pembatalan project lewat Finance mengubah status project di transaksi yang sama.
 Layanan + vendor menyusul bersama Booking (S4).
+
+## Update 2026-10-06 — Vendor write API (S2)
+
+Profil vendor (nama, kontak, kategori, status), kontak vendor, katalog produk, dan catatan dokumen vendor kini
+ditulis lewat API (`POST/PATCH /api/v1/vendors`, `POST /vendors/:id/contacts|products|documents`) dengan ID
+`VND-`/`VCT-`/`VPR-`/`VDOC-` dari `id_sequences` dan capability `vendor.manage-vendor` (admin). Jenis layanan
+vendor tidak bisa diubah setelah dibuat. Dokumen hanya metadata (belum ada penyimpanan file). Vendor baru langsung
+bisa ditagih Finance. Akun login Vendor Portal, produk dari portal supplier, quotation, aktivitas, dan service
+order vendor tetap lokal (procurement S5, portal ADR-006).
