@@ -8,7 +8,13 @@ import type {
   BankAccountDto,
   BillingScheduleInput,
   BillingScheduleItemDto,
+  BookingCreateInput,
+  BookingDto,
   BookingFinanceSummaryDto,
+  BookingPatchInput,
+  ProjectServiceDto,
+  ServiceCreateInput,
+  ServicePatchInput,
   GroupTripDpInput,
   GroupTripDpResult,
   SalesOrderFinanceSummaryDto,
@@ -143,7 +149,17 @@ export function createManovaApi (client: ApiClient) {
       listVendorProducts: () => client.get<VendorProductDto[]>('/vendor-products'),
       listVendorDocuments: () => client.get<VendorDocumentDto[]>('/vendor-documents'),
       getServiceOrder: (id: string) => client.get<ServiceOrderRefDto>(`/service-orders/${seg(id)}`),
-      getBookingRef: (type: ApiBookingType, id: string) => client.get<BookingRefDto>(`/bookings/${seg(type)}/${seg(id)}`)
+      getBookingRef: (type: ApiBookingType, id: string) => client.get<BookingRefDto>(`/bookings/${seg(type)}/${seg(id)}`),
+      listProjectServices: (query: { projectId?: string } = {}) => client.get<ProjectServiceDto[]>('/project-services', { query: { ...query } }),
+      createProjectService: (projectId: string, input: ServiceCreateInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<ProjectServiceDto>(`/projects/${seg(projectId)}/services`, input, { idempotencyKey }),
+      updateProjectService: (id: string, input: ServicePatchInput) => client.patch<ProjectServiceDto>(`/project-services/${seg(id)}`, input),
+      listBookings: (query: { projectId?: string; type?: ApiBookingType } = {}) => client.get<BookingDto[]>('/bookings', { query: { ...query } }),
+      createBooking: (type: ApiBookingType, input: BookingCreateInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<BookingDto>(`/bookings/${seg(type)}`, input, { idempotencyKey }),
+      updateBooking: (type: ApiBookingType, id: string, input: BookingPatchInput) => client.patch<BookingDto>(`/bookings/${seg(type)}/${seg(id)}`, input),
+      changeBookingStatus: (type: ApiBookingType, id: string, input: { to: string; reason?: string }) =>
+        client.post<BookingDto>(`/bookings/${seg(type)}/${seg(id)}/status`, input)
     },
 
     finance: {

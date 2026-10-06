@@ -7,6 +7,8 @@
  *  - calendar dates are `YYYY-MM-DD` (Asia/Jakarta business dates); instants are ISO-8601 UTC strings
  */
 
+import type { ServiceStatus, ServiceTypeKey } from './project'
+
 export type MoneyMinor = string
 export type IsoDate = string
 export type IsoDateTime = string
@@ -335,6 +337,45 @@ export interface BookingRefDto {
   /** Owned by the Booking module; null when unpriced or when the role may not see commercial figures. */
   sellAmountMinor?: MoneyMinor | null
 }
+
+/** Project service line (S4a). `budgetMinor` is null for roles that may not see commercial figures. */
+export interface ProjectServiceDto {
+  id: string
+  projectId: string
+  type: ServiceTypeKey
+  label: string
+  status: ServiceStatus
+  vendorId: string | null
+  bookingReference: string | null
+  budgetMinor: MoneyMinor | null
+  /** Rows with a booking take their status from it. */
+  hasBookings: boolean
+  provenance: string
+}
+export interface ServiceCreateInput { type: ServiceTypeKey; label: string; vendorId?: string | null; budgetMinor?: MoneyMinor | null; bookingReference?: string | null }
+export type ServicePatchInput = Partial<Pick<ProjectServiceDto, 'label' | 'status' | 'vendorId' | 'bookingReference' | 'budgetMinor'>>
+
+/** Full booking (S4a): core columns + `details`, the UI-owned shape of each booking type. */
+export interface BookingDto {
+  type: ApiBookingType
+  id: string
+  projectId: string
+  serviceId: string | null
+  serviceType: ServiceTypeKey | null
+  vendorId: string | null
+  status: string
+  statusReason: string | null
+  /** PNR (flight) or confirmation number (hotel). */
+  reference: string | null
+  sellAmountMinor: MoneyMinor | null
+  netCostMinor: MoneyMinor | null
+  departureDate: IsoDate | null
+  details: Record<string, unknown>
+  createdAt: IsoDate
+  updatedAt: IsoDate
+}
+export interface BookingCreateInput { projectId: string; serviceId?: string; label?: string; reference?: string | null; sellAmountMinor?: MoneyMinor | null; netCostMinor?: MoneyMinor | null; details: Record<string, unknown> }
+export interface BookingPatchInput { details?: Record<string, unknown>; reference?: string | null; sellAmountMinor?: MoneyMinor | null; netCostMinor?: MoneyMinor | null }
 
 export function isInternalProject (project: ProjectDto): project is ProjectInternalDto {
   return 'partyId' in project
