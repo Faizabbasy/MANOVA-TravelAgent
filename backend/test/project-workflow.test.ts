@@ -101,3 +101,26 @@ describe('team', () => {
     expect((await act('finance', `${id}/members/USR-003`, {}, 'PUT')).status).toBe(403)
   })
 })
+
+describe('cancellation through Finance', () => {
+  test('a project-level case cancels the project; from completed the status stays', async () => {
+    const id = await newProject()
+    const res = await t.call('POST', '/api/v1/finance/cancellations', {
+      cookie: c.finance, headers: { 'idempotency-key': `wf-cxl-${id}-abcdef` },
+      body: { subjectType: 'project', subjectId: id, cancelDate: '2026-02-01', reason: 'Klien membatalkan', calculation: 'manual' }
+    })
+    expect(res.status).toBe(201)
+    expect((await t.call('GET', `/api/v1/projects/${id}`, { cookie: c.admin })).json.data.status).toBe('cancelled')
+    const [audit] = await t.db.query<{ reason: string }>("select reason from audit_events where action = 'project.status_changed' and entity_id = $1 order by id desc limit 1", [id])
+    expect(audit!.reason).toBe('Klien membatalkan')
+
+    const done = await newProject()
+    await t.db.query("update projects set status = 'completed' where id = $1", [done])
+    const late = await t.call('POST', '/api/v1/finance/cancellations', {
+      cookie: c.finance, headers: { 'idempotency-key': `wf-cxl-${done}-abcdef` },
+      body: { subjectType: 'project', subjectId: done, cancelDate: '2026-02-01', reason: 'Batal setelah selesai', calculation: 'manual' }
+    })
+    expect(late.status).toBe(201)
+    expect((await t.call('GET', `/api/v1/projects/${done}`, { cookie: c.admin })).json.data.status).toBe('completed')
+  })
+})

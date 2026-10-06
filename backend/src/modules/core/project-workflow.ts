@@ -3,18 +3,10 @@ import type { Db, Queryable } from '../../db/client'
 import { AppError, errors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
 import { projectFinanceBlockers, projectFinanceSummary } from '../finance/summaries'
+import { STATUS_TRANSITIONS } from './statuses'
 
 /** Project Order workflow commands (S3b). Gates whose data lives in the frontend (travelers, itinerary, …) stay in the UI. */
-export const STATUS_TRANSITIONS: Record<string, string[]> = {
-  draft: ['planning', 'on-hold', 'cancelled'],
-  planning: ['confirmed', 'on-hold', 'cancelled'],
-  confirmed: ['in-progress', 'on-hold', 'cancelled'],
-  'in-progress': ['ongoing-trip', 'completed', 'on-hold', 'cancelled'],
-  'ongoing-trip': ['completed', 'on-hold', 'cancelled'],
-  completed: [],
-  'on-hold': ['planning', 'confirmed', 'in-progress', 'cancelled'],
-  cancelled: []
-}
+export { STATUS_TRANSITIONS }
 
 const rule = (message: string) => new AppError(422, 'RULE_VIOLATION', message)
 type Row = { status: string; handover_accepted_at: string | null; ready_at: string | null; finance_settled_at: string | null; closed_at: string | null; owner_user_id: string | null }

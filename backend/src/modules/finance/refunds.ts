@@ -1,4 +1,5 @@
 import type { Actor } from '../../auth/rbac'
+import { STATUS_TRANSITIONS } from '../core/statuses'
 import type { Db, Queryable } from '../../db/client'
 import { ID_PATTERN } from '../../http/envelope'
 import { AppError, errors } from '../../http/errors'
@@ -314,6 +315,14 @@ export async function createCancellation(tx: Queryable, actor: Actor, input: Can
       plannedCancelled: f.plannedBillingCount, autoApproved
     }
   })
+  // S3b: a whole-project cancellation also cancels the project, when its status still allows it.
+  if (subject.type === 'project') {
+    const [p] = await tx.query<{ status: string }>('select status from projects where id = $1 for update', [subject.projectId])
+    if (p && STATUS_TRANSITIONS[p.status]?.includes('cancelled')) {
+      await tx.query("update projects set status = 'cancelled', updated_at = now() where id = $1", [subject.projectId])
+      await recordAudit(tx, { action: 'project.status_changed', actorUserId: actor.userId, entityType: 'project', entityId: subject.projectId, requestId, reason, before: { status: p.status }, after: { status: 'cancelled' } })
+    }
+  }
   return getRefund(tx, caseId, full)
 }
 
