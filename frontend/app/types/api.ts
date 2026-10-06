@@ -166,13 +166,92 @@ export interface ContractValueInput {
   reason: string
 }
 
+export type ApiCompanyType = 'private-company' | 'bumn' | 'government-agency' | 'university' | 'foundation' | 'event-organizer' | 'travel-agent' | 'other'
+
 export interface PartyDto {
   id: string
   name: string
   lifecycleStatus: 'prospect' | 'client'
   partyType: 'company' | 'individual' | null
   preferredCurrency: string | null
+  industry: string | null
+  companyType: ApiCompanyType | null
+  size: string | null
+  address: string | null
+  city: string | null
+  province: string | null
+  country: string | null
+  postalCode: string | null
+  phone: string | null
+  email: string | null
+  website: string | null
+  accountOwnerUserId: string | null
+  registrationNumber: string | null
+  npwp: string | null
+  billingName: string | null
+  billingAddress: string | null
+  paymentTerm: string | null
+  poRequired: boolean
+  travelPreferences: string | null
+  /** Finance-owned (ADR-007). Null = no limit, or a role that may not see commercial figures. */
+  creditLimitMinor: MoneyMinor | null
+  createdAt: IsoDate
   provenance?: ApiProvenance
+}
+
+/** Profile fields an Admin may set; credit limit and lifecycle have their own commands. */
+export type PartyProfileInput = Partial<Pick<PartyDto,
+  'industry' | 'companyType' | 'size' | 'address' | 'city' | 'province' | 'country' | 'postalCode' | 'phone' | 'email' |
+  'website' | 'accountOwnerUserId' | 'registrationNumber' | 'npwp' | 'billingName' | 'billingAddress' | 'paymentTerm' |
+  'poRequired' | 'travelPreferences'>>
+
+export interface PartyCreateInput extends PartyProfileInput {
+  name: string
+  partyType: 'company' | 'individual'
+  lifecycleStatus?: 'prospect' | 'client'
+}
+
+export type PartyPatchInput = PartyProfileInput & { name?: string }
+
+export interface CreditLimitInput {
+  creditLimitMinor: MoneyMinor | null
+  reason: string
+}
+
+export interface PartyContactDto {
+  id: string
+  partyId: string
+  name: string
+  title: string
+  email: string | null
+  phone: string | null
+}
+
+export interface ContactCreateInput {
+  name: string
+  title: string
+  email?: string
+  phone?: string
+}
+
+export type ApiActivityType = 'call' | 'meeting' | 'email' | 'note' | 'follow-up'
+
+export interface PartyActivityDto {
+  id: string
+  partyId: string
+  leadId: string | null
+  type: ApiActivityType
+  message: string
+  ownerUserId: string
+  activityDate: IsoDate
+  dueAt: IsoDate | null
+}
+
+export interface ActivityCreateInput {
+  type: ApiActivityType
+  message: string
+  leadId?: string
+  dueAt?: IsoDate
 }
 
 export interface VendorDto {
