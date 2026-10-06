@@ -2,7 +2,10 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus, Eye } from 'lucide-vue-next'
-import { FLIGHT_BOOKINGS, PROJECTS, VENDORS, getProjectById, createFlightBooking, setServiceVendor, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
+import { FLIGHT_BOOKINGS, PROJECTS, VENDORS, getProjectById, setServiceVendor, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
+import { createBookingFromInput } from '~/data/bookings-sync'
+import { newIdempotencyKey } from '~/lib/api/client'
+import { isApiError } from '~/lib/api/errors'
 import { FLIGHT_BOOKING_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 
@@ -86,15 +89,32 @@ function submitCreate () {
   performCreate()
 }
 
-function performCreate () {
-  const booking = createFlightBooking({
-    projectId: newProjectId.value,
-    serviceId: newServiceId.value || undefined,
-    ticketingDeadline: newTicketingDeadline.value || undefined
-  })
-  if (booking.serviceId && newVendorId.value) { setServiceVendor(booking.serviceId, newVendorId.value) }
+const api = useApi()
+const isCreating = ref(false)
+/** One Idempotency-Key per opened sheet: a double click does not create two bookings. */
+let createKey = newIdempotencyKey()
+watch(isCreateOpen, (open) => { if (open) { createKey = newIdempotencyKey() } })
+
+async function performCreate () {
+  if (isCreating.value) { return }
+  isCreating.value = true
+  let booking
+  try {
+    booking = await createBookingFromInput(api, 'flight', {
+      projectId: newProjectId.value,
+      serviceId: newServiceId.value || undefined,
+      ticketingDeadline: newTicketingDeadline.value || undefined
+    }, createKey)
+  } catch (error) {
+    showToast('Booking Gagal Dibuat', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isCreating.value = false
+  }
+  const serviceId = booking.serviceId as string | undefined
+  if (serviceId && newVendorId.value) { setServiceVendor(serviceId, newVendorId.value) }
   if (duplicateConflictIds.value.length > 0) {
-    flagBookingOrchestrationDuplicate('flight', booking.id, booking.projectId, currentUser.value.id, duplicateConflictIds.value)
+    flagBookingOrchestrationDuplicate('flight', booking.id, String(booking.projectId), currentUser.value.id, duplicateConflictIds.value)
     showToast('Flight Booking Dibuat (Duplicate)', 'Ditandai sebagai duplicate booking yang disengaja — tercatat di Activity & Changes project terkait.', 'success')
   }
   isCreateOpen.value = false
@@ -155,7 +175,7 @@ function cancelDuplicateCreate () {
             <Button variant="outline" @click="isCreateOpen = false">
               Batal
             </Button>
-            <Button :disabled="!newProjectId" @click="submitCreate">
+            <Button :disabled="!newProjectId || isCreating" @click="submitCreate">
               Simpan
             </Button>
           </SheetFooter>
@@ -176,7 +196,7 @@ function cancelDuplicateCreate () {
             <Button variant="outline" @click="cancelDuplicateCreate">
               Batal
             </Button>
-            <Button variant="destructive" @click="performCreate">
+            <Button variant="destructive" :disabled="isCreating" @click="performCreate">
               Lanjutkan sebagai Duplicate
             </Button>
           </DialogFooter>

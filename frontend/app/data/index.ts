@@ -49,9 +49,9 @@ import type { SalesOrder, SalesOrderStatus } from '~/types/sales-order'
 import type { ActivityEntry, ChangeCategory, ProjectTask, ProjectRisk, ProjectRiskSeverity, ShiftNote, ShiftPeriod, SystemEvent } from '~/types/activity'
 import type { Lead, LeadActivity, LeadWorkflowStatus, B2cPriceAcceptance, B2cBookingReadiness } from '~/types/lead'
 import type { ProductTemplate, ProductTemplateStatus, ProductServiceAlternative, CostSheet, CostSheetLineItem } from '~/types/product'
-import type { FlightBooking, FlightBookingStatus, FlightSegment } from '~/types/ticketing'
+import type { FlightBooking, FlightBookingStatus } from '~/types/ticketing'
 import type { HotelBooking, HotelBookingStatus } from '~/types/accommodation'
-import type { TransportBooking, TransportBookingStatus, TransportLeg } from '~/types/transportation'
+import type { TransportBooking, TransportBookingStatus } from '~/types/transportation'
 import type { MiceEvent, MiceEventStatus, MiceApprovalStatus } from '~/types/mice'
 import type { RFQ, RFQStatus, RFQLineItem, RFQResponse, RFQResponseLineItem, RFQClarificationMessage, ServiceOrder, ServiceOrderStatus, ServiceOrderLineItem, SupplierInvoice, SupplierInvoiceStatus, SupplierInvoiceMatchStatus } from '~/types/procurement'
 import type { BookingDomain, BookingOrchestrationRecord, BookingAttempt, BookingAttemptOutcome, BookingPaymentGateStatus, BookingTimelineEntry, BookingTimelineDependencyView } from '~/types/booking-orchestration'
@@ -1615,7 +1615,7 @@ export const getProjectServiceById = (id: string) => PROJECT_SERVICES.find(servi
 
 /** Placeholder row untuk alokasi budget upfront (split budget project ke layanan sebelum ada booking apa pun)
  * — reuse baris existing kalau tipe ini sudah punya minimal 1 ProjectService (termasuk placeholder lama),
- * else bikin baris baru status 'not-started' (sama pola `ensureProjectServiceForBooking`, TIDAK ada struktur
+ * else bikin baris baru status 'not-started' (sama pola reuse layanan kosong saat booking dibuat — kini di server, S4a, TIDAK ada struktur
  * budget paralel di Project). */
 export function ensureProjectServiceForBudget (projectId: string, type: ServiceTypeKey, label: string): ProjectService {
   const existing = PROJECT_SERVICES.find(service => service.projectId === projectId && service.type === type)
@@ -1823,30 +1823,6 @@ export const getFlightBookingsByProject = (projectId: string) => FLIGHT_BOOKINGS
  * Reuse baris existing kalau `existingServiceId` valid; kalau tidak, reuse placeholder tipe sama yang belum
  * pernah dibooking (mis. dibuat lewat `ensureProjectServiceForBudget` untuk alokasi budget upfront) supaya
  * budget yang sudah diisi tidak terpisah dari booking sungguhan; else baru bikin baris baru. */
-function ensureProjectServiceForBooking (params: { projectId: string; existingServiceId?: string; type: ServiceTypeKey; label: string; status: ServiceStatus }): string {
-  if (params.existingServiceId) {
-    const existing = PROJECT_SERVICES.find(s => s.id === params.existingServiceId)
-    if (existing) {
-      existing.status = params.status
-      return existing.id
-    }
-  }
-  const reusable = PROJECT_SERVICES.find(s => s.projectId === params.projectId && s.type === params.type && !s.bookingReference && s.status === 'not-started')
-  if (reusable) {
-    reusable.status = params.status
-    reusable.label = params.label
-    return reusable.id
-  }
-  const service: ProjectService = {
-    id: nextSequentialId('SVC-', PROJECT_SERVICES),
-    projectId: params.projectId,
-    type: params.type,
-    label: params.label,
-    status: params.status
-  }
-  PROJECT_SERVICES.push(service)
-  return service.id
-}
 
 export const getFlightBookingsByService = (serviceId: string) => FLIGHT_BOOKINGS.filter(booking => booking.serviceId === serviceId)
 
@@ -1854,37 +1830,6 @@ export const getFlightBookingsByService = (serviceId: string) => FLIGHT_BOOKINGS
 export function getFlightBookingMarginIdr (booking: FlightBooking): number | undefined {
   if (booking.netCostIdr === undefined || booking.sellPriceIdr === undefined) { return undefined }
   return booking.sellPriceIdr - booking.netCostIdr
-}
-
-export interface CreateFlightBookingInput {
-  projectId: string
-  serviceId?: string
-  segments?: FlightSegment[]
-  travelerIds?: string[]
-  ticketingDeadline?: string
-  fareRules?: string
-}
-
-export function createFlightBooking (input: CreateFlightBookingInput): FlightBooking {
-  const serviceId = ensureProjectServiceForBooking({
-    projectId: input.projectId,
-    existingServiceId: input.serviceId,
-    type: 'flight',
-    label: `Flight ${getProjectById(input.projectId)?.destination ?? ''}`.trim() || 'Flight Booking',
-    status: 'pending-confirmation'
-  })
-  const booking: FlightBooking = {
-    id: nextSequentialId('FLT-', FLIGHT_BOOKINGS),
-    status: 'requested',
-    options: [],
-    segments: input.segments ?? [],
-    travelerIds: input.travelerIds ?? [],
-    createdAt: DEMO_REFERENCE_DATE,
-    ...input,
-    serviceId
-  }
-  FLIGHT_BOOKINGS.push(booking)
-  return booking
 }
 
 /** Guard: `refunded` bersifat terminal (lifecycle selesai) — field lain tidak boleh diedit lagi setelahnya, pola sama `CostSheet.status === 'final'` (D-067). */
@@ -1983,37 +1928,6 @@ export const getHotelBookingsByService = (serviceId: string) => HOTEL_BOOKINGS.f
 export function getHotelBookingMarginIdr (booking: HotelBooking): number | undefined {
   if (booking.netCostIdr === undefined || booking.sellPriceIdr === undefined) { return undefined }
   return booking.sellPriceIdr - booking.netCostIdr
-}
-
-export interface CreateHotelBookingInput {
-  projectId: string
-  serviceId?: string
-  groupId?: string
-  travelerIds?: string[]
-  checkInDate?: string
-  checkOutDate?: string
-  roomsBlocked?: number
-}
-
-export function createHotelBooking (input: CreateHotelBookingInput): HotelBooking {
-  const serviceId = ensureProjectServiceForBooking({
-    projectId: input.projectId,
-    existingServiceId: input.serviceId,
-    type: 'hotel',
-    label: `Hotel ${getProjectById(input.projectId)?.destination ?? ''}`.trim() || 'Hotel Booking',
-    status: 'pending-confirmation'
-  })
-  const booking: HotelBooking = {
-    id: nextSequentialId('HTL-', HOTEL_BOOKINGS),
-    status: 'requested',
-    options: [],
-    travelerIds: input.travelerIds ?? [],
-    createdAt: DEMO_REFERENCE_DATE,
-    ...input,
-    serviceId
-  }
-  HOTEL_BOOKINGS.push(booking)
-  return booking
 }
 
 /** Guard: `completed`/`cancelled`/`no-show` bersifat terminal — field lain tidak boleh diedit lagi setelahnya, pola sama `FlightBooking.status === 'refunded'` (D-070). */
@@ -2115,37 +2029,6 @@ export const getTransportBookingsByService = (serviceId: string) => TRANSPORT_BO
 export function getTransportBookingMarginIdr (booking: TransportBooking): number | undefined {
   if (booking.netCostIdr === undefined || booking.sellPriceIdr === undefined) { return undefined }
   return booking.sellPriceIdr - booking.netCostIdr
-}
-
-export interface CreateTransportBookingInput {
-  projectId: string
-  serviceId?: string
-  groupId?: string
-  transferType?: TransportBooking['transferType']
-  legs?: TransportLeg[]
-  travelerIds?: string[]
-}
-
-export function createTransportBooking (input: CreateTransportBookingInput): TransportBooking {
-  const serviceId = ensureProjectServiceForBooking({
-    projectId: input.projectId,
-    existingServiceId: input.serviceId,
-    type: 'transportation',
-    label: `Transport ${getProjectById(input.projectId)?.destination ?? ''}`.trim() || 'Transport Booking',
-    status: 'pending-confirmation'
-  })
-  const booking: TransportBooking = {
-    id: nextSequentialId('TRN-', TRANSPORT_BOOKINGS),
-    status: 'requested',
-    options: [],
-    legs: input.legs ?? [],
-    travelerIds: input.travelerIds ?? [],
-    createdAt: DEMO_REFERENCE_DATE,
-    ...input,
-    serviceId
-  }
-  TRANSPORT_BOOKINGS.push(booking)
-  return booking
 }
 
 /** Guard: `completed`/`cancelled`/`no-show` bersifat terminal — field lain tidak boleh diedit lagi setelahnya, pola sama `HotelBooking`/`FlightBooking` (D-070/D-071). */
@@ -2265,40 +2148,6 @@ export function getMiceScheduleConflicts (event: MiceEvent): string[] {
     }
   })
   return conflicts
-}
-
-export interface CreateMiceEventInput {
-  projectId: string
-  serviceId?: string
-  brief?: string
-  venueName?: string
-  venueAddress?: string
-}
-
-export function createMiceEvent (input: CreateMiceEventInput): MiceEvent {
-  const serviceId = ensureProjectServiceForBooking({
-    projectId: input.projectId,
-    existingServiceId: input.serviceId,
-    type: 'mice',
-    label: `MICE ${getProjectById(input.projectId)?.destination ?? ''}`.trim() || 'MICE Event',
-    status: 'pending-confirmation'
-  })
-  const event: MiceEvent = {
-    id: nextSequentialId('MICE-', MICE_EVENTS),
-    status: 'planning',
-    clientApprovalStatus: 'draft',
-    sessions: [],
-    participantCategories: [],
-    boqItems: [],
-    staffAssignments: [],
-    checklist: [],
-    deliverables: [],
-    createdAt: DEMO_REFERENCE_DATE,
-    ...input,
-    serviceId
-  }
-  MICE_EVENTS.push(event)
-  return event
 }
 
 /** Guard: `completed`/`cancelled` bersifat terminal — field lain tidak boleh diedit lagi setelahnya, pola sama section 13-15 (D-070/D-071/D-072). */
@@ -2424,11 +2273,9 @@ export function toggleMiceDeliverable (eventId: string, index: number): MiceEven
  * atas Flight/Hotel/Transport/MICE booking (Section 13-16) — lihat `BookingOrchestrationRecord`/
  * `BookingTimelineEntry` (`app/types/booking-orchestration.ts`) untuk rasional model lengkap. Fully additive:
  * TIDAK ADA field ditambahkan ke `FlightBooking`/`HotelBooking`/`TransportBooking`/`MiceEvent`, dan
- * `createFlightBooking`/`createHotelBooking`/`createTransportBooking`/`createMiceEvent` (Section 13-16,
- * LOCKED) TIDAK disentuh sama sekali — record orchestration dibuat lazily lewat
+ * Pembuatan booking (kini lewat server, `createBookingFromInput`, S4a) TIDAK membuat record — record orchestration dibuat lazily lewat
  * `getOrCreateBookingOrchestrationRecord` di bawah, dipanggil dari `getBookingTimeline` (baca) dan dari titik
- * transisi status/duplicate-flag (tulis) sehingga booking baru yang dibuat lewat UI otomatis tercakup tanpa
- * perlu mengubah 4 fungsi create tsb.
+ * transisi status/duplicate-flag (tulis) sehingga booking baru otomatis tercakup.
  */
 
 export const getBookingOrchestrationRecord = (bookingType: BookingDomain, bookingId: string) =>
@@ -2724,7 +2571,7 @@ export function appendBookingAttempt (orchestrationId: string, outcome: BookingA
   return record
 }
 
-/** "Duplicate booking prevention" (Wajib, hanya Flight/Hotel/Transport — MICE satu event per project, tidak relevan) — status non-terminal per domain dianggap "active"; dipanggil dari dialog create booking `/ticketing`, `/accommodation`, `/transportation` SEBELUM memanggil `createFlightBooking`/`createHotelBooking`/`createTransportBooking`. */
+/** "Duplicate booking prevention" (Wajib, hanya Flight/Hotel/Transport — MICE satu event per project, tidak relevan) — status non-terminal per domain dianggap "active"; dipanggil dari dialog create booking `/ticketing`, `/accommodation`, `/transportation` SEBELUM membuat booking lewat server (`createBookingFromInput`, S4a). */
 const BOOKING_ACTIVE_CHECK_TERMINAL: Record<'flight' | 'hotel' | 'transport', string[]> = {
   flight: ['cancelled', 'refunded'],
   hotel: ['cancelled', 'no-show'],
@@ -2738,7 +2585,7 @@ export function findActiveBookingConflicts (bookingType: 'flight' | 'hotel' | 't
   return TRANSPORT_BOOKINGS.filter(b => b.projectId === projectId && b.serviceId === serviceId && !terminal.includes(b.status)).map(b => b.id)
 }
 
-/** Dipanggil SETELAH `createFlightBooking`/`createHotelBooking`/`createTransportBooking` bila user mengonfirmasi "lanjutkan sebagai duplicate yang disengaja" pada dialog peringatan `findActiveBookingConflicts`. */
+/** Dipanggil SETELAH booking dibuat lewat server (`createBookingFromInput`, S4a) bila user mengonfirmasi "lanjutkan sebagai duplicate yang disengaja" pada dialog peringatan `findActiveBookingConflicts`. */
 export function flagBookingOrchestrationDuplicate (bookingType: BookingDomain, bookingId: string, projectId: string, actorId: string, conflictingBookingIds: string[]): BookingOrchestrationRecord {
   const record = getOrCreateBookingOrchestrationRecord(bookingType, bookingId, projectId)
   record.flaggedDuplicate = true

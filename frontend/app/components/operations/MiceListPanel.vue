@@ -2,7 +2,10 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus, Eye } from 'lucide-vue-next'
-import { MICE_EVENTS, PROJECTS, VENDORS, getProjectById, createMiceEvent, setServiceVendor } from '~/data'
+import { MICE_EVENTS, PROJECTS, VENDORS, getProjectById, setServiceVendor } from '~/data'
+import { createBookingFromInput } from '~/data/bookings-sync'
+import { newIdempotencyKey } from '~/lib/api/client'
+import { isApiError } from '~/lib/api/errors'
 import { MICE_EVENT_STATUSES, MICE_APPROVAL_STATUSES, findStatusOption } from '~/constants/status'
 
 /** Tab "MICE" — Menu Operations > Service Operations (Penyederhanaan 7-Role/Menu). Dulu `/mice` (list),
@@ -11,6 +14,7 @@ import { MICE_EVENT_STATUSES, MICE_APPROVAL_STATUSES, findStatusOption } from '~
 
 const route = useRoute()
 const { canView, canManage } = usePermissions()
+const { showToast } = useToast()
 const canManageMice = computed(() => canManage('mice'))
 
 const searchQuery = ref('')
@@ -59,14 +63,31 @@ function openCreateDialog () {
 // membuka dialog-nya sendiri saat query ini muncul (dulu ke-4 panel share flag yang sama).
 watch(() => route.query.create, (value) => { if (value === '1' && route.hash === '#mice') { openCreateDialog() } }, { immediate: true })
 
-function submitCreate () {
+const api = useApi()
+const isCreating = ref(false)
+/** One Idempotency-Key per opened sheet: a double click does not create two bookings. */
+let createKey = newIdempotencyKey()
+watch(isCreateOpen, (open) => { if (open) { createKey = newIdempotencyKey() } })
+
+async function submitCreate () {
   if (!newProjectId.value) { return }
-  const event = createMiceEvent({
-    projectId: newProjectId.value,
-    serviceId: newServiceId.value || undefined,
-    venueName: newVenueName.value || undefined
-  })
-  if (event.serviceId && newVendorId.value) { setServiceVendor(event.serviceId, newVendorId.value) }
+  if (isCreating.value) { return }
+  isCreating.value = true
+  let event
+  try {
+    event = await createBookingFromInput(api, 'mice', {
+      projectId: newProjectId.value,
+      serviceId: newServiceId.value || undefined,
+      venueName: newVenueName.value || undefined
+    }, createKey)
+  } catch (error) {
+    showToast('Booking Gagal Dibuat', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isCreating.value = false
+  }
+  const serviceId = event.serviceId as string | undefined
+  if (serviceId && newVendorId.value) { setServiceVendor(serviceId, newVendorId.value) }
   isCreateOpen.value = false
   navigateTo(`/mice/${event.id}`)
 }
@@ -118,7 +139,7 @@ function submitCreate () {
             <Button variant="outline" @click="isCreateOpen = false">
               Batal
             </Button>
-            <Button :disabled="!newProjectId" @click="submitCreate">
+            <Button :disabled="!newProjectId || isCreating" @click="submitCreate">
               Simpan
             </Button>
           </SheetFooter>

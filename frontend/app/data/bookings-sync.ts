@@ -1,4 +1,4 @@
-import { PROJECT_SERVICES } from './projects'
+import { PROJECTS, PROJECT_SERVICES } from './projects'
 import { FLIGHT_BOOKINGS } from './ticketing'
 import { HOTEL_BOOKINGS } from './accommodation'
 import { TRANSPORT_BOOKINGS } from './transportation'
@@ -135,11 +135,51 @@ export async function createBookingOnServer (api: CoreApi, type: UiBookingType, 
   return upsertServerBooking(res.data)
 }
 
+const LABEL_PREFIX: Record<UiBookingType, string> = { flight: 'Flight', hotel: 'Hotel', transportation: 'Transport', mice: 'MICE' }
+
+/**
+ * Same input as the former local `create*Booking` / `createMiceEvent`; the service label keeps their rule
+ * ("Flight <destination>"). Everything except project and service travels as `details`.
+ */
+export async function createBookingFromInput (api: CoreApi, type: UiBookingType, input: { projectId: string; serviceId?: string } & Record<string, unknown>, key: string = newIdempotencyKey()): Promise<AnyBooking> {
+  const { projectId, serviceId, ...rest } = input
+  const destination = PROJECTS.find(p => p.id === projectId)?.destination ?? ''
+  const details = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined))
+  return await createBookingOnServer(api, type, { projectId, ...(serviceId ? { serviceId } : {}), label: `${LABEL_PREFIX[type]} ${destination}`.trim(), details }, key)
+}
+
 /** Saves the whole local booking object (details + prices + reference) after a local edit. */
 export async function saveBookingOnServer (api: CoreApi, type: UiBookingType, booking: Record<string, unknown> & { id: string; projectId: string }): Promise<AnyBooking> {
   const res = await api.core.updateBooking(toApiBookingType(type), booking.id, bookingToServer(type, booking))
   await reloadProjectServices(api, booking.projectId)
   return upsertServerBooking(res.data)
+}
+
+/**
+ * Local edit (the existing mutator, with its guards), then save to the server. A refused save puts the
+ * booking and its project's services back as they were. Returns false when the local mutator refused.
+ */
+export async function persistBookingEdit (api: CoreApi, type: UiBookingType, booking: AnyBooking & { projectId: string }, mutate: () => unknown): Promise<boolean> {
+  const snapshot = JSON.parse(JSON.stringify(booking)) as AnyBooking
+  if (mutate() === undefined) { return false }
+  try {
+    await saveBookingOnServer(api, type, booking)
+    return true
+  } catch (error) {
+    for (const k of Object.keys(booking)) {
+      if (!(k in snapshot)) { delete booking[k] }
+    }
+    Object.assign(booking, snapshot)
+    await reloadProjectServices(api, booking.projectId).catch(() => undefined)
+    throw error
+  }
+}
+
+/** The project's services and bookings as the server has them now (e.g. after Finance cancelled one). */
+export async function reloadProjectBookings (api: CoreApi, projectId: string): Promise<void> {
+  const [services, bookings] = await Promise.all([api.core.listProjectServices({ projectId }), api.core.listBookings({ projectId })])
+  for (const s of services.data) { upsertServerService(s) }
+  for (const b of bookings.data) { upsertServerBooking(b) }
 }
 
 export async function changeBookingStatusOnServer (api: CoreApi, type: UiBookingType, id: string, to: string, reason?: string): Promise<BookingDto> {

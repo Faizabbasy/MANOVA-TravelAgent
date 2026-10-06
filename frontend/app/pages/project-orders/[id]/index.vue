@@ -23,7 +23,7 @@ import {
   USERS,
   getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject,
   markGroupTripOrderPaid,
-  VENDORS, createFlightBooking, createHotelBooking, createTransportBooking, createMiceEvent, setServiceVendor,
+  VENDORS, setServiceVendor,
   setBookingPaymentGateStatus,
   getProjectStatusTransitions
 } from '~/data'
@@ -31,6 +31,8 @@ import {
   acceptHandoverOnServer, addTeamMemberOnServer, advanceProjectOrderOnServer, closeFinanceOnServer, patchProjectOnServer,
   reloadProjectFromServer, removeTeamMemberOnServer
 } from '~/data/projects-sync'
+import { createBookingFromInput } from '~/data/bookings-sync'
+import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
 import type { TravelerImportPreviewRow, AttentionQueueItem } from '~/data'
 import type { SalesOrder } from '~/types/sales-order'
@@ -876,28 +878,34 @@ function openCreateBooking (type: ServiceTypeKey) {
   isBookingSheetOpen.value = true
 }
 
-function submitCreateBooking () {
-  if (!project.value) { return }
+const isCreatingBooking = ref(false)
+/** One Idempotency-Key per opened booking sheet: a double click does not create two bookings. */
+let createBookingKey = newIdempotencyKey()
+watch(isBookingSheetOpen, (open) => { if (open) { createBookingKey = newIdempotencyKey() } })
+
+async function submitCreateBooking () {
+  if (!project.value || isCreatingBooking.value) { return }
   const projectId = project.value.id
-  let bookingId: string
-  let serviceId: string | undefined
-  if (bookingSheetType.value === 'flight') {
-    const booking = createFlightBooking({ projectId, ticketingDeadline: bookingTicketingDeadline.value || undefined })
-    bookingId = booking.id
-    serviceId = booking.serviceId
-  } else if (bookingSheetType.value === 'hotel') {
-    const booking = createHotelBooking({ projectId, checkInDate: bookingCheckInDate.value || undefined, checkOutDate: bookingCheckOutDate.value || undefined })
-    bookingId = booking.id
-    serviceId = booking.serviceId
-  } else if (bookingSheetType.value === 'transportation') {
-    const booking = createTransportBooking({ projectId })
-    bookingId = booking.id
-    serviceId = booking.serviceId
-  } else {
-    const event = createMiceEvent({ projectId, venueName: bookingVenueName.value || undefined })
-    bookingId = event.id
-    serviceId = event.serviceId
+  const type = bookingSheetType.value
+  const input: { projectId: string } & Record<string, unknown> = type === 'flight'
+    ? { projectId, ticketingDeadline: bookingTicketingDeadline.value || undefined }
+    : type === 'hotel'
+      ? { projectId, checkInDate: bookingCheckInDate.value || undefined, checkOutDate: bookingCheckOutDate.value || undefined }
+      : type === 'transportation'
+        ? { projectId }
+        : { projectId, venueName: bookingVenueName.value || undefined }
+  isCreatingBooking.value = true
+  let booking
+  try {
+    booking = await createBookingFromInput(financeApi, type, input, createBookingKey)
+  } catch (error) {
+    showToast('Booking Gagal Dibuat', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isCreatingBooking.value = false
   }
+  const bookingId = booking.id
+  const serviceId = booking.serviceId as string | undefined
   if (serviceId && bookingVendorId.value) { setServiceVendor(serviceId, bookingVendorId.value) }
   isBookingSheetOpen.value = false
   showToast(`${BOOKING_SHEET_TITLE[bookingSheetType.value].replace(' Baru', '')} Dibuat`, `${bookingId} tercatat — lihat "Lihat Booking" di baris layanan untuk lengkapi detail.`, 'success')
@@ -3105,7 +3113,7 @@ const tripDurationDays = computed(() => {
                     <Button variant="outline" @click="isBookingSheetOpen = false">
                       Batal
                     </Button>
-                    <Button @click="submitCreateBooking">
+                    <Button :disabled="isCreatingBooking" @click="submitCreateBooking">
                       Simpan
                     </Button>
                   </SheetFooter>

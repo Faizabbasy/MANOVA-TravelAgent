@@ -9,6 +9,8 @@ import {
   VENDORS,
   createCancellationRecord
 } from '~/data'
+import { persistBookingEdit, reloadProjectBookings, runBookingStatusChange } from '~/data/bookings-sync'
+import { isApiError } from '~/lib/api/errors'
 import type { RefundDetailDto, RefundStatusDto } from '~/types/api'
 import { HOTEL_BOOKING_STATUSES, MEAL_PLANS, ROOM_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -88,15 +90,52 @@ function requestStatusChange (newStatus: HotelBookingStatus) {
     return
   }
   if (!booking.value) { return }
-  updateHotelBookingStatus(booking.value.id, newStatus, currentUser.value.id)
-  showToast('Status Diperbarui', `Hotel Booking kini berstatus "${findStatusOption(HOTEL_BOOKING_STATUSES, newStatus).label}".`, 'success')
+  changeStatusOnServer(newStatus)
 }
 
-/** Finance recorded the cancellation (one case, server-side); now move the booking itself to "cancelled". */
+const bookingApi = useApi()
+const isSavingBooking = ref(false)
+const showServerError = (title: string, error: unknown) =>
+  showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+
+/** Server first (S4a); the local mutator then runs only for its side effects (activity log, payment gate). */
+async function changeStatusOnServer (newStatus: HotelBookingStatus, reason?: string): Promise<boolean> {
+  const current = booking.value
+  if (!current || isSavingBooking.value) { return false }
+  isSavingBooking.value = true
+  try {
+    await runBookingStatusChange(bookingApi, 'hotel', current, newStatus, reason, () => updateHotelBookingStatus(current.id, newStatus, currentUser.value.id, reason))
+  } catch (error) {
+    showServerError('Status Gagal Diubah', error)
+    return false
+  } finally {
+    isSavingBooking.value = false
+  }
+  showToast('Status Diperbarui', `Hotel Booking kini berstatus "${findStatusOption(HOTEL_BOOKING_STATUSES, newStatus).label}".`, 'success')
+  return true
+}
+
+/** Local edit + save to the server; a refused save is rolled back and its reason shown. */
+async function saveBookingEdit (mutate: () => unknown): Promise<boolean> {
+  if (!booking.value || isSavingBooking.value) { return false }
+  isSavingBooking.value = true
+  try {
+    return await persistBookingEdit(bookingApi, 'hotel', booking.value as never, mutate)
+  } catch (error) {
+    showServerError('Booking Gagal Disimpan', error)
+    return false
+  } finally {
+    isSavingBooking.value = false
+  }
+}
+
+/** Finance recorded the cancellation (one case, server-side) and the server already cancelled the booking (S4a). */
 const financeCancelOpen = ref(false)
 function onFinanceCancelled ({ refund, reason }: { refund: RefundDetailDto | RefundStatusDto; reason: string }) {
   if (!booking.value) { return }
+  const projectId = booking.value.projectId
   const result = updateHotelBookingStatus(booking.value.id, 'cancelled', currentUser.value.id, reason)
+  reloadProjectBookings(bookingApi, projectId).catch(() => undefined)
   if (!result) {
     showToast('Status booking belum berubah', `Pembatalan sudah tercatat di Finance (${refund.id}), tapi status booking tidak bisa diubah dari status saat ini.`, 'warning')
     return
@@ -112,12 +151,13 @@ function onFinanceCancelled ({ refund, reason }: { refund: RefundDetailDto | Ref
   showToast('Status Diperbarui', `Hotel Booking kini berstatus "${findStatusOption(HOTEL_BOOKING_STATUSES, 'cancelled').label}".`, 'success')
 }
 
-function submitStatusChange () {
+async function submitStatusChange () {
   if (!booking.value || !pendingStatus.value || !statusReason.value.trim()) { return }
   const targetStatus = pendingStatus.value
-  const result = updateHotelBookingStatus(booking.value.id, targetStatus, currentUser.value.id, statusReason.value.trim())
+  const result = booking.value
+  // The dialog stays open when the server refuses (its message is shown as a toast).
+  if (!(await changeStatusOnServer(targetStatus, statusReason.value.trim()))) { return }
   isStatusDialogOpen.value = false
-  if (!result) { return }
   if (CANCELLATION_TRIGGER_STATUSES.includes(targetStatus)) {
     createCancellationRecord({
       projectId: result.projectId,
@@ -129,12 +169,12 @@ function submitStatusChange () {
       refundEligible: cancellationRefundEligible.value
     })
   }
-  showToast('Status Diperbarui', `Hotel Booking kini berstatus "${findStatusOption(HOTEL_BOOKING_STATUSES, targetStatus).label}".`, 'success')
 }
 
 function submitSelectOption (index: number) {
   if (!booking.value) { return }
-  selectHotelOption(booking.value.id, index)
+  const id = booking.value.id
+  saveBookingEdit(() => selectHotelOption(id, index))
 }
 
 /* Edit dialog — whole-form, pola sama Flight Booking (Section 13). */
@@ -189,10 +229,11 @@ function removeOptionRow (index: number) {
   editOptions.value.splice(index, 1)
 }
 
-function submitEdit () {
+async function submitEdit () {
   if (!booking.value) { return }
-  if (booking.value.serviceId) { assignServiceVendor(booking.value.serviceId, editVendorId.value || undefined, editNetCost.value ?? undefined) }
-  updateHotelBooking(booking.value.id, {
+  const id = booking.value.id
+  const serviceId = booking.value.serviceId
+  const saved = await saveBookingEdit(() => updateHotelBooking(id, {
     confirmationNumber: editConfirmationNumber.value.trim() || undefined,
     checkInDate: editCheckInDate.value || undefined,
     checkOutDate: editCheckOutDate.value || undefined,
@@ -207,7 +248,9 @@ function submitEdit () {
     noShowPenaltyIdr: editNoShowPenalty.value ?? undefined,
     travelerIds: editTravelerIds.value,
     options: editOptions.value.filter(option => option.propertyName.trim() && option.roomType.trim() && option.ratePerNightIdr > 0)
-  })
+  }))
+  if (!saved) { return }
+  if (serviceId) { assignServiceVendor(serviceId, editVendorId.value || undefined, editNetCost.value ?? undefined) }
   isEditOpen.value = false
   showToast('Hotel Booking Diperbarui', 'Perubahan berhasil disimpan.', 'success')
 }

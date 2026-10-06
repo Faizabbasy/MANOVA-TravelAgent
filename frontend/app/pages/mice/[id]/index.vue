@@ -10,6 +10,8 @@ import {
   getProjectById, getUserById, USERS, VENDORS, getProjectServiceById, setServiceVendor,
   createCancellationRecord
 } from '~/data'
+import { persistBookingEdit, reloadProjectBookings, runBookingStatusChange } from '~/data/bookings-sync'
+import { isApiError } from '~/lib/api/errors'
 import type { RefundDetailDto, RefundStatusDto } from '~/types/api'
 import { MICE_EVENT_STATUSES, MICE_APPROVAL_STATUSES, MICE_BOQ_CATEGORIES, MICE_CHECKLIST_TASKS, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateTime } from '~/utils/format'
@@ -76,15 +78,52 @@ function requestStatusChange (newStatus: MiceEventStatus) {
     return
   }
   if (!event.value) { return }
-  updateMiceEventStatus(event.value.id, newStatus, currentUser.value.id)
-  showToast('Status Diperbarui', `MICE Event kini berstatus "${findStatusOption(MICE_EVENT_STATUSES, newStatus).label}".`, 'success')
+  changeStatusOnServer(newStatus)
 }
 
-/** Finance recorded the cancellation (one case, server-side); now move the booking itself to "cancelled". */
+const bookingApi = useApi()
+const isSavingBooking = ref(false)
+const showServerError = (title: string, error: unknown) =>
+  showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+
+/** Server first (S4a); the local mutator then runs only for its side effects (activity log, payment gate). */
+async function changeStatusOnServer (newStatus: MiceEventStatus, reason?: string): Promise<boolean> {
+  const current = event.value
+  if (!current || isSavingBooking.value) { return false }
+  isSavingBooking.value = true
+  try {
+    await runBookingStatusChange(bookingApi, 'mice', current, newStatus, reason, () => updateMiceEventStatus(current.id, newStatus, currentUser.value.id, reason))
+  } catch (error) {
+    showServerError('Status Gagal Diubah', error)
+    return false
+  } finally {
+    isSavingBooking.value = false
+  }
+  showToast('Status Diperbarui', `MICE Event kini berstatus "${findStatusOption(MICE_EVENT_STATUSES, newStatus).label}".`, 'success')
+  return true
+}
+
+/** Local edit + save to the server; a refused save is rolled back and its reason shown. */
+async function saveBookingEdit (mutate: () => unknown): Promise<boolean> {
+  if (!event.value || isSavingBooking.value) { return false }
+  isSavingBooking.value = true
+  try {
+    return await persistBookingEdit(bookingApi, 'mice', event.value as never, mutate)
+  } catch (error) {
+    showServerError('MICE Event Gagal Disimpan', error)
+    return false
+  } finally {
+    isSavingBooking.value = false
+  }
+}
+
+/** Finance recorded the cancellation (one case, server-side) and the server already cancelled the event (S4a). */
 const financeCancelOpen = ref(false)
 function onFinanceCancelled ({ refund, reason }: { refund: RefundDetailDto | RefundStatusDto; reason: string }) {
   if (!event.value) { return }
+  const projectId = event.value.projectId
   const result = updateMiceEventStatus(event.value.id, 'cancelled', currentUser.value.id, reason)
+  reloadProjectBookings(bookingApi, projectId).catch(() => undefined)
   if (!result) {
     showToast('Status booking belum berubah', `Pembatalan sudah tercatat di Finance (${refund.id}), tapi status booking tidak bisa diubah dari status saat ini.`, 'warning')
     return
@@ -100,12 +139,13 @@ function onFinanceCancelled ({ refund, reason }: { refund: RefundDetailDto | Ref
   showToast('Status Diperbarui', `MICE Event kini berstatus "${findStatusOption(MICE_EVENT_STATUSES, 'cancelled').label}".`, 'success')
 }
 
-function submitStatusChange () {
+async function submitStatusChange () {
   if (!event.value || !pendingStatus.value || !statusReason.value.trim()) { return }
   const targetStatus = pendingStatus.value
-  const result = updateMiceEventStatus(event.value.id, targetStatus, currentUser.value.id, statusReason.value.trim())
+  const result = event.value
+  // The dialog stays open when the server refuses (its message is shown as a toast).
+  if (!(await changeStatusOnServer(targetStatus, statusReason.value.trim()))) { return }
   isStatusDialogOpen.value = false
-  if (!result) { return }
   if (targetStatus === 'cancelled') {
     createCancellationRecord({
       projectId: result.projectId,
@@ -117,7 +157,6 @@ function submitStatusChange () {
       refundEligible: cancellationRefundEligible.value
     })
   }
-  showToast('Status Diperbarui', `MICE Event kini berstatus "${findStatusOption(MICE_EVENT_STATUSES, targetStatus).label}".`, 'success')
 }
 
 /* Client approval transitions */
@@ -125,7 +164,7 @@ const isApprovalDialogOpen = ref(false)
 const pendingApproval = ref<MiceApprovalStatus | null>(null)
 const approvalNote = ref('')
 
-function requestApprovalChange (newStatus: MiceApprovalStatus) {
+async function requestApprovalChange (newStatus: MiceApprovalStatus) {
   if (newStatus === 'rejected') {
     pendingApproval.value = newStatus
     approvalNote.value = ''
@@ -133,24 +172,30 @@ function requestApprovalChange (newStatus: MiceApprovalStatus) {
     return
   }
   if (!event.value) { return }
-  updateMiceClientApproval(event.value.id, newStatus, currentUser.value.id)
+  const id = event.value.id
+  if (!(await saveBookingEdit(() => updateMiceClientApproval(id, newStatus, currentUser.value.id)))) { return }
   showToast('Client Approval Diperbarui', `Status kini "${findStatusOption(MICE_APPROVAL_STATUSES, newStatus).label}".`, 'success')
 }
 
-function submitApprovalChange () {
+async function submitApprovalChange () {
   if (!event.value || !pendingApproval.value || !approvalNote.value.trim()) { return }
-  const result = updateMiceClientApproval(event.value.id, pendingApproval.value, currentUser.value.id, approvalNote.value.trim())
+  const id = event.value.id
+  const target = pendingApproval.value
+  const result = await saveBookingEdit(() => updateMiceClientApproval(id, target, currentUser.value.id, approvalNote.value.trim()))
+  if (!result) { return }
   isApprovalDialogOpen.value = false
   if (result) { showToast('Client Approval Diperbarui', `Status kini "${findStatusOption(MICE_APPROVAL_STATUSES, pendingApproval.value).label}".`, 'success') }
 }
 
 function submitToggleChecklist (index: number) {
   if (!event.value) { return }
-  toggleMiceChecklistItem(event.value.id, index)
+  const id = event.value.id
+  saveBookingEdit(() => toggleMiceChecklistItem(id, index))
 }
 function submitToggleDeliverable (index: number) {
   if (!event.value) { return }
-  toggleMiceDeliverable(event.value.id, index)
+  const id = event.value.id
+  saveBookingEdit(() => toggleMiceDeliverable(id, index))
 }
 
 /* Edit dialog — info dasar + change order + incident. */
@@ -178,10 +223,11 @@ function openEditDialog () {
   isEditOpen.value = true
 }
 
-function submitEdit () {
+async function submitEdit () {
   if (!event.value) { return }
-  if (event.value.serviceId) { setServiceVendor(event.value.serviceId, editVendorId.value || undefined) }
-  updateMiceEvent(event.value.id, {
+  const id = event.value.id
+  const serviceId = event.value.serviceId
+  if (!(await saveBookingEdit(() => updateMiceEvent(id, {
     brief: editBrief.value.trim() || undefined,
     venueName: editVenueName.value.trim() || undefined,
     venueAddress: editVenueAddress.value.trim() || undefined,
@@ -189,7 +235,8 @@ function submitEdit () {
     changeOrderNote: editChangeOrderNote.value.trim() || undefined,
     hasIncident: editHasIncident.value || undefined,
     incidentNote: editIncidentNote.value.trim() || undefined
-  })
+  })))) { return }
+  if (serviceId) { setServiceVendor(serviceId, editVendorId.value || undefined) }
   isEditOpen.value = false
   showToast('MICE Event Diperbarui', 'Info dasar berhasil disimpan.', 'success')
 }
@@ -208,11 +255,12 @@ function addSessionRow () {
 function removeSessionRow (index: number) {
   editSessions.value.splice(index, 1)
 }
-function submitSessions () {
+async function submitSessions () {
   if (!event.value) { return }
-  updateMiceEvent(event.value.id, {
+  const id = event.value.id
+  if (!(await saveBookingEdit(() => updateMiceEvent(id, {
     sessions: editSessions.value.filter(s => s.roomName.trim() && s.sessionTitle.trim() && s.startAt.trim() && s.endAt.trim())
-  })
+  })))) { return }
   isSessionsOpen.value = false
   showToast('Sessions Diperbarui', 'Perubahan berhasil disimpan.', 'success')
 }
@@ -231,11 +279,12 @@ function addParticipantRow () {
 function removeParticipantRow (index: number) {
   editParticipants.value.splice(index, 1)
 }
-function submitParticipants () {
+async function submitParticipants () {
   if (!event.value) { return }
-  updateMiceEvent(event.value.id, {
+  const id = event.value.id
+  if (!(await saveBookingEdit(() => updateMiceEvent(id, {
     participantCategories: editParticipants.value.filter(p => p.category.trim() && p.expectedCount > 0)
-  })
+  })))) { return }
   isParticipantsOpen.value = false
   showToast('Participant Categories Diperbarui', 'Perubahan berhasil disimpan.', 'success')
 }
@@ -254,11 +303,12 @@ function addBoqRow () {
 function removeBoqRow (index: number) {
   editBoq.value.splice(index, 1)
 }
-function submitBoq () {
+async function submitBoq () {
   if (!event.value) { return }
-  updateMiceEvent(event.value.id, {
+  const id = event.value.id
+  if (!(await saveBookingEdit(() => updateMiceEvent(id, {
     boqItems: editBoq.value.filter(b => b.description.trim() && b.quantity > 0)
-  })
+  })))) { return }
   isBoqOpen.value = false
   showToast('BOQ Diperbarui', 'Perubahan berhasil disimpan.', 'success')
 }
@@ -277,11 +327,12 @@ function addStaffingRow () {
 function removeStaffingRow (index: number) {
   editStaffing.value.splice(index, 1)
 }
-function submitStaffing () {
+async function submitStaffing () {
   if (!event.value) { return }
-  updateMiceEvent(event.value.id, {
+  const id = event.value.id
+  if (!(await saveBookingEdit(() => updateMiceEvent(id, {
     staffAssignments: editStaffing.value.filter(s => s.userId.trim() && s.roleLabel.trim())
-  })
+  })))) { return }
   isStaffingOpen.value = false
   showToast('Staffing Diperbarui', 'Perubahan berhasil disimpan.', 'success')
 }
@@ -290,11 +341,12 @@ function submitStaffing () {
 const isChecklistAddOpen = ref(false)
 const newChecklistTask = ref<MiceChecklistTask>('setup')
 const newChecklistLabel = ref('')
-function submitAddChecklist () {
+async function submitAddChecklist () {
   if (!event.value || !newChecklistLabel.value.trim()) { return }
-  updateMiceEvent(event.value.id, {
+  const id = event.value.id
+  if (!(await saveBookingEdit(() => updateMiceEvent(id, {
     checklist: [...event.value.checklist, { task: newChecklistTask.value, label: newChecklistLabel.value.trim(), isDone: false }]
-  })
+  })))) { return }
   newChecklistLabel.value = ''
   isChecklistAddOpen.value = false
 }
@@ -302,11 +354,12 @@ function submitAddChecklist () {
 /* Quick-add deliverable */
 const isDeliverableAddOpen = ref(false)
 const newDeliverableLabel = ref('')
-function submitAddDeliverable () {
+async function submitAddDeliverable () {
   if (!event.value || !newDeliverableLabel.value.trim()) { return }
-  updateMiceEvent(event.value.id, {
+  const id = event.value.id
+  if (!(await saveBookingEdit(() => updateMiceEvent(id, {
     deliverables: [...event.value.deliverables, { label: newDeliverableLabel.value.trim(), isDelivered: false }]
-  })
+  })))) { return }
   newDeliverableLabel.value = ''
   isDeliverableAddOpen.value = false
 }

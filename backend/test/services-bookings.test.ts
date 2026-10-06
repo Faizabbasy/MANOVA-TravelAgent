@@ -73,7 +73,7 @@ describe('project services', () => {
 describe('bookings', () => {
   const flight = { departureAt: '2026-11-02T07:00' }
   test('create reuses an empty service or makes one; derived departure; idempotent; validation', async () => {
-    const empty = (await call('POST', '/projects/PRJ-104/services', 'admin', { type: 'hotel', label: 'Hotel Bali' }, key())).json.data.id
+    const empty = (await call('POST', '/projects/PRJ-104/services', 'admin', { type: 'hotel', label: 'Hotel Bali', budgetMinor: '80000000' }, key())).json.data.id
     const k = key()
     const body = { projectId: 'PRJ-104', reference: 'CONF-9', sellAmountMinor: '7000000', netCostMinor: '6000000', details: { checkInDate: '2026-11-03', options: [], travelerIds: [], status: 'completed', id: 'HTL-X' } }
     const res = await call('POST', '/bookings/hotel', 'admin', body, k)
@@ -83,7 +83,7 @@ describe('bookings', () => {
     expect(res.json.data.details).toEqual({ checkInDate: '2026-11-03', options: [], travelerIds: [] })
     expect(res.json.data).toMatchObject({ type: 'hotel', projectId: 'PRJ-104', serviceId: empty, status: 'requested', reference: 'CONF-9', sellAmountMinor: '7000000', netCostMinor: '6000000', departureDate: '2026-11-03' })
     const svc = (await call('GET', '/project-services?projectId=PRJ-104', 'admin')).json.data.find((s: { id: string }) => s.id === empty)
-    expect(svc).toMatchObject({ status: 'pending-confirmation', bookingReference: 'CONF-9', hasBookings: true })
+    expect(svc).toMatchObject({ status: 'pending-confirmation', bookingReference: 'CONF-9', hasBookings: true, budgetMinor: '80000000' }) // the budget placeholder is reused, its budget stays
     expect((await call('POST', '/bookings/hotel', 'admin', body, k)).json.data.id).toBe(id)
 
     const made = await call('POST', '/bookings/flight', 'admin', { projectId: 'PRJ-104', label: 'Flight Bali', details: { segments: [flight] } }, key())

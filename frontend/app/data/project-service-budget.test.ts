@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   ensureProjectServiceForBudget, updateProjectServiceBudget,
-  getProjectServices, createHotelBooking
+  getProjectServices
 } from './index'
 import { getServiceTypeSpendBreakdown } from './finance-ext'
 import { registerNewServerProject } from './projects-sync'
@@ -67,31 +67,5 @@ describe('Alokasi budget layanan sebelum ada booking', () => {
     const again = ensureProjectServiceForBudget(project.id, 'hotel', 'Hotel')
     expect(again.id).toBe(hotelPlaceholder.id)
     expect(getProjectServices(project.id)).toHaveLength(1)
-  })
-
-  it('booking sungguhan setelah budget dialokasikan menempel ke baris yang sama, bukan bikin baris baru', () => {
-    const project = createProject({
-      partyId: 'PTY-001',
-      name: 'Test Trip Budget Lalu Booking',
-      destination: 'Lombok, Indonesia',
-      travelStartDate: '2027-02-10',
-      travelEndDate: '2027-02-13',
-      travelerCount: 8,
-      serviceScope: ['hotel'],
-      quotationAmountIdr: 200_000_000
-    })
-    if (!project) { throw new Error('project harus berhasil dibuat') }
-
-    const placeholder = ensureProjectServiceForBudget(project.id, 'hotel', 'Hotel')
-    updateProjectServiceBudget(placeholder.id, 80_000_000)
-
-    // Client baru booking hotel sungguhan belakangan, tanpa memilih serviceId manapun (alur normal form booking).
-    createHotelBooking({ projectId: project.id })
-
-    const services = getProjectServices(project.id)
-    expect(services).toHaveLength(1) // bukan 2 — placeholder di-reuse, bukan dibuat baris baru
-    expect(services[0]!.id).toBe(placeholder.id)
-    expect(services[0]!.status).toBe('pending-confirmation')
-    expect(services[0]!.budgetIdr).toBe(80_000_000) // budget yang sudah diisi tetap menempel
   })
 })
