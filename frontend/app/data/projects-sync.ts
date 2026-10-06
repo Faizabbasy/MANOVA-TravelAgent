@@ -34,9 +34,17 @@ function serverFields (dto: ProjectInternalDto, local?: Project): Partial<Projec
     serviceScope: [...dto.serviceScope],
     travelerCount: dto.travelerCount,
     ownerId: dto.ownerUserId ?? local?.ownerId ?? DEFAULT_OWNER_ID,
-    // Status workflow and team still live in the frontend (S3a): the server value only seeds a new object.
-    teamUserIds: local ? local.teamUserIds : [...dto.teamUserIds],
-    status: local ? local.status : dto.status,
+    // S3b: status, workflow and team are owned by the server.
+    teamUserIds: [...dto.teamUserIds],
+    status: dto.status,
+    handoverAcceptedAt: dto.handoverAcceptedAt ?? undefined,
+    handoverAcceptedBy: dto.handoverAcceptedBy ?? undefined,
+    handoverReturnedAt: dto.handoverReturnedAt ?? undefined,
+    handoverReturnReason: dto.handoverReturnReason ?? undefined,
+    readyAt: dto.readyAt ?? undefined,
+    closedAt: dto.closedAt ?? undefined,
+    closedBy: dto.closedBy ?? undefined,
+    closureChecklist: closureFrom(dto, local),
     quotationAmountIdr: dto.contractValueMinor !== null ? Number(dto.contractValueMinor) : local?.quotationAmountIdr ?? 0,
     tourLeaderName: dto.tourLeaderName ?? undefined,
     tourLeaderPhone: dto.tourLeaderPhone ?? undefined,
@@ -44,6 +52,13 @@ function serverFields (dto: ProjectInternalDto, local?: Project): Partial<Projec
     emergencyContactPhone: dto.emergencyContactPhone ?? undefined,
     meetingPoint: dto.meetingPoint ?? undefined
   }
+}
+
+/** Finance close, final note and feedback come from the server; the other closure flags are still derived locally. */
+function closureFrom (dto: ProjectInternalDto, local?: Project): Project['closureChecklist'] {
+  if (!dto.financeSettledAt && !dto.finalNote && !dto.clientFeedback && !local?.closureChecklist) { return undefined }
+  const base = local?.closureChecklist ?? { financeSettled: false, documentsArchived: false, feedbackCollected: false, assetsReturned: false, servicesCompleted: false, unresolvedIssuesHandled: false, documentsComplete: false }
+  return { ...base, financeSettled: !!dto.financeSettledAt, finalNote: dto.finalNote ?? undefined, clientFeedback: dto.clientFeedback ?? undefined }
 }
 
 /** Updates (in place) or appends one server project. Portal DTOs carry no header fields and are ignored. */

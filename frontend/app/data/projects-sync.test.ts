@@ -99,14 +99,14 @@ describe('patchProjectOnServer', () => {
   })
 })
 
-describe('status dan tim tetap milik frontend di tahap ini (S3a)', () => {
-  it('upsert project yang sudah ada tidak menimpa status dan tim lokal', () => {
+describe('status, alur, dan tim dari server (S3b)', () => {
+  it('status, alur, dan tim diambil dari server; flag closure lokal lain tetap', () => {
     const local = PROJECTS.find(p => p.id === 'PRJ-101')!
     local.status = 'confirmed'
-    local.teamUserIds = ['USR-002', 'USR-003']
-    upsertServerProject(serverProjectDto({ id: 'PRJ-101', status: 'draft', teamUserIds: ['USR-010'] }))
-    expect(local.status).toBe('confirmed')
-    expect(local.teamUserIds).toEqual(['USR-002', 'USR-003'])
+    local.closureChecklist = { financeSettled: false, documentsArchived: true, feedbackCollected: true, assetsReturned: false, servicesCompleted: false, unresolvedIssuesHandled: false, documentsComplete: true }
+    upsertServerProject(serverProjectDto({ id: 'PRJ-101', status: 'completed', teamUserIds: ['USR-010'], readyAt: '2026-07-01', financeSettledAt: '2026-08-01', closedAt: '2026-08-02', closedBy: 'USR-002', finalNote: 'Selesai', handoverAcceptedAt: '2026-06-01', handoverAcceptedBy: 'USR-002' }))
+    expect(local).toMatchObject({ status: 'completed', teamUserIds: ['USR-010'], readyAt: '2026-07-01', closedAt: '2026-08-02', closedBy: 'USR-002', handoverAcceptedAt: '2026-06-01' })
+    expect(local.closureChecklist).toMatchObject({ financeSettled: true, finalNote: 'Selesai', documentsComplete: true, feedbackCollected: true })
   })
 
   it('project yang baru ditambahkan tetap mengambil status dan tim dari server', () => {

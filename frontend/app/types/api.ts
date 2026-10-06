@@ -125,6 +125,18 @@ export interface ProjectInternalDto extends ProjectPortalDto {
   emergencyContactName: string | null
   emergencyContactPhone: string | null
   meetingPoint: string | null
+  /** Project Order workflow (S3b), dates as YYYY-MM-DD. */
+  handoverAcceptedAt: IsoDate | null
+  handoverAcceptedBy: string | null
+  handoverReturnedAt: IsoDate | null
+  handoverReturnReason: string | null
+  readyAt: IsoDate | null
+  financeSettledAt: IsoDate | null
+  financeSettledBy: string | null
+  closedAt: IsoDate | null
+  closedBy: string | null
+  finalNote: string | null
+  clientFeedback: string | null
 }
 
 export type ProjectDto = ProjectPortalDto | ProjectInternalDto

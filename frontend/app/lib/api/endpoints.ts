@@ -104,6 +104,15 @@ export function createManovaApi (client: ApiClient) {
         client.post<ProjectDetailDto>('/projects', input, { idempotencyKey }),
       updateProject: (id: string, input: ProjectPatchInput) => client.patch<ProjectDetailDto>(`/projects/${seg(id)}`, input),
       setContractValue: (id: string, input: ContractValueInput) => client.put<ProjectDetailDto>(`/projects/${seg(id)}/contract-value`, input),
+      acceptHandover: (id: string) => client.post<ProjectDetailDto>(`/projects/${seg(id)}/handover/accept`, {}),
+      returnHandover: (id: string, reason: string) => client.post<ProjectDetailDto>(`/projects/${seg(id)}/handover/return`, { reason }),
+      transitionProject: (id: string, to: ApiProjectStatus, reason?: string) =>
+        client.post<ProjectDetailDto>(`/projects/${seg(id)}/transition`, reason ? { to, reason } : { to }),
+      markProjectReady: (id: string) => client.post<ProjectDetailDto>(`/projects/${seg(id)}/ready`, {}),
+      closeProjectFinance: (id: string) => client.post<ProjectDetailDto>(`/projects/${seg(id)}/finance-close`, {}),
+      closeProject: (id: string, input: { finalNote: string; clientFeedback?: string }) => client.post<ProjectDetailDto>(`/projects/${seg(id)}/close`, input),
+      addProjectMember: (id: string, userId: string) => client.put<ProjectDetailDto>(`/projects/${seg(id)}/members/${seg(userId)}`, {}),
+      removeProjectMember: (id: string, userId: string) => client.delete<ProjectDetailDto>(`/projects/${seg(id)}/members/${seg(userId)}`),
       listParties: (query: PageQuery = {}) => client.getList<PartyDto>('/parties', { query: { ...query } }),
       getParty: (id: string) => client.get<PartyDto>(`/parties/${seg(id)}`),
       createParty: (input: PartyCreateInput, idempotencyKey: string = newIdempotencyKey()) =>

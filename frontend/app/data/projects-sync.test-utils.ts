@@ -27,6 +27,17 @@ export function serverProjectDto (over: Partial<ProjectInternalDto> = {}): Proje
     emergencyContactName: null,
     emergencyContactPhone: null,
     meetingPoint: null,
+    handoverAcceptedAt: null,
+    handoverAcceptedBy: null,
+    handoverReturnedAt: null,
+    handoverReturnReason: null,
+    readyAt: null,
+    financeSettledAt: null,
+    financeSettledBy: null,
+    closedAt: null,
+    closedBy: null,
+    finalNote: null,
+    clientFeedback: null,
     ...over
   }
 }
