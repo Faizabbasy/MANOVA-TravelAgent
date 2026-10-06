@@ -88,4 +88,6 @@ saat ini mengizinkan `cancelled`, ubah status + audit `project.status_changed` (
 ## Di luar lingkup
 
 Layanan + vendor (S4), UI on-hold/kembalikan handover (endpoint ada, UI belum), row scope per anggota tim,
-log aktivitas di server.
+log aktivitas di server. Perubahan status, handover, dan tutup finance kini hanya tercatat di audit server
+(`project.status_changed` beserta alasan) — tab Activity project tidak lagi menampilkannya sampai audit project
+ditampilkan di UI (keputusan review akhir S3b).

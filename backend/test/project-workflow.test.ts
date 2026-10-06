@@ -124,3 +124,42 @@ describe('cancellation through Finance', () => {
     expect((await t.call('GET', `/api/v1/projects/${done}`, { cookie: c.admin })).json.data.status).toBe('completed')
   })
 })
+
+describe('review fixes', () => {
+  test('the handover and Ready gates cannot be bypassed through on-hold or /transition', async () => {
+    const id = await newProject()
+    await act('admin', `${id}/transition`, { to: 'on-hold', reason: 'Tunda' })
+    const skip = await act('admin', `${id}/transition`, { to: 'confirmed' })
+    expect(skip.status).toBe(422)
+    expect(skip.json.error.message).toContain('handover')
+
+    const ready = await newProject()
+    await act('admin', `${ready}/handover/accept`)
+    await act('admin', `${ready}/transition`, { to: 'planning' })
+    await act('admin', `${ready}/transition`, { to: 'confirmed' })
+    const noDp = await act('admin', `${ready}/transition`, { to: 'in-progress' })
+    expect(noDp.status).toBe(422)
+    expect(noDp.json.error.message).toContain('Ready')
+  })
+
+  test('closing the project re-checks the finance blockers added after finance close', async () => {
+    const id = await newProject({ contractValueMinor: '0' })
+    await t.db.query("update projects set status = 'completed', finance_settled_at = now() where id = $1", [id])
+    await t.call('POST', '/api/v1/finance/customer-invoices', { cookie: c.finance, body: { projectId: id, invoiceType: 'final', lines: [{ description: 'Tambahan', amountMinor: '1000000' }], dueDate: '2027-05-01' } })
+    const res = await act('admin', `${id}/close`, { finalNote: 'Selesai' })
+    expect(res.status).toBe(422)
+    expect(res.json.error.message).toContain('draft invoice')
+  })
+
+  test('rejecting a project cancellation case restores the previous project status', async () => {
+    const id = await newProject()
+    const cxl = await t.call('POST', '/api/v1/finance/cancellations', {
+      cookie: c.finance, headers: { 'idempotency-key': `wf-rej-${id}-abcdef` },
+      body: { subjectType: 'project', subjectId: id, reason: 'Salah catat', calculation: 'manual' }
+    })
+    expect((await t.call('GET', `/api/v1/projects/${id}`, { cookie: c.admin })).json.data.status).toBe('cancelled')
+    const rej = await t.call('POST', `/api/v1/finance/refunds/${cxl.json.data.id}/reject`, { cookie: c.finance, body: { reason: 'Kasus dibatalkan, salah input' } })
+    expect(rej.status).toBe(200)
+    expect((await t.call('GET', `/api/v1/projects/${id}`, { cookie: c.admin })).json.data.status).toBe('draft')
+  })
+})

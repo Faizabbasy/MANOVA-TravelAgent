@@ -404,6 +404,20 @@ export async function rejectRefund(tx: Queryable, actor: Actor, id: string, reas
     action: 'finance.refund_rejected', actorUserId: actor.userId, entityType: 'refund', entityId: r.id, requestId, reason,
     before: { status: r.status }, after: { creditNotesVoided: voided.map(v => v.id), billingRestored: restored.map(x => x.id) }
   })
+  // S3b: the project this case cancelled goes back to the status it had before the cancellation.
+  if (subject.type === 'project') {
+    const [prev] = await tx.query<{ status: string }>(
+      `select before->>'status' as status from audit_events
+        where action = 'project.status_changed' and entity_id = $1 and after->>'status' = 'cancelled' order by id desc limit 1`,
+      [subject.projectId]
+    )
+    const restoredStatus = prev?.status
+      ? await tx.query<{ id: string }>("update projects set status = $2, updated_at = now() where id = $1 and status = 'cancelled' returning id", [subject.projectId, prev.status])
+      : []
+    if (prev?.status && restoredStatus.length) {
+      await recordAudit(tx, { action: 'project.status_changed', actorUserId: actor.userId, entityType: 'project', entityId: subject.projectId, requestId, reason, before: { status: 'cancelled' }, after: { status: prev.status } })
+    }
+  }
   return getRefund(tx, r.id, true)
 }
 

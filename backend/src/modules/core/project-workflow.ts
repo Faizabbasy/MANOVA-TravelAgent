@@ -42,7 +42,9 @@ export async function transition(tx: Queryable, actor: Actor, id: string, to: un
   if ((to === 'on-hold' || to === 'cancelled') && !text) throw errors.validation({ reason: ['Alasan wajib diisi untuk On Hold atau Batal.'] })
   const p = await lock(tx, id)
   if (!STATUS_TRANSITIONS[p.status]!.includes(to)) throw rule(`Status tidak bisa berubah dari "${p.status}" ke "${to}".`)
-  if (p.status === 'draft' && to === 'planning' && !p.handover_accepted_at) throw rule('Terima handover dulu sebelum project masuk Planning.')
+  // Gates hold whatever the source status (also when resuming from on-hold).
+  if (['planning', 'confirmed', 'in-progress'].includes(to) && !p.handover_accepted_at) throw rule('Terima handover dulu sebelum project dilanjutkan.')
+  if (to === 'in-progress' && !p.ready_at) throw rule('Project harus Ready dulu (DP ditagih dan diterima Finance) sebelum berangkat.')
   await tx.query('update projects set status = $2, updated_at = now() where id = $1', [id, to])
   await audit(tx, actor, id, requestId, 'project.status_changed', { before: { status: p.status }, after: { status: to }, reason: text || null })
   return p.status
@@ -78,6 +80,9 @@ export async function closeProject(tx: Queryable, actor: Actor, id: string, inpu
   if (p.closed_at) throw rule('Project ini sudah ditutup.')
   if (p.status !== 'completed') throw rule('Project baru bisa ditutup setelah berstatus Completed.')
   if (!p.finance_settled_at) throw rule('Tutup finance project dulu sebelum menutup project.')
+  // Anything billed or owed after the finance close blocks the project close too.
+  const blockers = await projectFinanceBlockers(tx as Db, id)
+  if (blockers.length) throw rule(`Finance project berubah setelah ditutup: ${blockers.join(' ')}`)
   await tx.query('update projects set closed_at = now(), closed_by = $2, final_note = $3, client_feedback = $4, updated_at = now() where id = $1', [id, actor.userId, note, feedback])
   await audit(tx, actor, id, requestId, 'project.closed', { after: { finalNote: note, clientFeedback: feedback } })
 }
