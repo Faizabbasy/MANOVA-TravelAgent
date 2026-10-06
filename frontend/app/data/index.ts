@@ -6122,7 +6122,8 @@ function runTravelRequestMockReview (travelRequest: TravelRequest, actorId: stri
     handedOverTo: reviewerId
   })
 
-  const qualified = qualifyLeadForQuotation(lead.id)
+  // The request belongs to an existing customer (the client's own party), so no new customer is created.
+  const qualified = party ? qualifyLeadForQuotation(lead.id, party.id) : undefined
   if (!qualified) {
     // Pengaman jujur — reviewGate sudah menutupi seluruh field wajib `getLeadMissingQualification`, jalur ini
     // seharusnya tidak pernah tercapai, tapi dicatat sebagai fallback bukan crash bila suatu saat terjadi.
