@@ -160,3 +160,22 @@ describe('bookings', () => {
     expect((await call('PATCH', `/bookings/hotel/${hotel}`, 'admin', { reference: 'X' })).status).toBe(422)
   })
 })
+
+describe('finance cancellation of a booking', () => {
+  test('recording it cancels the booking; rejecting it restores the status; terminal bookings stay as they are', async () => {
+    const id = (await call('POST', '/bookings/hotel', 'admin', { projectId: 'PRJ-205', sellAmountMinor: '8000000', details: { checkInDate: '2026-12-10' } }, key())).json.data.id as string
+    await call('POST', `/bookings/hotel/${id}/status`, 'admin', { to: 'quoted' })
+    await call('POST', `/bookings/hotel/${id}/status`, 'admin', { to: 'confirmed' })
+    const kase = await call('POST', '/finance/cancellations', 'finance', { subjectType: 'hotel', subjectId: id, cancelDate: '2026-10-01', reason: 'Customer batal' }, key())
+    expect(kase.status).toBe(201)
+    const statusOf = async (b: string) => (await call('GET', '/bookings?projectId=PRJ-205&type=hotel', 'admin')).json.data.find((x: { id: string }) => x.id === b).status
+    expect(await statusOf(id)).toBe('cancelled')
+    expect((await call('POST', `/finance/refunds/${kase.json.data.id}/reject`, 'finance', { reason: 'Batal tidak jadi' })).status).toBe(200)
+    expect(await statusOf(id)).toBe('confirmed')
+
+    const done = (await call('POST', '/bookings/hotel', 'admin', { projectId: 'PRJ-205', details: { checkInDate: '2026-12-11' } }, key())).json.data.id as string
+    for (const to of ['quoted', 'confirmed', 'completed']) await call('POST', `/bookings/hotel/${done}/status`, 'admin', { to })
+    expect((await call('POST', '/finance/cancellations', 'finance', { subjectType: 'hotel', subjectId: done, cancelDate: '2026-10-01', reason: 'Klaim' }, key())).status).toBe(201)
+    expect(await statusOf(done)).toBe('completed')
+  })
+})

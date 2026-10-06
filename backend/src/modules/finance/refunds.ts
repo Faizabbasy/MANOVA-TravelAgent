@@ -1,5 +1,7 @@
 import type { Actor } from '../../auth/rbac'
 import { STATUS_TRANSITIONS } from '../core/statuses'
+import { BOOKING_TRANSITIONS } from '../core/booking-rules'
+import { setBookingStatus } from '../core/booking-status'
 import type { Db, Queryable } from '../../db/client'
 import { ID_PATTERN } from '../../http/envelope'
 import { AppError, errors } from '../../http/errors'
@@ -323,6 +325,13 @@ export async function createCancellation(tx: Queryable, actor: Actor, input: Can
       await recordAudit(tx, { action: 'project.status_changed', actorUserId: actor.userId, entityType: 'project', entityId: subject.projectId, requestId, reason, before: { status: p.status }, after: { status: 'cancelled' } })
     }
   }
+  // S4a: a booking-level cancellation also cancels the booking, when its status still allows it.
+  if (subject.type !== 'project') {
+    const [b] = await tx.query<{ status: string }>('select status from booking_refs where booking_type = $1 and booking_id = $2 for update', [subject.type, subject.id])
+    if (b && BOOKING_TRANSITIONS[subject.type][b.status]?.includes('cancelled')) {
+      await setBookingStatus(tx, actor, subject.type, subject.id, b.status, 'cancelled', reason, requestId)
+    }
+  }
   return getRefund(tx, caseId, full)
 }
 
@@ -417,6 +426,16 @@ export async function rejectRefund(tx: Queryable, actor: Actor, id: string, reas
     if (prev?.status && restoredStatus.length) {
       await recordAudit(tx, { action: 'project.status_changed', actorUserId: actor.userId, entityType: 'project', entityId: subject.projectId, requestId, reason, before: { status: 'cancelled' }, after: { status: prev.status } })
     }
+  }
+  // S4a: the booking this case cancelled goes back to the status it had before.
+  if (subject.type !== 'project') {
+    const [prev] = await tx.query<{ status: string }>(
+      `select before->>'status' as status from audit_events
+        where action = 'booking.status_changed' and entity_id = $1 and after->>'type' = $2 and after->>'status' = 'cancelled' order by id desc limit 1`,
+      [subject.id, subject.type]
+    )
+    const [b] = await tx.query<{ status: string }>('select status from booking_refs where booking_type = $1 and booking_id = $2 for update', [subject.type, subject.id])
+    if (prev?.status && b?.status === 'cancelled') await setBookingStatus(tx, actor, subject.type, subject.id, 'cancelled', prev.status, reason, requestId)
   }
   return getRefund(tx, r.id, true)
 }
