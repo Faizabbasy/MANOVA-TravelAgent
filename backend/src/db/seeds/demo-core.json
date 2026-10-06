@@ -334,7 +334,20 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "95000000"
+      "contractValueMinor": "95000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight"
+      ],
+      "travelerCount": 6,
+      "isGroupTrip": false,
+      "leadId": "LED-009",
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-102",
@@ -348,7 +361,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "345000000"
+      "contractValueMinor": "345000000",
+      "characteristic": "high-change",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 18,
+      "isGroupTrip": false,
+      "leadId": "LED-013",
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-103",
@@ -362,7 +389,23 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1400000000"
+      "contractValueMinor": "1400000000",
+      "characteristic": "complex",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation",
+        "mice"
+      ],
+      "travelerCount": 60,
+      "isGroupTrip": false,
+      "leadId": "LED-014",
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-104",
@@ -374,7 +417,20 @@
       "status": "draft",
       "ownerUserId": "USR-002",
       "teamUserIds": [],
-      "contractValueMinor": "60000000"
+      "contractValueMinor": "60000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight"
+      ],
+      "travelerCount": 8,
+      "isGroupTrip": false,
+      "leadId": "LED-018",
+      "sourceQuotationId": "QUO-008",
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-201",
@@ -388,7 +444,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "980000000"
+      "contractValueMinor": "980000000",
+      "characteristic": "high-change",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 45,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": "Sandi Wirawan",
+      "tourLeaderPhone": "0812-7001-1001",
+      "emergencyContactName": "Manova 24/7 Operations",
+      "emergencyContactPhone": "+62 21 5000 1188",
+      "meetingPoint": "Terminal 3 Bandara Soekarno-Hatta, konter check-in grup"
     },
     {
       "id": "PRJ-202",
@@ -402,7 +472,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "460000000"
+      "contractValueMinor": "460000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 24,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": "Reza Pratama",
+      "tourLeaderPhone": "0812-7002-1002",
+      "emergencyContactName": "Manova 24/7 Operations",
+      "emergencyContactPhone": "+62 21 5000 1188",
+      "meetingPoint": "Lobi Hotel Emirates Palace, Abu Dhabi"
     },
     {
       "id": "PRJ-203",
@@ -414,7 +498,20 @@
       "status": "completed",
       "ownerUserId": "USR-002",
       "teamUserIds": [],
-      "contractValueMinor": "165000000"
+      "contractValueMinor": "165000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight"
+      ],
+      "travelerCount": 12,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": "Nadia Kusuma",
+      "tourLeaderPhone": "0812-7003-1003",
+      "emergencyContactName": "Manova 24/7 Operations",
+      "emergencyContactPhone": "+62 21 5000 1188",
+      "meetingPoint": "Lobi Manila Corporate Center"
     },
     {
       "id": "PRJ-204",
@@ -428,7 +525,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "320000000"
+      "contractValueMinor": "320000000",
+      "characteristic": "high-change",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 15,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": "Bagas Aditya",
+      "tourLeaderPhone": "0812-7004-1004",
+      "emergencyContactName": "Manova 24/7 Operations",
+      "emergencyContactPhone": "+62 21 5000 1188",
+      "meetingPoint": "Terminal 3 Bandara Soekarno-Hatta, konter check-in grup"
     },
     {
       "id": "PRJ-205",
@@ -442,7 +553,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "70000000"
+      "contractValueMinor": "70000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "transportation",
+        "hotel"
+      ],
+      "travelerCount": 20,
+      "isGroupTrip": true,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": "Arif Setiawan",
+      "tourLeaderPhone": "0812-7005-1005",
+      "emergencyContactName": "Manova 24/7 Operations",
+      "emergencyContactPhone": "+62 21 5000 1188",
+      "meetingPoint": "Stasiun Probolinggo, titik kumpul peserta"
     },
     {
       "id": "PRJ-301",
@@ -456,7 +581,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "280000000"
+      "contractValueMinor": "280000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 8,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-302",
@@ -470,7 +609,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "820000000"
+      "contractValueMinor": "820000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 55,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-303",
@@ -484,7 +638,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "165000000"
+      "contractValueMinor": "165000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 6,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-304",
@@ -498,7 +666,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1150000000"
+      "contractValueMinor": "1150000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 40,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-305",
@@ -512,7 +695,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1350000000"
+      "contractValueMinor": "1350000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 45,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-306",
@@ -526,7 +724,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "960000000"
+      "contractValueMinor": "960000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 24,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-307",
@@ -540,7 +753,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "310000000"
+      "contractValueMinor": "310000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 10,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-308",
@@ -554,7 +781,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "780000000"
+      "contractValueMinor": "780000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 60,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-309",
@@ -568,7 +810,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1080000000"
+      "contractValueMinor": "1080000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 30,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-310",
@@ -582,7 +839,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "95000000"
+      "contractValueMinor": "95000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 5,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-311",
@@ -596,7 +867,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1450000000"
+      "contractValueMinor": "1450000000",
+      "characteristic": "complex",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "mice"
+      ],
+      "travelerCount": 300,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-312",
@@ -610,7 +896,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1200000000"
+      "contractValueMinor": "1200000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 40,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-313",
@@ -624,7 +925,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1250000000"
+      "contractValueMinor": "1250000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 35,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-314",
@@ -638,7 +954,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "930000000"
+      "contractValueMinor": "930000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 30,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-315",
@@ -652,7 +983,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "70000000"
+      "contractValueMinor": "70000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 4,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-316",
@@ -666,7 +1011,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1600000000"
+      "contractValueMinor": "1600000000",
+      "characteristic": "complex",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "mice"
+      ],
+      "travelerCount": 120,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-317",
@@ -680,7 +1040,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1400000000"
+      "contractValueMinor": "1400000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 45,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-318",
@@ -694,7 +1069,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "420000000"
+      "contractValueMinor": "420000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 12,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-319",
@@ -708,7 +1097,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1500000000"
+      "contractValueMinor": "1500000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 20,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-320",
@@ -722,7 +1126,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "290000000"
+      "contractValueMinor": "290000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 8,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-321",
@@ -736,7 +1154,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "640000000"
+      "contractValueMinor": "640000000",
+      "characteristic": "complex",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "mice"
+      ],
+      "travelerCount": 80,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-322",
@@ -750,7 +1183,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1150000000"
+      "contractValueMinor": "1150000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 28,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-323",
@@ -764,7 +1212,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "120000000"
+      "contractValueMinor": "120000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 6,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-324",
@@ -778,7 +1240,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1700000000"
+      "contractValueMinor": "1700000000",
+      "characteristic": "complex",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "mice"
+      ],
+      "travelerCount": 50,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-325",
@@ -792,7 +1269,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "520000000"
+      "contractValueMinor": "520000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 35,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-326",
@@ -806,7 +1298,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "230000000"
+      "contractValueMinor": "230000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 7,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-327",
@@ -820,7 +1326,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1450000000"
+      "contractValueMinor": "1450000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 45,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-328",
@@ -834,7 +1355,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1650000000"
+      "contractValueMinor": "1650000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 50,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-329",
@@ -848,7 +1384,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "980000000"
+      "contractValueMinor": "980000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 15,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-330",
@@ -862,7 +1413,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "600000000"
+      "contractValueMinor": "600000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 40,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-331",
@@ -876,7 +1442,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1250000000"
+      "contractValueMinor": "1250000000",
+      "characteristic": "complex",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "mice"
+      ],
+      "travelerCount": 90,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-332",
@@ -890,7 +1471,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1200000000"
+      "contractValueMinor": "1200000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 38,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-333",
@@ -904,7 +1500,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1300000000"
+      "contractValueMinor": "1300000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 32,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-334",
@@ -918,7 +1529,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1250000000"
+      "contractValueMinor": "1250000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 40,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-335",
@@ -932,7 +1558,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "340000000"
+      "contractValueMinor": "340000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 9,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-336",
@@ -946,7 +1586,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "380000000"
+      "contractValueMinor": "380000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 6,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-337",
@@ -960,7 +1614,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "900000000"
+      "contractValueMinor": "900000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 70,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-338",
@@ -974,7 +1643,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "450000000"
+      "contractValueMinor": "450000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 12,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-339",
@@ -988,7 +1671,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "260000000"
+      "contractValueMinor": "260000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 10,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-340",
@@ -1002,7 +1699,22 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "1400000000"
+      "contractValueMinor": "1400000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel",
+        "transportation"
+      ],
+      "travelerCount": 45,
+      "isGroupTrip": false,
+      "leadId": null,
+      "sourceQuotationId": null,
+      "tourLeaderName": null,
+      "tourLeaderPhone": null,
+      "emergencyContactName": null,
+      "emergencyContactPhone": null,
+      "meetingPoint": null
     },
     {
       "id": "PRJ-501",
@@ -1016,7 +1728,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "210000000"
+      "contractValueMinor": "210000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "flight",
+        "hotel"
+      ],
+      "travelerCount": 8,
+      "isGroupTrip": false,
+      "leadId": "LED-029",
+      "sourceQuotationId": "QUO-011",
+      "tourLeaderName": "Adi Nugroho",
+      "tourLeaderPhone": "0812-9001-5001",
+      "emergencyContactName": "Manova 24/7 Operations",
+      "emergencyContactPhone": "+62 21 5000 1188",
+      "meetingPoint": "Terminal 3 Bandara Soekarno-Hatta, konter check-in grup"
     },
     {
       "id": "PRJ-502",
@@ -1030,7 +1756,21 @@
       "teamUserIds": [
         "USR-002"
       ],
-      "contractValueMinor": "40000000"
+      "contractValueMinor": "40000000",
+      "characteristic": "normal",
+      "serviceScope": [
+        "transportation",
+        "hotel"
+      ],
+      "travelerCount": 6,
+      "isGroupTrip": true,
+      "leadId": "LED-031",
+      "sourceQuotationId": "QUO-012",
+      "tourLeaderName": "Ilham Ramadhan",
+      "tourLeaderPhone": "0812-9002-5002",
+      "emergencyContactName": "Manova 24/7 Operations",
+      "emergencyContactPhone": "+62 21 5000 1188",
+      "meetingPoint": "Bandara Komodo, Labuan Bajo — titik kumpul peserta"
     }
   ],
   "projectServices": [

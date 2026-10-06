@@ -6,6 +6,7 @@ import type { Db } from '../src/db/client'
 import { checksumOf, loadMigrations, migrateDown, migrateUp, migrationStatus, type Migration } from '../src/db/migrator'
 import { DEMO_CORE, SeedRefusedError, seedDemo } from '../src/db/seed-demo'
 import { makeTestDb } from './helpers'
+import { nextId } from '../src/shared/ids'
 
 /** Derived from the migration files so adding a migration does not rewrite these tests. */
 const ALL_VERSIONS = loadMigrations().map(m => m.version)
@@ -244,6 +245,28 @@ describe('demo seed', () => {
       expect(row).toEqual({ email: 'real.admin@corp.id', role: 'finance', password_hash: 'real-hash' })
     } finally {
       await scratch.cleanup()
+    }
+  })
+
+  test('project operational columns and id sequences follow the seed', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [p] = await db.query<{ characteristic: string; service_scope: string[]; traveler_count: number }>(
+        "select characteristic, service_scope, traveler_count from projects where id = 'PRJ-103'"
+      )
+      const fixture = DEMO_CORE.projects.find(x => x.id === 'PRJ-103')!
+      expect(p).toEqual({ characteristic: fixture.characteristic!, service_scope: fixture.serviceScope!, traveler_count: fixture.travelerCount! })
+      const seq = await db.query<{ prefix: string; last_value: number }>('select prefix, last_value from id_sequences order by prefix')
+      const maxOf = (ids: string[], prefix: string) => Math.max(...ids.filter(id => id.startsWith(prefix)).map(id => Number(id.slice(prefix.length))))
+      expect(seq).toEqual([
+        { prefix: 'PRJ-', last_value: maxOf(DEMO_CORE.projects.map(x => x.id), 'PRJ-') },
+        { prefix: 'PTY-', last_value: maxOf(DEMO_CORE.parties.map(x => x.id), 'PTY-') }
+      ])
+      expect(await nextId(db, 'PRJ-')).toBe(`PRJ-${seq[0]!.last_value + 1}`)
+    } finally {
+      await cleanup()
     }
   })
 

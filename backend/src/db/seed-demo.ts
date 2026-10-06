@@ -1,6 +1,7 @@
 import type { AppEnv } from '../config/env'
 import { hashPassword } from '../auth/password'
 import type { RoleId } from '../auth/rbac'
+import { syncIdSequences } from '../shared/ids'
 import type { Db } from './client'
 import demoCore from './seeds/demo-core.json'
 
@@ -27,6 +28,17 @@ export interface DemoCoreSeed {
     teamUserIds: string[]
     /** Owned by the Project module; minor units as a decimal string. */
     contractValueMinor: string | null
+    characteristic?: 'normal' | 'high-change' | 'complex'
+    serviceScope?: string[]
+    travelerCount?: number
+    isGroupTrip?: boolean
+    leadId?: string | null
+    sourceQuotationId?: string | null
+    tourLeaderName?: string | null
+    tourLeaderPhone?: string | null
+    emergencyContactName?: string | null
+    emergencyContactPhone?: string | null
+    meetingPoint?: string | null
   }[]
   projectServices: { id: string; projectId: string; serviceType: string; vendorId: string | null }[]
   bookingRefs: {
@@ -114,14 +126,27 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
     }
     for (const p of seed.projects) {
       await tx.query(
-        `insert into projects (id, name, party_id, destination, travel_start_date, travel_end_date, status, owner_user_id, provenance, contract_value_minor)
-         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+        `insert into projects (id, name, party_id, destination, travel_start_date, travel_end_date, status, owner_user_id, provenance, contract_value_minor,
+                               characteristic, service_scope, traveler_count, is_group_trip, lead_id, source_quotation_id,
+                               tour_leader_name, tour_leader_phone, emergency_contact_name, emergency_contact_phone, meeting_point)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11,
+                 (select coalesce(array_agg(x), '{}'::text[]) from jsonb_array_elements_text($12::text::jsonb) as x),
+                 $13, $14, $15, $16, $17, $18, $19, $20, $21)
          on conflict (id) do update set name = excluded.name, party_id = excluded.party_id,
            destination = excluded.destination, travel_start_date = excluded.travel_start_date,
            travel_end_date = excluded.travel_end_date, status = excluded.status,
-           owner_user_id = excluded.owner_user_id, contract_value_minor = excluded.contract_value_minor, updated_at = now()
+           owner_user_id = excluded.owner_user_id, contract_value_minor = excluded.contract_value_minor,
+           characteristic = excluded.characteristic, service_scope = excluded.service_scope,
+           traveler_count = excluded.traveler_count, is_group_trip = excluded.is_group_trip,
+           lead_id = excluded.lead_id, source_quotation_id = excluded.source_quotation_id,
+           tour_leader_name = excluded.tour_leader_name, tour_leader_phone = excluded.tour_leader_phone,
+           emergency_contact_name = excluded.emergency_contact_name, emergency_contact_phone = excluded.emergency_contact_phone,
+           meeting_point = excluded.meeting_point, updated_at = now()
          where projects.provenance = 'demo-fixture'`,
-        [p.id, p.name, p.partyId, p.destination, p.travelStartDate, p.travelEndDate, p.status, p.ownerUserId, P, p.contractValueMinor]
+        [p.id, p.name, p.partyId, p.destination, p.travelStartDate, p.travelEndDate, p.status, p.ownerUserId, P, p.contractValueMinor,
+          p.characteristic ?? 'normal', JSON.stringify(p.serviceScope ?? []), p.travelerCount ?? 0, p.isGroupTrip ?? false,
+          p.leadId ?? null, p.sourceQuotationId ?? null, p.tourLeaderName ?? null, p.tourLeaderPhone ?? null,
+          p.emergencyContactName ?? null, p.emergencyContactPhone ?? null, p.meetingPoint ?? null]
       )
       for (const userId of p.teamUserIds) {
         await tx.query('insert into project_members (project_id, user_id) values ($1, $2) on conflict do nothing', [p.id, userId])
@@ -164,6 +189,8 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
         [so.id, so.projectId, so.partyId, so.priceMinor, so.travelerCount, P]
       )
     }
+    // New IDs created through the API must continue after the fixtures (PRJ-341 …).
+    await syncIdSequences(tx)
     await tx.query(
       `insert into audit_events (action, entity_type, details) values ('seed.demo_applied', 'database', $1::text::jsonb)`,
       [JSON.stringify({ source: seed.source, users: seed.users.length, projects: seed.projects.length })]

@@ -93,7 +93,18 @@ const seed: DemoCoreSeed = {
     ownerUserId: p.ownerId ?? null,
     teamUserIds: [...new Set<string>(p.teamUserIds ?? [])].sort(),
     // Project value = accepted quotation amount (the only project-value field in the fixtures).
-    contractValueMinor: minor(p.quotationAmountIdr)
+    contractValueMinor: minor(p.quotationAmountIdr),
+    characteristic: p.characteristic,
+    serviceScope: [...p.serviceScope],
+    travelerCount: p.travelerCount,
+    isGroupTrip: p.isGroupTrip ?? false,
+    leadId: p.leadId ?? null,
+    sourceQuotationId: p.sourceQuotationId ?? null,
+    tourLeaderName: p.tourLeaderName ?? null,
+    tourLeaderPhone: p.tourLeaderPhone ?? null,
+    emergencyContactName: p.emergencyContactName ?? null,
+    emergencyContactPhone: p.emergencyContactPhone ?? null,
+    meetingPoint: p.meetingPoint ?? null
   })),
   projectServices: services,
   bookingRefs: [
