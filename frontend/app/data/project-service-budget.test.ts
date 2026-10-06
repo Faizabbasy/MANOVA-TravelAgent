@@ -1,9 +1,29 @@
 import { describe, it, expect } from 'vitest'
 import {
-  createProject, ensureProjectServiceForBudget, updateProjectServiceBudget,
+  ensureProjectServiceForBudget, updateProjectServiceBudget,
   getProjectServices, createHotelBooking
 } from './index'
 import { getServiceTypeSpendBreakdown } from './finance-ext'
+import { registerNewServerProject } from './projects-sync'
+import { serverProjectDto } from './projects-sync.test-utils'
+import type { Project } from '~/types/project'
+
+/** Project baru seperti hasil `POST /projects` (S3a): dibuat lewat jalur server-merge yang sama dengan UI. */
+let testProjectSeq = 800
+function createProject (input: { partyId?: string; isGroupTrip?: boolean; name: string; destination: string; travelStartDate: string; travelEndDate: string; travelerCount: number; serviceScope: Project['serviceScope']; quotationAmountIdr: number }) {
+  return registerNewServerProject(serverProjectDto({
+    id: `PRJ-${++testProjectSeq}`,
+    partyId: input.isGroupTrip ? 'PTY-009' : input.partyId!,
+    isGroupTrip: !!input.isGroupTrip,
+    name: input.name,
+    destination: input.destination,
+    travelStartDate: input.travelStartDate,
+    travelEndDate: input.travelEndDate,
+    travelerCount: input.travelerCount,
+    serviceScope: input.serviceScope,
+    contractValueMinor: String(input.quotationAmountIdr)
+  }))
+}
 
 /**
  * Regresi: "Edit Budget" (tab Finance, Project Order) sebelum perbaikan ini tidak bisa dipakai untuk project

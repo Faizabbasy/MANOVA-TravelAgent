@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Printer, History, GitCompare } from 'lucide-vue-next'
 import {
   getQuotationById, getLeadById, getPartyById, getLeadsByParty, getQuotationByLead,
-  getUserById, markLeadWon,
+  getUserById,
   createPartyActivity, requestQuotationRevision, getQuotationAttachments, addQuotationAttachment,
   getQuotationComments, addQuotationComment, pushNotification
 } from '~/data'
@@ -76,7 +76,7 @@ function uploadAttachment () {
   showToast('Attachment Ditambahkan', 'Metadata attachment tercatat (mock, bukan file upload nyata).', 'success')
 }
 
-/* --- Approve (reuse markLeadWon, satu langkah — lihat komentar desain di atas) --- */
+/* --- Approve: catat persetujuan client. Project dibuat tim internal lewat server (S3a), bukan dari portal (ADR-006). --- */
 const isApproveDialogOpen = ref(false)
 const approveNote = ref('')
 function submitApprove () {
@@ -88,15 +88,9 @@ function submitApprove () {
     message: `Client menyetujui quotation ini.${approveNote.value.trim() ? ` Catatan: ${approveNote.value.trim()}` : ''}`,
     ownerId: currentUser.value.id
   })
-  const project = markLeadWon(lead.value.id, quotation.value.approvedBy ?? currentUser.value.id)
   approveNote.value = ''
   isApproveDialogOpen.value = false
-  if (!project) {
-    showToast('Quotation Dikonfirmasi', 'Terima kasih — tim kami akan segera memproses selanjutnya.', 'success')
-    return
-  }
-  showToast('Opportunity Won (Mock)', `${project.name} (${project.id}) dibuat otomatis. Lihat di Project Order Anda.`, 'success')
-  router.push(`/client/project-orders/${project.id}`)
+  showToast('Quotation Dikonfirmasi', 'Terima kasih — tim kami akan segera memproses selanjutnya.', 'success')
 }
 
 /* --- Reject (pola sama /client/opportunities/[id], ditambah Notification) --- */

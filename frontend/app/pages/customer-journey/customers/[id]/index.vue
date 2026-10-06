@@ -4,10 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus, Eye } from 'lucide-vue-next'
 import {
   getPartyById, getContactsByParty, getLeadsByParty, getProjectsByParty, getPartyActivities,
-  getDocumentsByParty, getUserById, getQuotationByLead, createProject,
+  getDocumentsByParty, getUserById, getQuotationByLead,
   ensureProjectServiceForBudget, updateProjectServiceBudget,
   getPartyCreditFacility, updatePartyCreditLimit
 } from '~/data'
+import { createProjectOnServer } from '~/data/projects-sync'
+import { newIdempotencyKey } from '~/lib/api/client'
+import { isApiError } from '~/lib/api/errors'
 import { QUOTATION_APPROVAL_STATUSES, PROJECT_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
 import type { StatusOption } from '~/types/common'
@@ -63,7 +66,13 @@ function toggleNewProjectServiceScope (type: ServiceTypeKey) {
   if (index === -1) { newProjectServiceScope.value.push(type) } else { newProjectServiceScope.value.splice(index, 1) }
 }
 
+const api = useApi()
+const isCreatingProject = ref(false)
+/** Satu Idempotency-Key per pengisian form: klik ganda atau kirim ulang tidak membuat dua project. */
+let createProjectKey = newIdempotencyKey()
+
 function resetCreateProjectForm () {
+  createProjectKey = newIdempotencyKey()
   newProjectName.value = ''
   newProjectDestination.value = ''
   newProjectStartDate.value = ''
@@ -88,19 +97,27 @@ const newProjectServiceBudgetsTotal = computed(() =>
   newProjectServiceScope.value.reduce((sum, type) => sum + (newProjectServiceBudgets.value[type] ?? 0), 0)
 )
 
-function submitCreateProject () {
-  if (!party.value || !isNewProjectFormValid.value) { return }
-  const project = createProject({
-    partyId: party.value.id,
-    name: newProjectName.value.trim(),
-    destination: newProjectDestination.value.trim(),
-    travelStartDate: newProjectStartDate.value,
-    travelEndDate: newProjectEndDate.value,
-    travelerCount: newProjectTravelerCount.value!,
-    serviceScope: newProjectServiceScope.value,
-    quotationAmountIdr: newProjectAmountIdr.value!
-  })
-  if (!project) { showToast('Gagal Membuat Project', 'Periksa kembali tanggal dan data yang diisi.', 'error'); return }
+async function submitCreateProject () {
+  if (!party.value || !isNewProjectFormValid.value || isCreatingProject.value) { return }
+  isCreatingProject.value = true
+  let project
+  try {
+    project = await createProjectOnServer(api, {
+      partyId: party.value.id,
+      name: newProjectName.value.trim(),
+      destination: newProjectDestination.value.trim(),
+      travelStartDate: newProjectStartDate.value,
+      travelEndDate: newProjectEndDate.value,
+      travelerCount: newProjectTravelerCount.value!,
+      serviceScope: newProjectServiceScope.value,
+      quotationAmountIdr: newProjectAmountIdr.value!
+    }, createProjectKey)
+  } catch (error) {
+    showToast('Gagal Membuat Project', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isCreatingProject.value = false
+  }
   for (const type of newProjectServiceScope.value) {
     const amount = newProjectServiceBudgets.value[type]
     if (!amount) { continue }
@@ -427,8 +444,8 @@ const TABS: { value: CustomerDetailTab; label: string }[] = [
                     <Button variant="outline" @click="resetCreateProjectForm(); isCreateProjectOpen = false">
                       Batal
                     </Button>
-                    <Button :disabled="!isNewProjectFormValid" @click="submitCreateProject">
-                      Simpan
+                    <Button :disabled="!isNewProjectFormValid || isCreatingProject" @click="submitCreateProject">
+                      {{ isCreatingProject ? 'Menyimpan…' : 'Simpan' }}
                     </Button>
                   </SheetFooter>
                 </SheetContent>

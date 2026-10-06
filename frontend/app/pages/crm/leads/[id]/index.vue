@@ -5,11 +5,13 @@ import { FileX, Plus } from 'lucide-vue-next'
 import {
   getLeadById, getPartyById, getQuotationByLead, getPartyActivitiesByLead, getUserById,
   createQuotation, reviseQuotation, createPartyActivity,
-  getLeadWorkflowStatus, updateQuotationDetails, markLeadWon,
+  getLeadWorkflowStatus, updateQuotationDetails,
   submitQuotationForApproval, approveQuotation, rejectQuotation,
   duplicateQuotationVersion, sendQuotationToClient, withdrawQuotationSubmission,
   getCostSheetsByLead, getCostSheetBreakdown, getUserByClientPartyId
 } from '~/data'
+import { markLeadWonOnServer } from '~/data/projects-sync'
+import { isApiError } from '~/lib/api/errors'
 import {
   LEAD_WORKFLOW_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES,
   QUOTATION_APPROVAL_STATUSES, LEAD_SOURCES, findStatusOption
@@ -207,10 +209,21 @@ function submitWithdraw () {
  * (tidak ada approval Won kedua terpisah dari Management — disederhanakan sejak Opportunity dihapus).
  */
 const isMarkAsWonDialogOpen = ref(false)
+const isMarkingWon = ref(false)
+const wonApi = useApi()
 
-function submitMarkAsWon () {
-  if (!lead.value || !quotation.value || quotation.value.approvalStatus !== 'approved') { return }
-  const project = markLeadWon(lead.value.id, quotation.value.approvedBy ?? currentUser.value.id)
+async function submitMarkAsWon () {
+  if (!lead.value || !quotation.value || quotation.value.approvalStatus !== 'approved' || isMarkingWon.value) { return }
+  isMarkingWon.value = true
+  let project
+  try {
+    project = await markLeadWonOnServer(wonApi, lead.value.id, quotation.value.approvedBy ?? currentUser.value.id)
+  } catch (error) {
+    showToast('Mark as Won Gagal', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isMarkingWon.value = false
+  }
   isMarkAsWonDialogOpen.value = false
   if (!project) {
     showToast('Mark as Won Gagal', 'Data belum lengkap atau lead sudah diproses sebelumnya.', 'error')
@@ -813,7 +826,7 @@ function submitActivity () {
                   <Button variant="outline" @click="isMarkAsWonDialogOpen = false">
                     Batal
                   </Button>
-                  <Button @click="submitMarkAsWon">
+                  <Button :disabled="isMarkingWon" @click="submitMarkAsWon">
                     Mark as Won
                   </Button>
                 </template>

@@ -1,7 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { PROJECTS } from './projects'
 import { getProjectMilestones } from './project-order-workflow'
-import { loadServerProjects, mergeServerProjects, registerNewServerProject, upsertServerProject } from './projects-sync'
+import { createProjectOnServer, loadServerProjects, mergeServerProjects, registerNewServerProject, upsertServerProject } from './projects-sync'
 import { serverProjectDto } from './projects-sync.test-utils'
 
 const original = PROJECTS.map(p => ({ ...p }))
@@ -56,5 +56,28 @@ describe('loadServerProjects', () => {
     const api = { core: { listProjects: async () => { throw new Error('down') } } }
     await expect(loadServerProjects(api as never)).rejects.toThrow('down')
     expect(PROJECTS.map(p => p.id)).toEqual(ids)
+  })
+})
+
+describe('createProjectOnServer', () => {
+  it('mengirim nilai kontrak sebagai minor string dan mendaftarkan hasil server', async () => {
+    const sent: unknown[] = []
+    const api = { core: { createProject: async (input: unknown, key: string) => { sent.push({ input, key }); return { data: serverProjectDto({ id: 'PRJ-341', name: 'Trip Baru' }) } } } }
+    const project = await createProjectOnServer(api as never, {
+      partyId: 'PTY-002', name: 'Trip Baru', destination: 'Bali', travelStartDate: '2027-01-10', travelEndDate: '2027-01-12',
+      travelerCount: 4, serviceScope: ['hotel'], quotationAmountIdr: 150_000_000
+    }, 'key-abc-12345')
+    expect(sent).toEqual([{ input: expect.objectContaining({ partyId: 'PTY-002', contractValueMinor: '150000000', serviceScope: ['hotel'] }), key: 'key-abc-12345' }])
+    expect(project.id).toBe('PRJ-341')
+    expect(PROJECTS.some(p => p.id === 'PRJ-341')).toBe(true)
+  })
+
+  it('error server diteruskan dan tidak ada project lokal yang dibuat', async () => {
+    const count = PROJECTS.length
+    const api = { core: { createProject: async () => { throw new Error('422') } } }
+    await expect(createProjectOnServer(api as never, {
+      partyId: 'PTY-999', name: 'X', destination: 'Y', travelStartDate: '2027-01-10', travelEndDate: '2027-01-12', travelerCount: 1, serviceScope: ['hotel'], quotationAmountIdr: 1
+    }, 'key-abc-67890')).rejects.toThrow('422')
+    expect(PROJECTS.length).toBe(count)
   })
 })

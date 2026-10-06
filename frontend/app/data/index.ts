@@ -1173,7 +1173,7 @@ export function markGroupTripOrderPaid (orderId: string): SalesOrder | undefined
 }
 
 export interface CreateProjectInput {
-  /** Wajib kecuali `isGroupTrip: true` (partyId dipakai Party placeholder sistem, lihat `getOrCreateGroupTripPlaceholderParty`). */
+  /** Wajib kecuali `isGroupTrip: true` (server memakai Party placeholder "MANOVA Group Trip (Internal)", demo: PTY-009). */
   partyId?: string
   isGroupTrip?: boolean
   name: string
@@ -1184,62 +1184,6 @@ export interface CreateProjectInput {
   serviceScope: ServiceTypeKey[]
   quotationAmountIdr: number
   characteristic?: ProjectCharacteristic
-}
-
-const GROUP_TRIP_PLACEHOLDER_PARTY_NAME = 'MANOVA Group Trip (Internal)'
-
-/** Party nominal untuk Project Group Trip B2C — Project jenis ini dibuat SEBELUM ada customer nyata, tapi
- * `Project.partyId` tetap wajib (dipakai invoicing/report lama). Satu Party dibuat sekali lalu dipakai ulang
- * untuk seluruh Group Trip; `partyType: 'individual'` supaya konsisten dikecualikan dari Database Customer
- * (`customer-journey/customers`, filter `partyType !== 'individual'`) — bukan customer sungguhan. */
-function getOrCreateGroupTripPlaceholderParty (): Party {
-  let party = PARTIES.find(p => p.name === GROUP_TRIP_PLACEHOLDER_PARTY_NAME)
-  if (!party) {
-    party = {
-      id: nextSequentialId('PTY-', PARTIES),
-      name: GROUP_TRIP_PLACEHOLDER_PARTY_NAME,
-      partyType: 'individual',
-      lifecycleStatus: 'client',
-      createdAt: DEMO_REFERENCE_DATE
-    }
-    PARTIES.push(party)
-  }
-  return party
-}
-
-/** "Buat Project" manual — untuk customer (Party) yang sudah ada, TANPA lewat Lead/Quotation (beda dari
- * `markLeadWon`, dipakai mis. repeat business langsung). `leadId`/`sourceQuotationId` sengaja dikosongkan —
- * keduanya opsional di `Project`. `isGroupTrip: true` = Group Trip B2C (lihat `joinLeadToGroupProject`),
- * `partyId` diabaikan dan diganti Party placeholder sistem. */
-export function createProject (input: CreateProjectInput): Project | undefined {
-  const party = input.isGroupTrip ? getOrCreateGroupTripPlaceholderParty() : getPartyById(input.partyId ?? '')
-  if (!party) { return undefined }
-  if (!input.name.trim() || !input.destination.trim()) { return undefined }
-  if (!input.travelStartDate || !input.travelEndDate || input.travelStartDate > input.travelEndDate) { return undefined }
-  if (!(input.travelerCount > 0) || !input.serviceScope.length) { return undefined }
-
-  const project: Project = {
-    id: nextSequentialId('PRJ-', PROJECTS),
-    name: input.name.trim(),
-    partyId: party.id,
-    isGroupTrip: input.isGroupTrip || undefined,
-    destination: input.destination.trim(),
-    destinationGeo: resolveDestinationGeo(input.destination.trim()),
-    travelStartDate: input.travelStartDate,
-    travelEndDate: input.travelEndDate,
-    characteristic: input.characteristic ?? 'normal',
-    serviceScope: input.serviceScope,
-    travelerCount: input.travelerCount,
-    ownerId: DEFAULT_PROJECT_OWNER_ID,
-    teamUserIds: [party.accountOwnerId ?? DEFAULT_PROJECT_OWNER_ID],
-    status: 'draft',
-    quotationAmountIdr: input.quotationAmountIdr,
-    budgetIdr: input.quotationAmountIdr,
-    actualCostIdr: 0
-  }
-  PROJECTS.push(project)
-  seedDefaultProjectMilestones(project)
-  return project
 }
 
 /**
@@ -1552,9 +1496,6 @@ export function rejectQuotation (quotationId: string, approverId: string, note: 
   return quotation
 }
 
-/** PM default untuk project hasil konversi Won — belum ada alur assignment PM manual, lihat section report. */
-const DEFAULT_PROJECT_OWNER_ID = 'USR-002'
-
 /**
  * Status workflow AE-facing — lihat `LeadWorkflowStatus` (`app/types/lead.ts`) untuk rasional lengkap.
  * DIRIVASI, bukan field tersimpan (pola sama `getProjectOrderStatus`). Menggantikan
@@ -1576,56 +1517,54 @@ export function getLeadWorkflowStatus (leadId: string): LeadWorkflowStatus | und
 }
 
 /**
- * "Mark as Won" — satu langkah (bukan lagi AE-ajukan→Management-approve terpisah, disederhanakan sejak
- * Opportunity dihapus), digerbangi HANYA `Quotation.approvalStatus === 'approved'`. Guard "duplicate
- * prevention": jika Lead sudah punya `projectId`, kembalikan project yang sudah ada tanpa membuat duplikat.
+ * "Mark as Won" (S3a): the project itself is created on the server (`markLeadWonOnServer`,
+ * `app/data/projects-sync.ts`). `prepareLeadWon` checks the lead/quotation and builds the input;
+ * `applyLeadWon` records the local side effects once the server answered. Duplicate prevention: a lead that
+ * already has `projectId` returns that project.
  */
-export function markLeadWon (leadId: string, approverId: string): Project | undefined {
+export function prepareLeadWon (leadId: string):
+  | { existing: Project }
+  | { input: CreateProjectInput & { leadId: string; sourceQuotationId: string } }
+  | undefined {
   const lead = getLeadById(leadId)
   if (!lead || !lead.partyId) { return undefined }
-  if (lead.projectId) { return getProjectById(lead.projectId) }
+  if (lead.projectId) {
+    const existing = getProjectById(lead.projectId)
+    return existing ? { existing } : undefined
+  }
   if (!lead.quotationId || !lead.destination || !lead.travelStartDate || !lead.travelEndDate || !lead.travelerEstimate) { return undefined }
-
   const quotation = getQuotationById(lead.quotationId)
   if (!quotation || quotation.approvalStatus !== 'approved') { return undefined }
-  const party = getPartyById(lead.partyId)
-  const accountExecutiveId = lead.handedOverTo ?? lead.ownerId
-
-  const project: Project = {
-    id: nextSequentialId('PRJ-', PROJECTS),
-    name: lead.title ?? lead.companyName ?? lead.name,
-    partyId: lead.partyId,
-    leadId: lead.id,
-    sourceQuotationId: quotation.id,
-    destination: lead.destination,
-    destinationGeo: resolveDestinationGeo(lead.destination),
-    travelStartDate: lead.travelStartDate,
-    travelEndDate: lead.travelEndDate,
-    characteristic: 'normal',
-    serviceScope: lead.serviceScope ?? [],
-    travelerCount: lead.travelerEstimate,
-    ownerId: DEFAULT_PROJECT_OWNER_ID,
-    teamUserIds: [accountExecutiveId],
-    status: 'draft',
-    quotationAmountIdr: quotation.amountIdr,
-    budgetIdr: quotation.amountIdr,
-    actualCostIdr: 0
+  if (!lead.serviceScope?.length) { return undefined }
+  return {
+    input: {
+      partyId: lead.partyId,
+      leadId: lead.id,
+      sourceQuotationId: quotation.id,
+      name: lead.title ?? lead.companyName ?? lead.name,
+      destination: lead.destination,
+      travelStartDate: lead.travelStartDate,
+      travelEndDate: lead.travelEndDate,
+      characteristic: 'normal',
+      serviceScope: lead.serviceScope,
+      travelerCount: lead.travelerEstimate,
+      quotationAmountIdr: quotation.amountIdr
+    }
   }
-  PROJECTS.push(project)
-  seedDefaultProjectMilestones(project)
+}
 
+export function applyLeadWon (leadId: string, project: Project, approverId: string): void {
+  const lead = getLeadById(leadId)
+  if (!lead) { return }
   lead.projectId = project.id
-
+  const party = lead.partyId ? getPartyById(lead.partyId) : undefined
+  const accountExecutiveId = lead.handedOverTo ?? lead.ownerId
+  project.budgetIdr = project.quotationAmountIdr
   if (party) {
     if (party.lifecycleStatus === 'prospect') { party.lifecycleStatus = 'client' }
-    // "Account Owner AE": tegaskan ulang AE deal ini sebagai account owner company, konsisten dengan
-    // pengisian awal di `qualifyLeadForQuotation`.
     party.accountOwnerId = accountExecutiveId
-    // Safety-net: akun login Client Portal biasanya sudah dibuat lebih awal di `sendQuotationToClient`.
-    // Idempotent — no-op kalau sudah ada.
     ensureClientLoginAccount(lead, accountExecutiveId)
   }
-
   const approver = getUserById(approverId)
   ACTIVITIES.push({
     id: `ACT-${project.id.replace('PRJ-', '')}1`,
@@ -1635,8 +1574,6 @@ export function markLeadWon (leadId: string, approverId: string): Project | unde
     reviewed: true,
     createdAt: DEMO_REFERENCE_DATE
   })
-
-  return project
 }
 
 /**

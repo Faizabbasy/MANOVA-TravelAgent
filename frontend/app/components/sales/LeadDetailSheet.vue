@@ -10,9 +10,11 @@ import {
   getProjectSeatsAvailable, qualifyGroupTripLead,
   getQuotationByLead, createQuotation, reviseQuotation, updateQuotationDetails,
   submitQuotationForApproval, approveQuotation, rejectQuotation, duplicateQuotationVersion,
-  sendQuotationToClient, withdrawQuotationSubmission, markLeadWon,
+  sendQuotationToClient, withdrawQuotationSubmission,
   getCostSheetsByLead, getCostSheetBreakdown, getUserByClientPartyId
 } from '~/data'
+import { markLeadWonOnServer } from '~/data/projects-sync'
+import { isApiError } from '~/lib/api/errors'
 import {
   LEAD_SOURCES, LEAD_STAGES, LEAD_SERVICE_CATEGORIES, LEAD_URGENCY_LEVELS, SERVICE_TYPES,
   PARTY_ACTIVITY_TYPES, B2C_PRICE_ACCEPTANCE_OPTIONS, B2C_BOOKING_READINESS_OPTIONS, B2C_QUALIFICATION_RESULT_OPTIONS,
@@ -526,10 +528,21 @@ function submitWithdraw () {
  * (tidak ada approval Won kedua terpisah dari Management — disederhanakan sejak Opportunity dihapus).
  */
 const isMarkAsWonDialogOpen = ref(false)
+const isMarkingWon = ref(false)
+const wonApi = useApi()
 
-function submitMarkAsWon () {
-  if (!selectedLead.value || !quotation.value || quotation.value.approvalStatus !== 'approved') { return }
-  const project = markLeadWon(selectedLead.value.id, quotation.value.approvedBy ?? currentUser.value.id)
+async function submitMarkAsWon () {
+  if (!selectedLead.value || !quotation.value || quotation.value.approvalStatus !== 'approved' || isMarkingWon.value) { return }
+  isMarkingWon.value = true
+  let project
+  try {
+    project = await markLeadWonOnServer(wonApi, selectedLead.value.id, quotation.value.approvedBy ?? currentUser.value.id)
+  } catch (error) {
+    showToast('Mark as Won Gagal', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isMarkingWon.value = false
+  }
   isMarkAsWonDialogOpen.value = false
   if (!project) {
     showToast('Mark as Won Gagal', 'Data belum lengkap atau lead sudah diproses sebelumnya.', 'error')
@@ -1511,7 +1524,7 @@ function submitActivity () {
                           <Button variant="outline" @click="isMarkAsWonDialogOpen = false">
                             Batal
                           </Button>
-                          <Button @click="submitMarkAsWon">
+                          <Button :disabled="isMarkingWon" @click="submitMarkAsWon">
                             Mark as Won
                           </Button>
                         </DialogFooter>

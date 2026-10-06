@@ -1,9 +1,10 @@
 import { PROJECTS } from './projects'
 import { resolveDestinationGeo } from './geo'
-import { seedDefaultProjectMilestones } from './index'
+import { applyLeadWon, prepareLeadWon, seedDefaultProjectMilestones, type CreateProjectInput } from './index'
 import type { Project } from '~/types/project'
 import { isInternalProject, type ProjectDto, type ProjectInternalDto } from '~/types/api'
 import type { ManovaApi } from '~/lib/api/endpoints'
+import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
 
 /**
@@ -122,4 +123,39 @@ export function useProjectsSync () {
   }
 
   return { state, load }
+}
+
+function toServerInput (input: CreateProjectInput & { leadId?: string; sourceQuotationId?: string }) {
+  return {
+    name: input.name.trim(),
+    ...(input.isGroupTrip ? { isGroupTrip: true } : { partyId: input.partyId }),
+    destination: input.destination.trim(),
+    travelStartDate: input.travelStartDate,
+    travelEndDate: input.travelEndDate,
+    characteristic: input.characteristic ?? 'normal',
+    serviceScope: input.serviceScope,
+    travelerCount: input.travelerCount,
+    contractValueMinor: String(Math.round(input.quotationAmountIdr)),
+    ...(input.leadId ? { leadId: input.leadId } : {}),
+    ...(input.sourceQuotationId ? { sourceQuotationId: input.sourceQuotationId } : {})
+  }
+}
+
+/** Creates the project on the server (one idempotency key per form fill), then adds it to `PROJECTS`. */
+export async function createProjectOnServer (api: Pick<ManovaApi, 'core'>, input: CreateProjectInput, idempotencyKey: string = newIdempotencyKey()): Promise<Project> {
+  const res = await api.core.createProject(toServerInput(input), idempotencyKey)
+  const project = registerNewServerProject(res.data)
+  project.budgetIdr = input.quotationAmountIdr
+  return project
+}
+
+/** Mark as Won: undefined when the lead/quotation is incomplete; the existing project when already won. */
+export async function markLeadWonOnServer (api: Pick<ManovaApi, 'core'>, leadId: string, approverId: string, idempotencyKey: string = newIdempotencyKey()): Promise<Project | undefined> {
+  const prepared = prepareLeadWon(leadId)
+  if (!prepared) { return undefined }
+  if ('existing' in prepared) { return prepared.existing }
+  const res = await api.core.createProject(toServerInput(prepared.input), idempotencyKey)
+  const project = registerNewServerProject(res.data)
+  applyLeadWon(leadId, project, approverId)
+  return project
 }
