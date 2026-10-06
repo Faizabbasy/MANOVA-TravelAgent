@@ -76,3 +76,16 @@ order vendor tetap lokal (procurement S5, portal ADR-006).
 pertama. Setelah deploy yang membawa migrasi 0019–0021, jalankan sekali `bun run db:seed:demo` di server
 (upsert idempoten) **sebelum** ada yang menambah kontak/produk/dokumen. Tanpa itu, kontak/produk/dokumen demo
 hilang dari UI, dan ID `VCT-`/`VPR-`/`VDOC-` baru bisa bertabrakan dengan fixture (fixture lalu dilewati seed).
+
+## Update 2026-10-07 — Layanan project & booking (S4a)
+
+Layanan project dan booking flight/hotel/transport/MICE kini ditulis lewat API (`POST /projects/:id/services`,
+`PATCH /project-services/:id`, `POST /bookings/:type`, `PATCH /bookings/:type/:id`, `POST /bookings/:type/:id/status`)
+dengan ID `SVC-`/`FLT-`/`HTL-`/`TRN-`/`MICE-` dari `id_sequences` dan capability `project-order.manage-service.<jenis>`.
+`booking_refs` menjadi tabel booking penuh (status, harga net, referensi/PNR, alasan status, `details` JSONB milik UI);
+semua FK Finance tetap. Harga MICE dan tanggal berangkat dihitung server dari `details`. Aturan: status layanan
+mengikuti booking-nya; batal booking yang sudah punya transaksi Finance ditolak (ajukan lewat Finance — pembatalan
+Finance ikut membatalkan booking, dan dikembalikan bila kasusnya ditolak); harga jual tidak boleh di bawah yang sudah
+ditagih; vendor layanan tidak bisa diganti bila sudah ada invoice vendor untuknya. Tetap lokal: quotation vendor,
+service order & supplier invoice otomatis, payment gate & attempt log booking (S4b/S5), log aktivitas project.
+Migrasi 0022 memberi baris lama label & status awal; `db:seed:demo` sekali setelah deploy mengisi nilai aslinya.

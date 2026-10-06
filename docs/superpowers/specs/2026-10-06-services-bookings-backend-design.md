@@ -1,6 +1,6 @@
 # Backend layanan project & booking (S4a) — desain
 
-Tanggal: 6 Oktober 2026 · Branch: `production` · Status: disetujui per bagian di chat, menunggu review spec
+Tanggal: 6 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-06-services-bookings-backend)
 
 Lanjutan S3b (alur project) dan S2 (vendor). S4 dipecah: **S4a** = layanan project + booking 4 jenis (tahap ini);
 **S4b** = quotation vendor, service order otomatis, payment gate & attempt log booking; **S5** = procurement penuh.
