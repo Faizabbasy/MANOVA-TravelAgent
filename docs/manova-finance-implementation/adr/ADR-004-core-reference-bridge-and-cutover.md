@@ -53,3 +53,12 @@ aktivitas per customer); semua pembuatan customer di UI internal (tambah custome
 Trip) lewat server dengan ID `PTY-` dari `id_sequences`. Saat project dibuat dari lead yang di-Won, server
 menaikkan customer `prospect` → `client`. Lead, quotation, dan sales order masih modul frontend (S6); portal
 client tetap mock (ADR-006).
+
+## Update 2026-10-06 — Project Order workflow & team (S3b)
+
+Status project dan alur Project Order (handover, transisi, Ready, tutup finance, tutup project) serta anggota tim
+kini ditulis lewat API (`/api/v1/projects/:id/handover/*`, `/transition`, `/ready`, `/finance-close`, `/close`,
+`/members/:userId`). Server menegakkan aturan yang datanya ada di server (peta transisi, alasan, handover, DP
+diterima sebelum Ready, hambatan Finance sebelum tutup finance); gate berbasis data lokal (traveler, itinerary,
+insiden, booking) tetap di UI. Pembatalan project lewat Finance mengubah status project di transaksi yang sama.
+Layanan + vendor menyusul bersama Booking (S4).

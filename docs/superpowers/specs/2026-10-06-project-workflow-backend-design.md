@@ -1,6 +1,6 @@
 # Backend alur Project Order & tim (S3b) — desain
 
-Tanggal: 6 Oktober 2026 · Branch: `production` · Status: disetujui (brainstorming)
+Tanggal: 6 Oktober 2026 · Branch: `production` · Status: diimplementasikan
 
 Lanjutan S0+S3a (header project) dan S1 (customer). Layanan project + vendor **tidak** di tahap ini — pindah
 bersama Booking (S4), karena layanan dibuat oleh booking yang masih lokal.
