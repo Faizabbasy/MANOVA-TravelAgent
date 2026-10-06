@@ -31,7 +31,7 @@ import {
   acceptHandoverOnServer, addTeamMemberOnServer, advanceProjectOrderOnServer, closeFinanceOnServer, patchProjectOnServer,
   reloadProjectFromServer, removeTeamMemberOnServer
 } from '~/data/projects-sync'
-import { createBookingFromInput } from '~/data/bookings-sync'
+import { assignServiceVendorOnServer, createBookingFromInput, patchServiceOnServer, runServiceWrite } from '~/data/bookings-sync'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
 import type { TravelerImportPreviewRow, AttentionQueueItem } from '~/data'
@@ -906,7 +906,11 @@ async function submitCreateBooking () {
   }
   const bookingId = booking.id
   const serviceId = booking.serviceId as string | undefined
-  if (serviceId && bookingVendorId.value) { setServiceVendor(serviceId, bookingVendorId.value) }
+  if (serviceId && bookingVendorId.value) {
+    const vendorId = bookingVendorId.value
+    await assignServiceVendorOnServer(financeApi, serviceId, vendorId, () => setServiceVendor(serviceId, vendorId))
+      .catch(error => serviceToastError('Vendor Belum Tersimpan', error))
+  }
   isBookingSheetOpen.value = false
   showToast(`${BOOKING_SHEET_TITLE[bookingSheetType.value].replace(' Baru', '')} Dibuat`, `${bookingId} tercatat — lihat "Lihat Booking" di baris layanan untuk lengkapi detail.`, 'success')
 }
@@ -987,10 +991,22 @@ const TONE_BORDER_L: Record<BadgeTone, string> = {
 
 const changedServicesCount = computed(() => services.value.filter(service => service.status === 'changed').length)
 
-function handleServiceStatusChange (serviceId: string, event: Event) {
-  const newStatus = (event.target as HTMLSelectElement).value as ServiceStatus
-  const service = updateServiceStatus(serviceId, newStatus)
-  if (!service) { return }
+const serviceToastError = (title: string, error: unknown) =>
+  showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+
+/** Manual status (services without booking): server first, then the local follow-ups (alerts, supplier invoice). */
+async function handleServiceStatusChange (serviceId: string, event: Event) {
+  const select = event.target as HTMLSelectElement
+  const newStatus = select.value as ServiceStatus
+  let service
+  try {
+    service = await runServiceWrite(() => patchServiceOnServer(financeApi, serviceId, { status: newStatus }), () => updateServiceStatus(serviceId, newStatus))
+  } catch (error) {
+    // Put the select back to the status the server kept.
+    select.value = services.value.find(s => s.id === serviceId)?.status ?? select.value
+    serviceToastError('Status Layanan Gagal Diubah', error)
+    return
+  }
   showToast('Status Layanan Diperbarui', `"${service.label}" kini berstatus "${findStatusOption(SERVICE_STATUSES, newStatus).label}".`)
 }
 
@@ -1517,10 +1533,19 @@ const vendorServiceRows = computed(() => services.value.map(service => ({
   quotations: quotationsForService(service.id)
 })))
 
-function handleAcceptQuotation (quotationId: string) {
-  const quotation = acceptVendorQuotation(quotationId)
+/** Accepting a quotation sets the vendor on the server first; the quotation bookkeeping stays local (S4b). */
+async function handleAcceptQuotation (quotationId: string) {
+  const pending = vendorServiceRows.value.flatMap(row => row.quotations).find(q => q.id === quotationId)
+  if (!pending?.serviceId) { return }
+  let quotation
+  try {
+    await assignServiceVendorOnServer(financeApi, pending.serviceId, pending.vendorId, () => { quotation = acceptVendorQuotation(quotationId) }, { confirm: true })
+  } catch (error) {
+    serviceToastError('Quotation Gagal Diterima', error)
+    return
+  }
   if (!quotation) { return }
-  const vendor = getVendorById(quotation.vendorId)
+  const vendor = getVendorById(pending.vendorId)
   showToast('Quotation Diterima', `${vendor?.name ?? quotation.vendorId} ditugaskan untuk layanan ini.`)
 }
 
@@ -1572,12 +1597,19 @@ function openAssignVendorDialog (service: ProjectService) {
   isAssignVendorDialogOpen.value = true
 }
 
-function submitAssignVendor () {
+async function submitAssignVendor () {
   const service = assignVendorService.value
   if (!service || !assignVendorId.value) { return }
-  const vendorName = getVendorById(assignVendorId.value)?.name ?? assignVendorId.value
+  const vendorId = assignVendorId.value
+  const vendorName = getVendorById(vendorId)?.name ?? vendorId
+  const amount = assignVendorAmountIdr.value ?? undefined
 
-  assignServiceVendor(service.id, assignVendorId.value, assignVendorAmountIdr.value ?? undefined)
+  try {
+    await assignServiceVendorOnServer(financeApi, service.id, vendorId, () => assignServiceVendor(service.id, vendorId, amount), { confirm: !!amount && amount > 0 })
+  } catch (error) {
+    serviceToastError('Vendor Gagal Ditugaskan', error)
+    return
+  }
 
   if (assignVendorAmountIdr.value && assignVendorAmountIdr.value > 0) {
     showToast('Vendor Ditugaskan', `${vendorName} ditugaskan untuk "${service.label}" dengan quotation ${formatCurrencyIdr(assignVendorAmountIdr.value)} — layanan langsung Confirmed. Tagihan vendor dicatat Finance di Utang Vendor.`, 'success')

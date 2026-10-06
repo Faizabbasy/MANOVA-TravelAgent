@@ -4,9 +4,9 @@ import { Search, FolderKanban, AlertTriangle, CheckCircle2, Clock, Plus, Users, 
 import { cn } from '~/lib/utils'
 import {
   PROJECTS, PARTIES, getPartyById, getUserById, getProjectOrderStatus,
-  getTravelers, getSalesOrderById, getProjectSeatsFilled,
-  ensureProjectServiceForBudget, updateProjectServiceBudget
+  getTravelers, getSalesOrderById, getProjectSeatsFilled
 } from '~/data'
+import { allocateServiceBudgetOnServer } from '~/data/bookings-sync'
 import { createProjectOnServer } from '~/data/projects-sync'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
@@ -89,8 +89,8 @@ const newProjectTravelerCount = ref<number | null>(null)
 const newProjectServiceScope = ref<ServiceTypeKey[]>([])
 const newProjectAmountIdr = ref<number | null>(null)
 /** Budget per layanan langsung di form "Buat Project" — muncul begitu chip Service Scope dicentang, opsional,
- * memakai mesin yang sama dengan "Edit Budget" tab Finance (`ensureProjectServiceForBudget`/
- * `updateProjectServiceBudget`, `app/data/index.ts`) supaya tidak perlu bolak-balik ke halaman lain. */
+ * memakai mesin yang sama dengan "Edit Budget" tab Finance (`allocateServiceBudgetOnServer`,
+ * `app/data/bookings-sync.ts`, S4a) supaya tidak perlu bolak-balik ke halaman lain. */
 const newProjectServiceBudgets = ref<Partial<Record<ServiceTypeKey, number | null>>>({})
 
 function toggleNewProjectServiceScope (type: ServiceTypeKey) {
@@ -158,8 +158,12 @@ async function submitCreateProject () {
     const amount = newProjectServiceBudgets.value[type]
     if (!amount) { continue }
     const label = findStatusOption(SERVICE_TYPES, type).label
-    const service = ensureProjectServiceForBudget(project.id, type, label)
-    updateProjectServiceBudget(service.id, amount)
+    // Budgets live on the server (S4a); a failure leaves the project created and names the missing budget.
+    try {
+      await allocateServiceBudgetOnServer(api, project.id, type, label, amount)
+    } catch (error) {
+      showToast('Budget Layanan Belum Tersimpan', `${label}: ${isApiError(error) ? error.message : 'Server belum bisa dihubungi.'}`, 'warning')
+    }
   }
   resetCreateProjectForm()
   isCreateProjectOpen.value = false

@@ -223,3 +223,36 @@ export function useBookingsSync () {
 
   return { state, load }
 }
+
+/** Service write: the server decides; local follow-ups (service order, supplier invoice, alerts) run only after it agreed. */
+export async function runServiceWrite<T> (serverCall: () => Promise<T>, localSideEffects?: () => unknown): Promise<T> {
+  const result = await serverCall()
+  localSideEffects?.()
+  return result
+}
+
+const serviceHasBooking = (serviceId: string) => Object.values(ARRAYS).some(list => list.some(b => b.serviceId === serviceId))
+
+/**
+ * Vendor choice (quick assignment or accepted quotation): the server sets the vendor (and `confirmed` for a
+ * service without booking — one with a booking follows its booking), local follow-ups run (quotations,
+ * service order, supplier invoice), then the server's version of the service wins.
+ */
+export async function assignServiceVendorOnServer (api: CoreApi, serviceId: string, vendorId: string | undefined, localSideEffects: () => unknown, opts: { confirm?: boolean } = {}): Promise<ProjectService> {
+  const input: ServicePatchInput = { vendorId: vendorId ?? null }
+  if (opts.confirm && !serviceHasBooking(serviceId)) { input.status = 'confirmed' }
+  const dto = (await api.core.updateProjectService(serviceId, input)).data
+  localSideEffects()
+  return upsertServerService(dto)
+}
+
+/**
+ * Budget per service type (new project form): the project's existing service of that type gets the budget,
+ * otherwise a service is created with it — the rule of the former local `ensureProjectServiceForBudget`.
+ */
+export async function allocateServiceBudgetOnServer (api: CoreApi, projectId: string, type: ProjectService['type'], label: string, amountIdr: number, key: string = newIdempotencyKey()): Promise<ProjectService> {
+  const budgetMinor = String(Math.round(amountIdr))
+  const existing = PROJECT_SERVICES.find(s => s.projectId === projectId && s.type === type)
+  if (existing) { return await patchServiceOnServer(api, existing.id, { budgetMinor }) }
+  return await createServiceOnServer(api, projectId, { type, label, budgetMinor }, key)
+}

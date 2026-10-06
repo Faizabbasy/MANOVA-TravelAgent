@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus, Eye } from 'lucide-vue-next'
 import { TRANSPORT_BOOKINGS, PROJECTS, VENDORS, getProjectById, setServiceVendor, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
-import { createBookingFromInput } from '~/data/bookings-sync'
+import { assignServiceVendorOnServer, createBookingFromInput } from '~/data/bookings-sync'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
 import { TRANSPORT_BOOKING_STATUSES, findStatusOption } from '~/constants/status'
@@ -110,7 +110,11 @@ async function performCreate () {
     isCreating.value = false
   }
   const serviceId = booking.serviceId as string | undefined
-  if (serviceId && newVendorId.value) { setServiceVendor(serviceId, newVendorId.value) }
+  if (serviceId && newVendorId.value) {
+    const vendorId = newVendorId.value
+    await assignServiceVendorOnServer(api, serviceId, vendorId, () => setServiceVendor(serviceId, vendorId))
+      .catch(error => showToast('Vendor Belum Tersimpan', isApiError(error) ? error.message : 'Booking sudah dibuat, tapi vendor belum tersimpan di server.', 'warning'))
+  }
   if (duplicateConflictIds.value.length > 0) {
     flagBookingOrchestrationDuplicate('transport', booking.id, String(booking.projectId), currentUser.value.id, duplicateConflictIds.value)
     showToast('Transport Booking Dibuat (Duplicate)', 'Ditandai sebagai duplicate booking yang disengaja — tercatat di Activity & Changes project terkait.', 'success')

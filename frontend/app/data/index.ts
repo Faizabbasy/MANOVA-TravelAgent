@@ -1613,32 +1613,6 @@ export function updateServiceStatus (serviceId: string, newStatus: ServiceStatus
 
 export const getProjectServiceById = (id: string) => PROJECT_SERVICES.find(service => service.id === id)
 
-/** Placeholder row untuk alokasi budget upfront (split budget project ke layanan sebelum ada booking apa pun)
- * — reuse baris existing kalau tipe ini sudah punya minimal 1 ProjectService (termasuk placeholder lama),
- * else bikin baris baru status 'not-started' (sama pola reuse layanan kosong saat booking dibuat — kini di server, S4a, TIDAK ada struktur
- * budget paralel di Project). */
-export function ensureProjectServiceForBudget (projectId: string, type: ServiceTypeKey, label: string): ProjectService {
-  const existing = PROJECT_SERVICES.find(service => service.projectId === projectId && service.type === type)
-  if (existing) { return existing }
-  const service: ProjectService = {
-    id: nextSequentialId('SVC-', PROJECT_SERVICES),
-    projectId,
-    type,
-    label,
-    status: 'not-started'
-  }
-  PROJECT_SERVICES.push(service)
-  return service
-}
-
-/** "Pengeluaran per Layanan" (tab Finance) — alokasi budget manual per baris `ProjectService`, dijumlahkan per tipe di `getServiceTypeSpendBreakdown` (`app/data/finance-ext.ts`). Pola mutasi sama persis `updateServiceStatus`. */
-export function updateProjectServiceBudget (serviceId: string, budgetIdr: number) {
-  const service = PROJECT_SERVICES.find(item => item.id === serviceId)
-  if (!service) { return undefined }
-  service.budgetIdr = budgetIdr
-  return service
-}
-
 /** Assign vendor ke ProjectService langsung dari form booking (docs — vendor sync), tanpa lewat alur RFQ/Quotation. */
 export function setServiceVendor (serviceId: string, vendorId: string | undefined): ProjectService | undefined {
   const service = PROJECT_SERVICES.find(item => item.id === serviceId)
@@ -1819,10 +1793,6 @@ export const getFlightBookingById = (id: string) => FLIGHT_BOOKINGS.find(booking
 export const getFlightBookingsByProject = (projectId: string) => FLIGHT_BOOKINGS
   .filter(booking => booking.projectId === projectId)
   .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-/** Auto-link booking ↔ ProjectService (docs/superpowers/specs/2026-08-05-project-service-booking-sync-design.md).
- * Reuse baris existing kalau `existingServiceId` valid; kalau tidak, reuse placeholder tipe sama yang belum
- * pernah dibooking (mis. dibuat lewat `ensureProjectServiceForBudget` untuk alokasi budget upfront) supaya
- * budget yang sudah diisi tidak terpisah dari booking sungguhan; else baru bikin baris baru. */
 
 export const getFlightBookingsByService = (serviceId: string) => FLIGHT_BOOKINGS.filter(booking => booking.serviceId === serviceId)
 

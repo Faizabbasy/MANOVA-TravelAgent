@@ -10,7 +10,7 @@ import {
   getProjectById, getUserById, USERS, VENDORS, getProjectServiceById, setServiceVendor,
   createCancellationRecord
 } from '~/data'
-import { persistBookingEdit, reloadProjectBookings, runBookingStatusChange } from '~/data/bookings-sync'
+import { assignServiceVendorOnServer, persistBookingEdit, reloadProjectBookings, runBookingStatusChange } from '~/data/bookings-sync'
 import { isApiError } from '~/lib/api/errors'
 import type { RefundDetailDto, RefundStatusDto } from '~/types/api'
 import { MICE_EVENT_STATUSES, MICE_APPROVAL_STATUSES, MICE_BOQ_CATEGORIES, MICE_CHECKLIST_TASKS, findStatusOption } from '~/constants/status'
@@ -236,7 +236,15 @@ async function submitEdit () {
     hasIncident: editHasIncident.value || undefined,
     incidentNote: editIncidentNote.value.trim() || undefined
   })))) { return }
-  if (serviceId) { setServiceVendor(serviceId, editVendorId.value || undefined) }
+  if (serviceId) {
+    const vendorId = editVendorId.value || undefined
+    try {
+      await assignServiceVendorOnServer(bookingApi, serviceId, vendorId, () => setServiceVendor(serviceId, vendorId))
+    } catch (error) {
+      showServerError('Vendor Gagal Disimpan', error)
+      return
+    }
+  }
   isEditOpen.value = false
   showToast('MICE Event Diperbarui', 'Info dasar berhasil disimpan.', 'success')
 }

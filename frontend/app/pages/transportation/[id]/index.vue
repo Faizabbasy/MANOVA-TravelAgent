@@ -9,7 +9,7 @@ import {
   VENDORS,
   createCancellationRecord
 } from '~/data'
-import { persistBookingEdit, reloadProjectBookings, runBookingStatusChange } from '~/data/bookings-sync'
+import { assignServiceVendorOnServer, persistBookingEdit, reloadProjectBookings, runBookingStatusChange } from '~/data/bookings-sync'
 import { isApiError } from '~/lib/api/errors'
 import type { RefundDetailDto, RefundStatusDto } from '~/types/api'
 import { TRANSPORT_BOOKING_STATUSES, VEHICLE_TYPES, findStatusOption } from '~/constants/status'
@@ -257,7 +257,16 @@ async function submitEdit () {
     legs: editLegs.value.filter(leg => leg.pickupLocation.trim() && leg.dropoffLocation.trim() && leg.scheduledAt.trim())
   }))
   if (!saved) { return }
-  if (serviceId) { assignServiceVendor(serviceId, editVendorId.value || undefined, editNetCost.value ?? undefined) }
+  if (serviceId) {
+    const vendorId = editVendorId.value || undefined
+    const amount = editNetCost.value ?? undefined
+    try {
+      await assignServiceVendorOnServer(bookingApi, serviceId, vendorId, () => assignServiceVendor(serviceId, vendorId, amount), { confirm: !!vendorId && !!amount && amount > 0 })
+    } catch (error) {
+      showServerError('Vendor Gagal Disimpan', error)
+      return
+    }
+  }
   isEditOpen.value = false
   showToast('Transport Booking Diperbarui', 'Perubahan berhasil disimpan.', 'success')
 }

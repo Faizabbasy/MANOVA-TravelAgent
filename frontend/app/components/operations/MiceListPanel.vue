@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus, Eye } from 'lucide-vue-next'
 import { MICE_EVENTS, PROJECTS, VENDORS, getProjectById, setServiceVendor } from '~/data'
-import { createBookingFromInput } from '~/data/bookings-sync'
+import { assignServiceVendorOnServer, createBookingFromInput } from '~/data/bookings-sync'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
 import { MICE_EVENT_STATUSES, MICE_APPROVAL_STATUSES, findStatusOption } from '~/constants/status'
@@ -87,7 +87,11 @@ async function submitCreate () {
     isCreating.value = false
   }
   const serviceId = event.serviceId as string | undefined
-  if (serviceId && newVendorId.value) { setServiceVendor(serviceId, newVendorId.value) }
+  if (serviceId && newVendorId.value) {
+    const vendorId = newVendorId.value
+    await assignServiceVendorOnServer(api, serviceId, vendorId, () => setServiceVendor(serviceId, vendorId))
+      .catch(error => showToast('Vendor Belum Tersimpan', isApiError(error) ? error.message : 'Booking sudah dibuat, tapi vendor belum tersimpan di server.', 'warning'))
+  }
   isCreateOpen.value = false
   navigateTo(`/mice/${event.id}`)
 }
