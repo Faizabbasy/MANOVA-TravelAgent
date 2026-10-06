@@ -1,8 +1,10 @@
 import { Elysia, t } from 'elysia'
 import type { AppDeps } from '../../app-deps'
 import type { AuthContext } from '../../auth/context'
-import { assertIdParam, ID_PATTERN, ok, okList, paginate, parsePageQuery } from '../../http/envelope'
+import { assertIdParam, ID_PATTERN, ok, okList, paginate, parsePageQuery, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
+import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
+import { createProject, updateProject } from './project-writes'
 import {
   BOOKING_TYPES,
   getBookingRef,
@@ -19,9 +21,8 @@ import {
 import { canListParties, canListVendors, isPortalActor } from './scope'
 
 /**
- * Core reference reads (Phase 1). Read-only on purpose: Project/Party/Vendor/Booking are still operated
- * by their own modules; finance only needs to resolve and scope these IDs. Out-of-scope IDs return 404
- * exactly like missing ones.
+ * Core references. Reads for every module; project header writes (S3a) — status, team and services stay in
+ * the frontend until their stage moves. Out-of-scope IDs return 404 exactly like missing ones.
  */
 
 const pageQuery = {
@@ -54,6 +55,22 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       if (!project) throw errors.notFound('Project')
       return ok(request, project)
     })
+    .post('/projects', async ({ request, body, set }) => {
+      const actor = await auth.requireCapability(request, 'project-order.manage-operations')
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /projects', key, body }, async tx =>
+        createProject(tx, actor, body as Parameters<typeof createProject>[2], requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await getProject(db, actor, result.data.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .patch('/projects/:id', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'project-order.manage-operations')
+      const id = assertIdParam(params.id, 'Project')
+      if (!(await getProject(db, actor, id))) throw errors.notFound('Project')
+      await db.transaction(tx => updateProject(tx, actor, id, body as Parameters<typeof updateProject>[3], requestIdOf(request)))
+      return ok(request, await getProject(db, actor, id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
     .get(
       '/parties',
       async ({ request, query }) => {

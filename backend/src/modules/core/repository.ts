@@ -26,6 +26,17 @@ interface ProjectRow extends Record<string, unknown> {
   provenance: string
   contract_value_minor: string | null
   contract_currency: string
+  characteristic: string
+  service_scope: string[]
+  traveler_count: number
+  is_group_trip: boolean
+  lead_id: string | null
+  source_quotation_id: string | null
+  tour_leader_name: string | null
+  tour_leader_phone: string | null
+  emergency_contact_name: string | null
+  emergency_contact_phone: string | null
+  meeting_point: string | null
 }
 
 export interface ProjectPortalView {
@@ -46,6 +57,17 @@ export interface ProjectInternalView extends ProjectPortalView {
   /** Owned by the Project module. Null when not set, or when the role may not see commercial figures. */
   contractValueMinor: string | null
   contractCurrency: string
+  characteristic: string
+  serviceScope: string[]
+  travelerCount: number
+  isGroupTrip: boolean
+  leadId: string | null
+  sourceQuotationId: string | null
+  tourLeaderName: string | null
+  tourLeaderPhone: string | null
+  emergencyContactName: string | null
+  emergencyContactPhone: string | null
+  meetingPoint: string | null
 }
 
 function projectView(actor: Actor, r: ProjectRow): ProjectPortalView | ProjectInternalView {
@@ -66,7 +88,18 @@ function projectView(actor: Actor, r: ProjectRow): ProjectPortalView | ProjectIn
     teamUserIds: r.team_user_ids ?? [],
     provenance: r.provenance,
     contractValueMinor: canSeeCommercials(actor) ? r.contract_value_minor : null,
-    contractCurrency: r.contract_currency
+    contractCurrency: r.contract_currency,
+    characteristic: r.characteristic,
+    serviceScope: r.service_scope ?? [],
+    travelerCount: r.traveler_count,
+    isGroupTrip: r.is_group_trip,
+    leadId: r.lead_id,
+    sourceQuotationId: r.source_quotation_id,
+    tourLeaderName: r.tour_leader_name,
+    tourLeaderPhone: r.tour_leader_phone,
+    emergencyContactName: r.emergency_contact_name,
+    emergencyContactPhone: r.emergency_contact_phone,
+    meetingPoint: r.meeting_point
   }
 }
 
@@ -78,6 +111,8 @@ function canSeeCommercials(actor: Actor): boolean {
 const PROJECT_SELECT = `
   select p.id, p.name, p.party_id, pa.name as party_name, p.destination, p.travel_start_date, p.travel_end_date,
          p.status, p.owner_user_id, p.provenance, p.contract_value_minor, p.contract_currency,
+         p.characteristic, p.service_scope, p.traveler_count, p.is_group_trip, p.lead_id, p.source_quotation_id,
+         p.tour_leader_name, p.tour_leader_phone, p.emergency_contact_name, p.emergency_contact_phone, p.meeting_point,
          (select array_agg(pm.user_id order by pm.user_id) from project_members pm where pm.project_id = p.id) as team_user_ids
     from projects p
     join parties pa on pa.id = p.party_id`
