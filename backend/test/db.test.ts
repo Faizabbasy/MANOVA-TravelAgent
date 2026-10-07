@@ -359,6 +359,27 @@ describe('demo seed', () => {
     }
   })
 
+  test('quotations, service order status and booking attempts exist after 0023', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [so] = await db.query<{ status: string; line_items: unknown }>("select status, line_items from service_orders where id = 'SO-101F'")
+      expect(typeof so!.status).toBe('string')
+      expect(Array.isArray(so!.line_items)).toBe(true)
+      await expect(db.query("update service_orders set status = 'lost' where id = 'SO-101F'")).rejects.toThrow()
+      await db.query("insert into vendor_quotations (id, vendor_id, project_id, service_id, service_type, amount_minor, submitted_on) values ('VQ-T1', 'VND-001', 'PRJ-101', 'SVC-1011', 'flight', 1000, '2026-10-01')")
+      await expect(db.query("insert into vendor_quotations (id, vendor_id, project_id, service_id, service_type, amount_minor, submitted_on) values ('VQ-T2', 'VND-001', 'PRJ-102', 'SVC-1011', 'flight', 1000, '2026-10-01')")).rejects.toThrow() // service of another project
+      await expect(db.query("insert into vendor_quotations (id, vendor_id, project_id, service_type, amount_minor, submitted_on) values ('VQ-T3', 'VND-001', 'PRJ-101', 'flight', 0, '2026-10-01')")).rejects.toThrow() // amount > 0
+      await db.query("insert into booking_attempts (id, booking_type, booking_id, outcome) values ('BAT-T1', 'flight', 'FLT-1011', 'failed')")
+      await expect(db.query("insert into booking_attempts (id, booking_type, booking_id, outcome) values ('BAT-T2', 'flight', 'FLT-1011', 'maybe')")).rejects.toThrow()
+      const seqs = await db.query<{ prefix: string }>("select prefix from id_sequences where prefix in ('VQ-','SO-','BAT-') order by prefix")
+      expect(seqs.map(s => s.prefix)).toEqual(['BAT-', 'SO-', 'VQ-'])
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('carries operational reference values only — no finance records (invoices, payments, balances)', () => {
     const keys = new Set<string>()
     const detailKeys = new Set<string>()
