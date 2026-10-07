@@ -380,6 +380,25 @@ describe('demo seed', () => {
     }
   })
 
+  test('a Group Trip booking whose DP Finance confirmed before S6b becomes paid, and a re-seed keeps it', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db, { to: 25 })
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      // A participant invoice issued by the pre-S6b confirm-dp (order status was not touched then).
+      await db.query(
+        `insert into customer_invoices (id, project_id, party_id, sales_order_id, invoice_type, status, total_minor, issue_date, due_date, created_by, number, issued_at)
+         values ('CINV-T1', 'PRJ-205', 'PTY-011', 'SLO-007', 'dp', 'issued', 3500000, '2026-08-20', '2026-09-01', 'USR-001', 'INV-T-1', now())`)
+      await migrateUp(db)
+      const [so] = await db.query<{ status: string; paid_on: string }>("select status, paid_on::text as paid_on from sales_order_refs where id = 'SLO-007'")
+      expect(so).toEqual({ status: 'paid', paid_on: '2026-08-20' })
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ status: string }>("select status from sales_order_refs where id = 'SLO-007'"))[0]!.status).toBe('paid')
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('all demo sales orders are seeded with status; a re-seed keeps statuses the API changed', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
