@@ -7,7 +7,7 @@ import {
   updateServiceOrderStatus, getServiceOrderStatusTransitions, amendServiceOrder,
   getProjectById, getVendorById
 } from '~/data'
-import { isServerServiceOrder, runServiceOrderStatusChange } from '~/data/procurement-sync'
+import { isServerServiceOrder, reloadServiceOrder, runServiceOrderStatusChange } from '~/data/procurement-sync'
 import { isApiError } from '~/lib/api/errors'
 import { SERVICE_ORDER_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -55,6 +55,12 @@ const summaryMetadata = computed(() => {
 const isCancelDialogOpen = ref(false)
 const cancelReason = ref('')
 const soApi = useApi()
+// S5: Finance may have recorded or reviewed a vendor invoice since the app loaded — take the order fresh on open.
+onMounted(() => {
+  const id = String(route.params.id)
+  // A local RFQ order (SO-L…) is not on the server: its 404 is ignored.
+  if (!id.startsWith('SO-L')) { reloadServiceOrder(soApi, id).catch(() => undefined) }
+})
 const isSavingOrder = ref(false)
 /** Server first (S4b); the local mutator then only adds its activity entry. Returns false when the server refused. */
 async function changeOrderStatus (to: ServiceOrderStatus, reason?: string): Promise<boolean> {

@@ -36,7 +36,7 @@ watch(() => props.open, (open) => {
 
 /** S5: the vendor's active service orders, so the invoice can point at the order it bills (Procurement sees it there). */
 const vendorOrders = ref<ServiceOrderDto[]>([])
-const serviceOrderOptions = computed(() => serviceOrderPickOptions(vendorOrders.value))
+const serviceOrderOptions = computed(() => serviceOrderPickOptions(vendorOrders.value, props.projectId))
 watch(() => [props.open, form.vendorId] as const, async ([open, vendorId]) => {
   vendorOrders.value = []
   form.serviceOrderId = null

@@ -67,7 +67,6 @@ import type {
   RefundSettlementInput,
   RefundSettlementResult,
   RefundStatusDto,
-  ServiceOrderRefDto,
   ApiSubjectType,
   StatementList,
   StatementQuery,
@@ -151,7 +150,7 @@ export function createManovaApi (client: ApiClient) {
       listVendorContacts: () => client.get<VendorContactDto[]>('/vendor-contacts'),
       listVendorProducts: () => client.get<VendorProductDto[]>('/vendor-products'),
       listVendorDocuments: () => client.get<VendorDocumentDto[]>('/vendor-documents'),
-      getServiceOrder: (id: string) => client.get<ServiceOrderRefDto>(`/service-orders/${seg(id)}`),
+      getServiceOrder: (id: string) => client.get<ServiceOrderDto>(`/service-orders/${seg(id)}`),
       getBookingRef: (type: ApiBookingType, id: string) => client.get<BookingRefDto>(`/bookings/${seg(type)}/${seg(id)}`),
       listProjectServices: (query: { projectId?: string } = {}) => client.get<ProjectServiceDto[]>('/project-services', { query: { ...query } }),
       createProjectService: (projectId: string, input: ServiceCreateInput, idempotencyKey: string = newIdempotencyKey()) =>

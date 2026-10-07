@@ -91,6 +91,11 @@ export async function loadServerProcurement (api: CoreApi): Promise<void> {
 }
 
 /** A project's quotations and service orders as the server has them now (after an accept or a vendor change). */
+/** One order as the server has it now — its page reloads it on open, so Finance vendor invoices are never stale. */
+export async function reloadServiceOrder (api: CoreApi, id: string): Promise<ServiceOrder> {
+  return upsertServerServiceOrder((await api.core.getServiceOrder(id)).data)
+}
+
 export async function reloadProjectProcurement (api: CoreApi, projectId: string): Promise<void> {
   const [quotations, orders] = await Promise.all([api.core.listVendorQuotations({ projectId }), api.core.listServiceOrders({ projectId })])
   for (const q of quotations.data) { upsertServerQuotation(q) }
@@ -152,9 +157,10 @@ export async function runServiceOrderStatusChange (api: CoreApi, id: string, to:
 }
 
 /** Orders a vendor invoice can point at (Finance dialog): the vendor's active orders, labelled with project and status. */
-export function serviceOrderPickOptions (orders: ServiceOrderDto[]): { value: string; label: string; hint: string }[] {
+/** Opened from a project, only orders of that project (or without one) — picking another project's order would move the invoice. */
+export function serviceOrderPickOptions (orders: ServiceOrderDto[], projectId?: string | null): { value: string; label: string; hint: string }[] {
   return orders
-    .filter(so => so.status !== 'cancelled')
+    .filter(so => so.status !== 'cancelled' && (!projectId || !so.projectId || so.projectId === projectId))
     .map(so => ({
       value: so.id,
       label: so.id,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { VENDOR_QUOTATIONS } from './vendors'
 import { SERVICE_ORDERS } from './procurement'
-import { isServerServiceOrder, mergeServerQuotations, serviceOrderPickOptions, mergeServerServiceOrders, quotationFromServer, runServiceOrderStatusChange } from './procurement-sync'
+import { isServerServiceOrder, mergeServerQuotations, reloadServiceOrder, serviceOrderPickOptions, mergeServerServiceOrders, quotationFromServer, runServiceOrderStatusChange } from './procurement-sync'
 import type { ServiceOrderDto, VendorQuotationDto } from '~/types/api'
 
 const q = (over: Partial<VendorQuotationDto> = {}): VendorQuotationDto => ({ id: 'VQ-900', vendorId: 'VND-001', projectId: 'PRJ-101', serviceId: 'SVC-1011', serviceType: 'flight', amountMinor: '90000000', notes: null, status: 'submitted', decisionReason: null, submittedOn: '2026-10-01', decidedAt: null, ...over })
@@ -55,5 +55,19 @@ describe('procurement-sync', () => {
       { value: 'SO-900', label: 'SO-900', hint: 'PRJ-101 · Draft' },
       { value: 'SO-902', label: 'SO-902', hint: 'Fulfilled' }
     ])
+  })
+
+  it('reloads one order from the server (fresh vendor invoices when its page opens)', async () => {
+    mergeServerServiceOrders([so()])
+    let asked: unknown
+    const api = { core: { getServiceOrder: (id: unknown) => { asked = id; return Promise.resolve({ data: so({ vendorInvoices: [{ id: 'VINV-00010', vendorInvoiceNumber: 'X-1', status: 'approved', invoiceDate: '2026-10-07', totalMinor: '100' }] }) }) } } } as never
+    await reloadServiceOrder(api, 'SO-900')
+    expect(asked).toBe('SO-900')
+    expect(SERVICE_ORDERS.find(x => x.id === 'SO-900')!.vendorInvoices!.map(v => v.id)).toEqual(['VINV-00010'])
+  })
+
+  it('order options opened from a project: only orders of that project (or without a project)', () => {
+    const options = serviceOrderPickOptions([so(), so({ id: 'SO-903', projectId: 'PRJ-205' }), so({ id: 'SO-904', projectId: null })], 'PRJ-101')
+    expect(options.map(o => o.value)).toEqual(['SO-900', 'SO-904'])
   })
 })
