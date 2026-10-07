@@ -135,8 +135,8 @@ export async function createTraveler(tx: Queryable, actor: Actor, projectId: str
 const FORBIDDEN = ['id', 'projectId', 'partyId', 'leadId', 'salesOrderId', 'cancelled', 'cancelReason', 'replacedByTravelerId', 'replacesTravelerId', 'documentsVerifiedOn', 'documentsVerifiedBy', 'isVip']
 
 export async function lockTraveler(tx: Queryable, id: string) {
-  const [row] = await tx.query<{ id: string; project_id: string; cancelled: boolean; sales_order_id: string | null; replaced_by: string | null; replaces: string | null; group_id: string | null }>(
-    'select id, project_id, cancelled, sales_order_id, replaced_by, replaces, group_id from travelers where id = $1 for update', [id])
+  const [row] = await tx.query<{ id: string; project_id: string; cancelled: boolean; sales_order_id: string | null; party_id: string | null; lead_id: string | null; replaced_by: string | null; replaces: string | null; group_id: string | null }>(
+    'select id, project_id, cancelled, sales_order_id, party_id, lead_id, replaced_by, replaces, group_id from travelers where id = $1 for update', [id])
   if (!row) throw errors.notFound('Traveler')
   return row
 }
@@ -243,7 +243,9 @@ export async function replaceTraveler(tx: Queryable, actor: Actor, id: string, i
   const values = await cleanProfile(tx, current.project_id, { ...input, groupId: undefined }, problems)
   if (Object.keys(problems).length) throw errors.validation(problems)
   if (current.cancelled) throw rule('Traveler ini sudah dibatalkan — tidak bisa digantikan.')
-  const newId = await insertTraveler(tx, current.project_id, { ...values, group_id: current.group_id }, { replaces: id })
+  // The replacement belongs to the same booking (customer, lead, order): cancelling the order cancels it too.
+  const newId = await insertTraveler(tx, current.project_id, { ...values, group_id: current.group_id },
+    { replaces: id, partyId: current.party_id, leadId: current.lead_id, salesOrderId: current.sales_order_id })
   await tx.query('update travelers set changed_by_api_at = now() where id = $1', [newId])
   await tx.query('update travelers set cancelled = true, cancel_reason = $2, replaced_by = $3, changed_by_api_at = now(), updated_at = now() where id = $1',
     [id, `Digantikan oleh ${values.name as string} (${newId}).`, newId])
@@ -264,19 +266,24 @@ async function cleanRoomTravelers(tx: Queryable, projectId: string, input: unkno
   }
   const ids = [...new Set(input as string[])]
   if (!ids.length) return { ids, hasCancelled: false }
+  // Lock the travelers in id order (cancel/replace lock them first too): one lock order, travelers then rooms, so a
+  // concurrent cancel or room edit is seen committed instead of slipping a traveler into two rooms.
   const rows = await tx.query<{ id: string; cancelled: boolean }>(
-    'select id, cancelled from travelers where project_id = $1 and id in (select jsonb_array_elements_text($2::text::jsonb))', [projectId, JSON.stringify(ids)])
+    `select id, cancelled from travelers where project_id = $1 and id in (select jsonb_array_elements_text($2::text::jsonb))
+      order by id for update`, [projectId, JSON.stringify(ids)])
   if (rows.length !== ids.length) problems.travelerIds = ['Ada traveler yang bukan dari project ini.']
   return { ids, hasCancelled: rows.some(r => r.cancelled) }
 }
 
 export async function setRoomTravelers(tx: Queryable, actor: Actor, roomId: string, input: unknown, requestId: string) {
-  const [room] = await tx.query<{ project_id: string }>('select project_id from room_assignments where id = $1 for update', [roomId])
+  const [room] = await tx.query<{ project_id: string }>('select project_id from room_assignments where id = $1', [roomId])
   if (!room) throw errors.notFound('Kamar')
   const problems: FieldErrors = {}
   const { ids, hasCancelled } = await cleanRoomTravelers(tx, room.project_id, input, problems)
   if (Object.keys(problems).length) throw errors.validation(problems)
   if (hasCancelled) throw rule('Traveler yang sudah dibatalkan tidak bisa ditempatkan di kamar.')
+  // Rooms after travelers (same order as cancel/replace): the project's rooms in id order.
+  await tx.query('select id from room_assignments where project_id = $1 order by id for update', [room.project_id])
   // A traveler sits in one room per project: take them out of every other room first.
   for (const tid of ids) {
     await tx.query(`update room_assignments set traveler_ids = traveler_ids - $3::text, changed_by_api_at = now(), updated_at = now()

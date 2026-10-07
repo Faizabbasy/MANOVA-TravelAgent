@@ -150,3 +150,28 @@ describe('travelers from sales orders', () => {
     expect(after.every(x => x.cancelled && x.cancelReason === 'Order dibatalkan')).toBe(true)
   })
 })
+
+describe('booking travelers stay with their order', () => {
+  test('a replacement inherits the booking; cancelling the order cancels it and empties its room', async () => {
+    const today = todayBusinessDate()
+    const bank = (await call('POST', '/finance/accounts', 'finance', { code: 'BCA-S7A2', bankName: 'BCA', holderName: 'PT MANOVA', accountNumber: '0123456781' }, key())).json.data.id as string
+    await call('POST', `/finance/accounts/${bank}/opening`, 'finance', { amountMinor: '0', openingDate: today }, key())
+    await call('POST', `/finance/accounts/${bank}/opening/verify`, 'superAdmin', { balanceMinor: '0', openingDate: today }, key())
+    const lead = (await call('POST', '/leads', 'admin', {
+      name: 'Pasangan S7a', source: 'instagram', serviceCategory: 'individual-travel', destination: 'Bromo', travelStartDate: '2026-12-10',
+      travelEndDate: '2026-12-12', travelerEstimate: 2, serviceScope: ['transportation'], requirementSummary: 'Trip'
+    }, key())).json.data.id as string
+    const so = (await call('POST', `/leads/${lead}/group-trip`, 'admin', { projectId: 'PRJ-205', adultCount: 2, childCount: 0, infantCount: 0, priceMinor: '7000000', priceAcceptance: 'accept', bookingReadiness: 'ready' })).json.data.salesOrder.id as string
+    expect((await call('POST', `/finance/sales-orders/${so}/confirm-dp`, 'finance', { bankAccountId: bank, dpAmountMinor: '2100000', effectiveDate: today, dueDate: today }, key())).status).toBe(201)
+    const mine = ((await call('GET', '/travelers?projectId=PRJ-205', 'admin')).json.data as { id: string; salesOrderId: string | null }[]).filter(x => x.salesOrderId === so)
+    const [first, second] = mine.map(x => x.id)
+    await call('PUT', '/room-assignments/ROOM-004/travelers', 'admin', { travelerIds: [first, second] })
+    const replacement = (await call('POST', `/travelers/${first}/replace`, 'admin', { name: 'Pengganti Booking' })).json.data
+    expect(replacement).toMatchObject({ salesOrderId: so, leadId: lead })
+    await call('POST', `/sales-orders/${so}/status`, 'admin', { to: 'cancelled', reason: 'Batal' })
+    const after = ((await call('GET', '/travelers?projectId=PRJ-205', 'admin')).json.data as { id: string; cancelled: boolean }[])
+    expect(after.find(x => x.id === replacement.id)!.cancelled).toBe(true)
+    expect(after.find(x => x.id === second)!.cancelled).toBe(true)
+    expect((await call('GET', '/room-assignments?projectId=PRJ-205', 'admin')).json.data.find((r: { id: string }) => r.id === 'ROOM-004').travelerIds).toEqual([])
+  })
+})

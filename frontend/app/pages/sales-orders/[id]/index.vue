@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import { getSalesOrderById, getPartyById, getSalesOrderStatusTransitions } from '~/data'
 import { changeSalesOrderStatusOnServer } from '~/data/sales-orders-sync'
+import { reloadTravelersAfterOrderChange } from '~/data/travelers-sync'
 import { isApiError } from '~/lib/api/errors'
 import { SALES_ORDER_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDateRange, formatDate } from '~/utils/format'
@@ -60,6 +61,11 @@ async function advanceTo (status: SalesOrderStatus, reason?: string) {
   isSaving.value = true
   try {
     const updated = await changeSalesOrderStatusOnServer(api, order.value.id, status, reason)
+    try {
+      await reloadTravelersAfterOrderChange(api, updated)
+    } catch {
+      // The next participant sync brings them.
+    }
     isCancelOpen.value = false
     showToast('Status Diperbarui', `${updated.id} kini berstatus "${findStatusOption(SALES_ORDER_STATUSES, updated.status).label}".`, 'success')
   } catch (error) {

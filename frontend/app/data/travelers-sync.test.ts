@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { ROOM_ASSIGNMENTS, TRAVELERS, TRAVELER_GROUPS } from './projects'
-import { deleteTravelerOnServer, importTravelersOnServer, mergeServerTravelers, travelerFromServer } from './travelers-sync'
+import { deleteTravelerOnServer, importTravelersOnServer, mergeServerTravelers, reloadTravelersAfterOrderChange, travelerFromServer } from './travelers-sync'
 import type { TravelerDto } from '~/types/api'
 
 const dto = (over: Partial<TravelerDto> = {}): TravelerDto => ({
@@ -63,5 +63,24 @@ describe('travelers-sync', () => {
     expect(res.created.map(x => x.id)).toEqual(['TRV-2000'])
     expect(res.rejected).toHaveLength(1)
     expect(TRAVELERS.some(x => x.id === 'TRV-2000')).toBe(true)
+  })
+})
+
+describe('travelers follow their sales order', () => {
+  it('a cancelled Group Trip order reloads its project participants; other changes do not', async () => {
+    mergeServerTravelers([dto({ id: 'TRV-2051', projectId: 'PRJ-205', salesOrderId: 'SLO-006' })], [], [])
+    const calls: string[] = []
+    const api = {
+      core: {
+        listTravelers: (q: { projectId: string }) => { calls.push(q.projectId); return Promise.resolve({ data: [dto({ id: 'TRV-2051', projectId: 'PRJ-205', salesOrderId: 'SLO-006', cancelled: true, cancelReason: 'Order dibatalkan' })] }) },
+        listRoomAssignments: () => Promise.resolve({ data: [] })
+      }
+    } as never
+    await reloadTravelersAfterOrderChange(api, { status: 'paid', projectId: 'PRJ-205' })
+    await reloadTravelersAfterOrderChange(api, { status: 'cancelled', projectId: undefined })
+    expect(calls).toEqual([])
+    await reloadTravelersAfterOrderChange(api, { status: 'cancelled', projectId: 'PRJ-205' })
+    expect(calls).toEqual(['PRJ-205'])
+    expect(TRAVELERS.find(x => x.id === 'TRV-2051')!.cancelled).toBe(true)
   })
 })

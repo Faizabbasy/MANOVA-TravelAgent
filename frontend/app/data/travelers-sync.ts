@@ -87,6 +87,15 @@ export async function reloadProjectTravelers (api: CoreApi, projectId: string): 
   for (const r of rooms.data) { upsertServerRoom(r) }
 }
 
+/**
+ * After a sales order status change: a cancelled Group Trip order cancelled its travelers on the server and took them
+ * out of their rooms (S7a), so that project's participants are reloaded. Other changes leave participants untouched.
+ */
+export async function reloadTravelersAfterOrderChange (api: CoreApi, order: { status: string; projectId?: string }): Promise<void> {
+  if (order.status !== 'cancelled' || !order.projectId) { return }
+  await reloadProjectTravelers(api, order.projectId)
+}
+
 export async function createTravelerOnServer (api: CoreApi, projectId: string, input: TravelerInput & { name: string }, key: string = newIdempotencyKey()): Promise<Traveler> {
   return upsertServerTraveler((await api.core.createTraveler(projectId, input, key)).data)
 }
