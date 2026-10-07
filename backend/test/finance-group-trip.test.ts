@@ -123,11 +123,10 @@ describe('S6b: DP confirmation and order status', () => {
     expect((await get('finance', '/sales-orders/SLO-007/finance-summary')).json.data.orderStatus).toBe('paid')
   })
 
-  // Needs the S6b seed (standalone SLO-001, cancelled SLO-010) — Task 5.
-  test.skip('standalone and cancelled orders cannot get a DP or a participant invoice', async () => {
+  test('standalone and cancelled orders cannot get a DP or a participant invoice', async () => {
     expect((await confirm('finance', 'SLO-001', body(6_000_000n))).status).toBe(422)
     const invoice = await req('POST', 'finance', '/finance/customer-invoices', { salesOrderId: 'SLO-001', invoiceType: 'dp', dueDate: TODAY, lines: [{ description: 'x', amountMinor: '1000' }] }, `gt-inv-${Date.now()}`)
-    expect(invoice.status).toBe(422)
+    expect(invoice.status).toBe(400) // the public invoice route takes no salesOrderId: participant invoices only come from confirm-dp
     expect((await confirm('finance', 'SLO-010', body(minDp(3_500_000n)))).status).toBe(422)
   })
 })

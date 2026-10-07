@@ -380,6 +380,24 @@ describe('demo seed', () => {
     }
   })
 
+  test('all demo sales orders are seeded with status; a re-seed keeps statuses the API changed', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const rows = await db.query<{ id: string; status: string; project_id: string | null }>('select id, status, project_id from sales_order_refs order by id')
+      expect(rows).toHaveLength(13)
+      expect(rows.find(r => r.id === 'SLO-001')).toEqual({ id: 'SLO-001', status: 'draft', project_id: null })
+      expect(rows.find(r => r.id === 'SLO-006')!.status).toBe('paid')
+      await db.query("update sales_order_refs set status = 'cancelled', status_reason = 'Batal', status_changed_at = now() where id = 'SLO-007'")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [after] = await db.query<{ status: string; status_reason: string }>("select status, status_reason from sales_order_refs where id = 'SLO-007'")
+      expect(after).toEqual({ status: 'cancelled', status_reason: 'Batal' })
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('sales orders carry status and trip details after 0025; standalone orders have no project', async () => {
     const { db, cleanup } = await makeTestDb()
     try {

@@ -59,8 +59,7 @@ describe('sales orders', () => {
     expect((await call('POST', `/sales-orders/${id}/status`, 'finance', { to: 'done' })).status).toBe(403)
   })
 
-  // Needs the S6b seed statuses (Task 5).
-  test.skip('a Group Trip order cannot become paid by hand; it stays draft', async () => {
+  test('a Group Trip order cannot become paid by hand; it stays draft', async () => {
     const before = (await call('GET', '/sales-orders/SLO-007', 'admin')).json.data
     expect(before.status).toBe('draft')
     const refused = await call('POST', '/sales-orders/SLO-007/status', 'admin', { to: 'paid' })
@@ -69,7 +68,7 @@ describe('sales orders', () => {
     expect((await call('GET', '/sales-orders/SLO-007', 'admin')).json.data.status).toBe('draft')
   })
 
-  test.skip('seats: paid fill, drafts hold, cancelling frees; non group trip 422', async () => {
+  test('seats: paid fill, drafts hold, cancelling frees; non group trip 422', async () => {
     const seats = (await call('GET', '/projects/PRJ-205/seats', 'finance')).json.data
     expect(seats.capacity).toBeGreaterThan(0)
     expect(seats.filled).toBe(5) // SLO-006 (2) + SLO-009 (3)

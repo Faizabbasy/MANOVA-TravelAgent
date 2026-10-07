@@ -309,12 +309,20 @@ const seed: DemoCoreSeed = {
     }))
     return { id: q.id, leadId: q.leadId, createdOn: dateOnly(q.createdAt)!, sentToClientOn: dateOnly(q.sentToClientAt), versions: [...earlier, latest] }
   }),
-  salesOrders: [...SALES_ORDERS].filter(o => o.projectId).sort(byId).map(o => ({
+  // S6b: every sales order — B2C standalone (no project) and Group Trip participant bookings.
+  salesOrders: [...SALES_ORDERS].sort(byId).map(o => ({
     id: o.id,
-    projectId: o.projectId!,
+    projectId: o.projectId ?? null,
     partyId: o.customerId,
     priceMinor: String(Math.round(o.priceIdr)),
-    travelerCount: o.travelerCount
+    travelerCount: o.travelerCount,
+    status: o.status,
+    destination: o.destination,
+    travelStartDate: dateOnly(o.travelStartDate),
+    travelEndDate: dateOnly(o.travelEndDate),
+    note: o.note ?? null,
+    createdOn: dateOnly(o.createdAt),
+    leadId: LEADS.find(l => l.salesOrderId === o.id)?.id ?? null
   }))
 }
 

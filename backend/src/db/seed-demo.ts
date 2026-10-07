@@ -87,7 +87,8 @@ export interface DemoCoreSeed {
   /** S4b: attempt log of bookings. */
   bookingAttempts?: { id: string; bookingType: string; bookingId: string; outcome: string; note: string | null; attemptedAt: string }[]
   /** Group Trip participant bookings (owned by Sales); each is billed to its own customer. */
-  salesOrders: { id: string; projectId: string; partyId: string; priceMinor: string; travelerCount: number }[]
+  /** S6b: B2C standalone orders (no project) and Group Trip participant bookings, with status and trip details. */
+  salesOrders: { id: string; projectId: string | null; partyId: string; priceMinor: string; travelerCount: number; status?: string; destination?: string | null; travelStartDate?: string | null; travelEndDate?: string | null; note?: string | null; createdOn?: string | null; leadId?: string | null }[]
   /** CRM (S1): contact persons and the activity log per customer. */
   partyContacts?: { id: string; partyId: string; name: string; title: string; email: string | null; phone: string | null }[]
   partyActivities?: { id: string; partyId: string; leadId: string | null; type: string; message: string; ownerUserId: string; activityDate: string; dueAt: string | null }[]
@@ -360,13 +361,20 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
         [a.id, a.bookingType, a.bookingId, a.outcome, a.note, a.attemptedAt, P]
       )
     }
+    // S6b: trip details refresh; the status only while the API never changed it (status_changed_at is null).
     for (const so of seed.salesOrders ?? []) {
       await tx.query(
-        `insert into sales_order_refs (id, project_id, party_id, price_minor, traveler_count, provenance) values ($1, $2, $3, $4, $5, $6)
-         on conflict (id) do update set project_id = excluded.project_id, party_id = excluded.party_id,
-           price_minor = excluded.price_minor, traveler_count = excluded.traveler_count
+        `insert into sales_order_refs (id, project_id, party_id, price_minor, traveler_count, status, destination, travel_start_date,
+           travel_end_date, note, created_on, lead_id, paid_on, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, coalesce($11::date, current_date), $12, case when $6 in ('paid', 'ongoing', 'done') then $11::date end, $13)
+         on conflict (id) do update set project_id = excluded.project_id, party_id = excluded.party_id, price_minor = excluded.price_minor,
+           traveler_count = excluded.traveler_count, destination = excluded.destination, travel_start_date = excluded.travel_start_date,
+           travel_end_date = excluded.travel_end_date, note = excluded.note, created_on = excluded.created_on, lead_id = excluded.lead_id,
+           status = case when sales_order_refs.status_changed_at is null then excluded.status else sales_order_refs.status end,
+           paid_on = case when sales_order_refs.status_changed_at is null then excluded.paid_on else sales_order_refs.paid_on end
          where sales_order_refs.provenance = 'demo-fixture'`,
-        [so.id, so.projectId, so.partyId, so.priceMinor, so.travelerCount, P]
+        [so.id, so.projectId ?? null, so.partyId, so.priceMinor, so.travelerCount, so.status ?? 'draft', so.destination ?? null,
+          so.travelStartDate ?? null, so.travelEndDate ?? null, so.note ?? null, so.createdOn ?? null, so.leadId ?? null, P]
       )
     }
     for (const c of seed.partyContacts ?? []) {
