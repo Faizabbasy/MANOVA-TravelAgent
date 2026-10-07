@@ -52,3 +52,61 @@ describe('lead reads (empty)', () => {
     expect((await call('GET', '/quotations/QUO-999', 'admin')).status).toBe(404)
   })
 })
+
+describe('lead writes', () => {
+  test('create is idempotent, validates, and needs sales.manage-lead', async () => {
+    const k = key()
+    const body = { name: 'PT Uji Coba', companyName: 'PT Uji Coba', source: 'website', phone: '0811-1', serviceScope: ['flight'] }
+    const first = await call('POST', '/leads', 'admin', body, k)
+    expect(first.status).toBe(201)
+    const firstId = first.json.data.id as string
+    expect(first.json.data).toMatchObject({ stage: 'new', archived: false, serviceScope: ['flight'] })
+    const again = await call('POST', '/leads', 'admin', body, k)
+    expect(again.json.data.id).toBe(firstId)
+    expect((await call('POST', '/leads', 'admin', { name: '', source: 'fax' }, key())).status).toBe(400)
+    expect((await call('POST', '/leads', 'admin', body)).status).toBe(400) // Idempotency-Key required
+    expect((await call('POST', '/leads', 'finance', body, key())).status).toBe(403)
+  })
+
+  test('patch edits requirements, stage new to contacted only; won or archived leads refuse with 422', async () => {
+    const id = (await call('POST', '/leads', 'admin', { name: 'Lead Patch', source: 'email' }, key())).json.data.id as string
+    const patched = await call('PATCH', `/leads/${id}`, 'admin', { destination: 'Bali', travelStartDate: '2026-12-01', travelEndDate: '2026-12-03', stage: 'contacted', b2c: { b2cAdultCount: 2 } })
+    expect(patched.json.data).toMatchObject({ destination: 'Bali', stage: 'contacted', b2c: { b2cAdultCount: 2 } })
+    expect((await call('PATCH', `/leads/${id}`, 'admin', { stage: 'qualified' })).status).toBe(400)
+    expect((await call('PATCH', `/leads/${id}`, 'admin', { partyId: 'PTY-001' })).status).toBe(400)
+    expect((await call('PATCH', `/leads/${id}`, 'admin', { travelStartDate: '2026-12-09' })).status).toBe(400) // after end
+    // A won lead (a project points at it) is read-only.
+    await t.db.query("insert into leads (id, name, source, owner_user_id) values ('LED-W1', 'Won', 'website', 'USR-001') on conflict do nothing")
+    await t.db.query("update projects set lead_id = 'LED-W1' where id = 'PRJ-203'")
+    expect((await call('PATCH', '/leads/LED-W1', 'admin', { destination: 'X' })).status).toBe(422)
+    expect((await call('POST', '/leads/LED-W1/archive', 'admin', {})).status).toBe(422)
+    expect((await call('POST', `/leads/${id}/archive`, 'admin', { reason: 'Tidak responsif' })).json.data.archived).toBe(true)
+    expect((await call('PATCH', `/leads/${id}`, 'admin', { destination: 'X' })).status).toBe(422)
+    expect((await call('POST', `/leads/${id}/reopen`, 'admin')).json.data.archived).toBe(false)
+  })
+
+  test('unqualify needs a reason; merge archives the duplicate and notes both leads', async () => {
+    const a = (await call('POST', '/leads', 'admin', { name: 'Dup A', source: 'whatsapp' }, key())).json.data.id as string
+    const b = (await call('POST', '/leads', 'admin', { name: 'Dup B', source: 'whatsapp' }, key())).json.data.id as string
+    expect((await call('POST', `/leads/${a}/unqualify`, 'admin', {})).status).toBe(400)
+    const unq = (await call('POST', `/leads/${a}/unqualify`, 'admin', { reason: 'Budget tidak cocok' })).json.data
+    expect(unq).toMatchObject({ stage: 'unqualified', unqualifiedReason: 'Budget tidak cocok' })
+    expect((await call('POST', `/leads/${a}/merge`, 'admin', { intoLeadId: a })).status).toBe(422)
+    const merged = (await call('POST', `/leads/${a}/merge`, 'admin', { intoLeadId: b })).json.data
+    expect(merged).toMatchObject({ archived: true, mergedInto: b })
+    expect(merged.activities.at(-1).message).toContain(b)
+    const target = (await call('GET', `/leads/${b}`, 'admin')).json.data
+    expect(target.activities.at(-1).message).toContain(a)
+    expect((await call('POST', `/leads/${b}/merge`, 'admin', { intoLeadId: a })).status).toBe(422) // target archived
+  })
+
+  test('activities and follow-ups: add, mark done; finance 403', async () => {
+    const id = (await call('POST', '/leads', 'admin', { name: 'Lead Aktivitas', source: 'event' }, key())).json.data.id as string
+    const withAct = (await call('POST', `/leads/${id}/activities`, 'admin', { type: 'follow-up', message: 'Telepon lagi', dueOn: '2026-11-01' })).json.data
+    const act = withAct.activities[0]
+    expect(act).toMatchObject({ type: 'follow-up', dueOn: '2026-11-01', doneOn: null })
+    expect((await call('POST', `/leads/${id}/activities/${act.id}/done`, 'admin')).json.data.activities[0].doneOn).toBeTruthy()
+    expect((await call('POST', `/leads/${id}/activities`, 'admin', { type: 'gossip', message: 'x' })).status).toBe(400)
+    expect((await call('POST', `/leads/${id}/activities`, 'finance', { type: 'call', message: 'x' })).status).toBe(403)
+  })
+})

@@ -5,7 +5,7 @@ export const LEAD_STAGES = ['new', 'contacted', 'qualified', 'unqualified'] as c
 export const SERVICE_CATEGORIES = ['corporate-travel', 'group-travel', 'individual-travel', 'mice-event'] as const
 export const URGENCIES = ['low', 'medium', 'high'] as const
 
-export interface LeadRow {
+export type LeadRow = {
   id: string
   name: string
   company_name: string | null
