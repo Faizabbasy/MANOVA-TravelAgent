@@ -1326,3 +1326,15 @@ export interface SalesQuotationDto {
   versions: SalesQuotationVersionDto[]
 }
 export interface LeadWonDto { project: ProjectDetailDto; lead: LeadDto }
+
+/** Sales orders (S6b) — B2C standalone (projectId null) and Group Trip participant bookings. */
+export interface SalesOrderDto {
+  id: string; projectId: string | null; partyId: string; partyName: string; leadId: string | null; destination: string | null
+  travelStartDate: string | null; travelEndDate: string | null; travelerCount: number; priceMinor: string
+  status: 'draft' | 'paid' | 'ongoing' | 'done' | 'cancelled'; statusReason: string | null; note: string | null; paidOn: string | null
+  createdOn: string; updatedAt: string
+}
+export interface ProjectSeatsDto { capacity: number; filled: number; held: number; available: number }
+export interface SalesOrderCreateInput { partyId?: string; customerName?: string; destination: string; travelStartDate: string; travelEndDate: string; travelerCount: number; priceMinor: string; note?: string }
+export interface GroupTripQualifyInput { projectId: string; adultCount: number; childCount: number; infantCount: number; priceMinor: string; priceAcceptance: string; bookingReadiness: string }
+export interface GroupTripQualifyDto { outcome: 'qualified' | 'waitlist'; lead: LeadDto; salesOrder: SalesOrderDto | null }

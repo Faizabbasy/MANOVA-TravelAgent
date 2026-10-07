@@ -18,4 +18,8 @@ export interface SalesOrder {
   /** Group Trip B2C — terisi kalau booking ini untuk Project ber-`isGroupTrip` (`qualifyGroupTripLead`,
    * `app/data/index.ts`). Kosong = order standalone lama (`createSalesOrder`), tidak berubah. */
   projectId?: ID
+  /** S6b — lead asal order (qualify B2C/Group Trip), alasan batal, tanggal paid (DP Group Trip atau manual). */
+  leadId?: ID
+  statusReason?: string
+  paidOn?: string
 }

@@ -1,6 +1,11 @@
 import type { ApiClient } from './client'
 import { newIdempotencyKey } from './client'
 import type {
+  GroupTripQualifyDto,
+  GroupTripQualifyInput,
+  ProjectSeatsDto,
+  SalesOrderCreateInput,
+  SalesOrderDto,
   LeadActivityDto,
   LeadDto,
   LeadWonDto,
@@ -184,12 +189,19 @@ export function createManovaApi (client: ApiClient) {
     },
 
     sales: {
+      listSalesOrders: (query: { projectId?: string } = {}) => client.get<SalesOrderDto[]>('/sales-orders', { query: { ...query } }),
+      getSalesOrder: (id: string) => client.get<SalesOrderDto>(`/sales-orders/${seg(id)}`),
+      createSalesOrder: (input: SalesOrderCreateInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<SalesOrderDto>('/sales-orders', input, { idempotencyKey }),
+      changeSalesOrderStatus: (id: string, input: { to: string; reason?: string }) => client.post<SalesOrderDto>(`/sales-orders/${seg(id)}/status`, input),
+      projectSeats: (projectId: string) => client.get<ProjectSeatsDto>(`/projects/${seg(projectId)}/seats`),
+      qualifyGroupTrip: (leadId: string, input: GroupTripQualifyInput) => client.post<GroupTripQualifyDto>(`/leads/${seg(leadId)}/group-trip`, input),
       listLeads: () => client.get<LeadDto[]>('/leads'),
       getLead: (id: string) => client.get<LeadDto>(`/leads/${seg(id)}`),
       createLead: (input: LeadWriteInput & { name: string; source: string }, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<LeadDto>('/leads', input, { idempotencyKey }),
       updateLead: (id: string, patch: LeadWriteInput) => client.patch<LeadDto>(`/leads/${seg(id)}`, patch),
-      qualifyLead: (id: string, input: { customerKind: 'company' | 'individual'; partyId?: string }) => client.post<LeadDto>(`/leads/${seg(id)}/qualify`, input),
+      qualifyLead: (id: string, input: { customerKind: 'company' | 'individual'; partyId?: string; priceMinor?: string; travelerCount?: number }) => client.post<LeadDto>(`/leads/${seg(id)}/qualify`, input),
       unqualifyLead: (id: string, reason: string) => client.post<LeadDto>(`/leads/${seg(id)}/unqualify`, { reason }),
       archiveLead: (id: string, reason?: string) => client.post<LeadDto>(`/leads/${seg(id)}/archive`, reason ? { reason } : {}),
       reopenLead: (id: string) => client.post<LeadDto>(`/leads/${seg(id)}/reopen`, {}),

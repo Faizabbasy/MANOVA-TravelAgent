@@ -2,10 +2,12 @@ import { LEADS, LEAD_ACTIVITIES } from './leads'
 import { QUOTATIONS } from './quotations'
 import { registerNewServerProject } from './projects-sync'
 import { upsertServerParty } from './parties-sync'
+import { upsertServerSalesOrder } from './sales-orders-sync'
 import { applyLeadWon, markCostSheetApplied, prepareCostSheetQuotation } from './index'
 import type { Lead, LeadActivity } from '~/types/lead'
 import type { Quotation, QuotationServiceItem } from '~/types/quotation'
 import type { Project, ServiceTypeKey } from '~/types/project'
+import type { SalesOrder } from '~/types/sales-order'
 import type { LeadDto, LeadWriteInput, QuotationContentInput, SalesQuotationDto } from '~/types/api'
 import type { ManovaApi } from '~/lib/api/endpoints'
 import { newIdempotencyKey } from '~/lib/api/client'
@@ -224,6 +226,34 @@ export async function qualifyLeadOnServer (api: SalesApi, id: string, customerKi
   const lead = upsertServerLead((await api.sales.qualifyLead(id, { customerKind })).data)
   await reloadParty(api, lead.partyId)
   return lead
+}
+
+/** B2C qualify (S6b): the server qualifies the lead, links the customer and creates the standalone order in one go. */
+export async function qualifyB2cLeadOnServer (api: SalesApi, id: string, priceIdr: number, travelerCount?: number): Promise<{ lead: Lead; order?: SalesOrder }> {
+  const lead = upsertServerLead((await api.sales.qualifyLead(id, { customerKind: 'individual', priceMinor: String(Math.round(priceIdr)), ...(travelerCount ? { travelerCount } : {}) })).data)
+  await reloadParty(api, lead.partyId)
+  const order = lead.salesOrderId ? upsertServerSalesOrder((await api.sales.getSalesOrder(lead.salesOrderId)).data) : undefined
+  return { lead, order }
+}
+
+export interface GroupTripQualifyLocalInput {
+  projectId: string
+  adultCount: number
+  childCount: number
+  infantCount: number
+  priceIdr: number
+  priceAcceptance: string
+  bookingReadiness: string
+}
+
+/** Group Trip qualify (S6b): the server checks the seats (locked per project) — qualified with an order, or waitlist. */
+export async function qualifyGroupTripOnServer (api: SalesApi, id: string, input: GroupTripQualifyLocalInput): Promise<{ outcome: 'qualified' | 'waitlist'; lead: Lead; order?: SalesOrder }> {
+  const { priceIdr, ...rest } = input
+  const res = (await api.sales.qualifyGroupTrip(id, { ...rest, priceMinor: String(Math.round(priceIdr)) })).data
+  const lead = upsertServerLead(res.lead)
+  const order = res.salesOrder ? upsertServerSalesOrder(res.salesOrder) : undefined
+  if (order) { await reloadParty(api, lead.partyId) }
+  return { outcome: res.outcome, lead, order }
 }
 
 export async function createQuotationOnServer (api: SalesApi, leadId: string, input: Partial<Quotation> & { amountIdr: number }, key: string = newIdempotencyKey()): Promise<Quotation> {

@@ -191,11 +191,12 @@ export function createTravelerGroup (input: { projectId: string; name: string; p
 }
 export const getTravelers = (projectId: string) => TRAVELERS.filter(traveler => traveler.projectId === projectId)
 export const getTravelersByGroup = (groupId: string) => TRAVELERS.filter(traveler => traveler.groupId === groupId)
-/** Kapasitas Group Trip B2C — "seat terisi" (Confirmed Participants) dihitung dari baris `Traveler` aktif,
- * yang di bawah desain baru (`qualifyGroupTripLead` + DP confirm di `updateSalesOrderStatus`) HANYA dibuat
- * setelah DP dikonfirmasi. `travelerCount` di `Project` sendiri murni kapasitas deklaratif. */
-export const getProjectSeatsFilled = (projectId: string) => getTravelers(projectId).filter(traveler => !traveler.cancelled).length
 export const getSalesOrdersByProject = (projectId: string) => SALES_ORDERS.filter(order => order.projectId === projectId)
+/** Kapasitas Group Trip B2C (S6b) — "seat terisi" = pax order project yang sudah DP (`paid/ongoing/done`), rumus yang
+ * sama dengan server (`GET /projects/:id/seats`) — bukan lagi dari baris `Traveler` lokal. `travelerCount` di
+ * `Project` sendiri kapasitas deklaratif. */
+export const getProjectSeatsFilled = (projectId: string) =>
+  getSalesOrdersByProject(projectId).filter(order => order.status === 'paid' || order.status === 'ongoing' || order.status === 'done').reduce((sum, order) => sum + order.travelerCount, 0)
 /** Booking Awaiting DP (`SalesOrder.status === 'draft'`, sudah terhubung ke Project ini) — pax-nya IKUT
  * menahan seat supaya tidak overbooking sebelum DP masuk (keputusan eksplisit, beda dari "cuma Confirmed
  * yang mengurangi kuota" yang berlaku di `getProjectSeatsFilled`). */

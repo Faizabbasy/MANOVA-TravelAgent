@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { LEADS, LEAD_ACTIVITIES } from './leads'
 import { QUOTATIONS } from './quotations'
-import { applyCostSheetOnServer, leadFromServer, mergeServerLeads, qualifyLeadOnServer, quotationFromServer, reviseQuotationOnServer } from './leads-sync'
+import { applyCostSheetOnServer, leadFromServer, mergeServerLeads, qualifyB2cLeadOnServer, qualifyGroupTripOnServer, qualifyLeadOnServer, quotationFromServer, reviseQuotationOnServer } from './leads-sync'
+import { SALES_ORDERS } from './sales-orders'
 import { COST_SHEETS } from './products'
 import type { LeadDto, SalesQuotationDto } from '~/types/api'
 
@@ -169,5 +170,61 @@ describe('cost sheet applied through the server (S6a)', () => {
     const api = { sales: { updateQuotation: () => { calls++; return Promise.reject(new Error('x')) }, reviseQuotation: () => { calls++; return Promise.reject(new Error('x')) } } } as never
     expect(await applyCostSheetOnServer(api, 'CS-003', 'USR-001')).toBeUndefined()
     expect(calls).toBe(0)
+  })
+})
+
+describe('B2C and Group Trip qualify through the server (S6b)', () => {
+  const order = (over: Record<string, unknown> = {}) => ({
+    id: 'SLO-020',
+    projectId: null,
+    partyId: 'PTY-030',
+    partyName: 'Bu Sri',
+    leadId: 'LED-001',
+    destination: 'Bali',
+    travelStartDate: '2026-12-01',
+    travelEndDate: '2026-12-03',
+    travelerCount: 2,
+    priceMinor: '5000000',
+    status: 'draft',
+    statusReason: null,
+    note: null,
+    paidOn: null,
+    createdOn: '2026-10-07',
+    updatedAt: '2026-10-07T00:00:00.000Z',
+    ...over
+  })
+  beforeEach(() => { mergeServerLeads([lead({ serviceCategory: 'individual-travel', stage: 'new', partyId: null })], []) })
+
+  it('B2C qualify sends the price and brings back the lead and its order', async () => {
+    const sent: Record<string, unknown>[] = []
+    const api = {
+      sales: {
+        qualifyLead: (_id: string, input: Record<string, unknown>) => { sent.push(input); return Promise.resolve({ data: lead({ serviceCategory: 'individual-travel', partyId: 'PTY-030', b2c: { salesOrderId: 'SLO-020' } }) }) },
+        getSalesOrder: () => Promise.resolve({ data: order() })
+      },
+      core: { getParty: () => Promise.reject(new Error('offline')) }
+    } as never
+    const res = await qualifyB2cLeadOnServer(api, 'LED-001', 5_000_000)
+    expect(sent[0]).toEqual({ customerKind: 'individual', priceMinor: '5000000' })
+    expect(res.order?.id).toBe('SLO-020')
+    expect(SALES_ORDERS.some(o => o.id === 'SLO-020')).toBe(true)
+    expect(res.lead.salesOrderId).toBe('SLO-020')
+  })
+
+  it('group trip waitlist brings no order; qualified brings the booking', async () => {
+    const waitApi = { sales: { qualifyGroupTrip: () => Promise.resolve({ data: { outcome: 'waitlist', lead: lead({ serviceCategory: 'individual-travel', b2c: { b2cQualificationResult: 'waitlist' } }), salesOrder: null } }) }, core: { getParty: () => Promise.reject(new Error('x')) } } as never
+    const input = { projectId: 'PRJ-205', adultCount: 1, childCount: 0, infantCount: 0, priceIdr: 3_500_000, priceAcceptance: 'accept', bookingReadiness: 'ready' }
+    const wait = await qualifyGroupTripOnServer(waitApi, 'LED-001', input)
+    expect(wait.outcome).toBe('waitlist')
+    expect(wait.order).toBeUndefined()
+    const sent: Record<string, unknown>[] = []
+    const okApi = {
+      sales: { qualifyGroupTrip: (_id: string, body: Record<string, unknown>) => { sent.push(body); return Promise.resolve({ data: { outcome: 'qualified', lead: lead({ serviceCategory: 'individual-travel', partyId: 'PTY-030' }), salesOrder: order({ id: 'SLO-021', projectId: 'PRJ-205', travelerCount: 1 }) } }) } },
+      core: { getParty: () => Promise.reject(new Error('x')) }
+    } as never
+    const ok = await qualifyGroupTripOnServer(okApi, 'LED-001', input)
+    expect(sent[0]).toMatchObject({ projectId: 'PRJ-205', priceMinor: '3500000' })
+    expect(sent[0]).not.toHaveProperty('priceIdr')
+    expect(ok.order?.projectId).toBe('PRJ-205')
   })
 })

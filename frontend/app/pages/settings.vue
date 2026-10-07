@@ -10,6 +10,7 @@ import { useVendorsSync } from '~/data/vendors-sync'
 import { useBookingsSync } from '~/data/bookings-sync'
 import { useProcurementSync } from '~/data/procurement-sync'
 import { useLeadsSync } from '~/data/leads-sync'
+import { useSalesOrdersSync } from '~/data/sales-orders-sync'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { User } from '~/types/user'
 
@@ -53,6 +54,7 @@ const vendorsSync = useVendorsSync()
 const bookingsSync = useBookingsSync()
 const procurementSync = useProcurementSync()
 const leadsSync = useLeadsSync()
+const salesOrdersSync = useSalesOrdersSync()
 
 function submitReset () {
   const success = resetMockState()
@@ -68,6 +70,7 @@ function submitReset () {
   bookingsSync.load(true)
   procurementSync.load(true)
   leadsSync.load(true)
+  salesOrdersSync.load(true)
   showToast('Demo Data Direset', 'Seluruh data mock dikembalikan ke kondisi seed awal.', 'success')
 }
 </script>
