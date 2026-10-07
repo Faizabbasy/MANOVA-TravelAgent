@@ -8,7 +8,7 @@ import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency
 import { getProject } from '../core/repository'
 import { isPortalActor } from '../core/scope'
 import { addLeadActivity, archiveLead, completeLeadActivity, createLead, mergeLead, reopenLead, unqualifyLead, updateLead } from './lead-writes'
-import { qualifyLead } from './qualify'
+import { qualifyGroupTrip, qualifyLead } from './qualify'
 import { createQuotation, decideQuotation, reviseQuotation, sendQuotation, submitQuotation, updateQuotation, withdrawQuotation } from './quotation-writes'
 import { listLeads, listSalesQuotations } from './repository'
 import { changeSalesOrderStatus, createSalesOrder, listSalesOrders, projectSeats } from './sales-orders'
@@ -82,8 +82,14 @@ export function salesRoutes(deps: AppDeps, auth: AuthContext) {
       const actor = await auth.requireCapability(request, 'sales.manage-lead')
       const id = assertIdParam(params.id, 'Lead')
       const b = (body ?? {}) as Record<string, unknown>
-      await db.transaction(tx => qualifyLead(tx, actor, id, { customerKind: b.customerKind, partyId: b.partyId }, businessDateOf(new Date()), requestIdOf(request)))
+      await db.transaction(tx => qualifyLead(tx, actor, id, { customerKind: b.customerKind, partyId: b.partyId, priceMinor: b.priceMinor, travelerCount: b.travelerCount }, businessDateOf(new Date()), requestIdOf(request)))
       return ok(request, await leadResponse(id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/leads/:id/group-trip', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'sales.manage-lead')
+      const id = assertIdParam(params.id, 'Lead')
+      const result = await db.transaction(tx => qualifyGroupTrip(tx, actor, id, (body ?? {}) as Record<string, unknown>, businessDateOf(new Date()), requestIdOf(request)))
+      return ok(request, { outcome: result.outcome, lead: await leadResponse(id), salesOrder: result.salesOrderId ? await salesOrderResponse(result.salesOrderId) : null })
     }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
     .post('/leads/:id/won', async ({ request, params, body, set }) => {
       const actor = await auth.requireCapability(request, 'sales.mark-won')
