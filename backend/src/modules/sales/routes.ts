@@ -11,6 +11,7 @@ import { addLeadActivity, archiveLead, completeLeadActivity, createLead, mergeLe
 import { qualifyLead } from './qualify'
 import { createQuotation, decideQuotation, reviseQuotation, sendQuotation, submitQuotation, updateQuotation, withdrawQuotation } from './quotation-writes'
 import { listLeads, listSalesQuotations } from './repository'
+import { changeSalesOrderStatus, createSalesOrder, listSalesOrders, projectSeats } from './sales-orders'
 import { markLeadWon } from './won'
 
 /** Sales (S6a): leads, client quotations and Won. Internal roles read; Sales (admin) writes; portals never see leads. */
@@ -27,6 +28,12 @@ export function salesRoutes(deps: AppDeps, auth: AuthContext) {
     const [lead] = await listLeads(db, { id })
     if (!lead) throw errors.notFound('Lead')
     return lead
+  }
+
+  async function salesOrderResponse(id: string) {
+    const [so] = await listSalesOrders(db, { id })
+    if (!so) throw errors.notFound('Sales order')
+    return so
   }
 
   async function quotationResponse(id: string) {
@@ -147,6 +154,35 @@ export function salesRoutes(deps: AppDeps, auth: AuthContext) {
       }
       return ok(request, await quotationResponse(id))
     }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .get('/sales-orders', async ({ request, query }) => {
+      await readActor(request)
+      if (query.projectId && !ID_PATTERN.test(query.projectId)) throw errors.validation({ projectId: ['ID tidak valid.'] })
+      return ok(request, await listSalesOrders(db, { projectId: query.projectId }))
+    }, { query: t.Object({ projectId: t.Optional(t.String()) }) })
+    .get('/sales-orders/:id', async ({ request, params }) => {
+      await readActor(request)
+      return ok(request, await salesOrderResponse(assertIdParam(params.id, 'Sales order')))
+    })
+    .post('/sales-orders', async ({ request, body, set }) => {
+      const actor = await auth.requireCapability(request, 'sales.manage-lead')
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /sales-orders', key, body }, tx =>
+        createSalesOrder(tx, actor, body as Record<string, unknown>, businessDateOf(new Date()), requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await salesOrderResponse(result.data.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .post('/sales-orders/:id/status', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'sales.manage-lead')
+      const id = assertIdParam(params.id, 'Sales order')
+      const b = (body ?? {}) as Record<string, unknown>
+      await db.transaction(tx => changeSalesOrderStatus(tx, actor, id, b.to, b.reason, businessDateOf(new Date()), requestIdOf(request)))
+      return ok(request, await salesOrderResponse(id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .get('/projects/:id/seats', async ({ request, params }) => {
+      await readActor(request)
+      return ok(request, await projectSeats(db, assertIdParam(params.id, 'Project')))
+    })
     .get('/quotations', async ({ request, query }) => {
       await readActor(request)
       if (query.leadId && !ID_PATTERN.test(query.leadId)) throw errors.validation({ leadId: ['ID tidak valid.'] })
