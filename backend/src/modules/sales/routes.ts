@@ -7,6 +7,7 @@ import { businessDateOf } from '../../shared/dates'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import { isPortalActor } from '../core/scope'
 import { addLeadActivity, archiveLead, completeLeadActivity, createLead, mergeLead, reopenLead, unqualifyLead, updateLead } from './lead-writes'
+import { qualifyLead } from './qualify'
 import { listLeads, listSalesQuotations } from './repository'
 
 /** Sales (S6a): leads, client quotations and Won. Internal roles read; Sales (admin) writes; portals never see leads. */
@@ -65,6 +66,13 @@ export function salesRoutes(deps: AppDeps, auth: AuthContext) {
       const actor = await auth.requireCapability(request, 'sales.manage-lead')
       const id = assertIdParam(params.id, 'Lead')
       await db.transaction(tx => reopenLead(tx, actor, id, businessDateOf(new Date()), requestIdOf(request)))
+      return ok(request, await leadResponse(id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/leads/:id/qualify', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'sales.manage-lead')
+      const id = assertIdParam(params.id, 'Lead')
+      const b = (body ?? {}) as Record<string, unknown>
+      await db.transaction(tx => qualifyLead(tx, actor, id, { customerKind: b.customerKind, partyId: b.partyId }, businessDateOf(new Date()), requestIdOf(request)))
       return ok(request, await leadResponse(id))
     }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
     .post('/leads/:id/unqualify', async ({ request, params, body }) => {

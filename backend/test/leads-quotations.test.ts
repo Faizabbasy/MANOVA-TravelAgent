@@ -110,3 +110,40 @@ describe('lead writes', () => {
     expect((await call('POST', `/leads/${id}/activities`, 'finance', { type: 'call', message: 'x' })).status).toBe(403)
   })
 })
+
+const fullRequirements = (extra: Record<string, unknown> = {}) => ({
+  serviceCategory: 'corporate-travel', destination: 'Tokyo', travelStartDate: '2026-12-01', travelEndDate: '2026-12-05',
+  travelerEstimate: 12, serviceScope: ['flight', 'hotel'], requirementSummary: 'Kunjungan bisnis', handedOverTo: 'USR-001', ...extra
+})
+
+describe('qualify', () => {
+  test('missing fields answer 422 with the list; complete lead links a new prospect customer and notes', async () => {
+    const id = (await call('POST', '/leads', 'admin', { name: 'Budi', companyName: 'PT Qualify Baru S6', source: 'referral' }, key())).json.data.id as string
+    const refused = await call('POST', `/leads/${id}/qualify`, 'admin', { customerKind: 'company' })
+    expect(refused.status).toBe(422)
+    expect(refused.json.error.details.missing).toContain('Destinasi belum diisi')
+    await call('PATCH', `/leads/${id}`, 'admin', fullRequirements())
+    const lead = (await call('POST', `/leads/${id}/qualify`, 'admin', { customerKind: 'company' })).json.data
+    expect(lead.stage).toBe('qualified')
+    expect(lead.qualifiedOn).toBeTruthy()
+    const party = (await call('GET', `/parties/${lead.partyId}`, 'admin')).json.data
+    expect(party).toMatchObject({ name: 'PT Qualify Baru S6', lifecycleStatus: 'prospect', partyType: 'company', accountOwnerUserId: 'USR-001' })
+    expect(lead.activities.map((a: { message: string }) => a.message)).toContain('Lead Qualified')
+    // Qualify again: unchanged, no second customer.
+    expect((await call('POST', `/leads/${id}/qualify`, 'admin', { customerKind: 'company' })).json.data.partyId).toBe(lead.partyId)
+  })
+
+  test('an existing customer with the same name (any case) is reused', async () => {
+    const existing = (await call('GET', '/parties/PTY-001', 'admin')).json.data as { id: string; name: string }
+    const id = (await call('POST', '/leads', 'admin', { name: 'Kontak', companyName: existing.name.toUpperCase(), source: 'email', ...fullRequirements() }, key())).json.data.id as string
+    expect((await call('POST', `/leads/${id}/qualify`, 'admin', { customerKind: 'company' })).json.data.partyId).toBe('PTY-001')
+  })
+
+  test('B2C individual travel needs no Account Executive and creates a client; finance 403; unknown partyId 400', async () => {
+    const id = (await call('POST', '/leads', 'admin', { name: 'Ibu Sinta Qualify', source: 'instagram', ...fullRequirements({ serviceCategory: 'individual-travel', handedOverTo: null }) }, key())).json.data.id as string
+    expect((await call('POST', `/leads/${id}/qualify`, 'finance', { customerKind: 'individual' })).status).toBe(403)
+    expect((await call('POST', `/leads/${id}/qualify`, 'admin', { customerKind: 'individual', partyId: 'PTY-999' })).status).toBe(400)
+    const lead = (await call('POST', `/leads/${id}/qualify`, 'admin', { customerKind: 'individual' })).json.data
+    expect((await call('GET', `/parties/${lead.partyId}`, 'admin')).json.data).toMatchObject({ partyType: 'individual', lifecycleStatus: 'client' })
+  })
+})
