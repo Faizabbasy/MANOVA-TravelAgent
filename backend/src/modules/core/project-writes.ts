@@ -150,6 +150,12 @@ export async function createProject(tx: Queryable, actor: Actor, input: ProjectC
     partyId = party.id
   }
 
+  // S6a: leads and quotations live on the server; an unknown reference is a form error, not a foreign-key crash.
+  const unknown: FieldErrors = {}
+  if (input.leadId && !(await tx.query('select 1 from leads where id = $1', [input.leadId])).length) unknown.leadId = ['Lead tidak ditemukan.']
+  if (input.sourceQuotationId && !(await tx.query('select 1 from quotations where id = $1', [input.sourceQuotationId])).length) unknown.sourceQuotationId = ['Quotation tidak ditemukan.']
+  if (Object.keys(unknown).length) throw errors.validation(unknown)
+
   if (input.leadId) {
     const [won] = await tx.query<{ id: string }>('select id from projects where lead_id = $1', [input.leadId])
     if (won) throw new AppError(409, 'CONFLICT', `Lead ini sudah menjadi project ${won.id}. Buka project itu, jangan membuat yang baru.`)

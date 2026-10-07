@@ -74,6 +74,7 @@ describe('POST /projects', () => {
     expect(res.json.data).toMatchObject({ partyId: 'PTY-009', isGroupTrip: true })
     await t.db.query("update projects set party_id = 'PTY-001' where party_id = 'PTY-009'")
     await t.db.query("update sales_order_refs set party_id = 'PTY-001' where party_id = 'PTY-009'")
+    await t.db.query("update leads set party_id = 'PTY-001' where party_id = 'PTY-009'")
     await t.db.query("delete from parties where id = 'PTY-009'")
     const again = await post('admin', valid({ partyId: undefined, isGroupTrip: true, name: 'Open Trip Lombok' }))
     expect(again.status).toBe(201)
@@ -156,10 +157,17 @@ describe('PUT /projects/:id/contract-value and finance', () => {
 
 describe('one project per won lead', () => {
   test('a second project for the same lead is refused, even with a new idempotency key', async () => {
-    const first = await post('admin', valid({ name: 'Won Pertama', leadId: 'LED-777' }))
+    const first = await post('admin', valid({ name: 'Won Pertama', leadId: 'LED-002' }))
     expect(first.status).toBe(201)
-    const second = await post('admin', valid({ name: 'Won Kedua', leadId: 'LED-777' }))
+    const second = await post('admin', valid({ name: 'Won Kedua', leadId: 'LED-002' }))
     expect(second.status).toBe(409)
     expect(second.json.error.message).toContain(first.json.data.id)
+  })
+
+  test('an unknown lead or quotation is a validation error, not a server error', async () => {
+    const res = await post('admin', valid({ name: 'Lead Fiktif', leadId: 'LED-999' }))
+    expect(res.status).toBe(400)
+    expect(res.json.error.fieldErrors.leadId).toBeTruthy()
+    expect((await post('admin', valid({ name: 'Quotation Fiktif', sourceQuotationId: 'QUO-999' }))).status).toBe(400)
   })
 })

@@ -406,8 +406,8 @@ describe('demo seed', () => {
     try {
       await migrateUp(db)
       await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
-      const [{ n }] = await db.query<{ n: number }>('select count(*)::int as n from leads')
-      expect(n).toBe(31)
+      const [leadCount] = await db.query<{ n: number }>('select count(*)::int as n from leads')
+      expect(leadCount!.n).toBe(31)
       const v = await db.query<{ version: number; status: string }>("select version, status from quotation_versions where quotation_id = 'QUO-005' order by version")
       expect(v.map(r => `${r.version}:${r.status}`)).toEqual(['1:superseded', '2:submitted'])
       // New project rows are checked against leads (FK NOT VALID only skips rows that existed before 0024).
@@ -473,11 +473,13 @@ describe('demo seed', () => {
     const walk = (v: unknown, into: Set<string>): void => {
       if (Array.isArray(v)) v.forEach(x => walk(x, into))
       // S4a: a booking's `details` is its UI-owned working document (option prices, BOQ lines, penalties) —
-      // checked below for finance records only, not for prices.
-      else if (v && typeof v === 'object') for (const [k, child] of Object.entries(v)) { into.add(k); walk(child, k === 'details' ? detailKeys : into) }
+      // checked below for finance records only, not for prices. S6a: a quotation version's `content` is the Sales
+      // commercial offer (discount, tax, estimated cost/margin) — same treatment.
+      else if (v && typeof v === 'object') for (const [k, child] of Object.entries(v)) { into.add(k); walk(child, k === 'details' || k === 'content' ? detailKeys : into) }
     }
     walk(DEMO_CORE, keys)
-    expect([...detailKeys].filter(k => /invoice|payment|receipt|transaction|outstanding|balance|paid/i.test(k))).toEqual([])
+    // `paymentTerms` on a quotation is the offered term ("DP 30%"), not a payment record.
+    expect([...detailKeys].filter(k => k !== 'paymentTerms' && /invoice|payment|receipt|transaction|outstanding|balance|paid/i.test(k))).toEqual([])
     // `paymentTerm` is a CRM billing term ("30 hari"), not a payment record; `netCostMinor` is the booking's net cost (Booking module, S4a).
     expect([...keys].filter(k => k !== 'paymentTerm' && k !== 'netCostMinor' && /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
     // The only money-like values are owned by Project/Booking/Sales (ADR-007): contract value, service budget,

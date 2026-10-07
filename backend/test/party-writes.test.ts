@@ -121,7 +121,7 @@ describe('won lead promotes the customer', () => {
     const id = party.json.data.id as string
     const project = await t.call('POST', '/api/v1/projects', {
       cookie: c.admin, headers: { 'idempotency-key': key() },
-      body: { name: 'Trip Prospek', partyId: id, leadId: 'LED-901', destination: 'Bali', travelStartDate: '2027-05-01', travelEndDate: '2027-05-04', serviceScope: ['hotel'], travelerCount: 5, contractValueMinor: '100000000' }
+      body: { name: 'Trip Prospek', partyId: id, leadId: 'LED-003', destination: 'Bali', travelStartDate: '2027-05-01', travelEndDate: '2027-05-04', serviceScope: ['hotel'], travelerCount: 5, contractValueMinor: '100000000' }
     })
     expect(project.status).toBe(201)
     expect((await t.call('GET', `/api/v1/parties/${id}`, { cookie: c.admin })).json.data.lifecycleStatus).toBe('client')
