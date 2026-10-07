@@ -318,25 +318,63 @@ interface ServiceOrderRow extends Record<string, unknown> {
   vendor_name: string
   project_id: string | null
   service_id: string | null
+  service_type: string | null
+  status: string
+  status_reason: string | null
+  net_cost_minor: string | null
+  line_items: unknown[]
+  source_quotation_id: string | null
+  acknowledged_at: string | null
+  fulfilled_at: string | null
+  created_at: string
+  updated_at: string
 }
 
-/** Internal roles with vendor/finance access see any service order; a vendor only its own; clients none. */
-export async function getServiceOrder(db: Db, actor: Actor, id: string) {
-  if (actor.role === 'client') return null
-  const params: unknown[] = [id]
-  let vendorFilter = ''
-  if (actor.role === 'vendor') {
-    params.push(actor.vendorId)
-    vendorFilter = `and so.vendor_id = $${params.length}`
+/** Internal roles with vendor/finance access see any service order; a vendor only its own; clients none (S4b: full view). */
+export async function listServiceOrders(db: Db, actor: Actor, filter: { projectId?: string; vendorId?: string; serviceId?: string; id?: string }) {
+  if (actor.role === 'client') return []
+  const params: unknown[] = []
+  const where: string[] = ['true']
+  if (actor.role === 'vendor') { params.push(actor.vendorId); where.push(`so.vendor_id = $${params.length}`) }
+  for (const [key, col] of [['projectId', 'so.project_id'], ['vendorId', 'so.vendor_id'], ['serviceId', 'so.service_id'], ['id', 'so.id']] as const) {
+    if (filter[key]) { params.push(filter[key]); where.push(`${col} = $${params.length}`) }
   }
-  const [row] = await db.query<ServiceOrderRow>(
-    `select so.id, so.vendor_id, v.name as vendor_name, so.project_id, so.service_id
-       from service_orders so join vendors v on v.id = so.vendor_id
-      where so.id = $1 ${vendorFilter}`,
+  const rows = await db.query<ServiceOrderRow>(
+    `select so.id, so.vendor_id, v.name as vendor_name, so.project_id, so.service_id, ps.service_type, so.status, so.status_reason,
+            so.net_cost_minor, so.line_items, so.source_quotation_id,
+            to_char(so.acknowledged_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as acknowledged_at,
+            to_char(so.fulfilled_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as fulfilled_at,
+            to_char(so.created_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as created_at,
+            to_char(so.updated_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as updated_at
+       from service_orders so
+       join vendors v on v.id = so.vendor_id
+       left join project_services ps on ps.id = so.service_id
+      where ${where.join(' and ')}
+      order by so.id`,
     params
   )
-  if (!row) return null
-  return { id: row.id, vendorId: row.vendor_id, vendorName: row.vendor_name, projectId: row.project_id, serviceId: row.service_id }
+  const commercial = canSeeCommercials(actor)
+  return rows.map(r => ({
+    id: r.id,
+    vendorId: r.vendor_id,
+    vendorName: r.vendor_name,
+    projectId: r.project_id,
+    serviceId: r.service_id,
+    serviceType: r.service_type,
+    status: r.status,
+    statusReason: r.status_reason,
+    netCostMinor: commercial ? r.net_cost_minor : null,
+    lineItems: r.line_items,
+    sourceQuotationId: r.source_quotation_id,
+    acknowledgedAt: r.acknowledged_at,
+    fulfilledAt: r.fulfilled_at,
+    createdAt: r.created_at,
+    updatedAt: r.updated_at
+  }))
+}
+
+export async function getServiceOrder(db: Db, actor: Actor, id: string) {
+  return (await listServiceOrders(db, actor, { id }))[0] ?? null
 }
 
 interface BookingRow extends Record<string, unknown> {

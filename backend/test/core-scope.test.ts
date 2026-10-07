@@ -100,7 +100,10 @@ describe('internal roles', () => {
   test('parties, vendors and service orders are readable', async () => {
     expect((await get('finance', '/api/v1/parties?limit=100')).json.data).toHaveLength(DEMO_CORE.parties.length)
     expect((await get('admin', '/api/v1/vendors?limit=100')).json.data).toHaveLength(7)
-    expect((await get('finance', '/api/v1/service-orders/SO-002')).json.data).toEqual({
+    // S4b: the reference fields Finance uses stay; status, cost and line items come on top.
+    const so = (await get('finance', '/api/v1/service-orders/SO-002')).json.data
+    expect(so.status).toEqual(expect.any(String))
+    expect(so).toMatchObject({
       id: 'SO-002', vendorId: 'VND-006', vendorName: 'PT ABC', projectId: 'PRJ-102', serviceId: null
     })
   })

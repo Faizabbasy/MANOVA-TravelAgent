@@ -13,6 +13,7 @@ import { acceptHandover, addMember, closeFinance, closeProject, markReady, remov
 import { createProject, setContractValue, updateProject } from './project-writes'
 import { SERVICE_TYPES, serviceTypeOf } from './booking-rules'
 import { changeBookingStatus, createBooking, updateBooking } from './booking-writes'
+import { changeServiceOrderStatus } from './service-orders'
 import { createService, updateService } from './service-writes'
 import {
   BOOKING_TYPES,
@@ -24,6 +25,7 @@ import {
   listBookings,
   listProjectServices,
   getServiceOrder,
+  listServiceOrders,
   getVendor,
   listActivities,
   listContacts,
@@ -353,6 +355,26 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       await db.transaction(tx => updateService(tx, actor, id, body as Record<string, unknown>, requestIdOf(request)))
       return ok(request, await getProjectService(db, actor, id))
     }, { body: t.Record(t.String(), t.Unknown()) })
+    .get('/service-orders', async ({ request, query }) => {
+      const actor = await auth.requireActor(request)
+      if (actor.role === 'client' || (!isPortalActor(actor) && !canListVendors(actor))) throw errors.forbidden()
+      for (const k of ['projectId', 'vendorId', 'serviceId'] as const) {
+        if (query[k] && !ID_PATTERN.test(query[k]!)) throw errors.validation({ [k]: ['ID tidak valid.'] })
+      }
+      return ok(request, await listServiceOrders(db, actor, { projectId: query.projectId, vendorId: query.vendorId, serviceId: query.serviceId }))
+    }, { query: t.Object({ projectId: t.Optional(t.String()), vendorId: t.Optional(t.String()), serviceId: t.Optional(t.String()) }) })
+    .post('/service-orders/:id/status', async ({ request, params, body }) => {
+      const actor = await auth.requireActor(request)
+      const id = assertIdParam(params.id, 'Service order')
+      const so = isPortalActor(actor) ? null : await getServiceOrder(db, actor, id)
+      if (!so) throw errors.notFound('Service order')
+      // Orders on a service follow its type's capability; legacy orders without a service belong to vendor management.
+      if (so.serviceType) requireServiceCapability(actor, so.serviceType)
+      else if (!hasCapability(actor.role, 'vendor.manage-vendor')) throw errors.forbidden()
+      const b = (body ?? {}) as Record<string, unknown>
+      await db.transaction(tx => changeServiceOrderStatus(tx, actor, id, b.to, b.reason, requestIdOf(request)))
+      return ok(request, await getServiceOrder(db, actor, id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
     .get('/service-orders/:id', async ({ request, params }) => {
       const actor = await auth.requireActor(request)
       if (!isPortalActor(actor) && !canListVendors(actor)) throw errors.forbidden()

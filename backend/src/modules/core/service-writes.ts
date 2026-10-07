@@ -6,6 +6,7 @@ import { recordAudit } from '../../shared/audit'
 import { nextId } from '../../shared/ids'
 import { parseAmountMinor } from '../../shared/money'
 import { SERVICE_STATUSES, SERVICE_TYPES, type ServiceStatus, type ServiceType } from './booking-rules'
+import { ensureServiceOrder } from './service-orders'
 
 /**
  * Project services (S4a): one row per service line of a project. Rows that carry a booking take their status
@@ -72,6 +73,7 @@ export async function createService(tx: Queryable, actor: Actor, projectId: stri
   const vendorId = await vendorOk(tx, input.vendorId, problems)
   if (Object.keys(problems).length) throw errors.validation(problems)
   const id = await insertService(tx, { projectId, type: type!, label: label as string, vendorId, budgetMinor, bookingReference })
+  if (vendorId) await ensureServiceOrder(tx, actor, id, vendorId, {}, requestId)
   await recordAudit(tx, {
     action: 'service.created', actorUserId: actor.userId, entityType: 'project_service', entityId: id, requestId,
     after: { projectId, type, label, vendorId: vendorId ?? null, budgetMinor: budgetMinor ?? null }
@@ -118,6 +120,8 @@ export async function updateService(tx: Queryable, actor: Actor, id: string, inp
     if (used) throw rule('Vendor layanan ini tidak bisa diganti: sudah ada invoice vendor untuk layanan ini di Finance.')
   }
   await tx.query(`update project_services set ${keys.map((k, i) => `${COLUMNS[k]} = $${i + 2}`).join(', ')}, updated_at = now() where id = $1`, [id, ...keys.map(k => next[k])])
+  // S4b: the service orders follow the vendor (new vendor → draft order, old vendor's unbilled order cancelled).
+  if ('vendorId' in next) await ensureServiceOrder(tx, actor, id, (next.vendorId as string | null) ?? null, {}, requestId)
   await recordAudit(tx, {
     action: 'service.updated', actorUserId: actor.userId, entityType: 'project_service', entityId: id, requestId,
     before: Object.fromEntries(keys.map(k => [k, cur[COLUMNS[k]!] ?? null])), after: next
