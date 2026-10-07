@@ -4297,7 +4297,8 @@
         ],
         "ticketingDeadline": "2026-08-05",
         "fareRules": "Non-refundable setelah issued. Reschedule dikenakan biaya admin Rp500.000/pax."
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "flight",
@@ -4354,7 +4355,8 @@
         "fareRules": "Reissue gratis 1x untuk perubahan tanggal dari klien; reissue berikutnya dikenakan selisih fare.",
         "hasScheduleChange": true,
         "scheduleChangeNote": "Tanggal keberangkatan berubah dari 15–19 Sep menjadi 22–26 Sep 2026 (lihat CHG-1021, tab Activity & Changes) — tiket lama di-reissue menyesuaikan jadwal baru."
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "flight",
@@ -4390,7 +4392,8 @@
         ],
         "ticketingDeadline": "2026-09-10",
         "fareRules": "Refundable dengan potongan biaya admin 15%."
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "flight",
@@ -4434,7 +4437,8 @@
         ],
         "ticketingDeadline": "2026-07-25",
         "fareRules": "Group rate — perubahan nama peserta dikenakan biaya admin per pax."
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "flight",
@@ -4478,7 +4482,8 @@
           "TRV-1036"
         ],
         "ticketingDeadline": "2026-08-01"
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "flight",
@@ -4518,7 +4523,8 @@
         ],
         "travelerIds": [],
         "ticketingDeadline": "2026-08-05"
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "hotel",
@@ -4566,7 +4572,8 @@
         "voucherIssuedAt": "2026-06-25",
         "cancellationDeadline": "2026-09-10",
         "amendmentNote": "Upgrade tipe kamar dari Twin Deluxe ke Suite untuk seluruh Room Block A pasca komplain unit AC bermasalah (lihat ITIN-1026, tab Itinerary & Services)."
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "hotel",
@@ -4599,7 +4606,8 @@
         "checkOutDate": "2026-09-26",
         "cancellationDeadline": "2026-09-10",
         "cancellationPenaltyIdr": 2025000
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "hotel",
@@ -4635,7 +4643,8 @@
         "earlyCheckInRequested": true,
         "voucherIssuedAt": "2026-06-20",
         "cancellationDeadline": "2026-07-25"
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "hotel",
@@ -4678,7 +4687,8 @@
         "checkInDate": "2026-08-10",
         "checkOutDate": "2026-08-14",
         "cancellationDeadline": "2026-07-20"
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "hotel",
@@ -4714,7 +4724,8 @@
         "lateCheckOutRequested": true,
         "voucherIssuedAt": "2026-06-22",
         "cancellationDeadline": "2026-07-25"
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "hotel",
@@ -4732,7 +4743,8 @@
         "travelerIds": [],
         "checkInDate": "2026-09-22",
         "checkOutDate": "2026-09-26"
-      }
+      },
+      "flaggedDuplicate": true
     },
     {
       "bookingType": "hotel",
@@ -4769,7 +4781,8 @@
         "checkOutDate": "2026-09-19",
         "voucherIssuedAt": "2026-08-18",
         "cancellationDeadline": "2026-09-10"
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "mice",
@@ -4944,7 +4957,8 @@
         "changeOrderNote": "Venue Hari 2 berpotensi pindah ke opsi alternatif berkapasitas lebih kecil (100 pax) menunggu konfirmasi final H-7 (lihat RSK-1031, tab Overview) — rundown terbaru belum dikirim ke client (TSK-1033, tab Tasks).",
         "hasIncident": true,
         "incidentNote": "Keterlambatan pengiriman unit AV cadangan H-1, diatasi dengan unit sewaan darurat dari vendor lokal — tidak mengganggu jadwal Hari 1."
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "transport",
@@ -5008,7 +5022,8 @@
         "driverPhone": "0852-6600-1001",
         "standbyHours": 4,
         "tollFeeIdr": 150000
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "transport",
@@ -5058,7 +5073,8 @@
         "tollFeeIdr": 100000,
         "hasChange": true,
         "changeNote": "Jadwal City Tour dimajukan dari 10:00 menjadi 08:00 mengikuti penyesuaian agenda MICE Conference Hari 1."
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "transport",
@@ -5102,7 +5118,8 @@
         "driverPhone": "0852-6600-1003",
         "hasIncident": true,
         "incidentNote": "Unit awal mengalami kendala AC saat pre-check — diganti unit cadangan (DN 9012 EF) 30 menit sebelum jadwal, tidak ada keterlambatan keberangkatan."
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "transport",
@@ -5138,7 +5155,8 @@
         "travelerIds": [
           "TRV-1035"
         ]
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "transport",
@@ -5178,7 +5196,8 @@
           }
         ],
         "travelerIds": []
-      }
+      },
+      "flaggedDuplicate": false
     },
     {
       "bookingType": "transport",
@@ -5241,7 +5260,186 @@
         "driverPhone": "0852-3300-1010",
         "standbyHours": 3,
         "tollFeeIdr": 0
-      }
+      },
+      "flaggedDuplicate": false
+    }
+  ],
+  "vendorQuotations": [
+    {
+      "id": "VQ-001",
+      "vendorId": "VND-001",
+      "projectId": "PRJ-101",
+      "serviceId": "SVC-1011",
+      "serviceType": "flight",
+      "amountMinor": "90000000",
+      "status": "accepted",
+      "notes": null,
+      "submittedOn": "2026-06-15"
+    },
+    {
+      "id": "VQ-002",
+      "vendorId": "VND-001",
+      "projectId": "PRJ-102",
+      "serviceId": "SVC-1021",
+      "serviceType": "flight",
+      "amountMinor": "205000000",
+      "status": "accepted",
+      "notes": null,
+      "submittedOn": "2026-06-10"
+    },
+    {
+      "id": "VQ-003",
+      "vendorId": "VND-002",
+      "projectId": "PRJ-102",
+      "serviceId": "SVC-1022",
+      "serviceType": "hotel",
+      "amountMinor": "140000000",
+      "status": "accepted",
+      "notes": "Direvisi setelah upgrade tipe kamar ke Suite",
+      "submittedOn": "2026-06-12"
+    },
+    {
+      "id": "VQ-004",
+      "vendorId": "VND-001",
+      "projectId": "PRJ-103",
+      "serviceId": "SVC-1031",
+      "serviceType": "flight",
+      "amountMinor": "250000000",
+      "status": "accepted",
+      "notes": null,
+      "submittedOn": "2026-06-08"
+    },
+    {
+      "id": "VQ-005",
+      "vendorId": "VND-002",
+      "projectId": "PRJ-103",
+      "serviceId": "SVC-1033",
+      "serviceType": "hotel",
+      "amountMinor": "400000000",
+      "status": "accepted",
+      "notes": null,
+      "submittedOn": "2026-06-08"
+    },
+    {
+      "id": "VQ-006",
+      "vendorId": "VND-004",
+      "projectId": "PRJ-103",
+      "serviceId": "SVC-1035",
+      "serviceType": "mice",
+      "amountMinor": "280000000",
+      "status": "accepted",
+      "notes": null,
+      "submittedOn": "2026-06-08"
+    },
+    {
+      "id": "VQ-007",
+      "vendorId": "VND-001",
+      "projectId": "PRJ-103",
+      "serviceId": "SVC-1032",
+      "serviceType": "flight",
+      "amountMinor": "150000000",
+      "status": "submitted",
+      "notes": "Flight Batch 2 (Grup VIP), menunggu konfirmasi vendor",
+      "submittedOn": "2026-07-20"
+    },
+    {
+      "id": "VQ-008",
+      "vendorId": "VND-002",
+      "projectId": "PRJ-102",
+      "serviceId": "SVC-1023",
+      "serviceType": "hotel",
+      "amountMinor": "25000000",
+      "status": "rejected",
+      "notes": "Room Block B — dibatalkan setelah konsolidasi ke Block A",
+      "submittedOn": "2026-06-05"
+    },
+    {
+      "id": "VQ-009",
+      "vendorId": "VND-003",
+      "projectId": "PRJ-103",
+      "serviceId": "SVC-1034",
+      "serviceType": "transportation",
+      "amountMinor": "45000000",
+      "status": "submitted",
+      "notes": "10 unit bus pariwisata, sudah termasuk sopir",
+      "submittedOn": "2026-07-15"
+    },
+    {
+      "id": "VQ-010",
+      "vendorId": "VND-005",
+      "projectId": "PRJ-103",
+      "serviceId": "SVC-1034",
+      "serviceType": "transportation",
+      "amountMinor": "52000000",
+      "status": "submitted",
+      "notes": "Termasuk asuransi perjalanan tambahan untuk seluruh peserta",
+      "submittedOn": "2026-07-16"
+    },
+    {
+      "id": "VQ-011",
+      "vendorId": "VND-003",
+      "projectId": "PRJ-205",
+      "serviceId": "SVC-2051",
+      "serviceType": "transportation",
+      "amountMinor": "8000000",
+      "status": "accepted",
+      "notes": null,
+      "submittedOn": "2026-08-14"
+    },
+    {
+      "id": "VQ-012",
+      "vendorId": "VND-002",
+      "projectId": "PRJ-205",
+      "serviceId": "SVC-2052",
+      "serviceType": "hotel",
+      "amountMinor": "12000000",
+      "status": "accepted",
+      "notes": "Homestay Bromo — sudah terhubung ke ProjectService SVC-2052 dan HotelBooking HTL-2052.",
+      "submittedOn": "2026-08-18"
+    },
+    {
+      "id": "VQ-013",
+      "vendorId": "VND-001",
+      "projectId": "PRJ-501",
+      "serviceId": "SVC-5011",
+      "serviceType": "flight",
+      "amountMinor": "78000000",
+      "status": "accepted",
+      "notes": null,
+      "submittedOn": "2026-06-28"
+    },
+    {
+      "id": "VQ-014",
+      "vendorId": "VND-002",
+      "projectId": "PRJ-501",
+      "serviceId": "SVC-5012",
+      "serviceType": "hotel",
+      "amountMinor": "88000000",
+      "status": "accepted",
+      "notes": null,
+      "submittedOn": "2026-06-29"
+    },
+    {
+      "id": "VQ-015",
+      "vendorId": "VND-003",
+      "projectId": "PRJ-502",
+      "serviceId": "SVC-5021",
+      "serviceType": "transportation",
+      "amountMinor": "15000000",
+      "status": "accepted",
+      "notes": null,
+      "submittedOn": "2026-07-04"
+    },
+    {
+      "id": "VQ-016",
+      "vendorId": "VND-002",
+      "projectId": "PRJ-502",
+      "serviceId": "SVC-5022",
+      "serviceType": "hotel",
+      "amountMinor": "13000000",
+      "status": "accepted",
+      "notes": null,
+      "submittedOn": "2026-07-04"
     }
   ],
   "serviceOrders": [
@@ -5249,31 +5447,91 @@
       "id": "SO-001",
       "vendorId": "VND-003",
       "projectId": "PRJ-103",
-      "serviceId": null
+      "serviceId": null,
+      "status": "fulfilled",
+      "netCostMinor": "3400000",
+      "lineItems": [
+        {
+          "description": "Airport transfer VIP (sedan eksekutif)",
+          "quantity": 4,
+          "unit": "trip"
+        }
+      ],
+      "statusReason": null,
+      "acknowledgedAt": "2026-07-13",
+      "fulfilledAt": "2026-08-11"
     },
     {
       "id": "SO-002",
       "vendorId": "VND-006",
       "projectId": "PRJ-102",
-      "serviceId": null
+      "serviceId": null,
+      "status": "amended",
+      "netCostMinor": "9600000",
+      "lineItems": [
+        {
+          "description": "Kamar Deluxe upgrade ke Suite (rooming tambahan)",
+          "quantity": 2,
+          "unit": "kamar/4 malam"
+        }
+      ],
+      "statusReason": null,
+      "acknowledgedAt": "2026-07-05",
+      "fulfilledAt": null
     },
     {
       "id": "SO-101F",
       "vendorId": "VND-001",
       "projectId": "PRJ-101",
-      "serviceId": "SVC-1011"
+      "serviceId": "SVC-1011",
+      "status": "fulfilled",
+      "netCostMinor": "90000000",
+      "lineItems": [
+        {
+          "description": "Tiket pesawat rombongan Jakarta–Manila (6 pax)",
+          "quantity": 6,
+          "unit": "tiket"
+        }
+      ],
+      "statusReason": null,
+      "acknowledgedAt": "2026-06-18",
+      "fulfilledAt": "2026-06-20"
     },
     {
       "id": "SO-205H",
       "vendorId": "VND-002",
       "projectId": "PRJ-205",
-      "serviceId": "SVC-2052"
+      "serviceId": "SVC-2052",
+      "status": "acknowledged",
+      "netCostMinor": "12000000",
+      "lineItems": [
+        {
+          "description": "Homestay Bromo View — 2 kamar/1 malam",
+          "quantity": 2,
+          "unit": "kamar/1 malam"
+        }
+      ],
+      "statusReason": null,
+      "acknowledgedAt": "2026-08-19",
+      "fulfilledAt": null
     },
     {
       "id": "SO-205T",
       "vendorId": "VND-003",
       "projectId": "PRJ-205",
-      "serviceId": "SVC-2051"
+      "serviceId": "SVC-2051",
+      "status": "acknowledged",
+      "netCostMinor": "8000000",
+      "lineItems": [
+        {
+          "description": "Bus pariwisata 4D3N (rombongan)",
+          "quantity": 1,
+          "unit": "unit/4 hari"
+        }
+      ],
+      "statusReason": null,
+      "acknowledgedAt": "2026-08-15",
+      "fulfilledAt": null
     }
   ],
   "partyContacts": [
@@ -5444,6 +5702,24 @@
       "partyId": "PTY-018",
       "priceMinor": "6500000",
       "travelerCount": 1
+    }
+  ],
+  "bookingAttempts": [
+    {
+      "id": "BKO-002-ATT-1",
+      "bookingType": "flight",
+      "bookingId": "FLT-1021",
+      "outcome": "failed",
+      "note": "Percobaan reissue otomatis ke sistem airline gagal — response timeout dari GDS mock saat menyesuaikan jadwal baru (lihat CHG-1021).",
+      "attemptedAt": "2026-07-05T09:00"
+    },
+    {
+      "id": "BKO-002-ATT-2",
+      "bookingType": "flight",
+      "bookingId": "FLT-1021",
+      "outcome": "manual-fallback",
+      "note": "Reissue berhasil diproses manual oleh tim Ticketing lewat kontak langsung ke counter airline — tiket terbit dengan jadwal baru 22–26 Sep 2026.",
+      "attemptedAt": "2026-07-05T10:30"
     }
   ]
 }

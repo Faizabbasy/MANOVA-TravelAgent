@@ -66,8 +66,26 @@ export interface DemoCoreSeed {
     statusReason?: string | null
     netCostMinor?: string | null
     details?: Record<string, unknown>
+    /** S4b: a booking deliberately created next to an active one. */
+    flaggedDuplicate?: boolean
   }[]
-  serviceOrders: { id: string; vendorId: string; projectId: string | null; serviceId: string | null }[]
+  serviceOrders: {
+    id: string
+    vendorId: string
+    projectId: string | null
+    serviceId: string | null
+    /** S4b: procurement state of the order. */
+    status?: string
+    netCostMinor?: string | null
+    lineItems?: unknown[]
+    statusReason?: string | null
+    acknowledgedAt?: string | null
+    fulfilledAt?: string | null
+  }[]
+  /** S4b: vendor quotations per service. */
+  vendorQuotations?: { id: string; vendorId: string; projectId: string; serviceId: string | null; serviceType: string; amountMinor: string; status: string; notes: string | null; submittedOn: string }[]
+  /** S4b: attempt log of bookings. */
+  bookingAttempts?: { id: string; bookingType: string; bookingId: string; outcome: string; note: string | null; attemptedAt: string }[]
   /** Group Trip participant bookings (owned by Sales); each is billed to its own customer. */
   salesOrders: { id: string; projectId: string; partyId: string; priceMinor: string; travelerCount: number }[]
   /** CRM (S1): contact persons and the activity log per customer. */
@@ -232,24 +250,48 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
     for (const b of seed.bookingRefs) {
       await tx.query(
         `insert into booking_refs (booking_type, booking_id, project_id, service_id, provenance, sell_amount_minor, departure_date,
-           status, reference, status_reason, net_cost_minor, details)
-         values ($1, $2, $3, $4, $5, $6, $7, coalesce($8, case when $1 = 'mice' then 'planning' else 'requested' end), $9, $10, $11, $12::text::jsonb)
+           status, reference, status_reason, net_cost_minor, details, flagged_duplicate)
+         values ($1, $2, $3, $4, $5, $6, $7, coalesce($8, case when $1 = 'mice' then 'planning' else 'requested' end), $9, $10, $11, $12::text::jsonb, $13)
          on conflict (booking_type, booking_id) do update set project_id = excluded.project_id, service_id = excluded.service_id,
            sell_amount_minor = excluded.sell_amount_minor, departure_date = excluded.departure_date, status = excluded.status,
            reference = excluded.reference, status_reason = excluded.status_reason, net_cost_minor = excluded.net_cost_minor,
-           details = excluded.details
+           details = excluded.details, flagged_duplicate = excluded.flagged_duplicate
          where booking_refs.provenance = 'demo-fixture'`,
         [b.bookingType, b.bookingId, b.projectId, b.serviceId, P, b.sellAmountMinor, b.departureDate,
-          b.status ?? null, b.reference ?? null, b.statusReason ?? null, b.netCostMinor ?? null, JSON.stringify(b.details ?? {})]
+          b.status ?? null, b.reference ?? null, b.statusReason ?? null, b.netCostMinor ?? null, JSON.stringify(b.details ?? {}), b.flaggedDuplicate ?? false]
+      )
+    }
+    for (const q of seed.vendorQuotations ?? []) {
+      await tx.query(
+        `insert into vendor_quotations (id, vendor_id, project_id, service_id, service_type, amount_minor, status, notes, submitted_on, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         on conflict (id) do update set vendor_id = excluded.vendor_id, project_id = excluded.project_id, service_id = excluded.service_id,
+           service_type = excluded.service_type, amount_minor = excluded.amount_minor, status = excluded.status, notes = excluded.notes,
+           submitted_on = excluded.submitted_on
+         where vendor_quotations.provenance = 'demo-fixture'`,
+        [q.id, q.vendorId, q.projectId, q.serviceId, q.serviceType, q.amountMinor, q.status, q.notes, q.submittedOn, P]
       )
     }
     for (const so of seed.serviceOrders) {
       await tx.query(
-        `insert into service_orders (id, vendor_id, project_id, service_id, provenance) values ($1, $2, $3, $4, $5)
+        `insert into service_orders (id, vendor_id, project_id, service_id, provenance, status, net_cost_minor, line_items, status_reason, acknowledged_at, fulfilled_at)
+         values ($1, $2, $3, $4, $5, $6, $7, $8::text::jsonb, $9, $10::date, $11::date)
          on conflict (id) do update set vendor_id = excluded.vendor_id, project_id = excluded.project_id,
-           service_id = excluded.service_id
+           service_id = excluded.service_id, status = excluded.status, net_cost_minor = excluded.net_cost_minor,
+           line_items = excluded.line_items, status_reason = excluded.status_reason, acknowledged_at = excluded.acknowledged_at,
+           fulfilled_at = excluded.fulfilled_at
          where service_orders.provenance = 'demo-fixture'`,
-        [so.id, so.vendorId, so.projectId, so.serviceId, P]
+        [so.id, so.vendorId, so.projectId, so.serviceId, P, so.status ?? 'draft', so.netCostMinor ?? null, JSON.stringify(so.lineItems ?? []),
+          so.statusReason ?? null, so.acknowledgedAt ?? null, so.fulfilledAt ?? null]
+      )
+    }
+    for (const a of seed.bookingAttempts ?? []) {
+      await tx.query(
+        `insert into booking_attempts (id, booking_type, booking_id, outcome, note, attempted_at, provenance)
+         values ($1, $2, $3, $4, $5, ($6::timestamp at time zone 'Asia/Jakarta'), $7)
+         on conflict (id) do update set outcome = excluded.outcome, note = excluded.note, attempted_at = excluded.attempted_at
+         where booking_attempts.provenance = 'demo-fixture'`,
+        [a.id, a.bookingType, a.bookingId, a.outcome, a.note, a.attemptedAt, P]
       )
     }
     for (const so of seed.salesOrders ?? []) {

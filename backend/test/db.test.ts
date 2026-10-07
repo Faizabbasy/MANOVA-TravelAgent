@@ -380,6 +380,23 @@ describe('demo seed', () => {
     }
   })
 
+  test('seed fills quotations, service order status and booking attempts (S4b)', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [counts] = await db.query<{ q: string; a: string }>('select (select count(*) from vendor_quotations) as q, (select count(*) from booking_attempts) as a')
+      expect(counts).toEqual({ q: String(DEMO_CORE.vendorQuotations!.length), a: String(DEMO_CORE.bookingAttempts!.length) })
+      expect(DEMO_CORE.vendorQuotations!.length).toBeGreaterThan(10)
+      expect(DEMO_CORE.bookingAttempts!.length).toBeGreaterThan(0)
+      const [so] = await db.query<{ status: string; net_cost_minor: string }>("select status, net_cost_minor from service_orders where id = 'SO-101F'")
+      expect(so).toEqual({ status: 'fulfilled', net_cost_minor: '90000000' })
+      expect(await nextId(db, 'VQ-')).toBe(`VQ-${String(Math.max(...DEMO_CORE.vendorQuotations!.map(q => Number(q.id.slice(3)))) + 1).padStart(3, '0')}`)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('carries operational reference values only — no finance records (invoices, payments, balances)', () => {
     const keys = new Set<string>()
     const detailKeys = new Set<string>()
@@ -394,7 +411,7 @@ describe('demo seed', () => {
     // `paymentTerm` is a CRM billing term ("30 hari"), not a payment record; `netCostMinor` is the booking's net cost (Booking module, S4a).
     expect([...keys].filter(k => k !== 'paymentTerm' && k !== 'netCostMinor' && /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
     // The only money-like values are owned by Project/Booking/Sales (ADR-007): contract value, service budget,
-    // booking sell price and net cost, and the price of a Group Trip participant booking.
-    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['budgetMinor', 'contractValueMinor', 'creditLimitMinor', 'netCostMinor', 'priceMinor', 'sellAmountMinor'])
+    // booking sell price and net cost, and the price of a Group Trip participant booking. S4b: vendor quotation amount (Procurement).
+    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['amountMinor', 'budgetMinor', 'contractValueMinor', 'creditLimitMinor', 'netCostMinor', 'priceMinor', 'sellAmountMinor'])
   })
 })

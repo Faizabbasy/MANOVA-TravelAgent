@@ -11,6 +11,7 @@
 import { writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { HOTEL_BOOKINGS } from '../../frontend/app/data/accommodation'
+import { BOOKING_ORCHESTRATION_RECORDS } from '../../frontend/app/data/booking-orchestration'
 import { MICE_EVENTS } from '../../frontend/app/data/mice'
 import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from '../../frontend/app/data/parties'
 import { SERVICE_ORDERS } from '../../frontend/app/data/procurement'
@@ -20,7 +21,7 @@ import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
 import { FLIGHT_BOOKINGS } from '../../frontend/app/data/ticketing'
 import { TRANSPORT_BOOKINGS } from '../../frontend/app/data/transportation'
 import { USERS } from '../../frontend/app/data/users'
-import { VENDOR_CONTACTS, VENDOR_DOCUMENTS, VENDOR_PRODUCTS, VENDORS } from '../../frontend/app/data/vendors'
+import { VENDOR_CONTACTS, VENDOR_DOCUMENTS, VENDOR_PRODUCTS, VENDOR_QUOTATIONS, VENDORS } from '../../frontend/app/data/vendors'
 import type { DemoCoreSeed } from '../src/db/seed-demo'
 
 const byId = <T extends { id: string }>(a: T, b: T) => a.id.localeCompare(b.id)
@@ -76,7 +77,8 @@ function bookingRef(
     reference: b.pnr ?? b.confirmationNumber ?? null,
     statusReason: b.statusReason ?? null,
     netCostMinor: totals.netMinor,
-    details
+    details,
+    flaggedDuplicate: BOOKING_ORCHESTRATION_RECORDS.some(r => r.bookingType === bookingType && r.bookingId === b.id && r.flaggedDuplicate === true)
   }
 }
 
@@ -170,6 +172,15 @@ const seed: DemoCoreSeed = {
     ...TRANSPORT_BOOKINGS.map(b => bookingRef('transport', b)),
     ...MICE_EVENTS.map(b => bookingRef('mice', b))
   ].sort((a, b) => a.bookingType.localeCompare(b.bookingType) || a.bookingId.localeCompare(b.bookingId)),
+  /** S4b: quotations recorded per service (a link to a service of another project is dropped). */
+  vendorQuotations: [...VENDOR_QUOTATIONS].sort(byId).map((q) => {
+    let serviceId = q.serviceId ?? null
+    if (serviceId && serviceProject.get(serviceId) !== q.projectId) {
+      warnings.push(`${q.id}: service ${serviceId} is not part of ${q.projectId}; link dropped`)
+      serviceId = null
+    }
+    return { id: q.id, vendorId: q.vendorId, projectId: q.projectId, serviceId, serviceType: q.serviceType, amountMinor: String(Math.round(q.amountIdr)), status: q.status, notes: q.notes ?? null, submittedOn: q.submittedAt.slice(0, 10) }
+  }),
   serviceOrders: [...SERVICE_ORDERS].sort(byId).map(so => {
     const projectId = so.projectId ?? null
     let serviceId = so.serviceId ?? null
@@ -177,7 +188,18 @@ const seed: DemoCoreSeed = {
       warnings.push(`${so.id}: service ${serviceId} is not part of ${projectId ?? 'no project'}; link dropped`)
       serviceId = null
     }
-    return { id: so.id, vendorId: so.vendorId, projectId, serviceId }
+    return {
+      id: so.id,
+      vendorId: so.vendorId,
+      projectId,
+      serviceId,
+      status: so.status,
+      netCostMinor: minor(so.netCostIdr),
+      lineItems: so.lineItems,
+      statusReason: so.statusReason ?? null,
+      acknowledgedAt: so.acknowledgedAt ?? null,
+      fulfilledAt: so.fulfilledAt ?? null
+    }
   }),
   /** Group Trip participant bookings only (standalone B2C orders have no project). */
   partyContacts: [...CONTACTS].sort(byId).map(c => ({ id: c.id, partyId: c.partyId, name: c.name, title: c.title, email: c.email ?? null, phone: c.phone ?? null })),
@@ -203,6 +225,16 @@ const seed: DemoCoreSeed = {
     travelerCount: o.travelerCount
   }))
 }
+
+// S4b: attempt log of the orchestration fixtures, for bookings that are in the seed.
+const seededBookings = new Set(seed.bookingRefs.map(b => `${b.bookingType}:${b.bookingId}`))
+seed.bookingAttempts = BOOKING_ORCHESTRATION_RECORDS.flatMap(r => r.attemptLog.map(a => ({
+  id: a.id, bookingType: r.bookingType, bookingId: r.bookingId, outcome: a.outcome, note: a.note ?? null, attemptedAt: a.at
+}))).filter((a) => {
+  if (seededBookings.has(`${a.bookingType}:${a.bookingId}`)) { return true }
+  warnings.push(`attempt ${a.id}: booking ${a.bookingType} ${a.bookingId} is not seeded — skipped`)
+  return false
+})
 
 const out = resolve(import.meta.dir, '../src/db/seeds/demo-core.json')
 writeFileSync(out, JSON.stringify(seed, null, 2) + '\n')
