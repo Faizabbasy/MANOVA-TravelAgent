@@ -400,8 +400,10 @@ describe('demo seed', () => {
   test('a Group Trip booking whose DP Finance confirmed before S6b becomes paid, and a re-seed keeps it', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
-      await migrateUp(db, { to: 25 })
+      // Seed on the full schema (syncIdSequences knows every table), then step back to before the backfill.
+      await migrateUp(db)
       await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await migrateDown(db, { to: 25 })
       // A participant invoice issued by the pre-S6b confirm-dp (order status was not touched then).
       await db.query(
         `insert into customer_invoices (id, project_id, party_id, sales_order_id, invoice_type, status, total_minor, issue_date, due_date, created_by, number, issued_at)
