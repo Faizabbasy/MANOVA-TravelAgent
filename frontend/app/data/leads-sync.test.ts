@@ -1,7 +1,8 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { LEADS, LEAD_ACTIVITIES } from './leads'
 import { QUOTATIONS } from './quotations'
-import { leadFromServer, mergeServerLeads, qualifyLeadOnServer, quotationFromServer, reviseQuotationOnServer } from './leads-sync'
+import { applyCostSheetOnServer, leadFromServer, mergeServerLeads, qualifyLeadOnServer, quotationFromServer, reviseQuotationOnServer } from './leads-sync'
+import { COST_SHEETS } from './products'
 import type { LeadDto, SalesQuotationDto } from '~/types/api'
 
 const lead = (over: Partial<LeadDto> = {}): LeadDto => ({
@@ -130,5 +131,43 @@ describe('leads-sync writes', () => {
     const l = await qualifyLeadOnServer(api, 'LED-001', 'company')
     expect(l.partyId).toBe('PTY-001')
     expect(parties).toEqual(['PTY-001'])
+  })
+})
+
+describe('cost sheet applied through the server (S6a)', () => {
+  beforeEach(() => {
+    mergeServerLeads([lead({ id: 'LED-019', partyId: 'PTY-004', activities: [] })], [])
+    const cs = COST_SHEETS.find(c => c.id === 'CS-003')!
+    cs.appliedToQuotationId = undefined
+    cs.status = 'draft'
+  })
+
+  it('creates the quotation on the server with the cost sheet figures, then locks the cost sheet', async () => {
+    const sent: Record<string, unknown>[] = []
+    const api = {
+      sales: {
+        createQuotation: (leadId: string, input: Record<string, unknown>) => {
+          sent.push(input)
+          return Promise.resolve({ data: quo({ id: 'QUO-050', leadId, currentVersion: 1, status: 'draft', amountMinor: String(input.amountMinor), versions: [] }) })
+        }
+      }
+    } as never
+    const q = await applyCostSheetOnServer(api, 'CS-003', 'USR-001')
+    expect(q?.id).toBe('QUO-050')
+    expect(sent[0]).toMatchObject({ costSheetId: 'CS-003', currency: 'IDR' })
+    expect(Number(sent[0]!.amountMinor)).toBeGreaterThan(0)
+    expect((sent[0]!.serviceBreakdown as unknown[]).length).toBe(4)
+    expect(COST_SHEETS.find(c => c.id === 'CS-003')).toMatchObject({ appliedToQuotationId: 'QUO-050', status: 'final' })
+  })
+
+  it('a server refusal leaves the cost sheet unlocked; a submitted quotation is not overwritten', async () => {
+    const failing = { sales: { createQuotation: () => Promise.reject(new Error('down')) } } as never
+    await expect(applyCostSheetOnServer(failing, 'CS-003', 'USR-001')).rejects.toThrow('down')
+    expect(COST_SHEETS.find(c => c.id === 'CS-003')!.appliedToQuotationId).toBeUndefined()
+    mergeServerLeads([lead({ id: 'LED-019', partyId: 'PTY-004', quotationId: 'QUO-051', activities: [] })], [quo({ id: 'QUO-051', leadId: 'LED-019', status: 'submitted' })])
+    let calls = 0
+    const api = { sales: { updateQuotation: () => { calls++; return Promise.reject(new Error('x')) }, reviseQuotation: () => { calls++; return Promise.reject(new Error('x')) } } } as never
+    expect(await applyCostSheetOnServer(api, 'CS-003', 'USR-001')).toBeUndefined()
+    expect(calls).toBe(0)
   })
 })

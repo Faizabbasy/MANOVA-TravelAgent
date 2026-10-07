@@ -72,7 +72,7 @@ export interface Quotation {
 
   /**
    * Product Planning dan Costing. Referensi Cost Sheet yang dipakai membentuk quotation ini (lihat
-   * `applyCostSheetToQuotation`, `app/data/index.ts`) — traceability collaboration Product Planner↔AE,
+   * `applyCostSheetOnServer`, `app/data/leads-sync.ts`) — traceability collaboration Product Planner↔AE,
    * TIDAK menggantikan `estimatedCostIdr`/`estimatedMarginIdr` yang tetap disalin (snapshot) ke field di
    * atas agar Quotation tetap berdiri sendiri meski Cost Sheet sumber kelak direvisi.
    */

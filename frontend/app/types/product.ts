@@ -7,7 +7,7 @@ import type { ServiceTypeKey } from './project'
  * sendiri atau terhubung ke satu Lead/Product Template). Keduanya TERPISAH dari `Quotation`
  * (`app/types/quotation.ts`) — `Quotation` tetap dokumen komersial client-facing (setelah sanitasi),
  * `CostSheet` adalah kerja internal Product Planner yang tidak pernah ditampilkan ke Client (lihat
- * `applyCostSheetToQuotation`, `app/data/index.ts`, untuk mekanisme snapshot).
+ * `applyCostSheetOnServer`, `app/data/leads-sync.ts`, untuk mekanisme snapshot).
  */
 
 export type ProductTemplateStatus = 'draft' | 'active' | 'archived'
@@ -86,7 +86,7 @@ export interface CostSheet {
   /**
    * Snapshot konsep (Wajib "Snapshot konsep ketika dipakai pada quotation/project") — begitu diisi, Cost
    * Sheet ini dianggap sudah "dipakai" (status otomatis `final`, tidak dapat diedit lagi — lihat
-   * `updateCostSheet`/`applyCostSheetToQuotation`). Revisi lanjutan wajib lewat "Duplicate as New Version".
+   * `updateCostSheet`/`applyCostSheetOnServer`). Revisi lanjutan wajib lewat "Duplicate as New Version".
    */
   appliedToQuotationId?: ID
   appliedAt?: string

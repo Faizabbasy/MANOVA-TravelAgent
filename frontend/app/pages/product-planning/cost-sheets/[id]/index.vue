@@ -4,8 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus, Trash2 } from 'lucide-vue-next'
 import {
   getCostSheetById, getCostSheetBreakdown, getCostSheetsByLead, getProductTemplateById, getLeadById,
-  updateCostSheet, duplicateCostSheetVersion, applyCostSheetToQuotation
+  updateCostSheet, duplicateCostSheetVersion
 } from '~/data'
+import { applyCostSheetOnServer } from '~/data/leads-sync'
+import { isApiError } from '~/lib/api/errors'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import type { ServiceTypeKey } from '~/types/project'
@@ -120,9 +122,22 @@ function submitDuplicate () {
 }
 
 const isApplyDialogOpen = ref(false)
-function submitApplyToQuotation () {
-  if (!costSheet.value) { return }
-  const quotation = applyCostSheetToQuotation(costSheet.value.id, currentUser.value.id)
+const api = useApi()
+const isApplying = ref(false)
+
+/** The quotation lives on the server (S6a): its figures are written there first; the cost sheet locks only after. */
+async function submitApplyToQuotation () {
+  if (!costSheet.value || isApplying.value) { return }
+  isApplying.value = true
+  let quotation
+  try {
+    quotation = await applyCostSheetOnServer(api, costSheet.value.id, currentUser.value.id)
+  } catch (error) {
+    showToast('Gagal Menerapkan', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isApplying.value = false
+  }
   isApplyDialogOpen.value = false
   if (quotation) {
     showToast('Diterapkan ke Quotation', `Cost Sheet ini kini terkunci (snapshot) dan diterapkan ke Quotation ${quotation.id}.`, 'success')
@@ -181,7 +196,7 @@ function submitApplyToQuotation () {
                     <Button variant="outline" @click="isApplyDialogOpen = false">
                       Batal
                     </Button>
-                    <Button @click="submitApplyToQuotation">
+                    <Button :disabled="isApplying" @click="submitApplyToQuotation">
                       Terapkan
                     </Button>
                   </DialogFooter>

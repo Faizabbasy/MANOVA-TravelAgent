@@ -2975,7 +2975,7 @@ export type CostSheetInput = Partial<Omit<CreateCostSheetInput, 'createdBy'>>
 
 /**
  * "Snapshot konsep ketika dipakai pada quotation/project" (Wajib) — begitu `appliedToQuotationId` terisi
- * (lihat `applyCostSheetToQuotation`), Cost Sheet dikunci (`status: 'final'`) dan TIDAK BOLEH diedit lagi di
+ * (lihat `applyCostSheetOnServer`), Cost Sheet dikunci (`status: 'final'`) dan TIDAK BOLEH diedit lagi di
  * sini — revisi lanjutan wajib lewat `duplicateCostSheetVersion` ("Duplicate as New Version"), pola sama
  * `updateQuotationDetails` yang mengunci quotation begitu `submitted`/`approved`.
  */
@@ -3015,53 +3015,54 @@ export function duplicateCostSheetVersion (id: string): CostSheet | undefined {
  * cost/margin TETAP hanya tampil di halaman internal — Client Portal Section 08 sudah menyaring field ini
  * sejak awal, tidak perlu perubahan tambahan). Setelah diterapkan, Cost Sheet dikunci (`final`).
  */
-export function applyCostSheetToQuotation (costSheetId: string, actorId: string): Quotation | undefined {
+/**
+ * What a cost sheet writes into its lead's quotation (S6a: the quotation itself is changed on the server by
+ * `applyCostSheetOnServer`, `app/data/leads-sync.ts`). Undefined when the cost sheet is already applied, has no lead,
+ * the lead has no customer yet, or its quotation is submitted/approved (never overwritten).
+ */
+export function prepareCostSheetQuotation (costSheetId: string): { leadId: string; existing?: Quotation; content: Partial<Quotation> & { amountIdr: number } } | undefined {
   const costSheet = getCostSheetById(costSheetId)
   if (!costSheet || costSheet.appliedToQuotationId || !costSheet.leadId) { return undefined }
   const lead = getLeadById(costSheet.leadId)
   if (!lead || !lead.partyId) { return undefined }
+  const existing = getQuotationByLead(lead.id)
+  if (existing && (existing.approvalStatus === 'submitted' || existing.approvalStatus === 'approved')) { return undefined }
 
   const breakdown = getCostSheetBreakdown(costSheet)
-  const serviceBreakdown = costSheet.lineItems.map(item => ({
-    service: item.service,
-    description: item.description,
-    amountIdr: item.costPerPaxIdr * costSheet.travelerCount
-  }))
-
-  let quotation = getQuotationByLead(lead.id)
-  if (quotation) {
-    if (quotation.approvalStatus === 'submitted' || quotation.approvalStatus === 'approved') { return undefined }
-    Object.assign(quotation, {
+  return {
+    leadId: lead.id,
+    existing,
+    content: {
       amountIdr: breakdown.totalSellIdr,
       estimatedCostIdr: breakdown.costWithContingencyIdr,
       estimatedMarginIdr: breakdown.marginIdr,
       currency: costSheet.currency,
-      serviceBreakdown
-    })
-  } else {
-    quotation = createQuotation(lead.id, breakdown.totalSellIdr)
-    Object.assign(quotation, {
-      estimatedCostIdr: breakdown.costWithContingencyIdr,
-      estimatedMarginIdr: breakdown.marginIdr,
-      currency: costSheet.currency,
-      serviceBreakdown
-    })
+      costSheetId: costSheet.id,
+      serviceBreakdown: costSheet.lineItems.map(item => ({
+        service: item.service,
+        description: item.description,
+        amountIdr: item.costPerPaxIdr * costSheet.travelerCount
+      }))
+    }
   }
-  quotation.costSheetId = costSheet.id
+}
 
-  costSheet.appliedToQuotationId = quotation.id
+/** Locks the cost sheet once the server took its figures (snapshot) and notes it on the customer timeline. */
+export function markCostSheetApplied (costSheetId: string, quotationId: string, actorId: string): void {
+  const costSheet = getCostSheetById(costSheetId)
+  if (!costSheet) { return }
+  costSheet.appliedToQuotationId = quotationId
   costSheet.appliedAt = DEMO_REFERENCE_DATE
   costSheet.status = 'final'
-
+  const lead = costSheet.leadId ? getLeadById(costSheet.leadId) : undefined
+  if (!lead?.partyId) { return }
   createPartyActivity({
     partyId: lead.partyId,
     leadId: lead.id,
     type: 'note',
-    message: `Cost Sheet ${costSheet.id} (${costSheet.name}) diterapkan ke Quotation ${quotation.id} — ${formatCurrencyIdr(breakdown.totalSellIdr)}.`,
+    message: `Cost Sheet ${costSheet.id} (${costSheet.name}) diterapkan ke Quotation ${quotationId} — ${formatCurrencyIdr(getCostSheetBreakdown(costSheet).totalSellIdr)}.`,
     ownerId: actorId
   })
-
-  return quotation
 }
 
 /**

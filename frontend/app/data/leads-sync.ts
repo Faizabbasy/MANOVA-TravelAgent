@@ -2,7 +2,7 @@ import { LEADS, LEAD_ACTIVITIES } from './leads'
 import { QUOTATIONS } from './quotations'
 import { registerNewServerProject } from './projects-sync'
 import { upsertServerParty } from './parties-sync'
-import { applyLeadWon } from './index'
+import { applyLeadWon, markCostSheetApplied, prepareCostSheetQuotation } from './index'
 import type { Lead, LeadActivity } from '~/types/lead'
 import type { Quotation, QuotationServiceItem } from '~/types/quotation'
 import type { Project, ServiceTypeKey } from '~/types/project'
@@ -260,6 +260,20 @@ export async function sendQuotationOnServer (api: SalesApi, id: string, actorId:
   ensureLocalClientLogin(q.leadId, actorId)
   return q
 }
+/**
+ * Apply a cost sheet (cost sheets stay local): its figures go to the server quotation — created, edited while draft,
+ * or revised into a new draft — and only then is the cost sheet locked. Undefined when it cannot be applied.
+ */
+export async function applyCostSheetOnServer (api: SalesApi, costSheetId: string, actorId: string): Promise<Quotation | undefined> {
+  const prepared = prepareCostSheetQuotation(costSheetId)
+  if (!prepared) { return undefined }
+  const quotation = prepared.existing
+    ? await reviseQuotationOnServer(api, prepared.existing.id, prepared.content)
+    : await createQuotationOnServer(api, prepared.leadId, prepared.content)
+  markCostSheetApplied(costSheetId, quotation.id, actorId)
+  return quotation
+}
+
 /** Mark as Won: the server creates (or returns) the project; the local activity entry and client login follow. */
 export async function markLeadWonOnServer (api: SalesApi, leadId: string, approverId: string, key: string = newIdempotencyKey()): Promise<Project> {
   const res = (await api.sales.markLeadWon(leadId, key)).data
