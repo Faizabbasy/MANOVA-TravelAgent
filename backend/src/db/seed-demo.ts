@@ -91,6 +91,20 @@ export interface DemoCoreSeed {
   /** CRM (S1): contact persons and the activity log per customer. */
   partyContacts?: { id: string; partyId: string; name: string; title: string; email: string | null; phone: string | null }[]
   partyActivities?: { id: string; partyId: string; leadId: string | null; type: string; message: string; ownerUserId: string; activityDate: string; dueAt: string | null }[]
+  /** Sales (S6a): leads with their requirement and B2C fields, lead activities, client quotations (version rows). */
+  leads?: {
+    id: string; name: string; companyName: string | null; title: string | null; source: string; stage: string; ownerUserId: string
+    handedOverTo: string | null; phone: string | null; email: string | null; qualificationNotes: string | null; expectedCloseDate: string | null
+    createdOn: string; lastUpdatedOn: string; archived: boolean; partyId: string | null; qualifiedOn: string | null
+    serviceCategory: string | null; destination: string | null; travelStartDate: string | null; travelEndDate: string | null
+    travelerEstimate: number | null; serviceScope: string[]; requirementSummary: string | null; budgetRange: string | null
+    dateFlexible: boolean | null; decisionMaker: string | null; urgency: string | null; specialRequestNote: string | null; b2c: Record<string, unknown>
+  }[]
+  leadActivities?: { id: string; leadId: string; type: string; message: string; ownerUserId: string; activityDate: string; dueOn: string | null }[]
+  quotations?: {
+    id: string; leadId: string; createdOn: string; sentToClientOn: string | null
+    versions: { version: number; status: string; amountMinor: string; decidedBy: string | null; decisionNote: string | null; content: Record<string, unknown> }[]
+  }[]
   /** Vendor (S2): contact persons, catalog and document records (metadata only). */
   vendorContacts?: { id: string; vendorId: string; name: string; title: string; email: string | null; phone: string | null }[]
   vendorProducts?: { id: string; vendorId: string; name: string; category: string; description: string | null; priceMinor: string | null }[]
@@ -135,6 +149,8 @@ export interface SeedResult {
   bookingRefs: number
   serviceOrders: number
   salesOrders: number
+  leads: number
+  quotations: number
 }
 
 export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: string; seed?: DemoCoreSeed }): Promise<SeedResult> {
@@ -199,6 +215,56 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
         "update parties set account_owner_user_id = $2 where id = $1 and provenance = 'demo-fixture'",
         [p.id, p.accountOwnerUserId ?? null]
       )
+    }
+    // S6a: leads and quotations before projects (projects.lead_id / source_quotation_id reference them). A re-seed
+    // refreshes the fixture text but never a lead's stage, archive state or customer, nor quotation versions/status —
+    // the API owns those.
+    for (const l of seed.leads ?? []) {
+      await tx.query(
+        `insert into leads (id, name, company_name, title, source, stage, owner_user_id, handed_over_to, phone, email, qualification_notes,
+           expected_close_date, created_on, last_updated_on, archived, party_id, qualified_on, service_category, destination, travel_start_date,
+           travel_end_date, traveler_estimate, service_scope, requirement_summary, budget_range, date_flexible, decision_maker, urgency,
+           special_request_note, b2c, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23::text::jsonb,
+                 $24, $25, $26, $27, $28, $29, $30::text::jsonb, $31)
+         on conflict (id) do update set name = excluded.name, company_name = excluded.company_name, title = excluded.title,
+           source = excluded.source, phone = excluded.phone, email = excluded.email
+         where leads.provenance = 'demo-fixture'`,
+        [l.id, l.name, l.companyName, l.title, l.source, l.stage, l.ownerUserId, l.handedOverTo, l.phone, l.email, l.qualificationNotes,
+          l.expectedCloseDate, l.createdOn, l.lastUpdatedOn, l.archived, l.partyId, l.qualifiedOn, l.serviceCategory, l.destination,
+          l.travelStartDate, l.travelEndDate, l.travelerEstimate, JSON.stringify(l.serviceScope), l.requirementSummary, l.budgetRange,
+          l.dateFlexible, l.decisionMaker, l.urgency, l.specialRequestNote, JSON.stringify(l.b2c), P]
+      )
+    }
+    for (const a of seed.leadActivities ?? []) {
+      await tx.query(
+        `insert into lead_activities (id, lead_id, type, message, owner_user_id, activity_date, due_on, provenance) values ($1, $2, $3, $4, $5, $6, $7, $8)
+         on conflict (id) do update set message = excluded.message, due_on = excluded.due_on where lead_activities.provenance = 'demo-fixture'`,
+        [a.id, a.leadId, a.type, a.message, a.ownerUserId, a.activityDate, a.dueOn, P]
+      )
+    }
+    const QUOTATION_MONEY = ['discountMinor', 'taxMinor', 'markupMinor', 'estimatedCostMinor', 'estimatedMarginMinor'] as const
+    for (const q of seed.quotations ?? []) {
+      const latest = q.versions[q.versions.length - 1]!
+      const inserted = await tx.query<{ id: string }>(
+        `insert into quotations (id, lead_id, current_version, sent_to_client_on, created_on, provenance) values ($1, $2, $3, $4, $5, $6)
+         on conflict (id) do nothing returning id`,
+        [q.id, q.leadId, latest.version, q.sentToClientOn, q.createdOn, P]
+      )
+      if (!inserted.length) continue // an existing quotation: its versions belong to the API now
+      for (const v of q.versions) {
+        const c = v.content
+        await tx.query(
+          `insert into quotation_versions (quotation_id, version, amount_minor, discount_minor, tax_minor, markup_minor, estimated_cost_minor,
+             estimated_margin_minor, currency, payment_terms, valid_until, terms_and_conditions, inclusions, exclusions, cancellation_policy,
+             proposed_itinerary_note, cost_sheet_id, service_breakdown, status, decided_by, decided_at, decision_note, created_on)
+           values ($1, $2, $3, $4, $5, $6, $7, $8, coalesce($9, 'IDR'), $10, $11, $12, $13, $14, $15, $16, $17, $18::text::jsonb, $19, $20::text,
+                   case when $20::text is null then null else now() end, $21, $22)`,
+          [q.id, v.version, v.amountMinor, ...QUOTATION_MONEY.map(k => c[k] ?? null), c.currency ?? null, c.paymentTerms ?? null, c.validUntil ?? null,
+            c.termsAndConditions ?? null, c.inclusions ?? null, c.exclusions ?? null, c.cancellationPolicy ?? null, c.proposedItineraryNote ?? null,
+            c.costSheetId ?? null, JSON.stringify(c.serviceBreakdown ?? []), v.status, v.decidedBy, v.decisionNote, q.createdOn]
+        )
+      }
     }
     for (const p of seed.projects) {
       await tx.query(
@@ -363,6 +429,8 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
     projectServices: seed.projectServices.length,
     bookingRefs: seed.bookingRefs.length,
     serviceOrders: seed.serviceOrders.length,
-    salesOrders: (seed.salesOrders ?? []).length
+    salesOrders: (seed.salesOrders ?? []).length,
+    leads: (seed.leads ?? []).length,
+    quotations: (seed.quotations ?? []).length
   }
 }

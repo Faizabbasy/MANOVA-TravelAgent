@@ -401,6 +401,31 @@ describe('demo seed', () => {
     }
   })
 
+  test('demo leads and quotations are seeded; a re-seed keeps user versions and stages', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [{ n }] = await db.query<{ n: number }>('select count(*)::int as n from leads')
+      expect(n).toBe(31)
+      const v = await db.query<{ version: number; status: string }>("select version, status from quotation_versions where quotation_id = 'QUO-005' order by version")
+      expect(v.map(r => `${r.version}:${r.status}`)).toEqual(['1:superseded', '2:submitted'])
+      // New project rows are checked against leads (FK NOT VALID only skips rows that existed before 0024).
+      await expect(db.query("update projects set lead_id = 'LED-NOPE' where id = 'PRJ-101'")).rejects.toThrow()
+      await db.query("update quotation_versions set status = 'superseded' where quotation_id = 'QUO-010' and version = 1")
+      await db.query("insert into quotation_versions (quotation_id, version, amount_minor) values ('QUO-010', 2, 80000000)")
+      await db.query("update quotations set current_version = 2 where id = 'QUO-010'")
+      await db.query("update leads set stage = 'unqualified' where id = 'LED-002'")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const after = await db.query<{ version: number; status: string }>("select version, status from quotation_versions where quotation_id = 'QUO-010' order by version")
+      expect(after.map(r => `${r.version}:${r.status}`)).toEqual(['1:superseded', '2:draft'])
+      expect((await db.query<{ current_version: number }>("select current_version from quotations where id = 'QUO-010'"))[0]!.current_version).toBe(2)
+      expect((await db.query<{ stage: string }>("select stage from leads where id = 'LED-002'"))[0]!.stage).toBe('unqualified')
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('seed fills quotations, service order status and booking attempts (S4b)', async () => {
     const { db, cleanup } = await makeTestDb()
     try {

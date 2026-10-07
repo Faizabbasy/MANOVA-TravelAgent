@@ -101,4 +101,8 @@ create table quotation_versions (
   primary key (quotation_id, version)
 );
 
+-- Old staging rows may point at leads that only arrive with the S6a seed: checked for new rows only.
+alter table projects add constraint projects_lead_fk foreign key (lead_id) references leads (id) not valid;
+alter table projects add constraint projects_source_quotation_fk foreign key (source_quotation_id) references quotations (id) not valid;
+
 insert into id_sequences (prefix, last_value) values ('LED-', 0), ('LACT-', 0), ('QUO-', 0) on conflict (prefix) do nothing;

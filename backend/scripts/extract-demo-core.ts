@@ -13,11 +13,13 @@ import { resolve } from 'node:path'
 import { HOTEL_BOOKINGS } from '../../frontend/app/data/accommodation'
 import { BOOKING_ORCHESTRATION_RECORDS } from '../../frontend/app/data/booking-orchestration'
 import { MICE_EVENTS } from '../../frontend/app/data/mice'
+import { LEADS, LEAD_ACTIVITIES } from '../../frontend/app/data/leads'
 import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from '../../frontend/app/data/parties'
 import { SERVICE_ORDERS } from '../../frontend/app/data/procurement'
 import { CORE_BOOKING_KEYS, departureDateOf, miceTotals } from '../src/modules/core/booking-rules'
 import { PROJECT_SERVICES, PROJECTS } from '../../frontend/app/data/projects'
 import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
+import { QUOTATIONS } from '../../frontend/app/data/quotations'
 import { FLIGHT_BOOKINGS } from '../../frontend/app/data/ticketing'
 import { TRANSPORT_BOOKINGS } from '../../frontend/app/data/transportation'
 import { USERS } from '../../frontend/app/data/users'
@@ -217,6 +219,96 @@ const seed: DemoCoreSeed = {
     activityDate: dateOnly(a.createdAt)!,
     dueAt: dateOnly(a.dueAt)
   })),
+  leads: [...LEADS].sort(byId).map(l => ({
+    id: l.id,
+    name: l.name,
+    companyName: l.companyName ?? null,
+    title: l.title ?? null,
+    source: l.source,
+    stage: l.stage,
+    ownerUserId: seededUser(l.ownerId, `lead ${l.id} owner`) ?? 'USR-001',
+    handedOverTo: seededUser(l.handedOverTo, `lead ${l.id} AE`),
+    phone: l.phone ?? null,
+    email: l.email ?? null,
+    qualificationNotes: l.qualificationNotes ?? null,
+    expectedCloseDate: dateOnly(l.expectedCloseDate),
+    createdOn: dateOnly(l.createdAt)!,
+    lastUpdatedOn: dateOnly(l.lastUpdatedAt)!,
+    archived: l.archived,
+    partyId: l.partyId ?? null,
+    qualifiedOn: dateOnly(l.qualifiedAt),
+    serviceCategory: l.serviceCategory ?? null,
+    destination: l.destination ?? null,
+    travelStartDate: dateOnly(l.travelStartDate),
+    travelEndDate: dateOnly(l.travelEndDate),
+    travelerEstimate: l.travelerEstimate ?? null,
+    serviceScope: l.serviceScope ?? [],
+    requirementSummary: l.requirementSummary ?? null,
+    budgetRange: l.budgetRange ?? null,
+    dateFlexible: l.dateFlexible ?? null,
+    decisionMaker: l.decisionMaker ?? null,
+    urgency: l.urgency ?? null,
+    specialRequestNote: l.specialRequestNote ?? null,
+    // B2C / Group Trip fields stay as they are until S6b; the group-trip project and local sales order ride along.
+    b2c: Object.fromEntries(Object.entries({
+      groupTripProjectId: l.groupTripProjectId,
+      b2cAdultCount: l.b2cAdultCount,
+      b2cChildCount: l.b2cChildCount,
+      b2cInfantCount: l.b2cInfantCount,
+      b2cPriceAcceptance: l.b2cPriceAcceptance,
+      b2cBookingReadiness: l.b2cBookingReadiness,
+      b2cQualificationResult: l.b2cQualificationResult,
+      b2cNextFollowUpDate: l.b2cNextFollowUpDate,
+      projectId: l.serviceCategory === 'individual-travel' && !PROJECTS.some(p => p.leadId === l.id) ? l.projectId : undefined,
+      salesOrderId: l.salesOrderId
+    }).filter(([, v]) => v !== undefined))
+  })),
+  leadActivities: [...LEAD_ACTIVITIES].sort(byId).map(a => ({
+    id: a.id,
+    leadId: a.leadId,
+    type: a.type,
+    message: a.message,
+    ownerUserId: seededUser(a.ownerId, `lead activity ${a.id}`) ?? 'USR-001',
+    activityDate: dateOnly(a.createdAt)!,
+    dueOn: dateOnly(a.dueAt)
+  })),
+  quotations: [...QUOTATIONS].sort(byId).map((q) => {
+    const content: Record<string, unknown> = Object.fromEntries(Object.entries({
+      discountMinor: q.discountIdr,
+      taxMinor: q.taxIdr,
+      markupMinor: q.markupIdr,
+      estimatedCostMinor: q.estimatedCostIdr,
+      estimatedMarginMinor: q.estimatedMarginIdr,
+      currency: q.currency,
+      paymentTerms: q.paymentTerms,
+      validUntil: q.validUntil,
+      termsAndConditions: q.termsAndConditions,
+      inclusions: q.inclusions,
+      exclusions: q.exclusions,
+      cancellationPolicy: q.cancellationPolicy,
+      proposedItineraryNote: q.proposedItineraryNote,
+      costSheetId: q.costSheetId,
+      serviceBreakdown: q.serviceBreakdown?.map(s => ({ service: s.service, ...(s.description ? { description: s.description } : {}), amountMinor: String(Math.round(s.amountIdr)) }))
+    }).filter(([, v]) => v !== undefined).map(([k, v]) => [k, typeof v === 'number' ? String(Math.round(v)) : v]))
+    const latest = {
+      version: q.version,
+      status: q.approvalStatus ?? 'draft',
+      amountMinor: String(Math.round(q.amountIdr)),
+      decidedBy: seededUser(q.approvedBy, `quotation ${q.id} approver`),
+      decisionNote: q.approvalNote ?? null,
+      content
+    }
+    // The fixture keeps only the previous amount of a revised quotation: earlier versions are rebuilt as superseded.
+    const earlier = Array.from({ length: q.version - 1 }, (_, i) => ({
+      version: i + 1,
+      status: 'superseded',
+      amountMinor: String(Math.round(i === q.version - 2 && q.supersededAmountIdr ? q.supersededAmountIdr : q.amountIdr)),
+      decidedBy: null,
+      decisionNote: null,
+      content
+    }))
+    return { id: q.id, leadId: q.leadId, createdOn: dateOnly(q.createdAt)!, sentToClientOn: dateOnly(q.sentToClientAt), versions: [...earlier, latest] }
+  }),
   salesOrders: [...SALES_ORDERS].filter(o => o.projectId).sort(byId).map(o => ({
     id: o.id,
     projectId: o.projectId!,
