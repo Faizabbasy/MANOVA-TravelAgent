@@ -8,6 +8,8 @@ const c: Record<string, string> = {}
 beforeAll(async () => {
   t = await makeTestApp({ config: { portalLogin: true } })
   for (const [k, email] of Object.entries(DEMO)) c[k] = await t.login(email)
+  // TEMP until the S6a seed (Task 7): demo projects point at LED-0xx leads that are not seeded yet.
+  await t.db.query("update id_sequences set last_value = 100 where prefix = 'LED-'")
 }, 30_000)
 afterAll(() => t.cleanup())
 
@@ -145,5 +147,72 @@ describe('qualify', () => {
     expect((await call('POST', `/leads/${id}/qualify`, 'admin', { customerKind: 'individual', partyId: 'PTY-999' })).status).toBe(400)
     const lead = (await call('POST', `/leads/${id}/qualify`, 'admin', { customerKind: 'individual' })).json.data
     expect((await call('GET', `/parties/${lead.partyId}`, 'admin')).json.data).toMatchObject({ partyType: 'individual', lifecycleStatus: 'client' })
+  })
+})
+
+async function qualifiedLead(name: string): Promise<string> {
+  const id = (await call('POST', '/leads', 'admin', {
+    name, companyName: name, source: 'website', serviceCategory: 'corporate-travel', destination: 'Bali', travelStartDate: '2026-12-01',
+    travelEndDate: '2026-12-03', travelerEstimate: 10, serviceScope: ['flight'], requirementSummary: 'Outing', handedOverTo: 'USR-001'
+  }, key())).json.data.id as string
+  await call('POST', `/leads/${id}/qualify`, 'admin', { customerKind: 'company' })
+  return id
+}
+
+describe('client quotations', () => {
+  test('create v1 draft (one per lead, idempotent); edit only while draft; submit, withdraw, resubmit', async () => {
+    const lead = await qualifiedLead('PT Quotation Satu S6')
+    const k = key()
+    const body = { amountMinor: '50000000', serviceBreakdown: [{ service: 'flight', amountMinor: '50000000' }] }
+    const created = await call('POST', `/leads/${lead}/quotation`, 'admin', body, k)
+    expect(created.status).toBe(201)
+    const q = created.json.data.id as string
+    expect(created.json.data).toMatchObject({ currentVersion: 1, status: 'draft', amountMinor: '50000000' })
+    expect((await call('POST', `/leads/${lead}/quotation`, 'admin', body, k)).json.data.id).toBe(q)
+    expect((await call('POST', `/leads/${lead}/quotation`, 'admin', { amountMinor: '1' }, key())).status).toBe(409)
+    expect((await call('PATCH', `/quotations/${q}`, 'admin', { paymentTerms: 'DP 30%', amountMinor: '0' })).status).toBe(400)
+    expect((await call('PATCH', `/quotations/${q}`, 'admin', { paymentTerms: 'DP 30%' })).json.data.paymentTerms).toBe('DP 30%')
+    expect((await call('POST', `/quotations/${q}/submit`, 'adminSales')).json.data.status).toBe('submitted')
+    expect((await call('PATCH', `/quotations/${q}`, 'admin', { paymentTerms: 'Lunas' })).status).toBe(422)
+    expect((await call('POST', `/quotations/${q}/withdraw`, 'admin')).json.data.status).toBe('draft')
+    expect((await call('POST', `/quotations/${q}/submit`, 'adminSales')).json.data.submittedBy).toBeTruthy()
+  })
+
+  test('approve by someone else and self-approval are both recorded; reject needs a note; finance 403', async () => {
+    const lead = await qualifiedLead('PT Quotation Dua S6')
+    const q = (await call('POST', `/leads/${lead}/quotation`, 'admin', { amountMinor: '70000000' }, key())).json.data.id as string
+    await call('POST', `/quotations/${q}/submit`, 'adminSales')
+    expect((await call('POST', `/quotations/${q}/approve`, 'finance')).status).toBe(403)
+    expect((await call('POST', `/quotations/${q}/reject`, 'adminMgmt', {})).status).toBe(400)
+    const rejected = (await call('POST', `/quotations/${q}/reject`, 'adminMgmt', { note: 'Margin terlalu tipis' })).json.data
+    expect(rejected).toMatchObject({ status: 'rejected', decisionNote: 'Margin terlalu tipis' })
+    const [byOther] = await t.db.query<{ details: { selfApproved: boolean } }>(
+      "select details from audit_events where action = 'quotation.rejected' and entity_id = $1 order by id desc limit 1", [q])
+    expect(byOther!.details.selfApproved).toBe(false)
+    const v2 = (await call('POST', `/quotations/${q}/revise`, 'adminSales', { amountMinor: '75000000' })).json.data
+    expect(v2.versions.map((v: { version: number; status: string }) => `${v.version}:${v.status}`)).toEqual(['1:rejected', '2:draft'])
+    await call('POST', `/quotations/${q}/submit`, 'adminSales')
+    expect((await call('POST', `/quotations/${q}/approve`, 'adminSales', { note: 'OK' })).json.data.status).toBe('approved')
+    const [audit] = await t.db.query<{ details: { selfApproved: boolean } }>(
+      "select details from audit_events where action = 'quotation.approved' and entity_id = $1 order by id desc limit 1", [q])
+    expect(audit!.details.selfApproved).toBe(true)
+  })
+
+  test('revise locks the old version; send needs an approved latest version; revise from draft is 422', async () => {
+    const lead = await qualifiedLead('PT Quotation Tiga S6')
+    const q = (await call('POST', `/leads/${lead}/quotation`, 'admin', { amountMinor: '10000000', inclusions: 'Tiket' }, key())).json.data.id as string
+    expect((await call('POST', `/quotations/${q}/revise`, 'admin')).status).toBe(422)
+    expect((await call('POST', `/quotations/${q}/send`, 'admin')).status).toBe(422)
+    await call('POST', `/quotations/${q}/submit`, 'admin')
+    await call('POST', `/quotations/${q}/approve`, 'adminMgmt')
+    expect((await call('POST', `/quotations/${q}/send`, 'admin')).json.data.sentToClientOn).toBeTruthy()
+    const revised = (await call('POST', `/quotations/${q}/revise`, 'admin')).json.data
+    expect(revised).toMatchObject({ currentVersion: 2, status: 'draft', inclusions: 'Tiket', sentToClientOn: null })
+    expect(revised.versions[0]).toMatchObject({ version: 1, status: 'superseded', amountMinor: '10000000' })
+  })
+
+  test('only qualified non-B2C leads get a quotation', async () => {
+    const lead = (await call('POST', '/leads', 'admin', { name: 'Belum Qualify', source: 'website' }, key())).json.data.id as string
+    expect((await call('POST', `/leads/${lead}/quotation`, 'admin', { amountMinor: '1000' }, key())).status).toBe(422)
   })
 })

@@ -8,6 +8,7 @@ import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency
 import { isPortalActor } from '../core/scope'
 import { addLeadActivity, archiveLead, completeLeadActivity, createLead, mergeLead, reopenLead, unqualifyLead, updateLead } from './lead-writes'
 import { qualifyLead } from './qualify'
+import { createQuotation, decideQuotation, reviseQuotation, sendQuotation, submitQuotation, updateQuotation, withdrawQuotation } from './quotation-writes'
 import { listLeads, listSalesQuotations } from './repository'
 
 /** Sales (S6a): leads, client quotations and Won. Internal roles read; Sales (admin) writes; portals never see leads. */
@@ -100,6 +101,40 @@ export function salesRoutes(deps: AppDeps, auth: AuthContext) {
       const activityId = assertIdParam(params.activityId, 'Aktivitas')
       await db.transaction(tx => completeLeadActivity(tx, actor, id, activityId, businessDateOf(new Date()), requestIdOf(request)))
       return ok(request, await leadResponse(id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/leads/:id/quotation', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, 'sales.manage-lead')
+      const leadId = assertIdParam(params.id, 'Lead')
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /leads/:id/quotation', key, body: { leadId, ...(body as object) } }, tx =>
+        createQuotation(tx, actor, leadId, body as Record<string, unknown>, businessDateOf(new Date()), requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await quotationResponse(result.data.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .patch('/quotations/:id', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'sales.manage-lead')
+      const id = assertIdParam(params.id, 'Quotation')
+      await db.transaction(tx => updateQuotation(tx, actor, id, body as Record<string, unknown>, requestIdOf(request)))
+      return ok(request, await quotationResponse(id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .post('/quotations/:id/:action', async ({ request, params, body }) => {
+      const decision = params.action === 'approve' || params.action === 'reject'
+      const actor = await auth.requireCapability(request, decision ? 'sales.approve-quotation' : 'sales.manage-lead')
+      const id = assertIdParam(params.id, 'Quotation')
+      const b = (body ?? {}) as Record<string, unknown>
+      const today = businessDateOf(new Date())
+      const rid = requestIdOf(request)
+      switch (params.action) {
+        case 'revise': await db.transaction(tx => reviseQuotation(tx, actor, id, b, today, rid)); break
+        case 'submit': await db.transaction(tx => submitQuotation(tx, actor, id, today, rid)); break
+        case 'withdraw': await db.transaction(tx => withdrawQuotation(tx, actor, id, rid)); break
+        case 'approve': await db.transaction(tx => decideQuotation(tx, actor, id, 'approve', b.note, today, rid)); break
+        case 'reject': await db.transaction(tx => decideQuotation(tx, actor, id, 'reject', b.note, today, rid)); break
+        case 'send': await db.transaction(tx => sendQuotation(tx, actor, id, today, rid)); break
+        default: throw errors.notFound('Aksi')
+      }
+      return ok(request, await quotationResponse(id))
     }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
     .get('/quotations', async ({ request, query }) => {
       await readActor(request)
