@@ -20,6 +20,12 @@ const SOURCES: Record<IdPrefix, { table: string; column?: string; where?: string
   'LED-': { table: 'leads' }, 'LACT-': { table: 'lead_activities' }, 'QUO-': { table: 'quotations' }
 }
 
+/** IDs other tables already point at without a row of their own (S6a: projects won from a lead made by the old local mock). */
+const REFERENCES: Partial<Record<IdPrefix, { table: string; column: string }>> = {
+  'LED-': { table: 'projects', column: 'lead_id' },
+  'QUO-': { table: 'projects', column: 'source_quotation_id' }
+}
+
 export async function nextId(q: Queryable, prefix: IdPrefix, width = 3): Promise<string> {
   const [row] = await q.query<{ last_value: number }>(
     `insert into id_sequences (prefix, last_value) values ($1, 1)
@@ -41,5 +47,14 @@ export async function syncIdSequences(q: Queryable): Promise<void> {
        on conflict (prefix) do update set last_value = greatest(id_sequences.last_value, excluded.last_value)`,
       [prefix, prefix]
     )
+    const ref = REFERENCES[prefix as IdPrefix]
+    if (ref) {
+      await q.query(
+        `insert into id_sequences (prefix, last_value)
+         select $1, coalesce(max(substring(${ref.column} from '^' || $2 || '([0-9]+)$')::integer), 0) from ${ref.table}
+         on conflict (prefix) do update set last_value = greatest(id_sequences.last_value, excluded.last_value)`,
+        [prefix, prefix]
+      )
+    }
   }
 }

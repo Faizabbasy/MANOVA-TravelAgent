@@ -105,4 +105,11 @@ create table quotation_versions (
 alter table projects add constraint projects_lead_fk foreign key (lead_id) references leads (id) not valid;
 alter table projects add constraint projects_source_quotation_fk foreign key (source_quotation_id) references quotations (id) not valid;
 
-insert into id_sequences (prefix, last_value) values ('LED-', 0), ('LACT-', 0), ('QUO-', 0) on conflict (prefix) do nothing;
+-- Counters start above the lead/quotation IDs existing projects already point at (made by the old local mock).
+insert into id_sequences (prefix, last_value)
+select 'LED-', coalesce(max(substring(lead_id from '^LED-([0-9]+)$')::integer), 0) from projects
+on conflict (prefix) do nothing;
+insert into id_sequences (prefix, last_value)
+select 'QUO-', coalesce(max(substring(source_quotation_id from '^QUO-([0-9]+)$')::integer), 0) from projects
+on conflict (prefix) do nothing;
+insert into id_sequences (prefix, last_value) values ('LACT-', 0) on conflict (prefix) do nothing;

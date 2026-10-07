@@ -6,7 +6,7 @@ import type { Db } from '../src/db/client'
 import { checksumOf, loadMigrations, migrateDown, migrateUp, migrationStatus, type Migration } from '../src/db/migrator'
 import { DEMO_CORE, SeedRefusedError, seedDemo } from '../src/db/seed-demo'
 import { makeTestDb } from './helpers'
-import { nextId } from '../src/shared/ids'
+import { nextId, syncIdSequences } from '../src/shared/ids'
 
 /** Derived from the migration files so adding a migration does not rewrite these tests. */
 const ALL_VERSIONS = loadMigrations().map(m => m.version)
@@ -396,6 +396,25 @@ describe('demo seed', () => {
       await db.query("insert into lead_activities (id, lead_id, type, message, owner_user_id) values ('LACT-T1', 'LED-T1', 'call', 'Halo', 'USR-001')")
       const seqs = await db.query<{ prefix: string }>("select prefix from id_sequences where prefix in ('LED-','LACT-','QUO-') order by prefix")
       expect(seqs.map(s => s.prefix)).toEqual(['LACT-', 'LED-', 'QUO-'])
+    } finally {
+      await cleanup()
+    }
+  })
+
+  test('new lead and quotation IDs never reuse one an existing project already points at (staging before 0024)', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await migrateDown(db, { to: 23 })
+      await db.query("update projects set lead_id = 'LED-200', source_quotation_id = 'QUO-090' where id = 'PRJ-101'")
+      await migrateUp(db)
+      expect(await nextId(db, 'LED-')).toBe('LED-201')
+      expect(await nextId(db, 'QUO-')).toBe('QUO-091')
+      // A later seed keeps the counters above those references too.
+      await db.query("update id_sequences set last_value = 0 where prefix in ('LED-', 'QUO-')")
+      await syncIdSequences(db)
+      expect(await nextId(db, 'LED-')).toBe('LED-201')
     } finally {
       await cleanup()
     }
