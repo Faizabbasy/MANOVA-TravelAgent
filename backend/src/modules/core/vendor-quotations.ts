@@ -63,6 +63,12 @@ export async function acceptQuotation(tx: Queryable, actor: Actor, id: string, r
   // The S4a vendor rule (422 when Finance holds another vendor's invoice) runs first; the whole accept rolls back if it refuses.
   await updateService(tx, actor, q.service_id, svc!.has_bookings ? { vendorId: q.vendor_id } : { vendorId: q.vendor_id, status: 'confirmed' }, requestId)
   await ensureServiceOrder(tx, actor, q.service_id, q.vendor_id, { netCostMinor: q.amount_minor, sourceQuotationId: id }, requestId)
+  // A quotation accepted earlier for this service (another vendor before) is superseded: one accepted per service.
+  const superseded = await tx.query<{ id: string }>(
+    `update vendor_quotations set status = 'rejected', decision_reason = 'Diganti quotation lain.', decided_at = now(), decided_by = $3
+      where service_id = $1 and id <> $2 and status = 'accepted' returning id`,
+    [q.service_id, id, actor.userId]
+  )
   await tx.query("update vendor_quotations set status = 'accepted', decided_at = now(), decided_by = $2 where id = $1", [id, actor.userId])
   const losers = await tx.query<{ id: string }>(
     `update vendor_quotations set status = 'rejected', decision_reason = 'Quotation lain diterima.', decided_at = now(), decided_by = $3
@@ -71,7 +77,7 @@ export async function acceptQuotation(tx: Queryable, actor: Actor, id: string, r
   )
   await recordAudit(tx, {
     action: 'quotation.accepted', actorUserId: actor.userId, entityType: 'vendor_quotation', entityId: id, requestId,
-    after: { serviceId: q.service_id, vendorId: q.vendor_id, rejected: losers.map(l => l.id) }
+    after: { serviceId: q.service_id, vendorId: q.vendor_id, rejected: losers.map(l => l.id), superseded: superseded.map(s => s.id) }
   })
 }
 

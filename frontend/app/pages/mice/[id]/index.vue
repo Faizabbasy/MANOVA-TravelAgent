@@ -7,7 +7,7 @@ import {
   getMiceEventStatusTransitions, updateMiceEventStatus,
   getMiceApprovalTransitions, updateMiceClientApproval,
   toggleMiceChecklistItem, toggleMiceDeliverable, updateMiceEvent,
-  getProjectById, getUserById, USERS, VENDORS, getProjectServiceById, setServiceVendor,
+  getProjectById, getUserById, USERS, VENDORS, getProjectServiceById,
   createCancellationRecord
 } from '~/data'
 import { assignServiceVendorOnServer, persistBookingEdit, reloadProjectBookings, runBookingStatusChange } from '~/data/bookings-sync'
@@ -239,7 +239,7 @@ async function submitEdit () {
   if (serviceId) {
     const vendorId = editVendorId.value || undefined
     try {
-      await assignServiceVendorOnServer(bookingApi, serviceId, vendorId, () => setServiceVendor(serviceId, vendorId))
+      await assignServiceVendorOnServer(bookingApi, serviceId, vendorId)
     } catch (error) {
       showServerError('Vendor Gagal Disimpan', error)
       return

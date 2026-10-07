@@ -101,10 +101,6 @@ export async function rejectQuotationOnServer (api: CoreApi, id: string, reason?
   return upsertServerQuotation((await api.core.rejectVendorQuotation(id, reason)).data)
 }
 
-export async function changeServiceOrderStatusOnServer (api: CoreApi, id: string, to: string, reason?: string): Promise<ServiceOrder> {
-  return upsertServerServiceOrder((await api.core.changeServiceOrderStatus(id, { to, ...(reason?.trim() ? { reason: reason.trim() } : {}) })).data)
-}
-
 export interface ProcurementSyncState {
   status: 'idle' | 'loading' | 'ready' | 'offline' | 'error'
   userId: string | null
@@ -133,4 +129,14 @@ export function useProcurementSync () {
   }
 
   return { state, load }
+}
+
+/**
+ * Service order status (S4b): server first; the local mutator then runs only for its activity entry (it still sees
+ * the old status, so its transition check passes), and the server's version of the order wins.
+ */
+export async function runServiceOrderStatusChange (api: CoreApi, id: string, to: string, reason: string | undefined, localSideEffects: () => unknown): Promise<ServiceOrder> {
+  const dto = (await api.core.changeServiceOrderStatus(id, { to, ...(reason?.trim() ? { reason: reason.trim() } : {}) })).data
+  localSideEffects()
+  return upsertServerServiceOrder(dto)
 }

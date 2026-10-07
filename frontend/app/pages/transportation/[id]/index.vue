@@ -5,7 +5,7 @@ import { FileX, Plus, Trash2, Printer, ClipboardList, ArrowLeft } from 'lucide-v
 import {
   getTransportBookingById, getTransportBookingMarginIdr, getTransportBookingStatusTransitions,
   updateTransportBooking, updateTransportBookingStatus, selectTransportOption,
-  getProjectById, getTravelers, getTravelerGroups, getProjectServiceById, assignServiceVendor,
+  getProjectById, getTravelers, getTravelerGroups, getProjectServiceById,
   VENDORS,
   createCancellationRecord
 } from '~/data'
@@ -261,7 +261,7 @@ async function submitEdit () {
     const vendorId = editVendorId.value || undefined
     const amount = editNetCost.value ?? undefined
     try {
-      await assignServiceVendorOnServer(bookingApi, serviceId, vendorId, () => assignServiceVendor(serviceId, vendorId, amount), { confirm: !!vendorId && !!amount && amount > 0 })
+      await assignServiceVendorOnServer(bookingApi, serviceId, vendorId, undefined, { amountIdr: amount })
     } catch (error) {
       showServerError('Vendor Gagal Disimpan', error)
       return

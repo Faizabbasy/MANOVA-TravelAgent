@@ -8,7 +8,7 @@ import {
   getProjectById, getPartyById, getContactsByParty, getUserById, getVendorById, getLeadById,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
   getProjectServices, getItineraryItems, updateServiceStatus, updateItineraryItem, createItineraryItem, removeItineraryItem,
-  getQuotationsForService, acceptVendorQuotation, rejectVendorQuotation, assignServiceVendor,
+  getQuotationsForService,
   getTravelerGroups, getTravelers, getRoomAssignments,
   createTraveler, updateTraveler, removeTraveler, createTravelerGroup,
   toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
@@ -23,7 +23,7 @@ import {
   USERS,
   getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject,
   markGroupTripOrderPaid,
-  VENDORS, setServiceVendor,
+  VENDORS,
   setBookingPaymentGateStatus,
   getProjectStatusTransitions
 } from '~/data'
@@ -31,7 +31,8 @@ import {
   acceptHandoverOnServer, addTeamMemberOnServer, advanceProjectOrderOnServer, closeFinanceOnServer, patchProjectOnServer,
   reloadProjectFromServer, removeTeamMemberOnServer
 } from '~/data/projects-sync'
-import { assignServiceVendorOnServer, createBookingFromInput, patchServiceOnServer, runServiceWrite } from '~/data/bookings-sync'
+import { assignServiceVendorOnServer, createBookingFromInput, patchServiceOnServer, reloadProjectBookings, runServiceWrite } from '~/data/bookings-sync'
+import { acceptQuotationOnServer, rejectQuotationOnServer } from '~/data/procurement-sync'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
 import type { TravelerImportPreviewRow, AttentionQueueItem } from '~/data'
@@ -908,7 +909,7 @@ async function submitCreateBooking () {
   const serviceId = booking.serviceId as string | undefined
   if (serviceId && bookingVendorId.value) {
     const vendorId = bookingVendorId.value
-    await assignServiceVendorOnServer(financeApi, serviceId, vendorId, () => setServiceVendor(serviceId, vendorId))
+    await assignServiceVendorOnServer(financeApi, serviceId, vendorId)
       .catch(error => serviceToastError('Vendor Belum Tersimpan', error))
   }
   isBookingSheetOpen.value = false
@@ -1537,21 +1538,25 @@ const vendorServiceRows = computed(() => services.value.map(service => ({
 async function handleAcceptQuotation (quotationId: string) {
   const pending = vendorServiceRows.value.flatMap(row => row.quotations).find(q => q.id === quotationId)
   if (!pending?.serviceId) { return }
-  let quotation
+  // S4b: the server accepts it (competitors rejected, vendor + service order set); then the project is reloaded.
   try {
-    await assignServiceVendorOnServer(financeApi, pending.serviceId, pending.vendorId, () => { quotation = acceptVendorQuotation(quotationId) }, { confirm: true })
+    await acceptQuotationOnServer(financeApi, quotationId)
+    await reloadProjectBookings(financeApi, pending.projectId)
   } catch (error) {
     serviceToastError('Quotation Gagal Diterima', error)
     return
   }
-  if (!quotation) { return }
   const vendor = getVendorById(pending.vendorId)
-  showToast('Quotation Diterima', `${vendor?.name ?? quotation.vendorId} ditugaskan untuk layanan ini.`)
+  showToast('Quotation Diterima', `${vendor?.name ?? pending.vendorId} ditugaskan untuk layanan ini.`)
 }
 
-function handleRejectQuotation (quotationId: string) {
-  const quotation = rejectVendorQuotation(quotationId)
-  if (!quotation) { return }
+async function handleRejectQuotation (quotationId: string) {
+  try {
+    await rejectQuotationOnServer(financeApi, quotationId)
+  } catch (error) {
+    serviceToastError('Quotation Gagal Ditolak', error)
+    return
+  }
   showToast('Quotation Ditolak', 'Quotation vendor ditandai ditolak.', 'info')
 }
 
@@ -1572,12 +1577,10 @@ function openVendorPayment (service: ProjectService) {
 }
 
 /**
- * Tugaskan Vendor langsung dari tab Vendors project ini — sebelumnya vendor cuma bisa ditugaskan lewat
- * form Edit booking (tanpa nominal, invoice yang otomatis dibuat jadi Rp 0) atau lewat halaman Vendor
- * Detail terpisah (submit quotation) + balik lagi ke sini buat Terima. Dialog ini gabungin dua-duanya jadi
- * satu langkah: kalau nominal diisi, submit quotation lalu langsung diterima (`acceptVendorQuotation` yang
- * juga men-set service Confirmed) — invoice otomatis kebuat dengan nominal yang benar sejak awal. Kalau
- * nominal dikosongkan, cuma assign vendor (`setServiceVendor`) tanpa mengubah status service.
+ * Tugaskan Vendor langsung dari tab Vendors project ini. Kalau nominal diisi, server mencatat quotation lalu
+ * langsung menerimanya (vendor, service Confirmed bila belum ada booking, service order bernilai quotation — S4b);
+ * kalau dikosongkan, cuma vendor yang diganti (server membuat service order draft). Tagihan vendor dicatat
+ * Finance di Utang Vendor dari invoice asli vendor, bukan otomatis.
  */
 const isAssignVendorDialogOpen = ref(false)
 const assignVendorService = ref<ProjectService | null>(null)
@@ -1605,7 +1608,7 @@ async function submitAssignVendor () {
   const amount = assignVendorAmountIdr.value ?? undefined
 
   try {
-    await assignServiceVendorOnServer(financeApi, service.id, vendorId, () => assignServiceVendor(service.id, vendorId, amount), { confirm: !!amount && amount > 0 })
+    await assignServiceVendorOnServer(financeApi, service.id, vendorId, undefined, { amountIdr: amount })
   } catch (error) {
     serviceToastError('Vendor Gagal Ditugaskan', error)
     return

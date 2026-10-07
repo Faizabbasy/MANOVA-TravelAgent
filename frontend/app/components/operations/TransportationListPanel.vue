@@ -2,7 +2,7 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus, Eye } from 'lucide-vue-next'
-import { TRANSPORT_BOOKINGS, PROJECTS, VENDORS, getProjectById, setServiceVendor, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
+import { TRANSPORT_BOOKINGS, PROJECTS, VENDORS, getProjectById, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
 import { assignServiceVendorOnServer, createBookingFromInput } from '~/data/bookings-sync'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
@@ -112,7 +112,7 @@ async function performCreate () {
   const serviceId = booking.serviceId as string | undefined
   if (serviceId && newVendorId.value) {
     const vendorId = newVendorId.value
-    await assignServiceVendorOnServer(api, serviceId, vendorId, () => setServiceVendor(serviceId, vendorId))
+    await assignServiceVendorOnServer(api, serviceId, vendorId)
       .catch(error => showToast('Vendor Belum Tersimpan', isApiError(error) ? error.message : 'Booking sudah dibuat, tapi vendor belum tersimpan di server.', 'warning'))
   }
   if (duplicateConflictIds.value.length > 0) {

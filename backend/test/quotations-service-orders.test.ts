@@ -113,6 +113,22 @@ describe('vendor quotations', () => {
   })
 })
 
+describe('vendor quotations — replacing the accepted one', () => {
+  test('accepting a quotation of another vendor supersedes the first accepted one (no unique-index error)', async () => {
+    const svc = (await call('POST', '/projects/PRJ-202/services', 'admin', { type: 'mice', label: 'Gala dinner' }, key())).json.data.id as string
+    const q1 = (await call('POST', '/vendor-quotations', 'admin', { vendorId: 'VND-004', projectId: 'PRJ-202', serviceId: svc, serviceType: 'mice', amountMinor: '1000' }, key())).json.data.id as string
+    expect((await call('POST', `/vendor-quotations/${q1}/accept`, 'admin', {})).status).toBe(200)
+    const q2 = (await call('POST', '/vendor-quotations', 'admin', { vendorId: 'VND-007', projectId: 'PRJ-202', serviceId: svc, serviceType: 'mice', amountMinor: '2000' }, key())).json.data.id as string
+    const res = await call('POST', `/vendor-quotations/${q2}/accept`, 'admin', {})
+    expect(res.status).toBe(200)
+    const list = (await call('GET', `/vendor-quotations?serviceId=${svc}`, 'admin')).json.data as { id: string; status: string; decisionReason: string | null }[]
+    expect(list.find(q => q.id === q1)).toMatchObject({ status: 'rejected', decisionReason: 'Diganti quotation lain.' })
+    expect(list.find(q => q.id === q2)!.status).toBe('accepted')
+    const orders = (await call('GET', `/service-orders?serviceId=${svc}`, 'admin')).json.data as { vendorId: string; status: string }[]
+    expect(orders.map(o => `${o.vendorId}:${o.status}`).sort()).toEqual(['VND-004:cancelled', 'VND-007:draft'])
+  })
+})
+
 describe('booking orchestration', () => {
   test('payment gate: not-required before confirmed; project basis without own invoices; own unpaid invoice keeps it pending', async () => {
     const id = (await call('POST', '/bookings/hotel', 'admin', { projectId: 'PRJ-203', details: { checkInDate: '2026-12-01' } }, key())).json.data.id as string

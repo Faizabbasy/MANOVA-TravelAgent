@@ -7,6 +7,8 @@ import {
   updateServiceOrderStatus, getServiceOrderStatusTransitions, amendServiceOrder, reviewSupplierInvoice,
   getProjectById, getVendorById
 } from '~/data'
+import { runServiceOrderStatusChange } from '~/data/procurement-sync'
+import { isApiError } from '~/lib/api/errors'
 import { SERVICE_ORDER_STATUSES, SUPPLIER_INVOICE_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import type { ServiceOrderStatus, SupplierInvoiceStatus } from '~/types/procurement'
@@ -53,21 +55,38 @@ const summaryMetadata = computed(() => {
 /* Status transitions */
 const isCancelDialogOpen = ref(false)
 const cancelReason = ref('')
-function requestStatusChange (newStatus: ServiceOrderStatus) {
+const soApi = useApi()
+const isSavingOrder = ref(false)
+/** Server first (S4b); the local mutator then only adds its activity entry. Returns false when the server refused. */
+async function changeOrderStatus (to: ServiceOrderStatus, reason?: string): Promise<boolean> {
+  const current = serviceOrder.value
+  if (!current || isSavingOrder.value) { return false }
+  isSavingOrder.value = true
+  try {
+    await runServiceOrderStatusChange(soApi, current.id, to, reason, () => updateServiceOrderStatus(current.id, to, currentUser.value.id, reason))
+    return true
+  } catch (error) {
+    showToast('Status Service Order Gagal Diubah', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return false
+  } finally {
+    isSavingOrder.value = false
+  }
+}
+async function requestStatusChange (newStatus: ServiceOrderStatus) {
   if (!serviceOrder.value) { return }
   if (newStatus === 'cancelled') {
     cancelReason.value = ''
     isCancelDialogOpen.value = true
     return
   }
-  const result = updateServiceOrderStatus(serviceOrder.value.id, newStatus, currentUser.value.id)
-  if (result) { showToast('Status Diperbarui', `Service Order kini berstatus "${findStatusOption(SERVICE_ORDER_STATUSES, newStatus).label}".`, 'success') }
+  if (await changeOrderStatus(newStatus)) { showToast('Status Diperbarui', `Service Order kini berstatus "${findStatusOption(SERVICE_ORDER_STATUSES, newStatus).label}".`, 'success') }
 }
-function submitCancel () {
+async function submitCancel () {
   if (!serviceOrder.value || !cancelReason.value.trim()) { return }
-  const result = updateServiceOrderStatus(serviceOrder.value.id, 'cancelled', currentUser.value.id, cancelReason.value.trim())
+  // The dialog stays open when the server refuses (e.g. the order is already billed in Finance).
+  if (!(await changeOrderStatus('cancelled', cancelReason.value.trim()))) { return }
   isCancelDialogOpen.value = false
-  if (result) { showToast('Service Order Dibatalkan', 'Service Order kini berstatus "Cancelled".', 'success') }
+  showToast('Service Order Dibatalkan', 'Service Order kini berstatus "Cancelled".', 'success')
 }
 
 /* Amendment */

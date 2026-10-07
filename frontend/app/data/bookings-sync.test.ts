@@ -140,16 +140,28 @@ describe('bookings-sync', () => {
     expect(calls).not.toContain('local2')
   })
 
-  it('vendor assignment: confirm only a service without booking; the server version wins over local follow-ups', async () => {
-    const sent: Record<string, unknown>[] = []
-    const api = { core: { updateProjectService: (_id: string, input: Record<string, unknown>) => { sent.push(input); return Promise.resolve({ data: svc({ vendorId: 'VND-002', status: 'confirmed' }) }) } } } as never
-    // SVC-9001 carries FLT-9001: no manual status.
-    await assignServiceVendorOnServer(api, 'SVC-9001', 'VND-002', () => { PROJECT_SERVICES.find(s => s.id === 'SVC-9001')!.status = 'sourcing' }, { confirm: true })
-    expect(sent[0]).toEqual({ vendorId: 'VND-002' })
-    expect(PROJECT_SERVICES.find(s => s.id === 'SVC-9001')).toMatchObject({ vendorId: 'VND-002', status: 'confirmed' })
-    mergeServerServicesAndBookings({ services: [svc({ id: 'SVC-9100', hasBookings: false, status: 'sourcing' })], bookings: [] })
-    await assignServiceVendorOnServer(api, 'SVC-9100', undefined, () => undefined, { confirm: true })
-    expect(sent[1]).toEqual({ vendorId: null, status: 'confirmed' })
+  it('vendor assignment: with an amount it goes through a quotation; without, a plain vendor patch; both reload service orders', async () => {
+    const calls: string[] = []
+    const api = {
+      core: {
+        createVendorQuotation: () => { calls.push('quote'); return Promise.resolve({ data: { id: 'VQ-901', vendorId: 'VND-002', projectId: 'PRJ-101', serviceId: 'SVC-9001', serviceType: 'flight', amountMinor: '5000000', notes: null, status: 'submitted', decisionReason: null, submittedOn: '2026-10-07', decidedAt: null } }) },
+        acceptVendorQuotation: () => { calls.push('accept'); return Promise.resolve({ data: { id: 'VQ-901', vendorId: 'VND-002', projectId: 'PRJ-101', serviceId: 'SVC-9001', serviceType: 'flight', amountMinor: '5000000', notes: null, status: 'accepted', decisionReason: null, submittedOn: '2026-10-07', decidedAt: '2026-10-07' } }) },
+        updateProjectService: () => { calls.push('patch'); return Promise.resolve({ data: svc({ vendorId: 'VND-002' }) }) },
+        listProjectServices: () => Promise.resolve({ data: [svc({ vendorId: 'VND-002' })] }),
+        listServiceOrders: () => { calls.push('orders'); return Promise.resolve({ data: [] }) },
+        listVendorQuotations: () => Promise.resolve({ data: [] })
+      }
+    } as never
+    await assignServiceVendorOnServer(api, 'SVC-9001', 'VND-002', undefined, { amountIdr: 5_000_000 })
+    expect(calls).toEqual(['quote', 'accept', 'orders'])
+    calls.length = 0
+    await assignServiceVendorOnServer(api, 'SVC-9001', 'VND-002')
+    expect(calls).toEqual(['patch', 'orders'])
+    expect(PROJECT_SERVICES.find(s => s.id === 'SVC-9001')!.vendorId).toBe('VND-002')
+    // Saving again with the same vendor and an amount does not create another quotation.
+    calls.length = 0
+    await assignServiceVendorOnServer(api, 'SVC-9001', 'VND-002', undefined, { amountIdr: 5_000_000 })
+    expect(calls).toEqual(['patch', 'orders'])
   })
 
   it('budget allocation: patches the existing service of that type, otherwise creates one with the budget', async () => {

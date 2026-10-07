@@ -4,6 +4,7 @@ import { HOTEL_BOOKINGS } from './accommodation'
 import { TRANSPORT_BOOKINGS } from './transportation'
 import { MICE_EVENTS } from './mice'
 import { BOOKING_ORCHESTRATION_RECORDS } from './booking-orchestration'
+import { reloadProjectProcurement, upsertServerQuotation } from './procurement-sync'
 import type { ProjectService } from '~/types/project'
 import type { ApiBookingType, BookingCreateInput, BookingDto, BookingPatchInput, ProjectServiceDto, ServiceCreateInput, ServicePatchInput } from '~/types/api'
 import type { ManovaApi } from '~/lib/api/endpoints'
@@ -255,19 +256,27 @@ export async function runServiceWrite<T> (serverCall: () => Promise<T>, localSid
   return result
 }
 
-const serviceHasBooking = (serviceId: string) => Object.values(ARRAYS).some(list => list.some(b => b.serviceId === serviceId))
-
 /**
- * Vendor choice (quick assignment or accepted quotation): the server sets the vendor (and `confirmed` for a
- * service without booking — one with a booking follows its booking), local follow-ups run (quotations,
- * service order, supplier invoice), then the server's version of the service wins.
+ * Vendor choice (S4b): with an amount it is a quotation submitted and accepted on the server (vendor, `confirmed`
+ * for a service without booking, service order with the amount); without one, a plain vendor change (the server
+ * creates the service order). Then the project's services, quotations and service orders are reloaded.
  */
-export async function assignServiceVendorOnServer (api: CoreApi, serviceId: string, vendorId: string | undefined, localSideEffects: () => unknown, opts: { confirm?: boolean } = {}): Promise<ProjectService> {
-  const input: ServicePatchInput = { vendorId: vendorId ?? null }
-  if (opts.confirm && !serviceHasBooking(serviceId)) { input.status = 'confirmed' }
-  const dto = (await api.core.updateProjectService(serviceId, input)).data
-  localSideEffects()
-  return upsertServerService(dto)
+export async function assignServiceVendorOnServer (api: CoreApi, serviceId: string, vendorId: string | undefined, localSideEffects?: () => unknown, opts: { amountIdr?: number } = {}): Promise<ProjectService | undefined> {
+  const service = PROJECT_SERVICES.find(s => s.id === serviceId)
+  // Only a vendor change goes through a quotation; saving the same vendor again must not stack quotations.
+  if (service && vendorId && service.vendorId !== vendorId && opts.amountIdr && opts.amountIdr > 0) {
+    const quotation = (await api.core.createVendorQuotation({ vendorId, projectId: service.projectId, serviceId, serviceType: service.type, amountMinor: String(Math.round(opts.amountIdr)) }, newIdempotencyKey())).data
+    upsertServerQuotation(quotation)
+    upsertServerQuotation((await api.core.acceptVendorQuotation(quotation.id)).data)
+  } else {
+    upsertServerService((await api.core.updateProjectService(serviceId, { vendorId: vendorId ?? null })).data)
+  }
+  localSideEffects?.()
+  const projectId = service?.projectId
+  if (projectId) {
+    await Promise.all([reloadProjectServices(api, projectId), reloadProjectProcurement(api, projectId)])
+  }
+  return PROJECT_SERVICES.find(s => s.id === serviceId)
 }
 
 /**

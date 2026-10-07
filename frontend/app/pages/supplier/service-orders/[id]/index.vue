@@ -3,6 +3,9 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Send } from 'lucide-vue-next'
 import { getServiceOrderById, getServiceOrderAmendments, getSupplierInvoicesByServiceOrder, updateServiceOrderStatus, submitSupplierInvoice, getProjectById } from '~/data'
+import { runServiceOrderStatusChange } from '~/data/procurement-sync'
+import type { ServiceOrderStatus } from '~/types/procurement'
+import { isApiError } from '~/lib/api/errors'
 import { SERVICE_ORDER_STATUSES, SUPPLIER_INVOICE_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 
@@ -25,17 +28,32 @@ const amendments = computed(() => (serviceOrder.value ? getServiceOrderAmendment
 const invoices = computed(() => (serviceOrder.value ? getSupplierInvoicesByServiceOrder(serviceOrder.value.id) : []))
 
 /** "Acknowledge a sent Service Order" (Wajib) — hanya dari status `sent`. */
-function acknowledge () {
+const soApi = useApi()
+const isSavingOrder = ref(false)
+/** Server first (S4b); the local mutator then only adds its activity entry. Returns false when the server refused. */
+async function changeOrderStatus (to: ServiceOrderStatus, reason?: string): Promise<boolean> {
+  const current = serviceOrder.value
+  if (!current || isSavingOrder.value) { return false }
+  isSavingOrder.value = true
+  try {
+    await runServiceOrderStatusChange(soApi, current.id, to, reason, () => updateServiceOrderStatus(current.id, to, currentUser.value.id, reason))
+    return true
+  } catch (error) {
+    showToast('Status Service Order Gagal Diubah', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return false
+  } finally {
+    isSavingOrder.value = false
+  }
+}
+async function acknowledge () {
   if (!serviceOrder.value) { return }
-  const result = updateServiceOrderStatus(serviceOrder.value.id, 'acknowledged', currentUser.value.id)
-  if (result) { showToast('Service Order Diakui', 'Service Order berhasil diakui (acknowledged).', 'success') }
+  if (await changeOrderStatus('acknowledged')) { showToast('Service Order Diakui', 'Service Order berhasil diakui (acknowledged).', 'success') }
 }
 
 /** "Update fulfillment status" (Wajib) — dari `acknowledged`/`amended` ke `fulfilled`. */
-function markFulfilled () {
+async function markFulfilled () {
   if (!serviceOrder.value) { return }
-  const result = updateServiceOrderStatus(serviceOrder.value.id, 'fulfilled', currentUser.value.id)
-  if (result) { showToast('Fulfillment Diperbarui', 'Service Order kini berstatus "Fulfilled".', 'success') }
+  if (await changeOrderStatus('fulfilled')) { showToast('Fulfillment Diperbarui', 'Service Order kini berstatus "Fulfilled".', 'success') }
 }
 
 /* "Invoice Submission preview form" (Wajib, resolusi Q12) */

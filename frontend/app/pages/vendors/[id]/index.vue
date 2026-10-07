@@ -4,12 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus, Eye } from 'lucide-vue-next'
 import {
   getVendorById, getVendorContacts, getVendorQuotations, getVendorActivities, getServicesByVendor,
-  submitVendorQuotation,
   getProjectById, PROJECTS, getProjectServices,
   getVendorProducts,
   getVendorDocuments
 } from '~/data'
 import { createVendorContactOnServer, createVendorDocumentOnServer, createVendorProductOnServer, updateVendorOnServer } from '~/data/vendors-sync'
+import { submitQuotationOnServer } from '~/data/procurement-sync'
+import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
 import { SERVICE_TYPES, SERVICE_STATUSES, VENDOR_QUOTATION_STATUSES, VENDOR_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -173,25 +174,30 @@ const quotationServiceOptions = computed(() => {
   return getProjectServices(quotationProjectId.value).filter(service => service.type === vendor.value!.serviceType)
 })
 
+/** One Idempotency-Key per filled quotation form: a double click does not record two quotations. */
+let quotationKey = newIdempotencyKey()
+
 function resetQuotationForm () {
+  quotationKey = newIdempotencyKey()
   quotationProjectId.value = ''
   quotationServiceId.value = ''
   quotationAmount.value = ''
   quotationNotes.value = ''
 }
 
-function submitQuotation () {
+async function submitQuotation () {
   if (!vendor.value || !quotationProjectId.value || !quotationAmount.value) { return }
   const amountIdr = Number(quotationAmount.value)
   if (!Number.isFinite(amountIdr) || amountIdr <= 0) { return }
-  submitVendorQuotation({
+  const input = {
     vendorId: vendor.value.id,
     projectId: quotationProjectId.value,
     serviceId: quotationServiceId.value || undefined,
     serviceType: vendor.value.serviceType,
-    amountIdr,
+    amountMinor: String(Math.round(amountIdr)),
     notes: quotationNotes.value.trim() || undefined
-  })
+  }
+  if (!(await saveVendor('Quotation Gagal Dicatat', () => submitQuotationOnServer(vendorApi, input, quotationKey)))) { return }
   resetQuotationForm()
   isQuotationDialogOpen.value = false
 }

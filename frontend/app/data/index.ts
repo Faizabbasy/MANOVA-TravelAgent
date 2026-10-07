@@ -41,10 +41,10 @@ import {
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT } from '~/utils/attention'
 import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
 import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES, PROJECT_STATUSES, SUPPORT_TICKET_CATEGORIES, INVOICE_STATUSES } from '~/constants/status'
-import type { Project, ProjectStatus, ProjectCharacteristic, ServiceTypeKey, ServiceStatus, ProjectService, Traveler, TravelerGroup, ProjectOrderStatus, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
+import type { Project, ProjectStatus, ProjectCharacteristic, ServiceTypeKey, ServiceStatus, Traveler, TravelerGroup, ProjectOrderStatus, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType, CompanyType, SensitiveCompanyProfileFields } from '~/types/party'
 import type { Quotation, QuotationAttachment, QuotationComment } from '~/types/quotation'
-import type { Vendor, VendorQuotation, VendorProduct } from '~/types/vendor'
+import type { Vendor, VendorProduct } from '~/types/vendor'
 import type { SalesOrder, SalesOrderStatus } from '~/types/sales-order'
 import type { ActivityEntry, ChangeCategory, ProjectTask, ProjectRisk, ProjectRiskSeverity, ShiftNote, ShiftPeriod, SystemEvent } from '~/types/activity'
 import type { Lead, LeadActivity, LeadWorkflowStatus, B2cPriceAcceptance, B2cBookingReadiness } from '~/types/lead'
@@ -1597,7 +1597,6 @@ export function updateServiceStatus (serviceId: string, newStatus: ServiceStatus
   if (!service) { return undefined }
   const previousStatus = service.status
   service.status = newStatus
-  ensureSupplierInvoiceForConfirmedService(service)
   if (newStatus === 'changed' && previousStatus !== 'changed') {
     ACTIVITIES.push({
       id: nextSequentialId('ACT-', ACTIVITIES),
@@ -1612,46 +1611,6 @@ export function updateServiceStatus (serviceId: string, newStatus: ServiceStatus
 }
 
 export const getProjectServiceById = (id: string) => PROJECT_SERVICES.find(service => service.id === id)
-
-/** Assign vendor ke ProjectService langsung dari form booking (docs — vendor sync), tanpa lewat alur RFQ/Quotation. */
-export function setServiceVendor (serviceId: string, vendorId: string | undefined): ProjectService | undefined {
-  const service = PROJECT_SERVICES.find(item => item.id === serviceId)
-  if (!service) { return undefined }
-  service.vendorId = vendorId
-  if (vendorId) {
-    ensureServiceOrderForVendorAssignment(service, vendorId)
-    ensureSupplierInvoiceForConfirmedService(service)
-  }
-  return service
-}
-
-/**
- * Assign vendor + nominal (opsional) dalam satu langkah — reuse dari form Edit booking (Ticketing/
- * Accommodation/Transportation, field "Net Cost") dan dialog "Tugaskan Vendor" (tab Vendors Project
- * Detail). Kalau `amountIdr` diisi, jalur `submitVendorQuotation` → `acceptVendorQuotation` dipakai
- * (quotation langsung diterima) — ini yang men-set service jadi Confirmed dan memberi
- * `ensureSupplierInvoiceForConfirmedService` nominal yang benar sejak awal, bukan cuma `setServiceVendor`
- * polos yang menghasilkan invoice Rp 0 karena tidak ada quotation untuk dijadikan sumber nominal.
- */
-export function assignServiceVendor (serviceId: string, vendorId: string | undefined, amountIdr?: number): void {
-  const service = PROJECT_SERVICES.find(item => item.id === serviceId)
-  if (!service || !vendorId) {
-    setServiceVendor(serviceId, vendorId)
-    return
-  }
-  if (amountIdr && amountIdr > 0) {
-    const quotation = submitVendorQuotation({
-      vendorId,
-      projectId: service.projectId,
-      serviceId: service.id,
-      serviceType: service.type,
-      amountIdr
-    })
-    acceptVendorQuotation(quotation.id)
-  } else {
-    setServiceVendor(serviceId, vendorId)
-  }
-}
 
 /**
  * "Tasks, checklist, owner, deadline, blocker, dependency" (Section 12 baru, roadmap Section 00–24, Wajib)
@@ -1857,7 +1816,6 @@ export function updateFlightBookingStatus (bookingId: string, newStatus: FlightB
     const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
     if (service) {
       service.status = mapFlightStatusToServiceStatus(newStatus)
-      ensureSupplierInvoiceForConfirmedService(service)
     }
   }
 
@@ -1958,7 +1916,6 @@ export function updateHotelBookingStatus (bookingId: string, newStatus: HotelBoo
     const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
     if (service) {
       service.status = mapHotelStatusToServiceStatus(newStatus)
-      ensureSupplierInvoiceForConfirmedService(service)
     }
   }
 
@@ -2054,7 +2011,6 @@ export function updateTransportBookingStatus (bookingId: string, newStatus: Tran
     const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
     if (service) {
       service.status = mapTransportStatusToServiceStatus(newStatus)
-      ensureSupplierInvoiceForConfirmedService(service)
     }
   }
 
@@ -2170,7 +2126,6 @@ export function updateMiceEventStatus (eventId: string, newStatus: MiceEventStat
     const service = PROJECT_SERVICES.find(s => s.id === event.serviceId)
     if (service) {
       service.status = mapMiceStatusToServiceStatus(newStatus)
-      ensureSupplierInvoiceForConfirmedService(service)
     }
   }
 
@@ -2597,63 +2552,6 @@ export function ensureVendorLoginAccount (vendor: Vendor): User {
   }
   USERS.push(vendorUser)
   return vendorUser
-}
-
-/** Submit quotation baru (mock) — status awal selalu `submitted`, keputusan Accept/Reject terjadi di tab "Vendors" Project Detail. */
-export function submitVendorQuotation (input: { vendorId: string; projectId: string; serviceId?: string; serviceType: ServiceTypeKey; amountIdr: number; notes?: string }): VendorQuotation {
-  const quotation: VendorQuotation = { id: nextSequentialId('VQ-', VENDOR_QUOTATIONS), status: 'submitted', submittedAt: DEMO_REFERENCE_DATE, ...input }
-  VENDOR_QUOTATIONS.push(quotation)
-  return quotation
-}
-
-/**
- * Accept quotation — dipanggil hanya dari UI yang sudah memfilter `canManageServiceType(quotation.serviceType)`
- * (Section 12, direuse — bukan mekanisme role-check baru). Efek berantai (LOCKED untuk konsistensi data):
- * 1) quotation lain yang masih `submitted` untuk service yang sama otomatis `rejected` (hanya satu vendor
- *    per service); 2) bila `serviceId` diketahui, `ProjectService.vendorId` diarahkan ke vendor pemenang dan
- *    status service diperbarui via `updateServiceStatus` existing (reuse, bukan mutasi langsung paralel);
- * 3) entri `VendorActivity` dicatat — mengisi "Activity/history" tanpa log terpisah.
- */
-export function acceptVendorQuotation (quotationId: string): VendorQuotation | undefined {
-  const quotation = VENDOR_QUOTATIONS.find(item => item.id === quotationId)
-  if (!quotation) { return undefined }
-  quotation.status = 'accepted'
-
-  if (quotation.serviceId) {
-    for (const competing of VENDOR_QUOTATIONS) {
-      if (competing.id !== quotation.id && competing.serviceId === quotation.serviceId && competing.status === 'submitted') {
-        competing.status = 'rejected'
-      }
-    }
-    const service = PROJECT_SERVICES.find(item => item.id === quotation.serviceId)
-    if (service) {
-      service.vendorId = quotation.vendorId
-      updateServiceStatus(service.id, 'confirmed')
-      ensureServiceOrderForVendorAssignment(service, quotation.vendorId)
-    }
-  }
-
-  VENDOR_ACTIVITIES.push({
-    id: nextSequentialId('VACT-', VENDOR_ACTIVITIES),
-    vendorId: quotation.vendorId,
-    message: `Quotation ${findStatusOption(SERVICE_TYPES, quotation.serviceType).label} untuk project ${quotation.projectId} diterima.`,
-    createdAt: DEMO_REFERENCE_DATE
-  })
-
-  return quotation
-}
-
-export function rejectVendorQuotation (quotationId: string): VendorQuotation | undefined {
-  const quotation = VENDOR_QUOTATIONS.find(item => item.id === quotationId)
-  if (!quotation) { return undefined }
-  quotation.status = 'rejected'
-  VENDOR_ACTIVITIES.push({
-    id: nextSequentialId('VACT-', VENDOR_ACTIVITIES),
-    vendorId: quotation.vendorId,
-    message: `Quotation ${findStatusOption(SERVICE_TYPES, quotation.serviceType).label} untuk project ${quotation.projectId} ditolak.`,
-    createdAt: DEMO_REFERENCE_DATE
-  })
-  return quotation
 }
 
 /**
@@ -3358,7 +3256,7 @@ export function sendRfqToVendors (rfqId: string, vendorIds: string[]): RFQ | und
 /**
  * "Supplier response" (Wajib) — dipanggil dari Supplier Portal (`/supplier/rfq/[id]`, scoped `vendorScopeId`).
  * Menyimpan/menimpa respons vendor tsb (satu respons aktif per vendor per RFQ, resubmit menimpa yang lama —
- * pola sama `submitVendorQuotation` versi tunggal, bukan versioning bertingkat), menandai invitation
+ * pola sama quotation vendor versi tunggal, bukan versioning bertingkat), menandai invitation
  * `responded`, dan memajukan status RFQ `sent` → `responses-in` (hanya sekali, respons susulan setelah RFQ
  * masuk fase `comparison`/`clarification` TIDAK memundurkan status).
  */
@@ -3423,7 +3321,7 @@ export function addRfqClarificationMessage (input: { rfqId: string; vendorId: st
 
 /**
  * "Formal Select action" (Wajib) — vendor pemenang RFQ: response terpilih ditandai `selected`, response
- * lain untuk RFQ yang sama otomatis `rejected` (satu vendor per RFQ, pola sama `acceptVendorQuotation`
+ * lain untuk RFQ yang sama otomatis `rejected` (satu vendor per RFQ, pola sama penerimaan quotation vendor (server, S4b)
  * Section 13), `RFQ.selectedVendorId` diisi, status → `selected`. Dicatat sebagai `ActivityEntry` pada
  * project terkait bila `projectId` ada.
  */
@@ -3477,65 +3375,6 @@ export const getServiceOrderByService = (serviceId: string) => SERVICE_ORDERS.fi
 export const getServiceOrderAmendments = (serviceOrderId: string) => SERVICE_ORDER_AMENDMENTS
   .filter(item => item.serviceOrderId === serviceOrderId)
   .sort((a, b) => b.changedAt.localeCompare(a.changedAt))
-
-/** Bridge assignment cepat (dropdown Vendor di form booking, atau Quotation diterima) ke pipeline Service
- * Order/Invoice — idempotent, no-op kalau Service Order utk pasangan service+vendor ini sudah ada. */
-function ensureServiceOrderForVendorAssignment (service: ProjectService, vendorId: string): void {
-  const existing = SERVICE_ORDERS.find(so => so.serviceId === service.id && so.vendorId === vendorId)
-  if (existing) { return }
-  createServiceOrder({
-    vendorId,
-    projectId: service.projectId,
-    serviceId: service.id,
-    lineItems: [{ description: service.label, quantity: 1, unit: 'layanan' }]
-  })
-}
-
-/**
- * Auto-generate Supplier Invoice begitu sebuah ProjectService sudah Confirmed DAN sudah punya vendor —
- * dipanggil dari titik mana pun yang bisa membuat kombinasi ini jadi benar (booking status → confirmed,
- * ATAU assign vendor ke service yang sudah confirmed). Idempotent (tidak duplikat kalau sudah ada invoice
- * non-rejected untuk Service Order ini). Invoice langsung 'approved' (bukan 'submitted') karena ini
- * system-generated dari keputusan PM sendiri (confirm booking + pilih vendor), bukan pengajuan mandiri
- * vendor lewat Supplier Portal yang butuh review — tombol "Bayar" di card AP Summary bisa langsung aktif.
- */
-function ensureSupplierInvoiceForConfirmedService (service: ProjectService): void {
-  if (service.status !== 'confirmed' || !service.vendorId) { return }
-  ensureServiceOrderForVendorAssignment(service, service.vendorId)
-  const serviceOrder = getServiceOrderByService(service.id)
-  if (!serviceOrder) { return }
-  if (getSupplierInvoicesByServiceOrder(serviceOrder.id).some(inv => inv.status !== 'rejected')) { return }
-
-  if (serviceOrder.status !== 'fulfilled') {
-    serviceOrder.status = 'fulfilled'
-    serviceOrder.fulfilledAt = DEMO_REFERENCE_DATE
-    serviceOrder.updatedAt = DEMO_REFERENCE_DATE
-  }
-
-  const acceptedQuotation = getQuotationsForService(service.id).find(q => q.vendorId === service.vendorId && q.status === 'accepted')
-  const invoice: SupplierInvoice = {
-    id: nextSequentialId('SINV-', SUPPLIER_INVOICES),
-    serviceOrderId: serviceOrder.id,
-    vendorId: service.vendorId,
-    amountIdr: acceptedQuotation?.amountIdr ?? 0,
-    submittedAt: DEMO_REFERENCE_DATE,
-    status: 'approved',
-    note: 'Dibuat otomatis begitu booking dikonfirmasi dan vendor ditugaskan.'
-  }
-  SUPPLIER_INVOICES.push(invoice)
-
-  if (service.projectId) {
-    const vendor = getVendorById(service.vendorId)
-    ACTIVITIES.push({
-      id: nextSequentialId('ACT-', ACTIVITIES),
-      projectId: service.projectId,
-      message: `Supplier Invoice ${invoice.id} (${vendor?.name ?? service.vendorId}) otomatis dibuat untuk layanan "${service.label}" (booking Confirmed).`,
-      isChange: false,
-      reviewed: true,
-      createdAt: DEMO_REFERENCE_DATE
-    })
-  }
-}
 
 export interface CreateServiceOrderInput {
   rfqId?: string
@@ -3690,72 +3529,6 @@ export function paySupplierInvoice (id: string, actorId: string): SupplierInvoic
       createdAt: DEMO_REFERENCE_DATE
     })
   }
-  return invoice
-}
-
-export interface RecordVendorPaymentInput {
-  serviceId: string
-  vendorId: string
-  amountIdr: number
-  note?: string
-}
-
-/**
- * Jalur cepat internal (PM/Ops, tab "Vendors" detail Project) — mencatat vendor untuk satu `ProjectService`
- * SUDAH DIBAYAR LANGSUNG oleh staf Manova (mis. beli tiket flight dan bayar cash/transfer di tempat),
- * BUKAN lewat pengajuan mandiri vendor di Supplier Portal (`submitSupplierInvoice` → `reviewSupplierInvoice`
- * → `paySupplierInvoice`, tiga langkah terpisah yang mengasumsikan vendor sendiri yang mengajukan invoice).
- * Service Order dibuat kalau belum ada (idempotent, reuse `ensureServiceOrderForVendorAssignment`) lalu
- * langsung ditandai `fulfilled`, Supplier Invoice langsung dibuat berstatus `paid` — melewati gerbang
- * transisi berlapis yang didesain untuk workflow vendor self-service, karena staf internal di sini sudah
- * mengonfirmasi sendiri bahwa pembayaran ini nyata terjadi. Efeknya: `getProjectActualCostIdr()` dan
- * `getJournalEntries()` (Dr 5100/Cr 1100) langsung mencerminkan pembayaran ini tanpa langkah tambahan.
- */
-export function recordVendorPaymentDirect (input: RecordVendorPaymentInput, actorId: string): SupplierInvoice | undefined {
-  const service = PROJECT_SERVICES.find(item => item.id === input.serviceId)
-  if (!service || !(input.amountIdr > 0)) { return undefined }
-
-  service.vendorId = input.vendorId
-  if (service.status !== 'confirmed' && service.status !== 'changed') { updateServiceStatus(service.id, 'confirmed') }
-
-  ensureServiceOrderForVendorAssignment(service, input.vendorId)
-  const serviceOrder = getServiceOrderByService(service.id)
-  if (!serviceOrder) { return undefined }
-  /** Guard dobel-bayar — sejalan dengan tombol UI yang disembunyikan begitu sudah ada invoice `paid` untuk layanan ini. */
-  if (getSupplierInvoicesByServiceOrder(serviceOrder.id).some(inv => inv.status === 'paid')) { return undefined }
-  if (serviceOrder.status !== 'fulfilled') {
-    serviceOrder.status = 'fulfilled'
-    serviceOrder.fulfilledAt = DEMO_REFERENCE_DATE
-    serviceOrder.updatedAt = DEMO_REFERENCE_DATE
-  }
-
-  const actor = getUserById(actorId)
-  const invoice: SupplierInvoice = {
-    id: nextSequentialId('SINV-', SUPPLIER_INVOICES),
-    serviceOrderId: serviceOrder.id,
-    vendorId: input.vendorId,
-    amountIdr: input.amountIdr,
-    submittedAt: DEMO_REFERENCE_DATE,
-    status: 'paid',
-    note: input.note?.trim() || 'Dicatat langsung oleh staf internal (bukan pengajuan mandiri vendor).',
-    reviewedAt: DEMO_REFERENCE_DATE,
-    reviewedBy: actorId,
-    paidAt: DEMO_REFERENCE_DATE
-  }
-  SUPPLIER_INVOICES.push(invoice)
-
-  if (service.projectId) {
-    const vendor = getVendorById(input.vendorId)
-    ACTIVITIES.push({
-      id: nextSequentialId('ACT-', ACTIVITIES),
-      projectId: service.projectId,
-      message: `Pembayaran vendor ${vendor?.name ?? input.vendorId} untuk layanan "${service.label}" sebesar ${formatCurrencyIdr(input.amountIdr)} dicatat lunas oleh ${actor?.name ?? actorId}.`,
-      isChange: false,
-      reviewed: true,
-      createdAt: DEMO_REFERENCE_DATE
-    })
-  }
-
   return invoice
 }
 

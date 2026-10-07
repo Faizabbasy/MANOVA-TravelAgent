@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { VENDOR_QUOTATIONS } from './vendors'
 import { SERVICE_ORDERS } from './procurement'
-import { mergeServerQuotations, mergeServerServiceOrders, quotationFromServer } from './procurement-sync'
+import { mergeServerQuotations, mergeServerServiceOrders, quotationFromServer, runServiceOrderStatusChange } from './procurement-sync'
 import type { ServiceOrderDto, VendorQuotationDto } from '~/types/api'
 
 const q = (over: Partial<VendorQuotationDto> = {}): VendorQuotationDto => ({ id: 'VQ-900', vendorId: 'VND-001', projectId: 'PRJ-101', serviceId: 'SVC-1011', serviceType: 'flight', amountMinor: '90000000', notes: null, status: 'submitted', decisionReason: null, submittedOn: '2026-10-01', decidedAt: null, ...over })
@@ -21,5 +21,18 @@ describe('procurement-sync', () => {
     expect(SERVICE_ORDERS.map(x => x.id)).toEqual(['SO-900'])
     expect(SERVICE_ORDERS[0]).toBe(local)
     expect(local).toMatchObject({ status: 'sent', netCostIdr: 90_000_000, vendorId: 'VND-001', rfqId: 'RFQ-1', projectId: 'PRJ-101', serviceId: 'SVC-1011' })
+  })
+
+  it('status change: server first, local activity after, server version wins; a refusal changes nothing', async () => {
+    mergeServerServiceOrders([so()])
+    const calls: string[] = []
+    const api = { core: { changeServiceOrderStatus: () => { calls.push('server'); return Promise.resolve({ data: so({ status: 'sent' }) }) } } } as never
+    await runServiceOrderStatusChange(api, 'SO-900', 'sent', undefined, () => { calls.push('local') })
+    expect(calls).toEqual(['server', 'local'])
+    expect(SERVICE_ORDERS.find(x => x.id === 'SO-900')!.status).toBe('sent')
+    const refused = { core: { changeServiceOrderStatus: () => Promise.reject(new Error('422')) } } as never
+    await expect(runServiceOrderStatusChange(refused, 'SO-900', 'cancelled', 'x', () => { calls.push('local2') })).rejects.toThrow()
+    expect(calls).not.toContain('local2')
+    expect(SERVICE_ORDERS.find(x => x.id === 'SO-900')!.status).toBe('sent')
   })
 })

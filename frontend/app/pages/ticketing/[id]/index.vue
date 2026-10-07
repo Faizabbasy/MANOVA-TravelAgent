@@ -5,7 +5,7 @@ import { FileX, Plus, Trash2, Printer, ArrowLeft } from 'lucide-vue-next'
 import {
   getFlightBookingById, getFlightBookingMarginIdr, getFlightBookingStatusTransitions,
   updateFlightBooking, updateFlightBookingStatus, selectFlightOption,
-  getProjectById, getTravelers, getProjectServiceById, assignServiceVendor,
+  getProjectById, getTravelers, getProjectServiceById,
   VENDORS,
   createCancellationRecord
 } from '~/data'
@@ -249,7 +249,7 @@ async function submitEdit () {
     const vendorId = editVendorId.value || undefined
     const amount = editNetCost.value ?? undefined
     try {
-      await assignServiceVendorOnServer(bookingApi, serviceId, vendorId, () => assignServiceVendor(serviceId, vendorId, amount), { confirm: !!vendorId && !!amount && amount > 0 })
+      await assignServiceVendorOnServer(bookingApi, serviceId, vendorId, undefined, { amountIdr: amount })
     } catch (error) {
       showServerError('Vendor Gagal Disimpan', error)
       return
