@@ -223,3 +223,118 @@ export async function updateGroup(tx: Queryable, actor: Actor, id: string, input
   await tx.query(`update traveler_groups set ${cols.map((c, i) => `${c} = $${i + 2}`).join(', ')}, changed_by_api_at = now(), updated_at = now() where id = $1`, [id, ...Object.values(values)])
   await recordAudit(tx, { action: 'traveler_group.updated', actorUserId: actor.userId, entityType: 'traveler_group', entityId: id, requestId, after: values })
 }
+
+const ROOM_TYPES = ['single', 'twin', 'suite'] as const
+
+export async function cancelTraveler(tx: Queryable, actor: Actor, id: string, reasonInput: unknown, requestId: string) {
+  const reason = typeof reasonInput === 'string' && reasonInput.trim() ? reasonInput.trim().slice(0, 1000) : null
+  if (!reason) throw errors.validation({ reason: ['Alasan pembatalan wajib diisi.'] })
+  const current = await lockTraveler(tx, id)
+  if (current.cancelled) throw rule('Traveler ini sudah dibatalkan.')
+  await tx.query('update travelers set cancelled = true, cancel_reason = $2, changed_by_api_at = now(), updated_at = now() where id = $1', [id, reason])
+  await removeFromRooms(tx, current.project_id, id)
+  await recordAudit(tx, { action: 'traveler.cancelled', actorUserId: actor.userId, entityType: 'traveler', entityId: id, requestId, reason })
+}
+
+export async function replaceTraveler(tx: Queryable, actor: Actor, id: string, input: Record<string, unknown>, requestId: string): Promise<{ id: string }> {
+  const problems: FieldErrors = {}
+  if (input.name === undefined) problems.name = ['Nama traveler pengganti wajib diisi.']
+  const current = await lockTraveler(tx, id)
+  const values = await cleanProfile(tx, current.project_id, { ...input, groupId: undefined }, problems)
+  if (Object.keys(problems).length) throw errors.validation(problems)
+  if (current.cancelled) throw rule('Traveler ini sudah dibatalkan — tidak bisa digantikan.')
+  const newId = await insertTraveler(tx, current.project_id, { ...values, group_id: current.group_id }, { replaces: id })
+  await tx.query('update travelers set changed_by_api_at = now() where id = $1', [newId])
+  await tx.query('update travelers set cancelled = true, cancel_reason = $2, replaced_by = $3, changed_by_api_at = now(), updated_at = now() where id = $1',
+    [id, `Digantikan oleh ${values.name as string} (${newId}).`, newId])
+  // The replacement takes over the old traveler's room.
+  await tx.query(
+    `update room_assignments set traveler_ids = (select coalesce(jsonb_agg(case when x = $2::text then $3::text else x end), '[]'::jsonb) from jsonb_array_elements_text(traveler_ids) as x),
+       changed_by_api_at = now(), updated_at = now()
+     where project_id = $1 and traveler_ids ? $2::text`, [current.project_id, id, newId])
+  await recordAudit(tx, { action: 'traveler.replaced', actorUserId: actor.userId, entityType: 'traveler', entityId: id, requestId, after: { replacedBy: newId } })
+  return { id: newId }
+}
+
+/** Room members: travelers of the project, none cancelled. Returns the cleaned ids or records the problem. */
+async function cleanRoomTravelers(tx: Queryable, projectId: string, input: unknown, problems: FieldErrors): Promise<{ ids: string[]; hasCancelled: boolean }> {
+  if (!Array.isArray(input) || input.some(x => typeof x !== 'string' || !ID_PATTERN.test(x))) {
+    problems.travelerIds = ['Daftar traveler tidak valid.']
+    return { ids: [], hasCancelled: false }
+  }
+  const ids = [...new Set(input as string[])]
+  if (!ids.length) return { ids, hasCancelled: false }
+  const rows = await tx.query<{ id: string; cancelled: boolean }>(
+    'select id, cancelled from travelers where project_id = $1 and id in (select jsonb_array_elements_text($2::text::jsonb))', [projectId, JSON.stringify(ids)])
+  if (rows.length !== ids.length) problems.travelerIds = ['Ada traveler yang bukan dari project ini.']
+  return { ids, hasCancelled: rows.some(r => r.cancelled) }
+}
+
+export async function setRoomTravelers(tx: Queryable, actor: Actor, roomId: string, input: unknown, requestId: string) {
+  const [room] = await tx.query<{ project_id: string }>('select project_id from room_assignments where id = $1 for update', [roomId])
+  if (!room) throw errors.notFound('Kamar')
+  const problems: FieldErrors = {}
+  const { ids, hasCancelled } = await cleanRoomTravelers(tx, room.project_id, input, problems)
+  if (Object.keys(problems).length) throw errors.validation(problems)
+  if (hasCancelled) throw rule('Traveler yang sudah dibatalkan tidak bisa ditempatkan di kamar.')
+  // A traveler sits in one room per project: take them out of every other room first.
+  for (const tid of ids) {
+    await tx.query(`update room_assignments set traveler_ids = traveler_ids - $3::text, changed_by_api_at = now(), updated_at = now()
+                     where project_id = $1 and id <> $2 and traveler_ids ? $3::text`, [room.project_id, roomId, tid])
+  }
+  await tx.query('update room_assignments set traveler_ids = $2::text::jsonb, changed_by_api_at = now(), updated_at = now() where id = $1', [roomId, JSON.stringify(ids)])
+  await recordAudit(tx, { action: 'room.travelers_set', actorUserId: actor.userId, entityType: 'room_assignment', entityId: roomId, requestId, after: { travelerIds: ids } })
+}
+
+export async function createRoom(tx: Queryable, actor: Actor, projectId: string, input: Record<string, unknown>, requestId: string): Promise<{ id: string }> {
+  const problems: FieldErrors = {}
+  const label = typeof input.roomLabel === 'string' ? input.roomLabel.trim() : ''
+  if (!label) problems.roomLabel = ['Label kamar wajib diisi.']
+  if (!(ROOM_TYPES as readonly unknown[]).includes(input.roomType)) problems.roomType = ['Tipe kamar: single, twin, atau suite.']
+  const groupOk = typeof input.groupId === 'string' && ID_PATTERN.test(input.groupId) &&
+    (await tx.query('select 1 from traveler_groups where id = $1 and project_id = $2', [input.groupId, projectId])).length > 0
+  if (!groupOk) problems.groupId = ['Grup tidak ditemukan di project ini.']
+  if (Object.keys(problems).length) throw errors.validation(problems)
+  const id = await nextId(tx, 'ROOM-')
+  await tx.query('insert into room_assignments (id, project_id, group_id, room_label, room_type, changed_by_api_at) values ($1, $2, $3, $4, $5, now())',
+    [id, projectId, input.groupId, label.slice(0, 100), input.roomType])
+  await recordAudit(tx, { action: 'room.created', actorUserId: actor.userId, entityType: 'room_assignment', entityId: id, requestId, after: { projectId, label } })
+  if (input.travelerIds !== undefined) await setRoomTravelers(tx, actor, id, input.travelerIds, requestId)
+  return { id }
+}
+
+export async function deleteRoom(tx: Queryable, actor: Actor, roomId: string, requestId: string) {
+  const done = await tx.query<{ id: string }>('delete from room_assignments where id = $1 returning id', [roomId])
+  if (!done.length) throw errors.notFound('Kamar')
+  await recordAudit(tx, { action: 'room.deleted', actorUserId: actor.userId, entityType: 'room_assignment', entityId: roomId, requestId })
+}
+
+/** Import commit: every row is validated again on the server; rows with errors are not created and are reported back. */
+export async function importTravelers(tx: Queryable, actor: Actor, projectId: string, rowsInput: unknown, requestId: string) {
+  if (!Array.isArray(rowsInput) || rowsInput.length === 0 || rowsInput.length > 500) throw errors.validation({ rows: ['Kirim 1–500 baris peserta.'] })
+  const existing = new Set((await tx.query<{ passport_number: string }>(
+    'select passport_number from travelers where project_id = $1 and passport_number is not null', [projectId])).map(r => r.passport_number))
+  const created: string[] = []
+  const rejected: { index: number; errors: string[] }[] = []
+  for (const [index, raw] of (rowsInput as unknown[]).entries()) {
+    const row = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
+    const errs: string[] = []
+    const name = typeof row.name === 'string' ? row.name.trim() : ''
+    if (!name) errs.push('Nama kosong — wajib diisi')
+    const passport = typeof row.passportNumber === 'string' && row.passportNumber.trim() ? row.passportNumber.trim() : null
+    if (passport && existing.has(passport)) errs.push(`Nomor paspor ${passport} sudah dipakai traveler lain di project ini`)
+    const problems: FieldErrors = {}
+    const values = errs.length ? {} : await cleanProfile(tx, projectId, { name, passportNumber: passport, groupId: row.groupId ?? undefined }, problems)
+    for (const list of Object.values(problems)) errs.push(...list)
+    if (errs.length) {
+      rejected.push({ index, errors: errs })
+      continue
+    }
+    const id = await insertTraveler(tx, projectId, values)
+    await tx.query('update travelers set changed_by_api_at = now() where id = $1', [id])
+    created.push(id)
+    if (passport) existing.add(passport)
+  }
+  await recordAudit(tx, { action: 'traveler.imported', actorUserId: actor.userId, entityType: 'project', entityId: projectId, requestId, after: { created, rejected: rejected.length } })
+  return { created, rejected }
+}

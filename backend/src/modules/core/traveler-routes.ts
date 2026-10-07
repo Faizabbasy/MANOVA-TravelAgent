@@ -8,7 +8,7 @@ import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency
 import { getProject } from './repository'
 import { isPortalActor } from './scope'
 import {
-  createGroup, createTraveler, deleteTraveler, listRoomAssignments, listTravelerGroups, listTravelers, setVerified, setVip, updateGroup, updateTraveler
+  cancelTraveler, createGroup, createRoom, createTraveler, deleteRoom, deleteTraveler, importTravelers, listRoomAssignments, replaceTraveler, setRoomTravelers, listTravelerGroups, listTravelers, setVerified, setVip, updateGroup, updateTraveler
 } from './travelers'
 
 /** Travelers, groups and rooming (S7a). Internal roles read everything; `project-order.manage-travelers` writes. */
@@ -108,6 +108,49 @@ export function travelerRoutes(deps: AppDeps, auth: AuthContext) {
       await db.transaction(tx => updateGroup(tx, actor, id, body as Record<string, unknown>, requestIdOf(request)))
       return ok(request, await groupResponse(id))
     }, { body: t.Record(t.String(), t.Unknown()) })
+    .post('/travelers/:id/cancel', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const id = assertIdParam(params.id, 'Traveler')
+      await db.transaction(tx => cancelTraveler(tx, actor, id, (body as Record<string, unknown> | undefined)?.reason, requestIdOf(request)))
+      return ok(request, await travelerResponse(id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/travelers/:id/replace', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const id = assertIdParam(params.id, 'Traveler')
+      const result = await db.transaction(tx => replaceTraveler(tx, actor, id, (body ?? {}) as Record<string, unknown>, requestIdOf(request)))
+      return ok(request, await travelerResponse(result.id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/projects/:id/travelers/import', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const projectId = await visibleProject(actor, params.id)
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /projects/:id/travelers/import', key, body: { projectId, ...(body as object) } }, tx =>
+        importTravelers(tx, actor, projectId, (body as Record<string, unknown>).rows, requestIdOf(request)))
+      set.status = 201
+      const all = await listTravelers(db, { projectId })
+      return ok(request, { created: all.filter(x => result.data.created.includes(x.id)), rejected: result.data.rejected })
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .post('/projects/:id/room-assignments', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const projectId = await visibleProject(actor, params.id)
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /projects/:id/room-assignments', key, body: { projectId, ...(body as object) } }, tx =>
+        createRoom(tx, actor, projectId, body as Record<string, unknown>, requestIdOf(request)))
+      set.status = 201
+      return ok(request, (await listRoomAssignments(db, { id: result.data.id }))[0])
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .put('/room-assignments/:id/travelers', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const id = assertIdParam(params.id, 'Kamar')
+      await db.transaction(tx => setRoomTravelers(tx, actor, id, (body as Record<string, unknown> | undefined)?.travelerIds, requestIdOf(request)))
+      return ok(request, (await listRoomAssignments(db, { id }))[0])
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .delete('/room-assignments/:id', async ({ request, params }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const id = assertIdParam(params.id, 'Kamar')
+      await db.transaction(tx => deleteRoom(tx, actor, id, requestIdOf(request)))
+      return ok(request, { id, deleted: true })
+    })
     .get('/room-assignments', async ({ request, query }) => {
       await readActor(request)
       return ok(request, await listRoomAssignments(db, { projectId: projectQuery(query.projectId) }))

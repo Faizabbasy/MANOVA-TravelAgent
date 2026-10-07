@@ -85,3 +85,60 @@ describe('travelers (empty)', () => {
     expect((await call('POST', '/projects/PRJ-101/travelers', 'finance', { name: 'X' }, key())).status).toBe(403)
   })
 })
+
+describe('cancel, replace, rooming, import', () => {
+  const setup = async () => {
+    const g = (await call('POST', '/projects/PRJ-101/traveler-groups', 'admin', { name: `Grup ${++n}` }, key())).json.data.id as string
+    const a = (await call('POST', '/projects/PRJ-101/travelers', 'admin', { name: `A ${n}`, groupId: g, passportNumber: `PA${n}` }, key())).json.data.id as string
+    const b = (await call('POST', '/projects/PRJ-101/travelers', 'admin', { name: `B ${n}`, groupId: g }, key())).json.data.id as string
+    const room = (await call('POST', '/projects/PRJ-101/room-assignments', 'admin', { groupId: g, roomLabel: 'Twin 9', roomType: 'twin', travelerIds: [a] }, key())).json.data.id as string
+    return { g, a, b, room }
+  }
+
+  test('rooming: a traveler moves instead of sitting in two rooms; other projects and cancelled travelers are refused', async () => {
+    const { g, a, b, room } = await setup()
+    const room2 = (await call('POST', '/projects/PRJ-101/room-assignments', 'admin', { groupId: g, roomLabel: 'Twin 10', roomType: 'twin' }, key())).json.data.id as string
+    expect((await call('PUT', `/room-assignments/${room2}/travelers`, 'admin', { travelerIds: [a, b] })).json.data.travelerIds).toEqual([a, b])
+    const rooms = (await call('GET', '/room-assignments?projectId=PRJ-101', 'admin')).json.data as { id: string; travelerIds: string[] }[]
+    expect(rooms.find(r => r.id === room)!.travelerIds).toEqual([])
+    const other = (await call('POST', '/projects/PRJ-102/travelers', 'admin', { name: 'Project Lain' }, key())).json.data.id as string
+    expect((await call('PUT', `/room-assignments/${room}/travelers`, 'admin', { travelerIds: [other] })).status).toBe(400)
+    await call('POST', `/travelers/${b}/cancel`, 'admin', { reason: 'Batal ikut' })
+    expect((await call('GET', '/room-assignments?projectId=PRJ-101', 'admin')).json.data.find((r: { id: string }) => r.id === room2).travelerIds).toEqual([a])
+    expect((await call('PUT', `/room-assignments/${room2}/travelers`, 'admin', { travelerIds: [a, b] })).status).toBe(422)
+    expect((await call('DELETE', `/room-assignments/${room2}`, 'admin')).status).toBe(200)
+    expect((await call('POST', '/projects/PRJ-101/room-assignments', 'admin', { groupId: g, roomLabel: 'X', roomType: 'villa' }, key())).status).toBe(400)
+  })
+
+  test('cancel needs a reason; replace is atomic and takes over the room', async () => {
+    const { a, room } = await setup()
+    expect((await call('POST', `/travelers/${a}/cancel`, 'admin', {})).status).toBe(400)
+    const replaced = await call('POST', `/travelers/${a}/replace`, 'admin', { name: 'Pengganti S7a', passportNumber: 'PZ1' })
+    expect(replaced.status).toBe(200)
+    const newId = replaced.json.data.id as string
+    expect(replaced.json.data).toMatchObject({ replacesTravelerId: a, cancelled: false })
+    const old = (await call('GET', `/travelers/${a}`, 'admin')).json.data
+    expect(old).toMatchObject({ cancelled: true, replacedByTravelerId: newId })
+    expect(old.cancelReason).toContain('Pengganti S7a')
+    expect((await call('GET', '/room-assignments?projectId=PRJ-101', 'admin')).json.data.find((r: { id: string }) => r.id === room).travelerIds).toEqual([newId])
+    expect((await call('POST', `/travelers/${a}/replace`, 'admin', { name: 'Lagi' })).status).toBe(422)
+    expect((await call('POST', `/travelers/${a}/cancel`, 'admin', { reason: 'x' })).status).toBe(422)
+    expect((await call('DELETE', `/travelers/${a}`, 'admin')).status).toBe(422)
+  })
+
+  test('import validates again: empty name and duplicate passports (existing or in the batch) are rejected', async () => {
+    const { a } = await setup()
+    const existing = (await call('GET', `/travelers/${a}`, 'admin')).json.data.passportNumber as string
+    const res = await call('POST', '/projects/PRJ-101/travelers/import', 'admin', { rows: [
+      { name: 'Impor 1', passportNumber: `IMP-${n}` },
+      { name: '' },
+      { name: 'Impor 3', passportNumber: existing },
+      { name: 'Impor 4', passportNumber: `IMP-${n}` },
+      { name: 'Impor 5' }
+    ] }, key())
+    expect(res.status).toBe(201)
+    expect(res.json.data.created).toHaveLength(2)
+    expect(res.json.data.rejected.map((r: { index: number }) => r.index)).toEqual([1, 2, 3])
+    expect((await call('POST', '/projects/PRJ-101/travelers/import', 'admin', { rows: 'x' }, key())).status).toBe(400)
+  })
+})
