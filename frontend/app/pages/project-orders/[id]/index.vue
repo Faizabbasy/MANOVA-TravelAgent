@@ -26,6 +26,7 @@ import {
   VENDORS,
   getProjectStatusTransitions
 } from '~/data'
+import { reloadSalesOrder } from '~/data/sales-orders-sync'
 import {
   acceptHandoverOnServer, addTeamMemberOnServer, advanceProjectOrderOnServer, closeFinanceOnServer, patchProjectOnServer,
   reloadProjectFromServer, removeTeamMemberOnServer
@@ -318,10 +319,16 @@ function openConfirmDp (order: SalesOrder) {
   }
   confirmDpOpen.value = true
 }
-/** The server recorded the DP; the client-side booking follows (status paid + travelers). */
-function onDpConfirmed () {
+/** The server recorded the DP and marked the booking paid (S6b); the order is reloaded, then its local travelers follow. */
+async function onDpConfirmed () {
   if (!confirmDpOrder.value) { return }
-  markGroupTripOrderPaid(confirmDpOrder.value.id)
+  const id = confirmDpOrder.value.id
+  try {
+    await reloadSalesOrder(financeApi, id)
+  } catch {
+    // The next sales order sync brings it.
+  }
+  markGroupTripOrderPaid(id)
   refreshStep()
   orderSummaries.refresh()
 }

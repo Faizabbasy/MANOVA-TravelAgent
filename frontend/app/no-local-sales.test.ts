@@ -6,7 +6,9 @@ import { describe, expect, it } from 'vitest'
 const FORBIDDEN = [
   'createLead(', 'updateLeadContact(', 'updateLeadQualification(', 'archiveLead(', 'reopenLead(', 'markLeadUnqualified(', 'mergeLeadAsDuplicate(',
   'createLeadActivity(', 'qualifyLeadForQuotation(', 'ensureCustomerForLead(', 'createQuotation(', 'reviseQuotation(', 'duplicateQuotationVersion(',
-  'updateQuotationDetails(', 'submitQuotationForApproval(', 'withdrawQuotationSubmission(', 'approveQuotation(', 'rejectQuotation(', 'sendQuotationToClient(', 'applyCostSheetToQuotation('
+  'updateQuotationDetails(', 'submitQuotationForApproval(', 'withdrawQuotationSubmission(', 'approveQuotation(', 'rejectQuotation(', 'sendQuotationToClient(', 'applyCostSheetToQuotation(',
+  // S6b: sales orders, their status and Group Trip seats live on the server.
+  'createSalesOrder(', 'updateSalesOrderStatus(', 'qualifyLeadAndCreateSalesOrder(', 'qualifyGroupTripLead('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**

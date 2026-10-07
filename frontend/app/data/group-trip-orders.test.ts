@@ -4,14 +4,13 @@ import { INVOICES, PAYMENTS } from './finance'
 import { getTravelers, markGroupTripOrderPaid } from './index'
 
 /**
- * After Finance confirms a participant's DP on the server, the client-side Group Trip booking only follows
- * operationally: the order becomes `paid` and its travelers appear. No client-side invoice or payment.
+ * After Finance confirms a participant's DP on the server, the server marks the booking paid (S6b); the client
+ * only follows operationally: its travelers appear. No client-side status change, invoice or payment.
  */
 describe('markGroupTripOrderPaid', () => {
-  const draft = () => SALES_ORDERS.find(o => o.projectId && o.status === 'draft')!
-
-  it('marks a draft group-trip order paid and creates one traveler per pax, without mock money', () => {
-    const order = draft()
+  it('creates one traveler per pax for a group-trip order the server marked paid, without touching status or mock money', () => {
+    const order = SALES_ORDERS.find(o => o.projectId && o.status === 'draft')!
+    order.status = 'paid' // as reloaded from the server after the DP confirmation
     const invoicesBefore = INVOICES.length
     const paymentsBefore = PAYMENTS.length
     const travelersBefore = getTravelers(order.projectId!).filter(t => t.salesOrderId === order.id).length
@@ -23,12 +22,15 @@ describe('markGroupTripOrderPaid', () => {
 
   it('is idempotent: a second call creates no more travelers', () => {
     const order = SALES_ORDERS.find(o => o.projectId && o.status === 'paid')!
+    markGroupTripOrderPaid(order.id)
     const travelers = getTravelers(order.projectId!).filter(t => t.salesOrderId === order.id).length
-    expect(markGroupTripOrderPaid(order.id)).toBeUndefined()
+    markGroupTripOrderPaid(order.id)
     expect(getTravelers(order.projectId!).filter(t => t.salesOrderId === order.id).length).toBe(travelers)
   })
 
-  it('refuses standalone orders and unknown ids', () => {
+  it('refuses drafts (no DP yet), standalone orders and unknown ids', () => {
+    const draft = SALES_ORDERS.find(o => o.projectId && o.status === 'draft')
+    if (draft) { expect(markGroupTripOrderPaid(draft.id)).toBeUndefined() }
     const standalone = SALES_ORDERS.find(o => !o.projectId)
     if (standalone) { expect(markGroupTripOrderPaid(standalone.id)).toBeUndefined() }
     expect(markGroupTripOrderPaid('SLO-NOPE')).toBeUndefined()

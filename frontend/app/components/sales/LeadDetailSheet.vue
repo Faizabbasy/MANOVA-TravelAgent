@@ -3,14 +3,14 @@ import { ref, computed, watch } from 'vue'
 import { Plus, Archive as ArchiveIcon, Building2, User, UserCheck, Phone, Mail, CalendarClock, Calendar, FileX } from 'lucide-vue-next'
 import { matchesAnyRole } from '~/data/rbac'
 import {
-  USERS, getLeadById, getLeadActivities, getLeadFollowUps, qualifyLeadAndCreateSalesOrder, getLeadDuplicateCandidates,
+  USERS, getLeadById, getLeadActivities, getLeadFollowUps, getLeadDuplicateCandidates,
   getUserById, getOpenGroupProjects, getProjectById, getProjectSeatsFilled,
-  getProjectSeatsAvailable, qualifyGroupTripLead,
+  getProjectSeatsAvailable,
   getQuotationByLead, ensureClientLoginAccount, getCostSheetsByLead, getCostSheetBreakdown, getUserByClientPartyId
 } from '~/data'
 import {
   addLeadActivityOnServer, approveQuotationOnServer, archiveLeadOnServer, createQuotationOnServer, markLeadWonOnServer, mergeLeadOnServer,
-  patchLeadOnServer, qualifyLeadOnServer, rejectQuotationOnServer, reopenLeadOnServer, reviseQuotationOnServer, sendQuotationOnServer,
+  patchLeadOnServer, qualifyB2cLeadOnServer, qualifyGroupTripOnServer, qualifyLeadOnServer, rejectQuotationOnServer, reopenLeadOnServer, reviseQuotationOnServer, sendQuotationOnServer,
   submitQuotationOnServer, unqualifyLeadOnServer, updateQuotationOnServer, withdrawQuotationOnServer
 } from '~/data/leads-sync'
 import { isApiError } from '~/lib/api/errors'
@@ -360,7 +360,7 @@ function openQualifyDialog () {
 
 /**
  * Qualify — Lead B2C tanpa Project B2C dipilih (`qualGroupTripProjectId` kosong) TETAP pakai jalur lama
- * persis (Dialog kecil isi harga → `qualifyLeadAndCreateSalesOrder` langsung, booking standalone). Lead B2C
+ * persis (Dialog kecil isi harga → order standalone dibuat server, `qualifyB2cLeadOnServer`). Lead B2C
  * DENGAN Project dipilih dipisah ke `doQualifyGroupTrip` (tombol beda, tidak lewat Dialog ini).
  * S6a: the server saves the form, checks the required fields and links (or creates) the customer; the B2C sales
  * order stays local until S6b.
@@ -371,14 +371,14 @@ async function doQualify () {
   if (isIndividualTravel.value) {
     const price = qualifySalesOrderPriceIdr.value
     if (!price || price <= 0) { return }
-    const lead = await run('Qualify Gagal', async () => {
+    // S6b: the server qualifies, links the individual customer and creates the standalone order in one go.
+    const result = await run('Qualify Gagal', async () => {
       await saveQualificationDraft()
-      return await qualifyLeadOnServer(api, id, 'individual')
+      return await qualifyB2cLeadOnServer(api, id, price)
     })
-    if (!lead?.partyId) { return }
-    const order = qualifyLeadAndCreateSalesOrder(id, { priceIdr: price, partyId: lead.partyId })
+    if (!result) { return }
     isQualifyDialogOpen.value = false
-    if (order) { navigateTo(`/sales-orders/${order.id}`) }
+    if (result.order) { navigateTo(`/sales-orders/${result.order.id}`) }
     return
   }
   const qualified = await run('Qualify Gagal', async () => {
@@ -417,31 +417,26 @@ async function doQualifyGroupTrip () {
     return
   }
 
-  // 'qualified' atau 'waitlist' (pilihan manual) — qualifyGroupTripLead yang final-kan; bisa di-downgrade
-  // paksa jadi waitlist kalau ternyata seat sudah tidak cukup saat submit.
-  // A customer is only needed when the seats are there; a waitlist qualifies nobody on the server.
-  const requestedPax = (qualAdultCount.value ?? 0) + (qualChildCount.value ?? 0) + (qualInfantCount.value ?? 0)
-  const needsCustomer = requestedPax > 0 && requestedPax <= getProjectSeatsAvailable(qualGroupTripProjectId.value)
-  const prepared = await run('Qualify Gagal', async () => {
+  // 'qualified' atau 'waitlist' (pilihan manual) — S6b: the server decides with the project's seats locked: enough
+  // seats → qualified + draft booking (awaiting DP), otherwise waitlist (no order, stage unchanged).
+  const groupTripProjectId = qualGroupTripProjectId.value
+  const result = await run('Qualify Gagal', async () => {
     await saveQualificationDraft()
-    return needsCustomer ? await qualifyLeadOnServer(api, id, 'individual') : selectedLead.value
+    return await qualifyGroupTripOnServer(api, id, {
+      projectId: groupTripProjectId,
+      adultCount: qualAdultCount.value ?? 0,
+      childCount: qualChildCount.value ?? 0,
+      infantCount: qualInfantCount.value ?? 0,
+      priceIdr: qualPackagePriceIdr.value ?? 0,
+      priceAcceptance: qualPriceAcceptance.value || 'need-discussion',
+      bookingReadiness: qualBookingReadiness.value || 'still-considering'
+    })
   })
-  if (!prepared) { return }
-  const result = qualifyGroupTripLead(id, {
-    partyId: needsCustomer ? prepared.partyId : undefined,
-    adultCount: qualAdultCount.value ?? 0,
-    childCount: qualChildCount.value ?? 0,
-    infantCount: qualInfantCount.value ?? 0,
-    priceAcceptance: qualPriceAcceptance.value || 'need-discussion',
-    bookingReadiness: qualBookingReadiness.value || 'still-considering',
-    priceIdr: qualPackagePriceIdr.value ?? 0
-  })
-  // The local outcome (counts, waitlist/qualified) is written back to the lead's B2C answers on the server.
-  if (result) { await run('Simpan Hasil Gagal', () => saveQualificationDraft()) }
-  if (result?.outcome === 'waitlist') {
+  if (!result) { return }
+  if (result.outcome === 'waitlist') {
     showToast('Masuk Waitlist', 'Seat tidak cukup — Lead ditandai Waitlist untuk Project ini.', 'warning')
-  } else if (result?.outcome === 'qualified') {
-    showToast('Qualified — Awaiting DP', `${result.order.id} dibuat, menunggu DP.`, 'success')
+  } else {
+    showToast('Qualified — Awaiting DP', `${result.order?.id ?? 'Booking'} dibuat, menunggu DP.`, 'success')
     emit('update:open', false)
   }
 }

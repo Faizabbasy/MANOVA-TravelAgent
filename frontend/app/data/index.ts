@@ -937,15 +937,14 @@ export function updateSalesOrderStatus (id: string, status: SalesOrderStatus): S
 
 /**
  * Group Trip B2C — the operational side of a confirmed DP. The money (participant invoice + DP received) is
- * recorded by Finance on the server (`POST /finance/sales-orders/:id/confirm-dp`); after it succeeds the
- * client-side booking follows: the order becomes `paid` and its travelers are created (one per pax,
- * idempotent). The only valid path to `paid` for an order that belongs to a project (see
- * `updateSalesOrderStatus`). No invoice or payment is created here.
+ * recorded by Finance on the server (`POST /finance/sales-orders/:id/confirm-dp`), which also marks the booking
+ * `paid` (S6b). Once the reloaded order is paid, its travelers are created here (one per pax, idempotent; travelers
+ * stay local until S7). No status change, invoice or payment happens here.
  */
 export function markGroupTripOrderPaid (orderId: string): SalesOrder | undefined {
   const order = SALES_ORDERS.find(item => item.id === orderId)
-  if (!order || order.status !== 'draft' || !order.projectId) { return undefined }
-  order.status = 'paid'
+  // S6b: the server marked the booking paid with the DP (reloaded before this call); only travelers follow here.
+  if (!order || order.status !== 'paid' || !order.projectId) { return undefined }
   const projectId = order.projectId
 
   const alreadyCreated = getTravelers(projectId).some(traveler => traveler.salesOrderId === order.id)
