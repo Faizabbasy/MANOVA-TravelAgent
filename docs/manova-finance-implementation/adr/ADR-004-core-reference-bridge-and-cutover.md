@@ -89,3 +89,16 @@ Finance ikut membatalkan booking, dan dikembalikan bila kasusnya ditolak); harga
 ditagih; vendor layanan tidak bisa diganti bila sudah ada invoice vendor untuknya. Tetap lokal: quotation vendor,
 service order & supplier invoice otomatis, payment gate & attempt log booking (S4b/S5), log aktivitas project.
 Migrasi 0022 memberi baris lama label & status awal; `db:seed:demo` sekali setelah deploy mengisi nilai aslinya.
+
+## Update 2026-10-07 — Quotation vendor, service order & orkestrasi booking (S4b)
+
+Quotation vendor (`GET/POST /vendor-quotations`, `/:id/accept`, `/:id/reject`) dan service order (`GET /service-orders`,
+`POST /service-orders/:id/status`) kini di server. Menerima quotation dalam satu transaksi: quotation pesaing ditolak,
+quotation lama yang diterima digantikan, vendor layanan diset (aturan invoice vendor S4a tetap berlaku), layanan
+`confirmed` bila belum punya booking, dan service order dibuat bernilai quotation. Mengganti vendor layanan membuat
+service order draft untuk vendor baru dan membatalkan order vendor lama yang belum ditagih; order yang sudah ditagih
+Finance tidak bisa dibatalkan. Payment gate booking **dihitung** dari Finance (tagihan booking sendiri, atau DP project
+bila booking tak punya tagihan) — tombol "cleared" manual dihapus. Log percobaan booking dan tanda duplikat (409 +
+konfirmasi) di server. **Supplier invoice otomatis lokal dihapus**: tagihan vendor hanya lewat Finance (Utang Vendor).
+Tetap lokal: RFQ, amandemen SO, supplier invoice & portal supplier (S5, ADR-006), `dependsOn`, aktivitas project/vendor.
+Setelah deploy jalankan sekali `db:seed:demo` (quotation, status SO, log percobaan demo).

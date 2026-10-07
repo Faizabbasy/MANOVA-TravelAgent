@@ -1,6 +1,6 @@
 # Backend quotation vendor, service order & orkestrasi booking (S4b) — desain
 
-Tanggal: 7 Oktober 2026 · Branch: `production` · Status: disetujui per bagian di chat, menunggu review spec
+Tanggal: 7 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-07-quotations-service-orders-backend)
 
 Lanjutan S4a (layanan project + booking lewat API). S4b memindahkan: quotation vendor, service order (SO) otomatis +
 status, payment gate booking (dihitung dari Finance), log percobaan booking, dan tanda booking duplikat.
