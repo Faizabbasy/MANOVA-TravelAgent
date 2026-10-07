@@ -1,8 +1,7 @@
 import { PROJECTS } from './projects'
 import { resolveDestinationGeo } from './geo'
 import { evaluateProjectOrderStepGate, getProjectOrderStep, getProjectOrderStepDef, type AdvanceProjectOrderOptions, type AdvanceProjectOrderResult } from './project-order-workflow'
-import { upsertServerParty } from './parties-sync'
-import { applyLeadWon, prepareLeadWon, seedDefaultProjectMilestones, type CreateProjectInput } from './index'
+import { seedDefaultProjectMilestones, type CreateProjectInput } from './index'
 import type { Project, ProjectStatus } from '~/types/project'
 import type { ProjectOrderGateResult, ProjectOrderStepKey } from '~/types/project-order'
 import { isInternalProject, type ProjectDto, type ProjectInternalDto, type ProjectPatchInput } from '~/types/api'
@@ -165,23 +164,6 @@ export async function createProjectOnServer (api: Pick<ManovaApi, 'core'>, input
   const res = await api.core.createProject(toServerInput(input), idempotencyKey)
   const project = registerNewServerProject(res.data)
   project.budgetIdr = input.quotationAmountIdr
-  return project
-}
-
-/** Mark as Won: undefined when the lead/quotation is incomplete; the existing project when already won. */
-export async function markLeadWonOnServer (api: Pick<ManovaApi, 'core'>, leadId: string, approverId: string, idempotencyKey: string = newIdempotencyKey()): Promise<Project | undefined> {
-  const prepared = prepareLeadWon(leadId)
-  if (!prepared) { return undefined }
-  if ('existing' in prepared) { return prepared.existing }
-  const res = await api.core.createProject(toServerInput(prepared.input), idempotencyKey)
-  const project = registerNewServerProject(res.data)
-  applyLeadWon(leadId, project, approverId)
-  // The server turned a prospect into a client with the project (S1): reload that customer.
-  try {
-    upsertServerParty((await api.core.getParty(project.partyId)).data)
-  } catch {
-    // The next customer sync brings it.
-  }
   return project
 }
 

@@ -15,6 +15,17 @@ export interface QuotationServiceItem {
   amountIdr: number
 }
 
+/** S6a — satu versi quotation di server (riwayat). */
+export interface QuotationVersionSummary {
+  version: number
+  status: QuotationApprovalStatus | 'superseded'
+  amountIdr: number
+  createdAt: string
+  submittedBy?: ID
+  decidedBy?: ID
+  decisionNote?: string
+}
+
 export interface Quotation {
   id: ID
   /** Lead pemilik quotation ini — satu Lead punya paling banyak satu Quotation aktif (lihat `Lead.quotationId`). */
@@ -66,6 +77,9 @@ export interface Quotation {
    * atas agar Quotation tetap berdiri sendiri meski Cost Sheet sumber kelak direvisi.
    */
   costSheetId?: ID
+
+  /** S6a — riwayat versi dari server (versi lama terkunci; `superseded` = digantikan revisi). */
+  versions?: QuotationVersionSummary[]
 }
 
 /**

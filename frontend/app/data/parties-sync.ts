@@ -1,5 +1,5 @@
 import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from './parties'
-import { getLeadById, setPartyActivitySink } from './index'
+import { setPartyActivitySink } from './index'
 import type { ContactPerson, Party, PartyActivity } from '~/types/party'
 import type { ContactCreateInput, PartyActivityDto, PartyContactDto, PartyCreateInput, PartyDto } from '~/types/api'
 import type { ManovaApi } from '~/lib/api/endpoints'
@@ -175,25 +175,6 @@ export function useCustomersSync () {
 export async function createPartyOnServer (api: Pick<ManovaApi, 'core'>, input: PartyCreateInput, idempotencyKey: string = newIdempotencyKey()): Promise<Party> {
   const res = await api.core.createParty(input, idempotencyKey)
   return upsertServerParty(res.data)
-}
-
-/**
- * The customer a lead qualifies into: an existing one with the same name (company: case-insensitive company
- * name; individual: an individual with the lead's name), otherwise a new one on the server. Throws when the
- * server refuses, before the lead is touched.
- */
-export async function ensureCustomerForLead (api: Pick<ManovaApi, 'core'>, leadId: string, kind: 'company' | 'individual', idempotencyKey: string = newIdempotencyKey()): Promise<Party> {
-  const lead = getLeadById(leadId)
-  if (!lead) { throw new Error(`Lead ${leadId} tidak ditemukan.`) }
-  const name = (kind === 'company' ? lead.companyName || lead.name : lead.name).trim()
-  const existing = PARTIES.find(p => p.name.toLowerCase() === name.toLowerCase() && (kind === 'company' ? p.partyType !== 'individual' : p.partyType === 'individual'))
-  if (existing) { return existing }
-  return await createPartyOnServer(api, {
-    name,
-    partyType: kind,
-    lifecycleStatus: kind === 'individual' ? 'client' : 'prospect',
-    accountOwnerUserId: lead.handedOverTo ?? lead.ownerId
-  }, idempotencyKey)
 }
 
 /** Adds a contact person on the server (internal CRM; the hidden client portal keeps its local `createContact`). */

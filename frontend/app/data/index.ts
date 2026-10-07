@@ -1264,46 +1264,7 @@ export function getLeadWorkflowStatus (leadId: string): LeadWorkflowStatus | und
   return 'quotation-draft'
 }
 
-/**
- * "Mark as Won" (S3a): the project itself is created on the server (`markLeadWonOnServer`,
- * `app/data/projects-sync.ts`). `prepareLeadWon` checks the lead/quotation and builds the input;
- * `applyLeadWon` records the local side effects once the server answered. Duplicate prevention: a lead that
- * already has `projectId` returns that project.
- */
-export function prepareLeadWon (leadId: string):
-  | { existing: Project }
-  | { input: CreateProjectInput & { leadId: string; sourceQuotationId: string } }
-  | undefined {
-  const lead = getLeadById(leadId)
-  // `lead.projectId` is local state (lost on reload); the server project carries `leadId` and survives it.
-  const won = PROJECTS.find(p => p.leadId === leadId)
-  if (won) { return { existing: won } }
-  if (!lead || !lead.partyId) { return undefined }
-  if (lead.projectId) {
-    const existing = getProjectById(lead.projectId)
-    return existing ? { existing } : undefined
-  }
-  if (!lead.quotationId || !lead.destination || !lead.travelStartDate || !lead.travelEndDate || !lead.travelerEstimate) { return undefined }
-  const quotation = getQuotationById(lead.quotationId)
-  if (!quotation || quotation.approvalStatus !== 'approved') { return undefined }
-  if (!lead.serviceScope?.length) { return undefined }
-  return {
-    input: {
-      partyId: lead.partyId,
-      leadId: lead.id,
-      sourceQuotationId: quotation.id,
-      name: lead.title ?? lead.companyName ?? lead.name,
-      destination: lead.destination,
-      travelStartDate: lead.travelStartDate,
-      travelEndDate: lead.travelEndDate,
-      characteristic: 'normal',
-      serviceScope: lead.serviceScope,
-      travelerCount: lead.travelerEstimate,
-      quotationAmountIdr: quotation.amountIdr
-    }
-  }
-}
-
+/** "Mark as Won" (S6a): the server creates the project (`markLeadWonOnServer`, `app/data/leads-sync.ts`); these are the local side effects. */
 export function applyLeadWon (leadId: string, project: Project, approverId: string): void {
   const lead = getLeadById(leadId)
   if (!lead) { return }
@@ -2715,7 +2676,7 @@ export function qualifyLeadForQuotation (leadId: string, partyId: string): Lead 
   const lead = getLeadById(leadId)
   if (!lead || lead.quotationId || lead.projectId || lead.salesOrderId || getLeadMissingQualification(leadId).length > 0) { return undefined }
   const accountExecutiveId = lead.handedOverTo!
-  // S1: the customer already exists on the server (`ensureCustomerForLead`, app/data/parties-sync.ts).
+  // S1: the customer already exists on the server (`qualifyLeadOnServer`, app/data/leads-sync.ts).
   const party = getPartyById(partyId)
   if (!party) { return undefined }
 
@@ -2755,7 +2716,7 @@ export function qualifyLeadAndCreateSalesOrder (leadId: string, input: { priceId
    * `qualifyGroupTripLead`/baris 1338/1425/3297 di file ini. */
   const accountExecutiveId = lead.handedOverTo ?? lead.ownerId
 
-  // S1: the individual customer already exists on the server (`ensureCustomerForLead`).
+  // S1: the individual customer already exists on the server (`qualifyLeadOnServer`).
   const party = getPartyById(input.partyId)
   if (!party) { return undefined }
 

@@ -14,7 +14,7 @@ import {
   getCostSheetsByLead, getCostSheetBreakdown, getUserByClientPartyId
 } from '~/data'
 import { ensureCustomerForLead } from '~/data/parties-sync'
-import { markLeadWonOnServer } from '~/data/projects-sync'
+import { markLeadWonOnServer } from '~/data/leads-sync'
 import { isApiError } from '~/lib/api/errors'
 import {
   LEAD_SOURCES, LEAD_STAGES, LEAD_SERVICE_CATEGORIES, LEAD_URGENCY_LEVELS, SERVICE_TYPES,

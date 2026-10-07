@@ -1,6 +1,12 @@
 import type { ApiClient } from './client'
 import { newIdempotencyKey } from './client'
 import type {
+  LeadActivityDto,
+  LeadDto,
+  LeadWonDto,
+  LeadWriteInput,
+  QuotationContentInput,
+  SalesQuotationDto,
   AccountLedgerDto,
   AdvanceDto,
   ApiBookingType,
@@ -175,6 +181,34 @@ export function createManovaApi (client: ApiClient) {
         client.get<ServiceOrderDto[]>('/service-orders', { query: { ...query } }),
       changeServiceOrderStatus: (id: string, input: { to: string; reason?: string }) =>
         client.post<ServiceOrderDto>(`/service-orders/${seg(id)}/status`, input)
+    },
+
+    sales: {
+      listLeads: () => client.get<LeadDto[]>('/leads'),
+      getLead: (id: string) => client.get<LeadDto>(`/leads/${seg(id)}`),
+      createLead: (input: LeadWriteInput & { name: string; source: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<LeadDto>('/leads', input, { idempotencyKey }),
+      updateLead: (id: string, patch: LeadWriteInput) => client.patch<LeadDto>(`/leads/${seg(id)}`, patch),
+      qualifyLead: (id: string, input: { customerKind: 'company' | 'individual'; partyId?: string }) => client.post<LeadDto>(`/leads/${seg(id)}/qualify`, input),
+      unqualifyLead: (id: string, reason: string) => client.post<LeadDto>(`/leads/${seg(id)}/unqualify`, { reason }),
+      archiveLead: (id: string, reason?: string) => client.post<LeadDto>(`/leads/${seg(id)}/archive`, reason ? { reason } : {}),
+      reopenLead: (id: string) => client.post<LeadDto>(`/leads/${seg(id)}/reopen`, {}),
+      mergeLead: (id: string, intoLeadId: string) => client.post<LeadDto>(`/leads/${seg(id)}/merge`, { intoLeadId }),
+      addLeadActivity: (id: string, input: { type: LeadActivityDto['type']; message: string; dueOn?: string }) =>
+        client.post<LeadDto>(`/leads/${seg(id)}/activities`, input),
+      completeLeadActivity: (id: string, activityId: string) => client.post<LeadDto>(`/leads/${seg(id)}/activities/${seg(activityId)}/done`, {}),
+      listQuotations: (query: { leadId?: string } = {}) => client.get<SalesQuotationDto[]>('/quotations', { query: { ...query } }),
+      createQuotation: (leadId: string, input: QuotationContentInput & { amountMinor: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<SalesQuotationDto>(`/leads/${seg(leadId)}/quotation`, input, { idempotencyKey }),
+      updateQuotation: (id: string, input: QuotationContentInput) => client.patch<SalesQuotationDto>(`/quotations/${seg(id)}`, input),
+      reviseQuotation: (id: string, input: QuotationContentInput = {}) => client.post<SalesQuotationDto>(`/quotations/${seg(id)}/revise`, input),
+      submitQuotation: (id: string) => client.post<SalesQuotationDto>(`/quotations/${seg(id)}/submit`, {}),
+      withdrawQuotation: (id: string) => client.post<SalesQuotationDto>(`/quotations/${seg(id)}/withdraw`, {}),
+      approveQuotation: (id: string, note?: string) => client.post<SalesQuotationDto>(`/quotations/${seg(id)}/approve`, note ? { note } : {}),
+      rejectQuotation: (id: string, note: string) => client.post<SalesQuotationDto>(`/quotations/${seg(id)}/reject`, { note }),
+      sendQuotation: (id: string) => client.post<SalesQuotationDto>(`/quotations/${seg(id)}/send`, {}),
+      markLeadWon: (leadId: string, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<LeadWonDto>(`/leads/${seg(leadId)}/won`, {}, { idempotencyKey })
     },
 
     finance: {

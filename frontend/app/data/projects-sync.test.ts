@@ -1,9 +1,50 @@
 import { describe, it, expect, afterEach } from 'vitest'
 import { PROJECTS } from './projects'
 import { getProjectMilestones } from './project-order-workflow'
-import { createProjectOnServer, loadServerProjects, markLeadWonOnServer, mergeServerProjects, patchProjectOnServer, registerNewServerProject, upsertServerProject } from './projects-sync'
+import { createProjectOnServer, loadServerProjects, mergeServerProjects, patchProjectOnServer, registerNewServerProject, upsertServerProject } from './projects-sync'
 import { serverProjectDto } from './projects-sync.test-utils'
+import { markLeadWonOnServer } from './leads-sync'
 import { LEADS } from './index'
+import type { LeadDto } from '~/types/api'
+
+const leadDto = (id: string): LeadDto => ({
+  id,
+  name: 'Lead',
+  companyName: null,
+  title: null,
+  source: 'website',
+  stage: 'qualified',
+  ownerUserId: 'USR-001',
+  handedOverTo: 'USR-001',
+  phone: null,
+  email: null,
+  qualificationNotes: null,
+  expectedCloseDate: null,
+  createdOn: '2026-07-01',
+  lastUpdatedOn: '2026-07-01',
+  archived: false,
+  archiveReason: null,
+  partyId: 'PTY-004',
+  qualifiedOn: '2026-07-02',
+  unqualifiedReason: null,
+  mergedInto: null,
+  serviceCategory: 'corporate-travel',
+  destination: 'Bali',
+  travelStartDate: '2026-12-01',
+  travelEndDate: '2026-12-03',
+  travelerEstimate: 10,
+  serviceScope: ['flight'],
+  requirementSummary: 'x',
+  budgetRange: null,
+  dateFlexible: null,
+  decisionMaker: null,
+  urgency: null,
+  specialRequestNote: null,
+  b2c: {},
+  wonProjectId: null,
+  quotationId: null,
+  activities: []
+})
 
 const original = PROJECTS.map(p => ({ ...p }))
 afterEach(() => { PROJECTS.splice(0, PROJECTS.length, ...original.map(p => ({ ...p }))) })
@@ -116,14 +157,18 @@ describe('status, alur, dan tim dari server (S3b)', () => {
   })
 })
 
-describe('Mark as Won tidak membuat project dobel', () => {
-  it('lead yang sudah punya project di server (lewat leadId) mengembalikan project itu tanpa memanggil API', async () => {
-    const lead = LEADS.find(l => !l.projectId)!
-    registerNewServerProject(serverProjectDto({ id: 'PRJ-990', leadId: lead.id }))
-    let calls = 0
-    const api = { core: { createProject: () => { calls++; return Promise.reject(new Error('tidak boleh dipanggil')) } } }
+describe('Mark as Won lewat server (S6a)', () => {
+  it('project dari jawaban server didaftarkan dan lead ditautkan; customer dimuat ulang', async () => {
+    const lead = LEADS.find(l => !l.projectId && l.serviceCategory !== 'individual-travel')!
+    const parties: string[] = []
+    const api = {
+      sales: { markLeadWon: (id: string) => Promise.resolve({ data: { project: serverProjectDto({ id: 'PRJ-990', leadId: id, partyId: 'PTY-004' }), lead: { ...leadDto(lead.id), wonProjectId: 'PRJ-990' } } }) },
+      core: { getParty: (id: string) => { parties.push(id); return Promise.reject(new Error('offline')) } }
+    }
     const project = await markLeadWonOnServer(api as never, lead.id, 'USR-001')
-    expect(project?.id).toBe('PRJ-990')
-    expect(calls).toBe(0)
+    expect(project.id).toBe('PRJ-990')
+    expect(PROJECTS.some(p => p.id === 'PRJ-990')).toBe(true)
+    expect(LEADS.find(l => l.id === lead.id)!.projectId).toBe('PRJ-990')
+    expect(parties).toEqual(['PTY-004'])
   })
 })

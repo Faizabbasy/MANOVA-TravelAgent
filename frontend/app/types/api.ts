@@ -1290,3 +1290,39 @@ export interface RefundSettlementInput {
 }
 
 export interface RefundSettlementResult { transactionId: string; refundId: string; amountMinor: MoneyMinor; outstandingMinor: MoneyMinor }
+
+/** Sales (S6a) — `GET /leads`, `GET /quotations`. Dates are `YYYY-MM-DD`; money is minor units as a string. */
+export interface LeadActivityDto { id: string; leadId: string; type: 'call' | 'meeting' | 'email' | 'note' | 'follow-up'; message: string; ownerUserId: string; activityDate: string; dueOn: string | null; doneOn: string | null }
+export interface LeadDto {
+  id: string; name: string; companyName: string | null; title: string | null; source: string; stage: 'new' | 'contacted' | 'qualified' | 'unqualified'
+  ownerUserId: string; handedOverTo: string | null; phone: string | null; email: string | null; qualificationNotes: string | null
+  expectedCloseDate: string | null; createdOn: string; lastUpdatedOn: string; archived: boolean; archiveReason: string | null; partyId: string | null
+  qualifiedOn: string | null; unqualifiedReason: string | null; mergedInto: string | null; serviceCategory: string | null; destination: string | null
+  travelStartDate: string | null; travelEndDate: string | null; travelerEstimate: number | null; serviceScope: string[]; requirementSummary: string | null
+  budgetRange: string | null; dateFlexible: boolean | null; decisionMaker: string | null; urgency: 'low' | 'medium' | 'high' | null
+  specialRequestNote: string | null; b2c: Record<string, unknown>; wonProjectId: string | null; quotationId: string | null; activities: LeadActivityDto[]
+}
+export type LeadWriteInput = Partial<Pick<LeadDto, 'name' | 'companyName' | 'title' | 'source' | 'handedOverTo' | 'phone' | 'email' | 'qualificationNotes'
+  | 'expectedCloseDate' | 'serviceCategory' | 'destination' | 'travelStartDate' | 'travelEndDate' | 'travelerEstimate' | 'serviceScope'
+  | 'requirementSummary' | 'budgetRange' | 'dateFlexible' | 'decisionMaker' | 'urgency' | 'specialRequestNote' | 'b2c'>> & { stage?: 'new' | 'contacted' }
+export interface SalesQuotationVersionDto {
+  version: number; status: 'draft' | 'submitted' | 'approved' | 'rejected' | 'superseded'; amountMinor: string; createdOn: string
+  submittedBy: string | null; decidedBy: string | null; decidedAt: string | null; decisionNote: string | null
+}
+export interface QuotationServiceLineDto { service: string; description?: string; amountMinor: string }
+export interface QuotationContentInput {
+  amountMinor?: string; discountMinor?: string | null; taxMinor?: string | null; markupMinor?: string | null; estimatedCostMinor?: string | null
+  estimatedMarginMinor?: string | null; currency?: string | null; paymentTerms?: string | null; validUntil?: string | null; termsAndConditions?: string | null
+  inclusions?: string | null; exclusions?: string | null; cancellationPolicy?: string | null; proposedItineraryNote?: string | null; costSheetId?: string | null
+  serviceBreakdown?: QuotationServiceLineDto[]
+}
+export interface SalesQuotationDto {
+  id: string; leadId: string; currentVersion: number; status: SalesQuotationVersionDto['status']; sentToClientOn: string | null; createdOn: string
+  amountMinor: string; discountMinor: string | null; taxMinor: string | null; markupMinor: string | null; estimatedCostMinor: string | null
+  estimatedMarginMinor: string | null; currency: string; paymentTerms: string | null; validUntil: string | null; termsAndConditions: string | null
+  inclusions: string | null; exclusions: string | null; cancellationPolicy: string | null; proposedItineraryNote: string | null; costSheetId: string | null
+  serviceBreakdown: QuotationServiceLineDto[]
+  submittedBy: string | null; submittedAt: string | null; decidedBy: string | null; decidedAt: string | null; decisionNote: string | null
+  versions: SalesQuotationVersionDto[]
+}
+export interface LeadWonDto { project: ProjectDetailDto; lead: LeadDto }

@@ -10,7 +10,7 @@ import {
   duplicateQuotationVersion, sendQuotationToClient, withdrawQuotationSubmission,
   getCostSheetsByLead, getCostSheetBreakdown, getUserByClientPartyId
 } from '~/data'
-import { markLeadWonOnServer } from '~/data/projects-sync'
+import { markLeadWonOnServer } from '~/data/leads-sync'
 import { isApiError } from '~/lib/api/errors'
 import {
   LEAD_WORKFLOW_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES,
