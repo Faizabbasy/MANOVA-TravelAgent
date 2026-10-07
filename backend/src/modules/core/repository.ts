@@ -457,6 +457,9 @@ interface BookingFullRow extends BookingRow {
   reference: string | null
   net_cost_minor: string | null
   details: Record<string, unknown>
+  flagged_duplicate: boolean
+  duplicate_of: { type: string; id: string }[]
+  duplicate_note: string | null
   created_at: string
   updated_at: string
 }
@@ -471,7 +474,7 @@ export async function listBookings(db: Db, actor: Actor, filter: { projectId?: s
   if (filter.id) { params.push(filter.id); where.push(`b.booking_id = $${params.length}`) }
   const rows = await db.query<BookingFullRow>(
     `select b.booking_type, b.booking_id, b.project_id, b.service_id, ps.service_type, ps.vendor_id, b.sell_amount_minor, b.departure_date,
-            b.status, b.status_reason, b.reference, b.net_cost_minor, b.details,
+            b.status, b.status_reason, b.reference, b.net_cost_minor, b.details, b.flagged_duplicate, b.duplicate_of, b.duplicate_note,
             to_char(b.created_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as created_at,
             to_char(b.updated_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as updated_at
        from booking_refs b
@@ -498,6 +501,9 @@ export async function listBookings(db: Db, actor: Actor, filter: { projectId?: s
       netCostMinor: commercial ? r.net_cost_minor : null,
       departureDate: r.departure_date,
       details: r.details,
+      flaggedDuplicate: r.flagged_duplicate,
+      duplicateOf: r.duplicate_of,
+      duplicateNote: r.duplicate_note,
       createdAt: r.created_at,
       updatedAt: r.updated_at
     }

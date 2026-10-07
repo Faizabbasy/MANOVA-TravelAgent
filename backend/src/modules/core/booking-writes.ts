@@ -65,6 +65,21 @@ export async function createBooking(tx: Queryable, actor: Actor, type: BookingTy
   }
   if (Object.keys(problems).length) throw errors.validation(problems)
 
+  // S4b: an active booking already on the chosen service needs an explicit "create anyway" (flagged duplicate).
+  let duplicateOf: { type: string; id: string }[] = []
+  if (serviceId) {
+    duplicateOf = await tx.query<{ type: string; id: string }>(
+      `select booking_type as type, booking_id as id from booking_refs
+        where service_id = $1 and status not in ('cancelled', 'refunded', 'no-show', 'completed')
+        order by booking_type, booking_id`,
+      [serviceId]
+    )
+    if (duplicateOf.length && input.allowDuplicate !== true) {
+      throw new AppError(409, 'CONFLICT', 'Sudah ada booking aktif untuk layanan ini.', { details: { conflicts: duplicateOf } })
+    }
+  }
+  const duplicateNote = duplicateOf.length && typeof input.duplicateNote === 'string' && input.duplicateNote.trim() ? input.duplicateNote.trim().slice(0, 1000) : null
+
   const status = BOOKING_INITIAL_STATUS[type]
   const serviceStatus = serviceStatusFor(type, status)
   let serviceCreated = false
@@ -88,9 +103,11 @@ export async function createBooking(tx: Queryable, actor: Actor, type: BookingTy
   const totals = type === 'mice' ? miceTotals(details!) : { sellMinor: sell ?? null, netMinor: net ?? null }
   const id = await nextId(tx, PREFIX[type])
   await tx.query(
-    `insert into booking_refs (booking_type, booking_id, project_id, service_id, status, reference, sell_amount_minor, net_cost_minor, departure_date, details)
-     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::jsonb)`,
-    [type, id, projectId, serviceId, status, ref ?? null, totals.sellMinor, totals.netMinor, departureDateOf(type, details!), JSON.stringify(details)]
+    `insert into booking_refs (booking_type, booking_id, project_id, service_id, status, reference, sell_amount_minor, net_cost_minor, departure_date, details,
+       flagged_duplicate, duplicate_of, duplicate_note)
+     values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10::text::jsonb, $11, $12::text::jsonb, $13)`,
+    [type, id, projectId, serviceId, status, ref ?? null, totals.sellMinor, totals.netMinor, departureDateOf(type, details!), JSON.stringify(details),
+      duplicateOf.length > 0, JSON.stringify(duplicateOf), duplicateNote]
   )
   if (serviceCreated) {
     await recordAudit(tx, { action: 'service.created', actorUserId: actor.userId, entityType: 'project_service', entityId: serviceId, requestId, after: { projectId, type: serviceType, label, viaBooking: id } })

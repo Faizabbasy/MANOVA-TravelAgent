@@ -42,7 +42,7 @@ export interface InvoiceBalanceRow extends Record<string, any> {
  * Admin sees only this label, so it must not claim "paid" while most of the contract is not invoiced yet.
  * Invoices zeroed purely by credit notes (no money) are left out: they are neither owed nor paid.
  */
-function derivePaymentStatus(invoices: InvoiceBalanceRow[], today: string, moreToBill: boolean): PaymentStatus {
+export function derivePaymentStatus(invoices: InvoiceBalanceRow[], today: string, moreToBill: boolean): PaymentStatus {
   const issued = invoices.filter(i => i.status === 'issued' && !(BigInt(i.outstanding_minor) === 0n && BigInt(i.paid_minor) === 0n))
   if (!issued.length) return 'not_invoiced'
   const outstanding = (i: InvoiceBalanceRow) => BigInt(i.outstanding_minor)

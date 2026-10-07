@@ -13,6 +13,7 @@ import { acceptHandover, addMember, closeFinance, closeProject, markReady, remov
 import { createProject, setContractValue, updateProject } from './project-writes'
 import { SERVICE_TYPES, serviceTypeOf } from './booking-rules'
 import { changeBookingStatus, createBooking, updateBooking } from './booking-writes'
+import { logAttempt, withOrchestration } from './booking-orchestration'
 import { changeServiceOrderStatus } from './service-orders'
 import { acceptQuotation, rejectQuotation, submitQuotation } from './vendor-quotations'
 import { createService, updateService } from './service-writes'
@@ -85,6 +86,12 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
   function bookingType(raw: string): BookingType {
     if (!(BOOKING_TYPES as readonly string[]).includes(raw)) throw errors.validation({ type: [`Tipe booking harus salah satu dari: ${BOOKING_TYPES.join(', ')}.`] })
     return raw as BookingType
+  }
+
+  /** A booking as the GET list shows it: with payment gate and attempts (S4b). */
+  async function bookingResponse(actor: SessionActor, type: BookingType, id: string) {
+    const booking = await getBooking(db, actor, type, id)
+    return booking ? (await withOrchestration(db, [booking]))[0] : null
   }
 
   async function writableBooking(actor: SessionActor, rawType: string, rawId: string) {
@@ -431,7 +438,7 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       const actor = await auth.requireActor(request)
       if (actor.role === 'client') throw errors.forbidden()
       if (query.projectId && !ID_PATTERN.test(query.projectId)) throw errors.validation({ projectId: ['ID project tidak valid.'] })
-      return ok(request, await listBookings(db, actor, { projectId: query.projectId, type: query.type ? bookingType(query.type) : undefined }))
+      return ok(request, await withOrchestration(db, await listBookings(db, actor, { projectId: query.projectId, type: query.type ? bookingType(query.type) : undefined })))
     }, { query: t.Object({ projectId: t.Optional(t.String()), type: t.Optional(t.String()) }) })
     .post('/bookings/:type', async ({ request, params, body, set }) => {
       const actor = await auth.requireActor(request)
@@ -445,20 +452,27 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
         createBooking(tx, actor, type, projectId, b, requestIdOf(request)))
       if (result.replayed) set.headers['idempotent-replayed'] = 'true'
       set.status = 201
-      return ok(request, await getBooking(db, actor, type, result.data.id))
+      return ok(request, await bookingResponse(actor, type, result.data.id))
     }, { body: t.Record(t.String(), t.Unknown()) })
     .patch('/bookings/:type/:id', async ({ request, params, body }) => {
       const actor = await auth.requireActor(request)
       const { type, id } = await writableBooking(actor, params.type, params.id)
       await db.transaction(tx => updateBooking(tx, actor, type, id, body as Record<string, unknown>, requestIdOf(request)))
-      return ok(request, await getBooking(db, actor, type, id))
+      return ok(request, await bookingResponse(actor, type, id))
     }, { body: t.Record(t.String(), t.Unknown()) })
     .post('/bookings/:type/:id/status', async ({ request, params, body }) => {
       const actor = await auth.requireActor(request)
       const { type, id } = await writableBooking(actor, params.type, params.id)
       const b = (body ?? {}) as Record<string, unknown>
       await db.transaction(tx => changeBookingStatus(tx, actor, type, id, b.to, b.reason, requestIdOf(request)))
-      return ok(request, await getBooking(db, actor, type, id))
+      return ok(request, await bookingResponse(actor, type, id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/bookings/:type/:id/attempts', async ({ request, params, body, set }) => {
+      const actor = await auth.requireActor(request)
+      const { type, id } = await writableBooking(actor, params.type, params.id)
+      await db.transaction(tx => logAttempt(tx, actor, type, id, (body ?? {}) as Record<string, unknown>, requestIdOf(request)))
+      set.status = 201
+      return ok(request, await bookingResponse(actor, type, id))
     }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
     .get('/bookings/:type/:id', async ({ request, params }) => {
       const actor = await auth.requireActor(request)

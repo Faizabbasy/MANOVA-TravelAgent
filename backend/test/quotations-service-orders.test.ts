@@ -112,3 +112,40 @@ describe('vendor quotations', () => {
     expect(service).toMatchObject({ vendorId: 'VND-001', status: 'pending-confirmation' })
   })
 })
+
+describe('booking orchestration', () => {
+  test('payment gate: not-required before confirmed; project basis without own invoices; own unpaid invoice keeps it pending', async () => {
+    const id = (await call('POST', '/bookings/hotel', 'admin', { projectId: 'PRJ-203', details: { checkInDate: '2026-12-01' } }, key())).json.data.id as string
+    const gate = async () => (await call('GET', '/bookings?projectId=PRJ-203&type=hotel', 'admin')).json.data.find((b: { id: string }) => b.id === id).paymentGate
+    expect(await gate()).toEqual({ status: 'not-required', basis: null })
+    for (const to of ['quoted', 'confirmed']) await call('POST', `/bookings/hotel/${id}/status`, 'admin', { to })
+    expect((await gate()).basis).toBe('project')
+    // Own invoice issued but unpaid → pending on the booking basis, whatever the project's DP says.
+    const inv = await call('POST', '/finance/customer-invoices', 'finance', { projectId: 'PRJ-203', booking: { type: 'hotel', id }, invoiceType: 'dp', lines: [{ description: 'DP hotel', amountMinor: '1000000' }], dueDate: '2026-12-30' }, key())
+    expect(inv.status).toBe(201)
+    await call('POST', `/finance/customer-invoices/${inv.json.data.id}/issue`, 'finance', {}, key())
+    expect(await gate()).toEqual({ status: 'pending', basis: 'booking' })
+  })
+
+  test('attempts are logged and listed newest first; outcome validated; finance 403', async () => {
+    const id = (await call('POST', '/bookings/flight', 'admin', { projectId: 'PRJ-204', details: {} }, key())).json.data.id as string
+    expect((await call('POST', `/bookings/flight/${id}/attempts`, 'admin', { outcome: 'failed', note: 'GDS timeout' })).status).toBe(201)
+    expect((await call('POST', `/bookings/flight/${id}/attempts`, 'admin', { outcome: 'manual-fallback' })).status).toBe(201)
+    expect((await call('POST', `/bookings/flight/${id}/attempts`, 'admin', { outcome: 'maybe' })).status).toBe(400)
+    expect((await call('POST', `/bookings/flight/${id}/attempts`, 'finance', { outcome: 'success' })).status).toBe(403)
+    const b = (await call('GET', '/bookings?projectId=PRJ-204&type=flight', 'admin')).json.data.find((x: { id: string }) => x.id === id)
+    expect(b.attempts.map((a: { outcome: string }) => a.outcome)).toEqual(['manual-fallback', 'failed'])
+  })
+
+  test('duplicate: an active booking on the same service gives 409; allowDuplicate flags it; allowDuplicate without conflict flags nothing', async () => {
+    const first = (await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-205', details: {} }, key())).json.data
+    const clash = await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-205', serviceId: first.serviceId, details: {} }, key())
+    expect(clash.status).toBe(409)
+    expect(clash.json.error.details.conflicts).toEqual([{ type: 'transport', id: first.id }])
+    const dup = await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-205', serviceId: first.serviceId, allowDuplicate: true, duplicateNote: 'Dua bus terpisah', details: {} }, key())
+    expect(dup.status).toBe(201)
+    expect(dup.json.data).toMatchObject({ flaggedDuplicate: true, duplicateOf: [{ type: 'transport', id: first.id }], duplicateNote: 'Dua bus terpisah' })
+    const plain = await call('POST', '/bookings/mice', 'admin', { projectId: 'PRJ-205', allowDuplicate: true, details: {} }, key())
+    expect(plain.json.data).toMatchObject({ flaggedDuplicate: false, duplicateOf: [] })
+  })
+})
