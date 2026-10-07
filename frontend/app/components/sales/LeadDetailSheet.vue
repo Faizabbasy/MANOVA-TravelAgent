@@ -3,18 +3,16 @@ import { ref, computed, watch } from 'vue'
 import { Plus, Archive as ArchiveIcon, Building2, User, UserCheck, Phone, Mail, CalendarClock, Calendar, FileX } from 'lucide-vue-next'
 import { matchesAnyRole } from '~/data/rbac'
 import {
-  USERS, getLeadById, getLeadActivities, getLeadFollowUps, createLeadActivity, archiveLead,
-  qualifyLeadForQuotation, qualifyLeadAndCreateSalesOrder, updateLeadQualification, markLeadUnqualified,
-  reopenLead, updateLeadContact, getLeadDuplicateCandidates, mergeLeadAsDuplicate,
+  USERS, getLeadById, getLeadActivities, getLeadFollowUps, qualifyLeadAndCreateSalesOrder, getLeadDuplicateCandidates,
   getUserById, getOpenGroupProjects, getProjectById, getProjectSeatsFilled,
   getProjectSeatsAvailable, qualifyGroupTripLead,
-  getQuotationByLead, createQuotation, reviseQuotation, updateQuotationDetails,
-  submitQuotationForApproval, approveQuotation, rejectQuotation, duplicateQuotationVersion,
-  sendQuotationToClient, withdrawQuotationSubmission,
-  getCostSheetsByLead, getCostSheetBreakdown, getUserByClientPartyId
+  getQuotationByLead, ensureClientLoginAccount, getCostSheetsByLead, getCostSheetBreakdown, getUserByClientPartyId
 } from '~/data'
-import { ensureCustomerForLead } from '~/data/parties-sync'
-import { markLeadWonOnServer } from '~/data/leads-sync'
+import {
+  addLeadActivityOnServer, approveQuotationOnServer, archiveLeadOnServer, createQuotationOnServer, markLeadWonOnServer, mergeLeadOnServer,
+  patchLeadOnServer, qualifyLeadOnServer, rejectQuotationOnServer, reopenLeadOnServer, reviseQuotationOnServer, sendQuotationOnServer,
+  submitQuotationOnServer, unqualifyLeadOnServer, updateQuotationOnServer, withdrawQuotationOnServer
+} from '~/data/leads-sync'
 import { isApiError } from '~/lib/api/errors'
 import {
   LEAD_SOURCES, LEAD_STAGES, LEAD_SERVICE_CATEGORIES, LEAD_URGENCY_LEVELS, SERVICE_TYPES,
@@ -214,16 +212,34 @@ const qualificationMissing = computed(() => {
 })
 const qualificationCompletedCount = computed(() => 7 - qualificationMissing.value.length)
 
-function doArchive () {
+/* Lead, qualify, quotation and Won run on the server (S6a); a failed call keeps the dialog open with the reason. */
+const api = useApi()
+const isSaving = ref(false)
+
+async function run<T> (title: string, action: () => Promise<T>): Promise<T | undefined> {
+  if (isSaving.value) { return undefined }
+  isSaving.value = true
+  try {
+    return await action()
+  } catch (error) {
+    showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return undefined
+  } finally {
+    isSaving.value = false
+  }
+}
+
+async function doArchive () {
   if (!selectedLead.value) { return }
-  archiveLead(selectedLead.value.id)
-  emit('update:open', false)
+  const id = selectedLead.value.id
+  if (await run('Arsip Gagal', () => archiveLeadOnServer(api, id))) { emit('update:open', false) }
 }
 
 /** "Reopen" (Section 04) — kebalikan Archive, drawer tetap terbuka agar Sales bisa lanjut mengerjakan. */
-function doReopen () {
+async function doReopen () {
   if (!selectedLead.value) { return }
-  reopenLead(selectedLead.value.id)
+  const id = selectedLead.value.id
+  await run('Reopen Gagal', () => reopenLeadOnServer(api, id))
 }
 
 /** "Edit Lead" (Section 04) — field kontak dasar, terpisah dari form Qualification. */
@@ -244,16 +260,17 @@ function openEditLeadDialog () {
   isEditLeadOpen.value = true
 }
 
-function submitEditLead () {
+async function submitEditLead () {
   if (!selectedLead.value || !editName.value.trim()) { return }
-  updateLeadContact(selectedLead.value.id, {
+  const id = selectedLead.value.id
+  const saved = await run('Simpan Gagal', () => patchLeadOnServer(api, id, {
     name: editName.value.trim(),
-    companyName: editCompanyName.value.trim() || undefined,
+    companyName: editCompanyName.value.trim() || null,
     source: editSource.value,
-    phone: editPhone.value.trim() || undefined,
-    email: editEmail.value.trim() || undefined
-  })
-  isEditLeadOpen.value = false
+    phone: editPhone.value.trim() || null,
+    email: editEmail.value.trim() || null
+  }))
+  if (saved) { isEditLeadOpen.value = false }
 }
 
 /** Merge suggestion (Section 04) — kandidat duplikat lead yang sedang dibuka di drawer. */
@@ -270,34 +287,58 @@ function openMergeDialog (candidate: Lead) {
   isMergeDialogOpen.value = true
 }
 
-function doMergeDuplicate () {
+async function doMergeDuplicate () {
   if (!selectedLead.value || !mergeTarget.value) { return }
-  mergeLeadAsDuplicate(selectedLead.value.id, mergeTarget.value.id, currentUser.value.id)
+  const id = selectedLead.value.id
+  const into = mergeTarget.value.id
+  if (!(await run('Merge Gagal', () => mergeLeadOnServer(api, id, into)))) { return }
   isMergeDialogOpen.value = false
   mergeTarget.value = null
   emit('update:open', false)
 }
 
-function saveQualificationDraft () {
-  if (!selectedLead.value) { return }
-  updateLeadQualification(selectedLead.value.id, {
-    serviceCategory: qualServiceCategory.value || undefined,
-    destination: qualDestination.value.trim() || undefined,
-    travelStartDate: qualTravelStart.value || undefined,
-    travelEndDate: qualTravelEnd.value || undefined,
-    travelerEstimate: qualTravelerEstimate.value ?? undefined,
+/** B2C / Group Trip answers live in the lead's `b2c` object on the server until S6b; the server merges the keys. */
+function b2cPatch (extra: Partial<Lead> = {}): Record<string, unknown> {
+  const pick = { ...selectedLead.value, ...extra }
+  return {
+    groupTripProjectId: qualGroupTripProjectId.value || null,
+    b2cAdultCount: pick.b2cAdultCount ?? null,
+    b2cChildCount: pick.b2cChildCount ?? null,
+    b2cInfantCount: pick.b2cInfantCount ?? null,
+    b2cPriceAcceptance: pick.b2cPriceAcceptance ?? null,
+    b2cBookingReadiness: pick.b2cBookingReadiness ?? null,
+    b2cQualificationResult: pick.b2cQualificationResult ?? null,
+    b2cNextFollowUpDate: pick.b2cNextFollowUpDate ?? null
+  }
+}
+
+/** "Simpan Draft" — the qualification form as it stands; throws when the server refuses. */
+function saveQualificationDraft (extraB2c: Partial<Lead> = {}) {
+  if (!selectedLead.value) { return Promise.resolve(undefined) }
+  return patchLeadOnServer(api, selectedLead.value.id, {
+    serviceCategory: qualServiceCategory.value || null,
+    destination: qualDestination.value.trim() || null,
+    travelStartDate: qualTravelStart.value || null,
+    travelEndDate: qualTravelEnd.value || null,
+    travelerEstimate: qualTravelerEstimate.value ?? null,
     serviceScope: qualServiceScope.value,
-    requirementSummary: qualRequirementSummary.value.trim() || undefined,
-    handedOverTo: qualHandedOverTo.value || undefined,
-    budgetRange: qualBudgetRange.value.trim() || undefined,
+    requirementSummary: qualRequirementSummary.value.trim() || null,
+    handedOverTo: qualHandedOverTo.value || null,
+    budgetRange: qualBudgetRange.value.trim() || null,
     dateFlexible: qualDateFlexible.value,
-    decisionMaker: qualDecisionMaker.value.trim() || undefined,
-    urgency: qualUrgency.value || undefined,
-    specialRequestNote: qualSpecialRequestNote.value.trim() || undefined,
-    qualificationNotes: qualCommunicationNotes.value.trim() || undefined,
-    expectedCloseDate: qualExpectedCloseDate.value || undefined,
-    groupTripProjectId: qualGroupTripProjectId.value || undefined
+    decisionMaker: qualDecisionMaker.value.trim() || null,
+    urgency: qualUrgency.value || null,
+    specialRequestNote: qualSpecialRequestNote.value.trim() || null,
+    qualificationNotes: qualCommunicationNotes.value.trim() || null,
+    expectedCloseDate: qualExpectedCloseDate.value || null,
+    b2c: b2cPatch(extraB2c)
   })
+}
+
+async function submitQualificationDraft () {
+  if (await run('Simpan Draft Gagal', () => saveQualificationDraft())) {
+    showToast('Draft Disimpan', 'Data qualification tersimpan.', 'success')
+  }
 }
 
 /**
@@ -321,79 +362,73 @@ function openQualifyDialog () {
  * Qualify — Lead B2C tanpa Project B2C dipilih (`qualGroupTripProjectId` kosong) TETAP pakai jalur lama
  * persis (Dialog kecil isi harga → `qualifyLeadAndCreateSalesOrder` langsung, booking standalone). Lead B2C
  * DENGAN Project dipilih dipisah ke `doQualifyGroupTrip` (tombol beda, tidak lewat Dialog ini).
+ * S6a: the server saves the form, checks the required fields and links (or creates) the customer; the B2C sales
+ * order stays local until S6b.
  */
-const isQualifying = ref(false)
-
-/** S1: the customer is created (or found) on the server first, then the lead is qualified locally. */
-async function withCustomer (kind: 'company' | 'individual') {
-  if (!selectedLead.value || isQualifying.value) { return undefined }
-  isQualifying.value = true
-  try {
-    return await ensureCustomerForLead(wonApi, selectedLead.value.id, kind)
-  } catch (error) {
-    showToast('Qualify Gagal', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
-    return undefined
-  } finally {
-    isQualifying.value = false
-  }
-}
-
 async function doQualify () {
   if (!selectedLead.value || qualificationMissing.value.length > 0) { return }
-  saveQualificationDraft()
-
+  const id = selectedLead.value.id
   if (isIndividualTravel.value) {
-    if (!qualifySalesOrderPriceIdr.value || qualifySalesOrderPriceIdr.value <= 0) { return }
-    const customer = await withCustomer('individual')
-    if (!customer || !selectedLead.value) { return }
-    const order = qualifyLeadAndCreateSalesOrder(selectedLead.value.id, { priceIdr: qualifySalesOrderPriceIdr.value, partyId: customer.id })
+    const price = qualifySalesOrderPriceIdr.value
+    if (!price || price <= 0) { return }
+    const lead = await run('Qualify Gagal', async () => {
+      await saveQualificationDraft()
+      return await qualifyLeadOnServer(api, id, 'individual')
+    })
+    if (!lead?.partyId) { return }
+    const order = qualifyLeadAndCreateSalesOrder(id, { priceIdr: price, partyId: lead.partyId })
     isQualifyDialogOpen.value = false
     if (order) { navigateTo(`/sales-orders/${order.id}`) }
     return
   }
-
-  const customer = await withCustomer('company')
-  if (!customer || !selectedLead.value) { return }
-  const qualified = qualifyLeadForQuotation(selectedLead.value.id, customer.id)
+  const qualified = await run('Qualify Gagal', async () => {
+    await saveQualificationDraft()
+    return await qualifyLeadOnServer(api, id, 'company')
+  })
+  if (!qualified) { return }
   isQualifyDialogOpen.value = false
   /** Dulu navigateTo halaman terpisah `/crm/leads/[id]` — sekarang cukup pindah tab dalam sheet yang sama, tidak membingungkan user dengan pindah layar. */
-  if (qualified) { drawerTab.value = 'quotation' }
+  drawerTab.value = 'quotation'
 }
 
 /** Group Trip B2C — Lead dengan `qualGroupTripProjectId` terisi. Dispatch berdasarkan Qualification Result
  * yang dipilih user, bukan lewat Dialog "Qualify" biasa (hasilnya sudah eksplisit di dropdown). */
 async function doQualifyGroupTrip () {
   if (!selectedLead.value || !qualGroupTripProjectId.value) { return }
-  saveQualificationDraft()
+  const id = selectedLead.value.id
 
   if (qualB2cResult.value === 'not-qualified') {
-    markLeadUnqualified(selectedLead.value.id, qualSpecialRequestNote.value.trim() || undefined)
-    emit('update:open', false)
+    const reason = qualSpecialRequestNote.value.trim() || 'Hasil qualification Group Trip: tidak memenuhi syarat.'
+    const done = await run('Unqualify Gagal', async () => {
+      await saveQualificationDraft({ b2cQualificationResult: 'not-qualified' })
+      return await unqualifyLeadOnServer(api, id, reason)
+    })
+    if (done) { emit('update:open', false) }
     return
   }
 
   if (qualB2cResult.value === 'follow-up') {
-    updateLeadQualification(selectedLead.value.id, {
-      b2cQualificationResult: 'follow-up',
-      b2cNextFollowUpDate: qualNextFollowUpDate.value || undefined
+    const dueOn = qualNextFollowUpDate.value || undefined
+    const done = await run('Follow-up Gagal', async () => {
+      await saveQualificationDraft({ b2cQualificationResult: 'follow-up', b2cNextFollowUpDate: dueOn })
+      return dueOn ? await addLeadActivityOnServer(api, id, { type: 'note', message: 'Follow-up dijadwalkan', dueOn }) : true
     })
-    if (qualNextFollowUpDate.value) {
-      createLeadActivity({ leadId: selectedLead.value.id, type: 'note', message: 'Follow-up dijadwalkan', ownerId: currentUser.value.id, dueAt: qualNextFollowUpDate.value })
-    }
-    showToast('Follow-up Disimpan', 'Lead tetap aktif, ditandai untuk follow-up berikutnya.', 'success')
+    if (done) { showToast('Follow-up Disimpan', 'Lead tetap aktif, ditandai untuk follow-up berikutnya.', 'success') }
     return
   }
 
   // 'qualified' atau 'waitlist' (pilihan manual) — qualifyGroupTripLead yang final-kan; bisa di-downgrade
   // paksa jadi waitlist kalau ternyata seat sudah tidak cukup saat submit.
-  // A customer is only needed when the seats are there; a waitlist creates none.
+  // A customer is only needed when the seats are there; a waitlist qualifies nobody on the server.
   const requestedPax = (qualAdultCount.value ?? 0) + (qualChildCount.value ?? 0) + (qualInfantCount.value ?? 0)
   const needsCustomer = requestedPax > 0 && requestedPax <= getProjectSeatsAvailable(qualGroupTripProjectId.value)
-  const customer = needsCustomer ? await withCustomer('individual') : undefined
-  if (needsCustomer && !customer) { return }
-  if (!selectedLead.value) { return }
-  const result = qualifyGroupTripLead(selectedLead.value.id, {
-    partyId: customer?.id,
+  const prepared = await run('Qualify Gagal', async () => {
+    await saveQualificationDraft()
+    return needsCustomer ? await qualifyLeadOnServer(api, id, 'individual') : selectedLead.value
+  })
+  if (!prepared) { return }
+  const result = qualifyGroupTripLead(id, {
+    partyId: needsCustomer ? prepared.partyId : undefined,
     adultCount: qualAdultCount.value ?? 0,
     childCount: qualChildCount.value ?? 0,
     infantCount: qualInfantCount.value ?? 0,
@@ -401,6 +436,8 @@ async function doQualifyGroupTrip () {
     bookingReadiness: qualBookingReadiness.value || 'still-considering',
     priceIdr: qualPackagePriceIdr.value ?? 0
   })
+  // The local outcome (counts, waitlist/qualified) is written back to the lead's B2C answers on the server.
+  if (result) { await run('Simpan Hasil Gagal', () => saveQualificationDraft()) }
   if (result?.outcome === 'waitlist') {
     showToast('Masuk Waitlist', 'Seat tidak cukup — Lead ditandai Waitlist untuk Project ini.', 'warning')
   } else if (result?.outcome === 'qualified') {
@@ -411,10 +448,15 @@ async function doQualifyGroupTrip () {
 
 const isUnqualifyDialogOpen = ref(false)
 const unqualifyNote = ref('')
-function doMarkUnqualified () {
-  if (!selectedLead.value) { return }
-  saveQualificationDraft()
-  markLeadUnqualified(selectedLead.value.id, unqualifyNote.value.trim() || undefined)
+async function doMarkUnqualified () {
+  if (!selectedLead.value || !unqualifyNote.value.trim()) { return }
+  const id = selectedLead.value.id
+  const reason = unqualifyNote.value.trim()
+  const done = await run('Unqualify Gagal', async () => {
+    await saveQualificationDraft()
+    return await unqualifyLeadOnServer(api, id, reason)
+  })
+  if (!done) { return }
   unqualifyNote.value = ''
   isUnqualifyDialogOpen.value = false
   emit('update:open', false)
@@ -429,10 +471,11 @@ function openProposalDialog () {
   isProposalDialogOpen.value = true
 }
 
-function submitProposal () {
+async function submitProposal () {
   if (!selectedLead.value || !proposalQuotationAmount.value || proposalQuotationAmount.value <= 0) { return }
-  createQuotation(selectedLead.value.id, proposalQuotationAmount.value)
-  isProposalDialogOpen.value = false
+  const id = selectedLead.value.id
+  const amountIdr = proposalQuotationAmount.value
+  if (await run('Quotation Gagal Dibuat', () => createQuotationOnServer(api, id, { amountIdr }))) { isProposalDialogOpen.value = false }
 }
 
 const isReviseDialogOpen = ref(false)
@@ -443,10 +486,11 @@ function openReviseDialog () {
   isReviseDialogOpen.value = true
 }
 
-function submitRevise () {
+async function submitRevise () {
   if (!quotation.value || !revisedAmount.value || revisedAmount.value <= 0) { return }
-  reviseQuotation(quotation.value.id, revisedAmount.value)
-  isReviseDialogOpen.value = false
+  const id = quotation.value.id
+  const amountIdr = revisedAmount.value
+  if (await run('Revisi Gagal', () => reviseQuotationOnServer(api, id, { amountIdr }))) { isReviseDialogOpen.value = false }
 }
 
 /* Edit Quotation — melengkapi detail komersial SELAGI masih draft (belum submitted/approved), tanpa menaikkan versi (beda dari "Revisi Quotation"/Create New Version di atas). */
@@ -501,10 +545,12 @@ function removeBreakdownRow (index: number) {
   editServiceBreakdown.value.splice(index, 1)
 }
 
-function submitEditQuotation () {
-  if (!quotation.value || !editQuotationAmount.value || editQuotationAmount.value <= 0) { return }
-  updateQuotationDetails(quotation.value.id, {
-    amountIdr: editQuotationAmount.value,
+async function submitEditQuotation () {
+  const amountIdr = editQuotationAmount.value
+  if (!quotation.value || !amountIdr || amountIdr <= 0) { return }
+  const id = quotation.value.id
+  const saved = await run('Simpan Quotation Gagal', () => updateQuotationOnServer(api, id, {
+    amountIdr,
     discountIdr: editQuotationDiscount.value ?? undefined,
     estimatedCostIdr: editQuotationCost.value ?? undefined,
     estimatedMarginIdr: editQuotationMargin.value ?? undefined,
@@ -517,38 +563,44 @@ function submitEditQuotation () {
     termsAndConditions: editQuotationTerms.value.trim() || undefined,
     inclusions: editQuotationInclusions.value.trim() || undefined,
     exclusions: editQuotationExclusions.value.trim() || undefined
-  })
-  isEditQuotationDialogOpen.value = false
+  }))
+  if (saved) { isEditQuotationDialogOpen.value = false }
 }
 
 /** "Duplicate Quotation" — salinan persis sebagai versi baru, titik awal edit dari draft yang sudah terisi. */
-function submitDuplicateQuotation () {
+async function submitDuplicateQuotation () {
   if (!quotation.value) { return }
-  duplicateQuotationVersion(quotation.value.id)
-  showToast('Quotation Diduplikasi', 'Versi baru dibuat sebagai salinan persis dari versi sebelumnya, siap diedit.', 'success')
+  const id = quotation.value.id
+  if (await run('Duplikasi Gagal', () => reviseQuotationOnServer(api, id))) {
+    showToast('Quotation Diduplikasi', 'Versi baru dibuat sebagai salinan persis dari versi sebelumnya, siap diedit.', 'success')
+  }
 }
 
 const isCompareVersionsOpen = ref(false)
 
 /* Send to Client / Withdraw */
-function submitSendToClient () {
+async function submitSendToClient () {
   if (!quotation.value || !selectedLead.value?.partyId) { return }
-  sendQuotationToClient(quotation.value.id, currentUser.value.id)
-  const clientUser = getUserByClientPartyId(selectedLead.value.partyId)
+  const id = quotation.value.id
+  const partyId = selectedLead.value.partyId
+  const sent = await run('Kirim Gagal', () => sendQuotationOnServer(api, id, currentUser.value.id, (leadId, actorId) => {
+    const lead = getLeadById(leadId)
+    if (lead) { ensureClientLoginAccount(lead, actorId) }
+  }))
+  if (!sent) { return }
+  const clientUser = getUserByClientPartyId(partyId)
   const accountMessage = clientUser
     ? ` Client login account (${clientUser.email}) dapat diakses lewat Settings > Role Switcher.`
     : ''
   showToast('Quotation Terkirim', `Simulasi pengiriman ke client tercatat (mock, bukan email/WA nyata).${accountMessage}`, 'success')
 }
 
-function submitWithdraw () {
+async function submitWithdraw () {
   if (!quotation.value) { return }
-  const result = withdrawQuotationSubmission(quotation.value.id)
-  if (!result) {
-    showToast('Withdraw Gagal', 'Quotation tidak lagi berstatus Submitted.', 'error')
-    return
+  const id = quotation.value.id
+  if (await run('Withdraw Gagal', () => withdrawQuotationOnServer(api, id))) {
+    showToast('Quotation Ditarik', 'Kembali ke status Draft — dapat diedit ulang sebelum submit lagi.', 'warning')
   }
-  showToast('Quotation Ditarik', 'Kembali ke status Draft — dapat diedit ulang sebelum submit lagi.', 'warning')
 }
 
 /**
@@ -556,26 +608,15 @@ function submitWithdraw () {
  * (tidak ada approval Won kedua terpisah dari Management — disederhanakan sejak Opportunity dihapus).
  */
 const isMarkAsWonDialogOpen = ref(false)
-const isMarkingWon = ref(false)
-const wonApi = useApi()
+const isMarkingWon = computed(() => isSaving.value)
 
 async function submitMarkAsWon () {
-  if (!selectedLead.value || !quotation.value || quotation.value.approvalStatus !== 'approved' || isMarkingWon.value) { return }
-  isMarkingWon.value = true
-  let project
-  try {
-    project = await markLeadWonOnServer(wonApi, selectedLead.value.id, quotation.value.approvedBy ?? currentUser.value.id)
-  } catch (error) {
-    showToast('Mark as Won Gagal', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
-    return
-  } finally {
-    isMarkingWon.value = false
-  }
+  if (!selectedLead.value || !quotation.value || quotation.value.approvalStatus !== 'approved') { return }
+  const id = selectedLead.value.id
+  const approverId = quotation.value.approvedBy ?? currentUser.value.id
+  const project = await run('Mark as Won Gagal', () => markLeadWonOnServer(api, id, approverId))
+  if (!project) { return }
   isMarkAsWonDialogOpen.value = false
-  if (!project) {
-    showToast('Mark as Won Gagal', 'Data belum lengkap atau lead sudah diproses sebelumnya.', 'error')
-    return
-  }
   const clientUser = getUserByClientPartyId(project.partyId)
   const accountMessage = clientUser
     ? ` Client login account (${clientUser.email}) dapat diakses lewat Settings > Role Switcher.`
@@ -591,34 +632,31 @@ const isApproveCommercialDialogOpen = ref(false)
 const isRejectCommercialDialogOpen = ref(false)
 const commercialNoteInput = ref('')
 
-function submitForCommercialApproval () {
+async function submitForCommercialApproval () {
   if (!quotation.value) { return }
-  submitQuotationForApproval(quotation.value.id)
+  const id = quotation.value.id
+  if (!(await run('Pengajuan Gagal', () => submitQuotationOnServer(api, id)))) { return }
   isSubmitApprovalDialogOpen.value = false
   showToast('Quotation Diajukan', 'Menunggu commercial approval dari Management.', 'success')
 }
 
-function submitApproveCommercial () {
+async function submitApproveCommercial () {
   if (!quotation.value) { return }
-  const result = approveQuotation(quotation.value.id, currentUser.value.id, commercialNoteInput.value.trim() || undefined)
+  const id = quotation.value.id
+  const note = commercialNoteInput.value.trim() || undefined
+  if (!(await run('Approve Gagal', () => approveQuotationOnServer(api, id, note)))) { return }
   isApproveCommercialDialogOpen.value = false
   commercialNoteInput.value = ''
-  if (!result) {
-    showToast('Approve Gagal', 'Quotation tidak lagi berstatus menunggu approval.', 'error')
-    return
-  }
   showToast('Quotation Disetujui', 'AE dapat melanjutkan ke Mark as Won.', 'success')
 }
 
-function submitRejectCommercial () {
+async function submitRejectCommercial () {
   if (!quotation.value || !commercialNoteInput.value.trim()) { return }
-  const result = rejectQuotation(quotation.value.id, currentUser.value.id, commercialNoteInput.value.trim())
+  const id = quotation.value.id
+  const note = commercialNoteInput.value.trim()
+  if (!(await run('Reject Gagal', () => rejectQuotationOnServer(api, id, note)))) { return }
   isRejectCommercialDialogOpen.value = false
   commercialNoteInput.value = ''
-  if (!result) {
-    showToast('Reject Gagal', 'Quotation tidak lagi berstatus menunggu approval.', 'error')
-    return
-  }
   showToast('Quotation Ditolak', 'AE perlu merevisi quotation sebelum mengajukan ulang.', 'warning')
 }
 
@@ -628,15 +666,15 @@ const activityType = ref<PartyActivityType>('call')
 const activityMessage = ref('')
 const activityDueAt = ref('')
 
-function submitActivity () {
+async function submitActivity () {
   if (!selectedLead.value || !activityMessage.value.trim()) { return }
-  createLeadActivity({
-    leadId: selectedLead.value.id,
+  const id = selectedLead.value.id
+  const saved = await run('Aktivitas Gagal Disimpan', () => addLeadActivityOnServer(api, id, {
     type: activityType.value,
     message: activityMessage.value.trim(),
-    ownerId: currentUser.value.id,
-    dueAt: activityDueAt.value || undefined
-  })
+    dueOn: activityDueAt.value || undefined
+  }))
+  if (!saved) { return }
   activityMessage.value = ''
   activityDueAt.value = ''
   activityType.value = 'call'
@@ -989,7 +1027,7 @@ function submitActivity () {
             </div>
 
             <div v-if="canManageLead && !selectedLead.archived && !isLeadConverted" class="flex flex-wrap gap-2 pt-2">
-              <Button size="sm" variant="outline" @click="saveQualificationDraft">
+              <Button size="sm" variant="outline" @click="submitQualificationDraft">
                 Simpan Draft
               </Button>
 
@@ -1045,14 +1083,14 @@ function submitActivity () {
                   </Button>
                 </template>
                 <div class="space-y-1.5 py-2">
-                  <Label for="unqualify-note">Catatan (opsional)</Label>
+                  <Label for="unqualify-note">Alasan (wajib)</Label>
                   <Input id="unqualify-note" v-model="unqualifyNote" placeholder="mis. Tidak ada budget/timeline konkret" />
                 </div>
                 <template #footer>
                   <Button variant="outline" @click="isUnqualifyDialogOpen = false">
                     Batal
                   </Button>
-                  <Button variant="destructive" @click="doMarkUnqualified">
+                  <Button variant="destructive" :disabled="!unqualifyNote.trim() || isSaving" @click="doMarkUnqualified">
                     Mark as Unqualified
                   </Button>
                 </template>
@@ -1181,10 +1219,11 @@ function submitActivity () {
                       </p>
                     </div>
                     <p class="col-span-2 text-[11px] text-muted-foreground">
-                      Hanya nilai total yang disimpan per versi sebelumnya (bukan histori breakdown penuh).
+                      Isi lengkap tiap versi tersimpan di server — lihat Riwayat Versi.
                     </p>
                   </div>
                 </div>
+                <QuotationVersionHistory :versions="quotation.versions ?? []" />
                 <p v-if="quotation.sentToClientAt" class="text-xs text-muted-foreground">
                   Terkirim ke client pada {{ formatDate(quotation.sentToClientAt) }} (simulasi, bukan email/WA nyata).
                 </p>

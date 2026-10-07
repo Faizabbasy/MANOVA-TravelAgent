@@ -237,3 +237,12 @@ describe('won', () => {
     expect(refused.json.error.details.missing).toContain('Destinasi belum diisi')
   })
 })
+
+describe('lead b2c fields', () => {
+  test('a b2c patch merges keys (null removes one) so seeded group-trip links survive the form', async () => {
+    const id = (await call('POST', '/leads', 'admin', { name: 'B2C Merge', source: 'instagram', b2c: { projectId: 'PRJ-205', b2cAdultCount: 1 } }, key())).json.data.id as string
+    const patched = (await call('PATCH', `/leads/${id}`, 'admin', { b2c: { b2cAdultCount: 3, b2cChildCount: 1 } })).json.data
+    expect(patched.b2c).toEqual({ projectId: 'PRJ-205', b2cAdultCount: 3, b2cChildCount: 1 })
+    expect((await call('PATCH', `/leads/${id}`, 'admin', { b2c: { b2cChildCount: null } })).json.data.b2c).toEqual({ projectId: 'PRJ-205', b2cAdultCount: 3 })
+  })
+})

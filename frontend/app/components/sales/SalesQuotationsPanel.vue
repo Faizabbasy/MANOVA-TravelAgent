@@ -3,9 +3,10 @@ import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, ChevronRight } from 'lucide-vue-next'
 import {
-  QUOTATIONS, getLeadById, getPartyById, getUserById,
-  approveQuotation, rejectQuotation
+  QUOTATIONS, getLeadById, getPartyById, getUserById
 } from '~/data'
+import { approveQuotationOnServer, rejectQuotationOnServer } from '~/data/leads-sync'
+import { isApiError } from '~/lib/api/errors'
 import { QUOTATION_APPROVAL_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import type { Quotation, QuotationApprovalStatus } from '~/types/quotation'
@@ -21,7 +22,6 @@ import type { Quotation, QuotationApprovalStatus } from '~/types/quotation'
 
 const route = useRoute()
 const { canView, canApprove } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const canApproveCommercial = computed(() => canApprove('sales'))
@@ -83,26 +83,37 @@ function openReview (quotation: Quotation) {
   isReviewOpen.value = true
 }
 
-function submitApprove () {
-  if (!selectedQuotation.value) { return }
-  const result = approveQuotation(selectedQuotation.value.id, currentUser.value.id, decisionNote.value.trim() || undefined)
-  if (!result) {
-    showToast('Approve Gagal', 'Quotation tidak lagi berstatus menunggu approval.', 'error')
-    return
+const api = useApi()
+const isDeciding = ref(false)
+
+/** Commercial approval runs on the server (S6a): it records who submitted and who decided. */
+async function decide (approve: boolean) {
+  const quotation = selectedQuotation.value
+  if (!quotation || isDeciding.value || (!approve && !decisionNote.value.trim())) { return }
+  isDeciding.value = true
+  try {
+    const result = approve
+      ? await approveQuotationOnServer(api, quotation.id, decisionNote.value.trim() || undefined)
+      : await rejectQuotationOnServer(api, quotation.id, decisionNote.value.trim())
+    if (approve) {
+      showToast('Quotation Disetujui', `${result.id} disetujui — AE dapat melanjutkan ke Mark as Won.`, 'success')
+    } else {
+      showToast('Quotation Dikembalikan untuk Revisi', `${result.id} ditolak — AE perlu merevisi sebelum submit ulang.`, 'warning')
+    }
+    isReviewOpen.value = false
+  } catch (error) {
+    showToast(approve ? 'Approve Gagal' : 'Reject Gagal', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+  } finally {
+    isDeciding.value = false
   }
-  showToast('Quotation Disetujui', `${result.id} disetujui — AE dapat melanjutkan ke Mark as Won.`, 'success')
-  isReviewOpen.value = false
+}
+
+function submitApprove () {
+  return decide(true)
 }
 
 function submitReject () {
-  if (!selectedQuotation.value || !decisionNote.value.trim()) { return }
-  const result = rejectQuotation(selectedQuotation.value.id, currentUser.value.id, decisionNote.value.trim())
-  if (!result) {
-    showToast('Reject Gagal', 'Quotation tidak lagi berstatus menunggu approval.', 'error')
-    return
-  }
-  showToast('Quotation Dikembalikan untuk Revisi', `${result.id} ditolak — AE perlu merevisi sebelum submit ulang.`, 'warning')
-  isReviewOpen.value = false
+  return decide(false)
 }
 
 /** Edit lengkap (amount/discount/tax/service breakdown/dst) hidup di tab "Quotation" milik `LeadDetailSheet`
@@ -328,10 +339,10 @@ function viewLeadDetail () {
                 <Button variant="outline" @click="isReviewOpen = false">
                   Batal
                 </Button>
-                <Button variant="destructive" :disabled="!decisionNote.trim()" :title="!decisionNote.trim() ? 'Catatan wajib diisi untuk reject' : undefined" @click="submitReject">
+                <Button variant="destructive" :disabled="!decisionNote.trim() || isDeciding" :title="!decisionNote.trim() ? 'Catatan wajib diisi untuk reject' : undefined" @click="submitReject">
                   Reject (Return for Revision)
                 </Button>
-                <Button @click="submitApprove">
+                <Button :disabled="isDeciding" @click="submitApprove">
                   Approve
                 </Button>
               </div>

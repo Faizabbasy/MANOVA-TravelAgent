@@ -175,8 +175,10 @@ export async function updateLead(tx: Queryable, actor: Actor, id: string, input:
   if (input.stage !== undefined) values.stage = input.stage
   const cols = Object.keys(values)
   if (!cols.length) return
+  // `b2c` merges key by key (a null value removes one): the form sends its fields, the seeded group-trip links stay.
+  const assign = (c: string, i: number) => (c === 'b2c' ? `b2c = jsonb_strip_nulls(b2c || $${i}::text::jsonb)` : `${c} = ${placeholder(c, i)}`)
   await tx.query(
-    `update leads set ${cols.map((c, i) => `${c} = ${placeholder(c, i + 2)}`).join(', ')}, last_updated_on = $${cols.length + 2}, updated_at = now() where id = $1`,
+    `update leads set ${cols.map((c, i) => assign(c, i + 2)).join(', ')}, last_updated_on = $${cols.length + 2}, updated_at = now() where id = $1`,
     [id, ...Object.values(values), today]
   )
   await recordAudit(tx, { action: 'lead.updated', actorUserId: actor.userId, entityType: 'lead', entityId: id, requestId, after: Object.fromEntries(Object.keys(input).map(k => [k, input[k]])) })

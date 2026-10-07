@@ -4,13 +4,12 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus } from 'lucide-vue-next'
 import {
   getLeadById, getPartyById, getQuotationByLead, getPartyActivitiesByLead, getUserById,
-  createQuotation, reviseQuotation, createPartyActivity,
-  getLeadWorkflowStatus, updateQuotationDetails,
-  submitQuotationForApproval, approveQuotation, rejectQuotation,
-  duplicateQuotationVersion, sendQuotationToClient, withdrawQuotationSubmission,
-  getCostSheetsByLead, getCostSheetBreakdown, getUserByClientPartyId
+  createPartyActivity, getLeadWorkflowStatus, ensureClientLoginAccount, getCostSheetsByLead, getCostSheetBreakdown, getUserByClientPartyId
 } from '~/data'
-import { markLeadWonOnServer } from '~/data/leads-sync'
+import {
+  approveQuotationOnServer, createQuotationOnServer, markLeadWonOnServer, rejectQuotationOnServer, reviseQuotationOnServer,
+  sendQuotationOnServer, submitQuotationOnServer, updateQuotationOnServer, withdrawQuotationOnServer
+} from '~/data/leads-sync'
 import { isApiError } from '~/lib/api/errors'
 import {
   LEAD_WORKFLOW_STATUSES, SERVICE_TYPES, PARTY_ACTIVITY_TYPES,
@@ -73,6 +72,23 @@ const summaryMetadata = computed(() => {
   ]
 })
 
+/* Quotation and Won run on the server (S6a); a failed call keeps the dialog open with the reason. */
+const api = useApi()
+const isSaving = ref(false)
+
+async function run<T> (title: string, action: () => Promise<T>): Promise<T | undefined> {
+  if (isSaving.value) { return undefined }
+  isSaving.value = true
+  try {
+    return await action()
+  } catch (error) {
+    showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return undefined
+  } finally {
+    isSaving.value = false
+  }
+}
+
 /* Buat Quotation (pertama kali) */
 const isProposalDialogOpen = ref(false)
 const proposalQuotationAmount = ref<number | null>(null)
@@ -82,10 +98,11 @@ function openProposalDialog () {
   isProposalDialogOpen.value = true
 }
 
-function submitProposal () {
+async function submitProposal () {
   if (!lead.value || !proposalQuotationAmount.value || proposalQuotationAmount.value <= 0) { return }
-  createQuotation(lead.value.id, proposalQuotationAmount.value)
-  isProposalDialogOpen.value = false
+  const id = lead.value.id
+  const amountIdr = proposalQuotationAmount.value
+  if (await run('Quotation Gagal Dibuat', () => createQuotationOnServer(api, id, { amountIdr }))) { isProposalDialogOpen.value = false }
 }
 
 const isReviseDialogOpen = ref(false)
@@ -96,10 +113,11 @@ function openReviseDialog () {
   isReviseDialogOpen.value = true
 }
 
-function submitRevise () {
+async function submitRevise () {
   if (!quotation.value || !revisedAmount.value || revisedAmount.value <= 0) { return }
-  reviseQuotation(quotation.value.id, revisedAmount.value)
-  isReviseDialogOpen.value = false
+  const id = quotation.value.id
+  const amountIdr = revisedAmount.value
+  if (await run('Revisi Gagal', () => reviseQuotationOnServer(api, id, { amountIdr }))) { isReviseDialogOpen.value = false }
 }
 
 /* Edit Quotation — melengkapi detail komersial SELAGI masih draft (belum submitted/approved), tanpa menaikkan versi (beda dari "Revisi Quotation"/Create New Version di atas). */
@@ -154,10 +172,12 @@ function removeBreakdownRow (index: number) {
   editServiceBreakdown.value.splice(index, 1)
 }
 
-function submitEditQuotation () {
-  if (!quotation.value || !editQuotationAmount.value || editQuotationAmount.value <= 0) { return }
-  updateQuotationDetails(quotation.value.id, {
-    amountIdr: editQuotationAmount.value,
+async function submitEditQuotation () {
+  const amountIdr = editQuotationAmount.value
+  if (!quotation.value || !amountIdr || amountIdr <= 0) { return }
+  const id = quotation.value.id
+  const saved = await run('Simpan Quotation Gagal', () => updateQuotationOnServer(api, id, {
+    amountIdr,
     discountIdr: editQuotationDiscount.value ?? undefined,
     estimatedCostIdr: editQuotationCost.value ?? undefined,
     estimatedMarginIdr: editQuotationMargin.value ?? undefined,
@@ -170,38 +190,44 @@ function submitEditQuotation () {
     termsAndConditions: editQuotationTerms.value.trim() || undefined,
     inclusions: editQuotationInclusions.value.trim() || undefined,
     exclusions: editQuotationExclusions.value.trim() || undefined
-  })
-  isEditQuotationDialogOpen.value = false
+  }))
+  if (saved) { isEditQuotationDialogOpen.value = false }
 }
 
 /** "Duplicate Quotation" — salinan persis sebagai versi baru, titik awal edit dari draft yang sudah terisi. */
-function submitDuplicateQuotation () {
+async function submitDuplicateQuotation () {
   if (!quotation.value) { return }
-  duplicateQuotationVersion(quotation.value.id)
-  showToast('Quotation Diduplikasi', 'Versi baru dibuat sebagai salinan persis dari versi sebelumnya, siap diedit.', 'success')
+  const id = quotation.value.id
+  if (await run('Duplikasi Gagal', () => reviseQuotationOnServer(api, id))) {
+    showToast('Quotation Diduplikasi', 'Versi baru dibuat sebagai salinan persis dari versi sebelumnya, siap diedit.', 'success')
+  }
 }
 
 const isCompareVersionsOpen = ref(false)
 
 /* Send to Client / Withdraw */
-function submitSendToClient () {
+async function submitSendToClient () {
   if (!quotation.value || !lead.value?.partyId) { return }
-  sendQuotationToClient(quotation.value.id, currentUser.value.id)
-  const clientUser = getUserByClientPartyId(lead.value.partyId)
+  const id = quotation.value.id
+  const partyId = lead.value.partyId
+  const sent = await run('Kirim Gagal', () => sendQuotationOnServer(api, id, currentUser.value.id, (leadId, actorId) => {
+    const target = getLeadById(leadId)
+    if (target) { ensureClientLoginAccount(target, actorId) }
+  }))
+  if (!sent) { return }
+  const clientUser = getUserByClientPartyId(partyId)
   const accountMessage = clientUser
     ? ` Client login account (${clientUser.email}) dapat diakses lewat Settings > Role Switcher.`
     : ''
   showToast('Quotation Terkirim', `Simulasi pengiriman ke client tercatat (mock, bukan email/WA nyata).${accountMessage}`, 'success')
 }
 
-function submitWithdraw () {
+async function submitWithdraw () {
   if (!quotation.value) { return }
-  const result = withdrawQuotationSubmission(quotation.value.id)
-  if (!result) {
-    showToast('Withdraw Gagal', 'Quotation tidak lagi berstatus Submitted.', 'error')
-    return
+  const id = quotation.value.id
+  if (await run('Withdraw Gagal', () => withdrawQuotationOnServer(api, id))) {
+    showToast('Quotation Ditarik', 'Kembali ke status Draft — dapat diedit ulang sebelum submit lagi.', 'warning')
   }
-  showToast('Quotation Ditarik', 'Kembali ke status Draft — dapat diedit ulang sebelum submit lagi.', 'warning')
 }
 
 /**
@@ -209,26 +235,15 @@ function submitWithdraw () {
  * (tidak ada approval Won kedua terpisah dari Management — disederhanakan sejak Opportunity dihapus).
  */
 const isMarkAsWonDialogOpen = ref(false)
-const isMarkingWon = ref(false)
-const wonApi = useApi()
+const isMarkingWon = computed(() => isSaving.value)
 
 async function submitMarkAsWon () {
-  if (!lead.value || !quotation.value || quotation.value.approvalStatus !== 'approved' || isMarkingWon.value) { return }
-  isMarkingWon.value = true
-  let project
-  try {
-    project = await markLeadWonOnServer(wonApi, lead.value.id, quotation.value.approvedBy ?? currentUser.value.id)
-  } catch (error) {
-    showToast('Mark as Won Gagal', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
-    return
-  } finally {
-    isMarkingWon.value = false
-  }
+  if (!lead.value || !quotation.value || quotation.value.approvalStatus !== 'approved') { return }
+  const id = lead.value.id
+  const approverId = quotation.value.approvedBy ?? currentUser.value.id
+  const project = await run('Mark as Won Gagal', () => markLeadWonOnServer(api, id, approverId))
+  if (!project) { return }
   isMarkAsWonDialogOpen.value = false
-  if (!project) {
-    showToast('Mark as Won Gagal', 'Data belum lengkap atau lead sudah diproses sebelumnya.', 'error')
-    return
-  }
   const clientUser = getUserByClientPartyId(project.partyId)
   const accountMessage = clientUser
     ? ` Client login account (${clientUser.email}) dapat diakses lewat Settings > Role Switcher.`
@@ -243,34 +258,31 @@ const isApproveCommercialDialogOpen = ref(false)
 const isRejectCommercialDialogOpen = ref(false)
 const commercialNoteInput = ref('')
 
-function submitForCommercialApproval () {
+async function submitForCommercialApproval () {
   if (!quotation.value) { return }
-  submitQuotationForApproval(quotation.value.id)
+  const id = quotation.value.id
+  if (!(await run('Pengajuan Gagal', () => submitQuotationOnServer(api, id)))) { return }
   isSubmitApprovalDialogOpen.value = false
   showToast('Quotation Diajukan', 'Menunggu commercial approval dari Management.', 'success')
 }
 
-function submitApproveCommercial () {
+async function submitApproveCommercial () {
   if (!quotation.value) { return }
-  const result = approveQuotation(quotation.value.id, currentUser.value.id, commercialNoteInput.value.trim() || undefined)
+  const id = quotation.value.id
+  const note = commercialNoteInput.value.trim() || undefined
+  if (!(await run('Approve Gagal', () => approveQuotationOnServer(api, id, note)))) { return }
   isApproveCommercialDialogOpen.value = false
   commercialNoteInput.value = ''
-  if (!result) {
-    showToast('Approve Gagal', 'Quotation tidak lagi berstatus menunggu approval.', 'error')
-    return
-  }
   showToast('Quotation Disetujui', 'AE dapat melanjutkan ke Mark as Won.', 'success')
 }
 
-function submitRejectCommercial () {
+async function submitRejectCommercial () {
   if (!quotation.value || !commercialNoteInput.value.trim()) { return }
-  const result = rejectQuotation(quotation.value.id, currentUser.value.id, commercialNoteInput.value.trim())
+  const id = quotation.value.id
+  const note = commercialNoteInput.value.trim()
+  if (!(await run('Reject Gagal', () => rejectQuotationOnServer(api, id, note)))) { return }
   isRejectCommercialDialogOpen.value = false
   commercialNoteInput.value = ''
-  if (!result) {
-    showToast('Reject Gagal', 'Quotation tidak lagi berstatus menunggu approval.', 'error')
-    return
-  }
   showToast('Quotation Ditolak', 'AE perlu merevisi quotation sebelum mengajukan ulang.', 'warning')
 }
 
@@ -477,6 +489,7 @@ function submitActivity () {
               </p>
             </div>
           </div>
+          <QuotationVersionHistory :versions="quotation.versions ?? []" />
           <p v-if="quotation.sentToClientAt" class="text-xs text-muted-foreground">
             Terkirim ke client pada {{ formatDate(quotation.sentToClientAt) }} (simulasi, bukan email/WA nyata).
           </p>

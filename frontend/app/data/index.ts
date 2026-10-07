@@ -1116,7 +1116,7 @@ export function duplicateQuotationVersion (quotationId: string): Quotation | und
 /** Auto-provision akun login Client Portal — dipanggil saat quotation pertama kali dikirim ke client
  * (sendQuotationToClient) dan sebagai safety-net di markLeadWon. Idempotent: no-op kalau party sudah punya
  * User client (repeat client, atau sudah dibuat di step sebelumnya pada deal yang sama). */
-function ensureClientLoginAccount (lead: Lead, actorId: string): User | undefined {
+export function ensureClientLoginAccount (lead: Lead, actorId: string): User | undefined {
   const party = lead.partyId ? getPartyById(lead.partyId) : undefined
   if (!party) { return undefined }
 

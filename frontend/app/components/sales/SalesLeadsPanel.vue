@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus, List, LayoutGrid, Inbox as InboxIcon, Eye, SlidersHorizontal } from 'lucide-vue-next'
 import {
-  LEADS, createLead, getLeadWorkflowStatus, getUserById, getLeadFollowUps, getLeadDuplicateCandidates
+  LEADS, getLeadWorkflowStatus, getUserById, getLeadFollowUps, getLeadDuplicateCandidates
 } from '~/data'
 import {
   LEAD_SOURCES, LEAD_STAGES, LEAD_WORKFLOW_STATUSES, findStatusOption
@@ -11,6 +11,9 @@ import {
 import { formatDate } from '~/utils/format'
 import { isFollowUpUpcoming } from '~/utils/attention'
 import type { Lead, LeadSource, LeadStage } from '~/types/lead'
+import { createLeadOnServer } from '~/data/leads-sync'
+import { newIdempotencyKey } from '~/lib/api/client'
+import { isApiError } from '~/lib/api/errors'
 
 /** Tab "Leads" — Menu Sales > Pipeline. Dulu `/customer-journey/leads`, kini tab dalam satu menu Pipeline
  * bersama Funnel/Quotation. Sekaligus satu-satunya entry point untuk Qualify (B2B → halaman detail Lead
@@ -120,18 +123,32 @@ function resetCreateForm () {
   newEmail.value = ''
 }
 
-function submitCreate () {
-  if (!newName.value.trim()) { return }
-  createLead({
-    name: newName.value.trim(),
-    companyName: newCompanyName.value.trim() || undefined,
-    source: newSource.value,
-    ownerId: currentUser.value.id,
-    phone: newPhone.value.trim() || undefined,
-    email: newEmail.value.trim() || undefined
-  })
-  resetCreateForm()
-  isCreateOpen.value = false
+const api = useApi()
+const { showToast } = useToast()
+const isCreating = ref(false)
+
+/** New lead on the server (S6a): one idempotency key per open form, the owner is the signed-in user. */
+let createKey = newIdempotencyKey()
+
+async function submitCreate () {
+  if (!newName.value.trim() || isCreating.value) { return }
+  isCreating.value = true
+  try {
+    await createLeadOnServer(api, {
+      name: newName.value.trim(),
+      companyName: newCompanyName.value.trim() || null,
+      source: newSource.value,
+      phone: newPhone.value.trim() || null,
+      email: newEmail.value.trim() || null
+    }, createKey)
+    createKey = newIdempotencyKey()
+    resetCreateForm()
+    isCreateOpen.value = false
+  } catch (error) {
+    showToast('Lead Gagal Dibuat', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+  } finally {
+    isCreating.value = false
+  }
 }
 
 /* Detail drawer */
@@ -326,7 +343,7 @@ function openDrawer (lead: Lead) {
               <Button variant="outline" @click="isCreateOpen = false">
                 Batal
               </Button>
-              <Button :disabled="!newName.trim()" @click="submitCreate">
+              <Button :disabled="!newName.trim() || isCreating" @click="submitCreate">
                 Simpan
               </Button>
             </template>
