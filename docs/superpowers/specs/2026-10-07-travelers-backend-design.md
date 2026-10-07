@@ -1,6 +1,6 @@
 # Backend peserta: traveler, grup & rooming (S7a) — desain
 
-Tanggal: 7 Oktober 2026 · Branch: `production` · Status: disetujui di chat, menunggu review spec
+Tanggal: 7 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-07-travelers-backend)
 
 S7 (detail operasional) dipecah: **S7a peserta** (dokumen ini), lalu itinerary dan pelacakan operasional (milestone,
 catatan, task, risiko, log) di tahap berikutnya. S7a memindahkan traveler, grup traveler, dan rooming list ke server,

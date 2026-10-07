@@ -128,3 +128,13 @@ waitlist tanpa order. Booking Group Trip menjadi `paid` hanya lewat konfirmasi D
 order standalone ditandai paid manual dan tidak bisa ditagih lewat Finance. Batal wajib alasan dan tetap boleh setelah
 ada invoice (Finance menindaklanjuti refund/void). Seed hanya menulis status order yang belum pernah diubah API
 (`status_changed_at` kosong). Tetap lokal: traveler (S7). Setelah deploy jalankan sekali `db:seed:demo`.
+
+## Update 2026-10-07 — Peserta: traveler, grup & rooming (S7a)
+
+Traveler, grup traveler, dan rooming list kini di server (migrasi 0027): `GET /travelers`, `/traveler-groups`,
+`/room-assignments`, tulis lewat `project-order.manage-travelers` (tambah/ubah/hapus-koreksi, verifikasi dokumen, VIP,
+batal dengan alasan, ganti peserta atomik, isi kamar tanpa dobel-assign, impor dengan validasi ulang paspor). Seluruh
+peran internal membaca data identitas lengkap (paspor/KTP/visa); portal 403. Konfirmasi DP Group Trip membuat traveler
+sebanyak pax order dalam transaksi yang sama (sekali per order); batal order membatalkan traveler-nya dan
+mengeluarkannya dari kamar. Seed hanya memperbarui baris fixture yang belum diubah API (`changed_by_api_at`). Tetap
+lokal: portal client (ADR-006). Setelah deploy jalankan sekali `db:seed:demo`.
