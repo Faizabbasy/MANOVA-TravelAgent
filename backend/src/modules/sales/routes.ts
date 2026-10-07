@@ -5,11 +5,13 @@ import { assertIdParam, ID_PATTERN, ok, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { businessDateOf } from '../../shared/dates'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
+import { getProject } from '../core/repository'
 import { isPortalActor } from '../core/scope'
 import { addLeadActivity, archiveLead, completeLeadActivity, createLead, mergeLead, reopenLead, unqualifyLead, updateLead } from './lead-writes'
 import { qualifyLead } from './qualify'
 import { createQuotation, decideQuotation, reviseQuotation, sendQuotation, submitQuotation, updateQuotation, withdrawQuotation } from './quotation-writes'
 import { listLeads, listSalesQuotations } from './repository'
+import { markLeadWon } from './won'
 
 /** Sales (S6a): leads, client quotations and Won. Internal roles read; Sales (admin) writes; portals never see leads. */
 export function salesRoutes(deps: AppDeps, auth: AuthContext) {
@@ -75,6 +77,15 @@ export function salesRoutes(deps: AppDeps, auth: AuthContext) {
       const b = (body ?? {}) as Record<string, unknown>
       await db.transaction(tx => qualifyLead(tx, actor, id, { customerKind: b.customerKind, partyId: b.partyId }, businessDateOf(new Date()), requestIdOf(request)))
       return ok(request, await leadResponse(id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/leads/:id/won', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, 'sales.mark-won')
+      const leadId = assertIdParam(params.id, 'Lead')
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /leads/:id/won', key, body: { leadId, ...((body ?? {}) as object) } }, tx =>
+        markLeadWon(tx, actor, leadId, businessDateOf(new Date()), requestIdOf(request)))
+      set.status = result.data.created && !result.replayed ? 201 : 200
+      return ok(request, { project: await getProject(db, actor, result.data.projectId), lead: await leadResponse(leadId) })
     }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
     .post('/leads/:id/unqualify', async ({ request, params, body }) => {
       const actor = await auth.requireCapability(request, 'sales.manage-lead')

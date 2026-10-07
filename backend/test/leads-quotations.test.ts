@@ -216,3 +216,38 @@ describe('client quotations', () => {
     expect((await call('POST', `/leads/${lead}/quotation`, 'admin', { amountMinor: '1000' }, key())).status).toBe(422)
   })
 })
+
+describe('won', () => {
+  test('creates the project with the approved value; second click returns it; later revisions keep the contract value', async () => {
+    const lead = await qualifiedLead('PT Won S6')
+    const q = (await call('POST', `/leads/${lead}/quotation`, 'admin', { amountMinor: '123000000' }, key())).json.data.id as string
+    expect((await call('POST', `/leads/${lead}/won`, 'admin', {}, key())).status).toBe(422) // draft
+    await call('POST', `/quotations/${q}/submit`, 'admin')
+    await call('POST', `/quotations/${q}/approve`, 'adminMgmt')
+    expect((await call('POST', `/leads/${lead}/won`, 'finance', {}, key())).status).toBe(403)
+    const won = await call('POST', `/leads/${lead}/won`, 'admin', {}, key())
+    expect(won.status).toBe(201)
+    const projectId = won.json.data.project.id as string
+    const partyId = won.json.data.project.partyId as string
+    expect(won.json.data.project).toMatchObject({ contractValueMinor: '123000000', leadId: lead, sourceQuotationId: q })
+    expect(won.json.data.lead.wonProjectId).toBe(projectId)
+    expect((await call('GET', `/parties/${partyId}`, 'admin')).json.data.lifecycleStatus).toBe('client')
+    const again = await call('POST', `/leads/${lead}/won`, 'admin', {}, key())
+    expect(again.status).toBe(200)
+    expect(again.json.data.project.id).toBe(projectId)
+    await call('POST', `/quotations/${q}/revise`, 'admin', { amountMinor: '999000000' })
+    expect((await call('GET', `/projects/${projectId}`, 'admin')).json.data.contractValueMinor).toBe('123000000')
+    expect((await call('PATCH', `/leads/${lead}`, 'admin', { destination: 'X' })).status).toBe(422)
+  })
+
+  test('missing travel data answers 422 with the list', async () => {
+    const lead = await qualifiedLead('PT Won Kurang S6')
+    const q = (await call('POST', `/leads/${lead}/quotation`, 'admin', { amountMinor: '1000000' }, key())).json.data.id as string
+    await call('POST', `/quotations/${q}/submit`, 'admin')
+    await call('POST', `/quotations/${q}/approve`, 'admin')
+    await t.db.query('update leads set destination = null where id = $1', [lead])
+    const refused = await call('POST', `/leads/${lead}/won`, 'admin', {}, key())
+    expect(refused.status).toBe(422)
+    expect(refused.json.error.details.missing).toContain('Destinasi belum diisi')
+  })
+})
