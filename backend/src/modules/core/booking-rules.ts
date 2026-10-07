@@ -53,7 +53,8 @@ const ARRAYS: Record<BookingType, Record<string, string | null>> = {
 }
 
 const isObject = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
-const isPrice = (v: unknown) => v === undefined || (Number.isInteger(v) && (v as number) >= 0 && (v as number) <= MAX_PRICE)
+// undefined or null = an unpriced line (a cleared price field in the BOQ form sends null).
+const isPrice = (v: unknown) => v === undefined || v === null || (Number.isInteger(v) && (v as number) >= 0 && (v as number) <= MAX_PRICE)
 const isDate = (v: unknown) => typeof v === 'string' && DATE_PREFIX.test(v)
 
 export function cleanDetails(type: BookingType, raw: unknown, problems: FieldErrors): Record<string, unknown> | undefined {

@@ -67,8 +67,12 @@ export function bookingFromServer (d: BookingDto): AnyBooking {
 export function bookingToServer (type: UiBookingType | ApiBookingType, b: Record<string, unknown>): BookingPatchInput {
   const api = toApiBookingType(type)
   const details = Object.fromEntries(Object.entries(b).filter(([k, v]) => !CORE_KEYS.includes(k) && v !== undefined))
-  const reference = (api === 'flight' ? b.pnr : api === 'hotel' ? b.confirmationNumber : undefined) as string | undefined
-  const out: BookingPatchInput = { details, reference: reference?.trim() || null }
+  const out: BookingPatchInput = { details }
+  // Only flight (PNR) and hotel (confirmation number) carry a reference; the others never send one.
+  if (api === 'flight' || api === 'hotel') {
+    const reference = (api === 'flight' ? b.pnr : b.confirmationNumber) as string | undefined
+    out.reference = reference?.trim() || null
+  }
   if (api !== 'mice') {
     out.sellAmountMinor = minor(b.sellPriceIdr)
     out.netCostMinor = minor(b.netCostIdr)

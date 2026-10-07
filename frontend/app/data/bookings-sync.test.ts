@@ -56,6 +56,9 @@ describe('bookings-sync', () => {
     const mice = bookingToServer('mice', { id: 'MICE-1', projectId: 'PRJ-1', status: 'planning', boqItems: [{ sellPriceIdr: 5 }], sessions: [] })
     expect(mice.sellAmountMinor).toBeUndefined()
     expect(mice.details!.boqItems).toEqual([{ sellPriceIdr: 5 }])
+    // Transport and MICE have no reference field: nothing is sent, so the service reference is never touched.
+    expect('reference' in mice).toBe(false)
+    expect('reference' in bookingToServer('transportation', { id: 'TRN-1', projectId: 'PRJ-1', legs: [] })).toBe(false)
   })
 
   it('status change: server first, local side effects, server version wins', async () => {

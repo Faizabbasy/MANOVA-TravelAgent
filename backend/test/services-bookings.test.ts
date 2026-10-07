@@ -161,6 +161,17 @@ describe('bookings', () => {
   })
 })
 
+describe('booking reference on the service', () => {
+  test('an edit that leaves the booking reference as it was keeps the service reference', async () => {
+    const created = (await call('POST', '/bookings/mice', 'admin', { projectId: 'PRJ-205', details: { checklist: [{ task: 'setup', label: 'Panggung', isDone: false }] } }, key())).json.data
+    await call('PATCH', `/project-services/${created.serviceId}`, 'admin', { bookingReference: 'MICE-PLW-VEN01' })
+    // The UI sends `reference: null` for MICE (no PNR/confirmation field) on every save.
+    expect((await call('PATCH', `/bookings/mice/${created.id}`, 'admin', { details: { checklist: [{ task: 'setup', label: 'Panggung', isDone: true }] }, reference: null })).status).toBe(200)
+    const svc = (await call('GET', '/project-services?projectId=PRJ-205', 'admin')).json.data.find((s: { id: string }) => s.id === created.serviceId)
+    expect(svc.bookingReference).toBe('MICE-PLW-VEN01')
+  })
+})
+
 describe('finance cancellation of a booking', () => {
   test('recording it cancels the booking; rejecting it restores the status; terminal bookings stay as they are', async () => {
     const id = (await call('POST', '/bookings/hotel', 'admin', { projectId: 'PRJ-205', sellAmountMinor: '8000000', details: { checkInDate: '2026-12-10' } }, key())).json.data.id as string

@@ -35,6 +35,11 @@ describe('booking rules', () => {
     const m: FieldErrors = {}
     cleanDetails('mice', { boqItems: [{ description: 'Sound', sellPriceIdr: -1 }] }, m)
     expect(m.details).toBeDefined()
+    // A price field emptied in the BOQ form arrives as null: an unpriced line, not an error.
+    const cleared: FieldErrors = {}
+    expect(cleanDetails('mice', { boqItems: [{ description: 'Sound', sellPriceIdr: null, netCostIdr: null }] }, cleared)).toBeDefined()
+    expect(cleared).toEqual({})
+    expect(miceTotals({ boqItems: [{ sellPriceIdr: null }, { sellPriceIdr: 500 }] })).toEqual({ sellMinor: '500', netMinor: null })
   })
 
   test('departure date and MICE totals are derived from details', () => {

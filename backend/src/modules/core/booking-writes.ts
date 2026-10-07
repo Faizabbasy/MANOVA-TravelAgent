@@ -131,7 +131,8 @@ export async function updateBooking(tx: Queryable, actor: Actor, type: BookingTy
       where booking_type = $1 and booking_id = $2`,
     [type, id, JSON.stringify(details), nextRef, nextSell, nextNet, departureDateOf(type, details!)]
   )
-  if (ref !== undefined && cur.service_id) await tx.query('update project_services set booking_reference = $2, updated_at = now() where id = $1', [cur.service_id, nextRef])
+  // Only a real change of the booking reference moves the service reference (an unchanged null must not wipe it).
+  if (nextRef !== cur.reference && cur.service_id) await tx.query('update project_services set booking_reference = $2, updated_at = now() where id = $1', [cur.service_id, nextRef])
   await recordAudit(tx, {
     action: 'booking.updated', actorUserId: actor.userId, entityType: 'booking', entityId: id, requestId,
     before: { reference: cur.reference, sellAmountMinor: cur.sell_amount_minor, netCostMinor: cur.net_cost_minor },
