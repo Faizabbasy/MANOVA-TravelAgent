@@ -380,6 +380,27 @@ describe('demo seed', () => {
     }
   })
 
+  test('leads and quotation versions exist after 0024', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await db.query("insert into leads (id, name, source, owner_user_id) values ('LED-T1', 'Uji', 'website', 'USR-001')")
+      await expect(db.query("insert into leads (id, name, source, owner_user_id) values ('LED-T2', 'Uji', 'fax', 'USR-001')")).rejects.toThrow()
+      await expect(db.query("insert into leads (id, name, source, owner_user_id, travel_start_date, travel_end_date) values ('LED-T3', 'Uji', 'website', 'USR-001', '2026-10-05', '2026-10-01')")).rejects.toThrow()
+      await db.query("insert into quotations (id, lead_id) values ('QUO-T1', 'LED-T1')")
+      await expect(db.query("insert into quotations (id, lead_id) values ('QUO-T2', 'LED-T1')")).rejects.toThrow() // one per lead
+      await db.query("insert into quotation_versions (quotation_id, version, amount_minor) values ('QUO-T1', 1, 1000)")
+      await expect(db.query("insert into quotation_versions (quotation_id, version, amount_minor) values ('QUO-T1', 2, 0)")).rejects.toThrow()
+      await expect(db.query("insert into quotation_versions (quotation_id, version, amount_minor, status) values ('QUO-T1', 3, 10, 'won')")).rejects.toThrow()
+      await db.query("insert into lead_activities (id, lead_id, type, message, owner_user_id) values ('LACT-T1', 'LED-T1', 'call', 'Halo', 'USR-001')")
+      const seqs = await db.query<{ prefix: string }>("select prefix from id_sequences where prefix in ('LED-','LACT-','QUO-') order by prefix")
+      expect(seqs.map(s => s.prefix)).toEqual(['LACT-', 'LED-', 'QUO-'])
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('seed fills quotations, service order status and booking attempts (S4b)', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
