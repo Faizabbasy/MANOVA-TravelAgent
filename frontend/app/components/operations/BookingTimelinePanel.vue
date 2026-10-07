@@ -1,7 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search } from 'lucide-vue-next'
-import { PROJECTS, getBookingTimeline, setBookingPaymentGateStatus, appendBookingAttempt } from '~/data'
+import { PROJECTS, getBookingTimeline } from '~/data'
+import { BOOKING_ORCHESTRATION_RECORDS } from '~/data/booking-orchestration'
+import { logBookingAttemptOnServer } from '~/data/bookings-sync'
+import { isApiError } from '~/lib/api/errors'
 import { BOOKING_PAYMENT_GATE_STATUSES, BOOKING_ATTEMPT_OUTCOMES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import type { BookingDomain, BookingAttemptOutcome, BookingTimelineEntry } from '~/types/booking-orchestration'
@@ -16,7 +19,6 @@ import type { BookingDomain, BookingAttemptOutcome, BookingTimelineEntry } from 
  * `docs/frontend-known-issues.md` bagian 13 untuk disambiguasi eksplisit dari `ServiceOrder` Procurement.
  */
 
-const { currentUser } = useCurrentUser()
 const { canView, canManage, canViewFinancials } = usePermissions()
 const { showToast } = useToast()
 const canManageBookings = computed(() => canManage('bookings'))
@@ -53,10 +55,10 @@ const rows = computed(() => {
   return result
 })
 
-/* Mark Payment Cleared (Wajib "Confirmation and payment gates") */
-function markPaymentCleared (entry: BookingTimelineEntry) {
-  setBookingPaymentGateStatus(entry.orchestrationId, 'cleared', currentUser.value.id)
-  showToast('Payment Gate Diperbarui', `${DOMAIN_LABEL[entry.bookingType]} Booking ${entry.bookingId} kini "Lunas".`, 'success')
+/* Payment gate (S4b): computed by the server from Finance — no manual "cleared" any more. */
+function gateBasisLabel (entry: BookingTimelineEntry) {
+  const basis = BOOKING_ORCHESTRATION_RECORDS.find(r => r.id === entry.orchestrationId)?.paymentGateBasis
+  return basis === 'booking' ? 'dari tagihan booking' : basis === 'project' ? 'dari DP project' : null
 }
 
 /* Failure/retry/manual fallback simulation (Wajib) */
@@ -72,11 +74,23 @@ function openAttemptDialog (entry: BookingTimelineEntry) {
   isAttemptDialogOpen.value = true
 }
 
-function submitAttempt () {
-  if (!attemptTargetEntry.value) { return }
-  appendBookingAttempt(attemptTargetEntry.value.orchestrationId, attemptOutcome.value, attemptNote.value.trim() || undefined, currentUser.value.id)
+const api = useApi()
+const isSavingAttempt = ref(false)
+
+async function submitAttempt () {
+  const entry = attemptTargetEntry.value
+  if (!entry || isSavingAttempt.value) { return }
+  isSavingAttempt.value = true
+  try {
+    await logBookingAttemptOnServer(api, entry.bookingType, entry.bookingId, attemptOutcome.value, attemptNote.value)
+  } catch (error) {
+    showToast('Percobaan Gagal Dicatat', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return
+  } finally {
+    isSavingAttempt.value = false
+  }
   isAttemptDialogOpen.value = false
-  showToast('Percobaan Booking Dicatat', `Outcome "${findStatusOption(BOOKING_ATTEMPT_OUTCOMES, attemptOutcome.value).label}" tersimpan pada ${attemptTargetEntry.value.bookingId}.`, 'success')
+  showToast('Percobaan Booking Dicatat', `Outcome "${findStatusOption(BOOKING_ATTEMPT_OUTCOMES, attemptOutcome.value).label}" tersimpan pada ${entry.bookingId}.`, 'success')
   attemptTargetEntry.value = null
 }
 </script>
@@ -196,11 +210,9 @@ function submitAttempt () {
                     </TableCell>
                     <TableCell>
                       <StatusBadge :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
-                      <div v-if="canManageBookings && entry.paymentGateStatus === 'pending'" class="mt-1">
-                        <Button size="sm" variant="outline" @click="markPaymentCleared(entry)">
-                          Mark Payment Cleared
-                        </Button>
-                      </div>
+                      <p v-if="gateBasisLabel(entry)" class="mt-1 text-xs text-muted-foreground">
+                        {{ gateBasisLabel(entry) }}
+                      </p>
                     </TableCell>
                     <TableCell v-if="canViewBookingFinancials" class="text-muted-foreground">
                       <p>Net: {{ entry.netCostIdr !== undefined ? formatCurrencyIdr(entry.netCostIdr) : '—' }}</p>
@@ -297,9 +309,7 @@ function submitAttempt () {
 
               <div class="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-border pt-3">
                 <StatusBadge :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
-                <Button v-if="canManageBookings && entry.paymentGateStatus === 'pending'" size="sm" variant="outline" @click="markPaymentCleared(entry)">
-                  Mark Cleared
-                </Button>
+                <span v-if="gateBasisLabel(entry)" class="text-xs text-muted-foreground">{{ gateBasisLabel(entry) }}</span>
               </div>
 
               <ul v-if="entry.exceptions.length" class="mt-2 space-y-1 rounded-lg bg-destructive/5 p-2">
@@ -352,7 +362,7 @@ function submitAttempt () {
           <Button variant="outline" @click="isAttemptDialogOpen = false">
             Batal
           </Button>
-          <Button @click="submitAttempt">
+          <Button :disabled="isSavingAttempt" @click="submitAttempt">
             Simpan
           </Button>
         </template>

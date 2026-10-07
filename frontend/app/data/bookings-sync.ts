@@ -103,6 +103,7 @@ export function upsertOrchestration (d: BookingDto): void {
   const record = BOOKING_ORCHESTRATION_RECORDS.find(r => r.bookingType === d.type && r.bookingId === d.id)
   const values = {
     paymentGateStatus: d.paymentGate.status,
+    paymentGateBasis: d.paymentGate.basis,
     attemptLog: d.attempts.map(a => ({ id: a.id, at: a.at, outcome: a.outcome, ...(a.note ? { note: a.note } : {}) })),
     flaggedDuplicate: d.flaggedDuplicate
   }
@@ -166,11 +167,27 @@ const LABEL_PREFIX: Record<UiBookingType, string> = { flight: 'Flight', hotel: '
  * Same input as the former local `create*Booking` / `createMiceEvent`; the service label keeps their rule
  * ("Flight <destination>"). Everything except project and service travels as `details`.
  */
-export async function createBookingFromInput (api: CoreApi, type: UiBookingType, input: { projectId: string; serviceId?: string } & Record<string, unknown>, key: string = newIdempotencyKey()): Promise<AnyBooking> {
+export async function createBookingFromInput (
+  api: CoreApi, type: UiBookingType, input: { projectId: string; serviceId?: string } & Record<string, unknown>,
+  key: string = newIdempotencyKey(), duplicate: { allowDuplicate?: boolean; duplicateNote?: string } = {}
+): Promise<AnyBooking> {
   const { projectId, serviceId, ...rest } = input
   const destination = PROJECTS.find(p => p.id === projectId)?.destination ?? ''
   const details = Object.fromEntries(Object.entries(rest).filter(([, v]) => v !== undefined))
-  return await createBookingOnServer(api, type, { projectId, ...(serviceId ? { serviceId } : {}), label: `${LABEL_PREFIX[type]} ${destination}`.trim(), details }, key)
+  return await createBookingOnServer(api, type, {
+    projectId,
+    ...(serviceId ? { serviceId } : {}),
+    label: `${LABEL_PREFIX[type]} ${destination}`.trim(),
+    details,
+    ...(duplicate.allowDuplicate ? { allowDuplicate: true, ...(duplicate.duplicateNote?.trim() ? { duplicateNote: duplicate.duplicateNote.trim() } : {}) } : {})
+  }, key)
+}
+
+/** Active bookings the server found on the same service (409 CONFLICT on create, S4b); null for any other error. */
+export function bookingConflictsOf (error: unknown): { type: ApiBookingType; id: string }[] | null {
+  if (!isApiError(error) || error.status !== 409) { return null }
+  const conflicts = (error.details as { conflicts?: unknown }).conflicts
+  return Array.isArray(conflicts) && conflicts.length ? conflicts as { type: ApiBookingType; id: string }[] : null
 }
 
 /** Saves the whole local booking object (details + prices + reference) after a local edit. */
@@ -205,6 +222,12 @@ export async function reloadProjectBookings (api: CoreApi, projectId: string): P
   const [services, bookings] = await Promise.all([api.core.listProjectServices({ projectId }), api.core.listBookings({ projectId })])
   for (const s of services.data) { upsertServerService(s) }
   for (const b of bookings.data) { upsertServerBooking(b) }
+}
+
+/** Records a booking attempt on the server (S4b); the booking (with its attempt log) comes back. */
+export async function logBookingAttemptOnServer (api: CoreApi, type: ApiBookingType, id: string, outcome: string, note?: string): Promise<void> {
+  const dto = (await api.core.logBookingAttempt(type, id, { outcome, ...(note?.trim() ? { note: note.trim() } : {}) })).data
+  upsertServerBooking(dto)
 }
 
 export async function changeBookingStatusOnServer (api: CoreApi, type: UiBookingType, id: string, to: string, reason?: string): Promise<BookingDto> {

@@ -54,7 +54,7 @@ import type { HotelBooking, HotelBookingStatus } from '~/types/accommodation'
 import type { TransportBooking, TransportBookingStatus } from '~/types/transportation'
 import type { MiceEvent, MiceEventStatus, MiceApprovalStatus } from '~/types/mice'
 import type { RFQ, RFQStatus, RFQLineItem, RFQResponse, RFQResponseLineItem, RFQClarificationMessage, ServiceOrder, ServiceOrderStatus, ServiceOrderLineItem, SupplierInvoice, SupplierInvoiceStatus, SupplierInvoiceMatchStatus } from '~/types/procurement'
-import type { BookingDomain, BookingOrchestrationRecord, BookingAttempt, BookingAttemptOutcome, BookingPaymentGateStatus, BookingTimelineEntry, BookingTimelineDependencyView } from '~/types/booking-orchestration'
+import type { BookingDomain, BookingOrchestrationRecord, BookingTimelineEntry, BookingTimelineDependencyView } from '~/types/booking-orchestration'
 import type { ChangeRequest, ChangeRequestSource, ChangeRequestStatus, ChangeRequestType, AffectedEntityRef, CancellationRecord, RefundRequest, RefundRequestStatus, Incident, IncidentSeverity, IncidentStatus, IncidentCommunicationEntry, ChangeRequestDraft, ChangeRequestComment, ChangeRequestAttachment } from '~/types/change-incident'
 import type { Invoice, InvoiceCurrency, InvoiceType, InvoiceMilestone, InvoiceStatus, ExchangeRateSnapshot, Payment, CreditNote, DebitNote } from '~/types/finance'
 import type { Document, DocumentEntityType, DocumentAccessLevel, Message, MessageChannel, Notification, NotificationType, NotificationCategory, UnifiedTimelineEntry, DocumentComment, ClientDocumentCategory } from '~/types/document-comms'
@@ -1811,7 +1811,6 @@ export function updateFlightBookingStatus (bookingId: string, newStatus: FlightB
   booking.status = newStatus
   booking.updatedAt = DEMO_REFERENCE_DATE
   if (reason) { booking.statusReason = reason.trim() }
-  syncBookingPaymentGateOnStatusChange('flight', booking.id, booking.projectId, newStatus)
   if (booking.serviceId) {
     const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
     if (service) {
@@ -1911,7 +1910,6 @@ export function updateHotelBookingStatus (bookingId: string, newStatus: HotelBoo
   booking.status = newStatus
   booking.updatedAt = DEMO_REFERENCE_DATE
   if (reason) { booking.statusReason = reason.trim() }
-  syncBookingPaymentGateOnStatusChange('hotel', booking.id, booking.projectId, newStatus)
   if (booking.serviceId) {
     const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
     if (service) {
@@ -2006,7 +2004,6 @@ export function updateTransportBookingStatus (bookingId: string, newStatus: Tran
   booking.status = newStatus
   booking.updatedAt = DEMO_REFERENCE_DATE
   if (reason) { booking.statusReason = reason.trim() }
-  syncBookingPaymentGateOnStatusChange('transport', booking.id, booking.projectId, newStatus)
   if (booking.serviceId) {
     const service = PROJECT_SERVICES.find(s => s.id === booking.serviceId)
     if (service) {
@@ -2121,7 +2118,6 @@ export function updateMiceEventStatus (eventId: string, newStatus: MiceEventStat
   event.status = newStatus
   event.updatedAt = DEMO_REFERENCE_DATE
   if (reason) { event.statusReason = reason.trim() }
-  syncBookingPaymentGateOnStatusChange('mice', event.id, event.projectId, newStatus)
   if (event.serviceId) {
     const service = PROJECT_SERVICES.find(s => s.id === event.serviceId)
     if (service) {
@@ -2453,49 +2449,6 @@ export function getBookingExceptionQueue (): BookingTimelineEntry[] {
   return getBookingTimeline().filter(entry => entry.exceptions.length > 0)
 }
 
-/** "Confirmation and payment gates" (Wajib) — aksi Operations/Finance-facing "Mark Payment Cleared" di `/bookings`. Mock murni (D-006) — TIDAK ADA payment gateway/processing nyata, TIDAK menyentuh `app/data/finance.ts`/`Invoice`/`Payment` (Section 20 baru PARTIAL, di luar scope section ini). */
-export function setBookingPaymentGateStatus (orchestrationId: string, status: BookingPaymentGateStatus, actorId: string): BookingOrchestrationRecord | undefined {
-  const record = BOOKING_ORCHESTRATION_RECORDS.find(item => item.id === orchestrationId)
-  if (!record || record.paymentGateStatus === status) { return record }
-  const previous = record.paymentGateStatus
-  record.paymentGateStatus = status
-  const actor = getUserById(actorId)
-  ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
-    projectId: record.projectId,
-    message: `Payment gate ${BOOKING_DOMAIN_LABEL[record.bookingType]} Booking ${record.bookingId} diubah dari "${previous}" menjadi "${status}" oleh ${actor?.name ?? actorId}.`,
-    isChange: false,
-    reviewed: true,
-    createdAt: DEMO_REFERENCE_DATE
-  })
-  return record
-}
-
-/** Dipanggil dari `updateFlightBookingStatus`/`updateHotelBookingStatus`/`updateTransportBookingStatus`/`updateMiceEventStatus` — begitu booking mencapai status confirmed-equivalent, gate bergerak `not-required` → `pending` (tidak menimpa `pending`/`cleared` yang sudah ada). */
-function syncBookingPaymentGateOnStatusChange (bookingType: BookingDomain, bookingId: string, projectId: string, newStatus: string) {
-  if (!BOOKING_CONFIRMED_STATUSES[bookingType].includes(newStatus)) { return }
-  const record = getOrCreateBookingOrchestrationRecord(bookingType, bookingId, projectId)
-  if (record.paymentGateStatus === 'not-required') { record.paymentGateStatus = 'pending' }
-}
-
-/** "Failure/retry/manual fallback simulation" (Wajib) — dipanggil dari `/bookings` untuk menambah entri percobaan (mock, D-006) pada booking manapun. */
-export function appendBookingAttempt (orchestrationId: string, outcome: BookingAttemptOutcome, note: string | undefined, actorId: string): BookingOrchestrationRecord | undefined {
-  const record = BOOKING_ORCHESTRATION_RECORDS.find(item => item.id === orchestrationId)
-  if (!record) { return undefined }
-  const attempt: BookingAttempt = { id: `${record.id}-ATT-${record.attemptLog.length + 1}`, at: DEMO_REFERENCE_DATE, outcome, note: note?.trim() || undefined }
-  record.attemptLog.push(attempt)
-  const actor = getUserById(actorId)
-  ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
-    projectId: record.projectId,
-    message: `Percobaan booking ${BOOKING_DOMAIN_LABEL[record.bookingType]} ${record.bookingId} dicatat: "${outcome}" oleh ${actor?.name ?? actorId}.${note ? ` Catatan: ${note}` : ''}`,
-    isChange: false,
-    reviewed: true,
-    createdAt: DEMO_REFERENCE_DATE
-  })
-  return record
-}
-
 /** "Duplicate booking prevention" (Wajib, hanya Flight/Hotel/Transport — MICE satu event per project, tidak relevan) — status non-terminal per domain dianggap "active"; dipanggil dari dialog create booking `/ticketing`, `/accommodation`, `/transportation` SEBELUM membuat booking lewat server (`createBookingFromInput`, S4a). */
 const BOOKING_ACTIVE_CHECK_TERMINAL: Record<'flight' | 'hotel' | 'transport', string[]> = {
   flight: ['cancelled', 'refunded'],
@@ -2503,14 +2456,7 @@ const BOOKING_ACTIVE_CHECK_TERMINAL: Record<'flight' | 'hotel' | 'transport', st
   transport: ['cancelled', 'no-show']
 }
 
-export function findActiveBookingConflicts (bookingType: 'flight' | 'hotel' | 'transport', projectId: string, serviceId: string): string[] {
-  const terminal = BOOKING_ACTIVE_CHECK_TERMINAL[bookingType]
-  if (bookingType === 'flight') { return FLIGHT_BOOKINGS.filter(b => b.projectId === projectId && b.serviceId === serviceId && !terminal.includes(b.status)).map(b => b.id) }
-  if (bookingType === 'hotel') { return HOTEL_BOOKINGS.filter(b => b.projectId === projectId && b.serviceId === serviceId && !terminal.includes(b.status)).map(b => b.id) }
-  return TRANSPORT_BOOKINGS.filter(b => b.projectId === projectId && b.serviceId === serviceId && !terminal.includes(b.status)).map(b => b.id)
-}
-
-/** Dipanggil SETELAH booking dibuat lewat server (`createBookingFromInput`, S4a) bila user mengonfirmasi "lanjutkan sebagai duplicate yang disengaja" pada dialog peringatan `findActiveBookingConflicts`. */
+/** Dipanggil SETELAH booking dibuat lewat server (`createBookingFromInput`, S4a) bila user mengonfirmasi "lanjutkan sebagai duplicate yang disengaja" pada dialog peringatan setelah server menolak dengan 409 (booking aktif di layanan yang sama, S4b) — server sudah menandai duplikat; fungsi ini hanya mencatat aktivitas project. */
 export function flagBookingOrchestrationDuplicate (bookingType: BookingDomain, bookingId: string, projectId: string, actorId: string, conflictingBookingIds: string[]): BookingOrchestrationRecord {
   const record = getOrCreateBookingOrchestrationRecord(bookingType, bookingId, projectId)
   record.flaggedDuplicate = true

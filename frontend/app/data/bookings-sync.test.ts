@@ -3,8 +3,9 @@ import { FLIGHT_BOOKINGS } from './ticketing'
 import { PROJECTS, PROJECT_SERVICES } from './projects'
 import { TRANSPORT_BOOKINGS } from './transportation'
 import { BOOKING_ORCHESTRATION_RECORDS } from './booking-orchestration'
-import { bookingFromServer, bookingToServer, createBookingFromInput, mergeServerServicesAndBookings, patchServiceOnServer, persistBookingEdit, reloadProjectBookings, runBookingStatusChange, runServiceWrite, assignServiceVendorOnServer, allocateServiceBudgetOnServer } from './bookings-sync'
+import { bookingFromServer, bookingToServer, createBookingFromInput, mergeServerServicesAndBookings, patchServiceOnServer, persistBookingEdit, reloadProjectBookings, runBookingStatusChange, runServiceWrite, assignServiceVendorOnServer, allocateServiceBudgetOnServer, bookingConflictsOf, logBookingAttemptOnServer } from './bookings-sync'
 import type { BookingDto, ProjectServiceDto } from '~/types/api'
+import { ApiError } from '~/lib/api/errors'
 
 const svc = (over: Partial<ProjectServiceDto> = {}): ProjectServiceDto => ({ id: 'SVC-9001', projectId: 'PRJ-101', type: 'flight', label: 'Flight Manila', status: 'confirmed', vendorId: 'VND-001', bookingReference: 'PNR1', budgetMinor: '1000', hasBookings: true, provenance: 'manual', ...over })
 const flightDto = (over: Partial<BookingDto> = {}): BookingDto => ({
@@ -185,8 +186,28 @@ describe('bookings-sync', () => {
     BOOKING_ORCHESTRATION_RECORDS.find(r => r.bookingId === 'FLT-9001')!.dependsOn = [{ bookingType: 'hotel', bookingId: 'HTL-1' }] as never
     mergeServerServicesAndBookings({ services: [svc()], bookings: [flightDto({ paymentGate: { status: 'cleared', basis: 'project' }, attempts: [{ id: 'BAT-1', outcome: 'failed', note: 'x', at: '2026-10-01T09:00', actorUserId: null }], flaggedDuplicate: true })] })
     const rec = BOOKING_ORCHESTRATION_RECORDS.find(r => r.bookingId === 'FLT-9001')!
-    expect(rec).toMatchObject({ paymentGateStatus: 'cleared', flaggedDuplicate: true })
+    expect(rec).toMatchObject({ paymentGateStatus: 'cleared', flaggedDuplicate: true, paymentGateBasis: 'project' })
     expect(rec.attemptLog).toEqual([{ id: 'BAT-1', at: '2026-10-01T09:00', outcome: 'failed', note: 'x' }])
     expect(rec.dependsOn).toBeDefined()
+  })
+
+  it('duplicate flow: 409 conflicts are read from the error; allowDuplicate and the note are sent on the retry', async () => {
+    const conflict = new ApiError(409, 'CONFLICT', 'Sudah ada booking aktif untuk layanan ini.', null, {}, { conflicts: [{ type: 'flight', id: 'FLT-1' }] })
+    expect(bookingConflictsOf(conflict)).toEqual([{ type: 'flight', id: 'FLT-1' }])
+    expect(bookingConflictsOf(new ApiError(409, 'CONFLICT', 'Kunci sudah dipakai'))).toBeNull()
+    expect(bookingConflictsOf(new Error('x'))).toBeNull()
+    let sent: Record<string, unknown> | undefined
+    const api = { core: { createBooking: (_t: string, input: Record<string, unknown>) => { sent = input; return Promise.resolve({ data: flightDto({ id: 'FLT-9100' }) }) }, listProjectServices: () => Promise.resolve({ data: [] }) } } as never
+    await createBookingFromInput(api, 'flight', { projectId: 'PRJ-101', serviceId: 'SVC-9001' }, 'key-12345678', { allowDuplicate: true, duplicateNote: 'Grup kedua' })
+    expect(sent).toMatchObject({ serviceId: 'SVC-9001', allowDuplicate: true, duplicateNote: 'Grup kedua' })
+    expect(sent!.details).toEqual({})
+  })
+
+  it('logs an attempt on the server and takes the booking back (attempt log updated)', async () => {
+    let sent: unknown[] = []
+    const api = { core: { logBookingAttempt: (type: string, id: string, input: unknown) => { sent = [type, id, input]; return Promise.resolve({ data: flightDto({ attempts: [{ id: 'BAT-2', outcome: 'success', note: null, at: '2026-10-07T10:00', actorUserId: 'USR-002' }] }) }) } } } as never
+    await logBookingAttemptOnServer(api, 'flight', 'FLT-9001', 'success', '  ')
+    expect(sent).toEqual(['flight', 'FLT-9001', { outcome: 'success' }])
+    expect(BOOKING_ORCHESTRATION_RECORDS.find(r => r.bookingId === 'FLT-9001')!.attemptLog.map(a => a.id)).toEqual(['BAT-2'])
   })
 })

@@ -50,6 +50,8 @@ export interface BookingOrchestrationRecord {
   projectId: ID
   dependsOn?: BookingOrchestrationDependency[]
   paymentGateStatus: BookingPaymentGateStatus
+  /** S4b: what the server computed the gate from — the booking's own invoices or the project's DP. */
+  paymentGateBasis?: 'booking' | 'project' | null
   attemptLog: BookingAttempt[]
   /** "Duplicate booking prevention" (Wajib) — `true` bila booking ini SENGAJA dibuat sebagai duplicate (dikonfirmasi eksplisit oleh user lewat dialog konfirmasi), diset oleh `flagBookingOrchestrationDuplicate` (`app/data/index.ts`). */
   flaggedDuplicate?: boolean

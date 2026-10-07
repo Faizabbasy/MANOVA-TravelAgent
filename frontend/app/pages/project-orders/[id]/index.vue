@@ -24,7 +24,6 @@ import {
   getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject,
   markGroupTripOrderPaid,
   VENDORS,
-  setBookingPaymentGateStatus,
   getProjectStatusTransitions
 } from '~/data'
 import {
@@ -33,6 +32,7 @@ import {
 } from '~/data/projects-sync'
 import { assignServiceVendorOnServer, createBookingFromInput, patchServiceOnServer, reloadProjectBookings, runServiceWrite } from '~/data/bookings-sync'
 import { acceptQuotationOnServer, rejectQuotationOnServer } from '~/data/procurement-sync'
+import { BOOKING_ORCHESTRATION_RECORDS } from '~/data/booking-orchestration'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
 import type { TravelerImportPreviewRow, AttentionQueueItem } from '~/data'
@@ -815,12 +815,10 @@ function linkedBookingRef (service: { id: string; type: ServiceTypeKey }): { pat
  * (`/ticketing`, `/accommodation`, `/transportation`, `/mice`), aksi payment gate/percobaan TETAP di `/bookings`.
  */
 const projectBookingTimeline = computed(() => project.value ? getBookingTimeline(project.value.id) : [])
-/** "Mark Payment Cleared" langsung dari card ini (sebelumnya cuma bisa dari `/bookings`) — supaya PM/Ops tidak perlu pindah halaman buat aksi yang sering dipakai. Gate sama seperti di `/bookings` (`BookingTimelinePanel.vue`): `canManage('bookings')`. */
-const canManageBookings = computed(() => canManage('bookings'))
-function markBookingPaymentCleared (entry: BookingTimelineEntry) {
-  setBookingPaymentGateStatus(entry.orchestrationId, 'cleared', currentUser.value.id)
-  refreshStep()
-  showToast('Payment Gate Diperbarui', `${BOOKING_DOMAIN_LABEL_MAP[entry.bookingType]} Booking ${entry.bookingId} kini "Lunas".`, 'success')
+/** Payment gate (S4b): computed by the server from Finance; the card only shows where it comes from. */
+function bookingGateBasisLabel (entry: BookingTimelineEntry) {
+  const basis = BOOKING_ORCHESTRATION_RECORDS.find(r => r.id === entry.orchestrationId)?.paymentGateBasis
+  return basis === 'booking' ? 'dari tagihan booking' : basis === 'project' ? 'dari DP project' : null
 }
 const BOOKING_DOMAIN_LABEL_MAP: Record<string, string> = { flight: 'Flight', hotel: 'Hotel', transport: 'Transport', mice: 'MICE' }
 const BOOKING_DOMAIN_TONE_MAP: Record<string, string> = { flight: 'info', hotel: 'purple', transport: 'warning', mice: 'primary' }
@@ -3421,11 +3419,9 @@ const tripDurationDays = computed(() => {
                       </TableCell>
                       <TableCell class="px-4 py-4">
                         <StatusBadge size="md" :label="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).label" :tone="findStatusOption(BOOKING_PAYMENT_GATE_STATUSES, entry.paymentGateStatus).tone" />
-                        <div v-if="canManageBookings && entry.paymentGateStatus === 'pending'" class="mt-1">
-                          <Button size="sm" variant="outline" @click="markBookingPaymentCleared(entry)">
-                            Mark Payment Cleared
-                          </Button>
-                        </div>
+                        <p v-if="bookingGateBasisLabel(entry)" class="mt-1 text-xs text-muted-foreground">
+                          {{ bookingGateBasisLabel(entry) }}
+                        </p>
                       </TableCell>
                       <TableCell class="px-4 py-4 text-right">
                         <NuxtLink v-if="entry.voucherHref" :to="entry.voucherHref" target="_blank" class="inline-flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary">

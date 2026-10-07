@@ -2,8 +2,8 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus, Eye } from 'lucide-vue-next'
-import { HOTEL_BOOKINGS, PROJECTS, VENDORS, getProjectById, findActiveBookingConflicts, flagBookingOrchestrationDuplicate } from '~/data'
-import { assignServiceVendorOnServer, createBookingFromInput } from '~/data/bookings-sync'
+import { HOTEL_BOOKINGS, PROJECTS, VENDORS, getProjectById, flagBookingOrchestrationDuplicate } from '~/data'
+import { assignServiceVendorOnServer, bookingConflictsOf, createBookingFromInput } from '~/data/bookings-sync'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
 import { HOTEL_BOOKING_STATUSES, findStatusOption } from '~/constants/status'
@@ -79,14 +79,8 @@ const duplicateConflictIds = ref<string[]>([])
 
 function submitCreate () {
   if (!newProjectId.value) { return }
-  if (newServiceId.value) {
-    const conflicts = findActiveBookingConflicts('hotel', newProjectId.value, newServiceId.value)
-    if (conflicts.length > 0) {
-      duplicateConflictIds.value = conflicts
-      isDuplicateConfirmOpen.value = true
-      return
-    }
-  }
+  // S4b: the server checks for an active booking on the same service (409 → the confirmation dialog below).
+  duplicateConflictIds.value = []
   performCreate()
 }
 
@@ -96,7 +90,7 @@ const isCreating = ref(false)
 let createKey = newIdempotencyKey()
 watch(isCreateOpen, (open) => { if (open) { createKey = newIdempotencyKey() } })
 
-async function performCreate () {
+async function performCreate (allowDuplicate = false) {
   if (isCreating.value) { return }
   isCreating.value = true
   let booking
@@ -106,8 +100,16 @@ async function performCreate () {
       serviceId: newServiceId.value || undefined,
       checkInDate: newCheckInDate.value || undefined,
       checkOutDate: newCheckOutDate.value || undefined
-    }, createKey)
+    }, createKey, { allowDuplicate })
   } catch (error) {
+    const conflicts = bookingConflictsOf(error)
+    if (conflicts) {
+      // "Create anyway" is a new request: a new key.
+      createKey = newIdempotencyKey()
+      duplicateConflictIds.value = conflicts.map(c => c.id)
+      isDuplicateConfirmOpen.value = true
+      return
+    }
     showToast('Booking Gagal Dibuat', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
     return
   } finally {
@@ -208,7 +210,7 @@ function cancelDuplicateCreate () {
             <Button variant="outline" @click="cancelDuplicateCreate">
               Batal
             </Button>
-            <Button variant="destructive" :disabled="isCreating" @click="performCreate">
+            <Button variant="destructive" :disabled="isCreating" @click="performCreate(true)">
               Lanjutkan sebagai Duplicate
             </Button>
           </DialogFooter>
