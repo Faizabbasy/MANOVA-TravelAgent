@@ -380,6 +380,23 @@ describe('demo seed', () => {
     }
   })
 
+  test('sales orders carry status and trip details after 0025; standalone orders have no project', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await db.query("insert into sales_order_refs (id, party_id, price_minor, traveler_count, destination, travel_start_date, travel_end_date) values ('SLO-T1', 'PTY-006', 1000, 2, 'Bali', '2026-12-01', '2026-12-03')")
+      const [row] = await db.query<{ status: string; project_id: string | null }>("select status, project_id from sales_order_refs where id = 'SLO-T1'")
+      expect(row).toEqual({ status: 'draft', project_id: null })
+      await expect(db.query("update sales_order_refs set status = 'lost' where id = 'SLO-T1'")).rejects.toThrow()
+      await expect(db.query("insert into sales_order_refs (id, party_id, price_minor, traveler_count, travel_start_date, travel_end_date) values ('SLO-T2', 'PTY-006', 1000, 1, '2026-12-05', '2026-12-01')")).rejects.toThrow()
+      const [seq] = await db.query<{ prefix: string }>("select prefix from id_sequences where prefix = 'SLO-'")
+      expect(seq?.prefix).toBe('SLO-')
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('leads and quotation versions exist after 0024', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
