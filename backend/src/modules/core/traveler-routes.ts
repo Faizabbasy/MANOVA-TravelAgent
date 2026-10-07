@@ -1,0 +1,115 @@
+import { Elysia, t } from 'elysia'
+import type { AppDeps } from '../../app-deps'
+import type { AuthContext, SessionActor } from '../../auth/context'
+import { assertIdParam, ID_PATTERN, ok, requestIdOf } from '../../http/envelope'
+import { errors } from '../../http/errors'
+import { businessDateOf } from '../../shared/dates'
+import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
+import { getProject } from './repository'
+import { isPortalActor } from './scope'
+import {
+  createGroup, createTraveler, deleteTraveler, listRoomAssignments, listTravelerGroups, listTravelers, setVerified, setVip, updateGroup, updateTraveler
+} from './travelers'
+
+/** Travelers, groups and rooming (S7a). Internal roles read everything; `project-order.manage-travelers` writes. */
+export function travelerRoutes(deps: AppDeps, auth: AuthContext) {
+  const { db } = deps
+  const CAP = 'project-order.manage-travelers' as const
+
+  async function readActor(request: Request): Promise<SessionActor> {
+    const actor = await auth.requireActor(request)
+    if (isPortalActor(actor)) throw errors.forbidden()
+    return actor
+  }
+
+  async function visibleProject(actor: SessionActor, raw: string) {
+    const id = assertIdParam(raw, 'Project')
+    if (!(await getProject(db, actor, id))) throw errors.notFound('Project')
+    return id
+  }
+
+  const projectQuery = (projectId?: string) => {
+    if (projectId && !ID_PATTERN.test(projectId)) throw errors.validation({ projectId: ['ID tidak valid.'] })
+    return projectId
+  }
+
+  async function travelerResponse(id: string) {
+    const [tr] = await listTravelers(db, { id })
+    if (!tr) throw errors.notFound('Traveler')
+    return tr
+  }
+
+  async function groupResponse(id: string) {
+    const g = (await listTravelerGroups(db)).find(x => x.id === id)
+    if (!g) throw errors.notFound('Grup')
+    return g
+  }
+
+  return new Elysia({ prefix: '/api/v1' })
+    .get('/travelers', async ({ request, query }) => {
+      await readActor(request)
+      return ok(request, await listTravelers(db, { projectId: projectQuery(query.projectId) }))
+    }, { query: t.Object({ projectId: t.Optional(t.String()) }) })
+    .get('/travelers/:id', async ({ request, params }) => {
+      await readActor(request)
+      return ok(request, await travelerResponse(assertIdParam(params.id, 'Traveler')))
+    })
+    .post('/projects/:id/travelers', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const projectId = await visibleProject(actor, params.id)
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /projects/:id/travelers', key, body: { projectId, ...(body as object) } }, tx =>
+        createTraveler(tx, actor, projectId, body as Record<string, unknown>, requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await travelerResponse(result.data.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .patch('/travelers/:id', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const id = assertIdParam(params.id, 'Traveler')
+      await db.transaction(tx => updateTraveler(tx, actor, id, body as Record<string, unknown>, requestIdOf(request)))
+      return ok(request, await travelerResponse(id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .delete('/travelers/:id', async ({ request, params }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const id = assertIdParam(params.id, 'Traveler')
+      await db.transaction(tx => deleteTraveler(tx, actor, id, requestIdOf(request)))
+      return ok(request, { id, deleted: true })
+    })
+    .post('/travelers/:id/verify', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const id = assertIdParam(params.id, 'Traveler')
+      await db.transaction(tx => setVerified(tx, actor, id, (body as Record<string, unknown> | undefined)?.verified, businessDateOf(new Date()), requestIdOf(request)))
+      return ok(request, await travelerResponse(id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/travelers/:id/vip', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const id = assertIdParam(params.id, 'Traveler')
+      await db.transaction(tx => setVip(tx, actor, id, (body as Record<string, unknown> | undefined)?.isVip, requestIdOf(request)))
+      return ok(request, await travelerResponse(id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .get('/traveler-groups', async ({ request, query }) => {
+      await readActor(request)
+      return ok(request, await listTravelerGroups(db, projectQuery(query.projectId)))
+    }, { query: t.Object({ projectId: t.Optional(t.String()) }) })
+    .post('/projects/:id/traveler-groups', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const projectId = await visibleProject(actor, params.id)
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /projects/:id/traveler-groups', key, body: { projectId, ...(body as object) } }, tx =>
+        createGroup(tx, actor, projectId, body as Record<string, unknown>, requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await groupResponse(result.data.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .patch('/traveler-groups/:id', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, CAP)
+      const id = assertIdParam(params.id, 'Grup')
+      await db.transaction(tx => updateGroup(tx, actor, id, body as Record<string, unknown>, requestIdOf(request)))
+      return ok(request, await groupResponse(id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .get('/room-assignments', async ({ request, query }) => {
+      await readActor(request)
+      return ok(request, await listRoomAssignments(db, { projectId: projectQuery(query.projectId) }))
+    }, { query: t.Object({ projectId: t.Optional(t.String()) }) })
+}
