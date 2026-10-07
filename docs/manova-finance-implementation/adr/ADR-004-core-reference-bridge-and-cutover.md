@@ -102,3 +102,18 @@ bila booking tak punya tagihan) — tombol "cleared" manual dihapus. Log percoba
 konfirmasi) di server. **Supplier invoice otomatis lokal dihapus**: tagihan vendor hanya lewat Finance (Utang Vendor).
 Tetap lokal: RFQ, amandemen SO, supplier invoice & portal supplier (S5, ADR-006), `dependsOn`, aktivitas project/vendor.
 Setelah deploy jalankan sekali `db:seed:demo` (quotation, status SO, log percobaan demo).
+
+## Update 2026-10-07 — Lead, quotation client & Won (S6a)
+
+Lead (`GET/POST /leads`, `PATCH /leads/:id`, `/:id/{qualify,unqualify,archive,reopen,merge,won}`, aktivitas &
+follow-up) dan quotation client (`GET /quotations`, `POST /leads/:id/quotation`, `PATCH /quotations/:id`,
+`/:id/{revise,submit,withdraw,approve,reject,send}`) kini di server (migrasi 0024). Tiap versi quotation menyimpan isi
+lengkapnya dan terkunci begitu diajukan; revisi membuat versi baru. Pengaju boleh menyetujui sendiri — audit mencatat
+`selfApproved`. Qualify memeriksa field wajib form dan menautkan customer (dipakai ulang bila nama & jenis sama, kalau
+tidak dibuat baru). Won membuat project lewat jalur S3a dengan nilai kontrak = versi yang disetujui; revisi setelah
+Won tidak mengubah project (nilai kontrak tetap milik Finance). `projects.lead_id` / `source_quotation_id` kini FK
+`NOT VALID` (baris lama tidak dicek), dan `POST /projects` menolak lead/quotation yang tidak dikenal dengan 400.
+Seed ulang memperbarui teks fixture tetapi tidak menimpa stage lead, status/versi quotation, atau tautan customer.
+Tetap lokal: sales order B2C & Group Trip (S6b — jawaban B2C disimpan apa adanya di `leads.b2c`), cost sheet,
+lampiran/komentar quotation, akun portal client, dan form publik `/lead-intake` (perlu endpoint anonim tersendiri).
+Setelah deploy jalankan sekali `db:seed:demo` (31 lead, aktivitas, 10 quotation).

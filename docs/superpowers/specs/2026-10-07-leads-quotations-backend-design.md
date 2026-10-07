@@ -1,6 +1,6 @@
 # Backend lead, quotation client & Won (S6a) — desain
 
-Tanggal: 7 Oktober 2026 · Branch: `production` · Status: disetujui di chat, menunggu review spec
+Tanggal: 7 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-07-leads-quotations-backend)
 
 Lanjutan S5-lite. S6a memindahkan pra-penjualan B2B ke server: lead + aktivitas/follow-up, qualify (dengan customer
 di server), quotation client dengan riwayat per versi + approval, dan "Mark as Won" yang membuat project dari versi
