@@ -187,16 +187,17 @@ export async function createInvoiceDraft(tx: Queryable, actor: Actor, input: Inv
     if (linked) throw rule(`Termin ini sudah punya invoice ${linked.id}.`)
     if (input.projectId && input.projectId !== schedule.project_id) throw errors.validation({ projectId: ['Project berbeda dengan project termin.'] })
   }
-  let salesOrder: { id: string; project_id: string; party_id: string } | undefined
+  let salesOrder: { id: string; project_id: string | null; party_id: string } | undefined
   if (input.salesOrderId) {
     if (input.billingScheduleItemId) throw errors.validation({ salesOrderId: ['Invoice peserta tidak memakai termin project.'] })
     if (!ID_PATTERN.test(input.salesOrderId)) throw errors.validation({ salesOrderId: ['Sales order tidak valid.'] })
     ;[salesOrder] = await tx.query<NonNullable<typeof salesOrder>>('select id, project_id, party_id from sales_order_refs where id = $1', [input.salesOrderId])
     if (!salesOrder) throw errors.validation({ salesOrderId: ['Sales order tidak ditemukan.'] })
+    if (!salesOrder.project_id) throw rule('Sales order tanpa project (B2C standalone) belum bisa ditagih lewat Finance.')
     if (input.projectId && input.projectId !== salesOrder.project_id) throw errors.validation({ projectId: ['Project berbeda dengan project sales order.'] })
   }
   const projectInput = {
-    projectId: input.projectId ?? schedule?.project_id ?? salesOrder?.project_id,
+    projectId: input.projectId ?? schedule?.project_id ?? salesOrder?.project_id ?? undefined,
     booking: input.booking ?? (schedule?.booking_id ? { type: schedule.booking_type!, id: schedule.booking_id } : undefined)
   }
   const { refs, project } = await lockProjectRef(tx, projectInput)

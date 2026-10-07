@@ -17,12 +17,12 @@ export const MINIMUM_DP_PERCENT = 30n
 const PAYMENT_LABEL = { not_invoiced: 'Menunggu DP', invoiced: 'Belum dibayar', dp_received: 'DP diterima', paid: 'Lunas' } as const
 type SalesOrderPaymentStatus = keyof typeof PAYMENT_LABEL
 
-type SalesOrderRow = { id: string; project_id: string; party_id: string; price_minor: string }
+type SalesOrderRow = { id: string; project_id: string | null; party_id: string; price_minor: string; status: string }
 
 async function readSalesOrder (q: Queryable, id: string, lock = false): Promise<SalesOrderRow> {
   if (!ID_PATTERN.test(id)) throw errors.notFound('Sales order')
   const [so] = await q.query<SalesOrderRow>(
-    `select id, project_id, party_id, price_minor from sales_order_refs where id = $1${lock ? ' for update' : ''}`, [id])
+    `select id, project_id, party_id, price_minor, status from sales_order_refs where id = $1${lock ? ' for update' : ''}`, [id])
   if (!so) throw errors.notFound('Sales order')
   return so
 }
@@ -35,6 +35,9 @@ export interface ConfirmDpInput { bankAccountId: string; dpAmountMinor: string; 
 
 export async function confirmGroupTripDp (tx: Queryable, actor: Actor, id: string, input: ConfirmDpInput, requestId: string) {
   const so = await readSalesOrder(tx, id, true)
+  // S6b: a participant DP needs a Group Trip booking that is still open.
+  if (!so.project_id) throw rule('Sales order ini bukan booking Group Trip — DP peserta hanya untuk Group Trip.')
+  if (so.status === 'cancelled') throw rule('Sales order ini sudah dibatalkan.')
   const price = BigInt(so.price_minor)
   const dp = parseMovementAmount(input.dpAmountMinor, 'dpAmountMinor')
   const minimum = minimumDp(price)
@@ -60,6 +63,10 @@ export async function confirmGroupTripDp (tx: Queryable, actor: Actor, id: strin
     reference: so.id,
     allocations: [{ invoiceId: draft.id, amountMinor: dp.toString() }]
   }, requestId)
+  // S6b: the DP makes the booking paid (the only way a Group Trip order gets there).
+  if (so.status === 'draft') {
+    await tx.query("update sales_order_refs set status = 'paid', paid_on = $2::date, status_changed_at = now(), updated_at = now() where id = $1", [so.id, effectiveDate])
+  }
   return {
     invoiceId: draft.id,
     invoiceNumber: issued.number,
@@ -84,10 +91,11 @@ export async function salesOrderFinanceSummary (db: Db, id: string, full: boolea
   const outstanding = base ? invoiced - received - sum('credited_minor') : BigInt(so.price_minor)
   const paymentStatus: SalesOrderPaymentStatus = !base ? 'not_invoiced' : outstanding === 0n ? 'paid' : received > 0n ? 'dp_received' : 'invoiced'
   const label = PAYMENT_LABEL[paymentStatus]
-  if (!full) return { view: 'status' as const, salesOrderId: so.id, paymentStatus, label }
+  if (!full) return { view: 'status' as const, salesOrderId: so.id, orderStatus: so.status, paymentStatus, label }
   return {
     view: 'full' as const,
     salesOrderId: so.id,
+    orderStatus: so.status,
     priceMinor: so.price_minor,
     invoicedMinor: invoiced.toString(),
     receivedMinor: received.toString(),

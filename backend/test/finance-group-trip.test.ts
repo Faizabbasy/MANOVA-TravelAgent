@@ -49,7 +49,7 @@ describe('group trip DP per participant', () => {
     expect((await confirm('admin', SLO.id, body(minDp(SLO.price)))).status).toBe(403)
     const s = await get('admin', `/sales-orders/${SLO.id}/finance-summary`)
     expect(s.status).toBe(200)
-    expect(s.json.data).toEqual({ view: 'status', salesOrderId: SLO.id, paymentStatus: 'not_invoiced', label: 'Menunggu DP' })
+    expect(s.json.data).toEqual({ view: 'status', salesOrderId: SLO.id, orderStatus: expect.any(String), paymentStatus: 'not_invoiced', label: 'Menunggu DP' })
     expect((await get('finance', '/sales-orders/SLO-999/finance-summary')).status).toBe(404)
     expect((await t.call('GET', `/api/v1/sales-orders/${SLO.id}/finance-summary`)).status).toBe(401)
   })
@@ -111,5 +111,23 @@ describe('group trip DP per participant', () => {
     expect(r.status).toBe(201)
     expect(r.json.data.outstandingMinor).toBe('0')
     expect((await get('superAdmin', `/sales-orders/${FULL.id}/finance-summary`)).json.data.paymentStatus).toBe('paid')
+  })
+})
+
+describe('S6b: DP confirmation and order status', () => {
+  test('confirming the DP of a draft participant booking marks it paid with the DP date', async () => {
+    expect((await get('admin', '/sales-orders/SLO-007')).json.data.status).toBe('draft')
+    const r = await confirm('finance', 'SLO-007', body(minDp(3_500_000n)))
+    expect(r.status).toBe(201)
+    expect((await get('admin', '/sales-orders/SLO-007')).json.data).toMatchObject({ status: 'paid', paidOn: TODAY })
+    expect((await get('finance', '/sales-orders/SLO-007/finance-summary')).json.data.orderStatus).toBe('paid')
+  })
+
+  // Needs the S6b seed (standalone SLO-001, cancelled SLO-010) — Task 5.
+  test.skip('standalone and cancelled orders cannot get a DP or a participant invoice', async () => {
+    expect((await confirm('finance', 'SLO-001', body(6_000_000n))).status).toBe(422)
+    const invoice = await req('POST', 'finance', '/finance/customer-invoices', { salesOrderId: 'SLO-001', invoiceType: 'dp', dueDate: TODAY, lines: [{ description: 'x', amountMinor: '1000' }] }, `gt-inv-${Date.now()}`)
+    expect(invoice.status).toBe(422)
+    expect((await confirm('finance', 'SLO-010', body(minDp(3_500_000n)))).status).toBe(422)
   })
 })
