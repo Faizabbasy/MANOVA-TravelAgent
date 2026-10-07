@@ -380,6 +380,23 @@ describe('demo seed', () => {
     }
   })
 
+  test('travelers, groups and rooms exist after 0027', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await db.query("insert into traveler_groups (id, project_id, name) values ('GRP-T1', 'PRJ-101', 'Tim A')")
+      await db.query("insert into travelers (id, project_id, group_id, name) values ('TRV-T1', 'PRJ-101', 'GRP-T1', 'Uji')")
+      await expect(db.query("insert into travelers (id, project_id, name, cancelled) values ('TRV-T2', 'PRJ-101', 'Uji', true)")).rejects.toThrow() // cancel needs a reason
+      await db.query(`insert into room_assignments (id, project_id, group_id, room_label, room_type, traveler_ids) values ('ROOM-T1', 'PRJ-101', 'GRP-T1', 'Twin 1', 'twin', '["TRV-T1"]')`)
+      await expect(db.query("insert into room_assignments (id, project_id, group_id, room_label, room_type) values ('ROOM-T2', 'PRJ-101', 'GRP-T1', 'X', 'villa')")).rejects.toThrow()
+      const seqs = await db.query<{ prefix: string }>("select prefix from id_sequences where prefix in ('GRP-','TRV-','ROOM-') order by prefix")
+      expect(seqs.map(s => s.prefix)).toEqual(['GRP-', 'ROOM-', 'TRV-'])
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('a Group Trip booking whose DP Finance confirmed before S6b becomes paid, and a re-seed keeps it', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
