@@ -95,6 +95,14 @@ export interface ServiceOrderLineItem {
  * isolation (hard rule protokol) — `netCostIdr` TIDAK BOLEH tampil di dokumen client-facing atau Supplier
  * Portal manapun; sanitasi identik pola D-070/D-071/D-072/D-073.
  */
+export interface ServiceOrderVendorInvoice {
+  id: ID
+  vendorInvoiceNumber: string
+  status: 'submitted' | 'under_review' | 'approved' | 'rejected' | 'void'
+  invoiceDate: string
+  totalIdr?: number
+}
+
 export interface ServiceOrder {
   id: ID
   /** Opsional — menautkan balik ke RFQ asal bila Service Order ini adalah hasil seleksi RFQ formal. */
@@ -113,6 +121,8 @@ export interface ServiceOrder {
   statusReason?: string
   createdAt: string
   updatedAt?: string
+  /** S5: vendor invoices recorded by Finance for this order (from the server, read-only). */
+  vendorInvoices?: ServiceOrderVendorInvoice[]
 }
 
 /** Riwayat amendment Service Order — append-only, satu baris per perubahan. */
@@ -123,35 +133,4 @@ export interface ServiceOrderAmendment {
   changedAt: string
   /** Reuse `User.id`. */
   changedBy: ID
-}
-
-/** Preview/mock murni — TIDAK ADA payment gateway/processing nyata (larangan protokol eksplisit). */
-/**
- * `'paid'` (Fase 3 — Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu) — sebelumnya hutang
- * vendor (akun 2100) hanya bisa bertambah, tidak pernah lunas. Transisi hanya dari `'approved'` lewat
- * `paySupplierInvoice()` (`app/data/index.ts`), TERPISAH dari `reviewSupplierInvoice()` yang sudah
- * menjadikan `'approved'`/`'rejected'` terminal.
- */
-export type SupplierInvoiceStatus = 'submitted' | 'under-review' | 'approved' | 'rejected' | 'paid'
-
-/** AP reconciliation match status (Section 20 — Project Finance, roadmap Section 00–24 baru). Field OPSIONAL — tidak diisi berarti belum ditriase lewat workspace reconciliation (`/finance/reconciliation`, `updateSupplierInvoiceMatchStatus`). */
-export type SupplierInvoiceMatchStatus = 'matched' | 'unmatched' | 'disputed'
-
-export interface SupplierInvoice {
-  id: ID
-  serviceOrderId: ID
-  vendorId: ID
-  amountIdr: number
-  submittedAt: string
-  status: SupplierInvoiceStatus
-  note?: string
-  reviewedAt?: string
-  /** Reuse `User.id` (role `procurement`/`finance`). */
-  reviewedBy?: ID
-  reviewNote?: string
-  /** AP scheduling/match-status (Section 20, aditif) — kapan pembayaran ke vendor dijadwalkan (mock murni, D-006, bukan payment gateway nyata). */
-  paymentScheduleDate?: string
-  matchStatus?: SupplierInvoiceMatchStatus
-  /** Diisi `paySupplierInvoice()` (Fase 3) saat status menjadi `'paid'` — dasar tanggal jurnal Dr 2100/Cr 1100. */
-  paidAt?: string
 }

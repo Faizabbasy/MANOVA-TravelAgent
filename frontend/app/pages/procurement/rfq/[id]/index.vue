@@ -3,11 +3,11 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Send, Plus } from 'lucide-vue-next'
 import {
-  getRfqById, getRfqInvitations, getRfqResponses, getRfqResponseByVendor, getRfqClarifications,
+  getRfqById, getRfqInvitations, getRfqResponses, getRfqClarifications,
   sendRfqToVendors, moveRfqStatus, getRfqStatusTransitions,
   selectRfqVendor, closeRfq, addRfqClarificationMessage,
   getProjectById, getVendorById, VENDORS,
-  getServiceOrdersByRfq, createServiceOrder
+  getServiceOrdersByRfq, createServiceOrderFromRfq
 } from '~/data'
 import { RFQ_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateTime } from '~/utils/format'
@@ -91,16 +91,10 @@ function confirmSelect () {
 
 /* Handoff RFQ -> Service Order (setelah vendor terpilih) */
 const relatedServiceOrders = computed(() => (rfq.value ? getServiceOrdersByRfq(rfq.value.id) : []))
-function createServiceOrderFromRfq () {
-  if (!rfq.value || !rfq.value.selectedVendorId) { return }
-  const winningResponse = getRfqResponseByVendor(rfq.value.id, rfq.value.selectedVendorId)
-  const serviceOrder = createServiceOrder({
-    rfqId: rfq.value.id,
-    vendorId: rfq.value.selectedVendorId,
-    projectId: rfq.value.projectId,
-    lineItems: rfq.value.lineItems.map(item => ({ description: item.description, quantity: item.quantity, unit: item.unit })),
-    sellPriceIdr: winningResponse?.totalAmountIdr
-  })
+function handleCreateServiceOrder () {
+  if (!rfq.value) { return }
+  const serviceOrder = createServiceOrderFromRfq(rfq.value.id)
+  if (!serviceOrder) { return }
   showToast('Service Order Dibuat', `Service Order ${serviceOrder.id} dibuat dari RFQ ini.`, 'success')
   navigateTo(`/procurement/service-orders/${serviceOrder.id}`)
 }
@@ -384,7 +378,7 @@ function submitClarification () {
 
       <SectionCard v-if="rfq.status === 'selected' || rfq.status === 'closed'" title="Service Order" description="Handoff formal dari RFQ ke Service Order setelah vendor terpilih.">
         <template v-if="canManageProcurement && relatedServiceOrders.length === 0" #actions>
-          <Button size="sm" variant="outline" @click="createServiceOrderFromRfq">
+          <Button size="sm" variant="outline" @click="handleCreateServiceOrder">
             Buat Service Order
           </Button>
         </template>

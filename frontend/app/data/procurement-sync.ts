@@ -6,6 +6,7 @@ import type { QuotationCreateInput, ServiceOrderDto, VendorQuotationDto } from '
 import type { ManovaApi } from '~/lib/api/endpoints'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
+import { SERVICE_ORDER_STATUSES, findStatusOption } from '~/constants/status'
 
 /**
  * Server → `VENDOR_QUOTATIONS` + `SERVICE_ORDERS` (S4b). The server owns quotations and service orders (created
@@ -35,7 +36,8 @@ export function serviceOrderFromServer (d: ServiceOrderDto): Partial<ServiceOrde
     fulfilledAt: d.fulfilledAt ?? undefined,
     statusReason: d.statusReason ?? undefined,
     createdAt: d.createdAt,
-    updatedAt: d.updatedAt
+    updatedAt: d.updatedAt,
+    vendorInvoices: (d.vendorInvoices ?? []).map(v => ({ id: v.id, vendorInvoiceNumber: v.vendorInvoiceNumber, status: v.status, invoiceDate: v.invoiceDate, totalIdr: idr(v.totalMinor) }))
   }
 }
 
@@ -147,4 +149,15 @@ export async function runServiceOrderStatusChange (api: CoreApi, id: string, to:
   const dto = (await api.core.changeServiceOrderStatus(id, { to, ...(reason?.trim() ? { reason: reason.trim() } : {}) })).data
   localSideEffects()
   return upsertServerServiceOrder(dto)
+}
+
+/** Orders a vendor invoice can point at (Finance dialog): the vendor's active orders, labelled with project and status. */
+export function serviceOrderPickOptions (orders: ServiceOrderDto[]): { value: string; label: string; hint: string }[] {
+  return orders
+    .filter(so => so.status !== 'cancelled')
+    .map(so => ({
+      value: so.id,
+      label: so.id,
+      hint: [so.projectId, findStatusOption(SERVICE_ORDER_STATUSES, so.status).label].filter(Boolean).join(' · ')
+    }))
 }

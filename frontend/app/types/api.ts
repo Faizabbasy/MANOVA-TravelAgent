@@ -336,6 +336,8 @@ export interface ServiceOrderDto extends ServiceOrderRefDto {
   fulfilledAt: IsoDate | null
   createdAt: IsoDate
   updatedAt: IsoDate
+  /** S5: vendor invoices Finance linked to this order — read-only facts (review and payment stay in Finance). */
+  vendorInvoices: { id: string; vendorInvoiceNumber: string; status: 'submitted' | 'under_review' | 'approved' | 'rejected' | 'void'; invoiceDate: IsoDate; totalMinor: MoneyMinor | null }[]
 }
 
 /** Vendor quotation (S4b). `amountMinor` is null for roles that may not see commercial figures. */

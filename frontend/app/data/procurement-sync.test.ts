@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { VENDOR_QUOTATIONS } from './vendors'
 import { SERVICE_ORDERS } from './procurement'
-import { isServerServiceOrder, mergeServerQuotations, mergeServerServiceOrders, quotationFromServer, runServiceOrderStatusChange } from './procurement-sync'
+import { isServerServiceOrder, mergeServerQuotations, serviceOrderPickOptions, mergeServerServiceOrders, quotationFromServer, runServiceOrderStatusChange } from './procurement-sync'
 import type { ServiceOrderDto, VendorQuotationDto } from '~/types/api'
 
 const q = (over: Partial<VendorQuotationDto> = {}): VendorQuotationDto => ({ id: 'VQ-900', vendorId: 'VND-001', projectId: 'PRJ-101', serviceId: 'SVC-1011', serviceType: 'flight', amountMinor: '90000000', notes: null, status: 'submitted', decisionReason: null, submittedOn: '2026-10-01', decidedAt: null, ...over })
-const so = (over: Partial<ServiceOrderDto> = {}): ServiceOrderDto => ({ id: 'SO-900', vendorId: 'VND-001', vendorName: 'Garuda', projectId: 'PRJ-101', serviceId: 'SVC-1011', serviceType: 'flight', status: 'draft', statusReason: null, netCostMinor: '90000000', lineItems: [], sourceQuotationId: null, acknowledgedAt: null, fulfilledAt: null, createdAt: '2026-10-01', updatedAt: '2026-10-01', ...over })
+const so = (over: Partial<ServiceOrderDto> = {}): ServiceOrderDto => ({ id: 'SO-900', vendorId: 'VND-001', vendorName: 'Garuda', projectId: 'PRJ-101', serviceId: 'SVC-1011', serviceType: 'flight', status: 'draft', statusReason: null, netCostMinor: '90000000', lineItems: [], sourceQuotationId: null, acknowledgedAt: null, fulfilledAt: null, createdAt: '2026-10-01', updatedAt: '2026-10-01', vendorInvoices: [], ...over })
 
 describe('procurement-sync', () => {
   it('maps quotations (amount in rupiah) and replaces the local list with the server one', () => {
@@ -42,5 +42,18 @@ describe('procurement-sync', () => {
     expect(SERVICE_ORDERS.map(x => x.id).sort()).toEqual(['SO-206', 'SO-900'])
     expect(isServerServiceOrder('SO-900')).toBe(true)
     expect(isServerServiceOrder('SO-206')).toBe(false)
+  })
+
+  it('carries the Finance vendor invoices of an order (amount in rupiah)', () => {
+    mergeServerServiceOrders([so({ vendorInvoices: [{ id: 'VINV-00009', vendorInvoiceNumber: 'HTL-77', status: 'approved', invoiceDate: '2026-10-02', totalMinor: '2500000' }] })])
+    expect(SERVICE_ORDERS.find(x => x.id === 'SO-900')!.vendorInvoices).toEqual([{ id: 'VINV-00009', vendorInvoiceNumber: 'HTL-77', status: 'approved', invoiceDate: '2026-10-02', totalIdr: 2_500_000 }])
+  })
+
+  it('service order options for a vendor invoice: active orders only, with project and status', () => {
+    const options = serviceOrderPickOptions([so(), so({ id: 'SO-901', status: 'cancelled' }), so({ id: 'SO-902', projectId: null, serviceId: null, status: 'fulfilled' })])
+    expect(options).toEqual([
+      { value: 'SO-900', label: 'SO-900', hint: 'PRJ-101 · Draft' },
+      { value: 'SO-902', label: 'SO-902', hint: 'Fulfilled' }
+    ])
   })
 })

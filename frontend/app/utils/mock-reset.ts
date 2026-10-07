@@ -15,7 +15,7 @@
  * sama dengan array-array Section 10-22 di atas, bukan regresi/kelalaian yang tidak disadari.
  *
  * PENGECUALIAN (Fase 3 — Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu, Agustus 2026):
- * `SUPPLIER_INVOICES`, `CREDIT_NOTES`, dan `OPEX_ENTRIES` DIDAFTARKAN, menyimpang dari preseden "tidak
+ * `CREDIT_NOTES` dan `OPEX_ENTRIES` DIDAFTARKAN (dulu juga `SUPPLIER_INVOICES`, dihapus di S5 — tagihan vendor kini di Finance), menyimpang dari preseden "tidak
  * diperluas" di atas — ketiganya kini sumber langsung `getJournalEntries()` (Buku Besar Finance & ACC),
  * jadi tanpa didaftarkan "Reset Demo Data" akan memulihkan Invoice/Payment tapi meninggalkan status
  * pelunasan vendor dan Credit Note dalam state yang sudah termutasi — jurnal jadi tidak konsisten dengan

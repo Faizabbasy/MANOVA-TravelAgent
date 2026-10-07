@@ -3,8 +3,6 @@ import { differenceInCalendarDays, parseISO } from 'date-fns'
 import { INVOICES, PAYMENTS, CREDIT_NOTES } from './finance'
 import { PROJECTS, PROJECT_SERVICES } from './projects'
 import { PARTIES } from './parties'
-import { VENDORS } from './vendors'
-import { SUPPLIER_INVOICES, SERVICE_ORDERS } from './procurement'
 import type {
   OpexEntry,
   OpexCategoryKey,
@@ -19,8 +17,7 @@ import type {
   JournalLine,
   AgingBucket,
   AgingBucketKey,
-  ReceivableRow,
-  PayableRow
+  ReceivableRow
 } from '~/types/finance-ext'
 import type { StatusOption } from '~/types/common'
 import type { ServiceTypeKey } from '~/types/project'
@@ -267,51 +264,6 @@ export function getReceivableAging (referenceIso = DEMO_REFERENCE_DATE): AgingBu
 }
 
 /* ------------------------------------------------------------------ *
- * Payable (AP) — diturunkan dari SupplierInvoice
- * ------------------------------------------------------------------ */
-
-/**
- * Fase 3.3 (Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu) — `SupplierInvoiceStatus`
- * kini punya `'paid'` (lewat `paySupplierInvoice()`, `app/data/index.ts`). Ditolak DAN sudah lunas
- * sama-sama dianggap selesai — sisanya (termasuk yang sudah disetujui tapi belum dibayar) tetap terhutang.
- */
-const SETTLED_SUPPLIER_STATUSES = ['rejected', 'paid']
-
-export function getPayables (referenceIso = DEMO_REFERENCE_DATE): PayableRow[] {
-  return SUPPLIER_INVOICES
-    .filter(invoice => !SETTLED_SUPPLIER_STATUSES.includes(invoice.status))
-    .map((invoice) => {
-      const vendor = VENDORS.find(item => item.id === invoice.vendorId)
-      const serviceOrder = SERVICE_ORDERS.find(item => item.id === invoice.serviceOrderId)
-      const project = serviceOrder?.projectId ? PROJECTS.find(item => item.id === serviceOrder.projectId) : undefined
-      /** Tanpa jadwal bayar, umur dihitung dari tanggal invoice masuk. */
-      const anchor = invoice.paymentScheduleDate ?? invoice.submittedAt
-      const agingDays = differenceInCalendarDays(parseISO(referenceIso), parseISO(anchor))
-
-      return {
-        supplierInvoiceId: invoice.id,
-        vendorId: invoice.vendorId,
-        vendorName: vendor?.name ?? invoice.vendorId,
-        projectId: project?.id,
-        projectName: project?.name,
-        amountIdr: invoice.amountIdr,
-        outstandingIdr: invoice.amountIdr,
-        submittedAt: invoice.submittedAt,
-        scheduleDate: invoice.paymentScheduleDate,
-        agingDays,
-        bucket: bucketFor(agingDays),
-        status: invoice.status,
-        matchStatus: invoice.matchStatus
-      }
-    })
-    .sort((a, b) => b.agingDays - a.agingDays)
-}
-
-export function getPayableAging (referenceIso = DEMO_REFERENCE_DATE): AgingBucket[] {
-  return summarize(getPayables(referenceIso))
-}
-
-/* ------------------------------------------------------------------ *
  * General Ledger
  * ------------------------------------------------------------------ */
 
@@ -330,11 +282,6 @@ export function getLedgerAccount (code: string): LedgerAccount | undefined {
 
 function line (accountCode: string, debitIdr: number, creditIdr: number): JournalLine {
   return { accountCode, debitIdr, creditIdr }
-}
-
-/** `ServiceOrder.projectId` untuk satu `SupplierInvoice` — dipakai bareng oleh jurnal maupun `getProjectActualCostIdr`. */
-function projectIdForSupplierInvoice (serviceOrderId: string): string | undefined {
-  return SERVICE_ORDERS.find(so => so.id === serviceOrderId)?.projectId
 }
 
 /**
@@ -376,36 +323,7 @@ export function getJournalEntries (): JournalEntry[] {
     })
   }
 
-  /**
-   * `rejected` dikecualikan — tagihan yang ditolak tidak pernah menjadi liabilitas/beban riil, konsisten
-   * dengan `getProjectActualCostIdr()` di bawah ("sumber yang sama dengan jurnal" — keduanya HARUS memakai
-   * filter status yang identik, kalau tidak Actual Cost di Project Order dan total akun 5100 di Buku Besar
-   * bisa berbeda untuk project yang punya Supplier Invoice ditolak).
-   */
-  for (const supplierInvoice of SUPPLIER_INVOICES.filter(item => item.status !== 'rejected')) {
-    entries.push({
-      id: `JRN-SUP-${supplierInvoice.id}`,
-      date: supplierInvoice.submittedAt,
-      description: `Tagihan vendor ${supplierInvoice.id}`,
-      sourceType: 'supplier-invoice',
-      sourceId: supplierInvoice.id,
-      lines: [line('5100', supplierInvoice.amountIdr, 0), line('2100', 0, supplierInvoice.amountIdr)],
-      projectId: projectIdForSupplierInvoice(supplierInvoice.serviceOrderId)
-    })
-  }
-
-  /** Generator ke-5 (Fase 3.3) — pelunasan Supplier Invoice lewat `paySupplierInvoice()`. Tanpa ini akun 2100 (Hutang Usaha) hanya bisa bertambah, tidak pernah berkurang. */
-  for (const supplierInvoice of SUPPLIER_INVOICES.filter(item => item.status === 'paid' && item.paidAt)) {
-    entries.push({
-      id: `JRN-SUP-PAY-${supplierInvoice.id}`,
-      date: supplierInvoice.paidAt!,
-      description: `Pelunasan tagihan vendor ${supplierInvoice.id}`,
-      sourceType: 'supplier-payment',
-      sourceId: supplierInvoice.id,
-      lines: [line('2100', supplierInvoice.amountIdr, 0), line('1100', 0, supplierInvoice.amountIdr)],
-      projectId: projectIdForSupplierInvoice(supplierInvoice.serviceOrderId)
-    })
-  }
+  // S5: vendor bills are Finance vendor invoices on the server now; the local supplier-invoice journal lines are gone.
 
   /** Generator ke-6 (Fase 3.4) — Credit Note (`issueCreditNote`, `app/data/index.ts`) sebelumnya memengaruhi outstanding invoice tapi tidak pernah menghasilkan entri jurnal. `DebitNote` memang sengaja informatif dan TIDAK ikut dijurnal — lihat komentar `app/types/finance.ts`. */
   for (const creditNote of CREDIT_NOTES) {
@@ -452,7 +370,7 @@ export function getJournalEntries (): JournalEntry[] {
 }
 
 /**
- * Actual cost turunan per project (Fase 3.2) — Σ SupplierInvoice project itu (di luar `rejected`) + Σ Opex
+ * Actual cost turunan per project (Fase 3.2) — Σ Opex
  * ber-`projectId` yang sama (hanya status yang benar-benar dijurnal — `approved`/`paid`, pola sama
  * `getJournalEntries()`) + Σ ProjectExpense project itu (selalu ikut, tidak ada status untuk difilter —
  * lihat `ProjectExpense`, `app/types/finance-ext.ts`). Sumber DAN filter status-nya identik dengan generator
@@ -462,14 +380,11 @@ export function getJournalEntries (): JournalEntry[] {
  * seluruh tampilan WAJIB memanggil selector ini, bukan field mentahnya.
  */
 export function getProjectActualCostIdr (projectId: string): number {
-  const supplierCostIdr = SUPPLIER_INVOICES
-    .filter(invoice => invoice.status !== 'rejected' && projectIdForSupplierInvoice(invoice.serviceOrderId) === projectId)
-    .reduce((sum, invoice) => sum + invoice.amountIdr, 0)
   const opexCostIdr = OPEX_ENTRIES
     .filter(entry => entry.projectId === projectId && (entry.status === 'approved' || entry.status === 'paid'))
     .reduce((sum, entry) => sum + entry.amountIdr, 0)
   const projectExpenseCostIdr = getProjectExpenses(projectId).reduce((sum, expense) => sum + expense.amountIdr, 0)
-  return supplierCostIdr + opexCostIdr + projectExpenseCostIdr
+  return opexCostIdr + projectExpenseCostIdr
 }
 
 /**
@@ -488,14 +403,8 @@ export function getServiceTypeSpendBreakdown (projectId: string): { type: Servic
   return types.map((type) => {
     const servicesOfType = services.filter(service => service.type === type)
     const budgetIdr = servicesOfType.reduce((sum, service) => sum + (service.budgetIdr ?? 0), 0)
-    const serviceIds = new Set(servicesOfType.map(service => service.id))
-    const actualIdr = SUPPLIER_INVOICES
-      .filter((invoice) => {
-        if (invoice.status === 'rejected') { return false }
-        const serviceOrder = SERVICE_ORDERS.find(so => so.id === invoice.serviceOrderId)
-        return !!serviceOrder && serviceOrder.projectId === projectId && !!serviceOrder.serviceId && serviceIds.has(serviceOrder.serviceId)
-      })
-      .reduce((sum, invoice) => sum + invoice.amountIdr, 0)
+    // S5: actual vendor cost per service lives in Finance (vendor invoices on the server), not in this mock.
+    const actualIdr = 0
     return { type, budgetIdr, actualIdr }
   })
 }
@@ -549,7 +458,7 @@ export function getRevenueByPeriod (): RevenuePeriodRow[] {
     const periodInvoices = INVOICES.filter(invoice => invoice.status !== 'void' && invoice.issuedAt.startsWith(period))
     const revenueIdr = periodInvoices.reduce((sum, invoice) => sum + invoice.amountIdr, 0)
     const collectedIdr = PAYMENTS.filter(payment => payment.receivedAt.startsWith(period)).reduce((sum, payment) => sum + payment.amountIdr, 0)
-    const directCostIdr = SUPPLIER_INVOICES.filter(invoice => invoice.submittedAt.startsWith(period)).reduce((sum, invoice) => sum + invoice.amountIdr, 0)
+    const directCostIdr = 0 // S5: vendor bills are Finance vendor invoices on the server
     const opexIdr = getOpexTotalIdr(period)
     const grossProfitIdr = revenueIdr - directCostIdr
 

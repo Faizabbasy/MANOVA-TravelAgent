@@ -11,7 +11,6 @@ import {
 import { USERS } from '~/data/users'
 import { ROLE_DEFINITIONS, ROLE_MODULE_GRANTS, ROLE_MENU_GRANTS, ROLE_CAPABILITY_GRANTS } from '~/data/rbac'
 import { OPEX_ENTRIES, PROJECT_EXPENSES } from '~/data/finance-ext'
-import { SUPPLIER_INVOICES } from '~/data/procurement'
 import { captureMockSnapshot } from '~/utils/mock-reset'
 
 /**
@@ -54,13 +53,7 @@ export default defineNuxtPlugin(() => {
     ROLE_MODULE_GRANTS,
     ROLE_MENU_GRANTS,
     ROLE_CAPABILITY_GRANTS,
-    /**
-     * Fase 3 (Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu) — `SUPPLIER_INVOICES` kini
-     * mutable lewat `paySupplierInvoice()` (status `paid`/`paidAt`), dan `CREDIT_NOTES`/`OPEX_ENTRIES`
-     * sama-sama menjadi sumber `getJournalEntries()`. Tanpa didaftarkan, "Reset Demo Data" akan
-     * mengembalikan invoice/quotation dkk tapi meninggalkan Buku Besar dalam state yang sudah termutasi.
-     */
-    SUPPLIER_INVOICES,
+    /** `CREDIT_NOTES`/`OPEX_ENTRIES` are sources of `getJournalEntries()`: reset them with the rest. */
     OPEX_ENTRIES,
     /** `PROJECT_EXPENSES` (pengeluaran project ad-hoc) — mutable lewat `createProjectExpense()`, sama seperti `OPEX_ENTRIES` di atas, ikut jadi sumber `getJournalEntries()`/`getProjectActualCostIdr()`. */
     PROJECT_EXPENSES,

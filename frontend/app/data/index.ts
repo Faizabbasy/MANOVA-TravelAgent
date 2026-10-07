@@ -13,7 +13,7 @@ import { FLIGHT_BOOKINGS } from './ticketing'
 import { HOTEL_BOOKINGS } from './accommodation'
 import { TRANSPORT_BOOKINGS } from './transportation'
 import { MICE_EVENTS } from './mice'
-import { RFQS, RFQ_INVITATIONS, RFQ_RESPONSES, RFQ_CLARIFICATIONS, SERVICE_ORDERS, SERVICE_ORDER_AMENDMENTS, SUPPLIER_INVOICES } from './procurement'
+import { RFQS, RFQ_INVITATIONS, RFQ_RESPONSES, RFQ_CLARIFICATIONS, SERVICE_ORDERS, SERVICE_ORDER_AMENDMENTS } from './procurement'
 import { BOOKING_ORCHESTRATION_RECORDS } from './booking-orchestration'
 import { CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS, CHANGE_REQUEST_DRAFTS, CHANGE_REQUEST_COMMENTS, CHANGE_REQUEST_ATTACHMENTS } from './change-incident'
 import { DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS, DOCUMENT_COMMENTS } from './document-comms'
@@ -53,7 +53,7 @@ import type { FlightBooking, FlightBookingStatus } from '~/types/ticketing'
 import type { HotelBooking, HotelBookingStatus } from '~/types/accommodation'
 import type { TransportBooking, TransportBookingStatus } from '~/types/transportation'
 import type { MiceEvent, MiceEventStatus, MiceApprovalStatus } from '~/types/mice'
-import type { RFQ, RFQStatus, RFQLineItem, RFQResponse, RFQResponseLineItem, RFQClarificationMessage, ServiceOrder, ServiceOrderStatus, ServiceOrderLineItem, SupplierInvoice, SupplierInvoiceStatus, SupplierInvoiceMatchStatus } from '~/types/procurement'
+import type { RFQ, RFQStatus, RFQLineItem, RFQResponse, RFQResponseLineItem, RFQClarificationMessage, ServiceOrder, ServiceOrderStatus, ServiceOrderLineItem } from '~/types/procurement'
 import type { BookingDomain, BookingOrchestrationRecord, BookingTimelineEntry, BookingTimelineDependencyView } from '~/types/booking-orchestration'
 import type { ChangeRequest, ChangeRequestSource, ChangeRequestStatus, ChangeRequestType, AffectedEntityRef, CancellationRecord, RefundRequest, RefundRequestStatus, Incident, IncidentSeverity, IncidentStatus, IncidentCommunicationEntry, ChangeRequestDraft, ChangeRequestComment, ChangeRequestAttachment } from '~/types/change-incident'
 import type { Invoice, InvoiceCurrency, InvoiceType, InvoiceMilestone, InvoiceStatus, ExchangeRateSnapshot, Payment, CreditNote, DebitNote } from '~/types/finance'
@@ -90,7 +90,7 @@ export {
   HOTEL_BOOKINGS,
   TRANSPORT_BOOKINGS,
   MICE_EVENTS,
-  RFQS, RFQ_INVITATIONS, RFQ_RESPONSES, RFQ_CLARIFICATIONS, SERVICE_ORDERS, SERVICE_ORDER_AMENDMENTS, SUPPLIER_INVOICES,
+  RFQS, RFQ_INVITATIONS, RFQ_RESPONSES, RFQ_CLARIFICATIONS, SERVICE_ORDERS, SERVICE_ORDER_AMENDMENTS,
   BOOKING_ORCHESTRATION_RECORDS,
   CHANGE_REQUESTS, CANCELLATION_RECORDS, REFUND_REQUESTS, INCIDENTS, CHANGE_REQUEST_DRAFTS, CHANGE_REQUEST_COMMENTS, CHANGE_REQUEST_ATTACHMENTS,
   DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS, DOCUMENT_COMMENTS,
@@ -514,37 +514,6 @@ export function issueDebitNote (input: IssueDebitNoteInput): DebitNote | undefin
     createdAt: DEMO_REFERENCE_DATE
   })
   return note
-}
-
-/** AP reconciliation (Section 20) — Supplier Invoice satu project, lintas seluruh Service Order project tsb (dipakai AP summary Project Detail Finance tab dan `evaluateFinanceClosureGate`). */
-export function getSupplierInvoicesByProject (projectId: string): SupplierInvoice[] {
-  const serviceOrderIds = new Set(SERVICE_ORDERS.filter(so => so.projectId === projectId).map(so => so.id))
-  return SUPPLIER_INVOICES.filter(invoice => serviceOrderIds.has(invoice.serviceOrderId))
-}
-
-/** Reconciliation workspace (Section 20, Wajib) — worklist Supplier Invoice yang eksplisit ditandai `unmatched`/`disputed`. Invoice tanpa `matchStatus` sama sekali (belum ditriase) TIDAK muncul di sini — konsisten field opsional aditif. */
-export function getSupplierInvoiceReconciliationQueue (): SupplierInvoice[] {
-  return SUPPLIER_INVOICES.filter(invoice => invoice.matchStatus === 'unmatched' || invoice.matchStatus === 'disputed')
-}
-
-/** Update match status AP (Section 20) — pola sama `reviewSupplierInvoice` (Section 17, actorId untuk audit trail `ActivityEntry` project terkait via `ServiceOrder.projectId`, `note` opsional). */
-export function updateSupplierInvoiceMatchStatus (id: string, status: SupplierInvoiceMatchStatus, actorId: string, note?: string): SupplierInvoice | undefined {
-  const invoice = SUPPLIER_INVOICES.find(item => item.id === id)
-  if (!invoice) { return undefined }
-  invoice.matchStatus = status
-  const serviceOrder = getServiceOrderById(invoice.serviceOrderId)
-  if (serviceOrder?.projectId) {
-    const actor = getUserById(actorId)
-    ACTIVITIES.push({
-      id: nextSequentialId('ACT-', ACTIVITIES),
-      projectId: serviceOrder.projectId,
-      message: `Supplier Invoice ${invoice.id} (${getVendorById(invoice.vendorId)?.name ?? invoice.vendorId}) match status diubah menjadi "${status}" oleh ${actor?.name ?? actorId}.${note ? ` Catatan: ${note}` : ''}`,
-      isChange: false,
-      reviewed: true,
-      createdAt: DEMO_REFERENCE_DATE
-    })
-  }
-  return invoice
 }
 
 export interface FinanceClosureGateResult {
@@ -3338,6 +3307,23 @@ export function createServiceOrder (input: CreateServiceOrderInput): ServiceOrde
   return serviceOrder
 }
 
+/**
+ * Handoff RFQ → Service Order (local until procurement moves to the server). The winning response total is what
+ * MANOVA pays the vendor, so it is the net cost — the sell price to the customer is not the vendor's business.
+ */
+export function createServiceOrderFromRfq (rfqId: string): ServiceOrder | undefined {
+  const rfq = RFQS.find(item => item.id === rfqId)
+  if (!rfq?.selectedVendorId) { return undefined }
+  const winningResponse = getRfqResponseByVendor(rfq.id, rfq.selectedVendorId)
+  return createServiceOrder({
+    rfqId: rfq.id,
+    vendorId: rfq.selectedVendorId,
+    projectId: rfq.projectId,
+    lineItems: rfq.lineItems.map(item => ({ description: item.description, quantity: item.quantity, unit: item.unit })),
+    netCostIdr: winningResponse?.totalAmountIdr
+  })
+}
+
 /** Guard: `fulfilled`/`cancelled` bersifat terminal — pola sama section 13-16 (D-070/D-071/D-072/D-073). */
 const SERVICE_ORDER_TERMINAL_STATUSES: ServiceOrderStatus[] = ['fulfilled', 'cancelled']
 export type ServiceOrderInput = Partial<Pick<ServiceOrder, 'lineItems' | 'netCostIdr' | 'sellPriceIdr'>>
@@ -3416,67 +3402,6 @@ export function amendServiceOrder (id: string, reason: string, actorId: string, 
     })
   }
   return so
-}
-
-/**
- * Supplier Invoice (Wajib, resolusi Q12 — `docs/mockup-open-questions.md`) — preview/mock murni, TIDAK ADA
- * payment gateway/processing nyata (larangan protokol eksplisit). Hanya dapat diajukan terhadap Service
- * Order berstatus `fulfilled` milik vendor yang sama (guard isolasi, mencegah submit invoice atas nama
- * vendor lain).
- */
-export const getSupplierInvoicesByServiceOrder = (serviceOrderId: string) => SUPPLIER_INVOICES
-  .filter(inv => inv.serviceOrderId === serviceOrderId)
-  .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
-export const getSupplierInvoicesByVendor = (vendorId: string) => SUPPLIER_INVOICES
-  .filter(inv => inv.vendorId === vendorId)
-  .sort((a, b) => b.submittedAt.localeCompare(a.submittedAt))
-
-export function submitSupplierInvoice (input: { serviceOrderId: string; vendorId: string; amountIdr: number; note?: string }): SupplierInvoice | undefined {
-  const so = getServiceOrderById(input.serviceOrderId)
-  if (!so || so.status !== 'fulfilled' || so.vendorId !== input.vendorId || input.amountIdr <= 0) { return undefined }
-  const invoice: SupplierInvoice = { id: nextSequentialId('SINV-', SUPPLIER_INVOICES), status: 'submitted', submittedAt: DEMO_REFERENCE_DATE, ...input }
-  SUPPLIER_INVOICES.push(invoice)
-  return invoice
-}
-
-/** Review internal (`procurement`/`finance`) — `approved`/`rejected` bersifat terminal, `reviewNote` wajib untuk `rejected`. */
-export function reviewSupplierInvoice (id: string, newStatus: SupplierInvoiceStatus, actorId: string, reviewNote?: string): SupplierInvoice | undefined {
-  const invoice = SUPPLIER_INVOICES.find(inv => inv.id === id)
-  if (!invoice || invoice.status === 'approved' || invoice.status === 'rejected') { return undefined }
-  if (newStatus === 'rejected' && !reviewNote?.trim()) { return undefined }
-  invoice.status = newStatus
-  invoice.reviewedAt = DEMO_REFERENCE_DATE
-  invoice.reviewedBy = actorId
-  if (reviewNote) { invoice.reviewNote = reviewNote.trim() }
-  return invoice
-}
-
-/**
- * Pelunasan Supplier Invoice (Fase 3.3 — Poros Project Order + Jurnal Finance, Penyederhanaan 7-Role/Menu).
- * TERPISAH dari `reviewSupplierInvoice` karena fungsi itu sudah menjadikan `'approved'` terminal (tidak ada
- * jalur mengubahnya lagi). Hanya bisa dari `'approved'` — tagihan yang belum disetujui tidak boleh dianggap
- * lunas. Memicu generator jurnal ke-5 (`getJournalEntries()`, Dr 2100/Cr 1100) lewat `paidAt` yang diisi di sini.
- */
-export function paySupplierInvoice (id: string, actorId: string): SupplierInvoice | undefined {
-  const invoice = SUPPLIER_INVOICES.find(inv => inv.id === id)
-  if (!invoice || invoice.status !== 'approved') { return undefined }
-  invoice.status = 'paid'
-  invoice.paidAt = DEMO_REFERENCE_DATE
-  const serviceOrder = getServiceOrderById(invoice.serviceOrderId)
-  const vendor = getVendorById(invoice.vendorId)
-  const actor = getUserById(actorId)
-  /** `ActivityEntry.projectId` wajib diisi (Section 12, LOCKED) — Service Order engagement langsung (tanpa project) tidak menghasilkan entry Activity, konsisten pola `getSupplierInvoicesByProject`. */
-  if (serviceOrder?.projectId) {
-    ACTIVITIES.push({
-      id: nextSequentialId('ACT-', ACTIVITIES),
-      projectId: serviceOrder.projectId,
-      message: `Supplier Invoice ${invoice.id} (${vendor?.name ?? invoice.vendorId}) sebesar ${formatCurrencyIdr(invoice.amountIdr)} dibayar lunas oleh ${actor?.name ?? actorId}.`,
-      isChange: false,
-      reviewed: true,
-      createdAt: DEMO_REFERENCE_DATE
-    })
-  }
-  return invoice
 }
 
 /**

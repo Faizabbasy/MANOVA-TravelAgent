@@ -11,7 +11,7 @@ const FORBIDDEN = [
   'getInvoicesByProject', 'getPaymentsByInvoice', 'getProjectOutstandingIdr', 'getProjectCollectedIdr', 'getInvoiceOutstandingIdr',
   'getInvoiceMilestoneOutstandingIdr', 'getInvoiceMilestoneStatus', 'recordPayment(', 'createInvoice(',
   'getCreditNotesByProject', 'getDebitNotesByProject', 'getSupplierInvoicesByProject', 'getSupplierInvoicesByServiceOrder',
-  'evaluateFinanceClosureGate(', 'recordVendorPaymentDirect', 'paySupplierInvoice',
+  'evaluateFinanceClosureGate(', 'recordVendorPaymentDirect', 'paySupplierInvoice', 'submitSupplierInvoice', 'reviewSupplierInvoice', 'SUPPLIER_INVOICES',
   'getProjectActualCostIdr', 'getProjectExpenses', 'createProjectExpense', 'getServiceTypeSpendBreakdown',
   'getRevenueByPeriod', 'getOpexTotalIdr', 'getOpexPeriods', 'OPEX_ENTRIES', 'getPayables(',
   'getSalesOrderOutstandingIdr', 'confirmGroupTripDp(', 'getClientFinanceSummary', 'getClientInvoices',
@@ -22,12 +22,12 @@ const appDir = __dirname
 
 /**
  * Mock money that already existed in the monorepo before the V2 merge and lives in screens outside this
- * change: the client and vendor portals (switched off, ADR-006) and the procurement service-order detail
- * (supplier invoices of the procurement mock). Listed so the guard stays strict everywhere else; shrink it,
- * never grow it.
+ * change: the client portal (switched off, ADR-006). Listed so the guard stays strict everywhere else; shrink
+ * it, never grow it. S5 removed the vendor portal and the procurement service-order detail from this list:
+ * vendor bills come from Finance there now.
  */
 const KNOWN_PRE_V2 = [
-  /^pages\/client\//, /^components\/client\//, /^pages\/supplier\//, /^pages\/procurement\/service-orders\//
+  /^pages\/client\//, /^components\/client\//
 ]
 
 /** A forbidden helper used as a bare call/import — not `api.finance.someName(` (a server call). */

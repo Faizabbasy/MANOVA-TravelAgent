@@ -11,7 +11,7 @@ import type { FlightBookingStatus, CabinClass } from '~/types/ticketing'
 import type { HotelBookingStatus, MealPlan } from '~/types/accommodation'
 import type { TransportBookingStatus, VehicleType } from '~/types/transportation'
 import type { MiceEventStatus, MiceApprovalStatus, MiceBoqCategory, MiceChecklistTask } from '~/types/mice'
-import type { RFQStatus, ServiceOrderStatus, SupplierInvoiceStatus, SupplierInvoiceMatchStatus } from '~/types/procurement'
+import type { RFQStatus, ServiceOrderStatus } from '~/types/procurement'
 import type { BookingPaymentGateStatus, BookingAttemptOutcome } from '~/types/booking-orchestration'
 import type { ChangeRequestSource, ChangeRequestStatus, ChangeRequestType, RefundRequestStatus, IncidentSeverity, IncidentStatus, RefundRequest } from '~/types/change-incident'
 import type { DocumentAccessLevel, DocumentEntityType, MessageChannel, MessageDeliveryStatus, NotificationType, NotificationCategory, ClientDocumentCategory } from '~/types/document-comms'
@@ -237,13 +237,6 @@ export const INVOICE_TYPES: StatusOption<InvoiceType>[] = [
   { value: 'final', label: 'Final', tone: 'success', order: 3 }
 ]
 
-/** AP reconciliation match status (Section 20, Wajib) — dipakai `/finance/reconciliation`, AP summary tab Finance Project Detail. */
-export const SUPPLIER_INVOICE_MATCH_STATUSES: StatusOption<SupplierInvoiceMatchStatus>[] = [
-  { value: 'matched', label: 'Matched', tone: 'success', order: 1 },
-  { value: 'unmatched', label: 'Unmatched', tone: 'warning', order: 2 },
-  { value: 'disputed', label: 'Disputed', tone: 'destructive', order: 3 }
-]
-
 /** Credit Note (Section 20, Wajib) — dipakai `/finance/notes`. */
 export const CREDIT_NOTE_STATUSES: StatusOption<CreditNoteStatus>[] = [
   { value: 'issued', label: 'Diterbitkan', tone: 'info', order: 1 },
@@ -462,15 +455,6 @@ export const SERVICE_ORDER_STATUSES: StatusOption<ServiceOrderStatus>[] = [
   { value: 'amended', label: 'Diamandemen', tone: 'purple', order: 4 },
   { value: 'fulfilled', label: 'Fulfilled', tone: 'success', order: 5 },
   { value: 'cancelled', label: 'Cancelled', tone: 'destructive', order: 6 }
-]
-
-/** Supplier Invoice status (Section 17, Wajib — preview/mock murni, resolusi Q12) — dipakai `/procurement` dan `/supplier/service-orders/[id]`. */
-export const SUPPLIER_INVOICE_STATUSES: StatusOption<SupplierInvoiceStatus>[] = [
-  { value: 'submitted', label: 'Diajukan', tone: 'info', order: 1 },
-  { value: 'under-review', label: 'Sedang Direview', tone: 'warning', order: 2 },
-  { value: 'approved', label: 'Disetujui', tone: 'success', order: 3 },
-  { value: 'rejected', label: 'Ditolak', tone: 'destructive', order: 4 },
-  { value: 'paid', label: 'Lunas', tone: 'primary', order: 5 }
 ]
 
 /** "Confirmation and payment gates" (Section 18, Wajib) — mock gate finansial murni (D-006), dipakai `/bookings` dan tab Itinerary & Services. */

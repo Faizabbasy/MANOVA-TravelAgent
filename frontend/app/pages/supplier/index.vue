@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { Building2, Package, FileText, ClipboardList, Send, Bell, Layers, UploadCloud, PackageX } from 'lucide-vue-next'
-import { getVendorById, getServicesByVendor, getVendorQuotations, getVendorProducts, getRfqsForVendor, getServiceOrdersByVendor, getSupplierInvoicesByServiceOrder, getCommodityProductsByVendor } from '~/data'
+import { getVendorById, getServicesByVendor, getVendorQuotations, getVendorProducts, getRfqsForVendor, getServiceOrdersByVendor, getCommodityProductsByVendor } from '~/data'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Supplier Portal' })
@@ -29,9 +29,9 @@ const soldOutCommodityCount = computed(() => commodities.value.filter(c => c.sta
 
 /**
  * Action Center (Section 22) — mengagregasi item actionable milik vendor login, seluruhnya reuse selector
- * Section 17 (`rfqs`/`serviceOrders` di atas, `getSupplierInvoicesByServiceOrder` baru diimpor) yang sudah
+ * Section 17 (`rfqs`/`serviceOrders` di atas; tagihan vendor kini dari Finance lewat `serviceOrders[].vendorInvoices`, S5) yang sudah
  * di-scope `vendorScopeId` — pola sama `app/pages/client/index.vue` (Action Center Client Portal).
- * TIDAK membuat data/entitas baru, murni derivasi read-only dari `RFQ`/`ServiceOrder`/`SupplierInvoice`.
+ * TIDAK membuat data/entitas baru, murni derivasi read-only dari `RFQ`/`ServiceOrder` (+ tagihan vendor Finance).
  */
 const actionItems = computed(() => {
   const items: { key: string; label: string; to: string; tone: 'warning' | 'destructive' }[] = []
@@ -45,8 +45,8 @@ const actionItems = computed(() => {
   for (const so of serviceOrders.value) {
     if (so.status === 'sent') {
       items.push({ key: `so-ack-${so.id}`, label: `Service Order ${so.id} menunggu acknowledgment Anda`, to: `/supplier/service-orders/${so.id}`, tone: 'warning' })
-    } else if (so.status === 'fulfilled' && getSupplierInvoicesByServiceOrder(so.id).length === 0) {
-      items.push({ key: `so-invoice-${so.id}`, label: `Service Order ${so.id} sudah fulfilled — ajukan invoice Anda`, to: `/supplier/service-orders/${so.id}`, tone: 'destructive' })
+    } else if (so.status === 'fulfilled' && (so.vendorInvoices ?? []).length === 0) {
+      items.push({ key: `so-invoice-${so.id}`, label: `Service Order ${so.id} sudah fulfilled — kirim invoice ke Finance MANOVA`, to: `/supplier/service-orders/${so.id}`, tone: 'destructive' })
     }
   }
   return items

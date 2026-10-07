@@ -1,12 +1,12 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Send } from 'lucide-vue-next'
-import { getServiceOrderById, getServiceOrderAmendments, getSupplierInvoicesByServiceOrder, updateServiceOrderStatus, submitSupplierInvoice, getProjectById } from '~/data'
+import { FileX } from 'lucide-vue-next'
+import { getServiceOrderById, getServiceOrderAmendments, updateServiceOrderStatus, getProjectById } from '~/data'
 import { isServerServiceOrder, runServiceOrderStatusChange } from '~/data/procurement-sync'
 import type { ServiceOrderStatus } from '~/types/procurement'
 import { isApiError } from '~/lib/api/errors'
-import { SERVICE_ORDER_STATUSES, SUPPLIER_INVOICE_STATUSES, findStatusOption } from '~/constants/status'
+import { SERVICE_ORDER_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -25,7 +25,6 @@ const isOwn = computed(() => !!serviceOrder.value && !!vendorScopeId.value && se
 
 const project = computed(() => (serviceOrder.value?.projectId ? getProjectById(serviceOrder.value.projectId) : undefined))
 const amendments = computed(() => (serviceOrder.value ? getServiceOrderAmendments(serviceOrder.value.id) : []))
-const invoices = computed(() => (serviceOrder.value ? getSupplierInvoicesByServiceOrder(serviceOrder.value.id) : []))
 
 /** "Acknowledge a sent Service Order" (Wajib) — hanya dari status `sent`. */
 const soApi = useApi()
@@ -58,23 +57,6 @@ async function markFulfilled () {
   if (await changeOrderStatus('fulfilled')) { showToast('Fulfillment Diperbarui', 'Service Order kini berstatus "Fulfilled".', 'success') }
 }
 
-/* "Invoice Submission preview form" (Wajib, resolusi Q12) */
-const invoiceAmount = ref<number | null>(null)
-const invoiceNote = ref('')
-function submitInvoice () {
-  if (!serviceOrder.value || !vendorScopeId.value || !invoiceAmount.value) { return }
-  const result = submitSupplierInvoice({
-    serviceOrderId: serviceOrder.value.id,
-    vendorId: vendorScopeId.value,
-    amountIdr: invoiceAmount.value,
-    note: invoiceNote.value.trim() || undefined
-  })
-  if (result) {
-    showToast('Invoice Diajukan', 'Invoice preview berhasil diajukan untuk direview internal.', 'success')
-    invoiceAmount.value = null
-    invoiceNote.value = ''
-  }
-}
 </script>
 
 <template>
@@ -205,85 +187,8 @@ function submitInvoice () {
         <EmptyState v-else title="Belum ada amendment tercatat" />
       </SectionCard>
 
-      <SectionCard title="Invoice Submission" description="Ajukan invoice preview (mock) untuk Service Order yang sudah fulfilled — tidak ada payment gateway nyata.">
-        <div v-if="serviceOrder.status === 'fulfilled'" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4 items-end">
-          <div class="space-y-1.5 sm:col-span-1">
-            <Label for="invoice-amount">Jumlah (Rp)</Label>
-            <CurrencyInput id="invoice-amount" v-model="invoiceAmount" placeholder="mis. 4200000" />
-          </div>
-          <div class="space-y-1.5 sm:col-span-1">
-            <Label for="invoice-note">Catatan (opsional)</Label>
-            <Input id="invoice-note" v-model="invoiceNote" placeholder="mis. Invoice final" />
-          </div>
-          <Button :disabled="!invoiceAmount" @click="submitInvoice">
-            <Send class="h-4 w-4 mr-1.5" />Ajukan Invoice
-          </Button>
-        </div>
-        <p v-else class="text-xs text-muted-foreground mb-4">
-          Invoice hanya dapat diajukan setelah Service Order berstatus "Fulfilled".
-        </p>
-
-        <ResponsiveDataView :items="invoices" :get-key="invoice => invoice.id">
-          <template #desktop="{ items }">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Jumlah</TableHead>
-                  <TableHead>Diajukan</TableHead>
-                  <TableHead>Catatan</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="invoice in items" :key="invoice.id">
-                  <TableCell class="text-foreground">
-                    {{ formatCurrencyIdr(invoice.amountIdr) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(invoice.submittedAt) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ invoice.note ?? '—' }}{{ invoice.reviewNote ? ` — Review: ${invoice.reviewNote}` : '' }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).tone" /></TableCell>
-                </TableRow>
-                <TableEmpty v-if="invoices.length === 0" :colspan="4">
-                  Belum ada invoice diajukan.
-                </TableEmpty>
-              </TableBody>
-            </Table>
-          </template>
-
-          <template #mobile-card="{ item: invoice }">
-            <div class="rounded-xl border border-border bg-card p-4">
-              <div class="flex items-start justify-between gap-2">
-                <p class="text-sm font-medium text-foreground">
-                  {{ formatCurrencyIdr(invoice.amountIdr) }}
-                </p>
-                <StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).tone" />
-              </div>
-              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <p class="text-muted-foreground">
-                    Diajukan
-                  </p>
-                  <p class="text-foreground">
-                    {{ formatDate(invoice.submittedAt) }}
-                  </p>
-                </div>
-                <div>
-                  <p class="text-muted-foreground">
-                    Catatan
-                  </p>
-                  <p class="text-foreground">
-                    {{ invoice.note ?? '—' }}{{ invoice.reviewNote ? ` — Review: ${invoice.reviewNote}` : '' }}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </template>
-        </ResponsiveDataView>
-      </SectionCard>
+      <!-- S5: invoices go to MANOVA Finance (Utang Vendor) as documents; here only what Finance recorded for this order. -->
+      <ServiceOrderVendorInvoices :invoices="serviceOrder.vendorInvoices ?? []" />
     </template>
   </div>
 </template>

@@ -3,15 +3,15 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import {
-  getServiceOrderById, getServiceOrderAmendments, getSupplierInvoicesByServiceOrder,
-  updateServiceOrderStatus, getServiceOrderStatusTransitions, amendServiceOrder, reviewSupplierInvoice,
+  getServiceOrderById, getServiceOrderAmendments,
+  updateServiceOrderStatus, getServiceOrderStatusTransitions, amendServiceOrder,
   getProjectById, getVendorById
 } from '~/data'
 import { isServerServiceOrder, runServiceOrderStatusChange } from '~/data/procurement-sync'
 import { isApiError } from '~/lib/api/errors'
-import { SERVICE_ORDER_STATUSES, SUPPLIER_INVOICE_STATUSES, findStatusOption } from '~/constants/status'
+import { SERVICE_ORDER_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
-import type { ServiceOrderStatus, SupplierInvoiceStatus } from '~/types/procurement'
+import type { ServiceOrderStatus } from '~/types/procurement'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
@@ -29,7 +29,6 @@ useHead({ title: computed(() => serviceOrder.value ? `Service Order ${serviceOrd
 const project = computed(() => (serviceOrder.value?.projectId ? getProjectById(serviceOrder.value.projectId) : undefined))
 const vendor = computed(() => (serviceOrder.value ? getVendorById(serviceOrder.value.vendorId) : undefined))
 const amendments = computed(() => (serviceOrder.value ? getServiceOrderAmendments(serviceOrder.value.id) : []))
-const invoices = computed(() => (serviceOrder.value ? getSupplierInvoicesByServiceOrder(serviceOrder.value.id) : []))
 
 /** "Fulfillment status timeline" (Wajib) — derivasi urutan literal, menandai tahap yang sudah dilewati vs berikutnya. */
 const TIMELINE_STEPS: ServiceOrderStatus[] = ['draft', 'sent', 'acknowledged', 'fulfilled']
@@ -102,24 +101,6 @@ function submitAmend () {
   if (result) { showToast('Service Order Diamandemen', 'Perubahan tercatat di riwayat amendment.', 'success') }
 }
 
-/* Invoice review (internal) */
-function reviewInvoice (invoiceId: string, status: SupplierInvoiceStatus, note?: string) {
-  const result = reviewSupplierInvoice(invoiceId, status, currentUser.value.id, note)
-  if (result) { showToast('Invoice Direview', `Invoice kini berstatus "${findStatusOption(SUPPLIER_INVOICE_STATUSES, status).label}".`, 'success') }
-}
-const isRejectInvoiceOpen = ref(false)
-const pendingRejectInvoiceId = ref('')
-const rejectInvoiceNote = ref('')
-function openRejectInvoice (invoiceId: string) {
-  pendingRejectInvoiceId.value = invoiceId
-  rejectInvoiceNote.value = ''
-  isRejectInvoiceOpen.value = true
-}
-function submitRejectInvoice () {
-  if (!pendingRejectInvoiceId.value || !rejectInvoiceNote.value.trim()) { return }
-  reviewInvoice(pendingRejectInvoiceId.value, 'rejected', rejectInvoiceNote.value.trim())
-  isRejectInvoiceOpen.value = false
-}
 </script>
 
 <template>
@@ -276,95 +257,7 @@ function submitRejectInvoice () {
         <EmptyState v-else title="Belum ada amendment tercatat" />
       </SectionCard>
 
-      <SectionCard title="Supplier Invoice" description="Invoice yang diajukan supplier terhadap Service Order ini (preview/mock).">
-        <ResponsiveDataView :items="invoices" :get-key="invoice => invoice.id">
-          <template #desktop="{ items }">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Jumlah</TableHead>
-                  <TableHead>Diajukan</TableHead>
-                  <TableHead>Catatan</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead v-if="canManageProcurement">
-                    Aksi
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                <TableRow v-for="invoice in items" :key="invoice.id">
-                  <TableCell class="text-foreground">
-                    {{ formatCurrencyIdr(invoice.amountIdr) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ formatDate(invoice.submittedAt) }}
-                  </TableCell>
-                  <TableCell class="text-muted-foreground">
-                    {{ invoice.note ?? '—' }}{{ invoice.reviewNote ? ` — Review: ${invoice.reviewNote}` : '' }}
-                  </TableCell>
-                  <TableCell><StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).tone" /></TableCell>
-                  <TableCell v-if="canManageProcurement">
-                    <div v-if="invoice.status === 'submitted' || invoice.status === 'under-review'" class="flex flex-wrap gap-1.5">
-                      <Button v-if="invoice.status === 'submitted'" size="sm" variant="outline" @click="reviewInvoice(invoice.id, 'under-review')">
-                        Review
-                      </Button>
-                      <Button size="sm" variant="outline" @click="reviewInvoice(invoice.id, 'approved')">
-                        Approve
-                      </Button>
-                      <Button size="sm" variant="destructive" @click="openRejectInvoice(invoice.id)">
-                        Reject
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-                <TableEmpty v-if="invoices.length === 0" :colspan="canManageProcurement ? 5 : 4">
-                  Belum ada invoice diajukan.
-                </TableEmpty>
-              </TableBody>
-            </Table>
-          </template>
-
-          <template #mobile-card="{ item: invoice }">
-            <div class="rounded-xl border border-border bg-card p-4">
-              <div class="flex items-start justify-between gap-2">
-                <p class="text-sm font-medium text-foreground">
-                  {{ formatCurrencyIdr(invoice.amountIdr) }}
-                </p>
-                <StatusBadge :label="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).label" :tone="findStatusOption(SUPPLIER_INVOICE_STATUSES, invoice.status).tone" />
-              </div>
-              <div class="mt-3 grid grid-cols-2 gap-2 text-xs">
-                <div>
-                  <p class="text-muted-foreground">
-                    Diajukan
-                  </p>
-                  <p class="text-foreground">
-                    {{ formatDate(invoice.submittedAt) }}
-                  </p>
-                </div>
-                <div>
-                  <p class="text-muted-foreground">
-                    Catatan
-                  </p>
-                  <p class="text-foreground">
-                    {{ invoice.note ?? '—' }}{{ invoice.reviewNote ? ` — Review: ${invoice.reviewNote}` : '' }}
-                  </p>
-                </div>
-              </div>
-              <div v-if="canManageProcurement && (invoice.status === 'submitted' || invoice.status === 'under-review')" class="mt-3 flex flex-wrap gap-1.5">
-                <Button v-if="invoice.status === 'submitted'" size="sm" variant="outline" @click="reviewInvoice(invoice.id, 'under-review')">
-                  Review
-                </Button>
-                <Button size="sm" variant="outline" @click="reviewInvoice(invoice.id, 'approved')">
-                  Approve
-                </Button>
-                <Button size="sm" variant="destructive" @click="openRejectInvoice(invoice.id)">
-                  Reject
-                </Button>
-              </div>
-            </div>
-          </template>
-        </ResponsiveDataView>
-      </SectionCard>
+      <ServiceOrderVendorInvoices :invoices="serviceOrder.vendorInvoices ?? []" />
 
       <!-- Cancel dialog -->
       <ResponsiveFormSheet
@@ -408,26 +301,6 @@ function submitRejectInvoice () {
         </template>
       </ResponsiveFormSheet>
 
-      <!-- Reject invoice dialog -->
-      <ResponsiveFormSheet
-        v-model:open="isRejectInvoiceOpen"
-        title="Tolak Invoice"
-        description="Catatan alasan penolakan wajib diisi."
-        content-class="max-w-md"
-      >
-        <div class="space-y-1.5 py-2">
-          <Label for="reject-invoice-note">Catatan</Label>
-          <Input id="reject-invoice-note" v-model="rejectInvoiceNote" placeholder="mis. Jumlah tidak sesuai kontrak" />
-        </div>
-        <template #footer>
-          <Button variant="outline" @click="isRejectInvoiceOpen = false">
-            Batal
-          </Button>
-          <Button variant="destructive" :disabled="!rejectInvoiceNote.trim()" @click="submitRejectInvoice">
-            Konfirmasi
-          </Button>
-        </template>
-      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import type { VendorInvoiceDetailDto } from '~/types/api'
 import { shiftDate, todayJakarta } from '~/lib/finance/dates'
+import { serviceOrderPickOptions } from '~/data/procurement-sync'
+import type { ServiceOrderDto } from '~/types/api'
 
 /**
  * Record an invoice received from a vendor (or correct one still under review). Recording it does not make it
@@ -14,7 +16,7 @@ const { showToast } = useToast()
 const lookups = useFinanceLookups(() => props.open && !props.invoice)
 const today = todayJakarta()
 const isEdit = computed(() => !!props.invoice)
-const form = reactive({ vendorId: null as string | null, number: '', invoiceDate: today, dueDate: '', amount: '', projectId: null as string | null, notes: '' })
+const form = reactive({ vendorId: null as string | null, number: '', invoiceDate: today, dueDate: '', amount: '', projectId: null as string | null, serviceOrderId: null as string | null, notes: '' })
 
 watch(() => props.open, (open) => {
   if (!open) { return }
@@ -27,8 +29,28 @@ watch(() => props.open, (open) => {
     dueDate: inv?.dueDate ?? shiftDate(today, 14),
     amount: inv?.totalMinor ?? '',
     projectId: inv?.project?.id ?? props.projectId ?? null,
+    serviceOrderId: null,
     notes: inv?.notes ?? ''
   })
+})
+
+/** S5: the vendor's active service orders, so the invoice can point at the order it bills (Procurement sees it there). */
+const vendorOrders = ref<ServiceOrderDto[]>([])
+const serviceOrderOptions = computed(() => serviceOrderPickOptions(vendorOrders.value))
+watch(() => [props.open, form.vendorId] as const, async ([open, vendorId]) => {
+  vendorOrders.value = []
+  form.serviceOrderId = null
+  if (!open || isEdit.value || !vendorId) { return }
+  try {
+    vendorOrders.value = (await api.core.listServiceOrders({ vendorId })).data
+  } catch {
+    vendorOrders.value = [] // the order link is optional; the invoice can still be recorded
+  }
+})
+// An order belongs to a project: picking one fills it in.
+watch(() => form.serviceOrderId, (id) => {
+  const order = vendorOrders.value.find(so => so.id === id)
+  if (order?.projectId) { form.projectId = order.projectId }
 })
 
 const action = useFinanceAction(async () => {
@@ -44,6 +66,7 @@ const action = useFinanceAction(async () => {
     dueDate: form.dueDate,
     totalMinor: form.amount,
     projectId: form.projectId ?? undefined,
+    serviceOrderId: form.serviceOrderId ?? undefined,
     notes: form.notes.trim() || undefined
   })).data
 })
@@ -89,6 +112,16 @@ async function submit () {
         <FinanceDateInput id="vi-due" v-model="form.dueDate" :min="form.invoiceDate" />
       </FinanceField>
     </div>
+    <FinanceField
+      v-if="!isEdit && serviceOrderOptions.length"
+      id="vi-service-order"
+      label="Untuk service order"
+      optional
+      hint="Procurement melihat tagihan ini di service order-nya."
+      :error="action.fieldError('serviceOrderId')"
+    >
+      <FinanceSelect id="vi-service-order" v-model="form.serviceOrderId" :options="serviceOrderOptions" clear-label="Tanpa service order" placeholder="Tanpa service order" />
+    </FinanceField>
     <FinanceField
       v-if="!isEdit"
       id="vi-project"
