@@ -397,6 +397,30 @@ describe('demo seed', () => {
     }
   })
 
+  test('re-running the seed after API writes keeps their quotation and service order state (S4b)', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      // As the API leaves things: the fixture accepted quotation of SVC-2051 superseded by a new one, and the
+      // fixture order SO-205T cancelled and replaced by a new active order for the same service + vendor.
+      const [fx] = await db.query<{ id: string; vendor_id: string }>("select id, vendor_id from vendor_quotations where service_id = 'SVC-2051' and status = 'accepted'")
+      await db.query("update vendor_quotations set status = 'rejected', decision_reason = 'Diganti quotation lain.' where id = $1", [fx!.id])
+      await db.query("insert into vendor_quotations (id, vendor_id, project_id, service_id, service_type, amount_minor, status, submitted_on) values ('VQ-T9', $1, 'PRJ-205', 'SVC-2051', 'transportation', 5000, 'accepted', '2026-10-07')", [fx!.vendor_id])
+      const [so] = await db.query<{ vendor_id: string }>("select vendor_id from service_orders where id = 'SO-205T'")
+      await db.query("update service_orders set status = 'cancelled', status_reason = 'Vendor layanan diganti.' where id = 'SO-205T'")
+      await db.query("insert into service_orders (id, vendor_id, project_id, service_id, status) values ('SO-T9', $1, 'PRJ-205', 'SVC-2051', 'draft')", [so!.vendor_id])
+
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [q] = await db.query<{ status: string }>('select status from vendor_quotations where id = $1', [fx!.id])
+      expect(q!.status).toBe('rejected')
+      const [o] = await db.query<{ status: string }>("select status from service_orders where id = 'SO-205T'")
+      expect(o!.status).toBe('cancelled')
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('carries operational reference values only — no finance records (invoices, payments, balances)', () => {
     const keys = new Set<string>()
     const detailKeys = new Set<string>()

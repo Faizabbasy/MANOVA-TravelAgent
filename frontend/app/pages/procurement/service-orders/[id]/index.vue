@@ -7,7 +7,7 @@ import {
   updateServiceOrderStatus, getServiceOrderStatusTransitions, amendServiceOrder, reviewSupplierInvoice,
   getProjectById, getVendorById
 } from '~/data'
-import { runServiceOrderStatusChange } from '~/data/procurement-sync'
+import { isServerServiceOrder, runServiceOrderStatusChange } from '~/data/procurement-sync'
 import { isApiError } from '~/lib/api/errors'
 import { SERVICE_ORDER_STATUSES, SUPPLIER_INVOICE_STATUSES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -61,6 +61,8 @@ const isSavingOrder = ref(false)
 async function changeOrderStatus (to: ServiceOrderStatus, reason?: string): Promise<boolean> {
   const current = serviceOrder.value
   if (!current || isSavingOrder.value) { return false }
+  // Orders created from an RFQ are still local until procurement moves to the server (S5).
+  if (!isServerServiceOrder(current.id)) { return updateServiceOrderStatus(current.id, to, currentUser.value.id, reason) !== undefined }
   isSavingOrder.value = true
   try {
     await runServiceOrderStatusChange(soApi, current.id, to, reason, () => updateServiceOrderStatus(current.id, to, currentUser.value.id, reason))

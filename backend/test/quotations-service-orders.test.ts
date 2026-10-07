@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { todayBusinessDate } from '../src/modules/finance/common'
 import { DEMO, makeTestApp, type TestApp } from './helpers'
 
 /** S4b: vendor quotations, service orders and booking orchestration written through the API. */
@@ -163,5 +164,25 @@ describe('booking orchestration', () => {
     expect(dup.json.data).toMatchObject({ flaggedDuplicate: true, duplicateOf: [{ type: 'transport', id: first.id }], duplicateNote: 'Dua bus terpisah' })
     const plain = await call('POST', '/bookings/mice', 'admin', { projectId: 'PRJ-205', allowDuplicate: true, details: {} }, key())
     expect(plain.json.data).toMatchObject({ flaggedDuplicate: false, duplicateOf: [] })
+  })
+
+  test('gate: an own paid invoice clears the booking; an invoice of another booking is not the project DP', async () => {
+    const today = todayBusinessDate()
+    const bank = (await call('POST', '/finance/accounts', 'finance', { code: 'BCA-S4B', bankName: 'BCA', holderName: 'PT MANOVA', accountNumber: '9876543210' }, key())).json.data.id as string
+    await call('POST', `/finance/accounts/${bank}/opening`, 'finance', { amountMinor: '1000000', openingDate: today }, key())
+    await call('POST', `/finance/accounts/${bank}/opening/verify`, 'superAdmin', { balanceMinor: '1000000', openingDate: today }, key())
+    const confirm = async (id: string) => { for (const to of ['quoted', 'confirmed']) await call('POST', `/bookings/hotel/${id}/status`, 'admin', { to }) }
+    const a = (await call('POST', '/bookings/hotel', 'admin', { projectId: 'PRJ-104', details: {} }, key())).json.data.id as string
+    const b = (await call('POST', '/bookings/hotel', 'admin', { projectId: 'PRJ-104', details: {} }, key())).json.data.id as string
+    await confirm(a)
+    await confirm(b)
+    const inv = (await call('POST', '/finance/customer-invoices', 'finance', { projectId: 'PRJ-104', booking: { type: 'hotel', id: a }, invoiceType: 'final', lines: [{ description: 'Hotel A', amountMinor: '500000' }], dueDate: today }, key())).json.data.id as string
+    await call('POST', `/finance/customer-invoices/${inv}/issue`, 'finance', {}, key())
+    const rec = await call('POST', '/finance/receipts', 'finance', { bankAccountId: bank, amountMinor: '500000', effectiveDate: today, partyId: 'PTY-001', allocations: [{ invoiceId: inv, amountMinor: '500000' }] }, key())
+    expect(rec.status, JSON.stringify(rec.json.error)).toBe(201)
+    const gates = (await call('GET', '/bookings?projectId=PRJ-104&type=hotel', 'admin')).json.data as { id: string; paymentGate: unknown }[]
+    expect(gates.find(x => x.id === a)!.paymentGate).toEqual({ status: 'cleared', basis: 'booking' })
+    // B has no invoice and the project has no DP: A's paid invoice must not clear it.
+    expect(gates.find(x => x.id === b)!.paymentGate).toEqual({ status: 'pending', basis: 'project' })
   })
 })

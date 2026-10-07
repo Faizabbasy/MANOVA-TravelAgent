@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { VENDOR_QUOTATIONS } from './vendors'
 import { SERVICE_ORDERS } from './procurement'
-import { mergeServerQuotations, mergeServerServiceOrders, quotationFromServer, runServiceOrderStatusChange } from './procurement-sync'
+import { isServerServiceOrder, mergeServerQuotations, mergeServerServiceOrders, quotationFromServer, runServiceOrderStatusChange } from './procurement-sync'
 import type { ServiceOrderDto, VendorQuotationDto } from '~/types/api'
 
 const q = (over: Partial<VendorQuotationDto> = {}): VendorQuotationDto => ({ id: 'VQ-900', vendorId: 'VND-001', projectId: 'PRJ-101', serviceId: 'SVC-1011', serviceType: 'flight', amountMinor: '90000000', notes: null, status: 'submitted', decisionReason: null, submittedOn: '2026-10-01', decidedAt: null, ...over })
@@ -34,5 +34,13 @@ describe('procurement-sync', () => {
     await expect(runServiceOrderStatusChange(refused, 'SO-900', 'cancelled', 'x', () => { calls.push('local2') })).rejects.toThrow()
     expect(calls).not.toContain('local2')
     expect(SERVICE_ORDERS.find(x => x.id === 'SO-900')!.status).toBe('sent')
+  })
+
+  it('keeps orders created from an RFQ (local until S5) and tells them apart from server orders', () => {
+    SERVICE_ORDERS.splice(0, SERVICE_ORDERS.length, { id: 'SO-206', rfqId: 'RFQ-2', vendorId: 'VND-002', lineItems: [], status: 'draft', createdAt: '2026-10-07' })
+    mergeServerServiceOrders([so()])
+    expect(SERVICE_ORDERS.map(x => x.id).sort()).toEqual(['SO-206', 'SO-900'])
+    expect(isServerServiceOrder('SO-900')).toBe(true)
+    expect(isServerServiceOrder('SO-206')).toBe(false)
   })
 })

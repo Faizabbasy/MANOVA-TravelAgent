@@ -261,12 +261,14 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
           b.status ?? null, b.reference ?? null, b.statusReason ?? null, b.netCostMinor ?? null, JSON.stringify(b.details ?? {}), b.flaggedDuplicate ?? false]
       )
     }
+    // S4b: a re-seed never resets quotation or service order status — the API owns it (accept supersedes, vendor
+    // changes cancel); resetting would break "one accepted per service" / "one active order per service + vendor".
     for (const q of seed.vendorQuotations ?? []) {
       await tx.query(
         `insert into vendor_quotations (id, vendor_id, project_id, service_id, service_type, amount_minor, status, notes, submitted_on, provenance)
          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
          on conflict (id) do update set vendor_id = excluded.vendor_id, project_id = excluded.project_id, service_id = excluded.service_id,
-           service_type = excluded.service_type, amount_minor = excluded.amount_minor, status = excluded.status, notes = excluded.notes,
+           service_type = excluded.service_type, amount_minor = excluded.amount_minor, notes = excluded.notes,
            submitted_on = excluded.submitted_on
          where vendor_quotations.provenance = 'demo-fixture'`,
         [q.id, q.vendorId, q.projectId, q.serviceId, q.serviceType, q.amountMinor, q.status, q.notes, q.submittedOn, P]
@@ -277,9 +279,7 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
         `insert into service_orders (id, vendor_id, project_id, service_id, provenance, status, net_cost_minor, line_items, status_reason, acknowledged_at, fulfilled_at)
          values ($1, $2, $3, $4, $5, $6, $7, $8::text::jsonb, $9, $10::date, $11::date)
          on conflict (id) do update set vendor_id = excluded.vendor_id, project_id = excluded.project_id,
-           service_id = excluded.service_id, status = excluded.status, net_cost_minor = excluded.net_cost_minor,
-           line_items = excluded.line_items, status_reason = excluded.status_reason, acknowledged_at = excluded.acknowledged_at,
-           fulfilled_at = excluded.fulfilled_at
+           service_id = excluded.service_id, net_cost_minor = excluded.net_cost_minor, line_items = excluded.line_items
          where service_orders.provenance = 'demo-fixture'`,
         [so.id, so.vendorId, so.projectId, so.serviceId, P, so.status ?? 'draft', so.netCostMinor ?? null, JSON.stringify(so.lineItems ?? []),
           so.statusReason ?? null, so.acknowledgedAt ?? null, so.fulfilledAt ?? null]

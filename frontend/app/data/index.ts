@@ -3332,7 +3332,8 @@ export interface CreateServiceOrderInput {
   sellPriceIdr?: number
 }
 export function createServiceOrder (input: CreateServiceOrderInput): ServiceOrder {
-  const serviceOrder: ServiceOrder = { id: nextSequentialId('SO-', SERVICE_ORDERS), status: 'draft', createdAt: DEMO_REFERENCE_DATE, ...input }
+  // Orders from an RFQ stay local until S5: an own prefix so they never clash with server ids (SO-003 …).
+  const serviceOrder: ServiceOrder = { id: nextSequentialId('SO-L', SERVICE_ORDERS), status: 'draft', createdAt: DEMO_REFERENCE_DATE, ...input }
   SERVICE_ORDERS.push(serviceOrder)
   return serviceOrder
 }

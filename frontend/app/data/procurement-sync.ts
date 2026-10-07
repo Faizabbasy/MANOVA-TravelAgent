@@ -56,6 +56,7 @@ export function mergeServerQuotations (list: VendorQuotationDto[]): void {
 
 /** Updates in place; local-only fields (RFQ link, sell price) stay on rows the server also has. */
 export function upsertServerServiceOrder (d: ServiceOrderDto): ServiceOrder {
+  serverOrderIds.add(d.id)
   const value = serviceOrderFromServer(d)
   const local = SERVICE_ORDERS.find(so => so.id === d.id)
   if (!local) {
@@ -66,10 +67,17 @@ export function upsertServerServiceOrder (d: ServiceOrderDto): ServiceOrder {
   return local
 }
 
+/** IDs the server knows; orders outside it are RFQ orders still kept locally until procurement moves (S5). */
+const serverOrderIds = new Set<string>()
+export const isServerServiceOrder = (id: string) => serverOrderIds.has(id)
+
 export function mergeServerServiceOrders (list: ServiceOrderDto[]): void {
   const keep = new Set(list.map(so => so.id))
+  serverOrderIds.clear()
+  for (const id of keep) { serverOrderIds.add(id) }
   for (let i = SERVICE_ORDERS.length - 1; i >= 0; i--) {
-    if (!keep.has(SERVICE_ORDERS[i]!.id)) { SERVICE_ORDERS.splice(i, 1) }
+    const local = SERVICE_ORDERS[i]!
+    if (!keep.has(local.id) && !local.rfqId) { SERVICE_ORDERS.splice(i, 1) }
   }
   for (const so of list) { upsertServerServiceOrder(so) }
 }

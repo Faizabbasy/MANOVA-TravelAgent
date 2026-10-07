@@ -284,10 +284,11 @@ export async function runServiceWrite<T> (serverCall: () => Promise<T>, localSid
  * for a service without booking, service order with the amount); without one, a plain vendor change (the server
  * creates the service order). Then the project's services, quotations and service orders are reloaded.
  */
-export async function assignServiceVendorOnServer (api: CoreApi, serviceId: string, vendorId: string | undefined, localSideEffects?: () => unknown, opts: { amountIdr?: number } = {}): Promise<ProjectService | undefined> {
+export async function assignServiceVendorOnServer (api: CoreApi, serviceId: string, vendorId: string | undefined, localSideEffects?: () => unknown, opts: { amountIdr?: number; forceQuotation?: boolean } = {}): Promise<ProjectService | undefined> {
   const service = PROJECT_SERVICES.find(s => s.id === serviceId)
-  // Only a vendor change goes through a quotation; saving the same vendor again must not stack quotations.
-  if (service && vendorId && service.vendorId !== vendorId && opts.amountIdr && opts.amountIdr > 0) {
+  // A vendor change (or an explicit request, the "Tugaskan Vendor" dialog) goes through a quotation; re-saving the same
+  // vendor from a booking form must not stack quotations.
+  if (service && vendorId && (opts.forceQuotation || service.vendorId !== vendorId) && opts.amountIdr && opts.amountIdr > 0) {
     const quotation = (await api.core.createVendorQuotation({ vendorId, projectId: service.projectId, serviceId, serviceType: service.type, amountMinor: String(Math.round(opts.amountIdr)) }, newIdempotencyKey())).data
     upsertServerQuotation(quotation)
     upsertServerQuotation((await api.core.acceptVendorQuotation(quotation.id)).data)

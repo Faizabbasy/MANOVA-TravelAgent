@@ -46,7 +46,8 @@ export async function withOrchestration(q: Queryable, bookings: BookingView[]) {
     let paymentGate: PaymentGate = { status: 'not-required', basis: null }
     if (CONFIRMED.has(serviceStatusFor(b.type as BookingType, b.status))) {
       const own = invoices.filter(i => i.booking_type === b.type && i.booking_id === b.id)
-      const list = own.length ? own : invoices.filter(i => i.project_id === b.projectId)
+      // The project basis is the project-level billing (DP etc.): invoices of other bookings do not count.
+      const list = own.length ? own : invoices.filter(i => i.project_id === b.projectId && !i.booking_id)
       paymentGate = { status: CLEARED.has(derivePaymentStatus(list, today, true)) ? 'cleared' : 'pending', basis: own.length ? 'booking' : 'project' }
     }
     return {

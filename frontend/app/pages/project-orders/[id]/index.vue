@@ -1606,7 +1606,7 @@ async function submitAssignVendor () {
   const amount = assignVendorAmountIdr.value ?? undefined
 
   try {
-    await assignServiceVendorOnServer(financeApi, service.id, vendorId, undefined, { amountIdr: amount })
+    await assignServiceVendorOnServer(financeApi, service.id, vendorId, undefined, { amountIdr: amount, forceQuotation: true })
   } catch (error) {
     serviceToastError('Vendor Gagal Ditugaskan', error)
     return

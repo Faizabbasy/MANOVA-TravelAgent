@@ -163,6 +163,10 @@ describe('bookings-sync', () => {
     calls.length = 0
     await assignServiceVendorOnServer(api, 'SVC-9001', 'VND-002', undefined, { amountIdr: 5_000_000 })
     expect(calls).toEqual(['patch', 'orders'])
+    // The "Tugaskan Vendor" dialog asks for a quotation explicitly: same vendor, an amount → quotation + accept.
+    calls.length = 0
+    await assignServiceVendorOnServer(api, 'SVC-9001', 'VND-002', undefined, { amountIdr: 10_000_000, forceQuotation: true })
+    expect(calls).toEqual(['quote', 'accept', 'orders'])
   })
 
   it('budget allocation: patches the existing service of that type, otherwise creates one with the budget', async () => {
