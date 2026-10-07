@@ -354,10 +354,26 @@ export async function listServiceOrders(db: Db, actor: Actor, filter: { projectI
     params
   )
   const commercial = canSeeCommercials(actor)
+  // S5: the vendor invoices Finance linked to these orders — read-only facts for Procurement (review/payment stay in Finance).
+  const invoices = rows.length
+    ? await db.query<{ id: string; service_order_id: string; vendor_invoice_number: string; status: string; invoice_date: string; total_minor: string }>(
+      `select v.id, v.service_order_id, v.vendor_invoice_number, v.status, v.invoice_date, v.total_minor
+         from vendor_invoices v
+        where v.service_order_id in (select jsonb_array_elements_text($1::text::jsonb))
+        order by v.invoice_date, v.id`,
+      [JSON.stringify(rows.map(r => r.id))])
+    : []
   return rows.map(r => ({
     id: r.id,
     vendorId: r.vendor_id,
     vendorName: r.vendor_name,
+    vendorInvoices: invoices.filter(v => v.service_order_id === r.id).map(v => ({
+      id: v.id,
+      vendorInvoiceNumber: v.vendor_invoice_number,
+      status: v.status,
+      invoiceDate: v.invoice_date,
+      totalMinor: commercial ? v.total_minor : null
+    })),
     projectId: r.project_id,
     serviceId: r.service_id,
     serviceType: r.service_type,

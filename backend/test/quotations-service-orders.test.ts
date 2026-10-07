@@ -60,6 +60,22 @@ describe('service orders', () => {
   })
 })
 
+describe('service order — vendor invoices from Finance', () => {
+  test('admin sees the vendor invoices Finance linked to an order (read-only facts); rejected ones keep their status', async () => {
+    const svc = (await call('POST', '/projects/PRJ-202/services', 'admin', { type: 'hotel', label: 'Hotel S5', vendorId: 'VND-002' }, key())).json.data.id as string
+    const so = (await call('GET', `/service-orders?serviceId=${svc}`, 'admin')).json.data[0].id as string
+    expect((await call('GET', `/service-orders/${so}`, 'admin')).json.data.vendorInvoices).toEqual([])
+    const inv = await call('POST', '/finance/vendor-invoices', 'finance', { vendorId: 'VND-002', vendorInvoiceNumber: 'S5-INV-1', serviceOrderId: so, invoiceDate: '2026-02-01', dueDate: '2026-03-01', totalMinor: '2500000' }, key())
+    expect(inv.status).toBe(201)
+    const view = (await call('GET', `/service-orders/${so}`, 'admin')).json.data
+    expect(view.vendorInvoices).toEqual([{ id: inv.json.data.id, vendorInvoiceNumber: 'S5-INV-1', status: 'submitted', invoiceDate: '2026-02-01', totalMinor: '2500000' }])
+    const listed = (await call('GET', `/service-orders?serviceId=${svc}`, 'finance')).json.data[0]
+    expect(listed.vendorInvoices).toHaveLength(1)
+    expect((await call('POST', `/finance/vendor-invoices/${inv.json.data.id}/review`, 'finance', { action: 'reject', reason: 'Nomor invoice salah' })).status).toBe(200)
+    expect((await call('GET', `/service-orders/${so}`, 'admin')).json.data.vendorInvoices[0].status).toBe('rejected')
+  })
+})
+
 describe('vendor quotations', () => {
   test('submit (idempotent, validation, 403/401); accept rejects competitors, sets vendor + confirmed + SO with the amount', async () => {
     const svc = (await call('POST', '/projects/PRJ-204/services', 'admin', { type: 'hotel', label: 'Hotel Malang' }, key())).json.data.id as string
