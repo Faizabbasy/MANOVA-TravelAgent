@@ -1,6 +1,11 @@
 import type { ApiClient } from './client'
 import { newIdempotencyKey } from './client'
 import type {
+  RoomAssignmentDto,
+  TravelerDto,
+  TravelerGroupDto,
+  TravelerImportResultDto,
+  TravelerInput,
   GroupTripQualifyDto,
   GroupTripQualifyInput,
   ProjectSeatsDto,
@@ -121,6 +126,28 @@ export function createManovaApi (client: ApiClient) {
     },
 
     core: {
+      listTravelers: (query: { projectId?: string } = {}) => client.get<TravelerDto[]>('/travelers', { query: { ...query } }),
+      getTraveler: (id: string) => client.get<TravelerDto>(`/travelers/${seg(id)}`),
+      createTraveler: (projectId: string, input: TravelerInput & { name: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<TravelerDto>(`/projects/${seg(projectId)}/travelers`, input, { idempotencyKey }),
+      updateTraveler: (id: string, input: TravelerInput) => client.patch<TravelerDto>(`/travelers/${seg(id)}`, input),
+      deleteTraveler: (id: string) => client.delete<{ id: string; deleted: true }>(`/travelers/${seg(id)}`),
+      verifyTraveler: (id: string, verified: boolean) => client.post<TravelerDto>(`/travelers/${seg(id)}/verify`, { verified }),
+      setTravelerVip: (id: string, isVip: boolean) => client.post<TravelerDto>(`/travelers/${seg(id)}/vip`, { isVip }),
+      cancelTraveler: (id: string, reason: string) => client.post<TravelerDto>(`/travelers/${seg(id)}/cancel`, { reason }),
+      replaceTraveler: (id: string, input: TravelerInput & { name: string }) => client.post<TravelerDto>(`/travelers/${seg(id)}/replace`, input),
+      importTravelers: (projectId: string, rows: { name: string; passportNumber?: string; groupId?: string }[], idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<TravelerImportResultDto>(`/projects/${seg(projectId)}/travelers/import`, { rows }, { idempotencyKey }),
+      listTravelerGroups: (query: { projectId?: string } = {}) => client.get<TravelerGroupDto[]>('/traveler-groups', { query: { ...query } }),
+      createTravelerGroup: (projectId: string, input: { name: string; paxCount?: number; roomingNote?: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<TravelerGroupDto>(`/projects/${seg(projectId)}/traveler-groups`, input, { idempotencyKey }),
+      updateTravelerGroup: (id: string, input: { name?: string; paxCount?: number; roomingNote?: string | null }) =>
+        client.patch<TravelerGroupDto>(`/traveler-groups/${seg(id)}`, input),
+      listRoomAssignments: (query: { projectId?: string } = {}) => client.get<RoomAssignmentDto[]>('/room-assignments', { query: { ...query } }),
+      createRoomAssignment: (projectId: string, input: { groupId: string; roomLabel: string; roomType: string; travelerIds?: string[] }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<RoomAssignmentDto>(`/projects/${seg(projectId)}/room-assignments`, input, { idempotencyKey }),
+      setRoomTravelers: (id: string, travelerIds: string[]) => client.put<RoomAssignmentDto>(`/room-assignments/${seg(id)}/travelers`, { travelerIds }),
+      deleteRoomAssignment: (id: string) => client.delete<{ id: string; deleted: true }>(`/room-assignments/${seg(id)}`),
       listProjects: (query: PageQuery & { status?: ApiProjectStatus; partyId?: string } = {}) =>
         client.getList<ProjectDto>('/projects', { query: { ...query } }),
       getProject: (id: string) => client.get<ProjectDetailDto>(`/projects/${seg(id)}`),

@@ -8,14 +8,18 @@ const FORBIDDEN = [
   'createLeadActivity(', 'qualifyLeadForQuotation(', 'ensureCustomerForLead(', 'createQuotation(', 'reviseQuotation(', 'duplicateQuotationVersion(',
   'updateQuotationDetails(', 'submitQuotationForApproval(', 'withdrawQuotationSubmission(', 'approveQuotation(', 'rejectQuotation(', 'sendQuotationToClient(', 'applyCostSheetToQuotation(',
   // S6b: sales orders, their status and Group Trip seats live on the server.
-  'createSalesOrder(', 'updateSalesOrderStatus(', 'qualifyLeadAndCreateSalesOrder(', 'qualifyGroupTripLead('
+  'createSalesOrder(', 'updateSalesOrderStatus(', 'qualifyLeadAndCreateSalesOrder(', 'qualifyGroupTripLead(',
+  // S7a: participants (travelers, groups, rooming) live on the server.
+  'createTraveler(', 'updateTraveler(', 'removeTraveler(', 'toggleTravelerVerification(', 'setTravelerVip(', 'cancelTraveler(', 'replaceTraveler(',
+  'createTravelerGroup(', 'createRoomAssignment(', 'setRoomAssignmentTravelers(', 'removeRoomAssignment(', 'commitTravelerImport(', 'markGroupTripOrderPaid('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**
- * The public Lead Intake form (no login, `layout: false`) still writes locally: a server endpoint for anonymous
- * submissions needs its own design (spam protection, owner assignment) — out of S6a. Shrink, never grow.
+ * Screens that still write locally — shrink, never grow:
+ * - the public Lead Intake form (no login, `layout: false`): an anonymous endpoint needs its own design (S6a);
+ * - the client portal (hidden, ADR-006): participant edits stay local until the portal comes back (S7a).
  */
-const KNOWN_PUBLIC = [/^pages\/lead-intake\//]
+const KNOWN_PUBLIC = [/^pages\/lead-intake\//, /^pages\/client\//, /^components\/client\//]
 const appDir = __dirname
 const used = (source: string, name: string) => new RegExp(`(?<![.\\w])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(source)
 

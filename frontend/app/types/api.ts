@@ -1338,3 +1338,17 @@ export interface ProjectSeatsDto { capacity: number; filled: number; held: numbe
 export interface SalesOrderCreateInput { partyId?: string; customerName?: string; destination: string; travelStartDate: string; travelEndDate: string; travelerCount: number; priceMinor: string; note?: string }
 export interface GroupTripQualifyInput { projectId: string; adultCount: number; childCount: number; infantCount: number; priceMinor: string; priceAcceptance: string; bookingReadiness: string }
 export interface GroupTripQualifyDto { outcome: 'qualified' | 'waitlist'; lead: LeadDto; salesOrder: SalesOrderDto | null }
+
+/** Participants (S7a) — travelers, groups and rooming list. Dates `YYYY-MM-DD`. */
+export interface TravelerDto {
+  id: string; projectId: string; groupId: string | null; partyId: string | null; leadId: string | null; salesOrderId: string | null; name: string
+  passportNumber: string | null; passportExpiryDate: string | null; idNumber: string | null; visaNumber: string | null; visaExpiryDate: string | null
+  emergencyContactName: string | null; emergencyContactPhone: string | null; specialRequest: string | null; dietaryRestrictions: string | null
+  accessibilityNeeds: string | null; companionOfTravelerId: string | null; documentsVerifiedOn: string | null; documentsVerifiedBy: string | null
+  isVip: boolean; cancelled: boolean; cancelReason: string | null; replacedByTravelerId: string | null; replacesTravelerId: string | null
+}
+export type TravelerInput = Partial<Pick<TravelerDto, 'name' | 'groupId' | 'passportNumber' | 'passportExpiryDate' | 'idNumber' | 'visaNumber'
+  | 'visaExpiryDate' | 'emergencyContactName' | 'emergencyContactPhone' | 'specialRequest' | 'dietaryRestrictions' | 'accessibilityNeeds' | 'companionOfTravelerId'>>
+export interface TravelerGroupDto { id: string; projectId: string; name: string; paxCount: number; roomingNote: string | null }
+export interface RoomAssignmentDto { id: string; projectId: string; groupId: string; roomLabel: string; roomType: 'single' | 'twin' | 'suite'; travelerIds: string[] }
+export interface TravelerImportResultDto { created: TravelerDto[]; rejected: { index: number; errors: string[] }[] }

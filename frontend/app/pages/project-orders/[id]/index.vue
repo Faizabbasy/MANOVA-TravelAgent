@@ -10,8 +10,7 @@ import {
   getProjectServices, getItineraryItems, updateServiceStatus, updateItineraryItem, createItineraryItem, removeItineraryItem,
   getQuotationsForService,
   getTravelerGroups, getTravelers, getRoomAssignments,
-  createTraveler, updateTraveler, removeTraveler, createTravelerGroup,
-  toggleTravelerVerification, getTravelerReadiness, previewTravelerImportMock, commitTravelerImport,
+  getTravelerReadiness, previewTravelerImportMock,
   getTasksByProject, getActivitiesByProject,
   createChangeEntry, approveChangeEntry, rejectChangeEntry,
   createProjectTask, updateProjectTask,
@@ -22,11 +21,11 @@ import {
   getDocumentsForProject, createDocument, MESSAGE_RECORDS, sendMessage, getInternalProjectMessages, getUnifiedActivityTimeline, updateProjectPhoto,
   USERS,
   getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject,
-  markGroupTripOrderPaid,
   VENDORS,
   getProjectStatusTransitions
 } from '~/data'
 import { reloadSalesOrder } from '~/data/sales-orders-sync'
+import { createTravelerGroupOnServer, createTravelerOnServer, deleteTravelerOnServer, importTravelersOnServer, reloadProjectTravelers, updateTravelerOnServer, verifyTravelerOnServer } from '~/data/travelers-sync'
 import {
   acceptHandoverOnServer, addTeamMemberOnServer, advanceProjectOrderOnServer, closeFinanceOnServer, patchProjectOnServer,
   reloadProjectFromServer, removeTeamMemberOnServer
@@ -325,10 +324,11 @@ async function onDpConfirmed () {
   const id = confirmDpOrder.value.id
   try {
     await reloadSalesOrder(financeApi, id)
+    // S7a: the server created the booking's travelers with the DP.
+    if (project.value) { await reloadProjectTravelers(financeApi, project.value.id) }
   } catch {
-    // The next sales order sync brings it.
+    // The next sales order / participant sync brings them.
   }
-  markGroupTripOrderPaid(id)
   refreshStep()
   orderSummaries.refresh()
 }
@@ -1765,9 +1765,28 @@ const companionOptions = computed(() => travelers.value.filter(t => t.id !== edi
 const isCreateGroupOpen = ref(false)
 const newGroupName = ref('')
 
-function submitCreateGroup () {
+/* S7a: participants live on the server — every write goes there first; a failure keeps the dialog open with the reason. */
+const isSavingTraveler = ref(false)
+
+async function travelerAction<T> (title: string, action: () => Promise<T>): Promise<T | undefined> {
+  if (isSavingTraveler.value) { return undefined }
+  isSavingTraveler.value = true
+  try {
+    return await action()
+  } catch (error) {
+    showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return undefined
+  } finally {
+    isSavingTraveler.value = false
+  }
+}
+
+async function submitCreateGroup () {
   if (!project.value || !newGroupName.value.trim()) { return }
-  const group = createTravelerGroup({ projectId: project.value.id, name: newGroupName.value.trim() })
+  const projectId = project.value.id
+  const name = newGroupName.value.trim()
+  const group = await travelerAction('Group Gagal Dibuat', () => createTravelerGroupOnServer(financeApi, projectId, name))
+  if (!group) { return }
   formGroupId.value = group.id
   newGroupName.value = ''
   isCreateGroupOpen.value = false
@@ -1814,28 +1833,32 @@ function openEditTraveler (traveler: Traveler) {
   isTravelerDialogOpen.value = true
 }
 
-function submitTraveler () {
+async function submitTraveler () {
   if (!project.value || !formName.value.trim()) { return }
+  const projectId = project.value.id
+  const editingId = editingTravelerId.value
   const payload = {
-    groupId: formGroupId.value || undefined,
+    groupId: formGroupId.value || null,
     name: formName.value.trim(),
-    passportNumber: formPassportNumber.value.trim() || undefined,
-    passportExpiryDate: formPassportExpiryDate.value || undefined,
-    idNumber: formIdNumber.value.trim() || undefined,
-    visaNumber: formVisaNumber.value.trim() || undefined,
-    visaExpiryDate: formVisaExpiryDate.value || undefined,
-    emergencyContactName: formEmergencyContactName.value.trim() || undefined,
-    emergencyContactPhone: formEmergencyContactPhone.value.trim() || undefined,
-    dietaryRestrictions: formDietaryRestrictions.value.trim() || undefined,
-    accessibilityNeeds: formAccessibilityNeeds.value.trim() || undefined,
-    specialRequest: formSpecialRequest.value.trim() || undefined,
-    companionOfTravelerId: formCompanionOfTravelerId.value || undefined
+    passportNumber: formPassportNumber.value.trim() || null,
+    passportExpiryDate: formPassportExpiryDate.value || null,
+    idNumber: formIdNumber.value.trim() || null,
+    visaNumber: formVisaNumber.value.trim() || null,
+    visaExpiryDate: formVisaExpiryDate.value || null,
+    emergencyContactName: formEmergencyContactName.value.trim() || null,
+    emergencyContactPhone: formEmergencyContactPhone.value.trim() || null,
+    dietaryRestrictions: formDietaryRestrictions.value.trim() || null,
+    accessibilityNeeds: formAccessibilityNeeds.value.trim() || null,
+    specialRequest: formSpecialRequest.value.trim() || null,
+    companionOfTravelerId: formCompanionOfTravelerId.value || null
   }
-  if (editingTravelerId.value) {
-    updateTraveler(editingTravelerId.value, payload)
+  const saved = await travelerAction('Traveler Gagal Disimpan', () => editingId
+    ? updateTravelerOnServer(financeApi, editingId, payload)
+    : createTravelerOnServer(financeApi, projectId, payload))
+  if (!saved) { return }
+  if (editingId) {
     showToast('Traveler Diperbarui', `${payload.name} berhasil diperbarui.`)
   } else {
-    createTraveler({ projectId: project.value.id, ...payload })
     showToast('Traveler Ditambahkan', `${payload.name} berhasil ditambahkan ke project.`)
   }
   isTravelerDialogOpen.value = false
@@ -1843,20 +1866,26 @@ function submitTraveler () {
 
 const travelerToDelete = ref<Traveler | null>(null)
 
-function executeDeleteTraveler () {
+async function executeDeleteTraveler () {
   if (!travelerToDelete.value) { return }
-  const name = travelerToDelete.value.name
-  removeTraveler(travelerToDelete.value.id)
-  showToast('Traveler Dihapus', `${name} dihapus dari daftar traveler.`, 'info')
+  const { id, name } = travelerToDelete.value
+  // A booking or replacement traveler is refused by the server ("batalkan, jangan hapus") — its message is shown.
+  const done = await travelerAction('Traveler Gagal Dihapus', async () => {
+    await deleteTravelerOnServer(financeApi, id)
+    return true
+  })
   travelerToDelete.value = null
+  if (done) { showToast('Traveler Dihapus', `${name} dihapus dari daftar traveler.`, 'info') }
 }
 
 /** "Internal verification" (Section 11 baru) — toggle tunggal, hanya `canManageTravelers`. */
-function toggleVerification (traveler: Traveler) {
-  toggleTravelerVerification(traveler.id, currentUser.value.id)
+async function toggleVerification (traveler: Traveler) {
+  const verify = !traveler.documentsVerifiedAt
+  const saved = await travelerAction('Verifikasi Gagal', () => verifyTravelerOnServer(financeApi, traveler.id, verify))
+  if (!saved) { return }
   showToast(
-    traveler.documentsVerifiedAt ? 'Verifikasi Dibatalkan' : 'Dokumen Terverifikasi',
-    `${traveler.name} ditandai ${traveler.documentsVerifiedAt ? 'belum diverifikasi' : 'sudah diverifikasi'}.`,
+    verify ? 'Dokumen Terverifikasi' : 'Verifikasi Dibatalkan',
+    `${traveler.name} ditandai ${verify ? 'sudah diverifikasi' : 'belum diverifikasi'}.`,
     'info'
   )
 }
@@ -1878,14 +1907,24 @@ function openImportPreview () {
   isImportPreviewOpen.value = true
 }
 
-function confirmImport () {
+async function confirmImport () {
   if (!project.value) { return }
-  const created = commitTravelerImport(project.value.id, importPreviewRows.value)
-  importCommittedCount.value = created.length
+  const projectId = project.value.id
+  // Only rows without preview errors go to the server; it validates them again and reports what it refused.
+  const sendable = importPreviewRows.value.filter(row => row.errors.length === 0)
+  if (!sendable.length) { return }
+  const result = await travelerAction('Import Gagal', () => importTravelersOnServer(financeApi, projectId, sendable.map(row => ({
+    name: row.name.trim(),
+    ...(row.passportNumber ? { passportNumber: row.passportNumber } : {}),
+    ...(row.groupId ? { groupId: row.groupId } : {})
+  }))))
+  if (!result) { return }
+  for (const refused of result.rejected) { sendable[refused.index]?.errors.push(...refused.errors) }
+  importCommittedCount.value = result.created.length
   importCommitted.value = true
   showToast(
     'Import (Mock) Selesai',
-    `${created.length} baris berhasil diimpor, ${importErrorCount.value} baris gagal (lihat error report) — lengkapi data dokumennya secara manual. Ini simulasi, bukan import file sungguhan.`,
+    `${result.created.length} baris berhasil diimpor, ${importErrorCount.value} baris gagal (lihat error report) — lengkapi data dokumennya secara manual. Ini simulasi, bukan import file sungguhan.`,
     importErrorCount.value > 0 ? 'warning' : 'success'
   )
 }
@@ -3773,7 +3812,7 @@ const tripDurationDays = computed(() => {
                           <Button variant="outline" @click="isTravelerDialogOpen = false">
                             Batal
                           </Button>
-                          <Button :disabled="!formName.trim()" @click="submitTraveler">
+                          <Button :disabled="!formName.trim() || isSavingTraveler" @click="submitTraveler">
                             Simpan
                           </Button>
                         </SheetFooter>
@@ -4155,7 +4194,7 @@ const tripDurationDays = computed(() => {
                 <Button variant="outline" @click="isCreateGroupOpen = false">
                   Batal
                 </Button>
-                <Button :disabled="!newGroupName.trim()" @click="submitCreateGroup">
+                <Button :disabled="!newGroupName.trim() || isSavingTraveler" @click="submitCreateGroup">
                   Simpan
                 </Button>
               </SheetFooter>
@@ -4211,7 +4250,7 @@ const tripDurationDays = computed(() => {
                 <Button variant="outline" @click="isImportPreviewOpen = false">
                   {{ importCommitted ? 'Tutup' : 'Batal' }}
                 </Button>
-                <Button v-if="!importCommitted" :disabled="importValidCount === 0" @click="confirmImport">
+                <Button v-if="!importCommitted" :disabled="importValidCount === 0 || isSavingTraveler" @click="confirmImport">
                   Import Baris Valid ({{ importValidCount }})
                 </Button>
               </DialogFooter>

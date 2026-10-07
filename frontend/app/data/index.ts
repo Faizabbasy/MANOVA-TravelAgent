@@ -924,7 +924,7 @@ export function createSalesOrder (input: CreateSalesOrderInput): SalesOrder | un
  * Generic status transition — dipakai order standalone (tanpa Project B2C) untuk seluruh transisi, DAN
  * booking Group Trip B2C (`order.projectId` terisi) untuk transisi SELAIN `paid`. Transisi ke `paid` untuk
  * order ber-project SENGAJA ditolak di sini (return `undefined`) — HARUS lewat konfirmasi DP di Finance (server)
- * lalu `markGroupTripOrderPaid`, supaya gerbang minimum DP tidak bisa dilewati lewat halaman status generik.
+ * (server menandai booking paid sekaligus membuat traveler-nya, S6b/S7a), supaya gerbang minimum DP tidak bisa dilewati.
  */
 export function updateSalesOrderStatus (id: string, status: SalesOrderStatus): SalesOrder | undefined {
   const order = SALES_ORDERS.find(item => item.id === id)
@@ -932,34 +932,6 @@ export function updateSalesOrderStatus (id: string, status: SalesOrderStatus): S
   if (status === 'paid' && order.projectId) { return undefined }
   if (!getSalesOrderStatusTransitions(order.status).includes(status)) { return undefined }
   order.status = status
-  return order
-}
-
-/**
- * Group Trip B2C — the operational side of a confirmed DP. The money (participant invoice + DP received) is
- * recorded by Finance on the server (`POST /finance/sales-orders/:id/confirm-dp`), which also marks the booking
- * `paid` (S6b). Once the reloaded order is paid, its travelers are created here (one per pax, idempotent; travelers
- * stay local until S7). No status change, invoice or payment happens here.
- */
-export function markGroupTripOrderPaid (orderId: string): SalesOrder | undefined {
-  const order = SALES_ORDERS.find(item => item.id === orderId)
-  // S6b: the server marked the booking paid with the DP (reloaded before this call); only travelers follow here.
-  if (!order || order.status !== 'paid' || !order.projectId) { return undefined }
-  const projectId = order.projectId
-
-  const alreadyCreated = getTravelers(projectId).some(traveler => traveler.salesOrderId === order.id)
-  if (!alreadyCreated) {
-    const lead = LEADS.find(item => item.salesOrderId === order.id)
-    for (let i = 0; i < order.travelerCount; i++) {
-      createTraveler({
-        projectId,
-        partyId: order.customerId,
-        leadId: lead?.id,
-        salesOrderId: order.id,
-        name: order.travelerCount > 1 ? `${lead?.name ?? 'Traveler'} (Pax ${i + 1})` : (lead?.name ?? 'Traveler')
-      })
-    }
-  }
   return order
 }
 
