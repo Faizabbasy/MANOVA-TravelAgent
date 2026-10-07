@@ -5,6 +5,7 @@ import { errors } from '../../http/errors'
 import { parseMovementAmount, rule } from './common'
 import { validateEffectiveDate } from './postings'
 import { createInvoiceDraft, issueInvoice, postReceipt } from './receivables'
+import { createTravelersForOrder } from '../core/travelers'
 
 /**
  * Group Trip B2C — DP per participant booking (sales order). Confirming the DP issues one invoice for the full
@@ -67,6 +68,8 @@ export async function confirmGroupTripDp (tx: Queryable, actor: Actor, id: strin
   if (so.status === 'draft') {
     await tx.query("update sales_order_refs set status = 'paid', paid_on = $2::date, status_changed_at = now(), updated_at = now() where id = $1", [so.id, effectiveDate])
   }
+  // S7a: the booking's pax become travelers of the trip (once per order).
+  await createTravelersForOrder(tx, so.id)
   return {
     invoiceId: draft.id,
     invoiceNumber: issued.number,

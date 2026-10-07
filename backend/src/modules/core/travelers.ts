@@ -338,3 +338,29 @@ export async function importTravelers(tx: Queryable, actor: Actor, projectId: st
   await recordAudit(tx, { action: 'traveler.imported', actorUserId: actor.userId, entityType: 'project', entityId: projectId, requestId, after: { created, rejected: rejected.length } })
   return { created, rejected }
 }
+
+/** S7a: a confirmed Group Trip DP turns the booking's pax into travelers (once per order). */
+export async function createTravelersForOrder(tx: Queryable, salesOrderId: string): Promise<string[]> {
+  const [so] = await tx.query<{ project_id: string | null; party_id: string; lead_id: string | null; traveler_count: number; party_name: string; lead_name: string | null }>(
+    `select s.project_id, s.party_id, s.lead_id, s.traveler_count, p.name as party_name, l.name as lead_name
+       from sales_order_refs s join parties p on p.id = s.party_id left join leads l on l.id = s.lead_id where s.id = $1`, [salesOrderId])
+  if (!so?.project_id) return []
+  const [existing] = await tx.query<{ n: number }>('select count(*)::int as n from travelers where sales_order_id = $1', [salesOrderId])
+  if (Number(existing!.n) > 0) return []
+  const base = so.lead_name ?? so.party_name
+  const pax = Number(so.traveler_count)
+  const ids: string[] = []
+  for (let i = 1; i <= pax; i++) {
+    const name = pax > 1 ? `${base} (Pax ${i})` : base
+    ids.push(await insertTraveler(tx, so.project_id, { name }, { partyId: so.party_id, leadId: so.lead_id, salesOrderId }))
+  }
+  return ids
+}
+
+/** S7a: a cancelled Group Trip order takes its travelers out (soft cancel, out of every room). */
+export async function cancelTravelersOfOrder(tx: Queryable, salesOrderId: string, reason: string): Promise<void> {
+  const rows = await tx.query<{ id: string; project_id: string }>(
+    `update travelers set cancelled = true, cancel_reason = $2, changed_by_api_at = now(), updated_at = now()
+      where sales_order_id = $1 and not cancelled returning id, project_id`, [salesOrderId, reason])
+  for (const r of rows) await removeFromRooms(tx, r.project_id, r.id)
+}

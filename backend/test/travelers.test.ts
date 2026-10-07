@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
+import { todayBusinessDate } from '../src/modules/finance/common'
 import { DEMO, makeTestApp, type TestApp } from './helpers'
 
 /** S7a: travelers, groups and rooming list through the API. */
@@ -140,5 +141,31 @@ describe('cancel, replace, rooming, import', () => {
     expect(res.json.data.created).toHaveLength(2)
     expect(res.json.data.rejected.map((r: { index: number }) => r.index)).toEqual([1, 2, 3])
     expect((await call('POST', '/projects/PRJ-101/travelers/import', 'admin', { rows: 'x' }, key())).status).toBe(400)
+  })
+})
+
+describe('travelers from sales orders', () => {
+  test('a confirmed DP creates one traveler per pax once; cancelling the order cancels them', async () => {
+    const lead = (await call('POST', '/leads', 'admin', {
+      name: 'Keluarga S7a', source: 'instagram', serviceCategory: 'individual-travel', destination: 'Bromo', travelStartDate: '2026-12-10',
+      travelEndDate: '2026-12-12', travelerEstimate: 2, serviceScope: ['transportation'], requirementSummary: 'Trip'
+    }, key())).json.data.id as string
+    const so = (await call('POST', `/leads/${lead}/group-trip`, 'admin', { projectId: 'PRJ-205', adultCount: 2, childCount: 0, infantCount: 0, priceMinor: '7000000', priceAcceptance: 'accept', bookingReadiness: 'ready' })).json.data.salesOrder.id as string
+    // The demo seed has no bank account: open one the way the finance tests do.
+    const today = todayBusinessDate()
+    const bank = (await call('POST', '/finance/accounts', 'finance', { code: 'BCA-S7A', bankName: 'BCA', holderName: 'PT MANOVA', accountNumber: '0123456780' }, key())).json.data.id as string
+    await call('POST', `/finance/accounts/${bank}/opening`, 'finance', { amountMinor: '0', openingDate: today }, key())
+    await call('POST', `/finance/accounts/${bank}/opening/verify`, 'superAdmin', { balanceMinor: '0', openingDate: today }, key())
+    const dpKey = key()
+    const dpBody = { bankAccountId: bank, dpAmountMinor: '2100000', effectiveDate: today, dueDate: today }
+    expect((await call('POST', `/finance/sales-orders/${so}/confirm-dp`, 'finance', dpBody, dpKey)).status).toBe(201)
+    expect((await call('POST', `/finance/sales-orders/${so}/confirm-dp`, 'finance', dpBody, dpKey)).status).toBe(201) // replay
+    const mine = ((await call('GET', '/travelers?projectId=PRJ-205', 'admin')).json.data as { salesOrderId: string | null; name: string; leadId: string | null }[]).filter(x => x.salesOrderId === so)
+    expect(mine).toHaveLength(2)
+    expect(mine.map(x => x.name)).toEqual(['Keluarga S7a (Pax 1)', 'Keluarga S7a (Pax 2)'])
+    expect(mine.every(x => x.leadId === lead)).toBe(true)
+    await call('POST', `/sales-orders/${so}/status`, 'admin', { to: 'cancelled', reason: 'Batal berangkat' })
+    const after = ((await call('GET', '/travelers?projectId=PRJ-205', 'admin')).json.data as { salesOrderId: string | null; cancelled: boolean; cancelReason: string | null }[]).filter(x => x.salesOrderId === so)
+    expect(after.every(x => x.cancelled && x.cancelReason === 'Order dibatalkan')).toBe(true)
   })
 })

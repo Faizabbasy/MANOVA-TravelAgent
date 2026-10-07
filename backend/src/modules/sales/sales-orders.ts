@@ -7,6 +7,7 @@ import { isIsoDate } from '../../shared/dates'
 import { nextId } from '../../shared/ids'
 import { parseAmountMinor } from '../../shared/money'
 import { createParty } from '../core/party-writes'
+import { cancelTravelersOfOrder } from '../core/travelers'
 
 /**
  * Sales orders (S6b): B2C standalone orders and Group Trip participant bookings. Status runs
@@ -144,6 +145,8 @@ export async function changeSalesOrderStatus(tx: Queryable, actor: Actor, id: st
      where id = $1`,
     [id, to, to === 'cancelled' ? reason : null, today]
   )
+  // S7a: a cancelled booking's travelers are cancelled too (and leave their rooms).
+  if (to === 'cancelled') await cancelTravelersOfOrder(tx, id, 'Order dibatalkan')
   await recordAudit(tx, {
     action: 'sales_order.status_changed', actorUserId: actor.userId, entityType: 'sales_order', entityId: id, requestId, reason,
     before: { status: so.status }, after: { status: to }, details: invoices.length ? { invoiceIds: invoices } : undefined
