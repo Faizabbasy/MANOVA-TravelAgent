@@ -380,6 +380,21 @@ describe('demo seed', () => {
     }
   })
 
+  test('demo travelers, groups and rooms are seeded; a re-seed keeps user edits', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [counts] = await db.query<{ t: number; g: number; r: number }>('select (select count(*)::int from travelers) as t, (select count(*)::int from traveler_groups) as g, (select count(*)::int from room_assignments) as r')
+      expect(counts).toEqual({ t: 44, g: 8, r: 8 })
+      await db.query("update travelers set dietary_restrictions = 'Halal', changed_by_api_at = now() where id = 'TRV-1012'")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ d: string }>("select dietary_restrictions as d from travelers where id = 'TRV-1012'"))[0]!.d).toBe('Halal')
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('travelers, groups and rooms exist after 0027', async () => {
     const { db, cleanup } = await makeTestDb()
     try {

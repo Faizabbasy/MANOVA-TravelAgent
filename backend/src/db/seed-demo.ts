@@ -89,6 +89,16 @@ export interface DemoCoreSeed {
   /** Group Trip participant bookings (owned by Sales); each is billed to its own customer. */
   /** S6b: B2C standalone orders (no project) and Group Trip participant bookings, with status and trip details. */
   salesOrders: { id: string; projectId: string | null; partyId: string; priceMinor: string; travelerCount: number; status?: string; destination?: string | null; travelStartDate?: string | null; travelEndDate?: string | null; note?: string | null; createdOn?: string | null; leadId?: string | null }[]
+  /** Participants (S7a): traveler groups, travelers and the rooming list. */
+  travelerGroups?: { id: string; projectId: string; name: string; paxCount: number; roomingNote: string | null }[]
+  travelers?: {
+    id: string; projectId: string; groupId: string | null; partyId: string | null; leadId: string | null; salesOrderId: string | null; name: string
+    passportNumber: string | null; passportExpiryDate: string | null; idNumber: string | null; visaNumber: string | null; visaExpiryDate: string | null
+    emergencyContactName: string | null; emergencyContactPhone: string | null; specialRequest: string | null; dietaryRestrictions: string | null
+    accessibilityNeeds: string | null; companionOfTravelerId: string | null; documentsVerifiedOn: string | null; documentsVerifiedBy: string | null
+    isVip: boolean; cancelReason: string | null; replacedByTravelerId: string | null; replacesTravelerId: string | null
+  }[]
+  roomAssignments?: { id: string; projectId: string; groupId: string; roomLabel: string; roomType: string; travelerIds: string[] }[]
   /** CRM (S1): contact persons and the activity log per customer. */
   partyContacts?: { id: string; partyId: string; name: string; title: string; email: string | null; phone: string | null }[]
   partyActivities?: { id: string; partyId: string; leadId: string | null; type: string; message: string; ownerUserId: string; activityDate: string; dueAt: string | null }[]
@@ -375,6 +385,46 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
          where sales_order_refs.provenance = 'demo-fixture'`,
         [so.id, so.projectId ?? null, so.partyId, so.priceMinor, so.travelerCount, so.status ?? 'draft', so.destination ?? null,
           so.travelStartDate ?? null, so.travelEndDate ?? null, so.note ?? null, so.createdOn ?? null, so.leadId ?? null, P]
+      )
+    }
+    // S7a: participants. A re-seed refreshes fixture rows the API never changed (changed_by_api_at is null).
+    for (const g of seed.travelerGroups ?? []) {
+      await tx.query(
+        `insert into traveler_groups (id, project_id, name, pax_count, rooming_note, provenance) values ($1, $2, $3, $4, $5, $6)
+         on conflict (id) do update set name = excluded.name, pax_count = excluded.pax_count, rooming_note = excluded.rooming_note
+         where traveler_groups.provenance = 'demo-fixture' and traveler_groups.changed_by_api_at is null`,
+        [g.id, g.projectId, g.name, g.paxCount, g.roomingNote, P]
+      )
+    }
+    const TRAVELER_COLUMNS = ['group_id', 'party_id', 'lead_id', 'sales_order_id', 'name', 'passport_number', 'passport_expiry_date', 'id_number',
+      'visa_number', 'visa_expiry_date', 'emergency_contact_name', 'emergency_contact_phone', 'special_request', 'dietary_restrictions',
+      'accessibility_needs', 'documents_verified_on', 'documents_verified_by', 'is_vip', 'cancelled', 'cancel_reason'] as const
+    for (const tr of seed.travelers ?? []) {
+      const vals = [tr.groupId, tr.partyId, tr.leadId, tr.salesOrderId, tr.name, tr.passportNumber, tr.passportExpiryDate, tr.idNumber, tr.visaNumber,
+        tr.visaExpiryDate, tr.emergencyContactName, tr.emergencyContactPhone, tr.specialRequest, tr.dietaryRestrictions, tr.accessibilityNeeds,
+        tr.documentsVerifiedOn, tr.documentsVerifiedBy, tr.isVip, tr.cancelReason !== null, tr.cancelReason]
+      await tx.query(
+        `insert into travelers (id, project_id, ${TRAVELER_COLUMNS.join(', ')}, provenance)
+         values ($1, $2, ${TRAVELER_COLUMNS.map((_, i) => `$${i + 3}`).join(', ')}, $${TRAVELER_COLUMNS.length + 3})
+         on conflict (id) do update set ${TRAVELER_COLUMNS.map(c => `${c} = excluded.${c}`).join(', ')}
+         where travelers.provenance = 'demo-fixture' and travelers.changed_by_api_at is null`,
+        [tr.id, tr.projectId, ...vals, P]
+      )
+    }
+    // Self references once every traveler exists.
+    for (const tr of seed.travelers ?? []) {
+      await tx.query(
+        `update travelers set companion_of = $2, replaced_by = $3, replaces = $4
+          where id = $1 and provenance = 'demo-fixture' and changed_by_api_at is null`,
+        [tr.id, tr.companionOfTravelerId, tr.replacedByTravelerId, tr.replacesTravelerId]
+      )
+    }
+    for (const r of seed.roomAssignments ?? []) {
+      await tx.query(
+        `insert into room_assignments (id, project_id, group_id, room_label, room_type, traveler_ids, provenance) values ($1, $2, $3, $4, $5, $6::text::jsonb, $7)
+         on conflict (id) do update set room_label = excluded.room_label, room_type = excluded.room_type, traveler_ids = excluded.traveler_ids
+         where room_assignments.provenance = 'demo-fixture' and room_assignments.changed_by_api_at is null`,
+        [r.id, r.projectId, r.groupId, r.roomLabel, r.roomType, JSON.stringify(r.travelerIds), P]
       )
     }
     for (const c of seed.partyContacts ?? []) {

@@ -17,7 +17,7 @@ import { LEADS, LEAD_ACTIVITIES } from '../../frontend/app/data/leads'
 import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from '../../frontend/app/data/parties'
 import { SERVICE_ORDERS } from '../../frontend/app/data/procurement'
 import { CORE_BOOKING_KEYS, departureDateOf, miceTotals } from '../src/modules/core/booking-rules'
-import { PROJECT_SERVICES, PROJECTS } from '../../frontend/app/data/projects'
+import { PROJECT_SERVICES, PROJECTS, ROOM_ASSIGNMENTS, TRAVELER_GROUPS, TRAVELERS } from '../../frontend/app/data/projects'
 import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
 import { QUOTATIONS } from '../../frontend/app/data/quotations'
 import { FLIGHT_BOOKINGS } from '../../frontend/app/data/ticketing'
@@ -309,6 +309,35 @@ const seed: DemoCoreSeed = {
     }))
     return { id: q.id, leadId: q.leadId, createdOn: dateOnly(q.createdAt)!, sentToClientOn: dateOnly(q.sentToClientAt), versions: [...earlier, latest] }
   }),
+  // S7a: participants — traveler groups, travelers and the rooming list.
+  travelerGroups: [...TRAVELER_GROUPS].sort(byId).map(g => ({ id: g.id, projectId: g.projectId, name: g.name, paxCount: g.paxCount, roomingNote: g.roomingNote ?? null })),
+  travelers: [...TRAVELERS].sort(byId).map(tr => ({
+    id: tr.id,
+    projectId: tr.projectId,
+    groupId: tr.groupId ?? null,
+    partyId: tr.partyId ?? null,
+    leadId: tr.leadId ?? null,
+    salesOrderId: tr.salesOrderId ?? null,
+    name: tr.name,
+    passportNumber: tr.passportNumber ?? null,
+    passportExpiryDate: dateOnly(tr.passportExpiryDate),
+    idNumber: tr.idNumber ?? null,
+    visaNumber: tr.visaNumber ?? null,
+    visaExpiryDate: dateOnly(tr.visaExpiryDate),
+    emergencyContactName: tr.emergencyContactName ?? null,
+    emergencyContactPhone: tr.emergencyContactPhone ?? null,
+    specialRequest: tr.specialRequest ?? null,
+    dietaryRestrictions: tr.dietaryRestrictions ?? null,
+    accessibilityNeeds: tr.accessibilityNeeds ?? null,
+    companionOfTravelerId: tr.companionOfTravelerId ?? null,
+    documentsVerifiedOn: dateOnly(tr.documentsVerifiedAt),
+    documentsVerifiedBy: seededUser(tr.documentsVerifiedBy, `traveler ${tr.id} verifier`),
+    isVip: tr.isVip ?? false,
+    cancelReason: tr.cancelled ? (tr.cancelReason ?? 'Dibatalkan') : null,
+    replacedByTravelerId: tr.replacedByTravelerId ?? null,
+    replacesTravelerId: tr.replacesTravelerId ?? null
+  })),
+  roomAssignments: [...ROOM_ASSIGNMENTS].sort(byId).map(r => ({ id: r.id, projectId: r.projectId, groupId: r.groupId, roomLabel: r.roomLabel, roomType: r.roomType, travelerIds: [...r.travelerIds] })),
   // S6b: every sales order — B2C standalone (no project) and Group Trip participant bookings.
   salesOrders: [...SALES_ORDERS].sort(byId).map(o => ({
     id: o.id,

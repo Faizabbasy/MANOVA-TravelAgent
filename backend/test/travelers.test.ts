@@ -17,8 +17,7 @@ const key = () => `s7a-key-${++n}-abcdef`
 const call = (method: string, path: string, who: string, body?: unknown, k?: string | null) =>
   t.call(method, `/api/v1${path}`, { cookie: c[who], body, headers: k ? { 'idempotency-key': k } : {} })
 
-// Needs the S7a demo seed (Task 5) and the rooming endpoint (Task 3).
-describe.skip('travelers', () => {
+describe('travelers', () => {
   test('internal roles read full identity data; portals 403; anonymous 401; unknown 404', async () => {
     const list = await call('GET', '/travelers?projectId=PRJ-101', 'finance')
     expect(list.status).toBe(200)
@@ -66,24 +65,6 @@ describe.skip('travelers', () => {
     expect(g).toMatchObject({ projectId: 'PRJ-101', name: 'Rombongan S7a', paxCount: 0 })
     expect((await call('PATCH', `/traveler-groups/${g.id}`, 'admin', { paxCount: 4, roomingNote: '2 twin' })).json.data).toMatchObject({ paxCount: 4, roomingNote: '2 twin' })
     expect((await call('POST', '/projects/PRJ-101/traveler-groups', 'admin', { name: ' ' }, key())).status).toBe(400)
-  })
-})
-
-describe('travelers (empty)', () => {
-  test('reads answer for internal roles, 403 for portals, 401 anonymous; create, patch, verify, vip, group', async () => {
-    expect((await call('GET', '/travelers', 'finance')).status).toBe(200)
-    expect((await call('GET', '/travelers', 'client')).status).toBe(403)
-    expect((await t.call('GET', '/api/v1/travelers')).status).toBe(401)
-    const g = (await call('POST', '/projects/PRJ-101/traveler-groups', 'admin', { name: 'Grup Uji' }, key())).json.data.id as string
-    const res = await call('POST', '/projects/PRJ-101/travelers', 'admin', { name: 'Uji S7a', groupId: g }, key())
-    expect(res.status).toBe(201)
-    const id = res.json.data.id as string
-    expect((await call('PATCH', `/travelers/${id}`, 'admin', { specialRequest: 'Kursi lorong' })).json.data.specialRequest).toBe('Kursi lorong')
-    expect((await call('POST', `/travelers/${id}/verify`, 'admin', { verified: true })).json.data.documentsVerifiedOn).toBeTruthy()
-    expect((await call('POST', `/travelers/${id}/vip`, 'admin', { isVip: true })).json.data.isVip).toBe(true)
-    expect((await call('DELETE', `/travelers/${id}`, 'admin')).status).toBe(200)
-    expect((await call('GET', `/travelers/${id}`, 'admin')).status).toBe(404)
-    expect((await call('POST', '/projects/PRJ-101/travelers', 'finance', { name: 'X' }, key())).status).toBe(403)
   })
 })
 
