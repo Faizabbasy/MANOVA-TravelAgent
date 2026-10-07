@@ -58,3 +58,57 @@ describe('service orders', () => {
     expect(one).toMatchObject({ id: 'SO-101F', vendorId: expect.any(String), vendorName: expect.any(String), projectId: 'PRJ-101', serviceId: 'SVC-1011' })
   })
 })
+
+describe('vendor quotations', () => {
+  test('submit (idempotent, validation, 403/401); accept rejects competitors, sets vendor + confirmed + SO with the amount', async () => {
+    const svc = (await call('POST', '/projects/PRJ-204/services', 'admin', { type: 'hotel', label: 'Hotel Malang' }, key())).json.data.id as string
+    const k = key()
+    const body = { vendorId: 'VND-002', projectId: 'PRJ-204', serviceId: svc, serviceType: 'hotel', amountMinor: '12000000', notes: 'Termasuk sarapan' }
+    const a = await call('POST', '/vendor-quotations', 'admin', body, k)
+    expect(a.status).toBe(201)
+    const qa = a.json.data.id as string
+    expect(qa).toMatch(/^VQ-\d+$/)
+    expect((await call('POST', '/vendor-quotations', 'admin', body, k)).json.data.id).toBe(qa)
+    const qb = (await call('POST', '/vendor-quotations', 'admin', { ...body, vendorId: 'VND-006', amountMinor: '11000000' }, key())).json.data.id as string
+    const bad = await call('POST', '/vendor-quotations', 'admin', { vendorId: 'VND-999', projectId: 'PRJ-204', serviceId: svc, serviceType: 'flight', amountMinor: '0' }, key())
+    expect(bad.status).toBe(400)
+    expect(Object.keys(bad.json.error.fieldErrors).sort()).toEqual(['amountMinor', 'serviceId', 'vendorId'])
+    expect((await call('POST', '/vendor-quotations', 'finance', body, key())).status).toBe(403)
+    expect((await t.call('POST', '/api/v1/vendor-quotations', { body, headers: { 'idempotency-key': key() } })).status).toBe(401)
+
+    const acc = await call('POST', `/vendor-quotations/${qa}/accept`, 'admin', {})
+    expect(acc.status).toBe(200)
+    expect(acc.json.data.status).toBe('accepted')
+    const list = (await call('GET', `/vendor-quotations?serviceId=${svc}`, 'finance')).json.data as { id: string; status: string }[]
+    expect(list.find(q => q.id === qb)!.status).toBe('rejected')
+    const service = (await call('GET', '/project-services?projectId=PRJ-204', 'admin')).json.data.find((s: { id: string }) => s.id === svc)
+    expect(service).toMatchObject({ vendorId: 'VND-002', status: 'confirmed' })
+    const so = (await call('GET', `/service-orders?serviceId=${svc}`, 'admin')).json.data[0]
+    expect(so).toMatchObject({ vendorId: 'VND-002', status: 'draft', netCostMinor: '12000000', sourceQuotationId: qa })
+    expect((await call('POST', `/vendor-quotations/${qa}/accept`, 'admin', {})).status).toBe(422) // already decided
+    expect((await call('POST', `/vendor-quotations/${qb}/reject`, 'admin', {})).status).toBe(422)
+  })
+
+  test('accept on a service locked by another vendor invoice changes nothing; a quotation without service cannot be accepted', async () => {
+    // SVC-1011 (VND-001) carries FLT-1011; a vendor invoice of VND-001 locks its vendor.
+    expect((await call('POST', '/finance/vendor-invoices', 'finance', { vendorId: 'VND-001', vendorInvoiceNumber: 'S4B-LOCK', booking: { type: 'flight', id: 'FLT-1011' }, invoiceDate: '2026-02-01', dueDate: '2026-03-01', totalMinor: '1000' }, key())).status).toBe(201)
+    const q = (await call('POST', '/vendor-quotations', 'admin', { vendorId: 'VND-006', projectId: 'PRJ-101', serviceId: 'SVC-1011', serviceType: 'flight', amountMinor: '5000' }, key())).json.data.id as string
+    const other = (await call('POST', '/vendor-quotations', 'admin', { vendorId: 'VND-001', projectId: 'PRJ-101', serviceId: 'SVC-1011', serviceType: 'flight', amountMinor: '6000' }, key())).json.data.id as string
+    expect((await call('POST', `/vendor-quotations/${q}/accept`, 'admin', {})).status).toBe(422)
+    const after = (await call('GET', '/vendor-quotations?serviceId=SVC-1011', 'admin')).json.data as { id: string; status: string }[]
+    expect(after.find(x => x.id === q)!.status).toBe('submitted')
+    expect(after.find(x => x.id === other)!.status).toBe('submitted')
+    const loose = (await call('POST', '/vendor-quotations', 'admin', { vendorId: 'VND-003', projectId: 'PRJ-202', serviceType: 'transportation', amountMinor: '7000' }, key())).json.data.id as string
+    expect((await call('POST', `/vendor-quotations/${loose}/accept`, 'admin', {})).status).toBe(422)
+    expect((await call('POST', `/vendor-quotations/${loose}/reject`, 'admin', { reason: 'Terlalu mahal' })).json.data).toMatchObject({ status: 'rejected', decisionReason: 'Terlalu mahal' })
+  })
+
+  test('accepting for a service that already has a booking keeps the booking-driven status', async () => {
+    const created = (await call('POST', '/bookings/flight', 'admin', { projectId: 'PRJ-205', details: {} }, key())).json.data
+    const serviceId = created.serviceId as string
+    const q = (await call('POST', '/vendor-quotations', 'admin', { vendorId: 'VND-001', projectId: 'PRJ-205', serviceId, serviceType: 'flight', amountMinor: '8000' }, key())).json.data.id as string
+    expect((await call('POST', `/vendor-quotations/${q}/accept`, 'admin', {})).status).toBe(200)
+    const service = (await call('GET', '/project-services?projectId=PRJ-205', 'admin')).json.data.find((s: { id: string }) => s.id === serviceId)
+    expect(service).toMatchObject({ vendorId: 'VND-001', status: 'pending-confirmation' })
+  })
+})

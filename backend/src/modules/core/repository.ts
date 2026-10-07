@@ -377,6 +377,39 @@ export async function getServiceOrder(db: Db, actor: Actor, id: string) {
   return (await listServiceOrders(db, actor, { id }))[0] ?? null
 }
 
+/** Vendor quotations (S4b) in the actor's project scope; a vendor only its own; clients none. */
+export async function listQuotations(db: Db, actor: Actor, filter: { projectId?: string; serviceId?: string; vendorId?: string; id?: string }) {
+  if (actor.role === 'client') return []
+  const params: unknown[] = []
+  const where = [projectScopeSql(projectScopeOf(actor), params)]
+  if (actor.role === 'vendor') { params.push(actor.vendorId); where.push(`q.vendor_id = $${params.length}`) }
+  for (const [key, col] of [['projectId', 'q.project_id'], ['serviceId', 'q.service_id'], ['vendorId', 'q.vendor_id'], ['id', 'q.id']] as const) {
+    if (filter[key]) { params.push(filter[key]); where.push(`${col} = $${params.length}`) }
+  }
+  const rows = await db.query<Record<string, string | null>>(
+    `select q.id, q.vendor_id, q.project_id, q.service_id, q.service_type, q.amount_minor, q.notes, q.status, q.decision_reason, q.submitted_on,
+            to_char(q.decided_at at time zone 'Asia/Jakarta', 'YYYY-MM-DD') as decided_at
+       from vendor_quotations q join projects p on p.id = q.project_id
+      where ${where.join(' and ')}
+      order by q.id`,
+    params
+  )
+  const commercial = canSeeCommercials(actor)
+  return rows.map(r => ({
+    id: r.id as string,
+    vendorId: r.vendor_id as string,
+    projectId: r.project_id as string,
+    serviceId: r.service_id,
+    serviceType: r.service_type as string,
+    amountMinor: commercial ? r.amount_minor : null,
+    notes: r.notes,
+    status: r.status as string,
+    decisionReason: r.decision_reason,
+    submittedOn: r.submitted_on as string,
+    decidedAt: r.decided_at
+  }))
+}
+
 interface BookingRow extends Record<string, unknown> {
   booking_type: BookingType
   booking_id: string

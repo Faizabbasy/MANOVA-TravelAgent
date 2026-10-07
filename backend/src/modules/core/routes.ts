@@ -14,6 +14,7 @@ import { createProject, setContractValue, updateProject } from './project-writes
 import { SERVICE_TYPES, serviceTypeOf } from './booking-rules'
 import { changeBookingStatus, createBooking, updateBooking } from './booking-writes'
 import { changeServiceOrderStatus } from './service-orders'
+import { acceptQuotation, rejectQuotation, submitQuotation } from './vendor-quotations'
 import { createService, updateService } from './service-writes'
 import {
   BOOKING_TYPES,
@@ -26,6 +27,7 @@ import {
   listProjectServices,
   getServiceOrder,
   listServiceOrders,
+  listQuotations,
   getVendor,
   listActivities,
   listContacts,
@@ -70,6 +72,14 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
   /** Writes to a service or booking need the capability of its service type; portals never write. */
   function requireServiceCapability(actor: SessionActor, type: string) {
     if (isPortalActor(actor) || !(SERVICE_TYPES as readonly string[]).includes(type) || !hasCapability(actor.role, serviceCapability(type))) throw errors.forbidden()
+  }
+
+  async function writableQuotation(actor: SessionActor, raw: string) {
+    const id = assertIdParam(raw, 'Quotation')
+    const [q] = isPortalActor(actor) ? [] : await listQuotations(db, actor, { id })
+    if (!q) throw errors.notFound('Quotation')
+    requireServiceCapability(actor, q.serviceType)
+    return q
   }
 
   function bookingType(raw: string): BookingType {
@@ -355,6 +365,41 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       await db.transaction(tx => updateService(tx, actor, id, body as Record<string, unknown>, requestIdOf(request)))
       return ok(request, await getProjectService(db, actor, id))
     }, { body: t.Record(t.String(), t.Unknown()) })
+    .get('/vendor-quotations', async ({ request, query }) => {
+      const actor = await auth.requireActor(request)
+      if (actor.role === 'client') throw errors.forbidden()
+      for (const k of ['projectId', 'serviceId', 'vendorId'] as const) {
+        if (query[k] && !ID_PATTERN.test(query[k]!)) throw errors.validation({ [k]: ['ID tidak valid.'] })
+      }
+      return ok(request, await listQuotations(db, actor, { projectId: query.projectId, serviceId: query.serviceId, vendorId: query.vendorId }))
+    }, { query: t.Object({ projectId: t.Optional(t.String()), serviceId: t.Optional(t.String()), vendorId: t.Optional(t.String()) }) })
+    .post('/vendor-quotations', async ({ request, body, set }) => {
+      const actor = await auth.requireActor(request)
+      const b = body as Record<string, unknown>
+      // A known type needs its own capability; an unknown type is a validation error for anyone who may add services.
+      if ((SERVICE_TYPES as readonly unknown[]).includes(b.serviceType)) requireServiceCapability(actor, b.serviceType as string)
+      else if (isPortalActor(actor) || !SERVICE_TYPES.some(s => hasCapability(actor.role, serviceCapability(s)))) throw errors.forbidden()
+      if (typeof b.projectId !== 'string' || !b.projectId) throw errors.validation({ projectId: ['Project wajib diisi.'] })
+      const projectId = await visibleProject(actor, b.projectId)
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /vendor-quotations', key, body }, tx =>
+        submitQuotation(tx, actor, projectId, b, businessDateOf(new Date()), requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, (await listQuotations(db, actor, { id: result.data.id }))[0])
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .post('/vendor-quotations/:id/accept', async ({ request, params }) => {
+      const actor = await auth.requireActor(request)
+      const q = await writableQuotation(actor, params.id)
+      await db.transaction(tx => acceptQuotation(tx, actor, q.id, requestIdOf(request)))
+      return ok(request, (await listQuotations(db, actor, { id: q.id }))[0])
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/vendor-quotations/:id/reject', async ({ request, params, body }) => {
+      const actor = await auth.requireActor(request)
+      const q = await writableQuotation(actor, params.id)
+      await db.transaction(tx => rejectQuotation(tx, actor, q.id, (body as Record<string, unknown> | undefined)?.reason, requestIdOf(request)))
+      return ok(request, (await listQuotations(db, actor, { id: q.id }))[0])
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
     .get('/service-orders', async ({ request, query }) => {
       const actor = await auth.requireActor(request)
       if (actor.role === 'client' || (!isPortalActor(actor) && !canListVendors(actor))) throw errors.forbidden()
