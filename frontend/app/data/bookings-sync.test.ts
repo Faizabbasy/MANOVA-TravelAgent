@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest'
 import { FLIGHT_BOOKINGS } from './ticketing'
 import { PROJECTS, PROJECT_SERVICES } from './projects'
 import { TRANSPORT_BOOKINGS } from './transportation'
+import { BOOKING_ORCHESTRATION_RECORDS } from './booking-orchestration'
 import { bookingFromServer, bookingToServer, createBookingFromInput, mergeServerServicesAndBookings, patchServiceOnServer, persistBookingEdit, reloadProjectBookings, runBookingStatusChange, runServiceWrite, assignServiceVendorOnServer, allocateServiceBudgetOnServer } from './bookings-sync'
 import type { BookingDto, ProjectServiceDto } from '~/types/api'
 
@@ -22,6 +23,11 @@ const flightDto = (over: Partial<BookingDto> = {}): BookingDto => ({
   details: { segments: [{ origin: 'CGK', destination: 'MNL', departureAt: '2026-08-20T08:00' }], travelerIds: [], options: [] },
   createdAt: '2026-10-06',
   updatedAt: '2026-10-06',
+  paymentGate: { status: 'not-required', basis: null },
+  attempts: [],
+  flaggedDuplicate: false,
+  duplicateOf: [],
+  duplicateNote: null,
   ...over
 })
 
@@ -160,5 +166,15 @@ describe('bookings-sync', () => {
     expect(calls[1]![0]).toBe('create')
     expect(calls[1]![2]).toEqual({ type: 'hotel', label: 'Hotel', budgetMinor: '40000000' })
     expect(PROJECT_SERVICES.find(s => s.id === 'SVC-9200')!.budgetIdr).toBe(40_000_000)
+  })
+
+  it('orchestration from the server: gate, attempts and duplicate flag; local dependsOn kept', () => {
+    // beforeEach already merged FLT-9001, so its record exists; a local dependsOn on it must survive the next merge.
+    BOOKING_ORCHESTRATION_RECORDS.find(r => r.bookingId === 'FLT-9001')!.dependsOn = [{ bookingType: 'hotel', bookingId: 'HTL-1' }] as never
+    mergeServerServicesAndBookings({ services: [svc()], bookings: [flightDto({ paymentGate: { status: 'cleared', basis: 'project' }, attempts: [{ id: 'BAT-1', outcome: 'failed', note: 'x', at: '2026-10-01T09:00', actorUserId: null }], flaggedDuplicate: true })] })
+    const rec = BOOKING_ORCHESTRATION_RECORDS.find(r => r.bookingId === 'FLT-9001')!
+    expect(rec).toMatchObject({ paymentGateStatus: 'cleared', flaggedDuplicate: true })
+    expect(rec.attemptLog).toEqual([{ id: 'BAT-1', at: '2026-10-01T09:00', outcome: 'failed', note: 'x' }])
+    expect(rec.dependsOn).toBeDefined()
   })
 })

@@ -13,6 +13,9 @@ import type {
   BookingFinanceSummaryDto,
   BookingPatchInput,
   ProjectServiceDto,
+  QuotationCreateInput,
+  ServiceOrderDto,
+  VendorQuotationDto,
   ServiceCreateInput,
   ServicePatchInput,
   GroupTripDpInput,
@@ -159,7 +162,20 @@ export function createManovaApi (client: ApiClient) {
         client.post<BookingDto>(`/bookings/${seg(type)}`, input, { idempotencyKey }),
       updateBooking: (type: ApiBookingType, id: string, input: BookingPatchInput) => client.patch<BookingDto>(`/bookings/${seg(type)}/${seg(id)}`, input),
       changeBookingStatus: (type: ApiBookingType, id: string, input: { to: string; reason?: string }) =>
-        client.post<BookingDto>(`/bookings/${seg(type)}/${seg(id)}/status`, input)
+        client.post<BookingDto>(`/bookings/${seg(type)}/${seg(id)}/status`, input),
+      logBookingAttempt: (type: ApiBookingType, id: string, input: { outcome: string; note?: string }) =>
+        client.post<BookingDto>(`/bookings/${seg(type)}/${seg(id)}/attempts`, input),
+      listVendorQuotations: (query: { projectId?: string; serviceId?: string; vendorId?: string } = {}) =>
+        client.get<VendorQuotationDto[]>('/vendor-quotations', { query: { ...query } }),
+      createVendorQuotation: (input: QuotationCreateInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<VendorQuotationDto>('/vendor-quotations', input, { idempotencyKey }),
+      acceptVendorQuotation: (id: string) => client.post<VendorQuotationDto>(`/vendor-quotations/${seg(id)}/accept`, {}),
+      rejectVendorQuotation: (id: string, reason?: string) =>
+        client.post<VendorQuotationDto>(`/vendor-quotations/${seg(id)}/reject`, reason ? { reason } : {}),
+      listServiceOrders: (query: { projectId?: string; vendorId?: string; serviceId?: string } = {}) =>
+        client.get<ServiceOrderDto[]>('/service-orders', { query: { ...query } }),
+      changeServiceOrderStatus: (id: string, input: { to: string; reason?: string }) =>
+        client.post<ServiceOrderDto>(`/service-orders/${seg(id)}/status`, input)
     },
 
     finance: {

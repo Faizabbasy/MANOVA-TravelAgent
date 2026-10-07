@@ -3,6 +3,7 @@ import { FLIGHT_BOOKINGS } from './ticketing'
 import { HOTEL_BOOKINGS } from './accommodation'
 import { TRANSPORT_BOOKINGS } from './transportation'
 import { MICE_EVENTS } from './mice'
+import { BOOKING_ORCHESTRATION_RECORDS } from './booking-orchestration'
 import type { ProjectService } from '~/types/project'
 import type { ApiBookingType, BookingCreateInput, BookingDto, BookingPatchInput, ProjectServiceDto, ServiceCreateInput, ServicePatchInput } from '~/types/api'
 import type { ManovaApi } from '~/lib/api/endpoints'
@@ -95,7 +96,26 @@ function upsertInto<T extends { id: string }> (list: T[], value: T): T {
 }
 
 export const upsertServerService = (d: ProjectServiceDto) => upsertInto(PROJECT_SERVICES, serviceFromServer(d))
-export const upsertServerBooking = (d: BookingDto) => upsertInto(ARRAYS[d.type], bookingFromServer(d))
+/** Payment gate (computed from Finance), attempt log and duplicate flag of a booking (S4b); local `dependsOn` stays. */
+export function upsertOrchestration (d: BookingDto): void {
+  if (!d.paymentGate) { return }
+  const record = BOOKING_ORCHESTRATION_RECORDS.find(r => r.bookingType === d.type && r.bookingId === d.id)
+  const values = {
+    paymentGateStatus: d.paymentGate.status,
+    attemptLog: d.attempts.map(a => ({ id: a.id, at: a.at, outcome: a.outcome, ...(a.note ? { note: a.note } : {}) })),
+    flaggedDuplicate: d.flaggedDuplicate
+  }
+  if (record) {
+    Object.assign(record, values)
+    return
+  }
+  BOOKING_ORCHESTRATION_RECORDS.push({ id: `BKO-${d.id}`, bookingType: d.type, bookingId: d.id, projectId: d.projectId, ...values })
+}
+
+export function upsertServerBooking (d: BookingDto) {
+  upsertOrchestration(d)
+  return upsertInto(ARRAYS[d.type], bookingFromServer(d))
+}
 
 export function mergeServerServicesAndBookings (data: { services: ProjectServiceDto[]; bookings: BookingDto[] }): void {
   const keepServices = new Set(data.services.map(s => s.id))

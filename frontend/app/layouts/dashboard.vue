@@ -3,15 +3,17 @@ import { useCustomersSync } from '~/data/parties-sync'
 import { useProjectsSync } from '~/data/projects-sync'
 import { useVendorsSync } from '~/data/vendors-sync'
 import { useBookingsSync } from '~/data/bookings-sync'
+import { useProcurementSync } from '~/data/procurement-sync'
 
 const isMobile = useIsMobile()
-/** Project (S3a/S3b), customer (S1), vendor (S2), serta layanan & booking (S4a) milik server: dimuat sekali per user yang login ke array lokal. */
+/** Project (S3a/S3b), customer (S1), vendor (S2), layanan & booking (S4a), serta quotation & service order (S4b) milik server: dimuat sekali per user yang login ke array lokal. */
 const projectsSync = useProjectsSync()
 const customersSync = useCustomersSync()
 const vendorsSync = useVendorsSync()
 const bookingsSync = useBookingsSync()
+const procurementSync = useProcurementSync()
 const { currentUser } = useCurrentUser()
-const loadServerData = (force = false) => { projectsSync.load(force); customersSync.load(force); vendorsSync.load(force); bookingsSync.load(force) }
+const loadServerData = (force = false) => { projectsSync.load(force); customersSync.load(force); vendorsSync.load(force); bookingsSync.load(force); procurementSync.load(force) }
 onMounted(() => { loadServerData() })
 watch(() => currentUser.value.id, () => { loadServerData() })
 
@@ -21,11 +23,12 @@ const unsyncedLabel = computed(() => {
     failed(projectsSync.state.value) ? 'project' : null,
     failed(customersSync.state.value) ? 'customer' : null,
     failed(vendorsSync.state.value) ? 'vendor' : null,
-    failed(bookingsSync.state.value) ? 'layanan & booking' : null
+    failed(bookingsSync.state.value) ? 'layanan & booking' : null,
+    failed(procurementSync.state.value) ? 'quotation & service order' : null
   ].filter(Boolean)
   return parts.length ? parts.join(', ') : null
 })
-const unsyncedMessage = computed(() => projectsSync.state.value.message ?? customersSync.state.value.message ?? vendorsSync.state.value.message ?? bookingsSync.state.value.message)
+const unsyncedMessage = computed(() => projectsSync.state.value.message ?? customersSync.state.value.message ?? vendorsSync.state.value.message ?? bookingsSync.state.value.message ?? procurementSync.state.value.message)
 </script>
 
 <template>

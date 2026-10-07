@@ -324,6 +324,36 @@ export interface ServiceOrderRefDto {
   serviceId: string | null
 }
 
+/** Full service order (S4b): the reference fields above plus procurement state. */
+export interface ServiceOrderDto extends ServiceOrderRefDto {
+  serviceType: ServiceTypeKey | null
+  status: 'draft' | 'sent' | 'acknowledged' | 'amended' | 'fulfilled' | 'cancelled'
+  statusReason: string | null
+  netCostMinor: MoneyMinor | null
+  lineItems: { description: string; quantity: number; unit: string }[]
+  sourceQuotationId: string | null
+  acknowledgedAt: IsoDate | null
+  fulfilledAt: IsoDate | null
+  createdAt: IsoDate
+  updatedAt: IsoDate
+}
+
+/** Vendor quotation (S4b). `amountMinor` is null for roles that may not see commercial figures. */
+export interface VendorQuotationDto {
+  id: string
+  vendorId: string
+  projectId: string
+  serviceId: string | null
+  serviceType: ServiceTypeKey
+  amountMinor: MoneyMinor | null
+  notes: string | null
+  status: 'submitted' | 'accepted' | 'rejected'
+  decisionReason: string | null
+  submittedOn: IsoDate
+  decidedAt: IsoDate | null
+}
+export interface QuotationCreateInput { vendorId: string; projectId: string; serviceId?: string; serviceType: ServiceTypeKey; amountMinor: MoneyMinor; notes?: string }
+
 export interface BookingRefDto {
   type: ApiBookingType
   id: string
@@ -355,6 +385,7 @@ export interface ProjectServiceDto {
 export interface ServiceCreateInput { type: ServiceTypeKey; label: string; vendorId?: string | null; budgetMinor?: MoneyMinor | null; bookingReference?: string | null }
 export type ServicePatchInput = Partial<Pick<ProjectServiceDto, 'label' | 'status' | 'vendorId' | 'bookingReference' | 'budgetMinor'>>
 
+export interface BookingAttemptDto { id: string; outcome: 'success' | 'failed' | 'manual-fallback'; note: string | null; at: string; actorUserId: string | null }
 /** Full booking (S4a): core columns + `details`, the UI-owned shape of each booking type. */
 export interface BookingDto {
   type: ApiBookingType
@@ -373,8 +404,14 @@ export interface BookingDto {
   details: Record<string, unknown>
   createdAt: IsoDate
   updatedAt: IsoDate
+  /** S4b: computed from Finance (own invoices, else the project's); never set by hand. */
+  paymentGate: { status: 'not-required' | 'pending' | 'cleared'; basis: 'booking' | 'project' | null }
+  attempts: BookingAttemptDto[]
+  flaggedDuplicate: boolean
+  duplicateOf: { type: ApiBookingType; id: string }[]
+  duplicateNote: string | null
 }
-export interface BookingCreateInput { projectId: string; serviceId?: string; label?: string; reference?: string | null; sellAmountMinor?: MoneyMinor | null; netCostMinor?: MoneyMinor | null; details: Record<string, unknown> }
+export interface BookingCreateInput { projectId: string; serviceId?: string; label?: string; reference?: string | null; sellAmountMinor?: MoneyMinor | null; netCostMinor?: MoneyMinor | null; details: Record<string, unknown>; allowDuplicate?: boolean; duplicateNote?: string }
 export interface BookingPatchInput { details?: Record<string, unknown>; reference?: string | null; sellAmountMinor?: MoneyMinor | null; netCostMinor?: MoneyMinor | null }
 
 export function isInternalProject (project: ProjectDto): project is ProjectInternalDto {
