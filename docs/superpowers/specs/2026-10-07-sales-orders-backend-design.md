@@ -1,6 +1,6 @@
 # Backend sales order B2C & Group Trip (S6b) — desain
 
-Tanggal: 7 Oktober 2026 · Branch: `production` · Status: disetujui di chat, menunggu review spec
+Tanggal: 7 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-07-sales-orders-backend)
 
 Lanjutan S6a. S6b memindahkan seluruh sales order B2C ke server — order standalone (tanpa project) dan booking peserta
 Group Trip — termasuk status, hitungan kursi, dan hasil qualify B2C/Group Trip. Konfirmasi DP tetap lewat Finance

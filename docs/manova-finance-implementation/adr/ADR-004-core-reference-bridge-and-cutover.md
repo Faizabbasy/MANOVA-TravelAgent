@@ -117,3 +117,14 @@ Seed ulang memperbarui teks fixture tetapi tidak menimpa stage lead, status/vers
 Tetap lokal: sales order B2C & Group Trip (S6b — jawaban B2C disimpan apa adanya di `leads.b2c`), cost sheet,
 lampiran/komentar quotation, akun portal client, dan form publik `/lead-intake` (perlu endpoint anonim tersendiri).
 Setelah deploy jalankan sekali `db:seed:demo` (31 lead, aktivitas, 10 quotation).
+
+## Update 2026-10-07 — Sales order B2C & Group Trip (S6b)
+
+Seluruh sales order kini di server (migrasi 0025 memperluas `sales_order_refs`; `project_id` boleh kosong untuk order
+B2C standalone): `GET/POST /sales-orders`, `POST /sales-orders/:id/status`, `GET /projects/:id/seats`, dan qualify B2C
+(`POST /leads/:id/qualify` dengan `priceMinor`) / Group Trip (`POST /leads/:id/group-trip`). Kursi Group Trip =
+kapasitas − pax order paid/ongoing/done − pax order draft; pembuatan booking mengunci baris project, kursi kurang →
+waitlist tanpa order. Booking Group Trip menjadi `paid` hanya lewat konfirmasi DP Finance (dalam transaksi yang sama);
+order standalone ditandai paid manual dan tidak bisa ditagih lewat Finance. Batal wajib alasan dan tetap boleh setelah
+ada invoice (Finance menindaklanjuti refund/void). Seed hanya menulis status order yang belum pernah diubah API
+(`status_changed_at` kosong). Tetap lokal: traveler (S7). Setelah deploy jalankan sekali `db:seed:demo`.
