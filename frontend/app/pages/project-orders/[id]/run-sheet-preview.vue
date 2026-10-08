@@ -1,11 +1,16 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import {
   getProjectById, getUserById, getVendorById, getVendorContacts,
   getItineraryItems, getProjectServices, getTravelers
 } from '~/data'
+import { useProjectsSync } from '~/data/projects-sync'
+import { useVendorsSync } from '~/data/vendors-sync'
+import { useBookingsSync } from '~/data/bookings-sync'
+import { useTravelersSync } from '~/data/travelers-sync'
+import { useItinerarySync } from '~/data/itinerary-sync'
 import { formatDateRange, formatDayLabel, maskDocumentNumber } from '~/utils/format'
 
 /**
@@ -16,6 +21,10 @@ import { formatDateRange, formatDayLabel, maskDocumentNumber } from '~/utils/for
  * (Section 11, fokus data traveler) — run sheet fokus pada jadwal + siapa yang bisa dihubungi.
  */
 definePageMeta({ layout: false, middleware: 'auth' })
+
+/* A new tab without the dashboard layout: load the server data this sheet prints (S7b). */
+const syncs = [useProjectsSync(), useVendorsSync(), useBookingsSync(), useTravelersSync(), useItinerarySync()]
+onMounted(() => { for (const sync of syncs) { sync.load() } })
 
 const route = useRoute()
 const { canView, can } = usePermissions()

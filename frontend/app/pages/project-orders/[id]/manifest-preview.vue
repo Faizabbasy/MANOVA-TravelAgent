@@ -1,8 +1,11 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import { getProjectById, getPartyById, getTravelerGroups, getTravelers, getRoomAssignments } from '~/data'
+import { useProjectsSync } from '~/data/projects-sync'
+import { useCustomersSync } from '~/data/parties-sync'
+import { useTravelersSync } from '~/data/travelers-sync'
 import { formatDate, formatDateRange, maskDocumentNumber } from '~/utils/format'
 import { isTravelerDocumentMissing } from '~/utils/attention'
 import type { Traveler } from '~/types/project'
@@ -14,6 +17,10 @@ import type { Traveler } from '~/types/project'
  * (Section 05, D-062) — dilarang integrasi/generator dokumen produksi (D-006).
  */
 definePageMeta({ layout: false, middleware: 'auth' })
+
+/* A new tab without the dashboard layout: load the server data this manifest prints (S7b review). */
+const syncs = [useProjectsSync(), useCustomersSync(), useTravelersSync()]
+onMounted(() => { for (const sync of syncs) { sync.load() } })
 
 const route = useRoute()
 const { canView, can } = usePermissions()

@@ -47,3 +47,20 @@ describe('no local sales mutators in screens (leads & quotations come from the s
     expect(FORBIDDEN.filter(name => used(readFileSync(file, 'utf8'), name))).toEqual([])
   })
 })
+
+/**
+ * Print pages open in a new tab without the dashboard layout, so nothing loads server data for them: each page loads
+ * the server-owned data it prints itself, or it prints the bundled demo fixtures (S7b review).
+ */
+const PRINT_PAGES: Record<string, string[]> = {
+  'pages/project-orders/[id]/run-sheet-preview.vue': ['useProjectsSync', 'useVendorsSync', 'useBookingsSync', 'useTravelersSync', 'useItinerarySync'],
+  'pages/project-orders/[id]/manifest-preview.vue': ['useProjectsSync', 'useCustomersSync', 'useTravelersSync']
+}
+
+describe('print pages load the server data they print', () => {
+  it.each(Object.entries(PRINT_PAGES))('%s', (page, syncs) => {
+    const source = readFileSync(join(appDir, page), 'utf8')
+    expect(syncs.filter(sync => !new RegExp(`${sync}\(\)`).test(source))).toEqual([])
+    expect(source).toMatch(/onMounted\(/)
+  })
+})
