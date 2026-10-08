@@ -1,6 +1,8 @@
 import type { ApiClient } from './client'
 import { newIdempotencyKey } from './client'
 import type {
+  ItineraryItemDto,
+  ItineraryItemInput,
   RoomAssignmentDto,
   TravelerDto,
   TravelerGroupDto,
@@ -148,6 +150,11 @@ export function createManovaApi (client: ApiClient) {
         client.post<RoomAssignmentDto>(`/projects/${seg(projectId)}/room-assignments`, input, { idempotencyKey }),
       setRoomTravelers: (id: string, travelerIds: string[]) => client.put<RoomAssignmentDto>(`/room-assignments/${seg(id)}/travelers`, { travelerIds }),
       deleteRoomAssignment: (id: string) => client.delete<{ id: string; deleted: true }>(`/room-assignments/${seg(id)}`),
+      listItineraryItems: (query: { projectId?: string } = {}) => client.get<ItineraryItemDto[]>('/itinerary-items', { query: { ...query } }),
+      createItineraryItem: (projectId: string, input: ItineraryItemInput & { date: string; title: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<ItineraryItemDto>(`/projects/${seg(projectId)}/itinerary-items`, input, { idempotencyKey }),
+      updateItineraryItem: (id: string, input: ItineraryItemInput) => client.patch<ItineraryItemDto>(`/itinerary-items/${seg(id)}`, input),
+      deleteItineraryItem: (id: string) => client.delete<{ id: string; deleted: true }>(`/itinerary-items/${seg(id)}`),
       listProjects: (query: PageQuery & { status?: ApiProjectStatus; partyId?: string } = {}) =>
         client.getList<ProjectDto>('/projects', { query: { ...query } }),
       getProject: (id: string) => client.get<ProjectDetailDto>(`/projects/${seg(id)}`),

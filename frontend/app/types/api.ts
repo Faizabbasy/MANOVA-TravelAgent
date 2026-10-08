@@ -1351,4 +1351,21 @@ export type TravelerInput = Partial<Pick<TravelerDto, 'name' | 'groupId' | 'pass
   | 'visaExpiryDate' | 'emergencyContactName' | 'emergencyContactPhone' | 'specialRequest' | 'dietaryRestrictions' | 'accessibilityNeeds' | 'companionOfTravelerId'>>
 export interface TravelerGroupDto { id: string; projectId: string; name: string; paxCount: number; roomingNote: string | null }
 export interface RoomAssignmentDto { id: string; projectId: string; groupId: string; roomLabel: string; roomType: 'single' | 'twin' | 'suite'; travelerIds: string[] }
+/** Daily itinerary item (S7b); `vendorAmountMinor` is a whole-rupiah decimal string. */
+export interface ItineraryItemDto {
+  id: string
+  projectId: string
+  date: string
+  time: string | null
+  title: string
+  description: string | null
+  serviceType: ServiceTypeKey | null
+  groupId: string | null
+  timezone: string | null
+  location: string | null
+  visibleToClient: boolean
+  vendorId: string | null
+  vendorAmountMinor: string | null
+}
+export type ItineraryItemInput = Partial<Omit<ItineraryItemDto, 'id' | 'projectId'>>
 export interface TravelerImportResultDto { created: TravelerDto[]; rejected: { index: number; errors: string[] }[] }
