@@ -17,7 +17,7 @@ import { LEADS, LEAD_ACTIVITIES } from '../../frontend/app/data/leads'
 import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from '../../frontend/app/data/parties'
 import { SERVICE_ORDERS } from '../../frontend/app/data/procurement'
 import { CORE_BOOKING_KEYS, departureDateOf, miceTotals } from '../src/modules/core/booking-rules'
-import { PROJECT_SERVICES, PROJECTS, ROOM_ASSIGNMENTS, TRAVELER_GROUPS, TRAVELERS } from '../../frontend/app/data/projects'
+import { ITINERARY_ITEMS, PROJECT_SERVICES, PROJECTS, ROOM_ASSIGNMENTS, TRAVELER_GROUPS, TRAVELERS } from '../../frontend/app/data/projects'
 import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
 import { QUOTATIONS } from '../../frontend/app/data/quotations'
 import { FLIGHT_BOOKINGS } from '../../frontend/app/data/ticketing'
@@ -338,6 +338,22 @@ const seed: DemoCoreSeed = {
     replacesTravelerId: tr.replacesTravelerId ?? null
   })),
   roomAssignments: [...ROOM_ASSIGNMENTS].sort(byId).map(r => ({ id: r.id, projectId: r.projectId, groupId: r.groupId, roomLabel: r.roomLabel, roomType: r.roomType, travelerIds: [...r.travelerIds] })),
+  // S7b: daily itinerary items.
+  itineraryItems: [...ITINERARY_ITEMS].sort(byId).map(i => ({
+    id: i.id,
+    projectId: i.projectId,
+    date: i.date,
+    time: i.time ?? null,
+    title: i.title,
+    description: i.description ?? null,
+    serviceType: i.serviceType ?? null,
+    groupId: i.groupId ?? null,
+    timezone: i.timezone ?? null,
+    location: i.location ?? null,
+    visibleToClient: i.visibleToClient !== false,
+    vendorId: i.vendorId ?? null,
+    vendorAmountMinor: i.vendorId && i.vendorAmountIdr != null ? String(Math.round(i.vendorAmountIdr)) : null
+  })),
   // S6b: every sales order — B2C standalone (no project) and Group Trip participant bookings.
   salesOrders: [...SALES_ORDERS].sort(byId).map(o => ({
     id: o.id,

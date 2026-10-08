@@ -412,6 +412,20 @@ describe('demo seed', () => {
     }
   })
 
+  test('demo itinerary items are seeded; a re-seed keeps API edits', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ n: number }>('select count(*)::int as n from itinerary_items'))[0]!.n).toBe(42)
+      await db.query("update itinerary_items set title = 'Diubah', changed_by_api_at = now() where id = 'ITIN-1031'")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ t: string }>("select title as t from itinerary_items where id = 'ITIN-1031'"))[0]!.t).toBe('Diubah')
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('itinerary items exist after 0028', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
@@ -605,7 +619,7 @@ describe('demo seed', () => {
     // `paymentTerm` is a CRM billing term ("30 hari"), not a payment record; `netCostMinor` is the booking's net cost (Booking module, S4a).
     expect([...keys].filter(k => k !== 'paymentTerm' && k !== 'netCostMinor' && /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
     // The only money-like values are owned by Project/Booking/Sales (ADR-007): contract value, service budget,
-    // booking sell price and net cost, and the price of a Group Trip participant booking. S4b: vendor quotation amount (Procurement).
-    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['amountMinor', 'budgetMinor', 'contractValueMinor', 'creditLimitMinor', 'netCostMinor', 'priceMinor', 'sellAmountMinor'])
+    // booking sell price and net cost, and the price of a Group Trip participant booking. S4b: vendor quotation amount (Procurement). S7b: the vendor amount of an itinerary item (Operations).
+    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['amountMinor', 'budgetMinor', 'contractValueMinor', 'creditLimitMinor', 'netCostMinor', 'priceMinor', 'sellAmountMinor', 'vendorAmountMinor'])
   })
 })

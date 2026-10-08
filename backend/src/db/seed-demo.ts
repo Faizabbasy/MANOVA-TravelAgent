@@ -99,6 +99,11 @@ export interface DemoCoreSeed {
     isVip: boolean; cancelReason: string | null; replacedByTravelerId: string | null; replacesTravelerId: string | null
   }[]
   roomAssignments?: { id: string; projectId: string; groupId: string; roomLabel: string; roomType: string; travelerIds: string[] }[]
+  /** Daily itinerary items (S7b). */
+  itineraryItems?: {
+    id: string; projectId: string; date: string; time: string | null; title: string; description: string | null; serviceType: string | null
+    groupId: string | null; timezone: string | null; location: string | null; visibleToClient: boolean; vendorId: string | null; vendorAmountMinor: string | null
+  }[]
   /** CRM (S1): contact persons and the activity log per customer. */
   partyContacts?: { id: string; partyId: string; name: string; title: string; email: string | null; phone: string | null }[]
   partyActivities?: { id: string; partyId: string; leadId: string | null; type: string; message: string; ownerUserId: string; activityDate: string; dueAt: string | null }[]
@@ -425,6 +430,17 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
          on conflict (id) do update set room_label = excluded.room_label, room_type = excluded.room_type, traveler_ids = excluded.traveler_ids
          where room_assignments.provenance = 'demo-fixture' and room_assignments.changed_by_api_at is null`,
         [r.id, r.projectId, r.groupId, r.roomLabel, r.roomType, JSON.stringify(r.travelerIds), P]
+      )
+    }
+    // S7b: daily itinerary items. A re-seed refreshes fixture rows the API never changed.
+    const ITINERARY_COLUMNS = ['date', 'time', 'title', 'description', 'service_type', 'group_id', 'timezone', 'location', 'visible_to_client', 'vendor_id', 'vendor_amount_minor'] as const
+    for (const i of seed.itineraryItems ?? []) {
+      await tx.query(
+        `insert into itinerary_items (id, project_id, ${ITINERARY_COLUMNS.join(', ')}, provenance)
+         values ($1, $2, ${ITINERARY_COLUMNS.map((_, n) => `$${n + 3}`).join(', ')}, $${ITINERARY_COLUMNS.length + 3})
+         on conflict (id) do update set ${ITINERARY_COLUMNS.map(c => `${c} = excluded.${c}`).join(', ')}
+         where itinerary_items.provenance = 'demo-fixture' and itinerary_items.changed_by_api_at is null`,
+        [i.id, i.projectId, i.date, i.time, i.title, i.description, i.serviceType, i.groupId, i.timezone, i.location, i.visibleToClient, i.vendorId, i.vendorAmountMinor, P]
       )
     }
     for (const c of seed.partyContacts ?? []) {
