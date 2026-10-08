@@ -1,6 +1,6 @@
 # Backend itinerary harian (S7b) — desain
 
-Tanggal: 8 Oktober 2026 · Branch: `production` · Status: disetujui (menunggu plan)
+Tanggal: 8 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-08-itinerary-items-backend)
 
 S7b memindahkan **item itinerary harian** project ke server. Versi itinerary, komentar, dan approve/minta revisi
 tetap lokal karena hanya dipakai portal client yang disembunyikan (ADR-006). Pelacakan operasional (milestone,

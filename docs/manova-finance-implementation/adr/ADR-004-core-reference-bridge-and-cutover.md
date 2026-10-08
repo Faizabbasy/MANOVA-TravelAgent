@@ -138,3 +138,13 @@ peran internal membaca data identitas lengkap (paspor/KTP/visa); portal 403. Kon
 sebanyak pax order dalam transaksi yang sama (sekali per order); batal order membatalkan traveler-nya dan
 mengeluarkannya dari kamar. Seed hanya memperbarui baris fixture yang belum diubah API (`changed_by_api_at`). Tetap
 lokal: portal client (ADR-006). Setelah deploy jalankan sekali `db:seed:demo`.
+
+## Update 2026-10-08 — Itinerary harian (S7b)
+
+Item itinerary harian kini di server (migrasi 0028, `itinerary_items`, ID `ITIN-`): `GET /itinerary-items?projectId=`
+untuk seluruh peran internal (termasuk nominal vendor; portal 403), tulis lewat `project-order.manage-operations`
+(`POST /projects/:id/itinerary-items` dengan Idempotency-Key, `PATCH`/`DELETE /itinerary-items/:id`). Tanggal dan judul
+wajib, jam `HH:MM`, grup harus milik project yang sama, nominal vendor (string minor) hanya bila vendor diisi —
+mengosongkan vendor ikut mengosongkan nominal. Tanggal tidak dipaksa di dalam periode project. Seed hanya memperbarui
+item fixture yang belum diubah API. Tetap lokal: versi itinerary, komentar, approve/minta revisi (portal client,
+ADR-006). Setelah deploy jalankan sekali `db:seed:demo`.
