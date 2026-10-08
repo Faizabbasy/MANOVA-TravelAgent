@@ -7,7 +7,7 @@ import { FileX, Wallet, Users, User, Truck, Search, UserPlus, Upload, Pencil, Tr
 import {
   getProjectById, getPartyById, getContactsByParty, getUserById, getVendorById, getLeadById,
   getFlightBookingsByService, getHotelBookingsByService, getTransportBookingsByService, getMiceEventsByService,
-  getProjectServices, getItineraryItems, updateServiceStatus, updateItineraryItem, createItineraryItem, removeItineraryItem,
+  getProjectServices, getItineraryItems, updateServiceStatus,
   getQuotationsForService,
   getTravelerGroups, getTravelers, getRoomAssignments,
   getTravelerReadiness, previewTravelerImportMock,
@@ -25,6 +25,7 @@ import {
   getProjectStatusTransitions
 } from '~/data'
 import { reloadSalesOrder } from '~/data/sales-orders-sync'
+import { createItineraryItemOnServer, deleteItineraryItemOnServer, itineraryInput, updateItineraryItemOnServer } from '~/data/itinerary-sync'
 import { createTravelerGroupOnServer, createTravelerOnServer, deleteTravelerOnServer, importTravelersOnServer, reloadProjectTravelers, updateTravelerOnServer, verifyTravelerOnServer } from '~/data/travelers-sync'
 import {
   acceptHandoverOnServer, addTeamMemberOnServer, advanceProjectOrderOnServer, closeFinanceOnServer, patchProjectOnServer,
@@ -1071,10 +1072,27 @@ const ATTENTION_DOT_CLASS: Record<AttentionQueueItem['severity'], string> = {
   low: 'bg-chart-5', medium: 'bg-warning', high: 'bg-destructive'
 }
 
+/* S7b: the daily itinerary lives on the server — every write goes there first; a failure keeps the form open with the reason. */
+const isSavingItinerary = ref(false)
+
+async function itineraryAction<T> (title: string, action: () => Promise<T>): Promise<T | undefined> {
+  if (isSavingItinerary.value) { return undefined }
+  isSavingItinerary.value = true
+  try {
+    return await action()
+  } catch (error) {
+    showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return undefined
+  } finally {
+    isSavingItinerary.value = false
+  }
+}
+
 /** "Internal vs client-shared itinerary" — toggle tunggal per item, hanya `canManageOperations`. */
-function toggleItineraryVisibility (item: { id: string; visibleToClient?: boolean }) {
+async function toggleItineraryVisibility (item: { id: string; visibleToClient?: boolean }) {
   const makeInternal = item.visibleToClient !== false
-  updateItineraryItem(item.id, { visibleToClient: !makeInternal })
+  const saved = await itineraryAction('Visibilitas Gagal Diubah', () => updateItineraryItemOnServer(financeApi, item.id, { visibleToClient: !makeInternal }))
+  if (!saved) { return }
   showToast(
     makeInternal ? 'Ditandai Internal Only' : 'Ditandai Terlihat Client',
     makeInternal ? 'Item ini kini disembunyikan dari Client Portal.' : 'Item ini kini terlihat oleh Client.',
@@ -1124,7 +1142,7 @@ function openEditItineraryItem (item: ItineraryItem) {
   isItineraryFormOpen.value = true
 }
 
-function submitItineraryForm () {
+async function submitItineraryForm () {
   if (!project.value || !itineraryForm.value.date.trim() || !itineraryForm.value.title.trim()) {
     showToast('Data Belum Lengkap', 'Tanggal dan Judul wajib diisi.', 'error')
     return
@@ -1142,19 +1160,22 @@ function submitItineraryForm () {
     vendorId: itineraryForm.value.vendorId || undefined,
     vendorAmountIdr: itineraryForm.value.vendorId ? (itineraryForm.value.vendorAmountIdr ?? undefined) : undefined
   }
-  if (editingItineraryItemId.value) {
-    updateItineraryItem(editingItineraryItemId.value, payload)
-  } else {
-    createItineraryItem({ projectId: project.value.id, ...payload })
-  }
+  const projectId = project.value.id
+  const editingId = editingItineraryItemId.value
+  const saved = await itineraryAction('Itinerary Gagal Disimpan', () => editingId
+    ? updateItineraryItemOnServer(financeApi, editingId, itineraryInput(payload))
+    : createItineraryItemOnServer(financeApi, projectId, { ...itineraryInput(payload), date: payload.date, title: payload.title }))
+  if (!saved) { return }
   isItineraryFormOpen.value = false
   showToast('Itinerary Disimpan', 'Perubahan berhasil disimpan.', 'success')
 }
 
 const pendingDeleteItineraryItem = ref<ItineraryItem | undefined>()
-function confirmDeleteItineraryItem () {
+async function confirmDeleteItineraryItem () {
   if (!pendingDeleteItineraryItem.value) { return }
-  removeItineraryItem(pendingDeleteItineraryItem.value.id)
+  const id = pendingDeleteItineraryItem.value.id
+  const deleted = await itineraryAction('Item Gagal Dihapus', () => deleteItineraryItemOnServer(financeApi, id).then(() => true))
+  if (!deleted) { return }
   pendingDeleteItineraryItem.value = undefined
   showToast('Item Dihapus', 'Item itinerary berhasil dihapus.', 'success')
 }
@@ -5469,7 +5490,7 @@ const tripDurationDays = computed(() => {
           <Button variant="outline" @click="isItineraryFormOpen = false">
             Batal
           </Button>
-          <Button :disabled="!itineraryForm.date.trim() || !itineraryForm.title.trim()" @click="submitItineraryForm">
+          <Button :disabled="!itineraryForm.date.trim() || !itineraryForm.title.trim() || isSavingItinerary" @click="submitItineraryForm">
             Simpan
           </Button>
         </SheetFooter>
@@ -5488,7 +5509,7 @@ const tripDurationDays = computed(() => {
           <Button variant="outline" @click="pendingDeleteItineraryItem = undefined">
             Batal
           </Button>
-          <Button variant="destructive" @click="confirmDeleteItineraryItem">
+          <Button variant="destructive" :disabled="isSavingItinerary" @click="confirmDeleteItineraryItem">
             Hapus
           </Button>
         </DialogFooter>

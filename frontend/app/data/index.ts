@@ -155,7 +155,11 @@ export const getItineraryItems = (projectId: string) => ITINERARY_ITEMS
 /** "Internal vs client-shared itinerary" (Section 12 baru, Wajib) — `visibleToClient` default `true` bila kosong. */
 export const getClientVisibleItineraryItems = (projectId: string) => getItineraryItems(projectId).filter(item => item.visibleToClient !== false)
 
-/** Daily itinerary — full CRUD (docs/superpowers/specs/2026-08-05-daily-itinerary-crud-design.md). */
+/**
+ * Daily itinerary — full CRUD (docs/superpowers/specs/2026-08-05-daily-itinerary-crud-design.md). Since S7b the server
+ * owns the itinerary: internal screens write through `data/itinerary-sync.ts`; these local mutators remain for the
+ * hidden client portal and tests only (guarded by `no-local-sales.test.ts`).
+ */
 export function updateItineraryItem (id: string, patch: Partial<Omit<ItineraryItem, 'id' | 'projectId'>>): ItineraryItem | undefined {
   const item = ITINERARY_ITEMS.find(i => i.id === id)
   if (!item) { return undefined }

@@ -5,7 +5,9 @@ import { id as localeId } from 'date-fns/locale'
 import { ChevronLeft, ChevronRight, ChevronDown, CalendarDays, AlertTriangle, CalendarClock, CalendarRange, Plus } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
 import { useScheduleEvents, SCHEDULE_KIND_META, TONE_DOT, type ScheduleEventKind, type ScheduleEvent } from '~/composables/useScheduleEvents'
-import { PROJECTS, getProjectById, createItineraryItem } from '~/data'
+import { PROJECTS, getProjectById } from '~/data'
+import { createItineraryItemOnServer } from '~/data/itinerary-sync'
+import { isApiError } from '~/lib/api/errors'
 import { formatDate } from '~/utils/format'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 
@@ -143,19 +145,30 @@ function openAddEvent () {
   isAddEventOpen.value = true
 }
 
-function submitAddEvent () {
-  if (!addEventForm.value.projectId || !addEventForm.value.date || !addEventForm.value.title.trim()) { return }
-  createItineraryItem({
-    projectId: addEventForm.value.projectId,
-    date: addEventForm.value.date,
-    time: addEventForm.value.time.trim() || undefined,
-    title: addEventForm.value.title.trim(),
-    location: addEventForm.value.location.trim() || undefined,
-    description: addEventForm.value.description.trim() || undefined,
-    visibleToClient: true
-  })
-  isAddEventOpen.value = false
-  showToast('Jadwal Ditambahkan', `"${addEventForm.value.title}" berhasil dicatat di kalender.`, 'success')
+/* S7b: the item is created on the server first; a failure keeps the form open with the reason. */
+const api = useApi()
+const isSavingEvent = ref(false)
+
+async function submitAddEvent () {
+  const form = addEventForm.value
+  if (!form.projectId || !form.date || !form.title.trim() || isSavingEvent.value) { return }
+  isSavingEvent.value = true
+  try {
+    await createItineraryItemOnServer(api, form.projectId, {
+      date: form.date,
+      time: form.time.trim() || null,
+      title: form.title.trim(),
+      location: form.location.trim() || null,
+      description: form.description.trim() || null,
+      visibleToClient: true
+    })
+    isAddEventOpen.value = false
+    showToast('Jadwal Ditambahkan', `"${form.title}" berhasil dicatat di kalender.`, 'success')
+  } catch (error) {
+    showToast('Jadwal Gagal Ditambahkan', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+  } finally {
+    isSavingEvent.value = false
+  }
 }
 
 /** Klik kotak tanggal di grid Bulan/Minggu buka slide-over kanan berisi SEMUA jadwal tanggal itu sekaligus
@@ -280,7 +293,7 @@ function goToProject (projectId?: string) {
               <Button variant="outline" @click="isAddEventOpen = false">
                 Batal
               </Button>
-              <Button :disabled="!addEventForm.projectId || !addEventForm.date || !addEventForm.title.trim()" @click="submitAddEvent">
+              <Button :disabled="!addEventForm.projectId || !addEventForm.date || !addEventForm.title.trim() || isSavingEvent" @click="submitAddEvent">
                 Simpan
               </Button>
             </SheetFooter>

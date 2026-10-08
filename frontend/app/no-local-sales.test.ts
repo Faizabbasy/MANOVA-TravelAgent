@@ -11,7 +11,9 @@ const FORBIDDEN = [
   'createSalesOrder(', 'updateSalesOrderStatus(', 'qualifyLeadAndCreateSalesOrder(', 'qualifyGroupTripLead(',
   // S7a: participants (travelers, groups, rooming) live on the server.
   'createTraveler(', 'updateTraveler(', 'removeTraveler(', 'toggleTravelerVerification(', 'setTravelerVip(', 'cancelTraveler(', 'replaceTraveler(',
-  'createTravelerGroup(', 'createRoomAssignment(', 'setRoomAssignmentTravelers(', 'removeRoomAssignment(', 'commitTravelerImport(', 'markGroupTripOrderPaid('
+  'createTravelerGroup(', 'createRoomAssignment(', 'setRoomAssignmentTravelers(', 'removeRoomAssignment(', 'commitTravelerImport(', 'markGroupTripOrderPaid(',
+  // S7b: the daily itinerary lives on the server.
+  'createItineraryItem(', 'updateItineraryItem(', 'removeItineraryItem('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**
