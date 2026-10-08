@@ -6,6 +6,7 @@ import { assignRequestId, requestIdOf } from './http/envelope'
 import { AppError, errorBody, errors, type FieldErrors } from './http/errors'
 import { coreRoutes } from './modules/core/routes'
 import { salesRoutes } from './modules/sales/routes'
+import { itineraryRoutes } from './modules/core/itinerary-routes'
 import { travelerRoutes } from './modules/core/traveler-routes'
 import { isFinancePath, mayReachFinanceRoute } from './modules/finance/access'
 import { financeRoutes } from './modules/finance/routes'
@@ -147,6 +148,7 @@ export function createApp(deps: AppDeps) {
     .use(coreRoutes(deps, auth))
     .use(salesRoutes(deps, auth))
     .use(travelerRoutes(deps, auth))
+    .use(itineraryRoutes(deps, auth))
     .use(financeRoutes(deps, auth))
     .use(arApRoutes(deps, auth))
     .use(refundRoutes(deps, auth))
