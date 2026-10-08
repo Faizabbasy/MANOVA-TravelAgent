@@ -412,6 +412,21 @@ describe('demo seed', () => {
     }
   })
 
+  test('itinerary items exist after 0028', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await db.query("insert into itinerary_items (id, project_id, date, title, time) values ('ITIN-T1', 'PRJ-101', '2026-08-01', 'Uji', '09:30')")
+      await expect(db.query("insert into itinerary_items (id, project_id, date, title, time) values ('ITIN-T2', 'PRJ-101', '2026-08-01', 'Uji', '25:00')")).rejects.toThrow()
+      await expect(db.query("insert into itinerary_items (id, project_id, date, title, vendor_amount_minor) values ('ITIN-T3', 'PRJ-101', '2026-08-01', 'Uji', 1000)")).rejects.toThrow() // amount needs a vendor
+      await expect(db.query("insert into itinerary_items (id, project_id, date, title, service_type) values ('ITIN-T4', 'PRJ-101', '2026-08-01', 'Uji', 'cruise')")).rejects.toThrow()
+      expect(await db.query("select prefix from id_sequences where prefix = 'ITIN-'")).toHaveLength(1)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('a Group Trip booking whose DP Finance confirmed before S6b becomes paid, and a re-seed keeps it', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
