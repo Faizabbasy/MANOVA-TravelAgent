@@ -3,6 +3,10 @@ import { newIdempotencyKey } from './client'
 import type {
   ItineraryItemDto,
   ItineraryItemInput,
+  MilestoneDto,
+  MilestoneInput,
+  TaskDto,
+  TaskInput,
   RoomAssignmentDto,
   TravelerDto,
   TravelerGroupDto,
@@ -155,6 +159,22 @@ export function createManovaApi (client: ApiClient) {
         client.post<ItineraryItemDto>(`/projects/${seg(projectId)}/itinerary-items`, input, { idempotencyKey }),
       updateItineraryItem: (id: string, input: ItineraryItemInput) => client.patch<ItineraryItemDto>(`/itinerary-items/${seg(id)}`, input),
       deleteItineraryItem: (id: string) => client.delete<{ id: string; deleted: true }>(`/itinerary-items/${seg(id)}`),
+      listTasks: (query: { projectId?: string } = {}) => client.get<TaskDto[]>('/tasks', { query: { ...query } }),
+      createTask: (input: TaskInput & { title: string }, idempotencyKey: string = newIdempotencyKey()) => client.post<TaskDto>('/tasks', input, { idempotencyKey }),
+      updateTask: (id: string, input: TaskInput) => client.patch<TaskDto>(`/tasks/${seg(id)}`, input),
+      blockTask: (id: string, reason: string) => client.post<TaskDto>(`/tasks/${seg(id)}/block`, { reason }),
+      unblockTask: (id: string) => client.post<TaskDto>(`/tasks/${seg(id)}/unblock`, {}),
+      listMilestones: (query: { projectId?: string } = {}) => client.get<MilestoneDto[]>('/milestones', { query: { ...query } }),
+      createMilestone: (projectId: string, input: MilestoneInput & { name: string; plannedDate: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<MilestoneDto>(`/projects/${seg(projectId)}/milestones`, input, { idempotencyKey }),
+      updateMilestone: (id: string, input: MilestoneInput) => client.patch<MilestoneDto>(`/milestones/${seg(id)}`, input),
+      completeMilestone: (id: string) => client.post<MilestoneDto>(`/milestones/${seg(id)}/complete`, {}),
+      addMilestoneDeliverable: (id: string, label: string) => client.post<MilestoneDto>(`/milestones/${seg(id)}/deliverables`, { label }),
+      setMilestoneDeliverableDone: (id: string, deliverableId: string, done: boolean) =>
+        client.patch<MilestoneDto>(`/milestones/${seg(id)}/deliverables/${seg(deliverableId)}`, { done }),
+      removeMilestoneDeliverable: (id: string, deliverableId: string) => client.delete<MilestoneDto>(`/milestones/${seg(id)}/deliverables/${seg(deliverableId)}`),
+      replaceMilestones: (projectId: string, milestones: { name: string; plannedDate: string; stepKey?: string }[]) =>
+        client.post<MilestoneDto[]>(`/projects/${seg(projectId)}/milestones/replace`, { milestones }),
       listProjects: (query: PageQuery & { status?: ApiProjectStatus; partyId?: string } = {}) =>
         client.getList<ProjectDto>('/projects', { query: { ...query } }),
       getProject: (id: string) => client.get<ProjectDetailDto>(`/projects/${seg(id)}`),

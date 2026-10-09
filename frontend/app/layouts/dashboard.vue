@@ -8,6 +8,7 @@ import { useLeadsSync } from '~/data/leads-sync'
 import { useSalesOrdersSync } from '~/data/sales-orders-sync'
 import { useTravelersSync } from '~/data/travelers-sync'
 import { useItinerarySync } from '~/data/itinerary-sync'
+import { useWorkItemsSync } from '~/data/work-items-sync'
 
 const isMobile = useIsMobile()
 /** Project (S3a/S3b), customer (S1), vendor (S2), layanan & booking (S4a), quotation & service order (S4b), serta lead & quotation client (S6a) milik server: dimuat sekali per user yang login ke array lokal. */
@@ -20,9 +21,10 @@ const leadsSync = useLeadsSync()
 const salesOrdersSync = useSalesOrdersSync()
 const travelersSync = useTravelersSync()
 const itinerarySync = useItinerarySync()
+const workItemsSync = useWorkItemsSync()
 const { currentUser } = useCurrentUser()
 /** Lead & quotation (S6a) are internal: the (hidden) portals get 403, so they are not loaded there. */
-const loadLeads = (force: boolean) => { if (!['client', 'vendor'].includes(currentUser.value.role)) { leadsSync.load(force); salesOrdersSync.load(force); travelersSync.load(force); itinerarySync.load(force) } }
+const loadLeads = (force: boolean) => { if (!['client', 'vendor'].includes(currentUser.value.role)) { leadsSync.load(force); salesOrdersSync.load(force); travelersSync.load(force); itinerarySync.load(force); workItemsSync.load(force) } }
 const loadServerData = (force = false) => { projectsSync.load(force); customersSync.load(force); vendorsSync.load(force); bookingsSync.load(force); procurementSync.load(force); loadLeads(force) }
 onMounted(() => { loadServerData() })
 watch(() => currentUser.value.id, () => { loadServerData() })
@@ -38,11 +40,12 @@ const unsyncedLabel = computed(() => {
     failed(leadsSync.state.value) ? 'lead & quotation client' : null,
     failed(salesOrdersSync.state.value) ? 'sales order' : null,
     failed(travelersSync.state.value) ? 'peserta' : null,
-    failed(itinerarySync.state.value) ? 'itinerary' : null
+    failed(itinerarySync.state.value) ? 'itinerary' : null,
+    failed(workItemsSync.state.value) ? 'task & milestone' : null
   ].filter(Boolean)
   return parts.length ? parts.join(', ') : null
 })
-const unsyncedMessage = computed(() => projectsSync.state.value.message ?? customersSync.state.value.message ?? vendorsSync.state.value.message ?? bookingsSync.state.value.message ?? procurementSync.state.value.message ?? leadsSync.state.value.message ?? salesOrdersSync.state.value.message ?? travelersSync.state.value.message ?? itinerarySync.state.value.message)
+const unsyncedMessage = computed(() => projectsSync.state.value.message ?? customersSync.state.value.message ?? vendorsSync.state.value.message ?? bookingsSync.state.value.message ?? procurementSync.state.value.message ?? leadsSync.state.value.message ?? salesOrdersSync.state.value.message ?? travelersSync.state.value.message ?? itinerarySync.state.value.message ?? workItemsSync.state.value.message)
 </script>
 
 <template>

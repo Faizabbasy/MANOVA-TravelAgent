@@ -2,7 +2,9 @@
 import { computed, ref } from 'vue'
 import { AlertTriangle, CheckCircle2, ListChecks, Milestone as MilestoneIcon, Plus, StickyNote, TrendingUp, Wallet } from 'lucide-vue-next'
 import { PROJECTS, getProjectById, getUserById, USERS } from '~/data'
-import { getMilestoneDelayDays, getMilestoneProgressPercent, createProjectMilestone } from '~/data/project-order-workflow'
+import { getMilestoneDelayDays, getMilestoneProgressPercent } from '~/data/project-order-workflow'
+import { createMilestoneOnServer } from '~/data/work-items-sync'
+import { isApiError } from '~/lib/api/errors'
 import { PROJECT_MILESTONES } from '~/data/project-orders'
 import type { ProjectMilestoneStatus } from '~/types/project-order'
 import type { BadgeTone } from '~/types/common'
@@ -84,16 +86,23 @@ function openForm () {
   isFormOpen.value = true
 }
 
-function submitForm () {
-  if (!form.value.projectId || !form.value.name.trim() || !form.value.plannedDate) { return }
-  createProjectMilestone({
-    projectId: form.value.projectId,
-    name: form.value.name.trim(),
-    plannedDate: form.value.plannedDate,
-    ownerId: form.value.ownerId || undefined,
-    note: form.value.note.trim() || undefined
-  })
-  isFormOpen.value = false
+/* S7c: milestones live on the server — created there first; a failure keeps the form open with the reason. */
+const api = useApi()
+const { showToast } = useToast()
+const isSaving = ref(false)
+
+async function submitForm () {
+  const f = form.value
+  if (!f.projectId || !f.name.trim() || !f.plannedDate || isSaving.value) { return }
+  isSaving.value = true
+  try {
+    await createMilestoneOnServer(api, f.projectId, { name: f.name.trim(), plannedDate: f.plannedDate, ownerId: f.ownerId || null, note: f.note.trim() || null })
+    isFormOpen.value = false
+  } catch (error) {
+    showToast('Milestone Gagal Ditambahkan', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+  } finally {
+    isSaving.value = false
+  }
 }
 </script>
 
@@ -197,7 +206,7 @@ function submitForm () {
                 <Button variant="outline" @click="isFormOpen = false">
                   Batal
                 </Button>
-                <Button :disabled="!form.projectId || !form.name.trim() || !form.plannedDate" @click="submitForm">
+                <Button :disabled="!form.projectId || !form.name.trim() || !form.plannedDate || isSaving" @click="submitForm">
                   Simpan
                 </Button>
               </SheetFooter>

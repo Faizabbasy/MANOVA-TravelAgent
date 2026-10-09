@@ -65,11 +65,11 @@ describe('projects-sync', () => {
     expect(PROJECTS.find(p => p.id === 'PRJ-102')!.quotationAmountIdr).toBe(local)
   })
 
-  it('project baru dari server ditambahkan dengan default field lokal dan milestone standar', () => {
+  it('project baru dari server ditambahkan dengan default field lokal; milestone standar tidak dibuat lokal (S7c: server)', () => {
     const project = registerNewServerProject(serverProjectDto({ id: 'PRJ-950' }))
     expect(PROJECTS.at(-1)).toBe(project)
     expect(project).toMatchObject({ id: 'PRJ-950', status: 'draft', budgetIdr: 0, actualCostIdr: 0, quotationAmountIdr: 100_000_000, serviceScope: ['flight'] })
-    expect(getProjectMilestones('PRJ-950')).toHaveLength(8)
+    expect(getProjectMilestones('PRJ-950')).toHaveLength(0)
   })
 
   it('merge menghapus project lokal yang tidak ada di server dan mengabaikan DTO portal', () => {
@@ -104,7 +104,13 @@ describe('loadServerProjects', () => {
 describe('createProjectOnServer', () => {
   it('mengirim nilai kontrak sebagai minor string dan mendaftarkan hasil server', async () => {
     const sent: unknown[] = []
-    const api = { core: { createProject: (input: unknown, key: string) => { sent.push({ input, key }); return Promise.resolve({ data: serverProjectDto({ id: 'PRJ-341', name: 'Trip Baru' }) }) } } }
+    const milestone = { id: 'PMS-001', projectId: 'PRJ-341', stepKey: 'departure', name: 'Keberangkatan', plannedDate: '2027-01-10', actualDate: null, ownerId: null, status: 'not-started', note: null, budgetMinor: null, deliverables: [] }
+    const api = {
+      core: {
+        createProject: (input: unknown, key: string) => { sent.push({ input, key }); return Promise.resolve({ data: serverProjectDto({ id: 'PRJ-341', name: 'Trip Baru' }) }) },
+        listMilestones: (q: { projectId: string }) => Promise.resolve({ data: q.projectId === 'PRJ-341' ? [milestone] : [] })
+      }
+    }
     const project = await createProjectOnServer(api as never, {
       partyId: 'PTY-002',
       name: 'Trip Baru',
@@ -118,6 +124,8 @@ describe('createProjectOnServer', () => {
     expect(sent).toEqual([{ input: expect.objectContaining({ partyId: 'PTY-002', contractValueMinor: '150000000', serviceScope: ['hotel'] }), key: 'key-abc-12345' }])
     expect(project.id).toBe('PRJ-341')
     expect(PROJECTS.some(p => p.id === 'PRJ-341')).toBe(true)
+    // S7c: the server created the default milestones with the project; they are loaded, not generated locally.
+    expect(getProjectMilestones('PRJ-341').map(m => m.id)).toEqual(['PMS-001'])
   })
 
   it('error server diteruskan dan tidak ada project lokal yang dibuat', async () => {

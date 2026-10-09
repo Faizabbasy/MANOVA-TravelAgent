@@ -454,15 +454,21 @@ export function createProjectMilestone (input: Omit<ProjectMilestone, 'id' | 'st
  * WAJIB menampilkan peringatan sebelum memanggil fungsi ini.
  */
 export function applyMilestoneTemplate (projectId: string, templateId: string, baseDate: string): ProjectMilestone[] {
-  const template = MILESTONE_TEMPLATES.find(item => item.id === templateId)
-  if (!template) { return [] }
+  const items = milestoneTemplateItems(templateId, baseDate)
+  if (!items.length) { return [] }
 
   const remaining = PROJECT_MILESTONES.filter(milestone => milestone.projectId !== projectId)
   PROJECT_MILESTONES.length = 0
   PROJECT_MILESTONES.push(...remaining)
 
-  return template.items.map(item => createProjectMilestone({
-    projectId,
+  return items.map(item => createProjectMilestone({ projectId, ...item }))
+}
+
+/** A template's milestones for one base date — what the server receives when a template is applied (S7c). */
+export function milestoneTemplateItems (templateId: string, baseDate: string): { name: string; plannedDate: string }[] {
+  const template = MILESTONE_TEMPLATES.find(item => item.id === templateId)
+  if (!template) { return [] }
+  return template.items.map(item => ({
     name: item.label,
     plannedDate: formatISO(addDays(parseISO(baseDate), item.offsetDays), { representation: 'date' })
   }))

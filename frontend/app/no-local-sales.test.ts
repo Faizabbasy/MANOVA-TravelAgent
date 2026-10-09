@@ -13,7 +13,11 @@ const FORBIDDEN = [
   'createTraveler(', 'updateTraveler(', 'removeTraveler(', 'toggleTravelerVerification(', 'setTravelerVip(', 'cancelTraveler(', 'replaceTraveler(',
   'createTravelerGroup(', 'createRoomAssignment(', 'setRoomAssignmentTravelers(', 'removeRoomAssignment(', 'commitTravelerImport(', 'markGroupTripOrderPaid(',
   // S7b: the daily itinerary lives on the server.
-  'createItineraryItem(', 'updateItineraryItem(', 'removeItineraryItem('
+  'createItineraryItem(', 'updateItineraryItem(', 'removeItineraryItem(',
+  // S7c: project tasks and milestones live on the server.
+  'createProjectTask(', 'updateProjectTask(', 'toggleTaskBlocked(', 'createProjectMilestone(', 'setMilestoneActualDate(', 'updateMilestonePlannedDate(',
+  'updateMilestoneNote(', 'applyMilestoneTemplate(', 'addMilestoneDeliverable(', 'toggleMilestoneDeliverable(', 'removeMilestoneDeliverable(',
+  'updateMilestoneBudget(', 'seedDefaultProjectMilestones('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**

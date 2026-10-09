@@ -1,6 +1,6 @@
 import { LEADS, LEAD_ACTIVITIES } from './leads'
 import { QUOTATIONS } from './quotations'
-import { registerNewServerProject } from './projects-sync'
+import { loadNewProjectMilestones, registerNewServerProject } from './projects-sync'
 import { upsertServerParty } from './parties-sync'
 import { upsertServerSalesOrder } from './sales-orders-sync'
 import { applyLeadWon, markCostSheetApplied, prepareCostSheetQuotation } from './index'
@@ -313,6 +313,7 @@ export async function markLeadWonOnServer (api: SalesApi, leadId: string, approv
   const q = QUOTATIONS.find(x => x.leadId === leadId)
   if (q) { q.accepted = true }
   await reloadParty(api, project.partyId)
+  await loadNewProjectMilestones(api, project.id)
   return project
 }
 

@@ -1351,6 +1351,35 @@ export type TravelerInput = Partial<Pick<TravelerDto, 'name' | 'groupId' | 'pass
   | 'visaExpiryDate' | 'emergencyContactName' | 'emergencyContactPhone' | 'specialRequest' | 'dietaryRestrictions' | 'accessibilityNeeds' | 'companionOfTravelerId'>>
 export interface TravelerGroupDto { id: string; projectId: string; name: string; paxCount: number; roomingNote: string | null }
 export interface RoomAssignmentDto { id: string; projectId: string; groupId: string; roomLabel: string; roomType: 'single' | 'twin' | 'suite'; travelerIds: string[] }
+/** Project task (S7c); a task without a project is a general to-do from the global Tasks page. */
+export interface TaskDto {
+  id: string
+  projectId: string | null
+  title: string
+  status: 'not-started' | 'in-progress' | 'pending-confirmation' | 'done' | 'overdue'
+  dueAt: string | null
+  isMilestone: boolean
+  dependsOnTaskId: string | null
+  assignedTo: string | null
+  isBlocked: boolean
+  blockedReason: string | null
+}
+export type TaskInput = Partial<Pick<TaskDto, 'title' | 'status' | 'dueAt' | 'isMilestone' | 'dependsOnTaskId' | 'assignedTo'>> & { projectId?: string | null }
+/** Project milestone (S7c); `budgetMinor` is a whole-rupiah decimal string. */
+export interface MilestoneDto {
+  id: string
+  projectId: string
+  stepKey: 'drafting' | 'confirmed' | 'start' | 'departure' | 'on-progress' | 'done' | null
+  name: string
+  plannedDate: string
+  actualDate: string | null
+  ownerId: string | null
+  status: 'not-started' | 'in-progress' | 'completed' | 'delayed' | 'cancelled'
+  note: string | null
+  budgetMinor: string | null
+  deliverables: { id: string; label: string; done: boolean }[]
+}
+export type MilestoneInput = Partial<Pick<MilestoneDto, 'name' | 'plannedDate' | 'stepKey' | 'ownerId' | 'note' | 'budgetMinor'>>
 /** Daily itinerary item (S7b); `vendorAmountMinor` is a whole-rupiah decimal string. */
 export interface ItineraryItemDto {
   id: string

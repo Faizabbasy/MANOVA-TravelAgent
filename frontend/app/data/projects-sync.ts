@@ -1,7 +1,8 @@
 import { PROJECTS } from './projects'
 import { resolveDestinationGeo } from './geo'
 import { evaluateProjectOrderStepGate, getProjectOrderStep, getProjectOrderStepDef, type AdvanceProjectOrderOptions, type AdvanceProjectOrderResult } from './project-order-workflow'
-import { seedDefaultProjectMilestones, type CreateProjectInput } from './index'
+import { reloadProjectMilestones } from './work-items-sync'
+import type { CreateProjectInput } from './index'
 import type { Project, ProjectStatus } from '~/types/project'
 import type { ProjectOrderGateResult, ProjectOrderStepKey } from '~/types/project-order'
 import { isInternalProject, type ProjectDto, type ProjectInternalDto, type ProjectPatchInput } from '~/types/api'
@@ -75,12 +76,20 @@ export function upsertServerProject (dto: ProjectDto): Project | undefined {
   return PROJECTS[PROJECTS.length - 1]
 }
 
-/** A project the user just created on the server: add it and give it the standard local milestones. */
+/** A project the user just created on the server: add it locally (its default milestones come from the server, S7c). */
 export function registerNewServerProject (dto: ProjectDto): Project {
   const project = upsertServerProject(dto)
   if (!project) { throw new Error('Project baru harus berupa DTO internal.') }
-  seedDefaultProjectMilestones(project)
   return project
+}
+
+/** The server created the project's standard milestones with it; a failed reload is fixed by the next sync. */
+export async function loadNewProjectMilestones (api: Pick<ManovaApi, 'core'>, projectId: string): Promise<void> {
+  try {
+    await reloadProjectMilestones(api, projectId)
+  } catch {
+    // The work-items sync brings them on the next load.
+  }
 }
 
 /** The full server list replaces the local one (internal DTOs only; a portal list leaves the array alone). */
@@ -164,6 +173,7 @@ export async function createProjectOnServer (api: Pick<ManovaApi, 'core'>, input
   const res = await api.core.createProject(toServerInput(input), idempotencyKey)
   const project = registerNewServerProject(res.data)
   project.budgetIdr = input.quotationAmountIdr
+  await loadNewProjectMilestones(api, project.id)
   return project
 }
 

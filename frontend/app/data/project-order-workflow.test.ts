@@ -12,7 +12,9 @@ import {
   getProjectNotes,
   createProjectNote,
   toggleProjectNotePin,
-  applyMilestoneTemplate
+  applyMilestoneTemplate,
+  createProjectMilestone,
+  milestoneTemplateItems
 } from './project-order-workflow'
 import { advanceProjectOrderOnServer, registerNewServerProject } from './projects-sync'
 import { serverProjectDto } from './projects-sync.test-utils'
@@ -42,56 +44,6 @@ function project (id: string): Project {
   if (!found) { throw new Error(`Fixture ${id} tidak ada`) }
   return found
 }
-
-describe('Auto-generate milestone default saat project dibuat', () => {
-  it('createProject langsung mengisi 8 milestone standar, bukan kosong', () => {
-    const created = createProject({
-      partyId: 'PTY-001',
-      name: 'Test Trip Milestone Otomatis',
-      destination: 'Yogyakarta, Indonesia',
-      travelStartDate: '2027-03-20',
-      travelEndDate: '2027-03-23',
-      travelerCount: 5,
-      serviceScope: ['flight'],
-      quotationAmountIdr: 100_000_000
-    })
-    if (!created) { throw new Error('project harus berhasil dibuat') }
-
-    const milestones = getProjectMilestones(created.id)
-    expect(milestones).toHaveLength(8)
-    expect(milestones.map(m => m.name)).toEqual(expect.arrayContaining([
-      'SPK / Handover Diterima', 'Finalisasi Itinerary', 'Invoice DP Terbit', 'Konfirmasi Vendor & Booking',
-      'Dokumen Traveler Lengkap', 'Keberangkatan', 'Trip Selesai', 'Laporan Akhir & Review Klien'
-    ]))
-    // Semua milestone baru berstatus 'not-started' (belum ada realisasi), dan berurutan planned date-nya.
-    expect(milestones.every(m => m.status === 'not-started')).toBe(true)
-    const plannedDates = milestones.map(m => m.plannedDate)
-    expect([...plannedDates].sort()).toEqual(plannedDates)
-    // "Keberangkatan" dan "Trip Selesai" menempel persis ke tanggal travel project.
-    expect(milestones.find(m => m.name === 'Keberangkatan')?.plannedDate).toBe('2027-03-20')
-    expect(milestones.find(m => m.name === 'Trip Selesai')?.plannedDate).toBe('2027-03-23')
-  })
-
-  it('milestone yang dihitung mundur tidak pernah jatuh ke masa lalu untuk keberangkatan yang sudah dekat', () => {
-    const created = createProject({
-      partyId: 'PTY-001',
-      name: 'Test Trip Keberangkatan Dekat',
-      destination: 'Bandung, Indonesia',
-      travelStartDate: '2026-09-05', // dekat dengan DEMO_REFERENCE_DATE (2026-07-29) — H-60 dst akan jatuh ke masa lalu tanpa clamp
-      travelEndDate: '2026-09-07',
-      travelerCount: 3,
-      serviceScope: ['hotel'],
-      quotationAmountIdr: 50_000_000
-    })
-    if (!created) { throw new Error('project harus berhasil dibuat') }
-
-    const milestones = getProjectMilestones(created.id)
-    const spk = milestones.find(m => m.name === 'SPK / Handover Diterima')
-    expect(spk).toBeDefined()
-    // Diclamp — tidak boleh lebih awal dari tanggal acuan demo (hari ini di mock).
-    expect(spk!.plannedDate >= '2026-07-29').toBe(true)
-  })
-})
 
 describe('Alur 6 step Project Order', () => {
   it('mendefinisikan tepat 6 step dengan urutan yang benar', () => {
@@ -332,8 +284,12 @@ describe('applyMilestoneTemplate', () => {
       ]
     }, 'USR-001')
 
-    const beforeCount = getProjectMilestones(created.id).length
-    expect(beforeCount).toBeGreaterThan(0) // createProject auto-generates 8 default milestones
+    // S7c: default milestones now come from the server; give the project one to be replaced.
+    createProjectMilestone({ projectId: created.id, name: 'Milestone Lama', plannedDate: '2027-05-02' })
+    expect(getProjectMilestones(created.id)).toHaveLength(1)
+    expect(milestoneTemplateItems(template.id, '2027-05-01')).toEqual([
+      { name: 'Kickoff', plannedDate: '2027-05-01' }, { name: 'Mid Check', plannedDate: '2027-05-06' }, { name: 'Wrap Up', plannedDate: '2027-05-13' }
+    ])
 
     const result = applyMilestoneTemplate(created.id, template.id, '2027-05-01')
 

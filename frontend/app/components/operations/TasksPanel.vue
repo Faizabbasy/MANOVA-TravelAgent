@@ -3,7 +3,9 @@ import { computed, ref, watch } from 'vue'
 import type { SortableEvent } from 'vue-draggable-plus'
 import { VueDraggable } from 'vue-draggable-plus'
 import { AlertTriangle, Calendar, CheckCircle2, CircleDashed, Clock, GripVertical, LayoutGrid, List as ListIcon, Lock, Plus, Search, UserRound } from 'lucide-vue-next'
-import { PROJECTS, USERS, getProjectById, getUserById, updateProjectTask, createProjectTask } from '~/data'
+import { PROJECTS, USERS, getProjectById, getUserById } from '~/data'
+import { createTaskOnServer, updateTaskOnServer } from '~/data/work-items-sync'
+import { isApiError } from '~/lib/api/errors'
 import { TASKS } from '~/data/activity'
 import { TASK_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
@@ -63,12 +65,31 @@ function syncBoardColumns () {
 }
 watch(filteredTasks, syncBoardColumns, { immediate: true, deep: true })
 
-function onDragEnd (event: SortableEvent, targetStatus: ProjectTask['status']) {
+/* S7c: tasks live on the server — writes go there first; a failure shows the reason and leaves the data as it was. */
+const api = useApi()
+const { showToast } = useToast()
+const isSaving = ref(false)
+
+async function saveTask<T> (title: string, action: () => Promise<T>): Promise<T | undefined> {
+  if (isSaving.value) { return undefined }
+  isSaving.value = true
+  try {
+    return await action()
+  } catch (error) {
+    showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return undefined
+  } finally {
+    isSaving.value = false
+  }
+}
+
+async function onDragEnd (event: SortableEvent, targetStatus: ProjectTask['status']) {
   const taskId = (event.item as HTMLElement).dataset.taskId
   if (!taskId) { return }
   const task = TASKS.find(item => item.id === taskId)
   if (!task || task.status === targetStatus) { return }
-  updateProjectTask(taskId, { status: targetStatus })
+  const saved = await saveTask('Status Tugas Gagal Diubah', () => updateTaskOnServer(api, taskId, { status: targetStatus }))
+  if (!saved) { syncBoardColumns() } // the card goes back to its column
 }
 
 /** "Tambah Tugas" (global) — `projectId` opsional (beda dari "Tambah Task" per-project yang selalu terikat
@@ -82,14 +103,16 @@ function openForm () {
   isFormOpen.value = true
 }
 
-function submitForm () {
+async function submitForm () {
   if (!form.value.title.trim()) { return }
-  createProjectTask({
-    projectId: form.value.projectId || undefined,
+  const input = {
+    projectId: form.value.projectId || null,
     title: form.value.title.trim(),
-    dueAt: form.value.dueAt || undefined,
-    assignedTo: form.value.assignedTo || undefined
-  })
+    dueAt: form.value.dueAt || null,
+    assignedTo: form.value.assignedTo || null
+  }
+  const saved = await saveTask('Tugas Gagal Ditambahkan', () => createTaskOnServer(api, input))
+  if (!saved) { return }
   isFormOpen.value = false
 }
 </script>
@@ -179,7 +202,7 @@ function submitForm () {
             <Button variant="outline" @click="isFormOpen = false">
               Batal
             </Button>
-            <Button :disabled="!form.title.trim()" @click="submitForm">
+            <Button :disabled="!form.title.trim() || isSaving" @click="submitForm">
               Simpan
             </Button>
           </SheetFooter>

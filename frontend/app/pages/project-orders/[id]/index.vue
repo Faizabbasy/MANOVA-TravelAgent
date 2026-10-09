@@ -13,8 +13,7 @@ import {
   getTravelerReadiness, previewTravelerImportMock,
   getTasksByProject, getActivitiesByProject,
   createChangeEntry, approveChangeEntry, rejectChangeEntry,
-  createProjectTask, updateProjectTask,
-  toggleTaskBlocked, getServiceReadinessMatrix, getDepartureReadiness, getProjectAttentionQueue,
+  getServiceReadinessMatrix, getDepartureReadiness, getProjectAttentionQueue,
   getBookingTimeline,
   getServiceOrdersByProject, getRfqsByProject,
   getChangeRequestsByProject, getCancellationRecordsByProject, getIncidentsByProject,
@@ -40,12 +39,13 @@ import type { TravelerImportPreviewRow, AttentionQueueItem } from '~/data'
 import type { SalesOrder } from '~/types/sales-order'
 import type { BookingTimelineEntry } from '~/types/booking-orchestration'
 import {
-  getProjectOrderStepViews, getProjectMilestones,
-  setMilestoneActualDate, updateMilestonePlannedDate, updateMilestoneNote, getProjectOrderStep,
-  getProjectMilestoneSummary, getMilestoneProgressPercent, toggleMilestoneDeliverable,
-  addMilestoneDeliverable, removeMilestoneDeliverable,
-  createProjectMilestone, applyMilestoneTemplate
+  getProjectOrderStepViews, getProjectMilestones, getProjectOrderStep,
+  getProjectMilestoneSummary, getMilestoneProgressPercent, milestoneTemplateItems
 } from '~/data/project-order-workflow'
+import {
+  addDeliverableOnServer, blockTaskOnServer, completeMilestoneOnServer, createMilestoneOnServer, createTaskOnServer, removeDeliverableOnServer,
+  replaceMilestonesOnServer, setDeliverableDoneOnServer, unblockTaskOnServer, updateMilestoneOnServer, updateTaskOnServer
+} from '~/data/work-items-sync'
 import { getEmployeeByUserId } from '~/data/hr'
 import { serviceCapabilityKey } from '~/constants/capabilities'
 import {
@@ -572,20 +572,36 @@ const milestones = computed(() => {
 /** Tanggal rencana dikunci begitu Project Order lewat tahap Drafting. */
 const plannedDatesLocked = computed(() => (project.value ? getProjectOrderStep(project.value) !== 'drafting' : true))
 
-function onMarkMilestoneActual (milestoneId: string) {
-  setMilestoneActualDate(milestoneId, DEMO_REFERENCE_DATE)
-  refreshStep()
-  showToast('Milestone diperbarui', `Tanggal realisasi diisi ${formatDate(DEMO_REFERENCE_DATE)}.`, 'success')
+/* S7c: tasks and milestones live on the server — every write goes there first; a failure shows the reason and leaves the data as it was. */
+const isSavingWorkItem = ref(false)
+
+async function workItemAction<T> (title: string, action: () => Promise<T>): Promise<T | undefined> {
+  if (isSavingWorkItem.value) { return undefined }
+  isSavingWorkItem.value = true
+  try {
+    return await action()
+  } catch (error) {
+    showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+    return undefined
+  } finally {
+    isSavingWorkItem.value = false
+    refreshStep()
+  }
 }
 
-function onUpdateMilestonePlanned (payload: { milestoneId: string; plannedDate: string }) {
-  updateMilestonePlannedDate(payload.milestoneId, payload.plannedDate)
-  refreshStep()
+async function onMarkMilestoneActual (milestoneId: string) {
+  const saved = await workItemAction('Milestone Gagal Diperbarui', () => completeMilestoneOnServer(financeApi, milestoneId))
+  if (!saved) { return }
+  showToast('Milestone diperbarui', `Tanggal realisasi diisi ${formatDate(saved.actualDate ?? DEMO_REFERENCE_DATE)}.`, 'success')
 }
 
-function onUpdateMilestoneNote (payload: { milestoneId: string; note: string }) {
-  updateMilestoneNote(payload.milestoneId, payload.note)
-  refreshStep()
+async function onUpdateMilestonePlanned (payload: { milestoneId: string; plannedDate: string }) {
+  await workItemAction('Tanggal Rencana Gagal Disimpan', () => updateMilestoneOnServer(financeApi, payload.milestoneId, { plannedDate: payload.plannedDate }))
+}
+
+async function onUpdateMilestoneNote (payload: { milestoneId: string; note: string }) {
+  const saved = await workItemAction('Catatan Gagal Disimpan', () => updateMilestoneOnServer(financeApi, payload.milestoneId, { note: payload.note.trim() || null }))
+  if (!saved) { return }
   showToast('Catatan Disimpan', 'Catatan milestone berhasil diperbarui.', 'success')
 }
 
@@ -646,38 +662,41 @@ const currentMilestoneDeliverables = computed(() => {
 })
 const currentMilestoneProgressPercent = computed(() => (currentMilestoneStep.value ? getMilestoneProgressPercent(currentMilestoneStep.value) : 0))
 
-function onToggleMilestoneDeliverable (payload: { milestoneId: string; deliverableId: string }) {
-  toggleMilestoneDeliverable(payload.milestoneId, payload.deliverableId)
-  refreshStep()
+async function onToggleMilestoneDeliverable (payload: { milestoneId: string; deliverableId: string }) {
+  const current = milestones.value.find(m => m.id === payload.milestoneId)?.deliverables?.find(d => d.id === payload.deliverableId)
+  if (!current) { return }
+  await workItemAction('Checklist Gagal Diperbarui', () => setDeliverableDoneOnServer(financeApi, payload.milestoneId, payload.deliverableId, !current.done))
 }
 
-function onAddMilestoneDeliverable (payload: { milestoneId: string; label: string }) {
-  addMilestoneDeliverable(payload.milestoneId, payload.label)
-  refreshStep()
+async function onAddMilestoneDeliverable (payload: { milestoneId: string; label: string }) {
+  if (!payload.label.trim()) { return }
+  await workItemAction('Checklist Gagal Ditambahkan', () => addDeliverableOnServer(financeApi, payload.milestoneId, payload.label.trim()))
 }
 
-function onRemoveMilestoneDeliverable (payload: { milestoneId: string; deliverableId: string }) {
-  removeMilestoneDeliverable(payload.milestoneId, payload.deliverableId)
-  refreshStep()
+async function onRemoveMilestoneDeliverable (payload: { milestoneId: string; deliverableId: string }) {
+  await workItemAction('Checklist Gagal Dihapus', () => removeDeliverableOnServer(financeApi, payload.milestoneId, payload.deliverableId))
 }
 
-function onAddMilestone (payload: { name: string; plannedDate: string; ownerId?: string; budgetIdr?: number }) {
+async function onAddMilestone (payload: { name: string; plannedDate: string; ownerId?: string; budgetIdr?: number }) {
   if (!project.value) { return }
-  createProjectMilestone({
-    projectId: project.value.id,
+  const projectId = project.value.id
+  const saved = await workItemAction('Milestone Gagal Ditambahkan', () => createMilestoneOnServer(financeApi, projectId, {
     name: payload.name,
     plannedDate: payload.plannedDate,
-    ownerId: payload.ownerId,
-    budgetIdr: payload.budgetIdr
-  })
-  refreshStep()
+    ownerId: payload.ownerId || null,
+    budgetMinor: payload.budgetIdr && payload.budgetIdr > 0 ? String(Math.round(payload.budgetIdr)) : null
+  }))
+  if (!saved) { return }
   showToast('Milestone Ditambahkan', `"${payload.name}" berhasil ditambahkan ke Timeline Tracking.`, 'success')
 }
 
-function onApplyMilestoneTemplate (payload: { templateId: string; baseDate: string }) {
+async function onApplyMilestoneTemplate (payload: { templateId: string; baseDate: string }) {
   if (!project.value) { return }
-  const created = applyMilestoneTemplate(project.value.id, payload.templateId, payload.baseDate)
-  refreshStep()
+  const projectId = project.value.id
+  const items = milestoneTemplateItems(payload.templateId, payload.baseDate)
+  if (!items.length) { return }
+  const created = await workItemAction('Template Gagal Diterapkan', () => replaceMilestonesOnServer(financeApi, projectId, items))
+  if (!created) { return }
   showToast('Template Diterapkan', `${created.length} milestone dibuat dari template.`, 'success')
 }
 
@@ -743,23 +762,23 @@ function openCreateTask (defaultStatus?: ProjectTask['status']) {
   isTaskDialogOpen.value = true
 }
 
-function submitTask () {
+async function submitTask () {
   if (!project.value || !taskTitle.value.trim()) { return }
+  const projectId = project.value.id
+  const editingId = editingTaskId.value
   const payload = {
     title: taskTitle.value.trim(),
     status: taskStatus.value,
-    dueAt: taskDueAt.value || undefined,
-    isMilestone: taskIsMilestone.value || undefined,
-    dependsOnTaskId: taskDependsOn.value || undefined,
-    assignedTo: taskAssignedTo.value || undefined
+    dueAt: taskDueAt.value || null,
+    isMilestone: taskIsMilestone.value,
+    dependsOnTaskId: taskDependsOn.value || null,
+    assignedTo: taskAssignedTo.value || null
   }
-  if (editingTaskId.value) {
-    updateProjectTask(editingTaskId.value, payload)
-    showToast('Task Diperbarui', `"${payload.title}" berhasil disimpan.`)
-  } else {
-    createProjectTask({ projectId: project.value.id, ...payload })
-    showToast('Task Ditambahkan', `"${payload.title}" berhasil ditambahkan.`)
-  }
+  const saved = await workItemAction('Task Gagal Disimpan', () => editingId
+    ? updateTaskOnServer(financeApi, editingId, payload)
+    : createTaskOnServer(financeApi, { projectId, ...payload }))
+  if (!saved) { return }
+  showToast(editingId ? 'Task Diperbarui' : 'Task Ditambahkan', `"${payload.title}" berhasil ${editingId ? 'disimpan' : 'ditambahkan'}.`)
   isTaskDialogOpen.value = false
 }
 
@@ -768,9 +787,11 @@ function taskTitleById (taskId?: string) {
   return tasks.value.find(t => t.id === taskId)?.title
 }
 
-function handleTaskStatusChange (taskId: string, event: Event) {
-  const newStatus = (event.target as HTMLSelectElement).value as 'not-started' | 'in-progress' | 'pending-confirmation' | 'done' | 'overdue'
-  updateProjectTask(taskId, { status: newStatus })
+async function handleTaskStatusChange (taskId: string, event: Event) {
+  const select = event.target as HTMLSelectElement
+  const newStatus = select.value as ProjectTask['status']
+  const saved = await workItemAction('Status Task Gagal Diubah', () => updateTaskOnServer(financeApi, taskId, { status: newStatus }))
+  if (!saved) { select.value = tasks.value.find(t => t.id === taskId)?.status ?? select.value }
 }
 
 const services = computed(() => project.value ? getProjectServices(project.value.id) : [])
@@ -1191,15 +1212,19 @@ function openBlockDialog (task: ProjectTask) {
   isBlockDialogOpen.value = true
 }
 
-function submitBlockTask () {
+async function submitBlockTask () {
   if (!blockingTask.value || !blockReason.value.trim()) { return }
-  toggleTaskBlocked(blockingTask.value.id, blockReason.value.trim())
+  const task = blockingTask.value
+  const reason = blockReason.value.trim()
+  const saved = await workItemAction('Task Gagal Diblokir', () => blockTaskOnServer(financeApi, task.id, reason))
+  if (!saved) { return }
   isBlockDialogOpen.value = false
-  showToast('Task Diblokir', `"${blockingTask.value.title}" ditandai diblokir.`, 'warning')
+  showToast('Task Diblokir', `"${task.title}" ditandai diblokir.`, 'warning')
 }
 
-function unblockTask (task: ProjectTask) {
-  toggleTaskBlocked(task.id)
+async function unblockTask (task: ProjectTask) {
+  const saved = await workItemAction('Blokir Gagal Dibuka', () => unblockTaskOnServer(financeApi, task.id))
+  if (!saved) { return }
   showToast('Blokir Dibuka', `"${task.title}" tidak lagi diblokir.`, 'info')
 }
 
@@ -1270,7 +1295,7 @@ const visibleTaskStatuses = computed(() => taskBoardStatusFilter.value
 /** Kartu bisa ditarik antar kolom (pola sama Kanban global `TasksPanel.vue`, menu Operasional > Tugas) —
  * dulu status cuma bisa diubah lewat dropdown di kartu. Salinan lokal per kolom untuk `VueDraggable`
  * (butuh array yang bisa dia mutasi langsung sewaktu drag); sumber kebenaran tetap `tasks`, disinkronkan
- * ulang tiap kali berubah (termasuk setelah drag men-trigger `updateProjectTask`). */
+ * ulang tiap kali berubah (termasuk setelah drag men-trigger `updateTaskOnServer`). */
 const taskBoardColumns = ref<Record<string, typeof tasks.value>>({})
 function syncTaskBoardColumns () {
   const map: Record<string, typeof tasks.value> = {}
@@ -1280,12 +1305,13 @@ function syncTaskBoardColumns () {
 }
 watch(tasks, syncTaskBoardColumns, { immediate: true, deep: true })
 
-function onTaskDragEnd (event: SortableEvent, targetStatus: string) {
+async function onTaskDragEnd (event: SortableEvent, targetStatus: string) {
   const taskId = (event.item as HTMLElement).dataset.taskId
   if (!taskId) { return }
   const task = tasks.value.find(item => item.id === taskId)
   if (!task || task.status === targetStatus) { return }
-  updateProjectTask(taskId, { status: targetStatus as ProjectTask['status'] })
+  const saved = await workItemAction('Status Task Gagal Diubah', () => updateTaskOnServer(financeApi, taskId, { status: targetStatus as ProjectTask['status'] }))
+  if (!saved) { syncTaskBoardColumns() } // the card goes back to its column
 }
 
 /** Section 21 (D-078) — union `Document` baru + `ProjectDocument` legacy, dipakai tab "Documents" yang diperkaya (category/version/expiry/access level). */
@@ -4675,7 +4701,7 @@ const tripDurationDays = computed(() => {
               <Button variant="outline" @click="isBlockDialogOpen = false">
                 Batal
               </Button>
-              <Button variant="destructive" :disabled="!blockReason.trim()" @click="submitBlockTask">
+              <Button variant="destructive" :disabled="!blockReason.trim() || isSavingWorkItem" @click="submitBlockTask">
                 Blokir
               </Button>
             </template>
@@ -4735,7 +4761,7 @@ const tripDurationDays = computed(() => {
                 <Button variant="outline" @click="isTaskDialogOpen = false">
                   Batal
                 </Button>
-                <Button :disabled="!taskTitle.trim()" @click="submitTask">
+                <Button :disabled="!taskTitle.trim() || isSavingWorkItem" @click="submitTask">
                   Simpan
                 </Button>
               </SheetFooter>
