@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { Table as TableIcon, GanttChartSquare, Info, Check, X, StickyNote, ChevronDown, Wallet, ListChecks, Trash2, Settings2, Plus, LayoutTemplate, AlertTriangle } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
+import { showStoredValue } from '~/lib/save-gate'
 import { getMilestoneDelayDays, getProjectMilestoneSummary, getMilestoneProgressPercent } from '~/data/project-order-workflow'
 import { USERS, MILESTONE_TEMPLATES, getUserById } from '~/data'
 import { formatDate, formatCurrencyIdr } from '~/utils/format'
@@ -155,9 +156,22 @@ function addDeliverable () {
   newDeliverableLabel.value = ''
 }
 
-function toggleDeliverable (deliverableId: string) {
+/* S7c: the parent saves to the server; inputs keep showing the stored value until its answer updates the data. */
+function toggleDeliverable (deliverableId: string, event?: Event, stored?: boolean) {
   if (!manageMilestoneId.value) { return }
+  if (event) { showStoredValue(event.target as HTMLInputElement, Boolean(stored)) }
   emit('toggle-deliverable', { milestoneId: manageMilestoneId.value, deliverableId })
+}
+
+function onDeliverableChange (event: Event, milestoneId: string, deliverable: { id: string; done: boolean }) {
+  showStoredValue(event.target as HTMLInputElement, deliverable.done)
+  emit('toggle-deliverable', { milestoneId, deliverableId: deliverable.id })
+}
+
+function onPlannedChange (event: Event, milestone: ProjectMilestone) {
+  const plannedDate = (event.target as HTMLInputElement).value
+  showStoredValue(event.target as HTMLInputElement, milestone.plannedDate)
+  if (plannedDate && plannedDate !== milestone.plannedDate) { emit('update-planned', { milestoneId: milestone.id, plannedDate }) }
 }
 
 function removeDeliverable (deliverableId: string) {
@@ -327,7 +341,7 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
                   type="date"
                   :value="row.milestone.plannedDate"
                   class="mt-1 w-full rounded-lg border border-input bg-card px-2 py-1 text-xs text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  @change="emit('update-planned', { milestoneId: row.milestone.id, plannedDate: ($event.target as HTMLInputElement).value })"
+                  @change="onPlannedChange($event, row.milestone)"
                 >
                 <p v-else class="mt-1 text-sm text-foreground">
                   {{ formatDate(row.milestone.plannedDate) }}
@@ -408,7 +422,7 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
                   :checked="deliverable.done"
                   :disabled="!canManage"
                   class="h-3.5 w-3.5 shrink-0 rounded border-input"
-                  @change="emit('toggle-deliverable', { milestoneId: row.milestone.id, deliverableId: deliverable.id })"
+                  @change="onDeliverableChange($event, row.milestone.id, deliverable)"
                 >
                 <span :class="deliverable.done ? 'text-muted-foreground line-through' : 'text-foreground'">{{ deliverable.label }}</span>
               </label>
@@ -533,7 +547,7 @@ function isLate (row: { milestone: ProjectMilestone; delay: number | undefined }
                   type="checkbox"
                   :checked="deliverable.done"
                   class="h-3.5 w-3.5 shrink-0 rounded border-input"
-                  @change="toggleDeliverable(deliverable.id)"
+                  @change="toggleDeliverable(deliverable.id, $event, deliverable.done)"
                 >
                 <span class="min-w-0 flex-1 truncate text-sm" :class="deliverable.done ? 'text-muted-foreground line-through' : 'text-foreground'">{{ deliverable.label }}</span>
                 <button type="button" class="shrink-0 text-muted-foreground hover:text-destructive" title="Hapus" @click="removeDeliverable(deliverable.id)">

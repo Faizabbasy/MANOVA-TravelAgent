@@ -366,6 +366,11 @@ export function getProjectOrderLateralTransitions (projectId: string): ProjectSt
  * Milestone
  * ------------------------------------------------------------------ */
 
+/** Planned dates are editable only while the project is in Drafting — the same rule the server enforces (S7c). */
+export function isMilestonePlanLocked (project: Pick<Project, 'status'>): boolean {
+  return project.status !== 'draft' && project.status !== 'planning'
+}
+
 export function getProjectMilestones (projectId: string): ProjectMilestone[] {
   return PROJECT_MILESTONES
     .filter(milestone => milestone.projectId === projectId)

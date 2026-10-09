@@ -5,7 +5,7 @@ import { VueDraggable } from 'vue-draggable-plus'
 import { AlertTriangle, Calendar, CheckCircle2, CircleDashed, Clock, GripVertical, LayoutGrid, List as ListIcon, Lock, Plus, Search, UserRound } from 'lucide-vue-next'
 import { PROJECTS, USERS, getProjectById, getUserById } from '~/data'
 import { createTaskOnServer, updateTaskOnServer } from '~/data/work-items-sync'
-import { isApiError } from '~/lib/api/errors'
+import { createSaveGate } from '~/lib/save-gate'
 import { TASKS } from '~/data/activity'
 import { TASK_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
@@ -14,7 +14,7 @@ import type { ProjectTask } from '~/types/activity'
 /** Menu sidebar "Tugas" — Kanban board lintas SEMUA project (data sudah global, `TASKS`, tidak ada entity
  * baru), pola sama "Tasks Kanban Board" per-project (`project-orders/[id]/index.vue`) tapi status diubah
  * lewat drag-and-drop (bukan dropdown) dan setiap kartu menyebut nama project-nya sendiri karena lintas
- * project. Persist status lewat `updateProjectTask` yang sudah ada (bukan mutator baru). */
+ * project. Persist status lewat `updateTaskOnServer` yang sudah ada (bukan mutator baru). */
 
 const { can } = usePermissions()
 const canManage = computed(() => can('project-order.manage-operations'))
@@ -55,7 +55,7 @@ const doneCount = computed(() => filteredTasks.value.filter(task => task.status 
 
 /** Salinan lokal per kolom untuk `VueDraggable` (butuh array yang bisa dia mutasi langsung sewaktu drag).
  * Sumber kebenaran tetap `TASKS` — disinkronkan ulang setiap kali `filteredTasks` berubah (termasuk
- * setelah drag men-trigger `updateProjectTask`), jadi urutan dalam kolom tidak pernah dianggap permanen. */
+ * setelah drag men-trigger `updateTaskOnServer`), jadi urutan dalam kolom tidak pernah dianggap permanen. */
 const boardColumns = ref<Record<string, ProjectTask[]>>({})
 function syncBoardColumns () {
   const map: Record<string, ProjectTask[]> = {}
@@ -68,20 +68,7 @@ watch(filteredTasks, syncBoardColumns, { immediate: true, deep: true })
 /* S7c: tasks live on the server — writes go there first; a failure shows the reason and leaves the data as it was. */
 const api = useApi()
 const { showToast } = useToast()
-const isSaving = ref(false)
-
-async function saveTask<T> (title: string, action: () => Promise<T>): Promise<T | undefined> {
-  if (isSaving.value) { return undefined }
-  isSaving.value = true
-  try {
-    return await action()
-  } catch (error) {
-    showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
-    return undefined
-  } finally {
-    isSaving.value = false
-  }
-}
+const { saving: isSaving, run: saveTask } = createSaveGate(showToast)
 
 async function onDragEnd (event: SortableEvent, targetStatus: ProjectTask['status']) {
   const taskId = (event.item as HTMLElement).dataset.taskId
@@ -94,7 +81,7 @@ async function onDragEnd (event: SortableEvent, targetStatus: ProjectTask['statu
 
 /** "Tambah Tugas" (global) — `projectId` opsional (beda dari "Tambah Task" per-project yang selalu terikat
  * satu project): task tanpa project itu murni tugas umum, tidak tertaut/tidak muncul di board manapun
- * selain di sini. Reuse `createProjectTask` yang sudah ada (bukan mutator baru). */
+ * selain di sini. Reuse `createTaskOnServer` yang sudah ada (bukan mutator baru). */
 const isFormOpen = ref(false)
 const form = ref({ title: '', projectId: '', dueAt: '', assignedTo: '' })
 

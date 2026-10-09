@@ -25,6 +25,7 @@ import {
 } from '~/data'
 import { reloadSalesOrder } from '~/data/sales-orders-sync'
 import { createItineraryItemOnServer, deleteItineraryItemOnServer, itineraryInput, updateItineraryItemOnServer } from '~/data/itinerary-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import { createTravelerGroupOnServer, createTravelerOnServer, deleteTravelerOnServer, importTravelersOnServer, reloadProjectTravelers, updateTravelerOnServer, verifyTravelerOnServer } from '~/data/travelers-sync'
 import {
   acceptHandoverOnServer, addTeamMemberOnServer, advanceProjectOrderOnServer, closeFinanceOnServer, patchProjectOnServer,
@@ -40,7 +41,7 @@ import type { SalesOrder } from '~/types/sales-order'
 import type { BookingTimelineEntry } from '~/types/booking-orchestration'
 import {
   getProjectOrderStepViews, getProjectMilestones, getProjectOrderStep,
-  getProjectMilestoneSummary, getMilestoneProgressPercent, milestoneTemplateItems
+  getProjectMilestoneSummary, getMilestoneProgressPercent, milestoneTemplateItems, isMilestonePlanLocked
 } from '~/data/project-order-workflow'
 import {
   addDeliverableOnServer, blockTaskOnServer, completeMilestoneOnServer, createMilestoneOnServer, createTaskOnServer, removeDeliverableOnServer,
@@ -569,22 +570,17 @@ const milestones = computed(() => {
   void refreshKey.value
   return getProjectMilestones(project.value?.id ?? '')
 })
-/** Tanggal rencana dikunci begitu Project Order lewat tahap Drafting. */
-const plannedDatesLocked = computed(() => (project.value ? getProjectOrderStep(project.value) !== 'drafting' : true))
+/** Tanggal rencana dikunci begitu Project Order lewat tahap Drafting — aturan yang sama dengan server (S7c). */
+const plannedDatesLocked = computed(() => (project.value ? isMilestonePlanLocked(project.value) : true))
 
 /* S7c: tasks and milestones live on the server — every write goes there first; a failure shows the reason and leaves the data as it was. */
-const isSavingWorkItem = ref(false)
+const workItemGate = createSaveGate(showToast)
+const isSavingWorkItem = workItemGate.saving
 
 async function workItemAction<T> (title: string, action: () => Promise<T>): Promise<T | undefined> {
-  if (isSavingWorkItem.value) { return undefined }
-  isSavingWorkItem.value = true
   try {
-    return await action()
-  } catch (error) {
-    showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
-    return undefined
+    return await workItemGate.run(title, action)
   } finally {
-    isSavingWorkItem.value = false
     refreshStep()
   }
 }

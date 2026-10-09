@@ -11,7 +11,7 @@ import type { BadgeTone } from '~/types/common'
 import { formatDate, formatCurrencyIdr } from '~/utils/format'
 
 /** Menu sidebar baru "Milestones" — list SEMUA `PROJECT_MILESTONES` lintas project (data sudah global,
- * bukan entity baru), dengan filter Project/Status dan "Tambah Milestone" (pakai `createProjectMilestone`
+ * bukan entity baru), dengan filter Project/Status dan "Tambah Milestone" (pakai `createMilestoneOnServer`
  * yang sudah ada, dipakai juga oleh tab Milestone per-project). Layout meniru "Timeline Tracking" tab
  * Milestone per-project (stat card + list bernomor lingkaran + progress bar) supaya konsisten visual,
  * tapi versi lintas-project ini READ-ONLY (baris klik → tab Milestone project terkait untuk edit/actual
