@@ -5,7 +5,7 @@ import type { Queryable } from '../db/client'
  * deep links and finance references look the same as before. One counter per prefix in `id_sequences`;
  * the upsert takes a row lock, so concurrent creates never get the same number.
  */
-export type IdPrefix = 'PRJ-' | 'PTY-' | 'CP-' | 'PACT-' | 'VND-' | 'VCT-' | 'VPR-' | 'VDOC-' | 'SVC-' | 'FLT-' | 'HTL-' | 'TRN-' | 'MICE-' | 'VQ-' | 'SO-' | 'BAT-' | 'LED-' | 'LACT-' | 'QUO-' | 'SLO-' | 'GRP-' | 'TRV-' | 'ROOM-' | 'ITIN-'
+export type IdPrefix = 'PRJ-' | 'PTY-' | 'CP-' | 'PACT-' | 'VND-' | 'VCT-' | 'VPR-' | 'VDOC-' | 'SVC-' | 'FLT-' | 'HTL-' | 'TRN-' | 'MICE-' | 'VQ-' | 'SO-' | 'BAT-' | 'LED-' | 'LACT-' | 'QUO-' | 'SLO-' | 'GRP-' | 'TRV-' | 'ROOM-' | 'ITIN-' | 'TSK-' | 'PMS-'
 
 /** Where each prefix's IDs live: table, ID column and an optional fixed filter (bookings share one table). */
 const SOURCES: Record<IdPrefix, { table: string; column?: string; where?: string }> = {
@@ -20,7 +20,8 @@ const SOURCES: Record<IdPrefix, { table: string; column?: string; where?: string
   'LED-': { table: 'leads' }, 'LACT-': { table: 'lead_activities' }, 'QUO-': { table: 'quotations' },
   'SLO-': { table: 'sales_order_refs' },
   'GRP-': { table: 'traveler_groups' }, 'TRV-': { table: 'travelers' }, 'ROOM-': { table: 'room_assignments' },
-  'ITIN-': { table: 'itinerary_items' }
+  'ITIN-': { table: 'itinerary_items' },
+  'TSK-': { table: 'project_tasks' }, 'PMS-': { table: 'project_milestones' }
 }
 
 /** IDs other tables already point at without a row of their own (S6a: projects won from a lead made by the old local mock). */

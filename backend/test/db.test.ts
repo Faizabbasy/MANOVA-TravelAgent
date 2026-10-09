@@ -426,6 +426,23 @@ describe('demo seed', () => {
     }
   })
 
+  test('work items exist after 0029', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await db.query("insert into project_tasks (id, title) values ('TSK-T1', 'Tugas umum')")
+      await expect(db.query("insert into project_tasks (id, title, is_blocked) values ('TSK-T2', 'X', true)")).rejects.toThrow() // block needs a reason
+      await expect(db.query("insert into project_tasks (id, title, status) values ('TSK-T3', 'X', 'archived')")).rejects.toThrow()
+      await db.query("insert into project_milestones (id, project_id, name, planned_on) values ('PMS-T1', 'PRJ-101', 'Uji', '2026-08-01')")
+      await expect(db.query("insert into project_milestones (id, project_id, name, planned_on, budget_minor) values ('PMS-T2', 'PRJ-101', 'Uji', '2026-08-01', -1)")).rejects.toThrow()
+      await expect(db.query(`insert into project_milestones (id, project_id, name, planned_on, deliverables) values ('PMS-T3', 'PRJ-101', 'Uji', '2026-08-01', '{"a":1}')`)).rejects.toThrow()
+      expect(await db.query("select prefix from id_sequences where prefix in ('TSK-', 'PMS-')")).toHaveLength(2)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('itinerary items exist after 0028', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
