@@ -3,9 +3,10 @@ import type { Queryable } from '../../db/client'
 import { AppError, errors, type FieldErrors } from '../../http/errors'
 import { ID_PATTERN } from '../../http/envelope'
 import { recordAudit } from '../../shared/audit'
-import { isIsoDate } from '../../shared/dates'
+import { businessDateOf, isIsoDate } from '../../shared/dates'
 import { nextId } from '../../shared/ids'
 import { parseAmountMinor } from '../../shared/money'
+import { createDefaultMilestones } from './milestones'
 
 /**
  * Project header writes (S3a). Status, team, services and the contract value after creation are NOT
@@ -179,6 +180,8 @@ export async function createProject(tx: Queryable, actor: Actor, input: ProjectC
       input.leadId ?? null, input.sourceQuotationId ?? null]
   )
   await tx.query('insert into project_members (project_id, user_id) values ($1, $2) on conflict do nothing', [id, actor.userId])
+  // S7c: every new project starts with the standard milestones, planned back from its travel dates.
+  await createDefaultMilestones(tx, id, String(h.travelStartDate), String(h.travelEndDate), businessDateOf(new Date()))
   await recordAudit(tx, {
     action: 'project.created', actorUserId: actor.userId, entityType: 'project', entityId: id, requestId,
     after: { name: h.name, partyId, destination: h.destination, travelStartDate: h.travelStartDate, travelEndDate: h.travelEndDate,
