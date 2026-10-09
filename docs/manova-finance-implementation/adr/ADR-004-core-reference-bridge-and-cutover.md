@@ -148,3 +148,15 @@ wajib, jam `HH:MM`, grup harus milik project yang sama, nominal vendor (string m
 mengosongkan vendor ikut mengosongkan nominal. Tanggal tidak dipaksa di dalam periode project. Seed hanya memperbarui
 item fixture yang belum diubah API. Tetap lokal: versi itinerary, komentar, approve/minta revisi (portal client,
 ADR-006). Setelah deploy jalankan sekali `db:seed:demo`.
+
+## Update 2026-10-09 — Task & milestone project (S7c)
+
+Task (`project_tasks`, `TSK-`) dan milestone (`project_milestones`, `PMS-`, checklist deliverable sebagai jsonb) kini
+di server (migrasi 0029): `GET /tasks`, `GET /milestones` untuk seluruh peran internal (portal 403), tulis lewat
+`project-order.manage-operations`. Task boleh tanpa project (tugas umum); blokir wajib beralasan dan terpisah dari
+status. Tanggal rencana milestone terkunci (422) setelah project lewat Drafting; "tandai selesai" mengisi tanggal
+realisasi hari ini. Template milestone tetap data master lokal: frontend menghitung daftarnya lalu
+`POST /projects/:id/milestones/replace` mengganti seluruh milestone project dalam satu transaksi. Project baru
+(`POST /projects`, termasuk Won lead) langsung mendapat 8 milestone default dari server. Seed: 16 task dan 192
+milestone (termasuk riwayat PRJ-301…340), hanya memperbarui baris yang belum diubah API. Tetap lokal: risiko, catatan
+project, shift notes (tanpa layar tulis), log aktivitas (S7d). Setelah deploy jalankan sekali `db:seed:demo`.

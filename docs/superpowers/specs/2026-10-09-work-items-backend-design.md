@@ -1,6 +1,6 @@
 # Backend item kerja project: task & milestone (S7c) — desain
 
-Tanggal: 9 Oktober 2026 · Branch: `production` · Status: disetujui (menunggu plan)
+Tanggal: 9 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-09-work-items-backend)
 
 S7c memindahkan **task** (`TASKS`) dan **milestone** (`PROJECT_MILESTONES`, termasuk checklist deliverable) ke
 server. Log aktivitas & entri perubahan (`ACTIVITIES`, `SYSTEM_EVENTS`) menyusul di S7d.
