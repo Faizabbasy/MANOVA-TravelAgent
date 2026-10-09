@@ -426,6 +426,24 @@ describe('demo seed', () => {
     }
   })
 
+  test('demo tasks and milestones are seeded; a re-seed keeps API edits', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [counts] = await db.query<{ t: number; m: number }>('select (select count(*)::int from project_tasks) as t, (select count(*)::int from project_milestones) as m')
+      expect(counts).toEqual({ t: 16, m: 192 }) // 32 literal fixtures + the year-history milestones (PRJ-301…340)
+      expect((await db.query<{ d: string }>("select depends_on as d from project_tasks where id = 'TSK-1022'"))[0]!.d).toBe('TSK-1021')
+      await db.query("update project_tasks set title = 'Diubah', changed_by_api_at = now() where id = 'TSK-1011'")
+      await db.query("update project_milestones set name = 'Diubah', changed_by_api_at = now() where id = 'PMS-101-1'")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ t: string }>("select title as t from project_tasks where id = 'TSK-1011'"))[0]!.t).toBe('Diubah')
+      expect((await db.query<{ n: string }>("select name as n from project_milestones where id = 'PMS-101-1'"))[0]!.n).toBe('Diubah')
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('work items exist after 0029', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
@@ -636,7 +654,7 @@ describe('demo seed', () => {
     // `paymentTerm` is a CRM billing term ("30 hari"), not a payment record; `netCostMinor` is the booking's net cost (Booking module, S4a).
     expect([...keys].filter(k => k !== 'paymentTerm' && k !== 'netCostMinor' && /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
     // The only money-like values are owned by Project/Booking/Sales (ADR-007): contract value, service budget,
-    // booking sell price and net cost, and the price of a Group Trip participant booking. S4b: vendor quotation amount (Procurement). S7b: the vendor amount of an itinerary item (Operations).
+    // booking sell price and net cost, and the price of a Group Trip participant booking. S4b: vendor quotation amount (Procurement). S7b: the vendor amount of an itinerary item (Operations). S7c: a milestone's planned budget (Operations).
     expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['amountMinor', 'budgetMinor', 'contractValueMinor', 'creditLimitMinor', 'netCostMinor', 'priceMinor', 'sellAmountMinor', 'vendorAmountMinor'])
   })
 })

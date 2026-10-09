@@ -18,6 +18,8 @@ import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from '../../frontend/app/data/par
 import { SERVICE_ORDERS } from '../../frontend/app/data/procurement'
 import { CORE_BOOKING_KEYS, departureDateOf, miceTotals } from '../src/modules/core/booking-rules'
 import { ITINERARY_ITEMS, PROJECT_SERVICES, PROJECTS, ROOM_ASSIGNMENTS, TRAVELER_GROUPS, TRAVELERS } from '../../frontend/app/data/projects'
+import { TASKS } from '../../frontend/app/data/activity'
+import { PROJECT_MILESTONES } from '../../frontend/app/data/project-orders'
 import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
 import { QUOTATIONS } from '../../frontend/app/data/quotations'
 import { FLIGHT_BOOKINGS } from '../../frontend/app/data/ticketing'
@@ -338,6 +340,31 @@ const seed: DemoCoreSeed = {
     replacesTravelerId: tr.replacesTravelerId ?? null
   })),
   roomAssignments: [...ROOM_ASSIGNMENTS].sort(byId).map(r => ({ id: r.id, projectId: r.projectId, groupId: r.groupId, roomLabel: r.roomLabel, roomType: r.roomType, travelerIds: [...r.travelerIds] })),
+  // S7c: project tasks and milestones (with their deliverable checklist).
+  tasks: [...TASKS].sort(byId).map(t => ({
+    id: t.id,
+    projectId: t.projectId ?? null,
+    title: t.title,
+    status: t.status,
+    dueOn: dateOnly(t.dueAt),
+    isMilestone: t.isMilestone ?? false,
+    dependsOn: t.dependsOnTaskId ?? null,
+    assignedTo: seededUser(t.assignedTo, `task ${t.id} assignee`),
+    blockedReason: t.isBlocked ? (t.blockedReason ?? 'Diblokir') : null
+  })),
+  milestones: [...PROJECT_MILESTONES].sort(byId).map(m => ({
+    id: m.id,
+    projectId: m.projectId,
+    stepKey: m.stepKey ?? null,
+    name: m.name,
+    plannedOn: m.plannedDate,
+    actualOn: m.actualDate ?? null,
+    ownerId: seededUser(m.ownerId, `milestone ${m.id} owner`),
+    status: m.status,
+    note: m.note ?? null,
+    budgetMinor: m.budgetIdr == null ? null : String(Math.round(m.budgetIdr)),
+    deliverables: (m.deliverables ?? []).map(d => ({ id: d.id, label: d.label, done: d.done }))
+  })),
   // S7b: daily itinerary items.
   itineraryItems: [...ITINERARY_ITEMS].sort(byId).map(i => ({
     id: i.id,

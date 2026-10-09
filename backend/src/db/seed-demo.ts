@@ -99,6 +99,15 @@ export interface DemoCoreSeed {
     isVip: boolean; cancelReason: string | null; replacedByTravelerId: string | null; replacesTravelerId: string | null
   }[]
   roomAssignments?: { id: string; projectId: string; groupId: string; roomLabel: string; roomType: string; travelerIds: string[] }[]
+  /** Project tasks and milestones (S7c). */
+  tasks?: {
+    id: string; projectId: string | null; title: string; status: string; dueOn: string | null; isMilestone: boolean; dependsOn: string | null
+    assignedTo: string | null; blockedReason: string | null
+  }[]
+  milestones?: {
+    id: string; projectId: string; stepKey: string | null; name: string; plannedOn: string; actualOn: string | null; ownerId: string | null
+    status: string; note: string | null; budgetMinor: string | null; deliverables: { id: string; label: string; done: boolean }[]
+  }[]
   /** Daily itinerary items (S7b). */
   itineraryItems?: {
     id: string; projectId: string; date: string; time: string | null; title: string; description: string | null; serviceType: string | null
@@ -430,6 +439,31 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
          on conflict (id) do update set room_label = excluded.room_label, room_type = excluded.room_type, traveler_ids = excluded.traveler_ids
          where room_assignments.provenance = 'demo-fixture' and room_assignments.changed_by_api_at is null`,
         [r.id, r.projectId, r.groupId, r.roomLabel, r.roomType, JSON.stringify(r.travelerIds), P]
+      )
+    }
+    // S7c: tasks and milestones. A re-seed refreshes fixture rows the API never changed.
+    const TASK_COLUMNS = ['project_id', 'title', 'status', 'due_on', 'is_milestone', 'assigned_to', 'is_blocked', 'blocked_reason'] as const
+    for (const tk of seed.tasks ?? []) {
+      await tx.query(
+        `insert into project_tasks (id, ${TASK_COLUMNS.join(', ')}, provenance)
+         values ($1, ${TASK_COLUMNS.map((_, n) => `$${n + 2}`).join(', ')}, $${TASK_COLUMNS.length + 2})
+         on conflict (id) do update set ${TASK_COLUMNS.map(c => `${c} = excluded.${c}`).join(', ')}
+         where project_tasks.provenance = 'demo-fixture' and project_tasks.changed_by_api_at is null`,
+        [tk.id, tk.projectId, tk.title, tk.status, tk.dueOn, tk.isMilestone, tk.assignedTo, tk.blockedReason !== null, tk.blockedReason, P]
+      )
+    }
+    // Dependencies once every task exists.
+    for (const tk of seed.tasks ?? []) {
+      await tx.query("update project_tasks set depends_on = $2 where id = $1 and provenance = 'demo-fixture' and changed_by_api_at is null", [tk.id, tk.dependsOn])
+    }
+    const MILESTONE_COLUMNS = ['project_id', 'step_key', 'name', 'planned_on', 'actual_on', 'owner_id', 'status', 'note', 'budget_minor', 'deliverables'] as const
+    for (const m of seed.milestones ?? []) {
+      await tx.query(
+        `insert into project_milestones (id, ${MILESTONE_COLUMNS.join(', ')}, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::text::jsonb, $12)
+         on conflict (id) do update set ${MILESTONE_COLUMNS.map(c => `${c} = excluded.${c}`).join(', ')}
+         where project_milestones.provenance = 'demo-fixture' and project_milestones.changed_by_api_at is null`,
+        [m.id, m.projectId, m.stepKey, m.name, m.plannedOn, m.actualOn, m.ownerId, m.status, m.note, m.budgetMinor, JSON.stringify(m.deliverables), P]
       )
     }
     // S7b: daily itinerary items. A re-seed refreshes fixture rows the API never changed.

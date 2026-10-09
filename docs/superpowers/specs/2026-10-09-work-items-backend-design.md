@@ -76,7 +76,7 @@ Laporan Akhir & Review Klien (+5 dari pulang); tanggal sebelum hari ini (tanggal
 
 ### Seed
 
-16 task dan 32 milestone fixture lewat `extract-demo-core.ts`. Seed ulang memperbarui baris fixture yang
+16 task dan 192 milestone fixture (32 literal + riwayat PRJ-301…340) lewat `extract-demo-core.ts`. Seed ulang memperbarui baris fixture yang
 `changed_by_api_at` kosong; tidak menyentuh yang sudah diubah API. Project demo tidak mendapat milestone default
 tambahan (hanya `createProject` lewat API yang membuatnya).
 
