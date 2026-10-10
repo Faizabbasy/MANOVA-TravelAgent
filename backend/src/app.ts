@@ -8,6 +8,7 @@ import { coreRoutes } from './modules/core/routes'
 import { salesRoutes } from './modules/sales/routes'
 import { itineraryRoutes } from './modules/core/itinerary-routes'
 import { workItemRoutes } from './modules/core/work-item-routes'
+import { activityRoutes } from './modules/core/activity-routes'
 import { travelerRoutes } from './modules/core/traveler-routes'
 import { isFinancePath, mayReachFinanceRoute } from './modules/finance/access'
 import { financeRoutes } from './modules/finance/routes'
@@ -151,6 +152,7 @@ export function createApp(deps: AppDeps) {
     .use(travelerRoutes(deps, auth))
     .use(itineraryRoutes(deps, auth))
     .use(workItemRoutes(deps, auth))
+    .use(activityRoutes(deps, auth))
     .use(financeRoutes(deps, auth))
     .use(arApRoutes(deps, auth))
     .use(refundRoutes(deps, auth))

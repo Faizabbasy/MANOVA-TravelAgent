@@ -71,6 +71,7 @@ const CAPABILITY_GRANTS = {
   'project-order.manage-operations': ['admin'],
   'project-order.manage-travelers': ['admin'],
   'project-order.log-change': ['admin'],
+  'project-order.review-change': ['admin'],
   'project-order.advance-step': ['admin'],
   'project-order.close': ['admin'],
   'project-order.view-margin': ['admin', 'finance'],
