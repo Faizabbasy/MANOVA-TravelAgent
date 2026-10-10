@@ -444,6 +444,20 @@ describe('demo seed', () => {
     }
   })
 
+  test('project activities exist after 0030', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await db.query("insert into project_activities (id, project_id, message) values ('ACT-T1', 'PRJ-101', 'Uji log')")
+      await expect(db.query("insert into project_activities (id, project_id, message, approval_status) values ('ACT-T2', 'PRJ-101', 'X', 'pending')")).rejects.toThrow() // approval only on a change
+      await expect(db.query("insert into project_activities (id, project_id, message, is_change, category) values ('CHG-T3', 'PRJ-101', 'X', true, 'weather')")).rejects.toThrow()
+      expect(await db.query("select prefix from id_sequences where prefix in ('ACT-', 'CHG-')")).toHaveLength(2)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('work items exist after 0029', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
