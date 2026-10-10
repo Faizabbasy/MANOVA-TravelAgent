@@ -1351,6 +1351,32 @@ export type TravelerInput = Partial<Pick<TravelerDto, 'name' | 'groupId' | 'pass
   | 'visaExpiryDate' | 'emergencyContactName' | 'emergencyContactPhone' | 'specialRequest' | 'dietaryRestrictions' | 'accessibilityNeeds' | 'companionOfTravelerId'>>
 export interface TravelerGroupDto { id: string; projectId: string; name: string; paxCount: number; roomingNote: string | null }
 export interface RoomAssignmentDto { id: string; projectId: string; groupId: string; roomLabel: string; roomType: 'single' | 'twin' | 'suite'; travelerIds: string[] }
+/** Project activity log entry (S7d): `ACT-` written by a server action, `CHG-` a change logged by hand. */
+export interface ProjectActivityDto {
+  id: string
+  projectId: string
+  message: string
+  isChange: boolean
+  reviewed: boolean
+  createdAt: string
+  category: 'traveler' | 'itinerary' | 'service' | 'vendor' | 'budget' | 'other' | null
+  reason: string | null
+  requestedBy: string | null
+  beforeValue: string | null
+  afterValue: string | null
+  impactNote: string | null
+  approvalStatus: 'pending' | 'approved' | 'rejected' | null
+  approvedBy: string | null
+  actorUserId: string | null
+  sourceAction: string | null
+}
+export interface ProjectChangeInput {
+  category: NonNullable<ProjectActivityDto['category']>
+  reason: string
+  beforeValue?: string | null
+  afterValue?: string | null
+  impactNote?: string | null
+}
 /** Project task (S7c); a task without a project is a general to-do from the global Tasks page. */
 export interface TaskDto {
   id: string

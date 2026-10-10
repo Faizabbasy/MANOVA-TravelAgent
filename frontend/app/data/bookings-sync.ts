@@ -5,6 +5,7 @@ import { TRANSPORT_BOOKINGS } from './transportation'
 import { MICE_EVENTS } from './mice'
 import { BOOKING_ORCHESTRATION_RECORDS } from './booking-orchestration'
 import { reloadProjectProcurement, upsertServerQuotation } from './procurement-sync'
+import { refreshProjectActivities } from './activity-sync'
 import type { ProjectService } from '~/types/project'
 import type { ApiBookingType, BookingCreateInput, BookingDto, BookingPatchInput, ProjectServiceDto, ServiceCreateInput, ServicePatchInput } from '~/types/api'
 import type { ManovaApi } from '~/lib/api/endpoints'
@@ -151,13 +152,17 @@ export async function createServiceOnServer (api: CoreApi, projectId: string, in
 }
 
 export async function patchServiceOnServer (api: CoreApi, id: string, input: ServicePatchInput): Promise<ProjectService> {
-  return upsertServerService((await api.core.updateProjectService(id, input)).data)
+  const service = upsertServerService((await api.core.updateProjectService(id, input)).data)
+  // S7d: a service marked "changed" is a change entry in the project's activity log.
+  if (input.status === 'changed') { await refreshProjectActivities(api, service.projectId) }
+  return service
 }
 
 /** Creates the booking; the server picks or makes its service. */
 export async function createBookingOnServer (api: CoreApi, type: UiBookingType, input: BookingCreateInput, key: string = newIdempotencyKey()): Promise<AnyBooking> {
   const res = await api.core.createBooking(toApiBookingType(type), input, key)
   await reloadProjectServices(api, input.projectId)
+  if (input.allowDuplicate) { await refreshProjectActivities(api, input.projectId) } // S7d: an intentional duplicate is logged
   return upsertServerBooking(res.data)
 }
 
@@ -240,6 +245,7 @@ export async function runBookingStatusChange (api: CoreApi, type: UiBookingType,
   localSideEffects()
   upsertServerBooking(dto)
   await reloadProjectServices(api, booking.projectId)
+  await refreshProjectActivities(api, booking.projectId) // S7d: the server logged the status change
 }
 
 export interface BookingsSyncState {

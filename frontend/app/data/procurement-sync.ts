@@ -1,5 +1,6 @@
 import { VENDOR_QUOTATIONS } from './vendors'
 import { SERVICE_ORDERS } from './procurement'
+import { refreshProjectActivities } from './activity-sync'
 import type { VendorQuotation } from '~/types/vendor'
 import type { ServiceOrder } from '~/types/procurement'
 import type { QuotationCreateInput, ServiceOrderDto, VendorQuotationDto } from '~/types/api'
@@ -153,7 +154,9 @@ export function useProcurementSync () {
 export async function runServiceOrderStatusChange (api: CoreApi, id: string, to: string, reason: string | undefined, localSideEffects: () => unknown): Promise<ServiceOrder> {
   const dto = (await api.core.changeServiceOrderStatus(id, { to, ...(reason?.trim() ? { reason: reason.trim() } : {}) })).data
   localSideEffects()
-  return upsertServerServiceOrder(dto)
+  const order = upsertServerServiceOrder(dto)
+  await refreshProjectActivities(api, order.projectId) // S7d: the server logged the status change
+  return order
 }
 
 /** Orders a vendor invoice can point at (Finance dialog): the vendor's active orders, labelled with project and status. */

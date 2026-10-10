@@ -12,7 +12,6 @@ import {
   getTravelerGroups, getTravelers, getRoomAssignments,
   getTravelerReadiness, previewTravelerImportMock,
   getTasksByProject, getActivitiesByProject,
-  createChangeEntry, approveChangeEntry, rejectChangeEntry,
   getServiceReadinessMatrix, getDepartureReadiness, getProjectAttentionQueue,
   getBookingTimeline,
   getServiceOrdersByProject, getRfqsByProject,
@@ -26,6 +25,7 @@ import {
 import { reloadSalesOrder } from '~/data/sales-orders-sync'
 import { createItineraryItemOnServer, deleteItineraryItemOnServer, itineraryInput, updateItineraryItemOnServer } from '~/data/itinerary-sync'
 import { createSaveGate } from '~/lib/save-gate'
+import { approveChangeOnServer, logChangeOnServer, rejectChangeOnServer, reviewActivityOnServer } from '~/data/activity-sync'
 import { createTravelerGroupOnServer, createTravelerOnServer, deleteTravelerOnServer, importTravelersOnServer, reloadProjectTravelers, updateTravelerOnServer, verifyTravelerOnServer } from '~/data/travelers-sync'
 import {
   acceptHandoverOnServer, addTeamMemberOnServer, advanceProjectOrderOnServer, closeFinanceOnServer, patchProjectOnServer,
@@ -75,7 +75,7 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
-const { canView, canApprove, canManage, can } = usePermissions()
+const { canView, canManage, can } = usePermissions()
 const { currentRole, currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
@@ -1447,7 +1447,8 @@ const visibleHistoryEntries = computed(() => {
  * di sub-section masing-masing) vs approve/reject (Management/Super Admin, docs bagian 5.1 "Approve").
  */
 const canLogChange = computed(() => can('project-order.log-change'))
-const canApproveChanges = computed(() => canApprove('project'))
+/* S7d: deciding and reviewing changes is a server capability (`project-order.review-change`). */
+const canApproveChanges = computed(() => can('project-order.review-change'))
 
 const isChangeDialogOpen = ref(false)
 const changeCategory = ref<ChangeCategory>('other')
@@ -1464,17 +1465,17 @@ function resetChangeForm () {
   changeImpact.value = ''
 }
 
-function submitChangeEntry () {
+async function submitChangeEntry () {
   if (!project.value || !changeReason.value.trim()) { return }
-  createChangeEntry({
-    projectId: project.value.id,
+  const projectId = project.value.id
+  const saved = await workItemAction('Perubahan Gagal Dicatat', () => logChangeOnServer(financeApi, projectId, {
     category: changeCategory.value,
     reason: changeReason.value.trim(),
-    requestedBy: currentUser.value.id,
-    beforeValue: changeBefore.value.trim() || undefined,
-    afterValue: changeAfter.value.trim() || undefined,
-    impactNote: changeImpact.value.trim() || undefined
-  })
+    beforeValue: changeBefore.value.trim() || null,
+    afterValue: changeAfter.value.trim() || null,
+    impactNote: changeImpact.value.trim() || null
+  }))
+  if (!saved) { return }
   resetChangeForm()
   isChangeDialogOpen.value = false
   showToast('Perubahan Dicatat', 'Change baru dicatat, menunggu approval Management/Super Admin.')
@@ -1546,16 +1547,23 @@ function submitDiscussionMessage () {
   discussionAttachmentName.value = ''
 }
 
-function handleApproveChange (entryId: string) {
-  const entry = approveChangeEntry(entryId, currentUser.value.id)
+async function handleApproveChange (entryId: string) {
+  const entry = await workItemAction('Perubahan Gagal Disetujui', () => approveChangeOnServer(financeApi, entryId))
   if (!entry) { return }
   showToast('Perubahan Disetujui', `Change ${entry.id} disetujui.`)
 }
 
-function handleRejectChange (entryId: string) {
-  const entry = rejectChangeEntry(entryId, currentUser.value.id)
+async function handleRejectChange (entryId: string) {
+  const entry = await workItemAction('Perubahan Gagal Ditolak', () => rejectChangeOnServer(financeApi, entryId))
   if (!entry) { return }
   showToast('Perubahan Ditolak', `Change ${entry.id} ditolak.`, 'info')
+}
+
+/** An automatic change entry (service marked changed, intentional duplicate booking) is closed by reviewing it (S7d). */
+async function handleReviewActivity (entryId: string) {
+  const entry = await workItemAction('Gagal Menandai Direview', () => reviewActivityOnServer(financeApi, entryId))
+  if (!entry) { return }
+  showToast('Ditandai Direview', 'Perubahan ini tidak lagi menandai project perlu perhatian.', 'info')
 }
 
 /**
@@ -5303,12 +5311,21 @@ const tripDurationDays = computed(() => {
                     </div>
                     <div class="flex flex-col items-end gap-1.5 shrink-0">
                       <StatusBadge v-if="item.activity.isChange && !item.activity.approvalStatus" :label="item.activity.reviewed ? 'Change (Reviewed)' : 'Change (Belum Direview)'" :tone="item.activity.reviewed ? 'info' : 'warning'" />
+                      <Button
+                        v-if="item.activity.isChange && !item.activity.approvalStatus && !item.activity.reviewed && canApproveChanges && !/^(ACT|CHG)-L/.test(item.activity.id)"
+                        size="sm"
+                        variant="outline"
+                        :disabled="isSavingWorkItem"
+                        @click="handleReviewActivity(item.activity.id)"
+                      >
+                        Tandai Direview
+                      </Button>
                       <AttentionIndicator v-if="item.activity.approvalStatus === 'pending'" severity="medium" label="Menunggu Approval" />
-                      <div v-if="item.activity.approvalStatus === 'pending' && canApproveChanges" class="flex items-center gap-1">
-                        <Button size="sm" variant="outline" @click="handleApproveChange(item.activity.id)">
+                      <div v-if="item.activity.approvalStatus === 'pending' && canApproveChanges && !/^(ACT|CHG)-L/.test(item.activity.id)" class="flex items-center gap-1">
+                        <Button size="sm" variant="outline" :disabled="isSavingWorkItem" @click="handleApproveChange(item.activity.id)">
                           Setujui
                         </Button>
-                        <Button size="sm" variant="ghost" @click="handleRejectChange(item.activity.id)">
+                        <Button size="sm" variant="ghost" :disabled="isSavingWorkItem" @click="handleRejectChange(item.activity.id)">
                           Tolak
                         </Button>
                       </div>

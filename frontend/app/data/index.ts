@@ -40,7 +40,7 @@ import {
 } from './master-data'
 import { isProjectNeedingAttention, isTaskUpcoming, isFollowUpUpcoming, isTravelerDocumentMissing, isInvoiceOverdue, isDocumentExpired, DEMO_REFERENCE_DATE, MINIMUM_DP_PERCENT } from '~/utils/attention'
 import { formatCurrencyIdr, daysUntil, formatDateTime } from '~/utils/format'
-import { SERVICE_STATUSES, SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES, PROJECT_STATUSES, SUPPORT_TICKET_CATEGORIES, INVOICE_STATUSES } from '~/constants/status'
+import { SERVICE_TYPES, findStatusOption, FLIGHT_BOOKING_STATUSES, HOTEL_BOOKING_STATUSES, TRANSPORT_BOOKING_STATUSES, MICE_EVENT_STATUSES, VEHICLE_TYPES, PROJECT_STATUSES, SUPPORT_TICKET_CATEGORIES, INVOICE_STATUSES } from '~/constants/status'
 import type { Project, ProjectStatus, ProjectCharacteristic, ServiceTypeKey, ServiceStatus, Traveler, TravelerGroup, ProjectOrderStatus, ProjectDetailTab, ItineraryItem, RoomAssignment, RoomType } from '~/types/project'
 import type { Party, ContactPerson, PartyActivity, PartyActivityType, CompanyType, SensitiveCompanyProfileFields } from '~/types/party'
 import type { Quotation, QuotationAttachment, QuotationComment } from '~/types/quotation'
@@ -369,7 +369,7 @@ export function createInvoice (input: CreateInvoiceInput): Invoice | undefined {
   }
   INVOICES.push(invoice)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: input.projectId,
     message: `Invoice ${invoice.id} (${invoice.label}) diterbitkan senilai ${formatCurrencyIdr(invoice.amountIdr)} (${invoice.invoiceType}).`,
     isChange: false,
@@ -394,7 +394,7 @@ export function voidInvoice (invoiceId: string, reason: string, actorId: string)
   invoice.voidReason = reason.trim()
   const actor = getUserById(actorId)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: invoice.projectId,
     message: `Invoice ${invoice.id} dibatalkan (void) oleh ${actor?.name ?? actorId}. Alasan: ${invoice.voidReason}`,
     isChange: true,
@@ -447,7 +447,7 @@ export function recordPayment (input: RecordPaymentInput): Payment | undefined {
 
   const actor = getUserById(input.recordedBy)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: invoice.projectId,
     message: `Payment ${payment.id} sebesar ${formatCurrencyIdr(payment.amountIdr)} dicatat untuk Invoice ${invoice.id} oleh ${actor?.name ?? input.recordedBy}. Invoice kini berstatus "${invoice.status}".`,
     isChange: false,
@@ -479,7 +479,7 @@ export function issueCreditNote (input: IssueCreditNoteInput): CreditNote | unde
   }
   CREDIT_NOTES.push(note)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: invoice.projectId,
     message: `Credit Note ${note.id} senilai ${formatCurrencyIdr(note.amountIdr)} diterbitkan untuk Invoice ${invoice.id}. Alasan: ${note.reason}`,
     isChange: false,
@@ -511,7 +511,7 @@ export function issueDebitNote (input: IssueDebitNoteInput): DebitNote | undefin
   }
   DEBIT_NOTES.push(note)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: input.projectId,
     message: `Debit Note ${note.id} senilai ${formatCurrencyIdr(note.amountIdr)} diterbitkan. Alasan: ${note.reason}`,
     isChange: false,
@@ -1241,7 +1241,7 @@ export function getLeadWorkflowStatus (leadId: string): LeadWorkflowStatus | und
 }
 
 /** "Mark as Won" (S6a): the server creates the project (`markLeadWonOnServer`, `app/data/leads-sync.ts`); these are the local side effects. */
-export function applyLeadWon (leadId: string, project: Project, approverId: string): void {
+export function applyLeadWon (leadId: string, project: Project, _approverId: string): void {
   const lead = getLeadById(leadId)
   if (!lead) { return }
   lead.projectId = project.id
@@ -1253,15 +1253,6 @@ export function applyLeadWon (leadId: string, project: Project, approverId: stri
     party.accountOwnerId = accountExecutiveId
     ensureClientLoginAccount(lead, accountExecutiveId)
   }
-  const approver = getUserById(approverId)
-  ACTIVITIES.push({
-    id: `ACT-${project.id.replace('PRJ-', '')}1`,
-    projectId: project.id,
-    message: `Project ${project.id} dibuat dari Lead ${lead.id} (Won oleh ${approver?.name ?? approverId})`,
-    isChange: false,
-    reviewed: true,
-    createdAt: DEMO_REFERENCE_DATE
-  })
 }
 
 /**
@@ -1501,18 +1492,7 @@ export function commitTravelerImport (projectId: string, rows: TravelerImportPre
 export function updateServiceStatus (serviceId: string, newStatus: ServiceStatus) {
   const service = PROJECT_SERVICES.find(item => item.id === serviceId)
   if (!service) { return undefined }
-  const previousStatus = service.status
   service.status = newStatus
-  if (newStatus === 'changed' && previousStatus !== 'changed') {
-    ACTIVITIES.push({
-      id: nextSequentialId('ACT-', ACTIVITIES),
-      projectId: service.projectId,
-      message: `Layanan "${service.label}" ditandai berubah (status: ${findStatusOption(SERVICE_STATUSES, newStatus).label}) — perlu ditinjau.`,
-      isChange: true,
-      reviewed: false,
-      createdAt: DEMO_REFERENCE_DATE
-    })
-  }
   return service
 }
 
@@ -1706,14 +1686,13 @@ function mapFlightStatusToServiceStatus (status: FlightBookingStatus): ServiceSt
 }
 
 /** Reason wajib untuk `cancelled`/`refunded` (dampak besar — pola sama `updateProjectStatus`, D-066), dicatat sebagai `ActivityEntry` pada project terkait untuk jejak historis. */
-export function updateFlightBookingStatus (bookingId: string, newStatus: FlightBookingStatus, actorId: string, reason?: string): FlightBooking | undefined {
+export function updateFlightBookingStatus (bookingId: string, newStatus: FlightBookingStatus, _actorId: string, reason?: string): FlightBooking | undefined {
   const booking = getFlightBookingById(bookingId)
   if (!booking) { return undefined }
   if (!getFlightBookingStatusTransitions(booking.status).includes(newStatus)) { return undefined }
   const requiresReason = newStatus === 'cancelled' || newStatus === 'refunded'
   if (requiresReason && !reason?.trim()) { return undefined }
 
-  const fromLabel = booking.status
   booking.status = newStatus
   booking.updatedAt = DEMO_REFERENCE_DATE
   if (reason) { booking.statusReason = reason.trim() }
@@ -1724,15 +1703,6 @@ export function updateFlightBookingStatus (bookingId: string, newStatus: FlightB
     }
   }
 
-  const actor = getUserById(actorId)
-  ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
-    projectId: booking.projectId,
-    message: `Flight Booking ${booking.id}${booking.pnr ? ` (PNR ${booking.pnr})` : ''} status diubah dari "${fromLabel}" menjadi "${newStatus}" oleh ${actor?.name ?? actorId}.${reason ? ` Alasan: ${reason}` : ''}`,
-    isChange: false,
-    reviewed: true,
-    createdAt: DEMO_REFERENCE_DATE
-  })
   return booking
 }
 
@@ -1805,14 +1775,13 @@ function mapHotelStatusToServiceStatus (status: HotelBookingStatus): ServiceStat
 }
 
 /** Reason wajib untuk `cancelled`/`no-show` (dampak besar — pola sama `updateFlightBookingStatus`, D-070), dicatat sebagai `ActivityEntry` pada project terkait untuk jejak historis. */
-export function updateHotelBookingStatus (bookingId: string, newStatus: HotelBookingStatus, actorId: string, reason?: string): HotelBooking | undefined {
+export function updateHotelBookingStatus (bookingId: string, newStatus: HotelBookingStatus, _actorId: string, reason?: string): HotelBooking | undefined {
   const booking = getHotelBookingById(bookingId)
   if (!booking) { return undefined }
   if (!getHotelBookingStatusTransitions(booking.status).includes(newStatus)) { return undefined }
   const requiresReason = newStatus === 'cancelled' || newStatus === 'no-show'
   if (requiresReason && !reason?.trim()) { return undefined }
 
-  const fromLabel = booking.status
   booking.status = newStatus
   booking.updatedAt = DEMO_REFERENCE_DATE
   if (reason) { booking.statusReason = reason.trim() }
@@ -1823,15 +1792,6 @@ export function updateHotelBookingStatus (bookingId: string, newStatus: HotelBoo
     }
   }
 
-  const actor = getUserById(actorId)
-  ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
-    projectId: booking.projectId,
-    message: `Hotel Booking ${booking.id}${booking.confirmationNumber ? ` (konfirmasi ${booking.confirmationNumber})` : ''} status diubah dari "${fromLabel}" menjadi "${newStatus}" oleh ${actor?.name ?? actorId}.${reason ? ` Alasan: ${reason}` : ''}`,
-    isChange: false,
-    reviewed: true,
-    createdAt: DEMO_REFERENCE_DATE
-  })
   return booking
 }
 
@@ -1899,14 +1859,13 @@ function mapTransportStatusToServiceStatus (status: TransportBookingStatus): Ser
 }
 
 /** Reason wajib untuk `cancelled`/`no-show` (dampak besar — pola sama `updateHotelBookingStatus`, D-071), dicatat sebagai `ActivityEntry` pada project terkait untuk jejak historis. */
-export function updateTransportBookingStatus (bookingId: string, newStatus: TransportBookingStatus, actorId: string, reason?: string): TransportBooking | undefined {
+export function updateTransportBookingStatus (bookingId: string, newStatus: TransportBookingStatus, _actorId: string, reason?: string): TransportBooking | undefined {
   const booking = getTransportBookingById(bookingId)
   if (!booking) { return undefined }
   if (!getTransportBookingStatusTransitions(booking.status).includes(newStatus)) { return undefined }
   const requiresReason = newStatus === 'cancelled' || newStatus === 'no-show'
   if (requiresReason && !reason?.trim()) { return undefined }
 
-  const fromLabel = booking.status
   booking.status = newStatus
   booking.updatedAt = DEMO_REFERENCE_DATE
   if (reason) { booking.statusReason = reason.trim() }
@@ -1917,15 +1876,6 @@ export function updateTransportBookingStatus (bookingId: string, newStatus: Tran
     }
   }
 
-  const actor = getUserById(actorId)
-  ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
-    projectId: booking.projectId,
-    message: `Transport Booking ${booking.id}${booking.assignedVehiclePlateNumber ? ` (unit ${booking.assignedVehiclePlateNumber})` : ''} status diubah dari "${fromLabel}" menjadi "${newStatus}" oleh ${actor?.name ?? actorId}.${reason ? ` Alasan: ${reason}` : ''}`,
-    isChange: false,
-    reviewed: true,
-    createdAt: DEMO_REFERENCE_DATE
-  })
   return booking
 }
 
@@ -2013,14 +1963,13 @@ function mapMiceStatusToServiceStatus (status: MiceEventStatus): ServiceStatus {
 }
 
 /** Reason wajib untuk `cancelled` (dampak besar — pola sama section lain), dicatat sebagai `ActivityEntry` pada project terkait untuk jejak historis. */
-export function updateMiceEventStatus (eventId: string, newStatus: MiceEventStatus, actorId: string, reason?: string): MiceEvent | undefined {
+export function updateMiceEventStatus (eventId: string, newStatus: MiceEventStatus, _actorId: string, reason?: string): MiceEvent | undefined {
   const event = getMiceEventById(eventId)
   if (!event) { return undefined }
   if (!getMiceEventStatusTransitions(event.status).includes(newStatus)) { return undefined }
   const requiresReason = newStatus === 'cancelled'
   if (requiresReason && !reason?.trim()) { return undefined }
 
-  const fromLabel = event.status
   event.status = newStatus
   event.updatedAt = DEMO_REFERENCE_DATE
   if (reason) { event.statusReason = reason.trim() }
@@ -2031,15 +1980,6 @@ export function updateMiceEventStatus (eventId: string, newStatus: MiceEventStat
     }
   }
 
-  const actor = getUserById(actorId)
-  ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
-    projectId: event.projectId,
-    message: `MICE Event ${event.id} status diubah dari "${fromLabel}" menjadi "${newStatus}" oleh ${actor?.name ?? actorId}.${reason ? ` Alasan: ${reason}` : ''}`,
-    isChange: false,
-    reviewed: true,
-    createdAt: DEMO_REFERENCE_DATE
-  })
   return event
 }
 
@@ -2067,7 +2007,7 @@ export function updateMiceClientApproval (eventId: string, newStatus: MiceApprov
 
   const actor = getUserById(actorId)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: event.projectId,
     message: `MICE Event ${event.id} — Client Approval diubah menjadi "${newStatus}" oleh ${actor?.name ?? actorId}.${note ? ` Catatan: ${note}` : ''}`,
     isChange: false,
@@ -2363,18 +2303,9 @@ const BOOKING_ACTIVE_CHECK_TERMINAL: Record<'flight' | 'hotel' | 'transport', st
 }
 
 /** Dipanggil SETELAH booking dibuat lewat server (`createBookingFromInput`, S4a) bila user mengonfirmasi "lanjutkan sebagai duplicate yang disengaja" pada dialog peringatan setelah server menolak dengan 409 (booking aktif di layanan yang sama, S4b) — server sudah menandai duplikat; fungsi ini hanya mencatat aktivitas project. */
-export function flagBookingOrchestrationDuplicate (bookingType: BookingDomain, bookingId: string, projectId: string, actorId: string, conflictingBookingIds: string[]): BookingOrchestrationRecord {
+export function flagBookingOrchestrationDuplicate (bookingType: BookingDomain, bookingId: string, projectId: string, _actorId: string, _conflictingBookingIds: string[]): BookingOrchestrationRecord {
   const record = getOrCreateBookingOrchestrationRecord(bookingType, bookingId, projectId)
   record.flaggedDuplicate = true
-  const actor = getUserById(actorId)
-  ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
-    projectId,
-    message: `${BOOKING_DOMAIN_LABEL[bookingType]} Booking ${bookingId} dibuat sebagai duplicate booking yang disengaja (booking aktif lain untuk service yang sama: ${conflictingBookingIds.join(', ')}) — dikonfirmasi oleh ${actor?.name ?? actorId}.`,
-    isChange: true,
-    reviewed: false,
-    createdAt: DEMO_REFERENCE_DATE
-  })
   return record
 }
 
@@ -2426,7 +2357,7 @@ export interface CreateChangeEntryInput {
 
 export function createChangeEntry (input: CreateChangeEntryInput): ActivityEntry {
   const entry: ActivityEntry = {
-    id: nextSequentialId('CHG-', ACTIVITIES),
+    id: nextSequentialId('CHG-L', ACTIVITIES),
     projectId: input.projectId,
     message: input.reason,
     isChange: true,
@@ -3196,7 +3127,7 @@ export function selectRfqVendor (rfqId: string, vendorId: string, actorId: strin
     const actor = getUserById(actorId)
     const vendor = getVendorById(vendorId)
     ACTIVITIES.push({
-      id: nextSequentialId('ACT-', ACTIVITIES),
+      id: nextSequentialId('ACT-L', ACTIVITIES),
       projectId: rfq.projectId,
       message: `RFQ ${rfq.id} (${rfq.title}) — vendor terpilih: ${vendor?.name ?? vendorId}, diputuskan oleh ${actor?.name ?? actorId}.`,
       isChange: false,
@@ -3304,11 +3235,12 @@ export function updateServiceOrderStatus (id: string, newStatus: ServiceOrderSta
   if (newStatus === 'fulfilled') { so.fulfilledAt = DEMO_REFERENCE_DATE }
   if (reason) { so.statusReason = reason.trim() }
 
-  if (so.projectId) {
+  // S7d: the server logs status changes of server orders; only a local order (SO-L…) is logged here.
+  if (so.projectId && so.id.startsWith('SO-L')) {
     const actor = getUserById(actorId)
     const vendor = getVendorById(so.vendorId)
     ACTIVITIES.push({
-      id: nextSequentialId('ACT-', ACTIVITIES),
+      id: nextSequentialId('ACT-L', ACTIVITIES),
       projectId: so.projectId,
       message: `Service Order ${so.id} (${vendor?.name ?? so.vendorId}) status diubah dari "${fromLabel}" menjadi "${newStatus}" oleh ${actor?.name ?? actorId}.${reason ? ` Alasan: ${reason}` : ''}`,
       isChange: false,
@@ -3331,7 +3263,7 @@ export function amendServiceOrder (id: string, reason: string, actorId: string, 
   if (so.projectId) {
     const actor = getUserById(actorId)
     ACTIVITIES.push({
-      id: nextSequentialId('ACT-', ACTIVITIES),
+      id: nextSequentialId('ACT-L', ACTIVITIES),
       projectId: so.projectId,
       message: `Service Order ${so.id} diamandemen oleh ${actor?.name ?? actorId}. Alasan: ${reason.trim()}`,
       isChange: true,
@@ -3521,7 +3453,7 @@ export function markChangeRequestUnderReview (requestId: string, actorId: string
   if (!request || !getChangeRequestStatusTransitions(request.status).includes('under-review')) { return undefined }
   request.status = 'under-review'
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: request.projectId,
     message: `Change Request ${request.id} sedang direview oleh ${getUserById(actorId)?.name ?? actorId}.`,
     isChange: false,
@@ -3536,7 +3468,7 @@ export function markChangeRequestImplemented (requestId: string, actorId: string
   if (!request || !getChangeRequestStatusTransitions(request.status).includes('implemented')) { return undefined }
   request.status = 'implemented'
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: request.projectId,
     message: `Change Request ${request.id} telah diimplementasikan oleh ${getUserById(actorId)?.name ?? actorId}.`,
     isChange: false,
@@ -3584,7 +3516,7 @@ export function createCancellationRecord (input: CreateCancellationRecordInput):
   CANCELLATION_RECORDS.push(record)
   const actor = getUserById(input.cancelledBy)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: input.projectId,
     message: `${BOOKING_DOMAIN_LABEL[input.bookingType]} Booking ${input.bookingId} dibatalkan oleh ${actor?.name ?? input.cancelledBy}.${input.penaltyIdr ? ` Penalty: ${formatCurrencyIdr(input.penaltyIdr)}.` : ' Tidak ada penalty.'}`,
     isChange: false,
@@ -3629,7 +3561,7 @@ export function createRefundRequest (input: CreateRefundRequestInput): RefundReq
   REFUND_REQUESTS.push(request)
   const actor = getUserById(input.requestedBy)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: input.projectId,
     message: `Refund Request ${request.id} (${input.type === 'full' ? 'penuh' : 'sebagian'}, ${formatCurrencyIdr(input.amountIdr)}) diajukan oleh ${actor?.name ?? input.requestedBy}.`,
     isChange: false,
@@ -3685,7 +3617,7 @@ export function updateRefundRequestStatus (requestId: string, newStatus: RefundR
 
   const actor = getUserById(actorId)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: request.projectId,
     message: `Refund Request ${request.id} status diubah dari "${fromLabel}" menjadi "${newStatus}" oleh ${actor?.name ?? actorId}.${reason ? ` Alasan: ${reason}` : ''}`,
     isChange: false,
@@ -3732,7 +3664,7 @@ export function createIncident (input: CreateIncidentInput): Incident {
   }
   INCIDENTS.push(incident)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: input.projectId,
     message: `Incident ${incident.id} dicatat: "${input.title}" (severity ${input.severity}) oleh ${getUserById(input.ownerId)?.name ?? input.ownerId}.`,
     isChange: false,
@@ -3762,7 +3694,7 @@ export function updateIncidentStatus (incidentId: string, newStatus: IncidentSta
   incident.status = newStatus
   const actor = getUserById(actorId)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: incident.projectId,
     message: `Incident ${incident.id} status diubah dari "${fromLabel}" menjadi "${newStatus}" oleh ${actor?.name ?? actorId}.`,
     isChange: false,
@@ -3786,7 +3718,7 @@ export function escalateIncident (incidentId: string, escalatedTo: string, actor
     message: `Dieskalasi ke ${target?.name ?? escalatedTo} oleh ${actor?.name ?? actorId}.${note ? ` Catatan: ${note}` : ''}`
   })
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: incident.projectId,
     message: `Incident ${incident.id} dieskalasi ke ${target?.name ?? escalatedTo} oleh ${actor?.name ?? actorId}.`,
     isChange: false,
@@ -3816,7 +3748,7 @@ export function resolveIncident (incidentId: string, resolutionNote: string, act
   incident.resolvedAt = DEMO_REFERENCE_DATE
   const actor = getUserById(actorId)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: incident.projectId,
     message: `Incident ${incident.id} diselesaikan oleh ${actor?.name ?? actorId}. Resolusi: ${incident.resolutionNote}`,
     isChange: false,
@@ -5428,7 +5360,7 @@ export function getApprovalById (id: string): Approval | undefined {
 /** Push satu entri audit ke `ACTIVITIES` project terkait — "Audit history" (Wajib) memakai log yang sama dengan Dashboard "Recent Activity" (Section 2), bukan log kedua. */
 function logApprovalDecisionActivity (approval: Approval, message: string): void {
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: approval.projectId,
     message,
     isChange: true,
@@ -5869,19 +5801,19 @@ export function runChangeRequestMockReview (requestId: string): ChangeRequest | 
   if (!request || !project) { return undefined }
 
   request.status = 'under-review'
-  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} sedang direview tim kami.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+  ACTIVITIES.push({ id: nextSequentialId('ACT-L', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} sedang direview tim kami.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
 
   const gate = getChangeRequestReviewGate(request)
   if (!gate.feasible) {
     request.status = 'not-feasible'
     request.rejectionReason = gate.reason
-    ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} tidak dapat diproses. Alasan: ${gate.reason}`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+    ACTIVITIES.push({ id: nextSequentialId('ACT-L', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} tidak dapat diproses. Alasan: ${gate.reason}`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
     pushNotification(request.requestedBy, 'change', `Change Request ${request.id} tidak dapat diproses`, gate.reason ?? '', 'change-request', request.id, 'reservation')
     return request
   }
 
   request.status = 'availability-check'
-  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} — ketersediaan telah dicek dan tersedia.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+  ACTIVITIES.push({ id: nextSequentialId('ACT-L', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} — ketersediaan telah dicek dan tersedia.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
 
   request.status = 'costing'
   const { commercialImpactIdr, cancellationFeeIdr } = estimateChangeRequestCostImpact(request, project)
@@ -5889,10 +5821,10 @@ export function runChangeRequestMockReview (requestId: string): ChangeRequest | 
   request.cancellationFeeIdr = cancellationFeeIdr
   request.timelineImpactNote = request.timelineImpactNote ?? 'Tidak ada perubahan tanggal keberangkatan/kepulangan project secara keseluruhan.'
   request.operationalImpact = request.operationalImpact ?? 'Tim operasional kami akan menyesuaikan booking/rooming/manifest terkait setelah Anda menyetujui.'
-  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} — estimasi biaya selesai dihitung.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+  ACTIVITIES.push({ id: nextSequentialId('ACT-L', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} — estimasi biaya selesai dihitung.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
 
   request.status = 'waiting-client-approval'
-  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} menunggu persetujuan Anda atas estimasi dampak.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+  ACTIVITIES.push({ id: nextSequentialId('ACT-L', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} menunggu persetujuan Anda atas estimasi dampak.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
   pushNotification(request.requestedBy, 'change', `Change Request ${request.id} menunggu persetujuan Anda`, 'Estimasi dampak biaya dan jadwal telah tersedia — mohon tinjau dan berikan keputusan.', 'change-request', request.id, 'reservation')
   return request
 }
@@ -5925,7 +5857,7 @@ export function approveChangeRequestImpact (requestId: string, actorId: string):
   request.approvedBy = actorId
   request.approvedAt = DEMO_REFERENCE_DATE
   request.status = 'in-execution'
-  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} disetujui oleh Client — eksekusi perubahan dimulai.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+  ACTIVITIES.push({ id: nextSequentialId('ACT-L', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} disetujui oleh Client — eksekusi perubahan dimulai.`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
   const project = getProjectById(request.projectId)
   if (project) { pushNotification(project.ownerId, 'change', `Change Request ${request.id} disetujui Client`, `${request.beforeSummary} → ${request.afterSummary} telah disetujui Client, siap dieksekusi.`, 'change-request', request.id) }
   return request
@@ -5939,7 +5871,7 @@ export function rejectChangeRequestImpact (requestId: string, actorId: string, r
   request.approvedBy = actorId
   request.approvedAt = DEMO_REFERENCE_DATE
   request.rejectionReason = reason.trim()
-  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} ditolak oleh Client. Alasan: ${reason.trim()}`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+  ACTIVITIES.push({ id: nextSequentialId('ACT-L', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} ditolak oleh Client. Alasan: ${reason.trim()}`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
   return request
 }
 
@@ -5950,7 +5882,7 @@ export function cancelChangeRequest (requestId: string, reason: string): ChangeR
   if (!request || !reason.trim() || !CANCELLABLE_CHANGE_REQUEST_STATUSES.includes(request.status)) { return undefined }
   request.status = 'cancelled'
   request.cancelReason = reason.trim()
-  ACTIVITIES.push({ id: nextSequentialId('ACT-', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} dibatalkan oleh pengaju. Alasan: ${reason.trim()}`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
+  ACTIVITIES.push({ id: nextSequentialId('ACT-L', ACTIVITIES), projectId: request.projectId, message: `Change Request ${request.id} dibatalkan oleh pengaju. Alasan: ${reason.trim()}`, isChange: false, reviewed: true, createdAt: DEMO_REFERENCE_DATE })
   return request
 }
 
@@ -6030,7 +5962,7 @@ export function submitPaymentProof (input: SubmitPaymentProofInput): Invoice | u
   invoice.paymentProofAmountIdr = input.amountIdr
   const submitter = getUserById(input.submittedBy)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: invoice.projectId,
     message: `Bukti pembayaran Invoice ${invoice.id} diunggah oleh ${submitter?.name ?? input.submittedBy} (Ref. ${invoice.paymentProofReference}), menunggu verifikasi.`,
     isChange: false,
@@ -6054,7 +5986,7 @@ export function runPaymentVerificationMock (invoiceId: string): Invoice | undefi
   const outstanding = getInvoiceOutstandingIdr(invoiceId)
   recordPayment({ invoiceId, amountIdr: Math.min(invoice.paymentProofAmountIdr ?? outstanding, outstanding), recordedBy: 'USR-008', method: 'Bank Transfer' })
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: invoice.projectId,
     message: `Pembayaran Invoice ${invoice.id} telah diverifikasi tim Finance kami.`,
     isChange: false,
@@ -6074,7 +6006,7 @@ export function raiseInvoiceDispute (invoiceId: string, actorId: string, reason:
   invoice.disputedAt = DEMO_REFERENCE_DATE
   const actor = getUserById(actorId)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: invoice.projectId,
     message: `Invoice ${invoice.id} disengketakan (dispute) oleh ${actor?.name ?? actorId}. Alasan: ${invoice.disputeReason}`,
     isChange: true,
@@ -6229,7 +6161,7 @@ export function createSupportTicket (input: CreateSupportTicketInput): SupportTi
   SUPPORT_TICKETS.push(ticket)
   if (input.projectId) {
     ACTIVITIES.push({
-      id: nextSequentialId('ACT-', ACTIVITIES),
+      id: nextSequentialId('ACT-L', ACTIVITIES),
       projectId: input.projectId,
       message: `Support Ticket ${ticket.id} dibuat: "${ticket.subject}".`,
       isChange: false,
@@ -6368,7 +6300,7 @@ export function submitFeedback (input: SaveFeedbackInput): Feedback | undefined 
 
   const project = getProjectById(input.projectId)
   ACTIVITIES.push({
-    id: nextSequentialId('ACT-', ACTIVITIES),
+    id: nextSequentialId('ACT-L', ACTIVITIES),
     projectId: input.projectId,
     message: 'Feedback untuk Project Order ini telah dikirim oleh Client.',
     isChange: false,

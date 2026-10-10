@@ -17,7 +17,9 @@ const FORBIDDEN = [
   // S7c: project tasks and milestones live on the server.
   'createProjectTask(', 'updateProjectTask(', 'toggleTaskBlocked(', 'createProjectMilestone(', 'setMilestoneActualDate(', 'updateMilestonePlannedDate(',
   'updateMilestoneNote(', 'applyMilestoneTemplate(', 'addMilestoneDeliverable(', 'toggleMilestoneDeliverable(', 'removeMilestoneDeliverable(',
-  'updateMilestoneBudget(', 'seedDefaultProjectMilestones('
+  'updateMilestoneBudget(', 'seedDefaultProjectMilestones(',
+  // S7d: hand-logged project changes and their decisions live on the server.
+  'createChangeEntry(', 'approveChangeEntry(', 'rejectChangeEntry('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**

@@ -32,10 +32,11 @@ const activeFilterCount = computed(() => [
 ].filter(Boolean).length)
 
 // All entries sorted latest-first
-const allEntries = [...ACTIVITIES].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+/** Reactive (S7d): the activity log is loaded from the server after this panel may have mounted. */
+const allEntries = computed(() => [...ACTIVITIES].sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
 
 const filteredEntries = computed(() => {
-  let result = allEntries
+  let result = allEntries.value
   if (projectFilter.value !== 'all') {
     result = result.filter(e => e.projectId === projectFilter.value)
   }
@@ -72,9 +73,9 @@ const filteredSystemEvents = computed(() => {
 })
 
 // Stats
-const totalEntries = computed(() => allEntries.length)
-const changeCount = computed(() => allEntries.filter(e => e.isChange).length)
-const unreviewedCount = computed(() => allEntries.filter(e => e.isChange && !e.reviewed).length)
+const totalEntries = computed(() => allEntries.value.length)
+const changeCount = computed(() => allEntries.value.filter(e => e.isChange).length)
+const unreviewedCount = computed(() => allEntries.value.filter(e => e.isChange && !e.reviewed).length)
 
 function userLabel (userId?: string): string {
   if (!userId) { return '—' }

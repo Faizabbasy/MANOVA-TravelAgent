@@ -1,6 +1,7 @@
 import { LEADS, LEAD_ACTIVITIES } from './leads'
 import { QUOTATIONS } from './quotations'
 import { loadNewProjectMilestones, registerNewServerProject } from './projects-sync'
+import { refreshProjectActivities } from './activity-sync'
 import { upsertServerParty } from './parties-sync'
 import { upsertServerSalesOrder } from './sales-orders-sync'
 import { applyLeadWon, markCostSheetApplied, prepareCostSheetQuotation } from './index'
@@ -314,6 +315,7 @@ export async function markLeadWonOnServer (api: SalesApi, leadId: string, approv
   if (q) { q.accepted = true }
   await reloadParty(api, project.partyId)
   await loadNewProjectMilestones(api, project.id)
+  await refreshProjectActivities(api, project.id) // S7d: the server logged where the project came from
   return project
 }
 
