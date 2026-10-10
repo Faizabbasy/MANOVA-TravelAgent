@@ -1,6 +1,6 @@
 # Backend log aktivitas & entri perubahan project (S7d) — desain
 
-Tanggal: 10 Oktober 2026 · Branch: `production` · Status: disetujui (eksekusi native)
+Tanggal: 10 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-10-project-activities-backend)
 
 S7d memindahkan log aktivitas project (`ACTIVITIES`) ke server: entri perubahan manual (catat, approve/reject) dan
 log otomatis untuk aksi yang sudah dijalankan server. Log sistem / Activity Center (`SYSTEM_EVENTS`) tetap lokal (S10).

@@ -160,3 +160,15 @@ realisasi hari ini. Template milestone tetap data master lokal: frontend menghit
 (`POST /projects`, termasuk Won lead) langsung mendapat 8 milestone default dari server. Seed: 16 task dan 192
 milestone (termasuk riwayat PRJ-301…340), hanya memperbarui baris yang belum diubah API. Tetap lokal: risiko, catatan
 project, shift notes (tanpa layar tulis), log aktivitas (S7d). Setelah deploy jalankan sekali `db:seed:demo`.
+
+## Update 2026-10-10 — Log aktivitas & entri perubahan project (S7d)
+
+Log aktivitas project kini di server (migrasi 0030, `project_activities`): `ACT-` ditulis oleh aksi server dalam
+transaksi yang sama (status booking termasuk lewat pembatalan Finance, layanan ditandai `changed`, booking dobel
+disengaja, status service order, project dari lead Won); `CHG-` dicatat manual lewat `POST /projects/:id/changes`
+(`project-order.log-change`, peminta = aktor) lalu disetujui/ditolak (`project-order.review-change`, capability baru,
+juga di `frontend/app/data/rbac.ts`). Entri perubahan otomatis ditutup dengan `POST /project-activities/:id/review`
+(sebelumnya memicu tanda "perlu perhatian" selamanya). `GET /project-activities` untuk seluruh peran internal; portal
+403. Modul yang masih lokal (change request, insiden, pembatalan non-Finance, RFQ, amend SO, portal, persetujuan klien
+MICE) tetap menulis `ACT-L`/`CHG-L` di browser; sinkron tidak menghapusnya. Log sistem / Activity Center tetap lokal
+(S10). Setelah deploy jalankan sekali `db:seed:demo` (9 entri demo).
