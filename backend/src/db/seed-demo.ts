@@ -99,6 +99,11 @@ export interface DemoCoreSeed {
     isVip: boolean; cancelReason: string | null; replacedByTravelerId: string | null; replacesTravelerId: string | null
   }[]
   roomAssignments?: { id: string; projectId: string; groupId: string; roomLabel: string; roomType: string; travelerIds: string[] }[]
+  /** Project activity log (S7d). */
+  activities?: {
+    id: string; projectId: string; message: string; isChange: boolean; reviewed: boolean; createdOn: string; category: string | null; reason: string | null
+    requestedBy: string | null; beforeValue: string | null; afterValue: string | null; impactNote: string | null; approvalStatus: string | null; approvedBy: string | null
+  }[]
   /** Project tasks and milestones (S7c). */
   tasks?: {
     id: string; projectId: string | null; title: string; status: string; dueOn: string | null; isMilestone: boolean; dependsOn: string | null
@@ -439,6 +444,19 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
          on conflict (id) do update set room_label = excluded.room_label, room_type = excluded.room_type, traveler_ids = excluded.traveler_ids
          where room_assignments.provenance = 'demo-fixture' and room_assignments.changed_by_api_at is null`,
         [r.id, r.projectId, r.groupId, r.roomLabel, r.roomType, JSON.stringify(r.travelerIds), P]
+      )
+    }
+    // S7d: activity log. A re-seed refreshes fixture rows no one reviewed or decided through the API (reviewed_at is null).
+    const ACTIVITY_COLUMNS = ['project_id', 'message', 'is_change', 'reviewed', 'category', 'reason', 'requested_by', 'before_value', 'after_value',
+      'impact_note', 'approval_status', 'approved_by', 'created_at'] as const
+    for (const a of seed.activities ?? []) {
+      await tx.query(
+        `insert into project_activities (id, ${ACTIVITY_COLUMNS.join(', ')}, provenance)
+         values ($1, ${ACTIVITY_COLUMNS.map((_, n) => `$${n + 2}`).join(', ')}, $${ACTIVITY_COLUMNS.length + 2})
+         on conflict (id) do update set ${ACTIVITY_COLUMNS.map(c => `${c} = excluded.${c}`).join(', ')}
+         where project_activities.provenance = 'demo-fixture' and project_activities.reviewed_at is null`,
+        [a.id, a.projectId, a.message, a.isChange, a.reviewed, a.category, a.reason, a.requestedBy, a.beforeValue, a.afterValue, a.impactNote,
+          a.approvalStatus, a.approvedBy, `${a.createdOn}T09:00:00+07:00`, P]
       )
     }
     // S7c: tasks and milestones. A re-seed refreshes fixture rows the API never changed.

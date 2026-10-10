@@ -18,7 +18,7 @@ import { CONTACTS, PARTIES, PARTY_ACTIVITIES } from '../../frontend/app/data/par
 import { SERVICE_ORDERS } from '../../frontend/app/data/procurement'
 import { CORE_BOOKING_KEYS, departureDateOf, miceTotals } from '../src/modules/core/booking-rules'
 import { ITINERARY_ITEMS, PROJECT_SERVICES, PROJECTS, ROOM_ASSIGNMENTS, TRAVELER_GROUPS, TRAVELERS } from '../../frontend/app/data/projects'
-import { TASKS } from '../../frontend/app/data/activity'
+import { ACTIVITIES, TASKS } from '../../frontend/app/data/activity'
 import { PROJECT_MILESTONES } from '../../frontend/app/data/project-orders'
 import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
 import { QUOTATIONS } from '../../frontend/app/data/quotations'
@@ -340,6 +340,23 @@ const seed: DemoCoreSeed = {
     replacesTravelerId: tr.replacesTravelerId ?? null
   })),
   roomAssignments: [...ROOM_ASSIGNMENTS].sort(byId).map(r => ({ id: r.id, projectId: r.projectId, groupId: r.groupId, roomLabel: r.roomLabel, roomType: r.roomType, travelerIds: [...r.travelerIds] })),
+  // S7d: the project activity log (activities and hand-logged changes).
+  activities: [...ACTIVITIES].sort(byId).map(a => ({
+    id: a.id,
+    projectId: a.projectId,
+    message: a.message,
+    isChange: a.isChange,
+    reviewed: a.reviewed,
+    createdOn: dateOnly(a.createdAt)!,
+    category: a.category ?? null,
+    reason: a.reason ?? null,
+    requestedBy: seededUser(a.requestedBy, `activity ${a.id} requester`),
+    beforeValue: a.beforeValue ?? null,
+    afterValue: a.afterValue ?? null,
+    impactNote: a.impactNote ?? null,
+    approvalStatus: a.approvalStatus ?? null,
+    approvedBy: seededUser(a.approvedBy, `activity ${a.id} approver`)
+  })),
   // S7c: project tasks and milestones (with their deliverable checklist).
   tasks: [...TASKS].sort(byId).map(t => ({
     id: t.id,

@@ -444,6 +444,21 @@ describe('demo seed', () => {
     }
   })
 
+  test('demo project activities are seeded; a re-seed keeps API decisions', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ n: number }>('select count(*)::int as n from project_activities'))[0]!.n).toBe(9)
+      expect((await db.query<{ s: string }>("select approval_status as s from project_activities where id = 'CHG-1023'"))[0]!.s).toBe('pending')
+      await db.query("update project_activities set approval_status = 'approved', approved_by = 'USR-001', reviewed = true, reviewed_by = 'USR-001', reviewed_at = now() where id = 'CHG-1023'")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ s: string }>("select approval_status as s from project_activities where id = 'CHG-1023'"))[0]!.s).toBe('approved')
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('project activities exist after 0030', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
