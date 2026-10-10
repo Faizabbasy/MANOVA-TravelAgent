@@ -218,6 +218,9 @@ describe('won', () => {
     expect(won.json.data.project).toMatchObject({ contractValueMinor: '123000000', leadId: lead, sourceQuotationId: q })
     expect(won.json.data.lead.wonProjectId).toBe(projectId)
     expect((await call('GET', `/parties/${partyId}`, 'admin')).json.data.lifecycleStatus).toBe('client')
+    // S7d: the new project's activity log says where it came from.
+    const log = (await call('GET', `/project-activities?projectId=${projectId}`, 'admin')).json.data as { message: string; sourceAction: string }[]
+    expect(log.find(x => x.sourceAction === 'lead.won')!.message).toContain(`dari Lead ${lead}`)
     const again = await call('POST', `/leads/${lead}/won`, 'admin', {}, key())
     expect(again.status).toBe(200)
     expect(again.json.data.project.id).toBe(projectId)

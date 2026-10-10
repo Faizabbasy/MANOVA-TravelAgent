@@ -4,6 +4,7 @@ import { ID_PATTERN } from '../../http/envelope'
 import { AppError, errors, type FieldErrors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
 import { nextId } from '../../shared/ids'
+import { actorName, recordProjectActivity } from './activities'
 import { parseAmountMinor } from '../../shared/money'
 import { SERVICE_STATUSES, SERVICE_TYPES, type ServiceStatus, type ServiceType } from './booking-rules'
 import { ensureServiceOrder } from './service-orders'
@@ -122,6 +123,14 @@ export async function updateService(tx: Queryable, actor: Actor, id: string, inp
   await tx.query(`update project_services set ${keys.map((k, i) => `${COLUMNS[k]} = $${i + 2}`).join(', ')}, updated_at = now() where id = $1`, [id, ...keys.map(k => next[k])])
   // S4b: the service orders follow the vendor (new vendor → draft order, old vendor's unbilled order cancelled).
   if ('vendorId' in next) await ensureServiceOrder(tx, actor, id, (next.vendorId as string | null) ?? null, {}, requestId)
+  // S7d: a service marked "changed" by hand is a change the team has to review.
+  if (next.status === 'changed') {
+    const [svc] = await tx.query<{ project_id: string; label: string }>('select project_id, label from project_services where id = $1', [id])
+    await recordProjectActivity(tx, {
+      projectId: svc!.project_id, actorUserId: actor.userId, sourceAction: 'service.changed', sourceEntityId: id, isChange: true,
+      message: `Layanan "${svc!.label}" ditandai berubah oleh ${await actorName(tx, actor.userId)} — perlu ditinjau.`
+    })
+  }
   await recordAudit(tx, {
     action: 'service.updated', actorUserId: actor.userId, entityType: 'project_service', entityId: id, requestId,
     before: Object.fromEntries(keys.map(k => [k, cur[COLUMNS[k]!] ?? null])), after: next

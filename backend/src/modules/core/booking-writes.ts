@@ -17,7 +17,8 @@ import {
   serviceStatusFor,
   serviceTypeOf
 } from './booking-rules'
-import { bookingHasFinance, setBookingStatus } from './booking-status'
+import { actorName, recordProjectActivity } from './activities'
+import { BOOKING_LABEL, bookingHasFinance, setBookingStatus } from './booking-status'
 import type { BookingType } from './repository'
 import { insertService, money } from './service-writes'
 
@@ -111,6 +112,13 @@ export async function createBooking(tx: Queryable, actor: Actor, type: BookingTy
   )
   if (serviceCreated) {
     await recordAudit(tx, { action: 'service.created', actorUserId: actor.userId, entityType: 'project_service', entityId: serviceId, requestId, after: { projectId, type: serviceType, label, viaBooking: id } })
+  }
+  // S7d: an intentional duplicate is a change the team has to review.
+  if (duplicateOf.length) {
+    await recordProjectActivity(tx, {
+      projectId, actorUserId: actor.userId, sourceAction: 'booking.duplicate', sourceEntityId: id, isChange: true,
+      message: `${BOOKING_LABEL[type]} Booking ${id} dibuat sebagai duplicate booking yang disengaja (booking aktif lain untuk service yang sama: ${duplicateOf.map(d => d.id).join(', ')}) — dikonfirmasi oleh ${await actorName(tx, actor.userId)}.${duplicateNote ? ` Catatan: ${duplicateNote}` : ''}`
+    })
   }
   await recordAudit(tx, { action: 'booking.created', actorUserId: actor.userId, entityType: 'booking', entityId: id, requestId, after: { type, projectId, serviceId, status, sellAmountMinor: totals.sellMinor } })
   return { id }

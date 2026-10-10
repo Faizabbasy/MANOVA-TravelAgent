@@ -3,6 +3,7 @@ import type { Queryable } from '../../db/client'
 import { AppError, errors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
 import { nextId } from '../../shared/ids'
+import { actorName, recordProjectActivity } from './activities'
 
 /**
  * Service orders (S4b): one active order per service + vendor, created when a vendor is assigned (quick assignment
@@ -22,8 +23,20 @@ export const SERVICE_ORDER_TRANSITIONS: Record<string, readonly string[]> = {
 
 const BILLED = "exists (select 1 from vendor_invoices v where v.service_order_id = so.id and v.status not in ('rejected', 'void'))"
 
+/** S7d: a service order's status change is shown in its project's activity log. */
+async function logOrderStatus(tx: Queryable, actor: Actor, id: string, from: string, to: string, reason: string | null) {
+  const [so] = await tx.query<{ project_id: string | null; vendor: string }>(
+    'select so.project_id, coalesce(v.name, so.vendor_id) as vendor from service_orders so left join vendors v on v.id = so.vendor_id where so.id = $1', [id])
+  if (!so?.project_id) return
+  await recordProjectActivity(tx, {
+    projectId: so.project_id, actorUserId: actor.userId, sourceAction: 'service_order.status_changed', sourceEntityId: id,
+    message: `Service Order ${id} (${so.vendor}) status diubah dari "${from}" menjadi "${to}" oleh ${await actorName(tx, actor.userId)}.${reason ? ` Alasan: ${reason}` : ''}`
+  })
+}
+
 async function cancelOrder(tx: Queryable, actor: Actor, id: string, from: string, reason: string, requestId: string) {
   await tx.query("update service_orders set status = 'cancelled', status_reason = $2, updated_at = now() where id = $1", [id, reason])
+  await logOrderStatus(tx, actor, id, from, 'cancelled', reason)
   await recordAudit(tx, {
     action: 'service_order.cancelled', actorUserId: actor.userId, entityType: 'service_order', entityId: id, requestId, reason,
     before: { status: from }, after: { status: 'cancelled' }
@@ -89,6 +102,7 @@ export async function changeServiceOrderStatus(tx: Queryable, actor: Actor, id: 
      where id = $1`,
     [id, to]
   )
+  await logOrderStatus(tx, actor, id, so.status, to, reason)
   await recordAudit(tx, {
     action: 'service_order.status_changed', actorUserId: actor.userId, entityType: 'service_order', entityId: id, requestId, reason,
     before: { status: so.status }, after: { status: to }

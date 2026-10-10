@@ -2,6 +2,7 @@ import type { Actor } from '../../auth/rbac'
 import type { Queryable } from '../../db/client'
 import { AppError } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
+import { actorName, recordProjectActivity } from '../core/activities'
 import { createProject } from '../core/project-writes'
 import { insertLeadActivity, lockLead, touchLead } from './lead-writes'
 import { wonProjectId } from './repository'
@@ -46,6 +47,10 @@ export async function markLeadWon(tx: Queryable, actor: Actor, leadId: string, t
     contractValueMinor: String(q.amount_minor)
   }, requestId)
   await insertLeadActivity(tx, leadId, 'note', `Lead Won — project ${projectId} dibuat dari quotation ${q.id}.`, actor.userId, today)
+  await recordProjectActivity(tx, {
+    projectId, actorUserId: actor.userId, sourceAction: 'lead.won', sourceEntityId: leadId,
+    message: `Project ${projectId} dibuat dari Lead ${leadId} (Won oleh ${await actorName(tx, actor.userId)}).`
+  })
   await touchLead(tx, leadId, today)
   await recordAudit(tx, {
     action: 'lead.won', actorUserId: actor.userId, entityType: 'lead', entityId: leadId, requestId,

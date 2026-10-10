@@ -54,3 +54,37 @@ describe('change entries', () => {
     expect((await activities('PRJ-103')).some(x => x.id === b)).toBe(true)
   })
 })
+
+describe('activities written by server actions', () => {
+  test('a booking status change is logged on its project', async () => {
+    const b = (await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-204', details: {} }, key())).json.data as { id: string }
+    expect((await call('POST', `/bookings/transport/${b.id}/status`, 'admin', { to: 'quoted' })).status).toBe(200)
+    const log = (await activities('PRJ-204')).find(x => x.sourceAction === 'booking.status_changed' && x.message.includes(b.id))!
+    expect(log).toBeTruthy()
+    expect(log.message).toContain('"requested" menjadi "quoted"')
+    expect(log).toMatchObject({ isChange: false, reviewed: true })
+  })
+
+  test('an intentional duplicate booking is an unreviewed change; review closes it once', async () => {
+    const first = (await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-204', details: {} }, key())).json.data as { id: string; serviceId: string }
+    const dup = (await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-204', serviceId: first.serviceId, allowDuplicate: true, details: {} }, key())).json.data as { id: string }
+    const entry = (await activities('PRJ-204')).find(x => x.sourceAction === 'booking.duplicate' && x.message.includes(dup.id))!
+    expect(entry).toMatchObject({ isChange: true, reviewed: false, approvalStatus: null })
+    expect((await call('POST', `/project-activities/${entry.id}/approve`, 'admin')).status).toBe(422)
+    expect((await call('POST', `/project-activities/${entry.id}/review`, 'finance')).status).toBe(403)
+    expect(((await call('POST', `/project-activities/${entry.id}/review`, 'admin')).json.data as A).reviewed).toBe(true)
+    expect((await call('POST', `/project-activities/${entry.id}/review`, 'admin')).status).toBe(422)
+  })
+
+  test('a service marked changed by hand and a service order status change are logged', async () => {
+    const svc = (await call('POST', '/projects/PRJ-204/services', 'admin', { type: 'hotel', label: 'Hotel S7d', vendorId: 'VND-002' }, key())).json.data.id as string
+    await call('PATCH', `/project-services/${svc}`, 'admin', { status: 'confirmed' })
+    expect((await call('PATCH', `/project-services/${svc}`, 'admin', { status: 'changed' })).status).toBe(200)
+    const changed = (await activities('PRJ-204')).find(x => x.sourceAction === 'service.changed' && x.message.includes('Hotel S7d'))!
+    expect(changed).toMatchObject({ isChange: true, reviewed: false })
+    const so = (await call('GET', `/service-orders?serviceId=${svc}`, 'admin')).json.data[0].id as string
+    expect((await call('POST', `/service-orders/${so}/status`, 'admin', { to: 'sent' })).status).toBe(200)
+    const log = (await activities('PRJ-204')).find(x => x.sourceAction === 'service_order.status_changed' && x.message.includes(so))!
+    expect(log.message).toContain('menjadi "sent"')
+  })
+})
