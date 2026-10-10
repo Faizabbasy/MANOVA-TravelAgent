@@ -8,6 +8,8 @@ import {
   getProjectById, getUserById, getQuotationById
 } from '~/data'
 import { CHANGE_REQUEST_SOURCES, CHANGE_REQUEST_STATUSES, findStatusOption } from '~/constants/status'
+import { settleLinkedChangeOnServer } from '~/data/activity-sync'
+import { isApiError } from '~/lib/api/errors'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 
 /**
@@ -52,10 +54,22 @@ function handleUnderReview () {
   showToast('Change Request Direview', `${request.value.id} kini sedang direview.`)
 }
 
-function handleApprove () {
+/* S7d: the change request itself is still local (S8); its change entry in the project log belongs to the server. */
+const api = useApi()
+async function settleLinkedChange (entryId: string | undefined, decision: 'approved' | 'rejected') {
+  try {
+    await settleLinkedChangeOnServer(api, entryId, decision)
+  } catch (error) {
+    showToast('Log Perubahan Belum Diperbarui', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Putuskan perubahan ini di tab Riwayat Aktivitas project.', 'error')
+  }
+}
+
+async function handleApprove () {
   if (!request.value) { return }
   const result = approveChangeRequest(request.value.id, currentUser.value.id)
-  if (result) { showToast('Change Request Disetujui', `${result.id} disetujui.`, 'success') }
+  if (!result) { return }
+  showToast('Change Request Disetujui', `${result.id} disetujui.`, 'success')
+  await settleLinkedChange(result.activityEntryId, 'approved')
 }
 
 function openReject () {
@@ -63,11 +77,13 @@ function openReject () {
   isRejectDialogOpen.value = true
 }
 
-function submitReject () {
+async function submitReject () {
   if (!request.value || !rejectionReason.value.trim()) { return }
   const result = rejectChangeRequest(request.value.id, currentUser.value.id, rejectionReason.value.trim())
   isRejectDialogOpen.value = false
-  if (result) { showToast('Change Request Ditolak', `${result.id} ditolak.`, 'info') }
+  if (!result) { return }
+  showToast('Change Request Ditolak', `${result.id} ditolak.`, 'info')
+  await settleLinkedChange(result.activityEntryId, 'rejected')
 }
 
 function handleImplemented () {

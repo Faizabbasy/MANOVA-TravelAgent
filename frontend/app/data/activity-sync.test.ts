@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { ACTIVITIES } from './activity'
-import { activityFromServer, approveChangeOnServer, mergeServerActivities, reloadProjectActivities } from './activity-sync'
+import { activityDay, activityFromServer, approveChangeOnServer, mergeServerActivities, reloadProjectActivities, settleLinkedChangeOnServer } from './activity-sync'
+import { CHANGE_REQUESTS, approveChangeRequest } from './index'
 import type { ProjectActivityDto } from '~/types/api'
 
 const dto = (over: Partial<ProjectActivityDto> = {}): ProjectActivityDto => ({
@@ -52,5 +53,26 @@ describe('activity-sync', () => {
     expect(ACTIVITIES.find(x => x.id === 'CHG-1023')!.approvalStatus).toBe('pending')
     await reloadProjectActivities(api, 'PRJ-102')
     expect(ACTIVITIES.some(x => x.id === 'ACT-2000')).toBe(true)
+  })
+})
+
+describe('change requests linked to a server change entry (S7d review)', () => {
+  it('approving a change request does not decide a server-owned entry locally; the server is asked instead', async () => {
+    mergeServerActivities([dto({ id: 'CHG-1023', approvalStatus: 'pending', reviewed: false })])
+    const request = CHANGE_REQUESTS.find(r => r.activityEntryId === 'CHG-1023')!
+    request.status = 'under-review'
+    approveChangeRequest(request.id, 'USR-001')
+    expect(ACTIVITIES.find(x => x.id === 'CHG-1023')!.approvalStatus).toBe('pending')
+    const calls: string[] = []
+    const api = { core: { approveProjectChange: (id: string) => { calls.push(id); return Promise.resolve({ data: dto({ id, approvalStatus: 'approved', reviewed: true }) }) } } } as never
+    await settleLinkedChangeOnServer(api, 'CHG-1023', 'approved')
+    await settleLinkedChangeOnServer(api, 'CHG-L001', 'approved')
+    expect(calls).toEqual(['CHG-1023'])
+    expect(ACTIVITIES.find(x => x.id === 'CHG-1023')!.approvalStatus).toBe('approved')
+  })
+
+  it('groups server timestamps and local dates by day', () => {
+    expect(activityDay('2026-10-10T03:12:45.123Z')).toBe(activityDay('2026-10-10T05:00:00.000Z'))
+    expect(activityDay('2026-07-29')).toBe('2026-07-29')
   })
 })

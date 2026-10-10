@@ -7,6 +7,7 @@ import { SALES_ORDERS } from './sales-orders'
 import { PROJECTS, PROJECT_SERVICES, TRAVELER_GROUPS, TRAVELERS, ROOM_ASSIGNMENTS, ITINERARY_ITEMS } from './projects'
 import { INVOICES, PAYMENTS, CREDIT_NOTES, DEBIT_NOTES } from './finance'
 import { ACTIVITIES, DOCUMENTS, TASKS, PROJECT_RISKS, SHIFT_NOTES, SYSTEM_EVENTS } from './activity'
+import { isLocalActivityId } from './activity-sync'
 import { LEADS, LEAD_ACTIVITIES } from './leads'
 import { PRODUCT_TEMPLATES, COST_SHEETS } from './products'
 import { FLIGHT_BOOKINGS } from './ticketing'
@@ -3428,7 +3429,8 @@ export function approveChangeRequest (requestId: string, approverId: string): Ch
   request.status = 'approved'
   request.approvedBy = approverId
   request.approvedAt = DEMO_REFERENCE_DATE
-  if (request.activityEntryId) { approveChangeEntry(request.activityEntryId, approverId) }
+  // S7d: a server-owned change entry is decided on the server (settleLinkedChangeOnServer); only a local one here.
+  if (request.activityEntryId && isLocalActivityId(request.activityEntryId)) { approveChangeEntry(request.activityEntryId, approverId) }
   // Hook Section 21 (D-078, CI-051, hook #3a) — keputusan approval memicu Notification type 'change' ke pengaju.
   pushNotification(request.requestedBy, 'change', `Change Request ${request.id} disetujui`, `${request.beforeSummary} → ${request.afterSummary} telah disetujui.`, 'change-request', request.id)
   return request
@@ -3442,7 +3444,7 @@ export function rejectChangeRequest (requestId: string, approverId: string, reas
   request.approvedBy = approverId
   request.approvedAt = DEMO_REFERENCE_DATE
   request.rejectionReason = reason.trim()
-  if (request.activityEntryId) { rejectChangeEntry(request.activityEntryId, approverId) }
+  if (request.activityEntryId && isLocalActivityId(request.activityEntryId)) { rejectChangeEntry(request.activityEntryId, approverId) }
   // Hook Section 21 (D-078, CI-051, hook #3b) — keputusan penolakan memicu Notification type 'change' ke pengaju.
   pushNotification(request.requestedBy, 'change', `Change Request ${request.id} ditolak`, `${request.beforeSummary} → ${request.afterSummary} ditolak. Alasan: ${request.rejectionReason}`, 'change-request', request.id)
   return request

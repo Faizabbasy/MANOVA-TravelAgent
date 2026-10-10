@@ -1,3 +1,4 @@
+import { format, parseISO } from 'date-fns'
 import { ACTIVITIES } from './activity'
 import type { ActivityEntry } from '~/types/activity'
 import type { ProjectActivityDto, ProjectChangeInput } from '~/types/api'
@@ -14,7 +15,23 @@ import { isApiError } from '~/lib/api/errors'
 
 type CoreApi = Pick<ManovaApi, 'core'>
 const opt = <T>(v: T | null | undefined): T | undefined => (v === null ? undefined : v)
-const isLocalEntry = (id: string) => /^(ACT|CHG)-L/.test(id)
+/** Entries written in the browser by modules that are still local (change requests, incidents, …). */
+export const isLocalActivityId = (id: string) => /^(ACT|CHG)-L/.test(id)
+const isLocalEntry = isLocalActivityId
+
+/** Day key for grouping a feed: server entries carry a timestamp, local ones a date. */
+export const activityDay = (createdAt: string) => format(parseISO(createdAt), 'yyyy-MM-dd')
+
+/**
+ * A change request decided on the Changes page (local, S8) whose change entry belongs to the server: the server
+ * records the decision. A local entry (`CHG-L…`) is decided by the local cascade instead.
+ */
+export async function settleLinkedChangeOnServer (api: CoreApi, entryId: string | undefined, decision: 'approved' | 'rejected'): Promise<void> {
+  if (!entryId || isLocalActivityId(entryId)) { return }
+  const current = ACTIVITIES.find(x => x.id === entryId)
+  if (current && current.approvalStatus !== 'pending') { return }
+  upsert((await (decision === 'approved' ? api.core.approveProjectChange(entryId) : api.core.rejectProjectChange(entryId))).data)
+}
 
 export function activityFromServer (d: ProjectActivityDto): ActivityEntry {
   return {

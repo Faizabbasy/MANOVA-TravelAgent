@@ -3,8 +3,9 @@ import { computed, ref } from 'vue'
 import { format, parseISO, differenceInCalendarDays } from 'date-fns'
 import { id as localeId } from 'date-fns/locale'
 import { Briefcase, Clock, Lock, NotebookText, Search } from 'lucide-vue-next'
-import { PROJECTS, getProjectById, getUserById } from '~/data'
+import { getProjectById, getUserById } from '~/data'
 import { ACTIVITIES, SHIFT_NOTES } from '~/data/activity'
+import { activityDay } from '~/data/activity-sync'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 
 /** Menu sidebar baru "Catatan/Aktivitas" — feed gabungan `ACTIVITIES` + `SHIFT_NOTES` lintas project
@@ -76,8 +77,10 @@ const rows = computed(() => feed.value
 const groupedByDate = computed(() => {
   const map = new Map<string, typeof rows.value>()
   for (const row of rows.value) {
-    if (!map.has(row.entry.createdAt)) { map.set(row.entry.createdAt, []) }
-    map.get(row.entry.createdAt)!.push(row)
+    // S7d: server entries carry a timestamp, local ones a date — group by day.
+    const day = activityDay(row.entry.createdAt)
+    if (!map.has(day)) { map.set(day, []) }
+    map.get(day)!.push(row)
   }
   return [...map.entries()]
     .sort(([a], [b]) => b.localeCompare(a))
