@@ -494,6 +494,20 @@ describe('demo seed', () => {
     }
   })
 
+  test('notifications exist after 0033', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await db.query("insert into notifications (id, user_id, type, title, body) values ('NOT-T1', 'USR-002', 'mention', 'Halo', 'Isi')")
+      await expect(db.query("insert into notifications (id, user_id, type, title, body) values ('NOT-T2', 'USR-002', 'gossip', 'Halo', 'Isi')")).rejects.toThrow()
+      await expect(db.query("insert into notifications (id, user_id, type, title, body) values ('NOT-T3', 'USR-999', 'mention', 'Halo', 'Isi')")).rejects.toThrow()
+      expect(await db.query("select prefix from id_sequences where prefix = 'NOT-'")).toHaveLength(1)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('documents and messages exist after 0032', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
