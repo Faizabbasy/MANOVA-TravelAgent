@@ -5,6 +5,7 @@ import { assertIdParam, ID_PATTERN, ok, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import { createChangeRequest, decideChangeRequest, implementChangeRequest, listChangeRequests, reviewChangeRequest } from './change-requests'
+import { listBookingCancellations } from './booking-writes'
 import { addIncidentCommunication, changeIncidentStatus, createIncident, escalateIncident, listIncidents, resolveIncident } from './incidents'
 import { getProject } from './repository'
 import { isPortalActor } from './scope'
@@ -84,6 +85,10 @@ export function changeRoutes(deps: AppDeps, auth: AuthContext) {
       await db.transaction(tx => implementChangeRequest(tx, actor, id, requestIdOf(request)))
       return ok(request, await requestResponse(id))
     }, anyBody)
+    .get('/booking-cancellations', async ({ request, query }) => {
+      await readActor(request)
+      return ok(request, await listBookingCancellations(db, checkProjectQuery(query.projectId)))
+    }, projectQuery)
     .get('/incidents', async ({ request, query }) => {
       await readActor(request)
       return ok(request, await listIncidents(db, { projectId: checkProjectQuery(query.projectId) }))

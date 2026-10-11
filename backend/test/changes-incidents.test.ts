@@ -103,3 +103,43 @@ describe('incidents', () => {
     expect((await call('POST', '/incidents/INC-99999/status', 'admin', { to: 'investigating' })).status).toBe(404)
   })
 })
+
+describe('no-show / refunded cancellations and workflow gates', () => {
+  test('a no-show keeps its penalty as a cancellation record; penalty is refused on other statuses; no record for cancelled', async () => {
+    const b = (await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-204', details: {} }, key())).json.data as { id: string }
+    for (const to of ['quoted', 'assigned', 'confirmed']) await call('POST', `/bookings/transport/${b.id}/status`, 'admin', { to })
+    expect((await call('POST', `/bookings/transport/${b.id}/status`, 'admin', { to: 'completed', penaltyMinor: '1000' })).status).toBe(400)
+    const res = await call('POST', `/bookings/transport/${b.id}/status`, 'admin', { to: 'no-show', reason: 'Tamu tidak datang', penaltyMinor: '750000' })
+    expect(res.status).toBe(200)
+    const list = (await call('GET', '/booking-cancellations?projectId=PRJ-204', 'finance')).json.data as { bookingId: string; outcome: string; penaltyMinor: string | null; reason: string }[]
+    expect(list.find(x => x.bookingId === b.id)).toMatchObject({ outcome: 'no-show', penaltyMinor: '750000', reason: 'Tamu tidak datang' })
+    const other = (await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-204', details: {} }, key())).json.data as { id: string }
+    await call('POST', `/bookings/transport/${other.id}/status`, 'admin', { to: 'cancelled', reason: 'Tidak jadi' })
+    expect(((await call('GET', '/booking-cancellations?projectId=PRJ-204', 'admin')).json.data as { bookingId: string }[]).some(x => x.bookingId === other.id)).toBe(false)
+    expect((await call('GET', '/booking-cancellations', 'client')).status).toBe(403)
+  })
+
+  test('an open incident blocks departure; a pending change request blocks completion', async () => {
+    const project = (await call('POST', '/projects', 'admin', {
+      name: 'Gate S8', partyId: 'PTY-002', destination: 'Bali', travelStartDate: '2027-06-01', travelEndDate: '2027-06-04', serviceScope: ['hotel'], travelerCount: 4, contractValueMinor: '100000000'
+    }, key())).json.data.id as string
+    await call('POST', `/projects/${project}/handover/accept`, 'admin')
+    await call('POST', `/projects/${project}/transition`, 'admin', { to: 'planning' })
+    await call('POST', `/projects/${project}/transition`, 'admin', { to: 'confirmed' })
+    const inc = (await call('POST', `/projects/${project}/incidents`, 'admin', { title: 'Visa telat', description: 'Visa 2 traveler belum keluar', severity: 'high', ownerId: 'USR-002' }, key())).json.data.id as string
+    const blocked = await call('POST', `/projects/${project}/transition`, 'admin', { to: 'in-progress' })
+    expect(blocked.status).toBe(422)
+    expect(blocked.json.error.message).toContain('insiden')
+    await call('POST', `/incidents/${inc}/resolve`, 'admin', { note: 'Visa keluar' })
+    expect((await call('POST', `/projects/${project}/transition`, 'admin', { to: 'in-progress' })).json.error.message).toContain('Ready')
+
+    const cr = (await call('POST', '/projects/PRJ-103/change-requests', 'admin', { source: 'internal', beforeSummary: 'A', afterSummary: 'B' }, key())).json.data.id as string
+    const done = await call('POST', '/projects/PRJ-103/transition', 'admin', { to: 'completed' })
+    expect(done.status).toBe(422)
+    expect(done.json.error.message).toContain('change request')
+    await call('POST', `/change-requests/${cr}/approve`, 'admin')
+    const pending = ((await call('GET', '/change-requests?projectId=PRJ-103', 'admin')).json.data as { id: string; status: string }[]).filter(x => ['submitted', 'under-review'].includes(x.status))
+    for (const p of pending) await call('POST', `/change-requests/${p.id}/reject`, 'admin', { reason: 'Tutup untuk tes' })
+    expect((await call('POST', '/projects/PRJ-103/transition', 'admin', { to: 'completed' })).status).toBe(200)
+  })
+})

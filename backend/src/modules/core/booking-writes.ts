@@ -3,6 +3,7 @@ import type { Queryable } from '../../db/client'
 import { ID_PATTERN } from '../../http/envelope'
 import { AppError, errors, type FieldErrors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
+import { businessDateOf } from '../../shared/dates'
 import { nextId } from '../../shared/ids'
 import { bookingBilledNetMinor } from '../finance/summaries'
 import {
@@ -165,8 +166,17 @@ export async function updateBooking(tx: Queryable, actor: Actor, type: BookingTy
   })
 }
 
-export async function changeBookingStatus(tx: Queryable, actor: Actor, type: BookingType, id: string, to: unknown, reasonInput: unknown, requestId: string): Promise<void> {
+const PENALTY_OUTCOMES = ['no-show', 'refunded']
+
+export async function changeBookingStatus(tx: Queryable, actor: Actor, type: BookingType, id: string, to: unknown, reasonInput: unknown, requestId: string, penaltyInput?: unknown): Promise<void> {
   if (typeof to !== 'string' || !BOOKING_STATUSES[type].includes(to)) throw errors.validation({ to: [`Status harus salah satu dari: ${BOOKING_STATUSES[type].join(', ')}.`] })
+  // S8: a no-show / refunded booking keeps its penalty in a cancellation record (a `cancelled` one goes through Finance).
+  let penalty: string | null = null
+  if (penaltyInput !== undefined && penaltyInput !== null && penaltyInput !== '') {
+    if (!PENALTY_OUTCOMES.includes(to)) throw errors.validation({ penaltyMinor: ['Denda hanya untuk status no-show atau refunded.'] })
+    if (typeof penaltyInput !== 'string' || !/^(0|[1-9][0-9]{0,18})$/.test(penaltyInput)) throw errors.validation({ penaltyMinor: ['Denda harus angka bulat ≥ 0, dikirim sebagai teks.'] })
+    penalty = penaltyInput
+  }
   const reason = typeof reasonInput === 'string' && reasonInput.trim() ? reasonInput.trim().slice(0, 1000) : null
   if ((to === 'cancelled' || to === 'refunded') && !reason) throw errors.validation({ reason: ['Alasan wajib diisi untuk pembatalan/refund.'] })
   const [cur] = await tx.query<{ status: string }>('select status from booking_refs where booking_type = $1 and booking_id = $2 for update', [type, id])
@@ -176,4 +186,33 @@ export async function changeBookingStatus(tx: Queryable, actor: Actor, type: Boo
     throw rule('Booking ini sudah punya transaksi Finance — ajukan pembatalan lewat Finance.')
   }
   await setBookingStatus(tx, actor, type, id, cur.status, to, reason, requestId)
+  if (PENALTY_OUTCOMES.includes(to)) {
+    const [b] = await tx.query<{ project_id: string }>('select project_id from booking_refs where booking_type = $1 and booking_id = $2', [type, id])
+    const cnx = await nextId(tx, 'CNX-')
+    await tx.query(
+      `insert into booking_cancellations (id, project_id, booking_type, booking_id, outcome, reason, penalty_minor, refund_eligible, cancelled_by, cancelled_on)
+       values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+      [cnx, b!.project_id, type, id, to, reason ?? (to === 'no-show' ? 'Traveler tidak hadir (no-show).' : 'Tiket di-refund.'), penalty, to === 'refunded', actor.userId, businessDateOf(new Date())]
+    )
+    await recordAudit(tx, { action: 'booking.cancellation_recorded', actorUserId: actor.userId, entityType: 'booking', entityId: id, requestId,
+      after: { cancellationId: cnx, outcome: to, penaltyMinor: penalty } })
+  }
+}
+
+export async function listBookingCancellations(db: Queryable, projectId?: string) {
+  const rows = await db.query<Record<string, unknown>>(
+    `select id, project_id, booking_type, booking_id, outcome, reason, penalty_minor::text as penalty_minor, refund_eligible, cancelled_by, cancelled_on::text as cancelled_on
+       from booking_cancellations where ($1::text is null or project_id = $1) order by cancelled_on desc, id desc`, [projectId ?? null])
+  return rows.map(r => ({
+    id: r.id as string,
+    projectId: r.project_id as string,
+    bookingType: r.booking_type as string,
+    bookingId: r.booking_id as string,
+    outcome: r.outcome as string,
+    reason: r.reason as string,
+    penaltyMinor: r.penalty_minor === null ? null : String(r.penalty_minor),
+    refundEligible: r.refund_eligible as boolean,
+    cancelledBy: r.cancelled_by as string,
+    cancelledOn: r.cancelled_on as string
+  }))
 }

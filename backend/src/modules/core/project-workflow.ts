@@ -44,6 +44,15 @@ export async function transition(tx: Queryable, actor: Actor, id: string, to: un
   if (!STATUS_TRANSITIONS[p.status]!.includes(to)) throw rule(`Status tidak bisa berubah dari "${p.status}" ke "${to}".`)
   // Gates hold whatever the source status (also when resuming from on-hold).
   if (['planning', 'confirmed', 'in-progress'].includes(to) && !p.handover_accepted_at) throw rule('Terima handover dulu sebelum project dilanjutkan.')
+  // S8: open incidents block departure; change requests still waiting for a decision block completion.
+  if (to === 'in-progress') {
+    const open = await tx.query<{ id: string }>("select id from incidents where project_id = $1 and status in ('open', 'escalated') order by id", [id])
+    if (open.length) throw rule(`Masih ada insiden terbuka (${open.map(x => x.id).join(', ')}) — selesaikan dulu sebelum berangkat.`)
+  }
+  if (to === 'completed') {
+    const pending = await tx.query<{ id: string }>("select id from change_requests where project_id = $1 and status in ('submitted', 'under-review') order by id", [id])
+    if (pending.length) throw rule(`Masih ada change request yang belum diputuskan (${pending.map(x => x.id).join(', ')}) — putuskan dulu sebelum project selesai.`)
+  }
   if (to === 'in-progress' && !p.ready_at) throw rule('Project harus Ready dulu (DP ditagih dan diterima Finance) sebelum berangkat.')
   await tx.query('update projects set status = $2, updated_at = now() where id = $1', [id, to])
   await audit(tx, actor, id, requestId, 'project.status_changed', { before: { status: p.status }, after: { status: to }, reason: text || null })
