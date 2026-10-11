@@ -464,7 +464,7 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       const actor = await auth.requireActor(request)
       const { type, id } = await writableBooking(actor, params.type, params.id)
       const b = (body ?? {}) as Record<string, unknown>
-      await db.transaction(tx => changeBookingStatus(tx, actor, type, id, b.to, b.reason, requestIdOf(request), b.penaltyMinor))
+      await db.transaction(tx => changeBookingStatus(tx, actor, type, id, b.to, b.reason, requestIdOf(request), { penaltyMinor: b.penaltyMinor, refundEligible: b.refundEligible }))
       return ok(request, await bookingResponse(actor, type, id))
     }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
     .post('/bookings/:type/:id/attempts', async ({ request, params, body, set }) => {

@@ -7,6 +7,11 @@ import type {
   MilestoneInput,
   ProjectActivityDto,
   ProjectChangeInput,
+  BookingCancellationDto,
+  ChangeRequestDto,
+  ChangeRequestInput,
+  IncidentDto,
+  IncidentInput,
   TaskDto,
   TaskInput,
   RoomAssignmentDto,
@@ -161,6 +166,21 @@ export function createManovaApi (client: ApiClient) {
         client.post<ItineraryItemDto>(`/projects/${seg(projectId)}/itinerary-items`, input, { idempotencyKey }),
       updateItineraryItem: (id: string, input: ItineraryItemInput) => client.patch<ItineraryItemDto>(`/itinerary-items/${seg(id)}`, input),
       deleteItineraryItem: (id: string) => client.delete<{ id: string; deleted: true }>(`/itinerary-items/${seg(id)}`),
+      listChangeRequests: (query: { projectId?: string } = {}) => client.get<ChangeRequestDto[]>('/change-requests', { query: { ...query } }),
+      createChangeRequest: (projectId: string, input: ChangeRequestInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<ChangeRequestDto>(`/projects/${seg(projectId)}/change-requests`, input, { idempotencyKey }),
+      reviewChangeRequest: (id: string) => client.post<ChangeRequestDto>(`/change-requests/${seg(id)}/review`, {}),
+      approveChangeRequest: (id: string) => client.post<ChangeRequestDto>(`/change-requests/${seg(id)}/approve`, {}),
+      rejectChangeRequest: (id: string, reason: string) => client.post<ChangeRequestDto>(`/change-requests/${seg(id)}/reject`, { reason }),
+      implementChangeRequest: (id: string) => client.post<ChangeRequestDto>(`/change-requests/${seg(id)}/implement`, {}),
+      listIncidents: (query: { projectId?: string } = {}) => client.get<IncidentDto[]>('/incidents', { query: { ...query } }),
+      createIncident: (projectId: string, input: IncidentInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<IncidentDto>(`/projects/${seg(projectId)}/incidents`, input, { idempotencyKey }),
+      changeIncidentStatus: (id: string, to: string) => client.post<IncidentDto>(`/incidents/${seg(id)}/status`, { to }),
+      escalateIncident: (id: string, to: string, note?: string) => client.post<IncidentDto>(`/incidents/${seg(id)}/escalate`, { to, ...(note ? { note } : {}) }),
+      addIncidentCommunication: (id: string, message: string) => client.post<IncidentDto>(`/incidents/${seg(id)}/communications`, { message }),
+      resolveIncident: (id: string, note: string) => client.post<IncidentDto>(`/incidents/${seg(id)}/resolve`, { note }),
+      listBookingCancellations: (query: { projectId?: string } = {}) => client.get<BookingCancellationDto[]>('/booking-cancellations', { query: { ...query } }),
       listProjectActivities: (query: { projectId?: string } = {}) => client.get<ProjectActivityDto[]>('/project-activities', { query: { ...query } }),
       logProjectChange: (projectId: string, input: ProjectChangeInput, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<ProjectActivityDto>(`/projects/${seg(projectId)}/changes`, input, { idempotencyKey }),
@@ -233,7 +253,7 @@ export function createManovaApi (client: ApiClient) {
       createBooking: (type: ApiBookingType, input: BookingCreateInput, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<BookingDto>(`/bookings/${seg(type)}`, input, { idempotencyKey }),
       updateBooking: (type: ApiBookingType, id: string, input: BookingPatchInput) => client.patch<BookingDto>(`/bookings/${seg(type)}/${seg(id)}`, input),
-      changeBookingStatus: (type: ApiBookingType, id: string, input: { to: string; reason?: string }) =>
+      changeBookingStatus: (type: ApiBookingType, id: string, input: { to: string; reason?: string; penaltyMinor?: string; refundEligible?: boolean }) =>
         client.post<BookingDto>(`/bookings/${seg(type)}/${seg(id)}/status`, input),
       logBookingAttempt: (type: ApiBookingType, id: string, input: { outcome: string; note?: string }) =>
         client.post<BookingDto>(`/bookings/${seg(type)}/${seg(id)}/attempts`, input),

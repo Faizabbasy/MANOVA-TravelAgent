@@ -168,15 +168,18 @@ export async function updateBooking(tx: Queryable, actor: Actor, type: BookingTy
 
 const PENALTY_OUTCOMES = ['no-show', 'refunded']
 
-export async function changeBookingStatus(tx: Queryable, actor: Actor, type: BookingType, id: string, to: unknown, reasonInput: unknown, requestId: string, penaltyInput?: unknown): Promise<void> {
+export async function changeBookingStatus(tx: Queryable, actor: Actor, type: BookingType, id: string, to: unknown, reasonInput: unknown, requestId: string, extra: { penaltyMinor?: unknown; refundEligible?: unknown } = {}): Promise<void> {
   if (typeof to !== 'string' || !BOOKING_STATUSES[type].includes(to)) throw errors.validation({ to: [`Status harus salah satu dari: ${BOOKING_STATUSES[type].join(', ')}.`] })
   // S8: a no-show / refunded booking keeps its penalty in a cancellation record (a `cancelled` one goes through Finance).
+  const penaltyInput = extra.penaltyMinor
   let penalty: string | null = null
   if (penaltyInput !== undefined && penaltyInput !== null && penaltyInput !== '') {
     if (!PENALTY_OUTCOMES.includes(to)) throw errors.validation({ penaltyMinor: ['Denda hanya untuk status no-show atau refunded.'] })
     if (typeof penaltyInput !== 'string' || !/^(0|[1-9][0-9]{0,18})$/.test(penaltyInput)) throw errors.validation({ penaltyMinor: ['Denda harus angka bulat ≥ 0, dikirim sebagai teks.'] })
     penalty = penaltyInput
   }
+  if (extra.refundEligible !== undefined && typeof extra.refundEligible !== 'boolean') throw errors.validation({ refundEligible: ['Harus ya/tidak.'] })
+  const refundEligible = typeof extra.refundEligible === 'boolean' ? extra.refundEligible : to === 'refunded'
   const reason = typeof reasonInput === 'string' && reasonInput.trim() ? reasonInput.trim().slice(0, 1000) : null
   if ((to === 'cancelled' || to === 'refunded') && !reason) throw errors.validation({ reason: ['Alasan wajib diisi untuk pembatalan/refund.'] })
   const [cur] = await tx.query<{ status: string }>('select status from booking_refs where booking_type = $1 and booking_id = $2 for update', [type, id])
@@ -192,7 +195,7 @@ export async function changeBookingStatus(tx: Queryable, actor: Actor, type: Boo
     await tx.query(
       `insert into booking_cancellations (id, project_id, booking_type, booking_id, outcome, reason, penalty_minor, refund_eligible, cancelled_by, cancelled_on)
        values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [cnx, b!.project_id, type, id, to, reason ?? (to === 'no-show' ? 'Traveler tidak hadir (no-show).' : 'Tiket di-refund.'), penalty, to === 'refunded', actor.userId, businessDateOf(new Date())]
+      [cnx, b!.project_id, type, id, to, reason ?? (to === 'no-show' ? 'Traveler tidak hadir (no-show).' : 'Tiket di-refund.'), penalty, refundEligible, actor.userId, businessDateOf(new Date())]
     )
     await recordAudit(tx, { action: 'booking.cancellation_recorded', actorUserId: actor.userId, entityType: 'booking', entityId: id, requestId,
       after: { cancellationId: cnx, outcome: to, penaltyMinor: penalty } })

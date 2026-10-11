@@ -7,8 +7,7 @@ import {
   getMiceEventStatusTransitions, updateMiceEventStatus,
   getMiceApprovalTransitions, updateMiceClientApproval,
   toggleMiceChecklistItem, toggleMiceDeliverable, updateMiceEvent,
-  getProjectById, getUserById, USERS, VENDORS, getProjectServiceById,
-  createCancellationRecord
+  getProjectById, getUserById, USERS, VENDORS, getProjectServiceById
 } from '~/data'
 import { assignServiceVendorOnServer, persistBookingEdit, reloadProjectBookings, runBookingStatusChange } from '~/data/bookings-sync'
 import { isApiError } from '~/lib/api/errors'
@@ -128,35 +127,15 @@ function onFinanceCancelled ({ refund, reason }: { refund: RefundDetailDto | Ref
     showToast('Status booking belum berubah', `Pembatalan sudah tercatat di Finance (${refund.id}), tapi status booking tidak bisa diubah dari status saat ini.`, 'warning')
     return
   }
-  createCancellationRecord({
-    projectId: result.projectId,
-    bookingType: 'mice',
-    bookingId: result.id,
-    reason,
-    cancelledBy: currentUser.value.id,
-    refundEligible: !(refund.status === 'approved' && refund.settlement === 'none')
-  })
   showToast('Status Diperbarui', `MICE Event kini berstatus "${findStatusOption(MICE_EVENT_STATUSES, 'cancelled').label}".`, 'success')
 }
 
 async function submitStatusChange () {
   if (!event.value || !pendingStatus.value || !statusReason.value.trim()) { return }
   const targetStatus = pendingStatus.value
-  const result = event.value
   // The dialog stays open when the server refuses (its message is shown as a toast).
   if (!(await changeStatusOnServer(targetStatus, statusReason.value.trim()))) { return }
   isStatusDialogOpen.value = false
-  if (targetStatus === 'cancelled') {
-    createCancellationRecord({
-      projectId: result.projectId,
-      bookingType: 'mice',
-      bookingId: result.id,
-      reason: statusReason.value.trim(),
-      penaltyIdr: cancellationPenalty.value ?? undefined,
-      cancelledBy: currentUser.value.id,
-      refundEligible: cancellationRefundEligible.value
-    })
-  }
 }
 
 /* Client approval transitions */

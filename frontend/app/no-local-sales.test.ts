@@ -19,7 +19,10 @@ const FORBIDDEN = [
   'updateMilestoneNote(', 'applyMilestoneTemplate(', 'addMilestoneDeliverable(', 'toggleMilestoneDeliverable(', 'removeMilestoneDeliverable(',
   'updateMilestoneBudget(', 'seedDefaultProjectMilestones(',
   // S7d: hand-logged project changes and their decisions live on the server.
-  'createChangeEntry(', 'approveChangeEntry(', 'rejectChangeEntry('
+  'createChangeEntry(', 'approveChangeEntry(', 'rejectChangeEntry(',
+  // S8: change requests (internal flow), incidents and no-show/refunded cancellations live on the server.
+  'createChangeRequest(', 'approveChangeRequest(', 'rejectChangeRequest(', 'markChangeRequestUnderReview(', 'markChangeRequestImplemented(',
+  'createIncident(', 'updateIncidentStatus(', 'escalateIncident(', 'appendIncidentCommunication(', 'resolveIncident(', 'createCancellationRecord('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**

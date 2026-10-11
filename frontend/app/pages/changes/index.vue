@@ -4,9 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { Search, Plus, FileWarning, Ban, RefreshCcw, Siren, Eye } from 'lucide-vue-next'
 import {
   PROJECTS, getProjectById, getUserById,
-  CHANGE_REQUESTS, CANCELLATION_RECORDS, INCIDENTS,
-  createChangeRequest, createIncident
+  CHANGE_REQUESTS, CANCELLATION_RECORDS, INCIDENTS
 } from '~/data'
+import { createChangeRequestOnServer, createIncidentOnServer } from '~/data/changes-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import {
   CHANGE_REQUEST_SOURCES, CHANGE_REQUEST_STATUSES,
   INCIDENT_SEVERITIES, INCIDENT_STATUSES, findStatusOption
@@ -111,20 +112,24 @@ function resetChangeForm () {
   newChangeTimelineImpact.value = ''
 }
 
-function submitCreateChange () {
+/* S8: change requests and incidents are created on the server; a failure keeps the dialog open with the reason. */
+const { saving: isSaving, run: save } = createSaveGate(showToast)
+
+async function submitCreateChange () {
   if (!newChangeProjectId.value || !newChangeBefore.value.trim() || !newChangeAfter.value.trim()) { return }
-  const affectedEntities: AffectedEntityRef[] = [{ entityType: 'project', entityId: newChangeProjectId.value }]
-  const request = createChangeRequest({
-    projectId: newChangeProjectId.value,
+  const projectId = newChangeProjectId.value
+  const affectedEntities: AffectedEntityRef[] = [{ entityType: 'project', entityId: projectId }]
+  const commercial = newChangeCommercialImpact.value
+  const request = await save('Change Request Gagal Dibuat', () => createChangeRequestOnServer(api, projectId, {
     source: newChangeSource.value,
-    requestedBy: currentUser.value.id,
     affectedEntities,
     beforeSummary: newChangeBefore.value.trim(),
     afterSummary: newChangeAfter.value.trim(),
-    operationalImpact: newChangeOperationalImpact.value.trim() || undefined,
-    commercialImpactIdr: newChangeCommercialImpact.value ?? undefined,
-    timelineImpactNote: newChangeTimelineImpact.value.trim() || undefined
-  })
+    operationalImpact: newChangeOperationalImpact.value.trim() || null,
+    commercialImpactMinor: commercial != null && commercial >= 0 ? String(Math.round(commercial)) : null,
+    timelineImpactNote: newChangeTimelineImpact.value.trim() || null
+  }))
+  if (!request) { return }
   resetChangeForm()
   isCreateChangeOpen.value = false
   showToast('Change Request Dibuat', `${request.id} tercatat berstatus "Diajukan".`, 'success')
@@ -145,15 +150,16 @@ function resetIncidentForm () {
   newIncidentSeverity.value = 'medium'
 }
 
-function submitCreateIncident () {
+async function submitCreateIncident () {
   if (!newIncidentProjectId.value || !newIncidentTitle.value.trim() || !newIncidentDescription.value.trim()) { return }
-  const incident = createIncident({
-    projectId: newIncidentProjectId.value,
+  const projectId = newIncidentProjectId.value
+  const incident = await save('Incident Gagal Dicatat', () => createIncidentOnServer(api, projectId, {
     title: newIncidentTitle.value.trim(),
     description: newIncidentDescription.value.trim(),
     severity: newIncidentSeverity.value,
     ownerId: currentUser.value.id
-  })
+  }))
+  if (!incident) { return }
   resetIncidentForm()
   isCreateIncidentOpen.value = false
   showToast('Incident Dicatat', `${incident.id} tercatat berstatus "Open".`, 'success')
@@ -232,7 +238,7 @@ function submitCreateIncident () {
                 <Button variant="outline" @click="isCreateChangeOpen = false">
                   Batal
                 </Button>
-                <Button :disabled="!newChangeProjectId || !newChangeBefore.trim() || !newChangeAfter.trim()" @click="submitCreateChange">
+                <Button :disabled="!newChangeProjectId || !newChangeBefore.trim() || !newChangeAfter.trim() || isSaving" @click="submitCreateChange">
                   Simpan
                 </Button>
               </template>
@@ -282,7 +288,7 @@ function submitCreateIncident () {
                 <Button variant="outline" @click="isCreateIncidentOpen = false">
                   Batal
                 </Button>
-                <Button :disabled="!newIncidentProjectId || !newIncidentTitle.trim() || !newIncidentDescription.trim()" @click="submitCreateIncident">
+                <Button :disabled="!newIncidentProjectId || !newIncidentTitle.trim() || !newIncidentDescription.trim() || isSaving" @click="submitCreateIncident">
                   Simpan
                 </Button>
               </template>

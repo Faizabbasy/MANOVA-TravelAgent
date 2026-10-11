@@ -3377,7 +3377,7 @@ export function createChangeRequest (input: CreateChangeRequestInput): ChangeReq
   })
 
   const request: ChangeRequest = {
-    id: nextSequentialId('CR-', CHANGE_REQUESTS),
+    id: nextSequentialId('CR-L', CHANGE_REQUESTS),
     projectId: input.projectId,
     source: input.source,
     requestedBy: input.requestedBy,

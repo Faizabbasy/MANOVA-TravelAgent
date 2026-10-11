@@ -6,6 +6,7 @@ import { MICE_EVENTS } from './mice'
 import { BOOKING_ORCHESTRATION_RECORDS } from './booking-orchestration'
 import { reloadProjectProcurement, upsertServerQuotation } from './procurement-sync'
 import { refreshProjectActivities } from './activity-sync'
+import { refreshProjectCancellations } from './changes-sync'
 import type { ProjectService } from '~/types/project'
 import type { ApiBookingType, BookingCreateInput, BookingDto, BookingPatchInput, ProjectServiceDto, ServiceCreateInput, ServicePatchInput } from '~/types/api'
 import type { ManovaApi } from '~/lib/api/endpoints'
@@ -235,17 +236,21 @@ export async function logBookingAttemptOnServer (api: CoreApi, type: ApiBookingT
   upsertServerBooking(dto)
 }
 
-export async function changeBookingStatusOnServer (api: CoreApi, type: UiBookingType, id: string, to: string, reason?: string): Promise<BookingDto> {
-  return (await api.core.changeBookingStatus(toApiBookingType(type), id, { to, ...(reason?.trim() ? { reason: reason.trim() } : {}) })).data
+/** S8: a no-show / refunded status carries its penalty and refund eligibility; the server keeps them as a cancellation record. */
+export interface BookingCancellationExtra { penaltyMinor?: string; refundEligible?: boolean }
+
+export async function changeBookingStatusOnServer (api: CoreApi, type: UiBookingType, id: string, to: string, reason?: string, extra: BookingCancellationExtra = {}): Promise<BookingDto> {
+  return (await api.core.changeBookingStatus(toApiBookingType(type), id, { to, ...(reason?.trim() ? { reason: reason.trim() } : {}), ...extra })).data
 }
 
 /** Server status change, then the local mutator for its side effects, then the server's version wins. */
-export async function runBookingStatusChange (api: CoreApi, type: UiBookingType, booking: { id: string; projectId: string }, to: string, reason: string | undefined, localSideEffects: () => unknown): Promise<void> {
-  const dto = await changeBookingStatusOnServer(api, type, booking.id, to, reason)
+export async function runBookingStatusChange (api: CoreApi, type: UiBookingType, booking: { id: string; projectId: string }, to: string, reason: string | undefined, localSideEffects: () => unknown, extra: BookingCancellationExtra = {}): Promise<void> {
+  const dto = await changeBookingStatusOnServer(api, type, booking.id, to, reason, extra)
   localSideEffects()
   upsertServerBooking(dto)
   await reloadProjectServices(api, booking.projectId)
   await refreshProjectActivities(api, booking.projectId) // S7d: the server logged the status change
+  if (to === 'no-show' || to === 'refunded') { await refreshProjectCancellations(api, booking.projectId) } // S8
 }
 
 export interface BookingsSyncState {

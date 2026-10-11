@@ -1351,6 +1351,75 @@ export type TravelerInput = Partial<Pick<TravelerDto, 'name' | 'groupId' | 'pass
   | 'visaExpiryDate' | 'emergencyContactName' | 'emergencyContactPhone' | 'specialRequest' | 'dietaryRestrictions' | 'accessibilityNeeds' | 'companionOfTravelerId'>>
 export interface TravelerGroupDto { id: string; projectId: string; name: string; paxCount: number; roomingNote: string | null }
 export interface RoomAssignmentDto { id: string; projectId: string; groupId: string; roomLabel: string; roomType: 'single' | 'twin' | 'suite'; travelerIds: string[] }
+/** Change request (S8), internal flow; `commercialImpactMinor` is a whole-rupiah decimal string. */
+export interface ChangeRequestDto {
+  id: string
+  projectId: string
+  source: 'client' | 'internal' | 'supplier'
+  requestedBy: string
+  submittedAt: string
+  affectedEntities: { entityType: 'flight' | 'hotel' | 'transport' | 'mice' | 'itinerary' | 'order' | 'project'; entityId: string }[]
+  beforeSummary: string
+  afterSummary: string
+  operationalImpact: string | null
+  commercialImpactMinor: string | null
+  financialImpactNote: string | null
+  timelineImpactNote: string | null
+  status: 'submitted' | 'under-review' | 'approved' | 'rejected' | 'implemented'
+  decidedBy: string | null
+  decidedAt: string | null
+  rejectionReason: string | null
+  implementedAt: string | null
+  activityId: string | null
+}
+export interface ChangeRequestInput {
+  source: ChangeRequestDto['source']
+  category?: string
+  beforeSummary: string
+  afterSummary: string
+  operationalImpact?: string | null
+  commercialImpactMinor?: string | null
+  timelineImpactNote?: string | null
+  affectedEntities?: ChangeRequestDto['affectedEntities']
+}
+/** Project incident (S8); a communication entry's `from` is a user id. */
+export interface IncidentDto {
+  id: string
+  projectId: string
+  bookingType: 'flight' | 'hotel' | 'transport' | 'mice' | null
+  bookingId: string | null
+  title: string
+  description: string
+  severity: 'low' | 'medium' | 'high' | 'critical'
+  ownerId: string
+  status: 'open' | 'investigating' | 'escalated' | 'resolved' | 'closed'
+  escalatedTo: string | null
+  communicationLog: { id: string; at: string; from: string; message: string }[]
+  resolutionNote: string | null
+  resolvedAt: string | null
+  createdAt: string
+}
+export interface IncidentInput {
+  title: string
+  description: string
+  severity: IncidentDto['severity']
+  ownerId: string
+  bookingType?: IncidentDto['bookingType']
+  bookingId?: string | null
+}
+/** A no-show / refunded booking (or a pre-Finance cancellation) with its penalty (S8). */
+export interface BookingCancellationDto {
+  id: string
+  projectId: string
+  bookingType: 'flight' | 'hotel' | 'transport' | 'mice'
+  bookingId: string
+  outcome: 'cancelled' | 'no-show' | 'refunded'
+  reason: string
+  penaltyMinor: string | null
+  refundEligible: boolean
+  cancelledBy: string
+  cancelledOn: string
+}
 /** Project activity log entry (S7d): `ACT-` written by a server action, `CHG-` a change logged by hand. */
 export interface ProjectActivityDto {
   id: string

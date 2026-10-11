@@ -6,10 +6,9 @@ import {
   getHotelBookingById, getHotelBookingMarginIdr, getHotelBookingStatusTransitions,
   updateHotelBooking, updateHotelBookingStatus, selectHotelOption,
   getProjectById, getTravelers, getHotelRoomingList, getTravelerGroups, getProjectServiceById,
-  VENDORS,
-  createCancellationRecord
+  VENDORS
 } from '~/data'
-import { assignServiceVendorOnServer, persistBookingEdit, reloadProjectBookings, runBookingStatusChange } from '~/data/bookings-sync'
+import { assignServiceVendorOnServer, persistBookingEdit, reloadProjectBookings, runBookingStatusChange, type BookingCancellationExtra } from '~/data/bookings-sync'
 import { isApiError } from '~/lib/api/errors'
 import type { RefundDetailDto, RefundStatusDto } from '~/types/api'
 import { HOTEL_BOOKING_STATUSES, MEAL_PLANS, ROOM_TYPES, findStatusOption } from '~/constants/status'
@@ -99,12 +98,12 @@ const showServerError = (title: string, error: unknown) =>
   showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
 
 /** Server first (S4a); the local mutator then runs only for its side effects (activity log, payment gate). */
-async function changeStatusOnServer (newStatus: HotelBookingStatus, reason?: string): Promise<boolean> {
+async function changeStatusOnServer (newStatus: HotelBookingStatus, reason?: string, extra: BookingCancellationExtra = {}): Promise<boolean> {
   const current = booking.value
   if (!current || isSavingBooking.value) { return false }
   isSavingBooking.value = true
   try {
-    await runBookingStatusChange(bookingApi, 'hotel', current, newStatus, reason, () => updateHotelBookingStatus(current.id, newStatus, currentUser.value.id, reason))
+    await runBookingStatusChange(bookingApi, 'hotel', current, newStatus, reason, () => updateHotelBookingStatus(current.id, newStatus, currentUser.value.id, reason), extra)
   } catch (error) {
     showServerError('Status Gagal Diubah', error)
     return false
@@ -140,35 +139,19 @@ function onFinanceCancelled ({ refund, reason }: { refund: RefundDetailDto | Ref
     showToast('Status booking belum berubah', `Pembatalan sudah tercatat di Finance (${refund.id}), tapi status booking tidak bisa diubah dari status saat ini.`, 'warning')
     return
   }
-  createCancellationRecord({
-    projectId: result.projectId,
-    bookingType: 'hotel',
-    bookingId: result.id,
-    reason,
-    cancelledBy: currentUser.value.id,
-    refundEligible: !(refund.status === 'approved' && refund.settlement === 'none')
-  })
   showToast('Status Diperbarui', `Hotel Booking kini berstatus "${findStatusOption(HOTEL_BOOKING_STATUSES, 'cancelled').label}".`, 'success')
 }
 
 async function submitStatusChange () {
   if (!booking.value || !pendingStatus.value || !statusReason.value.trim()) { return }
   const targetStatus = pendingStatus.value
-  const result = booking.value
   // The dialog stays open when the server refuses (its message is shown as a toast).
-  if (!(await changeStatusOnServer(targetStatus, statusReason.value.trim()))) { return }
+  // S8: a no-show / refunded status keeps its penalty on the server as a cancellation record.
+  const extra = CANCELLATION_TRIGGER_STATUSES.includes(targetStatus)
+    ? { penaltyMinor: cancellationPenalty.value != null && cancellationPenalty.value >= 0 ? String(Math.round(cancellationPenalty.value)) : undefined, refundEligible: cancellationRefundEligible.value }
+    : {}
+  if (!(await changeStatusOnServer(targetStatus, statusReason.value.trim(), extra))) { return }
   isStatusDialogOpen.value = false
-  if (CANCELLATION_TRIGGER_STATUSES.includes(targetStatus)) {
-    createCancellationRecord({
-      projectId: result.projectId,
-      bookingType: 'hotel',
-      bookingId: result.id,
-      reason: statusReason.value.trim(),
-      penaltyIdr: cancellationPenalty.value ?? undefined,
-      cancelledBy: currentUser.value.id,
-      refundEligible: cancellationRefundEligible.value
-    })
-  }
 }
 
 function submitSelectOption (index: number) {

@@ -4,12 +4,11 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import {
   getChangeRequestById, getChangeRequestStatusTransitions,
-  approveChangeRequest, rejectChangeRequest, markChangeRequestUnderReview, markChangeRequestImplemented,
   getProjectById, getUserById, getQuotationById
 } from '~/data'
 import { CHANGE_REQUEST_SOURCES, CHANGE_REQUEST_STATUSES, findStatusOption } from '~/constants/status'
-import { settleLinkedChangeOnServer } from '~/data/activity-sync'
-import { isApiError } from '~/lib/api/errors'
+import { approveChangeRequestOnServer, implementChangeRequestOnServer, rejectChangeRequestOnServer, reviewChangeRequestOnServer } from '~/data/changes-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 
 /**
@@ -22,9 +21,10 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
-const { currentUser } = useCurrentUser()
-const { canView, canApprove } = usePermissions()
-const canApproveChangeRequest = computed(() => canApprove('project'))
+const { canView, can } = usePermissions()
+/* S8: the same capabilities the server checks — review/decide (`review-change`), mark implemented (`log-change`). */
+const canApproveChangeRequest = computed(() => can('project-order.review-change'))
+const canLogChange = computed(() => can('project-order.log-change'))
 const { showToast } = useToast()
 
 const request = computed(() => getChangeRequestById(String(route.params.id)))
@@ -48,28 +48,22 @@ const summaryMetadata = computed(() => {
 const isRejectDialogOpen = ref(false)
 const rejectionReason = ref('')
 
-function handleUnderReview () {
-  if (!request.value) { return }
-  markChangeRequestUnderReview(request.value.id, currentUser.value.id)
-  showToast('Change Request Direview', `${request.value.id} kini sedang direview.`)
-}
-
-/* S7d: the change request itself is still local (S8); its change entry in the project log belongs to the server. */
+/* S8: the server decides the request and its change entry in the project log together. */
 const api = useApi()
-async function settleLinkedChange (entryId: string | undefined, decision: 'approved' | 'rejected') {
-  try {
-    await settleLinkedChangeOnServer(api, entryId, decision)
-  } catch (error) {
-    showToast('Log Perubahan Belum Diperbarui', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Putuskan perubahan ini di tab Riwayat Aktivitas project.', 'error')
-  }
+const { saving: isSaving, run: save } = createSaveGate(showToast)
+
+async function handleUnderReview () {
+  if (!request.value) { return }
+  const id = request.value.id
+  const result = await save('Gagal Memulai Review', () => reviewChangeRequestOnServer(api, id))
+  if (result) { showToast('Change Request Direview', `${result.id} kini sedang direview.`) }
 }
 
 async function handleApprove () {
   if (!request.value) { return }
-  const result = approveChangeRequest(request.value.id, currentUser.value.id)
-  if (!result) { return }
-  showToast('Change Request Disetujui', `${result.id} disetujui.`, 'success')
-  await settleLinkedChange(result.activityEntryId, 'approved')
+  const id = request.value.id
+  const result = await save('Change Request Gagal Disetujui', () => approveChangeRequestOnServer(api, id))
+  if (result) { showToast('Change Request Disetujui', `${result.id} disetujui.`, 'success') }
 }
 
 function openReject () {
@@ -79,16 +73,18 @@ function openReject () {
 
 async function submitReject () {
   if (!request.value || !rejectionReason.value.trim()) { return }
-  const result = rejectChangeRequest(request.value.id, currentUser.value.id, rejectionReason.value.trim())
-  isRejectDialogOpen.value = false
+  const id = request.value.id
+  const reason = rejectionReason.value.trim()
+  const result = await save('Change Request Gagal Ditolak', () => rejectChangeRequestOnServer(api, id, reason))
   if (!result) { return }
+  isRejectDialogOpen.value = false
   showToast('Change Request Ditolak', `${result.id} ditolak.`, 'info')
-  await settleLinkedChange(result.activityEntryId, 'rejected')
 }
 
-function handleImplemented () {
+async function handleImplemented () {
   if (!request.value) { return }
-  const result = markChangeRequestImplemented(request.value.id, currentUser.value.id)
+  const id = request.value.id
+  const result = await save('Gagal Menandai Implementasi', () => implementChangeRequestOnServer(api, id))
   if (result) { showToast('Change Request Diimplementasikan', `${result.id} ditandai selesai diimplementasikan.`, 'success') }
 }
 </script>
@@ -113,17 +109,17 @@ function handleImplemented () {
         <template #actions>
           <div class="flex flex-wrap items-center gap-2">
             <StatusBadge :label="findStatusOption(CHANGE_REQUEST_STATUSES, request.status).label" :tone="findStatusOption(CHANGE_REQUEST_STATUSES, request.status).tone" />
-            <template v-if="canApproveChangeRequest">
-              <Button v-if="getChangeRequestStatusTransitions(request.status).includes('under-review')" size="sm" variant="outline" @click="handleUnderReview">
+            <template v-if="canApproveChangeRequest || canLogChange">
+              <Button v-if="canApproveChangeRequest && getChangeRequestStatusTransitions(request.status).includes('under-review')" size="sm" variant="outline" :disabled="isSaving" @click="handleUnderReview">
                 Mulai Review
               </Button>
-              <Button v-if="getChangeRequestStatusTransitions(request.status).includes('approved')" size="sm" @click="handleApprove">
+              <Button v-if="canApproveChangeRequest && getChangeRequestStatusTransitions(request.status).includes('approved')" size="sm" :disabled="isSaving" @click="handleApprove">
                 Setujui
               </Button>
-              <Button v-if="getChangeRequestStatusTransitions(request.status).includes('rejected')" size="sm" variant="destructive" @click="openReject">
+              <Button v-if="canApproveChangeRequest && getChangeRequestStatusTransitions(request.status).includes('rejected')" size="sm" variant="destructive" :disabled="isSaving" @click="openReject">
                 Tolak
               </Button>
-              <Button v-if="getChangeRequestStatusTransitions(request.status).includes('implemented')" size="sm" variant="outline" @click="handleImplemented">
+              <Button v-if="canLogChange && getChangeRequestStatusTransitions(request.status).includes('implemented')" size="sm" variant="outline" :disabled="isSaving" @click="handleImplemented">
                 Tandai Diimplementasikan
               </Button>
             </template>
@@ -236,7 +232,7 @@ function handleImplemented () {
           <Button variant="outline" @click="isRejectDialogOpen = false">
             Batal
           </Button>
-          <Button variant="destructive" :disabled="!rejectionReason.trim()" @click="submitReject">
+          <Button variant="destructive" :disabled="!rejectionReason.trim() || isSaving" @click="submitReject">
             Konfirmasi
           </Button>
         </template>

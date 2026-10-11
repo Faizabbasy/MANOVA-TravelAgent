@@ -133,6 +133,8 @@ export interface CancellationRecord {
   cancelledAt: string
   cancelledBy: ID
   refundEligible: boolean
+  /** S8: `no-show` / `refunded` are recorded by the server with the booking status; `cancelled` is pre-Finance history. */
+  outcome?: 'cancelled' | 'no-show' | 'refunded'
 }
 
 export type RefundRequestStatus = 'requested' | 'under-review' | 'approved' | 'rejected' | 'processed'

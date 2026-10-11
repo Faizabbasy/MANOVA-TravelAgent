@@ -109,10 +109,11 @@ describe('no-show / refunded cancellations and workflow gates', () => {
     const b = (await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-204', details: {} }, key())).json.data as { id: string }
     for (const to of ['quoted', 'assigned', 'confirmed']) await call('POST', `/bookings/transport/${b.id}/status`, 'admin', { to })
     expect((await call('POST', `/bookings/transport/${b.id}/status`, 'admin', { to: 'completed', penaltyMinor: '1000' })).status).toBe(400)
-    const res = await call('POST', `/bookings/transport/${b.id}/status`, 'admin', { to: 'no-show', reason: 'Tamu tidak datang', penaltyMinor: '750000' })
+    expect((await call('POST', `/bookings/transport/${b.id}/status`, 'admin', { to: 'no-show', reason: 'X', refundEligible: 'ya' })).status).toBe(400)
+    const res = await call('POST', `/bookings/transport/${b.id}/status`, 'admin', { to: 'no-show', reason: 'Tamu tidak datang', penaltyMinor: '750000', refundEligible: true })
     expect(res.status).toBe(200)
-    const list = (await call('GET', '/booking-cancellations?projectId=PRJ-204', 'finance')).json.data as { bookingId: string; outcome: string; penaltyMinor: string | null; reason: string }[]
-    expect(list.find(x => x.bookingId === b.id)).toMatchObject({ outcome: 'no-show', penaltyMinor: '750000', reason: 'Tamu tidak datang' })
+    const list = (await call('GET', '/booking-cancellations?projectId=PRJ-204', 'finance')).json.data as { bookingId: string; outcome: string; penaltyMinor: string | null; reason: string; refundEligible: boolean }[]
+    expect(list.find(x => x.bookingId === b.id)).toMatchObject({ outcome: 'no-show', penaltyMinor: '750000', reason: 'Tamu tidak datang', refundEligible: true })
     const other = (await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-204', details: {} }, key())).json.data as { id: string }
     await call('POST', `/bookings/transport/${other.id}/status`, 'admin', { to: 'cancelled', reason: 'Tidak jadi' })
     expect(((await call('GET', '/booking-cancellations?projectId=PRJ-204', 'admin')).json.data as { bookingId: string }[]).some(x => x.bookingId === other.id)).toBe(false)

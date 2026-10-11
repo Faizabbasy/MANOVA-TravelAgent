@@ -4,9 +4,10 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Send } from 'lucide-vue-next'
 import { matchesAnyRole } from '~/data/rbac'
 import {
-  getIncidentById, getIncidentStatusTransitions, updateIncidentStatus, escalateIncident, resolveIncident, appendIncidentCommunication,
-  getProjectById, getUserById, USERS
+  getIncidentById, getIncidentStatusTransitions, getProjectById, getUserById, USERS, pushNotification
 } from '~/data'
+import { addIncidentCommunicationOnServer, changeIncidentStatusOnServer, escalateIncidentOnServer, resolveIncidentOnServer } from '~/data/changes-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import { INCIDENT_SEVERITIES, INCIDENT_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate, formatDateTime } from '~/utils/format'
 
@@ -20,9 +21,12 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { currentUser } = useCurrentUser()
-const { canView, canManage } = usePermissions()
-const canManageChanges = computed(() => canManage('changes'))
+const { canView, can } = usePermissions()
+/* S8: the capability the server checks for every incident step. */
+const canManageChanges = computed(() => can('project-order.log-change'))
+const api = useApi()
 const { showToast } = useToast()
+const { saving: isSaving, run: save } = createSaveGate(showToast)
 
 const incident = computed(() => getIncidentById(String(route.params.id)))
 useHead({ title: computed(() => incident.value ? `Incident ${incident.value.id}` : 'Incident Tidak Ditemukan') })
@@ -45,15 +49,17 @@ const summaryMetadata = computed(() => {
 })
 
 /* Status transitions */
-function handleTransition (status: 'investigating') {
+async function handleTransition (status: 'investigating') {
   if (!incident.value) { return }
-  const result = updateIncidentStatus(incident.value.id, status, currentUser.value.id)
+  const id = incident.value.id
+  const result = await save('Status Gagal Diubah', () => changeIncidentStatusOnServer(api, id, status))
   if (result) { showToast('Status Diperbarui', `Incident kini berstatus "${findStatusOption(INCIDENT_STATUSES, status).label}".`, 'success') }
 }
 
-function handleClose () {
+async function handleClose () {
   if (!incident.value) { return }
-  const result = updateIncidentStatus(incident.value.id, 'closed', currentUser.value.id)
+  const id = incident.value.id
+  const result = await save('Incident Gagal Ditutup', () => changeIncidentStatusOnServer(api, id, 'closed'))
   if (result) { showToast('Incident Ditutup', `${result.id} kini berstatus "Closed".`, 'success') }
 }
 
@@ -69,11 +75,17 @@ function openEscalate () {
   isEscalateOpen.value = true
 }
 
-function submitEscalate () {
+async function submitEscalate () {
   if (!incident.value || !escalateTo.value) { return }
-  const result = escalateIncident(incident.value.id, escalateTo.value, currentUser.value.id, escalateNote.value.trim() || undefined)
+  const id = incident.value.id
+  const to = escalateTo.value
+  const note = escalateNote.value.trim() || undefined
+  const result = await save('Incident Gagal Dieskalasi', () => escalateIncidentOnServer(api, id, to, note))
+  if (!result) { return }
   isEscalateOpen.value = false
-  if (result) { showToast('Incident Dieskalasi', `${result.id} dieskalasi.`, 'success') }
+  // Notifications are still a local mock: tell the person it was escalated to.
+  pushNotification(to, 'escalation', `Incident ${result.id} dieskalasi kepada Anda`, `${result.title} dieskalasi oleh ${currentUser.value.name}.${note ? ` Catatan: ${note}` : ''}`, 'incident', result.id)
+  showToast('Incident Dieskalasi', `${result.id} dieskalasi.`, 'success')
 }
 
 /* Resolve */
@@ -85,9 +97,12 @@ function openResolve () {
   isResolveOpen.value = true
 }
 
-function submitResolve () {
+async function submitResolve () {
   if (!incident.value || !resolutionNote.value.trim()) { return }
-  const result = resolveIncident(incident.value.id, resolutionNote.value.trim(), currentUser.value.id)
+  const id = incident.value.id
+  const note = resolutionNote.value.trim()
+  const result = await save('Incident Gagal Diselesaikan', () => resolveIncidentOnServer(api, id, note))
+  if (!result) { return }
   isResolveOpen.value = false
   if (result) { showToast('Incident Diselesaikan', `${result.id} kini berstatus "Resolved".`, 'success') }
 }
@@ -95,10 +110,12 @@ function submitResolve () {
 /* Communication log */
 const communicationMessage = ref('')
 
-function submitCommunication () {
+async function submitCommunication () {
   if (!incident.value || !communicationMessage.value.trim()) { return }
-  appendIncidentCommunication(incident.value.id, currentUser.value.id, communicationMessage.value.trim())
-  communicationMessage.value = ''
+  const id = incident.value.id
+  const message = communicationMessage.value.trim()
+  const result = await save('Catatan Gagal Dikirim', () => addIncidentCommunicationOnServer(api, id, message))
+  if (result) { communicationMessage.value = '' }
 }
 </script>
 
@@ -184,7 +201,7 @@ function submitCommunication () {
         <EmptyState v-else title="Belum ada komunikasi tercatat" />
         <div v-if="canManageChanges" class="flex items-center gap-2 pt-2 border-t border-border mt-4">
           <Input v-model="communicationMessage" placeholder="Tulis update komunikasi..." class="flex-1" />
-          <Button size="sm" :disabled="!communicationMessage.trim()" @click="submitCommunication">
+          <Button size="sm" :disabled="!communicationMessage.trim() || isSaving" @click="submitCommunication">
             <Send class="h-4 w-4 mr-1.5" />Kirim
           </Button>
         </div>
@@ -218,7 +235,7 @@ function submitCommunication () {
           <Button variant="outline" @click="isEscalateOpen = false">
             Batal
           </Button>
-          <Button variant="destructive" :disabled="!escalateTo" @click="submitEscalate">
+          <Button variant="destructive" :disabled="!escalateTo || isSaving" @click="submitEscalate">
             Eskalasi
           </Button>
         </template>
@@ -239,7 +256,7 @@ function submitCommunication () {
           <Button variant="outline" @click="isResolveOpen = false">
             Batal
           </Button>
-          <Button :disabled="!resolutionNote.trim()" @click="submitResolve">
+          <Button :disabled="!resolutionNote.trim() || isSaving" @click="submitResolve">
             Selesaikan
           </Button>
         </template>

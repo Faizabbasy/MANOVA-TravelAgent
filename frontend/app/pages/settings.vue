@@ -15,6 +15,7 @@ import { useTravelersSync } from '~/data/travelers-sync'
 import { useItinerarySync } from '~/data/itinerary-sync'
 import { useWorkItemsSync } from '~/data/work-items-sync'
 import { useActivitySync } from '~/data/activity-sync'
+import { useChangesSync } from '~/data/changes-sync'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { User } from '~/types/user'
 
@@ -63,6 +64,7 @@ const travelersSync = useTravelersSync()
 const itinerarySync = useItinerarySync()
 const workItemsSync = useWorkItemsSync()
 const activitySync = useActivitySync()
+const changesSync = useChangesSync()
 
 function submitReset () {
   const success = resetMockState()
@@ -83,6 +85,7 @@ function submitReset () {
   itinerarySync.load(true)
   workItemsSync.load(true)
   activitySync.load(true)
+  changesSync.load(true)
   showToast('Demo Data Direset', 'Seluruh data mock dikembalikan ke kondisi seed awal.', 'success')
 }
 </script>
