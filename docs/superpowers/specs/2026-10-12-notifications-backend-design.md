@@ -1,6 +1,6 @@
 # Backend notifikasi (S9b) — desain
 
-Tanggal: 12 Oktober 2026 · Branch: `production` · Status: disetujui (opsi rekomendasi, eksekusi native)
+Tanggal: 12 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-12-notifications-backend)
 
 S9b memindahkan notifikasi internal (`NOTIFICATION_RECORDS`) ke server: server membuat notifikasi di transaksi aksinya,
 dan setiap user membaca, menandai dibaca, dan menghapus notifikasinya sendiri.

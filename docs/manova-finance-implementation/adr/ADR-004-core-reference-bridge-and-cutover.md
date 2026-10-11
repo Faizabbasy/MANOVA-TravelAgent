@@ -194,3 +194,12 @@ untuk seluruh peran internal, pengirim = aktor; status kirim disimulasikan (inte
 delivered) dan pesan ke client/supplier tercatat di log aktivitas project. ID server `DOC-001…`/`MSG-012…`; fixture
 `DOC-C…` tetap. Notifikasi (termasuk mention) tetap mock lokal sampai S9b. Portal client (unggah/ganti versi dokumen
 client, komentar, read/unread) tetap lokal dengan ID `DOC-L…`/`MSG-L…`. Setelah deploy jalankan sekali `db:seed:demo`.
+
+## Update 2026-10-12 — Notifikasi (S9b)
+
+Notifikasi in-app kini di server (migrasi 0033, `notifications`, satu penerima per baris). Server membuatnya di
+transaksi aksi: mention di pesan (hanya user internal; mention user portal ditolak), penugasan task (saat dibuat atau PIC
+berganti) dan eskalasi insiden — tidak pernah untuk aktornya sendiri. `GET /notifications`, `POST /notifications/:id/read`,
+`POST /notifications/read-all`, `DELETE /notifications/:id` hanya untuk notifikasi milik user yang login (milik orang lain
+→ 404). Lonceng memuat ulang saat dibuka. Notifikasi yang dipicu portal client tetap lokal (`NOT-L…`). Setelah deploy
+jalankan sekali `db:seed:demo` (17 notifikasi demo).
