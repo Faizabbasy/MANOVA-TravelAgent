@@ -25,11 +25,13 @@ const LABEL: Record<string, string> = {
   'user.suspended': 'User dinonaktifkan', 'user.reactivated': 'User diaktifkan kembali', 'user.role_changed': 'Role user diubah'
 }
 
-export async function listSystemEvents(db: Queryable, limit = 200) {
+/** `withFinance` false (no Finance access, e.g. Admin) leaves out Finance actions and the reasons Finance wrote. */
+export async function listSystemEvents(db: Queryable, withFinance: boolean, limit = 200) {
   const rows = await db.query<Record<string, unknown>>(
     `select a.id, a.occurred_at, a.actor_user_id, a.action, a.entity_type, a.entity_id, a.reason, u.name as actor_name
        from audit_events a left join users u on u.id = a.actor_user_id
-      order by a.occurred_at desc, a.id desc limit $1`, [limit])
+      where ($2::boolean or a.action !~ $3)
+      order by a.occurred_at desc, a.id desc limit $1`, [limit, withFinance, MODULES.find(([, m]) => m === 'finance')![0].source])
   return rows.map(r => {
     const action = r.action as string
     const label = LABEL[action] ?? action.replace(/[._]/g, ' ')

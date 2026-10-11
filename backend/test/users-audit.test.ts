@@ -1,5 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
 import { DEMO, makeTestApp, type TestApp } from './helpers'
+import { changeUserRole, suspendUser } from '../src/modules/core/users'
 
 /**
  * S10a: user administration (Super Admin only) and audit reads.
@@ -54,6 +55,14 @@ describe('users', () => {
     expect((await call('PUT', '/users/USR-003/role', 'superAdmin', { role: 'admin' })).json.data.role).toBe('admin')
     expect((await call('PUT', '/users/USR-999/role', 'superAdmin', { role: 'admin' })).status).toBe(404)
   })
+
+  test('an actor no longer an active Super Admin in the database cannot change users (two Super Admins demoting each other)', async () => {
+    const stale = { userId: 'USR-002', name: 'Doni', email: DEMO.admin, role: 'super-admin' as const, partyId: null, vendorId: null, sessionId: 'x' }
+    await expect(t.db.transaction(tx => changeUserRole(tx, stale, 'USR-010', 'admin', 'req-stale'))).rejects.toMatchObject({ status: 403 })
+    await expect(t.db.transaction(tx => suspendUser(tx, stale, 'USR-001', 'Tes', 'req-stale'))).rejects.toMatchObject({ status: 403 })
+    const [u] = await t.db.query<{ role: string }>("select role from users where id = 'USR-010'")
+    expect(u!.role).toBe('super-admin')
+  })
 })
 
 describe('audit reads', () => {
@@ -68,6 +77,15 @@ describe('audit reads', () => {
     expect([...events.map(e => e.createdAt)].sort().reverse()).toEqual(events.map(e => e.createdAt))
     expect((await call('GET', '/audit/events', 'finance')).status).toBe(403)
     expect((await call('GET', '/audit/events', 'client')).status).toBe(403)
+  })
+
+  test('Finance audit events (and their reasons) are hidden from Admin, who has no Finance access', async () => {
+    await t.db.query(
+      "insert into audit_events (action, actor_user_id, entity_type, entity_id, request_id, reason) values ('finance.transaction_reversed', 'USR-008', 'transaction', 'TRX-1', 'req-fin', 'Salah input Rp 5.000.000')")
+    const asAdmin = (await call('GET', '/audit/events', 'admin')).json.data as { module: string; message: string }[]
+    expect(asAdmin.some(e => e.module === 'finance' || e.message.includes('Salah input'))).toBe(false)
+    const asSuper = (await call('GET', '/audit/events', 'superAdmin')).json.data as { type: string }[]
+    expect(asSuper.some(e => e.type === 'finance.transaction_reversed')).toBe(true)
   })
 
   test('the session log pairs logins with logouts', async () => {

@@ -1,6 +1,7 @@
 import { Elysia, t } from 'elysia'
 import type { AppDeps } from '../../app-deps'
 import type { AuthContext } from '../../auth/context'
+import { hasModuleLevel } from '../../auth/rbac'
 import { assertIdParam, ok, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { listSessions, listSystemEvents } from './audit-reads'
@@ -43,8 +44,8 @@ export function adminRoutes(deps: AppDeps, auth: AuthContext) {
       return ok(request, await userResponse(id))
     }, anyBody)
     .get('/audit/events', async ({ request }) => {
-      await auth.requireCapability(request, 'admin.view-activity-center')
-      return ok(request, await listSystemEvents(db))
+      const actor = await auth.requireCapability(request, 'admin.view-activity-center')
+      return ok(request, await listSystemEvents(db, hasModuleLevel(actor.role, 'finance-acc', 'VIEW')))
     })
     .get('/audit/sessions', async ({ request }) => {
       await auth.requireCapability(request, 'admin.view-activity-center')

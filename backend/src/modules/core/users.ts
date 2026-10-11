@@ -7,7 +7,7 @@ import { recordAudit } from '../../shared/audit'
  * User administration (S10a, Super Admin only through `admin.manage-users`). A suspension carries its reason and signs
  * the user out at once; a role change moves only between internal roles and also signs the user out so the new
  * permissions apply. Nobody changes their own account here, and the last active Super Admin cannot be suspended or
- * demoted (defensive: the actor is an active Super Admin, so another one always exists when the target is one).
+ * demoted.
  */
 
 const rule = (message: string) => new AppError(422, 'RULE_VIOLATION', message)
@@ -33,6 +33,10 @@ export async function listUsers(db: Queryable, id?: string) {
 }
 
 async function lockUser(tx: Queryable, actor: Actor, id: string) {
+  // Every change queues behind the active Super Admins' rows (same order, no deadlock) and re-checks the actor there,
+  // so two Super Admins demoting or suspending each other at once cannot leave none.
+  const admins = await tx.query<{ id: string }>("select id from users where role = 'super-admin' and status = 'active' order by id for update")
+  if (!admins.some(a => a.id === actor.userId)) throw errors.forbidden()
   const [u] = await tx.query<{ role: string; status: string }>('select role, status from users where id = $1 for update', [id])
   if (!u) throw errors.notFound('User')
   if (id === actor.userId) throw rule('Akun sendiri tidak bisa diubah dari sini.')
