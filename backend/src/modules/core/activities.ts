@@ -105,9 +105,11 @@ export async function decidePendingChange(tx: Queryable, actorUserId: string, id
 }
 
 async function lockActivity(tx: Queryable, id: string) {
-  const [row] = await tx.query<{ is_change: boolean; reviewed: boolean; approval_status: string | null }>(
-    'select is_change, reviewed, approval_status from project_activities where id = $1 for update', [id])
+  const [row] = await tx.query<{ is_change: boolean; reviewed: boolean; approval_status: string | null; source_action: string | null; source_entity_id: string | null }>(
+    'select is_change, reviewed, approval_status, source_action, source_entity_id from project_activities where id = $1 for update', [id])
   if (!row) throw errors.notFound('Aktivitas')
+  // S8: a change request's own entry is decided with the request, never on its own (they would disagree).
+  if (row.source_action === 'change_request.created') throw rule(`Perubahan ini milik ${row.source_entity_id} — putuskan lewat Change Request-nya.`)
   return row
 }
 

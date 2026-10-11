@@ -104,6 +104,18 @@ describe('incidents', () => {
   })
 })
 
+describe('a change request decides its own change entry', () => {
+  test('the entry a change request opened cannot be approved, rejected or reviewed on its own', async () => {
+    const cr = (await call('POST', '/projects/PRJ-101/change-requests', 'admin', { source: 'internal', beforeSummary: 'A', afterSummary: 'B' }, key())).json.data as { id: string; activityId: string }
+    for (const action of ['approve', 'reject']) {
+      const res = await call('POST', `/project-activities/${cr.activityId}/${action}`, 'admin')
+      expect(res.status).toBe(422)
+      expect(res.json.error.message).toContain(cr.id)
+    }
+    expect((await activities('PRJ-101')).find(a => a.id === cr.activityId)!.approvalStatus).toBe('pending')
+  })
+})
+
 describe('no-show / refunded cancellations and workflow gates', () => {
   test('a no-show keeps its penalty as a cancellation record; penalty is refused on other statuses; no record for cancelled', async () => {
     const b = (await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-204', details: {} }, key())).json.data as { id: string }
@@ -120,19 +132,16 @@ describe('no-show / refunded cancellations and workflow gates', () => {
     expect((await call('GET', '/booking-cancellations', 'client')).status).toBe(403)
   })
 
-  test('an open incident blocks departure; a pending change request blocks completion', async () => {
-    const project = (await call('POST', '/projects', 'admin', {
-      name: 'Gate S8', partyId: 'PTY-002', destination: 'Bali', travelStartDate: '2027-06-01', travelEndDate: '2027-06-04', serviceScope: ['hotel'], travelerCount: 4, contractValueMinor: '100000000'
-    }, key())).json.data.id as string
-    await call('POST', `/projects/${project}/handover/accept`, 'admin')
-    await call('POST', `/projects/${project}/transition`, 'admin', { to: 'planning' })
-    await call('POST', `/projects/${project}/transition`, 'admin', { to: 'confirmed' })
-    const inc = (await call('POST', `/projects/${project}/incidents`, 'admin', { title: 'Visa telat', description: 'Visa 2 traveler belum keluar', severity: 'high', ownerId: 'USR-002' }, key())).json.data.id as string
-    const blocked = await call('POST', `/projects/${project}/transition`, 'admin', { to: 'in-progress' })
+  test('an open incident blocks departure (→ ongoing-trip, like the screen); a pending change request blocks completion', async () => {
+    // PRJ-103 is in progress; departure is → ongoing-trip.
+    const inc = (await call('POST', '/projects/PRJ-103/incidents', 'admin', { title: 'Visa telat', description: 'Visa 2 traveler belum keluar', severity: 'high', ownerId: 'USR-002' }, key())).json.data.id as string
+    const blocked = await call('POST', '/projects/PRJ-103/transition', 'admin', { to: 'ongoing-trip' })
     expect(blocked.status).toBe(422)
     expect(blocked.json.error.message).toContain('insiden')
-    await call('POST', `/incidents/${inc}/resolve`, 'admin', { note: 'Visa keluar' })
-    expect((await call('POST', `/projects/${project}/transition`, 'admin', { to: 'in-progress' })).json.error.message).toContain('Ready')
+    expect(blocked.json.error.message).toContain(inc)
+    const open = ((await call('GET', '/incidents?projectId=PRJ-103', 'admin')).json.data as { id: string; status: string }[]).filter(x => ['open', 'escalated'].includes(x.status))
+    for (const o of open) await call('POST', `/incidents/${o.id}/resolve`, 'admin', { note: 'Selesai untuk tes' })
+    expect((await call('POST', '/projects/PRJ-103/transition', 'admin', { to: 'ongoing-trip' })).status).toBe(200)
 
     const cr = (await call('POST', '/projects/PRJ-103/change-requests', 'admin', { source: 'internal', beforeSummary: 'A', afterSummary: 'B' }, key())).json.data.id as string
     const done = await call('POST', '/projects/PRJ-103/transition', 'admin', { to: 'completed' })

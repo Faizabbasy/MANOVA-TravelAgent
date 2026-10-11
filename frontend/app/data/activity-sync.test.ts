@@ -30,6 +30,9 @@ describe('activity-sync', () => {
     expect(a).toMatchObject({ id: 'CHG-1023', category: 'service', approvalStatus: 'pending', requestedBy: 'USR-002' })
     expect(a.beforeValue).toBeUndefined()
     expect(activityFromServer(dto({ approvalStatus: null, category: null })).approvalStatus).toBeUndefined()
+    // S8: an entry a change request opened is decided through the request; the screen needs to know.
+    expect(activityFromServer(dto({ sourceAction: 'change_request.created' })).decidedByChangeRequest).toBe(true)
+    expect(activityFromServer(dto()).decidedByChangeRequest).toBeFalsy()
   })
 
   it('merge keeps identity, drops server-gone entries, and keeps entries written locally (ACT-L / CHG-L)', () => {

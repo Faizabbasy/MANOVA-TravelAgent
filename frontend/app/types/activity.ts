@@ -22,6 +22,8 @@ export interface ActivityEntry {
   impactNote?: string
   approvalStatus?: ChangeApprovalStatus
   approvedBy?: ID
+  /** S8: opened by a change request — decided through that request, not on its own. */
+  decidedByChangeRequest?: boolean
 }
 
 export interface ProjectDocument {

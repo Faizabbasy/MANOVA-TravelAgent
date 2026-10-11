@@ -5321,7 +5321,10 @@ const tripDurationDays = computed(() => {
                         Tandai Direview
                       </Button>
                       <AttentionIndicator v-if="item.activity.approvalStatus === 'pending'" severity="medium" label="Menunggu Approval" />
-                      <div v-if="item.activity.approvalStatus === 'pending' && canApproveChanges && !/^(ACT|CHG)-L/.test(item.activity.id)" class="flex items-center gap-1">
+                      <p v-if="item.activity.approvalStatus === 'pending' && item.activity.decidedByChangeRequest" class="text-xs text-muted-foreground">
+                        Diputuskan lewat Change Request
+                      </p>
+                      <div v-if="item.activity.approvalStatus === 'pending' && canApproveChanges && !item.activity.decidedByChangeRequest && !/^(ACT|CHG)-L/.test(item.activity.id)" class="flex items-center gap-1">
                         <Button size="sm" variant="outline" :disabled="isSavingWorkItem" @click="handleApproveChange(item.activity.id)">
                           Setujui
                         </Button>

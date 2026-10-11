@@ -44,8 +44,8 @@ export async function transition(tx: Queryable, actor: Actor, id: string, to: un
   if (!STATUS_TRANSITIONS[p.status]!.includes(to)) throw rule(`Status tidak bisa berubah dari "${p.status}" ke "${to}".`)
   // Gates hold whatever the source status (also when resuming from on-hold).
   if (['planning', 'confirmed', 'in-progress'].includes(to) && !p.handover_accepted_at) throw rule('Terima handover dulu sebelum project dilanjutkan.')
-  // S8: open incidents block departure; change requests still waiting for a decision block completion.
-  if (to === 'in-progress') {
+  // S8: open incidents block departure (→ ongoing-trip, the screen's Departure step); undecided change requests block completion.
+  if (to === 'ongoing-trip') {
     const open = await tx.query<{ id: string }>("select id from incidents where project_id = $1 and status in ('open', 'escalated') order by id", [id])
     if (open.length) throw rule(`Masih ada insiden terbuka (${open.map(x => x.id).join(', ')}) — selesaikan dulu sebelum berangkat.`)
   }

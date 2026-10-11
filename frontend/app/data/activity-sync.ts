@@ -48,7 +48,8 @@ export function activityFromServer (d: ProjectActivityDto): ActivityEntry {
     afterValue: opt(d.afterValue),
     impactNote: opt(d.impactNote),
     approvalStatus: opt(d.approvalStatus),
-    approvedBy: opt(d.approvedBy)
+    approvedBy: opt(d.approvedBy),
+    decidedByChangeRequest: d.sourceAction === 'change_request.created'
   }
 }
 

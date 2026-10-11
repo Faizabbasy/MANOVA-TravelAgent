@@ -15,7 +15,7 @@ persetujuan klien, komentar, lampiran) tetap lokal (ADR-006).
 | Pembatalan `cancelled` | Tidak lagi membuat catatan lokal — Finance (`refunds`, S5) sudah menyimpannya; layar menampilkan kasus Finance |
 | No-show / refunded | `POST /bookings/:type/:id/status` menerima `penaltyMinor` opsional; status `no-show`/`refunded` menyimpan catatan `CNX-` + log aktivitas dalam transaksi yang sama |
 | Fixture pembatalan | `CNX-001…003` diseed sebagai riwayat dengan hasil `cancelled` (sebelum ada Finance) |
-| Gate workflow | Server menolak (422) `→ in-progress` bila ada insiden `open`/`escalated`, dan `→ completed` bila ada CR `submitted`/`under-review` |
+| Gate workflow | Server menolak (422) `→ ongoing-trip` (tahap Departure, sama dengan layar) bila ada insiden `open`/`escalated`, dan `→ completed` bila ada CR `submitted`/`under-review` |
 | Hak | Buat CR/insiden & langkah insiden: `project-order.log-change`; review/setujui/tolak CR: `project-order.review-change`; tandai CR diimplementasikan: `log-change`; baca: peran internal, portal 403 |
 | Uang | `commercialImpactMinor`, `penaltyMinor`: bigint minor, string di wire; terlihat peran internal (sama seperti nominal vendor itinerary) |
 
@@ -77,7 +77,7 @@ diimplementasikan, insiden dibuat/status/eskalasi/resolve, dan no-show/refunded.
 
 - Backend (`test/changes-incidents.test.ts`): CRUD + validasi + 401/403/404; CR membuat `CHG-` dan keputusan CR
   memutuskannya; transisi salah 422; insiden transisi/eskalasi/komunikasi/resolve; no-show dengan denda menyimpan `CNX-`;
-  gate workflow in-progress/completed 422; seed.
+  gate workflow ongoing-trip/completed 422; seed.
 - Frontend: tes `changes-sync`, guard, `pnpm test`, vue-tsc ≤ 1983, eslint vs HEAD, `pnpm build`.
 
 ## Deploy

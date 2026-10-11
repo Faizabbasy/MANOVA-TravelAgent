@@ -181,6 +181,6 @@ Membuat change request membuka entri perubahan `CHG-` (S7d) dalam transaksi yang
 memutuskan entri itu. Hak: buat CR/insiden & langkah insiden `project-order.log-change`; review/setujui/tolak CR
 `project-order.review-change`. Status booking `no-show`/`refunded` menerima `penaltyMinor` & `refundEligible` dan
 menyimpan catatan `CNX-`; pembatalan `cancelled` tetap kasus Finance (`refunds`) tanpa catatan lokal. Server menolak
-`→ in-progress` bila ada insiden open/escalated dan `→ completed` bila ada change request submitted/under-review. Alur
+`→ ongoing-trip` (tahap Departure) bila ada insiden open/escalated dan `→ completed` bila ada change request submitted/under-review. Alur
 portal klien (draft, cek ketersediaan, estimasi biaya, persetujuan klien) tetap lokal (`CR-L…`). Setelah deploy jalankan
 sekali `db:seed:demo` (7 CR, 4 insiden, 3 pembatalan riwayat).
