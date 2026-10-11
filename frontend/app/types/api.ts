@@ -8,6 +8,7 @@
  */
 
 import type { ServiceStatus, ServiceTypeKey } from './project'
+import type { DocumentEntityType } from './document-comms'
 
 export type MoneyMinor = string
 export type IsoDate = string
@@ -1351,6 +1352,62 @@ export type TravelerInput = Partial<Pick<TravelerDto, 'name' | 'groupId' | 'pass
   | 'visaExpiryDate' | 'emergencyContactName' | 'emergencyContactPhone' | 'specialRequest' | 'dietaryRestrictions' | 'accessibilityNeeds' | 'companionOfTravelerId'>>
 export interface TravelerGroupDto { id: string; projectId: string; name: string; paxCount: number; roomingNote: string | null }
 export interface RoomAssignmentDto { id: string; projectId: string; groupId: string; roomLabel: string; roomType: 'single' | 'twin' | 'suite'; travelerIds: string[] }
+/** Document metadata (S9); no file is stored. Dates are `YYYY-MM-DD`. */
+export interface DocumentDto {
+  id: string
+  entityType: DocumentEntityType
+  entityId: string
+  projectId: string | null
+  name: string
+  category: string
+  version: number
+  accessLevel: 'internal' | 'client' | 'supplier'
+  sourceType: 'uploaded' | 'generated'
+  previewRoute: string | null
+  uploadedBy: string | null
+  uploadedAt: string | null
+  generatedAt: string | null
+  expiresAt: string | null
+  supersedesId: string | null
+  verified: boolean
+  verifiedBy: string | null
+  verifiedAt: string | null
+}
+export interface DocumentInput {
+  entityType: DocumentDto['entityType']
+  entityId: string
+  projectId?: string | null
+  name: string
+  category: string
+  accessLevel: DocumentDto['accessLevel']
+  expiresOn?: string | null
+}
+/** Message (S9); the sender is the signed-in user, delivery is simulated. */
+export interface MessageDto {
+  id: string
+  entityType: DocumentDto['entityType']
+  entityId: string
+  projectId: string | null
+  channel: 'internal-note' | 'client-message' | 'supplier-message'
+  senderId: string
+  body: string
+  mentions: string[]
+  sentAt: string
+  deliveryStatus: 'queued' | 'sent' | 'delivered' | 'failed'
+  deliveryChannel: 'email' | 'whatsapp' | null
+  attachmentName: string | null
+  readBy: string[]
+}
+export interface MessageInput {
+  entityType: MessageDto['entityType']
+  entityId: string
+  projectId?: string | null
+  channel: MessageDto['channel']
+  body: string
+  mentions?: string[]
+  deliveryChannel?: 'email' | 'whatsapp'
+  attachmentName?: string | null
+}
 /** Change request (S8), internal flow; `commercialImpactMinor` is a whole-rupiah decimal string. */
 export interface ChangeRequestDto {
   id: string

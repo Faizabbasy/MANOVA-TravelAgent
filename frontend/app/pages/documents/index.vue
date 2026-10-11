@@ -6,7 +6,6 @@ import {
   PROJECTS, USERS,
   getProjectById, getUserById,
   DOCUMENT_RECORDS, MESSAGE_RECORDS,
-  createDocument, sendMessage,
   getNotificationsForUser, getUnreadNotificationCount,
   markNotificationRead, markAllNotificationsRead, removeNotification
 } from '~/data'
@@ -18,6 +17,8 @@ import { formatDate } from '~/utils/format'
 import { isDocumentExpired, isDocumentExpiringSoon } from '~/utils/attention'
 import type { DocumentEntityType, DocumentAccessLevel, MessageChannel, Document as AppDocument } from '~/types/document-comms'
 import type { BadgeTone } from '~/types/common'
+import { createDocumentOnServer, sendMessageOnServer } from '~/data/documents-sync'
+import { createSaveGate } from '~/lib/save-gate'
 
 /**
  * Documents & Communication (Section 21 — roadmap Section 00–24 baru, D-078). Modul konsolidasi-style baru
@@ -36,6 +37,9 @@ const router = useRouter()
 const { currentUser } = useCurrentUser()
 const { canView, canManage } = usePermissions()
 const { showToast } = useToast()
+/* S9: documents and messages are saved on the server; a failure keeps the dialog open with the reason. */
+const api = useApi()
+const { saving: isSaving, run: save } = createSaveGate(showToast)
 const canManageDocuments = computed(() => canManage('documents'))
 
 /** Icon badge tint per kategori dokumen (kartu grid) — pola sama `documentCategoryTone`/`TONE_ICON_BG` di
@@ -170,18 +174,19 @@ function resetUploadForm () {
   newDocExpiresAt.value = ''
 }
 
-function submitUpload () {
+async function submitUpload () {
   if (!newDocEntityId.value.trim() || !newDocName.value.trim() || !newDocCategory.value.trim()) { return }
-  const document = createDocument({
+  const input = {
     entityType: newDocEntityType.value,
     entityId: newDocEntityId.value.trim(),
-    projectId: newDocProjectId.value || undefined,
+    projectId: newDocProjectId.value || null,
     name: newDocName.value.trim(),
     category: newDocCategory.value.trim(),
     accessLevel: newDocAccessLevel.value,
-    expiresAt: newDocExpiresAt.value || undefined,
-    uploadedBy: currentUser.value.id
-  })
+    expiresOn: newDocExpiresAt.value || null
+  }
+  const document = await save('Dokumen Gagal Disimpan', () => createDocumentOnServer(api, input))
+  if (!document) { return }
   resetUploadForm()
   isUploadOpen.value = false
   showToast('Dokumen Diunggah', `${document.name} tercatat sebagai versi ${document.version} (mock, bukan file upload nyata).`, 'success')
@@ -227,18 +232,19 @@ function toggleMention (userId: string) {
   if (index === -1) { newMsgMentions.value.push(userId) } else { newMsgMentions.value.splice(index, 1) }
 }
 
-function submitCompose () {
+async function submitCompose () {
   if (!newMsgEntityId.value.trim() || !newMsgBody.value.trim()) { return }
-  const message = sendMessage({
+  const input = {
     entityType: newMsgEntityType.value,
     entityId: newMsgEntityId.value.trim(),
-    projectId: newMsgProjectId.value || undefined,
+    projectId: newMsgProjectId.value || null,
     channel: newMsgChannel.value,
-    senderId: currentUser.value.id,
     body: newMsgBody.value.trim(),
-    mentions: newMsgMentions.value.length ? [...newMsgMentions.value] : undefined,
-    deliveryChannel: newMsgChannel.value === 'internal-note' ? undefined : newMsgDeliveryChannel.value
-  })
+    mentions: [...newMsgMentions.value],
+    ...(newMsgChannel.value === 'internal-note' ? {} : { deliveryChannel: newMsgDeliveryChannel.value })
+  }
+  const message = await save('Pesan Gagal Dikirim', () => sendMessageOnServer(api, input))
+  if (!message) { return }
   resetComposeForm()
   isComposeOpen.value = false
   showToast('Pesan Terkirim', `Status: ${findStatusOption(MESSAGE_DELIVERY_STATUSES, message.deliveryStatus).label} (simulasi, bukan email/WA nyata).`, 'success')
@@ -326,7 +332,7 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
               <Button variant="outline" @click="isUploadOpen = false">
                 Batal
               </Button>
-              <Button :disabled="!newDocEntityId.trim() || !newDocName.trim() || !newDocCategory.trim()" @click="submitUpload">
+              <Button :disabled="!newDocEntityId.trim() || !newDocName.trim() || !newDocCategory.trim() || isSaving" @click="submitUpload">
                 Simpan
               </Button>
           </template>
@@ -420,7 +426,7 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
               <Button variant="outline" @click="isComposeOpen = false">
                 Batal
               </Button>
-              <Button :disabled="!newMsgEntityId.trim() || !newMsgBody.trim()" @click="submitCompose">
+              <Button :disabled="!newMsgEntityId.trim() || !newMsgBody.trim() || isSaving" @click="submitCompose">
                 Kirim
               </Button>
           </template>

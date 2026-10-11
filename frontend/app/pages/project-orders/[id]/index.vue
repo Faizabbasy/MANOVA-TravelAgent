@@ -16,7 +16,7 @@ import {
   getBookingTimeline,
   getServiceOrdersByProject, getRfqsByProject,
   getChangeRequestsByProject, getCancellationRecordsByProject, getIncidentsByProject,
-  getDocumentsForProject, createDocument, MESSAGE_RECORDS, sendMessage, getInternalProjectMessages, getUnifiedActivityTimeline, updateProjectPhoto,
+  getDocumentsForProject, MESSAGE_RECORDS, getInternalProjectMessages, getUnifiedActivityTimeline, updateProjectPhoto,
   USERS,
   getClientReservations, getProjectSeatsFilled, getProjectSeatsAvailable, getSalesOrdersByProject, getLeadsLinkedToGroupProject,
   VENDORS,
@@ -25,6 +25,7 @@ import {
 import { reloadSalesOrder } from '~/data/sales-orders-sync'
 import { createItineraryItemOnServer, deleteItineraryItemOnServer, itineraryInput, updateItineraryItemOnServer } from '~/data/itinerary-sync'
 import { createSaveGate } from '~/lib/save-gate'
+import { createDocumentOnServer, sendMessageOnServer } from '~/data/documents-sync'
 import { approveChangeOnServer, logChangeOnServer, rejectChangeOnServer, reviewActivityOnServer } from '~/data/activity-sync'
 import { createTravelerGroupOnServer, createTravelerOnServer, deleteTravelerOnServer, importTravelersOnServer, reloadProjectTravelers, updateTravelerOnServer, verifyTravelerOnServer } from '~/data/travelers-sync'
 import {
@@ -1386,18 +1387,21 @@ function openUploadDocument () {
   documentUploadForm.value = { name: '', category: '', accessLevel: 'internal', expiresAt: '' }
   isDocumentUploadDialogOpen.value = true
 }
-function submitUploadDocument () {
+/* S9: documents and messages are saved on the server (shared save gate with tasks/milestones). */
+async function submitUploadDocument () {
   if (!project.value || !documentUploadForm.value.name.trim() || !documentUploadForm.value.category.trim()) { return }
-  createDocument({
+  const projectId = project.value.id
+  const form = documentUploadForm.value
+  const saved = await workItemAction('Dokumen Gagal Disimpan', () => createDocumentOnServer(financeApi, {
     entityType: 'project',
-    entityId: project.value.id,
-    projectId: project.value.id,
-    name: documentUploadForm.value.name.trim(),
-    category: documentUploadForm.value.category.trim(),
-    accessLevel: documentUploadForm.value.accessLevel,
-    expiresAt: documentUploadForm.value.expiresAt || undefined,
-    uploadedBy: currentUser.value.id
-  })
+    entityId: projectId,
+    projectId,
+    name: form.name.trim(),
+    category: form.category.trim(),
+    accessLevel: form.accessLevel,
+    expiresOn: form.expiresAt || null
+  }))
+  if (!saved) { return }
   isDocumentUploadDialogOpen.value = false
   refreshStep()
   showToast('Dokumen Diunggah', `${documentUploadForm.value.name} berhasil ditambahkan (mock, bukan file storage nyata).`, 'success')
@@ -1491,17 +1495,20 @@ function resetMessageForm () {
   messageBody.value = ''
 }
 
-function submitMessage () {
+async function submitMessage () {
   if (!project.value || !messageBody.value.trim()) { return }
-  const message = sendMessage({
+  const projectId = project.value.id
+  const channel = messageChannel.value
+  const body = messageBody.value.trim()
+  const message = await workItemAction('Pesan Gagal Dikirim', () => sendMessageOnServer(financeApi, {
     entityType: 'project',
-    entityId: project.value.id,
-    projectId: project.value.id,
-    channel: messageChannel.value,
-    senderId: currentUser.value.id,
-    body: messageBody.value.trim(),
-    deliveryChannel: messageChannel.value === 'internal-note' ? undefined : 'email'
-  })
+    entityId: projectId,
+    projectId,
+    channel,
+    body,
+    ...(channel === 'internal-note' ? {} : { deliveryChannel: 'email' as const })
+  }))
+  if (!message) { return }
   resetMessageForm()
   isMessageDialogOpen.value = false
   showToast('Pesan Terkirim', `Status: ${findStatusOption(MESSAGE_DELIVERY_STATUSES, message.deliveryStatus).label} (simulasi, bukan email/WA nyata).`)
@@ -1530,18 +1537,20 @@ function handleDiscussionFileChange (event: Event) {
   discussionAttachmentName.value = file?.name ?? ''
 }
 
-function submitDiscussionMessage () {
+async function submitDiscussionMessage () {
   if (!project.value || !discussionBody.value.trim()) { return }
-  sendMessage({
-    entityType: 'project',
-    entityId: project.value.id,
-    projectId: project.value.id,
-    channel: 'internal-note',
-    senderId: currentUser.value.id,
+  const projectId = project.value.id
+  const input = {
+    entityType: 'project' as const,
+    entityId: projectId,
+    projectId,
+    channel: 'internal-note' as const,
     body: discussionBody.value.trim(),
-    mentions: discussionMentions.value.length ? [...discussionMentions.value] : undefined,
-    attachmentName: discussionAttachmentName.value.trim() || undefined
-  })
+    mentions: [...discussionMentions.value],
+    attachmentName: discussionAttachmentName.value.trim() || null
+  }
+  const message = await workItemAction('Pesan Gagal Dikirim', () => sendMessageOnServer(financeApi, input))
+  if (!message) { return }
   discussionBody.value = ''
   discussionMentions.value = []
   discussionAttachmentName.value = ''

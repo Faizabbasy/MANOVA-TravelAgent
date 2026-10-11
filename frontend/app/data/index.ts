@@ -3811,7 +3811,7 @@ export interface CreateDocumentInput {
 /** Upload mock (Wajib "Categories, versions, expiry, access level") — `sourceType` selalu `'uploaded'` (dokumen `'generated'` HANYA dibuat lewat 9 halaman preview existing, tidak lewat form ini). */
 export function createDocument (input: CreateDocumentInput): Document {
   const document: Document = {
-    id: nextSequentialId('DOC-C', DOCUMENT_RECORDS),
+    id: nextSequentialId('DOC-L', DOCUMENT_RECORDS),
     entityType: input.entityType,
     entityId: input.entityId,
     projectId: input.projectId,
@@ -3858,7 +3858,7 @@ export interface SendMessageInput {
  */
 export function sendMessage (input: SendMessageInput): Message {
   const message: Message = {
-    id: nextSequentialId('MSG-', MESSAGE_RECORDS),
+    id: nextSequentialId('MSG-L', MESSAGE_RECORDS),
     entityType: input.entityType,
     entityId: input.entityId,
     projectId: input.projectId,
@@ -5648,7 +5648,7 @@ export function replaceClientDocument (documentId: string, uploadedBy: string, e
   const previous = DOCUMENT_RECORDS.find(item => item.id === documentId)
   if (!previous) { return undefined }
   const next: Document = {
-    id: nextSequentialId('DOC-C', DOCUMENT_RECORDS),
+    id: nextSequentialId('DOC-L', DOCUMENT_RECORDS),
     entityType: previous.entityType,
     entityId: previous.entityId,
     projectId: previous.projectId,

@@ -22,7 +22,9 @@ const FORBIDDEN = [
   'createChangeEntry(', 'approveChangeEntry(', 'rejectChangeEntry(',
   // S8: change requests (internal flow), incidents and no-show/refunded cancellations live on the server.
   'createChangeRequest(', 'approveChangeRequest(', 'rejectChangeRequest(', 'markChangeRequestUnderReview(', 'markChangeRequestImplemented(',
-  'createIncident(', 'updateIncidentStatus(', 'escalateIncident(', 'appendIncidentCommunication(', 'resolveIncident(', 'createCancellationRecord('
+  'createIncident(', 'updateIncidentStatus(', 'escalateIncident(', 'appendIncidentCommunication(', 'resolveIncident(', 'createCancellationRecord(',
+  // S9: document metadata and messages live on the server.
+  'createDocument(', 'sendMessage('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**
