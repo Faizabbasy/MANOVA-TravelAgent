@@ -12,6 +12,7 @@ import { activityRoutes } from './modules/core/activity-routes'
 import { changeRoutes } from './modules/core/change-routes'
 import { documentRoutes } from './modules/core/document-routes'
 import { notificationRoutes } from './modules/core/notification-routes'
+import { adminRoutes } from './modules/core/admin-routes'
 import { travelerRoutes } from './modules/core/traveler-routes'
 import { isFinancePath, mayReachFinanceRoute } from './modules/finance/access'
 import { financeRoutes } from './modules/finance/routes'
@@ -159,6 +160,7 @@ export function createApp(deps: AppDeps) {
     .use(changeRoutes(deps, auth))
     .use(documentRoutes(deps, auth))
     .use(notificationRoutes(deps, auth))
+    .use(adminRoutes(deps, auth))
     .use(financeRoutes(deps, auth))
     .use(arApRoutes(deps, auth))
     .use(refundRoutes(deps, auth))
