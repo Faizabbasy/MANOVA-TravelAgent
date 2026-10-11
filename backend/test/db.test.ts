@@ -478,6 +478,22 @@ describe('demo seed', () => {
     }
   })
 
+  test('documents and messages exist after 0032', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await db.query("insert into documents (id, entity_type, entity_id, project_id, name, category, access_level, source_type) values ('DOC-T1', 'project', 'PRJ-101', 'PRJ-101', 'Kontrak.pdf', 'Kontrak', 'internal', 'uploaded')")
+      await expect(db.query("insert into documents (id, entity_type, entity_id, name, category, access_level, source_type) values ('DOC-T2', 'spaceship', 'X', 'A', 'B', 'internal', 'uploaded')")).rejects.toThrow()
+      await expect(db.query("insert into documents (id, entity_type, entity_id, name, category, access_level, source_type) values ('DOC-T3', 'project', 'PRJ-101', 'A', 'B', 'public', 'uploaded')")).rejects.toThrow()
+      await db.query("insert into messages (id, entity_type, entity_id, project_id, channel, sender_id, body, delivery_status) values ('MSG-T1', 'project', 'PRJ-101', 'PRJ-101', 'internal-note', 'USR-002', 'Halo', 'sent')")
+      await expect(db.query("insert into messages (id, entity_type, entity_id, channel, sender_id, body, delivery_status) values ('MSG-T2', 'project', 'PRJ-101', 'sms', 'USR-002', 'Halo', 'sent')")).rejects.toThrow()
+      expect(await db.query("select prefix from id_sequences where prefix in ('DOC-', 'MSG-')")).toHaveLength(2)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('changes, incidents and cancellations exist after 0031', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
