@@ -5,13 +5,15 @@ import { useRoute } from 'vue-router'
 import { ROLES } from '~/constants/roles'
 import { findStatusOption } from '~/constants/status'
 import { findNavItemForPath, NAV_ITEMS } from '~/constants/navigation'
+import { getUnreadNotificationCount } from '~/data'
 
 const notificationPanelRef = ref()
-const unreadCount = computed(() => notificationPanelRef.value?.unreadCount || 0)
 
 const route = useRoute()
 const { openMobile } = useSidebar()
 const { currentUser, currentRole } = useCurrentUser()
+/* S9b: the panel only mounts while the bell is open, so the badge counts from the (server-loaded) data itself. */
+const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.id))
 const roleOption = computed(() => findStatusOption(ROLES.value, currentRole.value))
 
 /**

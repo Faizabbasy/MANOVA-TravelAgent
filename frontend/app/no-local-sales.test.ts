@@ -77,3 +77,12 @@ describe('print pages load the server data they print', () => {
     expect(source).toMatch(/onMounted\(/)
   })
 })
+
+/** S9b review: the bell's panel only mounts while the popover is open, so the header badge must count from the data. */
+describe('the header unread badge counts notifications without the panel being open', () => {
+  it('TopHeader reads getUnreadNotificationCount, not the panel ref', () => {
+    const source = readFileSync(join(appDir, 'components/layout/TopHeader.vue'), 'utf8')
+    expect(source.includes('getUnreadNotificationCount(')).toBe(true)
+    expect(source.includes('notificationPanelRef.value?.unreadCount')).toBe(false)
+  })
+})
