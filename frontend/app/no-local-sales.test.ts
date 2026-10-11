@@ -26,7 +26,9 @@ const FORBIDDEN = [
   // S9: document metadata and messages live on the server.
   'createDocument(', 'sendMessage(',
   // S9b: notifications are created and read on the server.
-  'markNotificationRead(', 'markAllNotificationsRead(', 'removeNotification(', 'pushNotification('
+  'markNotificationRead(', 'markAllNotificationsRead(', 'removeNotification(', 'pushNotification(',
+  // S10a: user status and role change on the server (Super Admin only).
+  'suspendUser(', 'reactivateUser(', 'assignUserRole('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**

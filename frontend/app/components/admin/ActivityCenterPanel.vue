@@ -48,7 +48,8 @@ const userOptions = computed(() => {
   return ids.map(id => getUserById(id)).filter((user): user is NonNullable<typeof user> => Boolean(user))
 })
 
-const allEvents = [...SYSTEM_EVENTS].sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+/** Reactive (S10a): server audit events arrive after this panel mounted. */
+const allEvents = computed(() => [...SYSTEM_EVENTS].sort((a, b) => b.createdAt.localeCompare(a.createdAt)))
 
 /** Filter di mobile — 2 select (Modul/User) disembunyikan di belakang tombol Filter (bottom Sheet),
  * pola sama SalesLeadsPanel — search tetap tampil langsung. */
@@ -59,7 +60,7 @@ const activeFilterCount = computed(() => [
 ].filter(Boolean).length)
 
 const filteredEvents = computed(() => {
-  let result = allEvents
+  let result = allEvents.value
   if (moduleFilter.value !== 'all') { result = result.filter(event => event.module === moduleFilter.value) }
   if (userFilter.value !== 'all') { result = result.filter(event => event.userId === userFilter.value) }
   if (searchQuery.value.trim()) {

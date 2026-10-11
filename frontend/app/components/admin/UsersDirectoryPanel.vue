@@ -1,24 +1,29 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { Search, UserCheck, UserX } from 'lucide-vue-next'
-import { USERS, suspendUser, reactivateUser } from '~/data'
+import { USERS } from '~/data'
+import { changeUserRoleOnServer, reactivateUserOnServer, suspendUserOnServer } from '~/data/users-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import { findStatusOption } from '~/constants/status'
 import type { User, RoleId, ModuleKey } from '~/types/user'
 
 /** Modul yang dapat diakses role tertentu (ringkas) — diturunkan dari RBAC reaktif (`app/data/rbac.ts`). */
 import { ROLES, ROLE_MODULE_ACCESS } from '~/constants/roles'
 import { BUSINESS_MODULES } from '~/constants/modules'
-import { assignUserRole } from '~/data/rbac'
 
 /** Tab "Users" — Menu Administration > Users & Roles (Penyederhanaan 7-Role/Menu). Dulu `/admin/users`,
  * kini tab dalam satu menu bersama Roles and Permissions — logika tidak diubah, termasuk sub-tab
  * internalnya sendiri (Directory/Access Review, plain ref — tidak query-synced). */
 
-const { canView, canManage } = usePermissions()
+const { canView, can } = usePermissions()
 const { currentUser, setCurrentUser } = useCurrentUser()
 const { showToast } = useToast()
 
-const canManageUsers = computed(() => canManage('administration'))
+/* S10a: only the Super Admin (`admin.manage-users`) changes users — the same capability the server checks. Before,
+ * anyone with Administration MANAGE could promote any user, including themself, to Super Admin. */
+const canManageUsers = computed(() => can('admin.manage-users'))
+const api = useApi()
+const { saving: isSavingUser, run: save } = createSaveGate(showToast)
 
 /** Users vs Access Review (Section 23) — tab tambahan, aditif ke UI list+search+role-switch existing di bawah. */
 type UsersPageTab = 'directory' | 'access-review'
@@ -60,15 +65,12 @@ function switchToUser (userId: string) {
   closeDetail()
 }
 
-/** Guard rail (mis. memindahkan Super Admin terakhir) ditegakkan di `assignUserRole`, bukan di UI ini. */
-function onReassignRole (roleId: string) {
+/** S10a: the server enforces the guard rails (internal roles only, not your own account, last active Super Admin). */
+async function onReassignRole (roleId: string) {
   if (!selectedUser.value) { return }
-  const result = assignUserRole(selectedUser.value.id, roleId, currentUser.value.id)
-  if (result.success) {
-    showToast('Berhasil', `Role ${selectedUser.value.name} diperbarui.`, 'success')
-  } else {
-    showToast('Ditolak', result.reason ?? 'Perubahan role tidak dapat diterapkan.', 'error')
-  }
+  const id = selectedUser.value.id
+  const result = await save('Role Gagal Diubah', () => changeUserRoleOnServer(api, id, roleId))
+  if (result) { showToast('Berhasil', `Role ${result.name} diperbarui. Sesi user diakhiri agar izin baru berlaku.`, 'success') }
 }
 
 function getRoleLabel (roleId: RoleId): string {
@@ -112,20 +114,22 @@ function openSuspendDialog (user: User) {
   isSuspendOpen.value = true
 }
 
-function submitSuspend () {
+async function submitSuspend () {
   if (!suspendTarget.value || !suspendReason.value.trim()) {
     showToast('Gagal Suspend', 'Alasan suspend wajib diisi.', 'error')
     return
   }
-  const result = suspendUser(suspendTarget.value.id, suspendReason.value.trim(), currentUser.value.id)
-  if (!result) { showToast('Gagal Suspend', 'Terjadi kesalahan.', 'error'); return }
-  showToast('User Disuspend', `${result.name} tidak lagi aktif. Tercatat di Audit Trail.`, 'success')
+  const id = suspendTarget.value.id
+  const reason = suspendReason.value.trim()
+  const result = await save('Gagal Suspend', () => suspendUserOnServer(api, id, reason))
+  if (!result) { return }
+  showToast('User Disuspend', `${result.name} tidak lagi aktif dan sesinya diakhiri. Tercatat di Audit Trail.`, 'success')
   isSuspendOpen.value = false
   if (selectedUser.value?.id === result.id) { selectedUser.value = result }
 }
 
-function doReactivate (user: User) {
-  const result = reactivateUser(user.id, currentUser.value.id)
+async function doReactivate (user: User) {
+  const result = await save('Gagal Mengaktifkan', () => reactivateUserOnServer(api, user.id))
   if (!result) { return }
   showToast('User Diaktifkan Kembali', `${result.name} aktif kembali.`, 'success')
   if (selectedUser.value?.id === result.id) { selectedUser.value = result }
@@ -442,7 +446,7 @@ const suspendedUsers = computed(() => (USERS as User[]).filter(u => u.status ===
             <Button variant="outline" @click="isSuspendOpen = false">
               Batal
             </Button>
-            <Button variant="destructive" :disabled="!suspendReason.trim()" @click="submitSuspend">
+            <Button variant="destructive" :disabled="!suspendReason.trim() || isSavingUser" @click="submitSuspend">
               <UserX class="h-4 w-4 mr-1.5" />Suspend
             </Button>
           </template>

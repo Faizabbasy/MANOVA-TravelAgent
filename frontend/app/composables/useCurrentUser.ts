@@ -1,5 +1,5 @@
 import { USERS, getUserById } from '~/data'
-import { isRoleSelectable } from '~/data/rbac'
+import { canSwitchTo } from '~/data/users-sync'
 import type { RoleId } from '~/types/user'
 
 /** Dulu satu-satunya penyimpanan; kini hanya dibaca sekali untuk memigrasikan browser lama. */
@@ -9,11 +9,10 @@ const DEFAULT_USER_ID = 'USR-010' // Super Admin — default demo user agar selu
 
 let legacyMigrated = false
 
-/** User yang boleh jadi sesi aktif: ada, dan role-nya tidak `hidden` (portal client/vendor dinonaktifkan). */
+/** User yang boleh jadi sesi aktif: ada, tidak di-suspend (S10a), dan role-nya tidak `hidden` (portal client/vendor dinonaktifkan). */
 function isSelectableUser (userId: string | null | undefined): userId is string {
   if (!userId) { return false }
-  const user = getUserById(userId)
-  return !!user && isRoleSelectable(user.role)
+  return canSwitchTo(getUserById(userId))
 }
 
 /**
@@ -40,7 +39,7 @@ export function useCurrentUser () {
   const currentUser = computed(() => getUserById(currentUserId.value) ?? USERS[0])
   const currentRole = computed<RoleId>(() => currentUser.value.role)
   /** Untuk role switcher: hanya user dengan role aktif. */
-  const switchableUsers = computed(() => USERS.filter(user => isRoleSelectable(user.role)))
+  const switchableUsers = computed(() => USERS.filter(user => canSwitchTo(user)))
 
   function setCurrentUser (userId: string) {
     if (!isSelectableUser(userId)) { return }

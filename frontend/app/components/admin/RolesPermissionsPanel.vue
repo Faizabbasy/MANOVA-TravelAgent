@@ -9,7 +9,6 @@ import {
   createRole,
   updateRole,
   deleteRole,
-  assignUserRole,
   setRoleModuleLevel,
   setRoleMenuGrant,
   clearRoleMenuGrant,
@@ -18,6 +17,8 @@ import {
   type RbacMutationResult
 } from '~/data/rbac'
 import type { PermissionLevel } from '~/types/user'
+import { changeUserRoleOnServer } from '~/data/users-sync'
+import { isApiError } from '~/lib/api/errors'
 import type { RoleDefinition } from '~/types/rbac'
 
 /** Tab "Roles and Permissions" — Menu Administration > Users & Roles (Penyederhanaan 7-Role/Menu). Dulu
@@ -162,9 +163,17 @@ function onCapabilityToggle (payload: { capabilityKey: string; granted: boolean 
   )
 }
 
-function onAssignUser (payload: { userId: string; roleId: string }) {
+/* S10a: assigning a user to a role is a server change (Super Admin only; internal roles only — a custom role made
+ * in this editor exists only in this browser, so the server refuses it with its reason). */
+const api = useApi()
+async function onAssignUser (payload: { userId: string; roleId: string }) {
   if (!payload.roleId) { return }
-  report(assignUserRole(payload.userId, payload.roleId, currentUser.value.id), 'Role user diperbarui.')
+  try {
+    await changeUserRoleOnServer(api, payload.userId, payload.roleId)
+    showToast('Berhasil', 'Role user diperbarui. Sesi user diakhiri agar izin baru berlaku.', 'success')
+  } catch (error) {
+    showToast('Ditolak', isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+  }
 }
 
 /* ---------- Reset darurat ---------- */

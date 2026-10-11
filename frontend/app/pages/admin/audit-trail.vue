@@ -1,6 +1,8 @@
 <script setup lang="ts">
+import { onMounted } from 'vue'
 import AuditTrailPanel from '~/components/admin/AuditTrailPanel.vue'
 import ActivityCenterPanel from '~/components/admin/ActivityCenterPanel.vue'
+import { loadServerAudit } from '~/data/audit-sync'
 
 /**
  * Administration > Audit & Activity (Penyederhanaan 7-Role/Menu, revisi "satu menu tanpa tab tapi saling
@@ -13,6 +15,10 @@ import ActivityCenterPanel from '~/components/admin/ActivityCenterPanel.vue'
  */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Audit & Activity' })
+
+/* S10a: the Activity Center and session log read the server audit trail; without access the demo data stays. */
+const auditApi = useApi()
+onMounted(() => { loadServerAudit(auditApi).catch(() => undefined) })
 </script>
 
 <template>

@@ -18,6 +18,7 @@ import { useActivitySync } from '~/data/activity-sync'
 import { useChangesSync } from '~/data/changes-sync'
 import { useDocumentsSync } from '~/data/documents-sync'
 import { useNotificationsSync } from '~/data/notifications-sync'
+import { useUsersSync } from '~/data/users-sync'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { User } from '~/types/user'
 
@@ -69,6 +70,7 @@ const activitySync = useActivitySync()
 const changesSync = useChangesSync()
 const documentsSync = useDocumentsSync()
 const notificationsSync = useNotificationsSync()
+const usersSync = useUsersSync()
 
 function submitReset () {
   const success = resetMockState()
@@ -92,6 +94,7 @@ function submitReset () {
   changesSync.load(true)
   documentsSync.load(true)
   notificationsSync.load(true)
+  usersSync.load(true)
   showToast('Demo Data Direset', 'Seluruh data mock dikembalikan ke kondisi seed awal.', 'success')
 }
 </script>

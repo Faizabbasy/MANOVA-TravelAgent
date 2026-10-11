@@ -1352,6 +1352,38 @@ export type TravelerInput = Partial<Pick<TravelerDto, 'name' | 'groupId' | 'pass
   | 'visaExpiryDate' | 'emergencyContactName' | 'emergencyContactPhone' | 'specialRequest' | 'dietaryRestrictions' | 'accessibilityNeeds' | 'companionOfTravelerId'>>
 export interface TravelerGroupDto { id: string; projectId: string; name: string; paxCount: number; roomingNote: string | null }
 export interface RoomAssignmentDto { id: string; projectId: string; groupId: string; roomLabel: string; roomType: 'single' | 'twin' | 'suite'; travelerIds: string[] }
+/** A user as the server knows it (S10a); status and role change only through the Super Admin. */
+export interface UserDto {
+  id: string
+  name: string
+  email: string
+  role: string
+  status: 'active' | 'suspended'
+  suspendedReason: string | null
+  suspendedAt: string | null
+  clientPartyId: string | null
+  vendorId: string | null
+}
+/** An audit event shaped for the Activity Center (S10a). */
+export interface SystemEventDto {
+  id: string
+  module: string
+  type: string
+  message: string
+  entityId: string | null
+  userId: string | null
+  createdAt: string
+}
+/** A sign-in paired with its sign-out from the audit trail (S10a). */
+export interface SessionLogDto {
+  id: string
+  userId: string
+  loginAt: string
+  logoutAt: string | null
+  ipAddress: string
+  device: string
+  status: 'active' | 'ended'
+}
 /** In-app notification (S9b); every user reads only their own. */
 export interface NotificationDto {
   id: string

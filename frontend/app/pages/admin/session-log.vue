@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { LogIn, UserCheck, UserX } from 'lucide-vue-next'
 import { getUserById } from '~/data'
 import { getSessionLogs, getSessionDurationMinutes } from '~/data/session-logs'
+import { loadServerAudit } from '~/data/audit-sync'
 import { formatDateTime } from '~/utils/format'
 import { ROLES } from '~/constants/roles'
 import { findStatusOption } from '~/constants/status'
@@ -19,6 +20,10 @@ const { canView } = usePermissions()
 const hasAccess = computed(() => canView('administration'))
 
 const logs = computed(() => getSessionLogs())
+
+/* S10a: the Activity Center and session log read the server audit trail; without access the demo data stays. */
+const auditApi = useApi()
+onMounted(() => { loadServerAudit(auditApi).catch(() => undefined) })
 const activeCount = computed(() => logs.value.filter(log => log.status === 'active').length)
 
 function userLabel (userId: string): string {
