@@ -1,11 +1,10 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import type { Component } from 'vue'
 import { Bell, AtSign, UserPlus, Clock, Siren, FileWarning, AlertCircle, FileText, MessageSquare, X } from 'lucide-vue-next'
-import {
-  getNotificationsForUser, getUnreadNotificationCount,
-  markNotificationRead, markAllNotificationsRead, removeNotification as removeNotificationRecord
-} from '~/data'
+import { getNotificationsForUser, getUnreadNotificationCount } from '~/data'
+import { markAllNotificationsReadOnServer, markNotificationReadOnServer, removeNotificationOnServer, useNotificationsSync } from '~/data/notifications-sync'
+import { isApiError } from '~/lib/api/errors'
 import type { NotificationType } from '~/types/document-comms'
 import { formatDate } from '~/utils/format'
 
@@ -24,9 +23,23 @@ const { currentUser, currentRole } = useCurrentUser()
 const notifications = computed(() => getNotificationsForUser(currentUser.value.id))
 const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.id))
 
-const markAsRead = (id: string) => markNotificationRead(id)
-const markAllAsRead = () => markAllNotificationsRead(currentUser.value.id)
-const removeNotification = (id: string) => removeNotificationRecord(id)
+/* S9b: notifications live on the server. The panel mounts each time the bell opens, so it reloads then — a mention
+ * or an assignment someone else made shows up without a page reload. */
+const api = useApi()
+const { showToast } = useToast()
+const notificationsSync = useNotificationsSync()
+onMounted(() => { if (!['client', 'vendor'].includes(currentRole.value)) { notificationsSync.load(true) } })
+
+async function act (title: string, action: () => Promise<unknown>) {
+  try {
+    await action()
+  } catch (error) {
+    showToast(title, isApiError(error) ? error.message : 'Server belum bisa dihubungi. Coba lagi.', 'error')
+  }
+}
+const markAsRead = (id: string) => act('Notifikasi Gagal Diperbarui', () => markNotificationReadOnServer(api, id))
+const markAllAsRead = () => act('Notifikasi Gagal Diperbarui', () => markAllNotificationsReadOnServer(api))
+const dismissNotification = (id: string) => act('Notifikasi Gagal Dihapus', () => removeNotificationOnServer(api, id))
 
 const TYPE_ICON_MAP: Record<NotificationType, Component> = {
   mention: AtSign,
@@ -153,7 +166,7 @@ defineExpose({
                   </h4>
                   <button
                     class="opacity-0 group-hover:opacity-100 transition-opacity p-1 hover:bg-muted rounded"
-                    @click.stop="removeNotification(notification.id)"
+                    @click.stop="dismissNotification(notification.id)"
                   >
                     <X class="h-3 w-3 text-muted-foreground" />
                   </button>

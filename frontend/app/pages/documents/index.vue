@@ -6,8 +6,7 @@ import {
   PROJECTS, USERS,
   getProjectById, getUserById,
   DOCUMENT_RECORDS, MESSAGE_RECORDS,
-  getNotificationsForUser, getUnreadNotificationCount,
-  markNotificationRead, markAllNotificationsRead, removeNotification
+  getNotificationsForUser, getUnreadNotificationCount
 } from '~/data'
 import {
   DOCUMENT_ENTITY_TYPES, DOCUMENT_ACCESS_LEVELS, MESSAGE_CHANNELS, MESSAGE_DELIVERY_STATUSES, NOTIFICATION_TYPES,
@@ -19,6 +18,7 @@ import type { DocumentEntityType, DocumentAccessLevel, MessageChannel, Document 
 import type { BadgeTone } from '~/types/common'
 import { createDocumentOnServer, sendMessageOnServer } from '~/data/documents-sync'
 import { createSaveGate } from '~/lib/save-gate'
+import { markAllNotificationsReadOnServer, markNotificationReadOnServer, removeNotificationOnServer } from '~/data/notifications-sync'
 
 /**
  * Documents & Communication (Section 21 — roadmap Section 00–24 baru, D-078). Modul konsolidasi-style baru
@@ -253,6 +253,10 @@ async function submitCompose () {
 /* --- Notifications tab (tujuan kanonik "View all notifications") --- */
 const notifications = computed(() => getNotificationsForUser(currentUser.value.id))
 const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.id))
+/* S9b: read / remove go to the server; a refusal shows the reason. */
+const readNotification = (id: string) => save('Notifikasi Gagal Diperbarui', () => markNotificationReadOnServer(api, id))
+const readAllNotifications = () => save('Notifikasi Gagal Diperbarui', () => markAllNotificationsReadOnServer(api))
+const dismissNotification = (id: string) => save('Notifikasi Gagal Dihapus', () => removeNotificationOnServer(api, id))
 </script>
 
 <template>
@@ -434,7 +438,7 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
       </template>
 
       <template v-else-if="activeTab === 'notifications' && unreadCount > 0" #actions>
-        <Button size="sm" variant="outline" @click="markAllNotificationsRead(currentUser.id)">
+        <Button size="sm" variant="outline" @click="readAllNotifications()">
           <CheckCheck class="h-4 w-4 mr-1.5" />Mark All Read
         </Button>
       </template>
@@ -854,7 +858,7 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
           <SectionCard description="Notifikasi hanya untuk Anda (mengikuti bell popover TopHeader) — bukan daftar lintas user.">
             <ul v-if="notifications.length" class="divide-y divide-border">
               <li v-for="notification in notifications" :key="notification.id" :class="['py-3 flex items-start justify-between gap-3', !notification.read && 'bg-primary/5 -mx-4 px-4 rounded']">
-                <div class="min-w-0 cursor-pointer" @click="markNotificationRead(notification.id)">
+                <div class="min-w-0 cursor-pointer" @click="readNotification(notification.id)">
                   <div class="flex items-center gap-1.5 mb-1">
                     <StatusBadge :label="findStatusOption(NOTIFICATION_TYPES, notification.type).label" :tone="findStatusOption(NOTIFICATION_TYPES, notification.type).tone" />
                     <span v-if="!notification.read" class="w-1.5 h-1.5 bg-primary rounded-full" />
@@ -869,7 +873,7 @@ const unreadCount = computed(() => getUnreadNotificationCount(currentUser.value.
                     {{ formatDate(notification.createdAt) }}
                   </p>
                 </div>
-                <button class="p-1 hover:bg-muted rounded shrink-0" @click="removeNotification(notification.id)">
+                <button class="p-1 hover:bg-muted rounded shrink-0" @click="dismissNotification(notification.id)">
                   <X class="h-3.5 w-3.5 text-muted-foreground" />
                 </button>
               </li>

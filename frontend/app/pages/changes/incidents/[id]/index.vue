@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Send } from 'lucide-vue-next'
 import { matchesAnyRole } from '~/data/rbac'
 import {
-  getIncidentById, getIncidentStatusTransitions, getProjectById, getUserById, USERS, pushNotification
+  getIncidentById, getIncidentStatusTransitions, getProjectById, getUserById, USERS
 } from '~/data'
 import { addIncidentCommunicationOnServer, changeIncidentStatusOnServer, escalateIncidentOnServer, resolveIncidentOnServer } from '~/data/changes-sync'
 import { createSaveGate } from '~/lib/save-gate'
@@ -20,7 +20,6 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
-const { currentUser } = useCurrentUser()
 const { canView, can } = usePermissions()
 /* S8: the capability the server checks for every incident step. */
 const canManageChanges = computed(() => can('project-order.log-change'))
@@ -83,8 +82,6 @@ async function submitEscalate () {
   const result = await save('Incident Gagal Dieskalasi', () => escalateIncidentOnServer(api, id, to, note))
   if (!result) { return }
   isEscalateOpen.value = false
-  // Notifications are still a local mock: tell the person it was escalated to.
-  pushNotification(to, 'escalation', `Incident ${result.id} dieskalasi kepada Anda`, `${result.title} dieskalasi oleh ${currentUser.value.name}.${note ? ` Catatan: ${note}` : ''}`, 'incident', result.id)
   showToast('Incident Dieskalasi', `${result.id} dieskalasi.`, 'success')
 }
 

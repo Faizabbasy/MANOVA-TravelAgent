@@ -56,7 +56,7 @@ describe('work-items-sync', () => {
     expect(m.name).toBe('Nama Server')
   })
 
-  it('a created task notifies its assignee; a rejected update leaves the local task untouched', async () => {
+  it('a created task is not notified locally any more (the server does it, S9b); a rejected update leaves the local task untouched', async () => {
     mergeServerWorkItems([task()], [])
     const before = NOTIFICATIONS.length
     const api = {
@@ -67,7 +67,7 @@ describe('work-items-sync', () => {
     } as never
     await createTaskOnServer(api, { projectId: 'PRJ-101', title: 'Baru', assignedTo: 'USR-003' })
     expect(TASKS.some(x => x.id === 'TSK-2000')).toBe(true)
-    expect(NOTIFICATIONS.length).toBe(before + 1)
+    expect(NOTIFICATIONS.length).toBe(before)
     await expect(updateTaskOnServer(api, 'TSK-1011', { title: 'Gagal' })).rejects.toThrow()
     expect(TASKS.find(x => x.id === 'TSK-1011')!.title).toBe('Konfirmasi manifest penumpang')
   })

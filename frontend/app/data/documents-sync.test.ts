@@ -59,13 +59,12 @@ describe('documents-sync', () => {
     expect(MESSAGE_RECORDS.map(x => x.id).sort()).toEqual(['MSG-001', 'MSG-L001'])
   })
 
-  it('a sent message notifies the mentioned users (local mock) after the server answered', async () => {
+  it('a sent message is added locally; the mention notification is created by the server, not locally (S9b)', async () => {
     const before = NOTIFICATION_RECORDS.length
     const api = { core: { sendMessage: () => Promise.resolve({ data: msg({ id: 'MSG-050', mentions: ['USR-003'], body: 'Cek @Andi' }) }) } } as never
     const sent = await sendMessageOnServer(api, { entityType: 'project', entityId: 'PRJ-101', projectId: 'PRJ-101', channel: 'internal-note', body: 'Cek @Andi', mentions: ['USR-003'] })
     expect(sent.id).toBe('MSG-050')
     expect(MESSAGE_RECORDS.some(x => x.id === 'MSG-050')).toBe(true)
-    expect(NOTIFICATION_RECORDS.length).toBe(before + 1)
-    expect(NOTIFICATION_RECORDS.at(-1)).toMatchObject({ userId: 'USR-003', type: 'mention' })
+    expect(NOTIFICATION_RECORDS.length).toBe(before)
   })
 })

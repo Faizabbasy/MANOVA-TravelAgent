@@ -24,7 +24,9 @@ const FORBIDDEN = [
   'createChangeRequest(', 'approveChangeRequest(', 'rejectChangeRequest(', 'markChangeRequestUnderReview(', 'markChangeRequestImplemented(',
   'createIncident(', 'updateIncidentStatus(', 'escalateIncident(', 'appendIncidentCommunication(', 'resolveIncident(', 'createCancellationRecord(',
   // S9: document metadata and messages live on the server.
-  'createDocument(', 'sendMessage('
+  'createDocument(', 'sendMessage(',
+  // S9b: notifications are created and read on the server.
+  'markNotificationRead(', 'markAllNotificationsRead(', 'removeNotification(', 'pushNotification('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**

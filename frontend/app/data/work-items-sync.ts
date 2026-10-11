@@ -1,6 +1,5 @@
 import { TASKS } from './activity'
 import { PROJECT_MILESTONES } from './project-orders'
-import { pushNotification } from './index'
 import type { ProjectTask } from '~/types/activity'
 import type { ProjectMilestone } from '~/types/project-order'
 import type { MilestoneDto, MilestoneInput, TaskDto, TaskInput } from '~/types/api'
@@ -10,7 +9,7 @@ import { isApiError } from '~/lib/api/errors'
 
 /**
  * Server → `TASKS` and `PROJECT_MILESTONES` (S7c). The server owns project tasks and milestones; writes go to the
- * server first and its answer replaces the local object in place. Assignment notifications stay a local mock.
+ * server first and its answer replaces the local object in place. The server notifies a new assignee (S9b).
  */
 
 type CoreApi = Pick<ManovaApi, 'core'>
@@ -91,21 +90,12 @@ export async function reloadProjectMilestones (api: CoreApi, projectId: string):
   setProjectMilestones(projectId, (await api.core.listMilestones({ projectId })).data)
 }
 
-function notifyAssignee (task: ProjectTask, previousAssignee?: string) {
-  if (task.assignedTo && task.assignedTo !== previousAssignee) {
-    pushNotification(task.assignedTo, 'assignment', 'Anda ditugaskan pada task baru', `Task "${task.title}" ditugaskan kepada Anda.`, 'project', task.projectId)
-  }
-}
-
 export async function createTaskOnServer (api: CoreApi, input: TaskInput & { title: string }, key: string = newIdempotencyKey()): Promise<ProjectTask> {
   const task = upsertTask((await api.core.createTask(input, key)).data)
-  notifyAssignee(task)
   return task
 }
 export async function updateTaskOnServer (api: CoreApi, id: string, input: TaskInput): Promise<ProjectTask> {
-  const previous = TASKS.find(x => x.id === id)?.assignedTo
   const task = upsertTask((await api.core.updateTask(id, input)).data)
-  notifyAssignee(task, previous)
   return task
 }
 export async function blockTaskOnServer (api: CoreApi, id: string, reason: string): Promise<ProjectTask> {

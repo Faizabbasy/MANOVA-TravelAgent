@@ -8,7 +8,7 @@
  */
 
 import type { ServiceStatus, ServiceTypeKey } from './project'
-import type { DocumentEntityType } from './document-comms'
+import type { DocumentEntityType, NotificationCategory, NotificationType } from './document-comms'
 
 export type MoneyMinor = string
 export type IsoDate = string
@@ -1352,6 +1352,19 @@ export type TravelerInput = Partial<Pick<TravelerDto, 'name' | 'groupId' | 'pass
   | 'visaExpiryDate' | 'emergencyContactName' | 'emergencyContactPhone' | 'specialRequest' | 'dietaryRestrictions' | 'accessibilityNeeds' | 'companionOfTravelerId'>>
 export interface TravelerGroupDto { id: string; projectId: string; name: string; paxCount: number; roomingNote: string | null }
 export interface RoomAssignmentDto { id: string; projectId: string; groupId: string; roomLabel: string; roomType: 'single' | 'twin' | 'suite'; travelerIds: string[] }
+/** In-app notification (S9b); every user reads only their own. */
+export interface NotificationDto {
+  id: string
+  userId: string
+  type: NotificationType
+  title: string
+  body: string
+  entityType: DocumentEntityType | null
+  entityId: string | null
+  category: NotificationCategory | null
+  read: boolean
+  createdAt: string
+}
 /** Document metadata (S9); no file is stored. Dates are `YYYY-MM-DD`. */
 export interface DocumentDto {
   id: string

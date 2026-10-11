@@ -3914,7 +3914,7 @@ export function removeNotification (id: string): void {
  */
 export function pushNotification (userId: string, type: NotificationType, title: string, body: string, entityType?: DocumentEntityType, entityId?: string, category?: NotificationCategory): Notification {
   const notification: Notification = {
-    id: nextSequentialId('NOT-', NOTIFICATION_RECORDS),
+    id: nextSequentialId('NOT-L', NOTIFICATION_RECORDS),
     userId,
     type,
     title,

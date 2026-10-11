@@ -1,5 +1,4 @@
 import { DOCUMENT_RECORDS, MESSAGE_RECORDS } from './document-comms'
-import { getUserById, pushNotification } from './index'
 import { refreshProjectActivities } from './activity-sync'
 import type { Document, Message } from '~/types/document-comms'
 import type { DocumentDto, DocumentInput, MessageDto, MessageInput } from '~/types/api'
@@ -9,8 +8,8 @@ import { isApiError } from '~/lib/api/errors'
 
 /**
  * Server → `DOCUMENT_RECORDS`, `MESSAGE_RECORDS` (S9). The server owns document metadata and internal messages; the
- * hidden client portal still writes its own rows locally (`DOC-L…`, `MSG-L…`), which a merge keeps. Notifications are
- * still a local mock (S9b): a mention notifies after the server answered.
+ * hidden client portal still writes its own rows locally (`DOC-L…`, `MSG-L…`), which a merge keeps. The server
+ * notifies mentioned users (S9b).
  */
 
 type CoreApi = Pick<ManovaApi, 'core'>
@@ -93,10 +92,6 @@ export async function createDocumentOnServer (api: CoreApi, input: DocumentInput
 
 export async function sendMessageOnServer (api: CoreApi, input: MessageInput, key: string = newIdempotencyKey()): Promise<Message> {
   const message = upsert(MESSAGE_RECORDS, messageFromServer((await api.core.sendMessage(input, key)).data))
-  const sender = getUserById(message.senderId)
-  for (const userId of message.mentions ?? []) {
-    pushNotification(userId, 'mention', `Anda disebut oleh ${sender?.name ?? message.senderId}`, message.body, message.entityType, message.entityId)
-  }
   // A message to a client / supplier is written to the project log by the server.
   if (message.projectId && message.channel !== 'internal-note') { await refreshProjectActivities(api, message.projectId) }
   return message
