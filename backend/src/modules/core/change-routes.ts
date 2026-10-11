@@ -5,6 +5,7 @@ import { assertIdParam, ID_PATTERN, ok, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import { createChangeRequest, decideChangeRequest, implementChangeRequest, listChangeRequests, reviewChangeRequest } from './change-requests'
+import { addIncidentCommunication, changeIncidentStatus, createIncident, escalateIncident, listIncidents, resolveIncident } from './incidents'
 import { getProject } from './repository'
 import { isPortalActor } from './scope'
 
@@ -32,6 +33,11 @@ export function changeRoutes(deps: AppDeps, auth: AuthContext) {
     const id = assertIdParam(raw, 'Project')
     if (!(await getProject(db, actor, id))) throw errors.notFound('Project')
     return id
+  }
+  async function incidentResponse(id: string) {
+    const [inc] = await listIncidents(db, { id })
+    if (!inc) throw errors.notFound('Insiden')
+    return inc
   }
   async function requestResponse(id: string) {
     const [cr] = await listChangeRequests(db, { id })
@@ -77,5 +83,47 @@ export function changeRoutes(deps: AppDeps, auth: AuthContext) {
       const id = assertIdParam(params.id, 'Change request')
       await db.transaction(tx => implementChangeRequest(tx, actor, id, requestIdOf(request)))
       return ok(request, await requestResponse(id))
+    }, anyBody)
+    .get('/incidents', async ({ request, query }) => {
+      await readActor(request)
+      return ok(request, await listIncidents(db, { projectId: checkProjectQuery(query.projectId) }))
+    }, projectQuery)
+    .post('/projects/:id/incidents', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, LOG)
+      const projectId = await visibleProject(actor, params.id)
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /projects/:id/incidents', key, body: { projectId, ...(body as object) } }, tx =>
+        createIncident(tx, actor, projectId, body as Record<string, unknown>, requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await incidentResponse(result.data.id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    .post('/incidents/:id/status', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, LOG)
+      const id = assertIdParam(params.id, 'Insiden')
+      const b = (body ?? {}) as Record<string, unknown>
+      await db.transaction(tx => changeIncidentStatus(tx, actor, id, b.to, requestIdOf(request)))
+      return ok(request, await incidentResponse(id))
+    }, anyBody)
+    .post('/incidents/:id/escalate', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, LOG)
+      const id = assertIdParam(params.id, 'Insiden')
+      const b = (body ?? {}) as Record<string, unknown>
+      await db.transaction(tx => escalateIncident(tx, actor, id, b, requestIdOf(request)))
+      return ok(request, await incidentResponse(id))
+    }, anyBody)
+    .post('/incidents/:id/communications', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, LOG)
+      const id = assertIdParam(params.id, 'Insiden')
+      const b = (body ?? {}) as Record<string, unknown>
+      await db.transaction(tx => addIncidentCommunication(tx, actor, id, b.message, requestIdOf(request)))
+      return ok(request, await incidentResponse(id))
+    }, anyBody)
+    .post('/incidents/:id/resolve', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, LOG)
+      const id = assertIdParam(params.id, 'Insiden')
+      const b = (body ?? {}) as Record<string, unknown>
+      await db.transaction(tx => resolveIncident(tx, actor, id, b.note, requestIdOf(request)))
+      return ok(request, await incidentResponse(id))
     }, anyBody)
 }

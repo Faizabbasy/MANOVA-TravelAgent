@@ -60,3 +60,46 @@ describe('change requests', () => {
     expect((await call('POST', '/change-requests/CR-99999/approve', 'admin')).status).toBe(404)
   })
 })
+
+describe('incidents', () => {
+  type I = { id: string; status: string; escalatedTo: string | null; communicationLog: { from: string; message: string }[]; resolutionNote: string | null; resolvedAt: string | null }
+
+  test('create (idempotent, validated); finance cannot create; portals 403', async () => {
+    const k = key()
+    const body = { title: 'Bus terlambat', description: 'Bus hari ke-2 telat 2 jam', severity: 'high', ownerId: 'USR-002' }
+    const res = await call('POST', '/projects/PRJ-103/incidents', 'admin', body, k)
+    expect(res.status).toBe(201)
+    expect(res.json.data).toMatchObject({ projectId: 'PRJ-103', status: 'open', severity: 'high', ownerId: 'USR-002', communicationLog: [] })
+    expect((await call('POST', '/projects/PRJ-103/incidents', 'admin', body, k)).json.data.id).toBe(res.json.data.id)
+    const bad = async (b: unknown) => (await call('POST', '/projects/PRJ-103/incidents', 'admin', b, key())).status
+    expect(await bad({ ...body, severity: 'urgent' })).toBe(400)
+    expect(await bad({ ...body, title: ' ' })).toBe(400)
+    expect(await bad({ ...body, ownerId: 'USR-999' })).toBe(400)
+    expect(await bad({ ...body, bookingType: 'hotel', bookingId: 'HTL-1011' })).toBe(400) // another project's booking
+    expect((await call('POST', '/projects/PRJ-103/incidents', 'finance', body, key())).status).toBe(403)
+    expect((await call('GET', '/incidents', 'client')).status).toBe(403)
+    expect((await call('GET', '/incidents?projectId=PRJ-103', 'finance')).status).toBe(200)
+  })
+
+  test('status moves along the map; escalate, communicate and resolve; each step is in the activity log', async () => {
+    const id = (await call('POST', '/projects/PRJ-103/incidents', 'admin', { title: 'Hotel overbook', description: 'Kamar kurang 2', severity: 'critical', ownerId: 'USR-002' }, key())).json.data.id as string
+    expect((await call('POST', `/incidents/${id}/status`, 'admin', { to: 'closed' })).status).toBe(422)
+    expect((await call('POST', `/incidents/${id}/status`, 'admin', { to: 'resolved' })).status).toBe(400) // resolve has its own endpoint
+    expect(((await call('POST', `/incidents/${id}/status`, 'admin', { to: 'investigating' })).json.data as I).status).toBe('investigating')
+    expect((await call('POST', `/incidents/${id}/escalate`, 'admin', {})).status).toBe(400)
+    const escalated = (await call('POST', `/incidents/${id}/escalate`, 'admin', { to: 'USR-003', note: 'Perlu keputusan manajemen' })).json.data as I
+    expect(escalated).toMatchObject({ status: 'escalated', escalatedTo: 'USR-003' })
+    expect(escalated.communicationLog.at(-1)!.message).toContain('Perlu keputusan manajemen')
+    expect((await call('POST', `/incidents/${id}/communications`, 'admin', { message: ' ' })).status).toBe(400)
+    expect(((await call('POST', `/incidents/${id}/communications`, 'admin', { message: 'Hotel konfirmasi kamar pengganti' })).json.data as I).communicationLog).toHaveLength(2)
+    expect((await call('POST', `/incidents/${id}/resolve`, 'admin', { note: '' })).status).toBe(400)
+    const resolved = (await call('POST', `/incidents/${id}/resolve`, 'admin', { note: 'Pindah ke hotel sebelah' })).json.data as I
+    expect(resolved).toMatchObject({ status: 'resolved', resolutionNote: 'Pindah ke hotel sebelah' })
+    expect(resolved.resolvedAt).toBeTruthy()
+    expect((await call('POST', `/incidents/${id}/resolve`, 'admin', { note: 'Lagi' })).status).toBe(422)
+    expect(((await call('POST', `/incidents/${id}/status`, 'admin', { to: 'closed' })).json.data as I).status).toBe('closed')
+    const log = (await activities('PRJ-103')).filter(a => a.message.includes(id))
+    expect(log.length).toBeGreaterThanOrEqual(4)
+    expect((await call('POST', '/incidents/INC-99999/status', 'admin', { to: 'investigating' })).status).toBe(404)
+  })
+})
