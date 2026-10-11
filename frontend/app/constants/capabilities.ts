@@ -34,6 +34,7 @@ export const CAPABILITIES: CapabilityDefinition[] = [
   { key: 'project-order.manage-travelers', label: 'Kelola traveler & rooming list', group: CAPABILITY_GROUPS.projectOrder },
   { key: 'project-order.log-change', label: 'Catat change request / incident project', group: CAPABILITY_GROUPS.projectOrder },
   { key: 'project-order.review-change', label: 'Setujui / tolak / review perubahan project', group: CAPABILITY_GROUPS.projectOrder },
+  { key: 'document.manage', label: 'Unggah dokumen (metadata)', group: CAPABILITY_GROUPS.projectOrder },
   { key: 'project-order.advance-step', label: 'Jalankan transisi step Project Order', group: CAPABILITY_GROUPS.projectOrder, description: 'Tombol "Next Action" pada Status Workflow — tetap tunduk pada gate tiap step.' },
   { key: 'project-order.close', label: 'Tutup (close) Project Order', group: CAPABILITY_GROUPS.projectOrder },
   { key: 'project-order.view-margin', label: 'Lihat margin & internal cost project', group: CAPABILITY_GROUPS.projectOrder },
