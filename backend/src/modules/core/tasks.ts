@@ -5,6 +5,7 @@ import { AppError, errors, type FieldErrors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
 import { isIsoDate } from '../../shared/dates'
 import { nextId } from '../../shared/ids'
+import { notify } from './notifications'
 
 /**
  * Project tasks (S7c). A task without a project is a general to-do from the global Tasks page. Blocking is separate
@@ -78,6 +79,11 @@ async function cleanTask(tx: Queryable, projectId: string | null, v: Record<stri
   return out
 }
 
+/** S9b: the new assignee hears about it (not when the actor assigns themself). */
+async function notifyAssignee(tx: Queryable, actor: Actor, userId: string, title: string, projectId: string | null) {
+  await notify(tx, { userId, actorUserId: actor.userId, type: 'assignment', title: 'Anda ditugaskan pada task baru', body: `Task "${title}" ditugaskan kepada Anda.`, entityType: projectId ? 'project' : null, entityId: projectId })
+}
+
 export async function createTask(tx: Queryable, actor: Actor, input: Record<string, unknown>, requestId: string): Promise<{ id: string }> {
   const problems: FieldErrors = {}
   let projectId: string | null = null
@@ -93,12 +99,13 @@ export async function createTask(tx: Queryable, actor: Actor, input: Record<stri
   const cols = ['id', 'project_id', ...Object.keys(values)]
   await tx.query(`insert into project_tasks (${cols.join(', ')}, changed_by_api_at) values (${cols.map((_, i) => `$${i + 1}`).join(', ')}, now())`,
     [id, projectId, ...Object.values(values)])
+  if (values.assigned_to) await notifyAssignee(tx, actor, values.assigned_to as string, values.title as string, projectId)
   await recordAudit(tx, { action: 'task.created', actorUserId: actor.userId, entityType: 'task', entityId: id, requestId, after: { projectId, ...values } })
   return { id }
 }
 
 async function lockTask(tx: Queryable, id: string) {
-  const [row] = await tx.query<{ project_id: string | null; is_blocked: boolean }>('select project_id, is_blocked from project_tasks where id = $1 for update', [id])
+  const [row] = await tx.query<{ project_id: string | null; is_blocked: boolean; assigned_to: string | null; title: string }>('select project_id, is_blocked, assigned_to, title from project_tasks where id = $1 for update', [id])
   if (!row) throw errors.notFound('Task')
   return row
 }
@@ -113,6 +120,7 @@ export async function updateTask(tx: Queryable, actor: Actor, id: string, input:
   if (!cols.length) return
   await tx.query(`update project_tasks set ${cols.map((c, i) => `${c} = $${i + 2}`).join(', ')}, changed_by_api_at = now(), updated_at = now() where id = $1`,
     [id, ...Object.values(values)])
+  if (values.assigned_to && values.assigned_to !== current.assigned_to) await notifyAssignee(tx, actor, values.assigned_to as string, (values.title as string | undefined) ?? current.title, current.project_id)
   await recordAudit(tx, { action: 'task.updated', actorUserId: actor.userId, entityType: 'task', entityId: id, requestId, after: values })
 }
 

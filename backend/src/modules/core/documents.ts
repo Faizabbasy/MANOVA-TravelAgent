@@ -6,6 +6,7 @@ import { recordAudit } from '../../shared/audit'
 import { businessDateOf, isIsoDate } from '../../shared/dates'
 import { nextId } from '../../shared/ids'
 import { actorName, recordProjectActivity } from './activities'
+import { notify } from './notifications'
 
 /**
  * Document metadata and messages (S9). A document is its metadata (no file storage, like the UI today); an uploaded
@@ -129,8 +130,8 @@ export async function sendMessage(tx: Queryable, actor: Actor, input: Record<str
     if (!Array.isArray(list) || list.length > 20 || !list.every(x => typeof x === 'string' && ID_PATTERN.test(x))) problems.mentions = ['Daftar mention tidak valid.']
     else {
       const unique = [...new Set(list as string[])]
-      const found = unique.length ? await tx.query<{ id: string }>('select id from users where id = any($1::text[])', [unique]) : []
-      if (found.length !== unique.length) problems.mentions = ['User yang di-mention tidak ditemukan.']
+      const found = unique.length ? await tx.query<{ id: string }>("select id from users where id = any($1::text[]) and role not in ('client', 'vendor')", [unique]) : []
+      if (found.length !== unique.length) problems.mentions = ['User yang di-mention tidak ditemukan (hanya user internal).']
       else mentions = unique
     }
   }
@@ -153,6 +154,11 @@ export async function sendMessage(tx: Queryable, actor: Actor, input: Record<str
   if (projectId && !internal) {
     await recordProjectActivity(tx, { projectId, actorUserId: actor.userId, sourceAction: 'message.sent', sourceEntityId: id,
       message: `Pesan ${id} ke ${input.channel === 'client-message' ? 'client' : 'supplier'} dikirim oleh ${await actorName(tx, actor.userId)} (${deliveryChannel}).` })
+  }
+  // S9b: each mentioned user gets a notification (never the sender).
+  const sender = await actorName(tx, actor.userId)
+  for (const userId of mentions) {
+    await notify(tx, { userId, actorUserId: actor.userId, type: 'mention', title: `Anda disebut oleh ${sender} (${id})`, body, entityType: input.entityType as string, entityId: (input.entityId as string).trim() })
   }
   await recordAudit(tx, { action: 'message.sent', actorUserId: actor.userId, entityType: 'message', entityId: id, requestId,
     after: { entityType: input.entityType, entityId: input.entityId, projectId, channel: input.channel, mentions } })

@@ -5,6 +5,7 @@ import { AppError, errors, type FieldErrors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
 import { nextId } from '../../shared/ids'
 import { actorName, recordProjectActivity } from './activities'
+import { notify } from './notifications'
 
 /**
  * Project incidents (S8; the communication log's `from` is a user id, like the demo data): open → investigating / escalated → resolved → closed. Escalation names the user it goes
@@ -121,6 +122,8 @@ export async function escalateIncident(tx: Queryable, actor: Actor, id: string, 
     `update incidents set status = 'escalated', escalated_to = $2, communication_log = $3::text::jsonb, changed_by_api_at = now(), updated_at = now() where id = $1`,
     [id, input.to, JSON.stringify(log)])
   await step(tx, actor, inc, id, `dieskalasi ke ${target}`, 'incident.escalated', requestId, { to: input.to, note })
+  // S9b: the person it is escalated to is notified.
+  await notify(tx, { userId: input.to as string, actorUserId: actor.userId, type: 'escalation', title: `Incident ${id} dieskalasi kepada Anda`, body: `${note ?? 'Dieskalasi'} — oleh ${await actorName(tx, actor.userId)}.`, entityType: 'incident', entityId: id })
 }
 
 export async function addIncidentCommunication(tx: Queryable, actor: Actor, id: string, message: unknown, requestId: string) {
