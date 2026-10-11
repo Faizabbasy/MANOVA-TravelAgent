@@ -459,6 +459,25 @@ describe('demo seed', () => {
     }
   })
 
+  test('demo change requests, incidents and cancellations are seeded; a re-seed keeps API changes', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [counts] = await db.query<{ cr: number; inc: number; cnx: number }>(
+        'select (select count(*)::int from change_requests) as cr, (select count(*)::int from incidents) as inc, (select count(*)::int from booking_cancellations) as cnx')
+      expect(counts).toEqual({ cr: 7, inc: 4, cnx: 3 })
+      expect((await db.query<{ a: string }>("select activity_id as a from change_requests where id = 'CR-002'"))[0]!.a).toBe('CHG-1023')
+      await db.query("update change_requests set status = 'approved', changed_by_api_at = now() where id = 'CR-004'")
+      await db.query("update incidents set status = 'resolved', changed_by_api_at = now() where id = 'INC-003'")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ s: string }>("select status as s from change_requests where id = 'CR-004'"))[0]!.s).toBe('approved')
+      expect((await db.query<{ s: string }>("select status as s from incidents where id = 'INC-003'"))[0]!.s).toBe('resolved')
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('changes, incidents and cancellations exist after 0031', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
@@ -699,7 +718,7 @@ describe('demo seed', () => {
     // `paymentTerm` is a CRM billing term ("30 hari"), not a payment record; `netCostMinor` is the booking's net cost (Booking module, S4a).
     expect([...keys].filter(k => k !== 'paymentTerm' && k !== 'netCostMinor' && /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
     // The only money-like values are owned by Project/Booking/Sales (ADR-007): contract value, service budget,
-    // booking sell price and net cost, and the price of a Group Trip participant booking. S4b: vendor quotation amount (Procurement). S7b: the vendor amount of an itinerary item (Operations). S7c: a milestone's planned budget (Operations).
-    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['amountMinor', 'budgetMinor', 'contractValueMinor', 'creditLimitMinor', 'netCostMinor', 'priceMinor', 'sellAmountMinor', 'vendorAmountMinor'])
+    // booking sell price and net cost, and the price of a Group Trip participant booking. S4b: vendor quotation amount (Procurement). S7b: the vendor amount of an itinerary item (Operations). S7c: a milestone's planned budget (Operations). S8: a change request's commercial impact and a no-show/refund penalty (Operations).
+    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['amountMinor', 'budgetMinor', 'commercialImpactMinor', 'contractValueMinor', 'creditLimitMinor', 'netCostMinor', 'penaltyMinor', 'priceMinor', 'sellAmountMinor', 'vendorAmountMinor'])
   })
 })

@@ -19,6 +19,7 @@ import { SERVICE_ORDERS } from '../../frontend/app/data/procurement'
 import { CORE_BOOKING_KEYS, departureDateOf, miceTotals } from '../src/modules/core/booking-rules'
 import { ITINERARY_ITEMS, PROJECT_SERVICES, PROJECTS, ROOM_ASSIGNMENTS, TRAVELER_GROUPS, TRAVELERS } from '../../frontend/app/data/projects'
 import { ACTIVITIES, TASKS } from '../../frontend/app/data/activity'
+import { CANCELLATION_RECORDS, CHANGE_REQUESTS, INCIDENTS } from '../../frontend/app/data/change-incident'
 import { PROJECT_MILESTONES } from '../../frontend/app/data/project-orders'
 import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
 import { QUOTATIONS } from '../../frontend/app/data/quotations'
@@ -340,6 +341,52 @@ const seed: DemoCoreSeed = {
     replacesTravelerId: tr.replacesTravelerId ?? null
   })),
   roomAssignments: [...ROOM_ASSIGNMENTS].sort(byId).map(r => ({ id: r.id, projectId: r.projectId, groupId: r.groupId, roomLabel: r.roomLabel, roomType: r.roomType, travelerIds: [...r.travelerIds] })),
+  // S8: change requests (internal statuses), incidents and pre-Finance booking cancellations.
+  changeRequests: [...CHANGE_REQUESTS].sort(byId).map(r => ({
+    id: r.id,
+    projectId: r.projectId,
+    source: r.source,
+    requestedBy: seededUser(r.requestedBy, `change request ${r.id} requester`) ?? 'USR-001',
+    submittedOn: dateOnly(r.submittedAt)!,
+    affectedEntities: r.affectedEntities.map(e => ({ entityType: e.entityType, entityId: e.entityId })),
+    beforeSummary: r.beforeSummary,
+    afterSummary: r.afterSummary,
+    operationalImpact: r.operationalImpact ?? null,
+    commercialImpactMinor: r.commercialImpactIdr == null ? null : String(Math.round(r.commercialImpactIdr)),
+    financialImpactNote: r.financialImpactNote ?? null,
+    timelineImpactNote: r.timelineImpactNote ?? null,
+    status: r.status,
+    decidedBy: seededUser(r.approvedBy, `change request ${r.id} decider`),
+    decidedOn: dateOnly(r.approvedAt),
+    rejectionReason: r.rejectionReason ?? null,
+    activityId: r.activityEntryId ?? null
+  })),
+  incidents: [...INCIDENTS].sort(byId).map(i => ({
+    id: i.id,
+    projectId: i.projectId,
+    bookingType: i.bookingType ?? null,
+    bookingId: i.bookingId ?? null,
+    title: i.title,
+    description: i.description,
+    severity: i.severity,
+    ownerId: seededUser(i.ownerId, `incident ${i.id} owner`) ?? 'USR-001',
+    status: i.status,
+    escalatedTo: seededUser(i.escalatedTo, `incident ${i.id} escalation`),
+    communicationLog: i.communicationLog.map(e => ({ id: e.id, at: e.at, from: e.from, message: e.message })),
+    resolutionNote: i.resolutionNote ?? null,
+    resolvedOn: dateOnly(i.resolvedAt)
+  })),
+  bookingCancellations: [...CANCELLATION_RECORDS].sort(byId).map(x => ({
+    id: x.id,
+    projectId: x.projectId,
+    bookingType: x.bookingType === 'transportation' ? 'transport' : x.bookingType,
+    bookingId: x.bookingId,
+    reason: x.reason,
+    penaltyMinor: x.penaltyIdr == null ? null : String(Math.round(x.penaltyIdr)),
+    refundEligible: x.refundEligible,
+    cancelledBy: seededUser(x.cancelledBy, `cancellation ${x.id} actor`) ?? 'USR-001',
+    cancelledOn: dateOnly(x.cancelledAt)!
+  })),
   // S7d: the project activity log (activities and hand-logged changes).
   activities: [...ACTIVITIES].sort(byId).map(a => ({
     id: a.id,

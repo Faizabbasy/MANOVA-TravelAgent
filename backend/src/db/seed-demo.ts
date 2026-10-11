@@ -99,6 +99,19 @@ export interface DemoCoreSeed {
     isVip: boolean; cancelReason: string | null; replacedByTravelerId: string | null; replacesTravelerId: string | null
   }[]
   roomAssignments?: { id: string; projectId: string; groupId: string; roomLabel: string; roomType: string; travelerIds: string[] }[]
+  /** Change requests, incidents and pre-Finance booking cancellations (S8). */
+  changeRequests?: {
+    id: string; projectId: string; source: string; requestedBy: string; submittedOn: string; affectedEntities: { entityType: string; entityId: string }[]
+    beforeSummary: string; afterSummary: string; operationalImpact: string | null; commercialImpactMinor: string | null; financialImpactNote: string | null
+    timelineImpactNote: string | null; status: string; decidedBy: string | null; decidedOn: string | null; rejectionReason: string | null; activityId: string | null
+  }[]
+  incidents?: {
+    id: string; projectId: string; bookingType: string | null; bookingId: string | null; title: string; description: string; severity: string; ownerId: string
+    status: string; escalatedTo: string | null; communicationLog: { id: string; at: string; from: string; message: string }[]; resolutionNote: string | null; resolvedOn: string | null
+  }[]
+  bookingCancellations?: {
+    id: string; projectId: string; bookingType: string; bookingId: string; reason: string; penaltyMinor: string | null; refundEligible: boolean; cancelledBy: string; cancelledOn: string
+  }[]
   /** Project activity log (S7d). */
   activities?: {
     id: string; projectId: string; message: string; isChange: boolean; reviewed: boolean; createdOn: string; category: string | null; reason: string | null
@@ -457,6 +470,42 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
          where project_activities.provenance = 'demo-fixture' and project_activities.reviewed_at is null`,
         [a.id, a.projectId, a.message, a.isChange, a.reviewed, a.category, a.reason, a.requestedBy, a.beforeValue, a.afterValue, a.impactNote,
           a.approvalStatus, a.approvedBy, `${a.createdOn}T09:00:00+07:00`, P]
+      )
+    }
+    // S8: change requests (after their CHG- entries), incidents and pre-Finance cancellations; API-changed rows are kept.
+    const CR_COLUMNS = ['project_id', 'source', 'requested_by', 'affected_entities', 'before_summary', 'after_summary', 'operational_impact', 'commercial_impact_minor',
+      'financial_impact_note', 'timeline_impact_note', 'status', 'decided_by', 'decided_at', 'rejection_reason', 'implemented_at', 'activity_id', 'created_at'] as const
+    for (const r of seed.changeRequests ?? []) {
+      const decidedAt = r.decidedOn ? `${r.decidedOn}T09:00:00+07:00` : null
+      await tx.query(
+        `insert into change_requests (id, ${CR_COLUMNS.join(', ')}, provenance)
+         values ($1, $2, $3, $4, $5::text::jsonb, ${CR_COLUMNS.slice(4).map((_, n) => `$${n + 6}`).join(', ')}, $${CR_COLUMNS.length + 2})
+         on conflict (id) do update set ${CR_COLUMNS.map(c => `${c} = excluded.${c}`).join(', ')}
+         where change_requests.provenance = 'demo-fixture' and change_requests.changed_by_api_at is null`,
+        [r.id, r.projectId, r.source, r.requestedBy, JSON.stringify(r.affectedEntities), r.beforeSummary, r.afterSummary, r.operationalImpact, r.commercialImpactMinor,
+          r.financialImpactNote, r.timelineImpactNote, r.status, r.decidedBy, decidedAt, r.rejectionReason ?? (r.status === 'rejected' ? 'Ditolak' : null),
+          r.status === 'implemented' ? decidedAt ?? `${r.submittedOn}T09:00:00+07:00` : null, r.activityId, `${r.submittedOn}T09:00:00+07:00`, P]
+      )
+    }
+    const INC_COLUMNS = ['project_id', 'booking_type', 'booking_id', 'title', 'description', 'severity', 'owner_id', 'status', 'escalated_to', 'communication_log',
+      'resolution_note', 'resolved_at'] as const
+    for (const i of seed.incidents ?? []) {
+      await tx.query(
+        `insert into incidents (id, ${INC_COLUMNS.join(', ')}, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11::text::jsonb, $12, $13, $14)
+         on conflict (id) do update set ${INC_COLUMNS.map(c => `${c} = excluded.${c}`).join(', ')}
+         where incidents.provenance = 'demo-fixture' and incidents.changed_by_api_at is null`,
+        [i.id, i.projectId, i.bookingType, i.bookingId, i.title, i.description, i.severity, i.ownerId, i.status, i.escalatedTo, JSON.stringify(i.communicationLog),
+          i.resolutionNote, i.resolvedOn ? `${i.resolvedOn}T09:00:00+07:00` : null, P]
+      )
+    }
+    for (const x of seed.bookingCancellations ?? []) {
+      await tx.query(
+        `insert into booking_cancellations (id, project_id, booking_type, booking_id, outcome, reason, penalty_minor, refund_eligible, cancelled_by, cancelled_on, provenance)
+         values ($1, $2, $3, $4, 'cancelled', $5, $6, $7, $8, $9, $10)
+         on conflict (id) do update set reason = excluded.reason, penalty_minor = excluded.penalty_minor, refund_eligible = excluded.refund_eligible
+         where booking_cancellations.provenance = 'demo-fixture'`,
+        [x.id, x.projectId, x.bookingType, x.bookingId, x.reason, x.penaltyMinor, x.refundEligible, x.cancelledBy, x.cancelledOn, P]
       )
     }
     // S7c: tasks and milestones. A re-seed refreshes fixture rows the API never changed.

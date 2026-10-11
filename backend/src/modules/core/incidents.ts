@@ -7,7 +7,7 @@ import { nextId } from '../../shared/ids'
 import { actorName, recordProjectActivity } from './activities'
 
 /**
- * Project incidents (S8): open → investigating / escalated → resolved → closed. Escalation names the user it goes
+ * Project incidents (S8; the communication log's `from` is a user id, like the demo data): open → investigating / escalated → resolved → closed. Escalation names the user it goes
  * to; the communication log is append-only; resolving needs a note. Every step lands in the project's activity log.
  */
 
@@ -116,7 +116,7 @@ export async function escalateIncident(tx: Queryable, actor: Actor, id: string, 
   if (!TRANSITIONS[inc.status]!.includes('escalated')) throw rule('Insiden ini tidak bisa dieskalasi dari status sekarang.')
   const note = typeof input.note === 'string' && input.note.trim() ? input.note.trim() : null
   const target = await actorName(tx, input.to as string)
-  const log = [...inc.communication_log, logEntry(id, inc.communication_log, await actorName(tx, actor.userId), `Dieskalasi ke ${target}${note ? `: ${note}` : '.'}`)]
+  const log = [...inc.communication_log, logEntry(id, inc.communication_log, actor.userId, `Dieskalasi ke ${target}${note ? `: ${note}` : '.'}`)]
   await tx.query(
     `update incidents set status = 'escalated', escalated_to = $2, communication_log = $3::text::jsonb, changed_by_api_at = now(), updated_at = now() where id = $1`,
     [id, input.to, JSON.stringify(log)])
@@ -128,7 +128,7 @@ export async function addIncidentCommunication(tx: Queryable, actor: Actor, id: 
   if (!text) throw errors.validation({ message: ['Pesan wajib diisi.'] })
   const inc = await lockIncident(tx, id)
   if (inc.status === 'closed') throw rule('Insiden yang sudah ditutup tidak bisa ditambah catatan.')
-  const log = [...inc.communication_log, logEntry(id, inc.communication_log, await actorName(tx, actor.userId), text)]
+  const log = [...inc.communication_log, logEntry(id, inc.communication_log, actor.userId, text)]
   await tx.query('update incidents set communication_log = $2::text::jsonb, changed_by_api_at = now(), updated_at = now() where id = $1', [id, JSON.stringify(log)])
   await recordAudit(tx, { action: 'incident.communication_added', actorUserId: actor.userId, entityType: 'incident', entityId: id, requestId })
 }
