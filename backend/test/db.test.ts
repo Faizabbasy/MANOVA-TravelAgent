@@ -459,6 +459,22 @@ describe('demo seed', () => {
     }
   })
 
+  test('changes, incidents and cancellations exist after 0031', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await db.query("insert into change_requests (id, project_id, source, requested_by, before_summary, after_summary) values ('CR-T1', 'PRJ-101', 'internal', 'USR-002', 'A', 'B')")
+      await expect(db.query("insert into change_requests (id, project_id, source, requested_by, before_summary, after_summary, status) values ('CR-T2', 'PRJ-101', 'internal', 'USR-002', 'A', 'B', 'costing')")).rejects.toThrow()
+      await db.query("insert into incidents (id, project_id, title, description, severity, owner_id) values ('INC-T1', 'PRJ-101', 'X', 'Y', 'high', 'USR-002')")
+      await expect(db.query("insert into incidents (id, project_id, title, description, severity, owner_id) values ('INC-T2', 'PRJ-101', 'X', 'Y', 'urgent', 'USR-002')")).rejects.toThrow()
+      await expect(db.query("insert into booking_cancellations (id, project_id, booking_type, booking_id, outcome, reason, cancelled_by, cancelled_on) values ('CNX-T1', 'PRJ-101', 'hotel', 'HTL-1', 'lost', 'X', 'USR-002', '2026-07-01')")).rejects.toThrow()
+      expect(await db.query("select prefix from id_sequences where prefix in ('CR-', 'INC-', 'CNX-')")).toHaveLength(3)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('project activities exist after 0030', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
