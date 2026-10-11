@@ -1,6 +1,6 @@
 # Backend user & jejak audit (S10a) — desain
 
-Tanggal: 12 Oktober 2026 · Branch: `production` · Status: disetujui (opsi rekomendasi, eksekusi native)
+Tanggal: 12 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-12-users-audit-backend)
 
 S10 (admin) dipecah. **S10a** (dokumen ini): direktori user di server (suspend, aktifkan, ganti role) dan Activity
 Center / Session Log dari jejak audit server. **S10b**: master data & profil organisasi. Editor RBAC (role & matriks izin)

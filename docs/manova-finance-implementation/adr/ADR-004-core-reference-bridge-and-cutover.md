@@ -203,3 +203,15 @@ berganti) dan eskalasi insiden — tidak pernah untuk aktornya sendiri. `GET /no
 `POST /notifications/read-all`, `DELETE /notifications/:id` hanya untuk notifikasi milik user yang login (milik orang lain
 → 404). Lonceng memuat ulang saat dibuka. Notifikasi yang dipicu portal client tetap lokal (`NOT-L…`). Setelah deploy
 jalankan sekali `db:seed:demo` (17 notifikasi demo).
+
+## Update 2026-10-12 — User & jejak audit (S10a)
+
+Status dan role user kini milik server (migrasi 0034: `suspended_reason`, `suspended_at`, `changed_by_api_at`; user
+suspend wajib punya alasan). Hanya Super Admin (`admin.manage-users`) yang boleh `POST /users/:id/suspend`,
+`POST /users/:id/reactivate` dan `PUT /users/:id/role` (hanya super-admin/admin/finance; user portal dan diri sendiri
+ditolak 422; Super Admin aktif terakhir tidak bisa disuspend atau diturunkan). Suspend dan ganti role mengakhiri sesi user
+itu, dan user suspend tidak bisa login. `GET /users` untuk role internal. Activity Center dan Session Log membaca
+`audit_events` lewat `GET /audit/events` (200 terbaru, id `AUD-…`) dan `GET /audit/sessions` (`SES-…`), keduanya butuh
+`admin.view-activity-center`. Editor RBAC, master data dan profil organisasi masih lokal (event `EVT-…`, S10b). Seed ulang
+tidak menimpa role/status user yang pernah diubah lewat API (`changed_by_api_at`). Setelah deploy jalankan
+`db:migrate` lalu `db:seed:demo`.
