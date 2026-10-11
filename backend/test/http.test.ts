@@ -177,7 +177,7 @@ describe('authentication', () => {
   test('suspending a user ends their existing sessions and blocks login', async () => {
     await t.addUser({ id: 'USR-T-SUSP', email: 'suspend.me@manova.id', role: 'admin' })
     const cookie = await t.login('suspend.me@manova.id')
-    await t.db.query(`update users set status = 'suspended' where id = 'USR-T-SUSP'`)
+    await t.db.query(`update users set status = 'suspended', suspended_reason = 'Tes' where id = 'USR-T-SUSP'`)
     expect((await t.call('GET', '/api/v1/auth/me', { cookie })).status).toBe(401)
     const again = await t.call('POST', '/api/v1/auth/login', { body: { email: 'suspend.me@manova.id', password: TEST_PASSWORD } })
     expect(again.status).toBe(401)

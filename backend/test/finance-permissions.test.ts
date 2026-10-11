@@ -113,7 +113,7 @@ describe('every Finance route', () => {
     expect((await req('GET', 'superAdmin', '/finance/cash-position')).status).toBe(200)
     await t.addUser({ id: 'USR-PRM', email: 'prm@manova.id', role: 'finance' })
     const cookie = await t.login('prm@manova.id')
-    await t.db.query("update users set status = 'suspended' where id = 'USR-PRM'")
+    await t.db.query("update users set status = 'suspended', suspended_reason = 'Tes' where id = 'USR-PRM'")
     expect((await t.call('GET', '/api/v1/finance/cash-position', { cookie })).status).toBe(401)
     expect((await t.call('GET', '/api/v1/finance/cash-position', { cookie: 'manova_session=forged-token-value' })).status).toBe(401)
   })

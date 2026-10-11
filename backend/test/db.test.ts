@@ -508,6 +508,19 @@ describe('demo seed', () => {
     }
   })
 
+  test('users carry a suspension reason after 0034', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await expect(db.query("update users set status = 'suspended' where id = 'USR-001'")).rejects.toThrow() // a suspension needs a reason
+      await db.query("update users set status = 'suspended', suspended_reason = 'Cuti panjang', suspended_at = now(), changed_by_api_at = now() where id = 'USR-001'")
+      expect((await db.query<{ r: string }>("select suspended_reason as r from users where id = 'USR-001'"))[0]!.r).toBe('Cuti panjang')
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('notifications exist after 0033', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
