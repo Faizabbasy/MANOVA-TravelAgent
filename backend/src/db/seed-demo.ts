@@ -99,6 +99,8 @@ export interface DemoCoreSeed {
     isVip: boolean; cancelReason: string | null; replacedByTravelerId: string | null; replacesTravelerId: string | null
   }[]
   roomAssignments?: { id: string; projectId: string; groupId: string; roomLabel: string; roomType: string; travelerIds: string[] }[]
+  /** In-app notifications (S9b). */
+  notifications?: { id: string; userId: string; type: string; title: string; body: string; entityType: string | null; entityId: string | null; category: string | null; read: boolean; createdOn: string }[]
   /** Document metadata and messages (S9). */
   documents?: {
     id: string; entityType: string; entityId: string; projectId: string | null; name: string; category: string; version: number; accessLevel: string; sourceType: string
@@ -480,6 +482,16 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
          where project_activities.provenance = 'demo-fixture' and project_activities.reviewed_at is null`,
         [a.id, a.projectId, a.message, a.isChange, a.reviewed, a.category, a.reason, a.requestedBy, a.beforeValue, a.afterValue, a.impactNote,
           a.approvalStatus, a.approvedBy, `${a.createdOn}T09:00:00+07:00`, P]
+      )
+    }
+    // S9b: notifications. A re-seed refreshes the text of fixture rows but keeps what users read.
+    for (const x of seed.notifications ?? []) {
+      await tx.query(
+        `insert into notifications (id, user_id, type, title, body, entity_type, entity_id, category, read, created_at, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         on conflict (id) do update set title = excluded.title, body = excluded.body
+         where notifications.provenance = 'demo-fixture'`,
+        [x.id, x.userId, x.type, x.title, x.body, x.entityType, x.entityId, x.category, x.read, `${x.createdOn}T09:00:00+07:00`, P]
       )
     }
     // S9: documents (versions linked in a second pass) and messages. Only fixture rows are refreshed; API rows are untouched.

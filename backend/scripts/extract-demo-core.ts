@@ -20,7 +20,7 @@ import { CORE_BOOKING_KEYS, departureDateOf, miceTotals } from '../src/modules/c
 import { ITINERARY_ITEMS, PROJECT_SERVICES, PROJECTS, ROOM_ASSIGNMENTS, TRAVELER_GROUPS, TRAVELERS } from '../../frontend/app/data/projects'
 import { ACTIVITIES, TASKS } from '../../frontend/app/data/activity'
 import { CANCELLATION_RECORDS, CHANGE_REQUESTS, INCIDENTS } from '../../frontend/app/data/change-incident'
-import { DOCUMENT_RECORDS, MESSAGE_RECORDS } from '../../frontend/app/data/document-comms'
+import { DOCUMENT_RECORDS, MESSAGE_RECORDS, NOTIFICATION_RECORDS } from '../../frontend/app/data/document-comms'
 import { PROJECT_MILESTONES } from '../../frontend/app/data/project-orders'
 import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
 import { QUOTATIONS } from '../../frontend/app/data/quotations'
@@ -342,6 +342,19 @@ const seed: DemoCoreSeed = {
     replacesTravelerId: tr.replacesTravelerId ?? null
   })),
   roomAssignments: [...ROOM_ASSIGNMENTS].sort(byId).map(r => ({ id: r.id, projectId: r.projectId, groupId: r.groupId, roomLabel: r.roomLabel, roomType: r.roomType, travelerIds: [...r.travelerIds] })),
+  // S9b: in-app notifications (one recipient per row).
+  notifications: [...NOTIFICATION_RECORDS].sort(byId).filter(x => seededUser(x.userId, `notification ${x.id} recipient`)).map(x => ({
+    id: x.id,
+    userId: x.userId,
+    type: x.type,
+    title: x.title,
+    body: x.body,
+    entityType: x.entityType ?? null,
+    entityId: x.entityId ?? null,
+    category: x.category ?? null,
+    read: x.read,
+    createdOn: dateOnly(x.createdAt)!
+  })),
   // S9: document metadata and messages.
   documents: [...DOCUMENT_RECORDS].sort(byId).map(d => ({
     id: d.id,

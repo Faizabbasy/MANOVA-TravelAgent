@@ -494,6 +494,20 @@ describe('demo seed', () => {
     }
   })
 
+  test('demo notifications are seeded; a re-seed keeps what users read', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ n: number }>('select count(*)::int as n from notifications'))[0]!.n).toBe(17)
+      await db.query("update notifications set read = true where id = 'NOT-001'")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ r: boolean }>("select read as r from notifications where id = 'NOT-001'"))[0]!.r).toBe(true)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('notifications exist after 0033', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
