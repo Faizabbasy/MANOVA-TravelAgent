@@ -172,3 +172,15 @@ juga di `frontend/app/data/rbac.ts`). Entri perubahan otomatis ditutup dengan `P
 403. Modul yang masih lokal (change request, insiden, pembatalan non-Finance, RFQ, amend SO, portal, persetujuan klien
 MICE) tetap menulis `ACT-L`/`CHG-L` di browser; sinkron tidak menghapusnya. Log sistem / Activity Center tetap lokal
 (S10). Setelah deploy jalankan sekali `db:seed:demo` (9 entri demo).
+
+## Update 2026-10-11 — Change request, insiden & pembatalan non-Finance (S8)
+
+Change request (alur internal submitted → under-review → approved/rejected → implemented), insiden, dan catatan
+pembatalan no-show/refunded kini di server (migrasi 0031: `change_requests`, `incidents`, `booking_cancellations`).
+Membuat change request membuka entri perubahan `CHG-` (S7d) dalam transaksi yang sama dan keputusan change request
+memutuskan entri itu. Hak: buat CR/insiden & langkah insiden `project-order.log-change`; review/setujui/tolak CR
+`project-order.review-change`. Status booking `no-show`/`refunded` menerima `penaltyMinor` & `refundEligible` dan
+menyimpan catatan `CNX-`; pembatalan `cancelled` tetap kasus Finance (`refunds`) tanpa catatan lokal. Server menolak
+`→ in-progress` bila ada insiden open/escalated dan `→ completed` bila ada change request submitted/under-review. Alur
+portal klien (draft, cek ketersediaan, estimasi biaya, persetujuan klien) tetap lokal (`CR-L…`). Setelah deploy jalankan
+sekali `db:seed:demo` (7 CR, 4 insiden, 3 pembatalan riwayat).

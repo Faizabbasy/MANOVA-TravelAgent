@@ -1,6 +1,6 @@
 # Backend change request, insiden & pembatalan non-Finance (S8) — desain
 
-Tanggal: 11 Oktober 2026 · Branch: `production` · Status: disetujui (eksekusi native)
+Tanggal: 11 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-11-changes-incidents-backend)
 
 S8 memindahkan alur internal change request, insiden, dan catatan pembatalan non-Finance ke server, dan server
 menegakkan gate workflow yang bergantung pada keduanya. Alur portal klien (draft, cek ketersediaan, estimasi biaya,
