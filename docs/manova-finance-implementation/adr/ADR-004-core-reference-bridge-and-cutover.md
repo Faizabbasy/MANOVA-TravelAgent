@@ -184,3 +184,13 @@ menyimpan catatan `CNX-`; pembatalan `cancelled` tetap kasus Finance (`refunds`)
 `→ ongoing-trip` (tahap Departure) bila ada insiden open/escalated dan `→ completed` bila ada change request submitted/under-review. Alur
 portal klien (draft, cek ketersediaan, estimasi biaya, persetujuan klien) tetap lokal (`CR-L…`). Setelah deploy jalankan
 sekali `db:seed:demo` (7 CR, 4 insiden, 3 pembatalan riwayat).
+
+## Update 2026-10-12 — Dokumen & pesan (S9)
+
+Metadata dokumen dan pesan internal kini di server (migrasi 0032: `documents`, `messages`). Tidak ada penyimpanan
+file — dokumen adalah metadatanya, sama seperti layar sebelumnya. `POST /documents` butuh capability baru
+`document.manage` (admin; juga di `frontend/app/data/rbac.ts`), pengunggah = aktor, versi 1. `POST /messages` boleh
+untuk seluruh peran internal, pengirim = aktor; status kirim disimulasikan (internal-note → sent, client/supplier →
+delivered) dan pesan ke client/supplier tercatat di log aktivitas project. ID server `DOC-001…`/`MSG-012…`; fixture
+`DOC-C…` tetap. Notifikasi (termasuk mention) tetap mock lokal sampai S9b. Portal client (unggah/ganti versi dokumen
+client, komentar, read/unread) tetap lokal dengan ID `DOC-L…`/`MSG-L…`. Setelah deploy jalankan sekali `db:seed:demo`.

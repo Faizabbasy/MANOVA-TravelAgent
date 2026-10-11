@@ -1,6 +1,6 @@
 # Backend dokumen & pesan (S9) — desain
 
-Tanggal: 12 Oktober 2026 · Branch: `production` · Status: disetujui (opsi rekomendasi, eksekusi native)
+Tanggal: 12 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-12-documents-messages-backend)
 
 S9 memindahkan metadata dokumen (`DOCUMENT_RECORDS`) dan pesan (`MESSAGE_RECORDS`) ke server untuk alur internal.
 Notifikasi menjadi tahap terpisah (S9b). Tidak ada penyimpanan file: aplikasi hanya mencatat metadata (nama file
@@ -16,14 +16,14 @@ diketik / dipilih), sama seperti sekarang.
 | Hak kirim pesan | Seluruh peran internal (layar Diskusi sekarang tanpa gate); pengirim = aktor; portal 403 |
 | Baca | Seluruh peran internal; portal 403 |
 | Mention | Server menyimpan `mentions` (user internal yang ada); notifikasi mention tetap mock lokal setelah server sukses (notifikasi = S9b) |
-| ID | Server melanjutkan fixture: `DOC-C020…`, `MSG-012…`; penulis lokal portal klien memakai `DOC-L…` / `MSG-L…` dan sinkron mempertahankannya |
+| ID | Server: `DOC-001…` (id_sequences hanya menerima prefix huruf), `MSG-012…`; penulis lokal portal klien memakai `DOC-L…` / `MSG-L…` dan sinkron mempertahankannya |
 | Tetap lokal | Portal klien (unggah/ganti versi dokumen klien, komentar dokumen, read/unread pesan), dokumen legacy `DOCUMENTS` (6, hanya dibaca), notifikasi (S9b) |
 
 ## Backend
 
 ### Migrasi `0032_documents_messages`
 
-- `documents`: `id` (`DOC-C`), `entity_type` ∈ 14 jenis (`project, party, vendor, traveler, quotation, flight, hotel,
+- `documents`: `id` (`DOC-`; fixture `DOC-C…` tetap), `entity_type` ∈ 14 jenis (`project, party, vendor, traveler, quotation, flight, hotel,
   transport, mice, invoice, change-request, incident, travel-request, approval`), `entity_id`, `project_id` FK projects
   (nullable), `name` (wajib), `category` (wajib), `version int ≥ 1 default 1`, `access_level` ∈ internal/client/supplier,
   `source_type` ∈ uploaded/generated, `preview_route`, `uploaded_by` FK users, `uploaded_on date`, `generated_on date`,
@@ -33,7 +33,7 @@ diketik / dipilih), sama seperti sekarang.
   internal-note/client-message/supplier-message, `sender_id` FK users, `body` (wajib), `mentions jsonb` (array id user),
   `delivery_status` ∈ queued/sent/delivered/failed, `delivery_channel` ∈ email/whatsapp (null untuk internal-note),
   `attachment_name`, `read_by jsonb` (array), `sent_at timestamptz`, `provenance`, `created_at`; index `(project_id)`.
-- `id_sequences`: `DOC-C`, `MSG-`.
+- `id_sequences`: `DOC-`, `MSG-`.
 
 ### Endpoint
 
