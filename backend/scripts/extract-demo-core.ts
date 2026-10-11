@@ -20,6 +20,7 @@ import { CORE_BOOKING_KEYS, departureDateOf, miceTotals } from '../src/modules/c
 import { ITINERARY_ITEMS, PROJECT_SERVICES, PROJECTS, ROOM_ASSIGNMENTS, TRAVELER_GROUPS, TRAVELERS } from '../../frontend/app/data/projects'
 import { ACTIVITIES, TASKS } from '../../frontend/app/data/activity'
 import { CANCELLATION_RECORDS, CHANGE_REQUESTS, INCIDENTS } from '../../frontend/app/data/change-incident'
+import { DOCUMENT_RECORDS, MESSAGE_RECORDS } from '../../frontend/app/data/document-comms'
 import { PROJECT_MILESTONES } from '../../frontend/app/data/project-orders'
 import { SALES_ORDERS } from '../../frontend/app/data/sales-orders'
 import { QUOTATIONS } from '../../frontend/app/data/quotations'
@@ -341,6 +342,42 @@ const seed: DemoCoreSeed = {
     replacesTravelerId: tr.replacesTravelerId ?? null
   })),
   roomAssignments: [...ROOM_ASSIGNMENTS].sort(byId).map(r => ({ id: r.id, projectId: r.projectId, groupId: r.groupId, roomLabel: r.roomLabel, roomType: r.roomType, travelerIds: [...r.travelerIds] })),
+  // S9: document metadata and messages.
+  documents: [...DOCUMENT_RECORDS].sort(byId).map(d => ({
+    id: d.id,
+    entityType: d.entityType,
+    entityId: d.entityId,
+    projectId: d.projectId ?? null,
+    name: d.name,
+    category: d.category,
+    version: d.version,
+    accessLevel: d.accessLevel,
+    sourceType: d.sourceType,
+    previewRoute: d.previewRoute ?? null,
+    uploadedBy: seededUser(d.uploadedBy, `document ${d.id} uploader`),
+    uploadedOn: dateOnly(d.uploadedAt),
+    generatedOn: dateOnly(d.generatedAt),
+    expiresOn: dateOnly(d.expiresAt),
+    supersedesId: d.supersedesId ?? null,
+    verified: d.verified ?? false,
+    verifiedBy: seededUser(d.verifiedBy, `document ${d.id} verifier`),
+    verifiedOn: dateOnly(d.verifiedAt)
+  })),
+  messages: [...MESSAGE_RECORDS].sort(byId).map(m => ({
+    id: m.id,
+    entityType: m.entityType,
+    entityId: m.entityId,
+    projectId: m.projectId ?? null,
+    channel: m.channel,
+    senderId: seededUser(m.senderId, `message ${m.id} sender`) ?? 'USR-001',
+    body: m.body,
+    mentions: (m.mentions ?? []).filter(u => seededUser(u, `message ${m.id} mention`)),
+    sentAt: m.sentAt,
+    deliveryStatus: m.deliveryStatus,
+    deliveryChannel: m.deliveryChannel ?? null,
+    attachmentName: m.attachmentName ?? null,
+    readBy: m.readBy ?? []
+  })),
   // S8: change requests (internal statuses), incidents and pre-Finance booking cancellations.
   changeRequests: [...CHANGE_REQUESTS].sort(byId).map(r => ({
     id: r.id,

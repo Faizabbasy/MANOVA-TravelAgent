@@ -99,6 +99,16 @@ export interface DemoCoreSeed {
     isVip: boolean; cancelReason: string | null; replacedByTravelerId: string | null; replacesTravelerId: string | null
   }[]
   roomAssignments?: { id: string; projectId: string; groupId: string; roomLabel: string; roomType: string; travelerIds: string[] }[]
+  /** Document metadata and messages (S9). */
+  documents?: {
+    id: string; entityType: string; entityId: string; projectId: string | null; name: string; category: string; version: number; accessLevel: string; sourceType: string
+    previewRoute: string | null; uploadedBy: string | null; uploadedOn: string | null; generatedOn: string | null; expiresOn: string | null; supersedesId: string | null
+    verified: boolean; verifiedBy: string | null; verifiedOn: string | null
+  }[]
+  messages?: {
+    id: string; entityType: string; entityId: string; projectId: string | null; channel: string; senderId: string; body: string; mentions: string[]; sentAt: string
+    deliveryStatus: string; deliveryChannel: string | null; attachmentName: string | null; readBy: string[]
+  }[]
   /** Change requests, incidents and pre-Finance booking cancellations (S8). */
   changeRequests?: {
     id: string; projectId: string; source: string; requestedBy: string; submittedOn: string; affectedEntities: { entityType: string; entityId: string }[]
@@ -470,6 +480,32 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
          where project_activities.provenance = 'demo-fixture' and project_activities.reviewed_at is null`,
         [a.id, a.projectId, a.message, a.isChange, a.reviewed, a.category, a.reason, a.requestedBy, a.beforeValue, a.afterValue, a.impactNote,
           a.approvalStatus, a.approvedBy, `${a.createdOn}T09:00:00+07:00`, P]
+      )
+    }
+    // S9: documents (versions linked in a second pass) and messages. Only fixture rows are refreshed; API rows are untouched.
+    const DOC_COLUMNS = ['entity_type', 'entity_id', 'project_id', 'name', 'category', 'version', 'access_level', 'source_type', 'preview_route', 'uploaded_by',
+      'uploaded_on', 'generated_on', 'expires_on', 'verified', 'verified_by', 'verified_on'] as const
+    for (const d of seed.documents ?? []) {
+      await tx.query(
+        `insert into documents (id, ${DOC_COLUMNS.join(', ')}, provenance)
+         values ($1, ${DOC_COLUMNS.map((_, n) => `$${n + 2}`).join(', ')}, $${DOC_COLUMNS.length + 2})
+         on conflict (id) do update set ${DOC_COLUMNS.map(c => `${c} = excluded.${c}`).join(', ')}
+         where documents.provenance = 'demo-fixture'`,
+        [d.id, d.entityType, d.entityId, d.projectId, d.name, d.category, d.version, d.accessLevel, d.sourceType, d.previewRoute, d.uploadedBy,
+          d.uploadedOn, d.generatedOn, d.expiresOn, d.verified, d.verifiedBy, d.verifiedOn, P]
+      )
+    }
+    for (const d of seed.documents ?? []) {
+      if (d.supersedesId) await tx.query("update documents set supersedes_id = $2 where id = $1 and provenance = 'demo-fixture'", [d.id, d.supersedesId])
+    }
+    for (const m of seed.messages ?? []) {
+      await tx.query(
+        `insert into messages (id, entity_type, entity_id, project_id, channel, sender_id, body, mentions, delivery_status, delivery_channel, attachment_name, read_by, sent_at, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8::text::jsonb, $9, $10, $11, $12::text::jsonb, $13, $14)
+         on conflict (id) do update set body = excluded.body, mentions = excluded.mentions, delivery_status = excluded.delivery_status, read_by = excluded.read_by
+         where messages.provenance = 'demo-fixture'`,
+        [m.id, m.entityType, m.entityId, m.projectId, m.channel, m.senderId, m.body, JSON.stringify(m.mentions), m.deliveryStatus, m.deliveryChannel, m.attachmentName,
+          JSON.stringify(m.readBy), m.sentAt.length === 10 ? `${m.sentAt}T09:00:00+07:00` : m.sentAt, P]
       )
     }
     // S8: change requests (after their CHG- entries), incidents and pre-Finance cancellations; API-changed rows are kept.

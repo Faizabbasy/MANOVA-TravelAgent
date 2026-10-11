@@ -478,6 +478,22 @@ describe('demo seed', () => {
     }
   })
 
+  test('demo documents and messages are seeded; a re-seed keeps API rows and fixture versions', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const [counts] = await db.query<{ d: number; m: number }>('select (select count(*)::int from documents) as d, (select count(*)::int from messages) as m')
+      expect(counts).toEqual({ d: 19, m: 11 })
+      expect((await db.query<{ s: string }>("select supersedes_id as s from documents where id = 'DOC-C019'"))[0]!.s).toBe('DOC-C018')
+      await db.query("insert into documents (id, entity_type, entity_id, name, category, access_level, source_type) values ('DOC-900', 'project', 'PRJ-101', 'API', 'X', 'internal', 'uploaded')")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ n: number }>('select count(*)::int as n from documents'))[0]!.n).toBe(20)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('documents and messages exist after 0032', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
