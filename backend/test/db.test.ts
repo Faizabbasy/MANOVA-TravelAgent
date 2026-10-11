@@ -508,6 +508,21 @@ describe('demo seed', () => {
     }
   })
 
+  test('a demo re-seed keeps a suspension or role change made through the API', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await db.query("update users set status = 'suspended', suspended_reason = 'Cuti', suspended_at = now(), changed_by_api_at = now() where id = 'USR-001'")
+      await db.query("update users set role = 'finance', changed_by_api_at = now() where id = 'USR-003'")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const rows = await db.query<{ id: string; status: string; role: string; r: string | null }>("select id, status, role, suspended_reason as r from users where id in ('USR-001', 'USR-003') order by id")
+      expect(rows).toEqual([{ id: 'USR-001', status: 'suspended', role: 'admin', r: 'Cuti' }, { id: 'USR-003', status: 'active', role: 'finance', r: null }])
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('users carry a suspension reason after 0034', async () => {
     const { db, cleanup } = await makeTestDb()
     try {

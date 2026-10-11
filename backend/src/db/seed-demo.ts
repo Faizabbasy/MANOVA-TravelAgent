@@ -257,8 +257,11 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
       await tx.query(
         `insert into users (id, email, name, role, party_id, vendor_id, status, password_hash, provenance)
          values ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-         on conflict (id) do update set email = excluded.email, name = excluded.name, role = excluded.role,
-           party_id = excluded.party_id, vendor_id = excluded.vendor_id, status = excluded.status,
+         on conflict (id) do update set email = excluded.email, name = excluded.name,
+           -- S10a: a role or status the Super Admin changed through the API survives a demo re-seed.
+           role = case when users.changed_by_api_at is null then excluded.role else users.role end,
+           party_id = excluded.party_id, vendor_id = excluded.vendor_id,
+           status = case when users.changed_by_api_at is null then excluded.status else users.status end,
            password_hash = excluded.password_hash, updated_at = now()
          where users.provenance = 'demo-fixture'`,
         [u.id, u.email, u.name, u.role, u.partyId, u.vendorId, u.status, passwordHash, P]
