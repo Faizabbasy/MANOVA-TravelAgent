@@ -78,16 +78,30 @@ export async function logChange(tx: Queryable, actor: Actor, projectId: string, 
   const after = text(input.afterValue, 'afterValue', problems)
   const impact = text(input.impactNote, 'impactNote', problems)
   if (Object.keys(problems).length) throw errors.validation(problems)
-  const id = await nextId(tx, 'CHG-')
-  await tx.query(
-    `insert into project_activities (id, project_id, message, is_change, reviewed, category, reason, requested_by, before_value, after_value,
-                                     impact_note, approval_status, actor_user_id, source_action)
-     values ($1, $2, $3, true, false, $4, $3, $5, $6, $7, $8, 'pending', $5, 'change.logged')`,
-    [id, projectId, reason, input.category, actor.userId, before, after, impact]
-  )
+  const id = await insertChangeEntry(tx, { projectId, category: input.category as string, reason: reason!, requestedBy: actor.userId, before, after, impact, sourceAction: 'change.logged' })
   await recordAudit(tx, { action: 'project_change.logged', actorUserId: actor.userId, entityType: 'project_activity', entityId: id, requestId,
     after: { projectId, category: input.category, reason } })
   return { id }
+}
+
+/** A pending change entry (`CHG-`) — logged by hand, or opened by a change request (S8). */
+export async function insertChangeEntry(tx: Queryable, e: { projectId: string; category: string; reason: string; requestedBy: string; before: string | null; after: string | null; impact: string | null; sourceAction: string; sourceEntityId?: string | null }): Promise<string> {
+  const id = await nextId(tx, 'CHG-')
+  await tx.query(
+    `insert into project_activities (id, project_id, message, is_change, reviewed, category, reason, requested_by, before_value, after_value,
+                                     impact_note, approval_status, actor_user_id, source_action, source_entity_id)
+     values ($1, $2, $3, true, false, $4, $3, $5, $6, $7, $8, 'pending', $5, $9, $10)`,
+    [id, e.projectId, e.reason.slice(0, 1000), e.category, e.requestedBy, e.before, e.after, e.impact, e.sourceAction, e.sourceEntityId ?? null]
+  )
+  return id
+}
+
+/** Decides a change entry that is still pending (a change request's decision follows it, S8); no-op otherwise. */
+export async function decidePendingChange(tx: Queryable, actorUserId: string, id: string | null, decision: 'approved' | 'rejected'): Promise<void> {
+  if (!id) return
+  await tx.query(
+    `update project_activities set approval_status = $2, approved_by = $3, reviewed = true, reviewed_by = $3, reviewed_at = now()
+      where id = $1 and approval_status = 'pending'`, [id, decision, actorUserId])
 }
 
 async function lockActivity(tx: Queryable, id: string) {
