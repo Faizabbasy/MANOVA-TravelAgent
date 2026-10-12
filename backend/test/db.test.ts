@@ -523,6 +523,23 @@ describe('demo seed', () => {
     }
   })
 
+  test('master data records and the organization profile exist after 0035', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await db.query(`insert into master_data_records (id, category, data) values ('APT-901', 'airport', '{"iataCode":"CGK"}'::jsonb)`)
+      await expect(db.query(`insert into master_data_records (id, category, data) values ('X-1', 'unknown', '{}'::jsonb)`)).rejects.toThrow()
+      await expect(db.query(`insert into master_data_records (id, category, data) values ('APT-902', 'airport', '[]'::jsonb)`)).rejects.toThrow() // data is an object
+      await expect(db.query(`insert into master_data_records (id, category, data) values ('APT-903', 'airport', '{"iataCode":"CGK"}'::jsonb)`)).rejects.toThrow() // code unique per category
+      await db.query(`insert into master_data_records (id, category, data) values ('ALN-901', 'airline', '{"iataCode":"CGK"}'::jsonb)`)
+      await db.query(`insert into organization_profile (id, legal_name, display_name, address, default_currency_code, contact_email) values ('ORG-001', 'PT A', 'A', 'Jl. A', 'IDR', 'a@a.id')`)
+      await expect(db.query(`insert into organization_profile (id, legal_name, display_name, address, default_currency_code, contact_email) values ('ORG-002', 'PT B', 'B', 'Jl. B', 'IDR', 'b@b.id')`)).rejects.toThrow() // singleton
+      expect((await db.query<{ a: boolean }>("select is_active as a from master_data_records where id = 'APT-901'"))[0]!.a).toBe(true)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('users carry a suspension reason after 0034', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
