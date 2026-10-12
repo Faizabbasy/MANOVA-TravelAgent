@@ -524,6 +524,30 @@ describe('demo seed', () => {
     }
   })
 
+  test('assets, maintenance and checkouts exist after 0036; one open checkout per asset', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await db.query(`insert into assets (id, code, name, category, purchased_on, condition, status, location, quantity)
+                      values ('AST-901', 'CAM-901', 'Kamera Uji', 'camera', '2026-01-01', 'good', 'available', 'Gudang', 1)`)
+      await expect(db.query(`insert into assets (id, code, name, category, purchased_on, condition, status, location, quantity)
+                             values ('AST-902', 'CAM-902', 'X', 'camera', '2026-01-01', 'good', 'in-use', 'Gudang', 0)`)).rejects.toThrow() // quantity > 0
+      await expect(db.query(`insert into assets (id, code, name, category, purchased_on, condition, status, location, quantity)
+                             values ('AST-903', 'CAM-901', 'X', 'camera', '2026-01-01', 'good', 'available', 'Gudang', 1)`)).rejects.toThrow() // code unique
+      await db.query(`insert into asset_checkouts (id, asset_id, project_id, borrowed_by, checked_out_on, due_on, status)
+                      values ('ACO-901', 'AST-901', 'PRJ-101', 'USR-002', '2026-10-01', '2026-10-20', 'checked-out')`)
+      await expect(db.query(`insert into asset_checkouts (id, asset_id, borrowed_by, checked_out_on, due_on, status)
+                             values ('ACO-902', 'AST-901', 'USR-002', '2026-10-01', '2026-10-20', 'checked-out')`)).rejects.toThrow() // one open checkout
+      await expect(db.query(`insert into asset_checkouts (id, asset_id, borrowed_by, checked_out_on, due_on, status)
+                             values ('ACO-903', 'AST-901', 'USR-002', '2026-10-01', '2026-10-20', 'returned')`)).rejects.toThrow() // returned needs a date and condition
+      await db.query(`insert into asset_maintenance (id, asset_id, type, scheduled_on, status, cost_minor) values ('MNT-901', 'AST-901', 'routine', '2026-11-01', 'scheduled', 500000)`)
+      await expect(db.query(`insert into asset_maintenance (id, asset_id, type, scheduled_on, status) values ('MNT-902', 'AST-901', 'routine', '2026-11-01', 'overdue')`)).rejects.toThrow() // overdue is derived
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('demo master data and the organization profile are seeded; a re-seed keeps what the API changed', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
