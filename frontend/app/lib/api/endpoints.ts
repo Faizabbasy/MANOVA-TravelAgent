@@ -1,6 +1,10 @@
 import type { ApiClient } from './client'
 import { newIdempotencyKey } from './client'
+import type { MasterDataCategoryKey } from '~/types/master-data'
 import type {
+  MasterDataRecordDto,
+  OrganizationProfileDto,
+  OrganizationProfileInput,
   ItineraryItemDto,
   ItineraryItemInput,
   MilestoneDto,
@@ -180,6 +184,15 @@ export function createManovaApi (client: ApiClient) {
       changeUserRole: (id: string, role: string) => client.put<UserDto>(`/users/${seg(id)}/role`, { role }),
       listAuditEvents: () => client.get<SystemEventDto[]>('/audit/events'),
       listAuditSessions: () => client.get<SessionLogDto[]>('/audit/sessions'),
+      listMasterData: () => client.get<MasterDataRecordDto[]>('/master-data'),
+      createMasterRecord: (category: MasterDataCategoryKey, input: Record<string, unknown>, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<MasterDataRecordDto>(`/master-data/${seg(category)}`, input, { idempotencyKey }),
+      updateMasterRecord: (category: MasterDataCategoryKey, id: string, patch: Record<string, unknown>) =>
+        client.patch<MasterDataRecordDto>(`/master-data/${seg(category)}/${seg(id)}`, patch),
+      deactivateMasterRecord: (category: MasterDataCategoryKey, id: string) => client.post<MasterDataRecordDto>(`/master-data/${seg(category)}/${seg(id)}/deactivate`, {}),
+      reactivateMasterRecord: (category: MasterDataCategoryKey, id: string) => client.post<MasterDataRecordDto>(`/master-data/${seg(category)}/${seg(id)}/reactivate`, {}),
+      getOrganizationProfile: () => client.get<OrganizationProfileDto>('/organization-profile'),
+      updateOrganizationProfile: (input: OrganizationProfileInput) => client.put<OrganizationProfileDto>('/organization-profile', input),
       listNotifications: () => client.get<NotificationDto[]>('/notifications'),
       markNotificationRead: (id: string) => client.post<NotificationDto>(`/notifications/${seg(id)}/read`, {}),
       markAllNotificationsRead: () => client.post<NotificationDto[]>('/notifications/read-all', {}),

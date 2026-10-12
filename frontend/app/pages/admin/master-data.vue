@@ -4,9 +4,10 @@ import { Plus, Pencil, Ban, RotateCcw, Layers, MapPin, Building2, FolderKanban, 
 import {
   MASTER_SERVICE_TYPES, MASTER_DESTINATIONS, MASTER_VENDOR_CATEGORIES, MILESTONE_TEMPLATES,
   AIRPORTS, AIRLINES, MASTER_HOTELS, MASTER_CURRENCIES, TAX_RULES, PAYMENT_TERMS, CANCELLATION_RULES,
-  NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES,
-  createMasterDataRecord, updateMasterDataRecord, deactivateMasterDataRecord, reactivateMasterDataRecord, getMasterDataUsageCount
+  NUMBERING_SCHEMES, DOCUMENT_TEMPLATES, READINESS_GATE_CONFIGS, ASSIGNMENT_RULES, getMasterDataUsageCount
 } from '~/data'
+import { createMasterRecordOnServer, setMasterRecordActiveOnServer, updateMasterRecordOnServer } from '~/data/master-data-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import type { MasterDataCategoryKey } from '~/types/master-data'
 
 /**
@@ -22,11 +23,14 @@ import type { MasterDataCategoryKey } from '~/types/master-data'
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Master Data — Administration' })
 
-const { canView, canManage } = usePermissions()
-const { currentUser } = useCurrentUser()
+const { canView, can } = usePermissions()
 const { showToast } = useToast()
 
-const canEdit = computed(() => canManage('administration'))
+/* S10b: master data lives on the server; Admin and Super Admin write (`admin.manage-master-data`, the capability the
+ * server checks). A refused save leaves the list as it was. */
+const canEdit = computed(() => can('admin.manage-master-data'))
+const api = useApi()
+const { saving: isSaving, run: save } = createSaveGate(showToast)
 
 interface FieldDef {
   key: string
@@ -186,9 +190,9 @@ const isFormValid = computed(() => activeCategory.value.fields.every((field) => 
 const isUsageDialogOpen = ref(false)
 const usageCount = ref<number | null>(0)
 const pendingConfirmLabel = ref('')
-let pendingConfirmAction: (() => void) | null = null
+let pendingConfirmAction: (() => Promise<void>) | null = null
 
-function confirmOrRun (itemId: string, itemName: string, actionLabel: string, run: () => void) {
+function confirmOrRun (itemId: string, itemName: string, actionLabel: string, run: () => Promise<void>) {
   const count = getMasterDataUsageCount(activeCategoryKey.value, itemId)
   if (count === 0) { run(); return }
   usageCount.value = count
@@ -209,7 +213,7 @@ function cancelPendingAction () {
 }
 
 /* ---------- Submit create/edit ---------- */
-function submitForm () {
+async function submitForm () {
   if (!isFormValid.value) {
     showToast('Gagal Menyimpan', 'Seluruh field wajib diisi.', 'error')
     return
@@ -222,8 +226,10 @@ function submitForm () {
     payload.items = formItems.value
   }
 
+  const key = activeCategoryKey.value
   if (formMode.value === 'create') {
-    createMasterDataRecord(activeCategoryKey.value, payload, currentUser.value.id)
+    const created = await save('Gagal Menyimpan', () => createMasterRecordOnServer(api, key, payload))
+    if (!created) { return }
     isFormOpen.value = false
     showToast('Data Ditambahkan', `${activeCategory.value.label} baru tercatat.`, 'success')
     return
@@ -231,8 +237,9 @@ function submitForm () {
 
   const id = editingId.value!
   const name = itemDisplayName(activeCategory.value.list.find(i => i.id === id) ?? { id })
-  confirmOrRun(id, name, 'Simpan perubahan', () => {
-    updateMasterDataRecord(activeCategoryKey.value, id, payload, currentUser.value.id)
+  confirmOrRun(id, name, 'Simpan perubahan', async () => {
+    const updated = await save('Gagal Menyimpan', () => updateMasterRecordOnServer(api, key, id, payload))
+    if (!updated) { return }
     isFormOpen.value = false
     showToast('Perubahan Disimpan', `${activeCategory.value.label} "${name}" diperbarui.`, 'success')
   })
@@ -241,15 +248,18 @@ function submitForm () {
 /* ---------- Deactivate / Reactivate ---------- */
 function requestDeactivate (item: Record<string, any>) {
   const name = itemDisplayName(item)
-  confirmOrRun(item.id, name, 'Nonaktifkan', () => {
-    deactivateMasterDataRecord(activeCategoryKey.value, item.id, currentUser.value.id)
+  const key = activeCategoryKey.value
+  confirmOrRun(item.id, name, 'Nonaktifkan', async () => {
+    const done = await save('Gagal Menonaktifkan', () => setMasterRecordActiveOnServer(api, key, item.id, false))
+    if (!done) { return }
     showToast('Data Dinonaktifkan', `${activeCategory.value.label} "${name}" dinonaktifkan. Record historis tidak terpengaruh.`, 'success')
   })
 }
 
-function reactivateItem (item: Record<string, any>) {
+async function reactivateItem (item: Record<string, any>) {
   const name = itemDisplayName(item)
-  reactivateMasterDataRecord(activeCategoryKey.value, item.id, currentUser.value.id)
+  const done = await save('Gagal Mengaktifkan', () => setMasterRecordActiveOnServer(api, activeCategoryKey.value, item.id, true))
+  if (!done) { return }
   showToast('Data Diaktifkan Kembali', `${activeCategory.value.label} "${name}" aktif kembali.`, 'success')
 }
 </script>
@@ -483,7 +493,7 @@ function reactivateItem (item: Record<string, any>) {
             <Button variant="outline" @click="isFormOpen = false">
               Batal
             </Button>
-            <Button :disabled="!isFormValid" @click="submitForm">
+            <Button :disabled="!isFormValid || isSaving" @click="submitForm">
               Simpan
             </Button>
           </template>

@@ -28,7 +28,9 @@ const FORBIDDEN = [
   // S9b: notifications are created and read on the server.
   'markNotificationRead(', 'markAllNotificationsRead(', 'removeNotification(', 'pushNotification(',
   // S10a: user status and role change on the server (Super Admin only).
-  'suspendUser(', 'reactivateUser(', 'assignUserRole('
+  'suspendUser(', 'reactivateUser(', 'assignUserRole(',
+  // S10b: master data and the organization profile change on the server.
+  'createMasterDataRecord(', 'updateMasterDataRecord(', 'deactivateMasterDataRecord(', 'reactivateMasterDataRecord(', 'updateOrganizationProfile('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**

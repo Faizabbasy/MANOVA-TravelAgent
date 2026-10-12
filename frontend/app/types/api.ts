@@ -9,6 +9,7 @@
 
 import type { ServiceStatus, ServiceTypeKey } from './project'
 import type { DocumentEntityType, NotificationCategory, NotificationType } from './document-comms'
+import type { MasterDataCategoryKey } from './master-data'
 
 export type MoneyMinor = string
 export type IsoDate = string
@@ -1364,6 +1365,28 @@ export interface UserDto {
   clientPartyId: string | null
   vendorId: string | null
 }
+/** A master data record (S10b); the category's fields sit under `data`. */
+export interface MasterDataRecordDto {
+  id: string
+  category: MasterDataCategoryKey
+  isActive: boolean
+  data: Record<string, unknown>
+  updatedAt: string
+}
+/** The travel agency's own profile (S10b); `updatedAt`/`updatedBy` are set by the server. */
+export interface OrganizationProfileDto {
+  id: string
+  legalName: string
+  displayName: string
+  address: string
+  defaultCurrencyCode: string
+  businessHours: string
+  contactEmail: string
+  contactPhone: string
+  updatedAt: string
+  updatedBy: string | null
+}
+export type OrganizationProfileInput = Omit<OrganizationProfileDto, 'id' | 'updatedAt' | 'updatedBy'>
 /** An audit event shaped for the Activity Center (S10a). */
 export interface SystemEventDto {
   id: string

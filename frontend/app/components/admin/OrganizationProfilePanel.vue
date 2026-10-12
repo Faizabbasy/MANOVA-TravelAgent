@@ -1,22 +1,35 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { Building2 } from 'lucide-vue-next'
-import { ORGANIZATION_PROFILE, updateOrganizationProfile } from '~/data'
+import { ORGANIZATION_PROFILE } from '~/data'
+import { updateOrganizationProfileOnServer } from '~/data/master-data-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import { formatDateTime } from '~/utils/format'
 
 /**
  * Tab "Organization Profile" — Menu Administration > Ringkasan (Penyederhanaan 7-Role/Menu). Dulu
- * `/admin/organization`, kini tab dalam satu menu bersama Ringkasan — logika tidak diubah. Singleton —
- * profil perusahaan travel agency itu sendiri (BUKAN multi-tenancy, D-080).
+ * `/admin/organization`, kini tab dalam satu menu bersama Ringkasan. Singleton — profil perusahaan travel agency
+ * itu sendiri (BUKAN multi-tenancy, D-080). S10b: disimpan di server (Admin & Super Admin,
+ * `admin.manage-master-data`); currency default harus currency aktif di Master Data.
  */
 
-const { canView, canManage } = usePermissions()
-const { currentUser } = useCurrentUser()
+const { canView, can } = usePermissions()
 const { showToast } = useToast()
 
-const canEdit = computed(() => canManage('administration'))
+const canEdit = computed(() => can('admin.manage-master-data'))
+const api = useApi()
+const { saving: isSaving, run: save } = createSaveGate(showToast)
 
-const form = ref({
+type ProfileForm = {
+  legalName: string
+  displayName: string
+  address: string
+  defaultCurrencyCode: string
+  businessHours: string
+  contactEmail: string
+  contactPhone: string
+}
+const stored = (): ProfileForm => ({
   legalName: ORGANIZATION_PROFILE.legalName,
   displayName: ORGANIZATION_PROFILE.displayName,
   address: ORGANIZATION_PROFILE.address,
@@ -26,8 +39,17 @@ const form = ref({
   contactPhone: ORGANIZATION_PROFILE.contactPhone
 })
 
-const isDirty = ref(false)
-watch(form, () => { isDirty.value = true }, { deep: true })
+const form = ref<ProfileForm>(stored())
+const baseline = ref<ProfileForm>(stored())
+const differs = (a: ProfileForm, b: ProfileForm) => (Object.keys(a) as (keyof ProfileForm)[]).some(k => a[k] !== b[k])
+const isDirty = computed(() => differs(form.value, baseline.value))
+
+/* The server's profile arrives after mount: take it unless the user already started editing. */
+watch(() => ORGANIZATION_PROFILE.updatedAt, () => {
+  const untouched = !isDirty.value
+  baseline.value = stored()
+  if (untouched) { form.value = stored() }
+})
 
 const isValid = computed(() =>
   form.value.legalName.trim().length > 0 &&
@@ -36,36 +58,26 @@ const isValid = computed(() =>
   form.value.contactEmail.trim().length > 0)
 
 function resetForm () {
-  form.value = {
-    legalName: ORGANIZATION_PROFILE.legalName,
-    displayName: ORGANIZATION_PROFILE.displayName,
-    address: ORGANIZATION_PROFILE.address,
-    defaultCurrencyCode: ORGANIZATION_PROFILE.defaultCurrencyCode,
-    businessHours: ORGANIZATION_PROFILE.businessHours,
-    contactEmail: ORGANIZATION_PROFILE.contactEmail,
-    contactPhone: ORGANIZATION_PROFILE.contactPhone
-  }
-  isDirty.value = false
+  form.value = stored()
+  baseline.value = stored()
 }
 
-function submit () {
+async function submit () {
   if (!isValid.value) {
     showToast('Gagal Menyimpan', 'Legal Name, Display Name, Address, dan Contact Email wajib diisi.', 'error')
     return
   }
-  updateOrganizationProfile(
-    {
-      legalName: form.value.legalName.trim(),
-      displayName: form.value.displayName.trim(),
-      address: form.value.address.trim(),
-      defaultCurrencyCode: form.value.defaultCurrencyCode.trim(),
-      businessHours: form.value.businessHours.trim(),
-      contactEmail: form.value.contactEmail.trim(),
-      contactPhone: form.value.contactPhone.trim()
-    },
-    currentUser.value.id
-  )
-  isDirty.value = false
+  const saved = await save('Gagal Menyimpan', () => updateOrganizationProfileOnServer(api, {
+    legalName: form.value.legalName.trim(),
+    displayName: form.value.displayName.trim(),
+    address: form.value.address.trim(),
+    defaultCurrencyCode: form.value.defaultCurrencyCode.trim(),
+    businessHours: form.value.businessHours.trim(),
+    contactEmail: form.value.contactEmail.trim(),
+    contactPhone: form.value.contactPhone.trim()
+  }))
+  if (!saved) { return }
+  resetForm()
   showToast('Profil Organisasi Disimpan', 'Perubahan tercatat di Audit Trail.', 'success')
 }
 </script>
@@ -123,7 +135,7 @@ function submit () {
         </p>
 
         <div v-if="canEdit" class="flex items-center gap-2 mt-4">
-          <Button :disabled="!isDirty || !isValid" @click="submit">
+          <Button :disabled="!isDirty || !isValid || isSaving" @click="submit">
             Simpan Perubahan
           </Button>
           <Button variant="outline" :disabled="!isDirty" @click="resetForm">
