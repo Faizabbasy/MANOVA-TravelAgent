@@ -524,6 +524,27 @@ describe('demo seed', () => {
     }
   })
 
+  test('demo assets, maintenance and checkouts are seeded; a re-seed keeps what the API changed', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect(await db.query('select id from assets')).toHaveLength(16)
+      expect((await db.query<{ p: string; s: string }>("select purchase_price_minor::text as p, status as s from assets where id = 'AST-001'"))[0]).toEqual({ p: '38500000', s: 'in-use' })
+      expect((await db.query<{ s: string }>("select status as s from asset_checkouts where id = 'ACO-005'"))[0]!.s).toBe('checked-out') // 'overdue' is derived
+      expect((await db.query<{ s: string }>("select status as s from asset_maintenance where id = 'MNT-003'"))[0]!.s).toBe('scheduled')
+      expect((await db.query<{ c: string }>("select cost_minor::text as c from asset_maintenance where id = 'MNT-001'"))[0]!.c).toBe('2400000')
+      await db.query("update asset_checkouts set status = 'returned', returned_on = current_date, condition_on_return = 'good', changed_by_api_at = now() where id = 'ACO-001'")
+      await db.query("update assets set status = 'available', changed_by_api_at = now() where id = 'AST-001'")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ s: string }>("select status as s from asset_checkouts where id = 'ACO-001'"))[0]!.s).toBe('returned')
+      expect((await db.query<{ s: string }>("select status as s from assets where id = 'AST-001'"))[0]!.s).toBe('available')
+      expect((await db.query<{ v: number }>("select last_value as v from id_sequences where prefix = 'CAM-'"))[0]!.v).toBeGreaterThanOrEqual(5)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('assets, maintenance and checkouts exist after 0036; one open checkout per asset', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
@@ -875,9 +896,10 @@ describe('demo seed', () => {
     // `paymentTerms` on a quotation is the offered term ("DP 30%"), not a payment record.
     expect([...detailKeys].filter(k => k !== 'paymentTerms' && /invoice|payment|receipt|transaction|outstanding|balance|paid/i.test(k))).toEqual([])
     // `paymentTerm` is a CRM billing term ("30 hari"), not a payment record; `netCostMinor` is the booking's net cost (Booking module, S4a).
-    expect([...keys].filter(k => k !== 'paymentTerm' && k !== 'netCostMinor' && /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
+    // S11a: `costMinor` is an asset maintenance cost (Inventory), not a Finance record.
+    expect([...keys].filter(k => k !== 'paymentTerm' && k !== 'netCostMinor' && k !== 'costMinor' && /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
     // The only money-like values are owned by Project/Booking/Sales (ADR-007): contract value, service budget,
     // booking sell price and net cost, and the price of a Group Trip participant booking. S4b: vendor quotation amount (Procurement). S7b: the vendor amount of an itinerary item (Operations). S7c: a milestone's planned budget (Operations). S8: a change request's commercial impact and a no-show/refund penalty (Operations).
-    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['amountMinor', 'budgetMinor', 'commercialImpactMinor', 'contractValueMinor', 'creditLimitMinor', 'netCostMinor', 'penaltyMinor', 'priceMinor', 'sellAmountMinor', 'vendorAmountMinor'])
+    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['amountMinor', 'budgetMinor', 'commercialImpactMinor', 'contractValueMinor', 'costMinor', 'creditLimitMinor', 'netCostMinor', 'penaltyMinor', 'priceMinor', 'purchasePriceMinor', 'sellAmountMinor', 'vendorAmountMinor'])
   })
 })

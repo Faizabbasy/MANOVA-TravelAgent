@@ -32,6 +32,7 @@ import {
   MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_VENDOR_CATEGORIES, MILESTONE_TEMPLATES, NUMBERING_SCHEMES, ORGANIZATION_PROFILE, PAYMENT_TERMS,
   READINESS_GATE_CONFIGS, TAX_RULES
 } from '../../frontend/app/data/master-data'
+import { ASSET_CHECKOUTS, ASSETS, MAINTENANCE_SCHEDULES } from '../../frontend/app/data/inventory'
 import { VENDOR_CONTACTS, VENDOR_DOCUMENTS, VENDOR_PRODUCTS, VENDOR_QUOTATIONS, VENDORS } from '../../frontend/app/data/vendors'
 import type { DemoCoreSeed } from '../src/db/seed-demo'
 
@@ -358,6 +359,21 @@ const seed: DemoCoreSeed = {
     id, category, isActive, data: JSON.parse(JSON.stringify(rest)) as Record<string, unknown>
   }))),
   organizationProfile: (({ id: _id, updatedAt, updatedBy, ...p }) => ({ ...p, updatedBy: seededUser(updatedBy, 'organization profile') ? updatedBy : null, updatedOn: dateOnly(updatedAt)! }))(ORGANIZATION_PROFILE),
+  // S11a: assets, maintenance and checkouts. 'overdue' is derived by the API, so it is stored as the open state.
+  assets: [...ASSETS].sort(byId).map(a => ({
+    id: a.id, code: a.code, name: a.name, category: a.category, brand: a.brand ?? null, serialNumber: a.serialNumber ?? null,
+    purchasedOn: dateOnly(a.purchasedAt)!, purchasePriceMinor: a.purchasePriceIdr === undefined ? null : String(Math.round(a.purchasePriceIdr)),
+    condition: a.condition, status: a.status, location: a.location, quantity: a.quantity, note: a.note ?? null
+  })),
+  assetMaintenance: [...MAINTENANCE_SCHEDULES].sort(byId).map(m => ({
+    id: m.id, assetId: m.assetId, type: m.type, scheduledOn: dateOnly(m.scheduledAt)!, completedOn: dateOnly(m.completedAt),
+    status: m.status === 'overdue' ? 'scheduled' : m.status, vendorName: m.vendorName ?? null,
+    costMinor: m.costIdr === undefined ? null : String(Math.round(m.costIdr)), note: m.note ?? null, intervalDays: m.intervalDays ?? null
+  })),
+  assetCheckouts: [...ASSET_CHECKOUTS].sort(byId).filter(c => seededUser(c.borrowedBy, `asset checkout ${c.id} borrower`)).map(c => ({
+    id: c.id, assetId: c.assetId, projectId: c.projectId ?? null, borrowedBy: c.borrowedBy, checkedOutOn: dateOnly(c.checkedOutAt)!, dueOn: dateOnly(c.dueAt)!,
+    returnedOn: dateOnly(c.returnedAt), status: c.status === 'returned' ? 'returned' : 'checked-out', conditionOnReturn: c.conditionOnReturn ?? null, note: c.note ?? null
+  })),
   // S9b: in-app notifications (one recipient per row).
   notifications: [...NOTIFICATION_RECORDS].sort(byId).filter(x => seededUser(x.userId, `notification ${x.id} recipient`)).map(x => ({
     id: x.id,

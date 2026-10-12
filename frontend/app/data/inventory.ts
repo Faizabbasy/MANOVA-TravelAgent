@@ -8,7 +8,7 @@ import type {
   MaintenanceSchedule
 } from '~/types/inventory'
 import type { StatusOption } from '~/types/common'
-import { DEMO_REFERENCE_DATE } from '~/utils/attention'
+import { DEMO_REFERENCE_DATE } from '../utils/attention'
 
 /**
  * Inventory aset milik MANOVA (Revisi 9-Modul, modul 7 — `revisi.md` #20 "tambah inventory di role

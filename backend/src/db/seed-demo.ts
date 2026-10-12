@@ -103,6 +103,10 @@ export interface DemoCoreSeed {
   masterData?: { id: string; category: string; isActive: boolean; data: Record<string, unknown> }[]
   /** The travel agency's own profile (S10b, singleton ORG-001). */
   organizationProfile?: { legalName: string; displayName: string; address: string; defaultCurrencyCode: string; businessHours: string; contactEmail: string; contactPhone: string; updatedBy: string | null; updatedOn: string } | null
+  /** MANOVA-owned assets, maintenance and checkouts (S11a); money as decimal strings. */
+  assets?: { id: string; code: string; name: string; category: string; brand: string | null; serialNumber: string | null; purchasedOn: string; purchasePriceMinor: string | null; condition: string; status: string; location: string; quantity: number; note: string | null }[]
+  assetMaintenance?: { id: string; assetId: string; type: string; scheduledOn: string; completedOn: string | null; status: string; vendorName: string | null; costMinor: string | null; note: string | null; intervalDays: number | null }[]
+  assetCheckouts?: { id: string; assetId: string; projectId: string | null; borrowedBy: string; checkedOutOn: string; dueOn: string; returnedOn: string | null; status: string; conditionOnReturn: string | null; note: string | null }[]
   /** In-app notifications (S9b). */
   notifications?: { id: string; userId: string; type: string; title: string; body: string; entityType: string | null; entityId: string | null; category: string | null; read: boolean; createdOn: string }[]
   /** Document metadata and messages (S9). */
@@ -511,6 +515,40 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
            contact_phone = excluded.contact_phone, updated_by = excluded.updated_by, updated_at = excluded.updated_at
          where organization_profile.provenance = 'demo-fixture' and organization_profile.changed_by_api_at is null`,
         [o.legalName, o.displayName, o.address, o.defaultCurrencyCode, o.businessHours, o.contactEmail, o.contactPhone, o.updatedBy, `${o.updatedOn}T09:00:00+07:00`, P]
+      )
+    }
+    // S11a: assets, maintenance and checkouts. Rows changed through the API are left alone.
+    const keep = (table: string) => `where ${table}.provenance = 'demo-fixture' and ${table}.changed_by_api_at is null`
+    for (const a of seed.assets ?? []) {
+      await tx.query(
+        `insert into assets (id, code, name, category, brand, serial_number, purchased_on, purchase_price_minor, condition, status, location, quantity, note, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+         on conflict (id) do update set code = excluded.code, name = excluded.name, category = excluded.category, brand = excluded.brand,
+           serial_number = excluded.serial_number, purchased_on = excluded.purchased_on, purchase_price_minor = excluded.purchase_price_minor,
+           condition = excluded.condition, status = excluded.status, location = excluded.location, quantity = excluded.quantity, note = excluded.note, updated_at = now()
+         ${keep('assets')}`,
+        [a.id, a.code, a.name, a.category, a.brand, a.serialNumber, a.purchasedOn, a.purchasePriceMinor, a.condition, a.status, a.location, a.quantity, a.note, P]
+      )
+    }
+    for (const m of seed.assetMaintenance ?? []) {
+      await tx.query(
+        `insert into asset_maintenance (id, asset_id, type, scheduled_on, completed_on, status, vendor_name, cost_minor, note, interval_days, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         on conflict (id) do update set type = excluded.type, scheduled_on = excluded.scheduled_on, completed_on = excluded.completed_on, status = excluded.status,
+           vendor_name = excluded.vendor_name, cost_minor = excluded.cost_minor, note = excluded.note, interval_days = excluded.interval_days, updated_at = now()
+         ${keep('asset_maintenance')}`,
+        [m.id, m.assetId, m.type, m.scheduledOn, m.completedOn, m.status, m.vendorName, m.costMinor, m.note, m.intervalDays, P]
+      )
+    }
+    for (const c of seed.assetCheckouts ?? []) {
+      await tx.query(
+        `insert into asset_checkouts (id, asset_id, project_id, borrowed_by, checked_out_on, due_on, returned_on, status, condition_on_return, note, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+         on conflict (id) do update set project_id = excluded.project_id, borrowed_by = excluded.borrowed_by, checked_out_on = excluded.checked_out_on,
+           due_on = excluded.due_on, returned_on = excluded.returned_on, status = excluded.status, condition_on_return = excluded.condition_on_return,
+           note = excluded.note, updated_at = now()
+         ${keep('asset_checkouts')}`,
+        [c.id, c.assetId, c.projectId, c.borrowedBy, c.checkedOutOn, c.dueOn, c.returnedOn, c.status, c.conditionOnReturn, c.note, P]
       )
     }
     // S9b: notifications. A re-seed refreshes the text of fixture rows but keeps what users read.
