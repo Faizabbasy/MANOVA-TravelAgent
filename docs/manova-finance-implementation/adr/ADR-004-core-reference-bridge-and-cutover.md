@@ -215,3 +215,16 @@ itu, dan user suspend tidak bisa login. `GET /users` untuk role internal. Activi
 `admin.view-activity-center`. Editor RBAC, master data dan profil organisasi masih lokal (event `EVT-…`, S10b). Seed ulang
 tidak menimpa role/status user yang pernah diubah lewat API (`changed_by_api_at`). Setelah deploy jalankan
 `db:migrate` lalu `db:seed:demo`.
+
+## Update 2026-10-12 — Master data & profil organisasi (S10b)
+
+16 kategori master data kini di server (migrasi 0035, `master_data_records`: `category` + `data jsonb`, field divalidasi
+per kategori di `core/master-data.ts`; kode IATA bandara/maskapai dan kode currency unik per kategori, juga lewat index
+unik) dan profil organisasi di tabel singleton `organization_profile` (`ORG-001`). Semua peran internal membaca
+(`GET /master-data`, `GET /organization-profile`; portal 403); Admin dan Super Admin menulis lewat
+`admin.manage-master-data`: `POST /master-data/:category` (Idempotency-Key), `PATCH /master-data/:category/:id`,
+`POST …/deactivate|reactivate`, `PUT /organization-profile`. Currency default profil harus currency aktif, dan currency
+itu tidak bisa dinonaktifkan atau diganti kodenya selama dipakai profil. Kategori ini tetap referensi/konfigurasi: tidak
+ada booking, invoice atau penomoran ID yang membacanya sebagai aturan. Hitungan "dipakai di N record" dihitung di
+browser. Editor RBAC tetap lokal. Seed ulang tidak menimpa record/profil yang diubah lewat API (`changed_by_api_at`).
+Setelah deploy jalankan `db:migrate` lalu `db:seed:demo`.

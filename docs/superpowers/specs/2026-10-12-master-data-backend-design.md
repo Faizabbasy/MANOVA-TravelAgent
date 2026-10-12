@@ -1,6 +1,6 @@
 # Backend master data & profil organisasi (S10b) — desain
 
-Tanggal: 12 Oktober 2026 · Branch: `production` · Status: disetujui (opsi rekomendasi, eksekusi native)
+Tanggal: 12 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-12-master-data-backend)
 
 Lanjutan S10a. **S10b** memindahkan 16 kategori master data (`/admin/master-data`) dan profil organisasi (tab
 Organization Profile) ke server. Editor RBAC tetap lokal (keputusan S10a: matriks izin server tetap di kode).
@@ -23,7 +23,7 @@ Organization Profile) ke server. Editor RBAC tetap lokal (keputusan S10a: matrik
 | Milestone template | `items` wajib ≥ 1 (`label` wajib, `offsetDays` bulat −365…365); id item dibuat server: `<id template>-<n>` |
 | Ubah | `PATCH` menggabungkan field yang dikirim lalu memvalidasi record utuh |
 | Nonaktif/aktif | Endpoint terpisah; aksi ke status yang sama → 422. Tidak ada hapus |
-| Profil organisasi | `PUT` field lengkap: `legalName`, `displayName`, `address`, `contactEmail` wajib (email valid); `defaultCurrencyCode` harus currency aktif; `businessHours`, `contactPhone` boleh kosong. Server mengisi `updatedAt`/`updatedBy` |
+| Profil organisasi | `PUT` field lengkap: `legalName`, `displayName`, `address`, `contactEmail` wajib (email valid); `defaultCurrencyCode` harus currency aktif (currency itu tidak bisa dinonaktifkan atau diganti kodenya selama dipakai profil); `businessHours`, `contactPhone` boleh kosong. Server mengisi `updatedAt`/`updatedBy` |
 | Audit | `master_data.created/updated/deactivated/reactivated`, `organization.updated` (modul Activity Center: administration) |
 | Seed | Seluruh 16 kategori + profil dari fixture frontend (`provenance='demo-fixture'`); seed ulang tidak menimpa record yang diubah lewat API (`changed_by_api_at`) |
 | Tetap lokal | Hitungan pemakaian ("dipakai di N record", dihitung dari data yang sudah dimuat), editor RBAC |
