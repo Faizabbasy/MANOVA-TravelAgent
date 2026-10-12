@@ -99,6 +99,10 @@ export interface DemoCoreSeed {
     isVip: boolean; cancelReason: string | null; replacedByTravelerId: string | null; replacesTravelerId: string | null
   }[]
   roomAssignments?: { id: string; projectId: string; groupId: string; roomLabel: string; roomType: string; travelerIds: string[] }[]
+  /** Master data, 16 categories (S10b); `data` holds the category's fields. */
+  masterData?: { id: string; category: string; isActive: boolean; data: Record<string, unknown> }[]
+  /** The travel agency's own profile (S10b, singleton ORG-001). */
+  organizationProfile?: { legalName: string; displayName: string; address: string; defaultCurrencyCode: string; businessHours: string; contactEmail: string; contactPhone: string; updatedBy: string | null; updatedOn: string } | null
   /** In-app notifications (S9b). */
   notifications?: { id: string; userId: string; type: string; title: string; body: string; entityType: string | null; entityId: string | null; category: string | null; read: boolean; createdOn: string }[]
   /** Document metadata and messages (S9). */
@@ -485,6 +489,28 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
          where project_activities.provenance = 'demo-fixture' and project_activities.reviewed_at is null`,
         [a.id, a.projectId, a.message, a.isChange, a.reviewed, a.category, a.reason, a.requestedBy, a.beforeValue, a.afterValue, a.impactNote,
           a.approvalStatus, a.approvedBy, `${a.createdOn}T09:00:00+07:00`, P]
+      )
+    }
+    // S10b: master data and the organization profile. Rows an admin changed through the API are left alone.
+    for (const m of seed.masterData ?? []) {
+      await tx.query(
+        `insert into master_data_records (id, category, is_active, data, provenance) values ($1, $2, $3, $4::text::jsonb, $5)
+         on conflict (id) do update set category = excluded.category, is_active = excluded.is_active, data = excluded.data, updated_at = now()
+         where master_data_records.provenance = 'demo-fixture' and master_data_records.changed_by_api_at is null`,
+        [m.id, m.category, m.isActive, JSON.stringify(m.data), P]
+      )
+    }
+    if (seed.organizationProfile) {
+      const o = seed.organizationProfile
+      await tx.query(
+        `insert into organization_profile (id, legal_name, display_name, address, default_currency_code, business_hours, contact_email, contact_phone,
+                                           updated_by, updated_at, provenance)
+         values ('ORG-001', $1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+         on conflict (id) do update set legal_name = excluded.legal_name, display_name = excluded.display_name, address = excluded.address,
+           default_currency_code = excluded.default_currency_code, business_hours = excluded.business_hours, contact_email = excluded.contact_email,
+           contact_phone = excluded.contact_phone, updated_by = excluded.updated_by, updated_at = excluded.updated_at
+         where organization_profile.provenance = 'demo-fixture' and organization_profile.changed_by_api_at is null`,
+        [o.legalName, o.displayName, o.address, o.defaultCurrencyCode, o.businessHours, o.contactEmail, o.contactPhone, o.updatedBy, `${o.updatedOn}T09:00:00+07:00`, P]
       )
     }
     // S9b: notifications. A re-seed refreshes the text of fixture rows but keeps what users read.

@@ -49,7 +49,7 @@ export const isMasterCategory = (v: string): v is MasterCategory => Object.hasOw
 const MAX = { text: 200, long: 2000 }
 
 /** Builds the stored `data` from a full set of values; unknown keys, wrong types and out-of-range numbers are 400. */
-function validateRecord(category: MasterCategory, input: Record<string, unknown>, id: string): Record<string, unknown> {
+export function validateRecord(category: MasterCategory, input: Record<string, unknown>, id: string): Record<string, unknown> {
   const fields: Field[] = CATEGORIES[category].fields
   const known = new Set(fields.map(f => f.key))
   if (category === 'milestone-template') known.add('items')

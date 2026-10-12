@@ -8321,6 +8321,671 @@
       ]
     }
   ],
+  "masterData": [
+    {
+      "id": "PT-001",
+      "category": "project-type",
+      "isActive": true,
+      "data": {
+        "label": "Normal Project",
+        "description": "Perjalanan standar tanpa kompleksitas tinggi"
+      }
+    },
+    {
+      "id": "PT-002",
+      "category": "project-type",
+      "isActive": true,
+      "data": {
+        "label": "High-Change Project",
+        "description": "Perjalanan dengan banyak perubahan itinerary/pax selama proses"
+      }
+    },
+    {
+      "id": "PT-003",
+      "category": "project-type",
+      "isActive": true,
+      "data": {
+        "label": "Complex Project",
+        "description": "Perjalanan multi-destination, multi-vendor, atau multi-grup besar"
+      }
+    },
+    {
+      "id": "ST-001",
+      "category": "service-type",
+      "isActive": true,
+      "data": {
+        "label": "Flight",
+        "description": "Tiket pesawat dan penerbangan"
+      }
+    },
+    {
+      "id": "ST-002",
+      "category": "service-type",
+      "isActive": true,
+      "data": {
+        "label": "Hotel",
+        "description": "Akomodasi penginapan"
+      }
+    },
+    {
+      "id": "ST-003",
+      "category": "service-type",
+      "isActive": true,
+      "data": {
+        "label": "Transportation",
+        "description": "Transportasi darat, bus, shuttle, dll."
+      }
+    },
+    {
+      "id": "ST-004",
+      "category": "service-type",
+      "isActive": true,
+      "data": {
+        "label": "MICE",
+        "description": "Meeting, Incentive, Conference, Exhibition"
+      }
+    },
+    {
+      "id": "ST-005",
+      "category": "service-type",
+      "isActive": true,
+      "data": {
+        "label": "Additional Service",
+        "description": "Layanan tambahan di luar kategori utama"
+      }
+    },
+    {
+      "id": "DST-001",
+      "category": "destination",
+      "isActive": true,
+      "data": {
+        "label": "Manila, Filipina",
+        "description": "Asia Tenggara"
+      }
+    },
+    {
+      "id": "DST-002",
+      "category": "destination",
+      "isActive": true,
+      "data": {
+        "label": "Abu Dhabi, UAE",
+        "description": "Timur Tengah"
+      }
+    },
+    {
+      "id": "DST-003",
+      "category": "destination",
+      "isActive": true,
+      "data": {
+        "label": "Palu, Indonesia",
+        "description": "Domestik — Sulawesi Tengah"
+      }
+    },
+    {
+      "id": "DST-004",
+      "category": "destination",
+      "isActive": true,
+      "data": {
+        "label": "Bali, Indonesia",
+        "description": "Domestik — Bali"
+      }
+    },
+    {
+      "id": "DST-005",
+      "category": "destination",
+      "isActive": true,
+      "data": {
+        "label": "Singapura",
+        "description": "Asia Tenggara"
+      }
+    },
+    {
+      "id": "DST-006",
+      "category": "destination",
+      "isActive": true,
+      "data": {
+        "label": "Tokyo, Jepang",
+        "description": "Asia Timur"
+      }
+    },
+    {
+      "id": "DST-007",
+      "category": "destination",
+      "isActive": false,
+      "data": {
+        "label": "Bangkok, Thailand",
+        "description": "Asia Tenggara"
+      }
+    },
+    {
+      "id": "VC-001",
+      "category": "vendor-category",
+      "isActive": true,
+      "data": {
+        "label": "Maskapai / Airline",
+        "description": "Vendor tiket pesawat"
+      }
+    },
+    {
+      "id": "VC-002",
+      "category": "vendor-category",
+      "isActive": true,
+      "data": {
+        "label": "Hotel / Penginapan",
+        "description": "Vendor akomodasi"
+      }
+    },
+    {
+      "id": "VC-003",
+      "category": "vendor-category",
+      "isActive": true,
+      "data": {
+        "label": "Transportasi Darat",
+        "description": "Vendor bus, shuttle, rental kendaraan"
+      }
+    },
+    {
+      "id": "VC-004",
+      "category": "vendor-category",
+      "isActive": true,
+      "data": {
+        "label": "MICE Organizer",
+        "description": "Vendor penyelenggara event/meeting"
+      }
+    },
+    {
+      "id": "VC-005",
+      "category": "vendor-category",
+      "isActive": true,
+      "data": {
+        "label": "Kargo / Ekspedisi",
+        "description": "Vendor logistik dan kargo"
+      }
+    },
+    {
+      "id": "VC-006",
+      "category": "vendor-category",
+      "isActive": false,
+      "data": {
+        "label": "Asuransi Perjalanan",
+        "description": "Vendor asuransi untuk traveler"
+      }
+    },
+    {
+      "id": "APT-001",
+      "category": "airport",
+      "isActive": true,
+      "data": {
+        "iataCode": "CGK",
+        "name": "Soekarno-Hatta International Airport",
+        "city": "Jakarta"
+      }
+    },
+    {
+      "id": "APT-002",
+      "category": "airport",
+      "isActive": true,
+      "data": {
+        "iataCode": "MNL",
+        "name": "Ninoy Aquino International Airport",
+        "city": "Manila"
+      }
+    },
+    {
+      "id": "APT-003",
+      "category": "airport",
+      "isActive": true,
+      "data": {
+        "iataCode": "AUH",
+        "name": "Abu Dhabi International Airport",
+        "city": "Abu Dhabi"
+      }
+    },
+    {
+      "id": "APT-004",
+      "category": "airport",
+      "isActive": true,
+      "data": {
+        "iataCode": "PLW",
+        "name": "Mutiara SIS Al-Jufrie Airport",
+        "city": "Palu"
+      }
+    },
+    {
+      "id": "APT-005",
+      "category": "airport",
+      "isActive": true,
+      "data": {
+        "iataCode": "DPS",
+        "name": "Ngurah Rai International Airport",
+        "city": "Bali"
+      }
+    },
+    {
+      "id": "APT-006",
+      "category": "airport",
+      "isActive": true,
+      "data": {
+        "iataCode": "SIN",
+        "name": "Singapore Changi Airport",
+        "city": "Singapura"
+      }
+    },
+    {
+      "id": "ALN-001",
+      "category": "airline",
+      "isActive": true,
+      "data": {
+        "iataCode": "GA",
+        "name": "Garuda Indonesia"
+      }
+    },
+    {
+      "id": "ALN-002",
+      "category": "airline",
+      "isActive": true,
+      "data": {
+        "iataCode": "JT",
+        "name": "Lion Air"
+      }
+    },
+    {
+      "id": "ALN-003",
+      "category": "airline",
+      "isActive": true,
+      "data": {
+        "iataCode": "QG",
+        "name": "Citilink"
+      }
+    },
+    {
+      "id": "ALN-004",
+      "category": "airline",
+      "isActive": true,
+      "data": {
+        "iataCode": "PR",
+        "name": "Philippine Airlines"
+      }
+    },
+    {
+      "id": "ALN-005",
+      "category": "airline",
+      "isActive": true,
+      "data": {
+        "iataCode": "EY",
+        "name": "Etihad Airways"
+      }
+    },
+    {
+      "id": "MHTL-001",
+      "category": "hotel",
+      "isActive": true,
+      "data": {
+        "name": "Grand Manila Hotel",
+        "city": "Manila",
+        "starRating": 5
+      }
+    },
+    {
+      "id": "MHTL-002",
+      "category": "hotel",
+      "isActive": true,
+      "data": {
+        "name": "Abu Dhabi Corniche Hotel",
+        "city": "Abu Dhabi",
+        "starRating": 5
+      }
+    },
+    {
+      "id": "MHTL-003",
+      "category": "hotel",
+      "isActive": true,
+      "data": {
+        "name": "Palu Bay Resort",
+        "city": "Palu",
+        "starRating": 4
+      }
+    },
+    {
+      "id": "MHTL-004",
+      "category": "hotel",
+      "isActive": true,
+      "data": {
+        "name": "Bali Beachfront Suites",
+        "city": "Bali",
+        "starRating": 4
+      }
+    },
+    {
+      "id": "CUR-001",
+      "category": "currency",
+      "isActive": true,
+      "data": {
+        "code": "IDR",
+        "name": "Rupiah Indonesia",
+        "symbol": "Rp"
+      }
+    },
+    {
+      "id": "CUR-002",
+      "category": "currency",
+      "isActive": true,
+      "data": {
+        "code": "USD",
+        "name": "US Dollar",
+        "symbol": "$"
+      }
+    },
+    {
+      "id": "CUR-003",
+      "category": "currency",
+      "isActive": true,
+      "data": {
+        "code": "SGD",
+        "name": "Singapore Dollar",
+        "symbol": "S$"
+      }
+    },
+    {
+      "id": "CUR-004",
+      "category": "currency",
+      "isActive": true,
+      "data": {
+        "code": "EUR",
+        "name": "Euro",
+        "symbol": "€"
+      }
+    },
+    {
+      "id": "TAX-001",
+      "category": "tax-rule",
+      "isActive": true,
+      "data": {
+        "name": "PPN 11%",
+        "ratePercent": 11,
+        "appliesTo": "Seluruh layanan kena pajak standar"
+      }
+    },
+    {
+      "id": "TAX-002",
+      "category": "tax-rule",
+      "isActive": true,
+      "data": {
+        "name": "PPh 23 (Jasa Vendor)",
+        "ratePercent": 2,
+        "appliesTo": "Pembayaran jasa ke vendor/supplier"
+      }
+    },
+    {
+      "id": "PTM-001",
+      "category": "payment-term",
+      "isActive": true,
+      "data": {
+        "label": "DP 50% / Pelunasan H-7",
+        "daysDue": 7
+      }
+    },
+    {
+      "id": "PTM-002",
+      "category": "payment-term",
+      "isActive": true,
+      "data": {
+        "label": "Net 14",
+        "daysDue": 14
+      }
+    },
+    {
+      "id": "PTM-003",
+      "category": "payment-term",
+      "isActive": true,
+      "data": {
+        "label": "Net 30",
+        "daysDue": 30
+      }
+    },
+    {
+      "id": "CXR-001",
+      "category": "cancellation-rule",
+      "isActive": true,
+      "data": {
+        "name": "Flight — Pembatalan H-14+",
+        "daysBeforeDeparture": 14,
+        "penaltyPercent": 10,
+        "appliesToBookingType": "flight"
+      }
+    },
+    {
+      "id": "CXR-002",
+      "category": "cancellation-rule",
+      "isActive": true,
+      "data": {
+        "name": "Flight — Pembatalan H-7 s.d. H-13",
+        "daysBeforeDeparture": 7,
+        "penaltyPercent": 50,
+        "appliesToBookingType": "flight"
+      }
+    },
+    {
+      "id": "CXR-003",
+      "category": "cancellation-rule",
+      "isActive": true,
+      "data": {
+        "name": "Hotel — Pembatalan H-3+",
+        "daysBeforeDeparture": 3,
+        "penaltyPercent": 0,
+        "appliesToBookingType": "hotel"
+      }
+    },
+    {
+      "id": "CXR-004",
+      "category": "cancellation-rule",
+      "isActive": true,
+      "data": {
+        "name": "Hotel — Pembatalan < H-3",
+        "daysBeforeDeparture": 0,
+        "penaltyPercent": 100,
+        "appliesToBookingType": "hotel"
+      }
+    },
+    {
+      "id": "NUM-001",
+      "category": "numbering-scheme",
+      "isActive": true,
+      "data": {
+        "entityType": "Invoice",
+        "prefix": "INV-",
+        "nextNumberPreview": "INV-1042 (preview)"
+      }
+    },
+    {
+      "id": "NUM-002",
+      "category": "numbering-scheme",
+      "isActive": true,
+      "data": {
+        "entityType": "Project",
+        "prefix": "PRJ-",
+        "nextNumberPreview": "PRJ-105 (preview)"
+      }
+    },
+    {
+      "id": "NUM-003",
+      "category": "numbering-scheme",
+      "isActive": true,
+      "data": {
+        "entityType": "Quotation",
+        "prefix": "QUO-",
+        "nextNumberPreview": "QUO-011 (preview)"
+      }
+    },
+    {
+      "id": "DTPL-001",
+      "category": "document-template",
+      "isActive": true,
+      "data": {
+        "name": "Template Quotation Standar",
+        "category": "Quotation",
+        "appliesToDocumentCategory": "Quotation",
+        "bodyPreview": "Kepada [Nama Client], berikut penawaran perjalanan untuk [Destinasi]..."
+      }
+    },
+    {
+      "id": "DTPL-002",
+      "category": "document-template",
+      "isActive": true,
+      "data": {
+        "name": "Template E-Ticket",
+        "category": "Ticketing",
+        "appliesToDocumentCategory": "E-Ticket",
+        "bodyPreview": "E-Ticket a.n. [Nama Traveler], PNR [Kode PNR]..."
+      }
+    },
+    {
+      "id": "DTPL-003",
+      "category": "document-template",
+      "isActive": true,
+      "data": {
+        "name": "Template Voucher Hotel",
+        "category": "Accommodation",
+        "appliesToDocumentCategory": "Voucher",
+        "bodyPreview": "Voucher menginap a.n. [Nama Traveler] di [Nama Hotel]..."
+      }
+    },
+    {
+      "id": "RGC-001",
+      "category": "readiness-gate",
+      "isActive": true,
+      "data": {
+        "name": "Flight Confirmed",
+        "description": "Seluruh FlightBooking project berstatus confirmed/issued",
+        "appliesToModule": "ticketing"
+      }
+    },
+    {
+      "id": "RGC-002",
+      "category": "readiness-gate",
+      "isActive": true,
+      "data": {
+        "name": "Hotel Confirmed",
+        "description": "Seluruh HotelBooking project berstatus confirmed",
+        "appliesToModule": "accommodation"
+      }
+    },
+    {
+      "id": "RGC-003",
+      "category": "readiness-gate",
+      "isActive": true,
+      "data": {
+        "name": "Traveler Documents Verified",
+        "description": "Seluruh dokumen traveler wajib sudah diverifikasi",
+        "appliesToModule": "project"
+      }
+    },
+    {
+      "id": "RGC-004",
+      "category": "readiness-gate",
+      "isActive": true,
+      "data": {
+        "name": "Outstanding Invoice Lunas",
+        "description": "Tidak ada invoice project dengan outstanding > 0",
+        "appliesToModule": "finance"
+      }
+    },
+    {
+      "id": "ASR-001",
+      "category": "assignment-rule",
+      "isActive": true,
+      "data": {
+        "name": "Lead Sumber Website → Sales Rotasi",
+        "description": "Lead dari sumber Website ditugaskan bergilir ke tim Sales",
+        "triggerCondition": "source = website",
+        "targetRole": "sales"
+      }
+    },
+    {
+      "id": "ASR-002",
+      "category": "assignment-rule",
+      "isActive": true,
+      "data": {
+        "name": "Lead Urgency Tinggi → Sales Senior",
+        "description": "Lead dengan urgency tinggi diprioritaskan ke Sales senior",
+        "triggerCondition": "urgency = high",
+        "targetRole": "sales"
+      }
+    },
+    {
+      "id": "ASR-003",
+      "category": "assignment-rule",
+      "isActive": true,
+      "data": {
+        "name": "Lead Won → PM Rotasi",
+        "description": "Project baru dari Lead Won ditugaskan bergilir ke Project Manager",
+        "triggerCondition": "lead.projectId is set",
+        "targetRole": "project-manager"
+      }
+    },
+    {
+      "id": "MTPL-001",
+      "category": "milestone-template",
+      "isActive": true,
+      "data": {
+        "label": "Standard Corporate Trip",
+        "description": "Alur milestone standar untuk corporate/business trip B2B.",
+        "items": [
+          {
+            "id": "MTPL-001-1",
+            "label": "SPK / Handover Diterima",
+            "offsetDays": 0
+          },
+          {
+            "id": "MTPL-001-2",
+            "label": "Finalisasi Itinerary",
+            "offsetDays": 3
+          },
+          {
+            "id": "MTPL-001-3",
+            "label": "Invoice DP Terbit",
+            "offsetDays": 5
+          },
+          {
+            "id": "MTPL-001-4",
+            "label": "Konfirmasi Vendor & Booking",
+            "offsetDays": 10
+          },
+          {
+            "id": "MTPL-001-5",
+            "label": "Dokumen Traveler Lengkap",
+            "offsetDays": 20
+          },
+          {
+            "id": "MTPL-001-6",
+            "label": "Keberangkatan",
+            "offsetDays": 30
+          },
+          {
+            "id": "MTPL-001-7",
+            "label": "Trip Selesai",
+            "offsetDays": 34
+          },
+          {
+            "id": "MTPL-001-8",
+            "label": "Closing Report",
+            "offsetDays": 40
+          }
+        ]
+      }
+    }
+  ],
+  "organizationProfile": {
+    "legalName": "PT Manova Wisata Nusantara",
+    "displayName": "MANOVA Travel",
+    "address": "Jl. Jenderal Sudirman Kav. 52-53, Jakarta Selatan, DKI Jakarta 12190",
+    "defaultCurrencyCode": "IDR",
+    "businessHours": "Senin–Jumat 09.00–18.00 WIB",
+    "contactEmail": "info@manova.id",
+    "contactPhone": "+62 21 5140 2200",
+    "updatedBy": "USR-010",
+    "updatedOn": "2026-06-01"
+  },
   "notifications": [
     {
       "id": "NOT-001",

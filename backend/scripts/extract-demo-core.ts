@@ -27,6 +27,11 @@ import { QUOTATIONS } from '../../frontend/app/data/quotations'
 import { FLIGHT_BOOKINGS } from '../../frontend/app/data/ticketing'
 import { TRANSPORT_BOOKINGS } from '../../frontend/app/data/transportation'
 import { USERS } from '../../frontend/app/data/users'
+import {
+  AIRLINES, AIRPORTS, ASSIGNMENT_RULES, CANCELLATION_RULES, DOCUMENT_TEMPLATES, MASTER_CURRENCIES, MASTER_DESTINATIONS, MASTER_HOTELS,
+  MASTER_PROJECT_TYPES, MASTER_SERVICE_TYPES, MASTER_VENDOR_CATEGORIES, MILESTONE_TEMPLATES, NUMBERING_SCHEMES, ORGANIZATION_PROFILE, PAYMENT_TERMS,
+  READINESS_GATE_CONFIGS, TAX_RULES
+} from '../../frontend/app/data/master-data'
 import { VENDOR_CONTACTS, VENDOR_DOCUMENTS, VENDOR_PRODUCTS, VENDOR_QUOTATIONS, VENDORS } from '../../frontend/app/data/vendors'
 import type { DemoCoreSeed } from '../src/db/seed-demo'
 
@@ -342,6 +347,17 @@ const seed: DemoCoreSeed = {
     replacesTravelerId: tr.replacesTravelerId ?? null
   })),
   roomAssignments: [...ROOM_ASSIGNMENTS].sort(byId).map(r => ({ id: r.id, projectId: r.projectId, groupId: r.groupId, roomLabel: r.roomLabel, roomType: r.roomType, travelerIds: [...r.travelerIds] })),
+  // S10b: master data (fields under `data`, same shape the API stores) and the organization profile.
+  masterData: ([
+    ['project-type', MASTER_PROJECT_TYPES], ['service-type', MASTER_SERVICE_TYPES], ['destination', MASTER_DESTINATIONS],
+    ['vendor-category', MASTER_VENDOR_CATEGORIES], ['airport', AIRPORTS], ['airline', AIRLINES], ['hotel', MASTER_HOTELS],
+    ['currency', MASTER_CURRENCIES], ['tax-rule', TAX_RULES], ['payment-term', PAYMENT_TERMS], ['cancellation-rule', CANCELLATION_RULES],
+    ['numbering-scheme', NUMBERING_SCHEMES], ['document-template', DOCUMENT_TEMPLATES], ['readiness-gate', READINESS_GATE_CONFIGS],
+    ['assignment-rule', ASSIGNMENT_RULES], ['milestone-template', MILESTONE_TEMPLATES]
+  ] as [string, { id: string; isActive: boolean }[]][]).flatMap(([category, list]) => list.map(({ id, isActive, ...rest }) => ({
+    id, category, isActive, data: JSON.parse(JSON.stringify(rest)) as Record<string, unknown>
+  }))),
+  organizationProfile: (({ id: _id, updatedAt, updatedBy, ...p }) => ({ ...p, updatedBy: seededUser(updatedBy, 'organization profile') ? updatedBy : null, updatedOn: dateOnly(updatedAt)! }))(ORGANIZATION_PROFILE),
   // S9b: in-app notifications (one recipient per row).
   notifications: [...NOTIFICATION_RECORDS].sort(byId).filter(x => seededUser(x.userId, `notification ${x.id} recipient`)).map(x => ({
     id: x.id,

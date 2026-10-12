@@ -7,6 +7,7 @@ import { checksumOf, loadMigrations, migrateDown, migrateUp, migrationStatus, ty
 import { DEMO_CORE, SeedRefusedError, seedDemo } from '../src/db/seed-demo'
 import { makeTestDb } from './helpers'
 import { nextId, syncIdSequences } from '../src/shared/ids'
+import { validateRecord, type MasterCategory } from '../src/modules/core/master-data'
 
 /** Derived from the migration files so adding a migration does not rewrite these tests. */
 const ALL_VERSIONS = loadMigrations().map(m => m.version)
@@ -521,6 +522,35 @@ describe('demo seed', () => {
     } finally {
       await cleanup()
     }
+  })
+
+  test('demo master data and the organization profile are seeded; a re-seed keeps what the API changed', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query('select distinct category from master_data_records'))).toHaveLength(16)
+      expect((await db.query<{ c: string }>("select data->>'iataCode' as c from master_data_records where id = 'APT-001'"))[0]!.c).toBe('CGK')
+      const [tpl] = await db.query<{ items: { id: string }[] }>("select data->'items' as items from master_data_records where id = 'MTPL-001'")
+      expect(tpl!.items).toHaveLength(8)
+      expect(tpl!.items[0]!.id).toBe('MTPL-001-1')
+      expect((await db.query<{ n: string }>("select display_name as n from organization_profile"))[0]!.n).toBe('MANOVA Travel')
+      await db.query(`update master_data_records set data = jsonb_set(data, '{name}', '"Lewat API"'), is_active = false, changed_by_api_at = now() where id = 'APT-001'`)
+      await db.query(`update master_data_records set data = jsonb_set(data, '{name}', '"Diubah SQL"') where id = 'APT-002'`)
+      await db.query("update organization_profile set display_name = 'Lewat API', changed_by_api_at = now()")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const rows = await db.query<{ id: string; name: string; a: boolean }>("select id, data->>'name' as name, is_active as a from master_data_records where id in ('APT-001', 'APT-002') order by id")
+      expect(rows.map(r => [r.name, r.a])).toEqual([['Lewat API', false], ['Ninoy Aquino International Airport', true]])
+      expect((await db.query<{ n: string }>("select display_name as n from organization_profile"))[0]!.n).toBe('Lewat API')
+      expect((await db.query<{ v: number }>("select last_value as v from id_sequences where prefix = 'APT-'"))[0]!.v).toBeGreaterThanOrEqual(6)
+    } finally {
+      await cleanup()
+    }
+  })
+
+  test('every demo master data record passes the API validation', async () => {
+    expect(DEMO_CORE.masterData?.length).toBeGreaterThan(40)
+    for (const r of DEMO_CORE.masterData ?? []) expect(validateRecord(r.category as MasterCategory, r.data, r.id)).toEqual(r.data)
   })
 
   test('master data records and the organization profile exist after 0035', async () => {
