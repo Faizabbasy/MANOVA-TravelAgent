@@ -25,7 +25,10 @@ const LABEL: Record<string, string> = {
   'user.suspended': 'User dinonaktifkan', 'user.reactivated': 'User diaktifkan kembali', 'user.role_changed': 'Role user diubah',
   'master_data.created': 'Master data ditambahkan', 'master_data.updated': 'Master data diperbarui',
   'master_data.deactivated': 'Master data dinonaktifkan', 'master_data.reactivated': 'Master data diaktifkan kembali',
-  'organization.updated': 'Profil organisasi diperbarui'
+  'organization.updated': 'Profil organisasi diperbarui',
+  'asset.created': 'Aset ditambahkan', 'asset.updated': 'Aset diperbarui', 'asset.checked_out': 'Aset dipinjamkan',
+  'asset.returned': 'Aset dikembalikan', 'asset_maintenance.scheduled': 'Maintenance dijadwalkan',
+  'asset_maintenance.completed': 'Maintenance selesai'
 }
 
 /** `withFinance` false (no Finance access, e.g. Admin) leaves out Finance actions and the reasons Finance wrote. */

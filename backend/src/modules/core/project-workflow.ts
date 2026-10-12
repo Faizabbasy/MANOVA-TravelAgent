@@ -3,6 +3,7 @@ import type { Db, Queryable } from '../../db/client'
 import { AppError, errors } from '../../http/errors'
 import { recordAudit } from '../../shared/audit'
 import { projectFinanceBlockers, projectFinanceSummary } from '../finance/summaries'
+import { outstandingProjectAssets } from './inventory'
 import { STATUS_TRANSITIONS } from './statuses'
 
 /** Project Order workflow commands (S3b). Gates whose data lives in the frontend (travelers, itinerary, …) stay in the UI. */
@@ -89,6 +90,9 @@ export async function closeProject(tx: Queryable, actor: Actor, id: string, inpu
   if (p.closed_at) throw rule('Project ini sudah ditutup.')
   if (p.status !== 'completed') throw rule('Project baru bisa ditutup setelah berstatus Completed.')
   if (!p.finance_settled_at) throw rule('Tutup finance project dulu sebelum menutup project.')
+  // S11a: every MANOVA asset lent to the project is back first.
+  const out = await outstandingProjectAssets(tx, id)
+  if (out.length) throw rule(`${out.length} aset belum dikembalikan: ${out.join(', ')}.`)
   // Anything billed or owed after the finance close blocks the project close too.
   const blockers = await projectFinanceBlockers(tx as Db, id)
   if (blockers.length) throw rule(`Finance project berubah setelah ditutup: ${blockers.join(' ')}`)
