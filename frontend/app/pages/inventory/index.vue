@@ -23,6 +23,7 @@ import {
   checkoutAssetOnServer, completeMaintenanceOnServer, createAssetOnServer, returnAssetOnServer, scheduleMaintenanceOnServer, updateAssetOnServer
 } from '~/data/inventory-sync'
 import { createSaveGate } from '~/lib/save-gate'
+import { todayJakarta } from '~/lib/finance/dates'
 import { PROJECTS, getUserById, getProjectById } from '~/data'
 import { findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
@@ -41,7 +42,7 @@ const canManage = computed(() => can('inventory.manage-asset'))
 /* S11a: assets, maintenance and checkouts live on the server; a refused save leaves the screen as it was. */
 const api = useApi()
 const { saving: isSaving, run: save } = createSaveGate(showToast)
-const TODAY = new Date().toISOString().slice(0, 10)
+const TODAY = todayJakarta()
 
 const refreshKey = ref(0)
 const activeTab = ref<'assets' | 'maintenance' | 'checkouts' | 'utilization'>('assets')

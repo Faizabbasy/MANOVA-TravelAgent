@@ -5,11 +5,12 @@ import { recordAudit } from '../../shared/audit'
 import { isIsoDate } from '../../shared/dates'
 import { nextId, type IdPrefix } from '../../shared/ids'
 import { parseAmountMinor } from '../../shared/money'
+import { todayBusinessDate } from '../finance/common'
 
 /**
  * Inventory (S11a): MANOVA-owned assets, their maintenance and checkouts. `in-use` is set only by a checkout, and an
  * asset is lent out at most once at a time. 'overdue' is never stored: an open checkout past its due date and an
- * unfinished maintenance past its date are reported as overdue from today's date. Admin and Super Admin write
+ * unfinished maintenance past its date are reported as overdue, both from today's business date (Asia/Jakarta). Admin and Super Admin write
  * (`inventory.manage-asset`). Asset values are operational figures, not Finance bookkeeping.
  */
 
@@ -45,10 +46,10 @@ export async function listAssets(db: Queryable, id?: string) {
   }))
 }
 
-export async function listMaintenance(db: Queryable, id?: string) {
+export async function listMaintenance(db: Queryable, id?: string, today = todayBusinessDate()) {
   const rows = await db.query<Record<string, unknown>>(
-    `select *, (status <> 'completed' and scheduled_on < current_date) as overdue from asset_maintenance
-      where ($1::text is null or id = $1) order by scheduled_on desc, id`, [id ?? null])
+    `select *, (status <> 'completed' and scheduled_on < $2::date) as overdue from asset_maintenance
+      where ($1::text is null or id = $1) order by scheduled_on desc, id`, [id ?? null, today])
   return rows.map(r => ({
     id: r.id as string,
     assetId: r.asset_id as string,
@@ -63,10 +64,10 @@ export async function listMaintenance(db: Queryable, id?: string) {
   }))
 }
 
-export async function listCheckouts(db: Queryable, id?: string) {
+export async function listCheckouts(db: Queryable, id?: string, today = todayBusinessDate()) {
   const rows = await db.query<Record<string, unknown>>(
-    `select *, (status = 'checked-out' and due_on < current_date) as overdue from asset_checkouts
-      where ($1::text is null or id = $1) order by checked_out_on desc, id`, [id ?? null])
+    `select *, (status = 'checked-out' and due_on < $2::date) as overdue from asset_checkouts
+      where ($1::text is null or id = $1) order by checked_out_on desc, id`, [id ?? null, today])
   return rows.map(r => ({
     id: r.id as string,
     assetId: r.asset_id as string,
@@ -213,7 +214,7 @@ export async function checkoutAsset(tx: Queryable, actor: Actor, input: Input, r
   const dueOn = date(input, 'dueOn', fe, true)
   const note = text(input, 'note', fe, false, 2000)
   done(fe)
-  const [{ today }] = await tx.query<{ today: string }>("select to_char(current_date, 'YYYY-MM-DD') as today") as [{ today: string }]
+  const today = todayBusinessDate()
   if (dueOn! < today) throw errors.validation({ dueOn: ['Tanggal kembali tidak boleh sebelum hari ini.'] })
 
   const [a] = await tx.query<{ status: string; name: string }>('select status, name from assets where id = $1 for update', [assetId])
@@ -230,9 +231,9 @@ export async function checkoutAsset(tx: Queryable, actor: Actor, input: Input, r
   const id = await nextId(tx, 'ACO-')
   await tx.query(
     `insert into asset_checkouts (id, asset_id, project_id, borrowed_by, checked_out_on, due_on, status, note, changed_by_api_at)
-     values ($1, $2, $3, $4, current_date, $5, 'checked-out', $6, now())`,
-    [id, assetId, projectId ?? null, borrowedBy, dueOn, note ?? null])
-  await tx.query("update assets set status = 'in-use', updated_at = now() where id = $1", [assetId])
+     values ($1, $2, $3, $4, $7, $5, 'checked-out', $6, now())`,
+    [id, assetId, projectId ?? null, borrowedBy, dueOn, note ?? null, today])
+  await tx.query("update assets set status = 'in-use', changed_by_api_at = now(), updated_at = now() where id = $1", [assetId])
   await recordAudit(tx, { action: 'asset.checked_out', actorUserId: actor.userId, entityType: 'asset', entityId: assetId, requestId,
     details: { checkoutId: id, projectId: projectId ?? null, borrowedBy, dueOn } })
   return { id }
@@ -247,9 +248,9 @@ export async function returnAsset(tx: Queryable, actor: Actor, id: string, input
   if (!co) throw errors.notFound('Peminjaman aset')
   if (co.status === 'returned') throw rule('Aset ini sudah dikembalikan.')
   await tx.query(
-    "update asset_checkouts set status = 'returned', returned_on = current_date, condition_on_return = $2, changed_by_api_at = now(), updated_at = now() where id = $1",
-    [id, condition])
-  await tx.query('update assets set condition = $2, status = $3, updated_at = now() where id = $1',
+    "update asset_checkouts set status = 'returned', returned_on = $3, condition_on_return = $2, changed_by_api_at = now(), updated_at = now() where id = $1",
+    [id, condition, todayBusinessDate()])
+  await tx.query('update assets set condition = $2, status = $3, changed_by_api_at = now(), updated_at = now() where id = $1',
     [co.asset_id, condition, condition === 'damaged' ? 'maintenance' : 'available'])
   await recordAudit(tx, { action: 'asset.returned', actorUserId: actor.userId, entityType: 'asset', entityId: co.asset_id, requestId, details: { checkoutId: id, condition } })
 }
@@ -282,7 +283,7 @@ export async function completeMaintenance(tx: Queryable, actor: Actor, id: strin
   const [m] = await tx.query<{ asset_id: string; status: string }>('select asset_id, status from asset_maintenance where id = $1 for update', [id])
   if (!m) throw errors.notFound('Jadwal maintenance')
   if (m.status === 'completed') throw rule('Maintenance ini sudah selesai.')
-  await tx.query("update asset_maintenance set status = 'completed', completed_on = current_date, changed_by_api_at = now(), updated_at = now() where id = $1", [id])
-  await tx.query("update assets set status = 'available', condition = 'good', updated_at = now() where id = $1 and status = 'maintenance'", [m.asset_id])
+  await tx.query("update asset_maintenance set status = 'completed', completed_on = $2, changed_by_api_at = now(), updated_at = now() where id = $1", [id, todayBusinessDate()])
+  await tx.query("update assets set status = 'available', condition = 'good', changed_by_api_at = now(), updated_at = now() where id = $1 and status = 'maintenance'", [m.asset_id])
   await recordAudit(tx, { action: 'asset_maintenance.completed', actorUserId: actor.userId, entityType: 'asset', entityId: m.asset_id, requestId, details: { maintenanceId: id } })
 }

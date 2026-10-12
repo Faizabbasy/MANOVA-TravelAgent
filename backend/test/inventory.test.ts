@@ -1,5 +1,8 @@
 import { afterAll, beforeAll, describe, expect, test } from 'bun:test'
-import { DEMO, makeTestApp, type TestApp } from './helpers'
+import { DEMO, makeTestApp, TEST_PASSWORD, type TestApp } from './helpers'
+import { seedDemo } from '../src/db/seed-demo'
+import { listCheckouts } from '../src/modules/core/inventory'
+import { businessDateOf } from '../src/shared/dates'
 
 /** S11a: assets, maintenance and checkouts. Admin and Super Admin write (`inventory.manage-asset`), internal roles read. */
 
@@ -15,11 +18,11 @@ let keySeq = 0
 const call = (method: string, path: string, who: string, body?: unknown, key = true) =>
   t.call(method, `/api/v1${path}`, { cookie: c[who], body, headers: key && method === 'POST' ? { 'idempotency-key': `inv-test-${++keySeq}-key` } : {} })
 type Asset = { id: string; code: string; status: string; condition: string; category: string; purchasePriceMinor: string | null; quantity: number }
-type Checkout = { id: string; assetId: string; projectId: string | null; borrowedBy: string; status: string; returnedOn: string | null; conditionOnReturn: string | null }
+type Checkout = { id: string; assetId: string; projectId: string | null; borrowedBy: string; checkedOutOn: string; status: string; returnedOn: string | null; conditionOnReturn: string | null }
 type Maint = { id: string; assetId: string; status: string; completedOn: string | null; costMinor: string | null }
 
-const today = new Date().toISOString().slice(0, 10)
-const inDays = (n: number) => new Date(Date.now() + n * 86_400_000).toISOString().slice(0, 10)
+const today = businessDateOf(new Date())
+const inDays = (n: number) => new Date(Date.parse(`${today}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10)
 const newAsset = async (over: Record<string, unknown> = {}) => (await call('POST', '/assets', 'admin', {
   name: 'Kamera Uji', category: 'camera', purchasedOn: '2026-01-10', location: 'Gudang Jakarta', quantity: 1, condition: 'good', ...over
 })).json.data as Asset
@@ -31,6 +34,30 @@ describe('reading', () => {
       expect((await call('GET', path, 'client')).status).toBe(403)
       expect((await t.call('GET', `/api/v1${path}`)).status).toBe(401)
     }
+  })
+})
+
+describe('re-seed', () => {
+  test('a re-seed keeps lends, returns and finished maintenance made through the API', async () => {
+    await call('POST', '/asset-checkouts/ACO-001/return', 'admin', { condition: 'good' }) // AST-001 back
+    await call('POST', '/asset-checkouts', 'admin', { assetId: 'AST-002', dueOn: inDays(3) }) // AST-002 out
+    await call('POST', '/asset-maintenance/MNT-001/complete', 'admin') // AST-005 out of maintenance
+    await seedDemo(t.db, { appEnv: 'test', password: TEST_PASSWORD })
+    const assets = (await call('GET', '/assets', 'admin')).json.data as Asset[]
+    const status = (id: string) => assets.find(a => a.id === id)!.status
+    expect([status('AST-001'), status('AST-002'), status('AST-005')]).toEqual(['available', 'in-use', 'available'])
+  })
+})
+
+describe('business date', () => {
+  test('overdue is measured against the Jakarta business date, not the database clock', async () => {
+    const a = await newAsset()
+    const co = (await call('POST', '/asset-checkouts', 'admin', { assetId: a.id, dueOn: inDays(1) })).json.data as Checkout
+    const due = (await t.db.query<{ d: string }>("select to_char(due_on, 'YYYY-MM-DD') as d from asset_checkouts where id = $1", [co.id]))[0]!.d
+    const dayAfter = new Date(Date.parse(`${due}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10)
+    expect((await listCheckouts(t.db, co.id, due))[0]!.status).toBe('checked-out')
+    expect((await listCheckouts(t.db, co.id, dayAfter))[0]!.status).toBe('overdue')
+    expect(co.checkedOutOn).toBe(today)
   })
 })
 

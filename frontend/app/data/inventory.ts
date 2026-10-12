@@ -1,5 +1,8 @@
 import { reactive } from 'vue'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
+import { DEMO_REFERENCE_DATE } from '../utils/attention'
+// S11a: overdue and upcoming are measured from today's business date, like the server's 'overdue' status.
+import { todayJakarta } from '../lib/finance/dates'
 import type {
   Asset,
   AssetCategoryKey,
@@ -8,7 +11,6 @@ import type {
   MaintenanceSchedule
 } from '~/types/inventory'
 import type { StatusOption } from '~/types/common'
-import { DEMO_REFERENCE_DATE } from '../utils/attention'
 
 /**
  * Inventory aset milik MANOVA (Revisi 9-Modul, modul 7 — `revisi.md` #20 "tambah inventory di role
@@ -123,12 +125,12 @@ export function getMaintenanceByAsset (assetId: string): MaintenanceSchedule[] {
  * Jadwal maintenance yang sudah lewat tapi belum selesai — sumber utama peringatan di halaman Inventory. Status
  * `overdue` dari server (S11a, dihitung dari tanggal hari ini) selalu dihitung terlambat.
  */
-export function getOverdueMaintenance (referenceIso = DEMO_REFERENCE_DATE): MaintenanceSchedule[] {
+export function getOverdueMaintenance (referenceIso = todayJakarta()): MaintenanceSchedule[] {
   return MAINTENANCE_SCHEDULES.filter(item => item.status === 'overdue' ||
     (item.status !== 'completed' && differenceInCalendarDays(parseISO(referenceIso), parseISO(item.scheduledAt)) > 0))
 }
 
-export function getUpcomingMaintenance (windowDays = 30, referenceIso = DEMO_REFERENCE_DATE): MaintenanceSchedule[] {
+export function getUpcomingMaintenance (windowDays = 30, referenceIso = todayJakarta()): MaintenanceSchedule[] {
   return MAINTENANCE_SCHEDULES
     .filter((item) => {
       if (item.status === 'completed' || item.status === 'overdue') { return false }
@@ -226,7 +228,7 @@ export interface InventorySummary {
   totalValueIdr: number
 }
 
-export function getInventorySummary (referenceIso = DEMO_REFERENCE_DATE): InventorySummary {
+export function getInventorySummary (referenceIso = todayJakarta()): InventorySummary {
   return {
     total: ASSETS.length,
     available: ASSETS.filter(asset => asset.status === 'available').length,
@@ -239,7 +241,7 @@ export function getInventorySummary (referenceIso = DEMO_REFERENCE_DATE): Invent
 }
 
 /** Utilisasi per aset — berapa sering dan berapa lama sebuah aset benar-benar dipakai. */
-export function getAssetUtilization (windowDays = 90, referenceIso = DEMO_REFERENCE_DATE): AssetUtilization[] {
+export function getAssetUtilization (windowDays = 90, referenceIso = todayJakarta()): AssetUtilization[] {
   return ASSETS
     .filter(asset => asset.status !== 'retired')
     .map((asset) => {

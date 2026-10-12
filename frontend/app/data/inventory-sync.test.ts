@@ -4,6 +4,7 @@ import {
   assetFromServer, checkoutAssetOnServer, mergeServerInventory, returnAssetOnServer, scheduleMaintenanceOnServer
 } from './inventory-sync'
 import type { AssetCheckoutDto, AssetDto, AssetMaintenanceDto } from '~/types/api'
+import { shiftDate, todayJakarta } from '~/lib/finance/dates'
 
 const asset = (over: Partial<AssetDto> = {}): AssetDto => ({
   id: 'AST-001',
@@ -48,6 +49,13 @@ describe('inventory-sync', () => {
     mergeServerInventory({ assets: [asset()], maintenance: [maint({ id: 'MNT-002', scheduledOn: '2026-08-05', status: 'overdue' })], checkouts: [] })
     expect(getOverdueMaintenance().map(m => m.id)).toEqual(['MNT-002'])
     expect(getUpcomingMaintenance().map(m => m.id)).toEqual([])
+  })
+
+  it('upcoming maintenance is measured from today (Jakarta), like the overdue status from the server', () => {
+    const tomorrow = shiftDate(todayJakarta(), 1)
+    mergeServerInventory({ assets: [asset()], maintenance: [maint({ id: 'MNT-003', scheduledOn: tomorrow })], checkouts: [] })
+    expect(getUpcomingMaintenance().map(m => m.id)).toEqual(['MNT-003'])
+    expect(getOverdueMaintenance()).toEqual([])
   })
 
   it('a refused checkout or return leaves the local data as it was', async () => {
