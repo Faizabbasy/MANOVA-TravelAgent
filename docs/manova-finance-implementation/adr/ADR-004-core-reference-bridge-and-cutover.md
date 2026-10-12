@@ -228,3 +228,16 @@ itu tidak bisa dinonaktifkan atau diganti kodenya selama dipakai profil. Kategor
 ada booking, invoice atau penomoran ID yang membacanya sebagai aturan. Hitungan "dipakai di N record" dihitung di
 browser. Editor RBAC tetap lokal. Seed ulang tidak menimpa record/profil yang diubah lewat API (`changed_by_api_at`).
 Setelah deploy jalankan `db:migrate` lalu `db:seed:demo`.
+
+## Update 2026-10-12 — Inventory: aset, maintenance & peminjaman (S11a)
+
+Aset milik MANOVA, jadwal maintenance dan peminjaman aset kini di server (migrasi 0036: `assets`, `asset_maintenance`,
+`asset_checkouts`; satu peminjaman terbuka per aset lewat index unik). Semua peran internal membaca (`GET /assets`,
+`/asset-maintenance`, `/asset-checkouts`; portal 403); Admin dan Super Admin menulis lewat `inventory.manage-asset`:
+`POST /assets` (Idempotency-Key, kode per kategori dibuat server), `PATCH /assets/:id` (kategori tetap; status manual hanya
+`available`/`maintenance`/`retired`, ditolak selama aset dipinjam), `POST /asset-checkouts` (aset harus tersedia; project
+belum ditutup; peminjam user internal aktif), `POST /asset-checkouts/:id/return`, `POST /asset-maintenance`,
+`POST /asset-maintenance/:id/complete`. Status `overdue` tidak disimpan — dihitung dari tanggal hari ini. `POST
+/projects/:id/close` kini menolak (422) selama ada aset yang dipinjam ke project itu belum kembali. Nilai perolehan aset
+dan biaya maintenance (`purchasePriceMinor`, `costMinor`) adalah angka operasional Inventory, bukan pembukuan Finance.
+Setelah deploy jalankan `db:migrate` lalu `db:seed:demo`.
