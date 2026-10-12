@@ -22,7 +22,10 @@ export const moduleOf = (action: string) => MODULES.find(([re]) => re.test(actio
 
 const LABEL: Record<string, string> = {
   'auth.login': 'Masuk', 'auth.demo_login': 'Masuk (demo)', 'auth.logout': 'Keluar', 'auth.login_failed': 'Gagal masuk',
-  'user.suspended': 'User dinonaktifkan', 'user.reactivated': 'User diaktifkan kembali', 'user.role_changed': 'Role user diubah'
+  'user.suspended': 'User dinonaktifkan', 'user.reactivated': 'User diaktifkan kembali', 'user.role_changed': 'Role user diubah',
+  'master_data.created': 'Master data ditambahkan', 'master_data.updated': 'Master data diperbarui',
+  'master_data.deactivated': 'Master data dinonaktifkan', 'master_data.reactivated': 'Master data diaktifkan kembali',
+  'organization.updated': 'Profil organisasi diperbarui'
 }
 
 /** `withFinance` false (no Finance access, e.g. Admin) leaves out Finance actions and the reasons Finance wrote. */
