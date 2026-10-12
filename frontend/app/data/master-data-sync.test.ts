@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { AIRPORTS, MILESTONE_TEMPLATES, ORGANIZATION_PROFILE, PAYMENT_TERMS } from './master-data'
+import { AIRLINES, AIRPORTS, MILESTONE_TEMPLATES, ORGANIZATION_PROFILE, PAYMENT_TERMS } from './master-data'
 import {
-  createMasterRecordOnServer, mergeServerMasterData, mergeServerOrganizationProfile, setMasterRecordActiveOnServer, updateOrganizationProfileOnServer
+  createMasterRecordOnServer, loadServerMasterData, mergeServerMasterData, mergeServerOrganizationProfile, setMasterRecordActiveOnServer, updateOrganizationProfileOnServer
 } from './master-data-sync'
 import type { MasterDataRecordDto, OrganizationProfileDto } from '~/types/api'
+import { ApiError } from '~/lib/api/errors'
 
 const rec = (over: Partial<MasterDataRecordDto>): MasterDataRecordDto => ({
   id: 'APT-001', category: 'airport', isActive: true, data: { iataCode: 'CGK', name: 'Soekarno-Hatta', city: 'Jakarta' }, updatedAt: '2026-10-12T01:00:00.000Z', ...over
@@ -41,6 +42,7 @@ describe('master-data-sync', () => {
   })
 
   it('a refused create or deactivation leaves the local list as it was', async () => {
+    mergeServerMasterData([rec({ id: 'PTM-001', category: 'payment-term', data: { label: 'Net 14', daysDue: 14 } })])
     const before = PAYMENT_TERMS.map(p => ({ ...p }))
     const api = { core: { createMasterRecord: () => Promise.reject(new Error('403')), deactivateMasterRecord: () => Promise.reject(new Error('422')) } } as never
     await expect(createMasterRecordOnServer(api, 'payment-term', { label: 'Net 60', daysDue: 60 })).rejects.toThrow()
@@ -60,5 +62,19 @@ describe('master-data-sync', () => {
     const api = { core: { updateOrganizationProfile: () => Promise.reject(new Error('400')) } } as never
     await expect(updateOrganizationProfileOnServer(api, { ...profile, displayName: 'Baru' })).rejects.toThrow()
     expect(ORGANIZATION_PROFILE.displayName).toBe('Server Travel')
+  })
+
+  it('a database without master data or a profile (production before any entry) shows empty lists, not the demo fixtures', async () => {
+    AIRLINES.push({ id: 'ALN-001', iataCode: 'GA', name: 'Garuda Indonesia', isActive: true }) // a demo fixture still in the browser
+    const api = {
+      core: {
+        listMasterData: () => Promise.resolve({ data: [rec({ id: 'APT-001', data: { iataCode: 'KNO', name: 'Kualanamu', city: 'Medan' } })] }),
+        getOrganizationProfile: () => Promise.reject(new ApiError(404, 'NOT_FOUND', 'Profil organisasi tidak ditemukan.'))
+      }
+    } as never
+    await loadServerMasterData(api)
+    expect(AIRLINES).toEqual([])
+    expect(AIRPORTS.map(a => a.id)).toEqual(['APT-001'])
+    expect(ORGANIZATION_PROFILE).toMatchObject({ legalName: '', displayName: '', defaultCurrencyCode: '', updatedAt: '', updatedBy: '' })
   })
 })

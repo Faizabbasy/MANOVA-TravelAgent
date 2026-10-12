@@ -130,7 +130,7 @@ async function submit () {
           </div>
         </div>
 
-        <p class="text-xs text-muted-foreground mt-4">
+        <p v-if="ORGANIZATION_PROFILE.updatedAt" class="text-xs text-muted-foreground mt-4">
           Terakhir diperbarui {{ formatDateTime(ORGANIZATION_PROFILE.updatedAt) }} oleh {{ ORGANIZATION_PROFILE.updatedBy }}.
         </p>
 

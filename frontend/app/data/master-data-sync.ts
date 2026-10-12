@@ -54,12 +54,12 @@ function upsert (category: MasterDataCategoryKey, d: MasterDataRecordDto): Rec {
   return list[list.length - 1]!
 }
 
+/** Every category becomes the server's list — one the server has no rows for is emptied (a production database starts empty). */
 export function mergeServerMasterData (records: MasterDataRecordDto[]): void {
   const byCategory = new Map<MasterDataCategoryKey, MasterDataRecordDto[]>()
   for (const d of records) { byCategory.set(d.category, [...(byCategory.get(d.category) ?? []), d]) }
-  for (const [category, rows] of byCategory) {
-    const list = LISTS[category]
-    if (!list) { continue }
+  for (const [category, list] of Object.entries(LISTS) as [MasterDataCategoryKey, Rec[]][]) {
+    const rows = byCategory.get(category) ?? []
     const next = rows.map((d) => {
       const local = list.find(r => r.id === d.id)
       return local ? overwrite(local, recordFromServer(d)) : recordFromServer(d)
@@ -83,13 +83,19 @@ export function mergeServerOrganizationProfile (d: OrganizationProfileDto): void
   })
 }
 
-/** Master data plus the profile; a database without a profile yet (404) keeps the local one until it is saved. */
+/** No profile on the server yet: an empty one to fill in, not the demo fixture. */
+function clearOrganizationProfile (): void {
+  Object.assign(ORGANIZATION_PROFILE, { legalName: '', displayName: '', address: '', defaultCurrencyCode: '', businessHours: '', contactEmail: '', contactPhone: '', updatedAt: '', updatedBy: '' })
+}
+
+/** Master data plus the profile; a database without a profile yet (404) gets an empty profile until one is saved. */
 export async function loadServerMasterData (api: CoreApi): Promise<void> {
   mergeServerMasterData((await api.core.listMasterData()).data)
   try {
     mergeServerOrganizationProfile((await api.core.getOrganizationProfile()).data)
   } catch (error) {
     if (!(isApiError(error) && error.status === 404)) { throw error }
+    clearOrganizationProfile()
   }
 }
 
