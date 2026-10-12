@@ -119,16 +119,19 @@ export function getMaintenanceByAsset (assetId: string): MaintenanceSchedule[] {
   return MAINTENANCE_SCHEDULES.filter(item => item.assetId === assetId).sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))
 }
 
-/** Jadwal maintenance yang sudah lewat tapi belum selesai — sumber utama peringatan di halaman Inventory. */
+/**
+ * Jadwal maintenance yang sudah lewat tapi belum selesai — sumber utama peringatan di halaman Inventory. Status
+ * `overdue` dari server (S11a, dihitung dari tanggal hari ini) selalu dihitung terlambat.
+ */
 export function getOverdueMaintenance (referenceIso = DEMO_REFERENCE_DATE): MaintenanceSchedule[] {
-  return MAINTENANCE_SCHEDULES.filter(item =>
-    item.status !== 'completed' && differenceInCalendarDays(parseISO(referenceIso), parseISO(item.scheduledAt)) > 0)
+  return MAINTENANCE_SCHEDULES.filter(item => item.status === 'overdue' ||
+    (item.status !== 'completed' && differenceInCalendarDays(parseISO(referenceIso), parseISO(item.scheduledAt)) > 0))
 }
 
 export function getUpcomingMaintenance (windowDays = 30, referenceIso = DEMO_REFERENCE_DATE): MaintenanceSchedule[] {
   return MAINTENANCE_SCHEDULES
     .filter((item) => {
-      if (item.status === 'completed') { return false }
+      if (item.status === 'completed' || item.status === 'overdue') { return false }
       const days = differenceInCalendarDays(parseISO(item.scheduledAt), parseISO(referenceIso))
       return days >= 0 && days <= windowDays
     })

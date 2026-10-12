@@ -30,7 +30,9 @@ const FORBIDDEN = [
   // S10a: user status and role change on the server (Super Admin only).
   'suspendUser(', 'reactivateUser(', 'assignUserRole(',
   // S10b: master data and the organization profile change on the server.
-  'createMasterDataRecord(', 'updateMasterDataRecord(', 'deactivateMasterDataRecord(', 'reactivateMasterDataRecord(', 'updateOrganizationProfile('
+  'createMasterDataRecord(', 'updateMasterDataRecord(', 'deactivateMasterDataRecord(', 'reactivateMasterDataRecord(', 'updateOrganizationProfile(',
+  // S11a: assets, maintenance and checkouts change on the server.
+  'addAsset(', 'updateAsset(', 'returnAsset(', 'completeMaintenance('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**

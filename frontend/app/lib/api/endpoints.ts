@@ -1,7 +1,14 @@
 import type { ApiClient } from './client'
 import { newIdempotencyKey } from './client'
 import type { MasterDataCategoryKey } from '~/types/master-data'
+import type { AssetCondition } from '~/types/inventory'
 import type {
+  AssetCheckoutDto,
+  AssetCheckoutInput,
+  AssetDto,
+  AssetInput,
+  AssetMaintenanceDto,
+  AssetMaintenanceInput,
   MasterDataRecordDto,
   OrganizationProfileDto,
   OrganizationProfileInput,
@@ -184,6 +191,16 @@ export function createManovaApi (client: ApiClient) {
       changeUserRole: (id: string, role: string) => client.put<UserDto>(`/users/${seg(id)}/role`, { role }),
       listAuditEvents: () => client.get<SystemEventDto[]>('/audit/events'),
       listAuditSessions: () => client.get<SessionLogDto[]>('/audit/sessions'),
+      listAssets: () => client.get<AssetDto[]>('/assets'),
+      createAsset: (input: AssetInput, idempotencyKey: string = newIdempotencyKey()) => client.post<AssetDto>('/assets', input, { idempotencyKey }),
+      updateAsset: (id: string, input: AssetInput) => client.patch<AssetDto>(`/assets/${seg(id)}`, input),
+      listAssetMaintenance: () => client.get<AssetMaintenanceDto[]>('/asset-maintenance'),
+      scheduleAssetMaintenance: (input: AssetMaintenanceInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<AssetMaintenanceDto>('/asset-maintenance', input, { idempotencyKey }),
+      completeAssetMaintenance: (id: string) => client.post<AssetMaintenanceDto>(`/asset-maintenance/${seg(id)}/complete`, {}),
+      listAssetCheckouts: () => client.get<AssetCheckoutDto[]>('/asset-checkouts'),
+      checkoutAsset: (input: AssetCheckoutInput, idempotencyKey: string = newIdempotencyKey()) => client.post<AssetCheckoutDto>('/asset-checkouts', input, { idempotencyKey }),
+      returnAsset: (id: string, condition: AssetCondition) => client.post<AssetCheckoutDto>(`/asset-checkouts/${seg(id)}/return`, { condition }),
       listMasterData: () => client.get<MasterDataRecordDto[]>('/master-data'),
       createMasterRecord: (category: MasterDataCategoryKey, input: Record<string, unknown>, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<MasterDataRecordDto>(`/master-data/${seg(category)}`, input, { idempotencyKey }),

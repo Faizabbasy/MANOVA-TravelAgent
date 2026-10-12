@@ -10,6 +10,7 @@
 import type { ServiceStatus, ServiceTypeKey } from './project'
 import type { DocumentEntityType, NotificationCategory, NotificationType } from './document-comms'
 import type { MasterDataCategoryKey } from './master-data'
+import type { AssetCategoryKey, AssetCondition, AssetStatus, CheckoutStatus, MaintenanceStatus, MaintenanceType } from './inventory'
 
 export type MoneyMinor = string
 export type IsoDate = string
@@ -1364,6 +1365,77 @@ export interface UserDto {
   suspendedAt: string | null
   clientPartyId: string | null
   vendorId: string | null
+}
+/** A MANOVA-owned asset (S11a); `in-use` is set only by a checkout. */
+export interface AssetDto {
+  id: string
+  code: string
+  name: string
+  category: AssetCategoryKey
+  brand: string | null
+  serialNumber: string | null
+  purchasedOn: string
+  purchasePriceMinor: string | null
+  condition: AssetCondition
+  status: AssetStatus
+  location: string
+  quantity: number
+  note: string | null
+}
+export interface AssetInput {
+  name?: string
+  category?: AssetCategoryKey
+  brand?: string | null
+  serialNumber?: string | null
+  purchasedOn?: string
+  purchasePriceMinor?: string | null
+  condition?: AssetCondition
+  status?: 'available' | 'maintenance' | 'retired'
+  location?: string
+  quantity?: number
+  note?: string | null
+}
+/** Asset maintenance (S11a); `overdue` is derived by the server from today's date. */
+export interface AssetMaintenanceDto {
+  id: string
+  assetId: string
+  type: MaintenanceType
+  scheduledOn: string
+  completedOn: string | null
+  status: MaintenanceStatus
+  vendorName: string | null
+  costMinor: string | null
+  note: string | null
+  intervalDays: number | null
+}
+export interface AssetMaintenanceInput {
+  assetId: string
+  type: MaintenanceType
+  scheduledOn: string
+  vendorName?: string
+  costMinor?: string
+  note?: string
+  intervalDays?: number
+}
+/** An asset lent to a project or a person (S11a); `overdue` is derived by the server. */
+export interface AssetCheckoutDto {
+  id: string
+  assetId: string
+  projectId: string | null
+  borrowedBy: string
+  checkedOutOn: string
+  dueOn: string
+  returnedOn: string | null
+  status: CheckoutStatus
+  conditionOnReturn: AssetCondition | null
+  note: string | null
+}
+export interface AssetCheckoutInput {
+  assetId: string
+  projectId?: string
+  borrowedBy?: string
+  dueOn: string
+  note?: string
 }
 /** A master data record (S10b); the category's fields sit under `data`. */
 export interface MasterDataRecordDto {

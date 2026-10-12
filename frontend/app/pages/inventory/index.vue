@@ -17,17 +17,18 @@ import {
   getUpcomingMaintenance,
   getActiveCheckouts,
   getAssetUtilization,
-  getAssetQuantityInUse,
-  returnAsset,
-  completeMaintenance,
-  addAsset,
-  updateAsset
+  getAssetQuantityInUse
 } from '~/data/inventory'
-import { getUserById, getProjectById } from '~/data'
+import {
+  checkoutAssetOnServer, completeMaintenanceOnServer, createAssetOnServer, returnAssetOnServer, scheduleMaintenanceOnServer, updateAssetOnServer
+} from '~/data/inventory-sync'
+import { createSaveGate } from '~/lib/save-gate'
+import { PROJECTS, getUserById, getProjectById } from '~/data'
 import { findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import { DEMO_REFERENCE_DATE } from '~/utils/attention'
-import type { Asset, AssetCategoryKey } from '~/types/inventory'
+import type { Asset, AssetCategoryKey, MaintenanceSchedule } from '~/types/inventory'
+import type { AssetInput } from '~/types/api'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Inventory' })
@@ -37,6 +38,10 @@ const { showToast } = useToast()
 
 const hasAccess = computed(() => canView('inventory'))
 const canManage = computed(() => can('inventory.manage-asset'))
+/* S11a: assets, maintenance and checkouts live on the server; a refused save leaves the screen as it was. */
+const api = useApi()
+const { saving: isSaving, run: save } = createSaveGate(showToast)
+const TODAY = new Date().toISOString().slice(0, 10)
 
 const refreshKey = ref(0)
 const activeTab = ref<'assets' | 'maintenance' | 'checkouts' | 'utilization'>('assets')
@@ -80,9 +85,12 @@ const activeCheckouts = computed(() => {
 })
 const overdueCheckouts = computed(() => activeCheckouts.value.filter(checkout => checkout.status === 'overdue'))
 
-/** Selisih hari dari tanggal acuan demo — dipakai badge "X hari terlambat" di card "Butuh Perhatian Segera". */
+/**
+ * Selisih hari sejak tanggal jatuh tempo — badge "X hari terlambat" di card "Butuh Perhatian Segera". S11a: dihitung
+ * dari hari ini, sama seperti status `overdue` dari server.
+ */
 function overdueDays (isoDate: string): number {
-  return Math.round((new Date(DEMO_REFERENCE_DATE).getTime() - new Date(isoDate).getTime()) / 86400000)
+  return Math.max(1, Math.round((new Date(TODAY).getTime() - new Date(isoDate).getTime()) / 86400000))
 }
 const utilization = computed(() => {
   void refreshKey.value
@@ -157,31 +165,38 @@ const isAssetFormValid = computed(() => Boolean(
   assetForm.value.quantity && assetForm.value.quantity > 0
 ))
 
-function submitAssetForm () {
+async function submitAssetForm () {
   if (!isAssetFormValid.value) { return }
-  const payload = {
+  const price = assetForm.value.purchasePriceIdr ? Math.round(Number(assetForm.value.purchasePriceIdr)) : 0
+  const payload: AssetInput = {
     name: assetForm.value.name.trim(),
-    category: assetForm.value.category,
-    brand: assetForm.value.brand.trim() || undefined,
-    serialNumber: assetForm.value.serialNumber.trim() || undefined,
+    brand: assetForm.value.brand.trim() || null,
+    serialNumber: assetForm.value.serialNumber.trim() || null,
     location: assetForm.value.location.trim(),
-    purchasedAt: assetForm.value.purchasedAt,
-    purchasePriceIdr: assetForm.value.purchasePriceIdr ? Number(assetForm.value.purchasePriceIdr) : undefined,
+    purchasedOn: assetForm.value.purchasedAt,
+    purchasePriceMinor: price > 0 ? String(price) : null,
     quantity: Number(assetForm.value.quantity) || 1,
     condition: assetForm.value.condition,
-    status: assetForm.value.status,
-    note: assetForm.value.note.trim() || undefined
+    note: assetForm.value.note.trim() || null
   }
+  // `in-use` is set only by a checkout, so the status is sent only when the user changed it to another one.
+  const status = assetForm.value.status
 
   if (assetFormMode.value === 'edit' && editingAssetId.value) {
-    updateAsset(editingAssetId.value, payload)
+    const id = editingAssetId.value
+    if (status !== getAssetById(id)?.status && status !== 'in-use') { payload.status = status }
+    const saved = await save('Aset Gagal Disimpan', () => updateAssetOnServer(api, id, payload))
+    if (!saved) { return }
     refreshKey.value += 1
     isAssetFormOpen.value = false
     showToast('Perubahan disimpan', `"${payload.name}" diperbarui.`, 'success')
     return
   }
 
-  addAsset(payload)
+  const created = await save('Aset Gagal Ditambahkan', () => createAssetOnServer(api, {
+    ...payload, category: assetForm.value.category, status: status === 'in-use' ? 'available' : status
+  }))
+  if (!created) { return }
   refreshKey.value += 1
   isAssetFormOpen.value = false
   showToast('Aset ditambahkan', `"${payload.name}" masuk ke daftar aset.`, 'success')
@@ -195,18 +210,76 @@ const detailAsset = computed(() => detailAssetId.value ? getAssetById(detailAsse
 const returnTargetId = ref<string | undefined>()
 const returnCondition = ref<Asset['condition']>('good')
 
-function submitReturn () {
+async function submitReturn () {
   if (!returnTargetId.value) { return }
-  returnAsset(returnTargetId.value, returnCondition.value)
+  const id = returnTargetId.value
+  const done = await save('Pengembalian Gagal', () => returnAssetOnServer(api, id, returnCondition.value))
+  if (!done) { return }
   refreshKey.value += 1
   returnTargetId.value = undefined
   showToast('Aset dikembalikan', 'Status aset diperbarui sesuai kondisi saat kembali.', 'success')
 }
 
-function onCompleteMaintenance (maintenanceId: string) {
-  completeMaintenance(maintenanceId)
+async function onCompleteMaintenance (maintenanceId: string) {
+  const done = await save('Maintenance Gagal Diselesaikan', () => completeMaintenanceOnServer(api, maintenanceId))
+  if (!done) { return }
   refreshKey.value += 1
   showToast('Maintenance selesai', 'Aset kembali berstatus tersedia.', 'success')
+}
+
+/* Dialog pinjamkan aset (S11a) — ke project (opsional) atau dipakai sendiri; peminjamnya user yang login. */
+const isLendOpen = ref(false)
+const lendForm = ref({ assetId: '', projectId: '', dueOn: TODAY, note: '' })
+const lendableAssets = computed(() => ASSETS.filter(asset => asset.status === 'available'))
+const openProjects = computed(() => PROJECTS.filter(project => !project.closedAt).sort((a, b) => a.id.localeCompare(b.id)))
+
+function openLend () {
+  lendForm.value = { assetId: '', projectId: '', dueOn: TODAY, note: '' }
+  isLendOpen.value = true
+}
+
+async function submitLend () {
+  const form = lendForm.value
+  if (!form.assetId || !form.dueOn) { return }
+  const done = await save('Aset Gagal Dipinjamkan', () => checkoutAssetOnServer(api, {
+    assetId: form.assetId, dueOn: form.dueOn, projectId: form.projectId || undefined, note: form.note.trim() || undefined
+  }))
+  if (!done) { return }
+  refreshKey.value += 1
+  isLendOpen.value = false
+  showToast('Aset dipinjamkan', 'Aset berstatus dipakai sampai dikembalikan.', 'success')
+}
+
+/* Dialog jadwalkan maintenance (S11a). */
+const isMaintenanceOpen = ref(false)
+const emptyMaintenanceForm = () => ({
+  assetId: '', type: 'routine' as MaintenanceSchedule['type'], scheduledOn: TODAY, vendorName: '', costIdr: null as number | null, intervalDays: null as number | null, note: ''
+})
+const maintenanceForm = ref(emptyMaintenanceForm())
+
+function openMaintenance () {
+  maintenanceForm.value = emptyMaintenanceForm()
+  isMaintenanceOpen.value = true
+}
+
+async function submitMaintenance () {
+  const form = maintenanceForm.value
+  if (!form.assetId || !form.scheduledOn) { return }
+  const cost = form.costIdr ? Math.round(Number(form.costIdr)) : 0
+  const interval = form.intervalDays ? Math.round(Number(form.intervalDays)) : 0
+  const done = await save('Maintenance Gagal Dijadwalkan', () => scheduleMaintenanceOnServer(api, {
+    assetId: form.assetId,
+    type: form.type,
+    scheduledOn: form.scheduledOn,
+    vendorName: form.vendorName.trim() || undefined,
+    costMinor: cost > 0 ? String(cost) : undefined,
+    intervalDays: interval > 0 ? interval : undefined,
+    note: form.note.trim() || undefined
+  }))
+  if (!done) { return }
+  refreshKey.value += 1
+  isMaintenanceOpen.value = false
+  showToast('Maintenance dijadwalkan', 'Jadwal tercatat di tab Maintenance.', 'success')
 }
 </script>
 
@@ -218,6 +291,14 @@ function onCompleteMaintenance (maintenanceId: string) {
       :breadcrumb="[{ label: 'Inventory' }]"
     >
       <template v-if="canManage" #actions>
+        <Button size="sm" variant="outline" @click="openMaintenance">
+          <Wrench class="h-4 w-4 mr-1.5" />
+          Jadwalkan Maintenance
+        </Button>
+        <Button size="sm" variant="outline" @click="openLend">
+          <PackageCheck class="h-4 w-4 mr-1.5" />
+          Pinjamkan Aset
+        </Button>
         <Button size="sm" @click="openCreate">
           <Plus class="h-4 w-4 mr-1.5" />
           Tambah Aset
@@ -841,7 +922,7 @@ function onCompleteMaintenance (maintenanceId: string) {
             <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div class="space-y-1.5">
                 <Label>Kategori</Label>
-                <select v-model="assetForm.category" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <select v-model="assetForm.category" :disabled="assetFormMode === 'edit'" class="w-full disabled:opacity-60 appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
                   <option v-for="category in ASSET_CATEGORIES" :key="category.value" :value="category.value">
                     {{ category.label }}
                   </option>
@@ -888,7 +969,7 @@ function onCompleteMaintenance (maintenanceId: string) {
               <div class="space-y-1.5">
                 <Label>Status</Label>
                 <select v-model="assetForm.status" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="status in ASSET_STATUSES" :key="status.value" :value="status.value">
+                  <option v-for="status in ASSET_STATUSES" :key="status.value" :value="status.value" :disabled="status.value === 'in-use'">
                     {{ status.label }}
                   </option>
                 </select>
@@ -904,7 +985,7 @@ function onCompleteMaintenance (maintenanceId: string) {
             <Button variant="outline" @click="isAssetFormOpen = false">
               Batal
             </Button>
-            <Button :disabled="!isAssetFormValid" @click="submitAssetForm">
+            <Button :disabled="!isAssetFormValid || isSaving" @click="submitAssetForm">
               Simpan
             </Button>
           </template>
@@ -1032,10 +1113,123 @@ function onCompleteMaintenance (maintenanceId: string) {
             <Button variant="outline" @click="returnTargetId = undefined">
               Batal
             </Button>
-            <Button @click="submitReturn">
+            <Button :disabled="isSaving" @click="submitReturn">
               Konfirmasi Pengembalian
             </Button>
           </template>
+      </ResponsiveFormSheet>
+
+      <ResponsiveFormSheet
+        :open="isLendOpen"
+        title="Pinjamkan Aset"
+        description="Aset yang dipinjam ke sebuah project harus kembali sebelum project itu bisa ditutup."
+        content-class="max-w-md"
+        @update:open="value => { isLendOpen = value }"
+      >
+        <div class="space-y-3">
+          <div class="space-y-1.5">
+            <Label>Aset</Label>
+            <select v-model="lendForm.assetId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="" disabled>
+                Pilih aset yang tersedia
+              </option>
+              <option v-for="asset in lendableAssets" :key="asset.id" :value="asset.id">
+                {{ asset.code }} · {{ asset.name }}
+              </option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Project (opsional)</Label>
+            <select v-model="lendForm.projectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="">
+                Tanpa project
+              </option>
+              <option v-for="project in openProjects" :key="project.id" :value="project.id">
+                {{ project.id }} · {{ project.name }}
+              </option>
+            </select>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Tanggal Kembali</Label>
+            <Input v-model="lendForm.dueOn" type="date" :min="TODAY" />
+          </div>
+          <div class="space-y-1.5">
+            <Label>Catatan (opsional)</Label>
+            <Input v-model="lendForm.note" placeholder="mis. untuk dokumentasi event" />
+          </div>
+        </div>
+
+        <template #footer>
+          <Button variant="outline" @click="isLendOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!lendForm.assetId || !lendForm.dueOn || isSaving" @click="submitLend">
+            Pinjamkan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
+
+      <ResponsiveFormSheet
+        :open="isMaintenanceOpen"
+        title="Jadwalkan Maintenance"
+        description="Jadwal yang lewat tanggalnya dan belum selesai otomatis tampil sebagai terlambat."
+        content-class="max-w-md"
+        @update:open="value => { isMaintenanceOpen = value }"
+      >
+        <div class="space-y-3">
+          <div class="space-y-1.5">
+            <Label>Aset</Label>
+            <select v-model="maintenanceForm.assetId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="" disabled>
+                Pilih aset
+              </option>
+              <option v-for="asset in ASSETS" :key="asset.id" :value="asset.id">
+                {{ asset.code }} · {{ asset.name }}
+              </option>
+            </select>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label>Tipe</Label>
+              <select v-model="maintenanceForm.type" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option v-for="type in MAINTENANCE_TYPES" :key="type.value" :value="type.value">
+                  {{ type.label }}
+                </option>
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <Label>Tanggal</Label>
+              <Input v-model="maintenanceForm.scheduledOn" type="date" />
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Vendor / Bengkel (opsional)</Label>
+            <Input v-model="maintenanceForm.vendorName" placeholder="mis. Sony Service Center" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label>Estimasi Biaya (Rp)</Label>
+              <Input v-model.number="maintenanceForm.costIdr" type="number" min="0" />
+            </div>
+            <div class="space-y-1.5">
+              <Label>Ulangi Tiap (hari)</Label>
+              <Input v-model.number="maintenanceForm.intervalDays" type="number" min="1" placeholder="kosong = sekali" />
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Catatan (opsional)</Label>
+            <Input v-model="maintenanceForm.note" />
+          </div>
+        </div>
+
+        <template #footer>
+          <Button variant="outline" @click="isMaintenanceOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!maintenanceForm.assetId || !maintenanceForm.scheduledOn || isSaving" @click="submitMaintenance">
+            Jadwalkan
+          </Button>
+        </template>
       </ResponsiveFormSheet>
     </template>
   </div>

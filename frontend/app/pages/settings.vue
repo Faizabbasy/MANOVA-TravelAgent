@@ -20,6 +20,7 @@ import { useDocumentsSync } from '~/data/documents-sync'
 import { useNotificationsSync } from '~/data/notifications-sync'
 import { useUsersSync } from '~/data/users-sync'
 import { useMasterDataSync } from '~/data/master-data-sync'
+import { useInventorySync } from '~/data/inventory-sync'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { User } from '~/types/user'
 
@@ -73,6 +74,7 @@ const documentsSync = useDocumentsSync()
 const notificationsSync = useNotificationsSync()
 const usersSync = useUsersSync()
 const masterDataSync = useMasterDataSync()
+const inventorySync = useInventorySync()
 
 function submitReset () {
   const success = resetMockState()
@@ -98,6 +100,7 @@ function submitReset () {
   notificationsSync.load(true)
   usersSync.load(true)
   masterDataSync.load(true)
+  inventorySync.load(true)
   showToast('Demo Data Direset', 'Seluruh data mock dikembalikan ke kondisi seed awal.', 'success')
 }
 </script>
