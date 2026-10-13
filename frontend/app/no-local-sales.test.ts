@@ -32,7 +32,9 @@ const FORBIDDEN = [
   // S10b: master data and the organization profile change on the server.
   'createMasterDataRecord(', 'updateMasterDataRecord(', 'deactivateMasterDataRecord(', 'reactivateMasterDataRecord(', 'updateOrganizationProfile(',
   // S11a: assets, maintenance and checkouts change on the server.
-  'addAsset(', 'updateAsset(', 'returnAsset(', 'completeMaintenance('
+  'addAsset(', 'updateAsset(', 'returnAsset(', 'completeMaintenance(',
+  // S11b: marketing content changes on the server.
+  'createContentScheduleItem(', 'updateContentScheduleStatus(', 'createContentDevelopmentItem(', 'updateContentDevelopmentStage('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**

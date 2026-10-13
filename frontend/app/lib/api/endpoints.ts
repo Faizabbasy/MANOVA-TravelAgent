@@ -3,6 +3,10 @@ import { newIdempotencyKey } from './client'
 import type { MasterDataCategoryKey } from '~/types/master-data'
 import type { AssetCondition } from '~/types/inventory'
 import type {
+  ContentIdeaDto,
+  ContentIdeaInput,
+  ContentScheduleDto,
+  ContentScheduleInput,
   AssetCheckoutDto,
   AssetCheckoutInput,
   AssetDto,
@@ -191,6 +195,14 @@ export function createManovaApi (client: ApiClient) {
       changeUserRole: (id: string, role: string) => client.put<UserDto>(`/users/${seg(id)}/role`, { role }),
       listAuditEvents: () => client.get<SystemEventDto[]>('/audit/events'),
       listAuditSessions: () => client.get<SessionLogDto[]>('/audit/sessions'),
+      listContentSchedule: () => client.get<ContentScheduleDto[]>('/content-schedule'),
+      createContentSchedule: (input: ContentScheduleInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<ContentScheduleDto>('/content-schedule', input, { idempotencyKey }),
+      updateContentSchedule: (id: string, input: ContentScheduleInput) => client.patch<ContentScheduleDto>(`/content-schedule/${seg(id)}`, input),
+      listContentIdeas: () => client.get<ContentIdeaDto[]>('/content-development'),
+      createContentIdea: (input: ContentIdeaInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<ContentIdeaDto>('/content-development', input, { idempotencyKey }),
+      updateContentIdea: (id: string, input: ContentIdeaInput) => client.patch<ContentIdeaDto>(`/content-development/${seg(id)}`, input),
       listAssets: () => client.get<AssetDto[]>('/assets'),
       createAsset: (input: AssetInput, idempotencyKey: string = newIdempotencyKey()) => client.post<AssetDto>('/assets', input, { idempotencyKey }),
       updateAsset: (id: string, input: AssetInput) => client.patch<AssetDto>(`/assets/${seg(id)}`, input),

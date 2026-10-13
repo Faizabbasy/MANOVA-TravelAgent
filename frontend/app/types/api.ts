@@ -11,6 +11,7 @@ import type { ServiceStatus, ServiceTypeKey } from './project'
 import type { DocumentEntityType, NotificationCategory, NotificationType } from './document-comms'
 import type { MasterDataCategoryKey } from './master-data'
 import type { AssetCategoryKey, AssetCondition, AssetStatus, CheckoutStatus, MaintenanceStatus, MaintenanceType } from './inventory'
+import type { ContentDevelopmentStage, ContentPlatform, ContentScheduleStatus } from './marketing'
 
 export type MoneyMinor = string
 export type IsoDate = string
@@ -1365,6 +1366,41 @@ export interface UserDto {
   suspendedAt: string | null
   clientPartyId: string | null
   vendorId: string | null
+}
+/** A marketing content schedule entry (S11b); `campaignId` is a plain reference (campaigns are still a mock). */
+export interface ContentScheduleDto {
+  id: string
+  publishDate: string
+  platform: ContentPlatform
+  title: string
+  status: ContentScheduleStatus
+  campaignId: string | null
+  note: string | null
+}
+export interface ContentScheduleInput {
+  publishDate?: string
+  platform?: ContentPlatform
+  title?: string
+  status?: ContentScheduleStatus
+  campaignId?: string | null
+  note?: string | null
+}
+/** A content idea in the development pipeline (S11b); `updatedOn` is set by the server. */
+export interface ContentIdeaDto {
+  id: string
+  title: string
+  stage: ContentDevelopmentStage
+  platform: ContentPlatform
+  ownerId: string | null
+  note: string | null
+  updatedOn: string
+}
+export interface ContentIdeaInput {
+  title?: string
+  stage?: ContentDevelopmentStage
+  platform?: ContentPlatform
+  ownerId?: string | null
+  note?: string | null
 }
 /** A MANOVA-owned asset (S11a); `in-use` is set only by a checkout. */
 export interface AssetDto {

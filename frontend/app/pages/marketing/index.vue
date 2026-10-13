@@ -19,11 +19,14 @@ import {
   getCustomerLifetimeValues,
   getMarketingRoiSummary,
   getContentSchedule,
-  getContentDevelopment,
-  updateContentScheduleStatus,
-  updateContentDevelopmentStage
+  getContentDevelopment
 } from '~/data/marketing'
-import type { ContentScheduleStatus, ContentDevelopmentStage } from '~/types/marketing'
+import {
+  createContentIdeaOnServer, createContentScheduleOnServer, updateContentIdeaOnServer, updateContentScheduleOnServer
+} from '~/data/marketing-sync'
+import { createSaveGate } from '~/lib/save-gate'
+import { todayJakarta } from '~/lib/finance/dates'
+import type { ContentScheduleStatus, ContentDevelopmentStage, ContentPlatform } from '~/types/marketing'
 import { LEAD_SOURCES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatNumber, formatPercentage, formatDate } from '~/utils/format'
 import type { LeadSource } from '~/types/lead'
@@ -31,8 +34,13 @@ import type { LeadSource } from '~/types/lead'
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Marketing & Analysis' })
 
-const { canView } = usePermissions()
+const { canView, can } = usePermissions()
 const hasAccess = computed(() => canView('marketing'))
+/* S11b: the content schedule and development live on the server; only `marketing.manage-content` changes them. */
+const canManageContent = computed(() => can('marketing.manage-content'))
+const { showToast } = useToast()
+const api = useApi()
+const { saving: isSaving, run: save } = createSaveGate(showToast)
 
 const activeTab = ref<'campaigns' | 'promos' | 'funnel' | 'cac' | 'ltv' | 'content-schedule' | 'content-development'>('campaigns')
 const funnelChannel = ref<'all' | LeadSource>('all')
@@ -40,14 +48,62 @@ const funnelChannel = ref<'all' | LeadSource>('all')
 const contentSchedule = computed(() => getContentSchedule())
 const contentDevelopment = computed(() => getContentDevelopment())
 
-function onContentScheduleStatusChange (id: string, event: Event) {
-  const value = (event.target as HTMLSelectElement).value as ContentScheduleStatus
-  updateContentScheduleStatus(id, value)
+async function onContentScheduleStatusChange (id: string, stored: ContentScheduleStatus, event: Event) {
+  const target = event.target as HTMLSelectElement
+  const value = target.value as ContentScheduleStatus
+  target.value = stored
+  await save('Status Konten Gagal Diubah', () => updateContentScheduleOnServer(api, id, { status: value }))
 }
 
-function onContentDevelopmentStageChange (id: string, event: Event) {
-  const value = (event.target as HTMLSelectElement).value as ContentDevelopmentStage
-  updateContentDevelopmentStage(id, value)
+async function onContentDevelopmentStageChange (id: string, stored: ContentDevelopmentStage, event: Event) {
+  const target = event.target as HTMLSelectElement
+  const value = target.value as ContentDevelopmentStage
+  target.value = stored
+  await save('Tahap Konten Gagal Diubah', () => updateContentIdeaOnServer(api, id, { stage: value }))
+}
+
+/* Dialog tambah jadwal konten (S11b). */
+const isScheduleOpen = ref(false)
+const emptySchedule = () => ({ publishDate: todayJakarta(), platform: 'instagram' as ContentPlatform, title: '', status: 'draft' as ContentScheduleStatus, campaignId: '', note: '' })
+const scheduleForm = ref(emptySchedule())
+function openSchedule () {
+  scheduleForm.value = emptySchedule()
+  isScheduleOpen.value = true
+}
+async function submitSchedule () {
+  const form = scheduleForm.value
+  if (!form.title.trim() || !form.publishDate) { return }
+  const done = await save('Jadwal Gagal Ditambahkan', () => createContentScheduleOnServer(api, {
+    publishDate: form.publishDate,
+    platform: form.platform,
+    title: form.title.trim(),
+    status: form.status,
+    campaignId: form.campaignId || null,
+    note: form.note.trim() || null
+  }))
+  if (!done) { return }
+  isScheduleOpen.value = false
+  showToast('Jadwal Ditambahkan', `"${done.title}" masuk jadwal konten.`, 'success')
+}
+
+/* Dialog tambah ide konten (S11b); PIC = user yang menambahkan. */
+const isIdeaOpen = ref(false)
+const emptyIdea = () => ({ title: '', platform: 'instagram' as ContentPlatform, stage: 'idea' as ContentDevelopmentStage, note: '' })
+const ideaForm = ref(emptyIdea())
+const { currentUser } = useCurrentUser()
+function openIdea () {
+  ideaForm.value = emptyIdea()
+  isIdeaOpen.value = true
+}
+async function submitIdea () {
+  const form = ideaForm.value
+  if (!form.title.trim()) { return }
+  const done = await save('Ide Konten Gagal Ditambahkan', () => createContentIdeaOnServer(api, {
+    title: form.title.trim(), platform: form.platform, stage: form.stage, ownerId: currentUser.value.id, note: form.note.trim() || null
+  }))
+  if (!done) { return }
+  isIdeaOpen.value = false
+  showToast('Ide Konten Ditambahkan', `"${done.title}" masuk pipeline pengembangan konten.`, 'success')
 }
 
 const performance = computed(() => getCampaignPerformance())
@@ -490,6 +546,11 @@ const repeatRate = computed(() => (ltvs.value.length
 
         <TabsContent value="content-schedule" class="pt-4 space-y-4">
           <SectionCard description="Jadwal publikasi konten per platform. Ubah status langsung dari daftar saat konten sudah dipublikasikan.">
+            <template v-if="canManageContent" #actions>
+              <Button size="sm" @click="openSchedule">
+                Tambah Jadwal
+              </Button>
+            </template>
           <div class="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -525,9 +586,10 @@ const repeatRate = computed(() => (ltvs.value.length
                   </TableCell>
                   <TableCell>
                     <select
-                      :value="item.status"
-                      class="appearance-none px-2 py-1 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-                      @change="onContentScheduleStatusChange(item.id, $event)"
+                        :value="item.status"
+                        :disabled="!canManageContent || isSaving"
+                        class="appearance-none px-2 py-1 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                        @change="onContentScheduleStatusChange(item.id, item.status, $event)"
                     >
                       <option v-for="option in CONTENT_SCHEDULE_STATUSES" :key="option.value" :value="option.value">
                         {{ option.label }}
@@ -543,6 +605,11 @@ const repeatRate = computed(() => (ltvs.value.length
 
         <TabsContent value="content-development" class="pt-4 space-y-4">
           <SectionCard description="Pipeline pengembangan ide dan draft konten sebelum masuk jadwal publikasi: Ide → Draft → Review → Siap Tayang.">
+            <template v-if="canManageContent" #actions>
+              <Button size="sm" @click="openIdea">
+                Tambah Ide Konten
+              </Button>
+            </template>
           <div class="overflow-x-auto">
             <Table>
               <TableHeader>
@@ -574,9 +641,10 @@ const repeatRate = computed(() => (ltvs.value.length
                   </TableCell>
                   <TableCell>
                     <select
-                      :value="item.stage"
-                      class="appearance-none px-2 py-1 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer"
-                      @change="onContentDevelopmentStageChange(item.id, $event)"
+                        :value="item.stage"
+                        :disabled="!canManageContent || isSaving"
+                        class="appearance-none px-2 py-1 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+                        @change="onContentDevelopmentStageChange(item.id, item.stage, $event)"
                     >
                       <option v-for="option in CONTENT_DEVELOPMENT_STAGES" :key="option.value" :value="option.value">
                         {{ option.label }}
@@ -590,6 +658,115 @@ const repeatRate = computed(() => (ltvs.value.length
           </SectionCard>
         </TabsContent>
       </Tabs>
+
+      <ResponsiveFormSheet
+        :open="isScheduleOpen"
+        title="Tambah Jadwal Konten"
+        description="Konten yang akan tayang di satu platform pada tanggal tertentu."
+        content-class="max-w-md"
+        @update:open="value => { isScheduleOpen = value }"
+      >
+        <div class="space-y-3">
+          <div class="space-y-1.5">
+            <Label>Judul / Topik</Label>
+            <Input v-model="scheduleForm.title" placeholder="mis. Teaser promo akhir tahun" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label>Tanggal Tayang</Label>
+              <Input v-model="scheduleForm.publishDate" type="date" />
+            </div>
+            <div class="space-y-1.5">
+              <Label>Platform</Label>
+              <select v-model="scheduleForm.platform" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option v-for="option in CONTENT_PLATFORMS" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label>Status</Label>
+              <select v-model="scheduleForm.status" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option v-for="option in CONTENT_SCHEDULE_STATUSES" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <Label>Campaign (opsional)</Label>
+              <select v-model="scheduleForm.campaignId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option value="">
+                  Tanpa campaign
+                </option>
+                <option v-for="campaign in CAMPAIGNS" :key="campaign.id" :value="campaign.id">
+                  {{ campaign.name }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Catatan (opsional)</Label>
+            <Input v-model="scheduleForm.note" />
+          </div>
+        </div>
+
+        <template #footer>
+          <Button variant="outline" @click="isScheduleOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!scheduleForm.title.trim() || !scheduleForm.publishDate || isSaving" @click="submitSchedule">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
+
+      <ResponsiveFormSheet
+        :open="isIdeaOpen"
+        title="Tambah Ide Konten"
+        description="Ide baru masuk pipeline pengembangan; Anda tercatat sebagai PIC."
+        content-class="max-w-md"
+        @update:open="value => { isIdeaOpen = value }"
+      >
+        <div class="space-y-3">
+          <div class="space-y-1.5">
+            <Label>Judul / Ide</Label>
+            <Input v-model="ideaForm.title" placeholder="mis. Reel behind-the-scene site visit" />
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="space-y-1.5">
+              <Label>Platform</Label>
+              <select v-model="ideaForm.platform" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option v-for="option in CONTENT_PLATFORMS" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <Label>Tahap</Label>
+              <select v-model="ideaForm.stage" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option v-for="option in CONTENT_DEVELOPMENT_STAGES" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </div>
+          </div>
+          <div class="space-y-1.5">
+            <Label>Catatan (opsional)</Label>
+            <Input v-model="ideaForm.note" />
+          </div>
+        </div>
+
+        <template #footer>
+          <Button variant="outline" @click="isIdeaOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!ideaForm.title.trim() || isSaving" @click="submitIdea">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>
