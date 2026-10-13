@@ -79,9 +79,11 @@ describe('server RBAC matrix (3 roles)', () => {
   })
 
   test('operational capabilities belong to admin; margin is visible to admin and finance', () => {
-    for (const c of ['project-order.close', 'sales.approve-quotation', 'crm.manage-party', 'hr.manage-payroll', 'inventory.manage-asset'] as const) {
+    for (const c of ['project-order.close', 'sales.approve-quotation', 'crm.manage-party', 'hr.manage-employee', 'inventory.manage-asset'] as const) {
       expect(INTERNAL.filter(r => hasCapability(r, c)), c).toEqual(['admin'])
     }
+    // S11c: salaries, payroll, commissions and incentives are Finance's (and the Super Admin's), never Admin's.
+    expect(INTERNAL.filter(r => hasCapability(r, 'hr.manage-payroll'))).toEqual(['finance'])
     expect(INTERNAL.filter(r => hasCapability(r, 'project-order.view-margin'))).toEqual(['admin', 'finance'])
   })
 

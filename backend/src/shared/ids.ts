@@ -8,7 +8,7 @@ import type { Queryable } from '../db/client'
 export type IdPrefix = 'PRJ-' | 'PTY-' | 'CP-' | 'PACT-' | 'VND-' | 'VCT-' | 'VPR-' | 'VDOC-' | 'SVC-' | 'FLT-' | 'HTL-' | 'TRN-' | 'MICE-' | 'VQ-' | 'SO-' | 'BAT-' | 'LED-' | 'LACT-' | 'QUO-' | 'SLO-' | 'GRP-' | 'TRV-' | 'ROOM-' | 'ITIN-' | 'TSK-' | 'PMS-' | 'ACT-' | 'CHG-' | 'CR-' | 'INC-' | 'CNX-' | 'DOC-' | 'MSG-' | 'NOT-'
   | 'PT-' | 'ST-' | 'DST-' | 'VC-' | 'APT-' | 'ALN-' | 'MHTL-' | 'CUR-' | 'TAX-' | 'PTM-' | 'CXR-' | 'NUM-' | 'DTPL-' | 'RGC-' | 'ASR-' | 'MTPL-'
   | 'AST-' | 'MNT-' | 'ACO-' | 'CAM-' | 'PRD-' | 'PRP-' | 'VHC-' | 'IT-'
-  | 'CTS-' | 'CTD-'
+  | 'CTS-' | 'CTD-' | 'EMP-' | 'INS-'
 
 /** Where each prefix's IDs live: table, ID column and an optional fixed filter (bookings share one table). */
 const SOURCES: Record<IdPrefix, { table: string; column?: string; where?: string }> = {
@@ -50,7 +50,9 @@ const SOURCES: Record<IdPrefix, { table: string; column?: string; where?: string
   'CAM-': { table: 'assets', column: 'code' }, 'PRD-': { table: 'assets', column: 'code' }, 'PRP-': { table: 'assets', column: 'code' },
   'VHC-': { table: 'assets', column: 'code' }, 'IT-': { table: 'assets', column: 'code' },
   // S11b: marketing content schedule and development.
-  'CTS-': { table: 'content_schedule' }, 'CTD-': { table: 'content_development' }
+  'CTS-': { table: 'content_schedule' }, 'CTD-': { table: 'content_development' },
+  // S11c: employees and manual incentives (INS-, since INC- is incidents); payroll and attendance use composed IDs.
+  'EMP-': { table: 'employees' }, 'INS-': { table: 'incentives' }
 }
 
 /** IDs other tables already point at without a row of their own (S6a: projects won from a lead made by the old local mock). */

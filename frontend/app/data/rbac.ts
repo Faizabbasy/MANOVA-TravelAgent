@@ -145,7 +145,8 @@ const SEED_CAPABILITIES: Record<string, RoleId[]> = {
   'finance.edit-contract-value': ['finance'],
   'finance.edit-credit-limit': ['finance'],
   'hr.manage-employee': ['admin'],
-  'hr.manage-payroll': ['admin'],
+  // S11c: gaji, payroll, komisi & insentif dipegang Finance (dan Super Admin), bukan Admin.
+  'hr.manage-payroll': ['finance'],
   'hr.manage-performance': ['admin'],
   'inventory.manage-asset': ['admin'],
   'marketing.manage-content': ['admin'],

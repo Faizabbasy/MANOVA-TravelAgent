@@ -97,7 +97,8 @@ const CAPABILITY_GRANTS = {
   'finance.manage-opex': ['finance'],
   'finance.close-period': ['finance'],
   'hr.manage-employee': ['admin'],
-  'hr.manage-payroll': ['admin'],
+  /** S11c: salaries, payroll, commissions and incentives are Finance's (the Super Admin passes every check). */
+  'hr.manage-payroll': ['finance'],
   'hr.manage-performance': ['admin'],
   'inventory.manage-asset': ['admin'],
   /** S11b: the marketing content schedule and the content development pipeline. */

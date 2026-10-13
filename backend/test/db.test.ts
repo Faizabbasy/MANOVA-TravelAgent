@@ -542,8 +542,8 @@ describe('demo seed', () => {
       await expect(db.query(`insert into payroll_runs (id, period, status) values ('PRN-Y', '2030-13', 'draft')`)).rejects.toThrow() // YYYY-MM
       await db.query(`insert into payroll_lines (id, payroll_run_id, employee_id, base_salary_minor, allowance_minor, deduction_minor) values ('PRL-1', 'PRN-2030-01', 'EMP-901', 5000000, 0, 0)`)
       await expect(db.query(`insert into payroll_lines (id, payroll_run_id, employee_id, base_salary_minor, allowance_minor, deduction_minor) values ('PRL-2', 'PRN-2030-01', 'EMP-901', 1, 0, 0)`)).rejects.toThrow()
-      await db.query(`insert into incentives (id, employee_id, project_id, period, amount_minor) values ('INC-901', 'EMP-901', 'PRJ-101', '2030-01', 1000000)`)
-      await expect(db.query(`insert into incentives (id, employee_id, project_id, period, amount_minor) values ('INC-902', 'EMP-901', 'PRJ-101', '2030-01', 0)`)).rejects.toThrow() // amount > 0
+      await db.query(`insert into incentives (id, employee_id, project_id, period, amount_minor) values ('INS-901', 'EMP-901', 'PRJ-101', '2030-01', 1000000)`)
+      await expect(db.query(`insert into incentives (id, employee_id, project_id, period, amount_minor) values ('INS-902', 'EMP-901', 'PRJ-101', '2030-01', 0)`)).rejects.toThrow() // amount > 0
       await db.query(`insert into performance_reviews (id, employee_id, period, reviewer_id, delivery_score, quality_score, collaboration_score, initiative_score, overall_score, reviewed_on)
                       values ('PRV-901', 'EMP-901', '2026-H1', 'USR-002', 4, 4, 4, 4, 4, '2026-07-01')`)
       await expect(db.query(`insert into performance_reviews (id, employee_id, period, reviewer_id, delivery_score, quality_score, collaboration_score, initiative_score, overall_score, reviewed_on)

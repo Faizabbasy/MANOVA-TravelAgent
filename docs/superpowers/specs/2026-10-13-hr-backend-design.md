@@ -28,7 +28,7 @@ insentif.
 | Absensi & review | Dibaca semua peran internal; tidak ada penulisan (UI memang hanya menampilkan) |
 | Payroll | Hanya `hr.manage-payroll` (Admin 403 juga untuk baca). `POST /payroll-runs {period}` membuat run draft + baris untuk karyawan aktif bergaji (gaji pokok dari data karyawan, tunjangan & potongan 0); satu run per periode. Approve (draft→approved, catat penyetuju) dan Paid (approved→paid). Baris payroll hanya bisa diubah saat run draft |
 | Komisi | Dihitung server dari project (`owner_user_id` → karyawan tertaut, `contract_value_minor` × tarif); status dari project (ditutup → paid, completed → approved, lainnya accrued). Tidak disimpan |
-| Insentif | Disimpan (`INC-…`): karyawan, project, periode, nominal, catatan; status approved. Hanya `hr.manage-payroll` |
+| Insentif | Disimpan (`INS-…`; `INC-` sudah dipakai insiden): karyawan, project, periode, nominal, catatan; status approved. Hanya `hr.manage-payroll` |
 | Uang di wire | Desimal string minor (`baseSalaryMinor`, `allowanceMinor`, `deductionMinor`, `amountMinor`, `baseAmountMinor`) |
 | Audit | Non-uang: `employee.created/updated`. Uang: `finance.employee_compensation.changed`, `finance.payroll.created/approved/paid`, `finance.payroll_line.updated`, `finance.incentive.created` — berawalan `finance.` sehingga Activity Center menyembunyikannya dari Admin (aturan S10a) dan angkanya boleh tercatat di before/after |
 | Seed | Karyawan, absensi, payroll run & baris, review dari fixture; seed ulang tidak menimpa baris yang diubah API |

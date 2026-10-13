@@ -1,4 +1,4 @@
-delete from id_sequences where prefix in ('EMP-', 'INC-');
+delete from id_sequences where prefix in ('EMP-', 'INS-');
 drop table if exists incentives;
 drop table if exists payroll_lines;
 drop table if exists payroll_runs;
