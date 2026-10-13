@@ -9533,6 +9533,1954 @@
       "updatedOn": "2026-08-25"
     }
   ],
+  "employees": [
+    {
+      "id": "EMP-001",
+      "userId": "USR-001",
+      "name": "Rani Kusuma",
+      "position": "Sales Executive",
+      "department": "Sales",
+      "employmentType": "full-time",
+      "status": "active",
+      "joinedOn": "2023-03-01",
+      "phone": "0812-1111-2201",
+      "email": "rani.kusuma@manova.id",
+      "baseSalaryMinor": "9500000",
+      "commissionRatePercent": 2
+    },
+    {
+      "id": "EMP-002",
+      "userId": null,
+      "name": "Galih Ramadhan",
+      "position": "Account Executive",
+      "department": "Sales",
+      "employmentType": "full-time",
+      "status": "active",
+      "joinedOn": "2022-08-15",
+      "phone": "0812-1111-2202",
+      "email": "galih.ramadhan@manova.id",
+      "baseSalaryMinor": "12000000",
+      "commissionRatePercent": 2.5
+    },
+    {
+      "id": "EMP-003",
+      "userId": "USR-002",
+      "name": "Doni Saputra",
+      "position": "Project Manager",
+      "department": "Operations",
+      "employmentType": "full-time",
+      "status": "active",
+      "joinedOn": "2021-06-01",
+      "phone": "0812-1111-2203",
+      "email": "doni.saputra@manova.id",
+      "baseSalaryMinor": "15000000",
+      "commissionRatePercent": 1.5
+    },
+    {
+      "id": "EMP-004",
+      "userId": null,
+      "name": "Fitri Handayani",
+      "position": "Project Manager",
+      "department": "Operations",
+      "employmentType": "full-time",
+      "status": "active",
+      "joinedOn": "2022-01-10",
+      "phone": "0812-1111-2204",
+      "email": "fitri.handayani@manova.id",
+      "baseSalaryMinor": "14000000",
+      "commissionRatePercent": 1.5
+    },
+    {
+      "id": "EMP-005",
+      "userId": null,
+      "name": "Fajar Nugroho",
+      "position": "Operations Coordinator",
+      "department": "Operations",
+      "employmentType": "full-time",
+      "status": "active",
+      "joinedOn": "2023-01-09",
+      "phone": "0812-1111-2205",
+      "email": "fajar.nugroho@manova.id",
+      "baseSalaryMinor": "10500000",
+      "commissionRatePercent": null
+    },
+    {
+      "id": "EMP-006",
+      "userId": null,
+      "name": "Andi Pratama",
+      "position": "Ticketing Specialist",
+      "department": "Operations",
+      "employmentType": "full-time",
+      "status": "active",
+      "joinedOn": "2023-05-02",
+      "phone": "0812-1111-2206",
+      "email": "andi.pratama@manova.id",
+      "baseSalaryMinor": "8500000",
+      "commissionRatePercent": null
+    },
+    {
+      "id": "EMP-007",
+      "userId": null,
+      "name": "Maya Putri",
+      "position": "Accommodation Specialist",
+      "department": "Operations",
+      "employmentType": "full-time",
+      "status": "on-leave",
+      "joinedOn": "2023-07-17",
+      "phone": "0812-1111-2207",
+      "email": "maya.putri@manova.id",
+      "baseSalaryMinor": "8500000",
+      "commissionRatePercent": null
+    },
+    {
+      "id": "EMP-008",
+      "userId": null,
+      "name": "Lina Marlina",
+      "position": "MICE Coordinator",
+      "department": "Operations",
+      "employmentType": "full-time",
+      "status": "active",
+      "joinedOn": "2022-11-21",
+      "phone": "0812-1111-2208",
+      "email": "lina.marlina@manova.id",
+      "baseSalaryMinor": "11000000",
+      "commissionRatePercent": null
+    },
+    {
+      "id": "EMP-009",
+      "userId": "USR-008",
+      "name": "Budi Santoso",
+      "position": "Finance Manager",
+      "department": "Finance",
+      "employmentType": "full-time",
+      "status": "active",
+      "joinedOn": "2021-02-15",
+      "phone": "0812-1111-2209",
+      "email": "budi.santoso@manova.id",
+      "baseSalaryMinor": "16000000",
+      "commissionRatePercent": null
+    },
+    {
+      "id": "EMP-010",
+      "userId": null,
+      "name": "Wulan Kartika",
+      "position": "Procurement Officer",
+      "department": "Vendor & Partner",
+      "employmentType": "full-time",
+      "status": "active",
+      "joinedOn": "2023-09-04",
+      "phone": "0812-1111-2210",
+      "email": "wulan.kartika@manova.id",
+      "baseSalaryMinor": "9000000",
+      "commissionRatePercent": null
+    },
+    {
+      "id": "EMP-011",
+      "userId": null,
+      "name": "Citra Ayu Lestari",
+      "position": "Marketing Specialist",
+      "department": "Marketing",
+      "employmentType": "contract",
+      "status": "active",
+      "joinedOn": "2024-02-01",
+      "phone": "0812-1111-2211",
+      "email": "citra.lestari@manova.id",
+      "baseSalaryMinor": "8000000",
+      "commissionRatePercent": null
+    },
+    {
+      "id": "EMP-012",
+      "userId": null,
+      "name": "Bayu Aditama",
+      "position": "HR Generalist",
+      "department": "HR",
+      "employmentType": "full-time",
+      "status": "active",
+      "joinedOn": "2023-04-03",
+      "phone": "0812-1111-2212",
+      "email": "bayu.aditama@manova.id",
+      "baseSalaryMinor": "9800000",
+      "commissionRatePercent": null
+    },
+    {
+      "id": "EMP-013",
+      "userId": null,
+      "name": "Yusuf Maulana",
+      "position": "Tour Leader",
+      "department": "Operations",
+      "employmentType": "freelance",
+      "status": "active",
+      "joinedOn": "2024-06-10",
+      "phone": "0812-1111-2213",
+      "email": null,
+      "baseSalaryMinor": "0",
+      "commissionRatePercent": null
+    },
+    {
+      "id": "EMP-014",
+      "userId": null,
+      "name": "Sinta Rahmawati",
+      "position": "Tour Leader",
+      "department": "Operations",
+      "employmentType": "freelance",
+      "status": "active",
+      "joinedOn": "2024-08-20",
+      "phone": "0812-1111-2214",
+      "email": null,
+      "baseSalaryMinor": "0",
+      "commissionRatePercent": null
+    }
+  ],
+  "attendance": [
+    {
+      "id": "ATT-EMP-001-2026-07-01",
+      "employeeId": "EMP-001",
+      "date": "2026-07-01",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-02",
+      "employeeId": "EMP-001",
+      "date": "2026-07-02",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-03",
+      "employeeId": "EMP-001",
+      "date": "2026-07-03",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-06",
+      "employeeId": "EMP-001",
+      "date": "2026-07-06",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-07",
+      "employeeId": "EMP-001",
+      "date": "2026-07-07",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-08",
+      "employeeId": "EMP-001",
+      "date": "2026-07-08",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-09",
+      "employeeId": "EMP-001",
+      "date": "2026-07-09",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-10",
+      "employeeId": "EMP-001",
+      "date": "2026-07-10",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-13",
+      "employeeId": "EMP-001",
+      "date": "2026-07-13",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-14",
+      "employeeId": "EMP-001",
+      "date": "2026-07-14",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-15",
+      "employeeId": "EMP-001",
+      "date": "2026-07-15",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-16",
+      "employeeId": "EMP-001",
+      "date": "2026-07-16",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-17",
+      "employeeId": "EMP-001",
+      "date": "2026-07-17",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-20",
+      "employeeId": "EMP-001",
+      "date": "2026-07-20",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-21",
+      "employeeId": "EMP-001",
+      "date": "2026-07-21",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-22",
+      "employeeId": "EMP-001",
+      "date": "2026-07-22",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-23",
+      "employeeId": "EMP-001",
+      "date": "2026-07-23",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-24",
+      "employeeId": "EMP-001",
+      "date": "2026-07-24",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-27",
+      "employeeId": "EMP-001",
+      "date": "2026-07-27",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-001-2026-07-28",
+      "employeeId": "EMP-001",
+      "date": "2026-07-28",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-01",
+      "employeeId": "EMP-002",
+      "date": "2026-07-01",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-02",
+      "employeeId": "EMP-002",
+      "date": "2026-07-02",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-03",
+      "employeeId": "EMP-002",
+      "date": "2026-07-03",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-06",
+      "employeeId": "EMP-002",
+      "date": "2026-07-06",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-07",
+      "employeeId": "EMP-002",
+      "date": "2026-07-07",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-08",
+      "employeeId": "EMP-002",
+      "date": "2026-07-08",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-09",
+      "employeeId": "EMP-002",
+      "date": "2026-07-09",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-10",
+      "employeeId": "EMP-002",
+      "date": "2026-07-10",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-13",
+      "employeeId": "EMP-002",
+      "date": "2026-07-13",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-14",
+      "employeeId": "EMP-002",
+      "date": "2026-07-14",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-15",
+      "employeeId": "EMP-002",
+      "date": "2026-07-15",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-16",
+      "employeeId": "EMP-002",
+      "date": "2026-07-16",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-17",
+      "employeeId": "EMP-002",
+      "date": "2026-07-17",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-20",
+      "employeeId": "EMP-002",
+      "date": "2026-07-20",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-21",
+      "employeeId": "EMP-002",
+      "date": "2026-07-21",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-22",
+      "employeeId": "EMP-002",
+      "date": "2026-07-22",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-23",
+      "employeeId": "EMP-002",
+      "date": "2026-07-23",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-24",
+      "employeeId": "EMP-002",
+      "date": "2026-07-24",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-27",
+      "employeeId": "EMP-002",
+      "date": "2026-07-27",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-002-2026-07-28",
+      "employeeId": "EMP-002",
+      "date": "2026-07-28",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-01",
+      "employeeId": "EMP-003",
+      "date": "2026-07-01",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-02",
+      "employeeId": "EMP-003",
+      "date": "2026-07-02",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-03",
+      "employeeId": "EMP-003",
+      "date": "2026-07-03",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-06",
+      "employeeId": "EMP-003",
+      "date": "2026-07-06",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-07",
+      "employeeId": "EMP-003",
+      "date": "2026-07-07",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-08",
+      "employeeId": "EMP-003",
+      "date": "2026-07-08",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-09",
+      "employeeId": "EMP-003",
+      "date": "2026-07-09",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-10",
+      "employeeId": "EMP-003",
+      "date": "2026-07-10",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-13",
+      "employeeId": "EMP-003",
+      "date": "2026-07-13",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-14",
+      "employeeId": "EMP-003",
+      "date": "2026-07-14",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-15",
+      "employeeId": "EMP-003",
+      "date": "2026-07-15",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-16",
+      "employeeId": "EMP-003",
+      "date": "2026-07-16",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-17",
+      "employeeId": "EMP-003",
+      "date": "2026-07-17",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-20",
+      "employeeId": "EMP-003",
+      "date": "2026-07-20",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-21",
+      "employeeId": "EMP-003",
+      "date": "2026-07-21",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-22",
+      "employeeId": "EMP-003",
+      "date": "2026-07-22",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-23",
+      "employeeId": "EMP-003",
+      "date": "2026-07-23",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-24",
+      "employeeId": "EMP-003",
+      "date": "2026-07-24",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-27",
+      "employeeId": "EMP-003",
+      "date": "2026-07-27",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-003-2026-07-28",
+      "employeeId": "EMP-003",
+      "date": "2026-07-28",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-01",
+      "employeeId": "EMP-004",
+      "date": "2026-07-01",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-02",
+      "employeeId": "EMP-004",
+      "date": "2026-07-02",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-03",
+      "employeeId": "EMP-004",
+      "date": "2026-07-03",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-06",
+      "employeeId": "EMP-004",
+      "date": "2026-07-06",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-07",
+      "employeeId": "EMP-004",
+      "date": "2026-07-07",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-08",
+      "employeeId": "EMP-004",
+      "date": "2026-07-08",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-09",
+      "employeeId": "EMP-004",
+      "date": "2026-07-09",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-10",
+      "employeeId": "EMP-004",
+      "date": "2026-07-10",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-13",
+      "employeeId": "EMP-004",
+      "date": "2026-07-13",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-14",
+      "employeeId": "EMP-004",
+      "date": "2026-07-14",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-15",
+      "employeeId": "EMP-004",
+      "date": "2026-07-15",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-16",
+      "employeeId": "EMP-004",
+      "date": "2026-07-16",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-17",
+      "employeeId": "EMP-004",
+      "date": "2026-07-17",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-20",
+      "employeeId": "EMP-004",
+      "date": "2026-07-20",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-21",
+      "employeeId": "EMP-004",
+      "date": "2026-07-21",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-22",
+      "employeeId": "EMP-004",
+      "date": "2026-07-22",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-23",
+      "employeeId": "EMP-004",
+      "date": "2026-07-23",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-24",
+      "employeeId": "EMP-004",
+      "date": "2026-07-24",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-27",
+      "employeeId": "EMP-004",
+      "date": "2026-07-27",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-004-2026-07-28",
+      "employeeId": "EMP-004",
+      "date": "2026-07-28",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-01",
+      "employeeId": "EMP-005",
+      "date": "2026-07-01",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-02",
+      "employeeId": "EMP-005",
+      "date": "2026-07-02",
+      "status": "absent",
+      "checkInAt": null,
+      "checkOutAt": null,
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-03",
+      "employeeId": "EMP-005",
+      "date": "2026-07-03",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-06",
+      "employeeId": "EMP-005",
+      "date": "2026-07-06",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-07",
+      "employeeId": "EMP-005",
+      "date": "2026-07-07",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-08",
+      "employeeId": "EMP-005",
+      "date": "2026-07-08",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-09",
+      "employeeId": "EMP-005",
+      "date": "2026-07-09",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-10",
+      "employeeId": "EMP-005",
+      "date": "2026-07-10",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-13",
+      "employeeId": "EMP-005",
+      "date": "2026-07-13",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-14",
+      "employeeId": "EMP-005",
+      "date": "2026-07-14",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-15",
+      "employeeId": "EMP-005",
+      "date": "2026-07-15",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-16",
+      "employeeId": "EMP-005",
+      "date": "2026-07-16",
+      "status": "remote",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-17",
+      "employeeId": "EMP-005",
+      "date": "2026-07-17",
+      "status": "remote",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-20",
+      "employeeId": "EMP-005",
+      "date": "2026-07-20",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-21",
+      "employeeId": "EMP-005",
+      "date": "2026-07-21",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-22",
+      "employeeId": "EMP-005",
+      "date": "2026-07-22",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-23",
+      "employeeId": "EMP-005",
+      "date": "2026-07-23",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-24",
+      "employeeId": "EMP-005",
+      "date": "2026-07-24",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-27",
+      "employeeId": "EMP-005",
+      "date": "2026-07-27",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-005-2026-07-28",
+      "employeeId": "EMP-005",
+      "date": "2026-07-28",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-01",
+      "employeeId": "EMP-006",
+      "date": "2026-07-01",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-02",
+      "employeeId": "EMP-006",
+      "date": "2026-07-02",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-03",
+      "employeeId": "EMP-006",
+      "date": "2026-07-03",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-06",
+      "employeeId": "EMP-006",
+      "date": "2026-07-06",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-07",
+      "employeeId": "EMP-006",
+      "date": "2026-07-07",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-08",
+      "employeeId": "EMP-006",
+      "date": "2026-07-08",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-09",
+      "employeeId": "EMP-006",
+      "date": "2026-07-09",
+      "status": "sick",
+      "checkInAt": null,
+      "checkOutAt": null,
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-10",
+      "employeeId": "EMP-006",
+      "date": "2026-07-10",
+      "status": "sick",
+      "checkInAt": null,
+      "checkOutAt": null,
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-13",
+      "employeeId": "EMP-006",
+      "date": "2026-07-13",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-14",
+      "employeeId": "EMP-006",
+      "date": "2026-07-14",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-15",
+      "employeeId": "EMP-006",
+      "date": "2026-07-15",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-16",
+      "employeeId": "EMP-006",
+      "date": "2026-07-16",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-17",
+      "employeeId": "EMP-006",
+      "date": "2026-07-17",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-20",
+      "employeeId": "EMP-006",
+      "date": "2026-07-20",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-21",
+      "employeeId": "EMP-006",
+      "date": "2026-07-21",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-22",
+      "employeeId": "EMP-006",
+      "date": "2026-07-22",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-23",
+      "employeeId": "EMP-006",
+      "date": "2026-07-23",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-24",
+      "employeeId": "EMP-006",
+      "date": "2026-07-24",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-27",
+      "employeeId": "EMP-006",
+      "date": "2026-07-27",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-006-2026-07-28",
+      "employeeId": "EMP-006",
+      "date": "2026-07-28",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-01",
+      "employeeId": "EMP-007",
+      "date": "2026-07-01",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-02",
+      "employeeId": "EMP-007",
+      "date": "2026-07-02",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-03",
+      "employeeId": "EMP-007",
+      "date": "2026-07-03",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-06",
+      "employeeId": "EMP-007",
+      "date": "2026-07-06",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-07",
+      "employeeId": "EMP-007",
+      "date": "2026-07-07",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-08",
+      "employeeId": "EMP-007",
+      "date": "2026-07-08",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-09",
+      "employeeId": "EMP-007",
+      "date": "2026-07-09",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-10",
+      "employeeId": "EMP-007",
+      "date": "2026-07-10",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-13",
+      "employeeId": "EMP-007",
+      "date": "2026-07-13",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-14",
+      "employeeId": "EMP-007",
+      "date": "2026-07-14",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-15",
+      "employeeId": "EMP-007",
+      "date": "2026-07-15",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-16",
+      "employeeId": "EMP-007",
+      "date": "2026-07-16",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-17",
+      "employeeId": "EMP-007",
+      "date": "2026-07-17",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-20",
+      "employeeId": "EMP-007",
+      "date": "2026-07-20",
+      "status": "leave",
+      "checkInAt": null,
+      "checkOutAt": null,
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-21",
+      "employeeId": "EMP-007",
+      "date": "2026-07-21",
+      "status": "leave",
+      "checkInAt": null,
+      "checkOutAt": null,
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-22",
+      "employeeId": "EMP-007",
+      "date": "2026-07-22",
+      "status": "leave",
+      "checkInAt": null,
+      "checkOutAt": null,
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-23",
+      "employeeId": "EMP-007",
+      "date": "2026-07-23",
+      "status": "leave",
+      "checkInAt": null,
+      "checkOutAt": null,
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-24",
+      "employeeId": "EMP-007",
+      "date": "2026-07-24",
+      "status": "leave",
+      "checkInAt": null,
+      "checkOutAt": null,
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-27",
+      "employeeId": "EMP-007",
+      "date": "2026-07-27",
+      "status": "leave",
+      "checkInAt": null,
+      "checkOutAt": null,
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-007-2026-07-28",
+      "employeeId": "EMP-007",
+      "date": "2026-07-28",
+      "status": "leave",
+      "checkInAt": null,
+      "checkOutAt": null,
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-01",
+      "employeeId": "EMP-008",
+      "date": "2026-07-01",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-02",
+      "employeeId": "EMP-008",
+      "date": "2026-07-02",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-03",
+      "employeeId": "EMP-008",
+      "date": "2026-07-03",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-06",
+      "employeeId": "EMP-008",
+      "date": "2026-07-06",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-07",
+      "employeeId": "EMP-008",
+      "date": "2026-07-07",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-08",
+      "employeeId": "EMP-008",
+      "date": "2026-07-08",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-09",
+      "employeeId": "EMP-008",
+      "date": "2026-07-09",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-10",
+      "employeeId": "EMP-008",
+      "date": "2026-07-10",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-13",
+      "employeeId": "EMP-008",
+      "date": "2026-07-13",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-14",
+      "employeeId": "EMP-008",
+      "date": "2026-07-14",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-15",
+      "employeeId": "EMP-008",
+      "date": "2026-07-15",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-16",
+      "employeeId": "EMP-008",
+      "date": "2026-07-16",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-17",
+      "employeeId": "EMP-008",
+      "date": "2026-07-17",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-20",
+      "employeeId": "EMP-008",
+      "date": "2026-07-20",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-21",
+      "employeeId": "EMP-008",
+      "date": "2026-07-21",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-22",
+      "employeeId": "EMP-008",
+      "date": "2026-07-22",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-23",
+      "employeeId": "EMP-008",
+      "date": "2026-07-23",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-24",
+      "employeeId": "EMP-008",
+      "date": "2026-07-24",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-27",
+      "employeeId": "EMP-008",
+      "date": "2026-07-27",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    },
+    {
+      "id": "ATT-EMP-008-2026-07-28",
+      "employeeId": "EMP-008",
+      "date": "2026-07-28",
+      "status": "present",
+      "checkInAt": "08:45",
+      "checkOutAt": "17:30",
+      "note": null
+    }
+  ],
+  "performanceReviews": [
+    {
+      "id": "PRV-001",
+      "employeeId": "EMP-002",
+      "period": "2026-H1",
+      "reviewerId": "USR-003",
+      "deliveryScore": 5,
+      "qualityScore": 4,
+      "collaborationScore": 5,
+      "initiativeScore": 4,
+      "overallScore": 4.5,
+      "strengths": "Konsisten menutup deal korporat besar dan menjaga hubungan klien.",
+      "improvements": "Dokumentasi handover ke Operations bisa lebih rinci.",
+      "reviewedOn": "2026-07-05"
+    },
+    {
+      "id": "PRV-002",
+      "employeeId": "EMP-003",
+      "period": "2026-H1",
+      "reviewerId": "USR-003",
+      "deliveryScore": 4,
+      "qualityScore": 5,
+      "collaborationScore": 4,
+      "initiativeScore": 4,
+      "overallScore": 4.25,
+      "strengths": "Eksekusi project rapi, jarang meleset dari jadwal.",
+      "improvements": "Delegasi ke koordinator perlu ditingkatkan agar tidak jadi bottleneck.",
+      "reviewedOn": "2026-07-06"
+    },
+    {
+      "id": "PRV-003",
+      "employeeId": "EMP-005",
+      "period": "2026-H1",
+      "reviewerId": "USR-002",
+      "deliveryScore": 3,
+      "qualityScore": 4,
+      "collaborationScore": 4,
+      "initiativeScore": 3,
+      "overallScore": 3.5,
+      "strengths": "Detail dan teliti pada koordinasi lapangan.",
+      "improvements": "Respons terhadap perubahan mendadak perlu lebih cepat.",
+      "reviewedOn": "2026-07-08"
+    },
+    {
+      "id": "PRV-004",
+      "employeeId": "EMP-008",
+      "period": "2026-H1",
+      "reviewerId": "USR-003",
+      "deliveryScore": 5,
+      "qualityScore": 4,
+      "collaborationScore": 5,
+      "initiativeScore": 5,
+      "overallScore": 4.75,
+      "strengths": "Menangani MICE kompleks dengan koordinasi vendor yang sangat baik.",
+      "improvements": "Estimasi biaya awal kadang terlalu optimistis.",
+      "reviewedOn": "2026-07-09"
+    },
+    {
+      "id": "PRV-005",
+      "employeeId": "EMP-001",
+      "period": "2026-H1",
+      "reviewerId": "USR-001",
+      "deliveryScore": 4,
+      "qualityScore": 3,
+      "collaborationScore": 4,
+      "initiativeScore": 4,
+      "overallScore": 3.75,
+      "strengths": "Aktif mencari lead baru dari berbagai kanal.",
+      "improvements": "Kualifikasi lead perlu lebih ketat agar konversi naik.",
+      "reviewedOn": "2026-07-10"
+    }
+  ],
+  "payrollRuns": [
+    {
+      "id": "PRN-2026-06",
+      "period": "2026-06",
+      "status": "paid",
+      "approvedBy": "USR-003",
+      "approvedOn": "2026-06-24",
+      "paidOn": "2026-06-25"
+    },
+    {
+      "id": "PRN-2026-07",
+      "period": "2026-07",
+      "status": "approved",
+      "approvedBy": "USR-003",
+      "approvedOn": "2026-07-24",
+      "paidOn": null
+    }
+  ],
+  "payrollLines": [
+    {
+      "id": "PRL-PRN-2026-06-EMP-001",
+      "payrollRunId": "PRN-2026-06",
+      "employeeId": "EMP-001",
+      "baseSalaryMinor": "9500000",
+      "allowanceMinor": "1140000",
+      "deductionMinor": "475000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-06-EMP-002",
+      "payrollRunId": "PRN-2026-06",
+      "employeeId": "EMP-002",
+      "baseSalaryMinor": "12000000",
+      "allowanceMinor": "1440000",
+      "deductionMinor": "600000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-06-EMP-003",
+      "payrollRunId": "PRN-2026-06",
+      "employeeId": "EMP-003",
+      "baseSalaryMinor": "15000000",
+      "allowanceMinor": "1800000",
+      "deductionMinor": "750000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-06-EMP-004",
+      "payrollRunId": "PRN-2026-06",
+      "employeeId": "EMP-004",
+      "baseSalaryMinor": "14000000",
+      "allowanceMinor": "1680000",
+      "deductionMinor": "700000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-06-EMP-005",
+      "payrollRunId": "PRN-2026-06",
+      "employeeId": "EMP-005",
+      "baseSalaryMinor": "10500000",
+      "allowanceMinor": "1260000",
+      "deductionMinor": "525000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-06-EMP-006",
+      "payrollRunId": "PRN-2026-06",
+      "employeeId": "EMP-006",
+      "baseSalaryMinor": "8500000",
+      "allowanceMinor": "1020000",
+      "deductionMinor": "425000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-06-EMP-007",
+      "payrollRunId": "PRN-2026-06",
+      "employeeId": "EMP-007",
+      "baseSalaryMinor": "8500000",
+      "allowanceMinor": "1020000",
+      "deductionMinor": "425000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-06-EMP-008",
+      "payrollRunId": "PRN-2026-06",
+      "employeeId": "EMP-008",
+      "baseSalaryMinor": "11000000",
+      "allowanceMinor": "1320000",
+      "deductionMinor": "550000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-06-EMP-009",
+      "payrollRunId": "PRN-2026-06",
+      "employeeId": "EMP-009",
+      "baseSalaryMinor": "16000000",
+      "allowanceMinor": "1920000",
+      "deductionMinor": "800000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-06-EMP-010",
+      "payrollRunId": "PRN-2026-06",
+      "employeeId": "EMP-010",
+      "baseSalaryMinor": "9000000",
+      "allowanceMinor": "1080000",
+      "deductionMinor": "450000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-06-EMP-011",
+      "payrollRunId": "PRN-2026-06",
+      "employeeId": "EMP-011",
+      "baseSalaryMinor": "8000000",
+      "allowanceMinor": "960000",
+      "deductionMinor": "400000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-06-EMP-012",
+      "payrollRunId": "PRN-2026-06",
+      "employeeId": "EMP-012",
+      "baseSalaryMinor": "9800000",
+      "allowanceMinor": "1176000",
+      "deductionMinor": "490000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-07-EMP-001",
+      "payrollRunId": "PRN-2026-07",
+      "employeeId": "EMP-001",
+      "baseSalaryMinor": "9500000",
+      "allowanceMinor": "1140000",
+      "deductionMinor": "475000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-07-EMP-002",
+      "payrollRunId": "PRN-2026-07",
+      "employeeId": "EMP-002",
+      "baseSalaryMinor": "12000000",
+      "allowanceMinor": "1440000",
+      "deductionMinor": "600000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-07-EMP-003",
+      "payrollRunId": "PRN-2026-07",
+      "employeeId": "EMP-003",
+      "baseSalaryMinor": "15000000",
+      "allowanceMinor": "1800000",
+      "deductionMinor": "750000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-07-EMP-004",
+      "payrollRunId": "PRN-2026-07",
+      "employeeId": "EMP-004",
+      "baseSalaryMinor": "14000000",
+      "allowanceMinor": "1680000",
+      "deductionMinor": "700000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-07-EMP-005",
+      "payrollRunId": "PRN-2026-07",
+      "employeeId": "EMP-005",
+      "baseSalaryMinor": "10500000",
+      "allowanceMinor": "1260000",
+      "deductionMinor": "525000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-07-EMP-006",
+      "payrollRunId": "PRN-2026-07",
+      "employeeId": "EMP-006",
+      "baseSalaryMinor": "8500000",
+      "allowanceMinor": "1020000",
+      "deductionMinor": "425000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-07-EMP-007",
+      "payrollRunId": "PRN-2026-07",
+      "employeeId": "EMP-007",
+      "baseSalaryMinor": "8500000",
+      "allowanceMinor": "1020000",
+      "deductionMinor": "425000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-07-EMP-008",
+      "payrollRunId": "PRN-2026-07",
+      "employeeId": "EMP-008",
+      "baseSalaryMinor": "11000000",
+      "allowanceMinor": "1320000",
+      "deductionMinor": "550000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-07-EMP-009",
+      "payrollRunId": "PRN-2026-07",
+      "employeeId": "EMP-009",
+      "baseSalaryMinor": "16000000",
+      "allowanceMinor": "1920000",
+      "deductionMinor": "800000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-07-EMP-010",
+      "payrollRunId": "PRN-2026-07",
+      "employeeId": "EMP-010",
+      "baseSalaryMinor": "9000000",
+      "allowanceMinor": "1080000",
+      "deductionMinor": "450000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-07-EMP-011",
+      "payrollRunId": "PRN-2026-07",
+      "employeeId": "EMP-011",
+      "baseSalaryMinor": "8000000",
+      "allowanceMinor": "960000",
+      "deductionMinor": "400000",
+      "note": null
+    },
+    {
+      "id": "PRL-PRN-2026-07-EMP-012",
+      "payrollRunId": "PRN-2026-07",
+      "employeeId": "EMP-012",
+      "baseSalaryMinor": "9800000",
+      "allowanceMinor": "1176000",
+      "deductionMinor": "490000",
+      "note": null
+    }
+  ],
   "notifications": [
     {
       "id": "NOT-001",

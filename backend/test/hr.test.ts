@@ -139,7 +139,9 @@ describe('commissions and incentives', () => {
   test('commissions are derived from the projects an employee owns; incentives are Finance entries', async () => {
     const [project] = await t.db.query<{ id: string; contract: string }>(
       "select id, contract_value_minor::text as contract from projects where owner_user_id = 'USR-002' and contract_value_minor is not null order by id limit 1")
-    const e = await newEmployee({ name: 'Doni', userId: 'USR-002' })
+    // The demo seed already links USR-002 to an employee; otherwise link a new one.
+    const linked = ((await call('GET', '/employees', 'finance')).json.data as Employee[]).find(x => x.userId === 'USR-002')
+    const e = linked ?? await newEmployee({ name: 'Doni', userId: 'USR-002' })
     await call('PATCH', `/employees/${e.id}`, 'finance', { commissionRatePercent: 1.5 })
     const list = (await call('GET', '/hr/commissions', 'finance')).json.data as Commission[]
     const derived = list.find(x => x.id === `COM-${project!.id}-${e.id}`)!

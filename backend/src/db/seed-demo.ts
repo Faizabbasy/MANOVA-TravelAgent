@@ -110,6 +110,18 @@ export interface DemoCoreSeed {
   /** Marketing content schedule and development (S11b). */
   contentSchedule?: { id: string; publishDate: string; platform: string; title: string; status: string; campaignId: string | null; note: string | null }[]
   contentDevelopment?: { id: string; title: string; stage: string; platform: string; ownerId: string | null; note: string | null; updatedOn: string }[]
+  /** Human resources (S11c); money as decimal strings. Commissions are derived by the API, not seeded. */
+  employees?: {
+    id: string; userId: string | null; name: string; position: string; department: string; employmentType: string; status: string; joinedOn: string
+    phone: string | null; email: string | null; baseSalaryMinor: string; commissionRatePercent: number | null
+  }[]
+  attendance?: { id: string; employeeId: string; date: string; status: string; checkInAt: string | null; checkOutAt: string | null; note: string | null }[]
+  performanceReviews?: {
+    id: string; employeeId: string; period: string; reviewerId: string; deliveryScore: number; qualityScore: number; collaborationScore: number
+    initiativeScore: number; overallScore: number; strengths: string | null; improvements: string | null; reviewedOn: string
+  }[]
+  payrollRuns?: { id: string; period: string; status: string; approvedBy: string | null; approvedOn: string | null; paidOn: string | null }[]
+  payrollLines?: { id: string; payrollRunId: string; employeeId: string; baseSalaryMinor: string; allowanceMinor: string; deductionMinor: string; note: string | null }[]
   /** In-app notifications (S9b). */
   notifications?: { id: string; userId: string; type: string; title: string; body: string; entityType: string | null; entityId: string | null; category: string | null; read: boolean; createdOn: string }[]
   /** Document metadata and messages (S9). */
@@ -573,6 +585,58 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
            owner_id = excluded.owner_id, note = excluded.note, updated_on = excluded.updated_on, updated_at = now()
          ${keep('content_development')}`,
         [x.id, x.title, x.stage, x.platform, x.ownerId, x.note, x.updatedOn, P]
+      )
+    }
+    // S11c: human resources. Rows changed through the API are left alone.
+    for (const e of seed.employees ?? []) {
+      await tx.query(
+        `insert into employees (id, user_id, name, position, department, employment_type, status, joined_on, phone, email, base_salary_minor, commission_rate_percent, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         on conflict (id) do update set user_id = excluded.user_id, name = excluded.name, position = excluded.position, department = excluded.department,
+           employment_type = excluded.employment_type, status = excluded.status, joined_on = excluded.joined_on, phone = excluded.phone, email = excluded.email,
+           base_salary_minor = excluded.base_salary_minor, commission_rate_percent = excluded.commission_rate_percent, updated_at = now()
+         ${keep('employees')}`,
+        [e.id, e.userId, e.name, e.position, e.department, e.employmentType, e.status, e.joinedOn, e.phone, e.email, e.baseSalaryMinor, e.commissionRatePercent, P]
+      )
+    }
+    for (const a of seed.attendance ?? []) {
+      await tx.query(
+        `insert into attendance_records (id, employee_id, date, status, check_in_at, check_out_at, note, provenance) values ($1, $2, $3, $4, $5, $6, $7, $8)
+         on conflict (id) do update set status = excluded.status, check_in_at = excluded.check_in_at, check_out_at = excluded.check_out_at, note = excluded.note, updated_at = now()
+         ${keep('attendance_records')}`,
+        [a.id, a.employeeId, a.date, a.status, a.checkInAt, a.checkOutAt, a.note, P]
+      )
+    }
+    for (const r of seed.performanceReviews ?? []) {
+      await tx.query(
+        `insert into performance_reviews (id, employee_id, period, reviewer_id, delivery_score, quality_score, collaboration_score, initiative_score, overall_score,
+                                          strengths, improvements, reviewed_on, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+         on conflict (id) do update set period = excluded.period, reviewer_id = excluded.reviewer_id, delivery_score = excluded.delivery_score,
+           quality_score = excluded.quality_score, collaboration_score = excluded.collaboration_score, initiative_score = excluded.initiative_score,
+           overall_score = excluded.overall_score, strengths = excluded.strengths, improvements = excluded.improvements, reviewed_on = excluded.reviewed_on, updated_at = now()
+         ${keep('performance_reviews')}`,
+        [r.id, r.employeeId, r.period, r.reviewerId, r.deliveryScore, r.qualityScore, r.collaborationScore, r.initiativeScore, r.overallScore,
+          r.strengths, r.improvements, r.reviewedOn, P]
+      )
+    }
+    for (const r of seed.payrollRuns ?? []) {
+      await tx.query(
+        `insert into payroll_runs (id, period, status, approved_by, approved_on, paid_on, provenance) values ($1, $2, $3, $4, $5, $6, $7)
+         on conflict (id) do update set status = excluded.status, approved_by = excluded.approved_by, approved_on = excluded.approved_on,
+           paid_on = excluded.paid_on, updated_at = now()
+         ${keep('payroll_runs')}`,
+        [r.id, r.period, r.status, r.approvedBy, r.approvedOn, r.paidOn, P]
+      )
+    }
+    for (const l of seed.payrollLines ?? []) {
+      await tx.query(
+        `insert into payroll_lines (id, payroll_run_id, employee_id, base_salary_minor, allowance_minor, deduction_minor, note, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8)
+         on conflict (id) do update set base_salary_minor = excluded.base_salary_minor, allowance_minor = excluded.allowance_minor,
+           deduction_minor = excluded.deduction_minor, note = excluded.note, updated_at = now()
+         ${keep('payroll_lines')}`,
+        [l.id, l.payrollRunId, l.employeeId, l.baseSalaryMinor, l.allowanceMinor, l.deductionMinor, l.note, P]
       )
     }
     // S9b: notifications. A re-seed refreshes the text of fixture rows but keeps what users read.

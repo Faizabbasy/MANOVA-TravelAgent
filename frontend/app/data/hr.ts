@@ -1,4 +1,8 @@
 import { reactive } from 'vue'
+// Relative (not ~/) so the backend seed extract, which runs under bun without the Nuxt alias, can load this file.
+import { DEMO_REFERENCE_DATE } from '../utils/attention'
+import { PROJECTS } from './projects'
+import { TASKS } from './activity'
 import type {
   Employee,
   AttendanceRecord,
@@ -9,9 +13,6 @@ import type {
   ProductivitySummary
 } from '~/types/hr'
 import type { StatusOption } from '~/types/common'
-import { PROJECTS } from './projects'
-import { TASKS } from './activity'
-import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 
 /**
  * Human Resource Management (Revisi 9-Modul, modul 6). Domain baru — sebelumnya tidak ada representasi

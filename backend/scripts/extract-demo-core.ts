@@ -34,6 +34,7 @@ import {
 } from '../../frontend/app/data/master-data'
 import { ASSET_CHECKOUTS, ASSETS, MAINTENANCE_SCHEDULES } from '../../frontend/app/data/inventory'
 import { CONTENT_DEVELOPMENT, CONTENT_SCHEDULE } from '../../frontend/app/data/marketing'
+import { ATTENDANCE_RECORDS, EMPLOYEES, PAYROLL_LINES, PAYROLL_RUNS, PERFORMANCE_REVIEWS } from '../../frontend/app/data/hr'
 import { VENDOR_CONTACTS, VENDOR_DOCUMENTS, VENDOR_PRODUCTS, VENDOR_QUOTATIONS, VENDORS } from '../../frontend/app/data/vendors'
 import type { DemoCoreSeed } from '../src/db/seed-demo'
 
@@ -382,6 +383,28 @@ const seed: DemoCoreSeed = {
   contentDevelopment: [...CONTENT_DEVELOPMENT].sort(byId).map(x => ({
     id: x.id, title: x.title, stage: x.stage, platform: x.platform,
     ownerId: x.ownerId && seededUser(x.ownerId, `content ${x.id} owner`) ? x.ownerId : null, note: x.note ?? null, updatedOn: dateOnly(x.updatedAt)!
+  })),
+  // S11c: human resources (commissions are derived by the API from projects, so they are not seeded).
+  employees: [...EMPLOYEES].sort(byId).map(e => ({
+    id: e.id, userId: e.userId && seededUser(e.userId, `employee ${e.id} user`) ? e.userId : null, name: e.name, position: e.position, department: e.department,
+    employmentType: e.employmentType, status: e.status, joinedOn: dateOnly(e.joinedAt)!, phone: e.phone ?? null, email: e.email ?? null,
+    baseSalaryMinor: String(Math.round(e.baseSalaryIdr)), commissionRatePercent: e.commissionRatePercent ?? null
+  })),
+  attendance: [...ATTENDANCE_RECORDS].sort(byId).map(a => ({
+    id: a.id, employeeId: a.employeeId, date: dateOnly(a.date)!, status: a.status, checkInAt: a.checkInAt ?? null, checkOutAt: a.checkOutAt ?? null, note: a.note ?? null
+  })),
+  performanceReviews: [...PERFORMANCE_REVIEWS].sort(byId).filter(r => seededUser(r.reviewerId, `review ${r.id} reviewer`)).map(r => ({
+    id: r.id, employeeId: r.employeeId, period: r.period, reviewerId: r.reviewerId, deliveryScore: r.deliveryScore, qualityScore: r.qualityScore,
+    collaborationScore: r.collaborationScore, initiativeScore: r.initiativeScore, overallScore: r.overallScore,
+    strengths: r.strengths ?? null, improvements: r.improvements ?? null, reviewedOn: dateOnly(r.reviewedAt)!
+  })),
+  payrollRuns: [...PAYROLL_RUNS].sort(byId).map(r => ({
+    id: r.id, period: r.period, status: r.status, approvedBy: r.approvedBy && seededUser(r.approvedBy, `payroll ${r.id} approver`) ? r.approvedBy : null,
+    approvedOn: dateOnly(r.approvedAt), paidOn: dateOnly(r.paidAt)
+  })),
+  payrollLines: [...PAYROLL_LINES].sort(byId).map(l => ({
+    id: l.id, payrollRunId: l.payrollRunId, employeeId: l.employeeId, baseSalaryMinor: String(Math.round(l.baseSalaryIdr)),
+    allowanceMinor: String(Math.round(l.allowanceIdr)), deductionMinor: String(Math.round(l.deductionIdr)), note: l.note ?? null
   })),
   // S9b: in-app notifications (one recipient per row).
   notifications: [...NOTIFICATION_RECORDS].sort(byId).filter(x => seededUser(x.userId, `notification ${x.id} recipient`)).map(x => ({

@@ -524,6 +524,28 @@ describe('demo seed', () => {
     }
   })
 
+  test('demo HR data is seeded; a re-seed keeps what the API changed', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      const count = async (table: string) => (await db.query(`select 1 from ${table}`)).length
+      expect([await count('employees'), await count('attendance_records'), await count('payroll_runs'), await count('payroll_lines'), await count('performance_reviews')])
+        .toEqual([14, 160, 2, 24, 5])
+      expect((await db.query<{ u: string; s: string; r: string }>("select user_id as u, base_salary_minor::text as s, commission_rate_percent::text as r from employees where id = 'EMP-003'"))[0])
+        .toEqual({ u: 'USR-002', s: '15000000', r: '1.50' })
+      expect((await db.query<{ s: string; p: string | null }>("select status as s, paid_on::text as p from payroll_runs where id = 'PRN-2026-07'"))[0]).toEqual({ s: 'approved', p: null })
+      await db.query("update employees set base_salary_minor = 99, changed_by_api_at = now() where id = 'EMP-001'")
+      await db.query("update payroll_runs set status = 'paid', paid_on = '2026-07-30', changed_by_api_at = now() where id = 'PRN-2026-07'")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ s: string }>("select base_salary_minor::text as s from employees where id = 'EMP-001'"))[0]!.s).toBe('99')
+      expect((await db.query<{ s: string }>("select status as s from payroll_runs where id = 'PRN-2026-07'"))[0]!.s).toBe('paid')
+      expect((await db.query<{ v: number }>("select last_value as v from id_sequences where prefix = 'EMP-'"))[0]!.v).toBeGreaterThanOrEqual(14)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('HR tables exist after 0038; one payroll run per period, one line per employee per run', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
@@ -961,10 +983,12 @@ describe('demo seed', () => {
     // `paymentTerms` on a quotation is the offered term ("DP 30%"), not a payment record.
     expect([...detailKeys].filter(k => k !== 'paymentTerms' && /invoice|payment|receipt|transaction|outstanding|balance|paid/i.test(k))).toEqual([])
     // `paymentTerm` is a CRM billing term ("30 hari"), not a payment record; `netCostMinor` is the booking's net cost (Booking module, S4a).
-    // S11a: `costMinor` is an asset maintenance cost (Inventory), not a Finance record.
-    expect([...keys].filter(k => k !== 'paymentTerm' && k !== 'netCostMinor' && k !== 'costMinor' && /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
+    // S11a: `costMinor` is an asset maintenance cost (Inventory), not a Finance record. S11c: `paidOn` is the date a demo
+    // payroll run was marked paid (HR status only, no cash booked — the user's decision).
+    expect([...keys].filter(k => k !== 'paymentTerm' && k !== 'netCostMinor' && k !== 'costMinor' && k !== 'paidOn' && /idr$|cost|balance|paid|invoice|payment|receipt|transaction|outstanding/i.test(k))).toEqual([])
     // The only money-like values are owned by Project/Booking/Sales (ADR-007): contract value, service budget,
     // booking sell price and net cost, and the price of a Group Trip participant booking. S4b: vendor quotation amount (Procurement). S7b: the vendor amount of an itinerary item (Operations). S7c: a milestone's planned budget (Operations). S8: a change request's commercial impact and a no-show/refund penalty (Operations).
-    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['amountMinor', 'budgetMinor', 'commercialImpactMinor', 'contractValueMinor', 'costMinor', 'creditLimitMinor', 'netCostMinor', 'penaltyMinor', 'priceMinor', 'purchasePriceMinor', 'sellAmountMinor', 'vendorAmountMinor'])
+    // S11c: salary, allowance and deduction of demo employees and payroll lines (HR, owned by Finance).
+    expect([...keys].filter(k => /minor/i.test(k)).sort()).toEqual(['allowanceMinor', 'amountMinor', 'baseSalaryMinor', 'budgetMinor', 'commercialImpactMinor', 'contractValueMinor', 'costMinor', 'creditLimitMinor', 'deductionMinor', 'netCostMinor', 'penaltyMinor', 'priceMinor', 'purchasePriceMinor', 'sellAmountMinor', 'vendorAmountMinor'])
   })
 })
