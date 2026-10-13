@@ -15,16 +15,18 @@ import {
   getAttendancePeriods,
   getPayrollBreakdown,
   getPayrollTotalIdr,
-  updatePayrollLine,
-  updatePayrollRunStatus,
   getPerformanceReviews,
   getProductivitySummary,
-  addEmployee,
-  updateEmployee,
-  getEmployeeByUserId,
-  addIncentive
+  getEmployeeByUserId
 } from '~/data/hr'
 import type { PayrollLineComputed } from '~/data/hr'
+import {
+  approvePayrollRunOnServer, createEmployeeOnServer, createIncentiveOnServer, createPayrollRunOnServer, payPayrollRunOnServer,
+  updateEmployeeOnServer, updatePayrollLineOnServer
+} from '~/data/hr-sync'
+import { createSaveGate } from '~/lib/save-gate'
+import { todayJakarta } from '~/lib/finance/dates'
+import type { EmployeeInput } from '~/types/api'
 import { getUserById, getProjectById, PROJECTS } from '~/data'
 import { findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatPercentage } from '~/utils/format'
@@ -35,13 +37,18 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 useHead({ title: 'Human Resource Management' })
 
 const { canView, can } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const hasAccess = computed(() => canView('hr'))
 const canManageEmployees = computed(() => can('hr.manage-employee'))
 const canManagePayroll = computed(() => can('hr.manage-payroll'))
 const canManagePerformance = computed(() => can('hr.manage-performance'))
+/* S11c: HR lives on the server. Admin manages employees' data; salaries, payroll, commissions and incentives belong to
+ * Finance and the Super Admin (`hr.manage-payroll`) and are hidden from everyone else — the server does not send them. */
+const canEditEmployee = computed(() => canManageEmployees.value || canManagePayroll.value)
+const employeeColumns = computed(() => 5 + (canManagePayroll.value ? 1 : 0) + (canEditEmployee.value ? 1 : 0))
+const api = useApi()
+const { saving: isSaving, run: save } = createSaveGate(showToast)
 
 const refreshKey = ref(0)
 const activeTab = ref<'employees' | 'attendance' | 'payroll' | 'commissions' | 'performance' | 'productivity'>('employees')
@@ -127,36 +134,48 @@ const isEmployeeFormValid = computed(() => Boolean(
   employeeForm.value.name.trim() &&
   employeeForm.value.position.trim() &&
   employeeForm.value.department.trim() &&
-  (employeeForm.value.isProjectBased || (employeeForm.value.baseSalaryIdr && employeeForm.value.baseSalaryIdr > 0))
+  // Pay is filled in by Finance; Admin never sees or sends it.
+  (!canManagePayroll.value || employeeForm.value.isProjectBased || (employeeForm.value.baseSalaryIdr && employeeForm.value.baseSalaryIdr > 0))
 ))
 
-function submitEmployeeForm () {
+async function submitEmployeeForm () {
   if (!isEmployeeFormValid.value) { return }
-  const payload = {
-    name: employeeForm.value.name.trim(),
-    position: employeeForm.value.position.trim(),
-    department: employeeForm.value.department.trim(),
-    employmentType: employeeForm.value.employmentType,
-    status: employeeForm.value.status,
-    joinedAt: employeeForm.value.joinedAt,
-    baseSalaryIdr: employeeForm.value.isProjectBased ? 0 : Number(employeeForm.value.baseSalaryIdr),
-    commissionRatePercent: employeeForm.value.commissionRatePercent ?? undefined,
-    phone: employeeForm.value.phone.trim() || undefined,
-    email: employeeForm.value.email.trim() || undefined
+  const payload: EmployeeInput = {}
+  // Each role sends only the fields it owns: the server refuses the others (403).
+  if (canManageEmployees.value) {
+    Object.assign(payload, {
+      name: employeeForm.value.name.trim(),
+      position: employeeForm.value.position.trim(),
+      department: employeeForm.value.department.trim(),
+      employmentType: employeeForm.value.employmentType,
+      status: employeeForm.value.status,
+      joinedOn: employeeForm.value.joinedAt,
+      phone: employeeForm.value.phone.trim() || null,
+      email: employeeForm.value.email.trim() || null
+    })
   }
+  if (canManagePayroll.value) {
+    payload.baseSalaryMinor = employeeForm.value.isProjectBased ? '0' : String(Math.round(Number(employeeForm.value.baseSalaryIdr)))
+    const rate = employeeForm.value.commissionRatePercent
+    payload.commissionRatePercent = rate ? Math.round(Number(rate) * 100) / 100 : null
+  }
+  const name = employeeForm.value.name.trim()
 
   if (employeeFormMode.value === 'edit' && editingEmployeeId.value) {
-    updateEmployee(editingEmployeeId.value, payload)
+    const id = editingEmployeeId.value
+    const saved = await save('Karyawan Gagal Disimpan', () => updateEmployeeOnServer(api, id, payload))
+    if (!saved) { return }
     refreshKey.value += 1
     isEmployeeFormOpen.value = false
-    showToast('Perubahan disimpan', `"${payload.name}" diperbarui.`, 'success')
+    showToast('Perubahan disimpan', `"${name}" diperbarui.`, 'success')
     return
   }
 
-  addEmployee(payload)
+  const created = await save('Karyawan Gagal Ditambahkan', () => createEmployeeOnServer(api, payload))
+  if (!created) { return }
   refreshKey.value += 1
   isEmployeeFormOpen.value = false
-  showToast('Karyawan ditambahkan', `"${payload.name}" masuk ke data karyawan.`, 'success')
+  showToast('Karyawan ditambahkan', `"${name}" masuk ke data karyawan.`, 'success')
 }
 
 const stats = computed(() => {
@@ -251,20 +270,33 @@ const isIncentiveFormValid = computed(() => Boolean(
   incentiveForm.value.amountIdr && incentiveForm.value.amountIdr > 0
 ))
 
-function submitIncentiveForm () {
+async function submitIncentiveForm () {
   if (!isIncentiveFormValid.value) { return }
-  for (const employeeId of incentiveForm.value.selectedEmployeeIds) {
-    addIncentive({
-      projectId: incentiveForm.value.projectId,
-      employeeId,
-      period: incentiveForm.value.period.trim(),
-      amountIdr: Number(incentiveForm.value.amountIdr),
-      note: incentiveForm.value.note.trim() || undefined
-    })
-  }
+  const form = incentiveForm.value
+  // One incentive per selected person, in order; a refusal stops the rest and says how many were saved.
+  const done = await save('Insentif Gagal Ditambahkan', async () => {
+    let saved = 0
+    try {
+      for (const employeeId of form.selectedEmployeeIds) {
+        await createIncentiveOnServer(api, {
+          projectId: form.projectId,
+          employeeId,
+          period: form.period.trim(),
+          amountMinor: String(Math.round(Number(form.amountIdr))),
+          note: form.note.trim() || undefined
+        })
+        saved += 1
+      }
+    } catch (error) {
+      if (saved > 0) { showToast('Sebagian Tersimpan', `${saved} dari ${form.selectedEmployeeIds.length} insentif tercatat sebelum gagal.`, 'info') }
+      throw error
+    }
+    return saved
+  })
+  if (!done) { return }
   refreshKey.value += 1
   isIncentiveFormOpen.value = false
-  showToast('Insentif ditambahkan', `Insentif tercatat untuk ${incentiveForm.value.selectedEmployeeIds.length} orang.`, 'success')
+  showToast('Insentif ditambahkan', `Insentif tercatat untuk ${done} orang.`, 'success')
 }
 
 const reviews = computed(() => getPerformanceReviews())
@@ -275,11 +307,38 @@ const productivity = computed(() => {
 
 const maxRevenueHandled = computed(() => Math.max(1, ...productivity.value.map(row => row.revenueHandledIdr)))
 
-function setPayrollStatus (status: 'approved' | 'paid') {
-  if (!activePayrollRun.value) { return }
-  updatePayrollRunStatus(activePayrollRun.value.id, status, currentUser.value.id)
+async function setPayrollStatus (status: 'approved' | 'paid') {
+  const run = activePayrollRun.value
+  if (!run) { return }
+  const done = await save('Payroll Gagal Diperbarui', () => status === 'approved' ? approvePayrollRunOnServer(api, run.id) : payPayrollRunOnServer(api, run.id))
+  if (!done) { return }
   refreshKey.value += 1
-  showToast('Payroll diperbarui', `Periode ${activePayrollRun.value.period} kini ${findStatusOption(PAYROLL_RUN_STATUSES, status).label}.`, 'success')
+  showToast('Payroll diperbarui', `Periode ${run.period} kini ${findStatusOption(PAYROLL_RUN_STATUSES, status).label}.`, 'success')
+}
+
+/* Buat payroll periode baru (S11c) — server membuat baris untuk karyawan aktif bergaji; tunjangan & potongan diisi Finance. */
+const isCreatePayrollOpen = ref(false)
+const newPayrollPeriod = ref(todayJakarta().slice(0, 7))
+function openCreatePayroll () {
+  const latest = PAYROLL_RUNS.at(-1)?.period
+  // Default: the month after the latest run, or this month when there is none.
+  if (latest) {
+    const [y, m] = latest.split('-').map(Number) as [number, number]
+    newPayrollPeriod.value = m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+  } else {
+    newPayrollPeriod.value = todayJakarta().slice(0, 7)
+  }
+  isCreatePayrollOpen.value = true
+}
+async function submitCreatePayroll () {
+  const period = newPayrollPeriod.value
+  if (!/^\d{4}-\d{2}$/.test(period)) { return }
+  const created = await save('Payroll Gagal Dibuat', () => createPayrollRunOnServer(api, period))
+  if (!created) { return }
+  selectedPayrollRunId.value = created.id
+  refreshKey.value += 1
+  isCreatePayrollOpen.value = false
+  showToast('Payroll dibuat', `Payroll ${period} berstatus draft. Lengkapi tunjangan & potongan sebelum disetujui.`, 'success')
 }
 
 /* Dialog edit baris payroll — hanya saat payroll run masih draft. */
@@ -309,13 +368,16 @@ const isPayrollLineFormValid = computed(() => Boolean(
   payrollLineForm.value.deductionIdr !== null && payrollLineForm.value.deductionIdr >= 0
 ))
 
-function submitPayrollLineForm () {
+async function submitPayrollLineForm () {
   if (!isPayrollLineFormValid.value || !editingPayrollLineId.value) { return }
-  updatePayrollLine(editingPayrollLineId.value, {
-    baseSalaryIdr: Number(payrollLineForm.value.baseSalaryIdr),
-    allowanceIdr: Number(payrollLineForm.value.allowanceIdr),
-    deductionIdr: Number(payrollLineForm.value.deductionIdr)
-  })
+  const id = editingPayrollLineId.value
+  const minor = (v: number | null) => String(Math.round(Number(v)))
+  const done = await save('Baris Payroll Gagal Disimpan', () => updatePayrollLineOnServer(api, id, {
+    baseSalaryMinor: minor(payrollLineForm.value.baseSalaryIdr),
+    allowanceMinor: minor(payrollLineForm.value.allowanceIdr),
+    deductionMinor: minor(payrollLineForm.value.deductionIdr)
+  }))
+  if (!done) { return }
   refreshKey.value += 1
   isPayrollLineFormOpen.value = false
   showToast('Payroll diperbarui', `Baris payroll "${editingPayrollLineEmployeeName.value}" diperbarui.`, 'success')
@@ -348,14 +410,14 @@ function submitPayrollLineForm () {
           <StatsCard size="sm" title="Sedang Cuti" :value="String(stats.onLeave)" :icon="CalendarCheck" :icon-color="stats.onLeave ? 'warning' : 'success'" />
           <StatsCard size="sm" title="Rata-rata Kehadiran" :value="formatPercentage(stats.attendanceRate)" :icon="CalendarCheck" :icon-color="stats.attendanceRate >= 90 ? 'success' : 'warning'" />
         </div>
-        <StatsCard title="Payroll Periode Terakhir" :value="formatCurrencyIdr(stats.monthlyPayroll)" :icon="Wallet" />
+        <StatsCard v-if="canManagePayroll" title="Payroll Periode Terakhir" :value="formatCurrencyIdr(stats.monthlyPayroll)" :icon="Wallet" />
       </div>
 
       <div class="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatsCard title="Karyawan Aktif" :value="String(stats.headcount)" :icon="Users" icon-color="primary" />
         <StatsCard title="Sedang Cuti" :value="String(stats.onLeave)" :icon="CalendarCheck" :icon-color="stats.onLeave ? 'warning' : 'success'" />
         <StatsCard title="Rata-rata Kehadiran" :value="formatPercentage(stats.attendanceRate)" :icon="CalendarCheck" :icon-color="stats.attendanceRate >= 90 ? 'success' : 'warning'" />
-        <StatsCard title="Payroll Periode Terakhir" :value="formatCurrencyIdr(stats.monthlyPayroll)" :icon="Wallet" />
+        <StatsCard v-if="canManagePayroll" title="Payroll Periode Terakhir" :value="formatCurrencyIdr(stats.monthlyPayroll)" :icon="Wallet" />
       </div>
 
       <Tabs v-model="activeTab">
@@ -366,10 +428,10 @@ function submitPayrollLineForm () {
           <TabsTrigger value="attendance">
             Absensi
           </TabsTrigger>
-          <TabsTrigger value="payroll">
+          <TabsTrigger v-if="canManagePayroll" value="payroll">
             Payroll
           </TabsTrigger>
-          <TabsTrigger value="commissions">
+          <TabsTrigger v-if="canManagePayroll" value="commissions">
             Komisi & Insentif
           </TabsTrigger>
           <TabsTrigger value="performance">
@@ -417,13 +479,13 @@ function submitPayrollLineForm () {
                         <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Bergabung
                         </TableHead>
-                        <TableHead class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <TableHead v-if="canManagePayroll" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Gaji Pokok
                         </TableHead>
                         <TableHead class="px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Status
                         </TableHead>
-                        <TableHead v-if="canManageEmployees" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                        <TableHead v-if="canEditEmployee" class="px-4 py-2.5 text-right text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                           Aksi
                         </TableHead>
                       </TableRow>
@@ -436,7 +498,7 @@ function submitPayrollLineForm () {
                           </p>
                           <p class="text-xs text-muted-foreground">
                             {{ employee.position }}
-                            <template v-if="employee.commissionRatePercent"> · komisi {{ employee.commissionRatePercent }}%</template>
+                            <template v-if="canManagePayroll && employee.commissionRatePercent"> · komisi {{ employee.commissionRatePercent }}%</template>
                           </p>
                         </TableCell>
                         <TableCell class="px-4 py-3 text-sm text-foreground">
@@ -451,7 +513,7 @@ function submitPayrollLineForm () {
                         <TableCell class="px-4 py-3 text-sm text-muted-foreground">
                           {{ formatDate(employee.joinedAt) }}
                         </TableCell>
-                        <TableCell class="px-4 py-3 text-right text-sm tabular-nums text-foreground">
+                        <TableCell v-if="canManagePayroll" class="px-4 py-3 text-right text-sm tabular-nums text-foreground">
                           {{ employee.baseSalaryIdr ? formatCurrencyIdr(employee.baseSalaryIdr) : 'Per proyek' }}
                         </TableCell>
                         <TableCell class="px-4 py-3">
@@ -460,14 +522,14 @@ function submitPayrollLineForm () {
                             :tone="findStatusOption(EMPLOYEE_STATUSES, employee.status).tone"
                           />
                         </TableCell>
-                        <TableCell v-if="canManageEmployees" class="px-4 py-3 text-right">
+                        <TableCell v-if="canEditEmployee" class="px-4 py-3 text-right">
                           <Button variant="outline" size="sm" @click="openEditEmployee(employee)">
                             <Pencil class="h-3.5 w-3.5 mr-1" />
                             Edit
                           </Button>
                         </TableCell>
                       </TableRow>
-                      <TableEmpty v-if="filteredEmployees.length === 0" :colspan="canManageEmployees ? 7 : 6">
+                      <TableEmpty v-if="filteredEmployees.length === 0" :colspan="employeeColumns">
                         Tidak ada karyawan yang cocok dengan filter.
                       </TableEmpty>
                     </TableBody>
@@ -483,7 +545,7 @@ function submitPayrollLineForm () {
                         </p>
                         <p class="text-xs text-muted-foreground">
                           {{ employee.position }}
-                          <template v-if="employee.commissionRatePercent"> · komisi {{ employee.commissionRatePercent }}%</template>
+                          <template v-if="canManagePayroll && employee.commissionRatePercent"> · komisi {{ employee.commissionRatePercent }}%</template>
                         </p>
                       </div>
                       <StatusBadge
@@ -517,7 +579,7 @@ function submitPayrollLineForm () {
                           {{ formatDate(employee.joinedAt) }}
                         </p>
                       </div>
-                      <div>
+                      <div v-if="canManagePayroll">
                         <p class="text-muted-foreground">
                           Gaji Pokok
                         </p>
@@ -526,7 +588,7 @@ function submitPayrollLineForm () {
                         </p>
                       </div>
                     </div>
-                    <Button v-if="canManageEmployees" variant="outline" size="sm" class="mt-3 w-full" @click="openEditEmployee(employee)">
+                    <Button v-if="canEditEmployee" variant="outline" size="sm" class="mt-3 w-full" @click="openEditEmployee(employee)">
                       <Pencil class="h-3.5 w-3.5 mr-1" />
                       Edit
                     </Button>
@@ -675,7 +737,14 @@ function submitPayrollLineForm () {
           </SectionCard>
         </TabsContent>
 
-        <TabsContent value="payroll" class="pt-4">
+        <TabsContent v-if="canManagePayroll" value="payroll" class="pt-4">
+          <div v-if="!activePayrollRun" class="flex flex-col items-start gap-3 rounded-xl border border-dashed border-border p-5 text-sm text-muted-foreground">
+            Belum ada payroll.
+            <Button size="sm" @click="openCreatePayroll">
+              <Plus class="h-4 w-4 mr-1.5" />
+              Buat Payroll
+            </Button>
+          </div>
           <SectionCard v-if="activePayrollRun" compact content-class="p-0" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" :title="`Payroll ${activePayrollRun.period}`" :description="`Total ${formatCurrencyIdr(getPayrollTotalIdr(activePayrollRun.id))}`">
             <template #actions>
               <div class="flex flex-wrap items-center gap-2">
@@ -689,11 +758,15 @@ function submitPayrollLineForm () {
                   :tone="findStatusOption(PAYROLL_RUN_STATUSES, activePayrollRun.status).tone"
                 />
                 <template v-if="canManagePayroll">
-                  <Button v-if="activePayrollRun.status === 'draft'" size="sm" @click="setPayrollStatus('approved')">
+                  <Button v-if="activePayrollRun.status === 'draft'" size="sm" :disabled="isSaving" @click="setPayrollStatus('approved')">
                     Setujui Payroll
                   </Button>
-                  <Button v-if="activePayrollRun.status === 'approved'" size="sm" @click="setPayrollStatus('paid')">
+                  <Button v-if="activePayrollRun.status === 'approved'" size="sm" :disabled="isSaving" @click="setPayrollStatus('paid')">
                     Tandai Dibayar
+                  </Button>
+                  <Button size="sm" variant="outline" @click="openCreatePayroll">
+                    <Plus class="h-4 w-4 mr-1.5" />
+                    Buat Payroll
                   </Button>
                 </template>
               </div>
@@ -814,7 +887,7 @@ function submitPayrollLineForm () {
           </SectionCard>
         </TabsContent>
 
-        <TabsContent value="commissions" class="pt-4">
+        <TabsContent v-if="canManagePayroll" value="commissions" class="pt-4">
           <SectionCard compact :content-class="commissions.length ? 'p-0' : ''" titleClass="text-sm font-bold normal-case tracking-normal text-foreground" title="Komisi & Insentif" description="Komisi diturunkan dari nilai kontrak project yang dipegang karyawan dan tarif komisinya masing-masing. Insentif dicatat manual per project dan orangnya.">
             <template v-if="canManagePayroll" #actions>
               <Button size="sm" @click="openAddIncentive">
@@ -1142,6 +1215,8 @@ function submitPayrollLineForm () {
         content-class="max-w-md"
       >
           <div class="space-y-3">
+            <!-- S11c: data karyawan diubah Admin; Finance hanya mengisi gaji & komisi di bawah. -->
+            <fieldset :disabled="!canManageEmployees" class="m-0 min-w-0 space-y-3 border-0 p-0 disabled:opacity-60">
             <div class="space-y-1.5">
               <Label>Nama Karyawan</Label>
               <Input v-model="employeeForm.name" placeholder="mis. Rani Kusuma" />
@@ -1178,7 +1253,21 @@ function submitPayrollLineForm () {
               <Label>Tanggal Bergabung</Label>
               <Input v-model="employeeForm.joinedAt" type="date" />
             </div>
-            <div class="space-y-1.5">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <Label>Telepon (opsional)</Label>
+                <Input v-model="employeeForm.phone" placeholder="0812-xxxx-xxxx" />
+              </div>
+              <div class="space-y-1.5">
+                <Label>Email (opsional)</Label>
+                <Input v-model="employeeForm.email" type="email" placeholder="nama@manova.id" />
+              </div>
+            </div>
+            </fieldset>
+            <p v-if="!canManagePayroll" class="text-xs text-muted-foreground">
+              Gaji pokok dan komisi diisi oleh Finance.
+            </p>
+            <div v-if="canManagePayroll" class="space-y-1.5">
               <label class="flex items-center gap-2 text-sm text-foreground cursor-pointer">
                 <Checkbox v-model="employeeForm.isProjectBased" />Gaji per proyek (tanpa nominal tetap)
               </label>
@@ -1190,19 +1279,9 @@ function submitPayrollLineForm () {
                 Karyawan ini dibayar per proyek — tidak ada gaji pokok tetap tiap bulan.
               </p>
             </div>
-            <div class="space-y-1.5">
+            <div v-if="canManagePayroll" class="space-y-1.5">
               <Label>Komisi % (opsional)</Label>
               <Input v-model.number="employeeForm.commissionRatePercent" type="number" step="0.1" placeholder="mis. 2" />
-            </div>
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div class="space-y-1.5">
-                <Label>Telepon (opsional)</Label>
-                <Input v-model="employeeForm.phone" placeholder="0812-xxxx-xxxx" />
-              </div>
-              <div class="space-y-1.5">
-                <Label>Email (opsional)</Label>
-                <Input v-model="employeeForm.email" type="email" placeholder="nama@manova.id" />
-              </div>
             </div>
           </div>
 
@@ -1210,10 +1289,31 @@ function submitPayrollLineForm () {
             <Button variant="outline" @click="isEmployeeFormOpen = false">
               Batal
             </Button>
-            <Button :disabled="!isEmployeeFormValid" @click="submitEmployeeForm">
+            <Button :disabled="!isEmployeeFormValid || isSaving" @click="submitEmployeeForm">
               Simpan
             </Button>
           </template>
+      </ResponsiveFormSheet>
+
+      <ResponsiveFormSheet
+        v-model:open="isCreatePayrollOpen"
+        title="Buat Payroll"
+        description="Server membuat baris untuk setiap karyawan aktif bergaji. Tunjangan & potongan diisi sebelum payroll disetujui; pembayaran gaji tetap dicatat Finance di kas."
+        content-class="max-w-sm"
+      >
+        <div class="space-y-1.5">
+          <Label>Periode</Label>
+          <Input v-model="newPayrollPeriod" type="month" />
+        </div>
+
+        <template #footer>
+          <Button variant="outline" @click="isCreatePayrollOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!newPayrollPeriod || isSaving" @click="submitCreatePayroll">
+            Buat Payroll
+          </Button>
+        </template>
       </ResponsiveFormSheet>
 
       <ResponsiveFormSheet

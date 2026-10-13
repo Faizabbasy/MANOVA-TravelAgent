@@ -12,6 +12,7 @@ import type { DocumentEntityType, NotificationCategory, NotificationType } from 
 import type { MasterDataCategoryKey } from './master-data'
 import type { AssetCategoryKey, AssetCondition, AssetStatus, CheckoutStatus, MaintenanceStatus, MaintenanceType } from './inventory'
 import type { ContentDevelopmentStage, ContentPlatform, ContentScheduleStatus } from './marketing'
+import type { AttendanceStatus, EmployeeStatus, EmploymentType, PayrollRunStatus } from './hr'
 
 export type MoneyMinor = string
 export type IsoDate = string
@@ -1367,6 +1368,79 @@ export interface UserDto {
   clientPartyId: string | null
   vendorId: string | null
 }
+/**
+ * An employee (S11c). `baseSalaryMinor` and `commissionRatePercent` are sent only to holders of `hr.manage-payroll`
+ * (Finance, Super Admin); everyone else receives `null`.
+ */
+export interface EmployeeDto {
+  id: string
+  userId: string | null
+  name: string
+  position: string
+  department: string
+  employmentType: EmploymentType
+  status: EmployeeStatus
+  joinedOn: string
+  phone: string | null
+  email: string | null
+  baseSalaryMinor: string | null
+  commissionRatePercent: number | null
+}
+/** Profile keys need `hr.manage-employee` (Admin); pay keys need `hr.manage-payroll` (Finance). */
+export interface EmployeeInput {
+  userId?: string | null
+  name?: string
+  position?: string
+  department?: string
+  employmentType?: EmploymentType
+  status?: EmployeeStatus
+  joinedOn?: string
+  phone?: string | null
+  email?: string | null
+  baseSalaryMinor?: string
+  commissionRatePercent?: number | null
+}
+export interface AttendanceDto { id: string; employeeId: string; date: string; status: AttendanceStatus; checkInAt: string | null; checkOutAt: string | null; note: string | null }
+export interface PerformanceReviewDto {
+  id: string
+  employeeId: string
+  period: string
+  reviewerId: string
+  deliveryScore: number
+  qualityScore: number
+  collaborationScore: number
+  initiativeScore: number
+  overallScore: number
+  strengths: string | null
+  improvements: string | null
+  reviewedOn: string
+}
+/** Payroll (S11c, `hr.manage-payroll` only); status only — paying salaries is booked by Finance separately. */
+export interface PayrollRunDto { id: string; period: string; status: PayrollRunStatus; approvedBy: string | null; approvedOn: string | null; paidOn: string | null }
+export interface PayrollLineDto {
+  id: string
+  payrollRunId: string
+  employeeId: string
+  baseSalaryMinor: string
+  allowanceMinor: string
+  deductionMinor: string
+  note: string | null
+}
+export interface PayrollLineInput { baseSalaryMinor?: string; allowanceMinor?: string; deductionMinor?: string; note?: string | null }
+/** A commission (derived from a project the employee owns) or a manual incentive (S11c, `hr.manage-payroll` only). */
+export interface CommissionDto {
+  id: string
+  employeeId: string
+  projectId: string
+  period: string
+  baseAmountMinor: string
+  ratePercent: number
+  amountMinor: string
+  status: 'accrued' | 'approved' | 'paid'
+  source: 'derived' | 'manual'
+  note: string | null
+}
+export interface IncentiveInput { employeeId: string; projectId: string; period: string; amountMinor: string; note?: string }
 /** A marketing content schedule entry (S11b); `campaignId` is a plain reference (campaigns are still a mock). */
 export interface ContentScheduleDto {
   id: string

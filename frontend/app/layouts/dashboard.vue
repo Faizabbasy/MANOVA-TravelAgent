@@ -17,6 +17,7 @@ import { useUsersSync } from '~/data/users-sync'
 import { useMasterDataSync } from '~/data/master-data-sync'
 import { useInventorySync } from '~/data/inventory-sync'
 import { useMarketingSync } from '~/data/marketing-sync'
+import { useHrSync } from '~/data/hr-sync'
 
 const isMobile = useIsMobile()
 /** Project (S3a/S3b), customer (S1), vendor (S2), layanan & booking (S4a), quotation & service order (S4b), serta lead & quotation client (S6a) milik server: dimuat sekali per user yang login ke array lokal. */
@@ -38,9 +39,10 @@ const usersSync = useUsersSync()
 const masterDataSync = useMasterDataSync()
 const inventorySync = useInventorySync()
 const marketingSync = useMarketingSync()
+const hrSync = useHrSync()
 const { currentUser } = useCurrentUser()
 /** Lead & quotation (S6a) are internal: the (hidden) portals get 403, so they are not loaded there. */
-const loadLeads = (force: boolean) => { if (!['client', 'vendor'].includes(currentUser.value.role)) { leadsSync.load(force); salesOrdersSync.load(force); travelersSync.load(force); itinerarySync.load(force); workItemsSync.load(force); activitySync.load(force); changesSync.load(force); documentsSync.load(force); notificationsSync.load(force); usersSync.load(force); masterDataSync.load(force); inventorySync.load(force); marketingSync.load(force) } }
+const loadLeads = (force: boolean) => { if (!['client', 'vendor'].includes(currentUser.value.role)) { leadsSync.load(force); salesOrdersSync.load(force); travelersSync.load(force); itinerarySync.load(force); workItemsSync.load(force); activitySync.load(force); changesSync.load(force); documentsSync.load(force); notificationsSync.load(force); usersSync.load(force); masterDataSync.load(force); inventorySync.load(force); marketingSync.load(force); hrSync.load(force) } }
 const loadServerData = (force = false) => { projectsSync.load(force); customersSync.load(force); vendorsSync.load(force); bookingsSync.load(force); procurementSync.load(force); loadLeads(force) }
 onMounted(() => { loadServerData() })
 watch(() => currentUser.value.id, () => { loadServerData() })

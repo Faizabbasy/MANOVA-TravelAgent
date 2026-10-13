@@ -34,7 +34,9 @@ const FORBIDDEN = [
   // S11a: assets, maintenance and checkouts change on the server.
   'addAsset(', 'updateAsset(', 'returnAsset(', 'completeMaintenance(',
   // S11b: marketing content changes on the server.
-  'createContentScheduleItem(', 'updateContentScheduleStatus(', 'createContentDevelopmentItem(', 'updateContentDevelopmentStage('
+  'createContentScheduleItem(', 'updateContentScheduleStatus(', 'createContentDevelopmentItem(', 'updateContentDevelopmentStage(',
+  // S11c: HR changes on the server; pay only by Finance / Super Admin.
+  'addEmployee(', 'updateEmployee(', 'addIncentive(', 'updatePayrollLine(', 'updatePayrollRunStatus('
 ]
 const ROOTS = ['pages', 'components', 'composables', 'layouts']
 /**
