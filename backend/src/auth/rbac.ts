@@ -100,6 +100,8 @@ const CAPABILITY_GRANTS = {
   'hr.manage-payroll': ['admin'],
   'hr.manage-performance': ['admin'],
   'inventory.manage-asset': ['admin'],
+  /** S11b: the marketing content schedule and the content development pipeline. */
+  'marketing.manage-content': ['admin'],
   // Users and roles stay super-admin only: whoever manages roles could grant themselves Finance.
   'admin.manage-users': [],
   'admin.manage-roles': [],

@@ -28,7 +28,9 @@ const LABEL: Record<string, string> = {
   'organization.updated': 'Profil organisasi diperbarui',
   'asset.created': 'Aset ditambahkan', 'asset.updated': 'Aset diperbarui', 'asset.checked_out': 'Aset dipinjamkan',
   'asset.returned': 'Aset dikembalikan', 'asset_maintenance.scheduled': 'Maintenance dijadwalkan',
-  'asset_maintenance.completed': 'Maintenance selesai'
+  'asset_maintenance.completed': 'Maintenance selesai',
+  'content.scheduled': 'Konten dijadwalkan', 'content.updated': 'Jadwal konten diperbarui',
+  'content_idea.created': 'Ide konten ditambahkan', 'content_idea.updated': 'Ide konten diperbarui'
 }
 
 /** `withFinance` false (no Finance access, e.g. Admin) leaves out Finance actions and the reasons Finance wrote. */

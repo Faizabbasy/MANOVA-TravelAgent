@@ -148,6 +148,7 @@ const SEED_CAPABILITIES: Record<string, RoleId[]> = {
   'hr.manage-payroll': ['admin'],
   'hr.manage-performance': ['admin'],
   'inventory.manage-asset': ['admin'],
+  'marketing.manage-content': ['admin'],
   // Admin mengelola master data & melihat activity center. User/role tetap khusus Super Admin: siapa pun
   // yang bisa mengatur role bisa memberi dirinya akses Finance, dan itu sengaja bukan wewenang Admin.
   'admin.manage-users': [],

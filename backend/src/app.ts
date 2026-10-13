@@ -15,6 +15,7 @@ import { notificationRoutes } from './modules/core/notification-routes'
 import { adminRoutes } from './modules/core/admin-routes'
 import { masterDataRoutes } from './modules/core/master-data-routes'
 import { inventoryRoutes } from './modules/core/inventory-routes'
+import { marketingRoutes } from './modules/core/marketing-routes'
 import { travelerRoutes } from './modules/core/traveler-routes'
 import { isFinancePath, mayReachFinanceRoute } from './modules/finance/access'
 import { financeRoutes } from './modules/finance/routes'
@@ -165,6 +166,7 @@ export function createApp(deps: AppDeps) {
     .use(adminRoutes(deps, auth))
     .use(masterDataRoutes(deps, auth))
     .use(inventoryRoutes(deps, auth))
+    .use(marketingRoutes(deps, auth))
     .use(financeRoutes(deps, auth))
     .use(arApRoutes(deps, auth))
     .use(refundRoutes(deps, auth))
