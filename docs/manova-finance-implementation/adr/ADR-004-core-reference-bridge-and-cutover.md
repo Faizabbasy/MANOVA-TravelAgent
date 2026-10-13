@@ -251,3 +251,18 @@ untuk `POST`/`PATCH /content-schedule` dan `POST`/`PATCH /content-development`. 
 `updatedOn` diisi server dengan tanggal bisnis Jakarta. `campaignId` disimpan sebagai referensi teks karena campaign,
 promo dan laporan marketing (funnel, CAC, LTV, ROI) masih seperti sebelumnya. Seed ulang tidak menimpa baris yang
 diubah lewat API. Setelah deploy jalankan `db:migrate` lalu `db:seed:demo`.
+
+## Update 2026-10-13 — Human Resource (S11c)
+
+Data HR kini di server (migrasi 0038: `employees`, `attendance_records`, `performance_reviews`, `payroll_runs`,
+`payroll_lines`, `incentives`). Keputusan pengguna: angka gaji, tunjangan, potongan, komisi dan insentif **dipegang
+Finance dan Super Admin**; `hr.manage-payroll` dipindah dari Admin ke Finance di kedua matriks RBAC. Admin tidak
+menerima angka itu sama sekali: `GET /employees` mengirim `baseSalaryMinor`/`commissionRatePercent` = `null` tanpa
+`hr.manage-payroll`; `/payroll-runs`, `/payroll-lines`, `/hr/commissions`, `/incentives` menolak (403); aksi uang diaudit
+dengan awalan `finance.` sehingga Activity Center menyembunyikannya dari Admin. Admin (`hr.manage-employee`) mengelola
+field non-uang karyawan; Finance hanya field uang (403 untuk yang lain). Absensi dan review hanya dibaca. Payroll:
+`POST /payroll-runs {period}` membuat run draft (`PRN-YYYY-MM`) dengan baris untuk karyawan aktif bergaji, lalu approve →
+paid; baris hanya berubah saat draft. **Payroll hanya menyimpan status — tidak ada posting otomatis ke kas/ledger**;
+pembayaran gaji dicatat Finance lewat alur kas yang ada. Komisi dihitung server dari project (`owner_user_id` →
+karyawan tertaut, `contract_value_minor` × tarif; status mengikuti project) dan tidak disimpan; insentif manual
+disimpan (`INS-`). Setelah deploy jalankan `db:migrate` lalu `db:seed:demo`.

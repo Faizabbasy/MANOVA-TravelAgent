@@ -1,6 +1,6 @@
 # Backend HR (S11c) — desain
 
-Tanggal: 13 Oktober 2026 · Branch: `production` · Status: disetujui (Finance & Super Admin pegang angka; Admin tidak melihat angka; payroll tanpa posting ledger; eksekusi native)
+Tanggal: 13 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-13-hr-backend)
 
 Bagian ketiga S11. Halaman Human Resource pindah ke server: karyawan, absensi, review kinerja, payroll, komisi dan
 insentif.
