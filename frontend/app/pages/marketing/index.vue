@@ -545,7 +545,7 @@ const repeatRate = computed(() => (ltvs.value.length
         </TabsContent>
 
         <TabsContent value="content-schedule" class="pt-4 space-y-4">
-          <SectionCard description="Jadwal publikasi konten per platform. Ubah status langsung dari daftar saat konten sudah dipublikasikan.">
+          <SectionCard title="Jadwal Konten" description="Jadwal publikasi konten per platform. Ubah status langsung dari daftar saat konten sudah dipublikasikan.">
             <template v-if="canManageContent" #actions>
               <Button size="sm" @click="openSchedule">
                 Tambah Jadwal
@@ -604,7 +604,7 @@ const repeatRate = computed(() => (ltvs.value.length
         </TabsContent>
 
         <TabsContent value="content-development" class="pt-4 space-y-4">
-          <SectionCard description="Pipeline pengembangan ide dan draft konten sebelum masuk jadwal publikasi: Ide → Draft → Review → Siap Tayang.">
+          <SectionCard title="Pengembangan Konten" description="Pipeline pengembangan ide dan draft konten sebelum masuk jadwal publikasi: Ide → Draft → Review → Siap Tayang.">
             <template v-if="canManageContent" #actions>
               <Button size="sm" @click="openIdea">
                 Tambah Ide Konten

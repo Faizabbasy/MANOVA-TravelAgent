@@ -94,3 +94,18 @@ describe('the header unread badge counts notifications without the panel being o
     expect(source.includes('notificationPanelRef.value?.unreadCount')).toBe(false)
   })
 })
+
+/** S11b review: SectionCard rendered its `#actions` slot only inside a header shown for a title, so add buttons vanished. */
+describe('a SectionCard shows its actions without a title', () => {
+  it('the header renders when the card has actions; the title only when there is one', () => {
+    const source = readFileSync(join(appDir, 'components/shared/SectionCard.vue'), 'utf8')
+    expect(source).toMatch(/<CardHeader v-if="title \|\| \$slots\.header \|\| \$slots\.actions"/)
+    expect(source).toMatch(/<CardTitle v-if="title"/)
+  })
+
+  it('the marketing content cards carry a title', () => {
+    const source = readFileSync(join(appDir, 'pages/marketing/index.vue'), 'utf8')
+    expect(source).toContain('title="Jadwal Konten"')
+    expect(source).toContain('title="Pengembangan Konten"')
+  })
+})
