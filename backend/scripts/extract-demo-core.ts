@@ -33,6 +33,7 @@ import {
   READINESS_GATE_CONFIGS, TAX_RULES
 } from '../../frontend/app/data/master-data'
 import { ASSET_CHECKOUTS, ASSETS, MAINTENANCE_SCHEDULES } from '../../frontend/app/data/inventory'
+import { CONTENT_DEVELOPMENT, CONTENT_SCHEDULE } from '../../frontend/app/data/marketing'
 import { VENDOR_CONTACTS, VENDOR_DOCUMENTS, VENDOR_PRODUCTS, VENDOR_QUOTATIONS, VENDORS } from '../../frontend/app/data/vendors'
 import type { DemoCoreSeed } from '../src/db/seed-demo'
 
@@ -373,6 +374,14 @@ const seed: DemoCoreSeed = {
   assetCheckouts: [...ASSET_CHECKOUTS].sort(byId).filter(c => seededUser(c.borrowedBy, `asset checkout ${c.id} borrower`)).map(c => ({
     id: c.id, assetId: c.assetId, projectId: c.projectId ?? null, borrowedBy: c.borrowedBy, checkedOutOn: dateOnly(c.checkedOutAt)!, dueOn: dateOnly(c.dueAt)!,
     returnedOn: dateOnly(c.returnedAt), status: c.status === 'returned' ? 'returned' : 'checked-out', conditionOnReturn: c.conditionOnReturn ?? null, note: c.note ?? null
+  })),
+  // S11b: marketing content schedule and development.
+  contentSchedule: [...CONTENT_SCHEDULE].sort(byId).map(x => ({
+    id: x.id, publishDate: dateOnly(x.publishDate)!, platform: x.platform, title: x.title, status: x.status, campaignId: x.campaignId ?? null, note: x.note ?? null
+  })),
+  contentDevelopment: [...CONTENT_DEVELOPMENT].sort(byId).map(x => ({
+    id: x.id, title: x.title, stage: x.stage, platform: x.platform,
+    ownerId: x.ownerId && seededUser(x.ownerId, `content ${x.id} owner`) ? x.ownerId : null, note: x.note ?? null, updatedOn: dateOnly(x.updatedAt)!
   })),
   // S9b: in-app notifications (one recipient per row).
   notifications: [...NOTIFICATION_RECORDS].sort(byId).filter(x => seededUser(x.userId, `notification ${x.id} recipient`)).map(x => ({

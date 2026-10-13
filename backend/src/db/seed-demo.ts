@@ -107,6 +107,9 @@ export interface DemoCoreSeed {
   assets?: { id: string; code: string; name: string; category: string; brand: string | null; serialNumber: string | null; purchasedOn: string; purchasePriceMinor: string | null; condition: string; status: string; location: string; quantity: number; note: string | null }[]
   assetMaintenance?: { id: string; assetId: string; type: string; scheduledOn: string; completedOn: string | null; status: string; vendorName: string | null; costMinor: string | null; note: string | null; intervalDays: number | null }[]
   assetCheckouts?: { id: string; assetId: string; projectId: string | null; borrowedBy: string; checkedOutOn: string; dueOn: string; returnedOn: string | null; status: string; conditionOnReturn: string | null; note: string | null }[]
+  /** Marketing content schedule and development (S11b). */
+  contentSchedule?: { id: string; publishDate: string; platform: string; title: string; status: string; campaignId: string | null; note: string | null }[]
+  contentDevelopment?: { id: string; title: string; stage: string; platform: string; ownerId: string | null; note: string | null; updatedOn: string }[]
   /** In-app notifications (S9b). */
   notifications?: { id: string; userId: string; type: string; title: string; body: string; entityType: string | null; entityId: string | null; category: string | null; read: boolean; createdOn: string }[]
   /** Document metadata and messages (S9). */
@@ -549,6 +552,27 @@ export async function seedDemo(db: Db, options: { appEnv: AppEnv; password?: str
            note = excluded.note, updated_at = now()
          ${keep('asset_checkouts')}`,
         [c.id, c.assetId, c.projectId, c.borrowedBy, c.checkedOutOn, c.dueOn, c.returnedOn, c.status, c.conditionOnReturn, c.note, P]
+      )
+    }
+    // S11b: marketing content. Rows changed through the API are left alone.
+    for (const x of seed.contentSchedule ?? []) {
+      await tx.query(
+        `insert into content_schedule (id, publish_date, platform, title, status, campaign_id, note, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8)
+         on conflict (id) do update set publish_date = excluded.publish_date, platform = excluded.platform, title = excluded.title,
+           status = excluded.status, campaign_id = excluded.campaign_id, note = excluded.note, updated_at = now()
+         ${keep('content_schedule')}`,
+        [x.id, x.publishDate, x.platform, x.title, x.status, x.campaignId, x.note, P]
+      )
+    }
+    for (const x of seed.contentDevelopment ?? []) {
+      await tx.query(
+        `insert into content_development (id, title, stage, platform, owner_id, note, updated_on, provenance)
+         values ($1, $2, $3, $4, $5, $6, $7, $8)
+         on conflict (id) do update set title = excluded.title, stage = excluded.stage, platform = excluded.platform,
+           owner_id = excluded.owner_id, note = excluded.note, updated_on = excluded.updated_on, updated_at = now()
+         ${keep('content_development')}`,
+        [x.id, x.title, x.stage, x.platform, x.ownerId, x.note, x.updatedOn, P]
       )
     }
     // S9b: notifications. A re-seed refreshes the text of fixture rows but keeps what users read.

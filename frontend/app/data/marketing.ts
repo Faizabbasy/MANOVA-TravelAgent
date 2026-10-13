@@ -1,5 +1,8 @@
 import { reactive } from 'vue'
 import { differenceInCalendarDays, parseISO } from 'date-fns'
+// Relative (not ~/) so the backend seed extract, which runs under bun without the Nuxt alias, can load this file.
+import { LEAD_SOURCES } from '../constants/status'
+import { DEMO_REFERENCE_DATE } from '../utils/attention'
 import type {
   Campaign,
   CampaignChannelSpend,
@@ -21,8 +24,6 @@ import { QUOTATIONS } from './quotations'
 import { PROJECTS } from './projects'
 import { PARTIES } from './parties'
 import { INVOICES } from './finance'
-import { LEAD_SOURCES } from '~/constants/status'
-import { DEMO_REFERENCE_DATE } from '~/utils/attention'
 
 /**
  * Marketing & Analysis (Revisi 9-Modul, modul 8).

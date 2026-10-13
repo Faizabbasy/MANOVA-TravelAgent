@@ -524,6 +524,26 @@ describe('demo seed', () => {
     }
   })
 
+  test('demo marketing content is seeded; a re-seed keeps what the API changed', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect(await db.query('select id from content_schedule')).toHaveLength(7)
+      expect(await db.query('select id from content_development')).toHaveLength(6)
+      expect((await db.query<{ c: string | null }>("select campaign_id as c from content_schedule where id = 'CTS-001'"))[0]!.c).toBe('CMP-001')
+      expect((await db.query<{ o: string | null }>("select owner_id as o from content_development where id = 'CTD-001'"))[0]!.o).toBe('USR-001')
+      await db.query("update content_schedule set status = 'published', changed_by_api_at = now() where id = 'CTS-002'")
+      await db.query("update content_development set stage = 'ready', changed_by_api_at = now() where id = 'CTD-001'")
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      expect((await db.query<{ s: string }>("select status as s from content_schedule where id = 'CTS-002'"))[0]!.s).toBe('published')
+      expect((await db.query<{ s: string }>("select stage as s from content_development where id = 'CTD-001'"))[0]!.s).toBe('ready')
+      expect((await db.query<{ v: number }>("select last_value as v from id_sequences where prefix = 'CTS-'"))[0]!.v).toBeGreaterThanOrEqual(7)
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('content schedule and content development exist after 0037', async () => {
     const { db, cleanup } = await makeTestDb()
     try {

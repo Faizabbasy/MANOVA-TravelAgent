@@ -9412,6 +9412,127 @@
       "note": "Terlambat 2 hari karena cuaca."
     }
   ],
+  "contentSchedule": [
+    {
+      "id": "CTS-001",
+      "publishDate": "2026-09-03",
+      "platform": "instagram",
+      "title": "Teaser Corporate Retreat Season 2026",
+      "status": "published",
+      "campaignId": "CMP-001",
+      "note": null
+    },
+    {
+      "id": "CTS-002",
+      "publishDate": "2026-09-05",
+      "platform": "tiktok",
+      "title": "Behind the scene MICE Nusantara Expo",
+      "status": "scheduled",
+      "campaignId": "CMP-002",
+      "note": null
+    },
+    {
+      "id": "CTS-003",
+      "publishDate": "2026-09-08",
+      "platform": "email",
+      "title": "Newsletter promo REFER50",
+      "status": "scheduled",
+      "campaignId": "CMP-003",
+      "note": null
+    },
+    {
+      "id": "CTS-004",
+      "publishDate": "2026-09-10",
+      "platform": "website",
+      "title": "Artikel: Tips Outbound Korporat Q4",
+      "status": "draft",
+      "campaignId": null,
+      "note": null
+    },
+    {
+      "id": "CTS-005",
+      "publishDate": "2026-09-12",
+      "platform": "linkedin",
+      "title": "Studi kasus klien corporate retreat",
+      "status": "draft",
+      "campaignId": null,
+      "note": null
+    },
+    {
+      "id": "CTS-006",
+      "publishDate": "2026-09-15",
+      "platform": "youtube",
+      "title": "Video testimoni klien MICE",
+      "status": "scheduled",
+      "campaignId": null,
+      "note": null
+    },
+    {
+      "id": "CTS-007",
+      "publishDate": "2026-08-28",
+      "platform": "instagram",
+      "title": "Highlight expo Q3",
+      "status": "published",
+      "campaignId": null,
+      "note": null
+    }
+  ],
+  "contentDevelopment": [
+    {
+      "id": "CTD-001",
+      "title": "Video promo Outbound Korporat Q4",
+      "stage": "idea",
+      "platform": "tiktok",
+      "ownerId": "USR-001",
+      "note": null,
+      "updatedOn": "2026-08-20"
+    },
+    {
+      "id": "CTD-002",
+      "title": "Carousel tips memilih vendor MICE",
+      "stage": "draft",
+      "platform": "instagram",
+      "ownerId": "USR-001",
+      "note": null,
+      "updatedOn": "2026-08-24"
+    },
+    {
+      "id": "CTD-003",
+      "title": "Artikel SEO: destinasi retreat 2026",
+      "stage": "review",
+      "platform": "website",
+      "ownerId": "USR-001",
+      "note": null,
+      "updatedOn": "2026-08-27"
+    },
+    {
+      "id": "CTD-004",
+      "title": "Email sequence onboarding klien baru",
+      "stage": "ready",
+      "platform": "email",
+      "ownerId": "USR-001",
+      "note": null,
+      "updatedOn": "2026-08-30"
+    },
+    {
+      "id": "CTD-005",
+      "title": "Reel behind-the-scene site visit",
+      "stage": "idea",
+      "platform": "instagram",
+      "ownerId": null,
+      "note": null,
+      "updatedOn": "2026-08-18"
+    },
+    {
+      "id": "CTD-006",
+      "title": "Studi kasus klien enterprise",
+      "stage": "draft",
+      "platform": "linkedin",
+      "ownerId": null,
+      "note": null,
+      "updatedOn": "2026-08-25"
+    }
+  ],
   "notifications": [
     {
       "id": "NOT-001",
