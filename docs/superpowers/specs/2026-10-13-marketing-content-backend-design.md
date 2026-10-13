@@ -1,6 +1,6 @@
 # Backend konten marketing (S11b) — desain
 
-Tanggal: 13 Oktober 2026 · Branch: `production` · Status: disetujui (opsi rekomendasi, eksekusi native)
+Tanggal: 13 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-13-marketing-content-backend)
 
 Bagian kedua S11. Tab **Jadwal Konten** dan **Pengembangan Konten** di halaman Marketing pindah ke server. Campaign,
 promo, funnel, CAC, LTV dan ROI tetap seperti sekarang (laporan turunan dari lead/quotation/project, campaign & promo

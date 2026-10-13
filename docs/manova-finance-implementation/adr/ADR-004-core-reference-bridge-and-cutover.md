@@ -241,3 +241,13 @@ belum ditutup; peminjam user internal aktif), `POST /asset-checkouts/:id/return`
 /projects/:id/close` kini menolak (422) selama ada aset yang dipinjam ke project itu belum kembali. Nilai perolehan aset
 dan biaya maintenance (`purchasePriceMinor`, `costMinor`) adalah angka operasional Inventory, bukan pembukuan Finance.
 Setelah deploy jalankan `db:migrate` lalu `db:seed:demo`.
+
+## Update 2026-10-13 — Konten marketing (S11b)
+
+Jadwal konten dan pipeline pengembangan konten kini di server (migrasi 0037: `content_schedule`, `content_development`).
+Semua peran internal membaca (`GET /content-schedule`, `GET /content-development`; portal 403); capability baru
+`marketing.manage-content` (Admin + Super Admin, ditambahkan di matriks server, matriks frontend dan katalog capability)
+untuk `POST`/`PATCH /content-schedule` dan `POST`/`PATCH /content-development`. PIC konten harus user internal aktif;
+`updatedOn` diisi server dengan tanggal bisnis Jakarta. `campaignId` disimpan sebagai referensi teks karena campaign,
+promo dan laporan marketing (funnel, CAC, LTV, ROI) masih seperti sebelumnya. Seed ulang tidak menimpa baris yang
+diubah lewat API. Setelah deploy jalankan `db:migrate` lalu `db:seed:demo`.
