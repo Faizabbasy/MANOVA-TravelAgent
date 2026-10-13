@@ -524,6 +524,22 @@ describe('demo seed', () => {
     }
   })
 
+  test('content schedule and content development exist after 0037', async () => {
+    const { db, cleanup } = await makeTestDb()
+    try {
+      await migrateUp(db)
+      await seedDemo(db, { appEnv: 'test', password: 'x-password-123' })
+      await db.query(`insert into content_schedule (id, publish_date, platform, title, status) values ('CTS-901', '2026-11-01', 'instagram', 'Uji', 'draft')`)
+      await expect(db.query(`insert into content_schedule (id, publish_date, platform, title, status) values ('CTS-902', '2026-11-01', 'myspace', 'Uji', 'draft')`)).rejects.toThrow()
+      await expect(db.query(`insert into content_schedule (id, publish_date, platform, title, status) values ('CTS-903', '2026-11-01', 'tiktok', '', 'draft')`)).rejects.toThrow()
+      await db.query(`insert into content_development (id, title, stage, platform, owner_id) values ('CTD-901', 'Ide', 'idea', 'email', 'USR-001')`)
+      await expect(db.query(`insert into content_development (id, title, stage, platform) values ('CTD-902', 'Ide', 'published', 'email')`)).rejects.toThrow()
+      await expect(db.query(`insert into content_development (id, title, stage, platform, owner_id) values ('CTD-903', 'Ide', 'idea', 'email', 'USR-999')`)).rejects.toThrow()
+    } finally {
+      await cleanup()
+    }
+  })
+
   test('demo assets, maintenance and checkouts are seeded; a re-seed keeps what the API changed', async () => {
     const { db, cleanup } = await makeTestDb()
     try {
