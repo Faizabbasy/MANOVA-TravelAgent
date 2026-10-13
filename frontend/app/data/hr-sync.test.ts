@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { COMMISSION_RECORDS, EMPLOYEES, PAYROLL_LINES, PAYROLL_RUNS, getPayrollBreakdown } from './hr'
-import { approvePayrollRunOnServer, createPayrollRunOnServer, mergeServerHr, updateEmployeeOnServer } from './hr-sync'
+import { approvePayrollRunOnServer, createIncentivesOnServer, createPayrollRunOnServer, mergeServerHr, updateEmployeeOnServer } from './hr-sync'
 import type { CommissionDto, EmployeeDto, PayrollLineDto, PayrollRunDto } from '~/types/api'
 
 const employee = (over: Partial<EmployeeDto> = {}): EmployeeDto => ({
@@ -57,6 +57,25 @@ describe('hr-sync', () => {
     await expect(createPayrollRunOnServer(api, '2026-08')).rejects.toThrow()
     expect(EMPLOYEES[0]!.position).toBe('Sales Executive')
     expect(PAYROLL_RUNS.map(r => [r.id, r.status])).toEqual([['PRN-2026-07', 'draft']])
+  })
+
+  it('an incentive batch reports who was saved when it stops, so a retry never posts them twice', async () => {
+    mergeServerHr({ employees: [employee()], attendance: [], reviews: [], pay: { runs: [], lines: [], commissions: [] } })
+    let calls = 0
+    const api = {
+      core: {
+        createIncentive: (input: { employeeId: string }) => {
+          calls += 1
+          return calls < 3
+            ? Promise.resolve({ data: commission({ id: `INS-00${calls}`, employeeId: input.employeeId, source: 'manual' }) })
+            : Promise.reject(new Error('422'))
+        }
+      }
+    } as never
+    const result = await createIncentivesOnServer(api, { projectId: 'PRJ-101', period: '2026-08', amountMinor: '1000000' }, ['EMP-001', 'EMP-002', 'EMP-003'])
+    expect(result.savedEmployeeIds).toEqual(['EMP-001', 'EMP-002'])
+    expect(result.error).toBeInstanceOf(Error)
+    expect(COMMISSION_RECORDS.map(c => c.id)).toEqual(['INS-001', 'INS-002'])
   })
 
   it('a new payroll run reloads the runs and the lines the server made', async () => {

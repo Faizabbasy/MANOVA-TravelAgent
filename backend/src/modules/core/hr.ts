@@ -103,7 +103,8 @@ function readPay(input: Input) {
   if (input.commissionRatePercent !== undefined) {
     const v = input.commissionRatePercent
     if (v === null) out.commission_rate_percent = null
-    else if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0 || v > 100 || Math.round(v * 100) !== v * 100) fe.commissionRatePercent = ['Persen komisi 0,01–100 (maks. 2 desimal), atau kosong.']
+    // At most two decimals, with a tolerance: 2.3 * 100 is 229.99999999999997 in binary floating point.
+    else if (typeof v !== 'number' || !Number.isFinite(v) || v <= 0 || v > 100 || Math.abs(Math.round(v * 100) - v * 100) > 1e-6) fe.commissionRatePercent = ['Persen komisi 0,01–100 (maks. 2 desimal), atau kosong.']
     else out.commission_rate_percent = v
   }
   if (Object.keys(fe).length) throw errors.validation(fe)

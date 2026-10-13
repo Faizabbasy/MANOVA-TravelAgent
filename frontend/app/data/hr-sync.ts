@@ -149,6 +149,25 @@ export async function createIncentiveOnServer (api: CoreApi, input: IncentiveInp
   return upsert(COMMISSION_RECORDS, commissionFromServer((await api.core.createIncentive(input)).data))
 }
 
+/**
+ * One incentive per person, in order. A refusal stops the batch; the caller gets who was already saved (to take them
+ * out of the selection, so a retry never posts them twice) and the error.
+ */
+export async function createIncentivesOnServer (
+  api: CoreApi, base: Omit<IncentiveInput, 'employeeId'>, employeeIds: string[]
+): Promise<{ savedEmployeeIds: string[]; error: unknown }> {
+  const savedEmployeeIds: string[] = []
+  for (const employeeId of employeeIds) {
+    try {
+      await createIncentiveOnServer(api, { ...base, employeeId })
+      savedEmployeeIds.push(employeeId)
+    } catch (error) {
+      return { savedEmployeeIds, error }
+    }
+  }
+  return { savedEmployeeIds, error: null }
+}
+
 export interface HrSyncState {
   status: 'idle' | 'loading' | 'ready' | 'offline' | 'error'
   userId: string | null

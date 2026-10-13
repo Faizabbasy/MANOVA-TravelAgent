@@ -21,7 +21,7 @@ import {
 } from '~/data/hr'
 import type { PayrollLineComputed } from '~/data/hr'
 import {
-  approvePayrollRunOnServer, createEmployeeOnServer, createIncentiveOnServer, createPayrollRunOnServer, payPayrollRunOnServer,
+  approvePayrollRunOnServer, createEmployeeOnServer, createIncentivesOnServer, createPayrollRunOnServer, payPayrollRunOnServer,
   updateEmployeeOnServer, updatePayrollLineOnServer
 } from '~/data/hr-sync'
 import { createSaveGate } from '~/lib/save-gate'
@@ -273,30 +273,28 @@ const isIncentiveFormValid = computed(() => Boolean(
 async function submitIncentiveForm () {
   if (!isIncentiveFormValid.value) { return }
   const form = incentiveForm.value
-  // One incentive per selected person, in order; a refusal stops the rest and says how many were saved.
-  const done = await save('Insentif Gagal Ditambahkan', async () => {
-    let saved = 0
-    try {
-      for (const employeeId of form.selectedEmployeeIds) {
-        await createIncentiveOnServer(api, {
-          projectId: form.projectId,
-          employeeId,
-          period: form.period.trim(),
-          amountMinor: String(Math.round(Number(form.amountIdr))),
-          note: form.note.trim() || undefined
-        })
-        saved += 1
+  const total = form.selectedEmployeeIds.length
+  // A refusal stops the batch; whoever was saved leaves the selection so "Simpan" again never posts them twice.
+  const result = await save('Insentif Gagal Ditambahkan', async () => {
+    const outcome = await createIncentivesOnServer(api, {
+      projectId: form.projectId,
+      period: form.period.trim(),
+      amountMinor: String(Math.round(Number(form.amountIdr))),
+      note: form.note.trim() || undefined
+    }, [...form.selectedEmployeeIds])
+    form.selectedEmployeeIds = form.selectedEmployeeIds.filter(id => !outcome.savedEmployeeIds.includes(id))
+    if (outcome.error) {
+      if (outcome.savedEmployeeIds.length) {
+        showToast('Sebagian Tersimpan', `${outcome.savedEmployeeIds.length} dari ${total} insentif tercatat; sisanya masih terpilih untuk dicoba lagi.`, 'info')
       }
-    } catch (error) {
-      if (saved > 0) { showToast('Sebagian Tersimpan', `${saved} dari ${form.selectedEmployeeIds.length} insentif tercatat sebelum gagal.`, 'info') }
-      throw error
+      throw outcome.error
     }
-    return saved
+    return outcome.savedEmployeeIds.length
   })
-  if (!done) { return }
   refreshKey.value += 1
+  if (!result) { return }
   isIncentiveFormOpen.value = false
-  showToast('Insentif ditambahkan', `Insentif tercatat untuk ${done} orang.`, 'success')
+  showToast('Insentif ditambahkan', `Insentif tercatat untuk ${result} orang.`, 'success')
 }
 
 const reviews = computed(() => getPerformanceReviews())

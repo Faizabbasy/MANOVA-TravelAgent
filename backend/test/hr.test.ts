@@ -67,6 +67,11 @@ describe('employees', () => {
     expect((await call('PATCH', `/employees/${e.id}`, 'finance', { position: 'X' })).status).toBe(403)
     expect((await call('PATCH', `/employees/${e.id}`, 'finance', { baseSalaryMinor: 9000000 })).status).toBe(400) // a string
     expect((await call('PATCH', `/employees/${e.id}`, 'finance', { commissionRatePercent: 150 })).status).toBe(400)
+    expect((await call('PATCH', `/employees/${e.id}`, 'finance', { commissionRatePercent: 1.234 })).status).toBe(400) // more than 2 decimals
+    // Two-decimal rates that are not exact in binary floating point (2.3 * 100 = 229.99999999999997) are valid.
+    for (const rate of [2.3, 1.1, 1.15, 4.35]) {
+      expect((await call('PATCH', `/employees/${e.id}`, 'finance', { commissionRatePercent: rate })).json.data.commissionRatePercent, String(rate)).toBe(rate)
+    }
     const both = await call('PATCH', `/employees/${e.id}`, 'superAdmin', { position: 'Lead', baseSalaryMinor: '15000000', commissionRatePercent: null })
     expect(both.json.data).toMatchObject({ position: 'Lead', baseSalaryMinor: '15000000', commissionRatePercent: null })
     expect((await call('PATCH', '/employees/EMP-999', 'admin', { position: 'X' })).status).toBe(404)
