@@ -93,3 +93,68 @@ describe('attendance and performance reviews', () => {
     }
   })
 })
+
+type Run = { id: string; period: string; status: string; approvedBy: string | null; approvedOn: string | null; paidOn: string | null }
+type Line = { id: string; payrollRunId: string; employeeId: string; baseSalaryMinor: string; allowanceMinor: string; deductionMinor: string; note: string | null }
+type Commission = { id: string; employeeId: string; projectId: string; period: string; baseAmountMinor: string; ratePercent: number; amountMinor: string; status: string; source: string; note: string | null }
+
+describe('payroll', () => {
+  test('only Finance and the Super Admin see or run payroll; a run is draft → approved → paid; lines change only in draft', async () => {
+    const e = await newEmployee({ name: 'Penerima Gaji' })
+    await call('PATCH', `/employees/${e.id}`, 'finance', { baseSalaryMinor: '10000000' })
+    for (const path of ['/payroll-runs', '/payroll-lines', '/hr/commissions']) {
+      expect((await call('GET', path, 'admin')).status).toBe(403)
+      expect((await call('GET', path, 'finance')).status).toBe(200)
+    }
+    expect((await call('POST', '/payroll-runs', 'admin', { period: '2031-01' })).status).toBe(403)
+    expect((await call('POST', '/payroll-runs', 'finance', { period: '2031-13' })).status).toBe(400)
+    const res = await call('POST', '/payroll-runs', 'finance', { period: '2031-01' })
+    expect(res.status).toBe(201)
+    const run = res.json.data as Run
+    expect(run).toMatchObject({ id: 'PRN-2031-01', period: '2031-01', status: 'draft', approvedBy: null })
+    expect((await call('POST', '/payroll-runs', 'finance', { period: '2031-01' })).status).toBe(422) // one run per period
+    const line = ((await call('GET', '/payroll-lines', 'finance')).json.data as Line[]).find(l => l.payrollRunId === run.id && l.employeeId === e.id)!
+    expect(line).toMatchObject({ baseSalaryMinor: '10000000', allowanceMinor: '0', deductionMinor: '0' })
+
+    const upd = await call('PATCH', `/payroll-lines/${line.id}`, 'finance', { allowanceMinor: '1200000', deductionMinor: '500000', note: 'Lembur' })
+    expect(upd.json.data).toMatchObject({ allowanceMinor: '1200000', deductionMinor: '500000', note: 'Lembur' })
+    expect((await call('PATCH', `/payroll-lines/${line.id}`, 'admin', { allowanceMinor: '1' })).status).toBe(403)
+    expect((await call('PATCH', `/payroll-lines/${line.id}`, 'finance', { allowanceMinor: -1 })).status).toBe(400)
+
+    expect((await call('POST', `/payroll-runs/${run.id}/pay`, 'finance')).status).toBe(422) // not approved yet
+    const approved = await call('POST', `/payroll-runs/${run.id}/approve`, 'finance')
+    expect(approved.json.data).toMatchObject({ status: 'approved', approvedBy: 'USR-008' })
+    expect((await call('PATCH', `/payroll-lines/${line.id}`, 'finance', { allowanceMinor: '1' })).status).toBe(422)
+    expect((await call('POST', `/payroll-runs/${run.id}/approve`, 'finance')).status).toBe(422)
+    expect((await call('POST', `/payroll-runs/${run.id}/pay`, 'admin')).status).toBe(403)
+    const paid = await call('POST', `/payroll-runs/${run.id}/pay`, 'finance')
+    expect(paid.json.data.status).toBe('paid')
+    expect(paid.json.data.paidOn).toMatch(/^\d{4}-\d{2}-\d{2}$/)
+    const actions = (await t.db.query<{ action: string }>("select action from audit_events where entity_id = $1 order by id", [run.id])).map(r => r.action)
+    expect(actions).toEqual(['finance.payroll.created', 'finance.payroll.approved', 'finance.payroll.paid'])
+  })
+})
+
+describe('commissions and incentives', () => {
+  test('commissions are derived from the projects an employee owns; incentives are Finance entries', async () => {
+    const [project] = await t.db.query<{ id: string; contract: string }>(
+      "select id, contract_value_minor::text as contract from projects where owner_user_id = 'USR-002' and contract_value_minor is not null order by id limit 1")
+    const e = await newEmployee({ name: 'Doni', userId: 'USR-002' })
+    await call('PATCH', `/employees/${e.id}`, 'finance', { commissionRatePercent: 1.5 })
+    const list = (await call('GET', '/hr/commissions', 'finance')).json.data as Commission[]
+    const derived = list.find(x => x.id === `COM-${project!.id}-${e.id}`)!
+    expect(derived).toMatchObject({ employeeId: e.id, projectId: project!.id, baseAmountMinor: project!.contract, ratePercent: 1.5, source: 'derived' })
+    expect(derived.amountMinor).toBe(String(Math.round(Number(project!.contract) * 1.5 / 100)))
+
+    const body = { employeeId: e.id, projectId: 'PRJ-101', period: '2031-02', amountMinor: '2500000', note: 'Bonus closing' }
+    expect((await call('POST', '/incentives', 'admin', body)).status).toBe(403)
+    expect((await call('POST', '/incentives', 'finance', { ...body, amountMinor: '0' })).status).toBe(400)
+    expect((await call('POST', '/incentives', 'finance', { ...body, period: '2031' })).status).toBe(400)
+    expect((await call('POST', '/incentives', 'finance', { ...body, employeeId: 'EMP-999' })).status).toBe(422)
+    const res = await call('POST', '/incentives', 'finance', body)
+    expect(res.status).toBe(201)
+    expect(res.json.data).toMatchObject({ employeeId: e.id, amountMinor: '2500000', status: 'approved', source: 'manual', note: 'Bonus closing' })
+    expect(res.json.data.id).toMatch(/^INS-\d+$/)
+    expect((await t.db.query("select 1 from audit_events where action = 'finance.incentive.created'")).length).toBe(1)
+  })
+})

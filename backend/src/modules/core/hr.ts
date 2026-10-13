@@ -192,3 +192,194 @@ export async function listPerformanceReviews(db: Queryable) {
     reviewedOn: day(r.reviewed_on)!
   }))
 }
+
+/* ---------- payroll (hr.manage-payroll only) ---------- */
+
+const PERIOD = /^[0-9]{4}-(0[1-9]|1[0-2])$/
+const requirePay = (actor: Actor) => { if (!seesPay(actor)) throw errors.forbidden('Payroll, komisi dan insentif hanya untuk Finance.') }
+
+function readMoney(input: Input, key: string, fe: FieldErrors, allowZero: boolean): string | undefined {
+  if (input[key] === undefined) return undefined
+  try { return parseAmountMinor(input[key], key, { allowZero }).toString() } catch (e) {
+    if (e instanceof AppError) { Object.assign(fe, e.extra.fieldErrors); return undefined }
+    throw e
+  }
+}
+function unknownKeys(input: Input, allowed: string[], fe: FieldErrors) {
+  for (const k of Object.keys(input)) if (!allowed.includes(k)) fe[k] = ['Field ini tidak dikenal.']
+}
+
+const runView = (r: Record<string, unknown>) => ({
+  id: r.id as string,
+  period: r.period as string,
+  status: r.status as string,
+  approvedBy: str(r.approved_by),
+  approvedOn: day(r.approved_on),
+  paidOn: day(r.paid_on)
+})
+
+export async function listPayrollRuns(db: Queryable, actor: Actor, id?: string) {
+  requirePay(actor)
+  return (await db.query<Record<string, unknown>>('select * from payroll_runs where ($1::text is null or id = $1) order by period desc', [id ?? null])).map(runView)
+}
+
+export async function listPayrollLines(db: Queryable, actor: Actor, id?: string) {
+  requirePay(actor)
+  const rows = await db.query<Record<string, unknown>>(
+    'select * from payroll_lines where ($1::text is null or id = $1) order by payroll_run_id, employee_id', [id ?? null])
+  return rows.map(r => ({
+    id: r.id as string,
+    payrollRunId: r.payroll_run_id as string,
+    employeeId: r.employee_id as string,
+    baseSalaryMinor: String(r.base_salary_minor),
+    allowanceMinor: String(r.allowance_minor),
+    deductionMinor: String(r.deduction_minor),
+    note: str(r.note)
+  }))
+}
+
+/** A draft run for the period with one line per active salaried employee (salary from the employee, nothing else yet). */
+export async function createPayrollRun(tx: Queryable, actor: Actor, input: Input, requestId: string) {
+  requirePay(actor)
+  const fe: FieldErrors = {}
+  unknownKeys(input, ['period'], fe)
+  const period = typeof input.period === 'string' ? input.period.trim() : ''
+  if (!PERIOD.test(period)) fe.period = ['Periode harus berformat YYYY-MM.']
+  if (Object.keys(fe).length) throw errors.validation(fe)
+  const id = `PRN-${period}`
+  // The unique period makes two parallel creates safe: the second inserts nothing.
+  const [made] = await tx.query("insert into payroll_runs (id, period, status, changed_by_api_at) values ($1, $2, 'draft', now()) on conflict (period) do nothing returning id", [id, period])
+  if (!made) throw rule(`Payroll periode ${period} sudah ada.`)
+  const lines = await tx.query<{ id: string }>(
+    `insert into payroll_lines (id, payroll_run_id, employee_id, base_salary_minor, changed_by_api_at)
+     select 'PRL-' || $1 || '-' || e.id, $1, e.id, e.base_salary_minor, now() from employees e
+      where e.status <> 'resigned' and e.base_salary_minor > 0
+     returning id`, [id])
+  await recordAudit(tx, { action: 'finance.payroll.created', actorUserId: actor.userId, entityType: 'payroll_run', entityId: id, requestId, after: { period, lines: lines.length } })
+  return { id }
+}
+
+async function lockRun(tx: Queryable, id: string) {
+  const [r] = await tx.query<{ status: string }>('select status from payroll_runs where id = $1 for update', [id])
+  if (!r) throw errors.notFound('Payroll')
+  return r
+}
+
+export async function approvePayrollRun(tx: Queryable, actor: Actor, id: string, today: string, requestId: string) {
+  requirePay(actor)
+  const r = await lockRun(tx, id)
+  if (r.status !== 'draft') throw rule('Hanya payroll draft yang bisa disetujui.')
+  await tx.query("update payroll_runs set status = 'approved', approved_by = $2, approved_on = $3, changed_by_api_at = now(), updated_at = now() where id = $1", [id, actor.userId, today])
+  await recordAudit(tx, { action: 'finance.payroll.approved', actorUserId: actor.userId, entityType: 'payroll_run', entityId: id, requestId })
+}
+
+export async function payPayrollRun(tx: Queryable, actor: Actor, id: string, today: string, requestId: string) {
+  requirePay(actor)
+  const r = await lockRun(tx, id)
+  if (r.status !== 'approved') throw rule('Payroll harus disetujui dulu sebelum ditandai dibayar.')
+  await tx.query("update payroll_runs set status = 'paid', paid_on = $2, changed_by_api_at = now(), updated_at = now() where id = $1", [id, today])
+  await recordAudit(tx, { action: 'finance.payroll.paid', actorUserId: actor.userId, entityType: 'payroll_run', entityId: id, requestId })
+}
+
+export async function updatePayrollLine(tx: Queryable, actor: Actor, id: string, input: Input, requestId: string) {
+  requirePay(actor)
+  const fe: FieldErrors = {}
+  unknownKeys(input, ['baseSalaryMinor', 'allowanceMinor', 'deductionMinor', 'note'], fe)
+  const cols: Record<string, unknown> = {}
+  const base = readMoney(input, 'baseSalaryMinor', fe, true)
+  const allowance = readMoney(input, 'allowanceMinor', fe, true)
+  const deduction = readMoney(input, 'deductionMinor', fe, true)
+  if (base !== undefined) cols.base_salary_minor = base
+  if (allowance !== undefined) cols.allowance_minor = allowance
+  if (deduction !== undefined) cols.deduction_minor = deduction
+  if (input.note !== undefined) {
+    if (input.note !== null && typeof input.note !== 'string') fe.note = ['Harus berupa teks.']
+    else cols.note = typeof input.note === 'string' && input.note.trim() ? input.note.trim().slice(0, 2000) : null
+  }
+  if (Object.keys(fe).length) throw errors.validation(fe)
+  const [line] = await tx.query<{ payroll_run_id: string }>('select payroll_run_id from payroll_lines where id = $1', [id])
+  if (!line) throw errors.notFound('Baris payroll')
+  const run = await lockRun(tx, line.payroll_run_id)
+  if (run.status !== 'draft') throw rule('Baris payroll hanya bisa diubah selama payroll masih draft.')
+  const keys = Object.keys(cols)
+  await tx.query(
+    `update payroll_lines set ${keys.map((k, i) => `${k} = $${i + 2}`).join(', ')}${keys.length ? ', ' : ''}changed_by_api_at = now(), updated_at = now() where id = $1`,
+    [id, ...Object.values(cols)])
+  await recordAudit(tx, { action: 'finance.payroll_line.updated', actorUserId: actor.userId, entityType: 'payroll_line', entityId: id, requestId, after: cols })
+}
+
+/* ---------- commissions (derived) and incentives ---------- */
+
+/**
+ * Commission per project an employee owns (`projects.owner_user_id` → the linked employee with a rate): contract value ×
+ * rate, in the month the trip starts; status follows the project (closed → paid, completed → approved, otherwise
+ * accrued). Incentives are the manual entries, always approved.
+ */
+export async function listCommissions(db: Queryable, actor: Actor, incentiveId?: string) {
+  requirePay(actor)
+  const derived = incentiveId ? [] : await db.query<Record<string, unknown>>(
+    `select p.id as project_id, e.id as employee_id, to_char(coalesce(p.travel_start_date, p.created_at::date), 'YYYY-MM') as period,
+            p.contract_value_minor as base, e.commission_rate_percent as rate,
+            round(p.contract_value_minor * e.commission_rate_percent / 100)::bigint as amount,
+            case when p.closed_at is not null then 'paid' when p.status = 'completed' then 'approved' else 'accrued' end as status
+       from projects p join employees e on e.user_id = p.owner_user_id
+      where e.commission_rate_percent is not null and p.contract_value_minor is not null
+      order by p.id`)
+  const manual = await db.query<Record<string, unknown>>(
+    `select i.*, p.contract_value_minor as base from incentives i join projects p on p.id = i.project_id
+      where ($1::text is null or i.id = $1) order by i.id`, [incentiveId ?? null])
+  return [
+    ...derived.map(r => ({
+      id: `COM-${r.project_id}-${r.employee_id}`,
+      employeeId: r.employee_id as string,
+      projectId: r.project_id as string,
+      period: r.period as string,
+      baseAmountMinor: String(r.base),
+      ratePercent: Number(r.rate),
+      amountMinor: String(r.amount),
+      status: r.status as string,
+      source: 'derived' as const,
+      note: null as string | null
+    })),
+    ...manual.map((r) => {
+      const base = r.base === null ? 0 : Number(r.base)
+      return {
+        id: r.id as string,
+        employeeId: r.employee_id as string,
+        projectId: r.project_id as string,
+        period: r.period as string,
+        baseAmountMinor: r.base === null ? '0' : String(r.base),
+        ratePercent: base > 0 ? Math.round((Number(r.amount_minor) / base) * 10000) / 100 : 0,
+        amountMinor: String(r.amount_minor),
+        status: 'approved',
+        source: 'manual' as const,
+        note: str(r.note)
+      }
+    })
+  ]
+}
+
+export async function createIncentive(tx: Queryable, actor: Actor, input: Input, requestId: string) {
+  requirePay(actor)
+  const fe: FieldErrors = {}
+  unknownKeys(input, ['employeeId', 'projectId', 'period', 'amountMinor', 'note'], fe)
+  const employeeId = typeof input.employeeId === 'string' ? input.employeeId.trim() : ''
+  const projectId = typeof input.projectId === 'string' ? input.projectId.trim() : ''
+  const period = typeof input.period === 'string' ? input.period.trim() : ''
+  if (!employeeId) fe.employeeId = ['Wajib diisi.']
+  if (!projectId) fe.projectId = ['Wajib diisi.']
+  if (!PERIOD.test(period)) fe.period = ['Periode harus berformat YYYY-MM.']
+  const amount = readMoney(input, 'amountMinor', fe, false)
+  if (input.amountMinor === undefined) fe.amountMinor = ['Wajib diisi.']
+  if (input.note !== undefined && input.note !== null && typeof input.note !== 'string') fe.note = ['Harus berupa teks.']
+  if (Object.keys(fe).length) throw errors.validation(fe)
+  const note = typeof input.note === 'string' && input.note.trim() ? input.note.trim().slice(0, 2000) : null
+  if (!(await tx.query('select 1 from employees where id = $1', [employeeId])).length) throw rule('Karyawan tidak ditemukan.')
+  if (!(await tx.query('select 1 from projects where id = $1', [projectId])).length) throw rule('Project tidak ditemukan.')
+  const id = await nextId(tx, 'INS-')
+  await tx.query('insert into incentives (id, employee_id, project_id, period, amount_minor, note, changed_by_api_at) values ($1, $2, $3, $4, $5, $6, now())',
+    [id, employeeId, projectId, period, amount, note])
+  await recordAudit(tx, { action: 'finance.incentive.created', actorUserId: actor.userId, entityType: 'incentive', entityId: id, requestId,
+    after: { employeeId, projectId, period, amountMinor: amount } })
+  return { id }
+}
