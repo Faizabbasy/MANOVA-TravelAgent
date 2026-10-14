@@ -21,7 +21,7 @@ const activities = async (projectId: string) => (await call('GET', `/project-act
 describe('change requests', () => {
   test('internal roles read; portals 403; anonymous 401', async () => {
     expect((await call('GET', '/change-requests?projectId=PRJ-103', 'finance')).status).toBe(200)
-    expect((await call('GET', '/change-requests', 'client')).status).toBe(403)
+    expect((await call('GET', '/change-requests', 'vendor')).status).toBe(403) // S12a: clients read their own (client-portal.test.ts); vendors stay refused
     expect((await t.call('GET', '/api/v1/change-requests')).status).toBe(401)
   })
 
@@ -77,7 +77,7 @@ describe('incidents', () => {
     expect(await bad({ ...body, ownerId: 'USR-999' })).toBe(400)
     expect(await bad({ ...body, bookingType: 'hotel', bookingId: 'HTL-1011' })).toBe(400) // another project's booking
     expect((await call('POST', '/projects/PRJ-103/incidents', 'finance', body, key())).status).toBe(403)
-    expect((await call('GET', '/incidents', 'client')).status).toBe(403)
+    expect((await call('GET', '/incidents', 'vendor')).status).toBe(403) // S12a: clients read their own (client-portal.test.ts); vendors stay refused
     expect((await call('GET', '/incidents?projectId=PRJ-103', 'finance')).status).toBe(200)
   })
 
@@ -129,7 +129,7 @@ describe('no-show / refunded cancellations and workflow gates', () => {
     const other = (await call('POST', '/bookings/transport', 'admin', { projectId: 'PRJ-204', details: {} }, key())).json.data as { id: string }
     await call('POST', `/bookings/transport/${other.id}/status`, 'admin', { to: 'cancelled', reason: 'Tidak jadi' })
     expect(((await call('GET', '/booking-cancellations?projectId=PRJ-204', 'admin')).json.data as { bookingId: string }[]).some(x => x.bookingId === other.id)).toBe(false)
-    expect((await call('GET', '/booking-cancellations', 'client')).status).toBe(403)
+    expect((await call('GET', '/booking-cancellations', 'vendor')).status).toBe(403) // S12a: clients read their own (client-portal.test.ts); vendors stay refused
   })
 
   test('an open incident blocks departure (→ ongoing-trip, like the screen); a pending change request blocks completion', async () => {

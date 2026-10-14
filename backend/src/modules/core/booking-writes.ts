@@ -202,10 +202,10 @@ export async function changeBookingStatus(tx: Queryable, actor: Actor, type: Boo
   }
 }
 
-export async function listBookingCancellations(db: Queryable, projectId?: string) {
+export async function listBookingCancellations(db: Queryable, projectId?: string, partyId?: string) {
   const rows = await db.query<Record<string, unknown>>(
     `select id, project_id, booking_type, booking_id, outcome, reason, penalty_minor::text as penalty_minor, refund_eligible, cancelled_by, cancelled_on::text as cancelled_on
-       from booking_cancellations where ($1::text is null or project_id = $1) order by cancelled_on desc, id desc`, [projectId ?? null])
+       from booking_cancellations where ($1::text is null or project_id = $1) and ($2::text is null or project_id in (select id from projects where party_id = $2)) order by cancelled_on desc, id desc`, [projectId ?? null, partyId ?? null])
   return rows.map(r => ({
     id: r.id as string,
     projectId: r.project_id as string,

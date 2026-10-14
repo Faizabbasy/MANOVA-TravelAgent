@@ -20,10 +20,11 @@ const MINOR = /^(0|[1-9][0-9]{0,18})$/
 const str = (v: unknown) => (v === null || v === undefined ? null : String(v))
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : str(v))
 
-export async function listChangeRequests(db: Queryable, filter: { id?: string; projectId?: string } = {}) {
+export async function listChangeRequests(db: Queryable, filter: { id?: string; projectId?: string; partyId?: string } = {}) {
   const rows = await db.query<Record<string, unknown>>(
-    `select * from change_requests where ($1::text is null or id = $1) and ($2::text is null or project_id = $2) order by created_at desc, id desc`,
-    [filter.id ?? null, filter.projectId ?? null]
+    `select * from change_requests where ($1::text is null or id = $1) and ($2::text is null or project_id = $2) and ($3::text is null or project_id in (select id from projects where party_id = $3))
+      order by created_at desc, id desc`,
+    [filter.id ?? null, filter.projectId ?? null, filter.partyId ?? null]
   )
   return rows.map(r => ({
     id: r.id as string,

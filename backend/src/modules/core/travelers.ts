@@ -15,14 +15,15 @@ import { nextId } from '../../shared/ids'
 export const rule = (message: string) => new AppError(422, 'RULE_VIOLATION', message)
 const str = (v: unknown) => (v === null || v === undefined ? null : String(v))
 
-export async function listTravelers(db: Queryable, filter: { id?: string; projectId?: string } = {}) {
+/** `partyId` (S12a, client portal) narrows to that party's projects. */
+export async function listTravelers(db: Queryable, filter: { id?: string; projectId?: string; partyId?: string } = {}) {
   const rows = await db.query<Record<string, unknown>>(
     `select id, project_id, group_id, party_id, lead_id, sales_order_id, name, passport_number, passport_expiry_date::text as passport_expiry_date,
             id_number, visa_number, visa_expiry_date::text as visa_expiry_date, emergency_contact_name, emergency_contact_phone, special_request,
             dietary_restrictions, accessibility_needs, companion_of, documents_verified_on::text as documents_verified_on, documents_verified_by,
             is_vip, cancelled, cancel_reason, replaced_by, replaces
-       from travelers where ($1::text is null or id = $1) and ($2::text is null or project_id = $2) order by id`,
-    [filter.id ?? null, filter.projectId ?? null]
+       from travelers where ($1::text is null or id = $1) and ($2::text is null or project_id = $2) and ($3::text is null or project_id in (select id from projects where party_id = $3)) order by id`,
+    [filter.id ?? null, filter.projectId ?? null, filter.partyId ?? null]
   )
   return rows.map(r => ({
     id: r.id as string,
@@ -55,16 +56,16 @@ export async function listTravelers(db: Queryable, filter: { id?: string; projec
 
 export type TravelerView = Awaited<ReturnType<typeof listTravelers>>[number]
 
-export async function listTravelerGroups(db: Queryable, projectId?: string) {
+export async function listTravelerGroups(db: Queryable, projectId?: string, partyId?: string) {
   const rows = await db.query<{ id: string; project_id: string; name: string; pax_count: number; rooming_note: string | null }>(
-    'select id, project_id, name, pax_count, rooming_note from traveler_groups where ($1::text is null or project_id = $1) order by id', [projectId ?? null])
+    `select id, project_id, name, pax_count, rooming_note from traveler_groups where ($1::text is null or project_id = $1) and ($2::text is null or project_id in (select id from projects where party_id = $2)) order by id`, [projectId ?? null, partyId ?? null])
   return rows.map(r => ({ id: r.id, projectId: r.project_id, name: r.name, paxCount: Number(r.pax_count), roomingNote: r.rooming_note }))
 }
 
-export async function listRoomAssignments(db: Queryable, filter: { id?: string; projectId?: string } = {}) {
+export async function listRoomAssignments(db: Queryable, filter: { id?: string; projectId?: string; partyId?: string } = {}) {
   const rows = await db.query<{ id: string; project_id: string; group_id: string; room_label: string; room_type: string; traveler_ids: string[] }>(
     `select id, project_id, group_id, room_label, room_type, traveler_ids from room_assignments
-      where ($1::text is null or id = $1) and ($2::text is null or project_id = $2) order by id`, [filter.id ?? null, filter.projectId ?? null])
+      where ($1::text is null or id = $1) and ($2::text is null or project_id = $2) and ($3::text is null or project_id in (select id from projects where party_id = $3)) order by id`, [filter.id ?? null, filter.projectId ?? null, filter.partyId ?? null])
   return rows.map(r => ({ id: r.id, projectId: r.project_id, groupId: r.group_id, roomLabel: r.room_label, roomType: r.room_type, travelerIds: r.traveler_ids }))
 }
 

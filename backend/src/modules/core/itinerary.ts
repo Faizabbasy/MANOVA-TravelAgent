@@ -19,13 +19,15 @@ const TEXT: Record<string, string> = { description: 'description', timezone: 'ti
 const FORBIDDEN = ['id', 'projectId']
 const str = (v: unknown) => (v === null || v === undefined ? null : String(v))
 
-export async function listItineraryItems(db: Queryable, filter: { id?: string; projectId?: string } = {}) {
+/** `partyId` (S12a, client portal): that party's projects and only the items shown to the client. */
+export async function listItineraryItems(db: Queryable, filter: { id?: string; projectId?: string; partyId?: string } = {}) {
   const rows = await db.query<Record<string, unknown>>(
     `select id, project_id, date::text as date, time, title, description, service_type, group_id, timezone, location,
             visible_to_client, vendor_id, vendor_amount_minor::text as vendor_amount_minor
        from itinerary_items where ($1::text is null or id = $1) and ($2::text is null or project_id = $2)
+        and ($3::text is null or project_id in (select id from projects where party_id = $3)) and ($3::text is null or visible_to_client)
       order by date, time nulls first, id`,
-    [filter.id ?? null, filter.projectId ?? null]
+    [filter.id ?? null, filter.projectId ?? null, filter.partyId ?? null]
   )
   return rows.map(r => ({
     id: r.id as string,

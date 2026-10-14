@@ -22,14 +22,17 @@ const str = (v: unknown) => (v === null || v === undefined ? null : String(v))
 const iso = (v: unknown) => (v instanceof Date ? v.toISOString() : str(v))
 const exists = async (tx: Queryable, sql: string, params: unknown[]) => (await tx.query(sql, params)).length > 0
 
-export async function listDocuments(db: Queryable, filter: { id?: string; projectId?: string } = {}) {
+/** `partyId` (S12a, client portal): client-visible documents of that party's projects or of the party itself. */
+export async function listDocuments(db: Queryable, filter: { id?: string; projectId?: string; partyId?: string } = {}) {
   const rows = await db.query<Record<string, unknown>>(
     `select id, entity_type, entity_id, project_id, name, category, version, access_level, source_type, preview_route, uploaded_by,
             uploaded_on::text as uploaded_on, generated_on::text as generated_on, expires_on::text as expires_on, supersedes_id,
             verified, verified_by, verified_on::text as verified_on
        from documents where ($1::text is null or id = $1) and ($2::text is null or project_id = $2)
+        and ($3::text is null or (access_level = 'client' and (project_id in (select id from projects where party_id = $3)
+                                                             or (entity_type = 'party' and entity_id = $3))))
       order by coalesce(uploaded_on, generated_on) desc nulls last, id desc`,
-    [filter.id ?? null, filter.projectId ?? null]
+    [filter.id ?? null, filter.projectId ?? null, filter.partyId ?? null]
   )
   return rows.map(r => ({
     id: r.id as string,
@@ -53,11 +56,14 @@ export async function listDocuments(db: Queryable, filter: { id?: string; projec
   }))
 }
 
-export async function listMessages(db: Queryable, filter: { id?: string; projectId?: string } = {}) {
+/** `partyId` (S12a, client portal): only client messages of that party's projects. */
+export async function listMessages(db: Queryable, filter: { id?: string; projectId?: string; partyId?: string } = {}) {
   const rows = await db.query<Record<string, unknown>>(
     `select id, entity_type, entity_id, project_id, channel, sender_id, body, mentions, delivery_status, delivery_channel, attachment_name, read_by, sent_at
-       from messages where ($1::text is null or id = $1) and ($2::text is null or project_id = $2) order by sent_at, id`,
-    [filter.id ?? null, filter.projectId ?? null]
+       from messages where ($1::text is null or id = $1) and ($2::text is null or project_id = $2)
+        and ($3::text is null or project_id in (select id from projects where party_id = $3)) and ($3::text is null or channel = 'client-message')
+      order by sent_at, id`,
+    [filter.id ?? null, filter.projectId ?? null, filter.partyId ?? null]
   )
   return rows.map(r => ({
     id: r.id as string,

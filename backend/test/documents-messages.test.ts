@@ -19,7 +19,7 @@ const call = (method: string, path: string, who: string, body?: unknown, k?: str
 describe('documents', () => {
   test('internal roles read; portals 403; anonymous 401', async () => {
     expect((await call('GET', '/documents?projectId=PRJ-101', 'finance')).status).toBe(200)
-    expect((await call('GET', '/documents', 'client')).status).toBe(403)
+    expect((await call('GET', '/documents', 'vendor')).status).toBe(403) // S12a: clients read their own (client-portal.test.ts); vendors stay refused
     expect((await t.call('GET', '/api/v1/documents')).status).toBe(401)
   })
 
@@ -59,7 +59,7 @@ describe('messages', () => {
     const client = (await call('POST', '/messages', 'admin', { entityType: 'project', entityId: 'PRJ-103', projectId: 'PRJ-103', channel: 'client-message', body: 'Jadwal final terlampir', attachmentName: 'jadwal.pdf' }, key())).json.data as M
     expect(client).toMatchObject({ deliveryStatus: 'delivered', deliveryChannel: 'email' })
     expect((await call('POST', '/messages', 'client', body, key())).status).toBe(403)
-    expect((await call('GET', '/messages', 'client')).status).toBe(403)
+    expect((await call('GET', '/messages', 'vendor')).status).toBe(403) // S12a: clients read their own (client-portal.test.ts); vendors stay refused
     expect(((await call('GET', '/messages?projectId=PRJ-103', 'admin')).json.data as M[]).map(x => x.id)).toEqual(expect.arrayContaining([m.id, client.id]))
   })
 

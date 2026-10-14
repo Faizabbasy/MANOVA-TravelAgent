@@ -28,7 +28,7 @@ describe('itinerary items', () => {
     expect(items.every(x => x.projectId === 'PRJ-103')).toBe(true)
     const keys = items.map(x => `${x.date} ${x.time ?? ''}`)
     expect([...keys].sort()).toEqual(keys)
-    expect((await call('GET', '/itinerary-items', 'client')).status).toBe(403)
+    expect((await call('GET', '/itinerary-items', 'vendor')).status).toBe(403) // S12a: clients read their own (client-portal.test.ts); vendors stay refused
     expect((await t.call('GET', '/api/v1/itinerary-items')).status).toBe(401)
   })
 

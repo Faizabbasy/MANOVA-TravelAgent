@@ -1,6 +1,6 @@
 import { Elysia, t } from 'elysia'
 import type { AppDeps } from '../../app-deps'
-import type { AuthContext } from '../../auth/context'
+import type { AuthContext, SessionActor } from '../../auth/context'
 import { assertIdParam, ID_PATTERN, ok, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
@@ -8,7 +8,7 @@ import { createChangeRequest, decideChangeRequest, implementChangeRequest, listC
 import { listBookingCancellations } from './booking-writes'
 import { addIncidentCommunication, changeIncidentStatus, createIncident, escalateIncident, listIncidents, resolveIncident } from './incidents'
 import { getProject } from './repository'
-import { isPortalActor } from './scope'
+import { clientIncident, isClientScope, readerScopeOf } from './client-scope'
 
 /**
  * Change requests, incidents and non-Finance cancellations (S8). Internal roles read; `log-change` logs and works
@@ -21,16 +21,13 @@ export function changeRoutes(deps: AppDeps, auth: AuthContext) {
   const anyBody = { body: t.Optional(t.Record(t.String(), t.Unknown())) }
   const projectQuery = { query: t.Object({ projectId: t.Optional(t.String()) }) }
 
-  async function readActor(request: Request) {
-    const actor = await auth.requireActor(request)
-    if (isPortalActor(actor)) throw errors.forbidden()
-    return actor
-  }
+  /** Internal roles read every party; a client only its own (S12a); vendors are refused. */
+  const readScope = async (request: Request) => readerScopeOf(await auth.requireActor(request))
   const checkProjectQuery = (projectId?: string) => {
     if (projectId && !ID_PATTERN.test(projectId)) throw errors.validation({ projectId: ['ID tidak valid.'] })
     return projectId
   }
-  async function visibleProject(actor: Awaited<ReturnType<typeof readActor>>, raw: string) {
+  async function visibleProject(actor: SessionActor, raw: string) {
     const id = assertIdParam(raw, 'Project')
     if (!(await getProject(db, actor, id))) throw errors.notFound('Project')
     return id
@@ -48,8 +45,8 @@ export function changeRoutes(deps: AppDeps, auth: AuthContext) {
 
   return new Elysia({ prefix: '/api/v1' })
     .get('/change-requests', async ({ request, query }) => {
-      await readActor(request)
-      return ok(request, await listChangeRequests(db, { projectId: checkProjectQuery(query.projectId) }))
+      const scope = await readScope(request)
+      return ok(request, await listChangeRequests(db, { projectId: checkProjectQuery(query.projectId), partyId: scope.partyId }))
     }, projectQuery)
     .post('/projects/:id/change-requests', async ({ request, params, body, set }) => {
       const actor = await auth.requireCapability(request, LOG)
@@ -86,12 +83,13 @@ export function changeRoutes(deps: AppDeps, auth: AuthContext) {
       return ok(request, await requestResponse(id))
     }, anyBody)
     .get('/booking-cancellations', async ({ request, query }) => {
-      await readActor(request)
-      return ok(request, await listBookingCancellations(db, checkProjectQuery(query.projectId)))
+      const scope = await readScope(request)
+      return ok(request, await listBookingCancellations(db, checkProjectQuery(query.projectId), scope.partyId))
     }, projectQuery)
     .get('/incidents', async ({ request, query }) => {
-      await readActor(request)
-      return ok(request, await listIncidents(db, { projectId: checkProjectQuery(query.projectId) }))
+      const scope = await readScope(request)
+      const incidents = await listIncidents(db, { projectId: checkProjectQuery(query.projectId), partyId: scope.partyId })
+      return ok(request, isClientScope(scope) ? incidents.map(clientIncident) : incidents)
     }, projectQuery)
     .post('/projects/:id/incidents', async ({ request, params, body, set }) => {
       const actor = await auth.requireCapability(request, LOG)

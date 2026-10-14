@@ -22,7 +22,7 @@ describe('travelers', () => {
     const list = await call('GET', '/travelers?projectId=PRJ-101', 'finance')
     expect(list.status).toBe(200)
     expect((list.json.data as { id: string; passportNumber: string }[]).find(x => x.id === 'TRV-1011')!.passportNumber).toBe('B1234561')
-    expect((await call('GET', '/travelers', 'client')).status).toBe(403)
+    expect((await call('GET', '/travelers', 'vendor')).status).toBe(403) // S12a: clients read their own (client-portal.test.ts); vendors stay refused
     expect((await t.call('GET', '/api/v1/travelers')).status).toBe(401)
     expect((await call('GET', '/travelers/TRV-999', 'admin')).status).toBe(404)
     expect((await call('GET', '/traveler-groups?projectId=PRJ-103', 'admin')).json.data).toHaveLength(3)

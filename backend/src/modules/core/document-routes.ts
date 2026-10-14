@@ -6,6 +6,7 @@ import { errors } from '../../http/errors'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import { createDocument, listDocuments, listMessages, sendMessage } from './documents'
 import { isPortalActor } from './scope'
+import { readerScopeOf } from './client-scope'
 
 /** Document metadata and messages (S9). Internal roles read and send messages; `document.manage` uploads documents. */
 export function documentRoutes(deps: AppDeps, auth: AuthContext) {
@@ -24,8 +25,9 @@ export function documentRoutes(deps: AppDeps, auth: AuthContext) {
 
   return new Elysia({ prefix: '/api/v1' })
     .get('/documents', async ({ request, query }) => {
-      await internalActor(request)
-      return ok(request, await listDocuments(db, { projectId: checkProjectQuery(query.projectId) }))
+      // A client reads only client-visible documents of its own party (S12a).
+      const scope = readerScopeOf(await auth.requireActor(request))
+      return ok(request, await listDocuments(db, { projectId: checkProjectQuery(query.projectId), partyId: scope.partyId }))
     }, projectQuery)
     .post('/documents', async ({ request, body, set }) => {
       const actor = await auth.requireCapability(request, 'document.manage')
@@ -37,8 +39,9 @@ export function documentRoutes(deps: AppDeps, auth: AuthContext) {
       return ok(request, (await listDocuments(db, { id: result.data.id }))[0])
     }, { body: t.Record(t.String(), t.Unknown()) })
     .get('/messages', async ({ request, query }) => {
-      await internalActor(request)
-      return ok(request, await listMessages(db, { projectId: checkProjectQuery(query.projectId) }))
+      // A client reads only the client messages of its own projects (S12a).
+      const scope = readerScopeOf(await auth.requireActor(request))
+      return ok(request, await listMessages(db, { projectId: checkProjectQuery(query.projectId), partyId: scope.partyId }))
     }, projectQuery)
     .post('/messages', async ({ request, body, set }) => {
       const actor = await internalActor(request)

@@ -6,7 +6,7 @@ import { errors } from '../../http/errors'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import { createItineraryItem, deleteItineraryItem, listItineraryItems, updateItineraryItem } from './itinerary'
 import { getProject } from './repository'
-import { isPortalActor } from './scope'
+import { clientItinerary, isClientScope, readerScopeOf } from './client-scope'
 
 /** Daily itinerary items (S7b). Internal roles read; `project-order.manage-operations` writes. */
 export function itineraryRoutes(deps: AppDeps, auth: AuthContext) {
@@ -21,10 +21,11 @@ export function itineraryRoutes(deps: AppDeps, auth: AuthContext) {
 
   return new Elysia({ prefix: '/api/v1' })
     .get('/itinerary-items', async ({ request, query }) => {
-      const actor = await auth.requireActor(request)
-      if (isPortalActor(actor)) throw errors.forbidden()
+      // Internal roles read every party; a client only the items shown to it, without vendor costs (S12a).
+      const scope = readerScopeOf(await auth.requireActor(request))
       if (query.projectId && !ID_PATTERN.test(query.projectId)) throw errors.validation({ projectId: ['ID tidak valid.'] })
-      return ok(request, await listItineraryItems(db, { projectId: query.projectId }))
+      const items = await listItineraryItems(db, { projectId: query.projectId, partyId: scope.partyId })
+      return ok(request, isClientScope(scope) ? items.map(clientItinerary) : items)
     }, { query: t.Object({ projectId: t.Optional(t.String()) }) })
     .post('/projects/:id/itinerary-items', async ({ request, params, body, set }) => {
       const actor = await auth.requireCapability(request, CAP)

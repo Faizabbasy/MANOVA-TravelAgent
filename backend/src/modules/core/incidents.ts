@@ -28,10 +28,11 @@ const exists = async (tx: Queryable, sql: string, params: unknown[]) => (await t
 
 type LogEntry = { id: string; at: string; from: string; message: string }
 
-export async function listIncidents(db: Queryable, filter: { id?: string; projectId?: string } = {}) {
+export async function listIncidents(db: Queryable, filter: { id?: string; projectId?: string; partyId?: string } = {}) {
   const rows = await db.query<Record<string, unknown>>(
-    'select * from incidents where ($1::text is null or id = $1) and ($2::text is null or project_id = $2) order by created_at desc, id desc',
-    [filter.id ?? null, filter.projectId ?? null]
+    `select * from incidents where ($1::text is null or id = $1) and ($2::text is null or project_id = $2) and ($3::text is null or project_id in (select id from projects where party_id = $3))
+      order by created_at desc, id desc`,
+    [filter.id ?? null, filter.projectId ?? null, filter.partyId ?? null]
   )
   return rows.map(r => ({
     id: r.id as string,

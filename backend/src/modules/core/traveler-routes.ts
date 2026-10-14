@@ -6,7 +6,7 @@ import { errors } from '../../http/errors'
 import { businessDateOf } from '../../shared/dates'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import { getProject } from './repository'
-import { isPortalActor } from './scope'
+import { readerScopeOf } from './client-scope'
 import {
   cancelTraveler, createGroup, createRoom, createTraveler, deleteRoom, deleteTraveler, importTravelers, listRoomAssignments, replaceTraveler, setRoomTravelers, listTravelerGroups, listTravelers, setVerified, setVip, updateGroup, updateTraveler
 } from './travelers'
@@ -16,11 +16,8 @@ export function travelerRoutes(deps: AppDeps, auth: AuthContext) {
   const { db } = deps
   const CAP = 'project-order.manage-travelers' as const
 
-  async function readActor(request: Request): Promise<SessionActor> {
-    const actor = await auth.requireActor(request)
-    if (isPortalActor(actor)) throw errors.forbidden()
-    return actor
-  }
+  /** Internal roles read every party; a client only its own (S12a); vendors are refused. */
+  const readScope = async (request: Request) => readerScopeOf(await auth.requireActor(request))
 
   async function visibleProject(actor: SessionActor, raw: string) {
     const id = assertIdParam(raw, 'Project')
@@ -47,12 +44,14 @@ export function travelerRoutes(deps: AppDeps, auth: AuthContext) {
 
   return new Elysia({ prefix: '/api/v1' })
     .get('/travelers', async ({ request, query }) => {
-      await readActor(request)
-      return ok(request, await listTravelers(db, { projectId: projectQuery(query.projectId) }))
+      const scope = await readScope(request)
+      return ok(request, await listTravelers(db, { projectId: projectQuery(query.projectId), partyId: scope.partyId }))
     }, { query: t.Object({ projectId: t.Optional(t.String()) }) })
     .get('/travelers/:id', async ({ request, params }) => {
-      await readActor(request)
-      return ok(request, await travelerResponse(assertIdParam(params.id, 'Traveler')))
+      const scope = await readScope(request)
+      const [tr] = await listTravelers(db, { id: assertIdParam(params.id, 'Traveler'), partyId: scope.partyId })
+      if (!tr) throw errors.notFound('Traveler')
+      return ok(request, tr)
     })
     .post('/projects/:id/travelers', async ({ request, params, body, set }) => {
       const actor = await auth.requireCapability(request, CAP)
@@ -89,8 +88,8 @@ export function travelerRoutes(deps: AppDeps, auth: AuthContext) {
       return ok(request, await travelerResponse(id))
     }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
     .get('/traveler-groups', async ({ request, query }) => {
-      await readActor(request)
-      return ok(request, await listTravelerGroups(db, projectQuery(query.projectId)))
+      const scope = await readScope(request)
+      return ok(request, await listTravelerGroups(db, projectQuery(query.projectId), scope.partyId))
     }, { query: t.Object({ projectId: t.Optional(t.String()) }) })
     .post('/projects/:id/traveler-groups', async ({ request, params, body, set }) => {
       const actor = await auth.requireCapability(request, CAP)
@@ -152,7 +151,7 @@ export function travelerRoutes(deps: AppDeps, auth: AuthContext) {
       return ok(request, { id, deleted: true })
     })
     .get('/room-assignments', async ({ request, query }) => {
-      await readActor(request)
-      return ok(request, await listRoomAssignments(db, { projectId: projectQuery(query.projectId) }))
+      const scope = await readScope(request)
+      return ok(request, await listRoomAssignments(db, { projectId: projectQuery(query.projectId), partyId: scope.partyId }))
     }, { query: t.Object({ projectId: t.Optional(t.String()) }) })
 }
