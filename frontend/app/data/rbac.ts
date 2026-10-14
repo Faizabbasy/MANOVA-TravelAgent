@@ -1,4 +1,4 @@
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import type { PermissionLevel, RoleId, ModuleKey } from '~/types/user'
 import type { RoleCapabilityGrant, RoleDefinition, RoleMenuGrant, RoleModuleGrant } from '~/types/rbac'
 import { MODULE_KEYS, resolveModuleKey } from '~/constants/modules'
@@ -206,10 +206,19 @@ export function getSortedRoles (): RoleDefinition[] {
   return [...ROLE_DEFINITIONS].sort((a, b) => a.order - b.order)
 }
 
-/** Role yang boleh dipakai sebagai sesi aktif (login / role switcher). Role `hidden` (portal) tidak. */
+/**
+ * S12a: whether the server lets the client/vendor portals sign in (`GET /auth/options`; on in development/staging,
+ * never in production). Set once at startup by `plugins/portal-options.ts`; the value is the same for every user.
+ */
+const portalsEnabled = ref(false)
+export function setPortalsEnabled (on: boolean): void {
+  portalsEnabled.value = on
+}
+
+/** Role yang boleh dipakai sebagai sesi aktif (login / role switcher). Role `hidden` (portal) hanya saat portal diizinkan server. */
 export function isRoleSelectable (roleId: RoleId): boolean {
   const role = getRoleDefinition(resolveRoleId(roleId))
-  return !!role && !role.hidden
+  return !!role && (!role.hidden || (role.kind === 'portal' && portalsEnabled.value))
 }
 
 export function getModuleGrant (roleId: RoleId, moduleKey: ModuleKey): RoleModuleGrant | undefined {

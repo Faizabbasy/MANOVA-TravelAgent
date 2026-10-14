@@ -47,5 +47,8 @@ export const USERS: User[] = reactive([
 export const DEMO_LOGIN_ACCOUNTS: { userId: string; summary: string }[] = [
   { userId: 'USR-010', summary: 'Akses penuh: seluruh operasional dan Finance, termasuk pengaturan user & role.' },
   { userId: 'USR-002', summary: 'Sales & CRM, Project, Booking, Vendor, HR, Inventory, Reporting — tanpa Finance.' },
-  { userId: 'USR-008', summary: 'Tagihan customer, kewajiban vendor, pembayaran, rekening, dan arus kas.' }
+  { userId: 'USR-008', summary: 'Tagihan customer, kewajiban vendor, pembayaran, rekening, dan arus kas.' },
+  // S12a: portal accounts — shown only while the server allows portal logins (development/staging).
+  { userId: 'USR-021', summary: 'Portal client PT Java Bhakti: project, peserta, itinerary, dokumen & pesan miliknya.' },
+  { userId: 'USR-015', summary: 'Portal vendor: penugasan, service order, dan katalog miliknya.' }
 ]

@@ -21,7 +21,8 @@ import {
   setRoleCapability,
   wouldLockOutActor,
   resetRbacToDefaults,
-  isRoleSelectable
+  isRoleSelectable,
+  setPortalsEnabled
 } from './rbac'
 import { CAPABILITY_KEYS, isKnownCapabilityKey } from '~/constants/capabilities'
 import { MODULE_KEYS, BUSINESS_MODULES, resolveModuleKey } from '~/constants/modules'
@@ -329,6 +330,18 @@ describe('RBAC dinamis', () => {
       expect(isRoleSelectable('client')).toBe(false)
       expect(isRoleSelectable('supplier')).toBe(false) // alias → vendor
       expect(isRoleSelectable('role-tak-ada')).toBe(false)
+    })
+
+    it('S12a: portal roles become selectable only while the server allows portal logins', () => {
+      try {
+        setPortalsEnabled(true)
+        expect(isRoleSelectable('client')).toBe(true)
+        expect(isRoleSelectable('supplier')).toBe(true) // alias → vendor
+        expect(isRoleSelectable('role-tak-ada')).toBe(false)
+      } finally {
+        setPortalsEnabled(false)
+      }
+      expect(isRoleSelectable('client')).toBe(false)
     })
 
     it('Admin mengelola semua modul bisnis kecuali Finance', () => {
