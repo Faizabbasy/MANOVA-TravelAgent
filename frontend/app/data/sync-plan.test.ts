@@ -12,7 +12,7 @@ describe('which server data each role loads (S12a)', () => {
   })
 
   it('a client loads only what its portal may read — no customer, vendor, booking or procurement lists (403 for it)', () => {
-    expect(syncPlanFor('client')).toEqual(['projects', 'travelers', 'itinerary', 'changes', 'documents', 'notifications'])
+    expect(syncPlanFor('client')).toEqual(['projects', 'travelers', 'itinerary', 'changes', 'documents', 'notifications', 'clientCommerce'])
   })
 
   it('a vendor loads only its projects and notifications until its portal moves to the server (S12d)', () => {

@@ -11,6 +11,11 @@ import {
   findStatusOption
 } from '~/constants/status'
 import { formatDate, formatDateTime } from '~/utils/format'
+import { clientBookingFor } from '~/data/client-commerce-sync'
+import type { FlightBooking } from '~/types/ticketing'
+import type { HotelBooking } from '~/types/accommodation'
+import type { TransportBooking } from '~/types/transportation'
+import type { MiceEvent } from '~/types/mice'
 import type { BadgeTone } from '~/types/common'
 
 /**
@@ -31,10 +36,13 @@ const { canView, clientScopeId } = usePermissions()
 const type = computed(() => String(route.params.type))
 const bookingId = computed(() => String(route.params.id))
 
-const flightBooking = computed(() => (type.value === 'flight' ? getFlightBookingById(bookingId.value) : undefined))
-const hotelBooking = computed(() => (type.value === 'hotel' ? getHotelBookingById(bookingId.value) : undefined))
-const transportBooking = computed(() => (type.value === 'transport' ? getTransportBookingById(bookingId.value) : undefined))
-const miceEvent = computed(() => (type.value === 'mice' ? getMiceEventById(bookingId.value) : undefined))
+/* S12a-2: a signed-in client reads the server reservation (schedule, reference, travellers — no prices); the local
+ * booking fixtures are the fallback before it loads. Only the fields this page shows are present. */
+const serverBooking = computed(() => clientBookingFor(type.value, bookingId.value))
+const flightBooking = computed(() => (type.value === 'flight' ? (serverBooking.value as unknown as FlightBooking | undefined) ?? getFlightBookingById(bookingId.value) : undefined))
+const hotelBooking = computed(() => (type.value === 'hotel' ? (serverBooking.value as unknown as HotelBooking | undefined) ?? getHotelBookingById(bookingId.value) : undefined))
+const transportBooking = computed(() => (type.value === 'transport' ? (serverBooking.value as unknown as TransportBooking | undefined) ?? getTransportBookingById(bookingId.value) : undefined))
+const miceEvent = computed(() => (type.value === 'mice' ? (serverBooking.value as unknown as MiceEvent | undefined) ?? getMiceEventById(bookingId.value) : undefined))
 
 const projectId = computed(() => flightBooking.value?.projectId ?? hotelBooking.value?.projectId ?? transportBooking.value?.projectId ?? miceEvent.value?.projectId)
 const project = computed(() => (projectId.value ? getProjectById(projectId.value) : undefined))

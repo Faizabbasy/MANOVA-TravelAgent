@@ -19,6 +19,7 @@ import { useInventorySync } from '~/data/inventory-sync'
 import { useMarketingSync } from '~/data/marketing-sync'
 import { useHrSync } from '~/data/hr-sync'
 import { syncPlanFor, type SyncKey } from '~/data/sync-plan'
+import { useClientCommerceSync } from '~/data/client-commerce-sync'
 
 const isMobile = useIsMobile()
 /** Project (S3a/S3b), customer (S1), vendor (S2), layanan & booking (S4a), quotation & service order (S4b), serta lead & quotation client (S6a) milik server: dimuat sekali per user yang login ke array lokal. */
@@ -41,6 +42,7 @@ const masterDataSync = useMasterDataSync()
 const inventorySync = useInventorySync()
 const marketingSync = useMarketingSync()
 const hrSync = useHrSync()
+const clientCommerceSync = useClientCommerceSync()
 const { currentUser } = useCurrentUser()
 /**
  * Which server data each role loads (`syncPlanFor`, S12a): internal roles load every module; a portal user only what its
@@ -65,7 +67,8 @@ const SYNCS: Record<SyncKey, { load: (force?: boolean) => unknown }> = {
   masterData: masterDataSync,
   inventory: inventorySync,
   marketing: marketingSync,
-  hr: hrSync
+  hr: hrSync,
+  clientCommerce: clientCommerceSync
 }
 const loadServerData = (force = false) => { for (const key of syncPlanFor(currentUser.value.role)) { SYNCS[key].load(force) } }
 onMounted(() => { loadServerData() })

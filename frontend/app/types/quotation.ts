@@ -69,6 +69,8 @@ export interface Quotation {
    */
   cancellationPolicy?: string
   proposedItineraryNote?: string
+  /** S12a-2: the name of who prepared it, as the client portal receives it (no internal user id). */
+  preparedByName?: string
 
   /**
    * Product Planning dan Costing. Referensi Cost Sheet yang dipakai membentuk quotation ini (lihat

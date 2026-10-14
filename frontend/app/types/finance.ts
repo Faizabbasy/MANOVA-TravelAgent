@@ -60,6 +60,8 @@ export interface InvoiceMilestone {
 export interface Invoice {
   id: ID
   projectId: ID
+  /** S12a-2: the party billed, when it is not the project's (a Group Trip participant). Set from the client portal's server data. */
+  billedPartyId?: ID
   label: string
   amountIdr: number
   issuedAt: string

@@ -28,6 +28,7 @@ import { COMMODITY_ORDERS } from './commodity-orders'
 import { TRAVEL_REQUESTS, TRAVEL_REQUEST_ATTACHMENTS, TRAVEL_REQUEST_ACTIVITIES } from './travel-requests'
 import { createProjectMilestone } from './project-order-workflow'
 import { CLIENT_APPROVALS } from './client-approvals'
+import { CLIENT_COMMERCE_STATE, CLIENT_RESERVATIONS } from './client-commerce'
 import { ITINERARY_VERSIONS, ITINERARY_COMMENTS } from './itinerary-versions'
 import { RESERVATIONS } from './reservations'
 import { SUPPORT_TICKETS, SUPPORT_TICKET_REPLIES } from './support-tickets'
@@ -5514,6 +5515,22 @@ export interface ClientReservationView {
 }
 
 export function getClientReservations (projectId: string): ClientReservationView[] {
+  // S12a-2: a signed-in client reads the server's reservations (no money, vendor or internal note).
+  if (CLIENT_COMMERCE_STATE.reservationsLoaded) {
+    return CLIENT_RESERVATIONS.filter(r => r.projectId === projectId).map(r => ({
+      bookingType: r.type,
+      bookingId: r.id,
+      category: BOOKING_TYPE_TO_RESERVATION_CATEGORY[r.type],
+      projectId: r.projectId,
+      projectName: r.projectName,
+      label: r.label,
+      reference: r.reference ?? undefined,
+      travelerCount: r.details.travelerIds?.length ?? 0,
+      startDate: r.startDate ?? undefined,
+      deadlineDate: r.deadlineDate ?? undefined,
+      clientVisibleStatus: r.clientStatus
+    }))
+  }
   return getBookingTimeline(projectId).map(entry => ({
     bookingType: entry.bookingType,
     bookingId: entry.bookingId,
@@ -5926,7 +5943,11 @@ export function getChangeRequestActivityHistory (changeRequestId: string, projec
  * Finance & Billing
  * ------------------------------------------------------------------------ */
 
-export const getClientInvoices = (partyId: string) => getProjectsByParty(partyId).flatMap(project => getInvoicesByProject(project.id))
+/** The client's invoices: those of its projects, plus any billed to it on another party's project (S12a-2, Group Trip participants). */
+export const getClientInvoices = (partyId: string) => {
+  const own = new Set(getProjectsByParty(partyId).map(project => project.id))
+  return INVOICES.filter(invoice => invoice.billedPartyId ? invoice.billedPartyId === partyId : own.has(invoice.projectId))
+}
 
 /** "Viewed" (Wajib) — idempotent, hanya diisi sekali (kunjungan pertama). */
 export function markInvoiceViewed (invoiceId: string): Invoice | undefined {

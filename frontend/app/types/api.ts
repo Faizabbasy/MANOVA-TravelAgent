@@ -1369,6 +1369,86 @@ export interface UserDto {
   vendorId: string | null
 }
 /**
+ * Client portal (S12a-2): a quotation sent to the client — the offer only, never cost, margin, markup or the internal
+ * approval. `accepted` = the lead became a project.
+ */
+export interface ClientQuotationDto {
+  id: string
+  version: number
+  createdOn: string
+  sentToClientOn: string
+  accepted: boolean
+  projectId: string | null
+  currency: string
+  amountMinor: string
+  discountMinor: string | null
+  taxMinor: string | null
+  previousAmountMinor: string | null
+  serviceBreakdown: { service: string; description: string | null; amountMinor: string }[]
+  paymentTerms: string | null
+  validUntil: string | null
+  termsAndConditions: string | null
+  inclusions: string | null
+  exclusions: string | null
+  cancellationPolicy: string | null
+  proposedItineraryNote: string | null
+  preparedByName: string | null
+  lead: {
+    id: string
+    title: string | null
+    companyName: string | null
+    name: string
+    destination: string | null
+    travelStartDate: string | null
+    travelEndDate: string | null
+    travelerEstimate: number | null
+    serviceScope: string[]
+  }
+}
+/** Client portal (S12a-2): a reservation without any money, vendor or internal note; `details` is a per-type whitelist. */
+export interface ClientReservationDto {
+  type: 'flight' | 'hotel' | 'transport' | 'mice'
+  id: string
+  projectId: string
+  projectName: string
+  status: string
+  clientStatus: 'Diproses' | 'Dikonfirmasi' | 'Selesai' | 'Dibatalkan'
+  reference: string | null
+  label: string
+  startDate: string | null
+  deadlineDate: string | null
+  details: Record<string, unknown> & { travelerIds?: string[] }
+}
+/** Client portal (S12a-2): an invoice billed to the client party (issued or void). */
+export interface ClientInvoiceDto {
+  id: string
+  number: string | null
+  project: { id: string; name: string }
+  invoiceType: string
+  status: 'issued' | 'void'
+  settlement: 'open' | 'partial' | 'paid' | 'credited' | null
+  overdue: boolean
+  daysOverdue: number
+  currency: string
+  totalMinor: string
+  paidMinor: string
+  creditedMinor: string
+  outstandingMinor: string
+  issueDate: string | null
+  dueDate: string | null
+  isDisputed: boolean
+  disputeReason: string | null
+  voidReason: string | null
+  billingSnapshot: unknown
+  lines: { position: number; description: string; amountMinor: string }[]
+  payments: { amountMinor: string; effectiveDate: string | null; reference: string | null }[]
+  creditNotes: { id: string; amountMinor: string; reason: string | null; status: string; issuedAt: string }[]
+}
+export interface ClientInvoicesDto {
+  invoices: ClientInvoiceDto[]
+  summary: { invoicedMinor: string; paidMinor: string; outstandingMinor: string; overdueCount: string; nextDueDate: string | null }
+}
+/**
  * An employee (S11c). `baseSalaryMinor` and `commissionRatePercent` are sent only to holders of `hr.manage-payroll`
  * (Finance, Super Admin); everyone else receives `null`.
  */

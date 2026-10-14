@@ -24,7 +24,11 @@ const quotation = computed(() => getQuotationById(String(route.params.id)))
 const lead = computed(() => (quotation.value ? getLeadById(quotation.value.leadId) : undefined))
 const isOwnCompany = computed(() => Boolean(lead.value && clientScopeId.value && lead.value.partyId === clientScopeId.value))
 const party = computed(() => (lead.value ? getPartyById(lead.value.partyId) : undefined))
-const preparedBy = computed(() => (lead.value?.handedOverTo ? getUserById(lead.value.handedOverTo) : undefined))
+/* S12a-2: the server sends the preparer's name (no internal user id); the local user list is the fallback. */
+const preparedBy = computed(() => {
+  if (quotation.value?.preparedByName) { return { name: quotation.value.preparedByName } }
+  return lead.value?.handedOverTo ? getUserById(lead.value.handedOverTo) : undefined
+})
 
 useHead({ title: computed(() => quotation.value ? `Quotation ${quotation.value.id} — Preview` : 'Quotation Tidak Ditemukan') })
 

@@ -3,6 +3,9 @@ import { newIdempotencyKey } from './client'
 import type { MasterDataCategoryKey } from '~/types/master-data'
 import type { AssetCondition } from '~/types/inventory'
 import type {
+  ClientInvoicesDto,
+  ClientQuotationDto,
+  ClientReservationDto,
   AttendanceDto,
   CommissionDto,
   EmployeeDto,
@@ -206,6 +209,10 @@ export function createManovaApi (client: ApiClient) {
       changeUserRole: (id: string, role: string) => client.put<UserDto>(`/users/${seg(id)}/role`, { role }),
       listAuditEvents: () => client.get<SystemEventDto[]>('/audit/events'),
       listAuditSessions: () => client.get<SessionLogDto[]>('/audit/sessions'),
+      // Client portal commercial reads (S12a-2) — only for role client.
+      listClientQuotations: () => client.get<ClientQuotationDto[]>('/client/quotations'),
+      listClientReservations: () => client.get<ClientReservationDto[]>('/client/reservations'),
+      listClientInvoices: () => client.get<ClientInvoicesDto>('/client/invoices'),
       listEmployees: () => client.get<EmployeeDto[]>('/employees'),
       createEmployee: (input: EmployeeInput, idempotencyKey: string = newIdempotencyKey()) => client.post<EmployeeDto>('/employees', input, { idempotencyKey }),
       updateEmployee: (id: string, input: EmployeeInput) => client.patch<EmployeeDto>(`/employees/${seg(id)}`, input),

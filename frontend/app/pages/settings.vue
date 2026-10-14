@@ -23,6 +23,7 @@ import { useMasterDataSync } from '~/data/master-data-sync'
 import { useInventorySync } from '~/data/inventory-sync'
 import { useMarketingSync } from '~/data/marketing-sync'
 import { useHrSync } from '~/data/hr-sync'
+import { useClientCommerceSync } from '~/data/client-commerce-sync'
 import { SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import type { User } from '~/types/user'
 
@@ -79,6 +80,7 @@ const masterDataSync = useMasterDataSync()
 const inventorySync = useInventorySync()
 const marketingSync = useMarketingSync()
 const hrSync = useHrSync()
+const clientCommerceSync = useClientCommerceSync()
 
 function submitReset () {
   const success = resetMockState()
@@ -107,6 +109,7 @@ function submitReset () {
   inventorySync.load(true)
   marketingSync.load(true)
   hrSync.load(true)
+  clientCommerceSync.load(true)
   showToast('Demo Data Direset', 'Seluruh data mock dikembalikan ke kondisi seed awal.', 'success')
 }
 </script>
