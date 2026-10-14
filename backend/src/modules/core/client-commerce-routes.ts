@@ -3,7 +3,7 @@ import type { AppDeps } from '../../app-deps'
 import type { AuthContext } from '../../auth/context'
 import { ok } from '../../http/envelope'
 import { errors } from '../../http/errors'
-import { listClientQuotations } from './client-commerce'
+import { listClientQuotations, listClientReservations } from './client-commerce'
 
 /**
  * Client portal commercial reads (S12a-2): only a client may call these, and only for its own party (taken from the
@@ -20,4 +20,5 @@ export function clientCommerceRoutes(deps: AppDeps, auth: AuthContext) {
 
   return new Elysia({ prefix: '/api/v1/client' })
     .get('/quotations', async ({ request }) => ok(request, await listClientQuotations(db, await clientParty(request))))
+    .get('/reservations', async ({ request }) => ok(request, await listClientReservations(db, await clientParty(request))))
 }
