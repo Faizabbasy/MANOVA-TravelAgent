@@ -8,7 +8,7 @@ import { createChangeRequest, decideChangeRequest, implementChangeRequest, listC
 import { listBookingCancellations } from './booking-writes'
 import { addIncidentCommunication, changeIncidentStatus, createIncident, escalateIncident, listIncidents, resolveIncident } from './incidents'
 import { getProject } from './repository'
-import { clientIncident, isClientScope, readerScopeOf } from './client-scope'
+import { clientCancellation, clientChangeRequest, clientIncident, forReader, isClientScope, readerScopeOf } from './client-scope'
 
 /**
  * Change requests, incidents and non-Finance cancellations (S8). Internal roles read; `log-change` logs and works
@@ -46,7 +46,7 @@ export function changeRoutes(deps: AppDeps, auth: AuthContext) {
   return new Elysia({ prefix: '/api/v1' })
     .get('/change-requests', async ({ request, query }) => {
       const scope = await readScope(request)
-      return ok(request, await listChangeRequests(db, { projectId: checkProjectQuery(query.projectId), partyId: scope.partyId }))
+      return ok(request, forReader(scope, await listChangeRequests(db, { projectId: checkProjectQuery(query.projectId), partyId: scope.partyId }), clientChangeRequest))
     }, projectQuery)
     .post('/projects/:id/change-requests', async ({ request, params, body, set }) => {
       const actor = await auth.requireCapability(request, LOG)
@@ -84,7 +84,7 @@ export function changeRoutes(deps: AppDeps, auth: AuthContext) {
     }, anyBody)
     .get('/booking-cancellations', async ({ request, query }) => {
       const scope = await readScope(request)
-      return ok(request, await listBookingCancellations(db, checkProjectQuery(query.projectId), scope.partyId))
+      return ok(request, forReader(scope, await listBookingCancellations(db, checkProjectQuery(query.projectId), scope.partyId), clientCancellation))
     }, projectQuery)
     .get('/incidents', async ({ request, query }) => {
       const scope = await readScope(request)

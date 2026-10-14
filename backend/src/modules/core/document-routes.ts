@@ -6,7 +6,7 @@ import { errors } from '../../http/errors'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import { createDocument, listDocuments, listMessages, sendMessage } from './documents'
 import { isPortalActor } from './scope'
-import { readerScopeOf } from './client-scope'
+import { clientDocument, clientMessage, forReader, readerScopeOf } from './client-scope'
 
 /** Document metadata and messages (S9). Internal roles read and send messages; `document.manage` uploads documents. */
 export function documentRoutes(deps: AppDeps, auth: AuthContext) {
@@ -27,7 +27,7 @@ export function documentRoutes(deps: AppDeps, auth: AuthContext) {
     .get('/documents', async ({ request, query }) => {
       // A client reads only client-visible documents of its own party (S12a).
       const scope = readerScopeOf(await auth.requireActor(request))
-      return ok(request, await listDocuments(db, { projectId: checkProjectQuery(query.projectId), partyId: scope.partyId }))
+      return ok(request, forReader(scope, await listDocuments(db, { projectId: checkProjectQuery(query.projectId), partyId: scope.partyId }), clientDocument))
     }, projectQuery)
     .post('/documents', async ({ request, body, set }) => {
       const actor = await auth.requireCapability(request, 'document.manage')
@@ -41,7 +41,7 @@ export function documentRoutes(deps: AppDeps, auth: AuthContext) {
     .get('/messages', async ({ request, query }) => {
       // A client reads only the client messages of its own projects (S12a).
       const scope = readerScopeOf(await auth.requireActor(request))
-      return ok(request, await listMessages(db, { projectId: checkProjectQuery(query.projectId), partyId: scope.partyId }))
+      return ok(request, forReader(scope, await listMessages(db, { projectId: checkProjectQuery(query.projectId), partyId: scope.partyId }), clientMessage))
     }, projectQuery)
     .post('/messages', async ({ request, body, set }) => {
       const actor = await internalActor(request)

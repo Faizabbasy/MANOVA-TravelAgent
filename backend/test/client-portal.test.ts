@@ -86,6 +86,30 @@ describe('client portal reads (S12a)', () => {
     expect(res.json.data).toEqual([])
   })
 
+  test('S12a-2: internal staff fields are blanked for the client; the amounts billed to it stay', async () => {
+    await t.db.query(`update documents set uploaded_by = 'USR-002', verified = true, verified_by = 'USR-002', verified_on = '2026-07-01' where access_level = 'client' and project_id in ${OWN}`)
+    await t.db.query(`update travelers set documents_verified_on = '2026-07-01', documents_verified_by = 'USR-002' where project_id in ${OWN}`)
+    await t.db.query(`update messages set mentions = '["USR-002"]'::jsonb, read_by = '["USR-002"]'::jsonb where channel = 'client-message' and project_id in ${OWN}`)
+    await t.db.query(`update change_requests set commercial_impact_minor = 2500000, financial_impact_note = 'Margin tergerus 2%' where project_id in ${OWN}`)
+    await t.db.query(`update booking_cancellations set cancelled_by = 'USR-002', penalty_minor = 750000 where project_id in ${OWN}`)
+
+    const docs = (await get('/documents', 'client')).json.data as { uploadedBy: string | null; verifiedBy: string | null; verified: boolean }[]
+    expect(docs.length).toBeGreaterThan(0)
+    expect(docs.every(d => d.uploadedBy === null && d.verifiedBy === null && d.verified)).toBe(true)
+    const travelers = (await get('/travelers', 'client')).json.data as { documentsVerifiedBy: string | null; documentsVerifiedOn: string | null }[]
+    expect(travelers.every(x => x.documentsVerifiedBy === null && x.documentsVerifiedOn === '2026-07-01')).toBe(true)
+    const msgs = (await get('/messages', 'client')).json.data as { senderId: string; mentions: string[]; readBy: string[] }[]
+    expect(msgs.every(m => m.mentions.length === 0 && m.readBy.length === 0 && m.senderId)).toBe(true)
+    const crs = (await get('/change-requests', 'client')).json.data as { commercialImpactMinor: string | null; financialImpactNote: string | null }[]
+    expect(crs.every(x => x.commercialImpactMinor === '2500000' && x.financialImpactNote === null)).toBe(true)
+    const cancels = (await get('/booking-cancellations', 'client')).json.data as { cancelledBy: string | null; penaltyMinor: string | null }[]
+    expect(cancels.every(x => x.cancelledBy === null && x.penaltyMinor === '750000')).toBe(true)
+
+    // Internal roles keep every field.
+    const internal = (await get('/change-requests', 'admin')).json.data as { financialImpactNote: string | null }[]
+    expect(internal.some(x => x.financialImpactNote === 'Margin tergerus 2%')).toBe(true)
+  })
+
   test('vendors are still refused; internal roles still see every party', async () => {
     for (const path of ['/travelers', '/itinerary-items', '/change-requests', '/incidents', '/documents', '/messages']) {
       expect((await get(path, 'vendor')).status, path).toBe(403)

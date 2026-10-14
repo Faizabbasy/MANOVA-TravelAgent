@@ -6,7 +6,7 @@ import { errors } from '../../http/errors'
 import { businessDateOf } from '../../shared/dates'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
 import { getProject } from './repository'
-import { readerScopeOf } from './client-scope'
+import { clientTraveler, forReader, readerScopeOf } from './client-scope'
 import {
   cancelTraveler, createGroup, createRoom, createTraveler, deleteRoom, deleteTraveler, importTravelers, listRoomAssignments, replaceTraveler, setRoomTravelers, listTravelerGroups, listTravelers, setVerified, setVip, updateGroup, updateTraveler
 } from './travelers'
@@ -45,13 +45,13 @@ export function travelerRoutes(deps: AppDeps, auth: AuthContext) {
   return new Elysia({ prefix: '/api/v1' })
     .get('/travelers', async ({ request, query }) => {
       const scope = await readScope(request)
-      return ok(request, await listTravelers(db, { projectId: projectQuery(query.projectId), partyId: scope.partyId }))
+      return ok(request, forReader(scope, await listTravelers(db, { projectId: projectQuery(query.projectId), partyId: scope.partyId }), clientTraveler))
     }, { query: t.Object({ projectId: t.Optional(t.String()) }) })
     .get('/travelers/:id', async ({ request, params }) => {
       const scope = await readScope(request)
       const [tr] = await listTravelers(db, { id: assertIdParam(params.id, 'Traveler'), partyId: scope.partyId })
       if (!tr) throw errors.notFound('Traveler')
-      return ok(request, tr)
+      return ok(request, forReader(scope, [tr], clientTraveler)[0])
     })
     .post('/projects/:id/travelers', async ({ request, params, body, set }) => {
       const actor = await auth.requireCapability(request, CAP)
