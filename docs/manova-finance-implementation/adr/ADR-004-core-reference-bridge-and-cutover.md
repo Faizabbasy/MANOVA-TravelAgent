@@ -266,3 +266,13 @@ paid; baris hanya berubah saat draft. **Payroll hanya menyimpan status — tidak
 pembayaran gaji dicatat Finance lewat alur kas yang ada. Komisi dihitung server dari project (`owner_user_id` →
 karyawan tertaut, `contract_value_minor` × tarif; status mengikuti project) dan tidak disimpan; insentif manual
 disimpan (`INS-`). Setelah deploy jalankan `db:migrate` lalu `db:seed:demo`.
+
+## Update 2026-10-14 — Portal client membaca data server (S12a)
+
+Route baca `GET /travelers`, `/travelers/:id`, `/traveler-groups`, `/room-assignments`, `/itinerary-items`,
+`/change-requests`, `/incidents`, `/booking-cancellations`, `/documents`, `/messages` kini menerima user client
+(`core/client-scope.ts` `readerScopeOf`): semua query dibatasi ke project party client (`partyId`), detail milik party
+lain → 404, filter `projectId` tidak bisa menembus party. Tampilan client: itinerary hanya `visibleToClient` tanpa vendor
+& biaya vendor; insiden tanpa log komunikasi internal dan eskalasi (PIC tetap terlihat); dokumen hanya `accessLevel =
+'client'` (project atau party client); pesan hanya kanal `client-message`. Vendor tetap 403 di route ini (S12d); internal
+tidak berubah. Quotation, reservasi dan invoice untuk client menyusul (S12a-2); tulisan portal tetap lokal (S12b).

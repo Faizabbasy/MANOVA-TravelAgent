@@ -1,6 +1,6 @@
 # Portal client — baca data server (S12a) — desain
 
-Tanggal: 14 Oktober 2026 · Branch: `production` · Status: disetujui (portal aktif di dev/staging; mulai S12a; eksekusi native)
+Tanggal: 14 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-14-client-portal-reads)
 
 S12 (portal) dipecah: **S12a** portal client membaca data server yang sudah ada (dokumen ini), **S12a-2** bacaan
 komersial client (quotation, reservasi/booking, invoice), **S12b** tulisan client ke tabel yang ada, **S12c** fitur
@@ -29,7 +29,7 @@ khusus portal client (tabel baru), **S12d** portal vendor, **S12e** RFQ, **S12f*
 | Peserta | `GET /travelers`, `/traveler-groups`, `/room-assignments` (+ detail) — seluruh field (data peserta milik client sendiri) |
 | Itinerary | Hanya item `visibleToClient`; `vendorId` dan `vendorAmountMinor` dikirim `null` |
 | Change request | `GET /change-requests` — seluruh field (dampak komersial memang ditagihkan ke client) |
-| Insiden | `GET /incidents` — tanpa log komunikasi internal (`communicationLog: []`), `ownerId`/`escalatedTo` disembunyikan |
+| Insiden | `GET /incidents` — tanpa log komunikasi internal (`communicationLog: []`) dan `escalatedTo`; PIC (`ownerId`) tetap terlihat |
 | Pembatalan | `GET /booking-cancellations` — milik project client |
 | Dokumen | Hanya `accessLevel = 'client'`, milik project client atau entitas party client |
 | Pesan | Hanya kanal `client-message` milik project client |

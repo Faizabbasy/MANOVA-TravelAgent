@@ -57,3 +57,16 @@ Untuk mengaktifkan portal lagi nanti:
 
 - backend: `PORTAL_LOGIN=true`
 - frontend: hapus `hidden: true` pada role client/vendor di `app/data/rbac.ts` dan tambahkan akunnya ke `DEMO_LOGIN_ACCOUNTS`.
+
+## Update 2026-10-14 — Portal aktif di development/staging (S12a)
+
+Keputusan pengguna: portal client & vendor **dinyalakan di development/staging** selama datanya dipindah ke server
+(S12), dan **tetap tertutup di production** sampai S12 selesai.
+
+- Backend: `PORTAL_LOGIN` default `true` di luar production; `PORTAL_LOGIN=true` di production ditolak saat start
+  (config error), seperti `DEMO_LOGIN`. `.env.example` dan `deploy/bootstrap-server.sh` kini menulis `PORTAL_LOGIN=true`.
+  **Server staging yang sudah ada menyimpan `PORTAL_LOGIN=false` di `backend/.env`** (ditulis saat bootstrap) —
+  ubah manual ke `true` lalu `pm2 reload manova-api` agar portal bisa dicoba di staging.
+- `GET /api/v1/auth/options` (publik) → `{ demoLogin, portalLogin }`. Plugin `plugins/portal-options.ts` membacanya saat
+  SSR; role portal tetap `hidden` di data, tetapi `isRoleSelectable` mengizinkannya selama `portalLogin` aktif.
+- Login satu-klik menampilkan Dimas Pratama (client, PTY-005) dan Hasan Alfarizi (vendor) bila portal aktif.
