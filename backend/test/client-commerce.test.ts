@@ -22,6 +22,52 @@ const keysOf = (v: unknown, into = new Set<string>()): Set<string> => {
   return into
 }
 
+describe('GET /client/invoices', () => {
+  test('issued/void invoices billed to the client party (Group Trip participant invoices too), never drafts or other parties', async () => {
+    const own = (await t.db.query<{ id: string }>("select id from projects where party_id = 'PTY-005' order by id limit 1"))[0]!.id
+    const other = (await t.db.query<{ id: string }>("select id from projects where party_id <> 'PTY-005' order by id limit 1"))[0]!.id
+    const invoice = async (projectId: string, amount: string, issue = true) => {
+      const res = await t.call('POST', '/api/v1/finance/customer-invoices', {
+        cookie: c.finance, body: { projectId, invoiceType: 'dp', lines: [{ description: 'DP perjalanan', amountMinor: amount }], dueDate: '2026-12-01' }
+      })
+      expect(res.status, JSON.stringify(res.json)).toBe(201)
+      const id = res.json.data.id as string
+      if (issue) expect((await t.call('POST', `/api/v1/finance/customer-invoices/${id}/issue`, { cookie: c.finance, body: {} })).status).toBe(200)
+      return id
+    }
+    const issued = await invoice(own, '10000000', false)
+    const draft = await invoice(own, '5000000', false)
+    const otherParty = await invoice(other, '7000000')
+    const participant = await invoice(other, '3000000', false)
+    // A Group Trip participant invoice: the project belongs to another party, the bill to the client. Internal fields
+    // are planted while still drafts (issued invoices are frozen), then both are issued.
+    await t.db.query("update customer_invoices set party_id = 'PTY-005', expected_date = '2026-11-20', expected_reason = 'janji bayar', notes = 'internal' where id = any($1::text[])", [[issued, participant]])
+    for (const id of [issued, participant]) {
+      expect((await t.call('POST', `/api/v1/finance/customer-invoices/${id}/issue`, { cookie: c.finance, body: {} })).status).toBe(200)
+    }
+
+    const res = await get('/client/invoices', 'client')
+    expect(res.status).toBe(200)
+    const data = res.json.data as { invoices: { id: string; totalMinor: string; outstandingMinor: string; lines: unknown[] }[]; summary: Record<string, string | null> }
+    const ids = data.invoices.map(i => i.id)
+    expect(ids).toContain(issued)
+    expect(ids).toContain(participant)
+    expect(ids).not.toContain(draft)
+    expect(ids).not.toContain(otherParty)
+    expect(data.invoices.find(i => i.id === issued)).toMatchObject({ totalMinor: '10000000', outstandingMinor: '10000000' })
+    expect(data.invoices.find(i => i.id === issued)!.lines).toEqual([{ position: 1, description: 'DP perjalanan', amountMinor: '10000000' }])
+    expect(data.summary).toMatchObject({ invoicedMinor: '13000000', outstandingMinor: '13000000', paidMinor: '0' })
+    const keys = keysOf(data)
+    for (const k of ['expectedDate', 'expectedReason', 'notes', 'account', 'transactionId', 'effect', 'refundId', 'billingScheduleItemId', 'createdAt', 'issuedBy', 'createdBy']) {
+      expect(keys.has(k), k).toBe(false)
+    }
+    expect((await get(`/client/invoices/${issued}`, 'client')).status).toBe(200)
+    expect((await get(`/client/invoices/${otherParty}`, 'client')).status).toBe(404)
+    expect((await get(`/client/invoices/${draft}`, 'client')).status).toBe(404)
+    expect((await get('/client/invoices', 'finance')).status).toBe(403)
+  })
+})
+
 describe('GET /client/reservations', () => {
   test('bookings of the client party’s projects, without any money, vendor or internal note', async () => {
     // Give the client party a project with a booking of each type, and plant internal fields in the details.

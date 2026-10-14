@@ -1,9 +1,9 @@
 import { Elysia } from 'elysia'
 import type { AppDeps } from '../../app-deps'
 import type { AuthContext } from '../../auth/context'
-import { ok } from '../../http/envelope'
+import { assertIdParam, ok } from '../../http/envelope'
 import { errors } from '../../http/errors'
-import { listClientQuotations, listClientReservations } from './client-commerce'
+import { getClientInvoice, listClientInvoices, listClientQuotations, listClientReservations } from './client-commerce'
 
 /**
  * Client portal commercial reads (S12a-2): only a client may call these, and only for its own party (taken from the
@@ -21,4 +21,9 @@ export function clientCommerceRoutes(deps: AppDeps, auth: AuthContext) {
   return new Elysia({ prefix: '/api/v1/client' })
     .get('/quotations', async ({ request }) => ok(request, await listClientQuotations(db, await clientParty(request))))
     .get('/reservations', async ({ request }) => ok(request, await listClientReservations(db, await clientParty(request))))
+    .get('/invoices', async ({ request }) => ok(request, await listClientInvoices(db, await clientParty(request))))
+    .get('/invoices/:id', async ({ request, params }) => {
+      const partyId = await clientParty(request)
+      return ok(request, await getClientInvoice(db, partyId, assertIdParam(params.id, 'Invoice')))
+    })
 }

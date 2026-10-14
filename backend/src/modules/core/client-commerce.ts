@@ -1,4 +1,6 @@
-import type { Queryable } from '../../db/client'
+import type { Db, Queryable } from '../../db/client'
+import { errors } from '../../http/errors'
+import { getInvoice } from '../finance/receivables'
 
 /**
  * Client portal commercial reads (S12a-2): the quotations sent to the client, its reservations and its invoices. Every
@@ -107,6 +109,69 @@ export async function listClientReservations(db: Queryable, partyId: string) {
       details
     }
   })
+}
+
+/* ---------- invoices ---------- */
+
+type FullInvoice = Awaited<ReturnType<typeof getInvoice>>
+
+/** The billed customer's view of an invoice: amounts, dates, lines, its payments and credit notes — no internal forecast, note, bank account or transaction. */
+function clientInvoice(i: FullInvoice) {
+  return {
+    id: i.id as string,
+    number: (i.number ?? null) as string | null,
+    project: i.project as { id: string; name: string },
+    invoiceType: i.invoiceType as string,
+    status: i.status as string,
+    settlement: i.settlement,
+    overdue: i.overdue,
+    daysOverdue: i.daysOverdue,
+    currency: i.currency as string,
+    totalMinor: String(i.totalMinor),
+    paidMinor: String(i.paidMinor),
+    creditedMinor: String(i.creditedMinor),
+    outstandingMinor: String(i.outstandingMinor),
+    issueDate: day(i.issueDate),
+    dueDate: day(i.dueDate),
+    isDisputed: i.isDisputed as boolean,
+    disputeReason: str(i.disputeReason),
+    voidReason: str(i.voidReason),
+    billingSnapshot: (i.billingSnapshot ?? null) as unknown,
+    lines: i.lines.map(l => ({ position: Number(l.position), description: String(l.description), amountMinor: String(l.amountMinor) })),
+    payments: i.payments.filter(p => !p.reversed).map(p => ({ amountMinor: String(p.amountMinor), effectiveDate: day(p.effectiveDate), reference: str(p.reference) })),
+    creditNotes: i.creditNotes.map(n => ({ id: n.id as string, amountMinor: String(n.amountMinor), reason: str(n.reason), status: n.status as string, issuedAt: n.createdAt }))
+  }
+}
+
+/** Invoices billed to the party (`customer_invoices.party_id` — a Group Trip participant's bill is its own), issued or void. */
+async function clientInvoiceIds(db: Db, partyId: string, id?: string): Promise<string[]> {
+  const rows = await db.query<{ id: string }>(
+    `select id from customer_invoices where party_id = $1 and status in ('issued', 'void') and ($2::text is null or id = $2)
+      order by coalesce(issue_date, created_at::date) desc, id desc`, [partyId, id ?? null])
+  return rows.map(r => r.id)
+}
+
+export async function listClientInvoices(db: Db, partyId: string) {
+  const invoices = await Promise.all((await clientInvoiceIds(db, partyId)).map(async id => clientInvoice(await getInvoice(db, id))))
+  const issued = invoices.filter(i => i.status === 'issued')
+  const sum = (key: 'totalMinor' | 'paidMinor' | 'outstandingMinor') => issued.reduce((acc, i) => acc + BigInt(i[key]), 0n).toString()
+  const open = issued.filter(i => BigInt(i.outstandingMinor) > 0n && i.dueDate).map(i => i.dueDate!).sort()
+  return {
+    invoices,
+    summary: {
+      invoicedMinor: sum('totalMinor'),
+      paidMinor: sum('paidMinor'),
+      outstandingMinor: sum('outstandingMinor'),
+      overdueCount: String(issued.filter(i => i.overdue).length),
+      nextDueDate: open[0] ?? null
+    }
+  }
+}
+
+export async function getClientInvoice(db: Db, partyId: string, id: string) {
+  const [found] = await clientInvoiceIds(db, partyId, id)
+  if (!found) throw errors.notFound('Invoice')
+  return clientInvoice(await getInvoice(db, found))
 }
 
 /* ---------- quotations ---------- */
