@@ -148,10 +148,15 @@ describe('authentication', () => {
     expect(me.json.data.permissions.capabilities).not.toContain('finance.post-cash')
   })
 
-  test('portal logins are switched off: correct password → 403 ROLE_DISABLED, and old portal sessions stop working', async () => {
-    const res = await t.call('POST', '/api/v1/auth/login', { body: { email: DEMO.client, password: TEST_PASSWORD } })
-    expect(res.status).toBe(403)
-    expect(res.json.error.code).toBe('ROLE_DISABLED')
+  test('portal logins switched off (production): correct password → 403 ROLE_DISABLED, and old portal sessions stop working', async () => {
+    const portalOff = await makeTestApp({ config: { portalLogin: false } })
+    try {
+      const res = await portalOff.call('POST', '/api/v1/auth/login', { body: { email: DEMO.client, password: TEST_PASSWORD } })
+      expect(res.status).toBe(403)
+      expect(res.json.error.code).toBe('ROLE_DISABLED')
+    } finally {
+      await portalOff.cleanup()
+    }
 
     const portalOn = await makeTestApp({ config: { portalLogin: true } })
     try {
@@ -163,6 +168,18 @@ describe('authentication', () => {
       expect(me.status).toBe(401)
     } finally {
       await portalOn.cleanup()
+    }
+  })
+
+  test('GET /auth/options tells the login page whether demo and portal logins are on, without a session', async () => {
+    const res = await t.call('GET', '/api/v1/auth/options')
+    expect(res.status).toBe(200)
+    expect(res.json.data).toEqual({ demoLogin: true, portalLogin: true })
+    const off = await makeTestApp({ config: { portalLogin: false, demoLogin: false } })
+    try {
+      expect((await off.call('GET', '/api/v1/auth/options')).json.data).toEqual({ demoLogin: false, portalLogin: false })
+    } finally {
+      await off.cleanup()
     }
   })
 
@@ -242,14 +259,28 @@ describe('one-click demo login', () => {
     expect(audit!.n).toBeGreaterThanOrEqual(3)
   })
 
-  test('refuses hidden portal roles, unknown ids and non-demo accounts with the same 404', async () => {
+  test('refuses unknown ids and non-demo accounts with the same 404', async () => {
     await t.addUser({ id: 'USR-T-REAL', email: 'real.person@manova.id', role: 'admin' }) // provenance defaults to manual
-    for (const userId of ['USR-021', 'USR-015', 'USR-404', 'USR-T-REAL', '%00']) {
+    for (const userId of ['USR-404', 'USR-T-REAL', '%00']) {
       const res = await demoLogin(userId)
       expect(res.status, userId).toBe(404)
       expect(res.headers.get('set-cookie')).toBeNull()
     }
     expect((await demoLogin(42)).status).toBe(400)
+  })
+
+  test('portal demo accounts sign in while portals are on (S12a), and get the same 404 when they are off', async () => {
+    for (const [userId, role] of [['USR-021', 'client'], ['USR-015', 'vendor']] as const) {
+      const res = await demoLogin(userId)
+      expect(res.status, userId).toBe(200)
+      expect(res.json.data.user.role).toBe(role)
+    }
+    const off = await makeTestApp({ config: { portalLogin: false } })
+    try {
+      for (const userId of ['USR-021', 'USR-015']) expect((await demoLogin(userId, off)).status, userId).toBe(404)
+    } finally {
+      await off.cleanup()
+    }
   })
 
   test('does not exist when DEMO_LOGIN is off (always the case in production)', async () => {

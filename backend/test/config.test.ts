@@ -43,9 +43,13 @@ describe('loadConfig', () => {
     expect(() => loadConfig({ ...prod, DEMO_LOGIN: 'true' })).toThrow('DEMO_LOGIN cannot be enabled in production')
   })
 
-  test('portal logins are off unless PORTAL_LOGIN=true', () => {
-    expect(loadConfig({}).portalLogin).toBe(false)
-    expect(loadConfig({ PORTAL_LOGIN: 'true' }).portalLogin).toBe(true)
+  test('portal logins are on outside production (S12a) and can never be enabled in production', () => {
+    expect(loadConfig({}).portalLogin).toBe(true)
+    expect(loadConfig({ APP_ENV: 'test' }).portalLogin).toBe(true)
+    expect(loadConfig({ PORTAL_LOGIN: 'false' }).portalLogin).toBe(false)
+    const prod = { APP_ENV: 'production', DATABASE_URL: 'postgres://u:p@db/m', APP_ORIGINS: 'https://app.manova.id' }
+    expect(loadConfig(prod).portalLogin).toBe(false)
+    expect(() => loadConfig({ ...prod, PORTAL_LOGIN: 'true' })).toThrow('PORTAL_LOGIN cannot be enabled in production')
   })
 
   test('production never falls back to localhost origins', () => {

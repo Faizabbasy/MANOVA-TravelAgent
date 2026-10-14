@@ -60,6 +60,8 @@ export function authRoutes(deps: AppDeps, auth: AuthContext) {
   }
 
   return new Elysia({ prefix: '/api/v1/auth' })
+    /** Which sign-in paths are on (S12a), so the login page shows the portal accounts only when they can sign in. */
+    .get('/options', ({ request }) => ok(request, { demoLogin: config.demoLogin, portalLogin: config.portalLogin }))
     .post(
       '/login',
       async ({ body, request, server, set }) => {

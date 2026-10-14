@@ -95,7 +95,10 @@ export function loadConfig(env: Env = process.env): AppConfig {
   const trustProxy = parseBool(env.TRUST_PROXY, false, 'TRUST_PROXY', problems)
   const demoLogin = parseBool(env.DEMO_LOGIN, !isProd, 'DEMO_LOGIN', problems)
   if (isProd && demoLogin) problems.push('DEMO_LOGIN cannot be enabled in production')
-  const portalLogin = parseBool(env.PORTAL_LOGIN, false, 'PORTAL_LOGIN', problems)
+  // S12a: the client/vendor portals are on in development and staging while their data moves to the server, and
+  // stay closed in production until that is finished.
+  const portalLogin = parseBool(env.PORTAL_LOGIN, !isProd, 'PORTAL_LOGIN', problems)
+  if (isProd && portalLogin) problems.push('PORTAL_LOGIN cannot be enabled in production')
 
   if (problems.length) throw new ConfigError(problems)
 
