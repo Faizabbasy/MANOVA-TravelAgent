@@ -276,3 +276,18 @@ lain → 404, filter `projectId` tidak bisa menembus party. Tampilan client: iti
 & biaya vendor; insiden tanpa log komunikasi internal dan eskalasi (PIC tetap terlihat); dokumen hanya `accessLevel =
 'client'` (project atau party client); pesan hanya kanal `client-message`. Vendor tetap 403 di route ini (S12d); internal
 tidak berubah. Quotation, reservasi dan invoice untuk client menyusul (S12a-2); tulisan portal tetap lokal (S12b).
+
+## Update 2026-10-14 — Portal client: quotation, reservasi & tagihan (S12a-2)
+
+Endpoint khusus client `GET /api/v1/client/quotations`, `/client/reservations`, `/client/invoices`, `/client/invoices/:id`
+(hanya role client; party dari sesi) dengan DTO whitelist (`core/client-commerce.ts`):
+- quotation: hanya yang `sent_to_client_on` terisi (disetujui & dikirim; revisi yang belum dikirim ulang tidak tampil),
+  tanpa markup/estimasi biaya/margin/cost sheet/approval internal; nama penyusun, bukan id;
+- reservasi: **tanpa uang** (keputusan pengguna, ADR-007), tanpa vendor/harga opsi/BOQ/catatan internal/PIC; `details`
+  whitelist per tipe; status client Diproses/Dikonfirmasi/Selesai/Dibatalkan;
+- tagihan: invoice `party_id` = party client (termasuk invoice peserta Group Trip), status issued/void, baris, pembayaran
+  (tanpa rekening & ID transaksi), credit note, ringkasan; tanpa perkiraan tagih & catatan internal.
+Route S12a untuk client kini mengosongkan ID staf yang tidak ditampilkan (`uploadedBy`, `verifiedBy`,
+`documentsVerifiedBy`, `cancelledBy`, `mentions`, `readBy`) dan `financialImpactNote`; penalti pembatalan dan dampak
+komersial CR tetap terlihat (keputusan pengguna — ditagihkan ke client). Frontend `data/client-commerce-sync.ts`.
+Catatan demo: party client demo (PTY-005) belum punya quotation terkirim maupun booking di seed — tab tersebut kosong.

@@ -52,3 +52,10 @@ diubah hanya lewat `PUT /api/v1/parties/:id/credit-limit` dengan capability `fin
 (Finance, Super Admin) dan alasan wajib yang diaudit. Admin melihat nilainya tetapi tidak mengubahnya. Seed demo
 membawanya sebagai `creditLimitMinor` (kunci uang keempat yang diizinkan `db.test.ts`). Spec:
 `docs/superpowers/specs/2026-10-06-customer-backend-design.md`.
+
+## Update 2026-10-14 — Portal client (S12a-2)
+
+Keputusan pengguna: client **tidak** melihat harga di reservasi (angka hanya lewat quotation yang dikirim dan invoice);
+penalti pembatalan dan dampak biaya change request **terlihat** karena ditagihkan ke client. Client melihat invoice yang
+ditagihkan ke party-nya (status issued/void) beserta pembayaran dan credit note, tanpa rekening MANOVA, ID transaksi,
+perkiraan tanggal tagih internal atau catatan internal Finance.

@@ -1,6 +1,6 @@
 # Portal client — quotation, reservasi & tagihan dari server (S12a-2) — desain
 
-Tanggal: 14 Oktober 2026 · Branch: `production` · Status: disetujui (reservasi tanpa harga; penalti & dampak CR terlihat; eksekusi native)
+Tanggal: 14 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-14-client-portal-commercial)
 
 Lanjutan S12a. Portal client membaca **quotation, reservasi (booking) dan tagihan** dari server lewat endpoint khusus
 client dengan DTO whitelist, dan kebocoran field internal dari route S12a ditutup.
