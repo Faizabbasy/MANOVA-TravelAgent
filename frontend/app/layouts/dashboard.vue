@@ -70,7 +70,11 @@ const SYNCS: Record<SyncKey, { load: (force?: boolean) => unknown }> = {
   hr: hrSync,
   clientCommerce: clientCommerceSync
 }
-const loadServerData = (force = false) => { for (const key of syncPlanFor(currentUser.value.role)) { SYNCS[key].load(force) } }
+const loadServerData = (force = false) => {
+  // Before the internal syncs: a client session that ended on this tab gives the shared lists back first.
+  if (currentUser.value.role !== 'client') { clientCommerceSync.reset() }
+  for (const key of syncPlanFor(currentUser.value.role)) { SYNCS[key].load(force) }
+}
 onMounted(() => { loadServerData() })
 watch(() => currentUser.value.id, () => { loadServerData() })
 

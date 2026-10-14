@@ -18,6 +18,33 @@ const idr = (minor: string | null | undefined) => (minor === null || minor === u
 const opt = <T>(v: T | null | undefined): T | undefined => (v === null ? undefined : v)
 const clean = <T extends object>(o: T): T => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T
 
+/* ---------- leaving the client session ---------- */
+
+/**
+ * The shared lists as they were before the first client merge. Logout and login are SPA navigations, so without a
+ * restore the next (internal) user would read the client's view of leads, quotations and invoices.
+ */
+let snapshot: { leads: Lead[]; quotations: Quotation[]; invoices: Invoice[]; payments: Payment[]; creditNotes: CreditNote[] } | null = null
+const copy = <T>(list: T[]): T[] => JSON.parse(JSON.stringify(list)) as T[]
+
+function takeSnapshot (): void {
+  if (snapshot) { return }
+  snapshot = { leads: copy(LEADS), quotations: copy(QUOTATIONS), invoices: copy(INVOICES), payments: copy(PAYMENTS), creditNotes: copy(CREDIT_NOTES) }
+}
+
+/** Puts back the internal lists and drops the server reservations; a no-op when no client data was merged. */
+export function resetClientCommerce (): void {
+  CLIENT_RESERVATIONS.splice(0, CLIENT_RESERVATIONS.length)
+  CLIENT_COMMERCE_STATE.reservationsLoaded = false
+  if (!snapshot) { return }
+  LEADS.splice(0, LEADS.length, ...snapshot.leads)
+  QUOTATIONS.splice(0, QUOTATIONS.length, ...snapshot.quotations)
+  INVOICES.splice(0, INVOICES.length, ...snapshot.invoices)
+  PAYMENTS.splice(0, PAYMENTS.length, ...snapshot.payments)
+  CREDIT_NOTES.splice(0, CREDIT_NOTES.length, ...snapshot.creditNotes)
+  snapshot = null
+}
+
 /* ---------- quotations ---------- */
 
 export const quotationFromClientServer = (d: ClientQuotationDto): Quotation => clean({
@@ -47,6 +74,7 @@ export const quotationFromClientServer = (d: ClientQuotationDto): Quotation => c
 
 /** The client party's quotations become exactly the sent ones from the server; leads are created or updated to match. */
 export function mergeClientQuotations (partyId: string, list: ClientQuotationDto[]): void {
+  takeSnapshot()
   for (const d of list) {
     const lead = LEADS.find(l => l.id === d.lead.id)
     const view = clean({
@@ -128,6 +156,7 @@ export const invoiceFromClientServer = (d: ClientInvoiceDto, partyId: string): I
 
 /** The client session's invoices, payments and credit notes become the server's (they are all of its own party). */
 export function mergeClientInvoices (partyId: string, data: ClientInvoicesDto): void {
+  takeSnapshot()
   const invoices = data.invoices.map(d => invoiceFromClientServer(d, partyId))
   const payments: Payment[] = data.invoices.flatMap(d => d.payments.map((p, i) => clean({
     id: `PAY-${d.id}-${i + 1}`, invoiceId: d.id, amountIdr: Number(p.amountMinor), receivedAt: p.effectiveDate ?? '', recordedBy: '', reference: opt(p.reference)
@@ -169,6 +198,8 @@ export function useClientCommerceSync () {
     const user = currentUser.value
     if (user.role !== 'client' || !user.clientPartyId) { return }
     if (!force && state.value.userId === user.id && (state.value.status === 'ready' || state.value.status === 'loading')) { return }
+    // Another client signed in on this tab: its party must not see the previous one's merged rows.
+    if (state.value.userId !== user.id) { resetClientCommerce() }
     state.value = { status: 'loading', userId: user.id, message: null }
     try {
       await session.ensure()
@@ -180,5 +211,12 @@ export function useClientCommerceSync () {
     }
   }
 
-  return { state, load }
+  /** Called when the signed-in user is no longer a client: internal views get their own lists back. */
+  function reset () {
+    if (state.value.userId === null) { return }
+    resetClientCommerce()
+    state.value = { status: 'idle', userId: null, message: null }
+  }
+
+  return { state, load, reset }
 }

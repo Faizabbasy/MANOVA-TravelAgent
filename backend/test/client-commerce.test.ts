@@ -65,6 +65,16 @@ describe('GET /client/invoices', () => {
     expect((await get(`/client/invoices/${otherParty}`, 'client')).status).toBe(404)
     expect((await get(`/client/invoices/${draft}`, 'client')).status).toBe(404)
     expect((await get('/client/invoices', 'finance')).status).toBe(403)
+
+    // A refund-liability credit note does not reduce the bill (the server's outstanding ignores it), so the client
+    // list carries only the credit notes that do.
+    // (The refund case a real refund-liability note links to is irrelevant here; the test database drops that link check.)
+    await t.db.query('alter table credit_notes drop constraint credit_notes_refund_liability_linked')
+    const staff = (await t.db.query<{ id: string }>("select id from users where role = 'finance' order by id limit 1"))[0]!.id
+    await t.db.query("insert into credit_notes (customer_invoice_id, effect, amount_minor, reason, created_by) values ($1, 'refund_liability', 1000000, 'Refund kelebihan bayar', $2)", [issued, staff])
+    const detail = (await get(`/client/invoices/${issued}`, 'client')).json.data as { creditNotes: unknown[]; outstandingMinor: string }
+    expect(detail.creditNotes).toEqual([])
+    expect(detail.outstandingMinor).toBe('10000000')
   })
 })
 
@@ -127,6 +137,27 @@ describe('GET /client/quotations', () => {
       'ownerUserId', 'qualificationNotes', 'budgetRange', 'decisionMaker', 'urgency', 'source', 'stage', 'createdBy']) {
       expect(keys.has(k), k).toBe(false)
     }
+  })
+
+  test('the previous amount is the last version actually sent, never an unsent internal version', async () => {
+    const q = (await t.db.query<{ id: string; v: number; amount: string }>(
+      `select q.id, q.current_version as v, cv.amount_minor::text as amount from quotations q join leads l on l.id = q.lead_id
+         join quotation_versions cv on cv.quotation_id = q.id and cv.version = q.current_version
+        where l.party_id = 'PTY-005' and q.sent_to_client_on is not null order by q.id limit 1`))[0]!
+    // v was sent; v+1 (160M) was rejected internally and never sent; v+2 (150M) is current and sent.
+    await t.db.query("insert into audit_events (action, entity_type, entity_id, after) values ('quotation.sent', 'quotation', $1, $2::text::jsonb)", [q.id, JSON.stringify({ version: q.v })])
+    for (const [version, amount, status] of [[q.v + 1, 160000000, 'rejected'], [q.v + 2, 150000000, 'approved']] as const) {
+      await t.db.query(
+        `insert into quotation_versions (quotation_id, version, amount_minor, currency, service_breakdown, status, created_by)
+         select quotation_id, $2, $3, currency, service_breakdown, $4, created_by from quotation_versions where quotation_id = $1 and version = $5`,
+        [q.id, version, amount, status, q.v])
+    }
+    await t.db.query('update quotations set current_version = $2 where id = $1', [q.id, q.v + 2])
+    await t.db.query("insert into audit_events (action, entity_type, entity_id, after) values ('quotation.sent', 'quotation', $1, $2::text::jsonb)", [q.id, JSON.stringify({ version: q.v + 2 })])
+
+    const row = ((await get('/client/quotations', 'client')).json.data as { id: string; amountMinor: string; previousAmountMinor: string | null }[]).find(r => r.id === q.id)!
+    expect(row.amountMinor).toBe('150000000')
+    expect(row.previousAmountMinor).toBe(q.amount)
   })
 
   test('other roles are refused', async () => {

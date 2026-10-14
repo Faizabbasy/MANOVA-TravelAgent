@@ -139,7 +139,8 @@ function clientInvoice(i: FullInvoice) {
     billingSnapshot: (i.billingSnapshot ?? null) as unknown,
     lines: i.lines.map(l => ({ position: Number(l.position), description: String(l.description), amountMinor: String(l.amountMinor) })),
     payments: i.payments.filter(p => !p.reversed).map(p => ({ amountMinor: String(p.amountMinor), effectiveDate: day(p.effectiveDate), reference: str(p.reference) })),
-    creditNotes: i.creditNotes.map(n => ({ id: n.id as string, amountMinor: String(n.amountMinor), reason: str(n.reason), status: n.status as string, issuedAt: n.createdAt }))
+    // Only notes that reduce the bill: a refund-liability note does not change what the client owes.
+    creditNotes: i.creditNotes.filter(n => n.effect === 'reduce_receivable').map(n => ({ id: n.id as string, amountMinor: String(n.amountMinor), reason: str(n.reason), status: n.status as string, issuedAt: n.createdAt }))
   }
 }
 
@@ -176,13 +177,19 @@ export async function getClientInvoice(db: Db, partyId: string, id: string) {
 
 /* ---------- quotations ---------- */
 
-/** Only quotations sent to the client (approved, then sent; a revision not yet re-sent clears `sent_to_client_on`). */
+/**
+ * Only quotations sent to the client (approved, then sent; a revision not yet re-sent clears `sent_to_client_on`). The
+ * previous amount is the last version the client was actually sent (`quotation.sent` audit), never an internal draft.
+ */
 export async function listClientQuotations(db: Queryable, partyId: string) {
   const rows = await db.query<Record<string, unknown>>(
     `select q.id, q.current_version, q.created_on, q.sent_to_client_on,
             v.amount_minor, v.discount_minor, v.tax_minor, v.currency, v.payment_terms, v.valid_until, v.terms_and_conditions,
             v.inclusions, v.exclusions, v.cancellation_policy, v.proposed_itinerary_note, v.service_breakdown,
-            (select pv.amount_minor from quotation_versions pv where pv.quotation_id = q.id and pv.version = q.current_version - 1) as previous_amount_minor,
+            (select pv.amount_minor from quotation_versions pv where pv.quotation_id = q.id and pv.version = (
+              select max((a.after->>'version')::int) from audit_events a
+               where a.action = 'quotation.sent' and a.entity_type = 'quotation' and a.entity_id = q.id
+                 and (a.after->>'version')::int < q.current_version)) as previous_amount_minor,
             l.id as lead_id, l.title, l.company_name, l.name, l.destination, l.travel_start_date, l.travel_end_date, l.traveler_estimate, l.service_scope,
             coalesce(hu.name, ou.name) as prepared_by_name,
             (select p.id from projects p where p.lead_id = l.id) as project_id

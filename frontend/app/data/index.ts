@@ -6053,7 +6053,8 @@ export interface ClientFinanceSummary {
 /** "Finance summary" (Wajib) — agregasi lintas seluruh Project Order company, reuse `getInvoiceOutstandingIdr`/`isInvoiceOverdue` apa adanya. */
 export function getClientFinanceSummary (partyId: string): ClientFinanceSummary {
   const projects = getProjectsByParty(partyId)
-  const invoices = getClientInvoices(partyId)
+  // A void invoice is no longer a bill: it counts neither as invoiced nor (outstanding 0) as paid.
+  const invoices = getClientInvoices(partyId).filter(invoice => invoice.status !== 'void')
   const totalProjectValueIdr = projects.reduce((sum, project) => sum + project.quotationAmountIdr, 0)
   const totalInvoicedIdr = invoices.reduce((sum, invoice) => sum + invoice.amountIdr, 0)
   const outstandingIdr = invoices.reduce((sum, invoice) => sum + getInvoiceOutstandingIdr(invoice.id), 0)

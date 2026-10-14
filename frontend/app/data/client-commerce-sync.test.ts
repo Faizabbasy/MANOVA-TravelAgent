@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { CLIENT_COMMERCE_STATE } from './client-commerce'
-import { clientBookingFor, mergeClientInvoices, mergeClientQuotations, mergeClientReservations } from './client-commerce-sync'
-import { CREDIT_NOTES, INVOICES, LEADS, PAYMENTS, QUOTATIONS, getClientInvoices, getClientReservations, getInvoiceOutstandingIdr } from './index'
+import { CLIENT_COMMERCE_STATE, CLIENT_RESERVATIONS } from './client-commerce'
+import { clientBookingFor, mergeClientInvoices, mergeClientQuotations, mergeClientReservations, resetClientCommerce } from './client-commerce-sync'
+import { CREDIT_NOTES, INVOICES, LEADS, PAYMENTS, QUOTATIONS, getClientFinanceSummary, getClientInvoices, getClientReservations, getInvoiceOutstandingIdr } from './index'
 import type { ClientInvoiceDto, ClientQuotationDto, ClientReservationDto } from '~/types/api'
 
 const PARTY = 'PTY-005'
+// The internal lists before any client merge, for the reset check.
+const BEFORE = { invoices: INVOICES.map(i => i.id), payments: PAYMENTS.map(p => p.id), creditNotes: CREDIT_NOTES.map(n => n.id), quotations: QUOTATIONS.map(q => q.id), leads: LEADS.map(l => l.id) }
 
 const quotation = (over: Partial<ClientQuotationDto> = {}): ClientQuotationDto => ({
   id: 'QUO-900',
@@ -114,5 +116,23 @@ describe('client commerce sync (S12a-2)', () => {
     expect(getInvoiceOutstandingIdr('CINV-900')).toBe(5_000_000)
     // A Group Trip participant invoice on another party's project is still the client's bill.
     expect(getClientInvoices(PARTY).map(i => i.id).sort()).toEqual(['CINV-900', 'CINV-901'])
+  })
+})
+
+describe('client commerce sync — leaving the client session (S12a-2 review)', () => {
+  it('void invoices count neither as invoiced nor as paid in the client summary', () => {
+    mergeClientInvoices(PARTY, { invoices: [invoice(), invoice({ id: 'CINV-902', number: 'INV-2026-00902', status: 'void', voidReason: 'Salah nominal', totalMinor: '2000000', paidMinor: '0', creditedMinor: '0', outstandingMinor: '0', payments: [], creditNotes: [] })], summary: { invoicedMinor: '10000000', paidMinor: '4000000', outstandingMinor: '5000000', overdueCount: '0', nextDueDate: '2026-07-15' } })
+    expect(getClientFinanceSummary(PARTY)).toMatchObject({ totalInvoicedIdr: 10_000_000, outstandingIdr: 5_000_000, totalPaidIdr: 5_000_000 })
+  })
+
+  it('reset restores the internal lists and the local reservation view', () => {
+    resetClientCommerce()
+    expect(INVOICES.map(i => i.id)).toEqual(BEFORE.invoices)
+    expect(PAYMENTS.map(p => p.id)).toEqual(BEFORE.payments)
+    expect(CREDIT_NOTES.map(n => n.id)).toEqual(BEFORE.creditNotes)
+    expect(QUOTATIONS.map(q => q.id)).toEqual(BEFORE.quotations)
+    expect(LEADS.map(l => l.id)).toEqual(BEFORE.leads)
+    expect(CLIENT_COMMERCE_STATE.reservationsLoaded).toBe(false)
+    expect(CLIENT_RESERVATIONS).toEqual([])
   })
 })
