@@ -18,6 +18,7 @@ import { useMasterDataSync } from '~/data/master-data-sync'
 import { useInventorySync } from '~/data/inventory-sync'
 import { useMarketingSync } from '~/data/marketing-sync'
 import { useHrSync } from '~/data/hr-sync'
+import { syncPlanFor, type SyncKey } from '~/data/sync-plan'
 
 const isMobile = useIsMobile()
 /** Project (S3a/S3b), customer (S1), vendor (S2), layanan & booking (S4a), quotation & service order (S4b), serta lead & quotation client (S6a) milik server: dimuat sekali per user yang login ke array lokal. */
@@ -42,31 +43,31 @@ const marketingSync = useMarketingSync()
 const hrSync = useHrSync()
 const { currentUser } = useCurrentUser()
 /**
- * Lead & quotation (S6a) and most modules are internal: the portals get 403, so they are not loaded there. S12a: a
- * client reads its own participants, itinerary, changes, documents & messages; every portal user its own notifications.
+ * Which server data each role loads (`syncPlanFor`, S12a): internal roles load every module; a portal user only what its
+ * portal may read — the internal lists answer 403 for it and would raise a lasting banner or overwrite portal data.
  */
-const loadPortal = (force: boolean) => {
-  if (currentUser.value.role === 'client') { travelersSync.load(force); itinerarySync.load(force); changesSync.load(force); documentsSync.load(force) }
-  notificationsSync.load(force)
+const SYNCS: Record<SyncKey, { load: (force?: boolean) => unknown }> = {
+  projects: projectsSync,
+  customers: customersSync,
+  vendors: vendorsSync,
+  bookings: bookingsSync,
+  procurement: procurementSync,
+  leads: leadsSync,
+  salesOrders: salesOrdersSync,
+  travelers: travelersSync,
+  itinerary: itinerarySync,
+  workItems: workItemsSync,
+  activity: activitySync,
+  changes: changesSync,
+  documents: documentsSync,
+  notifications: notificationsSync,
+  users: usersSync,
+  masterData: masterDataSync,
+  inventory: inventorySync,
+  marketing: marketingSync,
+  hr: hrSync
 }
-const loadLeads = (force: boolean) => {
-  if (['client', 'vendor'].includes(currentUser.value.role)) { loadPortal(force); return }
-  leadsSync.load(force)
-  salesOrdersSync.load(force)
-  travelersSync.load(force)
-  itinerarySync.load(force)
-  workItemsSync.load(force)
-  activitySync.load(force)
-  changesSync.load(force)
-  documentsSync.load(force)
-  notificationsSync.load(force)
-  usersSync.load(force)
-  masterDataSync.load(force)
-  inventorySync.load(force)
-  marketingSync.load(force)
-  hrSync.load(force)
-}
-const loadServerData = (force = false) => { projectsSync.load(force); customersSync.load(force); vendorsSync.load(force); bookingsSync.load(force); procurementSync.load(force); loadLeads(force) }
+const loadServerData = (force = false) => { for (const key of syncPlanFor(currentUser.value.role)) { SYNCS[key].load(force) } }
 onMounted(() => { loadServerData() })
 watch(() => currentUser.value.id, () => { loadServerData() })
 
