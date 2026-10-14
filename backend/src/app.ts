@@ -17,6 +17,7 @@ import { masterDataRoutes } from './modules/core/master-data-routes'
 import { inventoryRoutes } from './modules/core/inventory-routes'
 import { marketingRoutes } from './modules/core/marketing-routes'
 import { hrRoutes } from './modules/core/hr-routes'
+import { clientCommerceRoutes } from './modules/core/client-commerce-routes'
 import { travelerRoutes } from './modules/core/traveler-routes'
 import { isFinancePath, mayReachFinanceRoute } from './modules/finance/access'
 import { financeRoutes } from './modules/finance/routes'
@@ -169,6 +170,7 @@ export function createApp(deps: AppDeps) {
     .use(inventoryRoutes(deps, auth))
     .use(marketingRoutes(deps, auth))
     .use(hrRoutes(deps, auth))
+    .use(clientCommerceRoutes(deps, auth))
     .use(financeRoutes(deps, auth))
     .use(arApRoutes(deps, auth))
     .use(refundRoutes(deps, auth))
