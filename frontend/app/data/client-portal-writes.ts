@@ -1,10 +1,13 @@
 import { reloadProjectTravelers, upsertServerRoom, upsertServerTraveler } from './travelers-sync'
 import { documentFromServer, messageFromServer } from './documents-sync'
 import { contactFromServer, upsertServerParty } from './parties-sync'
-import { invoiceFromClientServer } from './client-commerce-sync'
-import { CONTACTS, DOCUMENT_RECORDS, INVOICES, MESSAGE_RECORDS } from './index'
+import { invoiceFromClientServer, quotationFromClientServer } from './client-commerce-sync'
+import { upsertServerChangeRequest } from './changes-sync'
+import { CONTACTS, DOCUMENT_RECORDS, INVOICES, MESSAGE_RECORDS, QUOTATIONS } from './index'
 import type { ManovaApi } from '~/lib/api/endpoints'
 import type { ProjectStatus } from '~/types/project'
+import type { ChangeRequestType } from '~/types/change-incident'
+import type { QuotationClientResponse } from '~/types/quotation'
 import type { ClientContactInput, ClientDocumentInput, ClientMessageInput, PartyProfileInput, TravelerInput } from '~/types/api'
 
 /**
@@ -88,3 +91,12 @@ export function cancellableSelection<R extends { traveler: { id: string; cancell
   const targets = selected.filter(row => !participantsLocked(row.project.status))
   return { targets, skipped: selected.length - targets.length }
 }
+
+/* change requests & quotation response (S12b-2) */
+export const clientSubmitChangeRequest = async (api: CoreApi, projectId: string, input: { changeType?: ChangeRequestType; category?: string; beforeSummary: string; afterSummary: string }) =>
+  upsertServerChangeRequest((await api.core.clientCreateChangeRequest(projectId, input)).data)
+export const clientApproveChangeImpact = async (api: CoreApi, id: string) => upsertServerChangeRequest((await api.core.clientApproveChangeRequest(id)).data)
+export const clientRejectChangeImpact = async (api: CoreApi, id: string, reason: string) => upsertServerChangeRequest((await api.core.clientRejectChangeRequest(id, reason)).data)
+export const clientCancelChangeRequestOnServer = async (api: CoreApi, id: string, reason: string) => upsertServerChangeRequest((await api.core.clientCancelChangeRequest(id, reason)).data)
+export const clientRespondToQuotation = async (api: CoreApi, id: string, input: { response: QuotationClientResponse['response']; note?: string }) =>
+  upsert(QUOTATIONS, quotationFromClientServer((await api.core.respondToQuotation(id, input)).data))

@@ -17,14 +17,20 @@ const FILES = [
   'components/client/DashboardOverviewPanel.vue',
   'pages/client/billing/invoices/[id]/index.vue',
   // S12d: the vendor portal's product catalogue.
-  'components/supplier/MyProductsPanel.vue'
+  'components/supplier/MyProductsPanel.vue',
+  // S12b-2: change requests and the quotation response.
+  'components/client/ChangeRequestsListPanel.vue',
+  'pages/client/change-requests/[id]/index.vue',
+  'pages/client/quotations/[id]/index.vue'
 ]
 const FORBIDDEN = [
   'createTraveler(', 'updateTraveler(', 'cancelTraveler(', 'replaceTraveler(', 'commitTravelerImport(', 'setTravelerVip(',
   'createRoomAssignment(', 'setRoomAssignmentTravelers(',
   'createClientDocument(', 'replaceClientDocument(', 'createCompanyDocument(', 'sendMessage(', 'markProjectMessagesRead(',
   'updateCompanyProfile(', 'createContact(', 'updateContact(', 'deleteContact(', 'raiseInvoiceDispute(',
-  'createVendorProduct('
+  'createVendorProduct(',
+  'createChangeRequest(', 'submitChangeRequestDraft(', 'approveChangeRequestImpact(', 'rejectChangeRequestImpact(', 'cancelChangeRequest(',
+  'runChangeRequestMockReview(', 'requestQuotationRevision(', 'createPartyActivity('
 ]
 const used = (source: string, name: string) => new RegExp(`(?<![.\\w])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(source)
 

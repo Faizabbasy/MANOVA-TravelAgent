@@ -6,17 +6,17 @@ import {
   getChangeRequestById, getProjectById, getUserById,
   getChangeRequestComments, addChangeRequestComment,
   getChangeRequestAttachments, addChangeRequestAttachmentMock,
-  getChangeRequestActivityHistory,
-  approveChangeRequestImpact, rejectChangeRequestImpact, cancelChangeRequest,
-  CANCELLABLE_CHANGE_REQUEST_STATUSES
+  getChangeRequestActivityHistory
 } from '~/data'
+import { clientApproveChangeImpact, clientCancelChangeRequestOnServer, clientRejectChangeImpact } from '~/data/client-portal-writes'
+import { createSaveGate } from '~/lib/save-gate'
 import { CHANGE_REQUEST_STATUSES, CHANGE_REQUEST_TYPES, findStatusOption } from '~/constants/status'
-import { formatDate } from '~/utils/format'
+import { formatCurrencyIdr, formatDate } from '~/utils/format'
 
 /**
  * Change Request — Detail (Repair Phase Section 5 — Execution & Changes, Master Prompt bagian B). Impact
- * Review (Cost/Timeline/Cancellation Fee) hanya terisi setelah `runChangeRequestMockReview` selesai
- * (status `costing` ke atas) — field kosong sebelum itu ditampilkan sebagai "Belum tersedia", BUKAN 0/blank
+ * Review (Cost/Timeline/Cancellation Fee) terisi setelah tim kami mengirim dampaknya (S12b-2, server)
+ * — sebelum itu ditampilkan sebagai "Belum tersedia", BUKAN 0/blank
  * yang menyesatkan (larangan Master Prompt "angka yang tidak terhubung").
  */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -34,38 +34,47 @@ useHead({ title: computed(() => request.value ? `Change Request ${request.value.
 
 const requester = computed(() => (request.value ? getUserById(request.value.requestedBy) : undefined))
 
-const EXECUTION_STEPS = ['submitted', 'under-review', 'availability-check', 'costing', 'waiting-client-approval', 'in-execution', 'implemented'] as const
+/* S12b-2: the server flow — staff review, send the cost to you when there is one, you approve/reject it, staff execute. */
+const EXECUTION_STEPS = ['submitted', 'under-review', 'waiting-client-approval', 'approved', 'implemented'] as const
 const stepIndex = computed(() => (request.value ? EXECUTION_STEPS.indexOf(request.value.status as typeof EXECUTION_STEPS[number]) : -1))
 const isTerminalOutcome = computed(() => request.value && ['rejected', 'cancelled', 'not-feasible'].includes(request.value.status))
 
-const hasImpact = computed(() => request.value && ['costing', 'waiting-client-approval', 'in-execution', 'implemented', 'rejected'].includes(request.value.status))
+const hasImpact = computed(() => request.value && (request.value.commercialImpactIdr !== undefined || request.value.cancellationFeeIdr !== undefined || Boolean(request.value.timelineImpactNote)))
 const canDecide = computed(() => request.value?.status === 'waiting-client-approval')
-const canCancel = computed(() => request.value && CANCELLABLE_CHANGE_REQUEST_STATUSES.includes(request.value.status))
+const canCancel = computed(() => request.value && ['submitted', 'under-review', 'waiting-client-approval'].includes(request.value.status))
 
-function handleApprove () {
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+
+async function handleApprove () {
   if (!request.value) { return }
-  const result = approveChangeRequestImpact(request.value.id, currentUser.value.id)
+  const id = request.value.id
+  const result = await gate.run('Persetujuan Gagal Dikirim', () => clientApproveChangeImpact(api, id))
   if (result) { showToast('Perubahan Disetujui', 'Tim kami akan mulai mengeksekusi perubahan ini.', 'success') }
 }
 
 const isRejectOpen = ref(false)
 const rejectReason = ref('')
-function submitReject () {
+async function submitReject () {
   if (!request.value || !rejectReason.value.trim()) { return }
-  const result = rejectChangeRequestImpact(request.value.id, currentUser.value.id, rejectReason.value.trim())
+  const id = request.value.id
+  const result = await gate.run('Penolakan Gagal Dikirim', () => clientRejectChangeImpact(api, id, rejectReason.value.trim()))
+  if (!result) { return }
   rejectReason.value = ''
   isRejectOpen.value = false
-  if (result) { showToast('Perubahan Ditolak', 'Estimasi dampak telah Anda tolak.', 'info') }
+  showToast('Perubahan Ditolak', 'Estimasi dampak telah Anda tolak.', 'info')
 }
 
 const isCancelOpen = ref(false)
 const cancelReason = ref('')
-function submitCancel () {
+async function submitCancel () {
   if (!request.value || !cancelReason.value.trim()) { return }
-  const result = cancelChangeRequest(request.value.id, cancelReason.value.trim())
+  const id = request.value.id
+  const result = await gate.run('Pembatalan Gagal', () => clientCancelChangeRequestOnServer(api, id, cancelReason.value.trim()))
+  if (!result) { return }
   cancelReason.value = ''
   isCancelOpen.value = false
-  if (result) { showToast('Change Request Dibatalkan', 'Permintaan perubahan Anda telah dibatalkan.', 'info') }
+  showToast('Change Request Dibatalkan', 'Permintaan perubahan Anda telah dibatalkan.', 'info')
 }
 
 const comments = computed(() => (request.value ? getChangeRequestComments(request.value.id) : []))
@@ -188,8 +197,26 @@ const activityHistory = computed(() => (request.value ? getChangeRequestActivity
             <p class="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground mb-1">
               Financial Impact
             </p>
-            <p class="text-sm text-foreground">
-              Dampak finansial (termasuk biaya pembatalan bila berlaku) telah dihitung oleh tim kami dan disertakan dalam penawaran/penyesuaian invoice Anda.
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+              <div>
+                <p class="text-muted-foreground">
+                  Tambahan biaya
+                </p>
+                <p class="font-medium text-foreground">
+                  {{ request.commercialImpactIdr !== undefined ? formatCurrencyIdr(request.commercialImpactIdr) : '—' }}
+                </p>
+              </div>
+              <div>
+                <p class="text-muted-foreground">
+                  Biaya pembatalan
+                </p>
+                <p class="font-medium text-foreground">
+                  {{ request.cancellationFeeIdr !== undefined ? formatCurrencyIdr(request.cancellationFeeIdr) : '—' }}
+                </p>
+              </div>
+            </div>
+            <p class="text-xs text-muted-foreground mt-2">
+              Biaya ini ditagihkan lewat penyesuaian invoice setelah Anda menyetujui perubahan.
             </p>
           </div>
           <div v-if="request.timelineImpactNote" class="mt-3 pt-3 border-t border-border">

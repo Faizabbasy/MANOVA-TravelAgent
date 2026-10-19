@@ -98,7 +98,8 @@ function replaceAll<T extends { id: string }> (list: T[], values: T[], keepLocal
   for (const v of values) { upsert(list, v) }
 }
 
-const upsertRequest = (d: ChangeRequestDto) => upsert(CHANGE_REQUESTS, changeRequestFromServer(d))
+export const upsertServerChangeRequest = (d: ChangeRequestDto) => upsert(CHANGE_REQUESTS, changeRequestFromServer(d))
+const upsertRequest = upsertServerChangeRequest
 const upsertIncident = (d: IncidentDto) => upsert(INCIDENTS, incidentFromServer(d))
 
 export function mergeServerChanges (requests: ChangeRequestDto[], incidents: IncidentDto[], cancellations: BookingCancellationDto[]): void {

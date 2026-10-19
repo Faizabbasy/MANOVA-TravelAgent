@@ -301,7 +301,7 @@ export function createManovaApi (client: ApiClient) {
       implementChangeRequest: (id: string) => client.post<ChangeRequestDto>(`/change-requests/${seg(id)}/implement`, {}),
       // S12b-2: staff send a client request's impact to the client; the client portal submits, decides and cancels.
       sendChangeRequestToClient: (id: string, input: ChangeRequestImpactInput) => client.post<ChangeRequestDto>(`/change-requests/${seg(id)}/send-to-client`, input),
-      clientCreateChangeRequest: (projectId: string, input: { changeType?: ChangeRequestType; beforeSummary: string; afterSummary: string }, idempotencyKey: string = newIdempotencyKey()) =>
+      clientCreateChangeRequest: (projectId: string, input: { changeType?: ChangeRequestType; category?: string; beforeSummary: string; afterSummary: string }, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<ChangeRequestDto>(`/client/projects/${seg(projectId)}/change-requests`, input, { idempotencyKey }),
       clientApproveChangeRequest: (id: string) => client.post<ChangeRequestDto>(`/client/change-requests/${seg(id)}/approve`, {}),
       clientRejectChangeRequest: (id: string, reason: string) => client.post<ChangeRequestDto>(`/client/change-requests/${seg(id)}/reject`, { reason }),

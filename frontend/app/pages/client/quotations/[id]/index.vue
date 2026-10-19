@@ -5,20 +5,19 @@ import { FileX, Printer, History, GitCompare } from 'lucide-vue-next'
 import {
   getQuotationById, getLeadById, getPartyById, getLeadsByParty, getQuotationByLead,
   getUserById,
-  createPartyActivity, requestQuotationRevision, getQuotationAttachments, addQuotationAttachment,
-  getQuotationComments, addQuotationComment, pushNotification
+  getQuotationAttachments, addQuotationAttachment,
+  getQuotationComments, addQuotationComment
 } from '~/data'
+import { clientRespondToQuotation } from '~/data/client-portal-writes'
+import { createSaveGate } from '~/lib/save-gate'
 import { resolveDestinationGeo } from '~/data/geo'
 import { QUOTATION_APPROVAL_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
 import { formatCurrencyIdr, formatDate, formatDateRange, formatDateTime } from '~/utils/format'
 
 /**
  * Quotations & Proposals — Detail (Repair Phase Section 3 — Request & Commercial). `:id` = Quotation id
- * (`QUO-xxx`). Approve/Reject/Request Revision REUSE penuh `markLeadWon`/`requestQuotationRevision` (LOCKED
- * pipeline internal, TIDAK diduplikasi) — Mark as Won kini satu langkah, digerbangi HANYA
- * `Quotation.approvalStatus === 'approved'` (entitas Opportunity dan gate client-confirmation terpisah
- * dihapus, lihat komentar desain di `app/types/lead.ts`), diterapkan dari sisi Client sehingga Won→Project
- * dapat dicapai murni lewat aksi Client (Master Prompt Flow 1, "Mock Opportunity Won").
+ * (`QUO-xxx`). Approve/Reject/Request Revision dicatat di server sekali per versi (S12b-2) dan diteruskan ke tim
+ * kami; Won/Project Order dan versi revisi tetap dibuat tim internal (ADR-006) — tanpa revisi otomatis.
  * `/client/opportunities/[id]` (Penyederhanaan 7-Role/Menu) kini jadi redirect ke sini — kartu "Opportunity"
  * (company/destinasi/tanggal/peta lokasi) dipindahkan ke sini supaya tidak ada fitur yang hilang, halaman
  * ini melengkapi (Version history/Compare/Comments/Attachments/Cancellation policy/Download PDF).
@@ -40,7 +39,8 @@ useHead({ title: computed(() => lead.value ? `Quotation — ${leadTitle.value}` 
 const party = computed(() => (lead.value ? getPartyById(lead.value.partyId) : undefined))
 const leadGeo = computed(() => (lead.value?.destination ? resolveDestinationGeo(lead.value.destination) : undefined))
 const serviceScopeOptions = computed(() => SERVICE_TYPES.filter(type => lead.value?.serviceScope?.includes(type.value)))
-const canDecide = computed(() => Boolean(quotation.value?.approvalStatus === 'approved' && !lead.value?.projectId))
+/** You can answer the version you were sent once; a new version (after a revision) can be answered again. */
+const canDecide = computed(() => Boolean(quotation.value?.approvalStatus === 'approved' && !lead.value?.projectId && !quotation.value?.clientResponse))
 
 /* --- Version compare (single-diff toggle, pola sama Cost Sheet) --- */
 const isVersionCompareOpen = ref(false)
@@ -76,51 +76,48 @@ function uploadAttachment () {
   showToast('Attachment Ditambahkan', 'Metadata attachment tercatat (mock, bukan file upload nyata).', 'success')
 }
 
-/* --- Approve: catat persetujuan client. Project dibuat tim internal lewat server (S3a), bukan dari portal (ADR-006). --- */
+/* --- Your answer (S12b-2): recorded on the server once per version; our team acts on it (project / revision). --- */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+async function respond (response: 'accepted' | 'rejected' | 'revision-requested', note: string) {
+  if (!quotation.value) { return undefined }
+  const id = quotation.value.id
+  return await gate.run('Respons Gagal Dikirim', () => clientRespondToQuotation(api, id, { response, ...(note ? { note } : {}) }))
+}
+
 const isApproveDialogOpen = ref(false)
 const approveNote = ref('')
-function submitApprove () {
-  if (!lead.value || !quotation.value) { return }
-  createPartyActivity({
-    partyId: lead.value.partyId,
-    leadId: lead.value.id,
-    type: 'note',
-    message: `Client menyetujui quotation ini.${approveNote.value.trim() ? ` Catatan: ${approveNote.value.trim()}` : ''}`,
-    ownerId: currentUser.value.id
-  })
+async function submitApprove () {
+  const saved = await respond('accepted', approveNote.value.trim())
+  if (!saved) { return }
   approveNote.value = ''
   isApproveDialogOpen.value = false
   showToast('Quotation Dikonfirmasi', 'Terima kasih — tim kami akan segera memproses selanjutnya.', 'success')
 }
 
-/* --- Reject (pola sama /client/opportunities/[id], ditambah Notification) --- */
 const isRejectDialogOpen = ref(false)
 const rejectNote = ref('')
-function submitReject () {
-  if (!lead.value || !rejectNote.value.trim()) { return }
-  createPartyActivity({
-    partyId: lead.value.partyId,
-    leadId: lead.value.id,
-    type: 'note',
-    message: `Client TIDAK menyetujui quotation ini. Alasan: ${rejectNote.value.trim()}`,
-    ownerId: currentUser.value.id
-  })
-  pushNotification(currentUser.value.id, 'change', `Quotation ${quotation.value?.id} ditolak`, 'Keberatan Anda telah dicatat dan diteruskan ke tim kami.', 'quotation', quotation.value?.id, 'approval')
+async function submitReject () {
+  if (!rejectNote.value.trim()) { return }
+  const saved = await respond('rejected', rejectNote.value.trim())
+  if (!saved) { return }
   rejectNote.value = ''
   isRejectDialogOpen.value = false
   showToast('Keberatan Terkirim', 'Account Executive kami akan menindaklanjuti keberatan Anda.', 'warning')
 }
 
-/* --- Request Revision (Wajib Cross-module "New quotation version simulation") --- */
 const isRevisionDialogOpen = ref(false)
 const revisionNote = ref('')
-function submitRevisionRequest () {
-  if (!lead.value || !revisionNote.value.trim()) { return }
-  requestQuotationRevision(lead.value.id, currentUser.value.id, revisionNote.value.trim())
+async function submitRevisionRequest () {
+  if (!revisionNote.value.trim()) { return }
+  const saved = await respond('revision-requested', revisionNote.value.trim())
+  if (!saved) { return }
   revisionNote.value = ''
   isRevisionDialogOpen.value = false
-  showToast('Permintaan Revisi Terkirim', 'Versi baru quotation telah disiapkan — silakan tinjau kembali.', 'success')
+  showToast('Permintaan Revisi Terkirim', 'Tim kami akan menyiapkan versi baru quotation untuk Anda.', 'success')
 }
+
+const RESPONSE_LABEL = { accepted: 'Anda menyetujui', rejected: 'Anda menolak', 'revision-requested': 'Anda meminta revisi' } as const
 </script>
 
 <template>
@@ -275,14 +272,20 @@ function submitRevisionRequest () {
 
         <div class="mt-4 pt-4 border-t border-border">
           <template v-if="lead.projectId">
-            <StatusBadge label="Anda Sudah Menyetujui — Project Order Dibuat" tone="success" />
+            <StatusBadge label="Project Order Sudah Dibuat" tone="success" />
+          </template>
+          <template v-else-if="quotation.clientResponse">
+            <StatusBadge :label="`${RESPONSE_LABEL[quotation.clientResponse.response]} versi ${quotation.clientResponse.version}`" :tone="quotation.clientResponse.response === 'accepted' ? 'success' : quotation.clientResponse.response === 'rejected' ? 'destructive' : 'warning'" />
+            <p class="text-xs text-muted-foreground mt-2">
+              {{ quotation.clientResponse.note ? `Catatan Anda: ${quotation.clientResponse.note}. ` : '' }}Tim kami akan menindaklanjuti respons Anda.
+            </p>
           </template>
           <template v-else-if="canDecide">
             <p class="text-sm text-foreground mb-3">
               Quotation ini sudah disetujui secara komersial oleh tim kami. Silakan konfirmasi persetujuan Anda, atau ajukan keberatan/revisi.
             </p>
             <div class="flex flex-wrap gap-2">
-              <ResponsiveFormSheet v-model:open="isApproveDialogOpen" title="Approve Quotation" description="Konfirmasi Anda akan langsung memproses Lead ini menjadi Won dan membuat Project Order (mock)." content-class="max-w-md">
+              <ResponsiveFormSheet v-model:open="isApproveDialogOpen" title="Approve Quotation" description="Persetujuan Anda dicatat dan diteruskan ke tim kami, yang akan membuat Project Order." content-class="max-w-md">
                 <template #trigger>
                   <Button>Approve Quotation</Button>
                 </template>
@@ -318,7 +321,7 @@ function submitRevisionRequest () {
                   </Button>
                 </template>
               </ResponsiveFormSheet>
-              <ResponsiveFormSheet v-model:open="isRevisionDialogOpen" title="Request Revision" description="Sampaikan perubahan yang Anda butuhkan — versi baru quotation akan disiapkan otomatis (mock)." content-class="max-w-md">
+              <ResponsiveFormSheet v-model:open="isRevisionDialogOpen" title="Request Revision" description="Sampaikan perubahan yang Anda butuhkan — tim kami akan menyiapkan versi baru quotation." content-class="max-w-md">
                 <template #trigger>
                   <Button variant="ghost">
                     Request Revision

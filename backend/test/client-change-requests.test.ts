@@ -121,3 +121,11 @@ describe('client side of change requests', () => {
     expect((await call('POST', `/client/change-requests/${cr.id}/cancel`, 'vendor', { reason: 'x' })).status).toBe(403)
   })
 })
+
+describe('client change request category (S12b-2)', () => {
+  test('a quick request keeps the category the client picked for its change entry', async () => {
+    const cr = (await clientCreate('PRJ-201', { category: 'traveler' })).json.data as CR
+    const [entry] = await t.db.query<{ category: string }>('select category from project_activities where id = $1', [cr.activityId])
+    expect(entry!.category).toBe('traveler')
+  })
+})

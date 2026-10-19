@@ -225,7 +225,7 @@ export async function clientCreateChangeRequest(tx: Queryable, actor: Actor, par
   if (!p) throw errors.notFound('Project')
   if (p.status === 'completed' || p.status === 'cancelled') throw rule('Project sudah selesai atau dibatalkan — tidak bisa mengajukan perubahan.')
   const { id } = await createChangeRequest(tx, actor, projectId, {
-    source: 'client', changeType: input.changeType, beforeSummary: input.beforeSummary, afterSummary: input.afterSummary
+    source: 'client', changeType: input.changeType, category: input.category, beforeSummary: input.beforeSummary, afterSummary: input.afterSummary
   }, requestId)
   await notifyInternal(tx, actor, p.owner_user_id, { type: 'change', title: `Change Request baru dari client (${p.name})`, body: `${id}: ${String(input.afterSummary).trim()}`, entityType: 'project', entityId: projectId })
   return { id }

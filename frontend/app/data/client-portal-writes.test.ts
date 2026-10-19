@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  cancellableSelection, clientAddContact, clientAddTraveler, clientDisputeInvoice, clientEditContact, clientMarkMessagesRead, clientRemoveContact, clientSendMessage, clientUploadDocument
+  cancellableSelection, clientAddContact, clientAddTraveler, clientApproveChangeImpact, clientCancelChangeRequestOnServer, clientRespondToQuotation, clientSubmitChangeRequest, clientDisputeInvoice, clientEditContact, clientMarkMessagesRead, clientRemoveContact, clientSendMessage, clientUploadDocument
 } from './client-portal-writes'
-import { CONTACTS, DOCUMENT_RECORDS, INVOICES, MESSAGE_RECORDS, TRAVELERS } from './index'
+import { CHANGE_REQUESTS, CONTACTS, DOCUMENT_RECORDS, INVOICES, MESSAGE_RECORDS, QUOTATIONS, TRAVELERS } from './index'
 import type { ManovaApi } from '~/lib/api/endpoints'
 
 const ok = <T>(data: T) => Promise.resolve({ data })
@@ -61,5 +61,53 @@ describe('bulk cancel targets (S12b-1 review)', () => {
     const { targets, skipped } = cancellableSelection(rows, ['A', 'B', 'C'])
     expect(targets.map(r => r.traveler.id)).toEqual(['A'])
     expect(skipped).toBe(1)
+  })
+})
+
+describe('client change requests & quotation response (S12b-2)', () => {
+  const crDto = (over: Record<string, unknown> = {}) => ({
+    id: 'CR-950',
+    projectId: 'PRJ-201',
+    source: 'client',
+    requestedBy: 'USR-021',
+    submittedAt: '2026-10-19T00:00:00.000Z',
+    affectedEntities: [{ entityType: 'project', entityId: 'PRJ-201' }],
+    beforeSummary: 'Hotel A',
+    afterSummary: 'Hotel B',
+    operationalImpact: null,
+    commercialImpactMinor: null,
+    financialImpactNote: null,
+    timelineImpactNote: null,
+    status: 'submitted',
+    decidedBy: null,
+    decidedAt: null,
+    rejectionReason: null,
+    implementedAt: null,
+    activityId: 'ACT-9',
+    changeType: 'change-hotel',
+    cancellationFeeMinor: null,
+    clientDecidedBy: null,
+    clientDecidedAt: null,
+    cancelReason: null,
+    cancelledAt: null,
+    ...over
+  })
+
+  it('submit, approve the impact and cancel follow the server; a refused write changes nothing', async () => {
+    const created = await clientSubmitChangeRequest(apiWith({ clientCreateChangeRequest: () => ok(crDto()) }), 'PRJ-201', { changeType: 'change-hotel', beforeSummary: 'Hotel A', afterSummary: 'Hotel B' })
+    expect(created).toMatchObject({ id: 'CR-950', status: 'submitted', changeType: 'change-hotel' })
+    expect(CHANGE_REQUESTS.some(r => r.id === 'CR-950')).toBe(true)
+    await clientApproveChangeImpact(apiWith({ clientApproveChangeRequest: () => ok(crDto({ status: 'approved', clientDecidedBy: 'USR-021' })) }), 'CR-950')
+    expect(CHANGE_REQUESTS.find(r => r.id === 'CR-950')?.status).toBe('approved')
+    await expect(clientCancelChangeRequestOnServer(apiWith({ clientCancelChangeRequest: () => Promise.reject(new Error('422')) }), 'CR-950', 'Tidak jadi')).rejects.toThrow()
+    expect(CHANGE_REQUESTS.find(r => r.id === 'CR-950')?.status).toBe('approved')
+  })
+
+  it('the client’s quotation answer replaces the local quotation', async () => {
+    QUOTATIONS.push({ id: 'QUO-952', leadId: 'LED-952', amountIdr: 1, createdAt: '2026-10-01' } as never)
+    const dto = { id: 'QUO-952', version: 1, createdOn: '2026-10-01', sentToClientOn: '2026-10-02', accepted: false, projectId: null, currency: 'IDR', amountMinor: '1000', discountMinor: null, taxMinor: null, previousAmountMinor: null, serviceBreakdown: [], paymentTerms: null, validUntil: null, termsAndConditions: null, inclusions: null, exclusions: null, cancellationPolicy: null, proposedItineraryNote: null, preparedByName: null, clientResponse: { response: 'rejected', note: 'Terlalu mahal', version: 1, respondedAt: '2026-10-19T00:00:00.000Z' }, lead: { id: 'LED-952', title: null, companyName: null, name: 'X', destination: null, travelStartDate: null, travelEndDate: null, travelerEstimate: null, serviceScope: [] } }
+    const q = await clientRespondToQuotation(apiWith({ respondToQuotation: () => ok(dto) }), 'QUO-952', { response: 'rejected', note: 'Terlalu mahal' })
+    expect(q.clientResponse?.response).toBe('rejected')
+    expect(QUOTATIONS.find(x => x.id === 'QUO-952')?.clientResponse?.note).toBe('Terlalu mahal')
   })
 })

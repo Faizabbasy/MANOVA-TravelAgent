@@ -6,13 +6,13 @@ import {
   getProjectById, getPartyById, getLeadById, getUserById,
   getClientVisibleItineraryItems, getTravelers,
   getDocumentsByProject, getInvoicesByProject, getPaymentsByInvoice,
-  createChangeRequest, getChangeRequestsByProject, getIncidentsByProject,
+  getChangeRequestsByProject, getIncidentsByProject,
   getCommodityRequirementsByProject, createCommodityRequirement, updateCommodityRequirement, deleteCommodityRequirement,
   isCommodityRequirementEditable, isCommodityRequirementDeletable,
   getServiceReadinessMatrix, getClientReservations, getActivitiesByProject, getProjectClosureSummary,
   getLatestItineraryVersion, getClientDocumentsByProject, getClientDocumentCategory
 } from '~/data'
-import { clientAddTraveler, clientEditTraveler, participantsLocked } from '~/data/client-portal-writes'
+import { clientAddTraveler, clientEditTraveler, clientSubmitChangeRequest, participantsLocked } from '~/data/client-portal-writes'
 import { createSaveGate } from '~/lib/save-gate'
 import {
   PROJECT_STATUSES, SERVICE_TYPES, CHANGE_CATEGORIES, INVOICE_STATUSES, INVOICE_TYPES,
@@ -38,7 +38,6 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const project = computed(() => getProjectById(String(route.params.id)))
@@ -355,8 +354,8 @@ async function submitTraveler () {
 }
 
 /**
- * Change Request (Section 19, D-076) — reuse `createChangeRequest` (yang otomatis memanggil `createChangeEntry`
- * Section 14 lama agar audit trail internal tetap satu sumber kebenaran), kategori dibatasi ke yang relevan
+ * Change Request (Section 19, D-076; S12b-2 lewat server) — `/client/projects/:id/change-requests` membuka entri CHG
+ * project di server dalam transaksi yang sama; kategori dibatasi ke yang relevan
  * bagi client (bukan `vendor`/`budget`, internal-only).
  */
 const CLIENT_CHANGE_CATEGORIES: ChangeCategory[] = ['traveler', 'itinerary', 'service', 'other']
@@ -364,17 +363,15 @@ const isChangeDialogOpen = ref(false)
 const changeCategory = ref<ChangeCategory>('other')
 const changeReason = ref('')
 
-function submitChangeRequest () {
+async function submitChangeRequest () {
   if (!project.value || !changeReason.value.trim()) { return }
-  const request = createChangeRequest({
-    projectId: project.value.id,
-    source: 'client',
-    requestedBy: currentUser.value.id,
-    affectedEntities: [{ entityType: 'project', entityId: project.value.id }],
+  const projectId = project.value.id
+  const request = await travelerGate.run('Permintaan Perubahan Gagal Dikirim', () => clientSubmitChangeRequest(travelerApi, projectId, {
+    category: changeCategory.value,
     beforeSummary: 'Kondisi saat ini',
-    afterSummary: changeReason.value.trim(),
-    category: changeCategory.value
-  })
+    afterSummary: changeReason.value.trim()
+  }))
+  if (!request) { return }
   changeReason.value = ''
   changeCategory.value = 'other'
   isChangeDialogOpen.value = false

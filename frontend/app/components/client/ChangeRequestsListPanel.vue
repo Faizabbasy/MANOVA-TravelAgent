@@ -3,11 +3,13 @@ import { ref, computed } from 'vue'
 import { Search, Plus, GitPullRequest } from 'lucide-vue-next'
 import {
   getProjectsByParty, getChangeRequestsByParty, getChangeRequestDraftsByParty,
-  saveChangeRequestDraft, deleteChangeRequestDraft, submitChangeRequestDraft
+  saveChangeRequestDraft, deleteChangeRequestDraft
 } from '~/data'
 import { CHANGE_REQUEST_STATUSES, CHANGE_REQUEST_TYPES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import type { ChangeRequestStatus, ChangeRequestType, ChangeRequestDraft } from '~/types/change-incident'
+import { clientSubmitChangeRequest } from '~/data/client-portal-writes'
+import { createSaveGate } from '~/lib/save-gate'
 
 /**
  * Tab "Change Requests" — Menu Client Portal > My Trips (Penyederhanaan 7-Role/Menu). Dulu
@@ -31,6 +33,8 @@ function projectName (projectId: string): string {
 
 const search = ref('')
 const statusFilter = ref<'all' | ChangeRequestStatus>('all')
+/** S12b-2: the statuses a request can have on the server (the old local-only steps are gone). */
+const clientStatusOptions = CHANGE_REQUEST_STATUSES.filter(option => ['submitted', 'under-review', 'waiting-client-approval', 'approved', 'rejected', 'implemented', 'cancelled'].includes(option.value))
 const filteredRequests = computed(() => {
   let result = requests.value
   if (statusFilter.value !== 'all') { result = result.filter(item => item.status === statusFilter.value) }
@@ -92,12 +96,28 @@ function handleSaveDraft () {
   showToast('Draft Tersimpan', 'Permintaan perubahan Anda tersimpan sebagai draft.', 'success')
 }
 
-function handleSubmitNow () {
+/* S12b-2: submitting goes to the server (/client/projects/:id/change-requests); drafts stay on this device (S12c). */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+
+async function submitDraftToServer (draft: ChangeRequestDraft) {
+  const request = await gate.run('Change Request Gagal Dikirim', () => clientSubmitChangeRequest(api, draft.projectId, {
+    ...(draft.changeType ? { changeType: draft.changeType } : {}),
+    beforeSummary: draft.beforeSummary,
+    afterSummary: draft.afterSummary
+  }))
+  if (!request) { return undefined }
+  deleteChangeRequestDraft(draft.id)
+  return request
+}
+
+async function handleSubmitNow () {
   const draft = persistDraft()
   if (!draft) { return }
-  const request = submitChangeRequestDraft(draft.id)
+  const request = await submitDraftToServer(draft)
+  if (!request) { return }
   isFormOpen.value = false
-  if (request) { showToast('Change Request Terkirim', `${request.id} — tim kami akan meninjau permintaan Anda.`, 'success') }
+  showToast('Change Request Terkirim', `${request.id} — tim kami akan meninjau permintaan Anda.`, 'success')
 }
 
 function handleDeleteDraft (draft: ChangeRequestDraft) {
@@ -105,8 +125,8 @@ function handleDeleteDraft (draft: ChangeRequestDraft) {
   showToast('Draft Dihapus', 'Draft permintaan perubahan telah dihapus.', 'info')
 }
 
-function handleSubmitDraft (draft: ChangeRequestDraft) {
-  const request = submitChangeRequestDraft(draft.id)
+async function handleSubmitDraft (draft: ChangeRequestDraft) {
+  const request = await submitDraftToServer(draft)
   if (request) { showToast('Change Request Terkirim', `${request.id} — tim kami akan meninjau permintaan Anda.`, 'success') }
 }
 </script>
@@ -214,7 +234,7 @@ function handleSubmitDraft (draft: ChangeRequestDraft) {
             <option value="all">
               Semua Status
             </option>
-            <option v-for="option in CHANGE_REQUEST_STATUSES" :key="option.value" :value="option.value">
+            <option v-for="option in clientStatusOptions" :key="option.value" :value="option.value">
               {{ option.label }}
             </option>
           </select>
