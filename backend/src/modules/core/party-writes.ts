@@ -194,3 +194,11 @@ export async function deleteContact(tx: Queryable, actor: Actor, partyId: string
   if (!done.length) throw errors.notFound('Kontak')
   await recordAudit(tx, { action: 'party.contact_deleted', actorUserId: actor.userId, entityType: 'party', entityId: partyId, requestId, before: { contactId: id, name: done[0]!.name } })
 }
+
+/** Validates profile fields without writing (S12c-1: a client's proposed change is checked when it is submitted). */
+export async function checkPartyProfile(tx: Queryable, input: PartyInput & Record<string, unknown>) {
+  const problems: FieldErrors = {}
+  const p = await profile(tx, input, problems)
+  if (Object.keys(problems).length) throw errors.validation(problems)
+  return p
+}

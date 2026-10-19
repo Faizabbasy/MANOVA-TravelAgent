@@ -14,6 +14,7 @@ import { createProject, setContractValue, updateProject } from './project-writes
 import { SERVICE_TYPES, serviceTypeOf } from './booking-rules'
 import { changeBookingStatus, createBooking, updateBooking } from './booking-writes'
 import { logAttempt, withOrchestration } from './booking-orchestration'
+import { approveProfileChange, listProfileChanges, rejectProfileChange } from './profile-changes'
 import { changeServiceOrderStatus } from './service-orders'
 import { vendorChangeServiceOrderStatus } from './vendor-portal'
 import { acceptQuotation, rejectQuotation, submitQuotation } from './vendor-quotations'
@@ -240,6 +241,25 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
       if (!(await getParty(db, actor, id))) throw errors.notFound('Customer')
       await db.transaction(tx => setCreditLimit(tx, actor, id, body as Parameters<typeof setCreditLimit>[3], requestIdOf(request)))
       return ok(request, await getParty(db, actor, id))
+    }, { body: t.Record(t.String(), t.Unknown()) })
+    // S12c-1: client-proposed changes to registration / tax / billing data and the company name.
+    .get('/party-profile-changes', async ({ request, query }) => {
+      await auth.requireCapability(request, 'crm.manage-party')
+      const status = query.status && ['submitted', 'approved', 'rejected'].includes(query.status) ? query.status : undefined
+      if (query.partyId && !ID_PATTERN.test(query.partyId)) throw errors.validation({ partyId: ['ID tidak valid.'] })
+      return ok(request, await listProfileChanges(db, { status, partyId: query.partyId }))
+    }, { query: t.Object({ status: t.Optional(t.String()), partyId: t.Optional(t.String()) }) })
+    .post('/party-profile-changes/:id/approve', async ({ request, params }) => {
+      const actor = await auth.requireCapability(request, 'crm.manage-party')
+      const id = assertIdParam(params.id, 'Perubahan data')
+      await db.transaction(tx => approveProfileChange(tx, actor, id, businessDateOf(new Date()), requestIdOf(request)))
+      return ok(request, (await listProfileChanges(db, { id }))[0])
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/party-profile-changes/:id/reject', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'crm.manage-party')
+      const id = assertIdParam(params.id, 'Perubahan data')
+      await db.transaction(tx => rejectProfileChange(tx, actor, id, (body as Record<string, unknown>).reason, businessDateOf(new Date()), requestIdOf(request)))
+      return ok(request, (await listProfileChanges(db, { id }))[0])
     }, { body: t.Record(t.String(), t.Unknown()) })
     .get('/parties/:id/contacts', async ({ request, params }) => {
       const actor = await auth.requireActor(request)

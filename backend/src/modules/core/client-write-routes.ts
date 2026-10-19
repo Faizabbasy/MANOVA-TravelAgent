@@ -17,6 +17,7 @@ import { getParty, listContacts } from './repository'
 import { getClientInvoice, listClientQuotations } from './client-commerce'
 import { respondToQuotation } from '../sales/quotation-writes'
 import { markInvoiceViewed, submitPaymentProof } from '../finance/payment-proofs'
+import { clientPendingChange, submitProfileChange } from './profile-changes'
 import { businessDateOf } from '../../shared/dates'
 
 /** Client portal writes (S12b-1): only a client, only its own party (from the session). */
@@ -129,12 +130,19 @@ export function clientWriteRoutes(deps: AppDeps, auth: AuthContext) {
       const { actor, partyId } = await clientActor(request)
       const party = await getParty(db, actor, partyId)
       if (!party) throw errors.notFound('Customer')
-      return ok(request, party)
+      return ok(request, { ...party, pendingChange: await clientPendingChange(db, partyId) })
     })
     .patch('/profile', async ({ request, body }) => {
       const { actor, partyId } = await clientActor(request)
       await db.transaction(tx => clientUpdateProfile(tx, actor, partyId, body as Record<string, unknown>, businessDateOf(new Date()), requestIdOf(request)))
-      return ok(request, await getParty(db, actor, partyId))
+      return ok(request, { ...(await getParty(db, actor, partyId)), pendingChange: await clientPendingChange(db, partyId) })
+    }, body)
+    // S12c-1: registration / tax / billing data and the company name are proposed here and checked by our team.
+    .post('/profile/changes', async ({ request, body, set }) => {
+      const { actor, partyId } = await clientActor(request)
+      await db.transaction(tx => submitProfileChange(tx, actor, partyId, body as Record<string, unknown>, businessDateOf(new Date()), requestIdOf(request)))
+      set.status = 201
+      return ok(request, { ...(await getParty(db, actor, partyId)), pendingChange: await clientPendingChange(db, partyId) })
     }, body)
     .get('/contacts', async ({ request }) => {
       const { partyId } = await clientActor(request)
