@@ -18,6 +18,7 @@ import { getClientInvoice, listClientQuotations } from './client-commerce'
 import { respondToQuotation } from '../sales/quotation-writes'
 import { markInvoiceViewed, submitPaymentProof } from '../finance/payment-proofs'
 import { clientPendingChange, submitProfileChange } from './profile-changes'
+import { clientConfirmTicket, clientCreateTicket, clientRateTicket, clientReopenTicket, clientReplyTicket, clientSupportTicket, listSupportTickets } from './support-tickets'
 import { businessDateOf } from '../../shared/dates'
 
 /** Client portal writes (S12b-1): only a client, only its own party (from the session). */
@@ -230,4 +231,45 @@ export function clientWriteRoutes(deps: AppDeps, auth: AuthContext) {
       const id = assertIdParam(params.id, 'Invoice')
       return ok(request, await db.transaction(tx => markInvoiceViewed(tx, partyId, id)))
     }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    // S12c-2: support tickets — create, reply, confirm a resolution, reopen it, rate it.
+    .get('/support-tickets', async ({ request }) => {
+      const { partyId } = await clientActor(request)
+      return ok(request, (await listSupportTickets(db, { partyId }, false)).map(clientSupportTicket))
+    })
+    .post('/support-tickets', async ({ request, body, set }) => {
+      const { actor, partyId } = await clientActor(request)
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /client/support-tickets', key, body }, tx =>
+        clientCreateTicket(tx, actor, partyId, body as Record<string, unknown>, requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, clientSupportTicket((await listSupportTickets(db, { id: result.data.id }, false))[0]!))
+    }, body)
+    .post('/support-tickets/:id/replies', async ({ request, params, body, set }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Tiket')
+      const key = requireIdempotencyKey(request)
+      await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /client/support-tickets/:id/replies', key, body: { id, ...(body as object) } }, tx =>
+        clientReplyTicket(tx, actor, partyId, id, body as Record<string, unknown>, requestIdOf(request)))
+      set.status = 201
+      return ok(request, clientSupportTicket((await listSupportTickets(db, { id }, false))[0]!))
+    }, body)
+    .post('/support-tickets/:id/confirm', async ({ request, params }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Tiket')
+      await db.transaction(tx => clientConfirmTicket(tx, actor, partyId, id, requestIdOf(request)))
+      return ok(request, clientSupportTicket((await listSupportTickets(db, { id }, false))[0]!))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/support-tickets/:id/reopen', async ({ request, params, body }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Tiket')
+      await db.transaction(tx => clientReopenTicket(tx, actor, partyId, id, (body as Record<string, unknown>).reason, requestIdOf(request)))
+      return ok(request, clientSupportTicket((await listSupportTickets(db, { id }, false))[0]!))
+    }, body)
+    .post('/support-tickets/:id/rate', async ({ request, params, body }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Tiket')
+      await db.transaction(tx => clientRateTicket(tx, actor, partyId, id, body as Record<string, unknown>, requestIdOf(request)))
+      return ok(request, clientSupportTicket((await listSupportTickets(db, { id }, false))[0]!))
+    }, body)
 }

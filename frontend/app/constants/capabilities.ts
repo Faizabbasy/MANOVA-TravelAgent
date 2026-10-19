@@ -68,6 +68,9 @@ export const CAPABILITIES: CapabilityDefinition[] = [
   // Marketing (S11b)
   { key: 'marketing.manage-content', label: 'Kelola jadwal & pengembangan konten', group: CAPABILITY_GROUPS.sales },
 
+  // Support (S12c-2)
+  { key: 'support.manage-ticket', label: 'Kelola tiket support client', group: CAPABILITY_GROUPS.sales },
+
   // Administration
   { key: 'admin.manage-users', label: 'Kelola user (buat, suspend, assign role)', group: CAPABILITY_GROUPS.administration },
   { key: 'admin.manage-roles', label: 'Kelola role & permission', group: CAPABILITY_GROUPS.administration, description: 'Akses Admin > Roles builder. Perubahan tetap tunduk pada guard rail anti self-lockout.' },

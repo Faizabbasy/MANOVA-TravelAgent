@@ -103,6 +103,8 @@ const CAPABILITY_GRANTS = {
   'inventory.manage-asset': ['admin'],
   /** S11b: the marketing content schedule and the content development pipeline. */
   'marketing.manage-content': ['admin'],
+  /** S12c-2: the client support-ticket inbox (assign, reply, internal notes, resolve). */
+  'support.manage-ticket': ['admin'],
   // Users and roles stay super-admin only: whoever manages roles could grant themselves Finance.
   'admin.manage-users': [],
   'admin.manage-roles': [],
