@@ -151,3 +151,65 @@ describe('client documents & messages', () => {
     expect(res.status, JSON.stringify(res.json)).toBe(201)
   })
 })
+
+describe('client profile, contacts & disputes', () => {
+  test('profile: non-sensitive fields saved and logged; sensitive fields refused for verification; unknown refused', async () => {
+    const got = await call('GET', '/client/profile', 'client')
+    expect(got.status).toBe(200)
+    expect(got.json.data.id).toBe('PTY-005')
+    const res = await call('PATCH', '/client/profile', 'client', { address: 'Jl. Sudirman 1', city: 'Jakarta', travelPreferences: 'Window seat' })
+    expect(res.status, JSON.stringify(res.json)).toBe(200)
+    expect(res.json.data).toMatchObject({ address: 'Jl. Sudirman 1', city: 'Jakarta' })
+    const act = await t.db.query("select 1 from party_activities where party_id = 'PTY-005' and message = 'Company Profile diperbarui oleh Client.'")
+    expect(act.length).toBeGreaterThan(0)
+    const sensitive = await call('PATCH', '/client/profile', 'client', { npwp: '012345678901234', city: 'Bandung' })
+    expect(sensitive.status).toBe(422)
+    expect(sensitive.json.error.message).toContain('verifikasi')
+    expect((await call('PATCH', '/client/profile', 'client', { creditLimitMinor: '1' })).status).toBe(400)
+    expect((await call('GET', '/client/profile', 'admin')).status).toBe(403)
+  })
+
+  test('contacts: own party add, edit, delete; another party’s contact is not found', async () => {
+    const add = await call('POST', '/client/contacts', 'client', { name: 'Rina', title: 'HR Manager', email: 'rina@java-bhakti.example' }, k())
+    expect(add.status, JSON.stringify(add.json)).toBe(201)
+    const id = add.json.data.id as string
+    expect((await call('GET', '/client/contacts', 'client')).json.data.some((x: { id: string }) => x.id === id)).toBe(true)
+    expect((await call('PATCH', `/client/contacts/${id}`, 'client', { phone: '0812' })).json.data.phone).toBe('0812')
+    expect((await call('PATCH', `/client/contacts/${id}`, 'client', { email: 'bukan-email' })).status).toBe(400)
+    expect((await call('PATCH', `/client/contacts/${id}`, 'client', { name: '' })).status).toBe(400)
+    const foreign = (await t.db.query<{ id: string }>("select id from party_contacts where party_id <> 'PTY-005' order by id limit 1"))[0]!
+    expect((await call('PATCH', `/client/contacts/${foreign.id}`, 'client', { phone: '1' })).status).toBe(404)
+    expect((await call('DELETE', `/client/contacts/${foreign.id}`, 'client')).status).toBe(404)
+    expect((await call('DELETE', `/client/contacts/${id}`, 'client')).status).toBe(200)
+    expect((await call('GET', '/client/contacts', 'client')).json.data.some((x: { id: string }) => x.id === id)).toBe(false)
+  })
+
+  test('dispute: own issued unpaid invoice once, Finance told; paid, already disputed, draft and foreign refused', async () => {
+    const own = 'PRJ-201'
+    const invoice = async (projectId: string, amount: string, issue = true) => {
+      const res = await t.call('POST', '/api/v1/finance/customer-invoices', { cookie: c.finance, body: { projectId, invoiceType: 'dp', lines: [{ description: 'DP', amountMinor: amount }], dueDate: '2026-12-01' } })
+      expect(res.status, JSON.stringify(res.json)).toBe(201)
+      const id = res.json.data.id as string
+      if (issue) expect((await t.call('POST', `/api/v1/finance/customer-invoices/${id}/issue`, { cookie: c.finance, body: {} })).status).toBe(200)
+      return id
+    }
+    const open = await invoice(own, '5000000')
+    const draft = await invoice(own, '1000000', false)
+    const foreign = await invoice(other, '2000000')
+    const finance = (await t.db.query<{ id: string }>("select id from users where role = 'finance' and status = 'active' order by id limit 1"))[0]!.id
+    const n0 = await notes(finance)
+    const res = await call('POST', `/client/invoices/${open}/dispute`, 'client', { reason: 'Jumlah peserta tidak sesuai' })
+    expect(res.status, JSON.stringify(res.json)).toBe(200)
+    expect(res.json.data).toMatchObject({ id: open, isDisputed: true, disputeReason: 'Jumlah peserta tidak sesuai' })
+    expect(await notes(finance)).toBe(n0 + 1)
+    expect((await call('POST', `/client/invoices/${open}/dispute`, 'client', { reason: 'Lagi dan lagi' })).status).toBe(422)
+    expect((await call('POST', `/client/invoices/${draft}/dispute`, 'client', { reason: 'Draft invoice' })).status).toBe(404)
+    expect((await call('POST', `/client/invoices/${foreign}/dispute`, 'client', { reason: 'Bukan milik' })).status).toBe(404)
+    // A settled invoice (nothing outstanding — here fully credited) cannot be disputed from the portal.
+    const paid = await invoice(own, '3000000')
+    const credit = await t.call('POST', '/api/v1/finance/credit-notes', { cookie: c.finance, body: { invoiceId: paid, amountMinor: '3000000', reason: 'Batal seluruhnya' } })
+    expect(credit.status, JSON.stringify(credit.json)).toBe(201)
+    expect((await t.call('GET', `/api/v1/client/invoices/${paid}`, { cookie: c.client })).json.data.outstandingMinor).toBe('0')
+    expect((await call('POST', `/client/invoices/${paid}/dispute`, 'client', { reason: 'Sudah lunas' })).status).toBe(422)
+  })
+})

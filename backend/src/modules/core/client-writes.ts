@@ -5,6 +5,8 @@ import { errors } from '../../http/errors'
 import { actorName, recordProjectActivity } from './activities'
 import { createDocument, listDocuments, sendMessage } from './documents'
 import { notify } from './notifications'
+import { createActivity, createContact, deleteContact, updateContact, updateParty } from './party-writes'
+import { setInvoiceDispute } from '../finance/receivables'
 import { cancelTraveler, createRoom, createTraveler, importTravelers, replaceTraveler, rule, setRoomTravelers, updateTraveler } from './travelers'
 
 /**
@@ -197,4 +199,42 @@ export async function clientMarkMessagesRead(tx: Queryable, actor: Actor, partyI
       where project_id = $1 and channel = 'client-message' and not (read_by ? $3) returning id`,
     [project.id, JSON.stringify([actor.userId]), actor.userId])
   return { updated: rows.length }
+}
+
+/* ---------- profile, contacts & disputes ---------- */
+
+const CLIENT_PROFILE_FIELDS = ['industry', 'size', 'address', 'city', 'province', 'country', 'postalCode', 'phone', 'website', 'email', 'companyType', 'poRequired', 'travelPreferences']
+const SENSITIVE_PROFILE_FIELDS = ['name', 'npwp', 'registrationNumber', 'billingName', 'billingAddress', 'paymentTerm', 'accountOwnerUserId']
+
+export async function clientUpdateProfile(tx: Queryable, actor: Actor, partyId: string, input: Record<string, unknown>, today: string, requestId: string) {
+  if (Object.keys(input).some(key => SENSITIVE_PROFILE_FIELDS.includes(key))) throw rule('Perubahan data registrasi/pajak/billing diajukan lewat verifikasi.')
+  const unknown = Object.keys(input).filter(key => !CLIENT_PROFILE_FIELDS.includes(key))
+  if (unknown.length) throw errors.validation(Object.fromEntries(unknown.map(key => [key, ['Tidak bisa diubah dari portal.']])))
+  if (!Object.keys(input).length) return
+  await updateParty(tx, actor, partyId, input, requestId)
+  await createActivity(tx, actor, partyId, { type: 'note', message: 'Company Profile diperbarui oleh Client.' }, today, requestId)
+  await notifyInternal(tx, actor, await accountOwnerOf(tx, partyId), { type: 'change', title: 'Company Profile diperbarui client', body: `Field: ${Object.keys(input).join(', ')}.`, entityType: 'party', entityId: partyId })
+}
+
+export async function clientCreateContact(tx: Queryable, actor: Actor, partyId: string, input: Record<string, unknown>, requestId: string) {
+  const { id } = await createContact(tx, actor, partyId, input, requestId)
+  await notifyInternal(tx, actor, await accountOwnerOf(tx, partyId), { type: 'change', title: 'Kontak baru dari client', body: `${String(input.name).trim()} (${id}) ditambahkan.`, entityType: 'party', entityId: partyId })
+  return { id }
+}
+
+export const clientUpdateContact = (tx: Queryable, actor: Actor, partyId: string, id: string, input: Record<string, unknown>, requestId: string) =>
+  updateContact(tx, actor, partyId, id, input, requestId)
+
+export async function clientDeleteContact(tx: Queryable, actor: Actor, partyId: string, id: string, requestId: string) {
+  await deleteContact(tx, actor, partyId, id, requestId)
+  await notifyInternal(tx, actor, await accountOwnerOf(tx, partyId), { type: 'change', title: 'Kontak dihapus client', body: `Kontak ${id} dihapus.`, entityType: 'party', entityId: partyId })
+}
+
+/** The caller has checked the invoice is the party's, issued and not settled (`getClientInvoice`). */
+export async function clientDisputeInvoice(tx: Queryable, actor: Actor, partyId: string, id: string, reason: unknown, requestId: string) {
+  await setInvoiceDispute(tx, actor, id, { disputed: true, reason: reason as string }, requestId)
+  const finance = await tx.query<{ id: string }>("select id from users where role = 'finance' and status = 'active' order by id")
+  for (const u of finance) {
+    await notifyInternal(tx, actor, u.id, { type: 'reminder', title: `Invoice ${id} disengketakan client`, body: String(reason).trim(), entityType: 'invoice', entityId: id })
+  }
 }

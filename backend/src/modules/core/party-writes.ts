@@ -165,3 +165,32 @@ export async function createActivity(tx: Queryable, actor: Actor, partyId: strin
   await recordAudit(tx, { action: 'party.activity_created', actorUserId: actor.userId, entityType: 'party', entityId: partyId, requestId, after: { activityId: id, type: input.type } })
   return { id }
 }
+
+export async function updateContact(tx: Queryable, actor: Actor, partyId: string, id: string, input: Record<string, unknown>, requestId: string): Promise<void> {
+  const [current] = await tx.query<{ id: string }>('select id from party_contacts where id = $1 and party_id = $2 for update', [id, partyId])
+  if (!current) throw errors.notFound('Kontak')
+  const problems: FieldErrors = {}
+  const out: Record<string, string | null> = {}
+  for (const [field, label] of [['name', 'Nama kontak'], ['title', 'Jabatan']] as const) {
+    if (input[field] === undefined) continue
+    const v = typeof input[field] === 'string' ? (input[field] as string).trim() : ''
+    if (!v) problems[field] = [`${label} wajib diisi.`]
+    else if (v.length > 200) problems[field] = ['Maksimal 200 karakter.']
+    else out[field] = v
+  }
+  const email = cleanText(input.email, 'email', problems, 200)
+  if (email !== undefined) { if (email && !EMAIL.test(email)) problems.email = ['Format email tidak valid.']; else out.email = email }
+  const phone = cleanText(input.phone, 'phone', problems, 50)
+  if (phone !== undefined) out.phone = phone
+  if (Object.keys(problems).length) throw errors.validation(problems)
+  const keys = Object.keys(out)
+  if (!keys.length) return
+  await tx.query(`update party_contacts set ${keys.map((key, i) => `${key} = $${i + 2}`).join(', ')} where id = $1`, [id, ...Object.values(out)])
+  await recordAudit(tx, { action: 'party.contact_updated', actorUserId: actor.userId, entityType: 'party', entityId: partyId, requestId, after: { contactId: id, ...out } })
+}
+
+export async function deleteContact(tx: Queryable, actor: Actor, partyId: string, id: string, requestId: string): Promise<void> {
+  const done = await tx.query<{ name: string }>('delete from party_contacts where id = $1 and party_id = $2 returning name', [id, partyId])
+  if (!done.length) throw errors.notFound('Kontak')
+  await recordAudit(tx, { action: 'party.contact_deleted', actorUserId: actor.userId, entityType: 'party', entityId: partyId, requestId, before: { contactId: id, name: done[0]!.name } })
+}

@@ -7,10 +7,14 @@ import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency
 import { clientDocument, clientMessage, clientTraveler } from './client-scope'
 import {
   clientCancelTraveler, clientCreateDocument, clientCreateRoom, clientCreateTraveler, clientImportTravelers, clientMarkMessagesRead, clientReplaceDocument,
-  clientReplaceTraveler, clientSendMessage, clientSetRoomTravelers, clientUpdateTraveler
+  clientCreateContact, clientDeleteContact, clientDisputeInvoice, clientReplaceTraveler, clientSendMessage, clientSetRoomTravelers, clientUpdateContact,
+  clientUpdateProfile, clientUpdateTraveler
 } from './client-writes'
 import { listDocuments, listMessages } from './documents'
-import { listRoomAssignments, listTravelers } from './travelers'
+import { listRoomAssignments, listTravelers, rule } from './travelers'
+import { getParty, listContacts } from './repository'
+import { getClientInvoice } from './client-commerce'
+import { businessDateOf } from '../../shared/dates'
 
 /** Client portal writes (S12b-1): only a client, only its own party (from the session). */
 export function clientWriteRoutes(deps: AppDeps, auth: AuthContext) {
@@ -115,4 +119,49 @@ export function clientWriteRoutes(deps: AppDeps, auth: AuthContext) {
       const projectId = assertIdParam(params.id, 'Project')
       return ok(request, await db.transaction(tx => clientMarkMessagesRead(tx, actor, partyId, projectId)))
     })
+    .get('/profile', async ({ request }) => {
+      const { actor, partyId } = await clientActor(request)
+      const party = await getParty(db, actor, partyId)
+      if (!party) throw errors.notFound('Customer')
+      return ok(request, party)
+    })
+    .patch('/profile', async ({ request, body }) => {
+      const { actor, partyId } = await clientActor(request)
+      await db.transaction(tx => clientUpdateProfile(tx, actor, partyId, body as Record<string, unknown>, businessDateOf(new Date()), requestIdOf(request)))
+      return ok(request, await getParty(db, actor, partyId))
+    }, body)
+    .get('/contacts', async ({ request }) => {
+      const { partyId } = await clientActor(request)
+      return ok(request, await listContacts(db, partyId))
+    })
+    .post('/contacts', async ({ request, body, set }) => {
+      const { actor, partyId } = await clientActor(request)
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /client/contacts', key, body }, tx =>
+        clientCreateContact(tx, actor, partyId, body as Record<string, unknown>, requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, (await listContacts(db, partyId)).find(x => x.id === result.data.id))
+    }, body)
+    .patch('/contacts/:id', async ({ request, params, body }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Kontak')
+      await db.transaction(tx => clientUpdateContact(tx, actor, partyId, id, body as Record<string, unknown>, requestIdOf(request)))
+      return ok(request, (await listContacts(db, partyId)).find(x => x.id === id))
+    }, body)
+    .delete('/contacts/:id', async ({ request, params }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Kontak')
+      await db.transaction(tx => clientDeleteContact(tx, actor, partyId, id, requestIdOf(request)))
+      return ok(request, { id, deleted: true })
+    })
+    .post('/invoices/:id/dispute', async ({ request, params, body }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Invoice')
+      const current = await getClientInvoice(db, partyId, id)
+      if (current.status !== 'issued') throw errors.notFound('Invoice')
+      if (current.outstandingMinor === '0') throw rule('Invoice ini sudah lunas — tidak bisa disengketakan.')
+      await db.transaction(tx => clientDisputeInvoice(tx, actor, partyId, id, (body as Record<string, unknown>).reason, requestIdOf(request)))
+      return ok(request, await getClientInvoice(db, partyId, id))
+    }, body)
 }
