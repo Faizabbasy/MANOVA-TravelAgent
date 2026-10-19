@@ -1,11 +1,9 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { FileX, Paperclip } from 'lucide-vue-next'
+import { FileX } from 'lucide-vue-next'
 import {
   getChangeRequestById, getProjectById, getUserById,
-  getChangeRequestComments, addChangeRequestComment,
-  getChangeRequestAttachments, addChangeRequestAttachmentMock,
   getChangeRequestActivityHistory
 } from '~/data'
 import { clientApproveChangeImpact, clientCancelChangeRequestOnServer, clientRejectChangeImpact } from '~/data/client-portal-writes'
@@ -24,7 +22,6 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const request = computed(() => getChangeRequestById(String(route.params.id)))
@@ -75,24 +72,6 @@ async function submitCancel () {
   cancelReason.value = ''
   isCancelOpen.value = false
   showToast('Change Request Dibatalkan', 'Permintaan perubahan Anda telah dibatalkan.', 'info')
-}
-
-const comments = computed(() => (request.value ? getChangeRequestComments(request.value.id) : []))
-const newComment = ref('')
-function submitComment () {
-  if (!request.value || !newComment.value.trim()) { return }
-  addChangeRequestComment(request.value.id, currentUser.value.id, newComment.value.trim())
-  newComment.value = ''
-  showToast('Komentar Ditambahkan', 'Komentar Anda berhasil disimpan.', 'success')
-}
-
-const attachments = computed(() => (request.value ? getChangeRequestAttachments(request.value.id) : []))
-const newAttachmentName = ref('')
-function submitAttachment () {
-  if (!request.value || !newAttachmentName.value.trim()) { return }
-  addChangeRequestAttachmentMock(request.value.id, newAttachmentName.value.trim(), currentUser.value.id)
-  newAttachmentName.value = ''
-  showToast('Attachment Ditambahkan', 'Metadata lampiran tercatat (mock, bukan file nyata).', 'success')
 }
 
 const activityHistory = computed(() => (request.value ? getChangeRequestActivityHistory(request.value.id, request.value.projectId).map(entry => ({ id: entry.id, message: entry.message, createdAt: entry.createdAt })) : []))
@@ -261,42 +240,9 @@ const activityHistory = computed(() => (request.value ? getChangeRequestActivity
         </div>
       </SectionCard>
 
-      <SectionCard title="Comments">
-        <ul v-if="comments.length" class="divide-y divide-border mb-3">
-          <li v-for="comment in comments" :key="comment.id" class="py-2">
-            <p class="text-sm text-foreground">
-              {{ comment.body }}
-            </p>
-            <p class="text-xs text-muted-foreground mt-0.5">
-              {{ getUserById(comment.authorId)?.name ?? comment.authorId }} · {{ formatDate(comment.createdAt) }}
-            </p>
-          </li>
-        </ul>
-        <EmptyState v-else title="Belum ada komentar" />
-        <div class="flex gap-2 mt-3">
-          <Input v-model="newComment" placeholder="Tulis komentar..." class="flex-1" @keyup.enter="submitComment" />
-          <Button :disabled="!newComment.trim()" @click="submitComment">
-            Kirim
-          </Button>
-        </div>
-      </SectionCard>
+      <EntityComments entity-type="change-request" :entity-id="request.id" portal title="Comments" />
 
-      <SectionCard title="Attachments">
-        <ul v-if="attachments.length" class="divide-y divide-border mb-3">
-          <li v-for="attachment in attachments" :key="attachment.id" class="py-2 flex items-center gap-2 text-sm text-foreground">
-            <Paperclip class="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            {{ attachment.fileName }}
-            <span class="text-xs text-muted-foreground ml-auto shrink-0">{{ formatDate(attachment.uploadedAt) }}</span>
-          </li>
-        </ul>
-        <EmptyState v-else title="Belum ada lampiran" />
-        <div class="flex gap-2 mt-3">
-          <Input v-model="newAttachmentName" placeholder="Nama file (mock, mis. foto-kondisi.jpg)" class="flex-1" @keyup.enter="submitAttachment" />
-          <Button :disabled="!newAttachmentName.trim()" @click="submitAttachment">
-            Tambah
-          </Button>
-        </div>
-      </SectionCard>
+      <EntityAttachments entity-type="change-request" :entity-id="request.id" portal title="Attachments" />
 
       <SectionCard title="Activity History">
         <ActivityTimeline :items="activityHistory" empty-label="Belum ada riwayat aktivitas" />

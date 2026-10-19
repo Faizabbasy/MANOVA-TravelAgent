@@ -3,12 +3,12 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Printer, LayoutList, Table2 } from 'lucide-vue-next'
 import {
-  getProjectById, getUserById, getClientVisibleItineraryItems,
+  getProjectById, getClientVisibleItineraryItems,
   getItineraryVersionsByProject, getLatestItineraryVersion,
-  getItineraryComments, addItineraryComment, requestItineraryRevision, approveItineraryVersion
+  requestItineraryRevision, approveItineraryVersion
 } from '~/data'
 import { ITINERARY_VERSION_STATUSES, findStatusOption } from '~/constants/status'
-import { formatDayLabel, formatDate, formatDateTime } from '~/utils/format'
+import { formatDayLabel, formatDate } from '~/utils/format'
 
 /**
  * Itineraries — Detail (Repair Phase Section 4 — Core Project, `:id` = Project id). "Setiap revision
@@ -49,16 +49,6 @@ const compareLeftId = ref('')
 const compareRightId = ref('')
 const compareLeft = computed(() => versions.value.find(v => v.id === compareLeftId.value))
 const compareRight = computed(() => versions.value.find(v => v.id === compareRightId.value))
-
-/* --- Comment --- */
-const commentBody = ref('')
-const comments = computed(() => (project.value ? getItineraryComments(project.value.id).map(item => ({ ...item, authorName: getUserById(item.authorId)?.name ?? item.authorId })) : []))
-function submitComment () {
-  if (!project.value || !commentBody.value.trim()) { return }
-  addItineraryComment(project.value.id, currentUser.value.id, commentBody.value.trim())
-  commentBody.value = ''
-  showToast('Komentar Ditambahkan', 'Komentar Anda berhasil disimpan.', 'success')
-}
 
 /* --- Approve --- */
 function submitApprove () {
@@ -274,25 +264,7 @@ function submitRevisionRequest () {
           </template>
         </SectionCard>
 
-        <SectionCard title="Comments">
-          <div class="flex gap-2 mb-3">
-            <Input v-model="commentBody" placeholder="Tulis komentar..." @keyup.enter="submitComment" />
-            <Button size="sm" variant="outline" :disabled="!commentBody.trim()" @click="submitComment">
-              Kirim
-            </Button>
-          </div>
-          <ul v-if="comments.length" class="space-y-3">
-            <li v-for="comment in comments" :key="comment.id" class="text-sm">
-              <p class="text-foreground">
-                {{ comment.body }}
-              </p>
-              <p class="text-xs text-muted-foreground mt-0.5">
-                {{ comment.authorName }} · {{ formatDateTime(comment.createdAt) }}
-              </p>
-            </li>
-          </ul>
-          <EmptyState v-else title="Belum ada komentar" />
-        </SectionCard>
+        <EntityComments entity-type="itinerary" :entity-id="project.id" portal title="Comments" />
       </div>
     </template>
   </div>

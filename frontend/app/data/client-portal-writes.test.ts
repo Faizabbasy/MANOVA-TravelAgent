@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import {
-  cancellableSelection, clientMarkInvoiceViewed, clientSubmitPaymentProof, clientSubmitProfileChange, clientAddContact, clientAddTraveler, clientApproveChangeImpact, clientCancelChangeRequestOnServer, clientRespondToQuotation, clientSubmitChangeRequest, clientDisputeInvoice, clientEditContact, clientMarkMessagesRead, clientRemoveContact, clientSendMessage, clientUploadDocument
+  cancellableSelection, clientSaveChangeRequestDraft, clientSubmitChangeRequestDraftOnServer, draftFromServer, clientMarkInvoiceViewed, clientSubmitPaymentProof, clientSubmitProfileChange, clientAddContact, clientAddTraveler, clientApproveChangeImpact, clientCancelChangeRequestOnServer, clientRespondToQuotation, clientSubmitChangeRequest, clientDisputeInvoice, clientEditContact, clientMarkMessagesRead, clientRemoveContact, clientSendMessage, clientUploadDocument
 } from './client-portal-writes'
 import { CHANGE_REQUESTS, CONTACTS, DOCUMENT_RECORDS, INVOICES, MESSAGE_RECORDS, PARTIES, QUOTATIONS, TRAVELERS } from './index'
 import type { ManovaApi } from '~/lib/api/endpoints'
@@ -127,5 +127,28 @@ describe('payment proof, viewed & profile change (S12c-1)', () => {
     const dto = { ...party, id: 'PTY-005', name: party.name, npwp: null, pendingChange: { id: 'PPC-1', changes: { npwp: '01.234.567.8-901.234' }, status: 'submitted', submittedAt: '2026-10-19T02:00:00.000Z' } }
     await clientSubmitProfileChange(apiWith({ clientSubmitProfileChange: () => ok(dto) }), { npwp: '01.234.567.8-901.234' })
     expect(PARTIES.find(p => p.id === 'PTY-005')).toMatchObject({ pendingProfileChange: { npwp: '01.234.567.8-901.234' }, pendingProfileChangeSubmittedAt: '2026-10-19T02:00:00.000Z' })
+  })
+})
+
+describe('change-request drafts on the server (S12c-5)', () => {
+  const draftDto = { id: 'CRD-900', projectId: 'PRJ-201', projectName: 'Korea', createdBy: 'USR-021', changeType: null, beforeSummary: 'A', afterSummary: 'B', createdAt: '2026-10-19T00:00:00.000Z', updatedAt: '2026-10-19T01:00:00.000Z' }
+
+  it('maps a server draft (no change type → undefined)', () => {
+    expect(draftFromServer(draftDto)).toEqual({ id: 'CRD-900', projectId: 'PRJ-201', createdBy: 'USR-021', changeType: undefined, beforeSummary: 'A', afterSummary: 'B', updatedAt: '2026-10-19T01:00:00.000Z' })
+  })
+
+  it('saving creates without an id and updates with one; submitting returns the server change request', async () => {
+    const calls: string[] = []
+    const api = apiWith({
+      clientCreateChangeRequestDraft: (input: unknown) => { calls.push(`create:${JSON.stringify(input)}`); return ok(draftDto) },
+      clientUpdateChangeRequestDraft: (id: string) => { calls.push(`update:${id}`); return ok(draftDto) },
+      clientSubmitChangeRequestDraft: (id: string) => { calls.push(`submit:${id}`); return ok({ id: 'CR-960', projectId: 'PRJ-201', source: 'client', requestedBy: 'USR-021', submittedAt: '2026-10-19T00:00:00.000Z', affectedEntities: [], beforeSummary: 'A', afterSummary: 'B', operationalImpact: null, commercialImpactMinor: null, financialImpactNote: null, timelineImpactNote: null, status: 'submitted', decidedBy: null, decidedAt: null, rejectionReason: null, implementedAt: null, activityId: null, changeType: null, cancellationFeeMinor: null, clientDecidedBy: null, clientDecidedAt: null, cancelReason: null, cancelledAt: null }) }
+    })
+    await clientSaveChangeRequestDraft(api, undefined, { projectId: 'PRJ-201', beforeSummary: 'A', afterSummary: 'B' })
+    await clientSaveChangeRequestDraft(api, 'CRD-900', { beforeSummary: 'A', afterSummary: 'B' })
+    const request = await clientSubmitChangeRequestDraftOnServer(api, 'CRD-900')
+    expect(calls).toEqual(['create:{"projectId":"PRJ-201","beforeSummary":"A","afterSummary":"B"}', 'update:CRD-900', 'submit:CRD-900'])
+    expect(request.id).toBe('CR-960')
+    expect(CHANGE_REQUESTS.some(r => r.id === 'CR-960')).toBe(true)
   })
 })

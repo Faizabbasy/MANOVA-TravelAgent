@@ -278,6 +278,10 @@ async function handleImplemented () {
         </p>
       </SectionCard>
 
+      <!-- S12c-5: percakapan & lampiran dengan client (server). -->
+      <EntityComments entity-type="change-request" :entity-id="request.id" title="Komentar dengan Client" description="Terlihat oleh client di portal." />
+      <EntityAttachments entity-type="change-request" :entity-id="request.id" />
+
       <!-- Reject dialog -->
       <ResponsiveFormSheet
         v-model:open="isRejectDialogOpen"

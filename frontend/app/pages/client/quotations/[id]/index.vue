@@ -3,16 +3,13 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Printer, History, GitCompare } from 'lucide-vue-next'
 import {
-  getQuotationById, getLeadById, getPartyById, getLeadsByParty, getQuotationByLead,
-  getUserById,
-  getQuotationAttachments, addQuotationAttachment,
-  getQuotationComments, addQuotationComment
+  getQuotationById, getLeadById, getPartyById, getLeadsByParty, getQuotationByLead
 } from '~/data'
 import { clientRespondToQuotation } from '~/data/client-portal-writes'
 import { createSaveGate } from '~/lib/save-gate'
 import { resolveDestinationGeo } from '~/data/geo'
 import { QUOTATION_APPROVAL_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
-import { formatCurrencyIdr, formatDate, formatDateRange, formatDateTime } from '~/utils/format'
+import { formatCurrencyIdr, formatDate, formatDateRange } from '~/utils/format'
 
 /**
  * Quotations & Proposals — Detail (Repair Phase Section 3 — Request & Commercial). `:id` = Quotation id
@@ -27,7 +24,6 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const quotation = computed(() => getQuotationById(String(route.params.id)))
@@ -55,26 +51,6 @@ const siblingOptions = computed(() => {
 })
 const compareTargetId = ref('')
 const compareTarget = computed(() => siblingOptions.value.find(row => row.lead.id === compareTargetId.value))
-
-/* --- Comments --- */
-const commentBody = ref('')
-const comments = computed(() => (quotation.value ? getQuotationComments(quotation.value.id).map(item => ({ ...item, authorName: getUserById(item.authorId)?.name ?? item.authorId })) : []))
-function submitComment () {
-  if (!quotation.value || !commentBody.value.trim()) { return }
-  addQuotationComment(quotation.value.id, currentUser.value.id, commentBody.value.trim())
-  commentBody.value = ''
-  showToast('Komentar Ditambahkan', 'Komentar Anda berhasil disimpan.', 'success')
-}
-
-/* --- Attachments --- */
-const attachmentFileName = ref('')
-const attachments = computed(() => (quotation.value ? getQuotationAttachments(quotation.value.id) : []))
-function uploadAttachment () {
-  if (!quotation.value || !attachmentFileName.value.trim()) { return }
-  addQuotationAttachment(quotation.value.id, attachmentFileName.value.trim(), currentUser.value.id)
-  attachmentFileName.value = ''
-  showToast('Attachment Ditambahkan', 'Metadata attachment tercatat (mock, bukan file upload nyata).', 'success')
-}
 
 /* --- Your answer (S12b-2): recorded on the server once per version; our team acts on it (project / revision). --- */
 const api = useApi()
@@ -410,41 +386,8 @@ const RESPONSE_LABEL = { accepted: 'Anda menyetujui', rejected: 'Anda menolak', 
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <SectionCard title="Comments">
-          <div class="flex gap-2 mb-3">
-            <Input v-model="commentBody" placeholder="Tulis komentar..." @keyup.enter="submitComment" />
-            <Button size="sm" variant="outline" :disabled="!commentBody.trim()" @click="submitComment">
-              Kirim
-            </Button>
-          </div>
-          <ul v-if="comments.length" class="space-y-3">
-            <li v-for="comment in comments" :key="comment.id" class="text-sm">
-              <p class="text-foreground">
-                {{ comment.body }}
-              </p>
-              <p class="text-xs text-muted-foreground mt-0.5">
-                {{ comment.authorName }} · {{ formatDateTime(comment.createdAt) }}
-              </p>
-            </li>
-          </ul>
-          <EmptyState v-else title="Belum ada komentar" />
-        </SectionCard>
-
-        <SectionCard title="Attachments" description="Mock — metadata nama file saja.">
-          <div class="flex gap-2 mb-3">
-            <Input v-model="attachmentFileName" placeholder="mis. Brosur_Hotel.pdf" />
-            <Button size="sm" variant="outline" :disabled="!attachmentFileName.trim()" @click="uploadAttachment">
-              Tambah
-            </Button>
-          </div>
-          <ul v-if="attachments.length" class="divide-y divide-border">
-            <li v-for="attachment in attachments" :key="attachment.id" class="py-2 flex items-center justify-between gap-2">
-              <span class="text-sm text-foreground truncate">{{ attachment.fileName }}</span>
-              <span class="text-xs text-muted-foreground shrink-0">{{ formatDate(attachment.uploadedAt) }}</span>
-            </li>
-          </ul>
-          <EmptyState v-else title="Belum ada attachment" />
-        </SectionCard>
+        <EntityComments entity-type="quotation" :entity-id="quotation.id" portal title="Comments" />
+        <EntityAttachments entity-type="quotation" :entity-id="quotation.id" portal title="Attachments" />
       </div>
 
       <SectionCard v-if="party" title="Company">

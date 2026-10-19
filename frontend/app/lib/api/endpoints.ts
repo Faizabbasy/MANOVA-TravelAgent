@@ -7,6 +7,11 @@ import type { QuotationClientResponse } from '~/types/quotation'
 import type {
   ChangeRequestImpactInput,
   FeedbackDto,
+  CollabEntityType,
+  CommentDto,
+  AttachmentDto,
+  ChangeRequestDraftDto,
+  ChangeRequestDraftInput,
   FeedbackInput,
   SupportTicketDto,
   SupportTicketInput,
@@ -278,6 +283,25 @@ export function createManovaApi (client: ApiClient) {
       acknowledgeFeedback: (id: string) => client.post<FeedbackDto>(`/feedback/${seg(id)}/acknowledge`, {}),
       followUpFeedback: (id: string, note: string) => client.post<FeedbackDto>(`/feedback/${seg(id)}/follow-up`, { note }),
       closeFeedback: (id: string, note?: string) => client.post<FeedbackDto>(`/feedback/${seg(id)}/close`, note ? { note } : {}),
+      // S12c-5: comments & attachment names (client portal and staff) and the client's change-request drafts.
+      listClientComments: (entityType: CollabEntityType, entityId: string) => client.get<CommentDto[]>('/client/comments', { query: { entityType, entityId } }),
+      clientAddComment: (input: { entityType: CollabEntityType; entityId: string; body: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<CommentDto[]>('/client/comments', input, { idempotencyKey }),
+      listClientAttachments: (entityType: CollabEntityType, entityId: string) => client.get<AttachmentDto[]>('/client/attachments', { query: { entityType, entityId } }),
+      clientAddAttachment: (input: { entityType: CollabEntityType; entityId: string; fileName: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<AttachmentDto[]>('/client/attachments', input, { idempotencyKey }),
+      listComments: (entityType: CollabEntityType, entityId: string) => client.get<CommentDto[]>('/comments', { query: { entityType, entityId } }),
+      addComment: (input: { entityType: CollabEntityType; entityId: string; body: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<CommentDto[]>('/comments', input, { idempotencyKey }),
+      listAttachments: (entityType: CollabEntityType, entityId: string) => client.get<AttachmentDto[]>('/attachments', { query: { entityType, entityId } }),
+      addAttachment: (input: { entityType: CollabEntityType; entityId: string; fileName: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<AttachmentDto[]>('/attachments', input, { idempotencyKey }),
+      listClientChangeRequestDrafts: () => client.get<ChangeRequestDraftDto[]>('/client/change-request-drafts'),
+      clientCreateChangeRequestDraft: (input: ChangeRequestDraftInput) => client.post<ChangeRequestDraftDto>('/client/change-request-drafts', input),
+      clientUpdateChangeRequestDraft: (id: string, input: ChangeRequestDraftInput) => client.patch<ChangeRequestDraftDto>(`/client/change-request-drafts/${seg(id)}`, input),
+      clientDeleteChangeRequestDraft: (id: string) => client.delete<{ id: string }>(`/client/change-request-drafts/${seg(id)}`),
+      clientSubmitChangeRequestDraft: (id: string, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<ChangeRequestDto>(`/client/change-request-drafts/${seg(id)}/submit`, {}, { idempotencyKey }),
       listClientContacts: () => client.get<PartyContactDto[]>('/client/contacts'),
       clientCreateContact: (input: ClientContactInput & { name: string; title: string }, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<PartyContactDto>('/client/contacts', input, { idempotencyKey }),

@@ -4,8 +4,7 @@ import { useRoute } from 'vue-router'
 import { Search, Plus, FileText, ExternalLink } from 'lucide-vue-next'
 import {
   getProjectsByParty, getClientDocuments, getClientDocumentCategory,
-  getDocumentVersionHistory,
-  getDocumentComments, addDocumentComment, getUserById
+  getDocumentVersionHistory
 } from '~/data'
 import { CLIENT_DOCUMENT_CATEGORIES, DOCUMENT_ENTITY_TYPES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
@@ -22,7 +21,6 @@ import { createSaveGate } from '~/lib/save-gate'
  */
 const route = useRoute()
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 /* Server writes (S12b-1): document metadata goes to /client/documents; a refused write changes nothing locally. */
 const api = useApi()
@@ -85,15 +83,12 @@ async function submitUpload () {
 /* --- Detail (version history + comment + replace) --- */
 const isDetailOpen = ref(false)
 const activeDocument = ref<Document | null>(null)
-const newComment = ref('')
 
 function openDetail (document: Document) {
   activeDocument.value = document
-  newComment.value = ''
   isDetailOpen.value = true
 }
 const versionHistory = computed(() => (activeDocument.value ? getDocumentVersionHistory(activeDocument.value.id) : []))
-const activeComments = computed(() => (activeDocument.value ? getDocumentComments(activeDocument.value.id) : []))
 
 async function handleReplaceVersion () {
   if (!activeDocument.value) { return }
@@ -104,13 +99,6 @@ async function handleReplaceVersion () {
     showToast('Versi Baru Diunggah', `Versi ${next.version} tercatat menggantikan versi sebelumnya.`, 'success')
   }
 }
-function submitComment () {
-  if (!activeDocument.value || !newComment.value.trim()) { return }
-  addDocumentComment(activeDocument.value.id, currentUser.value.id, newComment.value.trim())
-  newComment.value = ''
-  showToast('Komentar Ditambahkan', 'Komentar Anda berhasil disimpan.', 'success')
-}
-
 function handleDownload (document: Document) {
   showToast('Download (Mock)', `${document.name} — simulasi unduhan, tidak ada file nyata (D-006).`, 'info')
 }
@@ -366,28 +354,7 @@ function handleDownload (document: Document) {
             </Button>
           </div>
           <div class="pt-3 border-t border-border">
-            <p class="text-xs font-medium text-muted-foreground mb-2">
-              Comments
-            </p>
-            <ul v-if="activeComments.length" class="space-y-2 mb-2">
-              <li v-for="comment in activeComments" :key="comment.id" class="text-sm">
-                <p class="text-foreground">
-                  {{ comment.body }}
-                </p>
-                <p class="text-xs text-muted-foreground">
-                  {{ getUserById(comment.authorId)?.name ?? comment.authorId }} · {{ formatDate(comment.createdAt) }}
-                </p>
-              </li>
-            </ul>
-            <p v-else class="text-sm text-muted-foreground mb-2">
-              Belum ada komentar.
-            </p>
-            <div class="flex gap-2">
-              <Input v-model="newComment" placeholder="Tulis komentar..." class="flex-1" @keyup.enter="submitComment" />
-              <Button size="sm" :disabled="!newComment.trim()" @click="submitComment">
-                Kirim
-              </Button>
-            </div>
+            <EntityComments entity-type="document" :entity-id="activeDocument.id" portal title="Comments" />
           </div>
         </div>
         <template #footer>

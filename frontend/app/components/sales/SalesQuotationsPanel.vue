@@ -43,9 +43,9 @@ const statusFilter = ref<'all' | QuotationApprovalStatus>('all')
 function matchesSearch (quotation: Quotation) {
   if (!searchQuery.value.trim()) { return true }
   const q = searchQuery.value.toLowerCase()
-  return quotation.id.toLowerCase().includes(q)
-    || leadTitle(quotation.leadId).toLowerCase().includes(q)
-    || partyName(quotation.leadId).toLowerCase().includes(q)
+  return quotation.id.toLowerCase().includes(q) ||
+    leadTitle(quotation.leadId).toLowerCase().includes(q) ||
+    partyName(quotation.leadId).toLowerCase().includes(q)
 }
 
 /** Drill-down (Customer Journey Funnel) — `?qtab=all&status=approved` deep-link ke quotation approved saja; kosong/`all` menampilkan seluruh quotation seperti semula. */
@@ -287,71 +287,76 @@ function viewLeadDetail () {
       :title="selectedQuotation && selectedLead ? `${selectedQuotation.id} — ${selectedLead.title ?? selectedLead.companyName ?? selectedLead.name}` : ''"
       :description="selectedLead ? `${selectedLead.partyId ? (getPartyById(selectedLead.partyId)?.name ?? '—') : '—'} · AE ${getUserById(selectedLead.handedOverTo ?? selectedLead.ownerId)?.name ?? selectedLead.handedOverTo ?? selectedLead.ownerId}` : undefined"
     >
-        <template v-if="selectedQuotation && selectedLead">
-          <div class="flex items-center gap-2">
-            <StatusBadge
-              :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, selectedQuotation.approvalStatus ?? 'draft').label"
-              :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, selectedQuotation.approvalStatus ?? 'draft').tone"
-            />
-            <StatusBadge :label="`Versi ${selectedQuotation.version}`" tone="info" />
-          </div>
-
-          <DetailMetadataList
-            :items="[
-              { label: 'Nilai Quotation', value: formatCurrencyIdr(selectedQuotation.amountIdr) },
-              { label: 'Discount', value: selectedQuotation.discountIdr ? formatCurrencyIdr(selectedQuotation.discountIdr) : '—' },
-              { label: 'Tax / Fee', value: selectedQuotation.taxIdr ? formatCurrencyIdr(selectedQuotation.taxIdr) : '—' },
-              { label: 'Markup', value: selectedQuotation.markupIdr ? formatCurrencyIdr(selectedQuotation.markupIdr) : '—' },
-              { label: 'Estimated Margin', value: selectedQuotation.estimatedMarginIdr ? formatCurrencyIdr(selectedQuotation.estimatedMarginIdr) : '—' },
-              { label: 'Payment Terms', value: selectedQuotation.paymentTerms || '—' },
-              { label: 'Valid Until', value: selectedQuotation.validUntil ? formatDate(selectedQuotation.validUntil) : '—' },
-              { label: 'Complexity', value: complexityLabel(selectedLead.id) },
-            ]"
+      <template v-if="selectedQuotation && selectedLead">
+        <div class="flex items-center gap-2">
+          <StatusBadge
+            :label="findStatusOption(QUOTATION_APPROVAL_STATUSES, selectedQuotation.approvalStatus ?? 'draft').label"
+            :tone="findStatusOption(QUOTATION_APPROVAL_STATUSES, selectedQuotation.approvalStatus ?? 'draft').tone"
           />
+          <StatusBadge :label="`Versi ${selectedQuotation.version}`" tone="info" />
+        </div>
 
-          <div v-if="selectedQuotation.serviceBreakdown && selectedQuotation.serviceBreakdown.length > 0" class="mt-2">
-            <p class="text-xs font-medium text-muted-foreground mb-2">
-              Service Breakdown
-            </p>
-            <ul class="divide-y divide-border">
-              <li v-for="(item, index) in selectedQuotation.serviceBreakdown" :key="index" class="py-2 flex items-center justify-between gap-2">
-                <span class="text-sm text-foreground">{{ findStatusOption(SERVICE_TYPES, item.service).label }}<template v-if="item.description"> — {{ item.description }}</template></span>
-                <span class="text-sm text-foreground shrink-0">{{ formatCurrencyIdr(item.amountIdr) }}</span>
-              </li>
-            </ul>
-          </div>
+        <DetailMetadataList
+          :items="[
+            { label: 'Nilai Quotation', value: formatCurrencyIdr(selectedQuotation.amountIdr) },
+            { label: 'Discount', value: selectedQuotation.discountIdr ? formatCurrencyIdr(selectedQuotation.discountIdr) : '—' },
+            { label: 'Tax / Fee', value: selectedQuotation.taxIdr ? formatCurrencyIdr(selectedQuotation.taxIdr) : '—' },
+            { label: 'Markup', value: selectedQuotation.markupIdr ? formatCurrencyIdr(selectedQuotation.markupIdr) : '—' },
+            { label: 'Estimated Margin', value: selectedQuotation.estimatedMarginIdr ? formatCurrencyIdr(selectedQuotation.estimatedMarginIdr) : '—' },
+            { label: 'Payment Terms', value: selectedQuotation.paymentTerms || '—' },
+            { label: 'Valid Until', value: selectedQuotation.validUntil ? formatDate(selectedQuotation.validUntil) : '—' },
+            { label: 'Complexity', value: complexityLabel(selectedLead.id) },
+          ]"
+        />
 
-          <p v-if="selectedQuotation.approvalNote" class="text-sm text-muted-foreground mt-2">
-            Catatan keputusan terakhir: {{ selectedQuotation.approvalNote }}
+        <div v-if="selectedQuotation.serviceBreakdown && selectedQuotation.serviceBreakdown.length > 0" class="mt-2">
+          <p class="text-xs font-medium text-muted-foreground mb-2">
+            Service Breakdown
           </p>
+          <ul class="divide-y divide-border">
+            <li v-for="(item, index) in selectedQuotation.serviceBreakdown" :key="index" class="py-2 flex items-center justify-between gap-2">
+              <span class="text-sm text-foreground">{{ findStatusOption(SERVICE_TYPES, item.service).label }}<template v-if="item.description"> — {{ item.description }}</template></span>
+              <span class="text-sm text-foreground shrink-0">{{ formatCurrencyIdr(item.amountIdr) }}</span>
+            </li>
+          </ul>
+        </div>
 
-          <button type="button" class="text-sm text-primary hover:underline block mt-2" @click="viewLeadDetail">
-            Lihat Lead lengkap →
-          </button>
-        </template>
+        <p v-if="selectedQuotation.approvalNote" class="text-sm text-muted-foreground mt-2">
+          Catatan keputusan terakhir: {{ selectedQuotation.approvalNote }}
+        </p>
 
-        <template #footer>
-          <template v-if="selectedQuotation && canApproveCommercial && selectedQuotation.approvalStatus === 'submitted'">
-            <div class="w-full space-y-2">
-              <Label for="decision-note">Catatan Keputusan</Label>
-              <Input id="decision-note" v-model="decisionNote" placeholder="mis. Disetujui sesuai standar margin / Margin terlalu rendah, revisi harga" />
-              <div class="flex justify-end gap-2 pt-1">
-                <Button variant="outline" @click="isReviewOpen = false">
-                  Batal
-                </Button>
-                <Button variant="destructive" :disabled="!decisionNote.trim() || isDeciding" :title="!decisionNote.trim() ? 'Catatan wajib diisi untuk reject' : undefined" @click="submitReject">
-                  Reject (Return for Revision)
-                </Button>
-                <Button :disabled="isDeciding" @click="submitApprove">
-                  Approve
-                </Button>
-              </div>
+        <button type="button" class="text-sm text-primary hover:underline block mt-2" @click="viewLeadDetail">
+          Lihat Lead lengkap →
+        </button>
+        <!-- S12c-5: percakapan & lampiran dengan client (terlihat di portal setelah quotation dikirim). -->
+        <div class="mt-4 space-y-4">
+          <EntityComments entity-type="quotation" :entity-id="selectedQuotation.id" title="Komentar dengan Client" />
+          <EntityAttachments entity-type="quotation" :entity-id="selectedQuotation.id" />
+        </div>
+      </template>
+
+      <template #footer>
+        <template v-if="selectedQuotation && canApproveCommercial && selectedQuotation.approvalStatus === 'submitted'">
+          <div class="w-full space-y-2">
+            <Label for="decision-note">Catatan Keputusan</Label>
+            <Input id="decision-note" v-model="decisionNote" placeholder="mis. Disetujui sesuai standar margin / Margin terlalu rendah, revisi harga" />
+            <div class="flex justify-end gap-2 pt-1">
+              <Button variant="outline" @click="isReviewOpen = false">
+                Batal
+              </Button>
+              <Button variant="destructive" :disabled="!decisionNote.trim() || isDeciding" :title="!decisionNote.trim() ? 'Catatan wajib diisi untuk reject' : undefined" @click="submitReject">
+                Reject (Return for Revision)
+              </Button>
+              <Button :disabled="isDeciding" @click="submitApprove">
+                Approve
+              </Button>
             </div>
-          </template>
-          <Button v-else variant="outline" @click="isReviewOpen = false">
-            Tutup
-          </Button>
+          </div>
         </template>
+        <Button v-else variant="outline" @click="isReviewOpen = false">
+          Tutup
+        </Button>
+      </template>
     </ResponsiveFormSheet>
 
     <!-- Edit Quotation lengkap — tab "Quotation" di sheet ini, bukan navigasi ke halaman terpisah -->

@@ -1,14 +1,13 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { Search, Plus, GitPullRequest } from 'lucide-vue-next'
 import {
-  getProjectsByParty, getChangeRequestsByParty, getChangeRequestDraftsByParty,
-  saveChangeRequestDraft, deleteChangeRequestDraft
+  getProjectsByParty, getChangeRequestsByParty
 } from '~/data'
 import { CHANGE_REQUEST_STATUSES, CHANGE_REQUEST_TYPES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import type { ChangeRequestStatus, ChangeRequestType, ChangeRequestDraft } from '~/types/change-incident'
-import { clientSubmitChangeRequest } from '~/data/client-portal-writes'
+import { clientDeleteChangeRequestDraftOnServer, clientLoadChangeRequestDrafts, clientSaveChangeRequestDraft, clientSubmitChangeRequest, clientSubmitChangeRequestDraftOnServer } from '~/data/client-portal-writes'
 import { createSaveGate } from '~/lib/save-gate'
 
 /**
@@ -17,14 +16,13 @@ import { createSaveGate } from '~/lib/save-gate'
  * Reservations/Trip Center — logika tidak diubah. Draft ("Save draft") DISIMPAN TERPISAH dari
  * `ChangeRequest` nyata (`ChangeRequestDraft`) — tidak pernah muncul di `/changes` internal sampai
  * disubmit lewat `submitChangeRequestDraft`.
+ * S12c-5: draft disimpan di server (milik company sendiri), bukan lagi di perangkat ini.
  */
 
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const projects = computed(() => (clientScopeId.value ? getProjectsByParty(clientScopeId.value) : []))
-const drafts = computed(() => (clientScopeId.value ? getChangeRequestDraftsByParty(clientScopeId.value) : []))
 const requests = computed(() => (clientScopeId.value ? getChangeRequestsByParty(clientScopeId.value) : []))
 
 function projectName (projectId: string): string {
@@ -77,57 +75,66 @@ function openEditDraft (draft: ChangeRequestDraft) {
 
 const isFormValid = computed(() => Boolean(formProjectId.value && formBeforeSummary.value.trim() && formAfterSummary.value.trim()))
 
-function persistDraft (): ChangeRequestDraft | undefined {
-  if (!isFormValid.value) { return undefined }
-  return saveChangeRequestDraft({
-    id: editingDraft.value?.id,
-    projectId: formProjectId.value,
-    createdBy: currentUser.value.id,
-    changeType: formChangeType.value || undefined,
-    beforeSummary: formBeforeSummary.value.trim(),
-    afterSummary: formAfterSummary.value.trim()
-  })
-}
+/* S12b-2 / S12c-5: change requests and their drafts live on the server; the list shows only what the server answered. */
+const api = useApi()
+const session = useServerSession()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
 
-function handleSaveDraft () {
-  const draft = persistDraft()
+const drafts = ref<ChangeRequestDraft[]>([])
+async function loadDrafts () {
+  try {
+    await session.ensure()
+    drafts.value = await clientLoadChangeRequestDrafts(api)
+  } catch {
+    drafts.value = []
+  }
+}
+onMounted(loadDrafts)
+
+const formInput = () => ({
+  ...(editingDraft.value ? {} : { projectId: formProjectId.value }),
+  changeType: formChangeType.value || null,
+  beforeSummary: formBeforeSummary.value.trim(),
+  afterSummary: formAfterSummary.value.trim()
+})
+
+async function handleSaveDraft () {
+  if (!isFormValid.value) { return }
+  const id = editingDraft.value?.id
+  const draft = await gate.run('Draft Gagal Disimpan', () => clientSaveChangeRequestDraft(api, id, formInput()))
   if (!draft) { return }
+  await loadDrafts()
   isFormOpen.value = false
   showToast('Draft Tersimpan', 'Permintaan perubahan Anda tersimpan sebagai draft.', 'success')
 }
 
-/* S12b-2: submitting goes to the server (/client/projects/:id/change-requests); drafts stay on this device (S12c). */
-const api = useApi()
-const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
-
-async function submitDraftToServer (draft: ChangeRequestDraft) {
-  const request = await gate.run('Change Request Gagal Dikirim', () => clientSubmitChangeRequest(api, draft.projectId, {
-    ...(draft.changeType ? { changeType: draft.changeType } : {}),
-    beforeSummary: draft.beforeSummary,
-    afterSummary: draft.afterSummary
-  }))
-  if (!request) { return undefined }
-  deleteChangeRequestDraft(draft.id)
-  return request
-}
-
+/** "Ajukan" from the form: a draft being edited is saved and submitted; a new one goes straight in as a change request. */
 async function handleSubmitNow () {
-  const draft = persistDraft()
-  if (!draft) { return }
-  const request = await submitDraftToServer(draft)
+  if (!isFormValid.value) { return }
+  const id = editingDraft.value?.id
+  const request = await gate.run('Change Request Gagal Dikirim', async () => {
+    if (!id) { return clientSubmitChangeRequest(api, formProjectId.value, { ...(formChangeType.value ? { changeType: formChangeType.value } : {}), beforeSummary: formBeforeSummary.value.trim(), afterSummary: formAfterSummary.value.trim() }) }
+    await clientSaveChangeRequestDraft(api, id, formInput())
+    return clientSubmitChangeRequestDraftOnServer(api, id)
+  })
   if (!request) { return }
+  await loadDrafts()
   isFormOpen.value = false
   showToast('Change Request Terkirim', `${request.id} — tim kami akan meninjau permintaan Anda.`, 'success')
 }
 
-function handleDeleteDraft (draft: ChangeRequestDraft) {
-  deleteChangeRequestDraft(draft.id)
+async function handleDeleteDraft (draft: ChangeRequestDraft) {
+  const done = await gate.run('Draft Gagal Dihapus', () => clientDeleteChangeRequestDraftOnServer(api, draft.id))
+  if (!done) { return }
+  await loadDrafts()
   showToast('Draft Dihapus', 'Draft permintaan perubahan telah dihapus.', 'info')
 }
 
 async function handleSubmitDraft (draft: ChangeRequestDraft) {
-  const request = await submitDraftToServer(draft)
-  if (request) { showToast('Change Request Terkirim', `${request.id} — tim kami akan meninjau permintaan Anda.`, 'success') }
+  const request = await gate.run('Change Request Gagal Dikirim', () => clientSubmitChangeRequestDraftOnServer(api, draft.id))
+  if (!request) { return }
+  await loadDrafts()
+  showToast('Change Request Terkirim', `${request.id} — tim kami akan meninjau permintaan Anda.`, 'success')
 }
 </script>
 

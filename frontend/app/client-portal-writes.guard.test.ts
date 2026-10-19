@@ -27,7 +27,9 @@ const FILES = [
   // S12c-2: support tickets and trip feedback.
   'components/client/SupportListPanel.vue',
   'pages/client/support/[id]/index.vue',
-  'pages/client/feedback/[projectId]/index.vue'
+  'pages/client/feedback/[projectId]/index.vue',
+  // S12c-5: comments, attachment names and change-request drafts.
+  'pages/client/itineraries/[id]/index.vue'
 ]
 const FORBIDDEN = [
   'createTraveler(', 'updateTraveler(', 'cancelTraveler(', 'replaceTraveler(', 'commitTravelerImport(', 'setTravelerVip(',
@@ -39,7 +41,9 @@ const FORBIDDEN = [
   'runChangeRequestMockReview(', 'requestQuotationRevision(', 'createPartyActivity(',
   'submitPaymentProof(', 'runPaymentVerificationMock(', 'markInvoiceViewed(', 'submitSensitiveCompanyProfileChange(', 'runCompanyProfileVerificationMock(',
   'createSupportTicket(', 'replySupportTicket(', 'confirmSupportTicketResolution(', 'reopenSupportTicket(', 'rateSupportTicketResolution(',
-  'saveFeedbackDraft(', 'submitFeedback('
+  'saveFeedbackDraft(', 'submitFeedback(',
+  'addChangeRequestComment(', 'addChangeRequestAttachmentMock(', 'addQuotationComment(', 'addQuotationAttachment(', 'addDocumentComment(',
+  'saveChangeRequestDraft(', 'deleteChangeRequestDraft(', 'addItineraryComment('
 ]
 const read = (file: string) => readFileSync(join(__dirname, file), 'utf8')
 const used = (source: string, name: string) => new RegExp(`(?<![.\\w])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(source)

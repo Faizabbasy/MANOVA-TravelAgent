@@ -2030,3 +2030,38 @@ export interface FeedbackDto {
 export type FeedbackInput = Partial<Pick<FeedbackDto, 'overallExperience' | 'recommendationScore' | 'salesResponsiveness' | 'proposalQuality' | 'itineraryQuality' | 'hotelRating'
   | 'transportationRating' | 'tourLeaderRating' | 'operationSupportRating' | 'reservationHandlingRating' | 'communicationRating' | 'issueResolutionRating'
   | 'valueForMoneyRating' | 'comment' | 'improvementSuggestion' | 'testimonialConsent'>>
+/** S12c-5: comments and attachment names on client-facing records (`itinerary` = a project's itinerary, entityId = project id). */
+export type CollabEntityType = 'change-request' | 'quotation' | 'document' | 'itinerary' | 'travel-request'
+export interface CommentDto {
+  id: string
+  entityType: CollabEntityType
+  entityId: string
+  /** Null in the client portal for staff authors. */
+  authorId: string | null
+  authorName: string
+  fromClient: boolean
+  body: string
+  createdAt: string
+}
+export interface AttachmentDto {
+  id: string
+  entityType: CollabEntityType
+  entityId: string
+  fileName: string
+  uploadedBy: string | null
+  uploadedByName: string
+  fromClient: boolean
+  uploadedAt: string
+}
+export interface ChangeRequestDraftDto {
+  id: string
+  projectId: string
+  projectName: string
+  createdBy: string
+  changeType: string | null
+  beforeSummary: string
+  afterSummary: string
+  createdAt: string
+  updatedAt: string
+}
+export interface ChangeRequestDraftInput { projectId?: string; changeType?: string | null; beforeSummary?: string; afterSummary?: string }

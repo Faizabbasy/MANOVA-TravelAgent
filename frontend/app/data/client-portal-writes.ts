@@ -6,9 +6,9 @@ import { upsertServerChangeRequest } from './changes-sync'
 import { CONTACTS, DOCUMENT_RECORDS, INVOICES, MESSAGE_RECORDS, QUOTATIONS } from './index'
 import type { ManovaApi } from '~/lib/api/endpoints'
 import type { ProjectStatus } from '~/types/project'
-import type { ChangeRequestType } from '~/types/change-incident'
+import type { ChangeRequestDraft, ChangeRequestType } from '~/types/change-incident'
 import type { QuotationClientResponse } from '~/types/quotation'
-import type { ClientContactInput, ClientDocumentInput, ClientMessageInput, PartyProfileInput, PaymentProofInput, ProfileChangeDto, TravelerInput } from '~/types/api'
+import type { ChangeRequestDraftDto, ChangeRequestDraftInput, ClientContactInput, ClientDocumentInput, ClientMessageInput, PartyProfileInput, PaymentProofInput, ProfileChangeDto, TravelerInput } from '~/types/api'
 
 /**
  * Client portal writes (S12b-1): every action goes to /client/* first and only the server's answer changes the local
@@ -98,6 +98,23 @@ export const clientSubmitChangeRequest = async (api: CoreApi, projectId: string,
 export const clientApproveChangeImpact = async (api: CoreApi, id: string) => upsertServerChangeRequest((await api.core.clientApproveChangeRequest(id)).data)
 export const clientRejectChangeImpact = async (api: CoreApi, id: string, reason: string) => upsertServerChangeRequest((await api.core.clientRejectChangeRequest(id, reason)).data)
 export const clientCancelChangeRequestOnServer = async (api: CoreApi, id: string, reason: string) => upsertServerChangeRequest((await api.core.clientCancelChangeRequest(id, reason)).data)
+
+/* S12c-5: change-request drafts live on the server (own party only); submitting turns one into a change request. */
+export const draftFromServer = (d: ChangeRequestDraftDto): ChangeRequestDraft => ({
+  id: d.id,
+  projectId: d.projectId,
+  createdBy: d.createdBy,
+  changeType: (d.changeType ?? undefined) as ChangeRequestType | undefined,
+  beforeSummary: d.beforeSummary,
+  afterSummary: d.afterSummary,
+  updatedAt: d.updatedAt
+})
+export const clientLoadChangeRequestDrafts = async (api: CoreApi) => (await api.core.listClientChangeRequestDrafts()).data.map(draftFromServer)
+export const clientSaveChangeRequestDraft = async (api: CoreApi, id: string | undefined, input: ChangeRequestDraftInput) =>
+  draftFromServer((await (id ? api.core.clientUpdateChangeRequestDraft(id, input) : api.core.clientCreateChangeRequestDraft(input))).data)
+export const clientDeleteChangeRequestDraftOnServer = async (api: CoreApi, id: string) => (await api.core.clientDeleteChangeRequestDraft(id)).data
+export const clientSubmitChangeRequestDraftOnServer = async (api: CoreApi, id: string) =>
+  upsertServerChangeRequest((await api.core.clientSubmitChangeRequestDraft(id)).data)
 export const clientRespondToQuotation = async (api: CoreApi, id: string, input: { response: QuotationClientResponse['response']; note?: string }) =>
   upsert(QUOTATIONS, quotationFromClientServer((await api.core.respondToQuotation(id, input)).data))
 

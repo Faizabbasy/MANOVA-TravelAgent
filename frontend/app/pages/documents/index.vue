@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { Search, Plus, FileText, Bell, AlertTriangle, CheckCheck, X, ExternalLink, List, LayoutGrid, Eye, Download, MoreVertical, SlidersHorizontal } from 'lucide-vue-next'
+import { Search, Plus, FileText, Bell, AlertTriangle, CheckCheck, X, ExternalLink, List, LayoutGrid, Eye, Download, MoreVertical, SlidersHorizontal, MessageSquare } from 'lucide-vue-next'
 import {
   PROJECTS, USERS,
   getProjectById, getUserById,
@@ -102,6 +102,8 @@ function entityLabel (entityType: DocumentEntityType, entityId: string): string 
 
 /* --- Documents tab --- */
 const docViewMode = ref<'list' | 'grid'>('grid')
+/** S12c-5: the client-visible document whose comment thread is open. */
+const commentDocument = ref<AppDocument | null>(null)
 const docSearch = ref('')
 const docCategoryFilter = ref('all')
 const docAccessFilter = ref<'all' | DocumentAccessLevel>('all')
@@ -283,62 +285,62 @@ const dismissNotification = (id: string) => save('Notifikasi Gagal Dihapus', () 
               <Plus class="h-4 w-4" />Upload Document
             </Button>
           </template>
-            <div class="space-y-4 py-2">
-              <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1.5">
-                  <Label for="doc-entity-type">Entity Type</Label>
-                  <select id="doc-entity-type" v-model="newDocEntityType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="option in DOCUMENT_ENTITY_TYPES" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="doc-entity-id">Entity ID</Label>
-                  <Input id="doc-entity-id" v-model="newDocEntityId" placeholder="mis. PRJ-101" />
-                </div>
-              </div>
+          <div class="space-y-4 py-2">
+            <div class="grid grid-cols-2 gap-3">
               <div class="space-y-1.5">
-                <Label for="doc-project">Project (opsional, untuk filter cross-project)</Label>
-                <select id="doc-project" v-model="newDocProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="">
-                    Tidak terkait project tertentu
-                  </option>
-                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
-                    {{ project.name }}
+                <Label for="doc-entity-type">Entity Type</Label>
+                <select id="doc-entity-type" v-model="newDocEntityType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="option in DOCUMENT_ENTITY_TYPES" :key="option.value" :value="option.value">
+                    {{ option.label }}
                   </option>
                 </select>
               </div>
               <div class="space-y-1.5">
-                <Label for="doc-name">Nama Dokumen</Label>
-                <Input id="doc-name" v-model="newDocName" placeholder="mis. Kontrak_Vendor_Terbaru.pdf" />
-              </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1.5">
-                  <Label for="doc-category">Category</Label>
-                  <Input id="doc-category" v-model="newDocCategory" placeholder="mis. Contract" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="doc-access">Access Level</Label>
-                  <select id="doc-access" v-model="newDocAccessLevel" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="option in DOCUMENT_ACCESS_LEVELS" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </option>
-                  </select>
-                </div>
-              </div>
-              <div class="space-y-1.5">
-                <Label for="doc-expiry">Expiry Date (opsional)</Label>
-                <Input id="doc-expiry" v-model="newDocExpiresAt" type="date" />
+                <Label for="doc-entity-id">Entity ID</Label>
+                <Input id="doc-entity-id" v-model="newDocEntityId" placeholder="mis. PRJ-101" />
               </div>
             </div>
+            <div class="space-y-1.5">
+              <Label for="doc-project">Project (opsional, untuk filter cross-project)</Label>
+              <select id="doc-project" v-model="newDocProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option value="">
+                  Tidak terkait project tertentu
+                </option>
+                <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                  {{ project.name }}
+                </option>
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <Label for="doc-name">Nama Dokumen</Label>
+              <Input id="doc-name" v-model="newDocName" placeholder="mis. Kontrak_Vendor_Terbaru.pdf" />
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <Label for="doc-category">Category</Label>
+                <Input id="doc-category" v-model="newDocCategory" placeholder="mis. Contract" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="doc-access">Access Level</Label>
+                <select id="doc-access" v-model="newDocAccessLevel" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="option in DOCUMENT_ACCESS_LEVELS" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              <Label for="doc-expiry">Expiry Date (opsional)</Label>
+              <Input id="doc-expiry" v-model="newDocExpiresAt" type="date" />
+            </div>
+          </div>
           <template #footer>
-              <Button variant="outline" @click="isUploadOpen = false">
-                Batal
-              </Button>
-              <Button :disabled="!newDocEntityId.trim() || !newDocName.trim() || !newDocCategory.trim() || isSaving" @click="submitUpload">
-                Simpan
-              </Button>
+            <Button variant="outline" @click="isUploadOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!newDocEntityId.trim() || !newDocName.trim() || !newDocCategory.trim() || isSaving" @click="submitUpload">
+              Simpan
+            </Button>
           </template>
         </ResponsiveFormSheet>
       </template>
@@ -360,79 +362,79 @@ const dismissNotification = (id: string) => save('Notifikasi Gagal Dihapus', () 
               <Plus class="h-4 w-4" />New Message
             </Button>
           </template>
-            <div class="space-y-4 py-2">
-              <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1.5">
-                  <Label for="msg-entity-type">Entity Type</Label>
-                  <select id="msg-entity-type" v-model="newMsgEntityType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="option in DOCUMENT_ENTITY_TYPES" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="msg-entity-id">Entity ID</Label>
-                  <Input id="msg-entity-id" v-model="newMsgEntityId" placeholder="mis. PRJ-101" />
-                </div>
-              </div>
+          <div class="space-y-4 py-2">
+            <div class="grid grid-cols-2 gap-3">
               <div class="space-y-1.5">
-                <Label for="msg-project">Project (opsional)</Label>
-                <select id="msg-project" v-model="newMsgProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option value="">
-                    Tidak terkait project tertentu
-                  </option>
-                  <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
-                    {{ project.name }}
+                <Label for="msg-entity-type">Entity Type</Label>
+                <select id="msg-entity-type" v-model="newMsgEntityType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="option in DOCUMENT_ENTITY_TYPES" :key="option.value" :value="option.value">
+                    {{ option.label }}
                   </option>
                 </select>
               </div>
-              <div class="grid grid-cols-2 gap-3">
-                <div class="space-y-1.5">
-                  <Label for="msg-channel">Channel</Label>
-                  <select id="msg-channel" v-model="newMsgChannel" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="option in MESSAGE_CHANNELS" :key="option.value" :value="option.value">
-                      {{ option.label }}
-                    </option>
-                  </select>
-                </div>
-                <div v-if="newMsgChannel !== 'internal-note'" class="space-y-1.5">
-                  <Label for="msg-delivery-channel">Delivery Channel (mock)</Label>
-                  <select id="msg-delivery-channel" v-model="newMsgDeliveryChannel" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option value="email">
-                      Email
-                    </option>
-                    <option value="whatsapp">
-                      WhatsApp
-                    </option>
-                  </select>
-                </div>
-              </div>
               <div class="space-y-1.5">
-                <Label for="msg-body">Pesan</Label>
-                <textarea id="msg-body" v-model="newMsgBody" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-              </div>
-              <div class="space-y-1.5">
-                <Label>Mentions (opsional — memicu notifikasi)</Label>
-                <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-border rounded-lg">
-                  <button
-                    v-for="user in USERS"
-                    :key="user.id"
-                    type="button"
-                    :class="['px-2 py-1 text-xs rounded-full border', newMsgMentions.includes(user.id) ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground']"
-                    @click="toggleMention(user.id)"
-                  >
-                    {{ user.name }}
-                  </button>
-                </div>
+                <Label for="msg-entity-id">Entity ID</Label>
+                <Input id="msg-entity-id" v-model="newMsgEntityId" placeholder="mis. PRJ-101" />
               </div>
             </div>
+            <div class="space-y-1.5">
+              <Label for="msg-project">Project (opsional)</Label>
+              <select id="msg-project" v-model="newMsgProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option value="">
+                  Tidak terkait project tertentu
+                </option>
+                <option v-for="project in PROJECTS" :key="project.id" :value="project.id">
+                  {{ project.name }}
+                </option>
+              </select>
+            </div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="space-y-1.5">
+                <Label for="msg-channel">Channel</Label>
+                <select id="msg-channel" v-model="newMsgChannel" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="option in MESSAGE_CHANNELS" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </div>
+              <div v-if="newMsgChannel !== 'internal-note'" class="space-y-1.5">
+                <Label for="msg-delivery-channel">Delivery Channel (mock)</Label>
+                <select id="msg-delivery-channel" v-model="newMsgDeliveryChannel" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option value="email">
+                    Email
+                  </option>
+                  <option value="whatsapp">
+                    WhatsApp
+                  </option>
+                </select>
+              </div>
+            </div>
+            <div class="space-y-1.5">
+              <Label for="msg-body">Pesan</Label>
+              <textarea id="msg-body" v-model="newMsgBody" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+            </div>
+            <div class="space-y-1.5">
+              <Label>Mentions (opsional — memicu notifikasi)</Label>
+              <div class="flex flex-wrap gap-2 max-h-32 overflow-y-auto p-2 border border-border rounded-lg">
+                <button
+                  v-for="user in USERS"
+                  :key="user.id"
+                  type="button"
+                  :class="['px-2 py-1 text-xs rounded-full border', newMsgMentions.includes(user.id) ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border text-muted-foreground']"
+                  @click="toggleMention(user.id)"
+                >
+                  {{ user.name }}
+                </button>
+              </div>
+            </div>
+          </div>
           <template #footer>
-              <Button variant="outline" @click="isComposeOpen = false">
-                Batal
-              </Button>
-              <Button :disabled="!newMsgEntityId.trim() || !newMsgBody.trim() || isSaving" @click="submitCompose">
-                Kirim
-              </Button>
+            <Button variant="outline" @click="isComposeOpen = false">
+              Batal
+            </Button>
+            <Button :disabled="!newMsgEntityId.trim() || !newMsgBody.trim() || isSaving" @click="submitCompose">
+              Kirim
+            </Button>
           </template>
         </ResponsiveFormSheet>
       </template>
@@ -651,57 +653,57 @@ const dismissNotification = (id: string) => save('Notifikasi Gagal Dihapus', () 
                   {{ group.category }} <span class="font-normal normal-case text-muted-foreground/70">({{ group.rows.length }})</span>
                 </p>
                 <div class="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Document</TableHead>
-                      <TableHead>Entity</TableHead>
-                      <TableHead>Project</TableHead>
-                      <TableHead v-if="!group.category">
-                        Category
-                      </TableHead>
-                      <TableHead>Version</TableHead>
-                      <TableHead>Access Level</TableHead>
-                      <TableHead>Expiry</TableHead>
-                      <TableHead>Source</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    <TableRow v-for="row in group.rows" :key="row.item.id">
-                      <TableCell class="font-medium text-foreground max-w-[220px] truncate">
-                        {{ row.item.name }}
-                      </TableCell>
-                      <TableCell class="text-muted-foreground">
-                        {{ entityLabel(row.item.entityType, row.item.entityId) }}
-                      </TableCell>
-                      <TableCell class="text-muted-foreground">
-                        {{ row.project?.name ?? '—' }}
-                      </TableCell>
-                      <TableCell v-if="!group.category" class="text-muted-foreground">
-                        {{ row.item.category }}
-                      </TableCell>
-                      <TableCell class="text-muted-foreground">
-                        v{{ row.item.version }}
-                      </TableCell>
-                      <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).tone" /></TableCell>
-                      <TableCell>
-                        <template v-if="row.item.expiresAt">
-                          <StatusBadge
-                            :label="isDocumentExpired(row.item.expiresAt) ? `Expired ${formatDate(row.item.expiresAt)}` : isDocumentExpiringSoon(row.item.expiresAt) ? `Segera: ${formatDate(row.item.expiresAt)}` : formatDate(row.item.expiresAt)"
-                            :tone="isDocumentExpired(row.item.expiresAt) ? 'destructive' : isDocumentExpiringSoon(row.item.expiresAt) ? 'warning' : 'neutral'"
-                          />
-                        </template>
-                        <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
-                      </TableCell>
-                      <TableCell>
-                        <NuxtLink v-if="row.item.sourceType === 'generated' && row.item.previewRoute" :to="row.item.previewRoute" target="_blank" class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
-                          Preview <ExternalLink class="h-3 w-3" />
-                        </NuxtLink>
-                        <span v-else class="text-xs text-muted-foreground">Uploaded</span>
-                      </TableCell>
-                    </TableRow>
-                  </TableBody>
-                </Table>
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Document</TableHead>
+                        <TableHead>Entity</TableHead>
+                        <TableHead>Project</TableHead>
+                        <TableHead v-if="!group.category">
+                          Category
+                        </TableHead>
+                        <TableHead>Version</TableHead>
+                        <TableHead>Access Level</TableHead>
+                        <TableHead>Expiry</TableHead>
+                        <TableHead>Source</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      <TableRow v-for="row in group.rows" :key="row.item.id">
+                        <TableCell class="font-medium text-foreground max-w-[220px] truncate">
+                          {{ row.item.name }}
+                        </TableCell>
+                        <TableCell class="text-muted-foreground">
+                          {{ entityLabel(row.item.entityType, row.item.entityId) }}
+                        </TableCell>
+                        <TableCell class="text-muted-foreground">
+                          {{ row.project?.name ?? '—' }}
+                        </TableCell>
+                        <TableCell v-if="!group.category" class="text-muted-foreground">
+                          {{ row.item.category }}
+                        </TableCell>
+                        <TableCell class="text-muted-foreground">
+                          v{{ row.item.version }}
+                        </TableCell>
+                        <TableCell><StatusBadge :label="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).label" :tone="findStatusOption(DOCUMENT_ACCESS_LEVELS, row.item.accessLevel).tone" /></TableCell>
+                        <TableCell>
+                          <template v-if="row.item.expiresAt">
+                            <StatusBadge
+                              :label="isDocumentExpired(row.item.expiresAt) ? `Expired ${formatDate(row.item.expiresAt)}` : isDocumentExpiringSoon(row.item.expiresAt) ? `Segera: ${formatDate(row.item.expiresAt)}` : formatDate(row.item.expiresAt)"
+                              :tone="isDocumentExpired(row.item.expiresAt) ? 'destructive' : isDocumentExpiringSoon(row.item.expiresAt) ? 'warning' : 'neutral'"
+                            />
+                          </template>
+                          <span v-else class="text-xs text-muted-foreground">Tidak ada</span>
+                        </TableCell>
+                        <TableCell>
+                          <NuxtLink v-if="row.item.sourceType === 'generated' && row.item.previewRoute" :to="row.item.previewRoute" target="_blank" class="inline-flex items-center gap-1 text-xs text-primary hover:underline">
+                            Preview <ExternalLink class="h-3 w-3" />
+                          </NuxtLink>
+                          <span v-else class="text-xs text-muted-foreground">Uploaded</span>
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
                 </div>
               </div>
             </div>
@@ -758,6 +760,9 @@ const dismissNotification = (id: string) => save('Notifikasi Gagal Dihapus', () 
                         </button>
                         <button type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Download" @click="handleDownloadDocument(row.item)">
                           <Download class="h-3.5 w-3.5" />
+                        </button>
+                        <button v-if="row.item.accessLevel === 'client'" type="button" class="flex h-6 w-6 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-primary/10 hover:text-primary" title="Komentar dengan client" @click="commentDocument = row.item">
+                          <MessageSquare class="h-3.5 w-3.5" />
                         </button>
                       </div>
                     </div>
@@ -883,5 +888,16 @@ const dismissNotification = (id: string) => save('Notifikasi Gagal Dihapus', () 
         </TabsContent>
       </Tabs>
     </template>
+    n    <!-- S12c-5: komentar client pada dokumen ber-akses client (server). -->
+    <ResponsiveFormSheet
+      :open="commentDocument !== null"
+      :title="commentDocument ? `Komentar — ${commentDocument.name}` : ''"
+      description="Terlihat oleh client di portal."
+      content-class="max-w-lg"
+      scroll
+      @update:open="(open) => { if (!open) commentDocument = null }"
+    >
+      <EntityComments v-if="commentDocument" entity-type="document" :entity-id="commentDocument.id" title="Komentar" />
+    </ResponsiveFormSheet>
   </div>
 </template>
