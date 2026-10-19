@@ -1,14 +1,16 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import {
-  getApprovalById, getProjectById, getUserById, getChangeRequestById, getActivitiesByProject,
-  approveClientApproval, rejectClientApproval, requestClientApprovalRevision
+  getApprovalById, getProjectById, getUserById, getChangeRequestById, getActivitiesByProject
 } from '~/data'
 import { APPROVAL_STATUSES, APPROVAL_ENTITY_TYPES, CHANGE_REQUEST_STATUSES, findStatusOption } from '~/constants/status'
-import { formatDate } from '~/utils/format'
+import { formatCurrencyIdr, formatDate } from '~/utils/format'
 import { isApprovalExpired } from '~/utils/attention'
+import { clientDecideApprovalOnServer, useClientRequestsSync } from '~/data/client-requests-sync'
+import { createSaveGate } from '~/lib/save-gate'
+import type { Approval } from '~/types/client-approval'
 
 /**
  * Approval Center — Detail (Repair Phase Section 3 — Request & Commercial). Isolasi: `clientPartyId` harus
@@ -22,12 +24,11 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const approval = computed(() => getApprovalById(String(route.params.id)))
 const isOwnCompany = computed(() => Boolean(approval.value && clientScopeId.value && approval.value.clientPartyId === clientScopeId.value))
-useHead({ title: computed(() => approval.value ? `Approval — ${approval.value.entityId}` : 'Tidak Ditemukan') })
+useHead({ title: computed(() => approval.value ? `Approval — ${approval.value.title ?? approval.value.entityId}` : 'Tidak Ditemukan') })
 
 const project = computed(() => (approval.value ? getProjectById(approval.value.projectId) : undefined))
 const linkedChangeRequest = computed(() => (approval.value?.entityType === 'change-request' ? getChangeRequestById(approval.value.entityId) : undefined))
@@ -43,34 +44,48 @@ const auditActivities = computed(() => {
 
 const canDecide = computed(() => Boolean(approval.value && approval.value.status === 'pending' && !isApprovalExpired(approval.value)))
 
+/* S12c-3: the decision is recorded on the server first; staff may have asked something new, so read again on open. */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+const requestsSync = useClientRequestsSync()
+onMounted(() => { requestsSync.load(true) })
+const decide = (decision: 'approve' | 'reject' | 'request-revision', input: { comment?: string; reason?: string }) => {
+  const id = approval.value!.id
+  return gate.run('Keputusan Gagal Disimpan', () => clientDecideApprovalOnServer(api, id, decision, input))
+}
+const label = (entityType: Approval['entityType']) => findStatusOption(APPROVAL_ENTITY_TYPES, entityType).label
+
 const isApproveDialogOpen = ref(false)
 const approveComment = ref('')
-function submitApprove () {
+async function submitApprove () {
   if (!approval.value) { return }
-  const result = approveClientApproval(approval.value.id, currentUser.value.id, approveComment.value.trim() || undefined)
+  const result = await decide('approve', approveComment.value.trim() ? { comment: approveComment.value.trim() } : {})
+  if (!result) { return }
   approveComment.value = ''
   isApproveDialogOpen.value = false
-  if (result) { showToast('Approval Disetujui', `${findStatusOption(APPROVAL_ENTITY_TYPES, result.entityType).label} telah Anda setujui.`, 'success') }
+  showToast('Approval Disetujui', `${label(result.entityType)} telah Anda setujui.`, 'success')
 }
 
 const isRejectDialogOpen = ref(false)
 const rejectReason = ref('')
-function submitReject () {
+async function submitReject () {
   if (!approval.value || !rejectReason.value.trim()) { return }
-  const result = rejectClientApproval(approval.value.id, currentUser.value.id, rejectReason.value.trim())
+  const result = await decide('reject', { reason: rejectReason.value.trim() })
+  if (!result) { return }
   rejectReason.value = ''
   isRejectDialogOpen.value = false
-  if (result) { showToast('Approval Ditolak', `${findStatusOption(APPROVAL_ENTITY_TYPES, result.entityType).label} telah Anda tolak.`, 'info') }
+  showToast('Approval Ditolak', `${label(result.entityType)} telah Anda tolak.`, 'info')
 }
 
 const isRevisionDialogOpen = ref(false)
 const revisionReason = ref('')
-function submitRevisionRequest () {
+async function submitRevisionRequest () {
   if (!approval.value || !revisionReason.value.trim()) { return }
-  const result = requestClientApprovalRevision(approval.value.id, currentUser.value.id, revisionReason.value.trim())
+  const result = await decide('request-revision', { reason: revisionReason.value.trim() })
+  if (!result) { return }
   revisionReason.value = ''
   isRevisionDialogOpen.value = false
-  if (result) { showToast('Revisi Diminta', `Permintaan revisi untuk ${findStatusOption(APPROVAL_ENTITY_TYPES, result.entityType).label} telah dikirim.`, 'success') }
+  showToast('Revisi Diminta', `Permintaan revisi untuk ${label(result.entityType)} telah dikirim.`, 'success')
 }
 </script>
 
@@ -91,8 +106,8 @@ function submitRevisionRequest () {
 
     <template v-else>
       <PageHeader
-        :title="`${findStatusOption(APPROVAL_ENTITY_TYPES, approval.entityType).label} — ${approval.entityId}`"
-        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Approval' }, { label: 'Approval Center', to: '/client/travel-requests#approvals' }, { label: approval.entityId }]"
+        :title="approval.title ?? `${findStatusOption(APPROVAL_ENTITY_TYPES, approval.entityType).label} — ${approval.entityId}`"
+        :breadcrumb="[{ label: 'Client Portal', to: '/client' }, { label: 'Request & Approval' }, { label: 'Approval Center', to: '/client/travel-requests#approvals' }, { label: approval.title ?? approval.entityId }]"
       >
         <template #actions>
           <StatusBadge
@@ -105,11 +120,17 @@ function submitRevisionRequest () {
       <SectionCard title="Ringkasan">
         <DetailMetadataList
           :items="[
-            { label: 'Project', value: project?.name ?? approval.projectId },
-            { label: 'Diajukan Oleh', value: requestedByUser?.name ?? approval.requestedBy },
+            { label: 'Jenis', value: findStatusOption(APPROVAL_ENTITY_TYPES, approval.entityType).label },
+            { label: 'Project', value: approval.projectName ?? project?.name ?? approval.projectId },
+            { label: 'Diajukan Oleh', value: approval.requestedByName ?? requestedByUser?.name ?? approval.requestedBy },
+            ...(approval.approvedAmountIdr !== undefined ? [{ label: 'Nominal', value: formatCurrencyIdr(approval.approvedAmountIdr) }] : []),
+            ...(approval.expiresAt ? [{ label: 'Batas Waktu', value: formatDate(approval.expiresAt) }] : []),
             { label: 'Tanggal Pengajuan', value: formatDate(approval.requestedAt) },
           ]"
         />
+        <p v-if="approval.description" class="text-sm text-foreground mt-4 pt-4 border-t border-border whitespace-pre-line">
+          {{ approval.description }}
+        </p>
       </SectionCard>
 
       <SectionCard v-if="linkedChangeRequest" title="Change Request Terkait">
@@ -174,7 +195,7 @@ function submitRevisionRequest () {
               <Button variant="outline" @click="isApproveDialogOpen = false">
                 Batal
               </Button>
-              <Button @click="submitApprove">
+              <Button :disabled="gate.saving.value" @click="submitApprove">
                 Approve
               </Button>
             </template>
@@ -193,7 +214,7 @@ function submitRevisionRequest () {
               <Button variant="outline" @click="isRejectDialogOpen = false">
                 Batal
               </Button>
-              <Button variant="destructive" :disabled="!rejectReason.trim()" @click="submitReject">
+              <Button variant="destructive" :disabled="gate.saving.value || !rejectReason.trim()" @click="submitReject">
                 Reject
               </Button>
             </template>
@@ -212,7 +233,7 @@ function submitRevisionRequest () {
               <Button variant="outline" @click="isRevisionDialogOpen = false">
                 Batal
               </Button>
-              <Button :disabled="!revisionReason.trim()" @click="submitRevisionRequest">
+              <Button :disabled="gate.saving.value || !revisionReason.trim()" @click="submitRevisionRequest">
                 Kirim
               </Button>
             </template>

@@ -17,6 +17,8 @@ import type { ChangeRequestType } from './change-incident'
 import type { QuotationClientResponse } from './quotation'
 import type { SupportTicket } from './support'
 import type { Feedback } from './feedback'
+import type { TravelRequest } from './travel-request'
+import type { Approval } from './client-approval'
 
 export type MoneyMinor = string
 export type IsoDate = string
@@ -2065,3 +2067,64 @@ export interface ChangeRequestDraftDto {
   updatedAt: string
 }
 export interface ChangeRequestDraftInput { projectId?: string; changeType?: string | null; beforeSummary?: string; afterSummary?: string }
+/** S12c-3: a client's travel request (sales reviews it and turns it into a lead). */
+export interface TravelRequestActivityDto { id: string; actorId: string | null; actorName: string; fromClient: boolean; message: string; createdAt: string }
+export interface TravelRequestDto {
+  id: string
+  partyId: string
+  partyName: string
+  requestName: string
+  contactPersonId: string | null
+  tripType: string | null
+  purpose: string | null
+  destination: string
+  travelStartDate: string | null
+  travelEndDate: string | null
+  dateFlexible: boolean
+  estimatedParticipants: number | null
+  estimatedBudgetIdr: number | null
+  currency: string | null
+  serviceScope: ServiceTypeKey[]
+  flightRequirement: TravelRequest['flightRequirement'] | null
+  hotelRequirement: TravelRequest['hotelRequirement'] | null
+  transportationRequirement: TravelRequest['transportationRequirement'] | null
+  miceRequirement: TravelRequest['miceRequirement'] | null
+  additionalServicesNote: string | null
+  status: TravelRequest['status']
+  reviewerUserId: string | null
+  reviewerName: string | null
+  clarificationNote: string | null
+  leadId: string | null
+  cancelReason: string | null
+  closeReason: string | null
+  createdBy: string
+  submittedAt: string | null
+  createdAt: string
+  updatedAt: string
+  activities: TravelRequestActivityDto[]
+}
+export type TravelRequestInput = Partial<Pick<TravelRequestDto, 'requestName' | 'contactPersonId' | 'tripType' | 'purpose' | 'destination' | 'travelStartDate' | 'travelEndDate'
+  | 'dateFlexible' | 'estimatedParticipants' | 'estimatedBudgetIdr' | 'currency' | 'serviceScope' | 'flightRequirement' | 'hotelRequirement' | 'transportationRequirement'
+  | 'miceRequirement' | 'additionalServicesNote'>>
+/** S12c-3: an approval staff ask a client for on a project. */
+export interface ClientApprovalDto {
+  id: string
+  projectId: string
+  projectName: string
+  partyId: string
+  entityType: Exclude<Approval['entityType'], 'change-request' | 'itinerary-version'>
+  title: string
+  description: string | null
+  amountIdr: number | null
+  status: Approval['status']
+  requestedBy: string | null
+  requestedByName: string
+  requestedAt: string
+  expiresOn: string | null
+  decidedBy: string | null
+  decidedByName: string | null
+  decidedAt: string | null
+  decisionComment: string | null
+  reason: string | null
+}
+export interface ClientApprovalInput { entityType: ClientApprovalDto['entityType']; title: string; description?: string; amountIdr?: number | null; expiresOn?: string | null }

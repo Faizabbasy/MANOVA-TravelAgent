@@ -45,7 +45,7 @@ const filteredApprovals = computed(() => {
   }
   if (search.value.trim()) {
     const q = search.value.toLowerCase()
-    result = result.filter(item => item.entityType.toLowerCase().includes(q) || item.entityId.toLowerCase().includes(q))
+    result = result.filter(item => item.entityType.toLowerCase().includes(q) || item.entityId.toLowerCase().includes(q) || (item.title ?? '').toLowerCase().includes(q))
   }
   return result.sort((a, b) => b.requestedAt.localeCompare(a.requestedAt))
 })
@@ -85,7 +85,7 @@ const filteredApprovals = computed(() => {
             <NuxtLink :to="`/client/approvals/${approval.id}`" class="flex items-center justify-between gap-3 group">
               <div class="min-w-0">
                 <p class="text-sm font-medium text-foreground truncate group-hover:underline">
-                  {{ findStatusOption(APPROVAL_ENTITY_TYPES, approval.entityType).label }} · {{ approval.entityId }}
+                  {{ approval.title ?? findStatusOption(APPROVAL_ENTITY_TYPES, approval.entityType).label }} · {{ approval.projectName ?? approval.entityId }}
                 </p>
                 <p class="text-xs text-muted-foreground truncate">
                   {{ getProjectById(approval.projectId)?.name ?? approval.projectId }} · Diajukan {{ formatDate(approval.requestedAt) }}

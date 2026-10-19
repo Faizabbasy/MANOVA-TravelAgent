@@ -45,4 +45,9 @@ export interface Approval {
   reason?: string
   /** "Expired" (Repair Phase Section 3, Master Prompt bagian G.5) — derivasi lewat `isApprovalExpired` (pola sama `isDocumentExpired`), BUKAN nilai `ApprovalStatus` tersimpan (tetap `pending` sampai diputuskan/kedaluwarsa). Opsional — mayoritas jenis approval belum punya deadline baku. */
   expiresAt?: string
+  /** S12c-3 (server): what staff ask the client to approve. */
+  title?: string
+  description?: string
+  projectName?: string
+  requestedByName?: string
 }

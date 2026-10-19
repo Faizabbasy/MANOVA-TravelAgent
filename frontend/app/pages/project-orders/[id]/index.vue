@@ -2815,6 +2815,8 @@ const tripDurationDays = computed(() => {
               </div>
             </SectionCard>
           </div>
+          <!-- S12c-3: persetujuan yang diminta ke client (server). -->
+          <ClientApprovalsCard class="mt-4" :project-id="project.id" />
         </TabsContent>
 
         <TabsContent value="milestone">

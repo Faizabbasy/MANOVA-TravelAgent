@@ -1,14 +1,15 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Copy } from 'lucide-vue-next'
 import {
-  getTravelRequestById, getTravelRequestActivities, getTravelRequestAttachments,
-  duplicateTravelRequest, cancelTravelRequest, respondToTravelRequestClarification,
+  getTravelRequestById, getTravelRequestActivities,
   getUserById, getQuotationByLead
 } from '~/data'
+import { clientAnswerClarificationOnServer, clientCancelTravelRequestOnServer, clientDuplicateTravelRequestOnServer, useClientRequestsSync } from '~/data/client-requests-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import { TRAVEL_REQUEST_STATUSES, SERVICE_TYPES, findStatusOption } from '~/constants/status'
-import { formatDateRange, formatCurrencyIdr, formatDate } from '~/utils/format'
+import { formatDateRange, formatCurrencyIdr } from '~/utils/format'
 
 /** Travel Requests — Detail (Repair Phase Section 3). Isolasi: harus milik `clientScopeId` user login. */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
@@ -16,24 +17,29 @@ definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 const travelRequest = computed(() => getTravelRequestById(String(route.params.id)))
 const isOwnCompany = computed(() => Boolean(travelRequest.value && clientScopeId.value && travelRequest.value.clientPartyId === clientScopeId.value))
 useHead({ title: computed(() => travelRequest.value ? travelRequest.value.requestName : 'Tidak Ditemukan') })
 
-const activities = computed(() => (travelRequest.value ? getTravelRequestActivities(travelRequest.value.id).map(item => ({ ...item, actorName: getUserById(item.ownerId)?.name })) : []))
-const attachments = computed(() => (travelRequest.value ? getTravelRequestAttachments(travelRequest.value.id) : []))
+const activities = computed(() => (travelRequest.value ? getTravelRequestActivities(travelRequest.value.id).map(item => ({ ...item, actorName: item.actorName ?? getUserById(item.ownerId)?.name })) : []))
 const serviceScopeOptions = computed(() => SERVICE_TYPES.filter(type => travelRequest.value?.serviceScope.includes(type.value)))
 
 const canEdit = computed(() => travelRequest.value && ['draft', 'need-clarification'].includes(travelRequest.value.status))
 const canCancel = computed(() => travelRequest.value && !['cancelled', 'closed', 'converted-to-lead'].includes(travelRequest.value.status))
 const relatedQuotation = computed(() => (travelRequest.value?.leadId ? getQuotationByLead(travelRequest.value.leadId) : undefined))
 
-function submitDuplicate () {
+/* S12c-3: every action goes to the server first; sales may have acted since the last load, so read again on open. */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+const requestsSync = useClientRequestsSync()
+onMounted(() => { requestsSync.load(true) })
+
+async function submitDuplicate () {
   if (!travelRequest.value) { return }
-  const duplicate = duplicateTravelRequest(travelRequest.value.id, currentUser.value.id)
+  const id = travelRequest.value.id
+  const duplicate = await gate.run('Duplikat Gagal Dibuat', () => clientDuplicateTravelRequestOnServer(api, id))
   if (!duplicate) { return }
   showToast('Duplikat Dibuat', `Draft baru "${duplicate.requestName}" siap diedit.`, 'success')
   router.push(`/client/travel-requests/${duplicate.id}/edit`)
@@ -41,20 +47,24 @@ function submitDuplicate () {
 
 const isCancelDialogOpen = ref(false)
 const cancelReason = ref('')
-function submitCancel () {
+async function submitCancel () {
   if (!travelRequest.value || !cancelReason.value.trim()) { return }
-  const result = cancelTravelRequest(travelRequest.value.id, currentUser.value.id, cancelReason.value.trim())
+  const id = travelRequest.value.id
+  const result = await gate.run('Pembatalan Gagal', () => clientCancelTravelRequestOnServer(api, id, cancelReason.value.trim()))
+  if (!result) { return }
   isCancelDialogOpen.value = false
   cancelReason.value = ''
-  if (result) { showToast('Travel Request Dibatalkan', `"${result.requestName}" telah dibatalkan.`, 'info') }
+  showToast('Travel Request Dibatalkan', `"${result.requestName}" telah dibatalkan.`, 'info')
 }
 
 const clarificationMessage = ref('')
-function submitClarificationResponse () {
+async function submitClarificationResponse () {
   if (!travelRequest.value || !clarificationMessage.value.trim()) { return }
-  const result = respondToTravelRequestClarification(travelRequest.value.id, currentUser.value.id, clarificationMessage.value.trim())
+  const id = travelRequest.value.id
+  const result = await gate.run('Jawaban Gagal Dikirim', () => clientAnswerClarificationOnServer(api, id, clarificationMessage.value.trim()))
+  if (!result) { return }
   clarificationMessage.value = ''
-  if (result) { showToast('Jawaban Terkirim', `Status terbaru: ${findStatusOption(TRAVEL_REQUEST_STATUSES, result.status).label}.`, 'success') }
+  showToast('Jawaban Terkirim', `Status terbaru: ${findStatusOption(TRAVEL_REQUEST_STATUSES, result.status).label}.`, 'success')
 }
 </script>
 
@@ -85,7 +95,7 @@ function submitClarificationResponse () {
               Edit
             </Button>
           </NuxtLink>
-          <Button size="sm" variant="outline" @click="submitDuplicate">
+          <Button size="sm" variant="outline" :disabled="gate.saving.value" @click="submitDuplicate">
             <Copy class="h-4 w-4 mr-1.5" />Duplicate
           </Button>
           <ResponsiveFormSheet v-if="canCancel" v-model:open="isCancelDialogOpen" title="Batalkan Travel Request?" description="Alasan wajib diisi agar tim kami memahami keputusan Anda." content-class="max-w-md">
@@ -102,7 +112,7 @@ function submitClarificationResponse () {
               <Button variant="outline" @click="isCancelDialogOpen = false">
                 Batal
               </Button>
-              <Button variant="destructive" :disabled="!cancelReason.trim()" @click="submitCancel">
+              <Button variant="destructive" :disabled="gate.saving.value || !cancelReason.trim()" @click="submitCancel">
                 Batalkan Permintaan
               </Button>
             </template>
@@ -120,8 +130,11 @@ function submitClarificationResponse () {
       </SectionCard>
 
       <SectionCard v-if="travelRequest.status === 'need-clarification'" title="Respond to Clarification" description="Tim kami membutuhkan informasi tambahan sebelum dapat menyiapkan proposal.">
+        <p v-if="travelRequest.clarificationNote" class="text-sm text-foreground mb-3 rounded-lg border border-warning/40 bg-warning/10 px-3 py-2">
+          <span class="font-medium">Pertanyaan tim kami:</span> {{ travelRequest.clarificationNote }}
+        </p>
         <textarea v-model="clarificationMessage" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Jawab pertanyaan/klarifikasi yang diminta di sini..." />
-        <Button class="mt-3" size="sm" :disabled="!clarificationMessage.trim()" @click="submitClarificationResponse">
+        <Button class="mt-3" size="sm" :disabled="gate.saving.value || !clarificationMessage.trim()" @click="submitClarificationResponse">
           Kirim Jawaban
         </Button>
       </SectionCard>
@@ -168,15 +181,7 @@ function submitClarificationResponse () {
           </div>
         </SectionCard>
 
-        <SectionCard title="Attachment">
-          <ul v-if="attachments.length" class="divide-y divide-border">
-            <li v-for="attachment in attachments" :key="attachment.id" class="py-2 flex items-center justify-between gap-2">
-              <span class="text-sm text-foreground truncate">{{ attachment.fileName }}</span>
-              <span class="text-xs text-muted-foreground shrink-0">{{ formatDate(attachment.uploadedAt) }}</span>
-            </li>
-          </ul>
-          <EmptyState v-else title="Belum ada attachment" />
-        </SectionCard>
+        <EntityAttachments entity-type="travel-request" :entity-id="travelRequest.id" portal title="Attachment" :readonly="!canEdit" />
       </div>
 
       <SectionCard title="Activity Timeline">

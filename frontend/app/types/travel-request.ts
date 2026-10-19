@@ -68,6 +68,12 @@ export interface TravelRequest {
   updatedAt?: string
   /** Terisi begitu status mencapai `converted-to-lead` — referensi, bukan duplikasi. */
   leadId?: ID
+  /** S12c-3 (server): the clarification question sales asked, who reviews it, and why it was cancelled / closed. */
+  clarificationNote?: string
+  reviewerName?: string
+  cancelReason?: string
+  closeReason?: string
+  submittedAt?: string
 }
 
 /** Attachment mock (bukan file upload sungguhan, D-006) — nama file + metadata saja. */
@@ -92,4 +98,7 @@ export interface TravelRequestActivity {
   message: string
   ownerId: ID
   createdAt: string
+  /** S12c-3 (server): the author's name and whether the client wrote it. */
+  actorName?: string
+  fromClient?: boolean
 }

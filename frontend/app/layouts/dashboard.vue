@@ -22,6 +22,7 @@ import { syncPlanFor, type SyncKey } from '~/data/sync-plan'
 import { useClientCommerceSync } from '~/data/client-commerce-sync'
 import { useVendorPortalSync } from '~/data/vendor-portal-sync'
 import { useClientSupportSync } from '~/data/support-sync'
+import { useClientRequestsSync } from '~/data/client-requests-sync'
 
 const isMobile = useIsMobile()
 /** Project (S3a/S3b), customer (S1), vendor (S2), layanan & booking (S4a), quotation & service order (S4b), serta lead & quotation client (S6a) milik server: dimuat sekali per user yang login ke array lokal. */
@@ -47,6 +48,7 @@ const hrSync = useHrSync()
 const clientCommerceSync = useClientCommerceSync()
 const vendorPortalSync = useVendorPortalSync()
 const clientSupportSync = useClientSupportSync()
+const clientRequestsSync = useClientRequestsSync()
 const { currentUser } = useCurrentUser()
 /**
  * Which server data each role loads (`syncPlanFor`, S12a): internal roles load every module; a portal user only what its
@@ -74,7 +76,8 @@ const SYNCS: Record<SyncKey, { load: (force?: boolean) => unknown }> = {
   hr: hrSync,
   clientCommerce: clientCommerceSync,
   vendorPortal: vendorPortalSync,
-  clientSupport: clientSupportSync
+  clientSupport: clientSupportSync,
+  clientRequests: clientRequestsSync
 }
 const loadServerData = (force = false) => {
   // Before the internal syncs: a client session that ended on this tab gives the shared lists back first.
@@ -103,6 +106,7 @@ const unsyncedLabel = computed(() => {
     failed(procurementSync.state.value) ? 'quotation & service order' : null,
     failed(vendorPortalSync.state.value) ? 'profil & produk vendor' : null,
     failed(clientSupportSync.state.value) ? 'tiket support & feedback' : null,
+    failed(clientRequestsSync.state.value) ? 'travel request & approval' : null,
     failed(leadsSync.state.value) ? 'lead & quotation client' : null,
     failed(salesOrdersSync.state.value) ? 'sales order' : null,
     failed(travelersSync.state.value) ? 'peserta' : null,

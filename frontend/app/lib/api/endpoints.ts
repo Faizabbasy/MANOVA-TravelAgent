@@ -12,6 +12,10 @@ import type {
   AttachmentDto,
   ChangeRequestDraftDto,
   ChangeRequestDraftInput,
+  TravelRequestDto,
+  TravelRequestInput,
+  ClientApprovalDto,
+  ClientApprovalInput,
   FeedbackInput,
   SupportTicketDto,
   SupportTicketInput,
@@ -302,6 +306,28 @@ export function createManovaApi (client: ApiClient) {
       clientDeleteChangeRequestDraft: (id: string) => client.delete<{ id: string }>(`/client/change-request-drafts/${seg(id)}`),
       clientSubmitChangeRequestDraft: (id: string, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<ChangeRequestDto>(`/client/change-request-drafts/${seg(id)}/submit`, {}, { idempotencyKey }),
+      // S12c-3: travel requests (client ⇄ sales) and client approvals.
+      listClientTravelRequests: () => client.get<TravelRequestDto[]>('/client/travel-requests'),
+      clientCreateTravelRequest: (input: TravelRequestInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<TravelRequestDto>('/client/travel-requests', input, { idempotencyKey }),
+      clientUpdateTravelRequest: (id: string, input: TravelRequestInput) => client.patch<TravelRequestDto>(`/client/travel-requests/${seg(id)}`, input),
+      clientDuplicateTravelRequest: (id: string, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<TravelRequestDto>(`/client/travel-requests/${seg(id)}/duplicate`, {}, { idempotencyKey }),
+      clientCancelTravelRequest: (id: string, reason: string) => client.post<TravelRequestDto>(`/client/travel-requests/${seg(id)}/cancel`, { reason }),
+      clientSubmitTravelRequest: (id: string) => client.post<TravelRequestDto>(`/client/travel-requests/${seg(id)}/submit`, {}),
+      clientAnswerTravelRequestClarification: (id: string, message: string) => client.post<TravelRequestDto>(`/client/travel-requests/${seg(id)}/clarification`, { message }),
+      listClientApprovals: () => client.get<ClientApprovalDto[]>('/client/approvals'),
+      clientDecideApproval: (id: string, decision: 'approve' | 'reject' | 'request-revision', input: { comment?: string; reason?: string }) =>
+        client.post<ClientApprovalDto>(`/client/approvals/${seg(id)}/${decision}`, input),
+      listTravelRequests: (query: { status?: string } = {}) => client.get<TravelRequestDto[]>('/travel-requests', { query: { ...query } }),
+      getTravelRequest: (id: string) => client.get<TravelRequestDto>(`/travel-requests/${seg(id)}`),
+      reviewTravelRequest: (id: string) => client.post<TravelRequestDto>(`/travel-requests/${seg(id)}/review`, {}),
+      clarifyTravelRequest: (id: string, note: string) => client.post<TravelRequestDto>(`/travel-requests/${seg(id)}/clarify`, { note }),
+      convertTravelRequest: (id: string) => client.post<TravelRequestDto>(`/travel-requests/${seg(id)}/convert`, {}),
+      closeTravelRequest: (id: string, reason: string) => client.post<TravelRequestDto>(`/travel-requests/${seg(id)}/close`, { reason }),
+      listProjectClientApprovals: (projectId: string) => client.get<ClientApprovalDto[]>('/client-approvals', { query: { projectId } }),
+      requestClientApproval: (projectId: string, input: ClientApprovalInput, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<ClientApprovalDto>(`/projects/${seg(projectId)}/client-approvals`, input, { idempotencyKey }),
       listClientContacts: () => client.get<PartyContactDto[]>('/client/contacts'),
       clientCreateContact: (input: ClientContactInput & { name: string; title: string }, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<PartyContactDto>('/client/contacts', input, { idempotencyKey }),

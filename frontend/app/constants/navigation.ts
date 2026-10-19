@@ -131,6 +131,8 @@ export const NAV_ITEMS: NavItem[] = [
 
   /* ---------- Sales — "Sales mengurus deal" (seluruh corong Lead→Opportunity→Quotation) ---------- */
   { key: 'sales', label: 'Leads', to: '/sales/pipeline', icon: TrendingUp, moduleKey: 'sales' },
+  // S12c-3: travel request dari portal client — ditinjau sales lalu dijadikan Lead.
+  { key: 'sales.travel-requests', label: 'Travel Request', to: '/travel-requests', icon: Send, moduleKey: 'sales', isNew: true },
 
   /* ---------- CRM — "CRM mengurus customer" (data pelanggan, bukan corong deal) ---------- */
   {

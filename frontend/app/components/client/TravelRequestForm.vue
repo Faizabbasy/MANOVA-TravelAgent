@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import { onBeforeRouteLeave } from 'vue-router'
-import { Plus } from 'lucide-vue-next'
 import {
-  createTravelRequest, updateTravelRequestDraft, submitTravelRequest, addTravelRequestAttachment,
-  getTravelRequestAttachments, getTravelRequestSubmitGate
+  getTravelRequestSubmitGate
 } from '~/data'
 import { SERVICE_TYPES } from '~/constants/status'
 import type { ServiceTypeKey } from '~/types/project'
 import type { TravelRequest } from '~/types/travel-request'
+import type { TravelRequestInput } from '~/types/api'
+import { clientCreateTravelRequestOnServer, clientSubmitTravelRequestOnServer, clientUpdateTravelRequestOnServer } from '~/data/client-requests-sync'
+import { createSaveGate } from '~/lib/save-gate'
 
 /**
  * Form Travel Request (Repair Phase Section 3 — Request & Commercial, Wajib "Form harus mencakup: General
@@ -20,8 +21,6 @@ import type { TravelRequest } from '~/types/travel-request'
 const props = defineProps<{ initial?: TravelRequest }>()
 const emit = defineEmits<{ saved: [TravelRequest]; submitted: [TravelRequest] }>()
 
-const { clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
 
 function snapshotOf (source?: TravelRequest) {
@@ -68,54 +67,53 @@ function toggleServiceScope (type: ServiceTypeKey) {
   if (index === -1) { form.serviceScope.push(type) } else { form.serviceScope.splice(index, 1) }
 }
 
-function buildPatch () {
+/** Every field is sent; an emptied field clears what the draft had (S12c-3: the server keeps the draft). */
+function buildPatch (): TravelRequestInput {
+  const text = (v: string) => v.trim() || null
   return {
     requestName: form.requestName.trim(),
-    tripType: form.tripType.trim() || undefined,
-    purpose: form.purpose.trim() || undefined,
+    tripType: text(form.tripType),
+    purpose: text(form.purpose),
     destination: form.destination.trim(),
-    travelStartDate: form.travelStartDate || undefined,
-    travelEndDate: form.travelEndDate || undefined,
+    travelStartDate: form.travelStartDate || null,
+    travelEndDate: form.travelEndDate || null,
     dateFlexible: form.dateFlexible,
-    estimatedParticipants: form.estimatedParticipants ?? undefined,
-    estimatedBudgetIdr: form.estimatedBudgetIdr ?? undefined,
-    currency: form.currency.trim() || undefined,
+    estimatedParticipants: form.estimatedParticipants || null,
+    estimatedBudgetIdr: form.estimatedBudgetIdr ?? null,
+    currency: text(form.currency),
     serviceScope: form.serviceScope,
     flightRequirement: form.serviceScope.includes('flight')
-      ? { preferredAirline: form.flightAirline.trim() || undefined, cabinClass: form.flightCabinClass.trim() || undefined, notes: form.flightNotes.trim() || undefined }
-      : undefined,
+      ? clean({ preferredAirline: form.flightAirline.trim() || undefined, cabinClass: form.flightCabinClass.trim() || undefined, notes: form.flightNotes.trim() || undefined })
+      : null,
     hotelRequirement: form.serviceScope.includes('hotel')
-      ? { starRating: form.hotelStarRating.trim() || undefined, roomType: form.hotelRoomType.trim() || undefined, notes: form.hotelNotes.trim() || undefined }
-      : undefined,
+      ? clean({ starRating: form.hotelStarRating.trim() || undefined, roomType: form.hotelRoomType.trim() || undefined, notes: form.hotelNotes.trim() || undefined })
+      : null,
     transportationRequirement: form.serviceScope.includes('transportation')
-      ? { vehicleType: form.transportVehicleType.trim() || undefined, notes: form.transportNotes.trim() || undefined }
-      : undefined,
+      ? clean({ vehicleType: form.transportVehicleType.trim() || undefined, notes: form.transportNotes.trim() || undefined })
+      : null,
     miceRequirement: form.serviceScope.includes('mice')
-      ? { eventType: form.miceEventType.trim() || undefined, expectedAttendees: form.miceExpectedAttendees ?? undefined, notes: form.miceNotes.trim() || undefined }
-      : undefined,
-    additionalServicesNote: form.additionalServicesNote.trim() || undefined
+      ? clean({ eventType: form.miceEventType.trim() || undefined, expectedAttendees: form.miceExpectedAttendees ?? undefined, notes: form.miceNotes.trim() || undefined })
+      : null,
+    additionalServicesNote: text(form.additionalServicesNote)
   }
 }
+const clean = <T extends object>(o: T): T => Object.fromEntries(Object.entries(o).filter(([, v]) => v !== undefined)) as T
 
 const submitGateMissing = computed(() => getTravelRequestSubmitGate({ requestName: form.requestName, destination: form.destination, serviceScope: form.serviceScope }))
 
-const isSaving = ref(false)
-function saveDraft (): TravelRequest | undefined {
-  if (!clientScopeId.value) { return undefined }
-  isSaving.value = true
-  let result: TravelRequest | undefined
-  if (props.initial) {
-    result = updateTravelRequestDraft(props.initial.id, buildPatch())
-  } else {
-    result = createTravelRequest(clientScopeId.value, buildPatch(), currentUser.value.id)
-  }
-  isSaving.value = false
-  return result
-}
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+const isSaving = computed(() => gate.saving.value)
+/** The draft on the server (created on the first save, then updated). */
+let savedId = props.initial?.id
+const saveDraft = (): Promise<TravelRequest> => (savedId
+  ? clientUpdateTravelRequestOnServer(api, savedId, buildPatch())
+  : clientCreateTravelRequestOnServer(api, buildPatch()))
 
-function submitSaveDraft () {
-  const result = saveDraft()
-  if (!result) { showToast('Gagal Menyimpan', 'Draft tidak dapat disimpan.', 'error'); return }
+async function submitSaveDraft () {
+  const result = await gate.run('Gagal Menyimpan', saveDraft)
+  if (!result) { return }
+  savedId = result.id
   Object.assign(initialSnapshot, snapshotOf(result))
   justNavigated = true
   showToast('Draft Tersimpan', `Travel Request "${result.requestName}" tersimpan sebagai draft.`, 'success')
@@ -123,25 +121,18 @@ function submitSaveDraft () {
 }
 
 const isSubmitConfirmOpen = ref(false)
-function submitTravelRequestFlow () {
-  const draft = saveDraft()
-  if (!draft) { showToast('Gagal Mengirim', 'Travel Request tidak dapat disimpan.', 'error'); return }
-  const result = submitTravelRequest(draft.id, currentUser.value.id)
+async function submitTravelRequestFlow () {
+  const result = await gate.run('Gagal Mengirim', async () => {
+    const draft = await saveDraft()
+    savedId = draft.id
+    return clientSubmitTravelRequestOnServer(api, draft.id)
+  })
   isSubmitConfirmOpen.value = false
-  if (!result) { showToast('Gagal Mengirim', 'Lengkapi Nama Permintaan, Destinasi, dan Layanan sebelum mengirim.', 'error'); return }
+  if (!result) { return }
+  Object.assign(initialSnapshot, snapshotOf(result))
   justNavigated = true
-  showToast('Travel Request Terkirim', `"${result.requestName}" telah dikirim dan sedang ditinjau.`, 'success')
+  showToast('Travel Request Terkirim', `"${result.requestName}" telah dikirim — tim kami akan meninjaunya.`, 'success')
   emit('submitted', result)
-}
-
-/* Attachment mock (Wajib) */
-const attachmentFileName = ref('')
-const attachments = computed(() => (props.initial ? getTravelRequestAttachments(props.initial.id) : []))
-function uploadAttachment () {
-  if (!props.initial || !attachmentFileName.value.trim()) { return }
-  addTravelRequestAttachment(props.initial.id, attachmentFileName.value.trim(), currentUser.value.id)
-  attachmentFileName.value = ''
-  showToast('Attachment Ditambahkan', 'Metadata attachment tercatat (mock, bukan file upload nyata).', 'success')
 }
 </script>
 
@@ -270,20 +261,7 @@ function uploadAttachment () {
       <textarea v-model="form.additionalServicesNote" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Kebutuhan visa, asuransi perjalanan, dsb." />
     </SectionCard>
 
-    <SectionCard v-if="initial" title="Attachment" description="Mock — metadata nama file saja, bukan upload file sungguhan.">
-      <div class="flex gap-2 mb-3">
-        <Input v-model="attachmentFileName" placeholder="mis. Proposal_Acara.pdf" class="max-w-sm" />
-        <Button size="sm" variant="outline" :disabled="!attachmentFileName.trim()" @click="uploadAttachment">
-          <Plus class="h-4 w-4 mr-1.5" />Tambah
-        </Button>
-      </div>
-      <ul v-if="attachments.length" class="divide-y divide-border">
-        <li v-for="attachment in attachments" :key="attachment.id" class="py-2 text-sm text-foreground">
-          {{ attachment.fileName }}
-        </li>
-      </ul>
-      <EmptyState v-else title="Belum ada attachment" />
-    </SectionCard>
+    <EntityAttachments v-if="initial" entity-type="travel-request" :entity-id="initial.id" portal title="Attachment" />
 
     <div class="flex flex-wrap items-center justify-between gap-3 pt-2">
       <p v-if="submitGateMissing.length" class="text-xs text-muted-foreground">
@@ -293,9 +271,10 @@ function uploadAttachment () {
         <Button variant="outline" :disabled="isSaving || !form.requestName.trim()" @click="submitSaveDraft">
           Simpan Draft
         </Button>
-        <Dialog v-model:open="isSubmitConfirmOpen">
+        <!-- S12c-3: saat klarifikasi, jawaban dikirim dari halaman detail (server menerima submit hanya dari draft). -->
+        <Dialog v-if="!initial || initial.status === 'draft'" v-model:open="isSubmitConfirmOpen">
           <DialogTrigger as-child>
-            <Button :disabled="submitGateMissing.length > 0">
+            <Button :disabled="isSaving || submitGateMissing.length > 0">
               Submit
             </Button>
           </DialogTrigger>

@@ -29,7 +29,11 @@ const FILES = [
   'pages/client/support/[id]/index.vue',
   'pages/client/feedback/[projectId]/index.vue',
   // S12c-5: comments, attachment names and change-request drafts.
-  'pages/client/itineraries/[id]/index.vue'
+  'pages/client/itineraries/[id]/index.vue',
+  // S12c-3: travel requests and approvals.
+  'components/client/TravelRequestForm.vue',
+  'pages/client/travel-requests/[id]/index.vue',
+  'pages/client/approvals/[id]/index.vue'
 ]
 const FORBIDDEN = [
   'createTraveler(', 'updateTraveler(', 'cancelTraveler(', 'replaceTraveler(', 'commitTravelerImport(', 'setTravelerVip(',
@@ -43,7 +47,9 @@ const FORBIDDEN = [
   'createSupportTicket(', 'replySupportTicket(', 'confirmSupportTicketResolution(', 'reopenSupportTicket(', 'rateSupportTicketResolution(',
   'saveFeedbackDraft(', 'submitFeedback(',
   'addChangeRequestComment(', 'addChangeRequestAttachmentMock(', 'addQuotationComment(', 'addQuotationAttachment(', 'addDocumentComment(',
-  'saveChangeRequestDraft(', 'deleteChangeRequestDraft(', 'addItineraryComment('
+  'saveChangeRequestDraft(', 'deleteChangeRequestDraft(', 'addItineraryComment(',
+  'createTravelRequest(', 'updateTravelRequestDraft(', 'duplicateTravelRequest(', 'cancelTravelRequest(', 'submitTravelRequest(',
+  'respondToTravelRequestClarification(', 'addTravelRequestAttachment(', 'approveClientApproval(', 'rejectClientApproval(', 'requestClientApprovalRevision('
 ]
 const read = (file: string) => readFileSync(join(__dirname, file), 'utf8')
 const used = (source: string, name: string) => new RegExp(`(?<![.\\w])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(source)
