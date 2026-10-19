@@ -15,6 +15,7 @@ import { SERVICE_TYPES, serviceTypeOf } from './booking-rules'
 import { changeBookingStatus, createBooking, updateBooking } from './booking-writes'
 import { logAttempt, withOrchestration } from './booking-orchestration'
 import { changeServiceOrderStatus } from './service-orders'
+import { vendorChangeServiceOrderStatus } from './vendor-portal'
 import { acceptQuotation, rejectQuotation, submitQuotation } from './vendor-quotations'
 import { createService, updateService } from './service-writes'
 import {
@@ -418,12 +419,18 @@ export function coreRoutes(deps: AppDeps, auth: AuthContext) {
     .post('/service-orders/:id/status', async ({ request, params, body }) => {
       const actor = await auth.requireActor(request)
       const id = assertIdParam(params.id, 'Service order')
+      const b = (body ?? {}) as Record<string, unknown>
+      // S12d: a vendor confirms or completes its own orders (the read is already scoped to its vendor).
+      if (actor.role === 'vendor') {
+        if (!(await getServiceOrder(db, actor, id))) throw errors.notFound('Service order')
+        await db.transaction(tx => vendorChangeServiceOrderStatus(tx, actor, id, b.to, requestIdOf(request)))
+        return ok(request, await getServiceOrder(db, actor, id))
+      }
       const so = isPortalActor(actor) ? null : await getServiceOrder(db, actor, id)
       if (!so) throw errors.notFound('Service order')
       // Orders on a service follow its type's capability; legacy orders without a service belong to vendor management.
       if (so.serviceType) requireServiceCapability(actor, so.serviceType)
       else if (!hasCapability(actor.role, 'vendor.manage-vendor')) throw errors.forbidden()
-      const b = (body ?? {}) as Record<string, unknown>
       await db.transaction(tx => changeServiceOrderStatus(tx, actor, id, b.to, b.reason, requestIdOf(request)))
       return ok(request, await getServiceOrder(db, actor, id))
     }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
