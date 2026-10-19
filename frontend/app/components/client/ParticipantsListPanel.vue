@@ -2,9 +2,10 @@
 import { ref, computed } from 'vue'
 import { Search, Plus, Users, Star, Upload, Download, AlertTriangle } from 'lucide-vue-next'
 import {
-  getProjectsByParty, getTravelers, createTraveler, previewTravelerImportMock, commitTravelerImport,
-  setTravelerVip, cancelTraveler
+  getProjectsByParty, getTravelers, previewTravelerImportMock
 } from '~/data'
+import { clientAddTraveler, clientCancelTraveler, clientImportTravelers, participantsLocked } from '~/data/client-portal-writes'
+import { createSaveGate } from '~/lib/save-gate'
 import { isTravelerDocumentMissing, DEMO_REFERENCE_DATE } from '~/utils/attention'
 import { daysUntil } from '~/utils/format'
 import type { TravelerImportPreviewRow } from '~/data'
@@ -58,37 +59,49 @@ function toggleSelect (id: string) {
   if (index === -1) { selectedIds.value.push(id) } else { selectedIds.value.splice(index, 1) }
 }
 
+/* --- Server writes (S12b-1): one at a time; a refused write changes nothing locally --- */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+/** Projects whose participants the client may still change (not departed, finished or cancelled). */
+const writableProjects = computed(() => projects.value.filter(project => !participantsLocked(project.status)))
+
 /* --- Add participant (perlu pilih project) --- */
 const isAddDialogOpen = ref(false)
 const addProjectId = ref('')
 const addName = ref('')
-function submitAdd () {
+async function submitAdd () {
   if (!addProjectId.value || !addName.value.trim()) { return }
-  createTraveler({ projectId: addProjectId.value, name: addName.value.trim() })
+  const name = addName.value.trim()
+  const created = await gate.run('Peserta Gagal Ditambahkan', () => clientAddTraveler(api, addProjectId.value, { name }))
+  if (!created) { return }
   addName.value = ''
   isAddDialogOpen.value = false
-  showToast('Peserta Ditambahkan', `${addName.value || 'Peserta baru'} berhasil ditambahkan.`, 'success')
+  showToast('Peserta Ditambahkan', `${name} berhasil ditambahkan.`, 'success')
 }
 
-/* --- Bulk actions --- */
-function bulkMarkVip () {
-  for (const id of selectedIds.value) { setTravelerVip(id, true) }
-  showToast('Ditandai VIP', `${selectedIds.value.length} peserta ditandai VIP.`, 'success')
-  selectedIds.value = []
-}
+/* --- Bulk actions (VIP is set by the MANOVA team, not from the portal) --- */
 const isBulkCancelDialogOpen = ref(false)
 const bulkCancelReason = ref('')
-function submitBulkCancel () {
+async function submitBulkCancel () {
   if (!bulkCancelReason.value.trim()) { return }
-  let count = 0
-  for (const id of selectedIds.value) { if (cancelTraveler(id, bulkCancelReason.value.trim())) { count++ } }
+  const reason = bulkCancelReason.value.trim()
+  const targets = rows.value.filter(row => selectedIds.value.includes(row.traveler.id) && !row.traveler.cancelled)
+  const count = await gate.run('Pembatalan Gagal', async () => {
+    let done = 0
+    for (const row of targets) {
+      await clientCancelTraveler(api, row.project.id, row.traveler.id, reason)
+      done++
+    }
+    return done
+  })
+  if (count === undefined) { return }
   showToast('Peserta Dibatalkan', `${count} peserta dibatalkan.`, 'info')
   bulkCancelReason.value = ''
   isBulkCancelDialogOpen.value = false
   selectedIds.value = []
 }
 
-/* --- Bulk import simulation (Wajib) --- */
+/* --- Bulk import (preview lokal, simpan di server) --- */
 const isImportDialogOpen = ref(false)
 const importProjectId = ref('')
 const importPreviewRows = ref<TravelerImportPreviewRow[]>([])
@@ -96,10 +109,12 @@ function generateImportPreview () {
   if (!importProjectId.value) { return }
   importPreviewRows.value = previewTravelerImportMock(importProjectId.value, 5)
 }
-function submitImport () {
+async function submitImport () {
   if (!importProjectId.value || importPreviewRows.value.length === 0) { return }
-  const created = commitTravelerImport(importProjectId.value, importPreviewRows.value)
-  showToast('Import Selesai (Mock)', `${created.length} dari ${importPreviewRows.value.length} baris berhasil diimpor.`, created.length === importPreviewRows.value.length ? 'success' : 'warning')
+  const rowsToSend = importPreviewRows.value.map(row => ({ name: row.name, passportNumber: row.passportNumber || undefined, groupId: row.groupId || undefined }))
+  const result = await gate.run('Import Gagal', () => clientImportTravelers(api, importProjectId.value, rowsToSend))
+  if (!result) { return }
+  showToast('Import Selesai', `${result.created.length} dari ${rowsToSend.length} baris berhasil diimpor.`, result.rejected.length === 0 ? 'success' : 'warning')
   importPreviewRows.value = []
   importProjectId.value = ''
   isImportDialogOpen.value = false
@@ -153,9 +168,6 @@ function submitExport () {
 
         <div v-if="selectedIds.length" class="flex items-center gap-2 mb-4 p-3 rounded-lg bg-primary/5 border border-primary/20">
           <span class="text-sm text-foreground">{{ selectedIds.length }} dipilih</span>
-          <Button size="sm" variant="outline" @click="bulkMarkVip">
-            <Star class="h-4 w-4 mr-1.5" />Mark VIP
-          </Button>
           <Button size="sm" variant="destructive" @click="isBulkCancelDialogOpen = true">
             Cancel Terpilih
           </Button>
@@ -267,11 +279,14 @@ function submitExport () {
             <option value="">
               Pilih project...
             </option>
-            <option v-for="project in projects" :key="project.id" :value="project.id">
+            <option v-for="project in writableProjects" :key="project.id" :value="project.id">
               {{ project.name }}
             </option>
           </select>
         </div>
+        <p class="text-xs text-muted-foreground">
+          Hanya project yang belum berangkat. Perubahan peserta setelah itu diajukan lewat change request.
+        </p>
         <div class="space-y-1.5">
           <Label for="add-name">Nama Lengkap</Label>
           <Input id="add-name" v-model="addName" />
@@ -316,37 +331,37 @@ function submitExport () {
       content-class="max-w-lg"
       scroll
     >
-        <div class="space-y-4 py-2">
-          <div class="space-y-1.5">
-            <Label for="import-project">Project Order</Label>
-            <select id="import-project" v-model="importProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer" @change="generateImportPreview">
-              <option value="">
-                Pilih project...
-              </option>
-              <option v-for="project in projects" :key="project.id" :value="project.id">
-                {{ project.name }}
-              </option>
-            </select>
-          </div>
-          <div v-if="importPreviewRows.length" class="space-y-2">
-            <p class="text-xs font-medium text-muted-foreground">
-              Preview ({{ importPreviewRows.length }} baris)
-            </p>
-            <ul class="divide-y divide-border text-sm">
-              <li v-for="(row, index) in importPreviewRows" :key="index" class="py-2">
-                <p class="text-foreground">
-                  {{ row.name || '(nama kosong)' }}
-                </p>
-                <p v-if="row.errors.length" class="text-xs text-destructive">
-                  {{ row.errors.join('; ') }}
-                </p>
-                <p v-else class="text-xs text-success">
-                  Siap diimpor
-                </p>
-              </li>
-            </ul>
-          </div>
+      <div class="space-y-4 py-2">
+        <div class="space-y-1.5">
+          <Label for="import-project">Project Order</Label>
+          <select id="import-project" v-model="importProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer" @change="generateImportPreview">
+            <option value="">
+              Pilih project...
+            </option>
+            <option v-for="project in writableProjects" :key="project.id" :value="project.id">
+              {{ project.name }}
+            </option>
+          </select>
         </div>
+        <div v-if="importPreviewRows.length" class="space-y-2">
+          <p class="text-xs font-medium text-muted-foreground">
+            Preview ({{ importPreviewRows.length }} baris)
+          </p>
+          <ul class="divide-y divide-border text-sm">
+            <li v-for="(row, index) in importPreviewRows" :key="index" class="py-2">
+              <p class="text-foreground">
+                {{ row.name || '(nama kosong)' }}
+              </p>
+              <p v-if="row.errors.length" class="text-xs text-destructive">
+                {{ row.errors.join('; ') }}
+              </p>
+              <p v-else class="text-xs text-success">
+                Siap diimpor
+              </p>
+            </li>
+          </ul>
+        </div>
+      </div>
       <template #footer>
         <Button variant="outline" @click="isImportDialogOpen = false">
           Batal

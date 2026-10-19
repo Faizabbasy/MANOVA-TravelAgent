@@ -3,9 +3,10 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX, Star, BedDouble } from 'lucide-vue-next'
 import {
-  getTravelerById, getProjectById, updateTraveler, setTravelerVip, cancelTraveler, replaceTraveler,
-  getTravelerGroups, getRoomAssignments, createRoomAssignment, setRoomAssignmentTravelers, getTravelers
+  getTravelerById, getProjectById, getTravelerGroups, getRoomAssignments, getTravelers
 } from '~/data'
+import { clientCancelTraveler, clientCreateRoom, clientEditTraveler, clientReplaceTraveler, clientSetRoomTravelers, participantsLocked, PARTICIPANTS_LOCKED_HINT } from '~/data/client-portal-writes'
+import { createSaveGate } from '~/lib/save-gate'
 import { formatDate } from '~/utils/format'
 import { isTravelerDocumentMissing } from '~/utils/attention'
 import type { RoomType } from '~/types/project'
@@ -62,55 +63,58 @@ function openEdit () {
   }
   isEditDialogOpen.value = true
 }
-function submitEdit () {
+/* --- Server writes (S12b-1): one at a time; a refused write changes nothing locally --- */
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+/** Departed, finished or cancelled projects: participant changes go through a change request. */
+const isLocked = computed(() => Boolean(project.value && participantsLocked(project.value.status)))
+
+async function submitEdit () {
   if (!traveler.value || !form.value.name.trim()) { return }
-  updateTraveler(traveler.value.id, {
+  const text = (value: string) => value.trim() || null
+  const saved = await gate.run('Perubahan Gagal Disimpan', () => clientEditTraveler(api, traveler.value!.id, {
     name: form.value.name.trim(),
-    passportNumber: form.value.passportNumber.trim() || undefined,
-    passportExpiryDate: form.value.passportExpiryDate || undefined,
-    idNumber: form.value.idNumber.trim() || undefined,
-    visaNumber: form.value.visaNumber.trim() || undefined,
-    visaExpiryDate: form.value.visaExpiryDate || undefined,
-    emergencyContactName: form.value.emergencyContactName.trim() || undefined,
-    emergencyContactPhone: form.value.emergencyContactPhone.trim() || undefined,
-    dietaryRestrictions: form.value.dietaryRestrictions.trim() || undefined,
-    accessibilityNeeds: form.value.accessibilityNeeds.trim() || undefined,
-    specialRequest: form.value.specialRequest.trim() || undefined
-  })
+    passportNumber: text(form.value.passportNumber),
+    passportExpiryDate: form.value.passportExpiryDate || null,
+    idNumber: text(form.value.idNumber),
+    visaNumber: text(form.value.visaNumber),
+    visaExpiryDate: form.value.visaExpiryDate || null,
+    emergencyContactName: text(form.value.emergencyContactName),
+    emergencyContactPhone: text(form.value.emergencyContactPhone),
+    dietaryRestrictions: text(form.value.dietaryRestrictions),
+    accessibilityNeeds: text(form.value.accessibilityNeeds),
+    specialRequest: text(form.value.specialRequest)
+  }))
+  if (!saved) { return }
   isEditDialogOpen.value = false
   showToast('Data Diperbarui', 'Perubahan berhasil disimpan.', 'success')
-}
-
-/* --- Mark VIP --- */
-function toggleVip () {
-  if (!traveler.value) { return }
-  setTravelerVip(traveler.value.id, !traveler.value.isVip)
-  showToast(traveler.value.isVip ? 'VIP Diaktifkan' : 'VIP Dinonaktifkan', traveler.value.name, 'success')
 }
 
 /* --- Cancel --- */
 const isCancelDialogOpen = ref(false)
 const cancelReason = ref('')
-function submitCancel () {
-  if (!traveler.value || !cancelReason.value.trim()) { return }
-  cancelTraveler(traveler.value.id, cancelReason.value.trim())
+async function submitCancel () {
+  if (!traveler.value || !project.value || !cancelReason.value.trim()) { return }
+  const name = traveler.value.name
+  const done = await gate.run('Pembatalan Gagal', async () => { await clientCancelTraveler(api, project.value!.id, traveler.value!.id, cancelReason.value.trim()); return true })
+  if (!done) { return }
   cancelReason.value = ''
   isCancelDialogOpen.value = false
-  showToast('Peserta Dibatalkan', `${traveler.value.name} ditandai cancelled.`, 'info')
+  showToast('Peserta Dibatalkan', `${name} ditandai cancelled.`, 'info')
 }
 
 /* --- Replace --- */
 const isReplaceDialogOpen = ref(false)
 const replaceName = ref('')
-function submitReplace () {
-  if (!traveler.value || !replaceName.value.trim()) { return }
-  const result = replaceTraveler(traveler.value.id, { name: replaceName.value.trim() })
+async function submitReplace () {
+  if (!traveler.value || !project.value || !replaceName.value.trim()) { return }
+  const previous = traveler.value.name
+  const replacement = await gate.run('Penggantian Gagal', () => clientReplaceTraveler(api, project.value!.id, traveler.value!.id, { name: replaceName.value.trim() }))
+  if (!replacement) { return }
   replaceName.value = ''
   isReplaceDialogOpen.value = false
-  if (result) {
-    showToast('Peserta Digantikan', `${result.previous.name} digantikan oleh ${result.replacement.name}.`, 'success')
-    router.push(`/client/participants/${result.replacement.id}`)
-  }
+  showToast('Peserta Digantikan', `${previous} digantikan oleh ${replacement.name}.`, 'success')
+  router.push(`/client/participants/${replacement.id}`)
 }
 
 /* --- Room assignment (Wajib "Assign room"/"Assign roommate") --- */
@@ -123,23 +127,27 @@ const roommatesNotYetAssigned = computed(() => groupmates.value.filter(t => !cur
 const isCreateRoomOpen = ref(false)
 const newRoomLabel = ref('')
 const newRoomType = ref<RoomType>('twin')
-function submitCreateRoom () {
+async function submitCreateRoom () {
   if (!traveler.value || !project.value || !group.value || !newRoomLabel.value.trim()) { return }
-  createRoomAssignment({ projectId: project.value.id, groupId: group.value.id, roomLabel: newRoomLabel.value.trim(), roomType: newRoomType.value, travelerIds: [traveler.value.id] })
+  const label = newRoomLabel.value.trim()
+  const room = await gate.run('Kamar Gagal Dibuat', () => clientCreateRoom(api, project.value!.id, { groupId: group.value!.id, roomLabel: label, roomType: newRoomType.value, travelerIds: [traveler.value!.id] }))
+  if (!room) { return }
   newRoomLabel.value = ''
   isCreateRoomOpen.value = false
-  showToast('Room Ditugaskan', `${traveler.value.name} ditugaskan ke ${newRoomLabel.value || 'kamar baru'}.`, 'success')
+  showToast('Room Ditugaskan', `${traveler.value.name} ditugaskan ke ${label}.`, 'success')
 }
-function assignToRoom (roomId: string) {
+
+async function assignToRoom (roomId: string) {
   const room = groupRooms.value.find(item => item.id === roomId)
-  if (!room || !traveler.value) { return }
-  setRoomAssignmentTravelers(roomId, [...room.travelerIds, traveler.value.id])
-  showToast('Room Ditugaskan', `${traveler.value.name} ditugaskan ke ${room.roomLabel}.`, 'success')
+  if (!room || !traveler.value || !project.value) { return }
+  const saved = await gate.run('Kamar Gagal Diubah', () => clientSetRoomTravelers(api, project.value!.id, roomId, [...room.travelerIds, traveler.value!.id]))
+  if (saved) { showToast('Room Ditugaskan', `${traveler.value.name} ditugaskan ke ${room.roomLabel}.`, 'success') }
 }
-function addRoommate (roommateId: string) {
-  if (!currentRoom.value) { return }
-  setRoomAssignmentTravelers(currentRoom.value.id, [...currentRoom.value.travelerIds, roommateId])
-  showToast('Roommate Ditambahkan', 'Roommate berhasil ditambahkan ke kamar ini.', 'success')
+
+async function addRoommate (roommateId: string) {
+  if (!currentRoom.value || !project.value) { return }
+  const saved = await gate.run('Kamar Gagal Diubah', () => clientSetRoomTravelers(api, project.value!.id, currentRoom.value!.id, [...currentRoom.value!.travelerIds, roommateId]))
+  if (saved) { showToast('Roommate Ditambahkan', 'Roommate berhasil ditambahkan ke kamar ini.', 'success') }
 }
 </script>
 
@@ -168,14 +176,18 @@ function addRoommate (roommateId: string) {
           <StatusBadge v-else-if="traveler.documentsVerifiedAt" label="Verified" tone="success" />
           <StatusBadge v-else-if="isMissingDocs" label="Incomplete" tone="destructive" />
           <StatusBadge v-else label="Submitted" tone="warning" />
-          <Button size="sm" variant="outline" @click="toggleVip">
-            <Star class="h-4 w-4 mr-1.5" :class="traveler.isVip ? 'fill-warning text-warning' : ''" />{{ traveler.isVip ? 'VIP' : 'Mark VIP' }}
-          </Button>
-          <Button size="sm" variant="outline" @click="openEdit">
+          <span v-if="traveler.isVip" class="inline-flex items-center text-xs font-medium text-warning">
+            <Star class="h-4 w-4 mr-1 fill-warning text-warning" />VIP
+          </span>
+          <Button size="sm" variant="outline" :disabled="isLocked || traveler.cancelled" @click="openEdit">
             Edit
           </Button>
         </template>
       </PageHeader>
+
+      <p v-if="isLocked && !traveler.cancelled" class="text-xs text-muted-foreground -mt-2">
+        {{ PARTICIPANTS_LOCKED_HINT }}
+      </p>
 
       <SectionCard v-if="traveler.cancelled" title="Status: Cancelled">
         <p class="text-sm text-muted-foreground">
@@ -218,7 +230,14 @@ function addRoommate (roommateId: string) {
                   Tambah Roommate
                 </p>
                 <div class="flex flex-wrap gap-2">
-                  <Button v-for="mate in roommatesNotYetAssigned" :key="mate.id" size="sm" variant="outline" @click="addRoommate(mate.id)">
+                  <Button
+                    v-for="mate in roommatesNotYetAssigned"
+                    :key="mate.id"
+                    size="sm"
+                    variant="outline"
+                    :disabled="isLocked"
+                    @click="addRoommate(mate.id)"
+                  >
                     + {{ mate.name }}
                   </Button>
                 </div>
@@ -230,14 +249,21 @@ function addRoommate (roommateId: string) {
                   Kamar Tersedia dalam Group
                 </p>
                 <div class="flex flex-wrap gap-2">
-                  <Button v-for="room in groupRooms" :key="room.id" size="sm" variant="outline" @click="assignToRoom(room.id)">
+                  <Button
+                    v-for="room in groupRooms"
+                    :key="room.id"
+                    size="sm"
+                    variant="outline"
+                    :disabled="isLocked"
+                    @click="assignToRoom(room.id)"
+                  >
                     {{ room.roomLabel }} ({{ room.travelerIds.length }} orang)
                   </Button>
                 </div>
               </div>
               <ResponsiveFormSheet v-model:open="isCreateRoomOpen" title="Buat Kamar Baru" content-class="max-w-sm">
                 <template #trigger>
-                  <Button size="sm">
+                  <Button size="sm" :disabled="isLocked">
                     Buat Kamar Baru
                   </Button>
                 </template>
@@ -275,7 +301,7 @@ function addRoommate (roommateId: string) {
         </SectionCard>
       </div>
 
-      <SectionCard v-if="!traveler.cancelled" title="Aksi Lain">
+      <SectionCard v-if="!traveler.cancelled && !isLocked" title="Aksi Lain">
         <div class="flex flex-wrap gap-2">
           <ResponsiveFormSheet v-model:open="isReplaceDialogOpen" title="Ganti Peserta" :description="`${traveler.name} akan ditandai cancelled dan digantikan peserta baru.`" content-class="max-w-sm">
             <template #trigger>

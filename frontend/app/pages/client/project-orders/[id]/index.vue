@@ -4,7 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, Plus } from 'lucide-vue-next'
 import {
   getProjectById, getPartyById, getLeadById, getUserById,
-  getClientVisibleItineraryItems, getTravelers, createTraveler, updateTraveler,
+  getClientVisibleItineraryItems, getTravelers,
   getDocumentsByProject, getInvoicesByProject, getPaymentsByInvoice,
   createChangeRequest, getChangeRequestsByProject, getIncidentsByProject,
   getCommodityRequirementsByProject, createCommodityRequirement, updateCommodityRequirement, deleteCommodityRequirement,
@@ -12,6 +12,8 @@ import {
   getServiceReadinessMatrix, getClientReservations, getActivitiesByProject, getProjectClosureSummary,
   getLatestItineraryVersion, getClientDocumentsByProject, getClientDocumentCategory
 } from '~/data'
+import { clientAddTraveler, clientEditTraveler, participantsLocked } from '~/data/client-portal-writes'
+import { createSaveGate } from '~/lib/save-gate'
 import {
   PROJECT_STATUSES, SERVICE_TYPES, CHANGE_CATEGORIES, INVOICE_STATUSES, INVOICE_TYPES,
   CHANGE_REQUEST_STATUSES, INCIDENT_STATUSES, COMMODITY_REQUIREMENT_STATUSES,
@@ -320,28 +322,35 @@ function openTravelerDialog (traveler: Traveler | null) {
   isTravelerDialogOpen.value = true
 }
 
-function submitTraveler () {
+/* Server writes (S12b-1): a refused write (e.g. the project already departed) changes nothing locally. */
+const travelerApi = useApi()
+const travelerGate = createSaveGate((title, message, tone) => showToast(title, message, tone))
+const travelersLocked = computed(() => Boolean(project.value && participantsLocked(project.value.status)))
+/** The table slot types its row as unknown (shared DataTable); a cancelled traveler is no longer editable. */
+const travelerEditable = (row: unknown) => !travelersLocked.value && !(row as Traveler).cancelled
+
+async function submitTraveler () {
   if (!project.value || !travelerName.value.trim()) { return }
+  const text = (value: string) => value.trim() || null
   const patch = {
     name: travelerName.value.trim(),
-    passportNumber: travelerPassportNumber.value.trim() || undefined,
-    passportExpiryDate: travelerPassportExpiry.value || undefined,
-    idNumber: travelerIdNumber.value.trim() || undefined,
-    visaNumber: travelerVisaNumber.value.trim() || undefined,
-    visaExpiryDate: travelerVisaExpiry.value || undefined,
-    emergencyContactName: travelerEmergencyName.value.trim() || undefined,
-    emergencyContactPhone: travelerEmergencyPhone.value.trim() || undefined,
-    dietaryRestrictions: travelerDietary.value.trim() || undefined,
-    accessibilityNeeds: travelerAccessibility.value.trim() || undefined,
-    specialRequest: travelerSpecialRequest.value.trim() || undefined
+    passportNumber: text(travelerPassportNumber.value),
+    passportExpiryDate: travelerPassportExpiry.value || null,
+    idNumber: text(travelerIdNumber.value),
+    visaNumber: text(travelerVisaNumber.value),
+    visaExpiryDate: travelerVisaExpiry.value || null,
+    emergencyContactName: text(travelerEmergencyName.value),
+    emergencyContactPhone: text(travelerEmergencyPhone.value),
+    dietaryRestrictions: text(travelerDietary.value),
+    accessibilityNeeds: text(travelerAccessibility.value),
+    specialRequest: text(travelerSpecialRequest.value)
   }
-  if (editingTraveler.value) {
-    updateTraveler(editingTraveler.value.id, patch)
-    showToast('Traveler Diperbarui', `Data ${patch.name} berhasil disimpan.`, 'success')
-  } else {
-    createTraveler({ projectId: project.value.id, ...patch })
-    showToast('Traveler Ditambahkan', `${patch.name} berhasil ditambahkan.`, 'success')
-  }
+  const editing = editingTraveler.value
+  const projectId = project.value.id
+  const saved = await travelerGate.run(editing ? 'Traveler Gagal Diperbarui' : 'Traveler Gagal Ditambahkan', () =>
+    editing ? clientEditTraveler(travelerApi, editing.id, patch) : clientAddTraveler(travelerApi, projectId, patch))
+  if (!saved) { return }
+  showToast(editing ? 'Traveler Diperbarui' : 'Traveler Ditambahkan', editing ? `Data ${patch.name} berhasil disimpan.` : `${patch.name} berhasil ditambahkan.`, 'success')
   isTravelerDialogOpen.value = false
 }
 
@@ -522,6 +531,7 @@ function submitChangeRequest () {
                 size="sm"
                 variant="outline"
                 class="fixed bottom-[calc(5rem+env(safe-area-inset-bottom))] right-4 z-30 h-12 gap-2 rounded-full pl-4 pr-5 text-sm font-semibold shadow-lg shadow-black/25 md:static md:bottom-auto md:right-auto md:z-auto md:h-9 md:gap-1.5 md:rounded-md md:pl-3 md:pr-3 md:text-sm md:font-medium md:shadow-none"
+                :disabled="travelersLocked"
                 @click="openTravelerDialog(null)"
               >
                 <Plus class="h-4 w-4" />Tambah Traveler
@@ -570,7 +580,7 @@ function submitChangeRequest () {
                           />
                         </TableCell>
                         <TableCell>
-                          <Button size="sm" variant="ghost" @click="openTravelerDialog(traveler)">
+                          <Button size="sm" variant="ghost" :disabled="!travelerEditable(traveler)" @click="openTravelerDialog(traveler)">
                             Edit
                           </Button>
                         </TableCell>
@@ -581,7 +591,7 @@ function submitChangeRequest () {
               </template>
 
               <template #mobile-card="{ item: traveler }">
-                <button type="button" class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted" @click="openTravelerDialog(traveler)">
+                <button type="button" class="w-full rounded-xl border border-border bg-card p-4 text-left transition-colors active:bg-muted" :disabled="!travelerEditable(traveler)" @click="openTravelerDialog(traveler)">
                   <div class="flex items-start justify-between gap-2">
                     <p class="text-sm font-medium text-foreground">
                       {{ traveler.name }}
@@ -651,51 +661,51 @@ function submitChangeRequest () {
             content-class="max-w-lg"
             scroll
           >
-              <div class="space-y-4 py-2">
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="trv-name">Nama Lengkap</Label><Input id="trv-name" v-model="travelerName" />
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="space-y-1.5">
-                  <Label for="trv-name">Nama Lengkap</Label><Input id="trv-name" v-model="travelerName" />
-                </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div class="space-y-1.5">
-                    <Label for="trv-passport">Nomor Paspor</Label><Input id="trv-passport" v-model="travelerPassportNumber" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="trv-passport-exp">Masa Berlaku Paspor</Label><Input id="trv-passport-exp" v-model="travelerPassportExpiry" type="date" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="trv-id-number">Nomor ID/KTP (opsional)</Label><Input id="trv-id-number" v-model="travelerIdNumber" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="trv-visa">Nomor Visa (opsional)</Label><Input id="trv-visa" v-model="travelerVisaNumber" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="trv-visa-exp">Masa Berlaku Visa (opsional)</Label><Input id="trv-visa-exp" v-model="travelerVisaExpiry" type="date" />
-                  </div>
+                  <Label for="trv-passport">Nomor Paspor</Label><Input id="trv-passport" v-model="travelerPassportNumber" />
                 </div>
                 <div class="space-y-1.5">
-                  <Label for="trv-emergency-name">Nama Kontak Darurat</Label><Input id="trv-emergency-name" v-model="travelerEmergencyName" />
+                  <Label for="trv-passport-exp">Masa Berlaku Paspor</Label><Input id="trv-passport-exp" v-model="travelerPassportExpiry" type="date" />
                 </div>
                 <div class="space-y-1.5">
-                  <Label for="trv-emergency-phone">Telepon Kontak Darurat</Label><Input id="trv-emergency-phone" v-model="travelerEmergencyPhone" />
+                  <Label for="trv-id-number">Nomor ID/KTP (opsional)</Label><Input id="trv-id-number" v-model="travelerIdNumber" />
                 </div>
                 <div class="space-y-1.5">
-                  <Label for="trv-dietary">Dietary Restriction (opsional)</Label><Input id="trv-dietary" v-model="travelerDietary" placeholder="mis. Vegetarian, tanpa seafood" />
+                  <Label for="trv-visa">Nomor Visa (opsional)</Label><Input id="trv-visa" v-model="travelerVisaNumber" />
                 </div>
                 <div class="space-y-1.5">
-                  <Label for="trv-accessibility">Accessibility Needs (opsional)</Label><Input id="trv-accessibility" v-model="travelerAccessibility" placeholder="mis. Kursi roda" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="trv-special">Permintaan Khusus Lainnya</Label><Input id="trv-special" v-model="travelerSpecialRequest" />
+                  <Label for="trv-visa-exp">Masa Berlaku Visa (opsional)</Label><Input id="trv-visa-exp" v-model="travelerVisaExpiry" type="date" />
                 </div>
               </div>
-              <template #footer>
-                <Button variant="outline" @click="isTravelerDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!travelerName.trim()" @click="submitTraveler">
-                  Simpan
-                </Button>
-              </template>
+              <div class="space-y-1.5">
+                <Label for="trv-emergency-name">Nama Kontak Darurat</Label><Input id="trv-emergency-name" v-model="travelerEmergencyName" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="trv-emergency-phone">Telepon Kontak Darurat</Label><Input id="trv-emergency-phone" v-model="travelerEmergencyPhone" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="trv-dietary">Dietary Restriction (opsional)</Label><Input id="trv-dietary" v-model="travelerDietary" placeholder="mis. Vegetarian, tanpa seafood" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="trv-accessibility">Accessibility Needs (opsional)</Label><Input id="trv-accessibility" v-model="travelerAccessibility" placeholder="mis. Kursi roda" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="trv-special">Permintaan Khusus Lainnya</Label><Input id="trv-special" v-model="travelerSpecialRequest" />
+              </div>
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isTravelerDialogOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!travelerName.trim()" @click="submitTraveler">
+                Simpan
+              </Button>
+            </template>
           </ResponsiveFormSheet>
         </TabsContent>
 
@@ -1089,85 +1099,85 @@ function submitChangeRequest () {
             content-class="max-w-lg"
             scroll
           >
-              <div class="space-y-4 py-2">
+            <div class="space-y-4 py-2">
+              <div class="space-y-1.5">
+                <Label for="req-title">Judul Kebutuhan</Label>
+                <Input id="req-title" v-model="reqTitle" placeholder="mis. Kamar untuk 20 peserta" />
+              </div>
+              <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div class="space-y-1.5">
-                  <Label for="req-title">Judul Kebutuhan</Label>
-                  <Input id="req-title" v-model="reqTitle" placeholder="mis. Kamar untuk 20 peserta" />
+                  <Label for="req-category">Kategori</Label>
+                  <select id="req-category" v-model="reqCategory" :disabled="!!editingRequirement" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
+                    <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+                      {{ type.label }}
+                    </option>
+                  </select>
                 </div>
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div class="space-y-1.5">
-                    <Label for="req-category">Kategori</Label>
-                    <select id="req-category" v-model="reqCategory" :disabled="!!editingRequirement" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed">
-                      <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
-                        {{ type.label }}
-                      </option>
-                    </select>
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="req-quantity">Jumlah</Label>
-                    <Input id="req-quantity" v-model.number="reqQuantity" type="number" placeholder="mis. 10" />
-                  </div>
-                </div>
-
-                <!-- Category-specific fields -->
-                <div v-if="reqCategory === 'flight'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div class="space-y-1.5">
-                    <Label for="req-flight-origin">Asal</Label><Input id="req-flight-origin" v-model="reqFlightOrigin" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="req-flight-destination">Tujuan</Label><Input id="req-flight-destination" v-model="reqFlightDestination" />
-                  </div>
-                  <div class="space-y-1.5 col-span-2">
-                    <Label for="req-flight-date">Tanggal Keberangkatan</Label><Input id="req-flight-date" v-model="reqFlightDepartureDate" type="date" />
-                  </div>
-                </div>
-                <div v-else-if="reqCategory === 'hotel'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div class="space-y-1.5">
-                    <Label for="req-hotel-checkin">Check-in</Label><Input id="req-hotel-checkin" v-model="reqHotelCheckIn" type="date" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="req-hotel-checkout">Check-out</Label><Input id="req-hotel-checkout" v-model="reqHotelCheckOut" type="date" />
-                  </div>
-                  <div class="space-y-1.5 col-span-2">
-                    <Label for="req-hotel-rooms">Jumlah Kamar</Label><Input id="req-hotel-rooms" v-model.number="reqHotelRoomCount" type="number" />
-                  </div>
-                </div>
-                <div v-else-if="reqCategory === 'transportation'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div class="space-y-1.5">
-                    <Label for="req-transport-vehicle">Jenis Kendaraan</Label><Input id="req-transport-vehicle" v-model="reqTransportVehicleType" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="req-transport-date">Tanggal Layanan</Label><Input id="req-transport-date" v-model="reqTransportServiceDate" type="date" />
-                  </div>
-                  <div class="space-y-1.5 col-span-2">
-                    <Label for="req-transport-route">Rute</Label><Input id="req-transport-route" v-model="reqTransportRoute" placeholder="mis. Bandara - Hotel" />
-                  </div>
-                </div>
-                <div v-else-if="reqCategory === 'mice'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div class="space-y-1.5">
-                    <Label for="req-mice-type">Jenis Event</Label><Input id="req-mice-type" v-model="reqMiceEventType" placeholder="mis. Annual Meeting" />
-                  </div>
-                  <div class="space-y-1.5">
-                    <Label for="req-mice-participants">Jumlah Peserta</Label><Input id="req-mice-participants" v-model.number="reqMiceParticipantCount" type="number" />
-                  </div>
-                  <div class="space-y-1.5 col-span-2">
-                    <Label for="req-mice-date">Tanggal Event</Label><Input id="req-mice-date" v-model="reqMiceEventDate" type="date" />
-                  </div>
-                </div>
-
                 <div class="space-y-1.5">
-                  <Label for="req-notes">Catatan (opsional)</Label>
-                  <textarea id="req-notes" v-model="reqNotes" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+                  <Label for="req-quantity">Jumlah</Label>
+                  <Input id="req-quantity" v-model.number="reqQuantity" type="number" placeholder="mis. 10" />
                 </div>
               </div>
-              <template #footer>
-                <Button variant="outline" @click="isRequirementDialogOpen = false">
-                  Batal
-                </Button>
-                <Button :disabled="!reqTitle.trim() || !reqQuantity" @click="submitRequirement">
-                  Simpan
-                </Button>
-              </template>
+
+              <!-- Category-specific fields -->
+              <div v-if="reqCategory === 'flight'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                  <Label for="req-flight-origin">Asal</Label><Input id="req-flight-origin" v-model="reqFlightOrigin" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="req-flight-destination">Tujuan</Label><Input id="req-flight-destination" v-model="reqFlightDestination" />
+                </div>
+                <div class="space-y-1.5 col-span-2">
+                  <Label for="req-flight-date">Tanggal Keberangkatan</Label><Input id="req-flight-date" v-model="reqFlightDepartureDate" type="date" />
+                </div>
+              </div>
+              <div v-else-if="reqCategory === 'hotel'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                  <Label for="req-hotel-checkin">Check-in</Label><Input id="req-hotel-checkin" v-model="reqHotelCheckIn" type="date" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="req-hotel-checkout">Check-out</Label><Input id="req-hotel-checkout" v-model="reqHotelCheckOut" type="date" />
+                </div>
+                <div class="space-y-1.5 col-span-2">
+                  <Label for="req-hotel-rooms">Jumlah Kamar</Label><Input id="req-hotel-rooms" v-model.number="reqHotelRoomCount" type="number" />
+                </div>
+              </div>
+              <div v-else-if="reqCategory === 'transportation'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                  <Label for="req-transport-vehicle">Jenis Kendaraan</Label><Input id="req-transport-vehicle" v-model="reqTransportVehicleType" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="req-transport-date">Tanggal Layanan</Label><Input id="req-transport-date" v-model="reqTransportServiceDate" type="date" />
+                </div>
+                <div class="space-y-1.5 col-span-2">
+                  <Label for="req-transport-route">Rute</Label><Input id="req-transport-route" v-model="reqTransportRoute" placeholder="mis. Bandara - Hotel" />
+                </div>
+              </div>
+              <div v-else-if="reqCategory === 'mice'" class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div class="space-y-1.5">
+                  <Label for="req-mice-type">Jenis Event</Label><Input id="req-mice-type" v-model="reqMiceEventType" placeholder="mis. Annual Meeting" />
+                </div>
+                <div class="space-y-1.5">
+                  <Label for="req-mice-participants">Jumlah Peserta</Label><Input id="req-mice-participants" v-model.number="reqMiceParticipantCount" type="number" />
+                </div>
+                <div class="space-y-1.5 col-span-2">
+                  <Label for="req-mice-date">Tanggal Event</Label><Input id="req-mice-date" v-model="reqMiceEventDate" type="date" />
+                </div>
+              </div>
+
+              <div class="space-y-1.5">
+                <Label for="req-notes">Catatan (opsional)</Label>
+                <textarea id="req-notes" v-model="reqNotes" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+              </div>
+            </div>
+            <template #footer>
+              <Button variant="outline" @click="isRequirementDialogOpen = false">
+                Batal
+              </Button>
+              <Button :disabled="!reqTitle.trim() || !reqQuantity" @click="submitRequirement">
+                Simpan
+              </Button>
+            </template>
           </ResponsiveFormSheet>
 
           <!-- ── Requirement Detail Dialog (read-only) ─────────────────── -->

@@ -4,6 +4,7 @@ import { contactFromServer, upsertServerParty } from './parties-sync'
 import { invoiceFromClientServer } from './client-commerce-sync'
 import { CONTACTS, DOCUMENT_RECORDS, INVOICES, MESSAGE_RECORDS } from './index'
 import type { ManovaApi } from '~/lib/api/endpoints'
+import type { ProjectStatus } from '~/types/project'
 import type { ClientContactInput, ClientDocumentInput, ClientMessageInput, PartyProfileInput, TravelerInput } from '~/types/api'
 
 /**
@@ -73,3 +74,7 @@ export async function clientRemoveContact (api: CoreApi, id: string): Promise<vo
 }
 export const clientDisputeInvoice = async (api: CoreApi, partyId: string, id: string, reason: string) =>
   upsert(INVOICES, invoiceFromClientServer((await api.core.clientDisputeInvoice(id, reason)).data, partyId))
+
+/* project lock for participant writes (same rule as the server) */
+export const PARTICIPANTS_LOCKED_HINT = 'Project sudah berjalan, selesai atau dibatalkan — ajukan perubahan peserta lewat change request.'
+export const participantsLocked = (status: ProjectStatus): boolean => status === 'ongoing-trip' || status === 'completed' || status === 'cancelled'
