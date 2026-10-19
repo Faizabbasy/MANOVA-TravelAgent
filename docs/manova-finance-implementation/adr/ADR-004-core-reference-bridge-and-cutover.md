@@ -301,3 +301,13 @@ client & belum terverifikasi; ganti versi) dan pesan `client-message` tanpa ment
 (sensitif → 422, verifikasi = S12c) dan kontak (tambah/edit/hapus); sengketa invoice issued yang belum lunas. Log aktivitas
 project & notifikasi owner/account owner/Finance dibuat server. Frontend `data/client-portal-writes.ts`; guard
 `app/client-portal-writes.guard.test.ts`. Change request & respons quotation = S12b-2.
+
+## Update 2026-10-19 — Portal vendor (S12d)
+
+`POST /service-orders/:id/status` mendapat cabang vendor (`core/vendor-portal.ts`): vendor pemilik SO hanya boleh
+`acknowledged` dan `fulfilled` (lainnya 403; transisi tetap `SERVICE_ORDER_TRANSITIONS`; SO vendor lain 404) — memperbaiki
+404 yang dulu selalu muncul untuk vendor; log aktivitas project + notifikasi owner. Endpoint khusus vendor
+`GET/POST /api/v1/vendor/products` (produk vendor sesi; notifikasi ke admin). Sync plan vendor kini memuat procurement
+(SO + quotation vendor, sudah dibatasi), bookings (layanan + booking, DTO tanpa harga jual) dan `vendorPortal` (profil +
+produk; `data/vendor-portal-sync.ts`). RFQ (S12e), komoditas (S12f), amandemen SO, kontak/dokumen/pesan/tagihan vendor
+tetap lokal/tanpa UI portal.

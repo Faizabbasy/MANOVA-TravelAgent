@@ -77,3 +77,9 @@ Di dev/staging (portal aktif), client kini menulis peserta & kamar, dokumen & pe
 sengketa invoice lewat `/api/v1/client/*` — hanya untuk party-nya sendiri, dengan log aktivitas dan notifikasi ke staf.
 Perubahan peserta dikunci setelah project berangkat (lewat change request). Entitas khusus portal (travel request,
 approval, support, feedback, bukti bayar, perubahan profil sensitif) tetap lokal sampai S12c.
+
+## Update 2026-10-19 — Portal vendor dari server (S12d)
+
+Di dev/staging, portal vendor membaca SO, quotation, layanan/booking dan profilnya dari server, bisa mengonfirmasi dan
+menandai selesai SO miliknya (membatalkan tetap hak staf), dan menambah produk ke katalognya lewat server. RFQ dan
+komoditas tetap lokal sampai S12e/S12f.

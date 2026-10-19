@@ -1,6 +1,6 @@
 # Portal vendor di atas tabel yang sudah ada (S12d) — desain
 
-Tanggal: 19 Oktober 2026 · Branch: `production` · Status: disetujui (eksekusi native)
+Tanggal: 19 Oktober 2026 · Branch: `production` · Status: diimplementasikan (plan 2026-10-19-vendor-portal)
 
 Portal vendor (`/supplier/*`, role `vendor`, aktif hanya di dev/staging — ADR-006) membaca service order, quotation
 vendor, layanan/booking dan profil vendornya dari server, bisa **acknowledge / fulfilled** service order (bug: selalu
