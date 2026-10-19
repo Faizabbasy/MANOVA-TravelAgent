@@ -46,6 +46,7 @@ const lead = (over: Partial<LeadDto> = {}): LeadDto => ({
   ...over
 })
 const quo = (over: Partial<SalesQuotationDto> = {}): SalesQuotationDto => ({
+  clientResponse: null,
   id: 'QUO-005',
   leadId: 'LED-005',
   currentVersion: 2,
@@ -226,5 +227,12 @@ describe('B2C and Group Trip qualify through the server (S6b)', () => {
     expect(sent[0]).toMatchObject({ projectId: 'PRJ-205', priceMinor: '3500000' })
     expect(sent[0]).not.toHaveProperty('priceIdr')
     expect(ok.order?.projectId).toBe('PRJ-205')
+  })
+})
+
+describe('internal quotation shows the client response (S12b-2)', () => {
+  it('maps clientResponse', () => {
+    const q = quotationFromServer(quo({ clientResponse: { response: 'accepted', note: null, version: 1, respondedAt: '2026-07-04T00:00:00.000Z' } }), new Set())
+    expect(q.clientResponse).toMatchObject({ response: 'accepted', version: 1 })
   })
 })

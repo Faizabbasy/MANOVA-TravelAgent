@@ -82,6 +82,7 @@ export const quotationFromClientServer = (d: ClientQuotationDto): Quotation => c
   cancellationPolicy: opt(d.cancellationPolicy),
   proposedItineraryNote: opt(d.proposedItineraryNote),
   sentToClientAt: d.sentToClientOn,
+  clientResponse: d.clientResponse ? { ...d.clientResponse } : undefined,
   preparedByName: opt(d.preparedByName),
   serviceBreakdown: d.serviceBreakdown.map(line => clean({ service: line.service, description: opt(line.description), amountIdr: Number(line.amountMinor) })) as Quotation['serviceBreakdown']
 })

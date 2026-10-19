@@ -3,11 +3,13 @@ import { ref, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { FileX } from 'lucide-vue-next'
 import {
-  getChangeRequestById, getChangeRequestStatusTransitions,
+  getChangeRequestById,
   getProjectById, getUserById, getQuotationById
 } from '~/data'
 import { CHANGE_REQUEST_SOURCES, CHANGE_REQUEST_STATUSES, findStatusOption } from '~/constants/status'
-import { approveChangeRequestOnServer, implementChangeRequestOnServer, rejectChangeRequestOnServer, reviewChangeRequestOnServer } from '~/data/changes-sync'
+import {
+  approveChangeRequestOnServer, implementChangeRequestOnServer, rejectChangeRequestOnServer, reviewChangeRequestOnServer, sendChangeRequestToClientOnServer, staffChangeRequestActions
+} from '~/data/changes-sync'
 import { createSaveGate } from '~/lib/save-gate'
 import { formatCurrencyIdr, formatDate } from '~/utils/format'
 
@@ -81,6 +83,35 @@ async function submitReject () {
   showToast('Change Request Ditolak', `${result.id} ditolak.`, 'info')
 }
 
+/* S12b-2: the staff buttons follow the server's rules (a client request with a cost goes to the client). */
+const actions = computed(() => (request.value ? staffChangeRequestActions(request.value) : { review: false, sendToClient: false, approve: false, reject: false, implement: false }))
+const isImpactDialogOpen = ref(false)
+const impactCommercial = ref<number | null>(null)
+const impactFee = ref<number | null>(null)
+const impactTimeline = ref('')
+const impactHasCost = computed(() => (impactCommercial.value ?? 0) > 0 || (impactFee.value ?? 0) > 0)
+
+function openImpact () {
+  impactCommercial.value = request.value?.commercialImpactIdr ?? null
+  impactFee.value = request.value?.cancellationFeeIdr ?? null
+  impactTimeline.value = request.value?.timelineImpactNote ?? ''
+  isImpactDialogOpen.value = true
+}
+
+async function submitImpact () {
+  if (!request.value || !impactHasCost.value) { return }
+  const id = request.value.id
+  const minor = (v: number | null) => (v && v > 0 ? String(Math.round(v)) : '0')
+  const result = await save('Dampak Gagal Dikirim', () => sendChangeRequestToClientOnServer(api, id, {
+    commercialImpactMinor: minor(impactCommercial.value),
+    cancellationFeeMinor: minor(impactFee.value),
+    ...(impactTimeline.value.trim() ? { timelineImpactNote: impactTimeline.value.trim() } : {})
+  }))
+  if (!result) { return }
+  isImpactDialogOpen.value = false
+  showToast('Dampak Dikirim ke Client', `${result.id} menunggu persetujuan client.`, 'success')
+}
+
 async function handleImplemented () {
   if (!request.value) { return }
   const id = request.value.id
@@ -110,16 +141,19 @@ async function handleImplemented () {
           <div class="flex flex-wrap items-center gap-2">
             <StatusBadge :label="findStatusOption(CHANGE_REQUEST_STATUSES, request.status).label" :tone="findStatusOption(CHANGE_REQUEST_STATUSES, request.status).tone" />
             <template v-if="canApproveChangeRequest || canLogChange">
-              <Button v-if="canApproveChangeRequest && getChangeRequestStatusTransitions(request.status).includes('under-review')" size="sm" variant="outline" :disabled="isSaving" @click="handleUnderReview">
+              <Button v-if="canApproveChangeRequest && actions.review" size="sm" variant="outline" :disabled="isSaving" @click="handleUnderReview">
                 Mulai Review
               </Button>
-              <Button v-if="canApproveChangeRequest && getChangeRequestStatusTransitions(request.status).includes('approved')" size="sm" :disabled="isSaving" @click="handleApprove">
+              <Button v-if="canApproveChangeRequest && actions.sendToClient" size="sm" variant="outline" :disabled="isSaving" @click="openImpact">
+                Kirim Dampak ke Client
+              </Button>
+              <Button v-if="canApproveChangeRequest && actions.approve" size="sm" :disabled="isSaving" @click="handleApprove">
                 Setujui
               </Button>
-              <Button v-if="canApproveChangeRequest && getChangeRequestStatusTransitions(request.status).includes('rejected')" size="sm" variant="destructive" :disabled="isSaving" @click="openReject">
+              <Button v-if="canApproveChangeRequest && actions.reject" size="sm" variant="destructive" :disabled="isSaving" @click="openReject">
                 Tolak
               </Button>
-              <Button v-if="canLogChange && getChangeRequestStatusTransitions(request.status).includes('implemented')" size="sm" variant="outline" :disabled="isSaving" @click="handleImplemented">
+              <Button v-if="canLogChange && actions.implement" size="sm" variant="outline" :disabled="isSaving" @click="handleImplemented">
                 Tandai Diimplementasikan
               </Button>
             </template>
@@ -168,6 +202,14 @@ async function handleImplemented () {
             </p>
             <p class="text-sm text-foreground mt-1">
               {{ request.commercialImpactIdr !== undefined ? formatCurrencyIdr(request.commercialImpactIdr) : '—' }}
+            </p>
+          </div>
+          <div v-if="request.cancellationFeeIdr !== undefined">
+            <p class="text-xs text-muted-foreground">
+              Biaya Pembatalan
+            </p>
+            <p class="text-sm text-foreground mt-1">
+              {{ formatCurrencyIdr(request.cancellationFeeIdr) }}
             </p>
           </div>
           <div>
@@ -234,6 +276,37 @@ async function handleImplemented () {
           </Button>
           <Button variant="destructive" :disabled="!rejectionReason.trim() || isSaving" @click="submitReject">
             Konfirmasi
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
+
+      <!-- S12b-2: send the impact of a client's request to the client -->
+      <ResponsiveFormSheet
+        v-model:open="isImpactDialogOpen"
+        title="Kirim Dampak ke Client"
+        description="Client akan diminta menyetujui atau menolak biaya ini sebelum perubahan dilaksanakan. Tanpa biaya, setujui langsung."
+        content-class="max-w-md"
+      >
+        <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="impact-commercial">Dampak Komersial (Rp)</Label>
+            <CurrencyInput id="impact-commercial" v-model="impactCommercial" placeholder="mis. 2500000" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="impact-fee">Biaya Pembatalan (Rp)</Label>
+            <CurrencyInput id="impact-fee" v-model="impactFee" placeholder="mis. 750000" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="impact-timeline">Dampak Jadwal (opsional)</Label>
+            <Input id="impact-timeline" v-model="impactTimeline" placeholder="mis. Check-in mundur 1 hari" />
+          </div>
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="isImpactDialogOpen = false">
+            Batal
+          </Button>
+          <Button :disabled="!impactHasCost || isSaving" @click="submitImpact">
+            Kirim ke Client
           </Button>
         </template>
       </ResponsiveFormSheet>

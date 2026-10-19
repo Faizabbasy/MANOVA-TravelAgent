@@ -13,6 +13,8 @@ import type { MasterDataCategoryKey } from './master-data'
 import type { AssetCategoryKey, AssetCondition, AssetStatus, CheckoutStatus, MaintenanceStatus, MaintenanceType } from './inventory'
 import type { ContentDevelopmentStage, ContentPlatform, ContentScheduleStatus } from './marketing'
 import type { AttendanceStatus, EmployeeStatus, EmploymentType, PayrollRunStatus } from './hr'
+import type { ChangeRequestType } from './change-incident'
+import type { QuotationClientResponse } from './quotation'
 
 export type MoneyMinor = string
 export type IsoDate = string
@@ -1329,6 +1331,8 @@ export interface SalesQuotationDto {
   serviceBreakdown: QuotationServiceLineDto[]
   submittedBy: string | null; submittedAt: string | null; decidedBy: string | null; decidedAt: string | null; decisionNote: string | null
   versions: SalesQuotationVersionDto[]
+  /** S12b-2: the client's answer to the current version (null when none, or only for an older version). */
+  clientResponse: QuotationClientResponse | null
 }
 export interface LeadWonDto { project: ProjectDetailDto; lead: LeadDto }
 
@@ -1404,6 +1408,8 @@ export interface ClientQuotationDto {
     travelerEstimate: number | null
     serviceScope: string[]
   }
+  /** S12b-2: the client's answer to the current version (null when none, or only for an older version). */
+  clientResponse: QuotationClientResponse | null
 }
 /** Client portal (S12a-2): a reservation without any money, vendor or internal note; `details` is a per-type whitelist. */
 export interface ClientReservationDto {
@@ -1752,12 +1758,27 @@ export interface ChangeRequestDto {
   commercialImpactMinor: string | null
   financialImpactNote: string | null
   timelineImpactNote: string | null
-  status: 'submitted' | 'under-review' | 'approved' | 'rejected' | 'implemented'
+  status: 'submitted' | 'under-review' | 'waiting-client-approval' | 'approved' | 'rejected' | 'implemented' | 'cancelled'
   decidedBy: string | null
   decidedAt: string | null
   rejectionReason: string | null
   implementedAt: string | null
   activityId: string | null
+  /** S12b-2: the portal change type, the cancellation fee, the client's decision and a cancellation. */
+  changeType: ChangeRequestType | null
+  cancellationFeeMinor: string | null
+  clientDecidedBy: string | null
+  clientDecidedAt: string | null
+  cancelReason: string | null
+  cancelledAt: string | null
+}
+/** S12b-2: the impact staff send to the client (a cost is required — without one the request is approved directly). */
+export interface ChangeRequestImpactInput {
+  commercialImpactMinor?: string
+  cancellationFeeMinor?: string
+  timelineImpactNote?: string
+  operationalImpact?: string
+  financialImpactNote?: string
 }
 export interface ChangeRequestInput {
   source: ChangeRequestDto['source']

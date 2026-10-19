@@ -675,6 +675,8 @@ async function submitActivity () {
   activityType.value = 'call'
   isActivityDialogOpen.value = false
 }
+/** S12b-2: the client's answer to the version it was sent (recorded on the server). */
+const CLIENT_RESPONSE_LABEL: Record<'accepted' | 'rejected' | 'revision-requested', string> = { accepted: 'Disetujui Client', rejected: 'Ditolak Client', 'revision-requested': 'Client Minta Revisi' }
 </script>
 
 <template>
@@ -1190,6 +1192,7 @@ async function submitActivity () {
                   <StatusBadge :label="`Versi ${quotation.version}`" tone="info" />
                   <StatusBadge v-if="quotation.accepted" label="Accepted" tone="success" />
                   <StatusBadge v-if="quotation.sentToClientAt" label="Terkirim ke Client" tone="info" />
+                  <StatusBadge v-if="quotation.clientResponse" :label="CLIENT_RESPONSE_LABEL[quotation.clientResponse.response]" :tone="quotation.clientResponse.response === 'accepted' ? 'success' : quotation.clientResponse.response === 'rejected' ? 'destructive' : 'warning'" :title="quotation.clientResponse.note ?? undefined" />
                 </div>
                 <div v-if="quotation.supersededAmountIdr" class="text-xs text-muted-foreground">
                   <p>Direvisi dari {{ formatCurrencyIdr(quotation.supersededAmountIdr) }}</p>
@@ -1321,97 +1324,97 @@ async function submitActivity () {
                 scroll
               >
                 <div class="space-y-4 py-2">
+                  <div class="space-y-1.5">
+                    <Label for="edit-quo-amount">Nilai Quotation (Rp)</Label>
+                    <CurrencyInput id="edit-quo-amount" v-model="editQuotationAmount" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="edit-quo-discount">Discount (%)</Label>
+                    <Input
+                      id="edit-quo-discount"
+                      v-model.number="editQuotationDiscountPercent"
+                      type="number"
+                      min="0"
+                      max="100"
+                      step="0.1"
+                    />
+                    <p v-if="editQuotationDiscount" class="text-xs text-muted-foreground">
+                      &asymp; {{ formatCurrencyIdr(editQuotationDiscount) }}
+                    </p>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="edit-quo-cost">Estimated Cost (Rp)</Label>
+                    <CurrencyInput id="edit-quo-cost" v-model="editQuotationCost" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label>Estimated Margin (Rp)</Label>
+                    <div class="px-3 py-2 text-sm rounded-lg border border-input bg-muted/40 text-foreground">
+                      {{ editQuotationMargin != null ? formatCurrencyIdr(editQuotationMargin) : '—' }}
+                    </div>
+                    <p class="text-xs text-muted-foreground">
+                      Dihitung otomatis: Nilai Quotation &minus; Discount &minus; Estimated Cost.
+                    </p>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="edit-quo-payment-terms">Payment Terms</Label>
+                    <Input id="edit-quo-payment-terms" v-model="editQuotationPaymentTerms" placeholder="mis. DP 50%, pelunasan H-7" />
+                  </div>
+                  <div class="grid grid-cols-2 gap-3">
                     <div class="space-y-1.5">
-                      <Label for="edit-quo-amount">Nilai Quotation (Rp)</Label>
-                      <CurrencyInput id="edit-quo-amount" v-model="editQuotationAmount" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="edit-quo-discount">Discount (%)</Label>
-                      <Input
-                        id="edit-quo-discount"
-                        v-model.number="editQuotationDiscountPercent"
-                        type="number"
-                        min="0"
-                        max="100"
-                        step="0.1"
-                      />
-                      <p v-if="editQuotationDiscount" class="text-xs text-muted-foreground">
-                        &asymp; {{ formatCurrencyIdr(editQuotationDiscount) }}
-                      </p>
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="edit-quo-cost">Estimated Cost (Rp)</Label>
-                      <CurrencyInput id="edit-quo-cost" v-model="editQuotationCost" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label>Estimated Margin (Rp)</Label>
-                      <div class="px-3 py-2 text-sm rounded-lg border border-input bg-muted/40 text-foreground">
-                        {{ editQuotationMargin != null ? formatCurrencyIdr(editQuotationMargin) : '—' }}
-                      </div>
-                      <p class="text-xs text-muted-foreground">
-                        Dihitung otomatis: Nilai Quotation &minus; Discount &minus; Estimated Cost.
-                      </p>
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="edit-quo-payment-terms">Payment Terms</Label>
-                      <Input id="edit-quo-payment-terms" v-model="editQuotationPaymentTerms" placeholder="mis. DP 50%, pelunasan H-7" />
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                      <div class="space-y-1.5">
-                        <Label for="edit-quo-tax">Tax / Fee (Rp)</Label>
-                        <CurrencyInput id="edit-quo-tax" v-model="editQuotationTax" />
-                      </div>
-                      <div class="space-y-1.5">
-                        <Label for="edit-quo-markup">Markup (Rp)</Label>
-                        <CurrencyInput id="edit-quo-markup" v-model="editQuotationMarkup" />
-                      </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                      <div class="space-y-1.5">
-                        <Label for="edit-quo-currency">Currency</Label>
-                        <Input id="edit-quo-currency" v-model="editQuotationCurrency" placeholder="IDR" />
-                      </div>
-                      <div class="space-y-1.5">
-                        <Label for="edit-quo-valid-until">Valid Until</Label>
-                        <Input id="edit-quo-valid-until" v-model="editQuotationValidUntil" type="date" />
-                      </div>
-                    </div>
-                    <div class="space-y-2">
-                      <div class="flex items-center justify-between">
-                        <Label class="!mb-0">Service Breakdown</Label>
-                        <Button size="sm" variant="outline" type="button" @click="addBreakdownRow">
-                          Tambah Baris
-                        </Button>
-                      </div>
-                      <div v-for="(item, index) in editServiceBreakdown" :key="index" class="flex flex-wrap items-center gap-2">
-                        <select v-model="item.service" class="appearance-none px-2 py-2 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                          <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
-                            {{ type.label }}
-                          </option>
-                        </select>
-                        <Input v-model="item.description" placeholder="Deskripsi" class="flex-1" />
-                        <CurrencyInput v-model="item.amountIdr" placeholder="Rp" class="w-28" />
-                        <Button size="sm" variant="ghost" type="button" @click="removeBreakdownRow(index)">
-                          Hapus
-                        </Button>
-                      </div>
-                      <p v-if="editServiceBreakdown.length === 0" class="text-xs text-muted-foreground">
-                        Belum ada baris service breakdown.
-                      </p>
+                      <Label for="edit-quo-tax">Tax / Fee (Rp)</Label>
+                      <CurrencyInput id="edit-quo-tax" v-model="editQuotationTax" />
                     </div>
                     <div class="space-y-1.5">
-                      <Label for="edit-quo-inclusions">Inclusions</Label>
-                      <textarea id="edit-quo-inclusions" v-model="editQuotationInclusions" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Tiket pesawat PP, hotel 3 malam, transportasi lokal" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="edit-quo-exclusions">Exclusions</Label>
-                      <textarea id="edit-quo-exclusions" v-model="editQuotationExclusions" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Pengeluaran pribadi, asuransi perjalanan" />
-                    </div>
-                    <div class="space-y-1.5">
-                      <Label for="edit-quo-terms">Terms &amp; Conditions</Label>
-                      <textarea id="edit-quo-terms" v-model="editQuotationTerms" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Harga berlaku selama masa validity, DP tidak dapat dikembalikan" />
+                      <Label for="edit-quo-markup">Markup (Rp)</Label>
+                      <CurrencyInput id="edit-quo-markup" v-model="editQuotationMarkup" />
                     </div>
                   </div>
+                  <div class="grid grid-cols-2 gap-3">
+                    <div class="space-y-1.5">
+                      <Label for="edit-quo-currency">Currency</Label>
+                      <Input id="edit-quo-currency" v-model="editQuotationCurrency" placeholder="IDR" />
+                    </div>
+                    <div class="space-y-1.5">
+                      <Label for="edit-quo-valid-until">Valid Until</Label>
+                      <Input id="edit-quo-valid-until" v-model="editQuotationValidUntil" type="date" />
+                    </div>
+                  </div>
+                  <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                      <Label class="!mb-0">Service Breakdown</Label>
+                      <Button size="sm" variant="outline" type="button" @click="addBreakdownRow">
+                        Tambah Baris
+                      </Button>
+                    </div>
+                    <div v-for="(item, index) in editServiceBreakdown" :key="index" class="flex flex-wrap items-center gap-2">
+                      <select v-model="item.service" class="appearance-none px-2 py-2 text-xs rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                        <option v-for="type in SERVICE_TYPES" :key="type.value" :value="type.value">
+                          {{ type.label }}
+                        </option>
+                      </select>
+                      <Input v-model="item.description" placeholder="Deskripsi" class="flex-1" />
+                      <CurrencyInput v-model="item.amountIdr" placeholder="Rp" class="w-28" />
+                      <Button size="sm" variant="ghost" type="button" @click="removeBreakdownRow(index)">
+                        Hapus
+                      </Button>
+                    </div>
+                    <p v-if="editServiceBreakdown.length === 0" class="text-xs text-muted-foreground">
+                      Belum ada baris service breakdown.
+                    </p>
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="edit-quo-inclusions">Inclusions</Label>
+                    <textarea id="edit-quo-inclusions" v-model="editQuotationInclusions" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Tiket pesawat PP, hotel 3 malam, transportasi lokal" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="edit-quo-exclusions">Exclusions</Label>
+                    <textarea id="edit-quo-exclusions" v-model="editQuotationExclusions" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Pengeluaran pribadi, asuransi perjalanan" />
+                  </div>
+                  <div class="space-y-1.5">
+                    <Label for="edit-quo-terms">Terms &amp; Conditions</Label>
+                    <textarea id="edit-quo-terms" v-model="editQuotationTerms" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="mis. Harga berlaku selama masa validity, DP tidak dapat dikembalikan" />
+                  </div>
+                </div>
                 <template #footer>
                   <Button variant="outline" @click="isEditQuotationDialogOpen = false">
                     Batal
@@ -1643,23 +1646,23 @@ async function submitActivity () {
               </Button>
             </template>
             <div class="space-y-4 py-2">
-                <div class="space-y-1.5">
-                  <Label for="lead-activity-type">Jenis</Label>
-                  <select id="lead-activity-type" v-model="activityType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                    <option v-for="type in PARTY_ACTIVITY_TYPES" :key="type.value" :value="type.value">
-                      {{ type.label }}
-                    </option>
-                  </select>
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="lead-activity-message">Catatan</Label>
-                  <Input id="lead-activity-message" v-model="activityMessage" placeholder="mis. Follow-up kebutuhan traveler" />
-                </div>
-                <div class="space-y-1.5">
-                  <Label for="lead-activity-due">Jadwal Follow-up (opsional)</Label>
-                  <Input id="lead-activity-due" v-model="activityDueAt" type="date" />
-                </div>
+              <div class="space-y-1.5">
+                <Label for="lead-activity-type">Jenis</Label>
+                <select id="lead-activity-type" v-model="activityType" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                  <option v-for="type in PARTY_ACTIVITY_TYPES" :key="type.value" :value="type.value">
+                    {{ type.label }}
+                  </option>
+                </select>
               </div>
+              <div class="space-y-1.5">
+                <Label for="lead-activity-message">Catatan</Label>
+                <Input id="lead-activity-message" v-model="activityMessage" placeholder="mis. Follow-up kebutuhan traveler" />
+              </div>
+              <div class="space-y-1.5">
+                <Label for="lead-activity-due">Jadwal Follow-up (opsional)</Label>
+                <Input id="lead-activity-due" v-model="activityDueAt" type="date" />
+              </div>
+            </div>
             <template #footer>
               <Button variant="outline" @click="isActivityDialogOpen = false">
                 Batal
@@ -1679,31 +1682,31 @@ async function submitActivity () {
           content-class="max-w-md"
         >
           <div class="space-y-4 py-2">
-              <div class="space-y-1.5">
-                <Label for="edit-lead-name">Nama Kontak</Label>
-                <Input id="edit-lead-name" v-model="editName" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="edit-lead-company">Nama Company (opsional)</Label>
-                <Input id="edit-lead-company" v-model="editCompanyName" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="edit-lead-source">Sumber Lead</Label>
-                <select id="edit-lead-source" v-model="editSource" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">
-                    {{ source.label }}
-                  </option>
-                </select>
-              </div>
-              <div class="space-y-1.5">
-                <Label for="edit-lead-phone">Telepon (opsional)</Label>
-                <Input id="edit-lead-phone" v-model="editPhone" />
-              </div>
-              <div class="space-y-1.5">
-                <Label for="edit-lead-email">Email (opsional)</Label>
-                <Input id="edit-lead-email" v-model="editEmail" type="email" />
-              </div>
+            <div class="space-y-1.5">
+              <Label for="edit-lead-name">Nama Kontak</Label>
+              <Input id="edit-lead-name" v-model="editName" />
             </div>
+            <div class="space-y-1.5">
+              <Label for="edit-lead-company">Nama Company (opsional)</Label>
+              <Input id="edit-lead-company" v-model="editCompanyName" />
+            </div>
+            <div class="space-y-1.5">
+              <Label for="edit-lead-source">Sumber Lead</Label>
+              <select id="edit-lead-source" v-model="editSource" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option v-for="source in LEAD_SOURCES" :key="source.value" :value="source.value">
+                  {{ source.label }}
+                </option>
+              </select>
+            </div>
+            <div class="space-y-1.5">
+              <Label for="edit-lead-phone">Telepon (opsional)</Label>
+              <Input id="edit-lead-phone" v-model="editPhone" />
+            </div>
+            <div class="space-y-1.5">
+              <Label for="edit-lead-email">Email (opsional)</Label>
+              <Input id="edit-lead-email" v-model="editEmail" type="email" />
+            </div>
+          </div>
           <template #footer>
             <Button variant="outline" @click="isEditLeadOpen = false">
               Batal

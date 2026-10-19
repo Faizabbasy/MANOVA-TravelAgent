@@ -29,6 +29,7 @@ const quotation = (over: Partial<ClientQuotationDto> = {}): ClientQuotationDto =
   cancellationPolicy: null,
   proposedItineraryNote: null,
   preparedByName: 'Doni Saputra',
+  clientResponse: null,
   lead: { id: 'LED-900', title: 'Retreat Bali', companyName: 'PT Java Bhakti', name: 'Dimas', destination: 'Bali', travelStartDate: '2026-09-01', travelEndDate: '2026-09-04', travelerEstimate: 40, serviceScope: ['hotel'] },
   ...over
 })
@@ -146,5 +147,12 @@ describe('client commerce sync — profile & contacts (S12b-1)', () => {
     expect(CONTACTS.filter(x => x.partyId !== PARTY).map(x => x.id)).toEqual(others)
     resetClientCommerce()
     expect(CONTACTS.map(x => x.id)).toEqual(before)
+  })
+})
+
+describe('client quotation response (S12b-2)', () => {
+  it('the client’s answer to the current version comes with the quotation', () => {
+    mergeClientQuotations(PARTY, [quotation({ id: 'QUO-951', clientResponse: { response: 'revision-requested', note: 'Kurangi 1 malam', version: 2, respondedAt: '2026-07-04T00:00:00.000Z' } })])
+    expect(QUOTATIONS.find(q => q.id === 'QUO-951')?.clientResponse).toEqual({ response: 'revision-requested', note: 'Kurangi 1 malam', version: 2, respondedAt: '2026-07-04T00:00:00.000Z' })
   })
 })

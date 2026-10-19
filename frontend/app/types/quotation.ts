@@ -26,6 +26,14 @@ export interface QuotationVersionSummary {
   decisionNote?: string
 }
 
+/** S12b-2: what the client answered to the version it was sent; staff decide what happens next (Won / revise). */
+export interface QuotationClientResponse {
+  response: 'accepted' | 'rejected' | 'revision-requested'
+  note: string | null
+  version: number
+  respondedAt: string
+}
+
 export interface Quotation {
   id: ID
   /** Lead pemilik quotation ini — satu Lead punya paling banyak satu Quotation aktif (lihat `Lead.quotationId`). */
@@ -60,6 +68,8 @@ export interface Quotation {
   exclusions?: string
   /** "Send mock ke client" — timestamp simulasi, TIDAK mengirim email/WA nyata. */
   sentToClientAt?: string
+  /** S12b-2: the client's answer to this version (accepted / rejected / revision requested), recorded on the server. */
+  clientResponse?: QuotationClientResponse
 
   /**
    * Dua field naratif aditif untuk halaman client "Quotations & Proposals". Free-text, pola sama

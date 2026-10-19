@@ -2,7 +2,10 @@ import type { ApiClient } from './client'
 import { newIdempotencyKey } from './client'
 import type { MasterDataCategoryKey } from '~/types/master-data'
 import type { AssetCondition } from '~/types/inventory'
+import type { ChangeRequestType } from '~/types/change-incident'
+import type { QuotationClientResponse } from '~/types/quotation'
 import type {
+  ChangeRequestImpactInput,
   ClientContactInput,
   ClientDocumentInput,
   ClientInvoiceDto,
@@ -296,6 +299,14 @@ export function createManovaApi (client: ApiClient) {
       approveChangeRequest: (id: string) => client.post<ChangeRequestDto>(`/change-requests/${seg(id)}/approve`, {}),
       rejectChangeRequest: (id: string, reason: string) => client.post<ChangeRequestDto>(`/change-requests/${seg(id)}/reject`, { reason }),
       implementChangeRequest: (id: string) => client.post<ChangeRequestDto>(`/change-requests/${seg(id)}/implement`, {}),
+      // S12b-2: staff send a client request's impact to the client; the client portal submits, decides and cancels.
+      sendChangeRequestToClient: (id: string, input: ChangeRequestImpactInput) => client.post<ChangeRequestDto>(`/change-requests/${seg(id)}/send-to-client`, input),
+      clientCreateChangeRequest: (projectId: string, input: { changeType?: ChangeRequestType; beforeSummary: string; afterSummary: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<ChangeRequestDto>(`/client/projects/${seg(projectId)}/change-requests`, input, { idempotencyKey }),
+      clientApproveChangeRequest: (id: string) => client.post<ChangeRequestDto>(`/client/change-requests/${seg(id)}/approve`, {}),
+      clientRejectChangeRequest: (id: string, reason: string) => client.post<ChangeRequestDto>(`/client/change-requests/${seg(id)}/reject`, { reason }),
+      clientCancelChangeRequest: (id: string, reason: string) => client.post<ChangeRequestDto>(`/client/change-requests/${seg(id)}/cancel`, { reason }),
+      respondToQuotation: (id: string, input: { response: QuotationClientResponse['response']; note?: string }) => client.post<ClientQuotationDto>(`/client/quotations/${seg(id)}/respond`, input),
       listIncidents: (query: { projectId?: string } = {}) => client.get<IncidentDto[]>('/incidents', { query: { ...query } }),
       createIncident: (projectId: string, input: IncidentInput, idempotencyKey: string = newIdempotencyKey()) =>
         client.post<IncidentDto>(`/projects/${seg(projectId)}/incidents`, input, { idempotencyKey }),

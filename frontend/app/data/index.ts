@@ -344,11 +344,11 @@ export function createInvoice (input: CreateInvoiceInput): Invoice | undefined {
   const invoiceId = nextSequentialId('INV-', INVOICES)
   const milestones: InvoiceMilestone[] | undefined = input.milestones && input.milestones.length > 0
     ? input.milestones.map((milestone, index) => ({
-        id: `${invoiceId}-M${index + 1}`,
-        label: milestone.label.trim(),
-        percent: milestone.percent,
-        amountIdr: Math.round(input.amountIdr * milestone.percent / 100)
-      }))
+      id: `${invoiceId}-M${index + 1}`,
+      label: milestone.label.trim(),
+      percent: milestone.percent,
+      amountIdr: Math.round(input.amountIdr * milestone.percent / 100)
+    }))
     : undefined
   if (milestones && milestones.length > 0) {
     const roundedTotal = milestones.reduce((sum, milestone) => sum + milestone.amountIdr, 0)
@@ -3406,11 +3406,11 @@ export function createChangeRequest (input: CreateChangeRequestInput): ChangeReq
  * di bawah), tidak pernah lewat `approveChangeRequest`/`rejectChangeRequest` internal.
  */
 const CHANGE_REQUEST_TRANSITIONS: Record<ChangeRequestStatus, ChangeRequestStatus[]> = {
-  submitted: ['under-review', 'approved', 'rejected', 'cancelled'],
-  'under-review': ['approved', 'rejected', 'availability-check', 'not-feasible', 'cancelled'],
+  submitted: ['under-review', 'waiting-client-approval', 'approved', 'rejected', 'cancelled'],
+  'under-review': ['approved', 'rejected', 'waiting-client-approval', 'availability-check', 'not-feasible', 'cancelled'],
   'availability-check': ['costing', 'not-feasible', 'rejected', 'cancelled'],
   costing: ['waiting-client-approval', 'not-feasible', 'rejected', 'cancelled'],
-  'waiting-client-approval': ['in-execution', 'rejected', 'cancelled'],
+  'waiting-client-approval': ['approved', 'in-execution', 'rejected', 'cancelled'],
   approved: ['implemented', 'in-execution'],
   'in-execution': ['implemented'],
   implemented: [],

@@ -1,7 +1,7 @@
 import { CANCELLATION_RECORDS, CHANGE_REQUESTS, INCIDENTS } from './change-incident'
 import { refreshProjectActivities } from './activity-sync'
 import type { CancellationRecord, ChangeRequest, Incident } from '~/types/change-incident'
-import type { BookingCancellationDto, ChangeRequestDto, ChangeRequestInput, IncidentDto, IncidentInput } from '~/types/api'
+import type { BookingCancellationDto, ChangeRequestDto, ChangeRequestImpactInput, ChangeRequestInput, IncidentDto, IncidentInput } from '~/types/api'
 import type { ManovaApi } from '~/lib/api/endpoints'
 import { newIdempotencyKey } from '~/lib/api/client'
 import { isApiError } from '~/lib/api/errors'
@@ -34,7 +34,14 @@ export function changeRequestFromServer (d: ChangeRequestDto): ChangeRequest {
     approvedBy: opt(d.decidedBy),
     approvedAt: opt(d.decidedAt),
     rejectionReason: opt(d.rejectionReason),
-    activityEntryId: opt(d.activityId)
+    activityEntryId: opt(d.activityId),
+    // S12b-2: the portal steps live on the server too.
+    changeType: opt(d.changeType),
+    cancellationFeeIdr: d.cancellationFeeMinor === null ? undefined : Number(d.cancellationFeeMinor),
+    clientDecidedBy: opt(d.clientDecidedBy),
+    clientDecidedAt: opt(d.clientDecidedAt),
+    cancelReason: opt(d.cancelReason),
+    cancelledAt: opt(d.cancelledAt)
   }
 }
 
@@ -186,4 +193,24 @@ export function useChangesSync () {
   }
 
   return { state, load }
+}
+
+/* ---------- S12b-2: staff send the impact to the client ---------- */
+
+/** Which staff buttons a change request offers — the same rules the server enforces. */
+export function staffChangeRequestActions (request: ChangeRequest) {
+  const open = request.status === 'submitted' || request.status === 'under-review'
+  const fromClient = request.source === 'client'
+  const costs = (request.commercialImpactIdr ?? 0) > 0 || (request.cancellationFeeIdr ?? 0) > 0
+  return {
+    review: request.status === 'submitted',
+    sendToClient: open && fromClient,
+    approve: open && !(fromClient && costs),
+    reject: open,
+    implement: request.status === 'approved'
+  }
+}
+
+export async function sendChangeRequestToClientOnServer (api: CoreApi, id: string, input: ChangeRequestImpactInput): Promise<ChangeRequest> {
+  return afterRequest(api, (await api.core.sendChangeRequestToClient(id, input)).data)
 }

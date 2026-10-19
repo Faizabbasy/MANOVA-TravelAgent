@@ -103,6 +103,7 @@ export function quotationFromServer (d: SalesQuotationDto, wonLeadIds: Set<strin
     inclusions: opt(d.inclusions),
     exclusions: opt(d.exclusions),
     sentToClientAt: opt(d.sentToClientOn),
+    clientResponse: d.clientResponse ? { ...d.clientResponse } : undefined,
     cancellationPolicy: opt(d.cancellationPolicy),
     proposedItineraryNote: opt(d.proposedItineraryNote),
     costSheetId: opt(d.costSheetId),
