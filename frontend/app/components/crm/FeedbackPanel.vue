@@ -2,41 +2,61 @@
 import { computed, ref } from 'vue'
 import { Star, MessageSquareWarning, ThumbsUp, CheckCircle2 } from 'lucide-vue-next'
 import { cn } from '~/lib/utils'
-import { FEEDBACK_RECORDS, getProjectById, getPartyById, getUserById } from '~/data'
+import { getUserById } from '~/data'
+import { feedbackFromServer } from '~/data/support-sync'
+import { feedbackActions } from '~/lib/support'
+import { createSaveGate } from '~/lib/save-gate'
+import { isApiError } from '~/lib/api/errors'
 import { FEEDBACK_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate, formatPercentage } from '~/utils/format'
-import { DEMO_REFERENCE_DATE } from '~/utils/attention'
+import type { FeedbackDto } from '~/types/api'
 import type { FeedbackStatus } from '~/types/feedback'
 
 /** Tab "Review & Feedback" — Menu CRM > Engagement (Penyederhanaan 7-Role/Menu). Dulu `/crm/feedback`,
- * kini tab dalam satu menu bersama Follow-up/Loyalty — logika tidak diubah. */
+ * kini tab dalam satu menu bersama Follow-up/Loyalty. */
 
 const { canView, can } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
+const api = useApi()
+const session = useServerSession()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
 
 const hasAccess = computed(() => canView('crm'))
 const canManage = computed(() => can('crm.manage-follow-up'))
 
-const refreshKey = ref(0)
 const statusFilter = ref<'all' | FeedbackStatus>('all')
 
 /**
- * Sisi internal dari feedback klien. Halaman `/client/feedback` yang sudah ada adalah tempat klien
- * MENGISI; halaman ini adalah tempat tim CRM MENINDAKLANJUTI — keduanya membaca `FEEDBACK_RECORDS` yang sama.
+ * Sisi internal dari feedback klien (S12c-2: dari server, `GET /feedback`). Portal client adalah tempat klien
+ * MENGISI; panel ini tempat tim CRM MENINDAKLANJUTI — terima, tandai perlu tindak lanjut (catatan wajib), tutup.
  */
-const rows = computed(() => {
-  void refreshKey.value
-  return FEEDBACK_RECORDS
-    .map(feedback => ({
+const records = ref<FeedbackDto[]>([])
+const loadError = ref('')
+async function load () {
+  if (!hasAccess.value) { return }
+  try {
+    await session.ensure()
+    records.value = (await api.core.listFeedback()).data
+    loadError.value = ''
+  } catch (error) {
+    loadError.value = isApiError(error) ? error.message : 'Server belum bisa dihubungi.'
+  }
+}
+onMounted(load)
+
+const rows = computed(() => records.value
+  .filter(dto => dto.status !== 'draft')
+  .map((dto) => {
+    const feedback = feedbackFromServer(dto)
+    return {
+      dto,
       feedback,
-      project: getProjectById(feedback.projectId),
-      party: getPartyById(feedback.clientPartyId),
       statusOption: findStatusOption(FEEDBACK_STATUSES, feedback.status),
-      isDetractor: (feedback.recommendationScore ?? 10) <= 6
-    }))
-    .sort((a, b) => (b.feedback.submittedAt ?? '').localeCompare(a.feedback.submittedAt ?? ''))
-})
+      isDetractor: (feedback.recommendationScore ?? 10) <= 6,
+      actions: feedbackActions(feedback.status)
+    }
+  })
+  .sort((a, b) => (b.feedback.submittedAt ?? '').localeCompare(a.feedback.submittedAt ?? '')))
 
 const filteredRows = computed(() =>
   (statusFilter.value === 'all' ? rows.value : rows.value.filter(row => row.feedback.status === statusFilter.value)))
@@ -79,22 +99,40 @@ const aspectAverages = computed(() => ASPECTS.map((aspect) => {
   }
 }).sort((a, b) => a.average - b.average))
 
-function acknowledge (feedbackId: string) {
-  const record = FEEDBACK_RECORDS.find(item => item.id === feedbackId)
-  if (!record) { return }
-  record.status = 'acknowledged'
-  record.acknowledgedAt = DEMO_REFERENCE_DATE
-  record.acknowledgedBy = currentUser.value.id
-  refreshKey.value += 1
-  showToast('Feedback ditindaklanjuti', 'Status diubah menjadi Acknowledged.', 'success')
+const acknowledgedName = (userId?: string) => { const name = userId ? getUserById(userId)?.name : undefined; return name ? ` oleh ${name}` : '' }
+
+/** The server's feedback replaces the row. */
+async function act (title: string, action: () => Promise<{ data: FeedbackDto }>) {
+  const saved = await gate.run(title, async () => (await action()).data)
+  if (!saved) { return false }
+  const i = records.value.findIndex(item => item.id === saved.id)
+  if (i !== -1) { records.value.splice(i, 1, saved) }
+  return true
 }
 
-function flagFollowUp (feedbackId: string) {
-  const record = FEEDBACK_RECORDS.find(item => item.id === feedbackId)
-  if (!record) { return }
-  record.status = 'follow-up-required'
-  refreshKey.value += 1
-  showToast('Ditandai', 'Feedback masuk antrean tindak lanjut.', 'success')
+async function acknowledge (feedbackId: string) {
+  if (await act('Feedback Gagal Ditandai', () => api.core.acknowledgeFeedback(feedbackId))) {
+    showToast('Feedback diterima', 'Status diubah menjadi Acknowledged.', 'success')
+  }
+}
+
+const noteDialog = ref<{ kind: 'follow-up' | 'close'; id: string } | null>(null)
+const note = ref('')
+const isNoteOpen = computed({ get: () => noteDialog.value !== null, set: (open) => { if (!open) { noteDialog.value = null } } })
+function openNote (kind: 'follow-up' | 'close', id: string) {
+  note.value = ''
+  noteDialog.value = { kind, id }
+}
+async function submitNote () {
+  const dialog = noteDialog.value
+  if (!dialog || (dialog.kind === 'follow-up' && !note.value.trim())) { return }
+  const text = note.value.trim()
+  const done = dialog.kind === 'follow-up'
+    ? await act('Tindak Lanjut Gagal Dicatat', () => api.core.followUpFeedback(dialog.id, text))
+    : await act('Feedback Gagal Ditutup', () => api.core.closeFeedback(dialog.id, text || undefined))
+  if (!done) { return }
+  noteDialog.value = null
+  showToast(dialog.kind === 'follow-up' ? 'Ditandai' : 'Feedback ditutup', dialog.kind === 'follow-up' ? 'Feedback masuk antrean tindak lanjut.' : 'Feedback selesai ditindaklanjuti.', 'success')
 }
 </script>
 
@@ -142,16 +180,15 @@ function flagFollowUp (feedbackId: string) {
             <div class="flex flex-wrap items-start justify-between gap-3">
               <div class="min-w-0">
                 <div class="flex flex-wrap items-center gap-2">
-                  <span class="text-sm font-medium text-foreground">{{ row.party?.name ?? row.feedback.clientPartyId }}</span>
+                  <span class="text-sm font-medium text-foreground">{{ row.dto.partyName }}</span>
                   <StatusBadge :label="row.statusOption.label" :tone="row.statusOption.tone" />
                   <StatusBadge v-if="row.isDetractor" label="Detractor" tone="destructive" />
                 </div>
                 <NuxtLink
-                  v-if="row.project"
-                  :to="`/project-orders/${row.project.id}`"
+                  :to="`/project-orders/${row.dto.projectId}`"
                   class="text-xs text-muted-foreground hover:text-primary"
                 >
-                  {{ row.project.name }} · {{ row.project.id }}
+                  {{ row.dto.projectName }} · {{ row.dto.projectId }}
                 </NuxtLink>
               </div>
 
@@ -179,33 +216,56 @@ function flagFollowUp (feedbackId: string) {
               </span>
               <span v-if="row.feedback.acknowledgedAt" class="text-xs text-success flex items-center gap-1">
                 <CheckCircle2 class="h-3 w-3" />
-                Ditindaklanjuti {{ formatDate(row.feedback.acknowledgedAt) }} oleh {{ getUserById(row.feedback.acknowledgedBy ?? '')?.name ?? '—' }}
+                Diterima {{ formatDate(row.feedback.acknowledgedAt) }}{{ acknowledgedName(row.feedback.acknowledgedBy) }}
               </span>
+              <span v-if="row.feedback.closedAt" class="text-xs text-muted-foreground">Ditutup {{ formatDate(row.feedback.closedAt) }}</span>
               <StatusBadge v-if="row.feedback.testimonialConsent" label="Boleh jadi testimoni" tone="info" />
 
               <span v-if="canManage" class="ml-auto flex items-center gap-2">
-                <Button
-                  v-if="row.feedback.status !== 'follow-up-required'"
-                  variant="outline"
-                  size="sm"
-                  @click="flagFollowUp(row.feedback.id)"
-                >
+                <Button v-if="row.actions.followUp" variant="outline" size="sm" :disabled="gate.saving.value" @click="openNote('follow-up', row.dto.id)">
                   Tandai Perlu Tindak Lanjut
                 </Button>
-                <Button
-                  v-if="row.feedback.status !== 'acknowledged'"
-                  size="sm"
-                  @click="acknowledge(row.feedback.id)"
-                >
-                  Tandai Ditindaklanjuti
+                <Button v-if="row.actions.acknowledge" size="sm" :disabled="gate.saving.value" @click="acknowledge(row.dto.id)">
+                  Terima
+                </Button>
+                <Button v-if="row.actions.close" variant="outline" size="sm" :disabled="gate.saving.value" @click="openNote('close', row.dto.id)">
+                  Tutup
                 </Button>
               </span>
             </div>
+            <p v-if="row.feedback.followUpNote" class="text-xs text-warning mt-1.5">
+              Tindak lanjut: {{ row.feedback.followUpNote }}
+            </p>
           </li>
         </ul>
 
+        <EmptyState v-else-if="loadError" :icon="Star" title="Feedback belum bisa dimuat" :description="loadError">
+          <Button variant="outline" size="sm" @click="load">
+            Coba lagi
+          </Button>
+        </EmptyState>
         <EmptyState v-else :icon="Star" title="Belum ada feedback" description="Feedback muncul setelah klien mengisi form evaluasi di portal." />
       </SectionCard>
+
+      <ResponsiveFormSheet
+        v-model:open="isNoteOpen"
+        :title="noteDialog?.kind === 'close' ? 'Tutup Feedback' : 'Perlu Tindak Lanjut'"
+        :description="noteDialog?.kind === 'close' ? 'Catatan penutupan (opsional).' : 'Catatan wajib — apa yang akan dilakukan.'"
+        content-class="max-w-md"
+      >
+        <div class="space-y-1.5 py-2">
+          <Label for="fb-note">Catatan</Label>
+          <textarea id="fb-note" v-model="note" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+        </div>
+        <template #footer>
+          <Button variant="outline" @click="noteDialog = null">
+            Batal
+          </Button>
+          <Button :disabled="gate.saving.value || (noteDialog?.kind === 'follow-up' && !note.trim())" @click="submitNote">
+            Simpan
+          </Button>
+        </template>
+      </ResponsiveFormSheet>
     </template>
   </div>
 </template>

@@ -31,6 +31,7 @@ import {
   Milestone,
   ListChecks,
   NotebookText,
+  LifeBuoy,
   Map as MapIcon
 } from 'lucide-vue-next'
 import type { ModuleKey, RoleId } from '~/types/user'
@@ -139,7 +140,9 @@ export const NAV_ITEMS: NavItem[] = [
     icon: Heart,
     moduleKey: 'crm',
     children: [
-      { key: 'crm.customers', label: 'Database Customer', to: '/customer-journey/customers', icon: Users, moduleKey: 'crm' }
+      { key: 'crm.customers', label: 'Database Customer', to: '/customer-journey/customers', icon: Users, moduleKey: 'crm' },
+      // S12c-2: tiket support dari portal client; isi halaman digerbang capability `support.manage-ticket`.
+      { key: 'crm.support', label: 'Tiket Support', to: '/support', icon: LifeBuoy, moduleKey: 'crm', isNew: true }
     ]
   },
 
