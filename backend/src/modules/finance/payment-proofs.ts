@@ -6,6 +6,8 @@ import { isIsoDate } from '../../shared/dates'
 import { nextId } from '../../shared/ids'
 import { parseAmountMinor } from '../../shared/money'
 import { notifyInternal } from '../core/client-writes'
+import { notify } from '../core/notifications'
+import { postReceipt } from './receivables'
 
 const rule = (message: string) => new AppError(422, 'RULE_VIOLATION', message)
 const str = (v: unknown) => (v === null || v === undefined ? null : String(v))
@@ -110,3 +112,38 @@ export async function markInvoiceViewed(tx: Queryable, partyId: string, invoiceI
 
 /** Kept for the Db-typed callers (Finance invoice detail). */
 export const paymentProofsOfInvoice = (db: Db, invoiceId: string) => listPaymentProofs(db, { invoiceId })
+
+async function lockProof(tx: Queryable, id: string) {
+  const [p] = await tx.query<{ id: string; customer_invoice_id: string; party_id: string; submitted_by: string; status: string; reference: string; project_id: string }>(
+    `select pp.id, pp.customer_invoice_id, pp.party_id, pp.submitted_by, pp.status, pp.reference, i.project_id
+       from payment_proofs pp join customer_invoices i on i.id = pp.customer_invoice_id where pp.id = $1 for update of pp`, [id])
+  if (!p) throw errors.notFound('Bukti pembayaran')
+  if (p.status !== 'submitted') throw rule('Bukti pembayaran ini sudah diputuskan.')
+  return p
+}
+
+/** Finance verify a proof by posting the receipt it describes (Finance sets the official amount and account). */
+export async function verifyPaymentProof(tx: Queryable, actor: Actor, id: string, input: { bankAccountId: string; amountMinor: string; effectiveDate: string; reference?: string }, requestId: string) {
+  const p = await lockProof(tx, id)
+  const receipt = await postReceipt(tx, actor, {
+    bankAccountId: input.bankAccountId, amountMinor: input.amountMinor, effectiveDate: input.effectiveDate, partyId: p.party_id, projectId: p.project_id,
+    reference: input.reference?.trim() || p.reference, memo: `Bukti bayar client ${id}`,
+    allocations: [{ invoiceId: p.customer_invoice_id, amountMinor: input.amountMinor }]
+  }, requestId)
+  await tx.query("update payment_proofs set status = 'verified', reviewed_by = $2, reviewed_at = now(), receipt_transaction_id = $3 where id = $1", [id, actor.userId, receipt.transactionId])
+  await notify(tx, { userId: p.submitted_by, actorUserId: actor.userId, type: 'reminder', title: 'Pembayaran Anda telah diverifikasi',
+    body: `Bukti ${p.reference} untuk invoice ${p.customer_invoice_id} telah kami terima.`, entityType: 'invoice', entityId: p.customer_invoice_id })
+  await recordAudit(tx, { action: 'finance.payment_proof_verified', actorUserId: actor.userId, entityType: 'customer_invoice', entityId: p.customer_invoice_id, requestId,
+    after: { proofId: id, transactionId: receipt.transactionId, amountMinor: input.amountMinor } })
+  return { id, transactionId: receipt.transactionId }
+}
+
+export async function rejectPaymentProof(tx: Queryable, actor: Actor, id: string, reasonInput: unknown, requestId: string) {
+  const reason = typeof reasonInput === 'string' ? reasonInput.trim() : ''
+  if (!reason) throw errors.validation({ reason: ['Alasan penolakan wajib diisi.'] })
+  const p = await lockProof(tx, id)
+  await tx.query("update payment_proofs set status = 'rejected', reviewed_by = $2, reviewed_at = now(), rejection_reason = $3 where id = $1", [id, actor.userId, reason.slice(0, 1000)])
+  await notify(tx, { userId: p.submitted_by, actorUserId: actor.userId, type: 'reminder', title: 'Bukti pembayaran Anda ditolak',
+    body: reason, entityType: 'invoice', entityId: p.customer_invoice_id })
+  await recordAudit(tx, { action: 'finance.payment_proof_rejected', actorUserId: actor.userId, entityType: 'customer_invoice', entityId: p.customer_invoice_id, requestId, reason })
+}

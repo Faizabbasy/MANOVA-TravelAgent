@@ -71,3 +71,55 @@ describe('client payment proof', () => {
     expect((await clientInvoice(inv)).viewedAt).toBe(viewedAt)
   })
 })
+
+describe('Finance reviews payment proofs', () => {
+  let bank = ''
+  const today = new Date(Date.now() + 7 * 3600_000).toISOString().slice(0, 10)
+  beforeAll(async () => {
+    const acc = await call('POST', '/finance/accounts', 'finance', { code: 'BCA-PPF', bankName: 'BCA', holderName: 'PT MANOVA', accountNumber: '0099887766' })
+    bank = acc.json.data.id
+    const opening = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10)
+    await call('POST', `/finance/accounts/${bank}/opening`, 'finance', { amountMinor: '100000000', openingDate: opening })
+    await call('POST', `/finance/accounts/${bank}/opening/verify`, 'superAdmin', { balanceMinor: '100000000', openingDate: opening })
+  })
+  const submitted = async (amount: string) => {
+    const inv = await issuedInvoice('PRJ-201', '9000000')
+    expect((await call('POST', `/client/invoices/${inv}/payment-proofs`, 'client', proof({ amountMinor: amount, transferDate: today }), k())).status).toBe(201)
+    const list = (await call('GET', '/finance/payment-proofs?status=submitted', 'finance')).json.data as { id: string; invoiceId: string }[]
+    return { inv, proofId: list.find(p => p.invoiceId === inv)!.id }
+  }
+
+  test('verify posts the receipt allocated to the invoice; the client sees it paid and is told; replay is one receipt', async () => {
+    const { inv, proofId } = await submitted('4000000')
+    expect((await call('GET', '/finance/payment-proofs?status=submitted', 'admin')).status).toBe(403)
+    const n0 = await notes('USR-021')
+    const key = k()
+    const res = await call('POST', `/finance/payment-proofs/${proofId}/verify`, 'finance', { bankAccountId: bank, amountMinor: '4000000', effectiveDate: today }, key)
+    expect(res.status, JSON.stringify(res.json)).toBe(200)
+    const replay = await call('POST', `/finance/payment-proofs/${proofId}/verify`, 'finance', { bankAccountId: bank, amountMinor: '4000000', effectiveDate: today }, key)
+    expect(replay.json.data.transactionId).toBe(res.json.data.transactionId)
+    const mine = await clientInvoice(inv)
+    expect(mine.paidMinor).toBe('4000000')
+    expect(mine.paymentProof?.status).toBe('verified')
+    expect(await notes('USR-021')).toBe(n0 + 1)
+    expect((await call('POST', `/finance/payment-proofs/${proofId}/reject`, 'finance', { reason: 'Terlambat' })).status).toBe(422)
+  })
+
+  test('verify more than the outstanding amount is refused with no receipt; reject needs a reason and the client sees why', async () => {
+    const { inv, proofId } = await submitted('2000000')
+    const before = Number((await t.db.query<{ n: string }>("select count(*)::text as n from financial_transactions where kind = 'customer_receipt'"))[0]!.n)
+    const tooMuch = await call('POST', `/finance/payment-proofs/${proofId}/verify`, 'finance', { bankAccountId: bank, amountMinor: '9500000', effectiveDate: today }, k())
+    expect(tooMuch.status).toBeGreaterThanOrEqual(400)
+    expect(Number((await t.db.query<{ n: string }>("select count(*)::text as n from financial_transactions where kind = 'customer_receipt'"))[0]!.n)).toBe(before)
+    expect((await call('POST', `/finance/payment-proofs/${proofId}/reject`, 'finance', { reason: ' ' })).status).toBe(400)
+    expect((await call('POST', `/finance/payment-proofs/${proofId}/reject`, 'finance', { reason: 'Dana belum masuk rekening' })).status).toBe(200)
+    expect((await clientInvoice(inv)).paymentProof).toMatchObject({ status: 'rejected', rejectionReason: 'Dana belum masuk rekening' })
+    expect((await call('POST', `/finance/payment-proofs/${proofId}/reject`, 'admin', { reason: 'x' })).status).toBe(403)
+  })
+
+  test('the Finance invoice detail lists its proofs', async () => {
+    const { inv } = await submitted('1000000')
+    const detail = (await call('GET', `/finance/customer-invoices/${inv}`, 'finance')).json.data as { paymentProofs: { status: string }[] }
+    expect(detail.paymentProofs.map(p => p.status)).toEqual(['submitted'])
+  })
+})

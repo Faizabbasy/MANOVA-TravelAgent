@@ -19,6 +19,7 @@ import { financeOverview } from './overview'
 import { confirmGroupTripDp, salesOrderFinanceSummary } from './group-trip'
 import { issueDebitNote } from './debit-notes'
 import { bookingFinanceSummary, listAdvances, partyFinanceSummary, projectFinanceSummary, vendorFinanceSummary } from './summaries'
+import { listPaymentProofs, rejectPaymentProof, verifyPaymentProof } from './payment-proofs'
 
 /**
  * Finance Phase 3 API — receivables, payables, and finance context for other screens.
@@ -93,7 +94,8 @@ export function arApRoutes(deps: AppDeps, auth: AuthContext) {
     }, { query: t.Object({ status: t.Optional(t.String()), projectId: t.Optional(t.String()), partyId: t.Optional(t.String()), limit: t.Optional(t.String()) }) })
     .get('/finance/customer-invoices/:id', async ({ request, params }) => {
       await auth.requireCapability(request, 'finance.view-cash')
-      return ok(request, await getInvoice(db, params.id))
+      // S12c-1: with the client's payment proofs for this invoice.
+      return ok(request, { ...(await getInvoice(db, params.id)), paymentProofs: await listPaymentProofs(db, { invoiceId: params.id }) })
     })
     .post('/finance/customer-invoices', async ({ request, body, set }) => {
       const actor = await auth.requireCapability(request, 'finance.manage-receivables')
@@ -182,6 +184,28 @@ export function arApRoutes(deps: AppDeps, auth: AuthContext) {
         dueTo: t.Optional(t.String()), cursor: t.Optional(t.String()), limit: t.Optional(t.String())
       })
     })
+    // ── S12c-1: client payment proofs ─────────────────────────────────────────────────────────────────
+    .get('/finance/payment-proofs', async ({ request, query }) => {
+      await auth.requireCapability(request, 'finance.view-cash')
+      const status = query.status && ['submitted', 'verified', 'rejected'].includes(query.status) ? query.status : undefined
+      return ok(request, await listPaymentProofs(db, { status, invoiceId: query.invoiceId }))
+    }, { query: t.Object({ status: t.Optional(t.String()), invoiceId: t.Optional(t.String()) }) })
+    .post('/finance/payment-proofs/:id/verify', async ({ request, params, body, set }) => {
+      const actor = await auth.requireCapability(request, 'finance.post-cash')
+      const id = assertIdParam(params.id, 'Bukti pembayaran')
+      return idempotent(request, set, actor, 'POST /finance/payment-proofs/:id/verify', { id, ...body }, tx => verifyPaymentProof(tx, actor, id, body, requestIdOf(request)))
+    }, {
+      body: t.Object({
+        bankAccountId: t.String({ error: 'Pilih rekening.' }), amountMinor: t.String({ error: 'Nominal wajib diisi.' }),
+        effectiveDate: t.String({ error: 'Tanggal wajib diisi.' }), reference: t.Optional(t.String({ maxLength: 120 }))
+      })
+    })
+    .post('/finance/payment-proofs/:id/reject', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, 'finance.manage-receivables')
+      const id = assertIdParam(params.id, 'Bukti pembayaran')
+      await inTx(tx => rejectPaymentProof(tx, actor, id, (body as Record<string, unknown>).reason, requestIdOf(request)))
+      return ok(request, (await listPaymentProofs(db, { id }))[0])
+    }, { body: t.Record(t.String(), t.Unknown()) })
     .post('/finance/receipts', async ({ request, body, set }) => {
       const actor = await auth.requireCapability(request, 'finance.post-cash')
       set.status = 201
