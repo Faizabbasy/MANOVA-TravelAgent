@@ -44,7 +44,7 @@ export function mergeServerVendors (list: VendorDto[]): void {
 }
 
 const contactFromServer = (d: VendorContactDto): VendorContact => ({ id: d.id, vendorId: d.vendorId, name: d.name, title: d.title, email: orUndefined(d.email), phone: orUndefined(d.phone) })
-const productFromServer = (d: VendorProductDto): VendorProduct => ({
+export const productFromServer = (d: VendorProductDto): VendorProduct => ({
   id: d.id,
   vendorId: d.vendorId,
   name: d.name,

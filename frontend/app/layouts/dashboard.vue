@@ -20,6 +20,7 @@ import { useMarketingSync } from '~/data/marketing-sync'
 import { useHrSync } from '~/data/hr-sync'
 import { syncPlanFor, type SyncKey } from '~/data/sync-plan'
 import { useClientCommerceSync } from '~/data/client-commerce-sync'
+import { useVendorPortalSync } from '~/data/vendor-portal-sync'
 
 const isMobile = useIsMobile()
 /** Project (S3a/S3b), customer (S1), vendor (S2), layanan & booking (S4a), quotation & service order (S4b), serta lead & quotation client (S6a) milik server: dimuat sekali per user yang login ke array lokal. */
@@ -43,6 +44,7 @@ const inventorySync = useInventorySync()
 const marketingSync = useMarketingSync()
 const hrSync = useHrSync()
 const clientCommerceSync = useClientCommerceSync()
+const vendorPortalSync = useVendorPortalSync()
 const { currentUser } = useCurrentUser()
 /**
  * Which server data each role loads (`syncPlanFor`, S12a): internal roles load every module; a portal user only what its
@@ -68,7 +70,8 @@ const SYNCS: Record<SyncKey, { load: (force?: boolean) => unknown }> = {
   inventory: inventorySync,
   marketing: marketingSync,
   hr: hrSync,
-  clientCommerce: clientCommerceSync
+  clientCommerce: clientCommerceSync,
+  vendorPortal: vendorPortalSync
 }
 const loadServerData = (force = false) => {
   // Before the internal syncs: a client session that ended on this tab gives the shared lists back first.

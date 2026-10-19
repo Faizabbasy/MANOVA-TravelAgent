@@ -15,7 +15,7 @@ describe('which server data each role loads (S12a)', () => {
     expect(syncPlanFor('client')).toEqual(['projects', 'travelers', 'itinerary', 'changes', 'documents', 'notifications', 'clientCommerce'])
   })
 
-  it('a vendor loads only its projects and notifications until its portal moves to the server (S12d)', () => {
-    expect(syncPlanFor('vendor')).toEqual(['projects', 'notifications'])
+  it('a vendor loads its projects, notifications, own orders & quotations, services & bookings, and its profile & products (S12d)', () => {
+    expect(syncPlanFor('vendor')).toEqual(['projects', 'notifications', 'procurement', 'bookings', 'vendorPortal'])
   })
 })

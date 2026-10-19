@@ -365,6 +365,10 @@ export function createManovaApi (client: ApiClient) {
       createVendorDocument: (id: string, input: { name: string; type: string }) => client.post<VendorDocumentDto>(`/vendors/${seg(id)}/documents`, input),
       listVendorContacts: () => client.get<VendorContactDto[]>('/vendor-contacts'),
       listVendorProducts: () => client.get<VendorProductDto[]>('/vendor-products'),
+      // Vendor portal (S12d) — only for role vendor; the vendor comes from the session.
+      listOwnVendorProducts: () => client.get<VendorProductDto[]>('/vendor/products'),
+      createOwnVendorProduct: (input: { name: string; category: VendorDto['serviceType']; description?: string; priceMinor?: string }, idempotencyKey: string = newIdempotencyKey()) =>
+        client.post<VendorProductDto>('/vendor/products', input, { idempotencyKey }),
       listVendorDocuments: () => client.get<VendorDocumentDto[]>('/vendor-documents'),
       getServiceOrder: (id: string) => client.get<ServiceOrderDto>(`/service-orders/${seg(id)}`),
       getBookingRef: (type: ApiBookingType, id: string) => client.get<BookingRefDto>(`/bookings/${seg(type)}/${seg(id)}`),

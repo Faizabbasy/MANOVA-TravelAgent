@@ -9,7 +9,7 @@ import type { RoleId } from '~/types/user'
 export type SyncKey =
   | 'projects' | 'customers' | 'vendors' | 'bookings' | 'procurement' | 'leads' | 'salesOrders' | 'travelers' | 'itinerary'
   | 'workItems' | 'activity' | 'changes' | 'documents' | 'notifications' | 'users' | 'masterData' | 'inventory' | 'marketing' | 'hr'
-  | 'clientCommerce'
+  | 'clientCommerce' | 'vendorPortal'
 
 const INTERNAL: SyncKey[] = [
   'projects', 'customers', 'vendors', 'bookings', 'procurement', 'leads', 'salesOrders', 'travelers', 'itinerary', 'workItems',
@@ -17,8 +17,8 @@ const INTERNAL: SyncKey[] = [
 ]
 /** S12a: the client reads its own projects, participants, itinerary, changes, documents & messages, notifications; S12a-2: its sent quotations, reservations and invoices. */
 const CLIENT: SyncKey[] = ['projects', 'travelers', 'itinerary', 'changes', 'documents', 'notifications', 'clientCommerce']
-/** The vendor portal moves to the server in S12d; until then only its projects and notifications. */
-const VENDOR: SyncKey[] = ['projects', 'notifications']
+/** S12d: the vendor reads its projects, notifications, own service orders & quotations (procurement), services & bookings, and its profile & products. */
+const VENDOR: SyncKey[] = ['projects', 'notifications', 'procurement', 'bookings', 'vendorPortal']
 
 export function syncPlanFor (role: RoleId): SyncKey[] {
   const resolved = resolveRoleId(role)
