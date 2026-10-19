@@ -24,6 +24,7 @@ import { supportRoutes } from './modules/core/support-routes'
 import { feedbackRoutes } from './modules/core/feedback-routes'
 import { collabRoutes } from './modules/core/collab-routes'
 import { travelRequestRoutes } from './modules/core/travel-request-routes'
+import { tripCollabRoutes } from './modules/core/trip-collab-routes'
 import { travelerRoutes } from './modules/core/traveler-routes'
 import { isFinancePath, mayReachFinanceRoute } from './modules/finance/access'
 import { financeRoutes } from './modules/finance/routes'
@@ -183,6 +184,7 @@ export function createApp(deps: AppDeps) {
     .use(feedbackRoutes(deps, auth))
     .use(collabRoutes(deps, auth))
     .use(travelRequestRoutes(deps, auth))
+    .use(tripCollabRoutes(deps, auth))
     .use(financeRoutes(deps, auth))
     .use(arApRoutes(deps, auth))
     .use(refundRoutes(deps, auth))

@@ -9,7 +9,7 @@ export type IdPrefix = 'PRJ-' | 'PTY-' | 'CP-' | 'PACT-' | 'VND-' | 'VCT-' | 'VP
   | 'PT-' | 'ST-' | 'DST-' | 'VC-' | 'APT-' | 'ALN-' | 'MHTL-' | 'CUR-' | 'TAX-' | 'PTM-' | 'CXR-' | 'NUM-' | 'DTPL-' | 'RGC-' | 'ASR-' | 'MTPL-'
   | 'AST-' | 'MNT-' | 'ACO-' | 'CAM-' | 'PRD-' | 'PRP-' | 'VHC-' | 'IT-'
   | 'CTS-' | 'CTD-' | 'EMP-' | 'INS-' | 'PPF-' | 'PPC-' | 'TCK-' | 'TCKR-' | 'FBK-'
-  | 'CMT-' | 'ATT-' | 'CRD-' | 'TRQ-' | 'TRQA-' | 'CAP-'
+  | 'CMT-' | 'ATT-' | 'CRD-' | 'TRQ-' | 'TRQA-' | 'CAP-' | 'ITV-' | 'ANN-'
 
 /** Where each prefix's IDs live: table, ID column and an optional fixed filter (bookings share one table). */
 const SOURCES: Record<IdPrefix, { table: string; column?: string; where?: string }> = {
@@ -59,7 +59,8 @@ const SOURCES: Record<IdPrefix, { table: string; column?: string; where?: string
   // S12c-2: support tickets, their replies and trip feedback.
   'TCK-': { table: 'support_tickets' }, 'TCKR-': { table: 'support_ticket_replies' }, 'FBK-': { table: 'project_feedback' },
   'CMT-': { table: 'entity_comments' }, 'ATT-': { table: 'entity_attachments' }, 'CRD-': { table: 'change_request_drafts' },
-  'TRQ-': { table: 'travel_requests' }, 'TRQA-': { table: 'travel_request_activities' }, 'CAP-': { table: 'client_approvals' }
+  'TRQ-': { table: 'travel_requests' }, 'TRQA-': { table: 'travel_request_activities' }, 'CAP-': { table: 'client_approvals' },
+  'ITV-': { table: 'itinerary_versions' }, 'ANN-': { table: 'trip_announcements' }
 }
 
 /** IDs other tables already point at without a row of their own (S6a: projects won from a lead made by the old local mock). */
