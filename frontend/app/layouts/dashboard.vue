@@ -76,7 +76,16 @@ const SYNCS: Record<SyncKey, { load: (force?: boolean) => unknown }> = {
 const loadServerData = (force = false) => {
   // Before the internal syncs: a client session that ended on this tab gives the shared lists back first.
   if (currentUser.value.role !== 'client') { clientCommerceSync.reset() }
-  for (const key of syncPlanFor(currentUser.value.role)) { SYNCS[key].load(force) }
+  const plan = syncPlanFor(currentUser.value.role)
+  // S12d: a vendor's syncs replace shared lists with its scoped view — keep them first, put them back for anyone else.
+  if (plan.includes('vendorPortal')) {
+    vendorPortalSync.prepare()
+  } else if (vendorPortalSync.reset()) {
+    // The lists are back to the pre-vendor data: the next vendor session must load its orders, services & bookings again.
+    procurementSync.state.value = { ...procurementSync.state.value, userId: null }
+    bookingsSync.state.value = { ...bookingsSync.state.value, userId: null }
+  }
+  for (const key of plan) { SYNCS[key].load(force) }
 }
 onMounted(() => { loadServerData() })
 watch(() => currentUser.value.id, () => { loadServerData() })
@@ -89,6 +98,7 @@ const unsyncedLabel = computed(() => {
     failed(vendorsSync.state.value) ? 'vendor' : null,
     failed(bookingsSync.state.value) ? 'layanan & booking' : null,
     failed(procurementSync.state.value) ? 'quotation & service order' : null,
+    failed(vendorPortalSync.state.value) ? 'profil & produk vendor' : null,
     failed(leadsSync.state.value) ? 'lead & quotation client' : null,
     failed(salesOrdersSync.state.value) ? 'sales order' : null,
     failed(travelersSync.state.value) ? 'peserta' : null,

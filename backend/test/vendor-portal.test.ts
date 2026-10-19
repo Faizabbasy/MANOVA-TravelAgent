@@ -64,3 +64,12 @@ describe('vendor products', () => {
     for (const who of ['admin', 'client', 'finance']) expect((await call('GET', '/vendor/products', who)).status, who).toBe(403)
   })
 })
+
+describe('vendor products — review fix (S12d)', () => {
+  test('every holder of vendor management is told, the Super Admin too', async () => {
+    const superAdmin = (await t.db.query<{ id: string }>("select id from users where role = 'super-admin' and status = 'active' order by id limit 1"))[0]!.id
+    const n0 = await notes(superAdmin)
+    expect((await call('POST', '/vendor/products', 'vendor', { name: 'Paket Bus Pariwisata', category: 'transportation' }, k())).status).toBe(201)
+    expect(await notes(superAdmin)).toBe(n0 + 1)
+  })
+})

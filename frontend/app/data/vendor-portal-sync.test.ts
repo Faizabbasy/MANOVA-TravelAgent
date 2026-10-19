@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from 'vitest'
-import { VENDOR_PRODUCTS, VENDORS } from './vendors'
-import { createOwnVendorProductOnServer, loadVendorPortal, mergeVendorProducts } from './vendor-portal-sync'
+import { VENDOR_PRODUCTS, VENDOR_QUOTATIONS, VENDORS } from './vendors'
+import { PROJECT_SERVICES } from './projects'
+import { HOTEL_BOOKINGS } from './accommodation'
+import { SERVICE_ORDERS } from './procurement'
+import { createOwnVendorProductOnServer, loadVendorPortal, mergeVendorProducts, resetVendorPortal, takeVendorSnapshot } from './vendor-portal-sync'
 import type { ManovaApi } from '~/lib/api/endpoints'
 
 const ok = <T>(data: T) => Promise.resolve({ data })
@@ -31,5 +34,30 @@ describe('vendor portal sync (S12d)', () => {
     const before = VENDOR_PRODUCTS.length
     await expect(createOwnVendorProductOnServer(apiWith({ createOwnVendorProduct: () => Promise.reject(new Error('400')) }), { name: '', category: 'hotel' })).rejects.toThrow()
     expect(VENDOR_PRODUCTS.length).toBe(before)
+  })
+})
+
+describe('leaving the vendor session (S12d review)', () => {
+  it('reset after a vendor session restores the shared lists the vendor syncs replaced', () => {
+    const before = {
+      services: PROJECT_SERVICES.map(s => s.id),
+      hotels: HOTEL_BOOKINGS.map(b => b.id),
+      orders: SERVICE_ORDERS.map(o => o.id),
+      quotations: VENDOR_QUOTATIONS.map(q => q.id),
+      products: VENDOR_PRODUCTS.map(p => p.id)
+    }
+    takeVendorSnapshot()
+    PROJECT_SERVICES.splice(0, PROJECT_SERVICES.length)
+    HOTEL_BOOKINGS.splice(0, HOTEL_BOOKINGS.length)
+    SERVICE_ORDERS.splice(0, SERVICE_ORDERS.length)
+    VENDOR_QUOTATIONS.splice(0, VENDOR_QUOTATIONS.length)
+    mergeVendorProducts('VND-006', [])
+    expect(resetVendorPortal()).toBe(true)
+    expect(PROJECT_SERVICES.map(s => s.id)).toEqual(before.services)
+    expect(HOTEL_BOOKINGS.map(b => b.id)).toEqual(before.hotels)
+    expect(SERVICE_ORDERS.map(o => o.id)).toEqual(before.orders)
+    expect(VENDOR_QUOTATIONS.map(q => q.id)).toEqual(before.quotations)
+    expect(VENDOR_PRODUCTS.map(p => p.id)).toEqual(before.products)
+    expect(resetVendorPortal()).toBe(false) // nothing left to restore
   })
 })

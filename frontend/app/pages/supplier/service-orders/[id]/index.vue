@@ -7,7 +7,7 @@ import { isServerServiceOrder, reloadServiceOrder, runServiceOrderStatusChange }
 import type { ServiceOrderStatus } from '~/types/procurement'
 import { isApiError } from '~/lib/api/errors'
 import { SERVICE_ORDER_STATUSES, findStatusOption } from '~/constants/status'
-import { formatCurrencyIdr, formatDate } from '~/utils/format'
+import { formatDate } from '~/utils/format'
 
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
@@ -115,7 +115,6 @@ async function markFulfilled () {
                   <TableHead>Deskripsi</TableHead>
                   <TableHead>Qty</TableHead>
                   <TableHead>Unit</TableHead>
-                  <TableHead>Sell Price</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -129,18 +128,15 @@ async function markFulfilled () {
                   <TableCell class="text-muted-foreground">
                     {{ item.unit }}
                   </TableCell>
-                  <TableCell class="text-foreground">
-                    {{ index === 0 && serviceOrder.sellPriceIdr !== undefined ? formatCurrencyIdr(serviceOrder.sellPriceIdr) : '—' }}
-                  </TableCell>
                 </TableRow>
-                <TableEmpty v-if="serviceOrder.lineItems.length === 0" :colspan="4">
+                <TableEmpty v-if="serviceOrder.lineItems.length === 0" :colspan="3">
                   Belum ada line item.
                 </TableEmpty>
               </TableBody>
             </Table>
           </template>
 
-          <template #mobile-card="{ item, index }">
+          <template #mobile-card="{ item }">
             <div class="rounded-xl border border-border bg-card p-4">
               <p class="text-sm font-medium text-foreground">
                 {{ item.description }}
@@ -160,14 +156,6 @@ async function markFulfilled () {
                   </p>
                   <p class="text-foreground">
                     {{ item.unit }}
-                  </p>
-                </div>
-                <div>
-                  <p class="text-muted-foreground">
-                    Sell Price
-                  </p>
-                  <p class="text-foreground">
-                    {{ index === 0 && serviceOrder.sellPriceIdr !== undefined ? formatCurrencyIdr(serviceOrder.sellPriceIdr) : '—' }}
                   </p>
                 </div>
               </div>

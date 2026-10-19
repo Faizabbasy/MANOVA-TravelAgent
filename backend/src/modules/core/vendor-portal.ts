@@ -23,10 +23,10 @@ export async function vendorChangeServiceOrderStatus(tx: Queryable, actor: Actor
   })
 }
 
-/** A vendor adds a product to its own catalogue; MANOVA admins (vendor management) are told. */
+/** A vendor adds a product to its own catalogue; everyone who manages vendors (Admin, Super Admin) is told. */
 export async function vendorCreateProduct(tx: Queryable, actor: Actor, vendorId: string, input: Record<string, unknown>, requestId: string) {
   const { id } = await createVendorProduct(tx, actor, vendorId, { ...input, vendorId: undefined }, requestId)
-  const admins = await tx.query<{ id: string }>("select id from users where role = 'admin' and status = 'active' order by id")
+  const admins = await tx.query<{ id: string }>("select id from users where role in ('admin', 'super-admin') and status = 'active' order by id")
   for (const a of admins) {
     await notifyInternal(tx, actor, a.id, { type: 'change', title: 'Produk vendor baru', body: `${String(input.name).trim()} (${id}) ditambahkan vendor ${vendorId}.`, entityType: 'vendor', entityId: vendorId })
   }

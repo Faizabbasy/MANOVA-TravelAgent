@@ -1,4 +1,10 @@
-import { VENDOR_PRODUCTS } from './vendors'
+import { VENDOR_PRODUCTS, VENDOR_QUOTATIONS, VENDORS } from './vendors'
+import { PROJECT_SERVICES } from './projects'
+import { FLIGHT_BOOKINGS } from './ticketing'
+import { HOTEL_BOOKINGS } from './accommodation'
+import { TRANSPORT_BOOKINGS } from './transportation'
+import { MICE_EVENTS } from './mice'
+import { SERVICE_ORDERS } from './procurement'
 import { productFromServer, upsertServerVendor } from './vendors-sync'
 import type { VendorProduct } from '~/types/vendor'
 import type { VendorProductDto } from '~/types/api'
@@ -39,6 +45,41 @@ export async function createOwnVendorProductOnServer (api: CoreApi, input: { nam
   return VENDOR_PRODUCTS[VENDOR_PRODUCTS.length - 1]!
 }
 
+/* ---------- leaving the vendor session ---------- */
+
+/**
+ * A vendor session replaces shared lists with its own scoped view (procurement: orders & quotations; bookings:
+ * services & reduced bookings; this sync: its vendor & products). Logout/login are SPA navigations, so the next user
+ * of the tab (a client does not reload these) would read the vendor's view: keep the lists as they were and put them
+ * back when someone else signs in.
+ */
+const SHARED = () => ({
+  services: PROJECT_SERVICES,
+  flights: FLIGHT_BOOKINGS,
+  hotels: HOTEL_BOOKINGS,
+  transports: TRANSPORT_BOOKINGS,
+  mice: MICE_EVENTS,
+  orders: SERVICE_ORDERS,
+  quotations: VENDOR_QUOTATIONS,
+  vendors: VENDORS,
+  products: VENDOR_PRODUCTS
+}) as Record<string, unknown[]>
+let snapshot: Record<string, unknown[]> | null = null
+
+/** Called before the vendor's syncs load; the first call of a vendor session wins. */
+export function takeVendorSnapshot (): void {
+  if (snapshot) { return }
+  snapshot = Object.fromEntries(Object.entries(SHARED()).map(([key, list]) => [key, JSON.parse(JSON.stringify(list)) as unknown[]]))
+}
+
+/** Puts the shared lists back; false when no vendor session left anything to restore. */
+export function resetVendorPortal (): boolean {
+  if (!snapshot) { return false }
+  for (const [key, list] of Object.entries(SHARED())) { list.splice(0, list.length, ...snapshot[key]!) }
+  snapshot = null
+  return true
+}
+
 export interface VendorPortalSyncState {
   status: 'idle' | 'loading' | 'ready' | 'offline' | 'error'
   userId: string | null
@@ -67,5 +108,15 @@ export function useVendorPortalSync () {
     }
   }
 
-  return { state, load }
+  /** Before the vendor's syncs load: keep the shared lists so they can be put back afterwards. */
+  function prepare () { takeVendorSnapshot() }
+
+  /** Someone else signed in: restore the shared lists; true when the vendor's syncs must load again next time. */
+  function reset (): boolean {
+    const restored = resetVendorPortal()
+    if (state.value.userId !== null) { state.value = { status: 'idle', userId: null, message: null } }
+    return restored
+  }
+
+  return { state, load, prepare, reset }
 }

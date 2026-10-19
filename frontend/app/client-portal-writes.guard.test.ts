@@ -39,3 +39,10 @@ describe('client portal writes go to the server (S12b-1)', () => {
     expect(FORBIDDEN.filter(name => used(source, name))).toEqual([])
   })
 })
+
+describe('the vendor portal never shows MANOVA selling prices (S12d review)', () => {
+  it('pages/supplier/service-orders/[id]/index.vue', () => {
+    const source = readFileSync(join(__dirname, 'pages/supplier/service-orders/[id]/index.vue'), 'utf8')
+    expect(source.includes('sellPriceIdr')).toBe(false)
+  })
+})
