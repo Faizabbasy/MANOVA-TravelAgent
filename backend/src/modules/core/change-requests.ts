@@ -6,6 +6,7 @@ import { nextId } from '../../shared/ids'
 import { PG_BIGINT_MAX } from '../../shared/money'
 import { actorName, decidePendingChange, insertChangeEntry, recordProjectActivity } from './activities'
 import { notify } from './notifications'
+import { notifyInternal } from './client-writes'
 
 /**
  * Change requests (S8; S12b-2 client steps): submitted → under-review → (a client request that costs something)
@@ -207,4 +208,55 @@ export async function implementChangeRequest(tx: Queryable, actor: Actor, id: st
   await tx.query("update change_requests set status = 'implemented', implemented_at = now(), changed_by_api_at = now(), updated_at = now() where id = $1", [id])
   await logStep(tx, actor, cr.project_id, id, 'diimplementasikan', 'change_request.implemented')
   await recordAudit(tx, { action: 'change_request.implemented', actorUserId: actor.userId, entityType: 'change_request', entityId: id, requestId })
+}
+
+/* ---------- client portal (S12b-2) ---------- */
+
+async function clientRequest(tx: Queryable, partyId: string, id: string) {
+  const [row] = await tx.query<{ project_id: string; status: string; activity_id: string | null; owner_user_id: string | null }>(
+    `select cr.project_id, cr.status, cr.activity_id, p.owner_user_id from change_requests cr join projects p on p.id = cr.project_id
+      where cr.id = $1 and p.party_id = $2 for update of cr`, [id, partyId])
+  if (!row) throw errors.notFound('Change request')
+  return row
+}
+
+export async function clientCreateChangeRequest(tx: Queryable, actor: Actor, partyId: string, projectId: string, input: Record<string, unknown>, requestId: string) {
+  const [p] = await tx.query<{ status: string; owner_user_id: string | null; name: string }>('select status, owner_user_id, name from projects where id = $1 and party_id = $2', [projectId, partyId])
+  if (!p) throw errors.notFound('Project')
+  if (p.status === 'completed' || p.status === 'cancelled') throw rule('Project sudah selesai atau dibatalkan — tidak bisa mengajukan perubahan.')
+  const { id } = await createChangeRequest(tx, actor, projectId, {
+    source: 'client', changeType: input.changeType, beforeSummary: input.beforeSummary, afterSummary: input.afterSummary
+  }, requestId)
+  await notifyInternal(tx, actor, p.owner_user_id, { type: 'change', title: `Change Request baru dari client (${p.name})`, body: `${id}: ${String(input.afterSummary).trim()}`, entityType: 'project', entityId: projectId })
+  return { id }
+}
+
+export async function clientDecideChangeRequest(tx: Queryable, actor: Actor, partyId: string, id: string, decision: 'approved' | 'rejected', reasonInput: unknown, requestId: string) {
+  const reason = typeof reasonInput === 'string' ? reasonInput.trim() : ''
+  if (decision === 'rejected' && !reason) throw errors.validation({ reason: ['Alasan penolakan wajib diisi.'] })
+  const cr = await clientRequest(tx, partyId, id)
+  if (cr.status !== 'waiting-client-approval') throw rule('Change request ini tidak sedang menunggu persetujuan Anda.')
+  await tx.query(
+    `update change_requests set status = $2, client_decided_by = $3, client_decided_at = now(), rejection_reason = $4, changed_by_api_at = now(), updated_at = now() where id = $1`,
+    [id, decision, actor.userId, decision === 'rejected' ? reason.slice(0, 1000) : null])
+  await decidePendingChange(tx, actor.userId, cr.activity_id, decision)
+  await logStep(tx, actor, cr.project_id, id, decision === 'approved' ? 'disetujui client' : `ditolak client (${reason})`, `change_request.client_${decision}`)
+  await notifyInternal(tx, actor, cr.owner_user_id, { type: 'change', title: `Change Request ${id} ${decision === 'approved' ? 'disetujui' : 'ditolak'} client`, body: reason || 'Client menyetujui dampak perubahan.', entityType: 'project', entityId: cr.project_id })
+  await recordAudit(tx, { action: `change_request.client_${decision}`, actorUserId: actor.userId, entityType: 'change_request', entityId: id, requestId, reason: reason || null })
+}
+
+const CLIENT_CANCELLABLE = ['submitted', 'under-review', 'waiting-client-approval']
+
+export async function clientCancelChangeRequest(tx: Queryable, actor: Actor, partyId: string, id: string, reasonInput: unknown, requestId: string) {
+  const reason = typeof reasonInput === 'string' ? reasonInput.trim() : ''
+  if (!reason) throw errors.validation({ reason: ['Alasan pembatalan wajib diisi.'] })
+  const cr = await clientRequest(tx, partyId, id)
+  if (!CLIENT_CANCELLABLE.includes(cr.status)) throw rule('Change request ini sudah diputuskan — tidak bisa dibatalkan.')
+  await tx.query(
+    `update change_requests set status = 'cancelled', cancel_reason = $2, cancelled_by = $3, cancelled_at = now(), changed_by_api_at = now(), updated_at = now() where id = $1`,
+    [id, reason.slice(0, 1000), actor.userId])
+  await decidePendingChange(tx, actor.userId, cr.activity_id, 'rejected')
+  await logStep(tx, actor, cr.project_id, id, `dibatalkan client (${reason})`, 'change_request.cancelled')
+  await notifyInternal(tx, actor, cr.owner_user_id, { type: 'change', title: `Change Request ${id} dibatalkan client`, body: reason, entityType: 'project', entityId: cr.project_id })
+  await recordAudit(tx, { action: 'change_request.cancelled', actorUserId: actor.userId, entityType: 'change_request', entityId: id, requestId, reason })
 }

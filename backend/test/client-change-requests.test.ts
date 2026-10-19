@@ -62,3 +62,62 @@ describe('staff side of a client change request', () => {
     expect((await call('POST', '/projects/PRJ-201/change-requests', 'admin', { source: 'client', changeType: 'teleport', beforeSummary: 'A', afterSummary: 'B' }, k())).status).toBe(400)
   })
 })
+
+const notes = async (userId: string) => Number((await t.db.query<{ n: string }>('select count(*)::text as n from notifications where user_id = $1', [userId]))[0]!.n)
+const owner = async (projectId: string) => (await t.db.query<{ owner_user_id: string }>('select owner_user_id from projects where id = $1', [projectId]))[0]!.owner_user_id
+const clientCreate = (projectId: string, body: Record<string, unknown>, key = k()) =>
+  call('POST', `/client/projects/${projectId}/change-requests`, 'client', { beforeSummary: 'Hotel A', afterSummary: 'Hotel B', ...body }, key)
+
+describe('client side of change requests', () => {
+  test('the client submits a request on its own open project; the owner is told; replay is one request', async () => {
+    const ownerId = await owner('PRJ-201')
+    const n0 = await notes(ownerId)
+    const key = k()
+    const res = await clientCreate('PRJ-201', { changeType: 'change-hotel', source: 'internal' }, key)
+    expect(res.status, JSON.stringify(res.json)).toBe(201)
+    expect(res.json.data).toMatchObject({ source: 'client', changeType: 'change-hotel', status: 'submitted', projectId: 'PRJ-201' })
+    expect((await clientCreate('PRJ-201', { changeType: 'change-hotel', source: 'internal' }, key)).json.data.id).toBe(res.json.data.id)
+    expect(await notes(ownerId)).toBe(n0 + 1)
+    expect((await clientCreate('PRJ-203', {})).status).toBe(422) // completed
+    const foreign = (await t.db.query<{ id: string }>("select id from projects where party_id <> 'PTY-005' order by id limit 1"))[0]!.id
+    expect((await clientCreate(foreign, {})).status).toBe(404)
+    expect((await call('POST', '/client/projects/PRJ-201/change-requests', 'admin', { beforeSummary: 'A', afterSummary: 'B' }, k())).status).toBe(403)
+  })
+
+  test('approve the impact after staff send it: approved, change entry approved, owner told; only while waiting', async () => {
+    const cr = (await clientCreate('PRJ-201', { changeType: 'add-activity' })).json.data as CR
+    expect((await call('POST', `/client/change-requests/${cr.id}/approve`, 'client')).status).toBe(422)
+    await call('POST', `/change-requests/${cr.id}/send-to-client`, 'admin', { commercialImpactMinor: '3000000' })
+    const ownerId = await owner('PRJ-201')
+    const n0 = await notes(ownerId)
+    const ok = await call('POST', `/client/change-requests/${cr.id}/approve`, 'client')
+    expect(ok.status, JSON.stringify(ok.json)).toBe(200)
+    expect(ok.json.data).toMatchObject({ status: 'approved', clientDecidedBy: 'USR-021' })
+    const entry = await t.db.query<{ approval_status: string }>('select approval_status from project_activities where id = $1', [cr.activityId])
+    expect(entry[0]!.approval_status).toBe('approved')
+    expect(await notes(ownerId)).toBe(n0 + 1)
+    expect((await call('POST', `/client/change-requests/${cr.id}/approve`, 'client')).status).toBe(422)
+  })
+
+  test('reject the impact needs a reason; cancel needs a reason and works until decided', async () => {
+    const a = (await clientCreate('PRJ-201', {})).json.data as CR
+    await call('POST', `/change-requests/${a.id}/send-to-client`, 'admin', { cancellationFeeMinor: '750000' })
+    expect((await call('POST', `/client/change-requests/${a.id}/reject`, 'client', { reason: ' ' })).status).toBe(400)
+    expect((await call('POST', `/client/change-requests/${a.id}/reject`, 'client', { reason: 'Biaya terlalu besar' })).json.data).toMatchObject({ status: 'rejected', rejectionReason: 'Biaya terlalu besar' })
+    const b = (await clientCreate('PRJ-201', {})).json.data as CR
+    expect((await call('POST', `/client/change-requests/${b.id}/cancel`, 'client', {})).status).toBe(400)
+    expect((await call('POST', `/client/change-requests/${b.id}/cancel`, 'client', { reason: 'Tidak jadi' })).json.data).toMatchObject({ status: 'cancelled', cancelReason: 'Tidak jadi' })
+    expect((await call('POST', `/client/change-requests/${b.id}/cancel`, 'client', { reason: 'Lagi' })).status).toBe(422)
+    const entry = await t.db.query<{ approval_status: string }>('select approval_status from project_activities where id = $1', [b.activityId])
+    expect(entry[0]!.approval_status).toBe('rejected')
+  })
+
+  test('another party’s request is not found; other roles are refused', async () => {
+    const foreignProject = (await t.db.query<{ id: string }>("select id from projects where party_id <> 'PTY-005' order by id limit 1"))[0]!.id
+    const cr = await staffCreate(foreignProject, { source: 'client' })
+    for (const action of ['approve', 'reject', 'cancel']) {
+      expect((await call('POST', `/client/change-requests/${cr.id}/${action}`, 'client', { reason: 'x' })).status, action).toBe(404)
+    }
+    expect((await call('POST', `/client/change-requests/${cr.id}/cancel`, 'vendor', { reason: 'x' })).status).toBe(403)
+  })
+})

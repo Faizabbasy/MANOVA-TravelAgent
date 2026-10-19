@@ -4,7 +4,8 @@ import type { AuthContext } from '../../auth/context'
 import { assertIdParam, ok, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
-import { clientDocument, clientMessage, clientTraveler } from './client-scope'
+import { clientChangeRequest, clientDocument, clientMessage, clientTraveler } from './client-scope'
+import { clientCancelChangeRequest, clientCreateChangeRequest, clientDecideChangeRequest, listChangeRequests } from './change-requests'
 import {
   clientCancelTraveler, clientCreateDocument, clientCreateRoom, clientCreateTraveler, clientImportTravelers, clientMarkMessagesRead, clientReplaceDocument,
   clientCreateContact, clientDeleteContact, clientDisputeInvoice, clientReplaceTraveler, clientSendMessage, clientSetRoomTravelers, clientUpdateContact,
@@ -28,6 +29,7 @@ export function clientWriteRoutes(deps: AppDeps, auth: AuthContext) {
   }
   const travelerView = async (id: string) => clientTraveler((await listTravelers(db, { id }))[0]!)
   const roomView = async (id: string) => (await listRoomAssignments(db, { id }))[0]!
+  const changeRequestView = async (id: string) => clientChangeRequest((await listChangeRequests(db, { id }))[0]!)
   const documentView = async (id: string) => clientDocument((await listDocuments(db, { id }))[0]!)
   const messageView = async (id: string) => clientMessage((await listMessages(db, { id }))[0]!)
 
@@ -165,5 +167,34 @@ export function clientWriteRoutes(deps: AppDeps, auth: AuthContext) {
       if (current.outstandingMinor === '0') throw rule('Invoice ini sudah lunas — tidak bisa disengketakan.')
       await db.transaction(tx => clientDisputeInvoice(tx, actor, partyId, id, (body as Record<string, unknown>).reason, requestIdOf(request)))
       return ok(request, await getClientInvoice(db, partyId, id))
+    }, body)
+    // S12b-2: change requests — submit, decide the impact staff sent, cancel until decided.
+    .post('/projects/:id/change-requests', async ({ request, params, body, set }) => {
+      const { actor, partyId } = await clientActor(request)
+      const projectId = assertIdParam(params.id, 'Project')
+      const key = requireIdempotencyKey(request)
+      const result = await withIdempotency(db, { actorUserId: actor.userId, route: 'POST /client/projects/:id/change-requests', key, body: { projectId, ...(body as object) } }, tx =>
+        clientCreateChangeRequest(tx, actor, partyId, projectId, body as Record<string, unknown>, requestIdOf(request)))
+      if (result.replayed) set.headers['idempotent-replayed'] = 'true'
+      set.status = 201
+      return ok(request, await changeRequestView(result.data.id))
+    }, body)
+    .post('/change-requests/:id/approve', async ({ request, params }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Change request')
+      await db.transaction(tx => clientDecideChangeRequest(tx, actor, partyId, id, 'approved', null, requestIdOf(request)))
+      return ok(request, await changeRequestView(id))
+    }, { body: t.Optional(t.Record(t.String(), t.Unknown())) })
+    .post('/change-requests/:id/reject', async ({ request, params, body }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Change request')
+      await db.transaction(tx => clientDecideChangeRequest(tx, actor, partyId, id, 'rejected', (body as Record<string, unknown>).reason, requestIdOf(request)))
+      return ok(request, await changeRequestView(id))
+    }, body)
+    .post('/change-requests/:id/cancel', async ({ request, params, body }) => {
+      const { actor, partyId } = await clientActor(request)
+      const id = assertIdParam(params.id, 'Change request')
+      await db.transaction(tx => clientCancelChangeRequest(tx, actor, partyId, id, (body as Record<string, unknown>).reason, requestIdOf(request)))
+      return ok(request, await changeRequestView(id))
     }, body)
 }
