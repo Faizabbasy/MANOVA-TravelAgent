@@ -5,16 +5,28 @@ import { recordAudit } from '../../shared/audit'
 import { nextId } from '../../shared/ids'
 import { PG_BIGINT_MAX } from '../../shared/money'
 import { actorName, decidePendingChange, insertChangeEntry, recordProjectActivity } from './activities'
+import { notify } from './notifications'
 
 /**
- * Change requests (S8), internal flow: submitted → under-review → approved / rejected → implemented. Each request
+ * Change requests (S8; S12b-2 client steps): submitted → under-review → (a client request that costs something)
+ * waiting-client-approval → approved / rejected → implemented; the client may cancel until it is decided. Each request
  * opens a pending change entry (`CHG-`) in the project's activity log in the same transaction; deciding the request
- * decides that entry. The client portal's own steps (availability, costing, client approval) stay local (ADR-006).
+ * decides that entry.
  */
 
 const rule = (message: string) => new AppError(422, 'RULE_VIOLATION', message)
 const SOURCES = ['client', 'internal', 'supplier']
 const CATEGORIES = ['traveler', 'itinerary', 'service', 'vendor', 'budget', 'other']
+export const CHANGE_TYPES = ['add-participant', 'remove-participant', 'replace-participant', 'change-date', 'change-flight', 'change-hotel',
+  'add-transportation', 'add-activity', 'upgrade-service', 'remove-service', 'change-itinerary', 'cancel-service', 'cancel-project']
+/** The change entry's category for a portal change type. */
+export const CHANGE_TYPE_CATEGORY: Record<string, string> = {
+  'add-participant': 'traveler', 'remove-participant': 'traveler', 'replace-participant': 'traveler', 'change-date': 'itinerary',
+  'change-flight': 'service', 'change-hotel': 'service', 'add-transportation': 'service', 'add-activity': 'itinerary', 'upgrade-service': 'service',
+  'remove-service': 'service', 'change-itinerary': 'itinerary', 'cancel-service': 'service', 'cancel-project': 'other'
+}
+/** Undecided requests: they block project completion. */
+export const PENDING_CHANGE_STATUSES = ['submitted', 'under-review', 'waiting-client-approval']
 const ENTITY_TYPES = ['flight', 'hotel', 'transport', 'mice', 'itinerary', 'order', 'project']
 const MINOR = /^(0|[1-9][0-9]{0,18})$/
 const str = (v: unknown) => (v === null || v === undefined ? null : String(v))
@@ -44,7 +56,13 @@ export async function listChangeRequests(db: Queryable, filter: { id?: string; p
     decidedAt: iso(r.decided_at),
     rejectionReason: str(r.rejection_reason),
     implementedAt: iso(r.implemented_at),
-    activityId: str(r.activity_id)
+    activityId: str(r.activity_id),
+    changeType: str(r.change_type),
+    cancellationFeeMinor: str(r.cancellation_fee_minor),
+    clientDecidedBy: str(r.client_decided_by),
+    clientDecidedAt: iso(r.client_decided_at),
+    cancelReason: str(r.cancel_reason),
+    cancelledAt: iso(r.cancelled_at)
   }))
 }
 
@@ -62,7 +80,12 @@ const text = (v: unknown, field: string, problems: FieldErrors, required: boolea
 export async function createChangeRequest(tx: Queryable, actor: Actor, projectId: string, input: Record<string, unknown>, requestId: string): Promise<{ id: string }> {
   const problems: FieldErrors = {}
   if (typeof input.source !== 'string' || !SOURCES.includes(input.source)) problems.source = ['Sumber perubahan harus client, internal, atau supplier.']
-  const category = input.category === undefined ? 'other' : input.category
+  let changeType: string | null = null
+  if (input.changeType !== undefined && input.changeType !== null && input.changeType !== '') {
+    if (typeof input.changeType !== 'string' || !CHANGE_TYPES.includes(input.changeType)) problems.changeType = ['Jenis perubahan tidak dikenal.']
+    else changeType = input.changeType
+  }
+  const category = input.category === undefined ? (changeType ? CHANGE_TYPE_CATEGORY[changeType] : 'other') : input.category
   if (typeof category !== 'string' || !CATEGORIES.includes(category)) problems.category = ['Kategori perubahan tidak dikenal.']
   const before = text(input.beforeSummary, 'beforeSummary', problems, true, 'Kondisi sebelum')
   const after = text(input.afterSummary, 'afterSummary', problems, true, 'Kondisi sesudah')
@@ -89,22 +112,31 @@ export async function createChangeRequest(tx: Queryable, actor: Actor, projectId
     impact: operational, sourceAction: 'change_request.created', sourceEntityId: id
   })
   await tx.query(
-    `insert into change_requests (id, project_id, source, requested_by, affected_entities, before_summary, after_summary, operational_impact,
+    `insert into change_requests (id, project_id, source, requested_by, affected_entities, before_summary, after_summary, operational_impact, change_type,
                                   commercial_impact_minor, financial_impact_note, timeline_impact_note, activity_id, changed_by_api_at)
-     values ($1, $2, $3, $4, $5::text::jsonb, $6, $7, $8, $9, $10, $11, $12, now())`,
-    [id, projectId, input.source, actor.userId, JSON.stringify(affected), before, after, operational, commercial, financialNote, timelineNote, activityId]
+     values ($1, $2, $3, $4, $5::text::jsonb, $6, $7, $8, $13, $9, $10, $11, $12, now())`,
+    [id, projectId, input.source, actor.userId, JSON.stringify(affected), before, after, operational, commercial, financialNote, timelineNote, activityId, changeType]
   )
   await recordAudit(tx, { action: 'change_request.created', actorUserId: actor.userId, entityType: 'change_request', entityId: id, requestId,
     after: { projectId, source: input.source, before, after, commercialImpactMinor: commercial } })
   return { id }
 }
 
+type LockedRequest = {
+  project_id: string; status: string; activity_id: string | null; source: string; requested_by: string
+  commercial_impact_minor: string | null; cancellation_fee_minor: string | null
+}
+
 async function lockRequest(tx: Queryable, id: string) {
-  const [row] = await tx.query<{ project_id: string; status: string; activity_id: string | null }>(
-    'select project_id, status, activity_id from change_requests where id = $1 for update', [id])
+  const [row] = await tx.query<LockedRequest>(
+    `select project_id, status, activity_id, source, requested_by, commercial_impact_minor::text, cancellation_fee_minor::text
+       from change_requests where id = $1 for update`, [id])
   if (!row) throw errors.notFound('Change request')
   return row
 }
+
+/** A client request with a commercial impact or a cancellation fee needs the client's approval (S12b-2). */
+const hasCost = (cr: LockedRequest) => BigInt(cr.commercial_impact_minor ?? 0) > 0n || BigInt(cr.cancellation_fee_minor ?? 0) > 0n
 
 async function logStep(tx: Queryable, actor: Actor, projectId: string, id: string, what: string, action: string) {
   await recordProjectActivity(tx, { projectId, actorUserId: actor.userId, sourceAction: action, sourceEntityId: id,
@@ -123,13 +155,50 @@ export async function decideChangeRequest(tx: Queryable, actor: Actor, id: strin
   const reason = typeof reasonInput === 'string' ? reasonInput.trim() : ''
   if (decision === 'rejected' && !reason) throw errors.validation({ reason: ['Alasan penolakan wajib diisi.'] })
   const cr = await lockRequest(tx, id)
-  if (cr.status !== 'submitted' && cr.status !== 'under-review') throw rule('Change request ini sudah diputuskan.')
+  if (cr.status !== 'submitted' && cr.status !== 'under-review') throw rule('Change request ini sudah diputuskan atau sedang menunggu client.')
+  if (decision === 'approved' && cr.source === 'client' && hasCost(cr)) throw rule('Change request ini punya biaya — kirim dampaknya ke client untuk disetujui.')
   await tx.query(
     `update change_requests set status = $2, decided_by = $3, decided_at = now(), rejection_reason = $4, changed_by_api_at = now(), updated_at = now() where id = $1`,
     [id, decision, actor.userId, decision === 'rejected' ? reason.slice(0, 1000) : null])
   await decidePendingChange(tx, actor.userId, cr.activity_id, decision)
   await logStep(tx, actor, cr.project_id, id, decision === 'approved' ? 'disetujui' : `ditolak (${reason})`, `change_request.${decision}`)
+  if (cr.source === 'client') {
+    await notify(tx, { userId: cr.requested_by, actorUserId: actor.userId, type: 'change', title: `Change Request ${id} ${decision === 'approved' ? 'disetujui' : 'ditolak'}`,
+      body: reason || 'Perubahan akan kami laksanakan.', entityType: 'project', entityId: cr.project_id })
+  }
   await recordAudit(tx, { action: `change_request.${decision}`, actorUserId: actor.userId, entityType: 'change_request', entityId: id, requestId, reason: reason || null })
+}
+
+const minor = (v: unknown, field: string, label: string, problems: FieldErrors): string | null => {
+  if (v === undefined || v === null || v === '') return null
+  if (typeof v !== 'string' || !MINOR.test(v) || BigInt(v) > PG_BIGINT_MAX) { problems[field] = [`${label} harus angka bulat ≥ 0, dikirim sebagai teks.`]; return null }
+  return v
+}
+
+/** Staff fill in the impact of a client's request and ask the client to approve it (only when it costs something). */
+export async function sendChangeRequestToClient(tx: Queryable, actor: Actor, id: string, input: Record<string, unknown>, requestId: string) {
+  const problems: FieldErrors = {}
+  const commercial = minor(input.commercialImpactMinor, 'commercialImpactMinor', 'Dampak komersial', problems)
+  const fee = minor(input.cancellationFeeMinor, 'cancellationFeeMinor', 'Biaya pembatalan', problems)
+  const timeline = text(input.timelineImpactNote, 'timelineImpactNote', problems, false, 'Catatan dampak waktu')
+  const operational = text(input.operationalImpact, 'operationalImpact', problems, false, 'Dampak operasional')
+  const financial = text(input.financialImpactNote, 'financialImpactNote', problems, false, 'Catatan dampak finansial')
+  if (!Object.keys(problems).length && BigInt(commercial ?? 0) === 0n && BigInt(fee ?? 0) === 0n)
+    problems.commercialImpactMinor = ['Isi dampak komersial atau biaya pembatalan. Tanpa biaya, setujui langsung.']
+  if (Object.keys(problems).length) throw errors.validation(problems)
+  const cr = await lockRequest(tx, id)
+  if (cr.source !== 'client') throw rule('Hanya change request dari client yang dikirim ke client untuk disetujui.')
+  if (cr.status !== 'submitted' && cr.status !== 'under-review') throw rule('Change request ini sudah diputuskan atau sedang menunggu client.')
+  await tx.query(
+    `update change_requests set status = 'waiting-client-approval', commercial_impact_minor = $2, cancellation_fee_minor = $3,
+            timeline_impact_note = coalesce($4, timeline_impact_note), operational_impact = coalesce($5, operational_impact),
+            financial_impact_note = coalesce($6, financial_impact_note), changed_by_api_at = now(), updated_at = now() where id = $1`,
+    [id, commercial, fee, timeline, operational, financial])
+  await logStep(tx, actor, cr.project_id, id, 'dikirim ke client untuk disetujui', 'change_request.sent_to_client')
+  await notify(tx, { userId: cr.requested_by, actorUserId: actor.userId, type: 'change', title: `Change Request ${id} menunggu persetujuan Anda`,
+    body: `Dampak biaya telah dihitung${timeline ? ` — ${timeline}` : ''}. Mohon setujui atau tolak.`, entityType: 'project', entityId: cr.project_id })
+  await recordAudit(tx, { action: 'change_request.sent_to_client', actorUserId: actor.userId, entityType: 'change_request', entityId: id, requestId,
+    after: { commercialImpactMinor: commercial, cancellationFeeMinor: fee } })
 }
 
 export async function implementChangeRequest(tx: Queryable, actor: Actor, id: string, requestId: string) {

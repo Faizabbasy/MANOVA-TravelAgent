@@ -4,7 +4,7 @@ import type { AuthContext, SessionActor } from '../../auth/context'
 import { assertIdParam, ID_PATTERN, ok, requestIdOf } from '../../http/envelope'
 import { errors } from '../../http/errors'
 import { requireIdempotencyKey, withIdempotency } from '../../shared/idempotency'
-import { createChangeRequest, decideChangeRequest, implementChangeRequest, listChangeRequests, reviewChangeRequest } from './change-requests'
+import { createChangeRequest, decideChangeRequest, implementChangeRequest, listChangeRequests, reviewChangeRequest, sendChangeRequestToClient } from './change-requests'
 import { listBookingCancellations } from './booking-writes'
 import { addIncidentCommunication, changeIncidentStatus, createIncident, escalateIncident, listIncidents, resolveIncident } from './incidents'
 import { getProject } from './repository'
@@ -62,6 +62,13 @@ export function changeRoutes(deps: AppDeps, auth: AuthContext) {
       const actor = await auth.requireCapability(request, REVIEW)
       const id = assertIdParam(params.id, 'Change request')
       await db.transaction(tx => reviewChangeRequest(tx, actor, id, requestIdOf(request)))
+      return ok(request, await requestResponse(id))
+    }, anyBody)
+    // S12b-2: staff send the impact of a client's request (when it costs something) to the client for approval.
+    .post('/change-requests/:id/send-to-client', async ({ request, params, body }) => {
+      const actor = await auth.requireCapability(request, REVIEW)
+      const id = assertIdParam(params.id, 'Change request')
+      await db.transaction(tx => sendChangeRequestToClient(tx, actor, id, (body ?? {}) as Record<string, unknown>, requestIdOf(request)))
       return ok(request, await requestResponse(id))
     }, anyBody)
     .post('/change-requests/:id/approve', async ({ request, params }) => {

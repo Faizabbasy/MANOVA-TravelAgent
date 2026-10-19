@@ -5,6 +5,7 @@ import { recordAudit } from '../../shared/audit'
 import { projectFinanceBlockers, projectFinanceSummary } from '../finance/summaries'
 import { outstandingProjectAssets } from './inventory'
 import { STATUS_TRANSITIONS } from './statuses'
+import { PENDING_CHANGE_STATUSES } from './change-requests'
 
 /** Project Order workflow commands (S3b). Gates whose data lives in the frontend (travelers, itinerary, …) stay in the UI. */
 export { STATUS_TRANSITIONS }
@@ -51,7 +52,7 @@ export async function transition(tx: Queryable, actor: Actor, id: string, to: un
     if (open.length) throw rule(`Masih ada insiden terbuka (${open.map(x => x.id).join(', ')}) — selesaikan dulu sebelum berangkat.`)
   }
   if (to === 'completed') {
-    const pending = await tx.query<{ id: string }>("select id from change_requests where project_id = $1 and status in ('submitted', 'under-review') order by id", [id])
+    const pending = await tx.query<{ id: string }>('select id from change_requests where project_id = $1 and status = any($2::text[]) order by id', [id, PENDING_CHANGE_STATUSES])
     if (pending.length) throw rule(`Masih ada change request yang belum diputuskan (${pending.map(x => x.id).join(', ')}) — putuskan dulu sebelum project selesai.`)
   }
   if (to === 'in-progress' && !p.ready_at) throw rule('Project harus Ready dulu (DP ditagih dan diterima Finance) sebelum berangkat.')

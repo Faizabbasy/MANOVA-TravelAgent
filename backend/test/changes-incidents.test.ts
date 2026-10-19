@@ -27,7 +27,8 @@ describe('change requests', () => {
 
   test('create (idempotent) opens a pending change entry; review, approve and implement decide it once', async () => {
     const k = key()
-    const body = { source: 'client', category: 'itinerary', beforeSummary: 'City tour 1 hari', afterSummary: 'City tour 2 hari', operationalImpact: 'Bus +1 hari', commercialImpactMinor: '2500000', requestedBy: 'USR-999' }
+    // S12b-2: a client request with a cost goes through the client — this internal one is approved directly.
+    const body = { source: 'internal', category: 'itinerary', beforeSummary: 'City tour 1 hari', afterSummary: 'City tour 2 hari', operationalImpact: 'Bus +1 hari', commercialImpactMinor: '2500000', requestedBy: 'USR-999' }
     const res = await call('POST', '/projects/PRJ-103/change-requests', 'admin', body, k)
     expect(res.status).toBe(201)
     const cr = res.json.data as { id: string; status: string; activityId: string; requestedBy: string; commercialImpactMinor: string }
