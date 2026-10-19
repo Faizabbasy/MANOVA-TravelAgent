@@ -45,3 +45,22 @@ describe('vendor service order status', () => {
     expect((await call('POST', `/service-orders/${so.id}/status`, 'client', { to: 'acknowledged' })).status).toBe(404)
   })
 })
+
+describe('vendor products', () => {
+  test('list only own products; add one (idempotent), admins told; body vendorId ignored; validation; other roles refused', async () => {
+    const list = await call('GET', '/vendor/products', 'vendor')
+    expect(list.status).toBe(200)
+    expect((list.json.data as { vendorId: string }[]).every(p => p.vendorId === 'VND-006')).toBe(true)
+    const admin = (await t.db.query<{ id: string }>("select id from users where role = 'admin' and status = 'active' order by id limit 1"))[0]!.id
+    const n0 = await notes(admin)
+    const key = k()
+    const body = { name: 'Paket Kamar Deluxe', category: 'hotel', priceMinor: '1200000', vendorId: 'VND-001' }
+    const created = await call('POST', '/vendor/products', 'vendor', body, key)
+    expect(created.status, JSON.stringify(created.json)).toBe(201)
+    expect(created.json.data).toMatchObject({ vendorId: 'VND-006', name: 'Paket Kamar Deluxe', category: 'hotel', priceMinor: '1200000' })
+    expect((await call('POST', '/vendor/products', 'vendor', body, key)).json.data.id).toBe(created.json.data.id)
+    expect(await notes(admin)).toBe(n0 + 1)
+    expect((await call('POST', '/vendor/products', 'vendor', { name: '', category: 'x' }, k())).status).toBe(400)
+    for (const who of ['admin', 'client', 'finance']) expect((await call('GET', '/vendor/products', who)).status, who).toBe(403)
+  })
+})

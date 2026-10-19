@@ -3,6 +3,7 @@ import type { Queryable } from '../../db/client'
 import { errors } from '../../http/errors'
 import { notifyInternal } from './client-writes'
 import { changeServiceOrderStatus } from './service-orders'
+import { createVendorProduct } from './vendor-writes'
 
 /**
  * Vendor portal (S12d). A vendor confirms (`acknowledged`) or completes (`fulfilled`) its own service orders; sending,
@@ -20,4 +21,14 @@ export async function vendorChangeServiceOrderStatus(tx: Queryable, actor: Actor
     type: 'change', title: `Service Order ${id} ${to === 'acknowledged' ? 'dikonfirmasi' : 'ditandai selesai'} vendor`,
     body: `Vendor mengubah status ${id} (${so.project_name}) menjadi ${to}.`, entityType: 'project', entityId: so.project_id
   })
+}
+
+/** A vendor adds a product to its own catalogue; MANOVA admins (vendor management) are told. */
+export async function vendorCreateProduct(tx: Queryable, actor: Actor, vendorId: string, input: Record<string, unknown>, requestId: string) {
+  const { id } = await createVendorProduct(tx, actor, vendorId, { ...input, vendorId: undefined }, requestId)
+  const admins = await tx.query<{ id: string }>("select id from users where role = 'admin' and status = 'active' order by id")
+  for (const a of admins) {
+    await notifyInternal(tx, actor, a.id, { type: 'change', title: 'Produk vendor baru', body: `${String(input.name).trim()} (${id}) ditambahkan vendor ${vendorId}.`, entityType: 'vendor', entityId: vendorId })
+  }
+  return { id }
 }
