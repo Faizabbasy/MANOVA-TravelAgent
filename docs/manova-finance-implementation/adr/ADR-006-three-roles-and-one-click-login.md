@@ -94,3 +94,9 @@ dilakukan tim internal.
 
 Client mengirim bukti bayar (diverifikasi Finance dengan mencatat penerimaan kas) dan mengajukan perubahan data
 registrasi/pajak/billing/nama perusahaan (ditinjau Admin) lewat server. Tidak ada lagi verifikasi otomatis di portal.
+
+## Update 2026-10-19 — Tiket support & feedback client di server (S12c-2)
+
+Tiket support dan feedback perjalanan dari portal client tersimpan di server. Admin menangani tiket di menu Customer >
+Tiket Support (capability `support.manage-ticket`); Finance hanya diberi tahu untuk tiket kategori billing. Travel
+request & approval portal tetap lokal (S12c-3).

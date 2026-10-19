@@ -333,3 +333,15 @@ menolaknya dengan alasan. Client mengajukan perubahan NPWP / no. registrasi / bi
 lewat `/client/profile/changes`; Admin (`crm.manage-party`) menyetujui (diterapkan lewat `updateParty`) atau menolak.
 Mock verifikasi otomatis di portal dihapus. Layar staf: kartu "Bukti Bayar Masuk" (piutang & invoice sheet),
 "Perubahan Data Menunggu Verifikasi" (detail customer).
+
+## Update 2026-10-19 — Tiket support & feedback perjalanan client (S12c-2)
+
+Migrasi 0041: `support_tickets` (kategori, prioritas, status open → assigned/in-progress/waiting-for-client →
+resolved → closed, reopened), `support_ticket_replies` (`is_internal` untuk catatan staf), `project_feedback` (satu per
+project, draft → submitted → acknowledged/follow-up-required → closed). Client membuat, membalas, mengonfirmasi,
+membuka ulang dan memberi rating tiket lewat `/client/support-tickets`; tiket ber-project ditugaskan ke owner project,
+tanpa project masuk antrean (semua Admin diberi tahu), kategori billing juga memberi tahu Finance. Staf
+(`support.manage-ticket`, Admin) memakai inbox `/support`: tugaskan, ubah status, balas client atau catatan internal
+(tidak pernah dikirim ke client), selesaikan dengan catatan, tutup. Feedback hanya untuk project `ongoing-trip`/
+`completed` (`PUT/POST /client/projects/:id/feedback[/submit]`); CRM (`crm.manage-follow-up`) menerima, menandai
+tindak lanjut (catatan wajib) dan menutup lewat `/feedback/:id/*`. Panel Review & Feedback CRM membaca `GET /feedback`.

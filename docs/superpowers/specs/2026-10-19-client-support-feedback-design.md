@@ -1,6 +1,6 @@
 # Portal client — tiket support & feedback perjalanan di server (S12c-2) — desain
 
-Tanggal: 19 Oktober 2026 · Branch: `production` · Status: disetujui (eksekusi native)
+Tanggal: 19 Oktober 2026 · Branch: `production` · Status: selesai (Task 1–7, eksekusi native)
 
 Tiket support (beserta balasan, konfirmasi, buka ulang, rating) dan feedback perjalanan pindah dari mock lokal ke server,
 dan staf mendapat inbox tiket serta panel feedback yang menulis ke server.
