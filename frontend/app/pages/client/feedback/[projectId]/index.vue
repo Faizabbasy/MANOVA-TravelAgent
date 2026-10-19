@@ -2,30 +2,35 @@
 import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter, onBeforeRouteLeave } from 'vue-router'
 import { FileX, ClipboardList, Compass, HeartHandshake } from 'lucide-vue-next'
-import { getProjectById, getFeedbackByProject, saveFeedbackDraft, submitFeedback } from '~/data'
+import { getProjectById, getFeedbackByProject } from '~/data'
+import { clientSaveFeedback, clientSubmitFeedback } from '~/data/support-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import { FEEDBACK_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate, formatDateRange } from '~/utils/format'
+import type { FeedbackInput } from '~/types/api'
 
 /**
- * Feedback & Evaluation — Form (Repair Phase Section 7, Master Prompt bagian 17). Save Draft/Submit reuse
- * `saveFeedbackDraft`/`submitFeedback` (`app/data/index.ts`) — submit menaut ADITIF ke
- * `ProjectClosureChecklist.feedbackCollected` (`markProjectFeedbackCollected`, TIDAK menyentuh gate
- * `evaluateProjectClosureGate` LOCKED Section 24).
+ * Feedback & Evaluation — Form (Repair Phase Section 7, Master Prompt bagian 17).
+ * S12c-2: Save Draft/Submit disimpan di server (`PUT/POST /client/projects/:id/feedback`); staf CRM meninjaunya di panel Feedback.
  */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
 
 const project = computed(() => getProjectById(String(route.params.projectId)))
 const isOwnCompany = computed(() => Boolean(project.value && clientScopeId.value && project.value.partyId === clientScopeId.value))
 const feedback = computed(() => (project.value ? getFeedbackByProject(project.value.id) : undefined))
 useHead({ title: computed(() => project.value ? `Feedback — ${project.value.name}` : 'Tidak Ditemukan') })
 
-const isReadonly = computed(() => Boolean(feedback.value && feedback.value.status !== 'draft' && feedback.value.status !== 'not-started'))
+/** S12c-2: feedback opens once the trip has started (the server refuses earlier). */
+const hasDeparted = computed(() => project.value?.status === 'ongoing-trip' || project.value?.status === 'completed')
+const isSubmitted = computed(() => Boolean(feedback.value && feedback.value.status !== 'draft' && feedback.value.status !== 'not-started'))
+const isReadonly = computed(() => isSubmitted.value || !hasDeparted.value)
 
 const form = ref({
   overallExperience: undefined as number | undefined,
@@ -48,6 +53,9 @@ const form = ref({
 const isDirty = ref(false)
 
 type RatingFieldKey = Exclude<keyof typeof form.value, 'recommendationScore' | 'comment' | 'improvementSuggestion' | 'testimonialConsent'>
+const SCORE_KEYS: (RatingFieldKey | 'recommendationScore')[] = ['overallExperience', 'salesResponsiveness', 'proposalQuality', 'itineraryQuality', 'hotelRating',
+  'transportationRating', 'tourLeaderRating', 'operationSupportRating', 'reservationHandlingRating', 'communicationRating', 'issueResolutionRating',
+  'valueForMoneyRating', 'recommendationScore']
 
 const RATING_GROUPS: { title: string; icon: typeof ClipboardList; fields: { key: RatingFieldKey; label: string }[] }[] = [
   {
@@ -113,22 +121,32 @@ watch(feedback, (value) => {
 
 const isValid = computed(() => form.value.overallExperience !== undefined && form.value.recommendationScore !== undefined)
 
-function buildInput () {
-  if (!project.value || !clientScopeId.value) { return undefined }
-  return { projectId: project.value.id, clientPartyId: clientScopeId.value, submittedBy: currentUser.value.id, ...form.value }
+/** Every field is sent; an empty score or text clears what the draft had. */
+function buildInput (): FeedbackInput {
+  const values = form.value
+  return {
+    ...Object.fromEntries(SCORE_KEYS.map(key => [key, values[key] ?? null])),
+    comment: values.comment.trim() || null,
+    improvementSuggestion: values.improvementSuggestion.trim() || null,
+    testimonialConsent: values.testimonialConsent
+  }
 }
 
-function handleSaveDraft () {
-  const input = buildInput()
-  if (!input) { return }
-  const result = saveFeedbackDraft(input)
+async function handleSaveDraft () {
+  if (!project.value || isReadonly.value) { return }
+  const projectId = project.value.id
+  const result = await gate.run('Draft Gagal Disimpan', () => clientSaveFeedback(api, projectId, buildInput()))
   if (result) { isDirty.value = false; showToast('Draft Tersimpan', 'Feedback Anda tersimpan sebagai draft.', 'success') }
 }
 
-function handleSubmit () {
-  const input = buildInput()
-  if (!input || !isValid.value) { return }
-  const result = submitFeedback(input)
+/** The server submits what the draft holds, so the form is saved first. */
+async function handleSubmit () {
+  if (!project.value || isReadonly.value || !isValid.value) { return }
+  const projectId = project.value.id
+  const result = await gate.run('Feedback Gagal Dikirim', async () => {
+    await clientSaveFeedback(api, projectId, buildInput())
+    return clientSubmitFeedback(api, projectId)
+  })
   if (result) { isDirty.value = false; showToast('Feedback Terkirim', 'Terima kasih atas penilaian Anda.', 'success') }
 }
 
@@ -163,7 +181,13 @@ onBeforeRouteLeave(() => {
         </template>
       </PageHeader>
 
-      <div v-if="isReadonly" class="rounded-lg border border-border bg-muted/30 px-4 py-3">
+      <div v-if="!hasDeparted && !isSubmitted" class="rounded-lg border border-border bg-muted/30 px-4 py-3">
+        <p class="text-sm text-foreground">
+          Feedback bisa diisi setelah perjalanan dimulai{{ project.travelStartDate ? ` (${formatDate(project.travelStartDate)})` : '' }}.
+        </p>
+      </div>
+
+      <div v-if="isSubmitted" class="rounded-lg border border-border bg-muted/30 px-4 py-3">
         <p class="text-sm text-foreground">
           Feedback telah dikirim{{ feedback?.submittedAt ? ` pada ${formatDate(feedback.submittedAt)}` : '' }} dan tidak dapat diubah lagi.
         </p>
@@ -238,10 +262,10 @@ onBeforeRouteLeave(() => {
         </label>
 
         <div v-if="!isReadonly" class="flex flex-wrap gap-2 mt-6 pt-4 border-t border-border">
-          <Button variant="outline" @click="handleSaveDraft">
+          <Button variant="outline" :disabled="gate.saving.value" @click="handleSaveDraft">
             Save Draft
           </Button>
-          <Button :disabled="!isValid" @click="handleSubmit">
+          <Button :disabled="gate.saving.value || !isValid" @click="handleSubmit">
             Submit
           </Button>
         </div>

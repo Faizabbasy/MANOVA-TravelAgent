@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 
 /**
  * S12b-1 / S12d: these client and vendor portal screens write through the server — the local mutators must not come back. The rest of the
- * portal (travel requests, approvals, support, feedback, payment proofs… — S12c) still writes locally and is excluded
+ * portal (travel requests, approvals… — S12c) still writes locally and is excluded
  * from `no-local-sales.test.ts` as a whole.
  */
 const FILES = [
@@ -23,7 +23,11 @@ const FILES = [
   'pages/client/change-requests/[id]/index.vue',
   'pages/client/quotations/[id]/index.vue',
   // S12c-1: payment proofs, invoice viewed and sensitive profile changes.
-  'pages/client/billing/index.vue'
+  'pages/client/billing/index.vue',
+  // S12c-2: support tickets and trip feedback.
+  'components/client/SupportListPanel.vue',
+  'pages/client/support/[id]/index.vue',
+  'pages/client/feedback/[projectId]/index.vue'
 ]
 const FORBIDDEN = [
   'createTraveler(', 'updateTraveler(', 'cancelTraveler(', 'replaceTraveler(', 'commitTravelerImport(', 'setTravelerVip(',
@@ -33,7 +37,9 @@ const FORBIDDEN = [
   'createVendorProduct(',
   'createChangeRequest(', 'submitChangeRequestDraft(', 'approveChangeRequestImpact(', 'rejectChangeRequestImpact(', 'cancelChangeRequest(',
   'runChangeRequestMockReview(', 'requestQuotationRevision(', 'createPartyActivity(',
-  'submitPaymentProof(', 'runPaymentVerificationMock(', 'markInvoiceViewed(', 'submitSensitiveCompanyProfileChange(', 'runCompanyProfileVerificationMock('
+  'submitPaymentProof(', 'runPaymentVerificationMock(', 'markInvoiceViewed(', 'submitSensitiveCompanyProfileChange(', 'runCompanyProfileVerificationMock(',
+  'createSupportTicket(', 'replySupportTicket(', 'confirmSupportTicketResolution(', 'reopenSupportTicket(', 'rateSupportTicketResolution(',
+  'saveFeedbackDraft(', 'submitFeedback('
 ]
 const used = (source: string, name: string) => new RegExp(`(?<![.\\w])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(source)
 

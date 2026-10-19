@@ -2,7 +2,9 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { Search, Plus, LifeBuoy, AlertTriangle } from 'lucide-vue-next'
-import { getProjectsByParty, getSupportTicketsByParty, createSupportTicket, getSupportTicketSlaDueDate, isSupportTicketSlaBreached } from '~/data'
+import { getProjectsByParty, getSupportTicketsByParty, getSupportTicketSlaDueDate, isSupportTicketSlaBreached } from '~/data'
+import { clientCreateTicket } from '~/data/support-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import { SUPPORT_TICKET_CATEGORIES, SUPPORT_TICKET_PRIORITIES, SUPPORT_TICKET_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate } from '~/utils/format'
 import type { SupportTicketCategory, SupportTicketPriority, SupportTicketStatus } from '~/types/support'
@@ -15,8 +17,9 @@ import type { SupportTicketCategory, SupportTicketPriority, SupportTicketStatus 
  */
 const route = useRoute()
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
+const api = useApi()
 const { showToast } = useToast()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
 
 const projects = computed(() => (clientScopeId.value ? getProjectsByParty(clientScopeId.value) : []))
 const tickets = computed(() => (clientScopeId.value ? getSupportTicketsByParty(clientScopeId.value) : []))
@@ -67,20 +70,19 @@ onMounted(() => {
   }
 })
 
-function submitTicket () {
+async function submitTicket () {
   if (!clientScopeId.value || !formSubject.value.trim() || !formDescription.value.trim()) { return }
-  const ticket = createSupportTicket({
-    clientPartyId: clientScopeId.value,
-    projectId: formProjectId.value || undefined,
+  const ticket = await gate.run('Ticket Gagal Dikirim', () => clientCreateTicket(api, {
+    projectId: formProjectId.value || null,
     category: formCategory.value,
     priority: formPriority.value,
     subject: formSubject.value.trim(),
     description: formDescription.value.trim(),
-    createdBy: currentUser.value.id,
-    attachmentName: formAttachmentName.value.trim() || undefined
-  })
+    ...(formAttachmentName.value.trim() ? { attachmentName: formAttachmentName.value.trim() } : {})
+  }))
+  if (!ticket) { return }
   isFormOpen.value = false
-  if (ticket) { showToast('Ticket Terkirim', `${ticket.id} telah ditugaskan ke tim kami.`, 'success') }
+  showToast('Ticket Terkirim', ticket.assignedToName ? `${ticket.id} ditangani ${ticket.assignedToName}.` : `${ticket.id} masuk antrean tim kami.`, 'success')
 }
 </script>
 
@@ -105,53 +107,53 @@ function submitTicket () {
           </Button>
         </template>
         <div class="space-y-4 py-2">
+          <div class="space-y-1.5">
+            <Label for="tck-project">Project Order (opsional)</Label>
+            <select id="tck-project" v-model="formProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+              <option value="">
+                Tidak terkait project tertentu
+              </option>
+              <option v-for="project in projects" :key="project.id" :value="project.id">
+                {{ project.name }}
+              </option>
+            </select>
+          </div>
+          <div class="grid grid-cols-2 gap-3">
             <div class="space-y-1.5">
-              <Label for="tck-project">Project Order (opsional)</Label>
-              <select id="tck-project" v-model="formProjectId" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                <option value="">
-                  Tidak terkait project tertentu
-                </option>
-                <option v-for="project in projects" :key="project.id" :value="project.id">
-                  {{ project.name }}
+              <Label for="tck-category">Kategori</Label>
+              <select id="tck-category" v-model="formCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option v-for="option in SUPPORT_TICKET_CATEGORIES" :key="option.value" :value="option.value">
+                  {{ option.label }}
                 </option>
               </select>
             </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div class="space-y-1.5">
-                <Label for="tck-category">Kategori</Label>
-                <select id="tck-category" v-model="formCategory" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="option in SUPPORT_TICKET_CATEGORIES" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </div>
-              <div class="space-y-1.5">
-                <Label for="tck-priority">Priority</Label>
-                <select id="tck-priority" v-model="formPriority" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
-                  <option v-for="option in SUPPORT_TICKET_PRIORITIES" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </div>
-            </div>
             <div class="space-y-1.5">
-              <Label for="tck-subject">Subjek</Label>
-              <Input id="tck-subject" v-model="formSubject" placeholder="mis. Kendala reservasi hotel" />
-            </div>
-            <div class="space-y-1.5">
-              <Label for="tck-description">Deskripsi</Label>
-              <textarea id="tck-description" v-model="formDescription" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
-            </div>
-            <div class="space-y-1.5">
-              <Label for="tck-attachment">Lampiran (opsional, mock)</Label>
-              <Input id="tck-attachment" v-model="formAttachmentName" placeholder="mis. foto-bukti.jpg" />
+              <Label for="tck-priority">Priority</Label>
+              <select id="tck-priority" v-model="formPriority" class="w-full appearance-none px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring cursor-pointer">
+                <option v-for="option in SUPPORT_TICKET_PRIORITIES" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
             </div>
           </div>
+          <div class="space-y-1.5">
+            <Label for="tck-subject">Subjek</Label>
+            <Input id="tck-subject" v-model="formSubject" placeholder="mis. Kendala reservasi hotel" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="tck-description">Deskripsi</Label>
+            <textarea id="tck-description" v-model="formDescription" rows="3" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" />
+          </div>
+          <div class="space-y-1.5">
+            <Label for="tck-attachment">Lampiran (opsional, mock)</Label>
+            <Input id="tck-attachment" v-model="formAttachmentName" placeholder="mis. foto-bukti.jpg" />
+          </div>
+        </div>
         <template #footer>
           <Button variant="outline" @click="isFormOpen = false">
             Batal
           </Button>
-          <Button :disabled="!formSubject.trim() || !formDescription.trim()" @click="submitTicket">
+          <Button :disabled="gate.saving.value || !formSubject.trim() || !formDescription.trim()" @click="submitTicket">
             Kirim
           </Button>
         </template>

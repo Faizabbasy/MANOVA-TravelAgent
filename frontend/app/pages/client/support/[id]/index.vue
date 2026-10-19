@@ -4,58 +4,70 @@ import { useRoute, useRouter } from 'vue-router'
 import { FileX, AlertTriangle, Star } from 'lucide-vue-next'
 import {
   getSupportTicketById, getSupportTicketReplies, getProjectById, getUserById,
-  replySupportTicket, confirmSupportTicketResolution, reopenSupportTicket, rateSupportTicketResolution,
   getSupportTicketSlaDueDate, isSupportTicketSlaBreached
 } from '~/data'
+import { clientConfirmTicket, clientRateTicket, clientReopenTicket, clientReplyTicket } from '~/data/support-sync'
+import { createSaveGate } from '~/lib/save-gate'
 import { SUPPORT_TICKET_CATEGORIES, SUPPORT_TICKET_PRIORITIES, SUPPORT_TICKET_STATUSES, findStatusOption } from '~/constants/status'
 import { formatDate, formatDateTime } from '~/utils/format'
 
-/** Issues & Support — Detail (Repair Phase Section 6, Master Prompt bagian 14). Emergency ticket ditandai visual menonjol (banner merah) sesuai Wajib "Emergency ticket harus menonjol secara UI". */
+/**
+ * Issues & Support — Detail (Repair Phase Section 6, Master Prompt bagian 14). Emergency ticket ditandai visual menonjol (banner merah) sesuai Wajib "Emergency ticket harus menonjol secara UI".
+ * S12c-2: balasan, konfirmasi, buka ulang dan rating disimpan di server dulu; catatan internal staf tidak pernah sampai ke sini.
+ */
 definePageMeta({ layout: 'dashboard', middleware: 'auth' })
 
 const route = useRoute()
 const router = useRouter()
 const { canView, clientScopeId } = usePermissions()
-const { currentUser } = useCurrentUser()
 const { showToast } = useToast()
+const api = useApi()
+const gate = createSaveGate((title, message, tone) => showToast(title, message, tone))
 
 const ticket = computed(() => getSupportTicketById(String(route.params.id)))
 const isOwnCompany = computed(() => Boolean(ticket.value && clientScopeId.value && ticket.value.clientPartyId === clientScopeId.value))
 useHead({ title: computed(() => ticket.value ? ticket.value.subject : 'Tidak Ditemukan') })
 
 const project = computed(() => (ticket.value?.projectId ? getProjectById(ticket.value.projectId) : undefined))
-const assignedPic = computed(() => (ticket.value?.assignedTo ? getUserById(ticket.value.assignedTo) : undefined))
-const replies = computed(() => (ticket.value ? getSupportTicketReplies(ticket.value.id) : []))
+const assignedPicName = computed(() => ticket.value?.assignedToName ?? (ticket.value?.assignedTo ? getUserById(ticket.value.assignedTo)?.name : undefined))
+const replies = computed(() => (ticket.value ? getSupportTicketReplies(ticket.value.id).filter(reply => !reply.internal) : []))
+const replyAuthor = (reply: { authorName?: string; authorId: string }) => reply.authorName ?? getUserById(reply.authorId)?.name ?? reply.authorId
 
 const newReply = ref('')
 const newAttachmentName = ref('')
-function submitReply () {
+async function submitReply () {
   if (!ticket.value || !newReply.value.trim()) { return }
-  replySupportTicket(ticket.value.id, currentUser.value.id, newReply.value.trim(), newAttachmentName.value.trim() || undefined)
+  const id = ticket.value.id
+  const saved = await gate.run('Balasan Gagal Dikirim', () => clientReplyTicket(api, id, newReply.value.trim(), newAttachmentName.value.trim() || undefined))
+  if (!saved) { return }
   newReply.value = ''
   newAttachmentName.value = ''
   showToast('Balasan Terkirim', 'Balasan Anda telah ditambahkan ke ticket.', 'success')
 }
 
-function handleConfirmResolution () {
+async function handleConfirmResolution () {
   if (!ticket.value) { return }
-  const result = confirmSupportTicketResolution(ticket.value.id)
+  const id = ticket.value.id
+  const result = await gate.run('Konfirmasi Gagal', () => clientConfirmTicket(api, id))
   if (result) { showToast('Ticket Ditutup', 'Terima kasih telah mengonfirmasi penyelesaian.', 'success') }
 }
 
 const isReopenOpen = ref(false)
 const reopenReason = ref('')
-function submitReopen () {
+async function submitReopen () {
   if (!ticket.value || !reopenReason.value.trim()) { return }
-  const result = reopenSupportTicket(ticket.value.id, currentUser.value.id, reopenReason.value.trim())
+  const id = ticket.value.id
+  const result = await gate.run('Ticket Gagal Dibuka Kembali', () => clientReopenTicket(api, id, reopenReason.value.trim()))
+  if (!result) { return }
   reopenReason.value = ''
   isReopenOpen.value = false
-  if (result) { showToast('Ticket Dibuka Kembali', 'Tim kami akan meninjau kembali permintaan Anda.', 'info') }
+  showToast('Ticket Dibuka Kembali', 'Tim kami akan meninjau kembali permintaan Anda.', 'info')
 }
 
-function handleRate (rating: number) {
+async function handleRate (rating: number) {
   if (!ticket.value) { return }
-  const result = rateSupportTicketResolution(ticket.value.id, rating)
+  const id = ticket.value.id
+  const result = await gate.run('Rating Gagal Disimpan', () => clientRateTicket(api, id, rating))
   if (result) { showToast('Terima Kasih', 'Rating Anda telah tercatat.', 'success') }
 }
 </script>
@@ -97,7 +109,7 @@ function handleRate (rating: number) {
             { label: 'Kategori', value: findStatusOption(SUPPORT_TICKET_CATEGORIES, ticket.category).label },
             { label: 'Project', value: project?.name ?? 'Tidak terkait project tertentu' },
             { label: 'Dibuat', value: formatDate(ticket.createdAt) },
-            { label: 'Assigned PIC', value: assignedPic?.name ?? 'Belum ditugaskan' },
+            { label: 'Assigned PIC', value: assignedPicName ?? 'Antrean tim kami' },
             { label: 'SLA Target', value: formatDate(getSupportTicketSlaDueDate(ticket)) },
           ]"
         />
@@ -120,7 +132,7 @@ function handleRate (rating: number) {
           Diselesaikan {{ formatDate(ticket.resolvedAt) }}
         </p>
         <div class="flex flex-wrap items-center gap-3 mt-4">
-          <Button v-if="ticket.status === 'resolved'" size="sm" @click="handleConfirmResolution">
+          <Button v-if="ticket.status === 'resolved'" size="sm" :disabled="gate.saving.value" @click="handleConfirmResolution">
             Confirm Resolution
           </Button>
           <ResponsiveFormSheet v-model:open="isReopenOpen" title="Reopen Ticket" description="Alasan wajib diisi." content-class="max-w-md">
@@ -137,14 +149,21 @@ function handleRate (rating: number) {
               <Button variant="outline" @click="isReopenOpen = false">
                 Batal
               </Button>
-              <Button :disabled="!reopenReason.trim()" @click="submitReopen">
+              <Button :disabled="gate.saving.value || !reopenReason.trim()" @click="submitReopen">
                 Reopen
               </Button>
             </template>
           </ResponsiveFormSheet>
           <div class="flex items-center gap-1">
             <span class="text-xs text-muted-foreground mr-1">Rating:</span>
-            <button v-for="star in 5" :key="star" type="button" :aria-label="`Beri rating ${star} bintang`" @click="handleRate(star)">
+            <button
+              v-for="star in 5"
+              :key="star"
+              type="button"
+              :disabled="gate.saving.value"
+              :aria-label="`Beri rating ${star} bintang`"
+              @click="handleRate(star)"
+            >
               <Star :class="['h-4 w-4', (ticket.resolutionRating ?? 0) >= star ? 'fill-warning text-warning' : 'text-muted-foreground']" />
             </button>
           </div>
@@ -161,16 +180,19 @@ function handleRate (rating: number) {
               📎 {{ reply.attachmentName }}
             </p>
             <p class="text-xs text-muted-foreground mt-1">
-              {{ getUserById(reply.authorId)?.name ?? reply.authorId }} · {{ formatDateTime(reply.createdAt) }}
+              {{ replyAuthor(reply) }} · {{ formatDateTime(reply.createdAt) }}
             </p>
           </li>
         </ul>
         <EmptyState v-else title="Belum ada balasan" />
-        <div class="border-t border-border pt-4 space-y-2">
+        <p v-if="ticket.status === 'closed'" class="border-t border-border pt-4 text-xs text-muted-foreground">
+          Ticket sudah ditutup — buka kembali bila masalah belum selesai.
+        </p>
+        <div v-else class="border-t border-border pt-4 space-y-2">
           <textarea v-model="newReply" rows="2" class="w-full px-3 py-2 text-sm rounded-lg border border-input bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="Tulis balasan..." />
           <div class="flex flex-col sm:flex-row gap-2">
             <Input v-model="newAttachmentName" placeholder="Lampiran (opsional, mock)" class="flex-1" />
-            <Button size="sm" :disabled="!newReply.trim()" @click="submitReply">
+            <Button size="sm" :disabled="gate.saving.value || !newReply.trim()" @click="submitReply">
               Kirim
             </Button>
           </div>
